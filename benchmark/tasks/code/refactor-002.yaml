@@ -1,0 +1,70 @@
+# Code Generation Task: Refactor class hierarchy
+task:
+  id: "code-refactor-002"
+  category: "code_generation"
+  subcategory: "refactor"
+  
+  prompt: |
+    Refactor this code to use composition instead of inheritance:
+    
+    ```python
+    class Animal:
+        def __init__(self, name: str):
+            self.name = name
+        
+        def speak(self) -> str:
+            raise NotImplementedError
+        
+        def move(self) -> str:
+            raise NotImplementedError
+    
+    class FlyingAnimal(Animal):
+        def move(self) -> str:
+            return f"{self.name} flies"
+    
+    class SwimmingAnimal(Animal):
+        def move(self) -> str:
+            return f"{self.name} swims"
+    
+    class WalkingAnimal(Animal):
+        def move(self) -> str:
+            return f"{self.name} walks"
+    
+    class Duck(FlyingAnimal, SwimmingAnimal, WalkingAnimal):
+        # Diamond inheritance problem!
+        def speak(self) -> str:
+            return f"{self.name} says quack"
+    
+    class Penguin(SwimmingAnimal, WalkingAnimal):
+        def speak(self) -> str:
+            return f"{self.name} says honk"
+    ```
+    
+    Refactor using:
+    - Protocol classes for type checking
+    - Composition for behavior
+    - Dataclasses or attrs for clean initialization
+  
+  lens: "helper.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "design"
+        weight: 0.35
+        criteria: "Composition over inheritance properly applied"
+      - dimension: "correctness"
+        weight: 0.25
+        criteria: "Behavior preserved, types correct"
+      - dimension: "extensibility"
+        weight: 0.2
+        criteria: "Easy to add new animals and behaviors"
+      - dimension: "style"
+        weight: 0.2
+        criteria: "Modern Python patterns used"
+    
+    must_contain:
+      - "Protocol"
+      - "dataclass"
+    
+    must_not_contain:
+      - "class Duck(FlyingAnimal"

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Sunwell launcher - automatically uses free-threaded Python if available
+
+# Prefer python3.14t (free-threaded) for optimal performance
+PYTHON_FT="/usr/local/bin/python3.14t"
+PYTHON_FALLBACK="python3"
+
+if [ -x "$PYTHON_FT" ]; then
+    exec "$PYTHON_FT" -m sunwell "$@"
+else
+    echo "⚠️  Free-threaded Python not found at $PYTHON_FT"
+    echo "   Using standard Python (reduced parallelism)"
+    echo "   Install Python 3.14t for 5-10x speedup on CPU-bound tasks"
+    echo ""
+    exec "$PYTHON_FALLBACK" -m sunwell "$@"
+fi

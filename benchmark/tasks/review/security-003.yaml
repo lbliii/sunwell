@@ -1,0 +1,69 @@
+# Code Review Task: JWT vulnerabilities
+task:
+  id: "review-security-003"
+  category: "code_review"
+  subcategory: "security"
+  
+  prompt: |
+    Review this JWT implementation for security issues:
+    
+    ```python
+    import jwt
+    import os
+    
+    SECRET_KEY = "my-secret-key"
+    
+    def create_token(user_id: int, role: str) -> str:
+        payload = {
+            "user_id": user_id,
+            "role": role,
+        }
+        return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    
+    def verify_token(token: str) -> dict:
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256", "none"])
+            return payload
+        except jwt.InvalidTokenError:
+            return None
+    
+    def admin_only(f):
+        def wrapper(request, *args, **kwargs):
+            token = request.headers.get('Authorization', '').replace('Bearer ', '')
+            payload = verify_token(token)
+            if payload and payload.get('role') == 'admin':
+                return f(request, *args, **kwargs)
+            return HttpResponse("Unauthorized", status=403)
+        return wrapper
+    ```
+    
+    Identify security vulnerabilities and provide fixes.
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.4
+        criteria: "Identifies algorithm confusion, hardcoded secret, missing expiry"
+      - dimension: "actionability"
+        weight: 0.3
+        criteria: "Provides secure implementation example"
+      - dimension: "explanation_quality"
+        weight: 0.2
+        criteria: "Explains each vulnerability's impact"
+      - dimension: "false_positive_rate"
+        weight: 0.1
+        criteria: "Accurate assessment"
+    
+    must_contain:
+      - "none"
+      - "algorithm"
+      - "secret"
+      - "exp"
+    
+    ground_truth_issues:
+      - "Algorithm confusion attack (allows 'none')"
+      - "Hardcoded secret key"
+      - "No token expiration"
+      - "No token refresh mechanism"

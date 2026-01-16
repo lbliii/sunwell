@@ -1,0 +1,98 @@
+[
+  {
+    "task_id": "review-bugs-001",
+    "overall_winner": "bare",
+    "selective_wins": false,
+    "deterministic": {
+      "bare": {
+        "passed": false,
+        "must_contain": {
+          "race condition": false,
+          "thread": true,
+          "atomic": false
+        },
+        "must_not_contain": {}
+      },
+      "flat": {
+        "passed": false,
+        "must_contain": {
+          "race condition": false,
+          "thread": true,
+          "atomic": false
+        },
+        "must_not_contain": {}
+      },
+      "selective": {
+        "passed": false,
+        "must_contain": {
+          "race condition": false,
+          "thread": true,
+          "atomic": false
+        },
+        "must_not_contain": {}
+      }
+    },
+    "judge_results": {
+      "selective_vs_bare": {
+        "winner": "a",
+        "avg_score_a": 8.583333333333334,
+        "avg_score_b": 7.5,
+        "agreement_rate": 0.6666666666666666
+      },
+      "selective_vs_flat": {
+        "winner": "a",
+        "avg_score_a": 8.333333333333334,
+        "avg_score_b": 7.166666666666667,
+        "agreement_rate": 0.6666666666666666
+      }
+    }
+  },
+  {
+    "task_id": "review-perf-001",
+    "overall_winner": "tie",
+    "selective_wins": false,
+    "deterministic": {
+      "bare": {
+        "passed": false,
+        "must_contain": {
+          "O(n": true,
+          "set": true,
+          "Counter": false
+        },
+        "must_not_contain": {}
+      },
+      "flat": {
+        "passed": true,
+        "must_contain": {
+          "O(n": true,
+          "set": true,
+          "Counter": true
+        },
+        "must_not_contain": {}
+      },
+      "selective": {
+        "passed": true,
+        "must_contain": {
+          "O(n": true,
+          "set": true,
+          "Counter": true
+        },
+        "must_not_contain": {}
+      }
+    },
+    "judge_results": {
+      "selective_vs_bare": {
+        "winner": "tie",
+        "avg_score_a": 19.772727272727273,
+        "avg_score_b": 18.227272727272727,
+        "agreement_rate": 0.6666666666666666
+      },
+      "selective_vs_flat": {
+        "winner": "tie",
+        "avg_score_a": 12.789473684210526,
+        "avg_score_b": 11.68421052631579,
+        "agreement_rate": 1.0
+      }
+    }
+  }
+]

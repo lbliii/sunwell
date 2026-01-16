@@ -1,0 +1,45 @@
+# Documentation Task: How-to for database migrations
+task:
+  id: "docs-howto-001"
+  category: "documentation"
+  subcategory: "howto"
+  
+  prompt: |
+    Write a how-to guide for running database migrations safely in production.
+    
+    The guide should help developers:
+    - Run migrations without downtime
+    - Rollback if something goes wrong
+    - Handle large table migrations
+    
+    Use Alembic for the examples.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "goal_clarity"
+        weight: 0.25
+        criteria: "Clear statement of what will be accomplished"
+      - dimension: "practical_steps"
+        weight: 0.3
+        criteria: "Actionable steps with exact commands"
+      - dimension: "troubleshooting"
+        weight: 0.25
+        criteria: "Covers rollback and error recovery"
+      - dimension: "best_practices"
+        weight: 0.2
+        criteria: "Includes safety recommendations"
+    
+    must_contain:
+      - "alembic"
+      - "upgrade"
+      - "downgrade"
+      - "backup"
+      - "rollback"
+    
+    must_not_contain:
+      - "powerful"
+      - "easy"
+      - "simply"
+      - "robust"

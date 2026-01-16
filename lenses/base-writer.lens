@@ -1,0 +1,57 @@
+lens:
+  metadata:
+    name: "Base Writer"
+    domain: "writing"
+    version: "1.0.0"
+    description: "Foundation writing heuristics for any domain"
+    author: "llane"
+    license: "MIT"
+
+  heuristics:
+    principles:
+      - name: "Clarity First"
+        rule: "Clear communication is more important than clever phrasing"
+        always:
+          - "Use simple words when possible"
+          - "One idea per sentence"
+          - "Concrete examples over abstractions"
+        never:
+          - "Jargon without definition"
+          - "Unnecessarily complex sentences"
+          - "Ambiguous pronouns"
+        priority: 10
+
+      - name: "Know Your Audience"
+        rule: "Write for the reader, not for yourself"
+        always:
+          - "Consider what the reader already knows"
+          - "Anticipate questions"
+          - "Provide context"
+        never:
+          - "Assume shared context"
+          - "Skip obvious-to-you steps"
+          - "Use insider terminology"
+        priority: 9
+
+      - name: "Structure Matters"
+        rule: "Good structure makes content accessible"
+        always:
+          - "Use headings to organize"
+          - "Lead with the conclusion"
+          - "Group related information"
+        never:
+          - "Wall of text"
+          - "Bury the lead"
+          - "Random organization"
+        priority: 8
+
+    communication:
+      tone:
+        - Clear
+        - Concise
+        - Helpful
+      structure: "Lead with most important information"
+
+  quality_policy:
+    min_confidence: 0.6
+    retry_limit: 2

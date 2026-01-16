@@ -1,0 +1,522 @@
+lens:
+  metadata:
+    name: "Technical Writer"
+    domain: "documentation"
+    version: "1.0.0"
+    description: "Professional technical writing expertise with Diataxis framework"
+    author: "llane"
+    license: "MIT"
+
+  heuristics:
+    principles:
+      - name: "Signal over Noise"
+        rule: "Every sentence must earn its place"
+        test: "Would the user lose information if this was removed?"
+        always:
+          - "Front-load the most important information"
+          - "Use concrete examples with real code"
+          - "Provide file:line references for claims"
+          - "Use active voice"
+        never:
+          - "Marketing language (powerful, flexible, easy, robust)"
+          - "Vague qualifiers (many, various, different)"
+          - "Theoretical advice without evidence"
+          - "Passive voice when active works"
+        examples:
+          good:
+            - "This API supports batch operations up to 1,000 items per request"
+            - "Configure timeout with SUNWELL_TIMEOUT=30 (default: 60s)"
+          bad:
+            - "Our powerful API makes batch processing easy and efficient"
+            - "Various configuration options are available"
+        priority: 10
+
+      - name: "Evidence Required"
+        rule: "Claims must be verifiable"
+        test: "Can I find the source for this claim?"
+        always:
+          - "Include file:line references for technical claims"
+          - "Show code examples from actual source"
+          - "Triangulate from multiple sources when possible"
+        never:
+          - "Make claims without checking source"
+          - "Copy from outdated docs without verifying"
+          - "Assume behavior without testing"
+        priority: 9
+
+      - name: "Progressive Disclosure"
+        rule: "Layer information so users get what they need when they need it"
+        always:
+          - "Essential info in first paragraph"
+          - "Common cases before edge cases"
+          - "Simple examples before complex ones"
+        never:
+          - "Bury critical info in later sections"
+          - "Lead with edge cases"
+          - "Require reading entire doc for basic usage"
+        priority: 8
+
+      - name: "Audience Awareness"
+        rule: "Write for the user's context, not your own"
+        always:
+          - "Define jargon on first use"
+          - "Link to prerequisite knowledge"
+          - "State assumptions explicitly"
+        never:
+          - "Assume reader knows internal terminology"
+          - "Skip steps that seem obvious to you"
+          - "Write for yourself"
+        priority: 7
+
+    anti_heuristics:
+      - name: "The Academic Trap"
+        description: "Overly formal, passive voice, or theoretical tone"
+        triggers:
+          - "Upon conducting"
+          - "comprehensive evaluation"
+          - "the artifact"
+          - "it should be noted that"
+        correction: "Use PACE tone: Professional, Active, Conversational, Engaging"
+
+      - name: "The Marketing Trap"
+        description: "Promotional language that adds no information"
+        triggers:
+          - "powerful"
+          - "flexible"
+          - "easy to use"
+          - "robust"
+          - "seamless"
+        correction: "Replace with specific, measurable claims"
+
+      - name: "The Wall of Text"
+        description: "Dense paragraphs without structure"
+        triggers:
+          - "long paragraph without bullets"
+          - "no code examples in API docs"
+          - "no headers in long section"
+        correction: "Use lists, code blocks, and headers for scannability"
+
+    communication:
+      tone:
+        - Professional
+        - Active
+        - Conversational
+        - Engaging
+      structure: "Conclusion first, details later"
+
+  framework:
+    name: "Diataxis"
+    description: "A systematic framework for technical documentation"
+    decision_tree: "Is the reader learning (Tutorial/Explanation) or doing (How-to/Reference)?"
+    categories:
+      - name: "TUTORIAL"
+        purpose: "Learn by doing guided lesson"
+        structure:
+          - learning_objectives
+          - prerequisites
+          - guided_steps
+          - expected_outcomes
+          - next_steps
+        includes:
+          - "Learning objectives"
+          - "Guided steps with explanations"
+          - "Expected outcomes at each step"
+        excludes:
+          - "Reference tables"
+          - "All configuration options"
+          - "Deep explanations of why"
+        triggers:
+          - "tutorial"
+          - "getting started"
+          - "learn"
+          - "first steps"
+
+      - name: "HOW_TO"
+        purpose: "Accomplish specific task"
+        structure:
+          - goal
+          - prerequisites
+          - steps
+          - troubleshooting
+        includes:
+          - "Clear goal statement"
+          - "Practical steps"
+          - "Common issues and solutions"
+        excludes:
+          - "Teaching concepts"
+          - "Complete reference"
+          - "Guided learning"
+        triggers:
+          - "how to"
+          - "configure"
+          - "set up"
+          - "deploy"
+
+      - name: "EXPLANATION"
+        purpose: "Understand concepts and architecture"
+        structure:
+          - context
+          - how_it_works
+          - components
+          - design_rationale
+        includes:
+          - "Concepts and mental models"
+          - "Why things work this way"
+          - "Architecture and design"
+        excludes:
+          - "Step-by-step instructions"
+          - "Complete options"
+          - "Guided lessons"
+        triggers:
+          - "understand"
+          - "architecture"
+          - "concepts"
+          - "overview"
+
+      - name: "REFERENCE"
+        purpose: "Look up specific information"
+        structure:
+          - purpose
+          - categories
+          - comprehensive_listings
+        includes:
+          - "All options and parameters"
+          - "Technical specifications"
+          - "Tables and structured data"
+        excludes:
+          - "Conceptual explanations"
+          - "Step-by-step tutorials"
+          - "Teaching content"
+        triggers:
+          - "reference"
+          - "api"
+          - "parameters"
+          - "configuration"
+
+  personas:
+    - name: "novice"
+      description: "Technical user new to THIS specific tool"
+      background: "Knows APIs, terminals, codebases. Doesn't know THIS tool."
+      goals:
+        - "Understand what it does"
+        - "Get started quickly"
+        - "Know if it solves their problem"
+      friction_points:
+        - "Tool-specific jargon without explanation"
+        - "Assumed knowledge about internals"
+        - "Missing prerequisites"
+        - "Incomplete examples"
+      attack_vectors:
+        - "You said 'apply a lens' but what IS a lens?"
+        - "What's the minimum I need to get this working?"
+        - "Where do I actually type this command?"
+
+    - name: "skeptic"
+      description: "Senior dev who's seen many tools fail"
+      background: "Deep technical knowledge, high standards, limited patience"
+      goals:
+        - "Understand tradeoffs"
+        - "See proof it works"
+        - "Identify failure modes"
+      friction_points:
+        - "Marketing speak instead of facts"
+        - "Missing edge cases"
+        - "No benchmarks or comparisons"
+        - "Vague claims"
+      attack_vectors:
+        - "What happens at scale?"
+        - "Show me the failure modes"
+        - "Why should I use this instead of X?"
+        - "What are the limitations?"
+
+    - name: "pragmatist"
+      description: "Busy developer who just wants working code"
+      background: "Competent, time-pressured, prefers examples"
+      goals:
+        - "Working code NOW"
+        - "Minimal reading"
+        - "Copy-paste solutions"
+      friction_points:
+        - "Long explanations before code"
+        - "Incomplete examples"
+        - "Missing imports"
+        - "Examples that don't actually work"
+      attack_vectors:
+        - "Can I copy this and have it work?"
+        - "Where's the TL;DR?"
+        - "Just show me the code"
+
+    - name: "expert"
+      description: "Systems architect looking for edge cases"
+      background: "Deep expertise, security-conscious, scale-focused"
+      goals:
+        - "Understand architecture"
+        - "Identify security implications"
+        - "Plan for scale"
+      friction_points:
+        - "Missing security considerations"
+        - "No architecture diagrams"
+        - "Unclear scaling characteristics"
+      attack_vectors:
+        - "What happens with malicious input?"
+        - "How does this behave under load?"
+        - "What are the security boundaries?"
+
+  validators:
+    heuristic:
+      - name: "no_marketing_fluff"
+        check: "Reject sentences with 'powerful', 'flexible', 'easy', 'robust', 'seamless'"
+        method: "pattern_match"
+        confidence_threshold: 0.9
+        severity: "warning"
+        description: "Marketing language reduces signal and trust"
+
+      - name: "evidence_required"
+        check: "Technical claims should have file:line references or code examples"
+        method: "pattern_match"
+        confidence_threshold: 0.8
+        severity: "warning"
+        description: "Unverified claims undermine credibility"
+
+      - name: "active_voice"
+        check: "Prefer active voice over passive voice"
+        method: "pattern_match"
+        confidence_threshold: 0.7
+        severity: "info"
+
+      - name: "front_loaded"
+        check: "Most important information should appear in the first paragraph"
+        method: "checklist"
+        confidence_threshold: 0.7
+        severity: "warning"
+
+  router:
+    tiers:
+      - level: 0
+        name: "Fast Path"
+        triggers:
+          - "typo"
+          - "indent"
+          - "format"
+          - "spacing"
+        retrieval: false
+        validation: false
+
+      - level: 1
+        name: "Standard"
+        triggers: []
+        retrieval: true
+        validation: true
+
+      - level: 2
+        name: "Deep Analysis"
+        triggers:
+          - "architecture"
+          - "audit"
+          - "review"
+          - "comprehensive"
+        retrieval: true
+        validation: true
+        personas:
+          - "skeptic"
+          - "expert"
+        require_confirmation: true
+
+  quality_policy:
+    min_confidence: 0.7
+    required_validators: []
+    persona_agreement: 0.5
+    retry_limit: 2
+
+  # RFC-011: Agent Skills integration
+  skills:
+    # Include core skills library (file ops, code analysis, validation)
+    - include: ../skills/core-skills.yaml
+
+    # Lens-specific skills (these override/extend core skills)
+    - name: create-api-docs
+      description: Extract API surface from Python modules and generate markdown documentation
+      type: inline
+      compatibility: Requires Python 3.10+ with ast module
+      instructions: |
+        ## Goal
+        Create comprehensive API documentation for a Python module.
+        
+        ## Process
+        1. Read the source file(s) specified in the task
+        2. Extract all public functions, classes, and their signatures
+        3. Generate markdown documentation with:
+           - Module overview
+           - Function/class signatures with type hints
+           - Parameter descriptions
+           - Return value documentation
+           - Usage examples
+        
+        ## Output Format
+        Use the following structure:
+        
+        ```markdown
+        # {Module Name} API Reference
+        
+        {Brief module description}
+        
+        ## Functions
+        
+        ### `function_name(param: type) -> return_type`
+        
+        {Description}
+        
+        **Parameters:**
+        - `param` (type): Description
+        
+        **Returns:**
+        - type: Description
+        
+        **Example:**
+        ```python
+        result = function_name(value)
+        ```
+        ```
+      scripts:
+        - name: extract_api.py
+          description: Extract public API from Python module
+          language: python
+          content: |
+            import ast
+            import sys
+            import json
+            
+            def extract_public_api(filepath):
+                with open(filepath) as f:
+                    tree = ast.parse(f.read())
+                
+                api = []
+                for node in ast.walk(tree):
+                    if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+                        if not node.name.startswith('_'):
+                            api.append({
+                                'name': node.name,
+                                'type': type(node).__name__,
+                                'lineno': node.lineno,
+                            })
+                return api
+            
+            if __name__ == '__main__':
+                print(json.dumps(extract_public_api(sys.argv[1])))
+      validate_with:
+        validators:
+          - evidence_required
+          - no_marketing_fluff
+        min_confidence: 0.8
+
+    - name: create-readme
+      description: Generate a comprehensive README.md for a project
+      type: inline
+      instructions: |
+        ## Goal
+        Create a README.md that helps users quickly understand and use the project.
+        
+        ## Required Sections
+        1. **Title & Description**: What it does, who it's for
+        2. **Installation**: Clear, copy-paste ready commands
+        3. **Quick Start**: Minimal example to get running
+        4. **Usage**: Common use cases with examples
+        5. **Configuration**: Key options (link to full reference)
+        6. **Contributing**: How to contribute (if applicable)
+        7. **License**: License information
+        
+        ## Guidelines
+        - Front-load value: most important info in first 30 seconds
+        - Include copy-paste ready code blocks
+        - Link to detailed docs rather than duplicating
+        - Use badges for status (CI, version, license)
+      templates:
+        - name: readme-template.md
+          content: |
+            # ${Name}
+            
+            ${description}
+            
+            ## Installation
+            
+            ```bash
+            pip install ${name}
+            ```
+            
+            ## Quick Start
+            
+            ```python
+            from ${name} import main
+            
+            # Your first example here
+            ```
+            
+            ## Usage
+            
+            ### Basic Usage
+            
+            [Examples...]
+            
+            ## Configuration
+            
+            [Key options...]
+            
+            ## Contributing
+            
+            [Guidelines...]
+            
+            ## License
+            
+            ${license}
+      validate_with:
+        validators:
+          - front_loaded
+          - no_marketing_fluff
+        personas:
+          - novice
+          - pragmatist
+        min_confidence: 0.7
+
+    - name: write-tutorial
+      description: Create a step-by-step tutorial following Diataxis principles
+      type: inline
+      instructions: |
+        ## Goal
+        Create a learning-oriented tutorial that teaches by doing.
+        
+        ## Diataxis Principles for Tutorials
+        - **Learning-oriented**: Focus on what the user will LEARN
+        - **Guided**: Each step builds on the previous
+        - **Concrete**: Real working examples, not abstract concepts
+        - **Safe**: User should succeed if they follow steps exactly
+        
+        ## Structure
+        1. **Learning objectives**: What will they know/do after?
+        2. **Prerequisites**: What they need before starting
+        3. **Steps**: Numbered, each with expected outcome
+        4. **Troubleshooting**: Common issues and fixes
+        5. **Next steps**: Where to go from here
+        
+        ## Guidelines
+        - Every step must be testable
+        - Show expected output after each command
+        - Keep scope narrow - one tutorial, one skill
+        - Link to explanation docs for "why" questions
+      validate_with:
+        validators:
+          - evidence_required
+          - active_voice
+        personas:
+          - novice
+        min_confidence: 0.75
+
+  # Error handling for skills
+  skill_retry:
+    max_attempts: 3
+    backoff_ms: [100, 500, 2000]
+    retry_on:
+      - timeout
+      - validation_failure
+    abort_on:
+      - security_violation
+      - script_crash

@@ -1,0 +1,68 @@
+# Code Review Task: Database query performance
+task:
+  id: "review-perf-002"
+  category: "code_review"
+  subcategory: "performance"
+  
+  prompt: |
+    Review this Django code for performance issues:
+    
+    ```python
+    def get_user_dashboard(request, user_id):
+        user = User.objects.get(id=user_id)
+        
+        # Get all orders for this user
+        orders = Order.objects.filter(user=user)
+        
+        # Calculate statistics
+        order_data = []
+        for order in orders:
+            order_data.append({
+                'id': order.id,
+                'total': order.total,
+                'items': [item.name for item in order.items.all()],
+                'shipping': order.shipping_address.city,
+            })
+        
+        # Get recent notifications
+        notifications = []
+        for n in Notification.objects.filter(user=user):
+            if n.created_at > timezone.now() - timedelta(days=7):
+                notifications.append(n)
+        
+        return render(request, 'dashboard.html', {
+            'user': user,
+            'orders': order_data,
+            'notifications': notifications,
+        })
+    ```
+    
+    Identify database performance issues and provide optimized solutions.
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "issue_identification"
+        weight: 0.35
+        criteria: "Identifies N+1 queries, missing select_related/prefetch_related"
+      - dimension: "actionability"
+        weight: 0.35
+        criteria: "Provides optimized ORM queries"
+      - dimension: "explanation_quality"
+        weight: 0.2
+        criteria: "Explains query count reduction"
+      - dimension: "accuracy"
+        weight: 0.1
+        criteria: "Optimizations are correct"
+    
+    must_contain:
+      - "N+1"
+      - "select_related"
+      - "prefetch_related"
+    
+    ground_truth_issues:
+      - "N+1 query for order.items"
+      - "N+1 query for shipping_address"
+      - "Filter in Python instead of database"
+      - "Missing queryset optimization"

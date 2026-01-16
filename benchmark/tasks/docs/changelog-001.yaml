@@ -1,0 +1,49 @@
+# Documentation Task: Changelog entry for major release
+task:
+  id: "docs-changelog-001"
+  category: "documentation"
+  subcategory: "changelog"
+  
+  prompt: |
+    Write a changelog entry for version 2.0.0 of a Python data processing library.
+    
+    Changes in this release:
+    - Async API: All I/O operations are now async
+    - Breaking: `process()` renamed to `transform()`
+    - Breaking: Removed deprecated `legacy_mode` parameter
+    - New: Plugin system for custom transformers
+    - New: Streaming support for large files
+    - Fix: Memory leak when processing very large datasets
+    - Fix: Incorrect encoding detection for UTF-16 files
+    
+    Follow Keep a Changelog format.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "user_impact"
+        weight: 0.3
+        criteria: "Clear explanation of how changes affect users"
+      - dimension: "breaking_changes"
+        weight: 0.3
+        criteria: "Breaking changes clearly marked and migration path provided"
+      - dimension: "completeness"
+        weight: 0.2
+        criteria: "All changes listed in appropriate categories"
+      - dimension: "structure"
+        weight: 0.2
+        criteria: "Follows Keep a Changelog format correctly"
+    
+    must_contain:
+      - "2.0.0"
+      - "Breaking"
+      - "async"
+      - "transform"
+      - "plugin"
+      - "migration"
+    
+    must_not_contain:
+      - "powerful"
+      - "easy"
+      - "exciting"

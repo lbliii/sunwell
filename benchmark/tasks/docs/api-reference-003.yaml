@@ -1,0 +1,87 @@
+# Documentation Task: API Reference for dataclass with validation
+task:
+  id: "docs-api-ref-003"
+  category: "documentation"
+  subcategory: "api_reference"
+  
+  prompt: |
+    Write API reference documentation for this Python dataclass:
+    
+    ```python
+    from dataclasses import dataclass
+    from typing import Literal
+    
+    @dataclass(frozen=True)
+    class DatabaseConfig:
+        """Database connection configuration.
+        
+        Validates inputs on creation. Use from_env() for production.
+        """
+        
+        host: str
+        port: int = 5432
+        database: str = "default"
+        user: str = "app"
+        password: str = ""
+        ssl_mode: Literal["disable", "require", "verify-full"] = "require"
+        pool_size: int = 10
+        connect_timeout: int = 30
+        
+        def __post_init__(self) -> None:
+            if not 1 <= self.port <= 65535:
+                raise ValueError(f"Invalid port: {self.port}")
+            if self.pool_size < 1:
+                raise ValueError(f"Pool size must be positive: {self.pool_size}")
+        
+        @classmethod
+        def from_env(cls, prefix: str = "DB_") -> "DatabaseConfig":
+            """Create config from environment variables.
+            
+            Args:
+                prefix: Environment variable prefix.
+                
+            Returns:
+                DatabaseConfig populated from environment.
+                
+            Raises:
+                KeyError: If required variables missing.
+            """
+            ...
+        
+        def to_dsn(self) -> str:
+            """Generate PostgreSQL connection string."""
+            ...
+    ```
+    
+    Document the dataclass including fields, validation, class methods, and instance methods.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "accuracy"
+        weight: 0.3
+        criteria: "All fields and their defaults correctly documented"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "Covers fields, validation rules, class methods, and instance methods"
+      - dimension: "signal_to_noise"
+        weight: 0.2
+        criteria: "No redundant information, clear descriptions"
+      - dimension: "usability"
+        weight: 0.25
+        criteria: "Shows both direct construction and from_env() patterns"
+    
+    must_contain:
+      - "host"
+      - "port"
+      - "ssl_mode"
+      - "pool_size"
+      - "from_env"
+      - "to_dsn"
+      - "ValueError"
+    
+    must_not_contain:
+      - "powerful"
+      - "easy"
+      - "simply"

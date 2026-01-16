@@ -1,0 +1,68 @@
+# Code Generation Task: Write property-based tests
+task:
+  id: "code-test-002"
+  category: "code_generation"
+  subcategory: "test"
+  
+  prompt: |
+    Write property-based tests using hypothesis for this URL parser:
+    
+    ```python
+    from dataclasses import dataclass
+    from urllib.parse import urlparse, parse_qs
+    
+    @dataclass
+    class ParsedURL:
+        scheme: str
+        host: str
+        port: int | None
+        path: str
+        query: dict[str, list[str]]
+        fragment: str
+    
+    def parse_url(url: str) -> ParsedURL:
+        """Parse a URL into its components."""
+        parsed = urlparse(url)
+        port = parsed.port
+        
+        return ParsedURL(
+            scheme=parsed.scheme or "http",
+            host=parsed.hostname or "",
+            port=port,
+            path=parsed.path or "/",
+            query=parse_qs(parsed.query),
+            fragment=parsed.fragment or "",
+        )
+    ```
+    
+    Write hypothesis tests that verify:
+    - Round-trip property: parse then reconstruct equals original
+    - Invariants: scheme is always lowercase, path starts with /
+    - Edge cases found by fuzzing
+  
+  lens: "helper.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "property_design"
+        weight: 0.35
+        criteria: "Properties are meaningful and catch real bugs"
+      - dimension: "hypothesis_usage"
+        weight: 0.25
+        criteria: "Correctly uses hypothesis strategies"
+      - dimension: "coverage"
+        weight: 0.2
+        criteria: "Tests key invariants and edge cases"
+      - dimension: "style"
+        weight: 0.2
+        criteria: "Clear test names and good use of hypothesis features"
+    
+    must_contain:
+      - "hypothesis"
+      - "@given"
+      - "strategy"
+      - "def test_"
+      - "assert"
+    
+    must_not_contain:
+      - "pass  # TODO"

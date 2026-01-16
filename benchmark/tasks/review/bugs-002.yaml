@@ -1,0 +1,61 @@
+# Code Review Task: Async bugs
+task:
+  id: "review-bugs-002"
+  category: "code_review"
+  subcategory: "bugs"
+  
+  prompt: |
+    Review this async code for bugs:
+    
+    ```python
+    import asyncio
+    from typing import list
+    
+    async def fetch_user(user_id: int) -> dict:
+        await asyncio.sleep(0.1)  # Simulated API call
+        return {"id": user_id, "name": f"User {user_id}"}
+    
+    async def fetch_all_users(user_ids: list[int]) -> list[dict]:
+        users = []
+        for user_id in user_ids:
+            user = await fetch_user(user_id)
+            users.append(user)
+        return users
+    
+    async def process_users(user_ids: list[int]) -> None:
+        users = fetch_all_users(user_ids)  # Get users
+        for user in users:
+            print(f"Processing {user['name']}")
+    
+    def get_users_sync(user_ids: list[int]) -> list[dict]:
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(fetch_all_users(user_ids))
+    ```
+    
+    Identify bugs and provide fixes.
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.4
+        criteria: "Identifies missing await, sequential execution, deprecated API"
+      - dimension: "actionability"
+        weight: 0.35
+        criteria: "Provides correct async patterns"
+      - dimension: "explanation_quality"
+        weight: 0.15
+        criteria: "Explains async/await semantics"
+      - dimension: "false_positive_rate"
+        weight: 0.1
+        criteria: "Accurate assessment"
+    
+    must_contain:
+      - "await"
+      - "gather"
+    
+    ground_truth_issues:
+      - "Missing await in process_users"
+      - "Sequential instead of concurrent fetching"
+      - "Deprecated get_event_loop() usage"

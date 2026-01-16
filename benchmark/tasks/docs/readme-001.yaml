@@ -1,0 +1,49 @@
+# Documentation Task: README for CLI tool
+task:
+  id: "docs-readme-001"
+  category: "documentation"
+  subcategory: "readme"
+  
+  prompt: |
+    Write a README.md for a Python CLI tool called "dataflow" that:
+    - Processes CSV/JSON files
+    - Supports filtering, transforming, and aggregating data
+    - Can output to multiple formats
+    - Has a plugin system
+    
+    The README should help users:
+    1. Understand what the tool does (within 30 seconds)
+    2. Install it quickly
+    3. Run their first command
+    4. Know where to find more information
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "front_loaded_value"
+        weight: 0.3
+        criteria: "Purpose clear in first 30 seconds of reading"
+      - dimension: "quick_start"
+        weight: 0.25
+        criteria: "User can get from zero to working example quickly"
+      - dimension: "completeness"
+        weight: 0.2
+        criteria: "Covers installation, basic usage, and where to learn more"
+      - dimension: "copy_paste_ready"
+        weight: 0.25
+        criteria: "Commands and code blocks work as-is"
+    
+    must_contain:
+      - "dataflow"
+      - "pip install"
+      - "```"
+      - "filter"
+      - "transform"
+    
+    must_not_contain:
+      - "powerful"
+      - "flexible"
+      - "easy"
+      - "robust"
+      - "seamless"

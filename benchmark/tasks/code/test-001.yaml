@@ -1,0 +1,62 @@
+# Code Generation Task: Write comprehensive tests
+task:
+  id: "code-test-001"
+  category: "code_generation"
+  subcategory: "test"
+  
+  prompt: |
+    Write pytest tests for this email validation function:
+    
+    ```python
+    import re
+    
+    def validate_email(email: str) -> bool:
+        """Validate an email address.
+        
+        Returns True if the email is valid, False otherwise.
+        Valid emails must have:
+        - A local part (before @)
+        - Exactly one @ symbol
+        - A domain with at least one dot
+        - TLD of 2-10 characters
+        """
+        if not email or not isinstance(email, str):
+            return False
+        
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,10}$'
+        return bool(re.match(pattern, email))
+    ```
+    
+    Write comprehensive tests covering:
+    - Valid email cases (various formats)
+    - Invalid email cases (missing @, multiple @, invalid TLD, etc.)
+    - Edge cases (empty string, None, unicode, very long emails)
+    - Boundary conditions (TLD length limits)
+  
+  lens: "helper.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "coverage"
+        weight: 0.35
+        criteria: "Tests cover all specified cases and edge cases"
+      - dimension: "correctness"
+        weight: 0.25
+        criteria: "Tests are correct and would catch bugs"
+      - dimension: "style"
+        weight: 0.2
+        criteria: "Uses pytest idioms, clear test names"
+      - dimension: "organization"
+        weight: 0.2
+        criteria: "Tests are well-organized and readable"
+    
+    must_contain:
+      - "def test_"
+      - "pytest"
+      - "assert"
+      - "@"
+      - "True"
+      - "False"
+    
+    must_not_contain:
+      - "pass  # TODO"

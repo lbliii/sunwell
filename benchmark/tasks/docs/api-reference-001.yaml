@@ -1,0 +1,68 @@
+# Documentation Task: API Reference for async function
+task:
+  id: "docs-api-ref-001"
+  category: "documentation"
+  subcategory: "api_reference"
+  
+  prompt: |
+    Write API reference documentation for this Python function:
+    
+    ```python
+    async def fetch_user(
+        user_id: int,
+        include_metadata: bool = False,
+        timeout: float = 30.0,
+    ) -> User | None:
+        """Fetch a user by ID from the database.
+        
+        Args:
+            user_id: The unique user identifier.
+            include_metadata: Whether to include extended profile data.
+            timeout: Request timeout in seconds.
+            
+        Returns:
+            User object if found, None otherwise.
+            
+        Raises:
+            ConnectionError: If database is unreachable.
+            TimeoutError: If request exceeds timeout.
+        """
+    ```
+    
+    Include: signature, parameters, return value, exceptions, and a usage example.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "accuracy"
+        weight: 0.25
+        criteria: "All parameters correctly documented with types"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "Includes all sections: signature, params, returns, raises, example"
+      - dimension: "signal_to_noise"
+        weight: 0.2
+        criteria: "No filler words, every sentence adds information"
+      - dimension: "communication_style"
+        weight: 0.15
+        criteria: "Adheres to lens-defined style (e.g., PACE tone)"
+      - dimension: "usability"
+        weight: 0.15
+        criteria: "Example is copy-paste ready and demonstrates common usage"
+    
+    must_contain:
+      - "user_id"
+      - "include_metadata"
+      - "timeout"
+      - "User"
+      - "ConnectionError"
+      - "TimeoutError"
+      - "```python"
+    
+    must_not_contain:
+      - "powerful"
+      - "flexible"
+      - "easy"
+      - "simply"
+      - "robust"

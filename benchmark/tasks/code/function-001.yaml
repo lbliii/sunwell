@@ -1,0 +1,50 @@
+# Code Generation Task: Retry decorator with exponential backoff
+task:
+  id: "code-function-001"
+  category: "code_generation"
+  subcategory: "function"
+  
+  prompt: |
+    Write a Python retry decorator with exponential backoff.
+    
+    Requirements:
+    - `max_retries`: maximum number of retry attempts (default: 3)
+    - `base_delay`: initial delay in seconds (default: 1.0)
+    - `max_delay`: maximum delay cap (default: 60.0)
+    - `exponential_base`: multiplier for backoff (default: 2.0)
+    - `retry_on`: tuple of exception types to retry on (default: (Exception,))
+    
+    The decorator should:
+    - Work with both sync and async functions
+    - Add jitter to prevent thundering herd
+    - Log retry attempts
+    
+    Include type hints and docstring.
+  
+  lens: "helper.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "correctness"
+        weight: 0.35
+        criteria: "Implementation is correct and handles edge cases"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "All requirements implemented"
+      - dimension: "style"
+        weight: 0.2
+        criteria: "Follows Python best practices, proper type hints"
+      - dimension: "usability"
+        weight: 0.2
+        criteria: "Clear docstring and intuitive API"
+    
+    must_contain:
+      - "def retry"
+      - "max_retries"
+      - "base_delay"
+      - "async"
+      - "sleep"
+      - "except"
+    
+    must_not_contain:
+      - "pass  # TODO"

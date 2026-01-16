@@ -1,0 +1,64 @@
+# Code Review Task: Race condition bug
+task:
+  id: "review-bugs-001"
+  category: "code_review"
+  subcategory: "bugs"
+  
+  prompt: |
+    Review this code for bugs:
+    
+    ```python
+    class Counter:
+        def __init__(self):
+            self.value = 0
+        
+        def increment(self):
+            current = self.value
+            self.value = current + 1
+            return self.value
+        
+        def decrement(self):
+            current = self.value
+            self.value = current - 1
+            return self.value
+    
+    # Used in a multi-threaded web server
+    page_views = Counter()
+    
+    def track_view(request):
+        count = page_views.increment()
+        return HttpResponse(f"View count: {count}")
+    
+    def admin_reset(request):
+        page_views.value = 0
+        return HttpResponse("Counter reset")
+    ```
+    
+    Identify bugs and provide fixes.
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.4
+        criteria: "Identifies race condition, non-atomic operations"
+      - dimension: "actionability"
+        weight: 0.35
+        criteria: "Provides thread-safe implementation"
+      - dimension: "explanation_quality"
+        weight: 0.15
+        criteria: "Explains how race condition occurs"
+      - dimension: "false_positive_rate"
+        weight: 0.1
+        criteria: "Accurate assessment"
+    
+    must_contain:
+      - "race condition"
+      - "thread"
+      - "atomic"
+    
+    ground_truth_issues:
+      - "Race condition in increment/decrement"
+      - "Non-atomic read-modify-write"
+      - "Global mutable state"

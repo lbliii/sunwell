@@ -1,0 +1,48 @@
+# Code Generation Task: LRU Cache with TTL
+task:
+  id: "code-function-002"
+  category: "code_generation"
+  subcategory: "function"
+  
+  prompt: |
+    Write a Python LRU cache decorator with TTL (time-to-live) support.
+    
+    Requirements:
+    - `maxsize`: maximum cache size (default: 128)
+    - `ttl`: time-to-live in seconds (default: None, meaning no expiration)
+    - `typed`: whether to cache different types separately (default: False)
+    
+    The decorator should:
+    - Evict least recently used items when full
+    - Automatically expire items after TTL
+    - Be thread-safe
+    - Provide cache_info() and cache_clear() methods
+    
+    Include type hints and comprehensive docstring.
+  
+  lens: "helper.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "correctness"
+        weight: 0.35
+        criteria: "LRU eviction and TTL expiration work correctly"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "All requirements implemented including thread safety"
+      - dimension: "style"
+        weight: 0.2
+        criteria: "Clean implementation with proper type hints"
+      - dimension: "usability"
+        weight: 0.2
+        criteria: "API matches functools.lru_cache style"
+    
+    must_contain:
+      - "maxsize"
+      - "ttl"
+      - "cache_info"
+      - "cache_clear"
+      - "Lock"
+    
+    must_not_contain:
+      - "pass  # TODO"

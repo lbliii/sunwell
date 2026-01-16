@@ -1,0 +1,50 @@
+# Documentation Task: Tutorial for setting up authentication
+task:
+  id: "docs-tutorial-001"
+  category: "documentation"
+  subcategory: "tutorial"
+  
+  prompt: |
+    Write a tutorial for setting up JWT authentication in a Python web application.
+    
+    The tutorial should cover:
+    1. Installing required packages
+    2. Creating a token generation function
+    3. Creating a token verification decorator
+    4. Protecting a sample endpoint
+    
+    Assume the reader knows Python but has never implemented JWT auth before.
+    Use Flask for the examples.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "learning_progression"
+        weight: 0.3
+        criteria: "Steps build logically from simple to complex"
+      - dimension: "runnable_steps"
+        weight: 0.25
+        criteria: "Each code example is complete and can be run"
+      - dimension: "expected_outcomes"
+        weight: 0.2
+        criteria: "Reader knows what to expect after each step"
+      - dimension: "completeness"
+        weight: 0.15
+        criteria: "Covers prerequisites through working example"
+      - dimension: "troubleshooting"
+        weight: 0.1
+        criteria: "Addresses common issues"
+    
+    must_contain:
+      - "pip install"
+      - "jwt"
+      - "encode"
+      - "decode"
+      - "@"
+      - "SECRET"
+    
+    must_not_contain:
+      - "powerful"
+      - "easy"
+      - "simply"

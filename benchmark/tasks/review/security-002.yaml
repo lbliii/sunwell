@@ -1,0 +1,67 @@
+# Code Review Task: Path traversal vulnerability
+task:
+  id: "review-security-002"
+  category: "code_review"
+  subcategory: "security"
+  
+  prompt: |
+    Review this code for security vulnerabilities:
+    
+    ```python
+    from pathlib import Path
+    
+    UPLOAD_DIR = Path("/var/uploads")
+    
+    def download_file(request):
+        filename = request.GET.get('file')
+        filepath = UPLOAD_DIR / filename
+        
+        if filepath.exists():
+            with open(filepath, 'rb') as f:
+                return HttpResponse(f.read(), content_type='application/octet-stream')
+        return HttpResponse("File not found", status=404)
+    
+    def upload_file(request):
+        file = request.FILES.get('file')
+        filename = file.name
+        dest = UPLOAD_DIR / filename
+        
+        with open(dest, 'wb') as f:
+            for chunk in file.chunks():
+                f.write(chunk)
+        
+        return HttpResponse("Uploaded successfully")
+    ```
+    
+    Identify security issues and provide fixes.
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.4
+        criteria: "Identifies path traversal, file type validation, size limits"
+      - dimension: "actionability"
+        weight: 0.3
+        criteria: "Provides concrete fixes with code examples"
+      - dimension: "explanation_quality"
+        weight: 0.2
+        criteria: "Explains attack vectors"
+      - dimension: "false_positive_rate"
+        weight: 0.1
+        criteria: "Doesn't flag non-issues"
+    
+    must_contain:
+      - "path traversal"
+      - "../"
+    
+    must_not_contain:
+      - "looks good"
+      - "no issues"
+    
+    ground_truth_issues:
+      - "Path traversal in download_file (../../../etc/passwd)"
+      - "Path traversal in upload_file"
+      - "No file type validation"
+      - "No file size limit"

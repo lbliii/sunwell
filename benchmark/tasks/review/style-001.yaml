@@ -1,0 +1,64 @@
+# Code Review Task: Style and readability
+task:
+  id: "review-style-001"
+  category: "code_review"
+  subcategory: "style"
+  
+  prompt: |
+    Review this code for style and readability issues:
+    
+    ```python
+    def p(d, k, v=None):
+        if k in d:
+            return d[k]
+        elif v is not None:
+            return v
+        else:
+            raise KeyError(k)
+    
+    def doThing(Data):
+        result = []
+        for i in range(len(Data)):
+            if Data[i] > 0:
+                x = Data[i] * 2
+                result.append(x)
+        return result
+    
+    class thing:
+        def __init__(self, a, b, c, d, e):
+            self.a = a
+            self.b = b
+            self.c = c  
+            self.d = d
+            self.e = e
+        
+        def calc(self):
+            return self.a + self.b * self.c - self.d / self.e if self.e != 0 else 0
+    ```
+    
+    Suggest improvements for readability and Pythonic style.
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "issue_identification"
+        weight: 0.3
+        criteria: "Identifies naming, style, and readability issues"
+      - dimension: "actionability"
+        weight: 0.35
+        criteria: "Provides clear refactored code"
+      - dimension: "explanation_quality"
+        weight: 0.2
+        criteria: "Explains why changes improve code"
+      - dimension: "pythonic"
+        weight: 0.15
+        criteria: "Suggests idiomatic Python patterns"
+    
+    must_contain:
+      - "naming"
+      - "PEP"
+    
+    must_not_contain:
+      - "looks good"
+      - "no issues"

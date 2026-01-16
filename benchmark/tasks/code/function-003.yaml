@@ -1,0 +1,49 @@
+# Code Generation Task: Rate limiter
+task:
+  id: "code-function-003"
+  category: "code_generation"
+  subcategory: "function"
+  
+  prompt: |
+    Write a Python rate limiter using the token bucket algorithm.
+    
+    Requirements:
+    - `rate`: tokens per second to add
+    - `capacity`: maximum bucket capacity
+    - `consume(tokens)`: try to consume tokens, return True if successful
+    - `wait(tokens)`: async method that waits until tokens available
+    
+    The implementation should:
+    - Be thread-safe
+    - Support both sync (try_consume) and async (wait) usage
+    - Allow checking current available tokens
+    
+    Include type hints, docstring, and usage example.
+  
+  lens: "helper.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "correctness"
+        weight: 0.35
+        criteria: "Token bucket algorithm correctly implemented"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "Both sync and async APIs work"
+      - dimension: "style"
+        weight: 0.2
+        criteria: "Clean code with proper type hints"
+      - dimension: "usability"
+        weight: 0.2
+        criteria: "Clear API and good documentation"
+    
+    must_contain:
+      - "class"
+      - "rate"
+      - "capacity"
+      - "consume"
+      - "async"
+      - "Lock"
+    
+    must_not_contain:
+      - "pass  # TODO"

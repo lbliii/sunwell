@@ -1,0 +1,98 @@
+# Documentation Task: API Reference for class with methods
+task:
+  id: "docs-api-ref-002"
+  category: "documentation"
+  subcategory: "api_reference"
+  
+  prompt: |
+    Write API reference documentation for this Python class:
+    
+    ```python
+    class CacheManager:
+        """Thread-safe cache with TTL support.
+        
+        Supports LRU eviction when max_size is reached.
+        """
+        
+        def __init__(
+            self,
+            max_size: int = 1000,
+            default_ttl: int = 3600,
+        ) -> None:
+            """Initialize cache manager.
+            
+            Args:
+                max_size: Maximum number of items to store.
+                default_ttl: Default time-to-live in seconds.
+            """
+            ...
+        
+        def get(self, key: str, default: T | None = None) -> T | None:
+            """Get item from cache.
+            
+            Args:
+                key: Cache key to retrieve.
+                default: Value to return if key not found.
+                
+            Returns:
+                Cached value or default.
+            """
+            ...
+        
+        def set(
+            self,
+            key: str,
+            value: T,
+            ttl: int | None = None,
+        ) -> None:
+            """Store item in cache.
+            
+            Args:
+                key: Cache key.
+                value: Value to store.
+                ttl: Optional TTL override in seconds.
+            """
+            ...
+        
+        def clear(self) -> int:
+            """Clear all items from cache.
+            
+            Returns:
+                Number of items removed.
+            """
+            ...
+    ```
+    
+    Include: class overview, constructor, all methods with signatures, and usage examples.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "accuracy"
+        weight: 0.25
+        criteria: "All methods and parameters correctly documented"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "Covers constructor, all public methods, and attributes"
+      - dimension: "signal_to_noise"
+        weight: 0.2
+        criteria: "Concise descriptions without redundancy"
+      - dimension: "usability"
+        weight: 0.3
+        criteria: "Clear usage examples for common operations"
+    
+    must_contain:
+      - "CacheManager"
+      - "max_size"
+      - "default_ttl"
+      - "get"
+      - "set"
+      - "clear"
+      - "TTL"
+    
+    must_not_contain:
+      - "powerful"
+      - "flexible"
+      - "easy"
+      - "seamless"

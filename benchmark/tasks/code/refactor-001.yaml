@@ -1,0 +1,67 @@
+# Code Generation Task: Refactor for testability
+task:
+  id: "code-refactor-001"
+  category: "code_generation"
+  subcategory: "refactor"
+  
+  prompt: |
+    Refactor this code to be more testable and maintainable:
+    
+    ```python
+    import requests
+    from datetime import datetime
+    
+    def get_weather_report(city: str) -> str:
+        api_key = "hardcoded-api-key-123"
+        url = f"https://api.weather.com/v1/current?city={city}&key={api_key}"
+        
+        response = requests.get(url, timeout=10)
+        data = response.json()
+        
+        temp = data['temperature']
+        conditions = data['conditions']
+        
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+        
+        if temp > 30:
+            advice = "Stay hydrated!"
+        elif temp < 10:
+            advice = "Bundle up!"
+        else:
+            advice = "Enjoy the weather!"
+        
+        return f"[{timestamp}] {city}: {temp}°C, {conditions}. {advice}"
+    ```
+    
+    The refactored code should:
+    - Use dependency injection for the HTTP client
+    - Make the API key configurable
+    - Make datetime mockable for testing
+    - Separate concerns (fetching, formatting, advice logic)
+    - Be fully testable without network calls
+  
+  lens: "helper.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "testability"
+        weight: 0.35
+        criteria: "All dependencies are injectable, no hidden state"
+      - dimension: "separation"
+        weight: 0.25
+        criteria: "Clear separation of concerns"
+      - dimension: "correctness"
+        weight: 0.2
+        criteria: "Behavior preserved after refactoring"
+      - dimension: "style"
+        weight: 0.2
+        criteria: "Clean, Pythonic implementation"
+    
+    must_contain:
+      - "class"
+      - "__init__"
+      - "def "
+    
+    must_not_contain:
+      - "hardcoded-api-key"
+      - "requests.get"

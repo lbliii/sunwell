@@ -1,0 +1,23 @@
+{
+  "n_tasks": 2,
+  "wins": 0,
+  "losses": 2,
+  "ties": 2,
+  "win_rate": 0.0,
+  "effect_size_cohens_d": -0.23351062768944045,
+  "effect_size_interpretation": "small",
+  "p_value": 1.0,
+  "test_name": "scipy_not_available",
+  "significant": false,
+  "ci_lower": -7.288257575757571,
+  "ci_upper": 5.306279904306217,
+  "claim_level": "insufficient evidence",
+  "category_breakdown": {
+    "review": {
+      "wins": 0,
+      "losses": 2,
+      "ties": 2,
+      "win_rate": 0.0
+    }
+  }
+}

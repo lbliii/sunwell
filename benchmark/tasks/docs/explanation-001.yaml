@@ -1,0 +1,48 @@
+# Documentation Task: Explanation of caching architecture
+task:
+  id: "docs-explanation-001"
+  category: "documentation"
+  subcategory: "explanation"
+  
+  prompt: |
+    Write an explanation document about a multi-layer caching architecture for a web application.
+    
+    The architecture has:
+    - L1: In-memory cache (per-process)
+    - L2: Redis cache (shared across instances)
+    - L3: Database with query caching
+    
+    Explain:
+    - Why this architecture was chosen
+    - How cache invalidation works across layers
+    - Trade-offs of this approach
+    - When to use each layer
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "conceptual_clarity"
+        weight: 0.3
+        criteria: "Architecture is clearly explained with mental models"
+      - dimension: "design_rationale"
+        weight: 0.25
+        criteria: "Explains WHY, not just WHAT"
+      - dimension: "trade_offs"
+        weight: 0.25
+        criteria: "Honestly discusses limitations and alternatives"
+      - dimension: "completeness"
+        weight: 0.2
+        criteria: "Covers invalidation strategy and failure modes"
+    
+    must_contain:
+      - "L1"
+      - "L2"
+      - "Redis"
+      - "invalidation"
+      - "trade-off"
+    
+    must_not_contain:
+      - "powerful"
+      - "easy"
+      - "seamless"

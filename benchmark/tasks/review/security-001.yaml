@@ -1,0 +1,54 @@
+# Code Review Task: SQL Injection vulnerability
+task:
+  id: "review-security-001"
+  category: "code_review"
+  subcategory: "security"
+  
+  prompt: |
+    Review this code for security vulnerabilities:
+    
+    ```python
+    def login(request):
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        
+        query = f"SELECT * FROM users WHERE username='{username}' AND password='{password}'"
+        user = db.execute(query).fetchone()
+        
+        if user:
+            session['user_id'] = user['id']
+            return redirect('/dashboard')
+        return render('login.html', error="Invalid credentials")
+    ```
+    
+    Identify security issues and provide fixes.
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.4
+        criteria: "Identifies SQL injection, plain text password, session fixation"
+      - dimension: "actionability"
+        weight: 0.3
+        criteria: "Provides concrete fixes, not just warnings"
+      - dimension: "false_positive_rate"
+        weight: 0.2
+        criteria: "Doesn't flag non-issues as vulnerabilities"
+      - dimension: "explanation_quality"
+        weight: 0.1
+        criteria: "Explains WHY each issue is dangerous"
+    
+    must_contain:
+      - "SQL injection"
+      - "parameterized"
+    
+    must_not_contain:
+      - "looks good"
+      - "no issues"
+    
+    ground_truth_issues:
+      - "SQL injection via string interpolation"
+      - "Plain text password comparison"
+      - "No CSRF protection"

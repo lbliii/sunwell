@@ -1,0 +1,1849 @@
+"""SimulacrumManager - Orchestrate multiple simulacrums.
+
+RFC-014 Extension: Multi-Simulacrum Support
+
+Just as humans switch mental contexts when moving between tasks,
+the agent can maintain and switch between multiple simulacrums:
+
+- **Project simulacrums**: One per codebase/project
+- **Role simulacrums**: "code-reviewer", "docs-writer", "debugger"
+- **Topic simulacrums**: "security", "performance", "api-design"
+
+Key capabilities:
+- Switch simulacrums explicitly or via intelligent routing
+- Query across simulacrums for cross-domain knowledge
+- Consolidate/merge simulacrums as they mature
+- Track usage patterns to suggest relevant simulacrums
+
+Example flow:
+1. User asks about API security
+2. Agent activates "security" simulacrum (with API security learnings)
+3. User pivots to performance tuning
+4. Agent switches to "performance" simulacrum
+5. When both topics intersect, agent queries both simulacrums
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+from sunwell.simulacrum.store import SimulacrumStore, StorageConfig
+from sunwell.models.protocol import Tool
+
+if TYPE_CHECKING:
+    from sunwell.embedding.protocol import EmbeddingProtocol
+    from sunwell.simulacrum.unified_store import UnifiedMemoryStore
+    from sunwell.simulacrum.memory_node import MemoryNode
+
+
+@dataclass
+class SpawnPolicy:
+    """Policy for automatic simulacrum spawning."""
+    
+    enabled: bool = True
+    """Whether auto-spawning is enabled."""
+    
+    novelty_threshold: float = 0.7
+    """How different a query must be from existing simulacrums to trigger spawn (0-1)."""
+    
+    min_queries_before_spawn: int = 3
+    """Minimum queries in a new domain before spawning (prevents premature spawning)."""
+    
+    domain_coherence_threshold: float = 0.5
+    """How related accumulated queries must be to form a coherent simulacrum."""
+    
+    max_simulacrums: int = 20
+    """Maximum simulacrums to prevent unbounded growth."""
+    
+    auto_name: bool = True
+    """Auto-generate simulacrum names from detected topics."""
+
+
+@dataclass
+class LifecyclePolicy:
+    """Policy for simulacrum lifecycle management (archival, cleanup, shrinking)."""
+    
+    # Staleness thresholds
+    stale_days: int = 30
+    """Days without access before a simulacrum is considered stale."""
+    
+    archive_days: int = 90
+    """Days without access before auto-archiving to cold storage."""
+    
+    # Size thresholds
+    min_useful_nodes: int = 3
+    """Simulacrums with fewer nodes may be candidates for cleanup."""
+    
+    min_useful_learnings: int = 1
+    """Simulacrums with no learnings may be candidates for cleanup."""
+    
+    # Auto-merge thresholds
+    merge_similarity_threshold: float = 0.6
+    """Simulacrums with this much domain overlap are merge candidates."""
+    
+    # Cleanup behavior
+    auto_archive: bool = True
+    """Automatically archive stale simulacrums."""
+    
+    auto_merge_empty: bool = True
+    """Auto-merge empty simulacrums into similar ones."""
+    
+    protect_recently_spawned_days: int = 7
+    """Don't cleanup simulacrums spawned within this many days."""
+
+
+@dataclass 
+class ArchiveMetadata:
+    """Metadata for an archived simulacrum."""
+    
+    name: str
+    description: str
+    domains: tuple[str, ...]
+    archived_at: str
+    original_created_at: str
+    last_accessed: str
+    node_count: int
+    learning_count: int
+    archive_reason: str  # "stale", "manual", "merged", "empty"
+    archive_path: str  # Path to archived data
+    
+    def to_dict(self) -> dict:
+        return {
+            "name": self.name,
+            "description": self.description,
+            "domains": list(self.domains),
+            "archived_at": self.archived_at,
+            "original_created_at": self.original_created_at,
+            "last_accessed": self.last_accessed,
+            "node_count": self.node_count,
+            "learning_count": self.learning_count,
+            "archive_reason": self.archive_reason,
+            "archive_path": self.archive_path,
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> "ArchiveMetadata":
+        return cls(
+            name=data["name"],
+            description=data["description"],
+            domains=tuple(data.get("domains", [])),
+            archived_at=data["archived_at"],
+            original_created_at=data["original_created_at"],
+            last_accessed=data["last_accessed"],
+            node_count=data.get("node_count", 0),
+            learning_count=data.get("learning_count", 0),
+            archive_reason=data.get("archive_reason", "unknown"),
+            archive_path=data.get("archive_path", ""),
+        )
+
+
+@dataclass
+class SimulacrumMetadata:
+    """Metadata about a simulacrum for routing and display."""
+    
+    name: str
+    """Unique identifier for the simulacrum."""
+    
+    description: str
+    """What this simulacrum is for."""
+    
+    domains: tuple[str, ...] = ()
+    """Domain tags for routing (e.g., "security", "api", "docs")."""
+    
+    created_at: str = field(default_factory=lambda: datetime.now().isoformat())
+    last_accessed: str = field(default_factory=lambda: datetime.now().isoformat())
+    access_count: int = 0
+    
+    # Stats
+    node_count: int = 0
+    learning_count: int = 0
+    
+    # Auto-spawning metadata
+    auto_spawned: bool = False
+    """Whether this simulacrum was auto-created."""
+    
+    spawn_trigger_queries: tuple[str, ...] = ()
+    """Queries that triggered the spawn (for context)."""
+    
+    def to_dict(self) -> dict:
+        return {
+            "name": self.name,
+            "description": self.description,
+            "domains": list(self.domains),
+            "created_at": self.created_at,
+            "last_accessed": self.last_accessed,
+            "access_count": self.access_count,
+            "node_count": self.node_count,
+            "learning_count": self.learning_count,
+            "auto_spawned": self.auto_spawned,
+            "spawn_trigger_queries": list(self.spawn_trigger_queries),
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> "SimulacrumMetadata":
+        return cls(
+            name=data["name"],
+            description=data["description"],
+            domains=tuple(data.get("domains", [])),
+            created_at=data.get("created_at", ""),
+            last_accessed=data.get("last_accessed", ""),
+            access_count=data.get("access_count", 0),
+            node_count=data.get("node_count", 0),
+            learning_count=data.get("learning_count", 0),
+            auto_spawned=data.get("auto_spawned", False),
+            spawn_trigger_queries=tuple(data.get("spawn_trigger_queries", [])),
+        )
+
+
+@dataclass
+class PendingDomain:
+    """Tracks queries that might form a new simulacrum."""
+    
+    queries: list[str] = field(default_factory=list)
+    """Accumulated queries in this potential domain."""
+    
+    keywords: dict[str, int] = field(default_factory=dict)
+    """Keyword frequency from queries."""
+    
+    first_seen: str = field(default_factory=lambda: datetime.now().isoformat())
+    """When this domain was first detected."""
+    
+    def add_query(self, query: str) -> None:
+        """Add a query and extract keywords."""
+        self.queries.append(query)
+        
+        # Extract keywords (simple tokenization)
+        words = query.lower().split()
+        stop_words = {"the", "a", "an", "is", "are", "was", "were", "be", "been",
+                      "being", "have", "has", "had", "do", "does", "did", "will",
+                      "would", "could", "should", "may", "might", "must", "shall",
+                      "can", "need", "dare", "ought", "used", "to", "of", "in",
+                      "for", "on", "with", "at", "by", "from", "as", "into", "like",
+                      "through", "after", "over", "between", "out", "against",
+                      "during", "without", "before", "under", "around", "among",
+                      "i", "you", "he", "she", "it", "we", "they", "what", "which",
+                      "who", "when", "where", "why", "how", "all", "each", "every",
+                      "both", "few", "more", "most", "other", "some", "such", "no",
+                      "nor", "not", "only", "own", "same", "so", "than", "too",
+                      "very", "just", "my", "your", "his", "her", "its", "our"}
+        
+        for word in words:
+            # Clean punctuation
+            word = word.strip(".,!?;:\"'()[]{}").lower()
+            if len(word) > 2 and word not in stop_words:
+                self.keywords[word] = self.keywords.get(word, 0) + 1
+    
+    def top_keywords(self, n: int = 5) -> list[str]:
+        """Get top N keywords by frequency."""
+        sorted_kw = sorted(self.keywords.items(), key=lambda x: x[1], reverse=True)
+        return [kw for kw, _ in sorted_kw[:n]]
+    
+    def coherence_score(self) -> float:
+        """Estimate how coherent this domain is (0-1).
+        
+        Higher = queries are about related topics.
+        """
+        if len(self.queries) < 2:
+            return 0.0
+        
+        # Calculate keyword concentration
+        # If a few keywords dominate, the domain is coherent
+        total_mentions = sum(self.keywords.values())
+        if total_mentions == 0:
+            return 0.0
+        
+        top_5_mentions = sum(c for _, c in sorted(
+            self.keywords.items(), key=lambda x: x[1], reverse=True
+        )[:5])
+        
+        return min(top_5_mentions / total_mentions, 1.0)
+
+
+@dataclass
+class SimulacrumManager:
+    """Manages multiple simulacrums with switching and cross-query capabilities.
+    
+    Usage:
+        manager = SimulacrumManager(base_path=Path("./simulacrums"))
+        
+        # Create/load simulacrums
+        manager.create("security", "Security analysis and threat modeling")
+        manager.create("performance", "Performance optimization patterns")
+        
+        # Switch active simulacrum
+        manager.activate("security")
+        
+        # Query across all simulacrums
+        results = manager.query_all("rate limiting best practices")
+        
+        # Consolidate related simulacrums
+        manager.merge("api-security", into="security")
+        
+        # Auto-spawning: detects when queries don't fit existing simulacrums
+        result = manager.route_query("How do I implement OAuth2?")
+        # → May auto-create "authentication" simulacrum if novel enough
+    """
+    
+    base_path: Path
+    """Root directory for all simulacrums."""
+    
+    storage_config: StorageConfig = field(default_factory=StorageConfig)
+    """Default storage config for new simulacrums."""
+    
+    spawn_policy: SpawnPolicy = field(default_factory=SpawnPolicy)
+    """Policy for automatic simulacrum creation."""
+    
+    lifecycle_policy: LifecyclePolicy = field(default_factory=LifecyclePolicy)
+    """Policy for simulacrum archival, cleanup, and shrinking."""
+    
+    # Current state
+    _active_name: str | None = field(default=None, init=False)
+    _active_store: SimulacrumStore | None = field(default=None, init=False)
+    
+    # Registry
+    _metadata: dict[str, SimulacrumMetadata] = field(default_factory=dict, init=False)
+    _stores: dict[str, SimulacrumStore] = field(default_factory=dict, init=False)
+    
+    # Archive registry
+    _archived: dict[str, ArchiveMetadata] = field(default_factory=dict, init=False)
+    
+    # Auto-spawn tracking
+    _pending_domains: list[PendingDomain] = field(default_factory=list, init=False)
+    _recent_unmatched_queries: list[str] = field(default_factory=list, init=False)
+    
+    # Optional embedder for cross-simulacrum queries
+    _embedder: "EmbeddingProtocol | None" = field(default=None, init=False)
+    
+    def __post_init__(self):
+        self.base_path = Path(self.base_path)
+        self.base_path.mkdir(parents=True, exist_ok=True)
+        self._load_registry()
+    
+    def _load_registry(self) -> None:
+        """Load simulacrum registry from disk."""
+        registry_path = self.base_path / "registry.json"
+        if registry_path.exists():
+            with open(registry_path) as f:
+                data = json.load(f)
+            for name, meta_dict in data.get("simulacrums", {}).items():
+                self._metadata[name] = SimulacrumMetadata.from_dict(meta_dict)
+            for name, archive_dict in data.get("archived", {}).items():
+                self._archived[name] = ArchiveMetadata.from_dict(archive_dict)
+    
+    def _save_registry(self) -> None:
+        """Save simulacrum registry to disk."""
+        registry_path = self.base_path / "registry.json"
+        data = {
+            "simulacrums": {
+                name: meta.to_dict() for name, meta in self._metadata.items()
+            },
+            "archived": {
+                name: meta.to_dict() for name, meta in self._archived.items()
+            },
+            "updated_at": datetime.now().isoformat(),
+        }
+        with open(registry_path, "w") as f:
+            json.dump(data, f, indent=2)
+    
+    def set_embedder(self, embedder: "EmbeddingProtocol") -> None:
+        """Set embedder for semantic operations."""
+        self._embedder = embedder
+        # Update active store if any
+        if self._active_store:
+            self._active_store.set_embedder(embedder)
+    
+    # === Simulacrum Lifecycle ===
+    
+    def create(
+        self,
+        name: str,
+        description: str,
+        domains: tuple[str, ...] = (),
+    ) -> SimulacrumStore:
+        """Create a new simulacrum.
+        
+        Args:
+            name: Unique identifier (e.g., "security", "docs-api")
+            description: What this simulacrum is for
+            domains: Domain tags for routing
+            
+        Returns:
+            The new SimulacrumStore
+        """
+        if name in self._metadata:
+            raise ValueError(f"Simulacrum '{name}' already exists")
+        
+        # Create store
+        store_path = self.base_path / name
+        store = SimulacrumStore(
+            base_path=store_path,
+            config=self.storage_config,
+        )
+        
+        if self._embedder:
+            store.set_embedder(self._embedder)
+        
+        # Create metadata
+        meta = SimulacrumMetadata(
+            name=name,
+            description=description,
+            domains=domains,
+        )
+        
+        self._metadata[name] = meta
+        self._stores[name] = store
+        self._save_registry()
+        
+        return store
+    
+    def list_simulacrums(self) -> list[SimulacrumMetadata]:
+        """List all available simulacrums, sorted by recent access."""
+        return sorted(
+            self._metadata.values(),
+            key=lambda m: m.last_accessed,
+            reverse=True,
+        )
+    
+    def get(self, name: str) -> SimulacrumStore:
+        """Get a simulacrum store by name (lazy-loads if needed)."""
+        if name not in self._metadata:
+            raise KeyError(f"Simulacrum '{name}' not found")
+        
+        if name not in self._stores:
+            # Lazy load
+            store_path = self.base_path / name
+            store = SimulacrumStore(
+                base_path=store_path,
+                config=self.storage_config,
+            )
+            if self._embedder:
+                store.set_embedder(self._embedder)
+            self._stores[name] = store
+        
+        return self._stores[name]
+    
+    def delete(self, name: str, confirm: bool = False) -> None:
+        """Delete a simulacrum.
+        
+        Args:
+            name: Simulacrum to delete
+            confirm: Must be True to actually delete
+        """
+        if not confirm:
+            raise ValueError("Must set confirm=True to delete a simulacrum")
+        
+        if name not in self._metadata:
+            raise KeyError(f"Simulacrum '{name}' not found")
+        
+        # Remove from memory
+        if name in self._stores:
+            del self._stores[name]
+        del self._metadata[name]
+        
+        # Remove from disk
+        import shutil
+        store_path = self.base_path / name
+        if store_path.exists():
+            shutil.rmtree(store_path)
+        
+        # Clear active if it was this one
+        if self._active_name == name:
+            self._active_name = None
+            self._active_store = None
+        
+        self._save_registry()
+    
+    # === Activation / Switching ===
+    
+    def activate(self, name: str) -> SimulacrumStore:
+        """Activate a simulacrum, making it the current context.
+        
+        Args:
+            name: Simulacrum to activate
+            
+        Returns:
+            The activated SimulacrumStore
+        """
+        store = self.get(name)
+        
+        # Save current simulacrum state
+        if self._active_store:
+            self._active_store.save_session()
+        
+        # Update metadata
+        meta = self._metadata[name]
+        meta.last_accessed = datetime.now().isoformat()
+        meta.access_count += 1
+        
+        # Update stats from store
+        stats = store.stats()
+        meta.node_count = stats.get("unified_store", {}).get("total_nodes", 0)
+        meta.learning_count = stats.get("dag_stats", {}).get("learnings", 0)
+        
+        self._active_name = name
+        self._active_store = store
+        self._save_registry()
+        
+        return store
+    
+    @property
+    def active(self) -> SimulacrumStore | None:
+        """Get the currently active simulacrum."""
+        return self._active_store
+    
+    @property
+    def active_name(self) -> str | None:
+        """Get the name of the currently active simulacrum."""
+        return self._active_name
+    
+    # === Intelligent Routing ===
+    
+    def suggest(self, query: str, top_k: int = 3) -> list[tuple[SimulacrumMetadata, float]]:
+        """Suggest relevant simulacrums for a query.
+        
+        Uses domain tags and description matching to find relevant simulacrums.
+        
+        Args:
+            query: The user's query/task
+            top_k: Number of suggestions to return
+            
+        Returns:
+            List of (metadata, relevance_score) tuples
+        """
+        query_lower = query.lower()
+        scores: list[tuple[SimulacrumMetadata, float]] = []
+        
+        for meta in self._metadata.values():
+            score = 0.0
+            
+            # Check domain tags
+            for domain in meta.domains:
+                if domain.lower() in query_lower:
+                    score += 0.4
+            
+            # Check description keywords
+            desc_words = set(meta.description.lower().split())
+            query_words = set(query_lower.split())
+            overlap = len(desc_words & query_words)
+            if overlap > 0:
+                score += 0.3 * min(overlap / 3, 1.0)
+            
+            # Recency bonus (slight preference for recently used)
+            if meta.access_count > 0:
+                score += 0.1
+            
+            # Name match
+            if meta.name.lower() in query_lower:
+                score += 0.5
+            
+            if score > 0:
+                scores.append((meta, min(score, 1.0)))
+        
+        # Sort by score descending
+        scores.sort(key=lambda x: x[1], reverse=True)
+        return scores[:top_k]
+    
+    def auto_activate(self, query: str, threshold: float = 0.3) -> SimulacrumStore | None:
+        """Automatically activate the best simulacrum for a query.
+        
+        Args:
+            query: The user's query
+            threshold: Minimum relevance score to activate
+            
+        Returns:
+            The activated store, or None if no good match
+        """
+        suggestions = self.suggest(query, top_k=1)
+        if suggestions and suggestions[0][1] >= threshold:
+            return self.activate(suggestions[0][0].name)
+        return None
+    
+    # === Auto-Spawning ===
+    
+    def route_query(
+        self,
+        query: str,
+        activate: bool = True,
+    ) -> tuple[SimulacrumStore | None, bool, str]:
+        """Smart routing: find, activate, or spawn a simulacrum for a query.
+        
+        This is the main entry point for auto-spawning. It:
+        1. Tries to find an existing simulacrum that matches
+        2. If no match, tracks the query as "unmatched"
+        3. When enough unmatched queries accumulate in a coherent domain,
+           auto-spawns a new simulacrum
+        
+        Args:
+            query: The user's query
+            activate: Whether to activate the matched/spawned simulacrum
+            
+        Returns:
+            Tuple of (store, was_spawned, explanation)
+        """
+        # 1. Try to find existing match
+        suggestions = self.suggest(query, top_k=1)
+        
+        if suggestions and suggestions[0][1] >= self.spawn_policy.novelty_threshold:
+            # Good match exists
+            meta, score = suggestions[0]
+            if activate:
+                store = self.activate(meta.name)
+            else:
+                store = self.get(meta.name)
+            return store, False, f"Matched existing simulacrum: {meta.name} ({score:.0%})"
+        
+        # 2. No good match - this is a potentially novel domain
+        if not self.spawn_policy.enabled:
+            # Spawning disabled, just use best match if any
+            if suggestions and activate:
+                return self.activate(suggestions[0][0].name), False, "Using closest match (spawning disabled)"
+            return None, False, "No matching simulacrum (spawning disabled)"
+        
+        # 3. Track as unmatched and check for spawn conditions
+        spawn_result = self._track_and_maybe_spawn(query)
+        
+        if spawn_result:
+            store, name = spawn_result
+            if activate:
+                self.activate(name)
+            return store, True, f"Auto-spawned new simulacrum: {name}"
+        
+        # 4. Not ready to spawn yet - use best available or none
+        if suggestions and suggestions[0][1] >= 0.2 and activate:
+            return self.activate(suggestions[0][0].name), False, f"Using closest match: {suggestions[0][0].name}"
+        
+        return None, False, "Query tracked; waiting for more context before spawning"
+    
+    def _track_and_maybe_spawn(self, query: str) -> tuple[SimulacrumStore, str] | None:
+        """Track unmatched query and spawn if conditions are met.
+        
+        Returns (store, name) if spawned, None otherwise.
+        """
+        # Check simulacrum limit
+        if len(self._metadata) >= self.spawn_policy.max_simulacrums:
+            return None
+        
+        # Add to recent unmatched
+        self._recent_unmatched_queries.append(query)
+        
+        # Keep only recent queries (sliding window)
+        max_tracked = self.spawn_policy.min_queries_before_spawn * 3
+        if len(self._recent_unmatched_queries) > max_tracked:
+            self._recent_unmatched_queries = self._recent_unmatched_queries[-max_tracked:]
+        
+        # Try to find or create a pending domain for this query
+        best_domain = self._find_or_create_pending_domain(query)
+        best_domain.add_query(query)
+        
+        # Check spawn conditions
+        if len(best_domain.queries) >= self.spawn_policy.min_queries_before_spawn:
+            coherence = best_domain.coherence_score()
+            if coherence >= self.spawn_policy.domain_coherence_threshold:
+                return self._spawn_from_pending(best_domain)
+        
+        return None
+    
+    def _find_or_create_pending_domain(self, query: str) -> PendingDomain:
+        """Find a pending domain this query belongs to, or create new."""
+        query_words = set(query.lower().split())
+        
+        best_match: PendingDomain | None = None
+        best_overlap = 0
+        
+        for domain in self._pending_domains:
+            # Check keyword overlap with existing pending domain
+            domain_words = set(domain.keywords.keys())
+            overlap = len(query_words & domain_words)
+            
+            if overlap > best_overlap:
+                best_overlap = overlap
+                best_match = domain
+        
+        # If good match found, use it
+        if best_match and best_overlap >= 2:
+            return best_match
+        
+        # Create new pending domain
+        new_domain = PendingDomain()
+        self._pending_domains.append(new_domain)
+        
+        # Limit pending domains
+        if len(self._pending_domains) > 10:
+            # Remove oldest
+            self._pending_domains = self._pending_domains[-10:]
+        
+        return new_domain
+    
+    def _spawn_from_pending(self, domain: PendingDomain) -> tuple[SimulacrumStore, str]:
+        """Create a simulacrum from a pending domain."""
+        # Generate name from top keywords
+        top_kw = domain.top_keywords(3)
+        name = "-".join(top_kw) if top_kw else f"auto-{len(self._metadata)}"
+        
+        # Ensure unique name
+        base_name = name
+        counter = 1
+        while name in self._metadata:
+            name = f"{base_name}-{counter}"
+            counter += 1
+        
+        # Generate description
+        if len(domain.queries) > 0:
+            description = f"Auto-created for topics: {', '.join(top_kw)}"
+        else:
+            description = "Auto-created simulacrum"
+        
+        # Create the simulacrum
+        store = self.create(
+            name=name,
+            description=description,
+            domains=tuple(top_kw),
+        )
+        
+        # Mark as auto-spawned
+        self._metadata[name].auto_spawned = True
+        self._metadata[name].spawn_trigger_queries = tuple(domain.queries[:5])
+        
+        # Remove from pending
+        if domain in self._pending_domains:
+            self._pending_domains.remove(domain)
+        
+        # Clear matched queries from unmatched list
+        for q in domain.queries:
+            if q in self._recent_unmatched_queries:
+                self._recent_unmatched_queries.remove(q)
+        
+        self._save_registry()
+        
+        return store, name
+    
+    def check_spawn_status(self) -> dict:
+        """Get current auto-spawn tracking status.
+        
+        Useful for debugging and transparency about what the manager is tracking.
+        """
+        pending_info = []
+        for i, domain in enumerate(self._pending_domains):
+            pending_info.append({
+                "index": i,
+                "query_count": len(domain.queries),
+                "top_keywords": domain.top_keywords(5),
+                "coherence": round(domain.coherence_score(), 2),
+                "ready_to_spawn": (
+                    len(domain.queries) >= self.spawn_policy.min_queries_before_spawn
+                    and domain.coherence_score() >= self.spawn_policy.domain_coherence_threshold
+                ),
+            })
+        
+        return {
+            "spawn_enabled": self.spawn_policy.enabled,
+            "novelty_threshold": self.spawn_policy.novelty_threshold,
+            "min_queries": self.spawn_policy.min_queries_before_spawn,
+            "coherence_threshold": self.spawn_policy.domain_coherence_threshold,
+            "unmatched_queries": len(self._recent_unmatched_queries),
+            "pending_domains": pending_info,
+            "simulacrum_count": len(self._metadata),
+            "max_simulacrums": self.spawn_policy.max_simulacrums,
+        }
+    
+    # === Cross-Simulacrum Operations ===
+    
+    def query_all(
+        self,
+        query: str,
+        limit_per_simulacrum: int = 5,
+    ) -> list[tuple[str, "MemoryNode", float]]:
+        """Query across all simulacrums.
+        
+        Useful when you need knowledge that might exist in different contexts.
+        
+        Args:
+            query: Search query
+            limit_per_simulacrum: Max results per simulacrum
+            
+        Returns:
+            List of (simulacrum_name, node, score) tuples
+        """
+        results: list[tuple[str, "MemoryNode", float]] = []
+        
+        for name, meta in self._metadata.items():
+            store = self.get(name)
+            if store.unified_store:
+                nodes = store.unified_store.query(
+                    text_query=query,
+                    limit=limit_per_simulacrum,
+                )
+                for node, score in nodes:
+                    results.append((name, node, score))
+        
+        # Sort by score across all simulacrums
+        results.sort(key=lambda x: x[2], reverse=True)
+        return results
+    
+    def find_related_simulacrums(self, name: str) -> list[tuple[str, float]]:
+        """Find simulacrums related to a given one by domain overlap.
+        
+        Useful for suggesting consolidation candidates.
+        """
+        if name not in self._metadata:
+            return []
+        
+        source = self._metadata[name]
+        source_domains = set(source.domains)
+        
+        related: list[tuple[str, float]] = []
+        for other_name, other_meta in self._metadata.items():
+            if other_name == name:
+                continue
+            
+            other_domains = set(other_meta.domains)
+            if source_domains and other_domains:
+                overlap = len(source_domains & other_domains)
+                union = len(source_domains | other_domains)
+                jaccard = overlap / union if union > 0 else 0
+                if jaccard > 0:
+                    related.append((other_name, jaccard))
+        
+        related.sort(key=lambda x: x[1], reverse=True)
+        return related
+    
+    # === Consolidation / Merging ===
+    
+    def merge(
+        self,
+        source: str,
+        into: str,
+        delete_source: bool = False,
+    ) -> int:
+        """Merge one simulacrum into another.
+        
+        Consolidates memory nodes and learnings from source into target.
+        
+        Args:
+            source: Simulacrum to merge from
+            into: Simulacrum to merge into
+            delete_source: If True, delete source after merge
+            
+        Returns:
+            Number of nodes merged
+        """
+        source_store = self.get(source)
+        target_store = self.get(into)
+        
+        merged_count = 0
+        
+        # Merge unified store nodes
+        if source_store.unified_store and target_store.unified_store:
+            for node in source_store.unified_store._nodes.values():
+                # Check for duplicates by content hash
+                exists = any(
+                    n.content == node.content
+                    for n in target_store.unified_store._nodes.values()
+                )
+                if not exists:
+                    target_store.unified_store.add_node(node)
+                    merged_count += 1
+            
+            # Merge concept graph edges
+            for edges in source_store.unified_store._concept_graph._edges.values():
+                for edge in edges:
+                    target_store.unified_store._concept_graph.add_edge(edge)
+        
+        # Merge learnings from DAG
+        source_dag = source_store.get_dag()
+        target_dag = target_store.get_dag()
+        
+        for learning in source_dag.get_active_learnings():
+            # Check for duplicates
+            exists = any(
+                l.fact == learning.fact
+                for l in target_dag.get_active_learnings()
+            )
+            if not exists:
+                target_dag.add_learning(learning)
+                merged_count += 1
+        
+        # Save target
+        target_store.save_session()
+        
+        # Update target metadata
+        target_meta = self._metadata[into]
+        target_stats = target_store.stats()
+        target_meta.node_count = target_stats.get("unified_store", {}).get("total_nodes", 0)
+        target_meta.learning_count = target_stats.get("dag_stats", {}).get("learnings", 0)
+        
+        # Optionally delete source
+        if delete_source:
+            self.delete(source, confirm=True)
+        
+        self._save_registry()
+        return merged_count
+    
+    # === Lifecycle Management (Archive, Cleanup, Shrink) ===
+    
+    def check_health(self) -> dict:
+        """Check simulacrum health and return cleanup recommendations.
+        
+        Returns dict with:
+        - stale: Simulacrums not accessed recently
+        - empty: Simulacrums with no useful content
+        - merge_candidates: Similar simulacrums that could be merged
+        - archive_candidates: Ready for cold storage
+        """
+        from datetime import timedelta
+        
+        now = datetime.now()
+        stale: list[tuple[str, int]] = []  # (name, days_since_access)
+        empty: list[str] = []
+        archive_candidates: list[str] = []
+        
+        for name, meta in self._metadata.items():
+            # Parse last_accessed
+            try:
+                last_access = datetime.fromisoformat(meta.last_accessed)
+                days_since = (now - last_access).days
+            except (ValueError, TypeError):
+                days_since = 999
+            
+            # Check staleness
+            if days_since >= self.lifecycle_policy.stale_days:
+                stale.append((name, days_since))
+            
+            # Check archive threshold
+            if days_since >= self.lifecycle_policy.archive_days:
+                archive_candidates.append(name)
+            
+            # Check emptiness (but protect recently spawned)
+            if meta.auto_spawned:
+                try:
+                    created = datetime.fromisoformat(meta.created_at)
+                    days_old = (now - created).days
+                except (ValueError, TypeError):
+                    days_old = 999
+                
+                if days_old < self.lifecycle_policy.protect_recently_spawned_days:
+                    continue  # Protected
+            
+            if (meta.node_count < self.lifecycle_policy.min_useful_nodes and
+                meta.learning_count < self.lifecycle_policy.min_useful_learnings):
+                empty.append(name)
+        
+        # Find merge candidates
+        merge_candidates: list[tuple[str, str, float]] = []
+        names = list(self._metadata.keys())
+        for i, name1 in enumerate(names):
+            for name2 in names[i+1:]:
+                related = self.find_related_simulacrums(name1)
+                for rel_name, similarity in related:
+                    if rel_name == name2 and similarity >= self.lifecycle_policy.merge_similarity_threshold:
+                        merge_candidates.append((name1, name2, similarity))
+        
+        return {
+            "stale": stale,
+            "empty": empty,
+            "archive_candidates": archive_candidates,
+            "merge_candidates": merge_candidates,
+            "total_simulacrums": len(self._metadata),
+            "total_archived": len(self._archived),
+        }
+    
+    def archive(self, name: str, reason: str = "manual") -> ArchiveMetadata:
+        """Archive a simulacrum to cold storage.
+        
+        The simulacrum data is compressed using zstd (Python 3.14+) and moved 
+        to an archive directory. Falls back to gzip if zstd unavailable.
+        It can be restored later if needed.
+        
+        Args:
+            name: Simulacrum to archive
+            reason: Why it's being archived ("stale", "manual", "merged", "empty")
+            
+        Returns:
+            ArchiveMetadata for the archived simulacrum
+        """
+        import shutil
+        
+        if name not in self._metadata:
+            raise KeyError(f"Simulacrum '{name}' not found")
+        
+        if name == self._active_name:
+            raise ValueError("Cannot archive the active simulacrum. Switch first.")
+        
+        meta = self._metadata[name]
+        
+        # Create archive directory
+        archive_dir = self.base_path / "archive"
+        archive_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Archive path - prefer zstd (Python 3.14+), fallback to gzip
+        archive_name = f"{name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        # Try zstd first (Python 3.14+ built-in, faster & better compression)
+        source_dir = self.base_path / name
+        if source_dir.exists():
+            import tarfile
+            try:
+                # Python 3.14+: Use zstd compression
+                from compression import zstd
+                archive_path = archive_dir / f"{archive_name}.tar.zst"
+                
+                # Create tar archive in memory, then compress with zstd
+                import io
+                tar_buffer = io.BytesIO()
+                with tarfile.open(fileobj=tar_buffer, mode="w") as tar:
+                    tar.add(source_dir, arcname=name)
+                tar_data = tar_buffer.getvalue()
+                
+                # Compress with zstd (level 3 = good balance of speed/ratio)
+                compressed = zstd.compress(tar_data, level=3)
+                archive_path.write_bytes(compressed)
+                
+            except ImportError:
+                # Fallback to gzip for older Python
+                archive_path = archive_dir / f"{archive_name}.tar.gz"
+                with tarfile.open(archive_path, "w:gz") as tar:
+                    tar.add(source_dir, arcname=name)
+        
+        # Create archive metadata
+        archive_meta = ArchiveMetadata(
+            name=name,
+            description=meta.description,
+            domains=meta.domains,
+            archived_at=datetime.now().isoformat(),
+            original_created_at=meta.created_at,
+            last_accessed=meta.last_accessed,
+            node_count=meta.node_count,
+            learning_count=meta.learning_count,
+            archive_reason=reason,
+            archive_path=str(archive_path),
+        )
+        
+        # Add to archive registry
+        self._archived[name] = archive_meta
+        
+        # Remove from active registry
+        del self._metadata[name]
+        if name in self._stores:
+            del self._stores[name]
+        
+        # Remove source directory
+        if source_dir.exists():
+            shutil.rmtree(source_dir)
+        
+        self._save_registry()
+        
+        return archive_meta
+    
+    def restore(self, name: str) -> SimulacrumStore:
+        """Restore an archived simulacrum.
+        
+        Handles both zstd (Python 3.14+) and gzip archives.
+        
+        Args:
+            name: Name of archived simulacrum to restore
+            
+        Returns:
+            The restored SimulacrumStore
+        """
+        import tarfile
+        
+        if name not in self._archived:
+            raise KeyError(f"No archived simulacrum '{name}' found")
+        
+        archive_meta = self._archived[name]
+        archive_path = Path(archive_meta.archive_path)
+        
+        if not archive_path.exists():
+            raise FileNotFoundError(f"Archive file not found: {archive_path}")
+        
+        # Extract based on archive format
+        if archive_path.suffix == ".zst" or str(archive_path).endswith(".tar.zst"):
+            # Python 3.14+ zstd format
+            try:
+                from compression import zstd
+                import io
+                
+                compressed_data = archive_path.read_bytes()
+                tar_data = zstd.decompress(compressed_data)
+                
+                tar_buffer = io.BytesIO(tar_data)
+                with tarfile.open(fileobj=tar_buffer, mode="r") as tar:
+                    tar.extractall(self.base_path)
+            except ImportError:
+                raise RuntimeError(
+                    f"Archive uses zstd compression but Python < 3.14. "
+                    f"Upgrade Python or manually decompress: {archive_path}"
+                )
+        else:
+            # Legacy gzip format
+            with tarfile.open(archive_path, "r:gz") as tar:
+                tar.extractall(self.base_path)
+        
+        # Restore metadata
+        restored_meta = SimulacrumMetadata(
+            name=name,
+            description=archive_meta.description,
+            domains=archive_meta.domains,
+            created_at=archive_meta.original_created_at,
+            last_accessed=datetime.now().isoformat(),
+            access_count=0,  # Reset
+            node_count=archive_meta.node_count,
+            learning_count=archive_meta.learning_count,
+        )
+        
+        self._metadata[name] = restored_meta
+        
+        # Remove from archive
+        del self._archived[name]
+        archive_path.unlink(missing_ok=True)
+        
+        self._save_registry()
+        
+        return self.get(name)
+    
+    def list_archived(self) -> list[ArchiveMetadata]:
+        """List all archived simulacrums."""
+        return sorted(
+            self._archived.values(),
+            key=lambda a: a.archived_at,
+            reverse=True,
+        )
+    
+    def cleanup(self, dry_run: bool = True) -> dict:
+        """Run automatic cleanup based on lifecycle policy.
+        
+        Args:
+            dry_run: If True, only report what would be done
+            
+        Returns:
+            Dict with actions taken (or would be taken)
+        """
+        health = self.check_health()
+        actions = {
+            "archived": [],
+            "merged": [],
+            "deleted": [],
+            "dry_run": dry_run,
+        }
+        
+        # Archive stale simulacrums
+        if self.lifecycle_policy.auto_archive:
+            for name in health["archive_candidates"]:
+                if name == self._active_name:
+                    continue
+                if dry_run:
+                    actions["archived"].append(f"{name} (would archive)")
+                else:
+                    self.archive(name, reason="stale")
+                    actions["archived"].append(name)
+        
+        # Merge empty auto-spawned simulacrums
+        if self.lifecycle_policy.auto_merge_empty:
+            for name in health["empty"]:
+                if name == self._active_name:
+                    continue
+                if name not in self._metadata:
+                    continue  # Already processed
+                
+                meta = self._metadata[name]
+                if not meta.auto_spawned:
+                    continue  # Only auto-merge auto-spawned ones
+                
+                # Find best merge target
+                related = self.find_related_simulacrums(name)
+                if related:
+                    target, _ = related[0]
+                    if dry_run:
+                        actions["merged"].append(f"{name} → {target} (would merge)")
+                    else:
+                        self.merge(name, into=target, delete_source=True)
+                        actions["merged"].append(f"{name} → {target}")
+                else:
+                    # No related simulacrum, just delete
+                    if dry_run:
+                        actions["deleted"].append(f"{name} (would delete)")
+                    else:
+                        self.delete(name, confirm=True)
+                        actions["deleted"].append(name)
+        
+        return actions
+    
+    def shrink(self, name: str, keep_recent_days: int = 30) -> dict:
+        """Shrink a simulacrum by pruning old, low-value content.
+        
+        This keeps the simulacrum active but reduces its size by:
+        - Removing old, low-confidence nodes
+        - Compressing conversation history
+        - Pruning weak concept graph edges
+        
+        Args:
+            name: Simulacrum to shrink
+            keep_recent_days: Keep all content from this many days
+            
+        Returns:
+            Dict with shrink statistics
+        """
+        store = self.get(name)
+        stats = {"nodes_removed": 0, "edges_pruned": 0}
+        
+        if store.unified_store:
+            from datetime import timedelta
+            cutoff = datetime.now() - timedelta(days=keep_recent_days)
+            cutoff_str = cutoff.isoformat()
+            
+            # Find old, low-value nodes
+            to_remove = []
+            for node_id, node in store.unified_store._nodes.items():
+                # Keep if recent
+                if node.created_at > cutoff_str:
+                    continue
+                
+                # Keep if high-confidence facets
+                if node.facets and node.facets.confidence:
+                    from sunwell.simulacrum.facets import ConfidenceLevel
+                    if node.facets.confidence in (ConfidenceLevel.HIGH, ConfidenceLevel.VERY_HIGH):
+                        continue
+                
+                # Keep if many incoming edges (important node)
+                if len(node.incoming_edges) >= 3:
+                    continue
+                
+                to_remove.append(node_id)
+            
+            # Remove nodes
+            for node_id in to_remove:
+                store.unified_store.remove_node(node_id)
+                stats["nodes_removed"] += 1
+            
+            # Prune weak edges
+            stats["edges_pruned"] = store.unified_store._concept_graph.prune(
+                min_confidence=0.3
+            )
+            
+            # Save
+            store.unified_store.save()
+        
+        # Update metadata
+        store_stats = store.stats()
+        self._metadata[name].node_count = store_stats.get("unified_store", {}).get("total_nodes", 0)
+        self._save_registry()
+        
+        return stats
+    
+    # === Persistence ===
+    
+    def save_all(self) -> None:
+        """Save all loaded simulacrums."""
+        for store in self._stores.values():
+            store.save_session()
+        self._save_registry()
+    
+    def stats(self) -> dict:
+        """Get manager-wide statistics."""
+        total_nodes = 0
+        total_learnings = 0
+        
+        for meta in self._metadata.values():
+            total_nodes += meta.node_count
+            total_learnings += meta.learning_count
+        
+        return {
+            "simulacrum_count": len(self._metadata),
+            "active": self._active_name,
+            "total_nodes": total_nodes,
+            "total_learnings": total_learnings,
+            "simulacrums": [
+                {
+                    "name": m.name,
+                    "domains": list(m.domains),
+                    "nodes": m.node_count,
+                    "learnings": m.learning_count,
+                    "accesses": m.access_count,
+                }
+                for m in self.list_simulacrums()
+            ],
+        }
+
+
+# === Simulacrum Management Tools ===
+
+SIMULACRUM_TOOLS: dict[str, Tool] = {
+    "list_simulacrums": Tool(
+        name="list_simulacrums",
+        description=(
+            "List all available simulacrums. Returns their names, descriptions, "
+            "and domain tags. Use this to see what contexts are available."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    "switch_simulacrum": Tool(
+        name="switch_simulacrum",
+        description=(
+            "Switch to a different simulacrum context. Use when the conversation "
+            "shifts to a new domain or when you need specialized knowledge. "
+            "Example: switch to 'security' simulacrum when discussing vulnerabilities."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Name of the simulacrum to activate",
+                },
+            },
+            "required": ["name"],
+        },
+    ),
+    
+    "create_simulacrum": Tool(
+        name="create_simulacrum",
+        description=(
+            "Create a new simulacrum for a new domain or project. "
+            "Use when the current conversation introduces a distinct new context "
+            "that deserves its own memory space."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Unique name for the new simulacrum (e.g., 'api-security')",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "What this simulacrum is for",
+                },
+                "domains": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Domain tags for routing (e.g., ['security', 'api'])",
+                },
+            },
+            "required": ["name", "description"],
+        },
+    ),
+    
+    "suggest_simulacrum": Tool(
+        name="suggest_simulacrum",
+        description=(
+            "Get suggestions for which simulacrum might be relevant "
+            "for a given topic or query. Use to decide if you should switch contexts."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "topic": {
+                    "type": "string",
+                    "description": "Topic or query to find relevant simulacrums for",
+                },
+            },
+            "required": ["topic"],
+        },
+    ),
+    
+    "query_all_simulacrums": Tool(
+        name="query_all_simulacrums",
+        description=(
+            "Search across ALL simulacrums for relevant information. "
+            "Use when you need knowledge that might exist in different contexts, "
+            "or when you're unsure which simulacrum has the answer."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Search query",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Max results per simulacrum",
+                    "default": 3,
+                },
+            },
+            "required": ["query"],
+        },
+    ),
+    
+    "current_simulacrum": Tool(
+        name="current_simulacrum",
+        description="Get information about the currently active simulacrum.",
+        parameters={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    "route_query": Tool(
+        name="route_query",
+        description=(
+            "Smart routing for a query: finds the best simulacrum, or auto-spawns "
+            "a new one if the topic is novel. Use this instead of manual switching "
+            "when you're unsure which simulacrum to use. The system will track queries "
+            "and create new simulacrums when it detects coherent new domains."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The query/topic to route",
+                },
+                "activate": {
+                    "type": "boolean",
+                    "description": "Whether to activate the matched/spawned simulacrum",
+                    "default": True,
+                },
+            },
+            "required": ["query"],
+        },
+    ),
+    
+    "spawn_status": Tool(
+        name="spawn_status",
+        description=(
+            "Check the auto-spawn tracking status. Shows pending domains being "
+            "tracked, their coherence scores, and whether they're ready to become "
+            "new simulacrums. Useful for understanding why/when new simulacrums appear."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    "simulacrum_health": Tool(
+        name="simulacrum_health",
+        description=(
+            "Check the health of all simulacrums. Returns info about stale simulacrums, "
+            "empty ones, merge candidates, and archive candidates. Use this to understand "
+            "which simulacrums need attention."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    "archive_simulacrum": Tool(
+        name="archive_simulacrum",
+        description=(
+            "Archive a simulacrum to cold storage. The simulacrum data is compressed "
+            "and stored, freeing up active memory. It can be restored later. "
+            "Use for simulacrums that aren't needed now but might be useful later."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Name of simulacrum to archive",
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "Why archiving (stale, manual, empty)",
+                    "default": "manual",
+                },
+            },
+            "required": ["name"],
+        },
+    ),
+    
+    "restore_simulacrum": Tool(
+        name="restore_simulacrum",
+        description=(
+            "Restore an archived simulacrum back to active use. "
+            "Use when you need knowledge from a previously archived context."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Name of archived simulacrum to restore",
+                },
+            },
+            "required": ["name"],
+        },
+    ),
+    
+    "list_archived": Tool(
+        name="list_archived",
+        description="List all archived simulacrums that can be restored.",
+        parameters={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    "cleanup_simulacrums": Tool(
+        name="cleanup_simulacrums",
+        description=(
+            "Run automatic cleanup: archive stale simulacrums, merge empty ones. "
+            "Use dry_run=true first to see what would happen."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "dry_run": {
+                    "type": "boolean",
+                    "description": "If true, only report what would be done",
+                    "default": True,
+                },
+            },
+            "required": [],
+        },
+    ),
+    
+    "shrink_simulacrum": Tool(
+        name="shrink_simulacrum",
+        description=(
+            "Shrink a simulacrum by removing old, low-value content while keeping "
+            "important knowledge. Use when a simulacrum has grown too large."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Name of simulacrum to shrink",
+                },
+                "keep_recent_days": {
+                    "type": "integer",
+                    "description": "Keep all content from this many days",
+                    "default": 30,
+                },
+            },
+            "required": ["name"],
+        },
+    ),
+}
+
+
+@dataclass
+class SimulacrumToolHandler:
+    """Handles simulacrum management tool calls."""
+    
+    manager: SimulacrumManager
+    
+    async def handle(self, tool_name: str, arguments: dict) -> str:
+        """Handle a simulacrum tool call."""
+        if tool_name == "list_simulacrums":
+            return self._list_simulacrums()
+        
+        elif tool_name == "switch_simulacrum":
+            return self._switch_simulacrum(arguments["name"])
+        
+        elif tool_name == "create_simulacrum":
+            return self._create_simulacrum(
+                name=arguments["name"],
+                description=arguments["description"],
+                domains=tuple(arguments.get("domains", [])),
+            )
+        
+        elif tool_name == "suggest_simulacrum":
+            return self._suggest_simulacrum(arguments["topic"])
+        
+        elif tool_name == "query_all_simulacrums":
+            return await self._query_all(
+                query=arguments["query"],
+                limit=arguments.get("limit", 3),
+            )
+        
+        elif tool_name == "current_simulacrum":
+            return self._current_simulacrum()
+        
+        elif tool_name == "route_query":
+            return self._route_query(
+                query=arguments["query"],
+                activate=arguments.get("activate", True),
+            )
+        
+        elif tool_name == "spawn_status":
+            return self._spawn_status()
+        
+        elif tool_name == "simulacrum_health":
+            return self._simulacrum_health()
+        
+        elif tool_name == "archive_simulacrum":
+            return self._archive_simulacrum(
+                name=arguments["name"],
+                reason=arguments.get("reason", "manual"),
+            )
+        
+        elif tool_name == "restore_simulacrum":
+            return self._restore_simulacrum(arguments["name"])
+        
+        elif tool_name == "list_archived":
+            return self._list_archived()
+        
+        elif tool_name == "cleanup_simulacrums":
+            return self._cleanup_simulacrums(
+                dry_run=arguments.get("dry_run", True),
+            )
+        
+        elif tool_name == "shrink_simulacrum":
+            return self._shrink_simulacrum(
+                name=arguments["name"],
+                keep_recent_days=arguments.get("keep_recent_days", 30),
+            )
+        
+        return f"Unknown simulacrum tool: {tool_name}"
+    
+    def _list_simulacrums(self) -> str:
+        simulacrums = self.manager.list_simulacrums()
+        if not simulacrums:
+            return "No simulacrums exist yet. Create one with create_simulacrum."
+        
+        lines = ["Available simulacrums:"]
+        for meta in simulacrums:
+            active = " (active)" if meta.name == self.manager.active_name else ""
+            domains = f" [{', '.join(meta.domains)}]" if meta.domains else ""
+            lines.append(
+                f"- **{meta.name}**{active}: {meta.description}{domains} "
+                f"({meta.node_count} nodes, {meta.learning_count} learnings)"
+            )
+        return "\n".join(lines)
+    
+    def _switch_simulacrum(self, name: str) -> str:
+        try:
+            self.manager.activate(name)
+            meta = self.manager._metadata[name]
+            return (
+                f"✓ Switched to simulacrum: **{name}**\n"
+                f"  {meta.description}\n"
+                f"  {meta.node_count} nodes, {meta.learning_count} learnings available"
+            )
+        except KeyError:
+            available = ", ".join(m.name for m in self.manager.list_simulacrums())
+            return f"Simulacrum '{name}' not found. Available: {available}"
+    
+    def _create_simulacrum(
+        self,
+        name: str,
+        description: str,
+        domains: tuple[str, ...],
+    ) -> str:
+        try:
+            self.manager.create(name, description, domains)
+            return (
+                f"✓ Created simulacrum: **{name}**\n"
+                f"  {description}\n"
+                f"  Domains: {', '.join(domains) if domains else 'none'}\n"
+                f"  Use switch_simulacrum to activate it."
+            )
+        except ValueError as e:
+            return f"Error: {e}"
+    
+    def _suggest_simulacrum(self, topic: str) -> str:
+        suggestions = self.manager.suggest(topic)
+        if not suggestions:
+            return (
+                f"No relevant simulacrums found for '{topic}'. "
+                "Consider creating a new one with create_simulacrum."
+            )
+        
+        lines = [f"Suggested simulacrums for '{topic}':"]
+        for meta, score in suggestions:
+            active = " (currently active)" if meta.name == self.manager.active_name else ""
+            lines.append(
+                f"- **{meta.name}** ({score:.0%} relevance){active}: {meta.description}"
+            )
+        return "\n".join(lines)
+    
+    async def _query_all(self, query: str, limit: int) -> str:
+        results = self.manager.query_all(query, limit_per_simulacrum=limit)
+        if not results:
+            return f"No results found for '{query}' across any simulacrum."
+        
+        lines = [f"Results for '{query}' across all simulacrums:"]
+        current_hs = None
+        for hs_name, node, score in results[:15]:  # Cap total results
+            if hs_name != current_hs:
+                lines.append(f"\n**From {hs_name}:**")
+                current_hs = hs_name
+            lines.append(f"- [{score:.0%}] {node.content[:150]}...")
+        
+        return "\n".join(lines)
+    
+    def _current_simulacrum(self) -> str:
+        name = self.manager.active_name
+        if not name:
+            return "No simulacrum is currently active. Use switch_simulacrum to activate one."
+        
+        meta = self.manager._metadata[name]
+        store = self.manager.active
+        stats = store.stats() if store else {}
+        
+        auto_tag = " (auto-spawned)" if meta.auto_spawned else ""
+        
+        return (
+            f"**Active Simulacrum: {name}**{auto_tag}\n"
+            f"  Description: {meta.description}\n"
+            f"  Domains: {', '.join(meta.domains) if meta.domains else 'none'}\n"
+            f"  Created: {meta.created_at[:10]}\n"
+            f"  Accesses: {meta.access_count}\n"
+            f"  Memory nodes: {stats.get('unified_store', {}).get('total_nodes', 0)}\n"
+            f"  Learnings: {stats.get('dag_stats', {}).get('learnings', 0)}"
+        )
+    
+    def _route_query(self, query: str, activate: bool) -> str:
+        store, was_spawned, explanation = self.manager.route_query(query, activate=activate)
+        
+        if was_spawned:
+            return f"🆕 {explanation}\nA new simulacrum was created because this topic is novel."
+        elif store:
+            return f"✓ {explanation}"
+        else:
+            return f"⏳ {explanation}"
+    
+    def _spawn_status(self) -> str:
+        status = self.manager.check_spawn_status()
+        
+        lines = [
+            "**Auto-Spawn Status**",
+            f"  Enabled: {status['spawn_enabled']}",
+            f"  Novelty threshold: {status['novelty_threshold']:.0%}",
+            f"  Min queries before spawn: {status['min_queries']}",
+            f"  Coherence threshold: {status['coherence_threshold']:.0%}",
+            f"  Simulacrums: {status['simulacrum_count']}/{status['max_simulacrums']}",
+            f"  Unmatched queries tracked: {status['unmatched_queries']}",
+        ]
+        
+        if status['pending_domains']:
+            lines.append("\n**Pending Domains** (potential new simulacrums):")
+            for domain in status['pending_domains']:
+                ready = "✓ Ready" if domain['ready_to_spawn'] else "○ Accumulating"
+                keywords = ', '.join(domain['top_keywords'][:3]) if domain['top_keywords'] else 'none'
+                lines.append(
+                    f"  - {ready}: {domain['query_count']} queries, "
+                    f"coherence={domain['coherence']:.0%}, "
+                    f"keywords=[{keywords}]"
+                )
+        else:
+            lines.append("\nNo pending domains (all queries matched existing simulacrums)")
+        
+        return "\n".join(lines)
+    
+    def _simulacrum_health(self) -> str:
+        health = self.manager.check_health()
+        
+        lines = ["**Simulacrum Health Report**"]
+        lines.append(f"Total active: {health['total_simulacrums']}")
+        lines.append(f"Total archived: {health['total_archived']}")
+        
+        if health["stale"]:
+            lines.append("\n**⚠️ Stale Simulacrums** (not accessed recently):")
+            for name, days in health["stale"][:5]:
+                lines.append(f"  - {name}: {days} days since last access")
+        
+        if health["empty"]:
+            lines.append("\n**📭 Empty/Low-Value Simulacrums:**")
+            for name in health["empty"][:5]:
+                lines.append(f"  - {name}")
+        
+        if health["archive_candidates"]:
+            lines.append("\n**📦 Archive Candidates** (very stale):")
+            for name in health["archive_candidates"][:5]:
+                lines.append(f"  - {name}")
+        
+        if health["merge_candidates"]:
+            lines.append("\n**🔀 Merge Candidates** (similar domains):")
+            for name1, name2, sim in health["merge_candidates"][:5]:
+                lines.append(f"  - {name1} ↔ {name2} ({sim:.0%} overlap)")
+        
+        if not any([health["stale"], health["empty"], health["archive_candidates"], health["merge_candidates"]]):
+            lines.append("\n✅ All simulacrums are healthy!")
+        
+        return "\n".join(lines)
+    
+    def _archive_simulacrum(self, name: str, reason: str) -> str:
+        try:
+            meta = self.manager.archive(name, reason=reason)
+            return (
+                f"✅ Archived simulacrum: **{name}**\n"
+                f"  Reason: {reason}\n"
+                f"  Saved to: {meta.archive_path}\n"
+                f"  Use restore_simulacrum to bring it back."
+            )
+        except KeyError:
+            return f"❌ Simulacrum '{name}' not found."
+        except ValueError as e:
+            return f"❌ Cannot archive: {e}"
+    
+    def _restore_simulacrum(self, name: str) -> str:
+        try:
+            self.manager.restore(name)
+            return f"✅ Restored simulacrum: **{name}**\nIt's now available for use."
+        except KeyError:
+            available = ", ".join(self.manager._archived.keys())
+            return f"❌ No archived simulacrum '{name}'. Archived: {available or 'none'}"
+        except FileNotFoundError as e:
+            return f"❌ Archive file missing: {e}"
+    
+    def _list_archived(self) -> str:
+        archived = self.manager.list_archived()
+        if not archived:
+            return "No archived simulacrums. Use archive_simulacrum to archive stale ones."
+        
+        lines = ["**Archived Simulacrums** (can be restored):"]
+        for meta in archived:
+            lines.append(
+                f"- **{meta.name}**: {meta.description[:40]}...\n"
+                f"    Archived: {meta.archived_at[:10]} | Reason: {meta.archive_reason}\n"
+                f"    Had: {meta.node_count} nodes, {meta.learning_count} learnings"
+            )
+        return "\n".join(lines)
+    
+    def _cleanup_simulacrums(self, dry_run: bool) -> str:
+        actions = self.manager.cleanup(dry_run=dry_run)
+        
+        mode = "DRY RUN - No changes made" if dry_run else "CLEANUP COMPLETE"
+        lines = [f"**{mode}**"]
+        
+        if actions["archived"]:
+            lines.append("\n📦 Archived:")
+            for item in actions["archived"]:
+                lines.append(f"  - {item}")
+        
+        if actions["merged"]:
+            lines.append("\n🔀 Merged:")
+            for item in actions["merged"]:
+                lines.append(f"  - {item}")
+        
+        if actions["deleted"]:
+            lines.append("\n🗑️ Deleted:")
+            for item in actions["deleted"]:
+                lines.append(f"  - {item}")
+        
+        if not any([actions["archived"], actions["merged"], actions["deleted"]]):
+            lines.append("\n✅ Nothing to clean up!")
+        elif dry_run:
+            lines.append("\nRun with dry_run=false to execute these changes.")
+        
+        return "\n".join(lines)
+    
+    def _shrink_simulacrum(self, name: str, keep_recent_days: int) -> str:
+        try:
+            stats = self.manager.shrink(name, keep_recent_days=keep_recent_days)
+            return (
+                f"✅ Shrunk simulacrum: **{name}**\n"
+                f"  Removed {stats['nodes_removed']} old nodes\n"
+                f"  Pruned {stats['edges_pruned']} weak edges\n"
+                f"  Kept all content from last {keep_recent_days} days"
+            )
+        except KeyError:
+            return f"❌ Simulacrum '{name}' not found."

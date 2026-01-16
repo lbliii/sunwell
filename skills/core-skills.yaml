@@ -1,0 +1,599 @@
+# Sunwell Core Skills Library
+# These skills can be referenced in any lens via: skills: - include: core-skills
+#
+# Organized by capability:
+# 1. File Operations - Read/write files
+# 2. Code Analysis - Understand codebases
+# 3. Documentation - Generate docs
+# 4. Validation - Check quality
+# 5. Search - Find relevant content
+
+skills:
+  # ============================================================================
+  # FILE OPERATIONS
+  # ============================================================================
+  
+  - name: save-document
+    description: Save generated content to a file in the workspace
+    type: inline
+    trust: sandboxed
+    instructions: |
+      ## Goal
+      Save content to a file at the specified path.
+      
+      ## Process
+      1. Determine the appropriate file path from context
+      2. Create parent directories if needed
+      3. Write the content with appropriate formatting
+      4. Confirm the file was saved
+      
+      ## Output
+      Confirm with: "Saved to: {path}"
+    validate_with:
+      min_confidence: 0.9
+
+  - name: read-source
+    description: Read and analyze source code files for documentation
+    type: inline
+    trust: sandboxed
+    instructions: |
+      ## Goal
+      Read source files to extract information for documentation.
+      
+      ## Process
+      1. Read the specified file(s)
+      2. Identify key components (functions, classes, types)
+      3. Extract docstrings and comments
+      4. Note file structure and relationships
+      
+      ## Output Format
+      Provide structured summary:
+      - File: {path}
+      - Purpose: {description}
+      - Key exports: {list}
+      - Dependencies: {list}
+
+  - name: list-workspace
+    description: List files and directories in the workspace
+    type: inline
+    trust: sandboxed
+    instructions: |
+      ## Goal
+      List files matching a pattern to understand project structure.
+      
+      ## Process
+      1. List files matching the given pattern
+      2. Group by directory or type
+      3. Identify key files (README, config, entry points)
+      
+      ## Common Patterns
+      - Source: `src/**/*.py`, `lib/**/*.ts`
+      - Docs: `docs/**/*.md`
+      - Tests: `tests/**/*.py`, `**/*.test.ts`
+      - Config: `*.yaml`, `*.json`, `*.toml`
+
+  # ============================================================================
+  # CODE ANALYSIS
+  # ============================================================================
+  
+  - name: extract-api-surface
+    description: Extract public API from source code modules
+    type: inline
+    trust: sandboxed
+    compatibility: Python 3.10+ or Node.js 18+
+    instructions: |
+      ## Goal
+      Extract all public functions, classes, and types from a module.
+      
+      ## Process
+      1. Parse the source file(s)
+      2. Identify public exports (not starting with _)
+      3. Extract signatures with type hints
+      4. Collect docstrings
+      5. Note dependencies and imports
+      
+      ## Output Format
+      ```yaml
+      module: {name}
+      exports:
+        functions:
+          - name: {name}
+            signature: {sig}
+            docstring: {doc}
+            returns: {type}
+        classes:
+          - name: {name}
+            methods: [...]
+            properties: [...]
+        types:
+          - name: {name}
+            definition: {def}
+      ```
+    scripts:
+      - name: extract_python_api.py
+        language: python
+        description: Extract API from Python modules
+        content: |
+          import ast
+          import sys
+          import json
+          from pathlib import Path
+          
+          def extract_api(filepath):
+              with open(filepath) as f:
+                  tree = ast.parse(f.read())
+              
+              result = {
+                  "module": Path(filepath).stem,
+                  "functions": [],
+                  "classes": [],
+                  "constants": [],
+              }
+              
+              for node in ast.iter_child_nodes(tree):
+                  if isinstance(node, ast.FunctionDef) and not node.name.startswith('_'):
+                      result["functions"].append({
+                          "name": node.name,
+                          "lineno": node.lineno,
+                          "args": [a.arg for a in node.args.args],
+                          "docstring": ast.get_docstring(node),
+                      })
+                  elif isinstance(node, ast.ClassDef) and not node.name.startswith('_'):
+                      methods = []
+                      for item in node.body:
+                          if isinstance(item, ast.FunctionDef) and not item.name.startswith('_'):
+                              methods.append(item.name)
+                      result["classes"].append({
+                          "name": node.name,
+                          "lineno": node.lineno,
+                          "methods": methods,
+                          "docstring": ast.get_docstring(node),
+                      })
+              
+              return result
+          
+          if __name__ == '__main__':
+              print(json.dumps(extract_api(sys.argv[1]), indent=2))
+
+  - name: analyze-dependencies
+    description: Analyze project dependencies and their relationships
+    type: inline
+    trust: sandboxed
+    instructions: |
+      ## Goal
+      Map out project dependencies from config files.
+      
+      ## Process
+      1. Find dependency files (package.json, pyproject.toml, requirements.txt)
+      2. Parse dependencies and their versions
+      3. Categorize: runtime, dev, optional
+      4. Note any security concerns or outdated packages
+      
+      ## Output
+      List dependencies with:
+      - Name, version constraint
+      - Category (runtime/dev/optional)
+      - Purpose (if known)
+
+  - name: map-codebase-structure
+    description: Create a structural overview of the codebase
+    type: inline
+    trust: sandboxed
+    instructions: |
+      ## Goal
+      Generate a high-level map of the codebase architecture.
+      
+      ## Process
+      1. Identify entry points (main, cli, index)
+      2. Map module/package structure
+      3. Identify core vs utility code
+      4. Note architectural patterns (MVC, layers, etc.)
+      
+      ## Output Format
+      ```
+      project/
+      ├── src/           # Core source code
+      │   ├── core/      # {description}
+      │   ├── api/       # {description}
+      │   └── utils/     # {description}
+      ├── tests/         # Test suite
+      └── docs/          # Documentation
+      
+      Architecture: {pattern}
+      Entry points: {list}
+      Key abstractions: {list}
+      ```
+
+  # ============================================================================
+  # DOCUMENTATION GENERATION
+  # ============================================================================
+  
+  - name: create-api-reference
+    description: Generate comprehensive API reference documentation
+    type: inline
+    trust: sandboxed
+    instructions: |
+      ## Goal
+      Create complete API reference documentation for a module.
+      
+      ## Process
+      1. Use extract-api-surface to get API data
+      2. Organize by category (classes, functions, types)
+      3. Generate markdown with:
+         - Signature with types
+         - Description from docstring
+         - Parameters table
+         - Return value
+         - Example usage
+         - Source link (file:line)
+      
+      ## Template
+      ```markdown
+      # {Module} API Reference
+      
+      ## Classes
+      
+      ### `ClassName`
+      
+      {docstring}
+      
+      #### Constructor
+      
+      ```python
+      ClassName(param: Type) -> ClassName
+      ```
+      
+      #### Methods
+      
+      | Method | Description |
+      |--------|-------------|
+      | `method()` | {description} |
+      
+      ## Functions
+      
+      ### `function_name()`
+      
+      ```python
+      def function_name(param: Type) -> ReturnType
+      ```
+      
+      {description}
+      
+      **Parameters:**
+      - `param` (Type): {description}
+      
+      **Returns:** ReturnType - {description}
+      
+      **Example:**
+      ```python
+      result = function_name(value)
+      ```
+      
+      *Source: `{file}:{line}`*
+      ```
+    validate_with:
+      validators:
+        - evidence_required
+      min_confidence: 0.8
+
+  - name: create-quickstart
+    description: Generate a quickstart guide for new users
+    type: inline
+    trust: sandboxed
+    instructions: |
+      ## Goal
+      Create a quickstart that gets users productive in 5 minutes.
+      
+      ## Structure (Diataxis: TUTORIAL)
+      1. **What you'll build** - One sentence outcome
+      2. **Prerequisites** - Minimal requirements
+      3. **Install** - Copy-paste command
+      4. **First use** - Simplest possible example
+      5. **Next steps** - Links to more
+      
+      ## Guidelines
+      - Maximum 1 page
+      - All code must be copy-paste ready
+      - Show expected output
+      - No explanation of concepts (link instead)
+    templates:
+      - name: quickstart.md
+        content: |
+          # Quickstart: ${Name}
+          
+          Get ${name} running in 5 minutes.
+          
+          ## Prerequisites
+          
+          - ${prerequisites}
+          
+          ## Install
+          
+          ```bash
+          ${install_command}
+          ```
+          
+          ## Your First ${Name}
+          
+          ```${language}
+          ${minimal_example}
+          ```
+          
+          Expected output:
+          ```
+          ${expected_output}
+          ```
+          
+          ## Next Steps
+          
+          - [Tutorial](./tutorial.md) - Learn the basics
+          - [How-To Guides](./how-to/) - Common tasks
+          - [API Reference](./reference/) - Full documentation
+    validate_with:
+      validators:
+        - front_loaded
+        - no_marketing_fluff
+      personas:
+        - novice
+        - pragmatist
+      min_confidence: 0.7
+
+  - name: create-changelog-entry
+    description: Generate changelog entry from git commits or PR
+    type: inline
+    trust: sandboxed
+    instructions: |
+      ## Goal
+      Create a changelog entry following Keep a Changelog format.
+      
+      ## Categories
+      - **Added** - New features
+      - **Changed** - Changes in existing functionality
+      - **Deprecated** - Soon-to-be removed features
+      - **Removed** - Removed features
+      - **Fixed** - Bug fixes
+      - **Security** - Vulnerability fixes
+      
+      ## Process
+      1. Analyze the changes (commits, diff, PR description)
+      2. Categorize each change
+      3. Write user-focused descriptions (not implementation details)
+      4. Link to issues/PRs where relevant
+      
+      ## Template
+      ```markdown
+      ## [${version}] - ${date}
+      
+      ### Added
+      - Feature description ([#123](link))
+      
+      ### Fixed
+      - Bug description ([#124](link))
+      ```
+
+  - name: create-architecture-doc
+    description: Generate architecture documentation from codebase analysis
+    type: inline
+    trust: sandboxed
+    instructions: |
+      ## Goal
+      Create architecture documentation (Diataxis: EXPLANATION).
+      
+      ## Structure
+      1. **Overview** - What the system does, key components
+      2. **Components** - Major parts and responsibilities
+      3. **Data Flow** - How data moves through the system
+      4. **Key Decisions** - Why it's built this way
+      5. **Diagrams** - Visual representations
+      
+      ## Process
+      1. Use map-codebase-structure to understand layout
+      2. Identify core abstractions and patterns
+      3. Trace key workflows
+      4. Document integration points
+      
+      ## Diagram Format (Mermaid)
+      ```mermaid
+      graph TD
+          A[User] --> B[API]
+          B --> C[Service]
+          C --> D[Database]
+      ```
+    validate_with:
+      validators:
+        - evidence_required
+      min_confidence: 0.75
+
+  # ============================================================================
+  # VALIDATION & QUALITY
+  # ============================================================================
+  
+  - name: validate-code-examples
+    description: Check that code examples in documentation actually work
+    type: inline
+    trust: sandboxed
+    instructions: |
+      ## Goal
+      Verify all code examples in documentation are correct.
+      
+      ## Process
+      1. Extract code blocks from markdown
+      2. Identify language and context
+      3. Check syntax validity
+      4. Verify imports exist
+      5. Run if possible (sandboxed)
+      
+      ## Output
+      ```
+      ✅ example.md:15 - Python syntax valid
+      ⚠️ example.md:42 - Import 'foo' not found in codebase
+      ❌ example.md:78 - Syntax error on line 3
+      ```
+    scripts:
+      - name: check_python_syntax.py
+        language: python
+        description: Validate Python code syntax
+        content: |
+          import ast
+          import sys
+          
+          def check_syntax(code):
+              try:
+                  ast.parse(code)
+                  return True, None
+              except SyntaxError as e:
+                  return False, str(e)
+          
+          if __name__ == '__main__':
+              code = sys.stdin.read()
+              valid, error = check_syntax(code)
+              if valid:
+                  print("VALID")
+              else:
+                  print(f"ERROR: {error}")
+                  sys.exit(1)
+
+  - name: check-documentation-links
+    description: Verify all links in documentation are valid
+    type: inline
+    trust: sandboxed
+    instructions: |
+      ## Goal
+      Find broken links in documentation.
+      
+      ## Link Types
+      - Internal: `./path/to/file.md`, `#heading`
+      - External: `https://...`
+      - Code refs: `file.py:42`
+      
+      ## Process
+      1. Extract all links from markdown files
+      2. Check internal links exist
+      3. Verify anchor links have targets
+      4. Check code references are valid
+      5. (Optional) Verify external links respond
+      
+      ## Output
+      ```
+      Checked: 45 links in 12 files
+      ✅ Valid: 42
+      ⚠️ External (unchecked): 2
+      ❌ Broken: 1
+        - docs/api.md:15 → ./missing.md (file not found)
+      ```
+
+  - name: audit-documentation
+    description: Comprehensive documentation quality audit
+    type: inline
+    trust: sandboxed
+    instructions: |
+      ## Goal
+      Audit documentation for accuracy and quality.
+      
+      ## Checks
+      1. **Accuracy** - Claims match source code
+      2. **Completeness** - All public API documented
+      3. **Currency** - No outdated information
+      4. **Consistency** - Terminology, style, structure
+      5. **Links** - All references valid
+      
+      ## Process
+      1. Run validate-code-examples
+      2. Run check-documentation-links
+      3. Compare API docs against source
+      4. Check for TODO/FIXME markers
+      5. Verify examples use current API
+      
+      ## Output Format
+      ```
+      ## Documentation Audit Report
+      
+      **Overall Score:** 85% 🟡
+      
+      ### Accuracy (90% 🟢)
+      - 18/20 claims verified
+      - 2 need updates (see below)
+      
+      ### Completeness (80% 🟡)
+      - 24/30 public functions documented
+      - Missing: function_a, function_b, ...
+      
+      ### Issues Found
+      1. **api.md:45** - Outdated parameter name
+      2. **tutorial.md:78** - Example uses deprecated API
+      ```
+    validate_with:
+      validators:
+        - evidence_required
+      min_confidence: 0.85
+
+  # ============================================================================
+  # SEARCH & RETRIEVAL
+  # ============================================================================
+  
+  - name: search-codebase
+    description: Search codebase for relevant code and context
+    type: inline
+    trust: sandboxed
+    instructions: |
+      ## Goal
+      Find code relevant to a query or task.
+      
+      ## Search Types
+      - **Symbol**: Find function/class by name
+      - **Content**: Find code containing text
+      - **Semantic**: Find code by meaning/purpose
+      
+      ## Process
+      1. Parse the search query
+      2. Search appropriate index
+      3. Rank results by relevance
+      4. Return with context (surrounding code)
+      
+      ## Output
+      ```
+      Found 5 matches for "authentication":
+      
+      1. src/auth/login.py:42 (95% match)
+         def authenticate_user(credentials):
+             ...
+      
+      2. src/middleware/auth.py:15 (82% match)
+         class AuthMiddleware:
+             ...
+      ```
+
+  - name: find-usage-examples
+    description: Find real usage examples of an API in the codebase
+    type: inline
+    trust: sandboxed
+    instructions: |
+      ## Goal
+      Find actual usage of a function/class in tests or application code.
+      
+      ## Process
+      1. Search for imports of the target
+      2. Find call sites
+      3. Prioritize: tests > examples > application code
+      4. Extract minimal working snippets
+      
+      ## Output
+      ```
+      ## Usage Examples for `authenticate_user()`
+      
+      ### From tests (recommended)
+      ```python
+      # tests/test_auth.py:25
+      def test_valid_login():
+          result = authenticate_user({"username": "test", "password": "pass"})
+          assert result.success
+      ```
+      
+      ### From application
+      ```python
+      # src/api/routes.py:78
+      user = authenticate_user(request.credentials)
+      if not user:
+          raise HTTPException(401)
+      ```
+      ```
