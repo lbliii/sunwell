@@ -28,7 +28,7 @@ from sunwell.workspace.indexer import CodebaseIndexer
 console = Console()
 
 
-@click.command()
+@click.command(deprecated=True)
 @click.argument("binding_or_prompt", required=True)
 @click.argument("prompt", required=False)
 @click.option("--provider", "-p", help="Override provider")
@@ -49,6 +49,18 @@ def ask(
 ) -> None:
     """Ask a question using a binding (or default).
     
+    DEPRECATED: Use the goal-first interface instead:
+    
+        sunwell "Build a REST API with auth"
+    
+    For interactive sessions:
+    
+        sunwell chat
+    
+    ---
+    
+    Legacy documentation (for backward compatibility):
+    
     The simplest way to use Sunwell! Create a binding once,
     then just ask questions without any flags.
     
@@ -63,6 +75,14 @@ def ask(
         # With overrides
         sunwell ask my-project "Complex task" --tier 2
     """
+    # RFC-037: Show deprecation warning
+    console.print(
+        "[yellow]⚠ 'sunwell ask' is deprecated. Use the goal-first interface:[/yellow]"
+    )
+    console.print("[dim]    sunwell \"your goal here\"[/dim]")
+    console.print("[dim]    sunwell chat  # for interactive sessions[/dim]")
+    console.print()
+    
     manager = BindingManager()
     
     # Figure out if first arg is a binding name or the prompt

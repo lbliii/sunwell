@@ -16,6 +16,8 @@ Example:
     >>> results = await executor.execute(graph, create_artifact)
 """
 
+from __future__ import annotations
+
 import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field

@@ -1,0 +1,250 @@
+# RFC-038: Harmonic Planning Benchmarks
+#
+# Validates that harmonic planning produces better plans than single-shot.
+#
+# Success Criteria (Phase 6 gates):
+# - Plan quality improvement: >15% better parallelism_factor
+# - Execution time reduction: >10% faster critical path
+# - Planning overhead: <50ms with Naaru integration
+# - Refinement effectiveness: >40% of plans improve with refinement
+
+# =============================================================================
+# Single-Shot vs Harmonic Comparison
+# =============================================================================
+
+- id: harmonic-vs-single-001
+  description: "Compare single-shot vs harmonic for REST API task"
+  category: comparison
+  goal: "Build a REST API with user authentication and a SQLite database"
+  variants:
+    - name: single_shot
+      strategy: artifact_first
+      harmonic: false
+    - name: harmonic_5
+      strategy: harmonic
+      harmonic: true
+      candidates: 5
+      refine: 0
+    - name: harmonic_5_refined
+      strategy: harmonic
+      harmonic: true
+      candidates: 5
+      refine: 1
+  metrics:
+    - planning_time_ms
+    - depth
+    - leaf_count
+    - artifact_count
+    - parallelism_factor
+    - balance_factor
+    - score
+    - estimated_waves
+  success_criteria:
+    harmonic_5:
+      parallelism_factor_improvement: ">= 0.15"  # 15% better than single_shot
+    harmonic_5_refined:
+      score_improvement: ">= 0.05"  # 5% better than harmonic_5
+
+- id: harmonic-vs-single-002
+  description: "Compare for file upload system"
+  category: comparison
+  goal: "Create a file upload system with chunked uploads and progress tracking"
+  variants:
+    - name: single_shot
+      strategy: artifact_first
+      harmonic: false
+    - name: harmonic_5
+      strategy: harmonic
+      harmonic: true
+      candidates: 5
+      refine: 1
+  metrics:
+    - planning_time_ms
+    - depth
+    - parallelism_factor
+    - score
+  success_criteria:
+    harmonic_5:
+      parallelism_factor_improvement: ">= 0.15"
+
+- id: harmonic-vs-single-003
+  description: "Compare for user settings feature"
+  category: comparison
+  goal: "Add user settings with dark mode toggle and notification preferences"
+  variants:
+    - name: single_shot
+      strategy: artifact_first
+      harmonic: false
+    - name: harmonic_5
+      strategy: harmonic
+      harmonic: true
+      candidates: 5
+      refine: 1
+  metrics:
+    - planning_time_ms
+    - depth
+    - parallelism_factor
+    - score
+  success_criteria:
+    harmonic_5:
+      parallelism_factor_improvement: ">= 0.10"
+
+
+# =============================================================================
+# Candidate Count Sensitivity
+# =============================================================================
+
+- id: candidate-count-001
+  description: "Test diminishing returns on candidate count"
+  category: sensitivity
+  goal: "Build a blog platform with posts, comments, and tags"
+  variants:
+    - name: candidates_3
+      strategy: harmonic
+      candidates: 3
+      refine: 0
+    - name: candidates_5
+      strategy: harmonic
+      candidates: 5
+      refine: 0
+    - name: candidates_7
+      strategy: harmonic
+      candidates: 7
+      refine: 0
+  metrics:
+    - planning_time_ms
+    - score
+    - parallelism_factor
+  notes: "Expect 5 and 7 to plateau; validate diminishing returns"
+
+
+# =============================================================================
+# Refinement Effectiveness
+# =============================================================================
+
+- id: refinement-001
+  description: "Test refinement improvement rate"
+  category: refinement
+  goal: "Create a CLI tool with subcommands, config file support, and help system"
+  variants:
+    - name: no_refine
+      strategy: harmonic
+      candidates: 5
+      refine: 0
+    - name: refine_1
+      strategy: harmonic
+      candidates: 5
+      refine: 1
+    - name: refine_2
+      strategy: harmonic
+      candidates: 5
+      refine: 2
+  metrics:
+    - planning_time_ms
+    - score
+    - depth
+    - parallelism_factor
+  success_criteria:
+    refine_1:
+      improvement_rate: ">= 0.40"  # 40% of plans improve with 1 round
+    refine_2:
+      improvement_rate: ">= 0.50"  # 50% improve with 2 rounds
+
+
+# =============================================================================
+# Variance Strategy Comparison
+# =============================================================================
+
+- id: variance-strategy-001
+  description: "Compare prompting vs temperature variance"
+  category: variance
+  goal: "Build an e-commerce checkout flow with cart, payment, and order confirmation"
+  variants:
+    - name: prompting
+      strategy: harmonic
+      candidates: 5
+      variance: prompting
+      refine: 0
+    - name: temperature
+      strategy: harmonic
+      candidates: 5
+      variance: temperature
+      refine: 0
+    - name: mixed
+      strategy: harmonic
+      candidates: 5
+      variance: mixed
+      refine: 0
+  metrics:
+    - planning_time_ms
+    - score
+    - candidate_diversity  # Measure how different the 5 candidates are
+  notes: "Prompting should produce more structural diversity"
+
+
+# =============================================================================
+# Latency Validation
+# =============================================================================
+
+- id: latency-001
+  description: "Validate planning overhead with Naaru"
+  category: latency
+  goal: "Build a webhook handler with signature verification and retry logic"
+  variants:
+    - name: single_shot
+      strategy: artifact_first
+      harmonic: false
+    - name: harmonic_5
+      strategy: harmonic
+      candidates: 5
+      refine: 1
+      use_convergence: true
+      use_free_threading: true
+  metrics:
+    - planning_time_ms
+  success_criteria:
+    harmonic_5:
+      overhead_vs_single_shot_ms: "<= 50"  # Max 50ms overhead
+
+
+# =============================================================================
+# Complex Goal Tests
+# =============================================================================
+
+- id: complex-001
+  description: "Large goal with many potential artifacts"
+  category: complex
+  goal: "Build a full-featured task management app with projects, tasks, subtasks, due dates, priorities, tags, search, and user collaboration"
+  variants:
+    - name: single_shot
+      strategy: artifact_first
+      harmonic: false
+    - name: harmonic_5
+      strategy: harmonic
+      candidates: 5
+      refine: 2
+  metrics:
+    - planning_time_ms
+    - artifact_count
+    - depth
+    - parallelism_factor
+    - score
+  notes: "Complex goals benefit most from harmonic planning"
+
+- id: complex-002
+  description: "Documentation-heavy goal"
+  category: complex
+  goal: "Create comprehensive API documentation with OpenAPI spec, getting started guide, authentication docs, and code examples"
+  variants:
+    - name: single_shot
+      strategy: artifact_first
+      harmonic: false
+    - name: harmonic_5
+      strategy: harmonic
+      candidates: 5
+      refine: 1
+  metrics:
+    - planning_time_ms
+    - artifact_count
+    - parallelism_factor
+    - score

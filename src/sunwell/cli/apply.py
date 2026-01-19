@@ -34,7 +34,7 @@ except ImportError:
     SkillExecutor = None  # Skills not implemented yet
 
 
-@click.command()
+@click.command(deprecated=True)
 @click.argument("lens_path", type=click.Path(exists=True))
 @click.argument("prompt")
 @click.option("--model", "-m", default=None, help="Model to use (default: auto based on provider)")
@@ -87,6 +87,18 @@ def apply(
     verbose: bool,
 ) -> None:
     """Apply a lens to a prompt.
+    
+    DEPRECATED: Use the goal-first interface instead:
+    
+        sunwell "Build a REST API with auth"
+    
+    For interactive sessions:
+    
+        sunwell chat
+    
+    ---
+    
+    Legacy documentation (for backward compatibility):
 
     By default, Sunwell auto-routes queries to relevant headspaces, spawning
     new ones when a novel domain is detected. Use --no-auto-headspace to disable.
@@ -121,6 +133,14 @@ def apply(
         
         sunwell apply lens.lens "Read and summarize README.md" --tools
     """
+    # RFC-037: Show deprecation warning
+    console.print(
+        "[yellow]⚠ 'sunwell apply' is deprecated. Use the goal-first interface:[/yellow]"
+    )
+    console.print("[dim]    sunwell \"your goal here\"[/dim]")
+    console.print("[dim]    sunwell chat  # for interactive sessions[/dim]")
+    console.print()
+    
     # Auto-select model based on provider if not specified
     if model is None:
         model = {

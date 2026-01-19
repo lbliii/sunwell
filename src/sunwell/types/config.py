@@ -179,6 +179,45 @@ class NaaruConfig:
     - "cancel": Stop all sibling tasks immediately
     """
 
+    # RFC-038: Harmonic Planning
+    harmonic_planning: bool = True
+    """Enable multi-candidate plan generation (RFC-038).
+    
+    Default True because:
+    - With Naaru, overhead is <50ms (negligible)
+    - Quality improvement is significant (>15% better plans)
+    - Users get better plans without thinking about it
+    
+    Use --no-harmonic to disable explicitly.
+    """
+
+    harmonic_candidates: int = 5
+    """Number of plan candidates to generate.
+    
+    5 is the sweet spot: enough diversity, near-zero marginal cost with Naaru.
+    Benchmarks show diminishing returns beyond 7.
+    """
+
+    harmonic_refinement: int = 1
+    """Rounds of iterative plan refinement.
+    
+    Default 1 (single refinement pass) because:
+    - Cheap with Naaru (context cached in Convergence)
+    - Often improves score by 5-10%
+    - Second pass rarely improves further
+    
+    Set to 0 for fastest planning, 2 for quality-critical work.
+    """
+
+    harmonic_variance: str = "prompting"
+    """Variance strategy for candidate generation.
+    
+    - "prompting": Different discovery prompts (parallel-first, minimal, etc.)
+    - "temperature": Vary temperature for exploration
+    - "constraints": Add different structural constraints
+    - "mixed": Combination of prompting and temperature
+    """
+
     # Thought Rotation (RFC-028)
     rotation: bool = True
     """Enable thought rotation for structured perspective shifting."""

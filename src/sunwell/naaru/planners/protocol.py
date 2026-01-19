@@ -24,13 +24,14 @@ class PlanningError(Exception):
 
 
 class PlanningStrategy(Enum):
-    """How to decompose tasks (RFC-034, RFC-036).
+    """How to decompose tasks (RFC-034, RFC-036, RFC-038).
 
     Controls the planning strategy used by planners:
     - SEQUENTIAL: RFC-032 behavior - linear dependencies, no parallelization hints
     - CONTRACT_FIRST: RFC-034 - identify contracts/interfaces first, then implementations
     - RESOURCE_AWARE: RFC-034 - minimize file conflicts for maximum parallelism
     - ARTIFACT_FIRST: RFC-036 - identify artifacts, let dependencies determine order
+    - HARMONIC: RFC-038 - multi-candidate optimization with variance strategies
     """
 
     SEQUENTIAL = "sequential"
@@ -49,6 +50,19 @@ class PlanningStrategy(Enum):
     when the goal is complete. Enables structural parallelism (all leaves
     execute simultaneously) and adaptive model selection (depth determines
     complexity).
+    """
+
+    HARMONIC = "harmonic"
+    """RFC-038: multi-candidate plan generation with quantitative selection.
+
+    Generates N plan candidates using structured variance (prompting strategies,
+    temperature), scores each by parallelism/depth/balance, selects the best.
+    Optional iterative refinement improves the winner further.
+
+    Benefits:
+    - Better plans through structured variance (like Harmonic Synthesis)
+    - Quantitative metrics for plan quality
+    - Near-zero overhead with Naaru + free-threading
     """
 
 
