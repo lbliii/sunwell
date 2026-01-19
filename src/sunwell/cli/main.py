@@ -139,14 +139,14 @@ async def _run_agent(
     verbose: bool,
     model_override: str | None,
 ) -> None:
-    """Execute agent mode (RFC-032, RFC-036, RFC-037).
+    """Execute agent mode (RFC-032, RFC-036, RFC-037, RFC-039).
     
     This is the unified entry point for goal execution.
-    Strategy is always artifact_first (RFC-036) - no flag needed.
+    Uses ExpertiseAwareArtifactPlanner for automatic expertise injection (RFC-039).
     """
     from sunwell.config import get_config
     from sunwell.naaru import Naaru
-    from sunwell.naaru.planners import ArtifactPlanner
+    from sunwell.naaru.planners import ExpertiseAwareArtifactPlanner
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust
     from sunwell.types.config import NaaruConfig
@@ -188,8 +188,21 @@ async def _run_agent(
         available_tools = frozenset(tool_executor.get_available_tools())
         console.print(f"[dim]Available tools: {', '.join(sorted(available_tools))}[/dim]")
 
-    # RFC-036: Always use artifact-first planning
-    planner = ArtifactPlanner(model=synthesis_model)
+    # Create router for complexity assessment (uses same model, low temperature)
+    router = None
+    try:
+        from sunwell.routing import UnifiedRouter
+        router = UnifiedRouter(model=synthesis_model)
+    except Exception:
+        pass  # Router is optional; planner works without it
+
+    # RFC-039: Use expertise-aware artifact planner
+    # Automatically detects domain and injects relevant heuristics
+    planner = ExpertiseAwareArtifactPlanner(
+        model=synthesis_model, 
+        router=router,
+        enable_expertise=True,
+    )
 
     if dry_run:
         await _artifact_dry_run(goal, planner, verbose)
@@ -239,7 +252,7 @@ async def _run_agent(
 
 
 async def _artifact_dry_run(goal: str, planner, verbose: bool) -> None:
-    """Dry run for artifact-first planning (RFC-036)."""
+    """Dry run for artifact-first planning (RFC-036, RFC-039)."""
     from rich.table import Table
 
     from sunwell.naaru import get_model_distribution
@@ -251,6 +264,16 @@ async def _artifact_dry_run(goal: str, planner, verbose: bool) -> None:
     except Exception as e:
         console.print(f"[red]Discovery failed: {e}[/red]")
         return
+
+    # RFC-039: Show expertise info if available
+    if hasattr(planner, "get_expertise_summary"):
+        summary = planner.get_expertise_summary()
+        if summary.get("loaded"):
+            console.print(f"[cyan]Expertise:[/cyan] {summary.get('domain', 'unknown')} domain")
+            if verbose:
+                console.print(f"[dim]  Heuristics: {', '.join(summary.get('heuristics', []))}[/dim]")
+                console.print(f"[dim]  Sources: {', '.join(summary.get('source_lenses', []))}[/dim]")
+            console.print()
 
     console.print(f"[bold]Plan for:[/bold] {goal}\n")
 

@@ -1,4 +1,4 @@
-"""Task planners for RFC-032, RFC-034, RFC-036, RFC-038.
+"""Task planners for RFC-032, RFC-034, RFC-036, RFC-038, RFC-039.
 
 Planners decompose goals into executable Task objects.
 
@@ -7,6 +7,7 @@ Available Planners:
 - AgentPlanner: Decompose arbitrary user goals using LLM (RFC-032, RFC-034)
 - ArtifactPlanner: Discover artifacts, dependency resolution determines order (RFC-036)
 - HarmonicPlanner: Multi-candidate optimization with variance strategies (RFC-038)
+- ExpertiseAwareArtifactPlanner: Artifact planner with expertise injection (RFC-039)
 
 Planning Strategies:
 - SEQUENTIAL: Linear task dependencies (RFC-032)
@@ -18,6 +19,10 @@ Planning Strategies:
 
 from sunwell.naaru.planners.agent import AgentPlanner
 from sunwell.naaru.planners.artifact import ArtifactPlanner
+from sunwell.naaru.planners.expertise_aware import (
+    ExpertiseAwareArtifactPlanner,
+    create_expertise_aware_planner,
+)
 from sunwell.naaru.planners.harmonic import (
     HarmonicPlanner,
     PlanMetrics,
@@ -37,4 +42,7 @@ __all__ = [
     "HarmonicPlanner",
     "PlanMetrics",
     "VarianceStrategy",
+    # RFC-039: Expertise-Aware Planning
+    "ExpertiseAwareArtifactPlanner",
+    "create_expertise_aware_planner",
 ]

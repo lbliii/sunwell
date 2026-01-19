@@ -81,7 +81,7 @@ A small model, properly refracted, can exhibit behaviors that seem beyond its pa
 
 ---
 
-## Naaru Architecture (RFC-019, RFC-036, RFC-037, RFC-038)
+## Naaru Architecture (RFC-019, RFC-036, RFC-037, RFC-038, RFC-039)
 
 The **Naaru** is Sunwell's coordinated intelligence layer — it orchestrates planning, execution, and synthesis to maximize quality from local models.
 

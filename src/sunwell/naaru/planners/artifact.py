@@ -51,6 +51,7 @@ class ArtifactPlanner:
     - Structural parallelism: leaves execute in parallel automatically
     - Adaptive model selection: depth determines model tier
     - Isolated failures: errors don't cascade to independent branches
+    - Complexity-aware: trivial goals skip discovery entirely
 
     Example:
         >>> planner = ArtifactPlanner(
@@ -60,6 +61,11 @@ class ArtifactPlanner:
         >>> graph = await planner.discover_graph("Build a REST API with auth")
         >>> print(graph.execution_waves())
         [["UserProtocol", "AuthInterface"], ["UserModel", "AuthService"], ["App"]]
+        
+        # Trivial goals are handled efficiently:
+        >>> graph = await planner.discover_graph("Create hello.py that prints Hello")
+        >>> print(graph.execution_waves())
+        [["main"]]  # Single artifact, no protocol overhead
     """
 
     model: ModelProtocol
@@ -69,6 +75,10 @@ class ArtifactPlanner:
     # RFC-035: Schema-aware planning
     project_schema: ProjectSchema | None = None
     """Project schema for domain-specific artifact types."""
+
+    # Complexity routing (optional): tiny model to assess before full discovery
+    router: Any | None = None  # UnifiedRouter - avoids circular import
+    """Router for complexity assessment. If provided, trivial goals skip discovery."""
 
     @property
     def mode(self) -> TaskMode:
@@ -112,6 +122,10 @@ class ArtifactPlanner:
 
         Main entry point for artifact-first planning.
 
+        If a router is configured, trivial goals skip full discovery and
+        return a single artifact. This prevents over-engineering simple tasks
+        like "create hello.py that prints Hello World".
+
         Args:
             goal: The goal to achieve
             context: Optional context
@@ -124,7 +138,44 @@ class ArtifactPlanner:
             GraphExplosionError: If too many artifacts discovered
             CyclicDependencyError: If artifacts form a dependency cycle
         """
+        # Complexity gate: trivial goals skip full discovery
+        if self.router is not None:
+            try:
+                decision = await self.router.route(goal, context)
+                # Import here to avoid circular dependency
+                from sunwell.routing.unified import Complexity
+                
+                if decision.complexity == Complexity.TRIVIAL:
+                    return self._trivial_artifact(goal)
+            except Exception:
+                pass  # Fall through to full discovery on router failure
+        
         return await self._discover_with_recovery(goal, context)
+    
+    def _trivial_artifact(self, goal: str) -> ArtifactGraph:
+        """Create single-artifact graph for trivial goals.
+        
+        Extracts filename from goal if mentioned, otherwise uses a sensible default.
+        No protocols, no dependencies - just the artifact.
+        """
+        import re
+        
+        # Try to extract filename from goal
+        filename_match = re.search(r'(\w+\.(?:py|js|ts|md|txt|json|yaml|yml))', goal.lower())
+        filename = filename_match.group(1) if filename_match else "output.py"
+        
+        artifact = ArtifactSpec(
+            id="main",
+            description=goal,
+            contract=goal,  # For trivial goals, contract = goal
+            requires=frozenset(),
+            produces_file=filename,
+            domain_type="file",
+        )
+        
+        graph = ArtifactGraph()
+        graph.add(artifact)
+        return graph
 
     async def discover(
         self,

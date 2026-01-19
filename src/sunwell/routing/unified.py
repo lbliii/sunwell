@@ -19,6 +19,7 @@ Benefits:
 See: RFC-030-unified-router.md
 """
 
+import asyncio
 import json
 import re
 import threading
@@ -233,7 +234,8 @@ class UnifiedRouter:
     # Private state with thread safety
     _cache: dict[int, RoutingDecision] = field(default_factory=dict, repr=False)
     _cache_order: list[int] = field(default_factory=list, repr=False)  # For LRU
-    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _sync_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _async_lock: asyncio.Lock | None = field(default=None, repr=False)
     _history: list[tuple[str, RoutingDecision]] = field(default_factory=list, repr=False)
     
     async def route(
@@ -258,8 +260,12 @@ class UnifiedRouter:
         if cache_key in self._cache:
             return self._cache[cache_key]
         
-        # Slow path: acquire lock, double-check, compute
-        with self._lock:
+        # Initialize async lock lazily (can't be done at dataclass creation)
+        if self._async_lock is None:
+            self._async_lock = asyncio.Lock()
+        
+        # Slow path: acquire async lock for compute, sync lock for cache update
+        async with self._async_lock:
             # Double-check after acquiring lock
             if cache_key in self._cache:
                 return self._cache[cache_key]
@@ -270,17 +276,19 @@ class UnifiedRouter:
                 # Fallback to heuristics on any error
                 decision = self.fallback_decision(request, error=str(e))
             
-            # LRU eviction if cache full
-            if len(self._cache) >= self.cache_size:
-                # Remove oldest entry
-                oldest_key = self._cache_order.pop(0)
-                del self._cache[oldest_key]
-            
-            self._cache[cache_key] = decision
-            self._cache_order.append(cache_key)
-            
-            # Record for history
-            self._history.append((request, decision))
+            # Use sync lock for cache mutation (quick, no await)
+            with self._sync_lock:
+                # LRU eviction if cache full
+                if len(self._cache) >= self.cache_size:
+                    # Remove oldest entry
+                    oldest_key = self._cache_order.pop(0)
+                    del self._cache[oldest_key]
+                
+                self._cache[cache_key] = decision
+                self._cache_order.append(cache_key)
+                
+                # Record for history
+                self._history.append((request, decision))
             
             return decision
     
@@ -488,13 +496,13 @@ class UnifiedRouter:
     
     def clear_cache(self) -> None:
         """Clear the routing cache."""
-        with self._lock:
+        with self._sync_lock:
             self._cache.clear()
             self._cache_order.clear()
     
     def get_stats(self) -> dict[str, Any]:
         """Get router statistics."""
-        with self._lock:
+        with self._sync_lock:
             if not self._history:
                 return {
                     "total_routes": 0,
