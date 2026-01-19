@@ -1,0 +1,47 @@
+# Documentation Task: Explanation of SOLID principles
+task:
+  id: "docs-explanation-004"
+  category: "documentation"
+  subcategory: "explanation"
+  
+  prompt: |
+    Write an explanation of SOLID principles with Python examples.
+    
+    Cover each principle:
+    1. Single Responsibility Principle
+    2. Open/Closed Principle
+    3. Liskov Substitution Principle
+    4. Interface Segregation Principle
+    5. Dependency Inversion Principle
+    
+    For each, show a violation and how to fix it with Python code.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "accuracy"
+        weight: 0.3
+        criteria: "Principles correctly explained"
+      - dimension: "examples"
+        weight: 0.35
+        criteria: "Each principle has violation and fix examples"
+      - dimension: "practicality"
+        weight: 0.2
+        criteria: "Examples are realistic, not contrived"
+      - dimension: "balance"
+        weight: 0.15
+        criteria: "Acknowledges when strict adherence is overkill"
+    
+    must_contain:
+      - "Single Responsibility"
+      - "Open/Closed"
+      - "Liskov"
+      - "Interface Segregation"
+      - "Dependency Inversion"
+      - "class"
+    
+    must_not_contain:
+      - "always"
+      - "never"
+      - "simple"

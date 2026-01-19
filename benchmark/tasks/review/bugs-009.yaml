@@ -1,0 +1,68 @@
+# Code Review Task: Unicode and encoding bugs
+task:
+  id: "review-bugs-009"
+  category: "code_review"
+  subcategory: "bugs"
+  
+  prompt: |
+    Review this code for Unicode and encoding issues:
+    
+    ```python
+    def read_file(path: str) -> str:
+        with open(path, 'r') as f:
+            return f.read()
+    
+    def write_file(path: str, content: str):
+        with open(path, 'w') as f:
+            f.write(content)
+    
+    def truncate_string(s: str, max_length: int) -> str:
+        return s[:max_length]
+    
+    def count_characters(s: str) -> int:
+        return len(s)
+    
+    def reverse_string(s: str) -> str:
+        return s[::-1]
+    
+    def normalize_whitespace(text: str) -> str:
+        return ' '.join(text.split())
+    
+    def compare_strings(s1: str, s2: str) -> bool:
+        return s1.lower() == s2.lower()
+    ```
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.4
+        criteria: "Identifies Unicode edge cases"
+      - dimension: "explanation"
+        weight: 0.3
+        criteria: "Explains Unicode normalization, graphemes"
+      - dimension: "actionability"
+        weight: 0.2
+        criteria: "Shows correct Unicode handling"
+      - dimension: "knowledge"
+        weight: 0.1
+        criteria: "Demonstrates deep Unicode understanding"
+    
+    must_contain:
+      - "encoding"
+      - "UTF-8"
+      - "grapheme"
+      - "normalize"
+      - "casefold"
+    
+    must_not_contain:
+      - "correct"
+      - "looks good"
+    
+    ground_truth_issues:
+      - "read_file/write_file: no explicit encoding (platform-dependent)"
+      - "truncate_string: may split grapheme clusters (emoji, combining chars)"
+      - "count_characters: len() counts code points, not graphemes"
+      - "reverse_string: breaks grapheme clusters"
+      - "compare_strings: lower() doesn't handle all cases (use casefold())"

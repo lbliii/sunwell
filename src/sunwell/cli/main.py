@@ -11,7 +11,7 @@ from sunwell.cli.helpers import check_free_threading, load_dotenv
 from sunwell.core.freethreading import runtime_info
 
 # Import command modules to register them
-from sunwell.cli import runtime_cmd, setup, bind, session, config_cmd, apply, skill, lens, ask, chat
+from sunwell.cli import runtime_cmd, setup, bind, session, config_cmd, apply, skill, lens, ask, chat, naaru_cmd
 
 console = Console()
 
@@ -48,3 +48,6 @@ main.add_command(lens.lens)
 # Register benchmark commands (RFC-018)
 from sunwell.benchmark.cli import benchmark
 main.add_command(benchmark)
+
+# Register naaru commands (RFC-019, RFC-032)
+main.add_command(naaru_cmd.naaru)

@@ -8,11 +8,16 @@ Config locations (in priority order):
 2. .sunwell/config.yaml (project-local)
 3. ~/.sunwell/config.yaml (user-global)
 4. Built-in defaults
+
+Thread Safety:
+    Uses threading.Lock for thread-safe lazy initialization in
+    free-threaded Python (3.14t).
 """
 
 from __future__ import annotations
 
 import os
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -108,8 +113,9 @@ class SunwellConfig:
     """Enable verbose output by default."""
 
 
-# Global config instance (lazy-loaded)
+# Global config instance (lazy-loaded, thread-safe)
 _config: SunwellConfig | None = None
+_config_lock = threading.Lock()
 
 
 def _deep_update(base: dict, updates: dict) -> dict:
@@ -318,6 +324,10 @@ def load_config(path: str | Path | None = None) -> SunwellConfig:
             "attunement": True,
             "num_analysis_shards": 2,
             "num_synthesis_shards": 2,
+            # RFC-030: Unified Router
+            "router": "qwen2.5:1.5b",
+            "router_temperature": 0.1,
+            "router_cache_size": 1000,
         },
         "verbose": False,
     }
@@ -350,17 +360,31 @@ def load_config(path: str | Path | None = None) -> SunwellConfig:
 
 
 def get_config() -> SunwellConfig:
-    """Get the current configuration, loading if needed."""
+    """Get the current configuration, loading if needed.
+    
+    Thread-safe with double-check locking for free-threaded Python.
+    """
     global _config
-    if _config is None:
-        _config = load_config()
-    return _config
+    
+    # Fast path: already initialized
+    if _config is not None:
+        return _config
+    
+    # Slow path: acquire lock, double-check, load
+    with _config_lock:
+        if _config is None:
+            _config = load_config()
+        return _config
 
 
 def reset_config() -> None:
-    """Reset the global config (useful for testing)."""
+    """Reset the global config (useful for testing).
+    
+    Thread-safe for free-threaded Python.
+    """
     global _config
-    _config = None
+    with _config_lock:
+        _config = None
 
 
 def resolve_naaru_model(

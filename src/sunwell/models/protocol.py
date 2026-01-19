@@ -103,6 +103,7 @@ class GenerateOptions:
     max_tokens: int | None = None
     stop_sequences: tuple[str, ...] = ()
     system_prompt: str | None = None
+    tools: tuple["Tool", ...] | None = None  # RFC-027: Tools for self-directed generation
 
 
 @dataclass(frozen=True, slots=True)

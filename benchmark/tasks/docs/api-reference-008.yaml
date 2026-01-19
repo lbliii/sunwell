@@ -1,0 +1,74 @@
+# Documentation Task: CLI reference
+task:
+  id: "docs-api-ref-008"
+  category: "documentation"
+  subcategory: "api_reference"
+  
+  prompt: |
+    Write CLI reference documentation for this Click application:
+    
+    ```python
+    import click
+    
+    @click.group()
+    @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
+    @click.option('--config', '-c', type=click.Path(exists=True), help='Config file path')
+    @click.pass_context
+    def cli(ctx, verbose, config):
+        """Database migration tool."""
+        ctx.ensure_object(dict)
+        ctx.obj['verbose'] = verbose
+        ctx.obj['config'] = config
+    
+    @cli.command()
+    @click.argument('name')
+    @click.option('--empty', is_flag=True, help='Create empty migration')
+    def create(name, empty):
+        """Create a new migration file."""
+    
+    @cli.command()
+    @click.option('--target', '-t', default='head', help='Target revision')
+    @click.option('--dry-run', is_flag=True, help='Show SQL without executing')
+    def upgrade(target, dry_run):
+        """Upgrade database to target revision."""
+    
+    @cli.command()
+    @click.option('--steps', '-n', default=1, type=int, help='Steps to downgrade')
+    @click.confirmation_option(prompt='Are you sure you want to downgrade?')
+    def downgrade(steps):
+        """Downgrade database by N steps."""
+    
+    @cli.command()
+    @click.option('--format', type=click.Choice(['text', 'json']), default='text')
+    def history(format):
+        """Show migration history."""
+    ```
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "completeness"
+        weight: 0.3
+        criteria: "All commands and options documented"
+      - dimension: "examples"
+        weight: 0.3
+        criteria: "Usage examples for each command"
+      - dimension: "structure"
+        weight: 0.25
+        criteria: "Clear, scannable format"
+      - dimension: "accuracy"
+        weight: 0.15
+        criteria: "Correct option types and defaults"
+    
+    must_contain:
+      - "create"
+      - "upgrade"
+      - "downgrade"
+      - "history"
+      - "--verbose"
+      - "--config"
+    
+    must_not_contain:
+      - "easy"
+      - "simple"

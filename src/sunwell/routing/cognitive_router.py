@@ -1,5 +1,25 @@
 """Cognitive Router - Intent-aware routing with tiny LLMs.
 
+DEPRECATED (RFC-030): Use UnifiedRouter instead.
+    
+    This module is deprecated and will be removed in v0.6.
+    The UnifiedRouter in `sunwell.routing.unified` replaces this with:
+    - Single model for ALL routing decisions
+    - Thread-safe LRU caching
+    - User mood and expertise detection
+    - Better backward compatibility
+    
+    Migration:
+        # Old
+        from sunwell.routing import CognitiveRouter
+        router = CognitiveRouter(router_model, available_lenses)
+        decision = await router.route(task)
+        
+        # New
+        from sunwell.routing import UnifiedRouter
+        router = UnifiedRouter(model)
+        decision = await router.route(request)
+
 The CognitiveRouter is the "thinking" layer that sits between raw task
 input and the retrieval system. Instead of relying solely on embedding
 similarity, it performs:
@@ -18,6 +38,7 @@ from __future__ import annotations
 
 import json
 import re
+import warnings
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
@@ -170,6 +191,10 @@ DORI_COMMAND_MAP: dict[str, dict[str, Any]] = {
 class CognitiveRouter:
     """Intent-aware routing using a tiny LLM.
     
+    .. deprecated:: 0.5
+        Use :class:`sunwell.routing.UnifiedRouter` instead.
+        CognitiveRouter will be removed in v0.6.
+    
     The router is the "thinking" layer that decides:
     - What kind of task is this?
     - Which lens should handle it?
@@ -207,6 +232,15 @@ class CognitiveRouter:
     
     # Routing history for learning
     _history: list[tuple[str, RoutingDecision]] = field(default_factory=list)
+    
+    def __post_init__(self):
+        """Emit deprecation warning on instantiation."""
+        warnings.warn(
+            "CognitiveRouter is deprecated and will be removed in v0.6. "
+            "Use UnifiedRouter from sunwell.routing.unified instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
     
     async def route(
         self,

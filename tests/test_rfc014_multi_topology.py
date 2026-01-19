@@ -13,20 +13,17 @@ import pytest
 import numpy as np
 from pathlib import Path
 
-from sunwell.simulacrum.spatial import SpatialContext, SpatialQuery, spatial_match, PositionType
-from sunwell.simulacrum.topology import ConceptGraph, ConceptEdge, RelationType
-from sunwell.simulacrum.structural import (
-    DocumentTree, DocumentSection, SectionType, infer_section_type
-)
-from sunwell.simulacrum.facets import (
+from sunwell.simulacrum.topology import (
+    SpatialContext, SpatialQuery, spatial_match, PositionType,
+    ConceptGraph, ConceptEdge, RelationType,
+    DocumentTree, DocumentSection, SectionType, infer_section_type,
     FacetedIndex, FacetQuery, ContentFacets, DiataxisType, PersonaType,
-    VerificationState, ConfidenceLevel
+    VerificationState, ConfidenceLevel,
+    MemoryNode, UnifiedMemoryStore,
 )
-from sunwell.simulacrum.memory_node import MemoryNode
-from sunwell.simulacrum.unified_store import UnifiedMemoryStore
-from sunwell.simulacrum.spatial_extractor import SpatialExtractor
-from sunwell.simulacrum.facet_extractor import FacetExtractor
-from sunwell.simulacrum.structural_chunker import StructuralChunker
+from sunwell.simulacrum.extractors.spatial_extractor import SpatialExtractor
+from sunwell.simulacrum.extractors.facet_extractor import FacetExtractor
+from sunwell.simulacrum.extractors.structural_chunker import StructuralChunker
 
 
 class TestSpatialMemory:

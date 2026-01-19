@@ -1,0 +1,46 @@
+# Documentation Task: Explanation of Python packaging
+task:
+  id: "docs-explanation-007"
+  category: "documentation"
+  subcategory: "explanation"
+  
+  prompt: |
+    Write an explanation of modern Python packaging for library authors.
+    
+    Cover:
+    1. pyproject.toml structure and purpose
+    2. Build backends (setuptools, hatchling, flit)
+    3. Version management strategies
+    4. Dependencies vs optional dependencies
+    5. Entry points and console scripts
+    6. Publishing to PyPI
+    
+    Focus on pyproject.toml-based approaches, not setup.py.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "clarity"
+        weight: 0.3
+        criteria: "Complex ecosystem explained clearly"
+      - dimension: "accuracy"
+        weight: 0.3
+        criteria: "Modern practices correct"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "All six topics covered"
+      - dimension: "actionable"
+        weight: 0.15
+        criteria: "Reader can publish a package"
+    
+    must_contain:
+      - "pyproject.toml"
+      - "[project]"
+      - "[build-system]"
+      - "twine"
+      - "PyPI"
+    
+    must_not_contain:
+      - "setup.py"
+      - "simple"

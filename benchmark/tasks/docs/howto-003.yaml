@@ -1,0 +1,46 @@
+# Documentation Task: How-to for Docker deployment
+task:
+  id: "docs-howto-003"
+  category: "documentation"
+  subcategory: "howto"
+  
+  prompt: |
+    Write a how-to guide for containerizing a Python web application with Docker.
+    
+    Cover:
+    1. Creating an optimized Dockerfile (multi-stage build)
+    2. Setting up docker-compose for local development
+    3. Managing environment variables
+    4. Volume mounts for development
+    5. Production vs development configurations
+    
+    Target a FastAPI application with PostgreSQL.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "actionability"
+        weight: 0.3
+        criteria: "Dockerfile and compose files are complete"
+      - dimension: "accuracy"
+        weight: 0.3
+        criteria: "Best practices followed (multi-stage, non-root user)"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "All five topics addressed"
+      - dimension: "security"
+        weight: 0.15
+        criteria: "Security best practices mentioned"
+    
+    must_contain:
+      - "FROM python"
+      - "COPY"
+      - "RUN"
+      - "docker-compose"
+      - "volumes:"
+      - "environment:"
+    
+    must_not_contain:
+      - "simply"
+      - "just"

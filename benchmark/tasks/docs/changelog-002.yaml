@@ -1,0 +1,51 @@
+# Documentation Task: Changelog for major version release
+task:
+  id: "docs-changelog-002"
+  category: "documentation"
+  subcategory: "changelog"
+  
+  prompt: |
+    Write a changelog entry for version 2.0.0 of a web framework.
+    
+    Changes to document:
+    - Breaking: Dropped Python 3.8 support
+    - Breaking: Renamed `app.route()` to `app.get()`, `app.post()`, etc.
+    - Breaking: Config now uses TOML instead of JSON
+    - Added: WebSocket support
+    - Added: Built-in OpenAPI documentation
+    - Added: Dependency injection container
+    - Fixed: Memory leak in connection pooling
+    - Fixed: Race condition in session middleware
+    - Improved: 40% faster request parsing
+    - Deprecated: `app.add_route()` in favor of decorators
+    
+    Follow Keep a Changelog format.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "format"
+        weight: 0.25
+        criteria: "Follows Keep a Changelog format"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "All changes documented"
+      - dimension: "migration"
+        weight: 0.3
+        criteria: "Breaking changes have migration guidance"
+      - dimension: "clarity"
+        weight: 0.2
+        criteria: "Each change is understandable"
+    
+    must_contain:
+      - "## [2.0.0]"
+      - "### Breaking"
+      - "### Added"
+      - "### Fixed"
+      - "### Deprecated"
+      - "Python 3.8"
+    
+    must_not_contain:
+      - "simple"
+      - "easy"

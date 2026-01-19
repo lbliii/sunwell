@@ -1,0 +1,57 @@
+# Agent Task: Complex dependency chain
+task:
+  id: "agent-planning-003"
+  category: "agent"
+  subcategory: "planning"
+  
+  goal: |
+    Build a data pipeline that:
+    1. Reads a CSV file with user data
+    2. Validates the data (email format, age ranges)
+    3. Transforms the data (normalize names, calculate age groups)
+    4. Outputs a clean JSON file
+    
+    The pipeline should be modular with separate functions for each step.
+  
+  context:
+    cwd: "/tmp/benchmark-agent-003"
+    trust_level: "workspace"
+    files:
+      - "users.csv"  # Fixture file provided
+  
+  evaluation:
+    planning:
+      min_tasks: 5
+      max_tasks: 15
+      required_modes:
+        - "generate"
+        - "research"
+      required_dependencies: true
+      dependency_chain_length: 3  # At least 3 tasks in sequence
+      
+    execution:
+      must_create_files:
+        - "pipeline.py"
+      must_contain_in_files:
+        pipeline.py:
+          - "def read_"
+          - "def validate"
+          - "def transform"
+          - "json"
+    
+    rubric:
+      - dimension: "decomposition"
+        weight: 0.25
+        criteria: "Pipeline steps correctly identified as separate tasks"
+      - dimension: "dependency_chain"
+        weight: 0.3
+        criteria: "Tasks form a correct sequential chain"
+      - dimension: "modularity"
+        weight: 0.25
+        criteria: "Each step is a separate, testable function"
+      - dimension: "error_handling"
+        weight: 0.2
+        criteria: "Validation step handles edge cases"
+
+  complexity: "medium"
+  estimated_tasks: 8

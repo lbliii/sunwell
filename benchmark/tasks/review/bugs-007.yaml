@@ -1,0 +1,80 @@
+# Code Review Task: Timezone bugs
+task:
+  id: "review-bugs-007"
+  category: "code_review"
+  subcategory: "bugs"
+  
+  prompt: |
+    Review this datetime handling code for bugs:
+    
+    ```python
+    from datetime import datetime, timedelta
+    
+    def get_user_age(birth_date: datetime) -> int:
+        today = datetime.now()
+        age = today.year - birth_date.year
+        if (today.month, today.day) < (birth_date.month, birth_date.day):
+            age -= 1
+        return age
+    
+    def is_expired(created_at: datetime, ttl_hours: int) -> bool:
+        expiry = created_at + timedelta(hours=ttl_hours)
+        return datetime.utcnow() > expiry
+    
+    def format_local_time(utc_time: datetime, timezone: str) -> str:
+        import pytz
+        tz = pytz.timezone(timezone)
+        local_time = utc_time + tz.utcoffset(utc_time)
+        return local_time.strftime("%Y-%m-%d %H:%M:%S")
+    
+    def schedule_daily_task(hour: int, minute: int) -> datetime:
+        now = datetime.now()
+        scheduled = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        if scheduled <= now:
+            scheduled += timedelta(days=1)
+        return scheduled
+    
+    def parse_date(date_str: str) -> datetime:
+        formats = ["%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y"]
+        for fmt in formats:
+            try:
+                return datetime.strptime(date_str, fmt)
+            except ValueError:
+                continue
+        raise ValueError(f"Cannot parse date: {date_str}")
+    ```
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.4
+        criteria: "Identifies all timezone and datetime bugs"
+      - dimension: "explanation"
+        weight: 0.3
+        criteria: "Explains DST and timezone edge cases"
+      - dimension: "actionability"
+        weight: 0.2
+        criteria: "Shows correct datetime handling"
+      - dimension: "libraries"
+        weight: 0.1
+        criteria: "Recommends modern libraries (zoneinfo)"
+    
+    must_contain:
+      - "timezone"
+      - "UTC"
+      - "naive"
+      - "aware"
+      - "DST"
+    
+    must_not_contain:
+      - "looks correct"
+      - "acceptable"
+    
+    ground_truth_issues:
+      - "get_user_age: mixes naive datetime.now() with potentially aware birth_date"
+      - "is_expired: compares utcnow() with potentially non-UTC created_at"
+      - "format_local_time: wrong way to convert timezones (doesn't handle DST)"
+      - "schedule_daily_task: naive datetime, DST issues"
+      - "parse_date: ambiguous date formats (01/02/2024 = Jan 2 or Feb 1?)"

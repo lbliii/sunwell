@@ -20,7 +20,7 @@ task:
     
     Include type hints, docstring, and usage example.
   
-  lens: "helper.lens"
+  lens: "coder.lens"
   
   evaluation:
     rubric:

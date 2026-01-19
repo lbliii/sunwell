@@ -1,0 +1,66 @@
+# Code Generation Task: Snapshot tests
+task:
+  id: "code-test-007"
+  category: "code_generation"
+  subcategory: "test"
+  
+  prompt: |
+    Write snapshot tests using syrupy for this report generator:
+    
+    ```python
+    from dataclasses import dataclass
+    from datetime import date
+    
+    @dataclass
+    class SalesReport:
+        period_start: date
+        period_end: date
+        total_sales: float
+        items_sold: int
+        top_products: list[dict]
+        by_region: dict[str, float]
+    
+    class ReportGenerator:
+        def generate_text_report(self, report: SalesReport) -> str:
+            """Generate human-readable text report."""
+        
+        def generate_json_report(self, report: SalesReport) -> dict:
+            """Generate JSON report."""
+        
+        def generate_csv_report(self, report: SalesReport) -> str:
+            """Generate CSV report."""
+        
+        def generate_html_report(self, report: SalesReport) -> str:
+            """Generate HTML report."""
+    ```
+    
+    Test all output formats with snapshot assertions.
+  
+  lens: "coder.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "coverage"
+        weight: 0.3
+        criteria: "All four report formats tested"
+      - dimension: "snapshot_usage"
+        weight: 0.3
+        criteria: "Proper syrupy assertions"
+      - dimension: "fixtures"
+        weight: 0.25
+        criteria: "Good test data setup"
+      - dimension: "determinism"
+        weight: 0.15
+        criteria: "Tests are deterministic"
+    
+    must_contain:
+      - "syrupy"
+      - "snapshot"
+      - "@pytest.fixture"
+      - "test_generate_text"
+      - "test_generate_json"
+      - "test_generate_csv"
+      - "test_generate_html"
+    
+    must_not_contain:
+      - "# TODO"

@@ -6,7 +6,14 @@ readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.14"
 authors = [{ name = "llane" }]
-keywords = ["llm", "rag", "expertise", "ai", "prompt-engineering", "free-threading"]
+keywords = [
+    "llm",
+    "rag",
+    "expertise",
+    "ai",
+    "prompt-engineering",
+    "free-threading",
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -35,10 +42,10 @@ embeddings = ["sentence-transformers>=2.2"]
 api = ["fastapi>=0.109", "uvicorn>=0.27"]
 all = ["sunwell[openai,anthropic,ollama,embeddings,api]"]
 benchmark = [
-    "tiktoken>=0.5.0",      # Accurate token counting
-    "scipy>=1.10.0",        # Statistical tests (Mann-Whitney, Wilcoxon)
-    "ruff>=0.2.0",          # Deterministic linting checks
-    "mypy>=1.8.0",          # Deterministic type checks
+    "tiktoken>=0.5.0", # Accurate token counting
+    "scipy>=1.10.0",   # Statistical tests (Mann-Whitney, Wilcoxon)
+    "ruff>=0.2.0",     # Deterministic linting checks
+    "mypy>=1.8.0",     # Deterministic type checks
 ]
 dev = [
     "pytest>=8.0",
@@ -81,7 +88,5 @@ testpaths = ["tests"]
 # Install with: uv venv --python python3.14t
 python-preference = "managed"
 
-# Environment variables for optimal performance
-[tool.uv.env]
-# Disable GIL warning if you know what you're doing
-# SUNWELL_NO_GIL_WARNING = "1"
+# Note: Environment variables like SUNWELL_NO_GIL_WARNING=1 should be set
+# in your shell profile, not in pyproject.toml (uv doesn't support [tool.uv.env])

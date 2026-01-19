@@ -1,0 +1,81 @@
+# Code Review Task: Authentication bypass
+task:
+  id: "review-security-008"
+  category: "code_review"
+  subcategory: "security"
+  
+  prompt: |
+    Review this authentication code for security vulnerabilities:
+    
+    ```python
+    from fastapi import FastAPI, Header, Depends
+    from typing import Optional
+    import jwt
+    
+    app = FastAPI()
+    SECRET = "development-secret-key"
+    
+    async def get_current_user(
+        authorization: Optional[str] = Header(None),
+        x_api_key: Optional[str] = Header(None),
+    ):
+        if x_api_key == "admin-key-12345":
+            return {"role": "admin", "user_id": 0}
+        
+        if not authorization:
+            return None
+        
+        token = authorization.replace("Bearer ", "")
+        try:
+            payload = jwt.decode(token, SECRET, algorithms=["HS256", "none"])
+            return payload
+        except:
+            return None
+    
+    @app.get("/admin")
+    async def admin_panel(user = Depends(get_current_user)):
+        if user and user.get("role") == "admin":
+            return {"secrets": "sensitive data"}
+        return {"error": "unauthorized"}
+    
+    @app.get("/user/{user_id}")
+    async def get_user(user_id: int, current_user = Depends(get_current_user)):
+        # Get any user's data
+        return fetch_user_data(user_id)
+    ```
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.4
+        criteria: "Identifies all auth vulnerabilities"
+      - dimension: "severity"
+        weight: 0.3
+        criteria: "Correctly prioritizes critical issues"
+      - dimension: "actionability"
+        weight: 0.2
+        criteria: "Provides secure alternatives"
+      - dimension: "explanation"
+        weight: 0.1
+        criteria: "Explains attack vectors"
+    
+    must_contain:
+      - "algorithm"
+      - "none"
+      - "hardcoded"
+      - "IDOR"
+      - "secret"
+    
+    must_not_contain:
+      - "minor"
+      - "acceptable"
+    
+    ground_truth_issues:
+      - "Hardcoded secret key"
+      - "Hardcoded API key"
+      - "JWT 'none' algorithm allowed"
+      - "Bare except swallows JWT errors"
+      - "IDOR: no check that user can access user_id"
+      - "Returns None instead of raising auth error"

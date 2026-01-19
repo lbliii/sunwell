@@ -1,0 +1,68 @@
+# Code Generation Task: Write parametrized tests
+task:
+  id: "code-test-004"
+  category: "code_generation"
+  subcategory: "test"
+  
+  prompt: |
+    Write parametrized pytest tests for this validation module:
+    
+    ```python
+    import re
+    from datetime import date
+    
+    def validate_email(email: str) -> bool:
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        return bool(re.match(pattern, email))
+    
+    def validate_password(password: str) -> tuple[bool, list[str]]:
+        errors = []
+        if len(password) < 8:
+            errors.append("Password must be at least 8 characters")
+        if not re.search(r'[A-Z]', password):
+            errors.append("Password must contain uppercase letter")
+        if not re.search(r'[a-z]', password):
+            errors.append("Password must contain lowercase letter")
+        if not re.search(r'\d', password):
+            errors.append("Password must contain digit")
+        return len(errors) == 0, errors
+    
+    def validate_date_range(start: date, end: date) -> bool:
+        return start <= end
+    
+    def validate_age(birth_date: date, min_age: int = 18) -> bool:
+        today = date.today()
+        age = today.year - birth_date.year
+        if (today.month, today.day) < (birth_date.month, birth_date.day):
+            age -= 1
+        return age >= min_age
+    ```
+    
+    Use @pytest.mark.parametrize with many test cases per function.
+  
+  lens: "coder.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "coverage"
+        weight: 0.3
+        criteria: "Many edge cases covered"
+      - dimension: "parametrize"
+        weight: 0.3
+        criteria: "Effective use of parametrize"
+      - dimension: "edge_cases"
+        weight: 0.25
+        criteria: "Tests boundary conditions"
+      - dimension: "organization"
+        weight: 0.15
+        criteria: "Clear test IDs, logical grouping"
+    
+    must_contain:
+      - "@pytest.mark.parametrize"
+      - "test_validate_email"
+      - "test_validate_password"
+      - "test_validate_date_range"
+      - "test_validate_age"
+    
+    must_not_contain:
+      - "# TODO"

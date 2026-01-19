@@ -1,0 +1,76 @@
+# Agent Task: Build a complete REST API project
+task:
+  id: "agent-project-001"
+  category: "agent"
+  subcategory: "project"
+  
+  goal: |
+    Create a simple REST API project structure for a todo app:
+    
+    - app/
+      - __init__.py
+      - models.py (Todo dataclass with id, title, completed)
+      - routes.py (GET /todos, POST /todos, PUT /todos/{id})
+      - main.py (FastAPI app setup)
+    - tests/
+      - __init__.py
+      - test_routes.py (basic API tests)
+    - requirements.txt (fastapi, uvicorn, pytest)
+    - README.md (setup instructions)
+  
+  context:
+    cwd: "/tmp/benchmark-agent-project-001"
+    trust_level: "workspace"
+  
+  evaluation:
+    planning:
+      min_tasks: 8
+      max_tasks: 20
+      required_modes:
+        - "generate"
+      required_tools:
+        - "write_file"
+      required_dependencies: true
+      
+    execution:
+      must_create_files:
+        - "app/__init__.py"
+        - "app/models.py"
+        - "app/routes.py"
+        - "app/main.py"
+        - "tests/__init__.py"
+        - "tests/test_routes.py"
+        - "requirements.txt"
+        - "README.md"
+      must_contain_in_files:
+        app/models.py:
+          - "class Todo"
+          - "dataclass"
+        app/routes.py:
+          - "@app"
+          - "/todos"
+        app/main.py:
+          - "FastAPI"
+        requirements.txt:
+          - "fastapi"
+          - "uvicorn"
+        README.md:
+          - "install"
+    
+    rubric:
+      - dimension: "structure"
+        weight: 0.25
+        criteria: "Correct directory structure created"
+      - dimension: "completeness"
+        weight: 0.3
+        criteria: "All required files with correct content"
+      - dimension: "coherence"
+        weight: 0.25
+        criteria: "Files reference each other correctly"
+      - dimension: "documentation"
+        weight: 0.2
+        criteria: "README provides useful setup instructions"
+
+  complexity: "hard"
+  estimated_tasks: 12
+  timeout_seconds: 300

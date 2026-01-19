@@ -1,0 +1,65 @@
+# Code Generation Task: Property-based tests
+task:
+  id: "code-test-006"
+  category: "code_generation"
+  subcategory: "test"
+  
+  prompt: |
+    Write property-based tests using Hypothesis for these functions:
+    
+    ```python
+    def encode_base64url(data: bytes) -> str:
+        """Encode bytes to URL-safe base64 string."""
+        return base64.urlsafe_b64encode(data).rstrip(b'=').decode('ascii')
+    
+    def decode_base64url(s: str) -> bytes:
+        """Decode URL-safe base64 string to bytes."""
+        padding = 4 - len(s) % 4
+        if padding != 4:
+            s += '=' * padding
+        return base64.urlsafe_b64decode(s)
+    
+    def merge_dicts(d1: dict, d2: dict) -> dict:
+        """Deep merge two dicts. d2 values override d1."""
+        result = d1.copy()
+        for key, value in d2.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                result[key] = merge_dicts(result[key], value)
+            else:
+                result[key] = value
+        return result
+    
+    def sort_by_key(items: list[dict], key: str, reverse: bool = False) -> list[dict]:
+        """Sort list of dicts by key, handling missing keys."""
+        return sorted(items, key=lambda x: x.get(key, ''), reverse=reverse)
+    ```
+    
+    Test properties like round-tripping, idempotence, and invariants.
+  
+  lens: "coder.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "properties"
+        weight: 0.4
+        criteria: "Identifies correct properties to test"
+      - dimension: "hypothesis"
+        weight: 0.25
+        criteria: "Proper use of Hypothesis strategies"
+      - dimension: "coverage"
+        weight: 0.2
+        criteria: "Tests edge cases via properties"
+      - dimension: "clarity"
+        weight: 0.15
+        criteria: "Property descriptions are clear"
+    
+    must_contain:
+      - "@given"
+      - "hypothesis"
+      - "st."
+      - "encode_base64url"
+      - "decode_base64url"
+      - "merge_dicts"
+    
+    must_not_contain:
+      - "# TODO"

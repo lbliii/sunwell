@@ -1,0 +1,49 @@
+# Code Generation Task: Async semaphore with priority
+task:
+  id: "code-function-009"
+  category: "code_generation"
+  subcategory: "function"
+  
+  prompt: |
+    Implement an async semaphore with priority support.
+    
+    Requirements:
+    - `max_concurrent`: maximum concurrent acquisitions
+    - `acquire(priority: int = 0) -> context manager`: higher priority = earlier access
+    - `release()`: release the semaphore
+    - When multiple waiters, highest priority goes first
+    - Same priority uses FIFO ordering
+    
+    Use as async context manager:
+    ```python
+    async with semaphore.acquire(priority=10):
+        await do_work()
+    ```
+  
+  lens: "coder.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "correctness"
+        weight: 0.4
+        criteria: "Priority ordering works correctly"
+      - dimension: "async"
+        weight: 0.25
+        criteria: "Proper async implementation"
+      - dimension: "interface"
+        weight: 0.2
+        criteria: "Clean context manager API"
+      - dimension: "edge_cases"
+        weight: 0.15
+        criteria: "Handles cancellation"
+    
+    must_contain:
+      - "async"
+      - "await"
+      - "priority"
+      - "__aenter__"
+      - "__aexit__"
+      - "heapq"
+    
+    must_not_contain:
+      - "pass  # TODO"

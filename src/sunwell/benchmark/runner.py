@@ -23,9 +23,12 @@ from sunwell.benchmark.types import (
     BenchmarkResults,
     Condition,
     ConditionOutput,
+    NaaruMode,
+    PromptStrategy,
     RetrievalMetrics,
     RoutingMetrics,
     RubricDimension,
+    SelfDirectedMetrics,
     TaskCategory,
     TaskEvaluation,
     TaskResult,
@@ -34,7 +37,158 @@ from sunwell.models.protocol import GenerateOptions, ModelProtocol
 
 if TYPE_CHECKING:
     from sunwell.core.lens import Lens
+    from sunwell.core.heuristic import Heuristic
     from sunwell.schema.loader import LensLoader
+    from sunwell.tools.expertise import ExpertiseToolHandler
+    from sunwell.runtime.retriever import ExpertiseRetriever
+
+
+# =============================================================================
+# Prompt Strategies
+# =============================================================================
+
+class PromptBuilder:
+    """Build system prompts using different strategies.
+    
+    Strategies are based on prompting research:
+    - https://www.promptingguide.ai/techniques
+    - https://www.promptingguide.ai/agents/context-engineering
+    """
+    
+    @staticmethod
+    def build(
+        heuristics: list["Heuristic"],
+        strategy: PromptStrategy,
+        lens_name: str = "Expert",
+    ) -> str:
+        """Build a system prompt from heuristics using the specified strategy."""
+        if not heuristics:
+            return ""
+        
+        if strategy == PromptStrategy.RAW:
+            return PromptBuilder._raw(heuristics)
+        elif strategy == PromptStrategy.GUIDED:
+            return PromptBuilder._guided(heuristics, lens_name)
+        elif strategy == PromptStrategy.COT:
+            return PromptBuilder._chain_of_thought(heuristics, lens_name)
+        elif strategy == PromptStrategy.CONSTRAINTS:
+            return PromptBuilder._constraints(heuristics)
+        elif strategy == PromptStrategy.FEW_SHOT:
+            return PromptBuilder._few_shot(heuristics, lens_name)
+        else:
+            return PromptBuilder._raw(heuristics)
+    
+    @staticmethod
+    def _raw(heuristics: list["Heuristic"]) -> str:
+        """Just dump heuristics as-is."""
+        return "\n\n".join(h.to_prompt_fragment() for h in heuristics)
+    
+    @staticmethod
+    def _guided(heuristics: list["Heuristic"], lens_name: str) -> str:
+        """Add meta-instructions for applying heuristics."""
+        heuristic_block = "\n\n".join(h.to_prompt_fragment() for h in heuristics)
+        return f"""# Expert Guidance: {lens_name}
+
+You have access to these professional coding principles. Apply them to your response.
+
+{heuristic_block}
+
+## How to Use
+
+1. Review which heuristics apply to this task
+2. Follow the "always" patterns, avoid the "never" patterns
+3. Verify your code follows these principles before responding
+
+Apply these naturally - don't just list them, embody them in your code."""
+    
+    @staticmethod
+    def _chain_of_thought(heuristics: list["Heuristic"], lens_name: str) -> str:
+        """Chain-of-thought prompting for larger models."""
+        heuristic_block = "\n\n".join(h.to_prompt_fragment() for h in heuristics)
+        return f"""# Expert Principles: {lens_name}
+
+{heuristic_block}
+
+---
+
+## INSTRUCTIONS (Chain-of-Thought)
+
+Before writing code, you MUST:
+
+1. **THINK**: Which 1-2 heuristics from above are most relevant to this task?
+2. **PLAN**: How will you apply them? What patterns will you use/avoid?
+3. **CODE**: Write the solution following those heuristics.
+4. **VERIFY**: Does your code follow the "always" and avoid the "never" patterns?
+
+Format your response as:
+
+```
+THINKING: [Which heuristics apply and why]
+PLAN: [How you'll apply them]
+```
+
+```python
+# Your code here
+```"""
+    
+    @staticmethod
+    def _constraints(heuristics: list["Heuristic"]) -> str:
+        """Extract direct MUST/MUST NOT constraints for small models."""
+        must_do = []
+        must_not = []
+        
+        for h in heuristics:
+            if h.always:
+                must_do.extend(h.always[:3])  # Top 3 per heuristic
+            if h.never:
+                must_not.extend(h.never[:2])  # Top 2 per heuristic
+        
+        parts = ["# Coding Requirements\n"]
+        if must_do:
+            parts.append("You MUST:")
+            parts.extend(f"- {item}" for item in must_do[:8])
+            parts.append("")
+        if must_not:
+            parts.append("You MUST NOT:")
+            parts.extend(f"- {item}" for item in must_not[:5])
+            parts.append("")
+        
+        parts.append("Write clean, professional code following these requirements.")
+        return "\n".join(parts)
+    
+    @staticmethod
+    def _few_shot(heuristics: list["Heuristic"], lens_name: str) -> str:
+        """Include an example of applying heuristics."""
+        # Use first heuristic for the example
+        example_h = heuristics[0] if heuristics else None
+        heuristic_block = "\n\n".join(h.to_prompt_fragment() for h in heuristics)
+        
+        example = ""
+        if example_h and example_h.always:
+            example = f"""
+## Example: Applying "{example_h.name}"
+
+Task: Write a function to fetch user data
+
+BAD (ignores heuristic):
+```python
+def get_user(id):
+    return db.query(id)
+```
+
+GOOD (follows heuristic - "{example_h.always[0]}"):
+```python
+def get_user(user_id: int) -> User | None:
+    \"\"\"Fetch user by ID.\"\"\"
+    return db.query(User, user_id)
+```
+"""
+        
+        return f"""# Expert Principles: {lens_name}
+
+{heuristic_block}
+{example}
+Apply these principles to your response. Show your work like the example above."""
 
 
 @dataclass
@@ -48,8 +202,22 @@ class BenchmarkRunner:
             tasks_dir=Path("benchmark/tasks"),
             output_dir=Path("benchmark/results"),
             lens_dir=Path("lenses"),
+            prompt_strategy=PromptStrategy.CONSTRAINTS,  # Best for small models
         )
         results = await runner.run_suite(category="docs")
+    
+    Prompt strategies (from prompting research):
+        - RAW: Just dump heuristics as-is
+        - GUIDED: "Apply these principles" meta-instructions
+        - COT: Chain-of-thought (THINK → PLAN → CODE → VERIFY)
+        - CONSTRAINTS: Extract MUST/MUST NOT (best for small models)
+        - FEW_SHOT: Include example of applying heuristics
+    
+    Naaru modes:
+        - NONE: Single generation
+        - HARMONIC: Multi-persona voting (Self-Consistency, 3x tokens)
+        - RESONANCE: Feedback loop (1.5x tokens)
+        - FULL: Both (4x tokens)
     """
     
     model: ModelProtocol
@@ -60,6 +228,8 @@ class BenchmarkRunner:
     top_k: int = 3  # Number of heuristics to retrieve
     seed: int | None = 42  # For reproducibility where supported
     router_model: ModelProtocol | None = None  # RFC-020: Tiny LLM for routing
+    prompt_strategy: PromptStrategy = PromptStrategy.CONSTRAINTS  # Best for small models
+    naaru_mode: NaaruMode = NaaruMode.NONE  # Coordination layer
     
     async def run_task(
         self,
@@ -126,11 +296,47 @@ class BenchmarkRunner:
             if retrieval_metrics is None:
                 retrieval_metrics = routed_retrieval
         
+        # Condition E: Self-directed expertise retrieval (RFC-027)
+        self_directed_metrics = None
+        if Condition.SELF_DIRECTED not in skip_conditions:
+            try:
+                self_directed_output, self_directed_metrics = await self._run_self_directed(
+                    task=task,
+                    lens=lens,
+                )
+                outputs[Condition.SELF_DIRECTED.value] = self_directed_output
+            except ImportError as e:
+                # RFC-027 tools not fully installed
+                pass
+            except Exception as e:
+                # Log but don't fail the whole benchmark
+                pass
+        
+        # Condition F: Prefetch expertise via Tool Orchestrator Shard (RFC-031)
+        prefetch_metrics = None
+        if Condition.PREFETCH not in skip_conditions:
+            try:
+                prefetch_output, prefetch_metrics = await self._run_prefetch(
+                    task=task,
+                    lens=lens,
+                )
+                outputs[Condition.PREFETCH.value] = prefetch_output
+            except ImportError as e:
+                # RFC-031 Tool Orchestrator not available
+                import sys
+                print(f"Prefetch ImportError: {e}", file=sys.stderr)
+            except Exception as e:
+                # Log but don't fail the whole benchmark
+                import sys
+                print(f"Prefetch Error: {e}", file=sys.stderr)
+        
         return TaskResult(
             task_id=task.id,
             outputs=outputs,
             retrieval_metrics=retrieval_metrics,
             routing_metrics=routing_metrics,
+            self_directed_metrics=self_directed_metrics,
+            prefetch_metrics=prefetch_metrics,
         )
     
     async def _run_condition(
@@ -139,34 +345,248 @@ class BenchmarkRunner:
         system_prompt: str,
         condition: Condition,
     ) -> ConditionOutput:
-        """Execute a single condition and measure results."""
+        """Execute a single condition and measure results.
+        
+        Supports Naaru modes for enhanced generation:
+        - NONE: Single generation
+        - HARMONIC: Multi-persona generation with voting (Self-Consistency)
+        - RESONANCE: Generate + validate + refine loop
+        - FULL: Harmonic + Resonance combined
+        """
         # Count input tokens
         input_tokens = self._count_tokens(system_prompt + "\n\n" + task.prompt)
         
         start_time = time.perf_counter()
         
-        # Generate with system prompt
-        options = GenerateOptions(
-            temperature=0.7,
-            max_tokens=2048,
-            system_prompt=system_prompt if system_prompt else None,
-        )
-        
-        result = await self.model.generate(task.prompt, options=options)
+        # Apply Naaru mode for selective condition only (not bare/flat)
+        if condition == Condition.SELECTIVE and self.naaru_mode != NaaruMode.NONE:
+            result_text, extra_tokens = await self._run_with_naaru(
+                task=task,
+                system_prompt=system_prompt,
+            )
+            input_tokens += extra_tokens  # Account for extra generations
+        else:
+            # Standard single generation
+            options = GenerateOptions(
+                temperature=0.7,
+                max_tokens=2048,
+                system_prompt=system_prompt if system_prompt else None,
+            )
+            result = await self.model.generate(task.prompt, options=options)
+            result_text = result.text
         
         latency_ms = int((time.perf_counter() - start_time) * 1000)
         
         # Count output tokens
-        output_tokens = result.usage.completion_tokens if result.usage else self._count_tokens(result.text)
+        output_tokens = self._count_tokens(result_text)
         
         return ConditionOutput(
             condition=condition,
-            content=result.text,
+            content=result_text,
             tokens_input=input_tokens,
             tokens_output=output_tokens,
             latency_ms=latency_ms,
             system_prompt=system_prompt,
         )
+    
+    async def _run_with_naaru(
+        self,
+        task: BenchmarkTask,
+        system_prompt: str,
+    ) -> tuple[str, int]:
+        """Run generation with Naaru coordination.
+        
+        Returns:
+            Tuple of (best_response, extra_tokens_used)
+        """
+        extra_tokens = 0
+        
+        if self.naaru_mode in (NaaruMode.HARMONIC, NaaruMode.FULL):
+            # Harmonic Synthesis: Generate with multiple personas, vote on best
+            responses = await self._harmonic_synthesis(task, system_prompt)
+            extra_tokens += sum(self._count_tokens(r) for r in responses) * 2  # Estimate
+            
+            # Vote on best response
+            best_response = await self._vote_on_responses(task, responses)
+        else:
+            # Single generation for resonance-only mode
+            options = GenerateOptions(
+                temperature=0.7,
+                max_tokens=2048,
+                system_prompt=system_prompt if system_prompt else None,
+            )
+            result = await self.model.generate(task.prompt, options=options)
+            best_response = result.text
+        
+        if self.naaru_mode in (NaaruMode.RESONANCE, NaaruMode.FULL):
+            # Resonance: Validate and refine if needed
+            best_response, refine_tokens = await self._resonance_loop(
+                task, system_prompt, best_response
+            )
+            extra_tokens += refine_tokens
+        
+        return best_response, extra_tokens
+    
+    async def _harmonic_synthesis(
+        self,
+        task: BenchmarkTask,
+        base_system_prompt: str,
+    ) -> list[str]:
+        """Generate responses from multiple personas (Self-Consistency).
+        
+        Uses 3 personas with structured variance based on domain expertise.
+        """
+        # Persona definitions for structured variance
+        personas = [
+            {
+                "name": "Pragmatist",
+                "modifier": "Focus on simple, working code. Prioritize readability and maintainability over cleverness.",
+            },
+            {
+                "name": "Perfectionist", 
+                "modifier": "Focus on robust, complete code. Handle all edge cases and add comprehensive type hints.",
+            },
+            {
+                "name": "Minimalist",
+                "modifier": "Focus on minimal, elegant code. Remove anything unnecessary while preserving functionality.",
+            },
+        ]
+        
+        # Generate in parallel with each persona
+        async def generate_with_persona(persona: dict) -> str:
+            enhanced_prompt = f"{base_system_prompt}\n\n## Persona: {persona['name']}\n{persona['modifier']}"
+            options = GenerateOptions(
+                temperature=0.7,
+                max_tokens=2048,
+                system_prompt=enhanced_prompt,
+            )
+            result = await self.model.generate(task.prompt, options=options)
+            return result.text
+        
+        responses = await asyncio.gather(*[
+            generate_with_persona(p) for p in personas
+        ])
+        
+        return list(responses)
+    
+    async def _vote_on_responses(
+        self,
+        task: BenchmarkTask,
+        responses: list[str],
+    ) -> str:
+        """Have the model vote on the best response.
+        
+        Simple majority voting using the same model as judge.
+        """
+        if len(responses) == 1:
+            return responses[0]
+        
+        # Format responses for voting
+        options_text = "\n\n".join([
+            f"## Option {chr(65 + i)}\n```\n{r[:1500]}\n```"
+            for i, r in enumerate(responses)
+        ])
+        
+        vote_prompt = f"""You are evaluating code solutions. Pick the BEST one.
+
+Task: {task.prompt[:500]}
+
+{options_text}
+
+Which option is best? Respond with just the letter (A, B, or C)."""
+
+        options = GenerateOptions(
+            temperature=0.0,  # Deterministic for voting
+            max_tokens=10,
+        )
+        
+        result = await self.model.generate(vote_prompt, options=options)
+        
+        # Parse vote
+        vote = result.text.strip().upper()
+        if vote.startswith("A"):
+            return responses[0]
+        elif vote.startswith("B"):
+            return responses[1] if len(responses) > 1 else responses[0]
+        elif vote.startswith("C"):
+            return responses[2] if len(responses) > 2 else responses[0]
+        else:
+            # Default to first if parsing fails
+            return responses[0]
+    
+    async def _resonance_loop(
+        self,
+        task: BenchmarkTask,
+        system_prompt: str,
+        initial_response: str,
+        max_attempts: int = 2,
+    ) -> tuple[str, int]:
+        """Resonance: Validate and refine response if issues found.
+        
+        Returns:
+            Tuple of (final_response, extra_tokens_used)
+        """
+        extra_tokens = 0
+        current_response = initial_response
+        
+        for attempt in range(max_attempts):
+            # Quick validation
+            issues = await self._validate_response(task, current_response)
+            
+            if not issues:
+                break  # Response is good
+            
+            # Refine based on issues
+            refine_prompt = f"""Your previous response had issues:
+{issues}
+
+Original task: {task.prompt[:500]}
+
+Please fix these issues and provide an improved response."""
+
+            options = GenerateOptions(
+                temperature=0.5,  # Lower temp for refinement
+                max_tokens=2048,
+                system_prompt=system_prompt,
+            )
+            
+            result = await self.model.generate(refine_prompt, options=options)
+            current_response = result.text
+            extra_tokens += self._count_tokens(refine_prompt) + self._count_tokens(result.text)
+        
+        return current_response, extra_tokens
+    
+    async def _validate_response(
+        self,
+        task: BenchmarkTask,
+        response: str,
+    ) -> str | None:
+        """Quick validation of response quality.
+        
+        Returns issues string if problems found, None if OK.
+        """
+        # Simple heuristic checks for code tasks
+        issues = []
+        
+        if task.category in (TaskCategory.CODE_GENERATION,):
+            # Check for common issues
+            if "```" not in response:
+                issues.append("- Missing code block")
+            if "def " not in response and "class " not in response:
+                issues.append("- No function or class definition found")
+            if "pass" in response and response.count("pass") > 2:
+                issues.append("- Too many placeholder 'pass' statements")
+        
+        # Check deterministic criteria from task
+        if task.evaluation:
+            for must in task.evaluation.must_contain:
+                if must.lower() not in response.lower():
+                    issues.append(f"- Missing required element: {must}")
+            for must_not in task.evaluation.must_not_contain:
+                if must_not.lower() in response.lower():
+                    issues.append(f"- Contains forbidden element: {must_not}")
+        
+        return "\n".join(issues) if issues else None
     
     async def _selective_retrieve(
         self,
@@ -208,15 +628,26 @@ class BenchmarkRunner:
             query_vector = await embedder.embed_single(query)
             search_results = index.search(query_vector, top_k=self.top_k)
             
-            # Build context from retrieved heuristics
-            retrieved_texts = [r.metadata["text"] for r in search_results]
-            context = f"# Expertise: {lens.metadata.name}\n\n## Retrieved Heuristics\n\n"
-            context += "\n\n".join(retrieved_texts)
+            # Get actual heuristic objects for the retrieved results
+            retrieved_heuristics = []
+            for r in search_results:
+                # Find the heuristic by name
+                for h in lens.heuristics:
+                    if h.name == r.id:
+                        retrieved_heuristics.append(h)
+                        break
+            
+            # Build context using the configured prompt strategy
+            # Different strategies work better for different model sizes
+            context = PromptBuilder.build(
+                heuristics=retrieved_heuristics,
+                strategy=self.prompt_strategy,
+                lens_name=lens.metadata.name,
+            )
             
             # Add communication style if present
             if lens.communication:
-                context += "\n\n## Communication Style\n"
-                context += lens.communication.to_prompt_fragment()
+                context += f"\n\n## Communication Style\n{lens.communication.to_prompt_fragment()}"
             
             latency_ms = int((time.perf_counter() - start_time) * 1000)
             
@@ -342,6 +773,274 @@ class BenchmarkRunner:
         )
         
         return context, routing_metrics, retrieval_metrics
+    
+    async def _run_self_directed(
+        self,
+        task: BenchmarkTask,
+        lens: "Lens",
+    ) -> tuple[ConditionOutput, SelfDirectedMetrics]:
+        """Run task with self-directed expertise retrieval (RFC-027).
+        
+        The model can call expertise tools during generation:
+        - get_expertise(topic): Retrieve relevant heuristics
+        - verify_against_expertise(code): Check code against heuristics
+        - list_expertise_areas(): List available expertise categories
+        
+        Args:
+            task: The benchmark task
+            lens: The lens to use for expertise retrieval
+            
+        Returns:
+            Tuple of (ConditionOutput, SelfDirectedMetrics)
+        """
+        from sunwell.embedding import create_embedder
+        from sunwell.runtime.retriever import ExpertiseRetriever
+        from sunwell.tools.expertise import ExpertiseToolHandler, get_self_directed_prompt
+        from sunwell.tools.builtins import EXPERTISE_TOOLS
+        from sunwell.models.protocol import ToolCall
+        
+        start_time = time.perf_counter()
+        tool_start_time = 0.0
+        total_tool_latency_ms = 0
+        
+        # Set up expertise retrieval infrastructure
+        embedder = create_embedder()
+        retriever = ExpertiseRetriever(
+            lens=lens,
+            embedder=embedder,
+            top_k=self.top_k,
+        )
+        await retriever.initialize()
+        
+        # Create expertise tool handler
+        expertise_handler = ExpertiseToolHandler(
+            retriever=retriever,
+            lens=lens,
+        )
+        
+        # Build system prompt with self-directed expertise hint
+        # RFC-029: Include prompted format for small models that can't use native tools
+        from sunwell.tools.prompted import get_prompted_tools_system
+        
+        # Use prompted format (simpler, works with small models)
+        # Native tool calling will be tried first, but if it fails,
+        # we'll parse [TOOL:name(args)] tags from the text
+        system_prompt = get_prompted_tools_system()
+        
+        # Add minimal lens context (just identity, not heuristics)
+        if lens.communication:
+            system_prompt += f"\n\n## Communication Style\n{lens.communication.to_prompt_fragment()}"
+        
+        # Format tools for the model (for native tool calling if supported)
+        tools = list(EXPERTISE_TOOLS.values())
+        
+        # Track tokens and iterations
+        input_tokens = self._count_tokens(system_prompt + "\n\n" + task.prompt)
+        output_tokens = 0
+        max_iterations = 5  # Prevent infinite tool loops
+        
+        # RFC-027 Metrics tracking
+        list_expertise_calls = 0
+        get_expertise_calls = 0
+        verify_calls = 0
+        topics_queried: list[str] = []
+        heuristics_retrieved = 0
+        verification_passed: bool | None = None
+        react_iterations = 0
+        
+        # ReAct loop: Model generates, optionally calls tools, repeat until done
+        messages = [{"role": "user", "content": task.prompt}]
+        final_response = ""
+        
+        for iteration in range(max_iterations):
+            react_iterations = iteration + 1
+            
+            options = GenerateOptions(
+                temperature=0.7,
+                max_tokens=2048,
+                system_prompt=system_prompt,
+                tools=tools,
+            )
+            
+            result = await self.model.generate(
+                messages[-1]["content"] if messages else task.prompt,
+                options=options,
+            )
+            
+            # Check if model made tool calls (native API or prompted tags)
+            # RFC-029: Fall back to parsing [TOOL:name(args)] tags for small models
+            from sunwell.tools.prompted import parse_tool_tags, convert_to_tool_calls, has_tool_tags
+            
+            tool_calls = result.tool_calls
+            used_prompted_format = False
+            
+            # If no native tool calls, try parsing tags from text (small model fallback)
+            if not tool_calls and result.text and has_tool_tags(result.text):
+                parsed = parse_tool_tags(result.text)
+                if parsed:
+                    tool_calls = tuple(convert_to_tool_calls(parsed))
+                    used_prompted_format = True
+            
+            if tool_calls:
+                # Execute each tool call
+                tool_results = []
+                for tc in tool_calls:
+                    # Track tool call metrics
+                    tool_start = time.perf_counter()
+                    tool_output = await expertise_handler.handle(tc.name, tc.arguments)
+                    total_tool_latency_ms += int((time.perf_counter() - tool_start) * 1000)
+                    
+                    # Track per-tool metrics
+                    if tc.name == "list_expertise_areas":
+                        list_expertise_calls += 1
+                    elif tc.name == "get_expertise":
+                        get_expertise_calls += 1
+                        if "topic" in tc.arguments:
+                            topics_queried.append(tc.arguments["topic"])
+                        # Count heuristics in response (look for "### " pattern)
+                        heuristics_retrieved += tool_output.count("### ")
+                    elif tc.name == "verify_against_expertise":
+                        verify_calls += 1
+                        # Check if verification passed
+                        verification_passed = "No Violations Found" in tool_output
+                    
+                    tool_results.append({
+                        "tool_call_id": tc.id,
+                        "content": tool_output,
+                    })
+                    input_tokens += self._count_tokens(tool_output)
+                
+                # Add assistant message with tool calls
+                messages.append({
+                    "role": "assistant",
+                    "content": result.text or "",
+                    "tool_calls": tool_calls,
+                })
+                
+                # Add tool results as a combined message for next iteration
+                tool_context = "\n\n".join([
+                    f"[Tool Result: {tr['tool_call_id']}]\n{tr['content']}"
+                    for tr in tool_results
+                ])
+                messages.append({
+                    "role": "user",
+                    "content": f"Tool results:\n\n{tool_context}\n\nPlease continue with the task.",
+                })
+                
+                output_tokens += self._count_tokens(result.text or "")
+            else:
+                # No tool calls - model is done
+                final_response = result.text
+                output_tokens += self._count_tokens(final_response)
+                break
+        else:
+            # Max iterations reached - use last response
+            if messages:
+                final_response = result.text or "Max tool iterations reached"
+        
+        latency_ms = int((time.perf_counter() - start_time) * 1000)
+        
+        # Build metrics
+        total_tool_calls = list_expertise_calls + get_expertise_calls + verify_calls
+        metrics = SelfDirectedMetrics(
+            total_tool_calls=total_tool_calls,
+            list_expertise_calls=list_expertise_calls,
+            get_expertise_calls=get_expertise_calls,
+            verify_calls=verify_calls,
+            topics_queried=tuple(topics_queried),
+            heuristics_retrieved=heuristics_retrieved,
+            verification_passed=verification_passed,
+            react_iterations=react_iterations,
+            tool_latency_ms=total_tool_latency_ms,
+        )
+        
+        output = ConditionOutput(
+            condition=Condition.SELF_DIRECTED,
+            content=final_response,
+            tokens_input=input_tokens,
+            tokens_output=output_tokens,
+            latency_ms=latency_ms,
+            system_prompt=system_prompt,
+        )
+        
+        return output, metrics
+    
+    async def _run_prefetch(
+        self,
+        task: BenchmarkTask,
+        lens: "Lens",
+    ) -> tuple[ConditionOutput, "PrefetchMetrics"]:
+        """Run prefetch condition: Tool Orchestrator Shard pre-fetches expertise (RFC-031).
+        
+        Unlike self-directed mode where the model calls tools during generation,
+        prefetch mode uses semantic similarity to fetch relevant expertise BEFORE
+        generation. The model receives an enriched prompt and doesn't need
+        tool-calling capability.
+        
+        This is ideal for small models (1-3B parameters) that struggle with
+        native tool calling.
+        """
+        from sunwell.benchmark.types import PrefetchMetrics
+        from sunwell.naaru.tool_shard import ToolOrchestratorShard
+        
+        start_time = time.perf_counter()
+        
+        # Create Tool Orchestrator Shard
+        shard = ToolOrchestratorShard(
+            lens=lens,
+            threshold=0.5,  # 50% similarity threshold
+            top_k=5,
+        )
+        
+        # Prefetch expertise using semantic similarity
+        shard_result = await shard.process(task.prompt)
+        
+        # Now generate with the enriched prompt (no tools needed!)
+        options = GenerateOptions(
+            temperature=0.7,
+            max_tokens=2048,
+            system_prompt="",  # Expertise is in the enriched prompt
+            tools=None,  # No tool calling - that's the point!
+        )
+        
+        result = await self.model.generate(
+            shard_result.enriched_prompt,
+            options=options,
+        )
+        
+        latency_ms = int((time.perf_counter() - start_time) * 1000)
+        
+        # Calculate token counts
+        input_tokens = self._count_tokens(shard_result.enriched_prompt)
+        output_tokens = self._count_tokens(result.text)
+        
+        # Expertise expansion tokens (how many tokens were added)
+        original_tokens = self._count_tokens(task.prompt)
+        expansion_tokens = input_tokens - original_tokens
+        
+        # Build metrics
+        relevance_scores = [e.score for e in shard_result.expertise]
+        metrics = PrefetchMetrics(
+            topics_detected=shard_result.topics_detected,
+            expertise_items=len(shard_result.expertise),
+            max_relevance_score=max(relevance_scores) if relevance_scores else 0.0,
+            min_relevance_score=min(relevance_scores) if relevance_scores else 0.0,
+            prefetch_latency_ms=shard_result.latency_ms,
+            threshold_used=0.5,
+            prompt_expansion_tokens=expansion_tokens,
+            reasoning=shard_result.reasoning,
+        )
+        
+        output = ConditionOutput(
+            condition=Condition.PREFETCH,
+            content=result.text,
+            tokens_input=input_tokens,
+            tokens_output=output_tokens,
+            latency_ms=latency_ms,
+            system_prompt=shard_result.enriched_prompt,
+        )
+        
+        return output, metrics
     
     def _count_tokens(self, text: str) -> int:
         """Count tokens using tiktoken.

@@ -1,0 +1,72 @@
+# Code Refactoring Task: Replace conditionals with polymorphism
+task:
+  id: "code-refactor-004"
+  category: "code_generation"
+  subcategory: "refactor"
+  
+  prompt: |
+    Refactor this code to use polymorphism instead of conditionals:
+    
+    ```python
+    def calculate_shipping(order: dict) -> float:
+        method = order['shipping_method']
+        weight = order['weight']
+        distance = order['distance']
+        
+        if method == 'standard':
+            base = 5.99
+            per_lb = 0.50
+            if weight > 50:
+                per_lb = 0.40
+            return base + (weight * per_lb)
+        
+        elif method == 'express':
+            base = 15.99
+            per_lb = 1.00
+            per_mile = 0.01
+            return base + (weight * per_lb) + (distance * per_mile)
+        
+        elif method == 'overnight':
+            base = 29.99
+            per_lb = 2.00
+            per_mile = 0.05
+            if order.get('signature_required'):
+                base += 5.00
+            return base + (weight * per_lb) + (distance * per_mile)
+        
+        elif method == 'pickup':
+            return 0.0
+        
+        else:
+            raise ValueError(f"Unknown shipping method: {method}")
+    ```
+    
+    Use a strategy pattern with a base class and implementations.
+  
+  lens: "coder.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "structure"
+        weight: 0.35
+        criteria: "Clear strategy pattern with base class"
+      - dimension: "extensibility"
+        weight: 0.25
+        criteria: "Easy to add new shipping methods"
+      - dimension: "correctness"
+        weight: 0.25
+        criteria: "All shipping calculations preserved"
+      - dimension: "typing"
+        weight: 0.15
+        criteria: "Proper type hints and Protocol/ABC usage"
+    
+    must_contain:
+      - "class"
+      - "ShippingStrategy"
+      - "StandardShipping"
+      - "ExpressShipping"
+      - "calculate"
+    
+    must_not_contain:
+      - "if method == 'standard'"
+      - "elif method =="

@@ -1,0 +1,70 @@
+# Code Refactoring Task: Extract configuration
+task:
+  id: "code-refactor-007"
+  category: "code_generation"
+  subcategory: "refactor"
+  
+  prompt: |
+    Refactor this code to externalize configuration:
+    
+    ```python
+    import httpx
+    
+    class PaymentService:
+        def __init__(self):
+            self.api_key = "sk_live_abc123"
+            self.base_url = "https://api.stripe.com/v1"
+            self.timeout = 30
+            self.max_retries = 3
+            self.retry_delay = 1.0
+        
+        async def charge(self, amount: int, currency: str, source: str):
+            async with httpx.AsyncClient(
+                base_url=self.base_url,
+                timeout=self.timeout,
+                headers={"Authorization": f"Bearer {self.api_key}"},
+            ) as client:
+                response = await client.post("/charges", json={
+                    "amount": amount,
+                    "currency": currency,
+                    "source": source,
+                })
+                return response.json()
+    
+    class EmailService:
+        def __init__(self):
+            self.smtp_host = "smtp.gmail.com"
+            self.smtp_port = 587
+            self.username = "app@example.com"
+            self.password = "password123"
+            self.from_address = "noreply@example.com"
+    ```
+    
+    Use Pydantic Settings with environment variables and .env file support.
+  
+  lens: "coder.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "structure"
+        weight: 0.35
+        criteria: "Clean config class hierarchy"
+      - dimension: "security"
+        weight: 0.3
+        criteria: "No hardcoded secrets, env var usage"
+      - dimension: "usability"
+        weight: 0.2
+        criteria: "Easy to configure for different environments"
+      - dimension: "validation"
+        weight: 0.15
+        criteria: "Validates configuration"
+    
+    must_contain:
+      - "BaseSettings"
+      - "env"
+      - "Field"
+      - "SecretStr"
+    
+    must_not_contain:
+      - "sk_live"
+      - "password123"

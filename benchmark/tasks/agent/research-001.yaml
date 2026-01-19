@@ -1,0 +1,62 @@
+# Agent Task: Research existing code and document it
+task:
+  id: "agent-research-001"
+  category: "agent"
+  subcategory: "research"
+  
+  goal: |
+    Analyze the existing auth_module.py fixture file and create:
+    1. A README documenting its API
+    2. Type stubs in auth_module.pyi
+    3. Example usage in examples/auth_example.py
+  
+  context:
+    cwd: "/tmp/benchmark-agent-research-001"
+    trust_level: "workspace"
+    fixtures:
+      - source: "benchmark/fixtures/auth_module.py"
+        dest: "auth_module.py"
+  
+  evaluation:
+    planning:
+      min_tasks: 4
+      max_tasks: 10
+      required_modes:
+        - "research"
+        - "generate"
+      required_tools:
+        - "read_file"
+        - "write_file"
+      
+    execution:
+      must_read_files:
+        - "auth_module.py"
+      must_create_files:
+        - "README.md"
+        - "auth_module.pyi"
+        - "examples/auth_example.py"
+      must_contain_in_files:
+        README.md:
+          - "authenticate"
+          - "API"
+        auth_module.pyi:
+          - "def authenticate"
+          - "->"
+        examples/auth_example.py:
+          - "from auth_module import"
+    
+    rubric:
+      - dimension: "analysis_accuracy"
+        weight: 0.3
+        criteria: "Correctly identifies functions and signatures"
+      - dimension: "documentation_quality"
+        weight: 0.3
+        criteria: "README clearly documents the API"
+      - dimension: "type_stubs"
+        weight: 0.2
+        criteria: "Type stubs match actual implementation"
+      - dimension: "examples"
+        weight: 0.2
+        criteria: "Example code demonstrates correct usage"
+
+  tests_capability: "code_analysis"

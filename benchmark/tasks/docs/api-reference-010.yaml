@@ -1,0 +1,73 @@
+# Documentation Task: API Reference for enum
+task:
+  id: "docs-api-ref-010"
+  category: "documentation"
+  subcategory: "api_reference"
+  
+  prompt: |
+    Write API reference documentation for this enum-based API:
+    
+    ```python
+    from enum import Enum, auto, Flag
+    from typing import Literal
+    
+    class TaskStatus(str, Enum):
+        """Status of a background task."""
+        PENDING = "pending"
+        RUNNING = "running"
+        COMPLETED = "completed"
+        FAILED = "failed"
+        CANCELLED = "cancelled"
+        
+        @property
+        def is_terminal(self) -> bool:
+            """Whether this status is final."""
+            return self in (self.COMPLETED, self.FAILED, self.CANCELLED)
+        
+        @property
+        def is_active(self) -> bool:
+            """Whether task is currently processing."""
+            return self in (self.PENDING, self.RUNNING)
+    
+    class Permission(Flag):
+        """Bitwise permission flags."""
+        NONE = 0
+        READ = auto()
+        WRITE = auto()
+        DELETE = auto()
+        ADMIN = auto()
+        
+        ALL = READ | WRITE | DELETE | ADMIN
+        EDITOR = READ | WRITE
+        VIEWER = READ
+    
+    TaskStatusLiteral = Literal["pending", "running", "completed", "failed", "cancelled"]
+    ```
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "accuracy"
+        weight: 0.3
+        criteria: "Enum features correctly explained"
+      - dimension: "examples"
+        weight: 0.3
+        criteria: "Usage examples for both enums"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "Covers str Enum, Flag, Literal"
+      - dimension: "comparison"
+        weight: 0.15
+        criteria: "When to use Enum vs Literal"
+    
+    must_contain:
+      - "Enum"
+      - "Flag"
+      - "Literal"
+      - "auto"
+      - "|"
+    
+    must_not_contain:
+      - "simple"
+      - "easy"

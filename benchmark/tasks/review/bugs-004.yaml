@@ -1,0 +1,76 @@
+# Code Review Task: Memory leak
+task:
+  id: "review-bugs-004"
+  category: "code_review"
+  subcategory: "bugs"
+  
+  prompt: |
+    Review this code for memory leaks:
+    
+    ```python
+    from functools import lru_cache
+    from typing import Callable
+    
+    class EventEmitter:
+        _listeners: dict[str, list[Callable]] = {}
+        
+        def on(self, event: str, callback: Callable):
+            if event not in self._listeners:
+                self._listeners[event] = []
+            self._listeners[event].append(callback)
+    
+    class RequestHandler:
+        _request_cache: dict = {}
+        
+        def __init__(self, request_id: str):
+            self.request_id = request_id
+            self._request_cache[request_id] = self
+        
+        @lru_cache(maxsize=None)
+        def process(self, data: bytes) -> bytes:
+            return data.upper()
+    
+    class Session:
+        active_sessions = {}
+        
+        def __init__(self, session_id: str):
+            self.session_id = session_id
+            self.data = {}
+            Session.active_sessions[session_id] = self
+        
+        def __del__(self):
+            print(f"Session {self.session_id} cleaned up")
+    ```
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.4
+        criteria: "Identifies all memory leak patterns"
+      - dimension: "explanation"
+        weight: 0.3
+        criteria: "Explains why each pattern leaks"
+      - dimension: "actionability"
+        weight: 0.2
+        criteria: "Provides fixes (weakref, explicit cleanup)"
+      - dimension: "severity"
+        weight: 0.1
+        criteria: "Correctly prioritizes severity"
+    
+    must_contain:
+      - "memory leak"
+      - "class variable"
+      - "lru_cache"
+      - "weakref"
+    
+    must_not_contain:
+      - "no issues"
+      - "looks fine"
+    
+    ground_truth_issues:
+      - "EventEmitter: class-level _listeners shared across instances"
+      - "RequestHandler: _request_cache never cleared, holds references"
+      - "RequestHandler.process: unbounded lru_cache"
+      - "Session: active_sessions holds strong references, prevents GC"

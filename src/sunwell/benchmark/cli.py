@@ -81,6 +81,18 @@ def benchmark() -> None:
     default=None,
     help="Tiny LLM for cognitive routing (enables ROUTED condition, RFC-020)",
 )
+@click.option(
+    "--strategy",
+    type=click.Choice(["raw", "guided", "cot", "constraints", "few_shot"]),
+    default="constraints",
+    help="Prompt strategy for presenting heuristics (default: constraints for small models)",
+)
+@click.option(
+    "--naaru",
+    type=click.Choice(["none", "harmonic", "resonance", "full"]),
+    default="none",
+    help="Naaru coordination mode (harmonic=3x tokens, resonance=1.5x, full=4x)",
+)
 def run(
     model: str,
     category: str | None,
@@ -92,6 +104,8 @@ def run(
     judge_model: str | None,
     verbose: bool,
     router_model: str | None,
+    strategy: str,
+    naaru: str,
 ) -> None:
     """Run benchmark suite against specified model.
     
@@ -100,14 +114,35 @@ def run(
         # Run full benchmark suite
         sunwell benchmark run --model gpt-4o
         
-        # Run only documentation tasks
+        # Run only documentation tasks  
         sunwell benchmark run --category docs
-        
-        # Run single task for debugging
-        sunwell benchmark run --task docs-api-ref-001 --verbose
         
         # Quick run with limited tasks
         sunwell benchmark run --max-tasks 5
+        
+        # Test different prompt strategies
+        sunwell benchmark run --model qwen2.5:1.5b --strategy constraints
+        sunwell benchmark run --model qwen2.5:1.5b --strategy cot
+        sunwell benchmark run --model qwen2.5:1.5b --strategy few_shot
+        
+        # Enable Naaru coordination (more tokens, better quality)
+        sunwell benchmark run --model qwen2.5:1.5b --naaru harmonic
+        sunwell benchmark run --model qwen2.5:1.5b --naaru full
+    
+    \b
+    Prompt Strategies (best by model size):
+        - constraints: MUST/MUST NOT (best for 1-2B models)
+        - raw: Just dump heuristics as-is
+        - guided: "Apply these principles" meta-instructions
+        - cot: Chain-of-thought (THINK→PLAN→CODE→VERIFY, best for 4B+)
+        - few_shot: Include example of applying heuristics
+    
+    \b
+    Naaru Modes (quality vs cost tradeoff):
+        - none: Single generation (1x tokens)
+        - harmonic: Multi-persona voting (3x tokens, Self-Consistency)
+        - resonance: Feedback loop (1.5x tokens)
+        - full: Both (4x tokens, best quality)
     """
     asyncio.run(_run_benchmark(
         model=model,
@@ -120,6 +155,8 @@ def run(
         judge_model=judge_model or model,
         verbose=verbose,
         router_model=router_model,
+        strategy=strategy,
+        naaru=naaru,
     ))
 
 
@@ -134,19 +171,29 @@ async def _run_benchmark(
     judge_model: str,
     verbose: bool,
     router_model: str | None = None,
+    strategy: str = "constraints",
+    naaru: str = "none",
 ) -> None:
     """Async benchmark execution."""
     from sunwell.benchmark.runner import BenchmarkRunner
     from sunwell.benchmark.evaluator import BenchmarkEvaluator
     from sunwell.benchmark.report import BenchmarkReporter
+    from sunwell.benchmark.types import PromptStrategy, NaaruMode
     from sunwell.models.ollama import OllamaModel
     from sunwell.schema.loader import LensLoader
+    
+    # Convert string options to enums
+    prompt_strategy = PromptStrategy(strategy)
+    naaru_mode = NaaruMode(naaru)
     
     # Banner
     console.print()
     console.print("╔" + "═" * 60 + "╗")
     console.print("║" + " 🔬 QUALITY BENCHMARK (RFC-018)".ljust(60) + "║")
     console.print("║" + f"    Model: {model}".ljust(60) + "║")
+    console.print("║" + f"    Strategy: {strategy}".ljust(60) + "║")
+    if naaru != "none":
+        console.print("║" + f"    Naaru: {naaru}".ljust(60) + "║")
     if category:
         console.print("║" + f"    Category: {category}".ljust(60) + "║")
     if task_id:
@@ -163,7 +210,7 @@ async def _run_benchmark(
     # Create router model if specified
     router_llm = OllamaModel(model=router_model) if router_model else None
     
-    # Create runner
+    # Create runner with strategy configuration
     runner = BenchmarkRunner(
         model=llm,
         lens_loader=loader,
@@ -171,6 +218,8 @@ async def _run_benchmark(
         output_dir=output_dir,
         lens_dir=Path("lenses"),
         router_model=router_llm,
+        prompt_strategy=prompt_strategy,
+        naaru_mode=naaru_mode,
     )
     
     # Run benchmarks
@@ -499,6 +548,345 @@ def _generate_simple_markdown(stats: dict) -> str:
         f"| Claim Level | {stats.get('claim_level', 'unknown')} |",
     ]
     return "\n".join(lines)
+
+
+# =============================================================================
+# Naaru Benchmark Commands (RFC-027)
+# =============================================================================
+
+
+@benchmark.command()
+@click.option(
+    "--model",
+    default="gemma3:1b",
+    help="Synthesis model (default: gemma3:1b)",
+)
+@click.option(
+    "--judge-model",
+    default="gemma3:4b",
+    help="Judge model for evaluation (default: gemma3:4b)",
+)
+@click.option(
+    "--conditions",
+    default=None,
+    help="Comma-separated conditions (e.g., BASELINE,HARMONIC,NAARU_FULL)",
+)
+@click.option(
+    "--category",
+    type=click.Choice(["documentation", "code_review", "code_generation", "analysis"]),
+    help="Run only tasks in this category",
+)
+@click.option(
+    "--tasks-dir",
+    type=click.Path(exists=True, path_type=Path),
+    default=Path("benchmark/tasks"),
+    help="Directory containing task YAML files",
+)
+@click.option(
+    "--output",
+    type=click.Path(path_type=Path),
+    default=Path("benchmark/results/naaru"),
+    help="Output directory for results",
+)
+@click.option(
+    "--max-tasks",
+    type=int,
+    help="Maximum number of tasks to run",
+)
+@click.option(
+    "--quick",
+    is_flag=True,
+    help="Quick smoke test (5 tasks, all conditions)",
+)
+@click.option(
+    "--ablation",
+    is_flag=True,
+    help="Run ablation study (incremental technique enablement)",
+)
+@click.option(
+    "--full",
+    is_flag=True,
+    help="Full statistical run (all tasks, all conditions)",
+)
+@click.option(
+    "--verbose", "-v",
+    is_flag=True,
+    help="Verbose output",
+)
+def naaru(
+    model: str,
+    judge_model: str,
+    conditions: str | None,
+    category: str | None,
+    tasks_dir: Path,
+    output: Path,
+    max_tasks: int | None,
+    quick: bool,
+    ablation: bool,
+    full: bool,
+    verbose: bool,
+) -> None:
+    """Run Naaru benchmark suite (RFC-027).
+    
+    Validates Naaru's quality claims with statistical rigor by testing
+    7 conditions (A-G) that systematically enable features.
+    
+    \b
+    Conditions:
+        A: BASELINE      - Raw model capability
+        B: BASELINE_LENS - Lens context alone
+        C: HARMONIC      - Multi-persona voting
+        D: HARMONIC_LENS - Harmonic + lens personas
+        E: RESONANCE     - Feedback loop refinement
+        F: NAARU_FULL    - All techniques combined
+        G: NAARU_FULL_LENS - Full Naaru + lens
+    
+    \b
+    Examples:
+        # Quick smoke test (5 tasks)
+        sunwell benchmark naaru --quick
+        
+        # Run ablation study
+        sunwell benchmark naaru --ablation --max-tasks 30
+        
+        # Run specific conditions only
+        sunwell benchmark naaru --conditions BASELINE,HARMONIC,NAARU_FULL
+        
+        # Full statistical run (all tasks, all conditions)
+        sunwell benchmark naaru --full
+    """
+    asyncio.run(_run_naaru_benchmark(
+        model=model,
+        judge_model=judge_model,
+        conditions_str=conditions,
+        category=category,
+        tasks_dir=tasks_dir,
+        output_dir=output,
+        max_tasks=max_tasks,
+        quick=quick,
+        ablation=ablation,
+        full=full,
+        verbose=verbose,
+    ))
+
+
+async def _run_naaru_benchmark(
+    model: str,
+    judge_model: str,
+    conditions_str: str | None,
+    category: str | None,
+    tasks_dir: Path,
+    output_dir: Path,
+    max_tasks: int | None,
+    quick: bool,
+    ablation: bool,
+    full: bool,
+    verbose: bool,
+) -> None:
+    """Async Naaru benchmark execution."""
+    from sunwell.benchmark.naaru import NaaruBenchmarkRunner, NaaruCondition
+    from sunwell.models.ollama import OllamaModel
+    from sunwell.schema.loader import LensLoader
+    
+    # Parse conditions
+    conditions: list[NaaruCondition] | None = None
+    if conditions_str:
+        conditions = [
+            NaaruCondition(c.strip().lower())
+            for c in conditions_str.split(",")
+        ]
+    
+    # Banner
+    console.print()
+    console.print("╔" + "═" * 60 + "╗")
+    console.print("║" + " 🌟 NAARU BENCHMARK SUITE (RFC-027)".ljust(60) + "║")
+    console.print("║" + f"    Synthesis: {model}".ljust(60) + "║")
+    console.print("║" + f"    Judge: {judge_model}".ljust(60) + "║")
+    if quick:
+        console.print("║" + "    Mode: Quick (5 tasks)".ljust(60) + "║")
+    elif ablation:
+        console.print("║" + "    Mode: Ablation Study".ljust(60) + "║")
+    elif full:
+        console.print("║" + "    Mode: Full Statistical Run".ljust(60) + "║")
+    if conditions:
+        console.print("║" + f"    Conditions: {len(conditions)} selected".ljust(60) + "║")
+    if category:
+        console.print("║" + f"    Category: {category}".ljust(60) + "║")
+    console.print("╚" + "═" * 60 + "╝")
+    console.print()
+    
+    # Create models and runner
+    synthesis_model = OllamaModel(model=model)
+    judge = OllamaModel(model=judge_model)
+    loader = LensLoader()
+    
+    runner = NaaruBenchmarkRunner(
+        model=synthesis_model,
+        judge_model=judge,
+        lens_loader=loader,
+        tasks_dir=tasks_dir,
+        output_dir=output_dir,
+        lens_dir=Path("lenses"),
+    )
+    
+    # Run appropriate mode
+    console.print("📊 Running Naaru benchmark...")
+    console.print()
+    
+    if quick:
+        results = await runner.run_quick(n_tasks=5)
+    elif ablation:
+        results = await runner.run_ablation(max_tasks=max_tasks or 10)
+    else:
+        results = await runner.run_suite(
+            category=category,
+            conditions=conditions,
+            max_tasks=max_tasks,
+        )
+    
+    console.print()
+    console.print(f"✅ Completed {results.n_tasks} tasks across {len(results.conditions)} conditions")
+    console.print()
+    
+    # Display summary
+    _display_naaru_summary(results)
+    
+    # Save results
+    results_dir = runner.save_results(results, output_dir)
+    console.print()
+    console.print(f"📁 Results saved to: {results_dir}")
+
+
+def _display_naaru_summary(results) -> None:
+    """Display Naaru benchmark summary."""
+    from sunwell.benchmark.naaru.types import NaaruCondition
+    
+    table = Table(title="Naaru Benchmark Summary")
+    table.add_column("Condition", style="cyan")
+    table.add_column("Tasks", style="white")
+    table.add_column("Avg Tokens", style="yellow")
+    table.add_column("Avg Time (s)", style="green")
+    table.add_column("Consensus", style="magenta")
+    
+    # Compute per-condition stats
+    condition_data: dict = {}
+    for condition in results.conditions:
+        tokens_list: list[int] = []
+        times_list: list[float] = []
+        consensus_list: list[float] = []
+        
+        for task_result in results.results:
+            output = task_result.outputs.get(condition)
+            if output is None:
+                continue
+            
+            tokens_list.append(output.tokens_used)
+            times_list.append(output.time_seconds)
+            
+            if output.harmonic_metrics:
+                consensus_list.append(output.harmonic_metrics.consensus_strength)
+        
+        if tokens_list:
+            condition_data[condition] = {
+                "n_tasks": len(tokens_list),
+                "avg_tokens": sum(tokens_list) / len(tokens_list),
+                "avg_time": sum(times_list) / len(times_list),
+                "consensus": sum(consensus_list) / len(consensus_list) if consensus_list else None,
+            }
+    
+    for condition, data in condition_data.items():
+        consensus_str = f"{data['consensus']:.2f}" if data['consensus'] else "—"
+        table.add_row(
+            condition.value,
+            str(data["n_tasks"]),
+            f"{data['avg_tokens']:.0f}",
+            f"{data['avg_time']:.2f}",
+            consensus_str,
+        )
+    
+    console.print(table)
+
+
+@benchmark.command("naaru-report")
+@click.argument(
+    "results_path",
+    type=click.Path(exists=True, path_type=Path),
+)
+@click.option(
+    "--output", "-o",
+    type=click.Path(path_type=Path),
+    help="Output file for markdown report",
+)
+def naaru_report(
+    results_path: Path,
+    output: Path | None,
+) -> None:
+    """Generate report from Naaru benchmark results.
+    
+    \b
+    Example:
+        sunwell benchmark naaru-report benchmark/results/naaru/2026-01-18/
+    """
+    from sunwell.benchmark.naaru.analysis import NaaruReportGenerator
+    
+    # Load results
+    config_path = results_path / "config.json"
+    if not config_path.exists():
+        console.print(f"[red]Error: {config_path} not found[/red]")
+        return
+    
+    config = _load_statistics(config_path)
+    if config is None:
+        console.print("[red]Error: Could not parse config[/red]")
+        return
+    
+    # Generate simple summary for now
+    console.print()
+    console.print("📊 Naaru Benchmark Results")
+    console.print()
+    console.print(f"  Model: {config.get('model', 'unknown')}")
+    console.print(f"  Judge: {config.get('judge_model', 'unknown')}")
+    console.print(f"  Tasks: {config.get('n_tasks', 0)}")
+    console.print(f"  Conditions: {', '.join(config.get('conditions', []))}")
+    
+    # Load condition scores if available
+    scores_path = results_path / "condition_scores.json"
+    if scores_path.exists():
+        scores = _load_statistics(scores_path)
+        if scores:
+            console.print()
+            table = Table(title="Condition Statistics")
+            table.add_column("Condition", style="cyan")
+            table.add_column("Tasks", style="white")
+            table.add_column("Avg Tokens", style="yellow")
+            table.add_column("Refinement Rate", style="green")
+            
+            for cond, data in scores.items():
+                ref_rate = data.get("refinement_rate")
+                ref_str = f"{ref_rate:.1%}" if ref_rate is not None else "—"
+                table.add_row(
+                    cond,
+                    str(data.get("n_tasks", 0)),
+                    f"{data.get('mean_tokens', 0):.0f}",
+                    ref_str,
+                )
+            
+            console.print(table)
+    
+    if output:
+        # Generate markdown report
+        report_content = f"""# Naaru Benchmark Report
+
+**Model**: {config.get('model', 'unknown')} (synthesis) / {config.get('judge_model', 'unknown')} (judge)
+**Tasks**: {config.get('n_tasks', 0)}
+**Conditions**: {', '.join(config.get('conditions', []))}
+
+## Results
+
+See `condition_scores.json` for detailed statistics.
+"""
+        output.write_text(report_content)
+        console.print(f"\n📄 Report saved to: {output}")
 
 
 # Export for CLI integration

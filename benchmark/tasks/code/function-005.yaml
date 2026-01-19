@@ -1,0 +1,47 @@
+# Code Generation Task: LRU Cache with TTL
+task:
+  id: "code-function-005"
+  category: "code_generation"
+  subcategory: "function"
+  
+  prompt: |
+    Write an LRU cache with TTL (time-to-live) support.
+    
+    Requirements:
+    - `maxsize`: maximum number of items
+    - `ttl`: time-to-live in seconds (items expire after this)
+    - `get(key) -> value | None`: retrieve item if exists and not expired
+    - `put(key, value)`: store item, evict LRU if at capacity
+    - `clear()`: remove all items
+    - Thread-safe
+    
+    Use OrderedDict for LRU ordering.
+  
+  lens: "coder.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "correctness"
+        weight: 0.35
+        criteria: "LRU eviction and TTL expiration work correctly"
+      - dimension: "efficiency"
+        weight: 0.25
+        criteria: "O(1) for get/put operations"
+      - dimension: "thread_safety"
+        weight: 0.2
+        criteria: "Proper locking"
+      - dimension: "completeness"
+        weight: 0.2
+        criteria: "All methods implemented"
+    
+    must_contain:
+      - "OrderedDict"
+      - "maxsize"
+      - "ttl"
+      - "get"
+      - "put"
+      - "Lock"
+      - "time"
+    
+    must_not_contain:
+      - "pass  # TODO"

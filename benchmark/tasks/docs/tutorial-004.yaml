@@ -1,0 +1,49 @@
+# Documentation Task: Tutorial for testing with pytest
+task:
+  id: "docs-tutorial-004"
+  category: "documentation"
+  subcategory: "tutorial"
+  
+  prompt: |
+    Write a tutorial on testing Python code with pytest.
+    
+    Target audience: Developer new to pytest but familiar with unit testing concepts.
+    
+    Cover:
+    1. Installing and running pytest
+    2. Writing basic test functions
+    3. Using fixtures for setup/teardown
+    4. Parametrized tests
+    5. Testing exceptions with pytest.raises
+    6. Mocking with pytest-mock
+    
+    Use a simple Calculator class as the test subject.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "learning_path"
+        weight: 0.3
+        criteria: "Progressive complexity from basic to advanced"
+      - dimension: "accuracy"
+        weight: 0.25
+        criteria: "All code examples work correctly"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "Covers all six topics listed"
+      - dimension: "practicality"
+        weight: 0.2
+        criteria: "Examples are realistic and useful"
+    
+    must_contain:
+      - "def test_"
+      - "@pytest.fixture"
+      - "@pytest.mark.parametrize"
+      - "pytest.raises"
+      - "pip install pytest"
+    
+    must_not_contain:
+      - "easy"
+      - "simple"
+      - "straightforward"

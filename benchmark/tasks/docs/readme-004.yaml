@@ -1,0 +1,60 @@
+# Documentation Task: README for API client
+task:
+  id: "docs-readme-004"
+  category: "documentation"
+  subcategory: "readme"
+  
+  prompt: |
+    Write a README for a Python API client library called `stripekit`.
+    
+    Features:
+    - Async and sync API support
+    - Automatic retries with backoff
+    - Pagination helpers
+    - Webhook signature verification
+    - Type hints throughout
+    - Comprehensive error types
+    
+    Example API:
+    ```python
+    from stripekit import Stripe, AsyncStripe
+    
+    # Sync usage
+    stripe = Stripe(api_key="sk_...")
+    customer = stripe.customers.create(email="user@example.com")
+    
+    # Async usage
+    async with AsyncStripe(api_key="sk_...") as stripe:
+        customers = await stripe.customers.list(limit=100)
+        async for customer in customers.auto_paging_iter():
+            print(customer.email)
+    ```
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "structure"
+        weight: 0.25
+        criteria: "Standard sections present"
+      - dimension: "examples"
+        weight: 0.35
+        criteria: "Both sync and async examples"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "All features documented"
+      - dimension: "quick_start"
+        weight: 0.15
+        criteria: "User productive in < 2 min"
+    
+    must_contain:
+      - "Installation"
+      - "pip install"
+      - "async"
+      - "await"
+      - "webhook"
+      - "retry"
+    
+    must_not_contain:
+      - "powerful"
+      - "robust"

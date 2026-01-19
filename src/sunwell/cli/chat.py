@@ -21,10 +21,10 @@ from sunwell.fount.client import FountClient
 from sunwell.fount.resolver import LensResolver
 from sunwell.runtime.model_router import ModelRouter
 from sunwell.schema.loader import LensLoader
-from sunwell.simulacrum.context import ContextAssembler
-from sunwell.simulacrum.dag import ConversationDAG
-from sunwell.simulacrum.store import SimulacrumStore
-from sunwell.simulacrum.turn import Learning
+from sunwell.simulacrum.context.assembler import ContextAssembler
+from sunwell.simulacrum.core.dag import ConversationDAG
+from sunwell.simulacrum.core.store import SimulacrumStore
+from sunwell.simulacrum.core.turn import Learning
 
 console = Console()
 
@@ -463,11 +463,24 @@ async def _chat_loop(
             if model_routing_enabled:
                 console.print("[cyan]Model Routing:[/cyan] Enabled (task-aware model selection)")
         
+        # RFC-027: Set up expertise tools if lens is available
+        expertise_handler = None
+        if lens:
+            from sunwell.embedding import create_embedder
+            from sunwell.runtime.retriever import ExpertiseRetriever
+            from sunwell.tools.expertise import ExpertiseToolHandler
+            
+            embedder = create_embedder()
+            retriever = ExpertiseRetriever(lens=lens, embedder=embedder, top_k=5)
+            expertise_handler = ExpertiseToolHandler(retriever=retriever, lens=lens)
+            console.print("[cyan]Self-Directed Expertise:[/cyan] Enabled (RFC-027)")
+        
         tool_executor = ToolExecutor(
             workspace=workspace_root,
             sandbox=sandbox,
             policy=policy,
             mirror_handler=mirror_handler,
+            expertise_handler=expertise_handler,
         )
     
     # Mutable chat state
@@ -603,7 +616,7 @@ async def _chat_loop(
             else:
                 # Inline extraction (fallback)
                 try:
-                    from sunwell.simulacrum.extractor import extract_user_facts
+                    from sunwell.simulacrum.extractors.extractor import extract_user_facts
                     user_facts = extract_user_facts(user_input)
                     for fact_text, category, confidence in user_facts:
                         learning = Learning(
@@ -692,7 +705,7 @@ async def _chat_loop(
             else:
                 # Inline extraction (fallback)
                 try:
-                    from sunwell.simulacrum.extractor import auto_extract_learnings
+                    from sunwell.simulacrum.extractors.extractor import auto_extract_learnings
                     extracted = auto_extract_learnings(response, min_confidence=0.6)
                     for learning_text, category, confidence in extracted[:3]:
                         learning = Learning(
@@ -954,6 +967,36 @@ async def _handle_chat_command(
             for l in learnings:
                 console.print(f"  [{l.category}] {l.fact}")
     
+    elif cmd == "/memory":
+        # RFC-026: Unified memory view
+        from sunwell.simulacrum.unified_view import UnifiedMemoryView
+        import json as json_module
+        
+        view = UnifiedMemoryView.from_session(
+            dag=dag,
+            identity_store=identity_store,
+            session_name=store.session_name if hasattr(store, 'session_name') else "",
+        )
+        
+        if arg.lower() == "json":
+            console.print(json_module.dumps(view.to_json(), indent=2))
+        elif arg.lower() == "facts":
+            if view.facts:
+                console.print("[bold]Facts:[/bold]")
+                for f in view.facts:
+                    status = "✅" if f.quality_score and f.quality_score >= 0.7 else "⚠️"
+                    console.print(f"  {status} [{f.category}] {f.content} ({int(f.confidence*100)}%)")
+            else:
+                console.print("[dim]No facts learned yet[/dim]")
+        elif arg.lower() == "identity":
+            if view.identity_prompt:
+                console.print(f"[bold]Identity (confidence: {int(view.identity_confidence*100)}%):[/bold]")
+                console.print(f"  {view.identity_prompt}")
+            else:
+                console.print("[dim]No identity model yet[/dim]")
+        else:
+            console.print(view.render_panel())
+    
     elif cmd == "/identity":
         # RFC-023: Identity management commands
         if not identity_store:
@@ -976,12 +1019,18 @@ async def _handle_chat_command(
   /models           Show model history for this session
   /tools on|off     Toggle Agent mode (tool calling)
 
+[bold]Memory Commands (RFC-026):[/bold]
+  /memory           View unified memory (facts, identity, behaviors)
+  /memory facts     Show just facts
+  /memory identity  Show identity model
+  /memory json      Export as JSON
+  /learnings        Show all learnings
+  /learn <fact>     Add a learning/insight
+
 [bold]Simulacrum Commands:[/bold]
   /branch <name>    Create a named branch
   /checkout <name>  Switch to a branch
   /dead-end         Mark current path as dead end
-  /learn <fact>     Add a learning/insight
-  /learnings        Show all learnings
   /stats            Show session statistics
   /save             Save session
   /quit             Exit (auto-saves)
@@ -995,9 +1044,32 @@ async def _handle_chat_command(
   /identity clear   Start fresh
   /identity export  Export to JSON
 
+[bold]Evolution Analysis:[/bold]
+  /trace            Show turn-by-turn evolution report
+  /trace clear      Clear trace history
+  /trace json       Export traces as JSON
+
 [bold]Tip:[/bold] Your headspace persists when you /switch models!
 [bold]Tip:[/bold] Use /tools on to enable Agent mode with file read/write!
 """)
+    
+    elif cmd == "/trace":
+        # Turn-by-turn evolution analysis
+        from sunwell.simulacrum.tracer import TRACER
+        
+        if arg.lower() == "clear":
+            TRACER.clear()
+            console.print("[green]✓ Trace history cleared[/green]")
+        elif arg.lower() == "json":
+            import json
+            traces = TRACER.get_json_export()
+            if traces:
+                console.print(json.dumps(traces, indent=2))
+            else:
+                console.print("[yellow]No traces recorded yet[/yellow]")
+        else:
+            report = TRACER.get_evolution_report()
+            console.print(report)
     
     else:
         console.print(f"[red]Unknown command: {cmd}[/red]")
@@ -1028,11 +1100,11 @@ async def _naaru_extract_user_facts(
     try:
         # Prefer LLM-based extraction (more flexible)
         if tiny_model:
-            from sunwell.simulacrum.extractor import extract_user_facts_with_llm
+            from sunwell.simulacrum.extractors.extractor import extract_user_facts_with_llm
             user_facts = await extract_user_facts_with_llm(user_input, tiny_model)
         else:
             # Fall back to regex
-            from sunwell.simulacrum.extractor import extract_user_facts
+            from sunwell.simulacrum.extractors.extractor import extract_user_facts
             user_facts = extract_user_facts(user_input)
         
         for fact_text, category, confidence in user_facts:
@@ -1044,7 +1116,7 @@ async def _naaru_extract_user_facts(
             )
             dag.add_learning(learning)
             from sunwell.naaru.persona import MURU
-            console.print(MURU.msg_noted(fact_text))
+            console.print(MURU.msg_noted(fact_text, category))
     except Exception as e:
         # Log but don't crash - this is background task
         from sunwell.naaru.persona import MURU
@@ -1073,7 +1145,7 @@ async def _naaru_consolidate_learnings(
         )
         
         # Also run inline extraction for now (Shard stores in Convergence)
-        from sunwell.simulacrum.extractor import auto_extract_learnings
+        from sunwell.simulacrum.extractors.extractor import auto_extract_learnings
         extracted = auto_extract_learnings(response, min_confidence=0.6)
         
         added_count = 0
@@ -1114,7 +1186,27 @@ async def _naaru_extract_user_facts_and_behaviors(
     
     RFC-023 extension of _naaru_extract_user_facts to also capture
     behavioral observations for the identity system.
+    
+    Includes turn-by-turn tracing for evolution analysis.
     """
+    # Import tracer for turn evolution tracking
+    from sunwell.simulacrum.tracer import TRACER
+    
+    # Begin tracing this turn
+    turn_id = dag.active_head or "unknown"
+    TRACER.begin_turn(turn_id, user_input)
+    
+    # Snapshot identity before extraction
+    if identity_store:
+        TRACER.log_identity_snapshot(
+            "before",
+            observation_count=len(identity_store.identity.observations),
+            confidence=identity_store.identity.confidence,
+            prompt=identity_store.identity.prompt,
+            tone=identity_store.identity.tone,
+            values=identity_store.identity.values,
+        )
+    
     try:
         if tiny_model:
             # Use two-tier extraction (RFC-023)
@@ -1132,7 +1224,10 @@ async def _naaru_extract_user_facts_and_behaviors(
                     category=category,
                 )
                 dag.add_learning(learning)
-                console.print(MURU.msg_noted(fact_text))
+                console.print(MURU.msg_noted(fact_text, category))
+                
+                # Trace the extraction
+                TRACER.log_extraction("fact", fact_text, confidence, category)
             
             # Store behaviors in identity store (RFC-023)
             if identity_store:
@@ -1143,9 +1238,12 @@ async def _naaru_extract_user_facts_and_behaviors(
                         turn_id=dag.active_head
                     )
                     console.print(MURU.msg_observed(behavior_text))
+                    
+                    # Trace the extraction
+                    TRACER.log_extraction("behavior", behavior_text, confidence)
         else:
             # Fall back to regex for both
-            from sunwell.simulacrum.extractor import extract_user_facts
+            from sunwell.simulacrum.extractors.extractor import extract_user_facts
             user_facts = extract_user_facts(user_input)
             
             from sunwell.naaru.persona import MURU
@@ -1158,7 +1256,10 @@ async def _naaru_extract_user_facts_and_behaviors(
                     category=category,
                 )
                 dag.add_learning(learning)
-                console.print(MURU.msg_noted(fact_text))
+                console.print(MURU.msg_noted(fact_text, category))
+                
+                # Trace the extraction
+                TRACER.log_extraction("fact", fact_text, confidence, category)
             
             # RFC-023: Extract behaviors with regex fallback
             if identity_store:
@@ -1167,9 +1268,27 @@ async def _naaru_extract_user_facts_and_behaviors(
                 for behavior_text, confidence in behaviors:
                     identity_store.add_observation(behavior_text, confidence)
                     console.print(MURU.msg_observed(behavior_text))
+                    
+                    # Trace the extraction
+                    TRACER.log_extraction("behavior", behavior_text, confidence)
+        
+        # Snapshot identity after extraction
+        if identity_store:
+            TRACER.log_identity_snapshot(
+                "after",
+                observation_count=len(identity_store.identity.observations),
+                confidence=identity_store.identity.confidence,
+                prompt=identity_store.identity.prompt,
+                tone=identity_store.identity.tone,
+                values=identity_store.identity.values,
+            )
+        
     except Exception as e:
         from sunwell.naaru.persona import MURU
         console.print(MURU.msg_error("extraction", str(e)))
+    finally:
+        # End the turn trace (without assistant response - that's added later)
+        TRACER.end_turn()
 
 
 async def _digest_identity_background(

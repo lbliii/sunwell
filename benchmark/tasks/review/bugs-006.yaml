@@ -1,0 +1,84 @@
+# Code Review Task: Async bugs
+task:
+  id: "review-bugs-006"
+  category: "code_review"
+  subcategory: "bugs"
+  
+  prompt: |
+    Review this async code for bugs:
+    
+    ```python
+    import asyncio
+    from typing import AsyncIterator
+    
+    class AsyncCache:
+        def __init__(self):
+            self.cache = {}
+            self.lock = asyncio.Lock()
+        
+        async def get_or_compute(self, key: str, compute_fn):
+            if key in self.cache:
+                return self.cache[key]
+            
+            async with self.lock:
+                result = await compute_fn()
+                self.cache[key] = result
+                return result
+    
+    async def process_stream(stream: AsyncIterator[bytes]) -> bytes:
+        chunks = []
+        async for chunk in stream:
+            chunks.append(chunk)
+        return b''.join(chunks)
+    
+    class TaskManager:
+        def __init__(self):
+            self.tasks = []
+        
+        def submit(self, coro):
+            task = asyncio.create_task(coro)
+            self.tasks.append(task)
+        
+        async def wait_all(self):
+            await asyncio.gather(*self.tasks)
+            self.tasks.clear()
+    
+    async def timeout_operation(operation, timeout: float):
+        try:
+            return await asyncio.wait_for(operation(), timeout=timeout)
+        except asyncio.TimeoutError:
+            return None
+    ```
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.4
+        criteria: "Identifies all async bugs"
+      - dimension: "async_knowledge"
+        weight: 0.3
+        criteria: "Understands async subtleties"
+      - dimension: "actionability"
+        weight: 0.2
+        criteria: "Provides correct fixes"
+      - dimension: "explanation"
+        weight: 0.1
+        criteria: "Explains why bugs occur"
+    
+    must_contain:
+      - "double-checked locking"
+      - "task"
+      - "cancel"
+    
+    must_not_contain:
+      - "looks correct"
+      - "no issues"
+    
+    ground_truth_issues:
+      - "AsyncCache: check-then-lock pattern allows duplicate computation"
+      - "process_stream: doesn't handle generator cleanup on error"
+      - "TaskManager: doesn't handle task exceptions"
+      - "TaskManager: tasks created outside event loop context"
+      - "timeout_operation: cancelled task may leave resources open"

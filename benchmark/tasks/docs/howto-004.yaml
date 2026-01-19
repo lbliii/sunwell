@@ -1,0 +1,48 @@
+# Documentation Task: How-to for logging configuration
+task:
+  id: "docs-howto-004"
+  category: "documentation"
+  subcategory: "howto"
+  
+  prompt: |
+    Write a how-to guide for setting up structured logging in Python.
+    
+    Cover:
+    1. Configuring Python's logging module
+    2. JSON logging for production (structlog or python-json-logger)
+    3. Different log levels and when to use them
+    4. Adding context (request ID, user ID) to logs
+    5. Rotating log files
+    6. Integration with log aggregation (brief mention of ELK, Datadog)
+    
+    Provide complete, working code examples.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "actionability"
+        weight: 0.3
+        criteria: "Code examples are complete and runnable"
+      - dimension: "accuracy"
+        weight: 0.3
+        criteria: "Logging configuration is correct"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "Covers all six topics"
+      - dimension: "best_practices"
+        weight: 0.15
+        criteria: "Follows logging best practices"
+    
+    must_contain:
+      - "logging.getLogger"
+      - "logging.config"
+      - "DEBUG"
+      - "INFO"
+      - "WARNING"
+      - "ERROR"
+    
+    must_not_contain:
+      - "simple"
+      - "easy"
+      - "just add"

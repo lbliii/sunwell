@@ -1,0 +1,64 @@
+# Code Review Task: Path traversal vulnerability
+task:
+  id: "review-security-005"
+  category: "code_review"
+  subcategory: "security"
+  
+  prompt: |
+    Review this file serving code for security vulnerabilities:
+    
+    ```python
+    from pathlib import Path
+    from fastapi import FastAPI
+    from fastapi.responses import FileResponse
+    
+    app = FastAPI()
+    UPLOAD_DIR = Path("/var/uploads")
+    
+    @app.get("/files/{filename}")
+    async def get_file(filename: str):
+        file_path = UPLOAD_DIR / filename
+        if file_path.exists():
+            return FileResponse(file_path)
+        return {"error": "File not found"}
+    
+    @app.get("/documents/{doc_path:path}")
+    async def get_document(doc_path: str):
+        full_path = f"/var/documents/{doc_path}"
+        with open(full_path, "r") as f:
+            return {"content": f.read()}
+    ```
+    
+    Identify security issues and provide fixes.
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.4
+        criteria: "Identifies path traversal in both endpoints"
+      - dimension: "actionability"
+        weight: 0.3
+        criteria: "Provides secure path handling patterns"
+      - dimension: "explanation"
+        weight: 0.2
+        criteria: "Explains attack vectors (../, symlinks)"
+      - dimension: "defense_depth"
+        weight: 0.1
+        criteria: "Suggests multiple layers of protection"
+    
+    must_contain:
+      - "path traversal"
+      - ".."
+      - "resolve"
+      - "is_relative_to"
+    
+    must_not_contain:
+      - "looks secure"
+      - "no issues"
+    
+    ground_truth_issues:
+      - "Path traversal via filename with ../"
+      - "Path traversal via doc_path with ../"
+      - "No validation that resolved path is within allowed directory"

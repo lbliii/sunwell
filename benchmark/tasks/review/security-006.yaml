@@ -1,0 +1,71 @@
+# Code Review Task: Insecure deserialization
+task:
+  id: "review-security-006"
+  category: "code_review"
+  subcategory: "security"
+  
+  prompt: |
+    Review this code for security vulnerabilities:
+    
+    ```python
+    import pickle
+    import yaml
+    from flask import Flask, request
+    
+    app = Flask(__name__)
+    
+    @app.route('/load-session', methods=['POST'])
+    def load_session():
+        session_data = request.data
+        session = pickle.loads(session_data)
+        return {"user": session.get("username")}
+    
+    @app.route('/config', methods=['POST'])
+    def update_config():
+        config_yaml = request.data.decode('utf-8')
+        config = yaml.load(config_yaml)
+        app.config.update(config)
+        return {"status": "updated"}
+    
+    @app.route('/import', methods=['POST'])
+    def import_data():
+        data = request.json
+        module_name = data['module']
+        func_name = data['function']
+        
+        module = __import__(module_name)
+        func = getattr(module, func_name)
+        return {"result": func()}
+    ```
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.4
+        criteria: "Identifies pickle, yaml.load, and dynamic import issues"
+      - dimension: "severity"
+        weight: 0.3
+        criteria: "Correctly identifies RCE severity"
+      - dimension: "actionability"
+        weight: 0.2
+        criteria: "Provides safe alternatives"
+      - dimension: "explanation"
+        weight: 0.1
+        criteria: "Explains how each attack works"
+    
+    must_contain:
+      - "pickle"
+      - "yaml.safe_load"
+      - "RCE"
+      - "__import__"
+    
+    must_not_contain:
+      - "minor"
+      - "low risk"
+    
+    ground_truth_issues:
+      - "Pickle deserialization of untrusted data - RCE"
+      - "yaml.load without Loader - RCE"
+      - "Dynamic import with user input - RCE"

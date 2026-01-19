@@ -1,0 +1,48 @@
+# Documentation Task: Tutorial for async/await
+task:
+  id: "docs-tutorial-003"
+  category: "documentation"
+  subcategory: "tutorial"
+  
+  prompt: |
+    Write a tutorial introducing async/await in Python.
+    
+    Target audience: Python developer unfamiliar with async programming.
+    
+    Cover these concepts in order:
+    1. What is async programming and why use it
+    2. Basic async/await syntax
+    3. Running async functions with asyncio
+    4. Concurrent execution with gather()
+    5. Common pitfalls (blocking calls, forgetting await)
+    
+    Use practical examples like fetching multiple URLs concurrently.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "learning_path"
+        weight: 0.3
+        criteria: "Builds concepts progressively"
+      - dimension: "accuracy"
+        weight: 0.25
+        criteria: "Technical explanations are correct"
+      - dimension: "examples"
+        weight: 0.25
+        criteria: "Examples are practical and runnable"
+      - dimension: "pitfalls"
+        weight: 0.2
+        criteria: "Warns about common mistakes"
+    
+    must_contain:
+      - "async def"
+      - "await"
+      - "asyncio.run"
+      - "asyncio.gather"
+      - "coroutine"
+    
+    must_not_contain:
+      - "simple"
+      - "easy"
+      - "trivial"

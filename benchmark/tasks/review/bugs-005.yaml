@@ -1,0 +1,78 @@
+# Code Review Task: Exception handling bugs
+task:
+  id: "review-bugs-005"
+  category: "code_review"
+  subcategory: "bugs"
+  
+  prompt: |
+    Review this code for exception handling issues:
+    
+    ```python
+    import logging
+    
+    def process_data(data):
+        try:
+            result = transform(data)
+            save(result)
+            return result
+        except:
+            logging.error("Error processing data")
+            return None
+    
+    def fetch_config():
+        try:
+            with open("config.json") as f:
+                return json.load(f)
+        except FileNotFoundError:
+            return {}
+        except:
+            raise
+    
+    async def call_api(url: str):
+        try:
+            response = await http_client.get(url)
+            return response.json()
+        except Exception as e:
+            logging.exception(e)
+            raise Exception("API call failed")
+    
+    def divide(a, b):
+        try:
+            return a / b
+        except ZeroDivisionError:
+            pass
+    ```
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.4
+        criteria: "Identifies all exception handling anti-patterns"
+      - dimension: "explanation"
+        weight: 0.3
+        criteria: "Explains why each pattern is problematic"
+      - dimension: "actionability"
+        weight: 0.2
+        criteria: "Shows correct exception handling"
+      - dimension: "best_practices"
+        weight: 0.1
+        criteria: "References Python exception best practices"
+    
+    must_contain:
+      - "bare except"
+      - "exception chaining"
+      - "from e"
+      - "swallowing"
+    
+    must_not_contain:
+      - "looks good"
+      - "acceptable"
+    
+    ground_truth_issues:
+      - "process_data: bare except catches SystemExit, KeyboardInterrupt"
+      - "process_data: returns None silently on error"
+      - "fetch_config: re-raises without context"
+      - "call_api: loses original exception context"
+      - "divide: silently swallows exception, returns None"

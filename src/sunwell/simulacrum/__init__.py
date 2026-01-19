@@ -32,157 +32,61 @@ Key innovations:
 - Multi-memory: different retention/retrieval per type
 - Smart assembly: never exceed token limits
 - Provenance: track where every insight came from
+
+**Import Guidelines:**
+
+Import directly from subpackages for clarity:
+
+```python
+# Preferred: Explicit subpackage imports
+from sunwell.simulacrum.core import SimulacrumStore, Turn, ConversationDAG
+from sunwell.simulacrum.manager import SimulacrumManager
+from sunwell.simulacrum.topology import UnifiedMemoryStore, MemoryNode
+from sunwell.simulacrum.hierarchical import ChunkManager, Chunk
+from sunwell.simulacrum.context import ContextAssembler, Focus
+from sunwell.simulacrum.extractors import SpatialExtractor
+from sunwell.simulacrum.parallel import ParallelRetriever
+```
+
+**Subpackages:**
+- `core/` - Core abstractions (store, dag, turn, memory, Simulacrum)
+- `hierarchical/` - RFC-013 hierarchical memory (chunks, chunk_manager, ctf, summarizer)
+- `topology/` - RFC-014 multi-topology memory (spatial, structural, facets, unified_store)
+- `extractors/` - Memory extractors (spatial, topology, structural, facet, learning)
+- `context/` - Context assembly and focus management
+- `parallel/` - Parallel retrieval across multiple memory stores
+- `manager/` - Multi-simulacrum management (spawning, lifecycle, archiving)
 """
 
-from sunwell.simulacrum.turn import Turn, TurnType, Learning
-from sunwell.simulacrum.dag import ConversationDAG
-from sunwell.simulacrum.context import ContextAssembler
-from sunwell.simulacrum.store import SimulacrumStore, StorageConfig
-from sunwell.simulacrum.memory import (
-    MemoryType,
-    WorkingMemory,
-    LongTermMemory,
-    EpisodicMemory,
-    SemanticMemory,
-    ProceduralMemory,
-)
-from sunwell.simulacrum.core import Simulacrum
-from sunwell.simulacrum.focus import Focus, FocusFilter
-from sunwell.simulacrum.parallel import ParallelRetriever
-from sunwell.types.memory import RetrievalResult
+# Only export the most commonly used items for convenience
+# All other items should be imported from their subpackages
 
-# RFC-013: Hierarchical Memory exports
-from sunwell.simulacrum.chunks import Chunk, ChunkType, ChunkSummary
-from sunwell.simulacrum.config import ChunkConfig, DEFAULT_CHUNK_CONFIG
-from sunwell.simulacrum.chunk_manager import ChunkManager
-from sunwell.simulacrum.ctf import CTFEncoder, CTFDecoder, encode_chunk_summaries, decode_chunk_summaries
-from sunwell.simulacrum.summarizer import Summarizer
-
-# RFC-014: Multi-Topology Memory exports
-from sunwell.simulacrum.spatial import SpatialContext, SpatialQuery, PositionType, spatial_match
-from sunwell.simulacrum.topology import ConceptGraph, ConceptEdge, RelationType
-from sunwell.simulacrum.structural import DocumentTree, DocumentSection, SectionType, infer_section_type
-from sunwell.simulacrum.facets import (
-    ContentFacets,
-    FacetQuery,
-    FacetedIndex,
-    DiataxisType,
-    PersonaType,
-    VerificationState,
-    ConfidenceLevel,
+from sunwell.simulacrum.core import (
+    Simulacrum,
+    SimulacrumStore,
+    StorageConfig,
+    Turn,
+    TurnType,
+    Learning,
+    ConversationDAG,
 )
-from sunwell.simulacrum.memory_node import MemoryNode
-from sunwell.simulacrum.unified_store import UnifiedMemoryStore
-from sunwell.simulacrum.spatial_extractor import SpatialExtractor
-from sunwell.simulacrum.facet_extractor import FacetExtractor
-from sunwell.simulacrum.topology_extractor import TopologyExtractor
-from sunwell.simulacrum.structural_chunker import StructuralChunker
-from sunwell.simulacrum.memory_tools import MemoryToolHandler, MEMORY_TOOLS
-from sunwell.simulacrum.unified_context import UnifiedContextAssembler, UnifiedContext
-from sunwell.types.memory import ContextBudget
+
 from sunwell.simulacrum.manager import (
     SimulacrumManager,
     SimulacrumMetadata,
-    SimulacrumToolHandler,
-    SIMULACRUM_TOOLS,
-    SpawnPolicy,
-    LifecyclePolicy,
-    ArchiveMetadata,
 )
 
 __all__ = [
-    # Core
+    # Core (most commonly used)
     "Simulacrum",
+    "SimulacrumStore",
+    "StorageConfig",
     "Turn",
     "TurnType",
     "Learning",
-    
-    # Memory types
-    "MemoryType",
-    "WorkingMemory",
-    "LongTermMemory", 
-    "EpisodicMemory",
-    "SemanticMemory",
-    "ProceduralMemory",
-    
-    # Focus/Attention
-    "Focus",
-    "FocusFilter",
-    
-    # Parallel Retrieval
-    "ParallelRetriever",
-    "RetrievalResult",
-    
-    # RFC-013: Hierarchical Memory
-    "Chunk",
-    "ChunkType",
-    "ChunkSummary",
-    "ChunkConfig",
-    "DEFAULT_CHUNK_CONFIG",
-    "ChunkManager",
-    "Summarizer",
-    
-    # RFC-013: Compact Turn Format (CTF)
-    "CTFEncoder",
-    "CTFDecoder",
-    "encode_chunk_summaries",
-    "decode_chunk_summaries",
-    
-    # RFC-014: Spatial Memory
-    "SpatialContext",
-    "SpatialQuery",
-    "PositionType",
-    "spatial_match",
-    "SpatialExtractor",
-    
-    # RFC-014: Topological Memory
-    "ConceptGraph",
-    "ConceptEdge",
-    "RelationType",
-    "TopologyExtractor",
-    
-    # RFC-014: Structural Memory
-    "DocumentTree",
-    "DocumentSection",
-    "SectionType",
-    "infer_section_type",
-    "StructuralChunker",
-    
-    # RFC-014: Multi-Faceted Memory
-    "ContentFacets",
-    "FacetQuery",
-    "FacetedIndex",
-    "DiataxisType",
-    "PersonaType",
-    "VerificationState",
-    "ConfidenceLevel",
-    "FacetExtractor",
-    
-    # RFC-014: Unified Memory
-    "MemoryNode",
-    "UnifiedMemoryStore",
-    
-    # RFC-014: Memory Tools
-    "MemoryToolHandler",
-    "MEMORY_TOOLS",
-    
-    # Storage
     "ConversationDAG",
-    "ContextAssembler",
-    "SimulacrumStore",
-    "StorageConfig",
     
-    # RFC-014: Unified Context Assembly
-    "UnifiedContextAssembler",
-    "UnifiedContext",
-    "ContextBudget",
-    
-    # RFC-014: Multi-Simulacrum Management
+    # Multi-simulacrum management (commonly used)
     "SimulacrumManager",
     "SimulacrumMetadata",
-    "SimulacrumToolHandler",
-    "SIMULACRUM_TOOLS",
-    "SpawnPolicy",
-    "LifecyclePolicy",
-    "ArchiveMetadata",
 ]

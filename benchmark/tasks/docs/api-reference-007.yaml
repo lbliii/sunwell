@@ -1,0 +1,76 @@
+# Documentation Task: API Reference for dataclass with validators
+task:
+  id: "docs-api-ref-007"
+  category: "documentation"
+  subcategory: "api_reference"
+  
+  prompt: |
+    Write API reference documentation for this Pydantic model:
+    
+    ```python
+    from pydantic import BaseModel, Field, field_validator, model_validator
+    from datetime import datetime
+    from typing import Literal
+    
+    class OrderItem(BaseModel):
+        sku: str = Field(..., min_length=5, max_length=20)
+        quantity: int = Field(..., ge=1, le=100)
+        unit_price: float = Field(..., gt=0)
+        
+        @property
+        def total(self) -> float:
+            return self.quantity * self.unit_price
+    
+    class Order(BaseModel):
+        id: str = Field(default_factory=lambda: str(uuid4()))
+        customer_id: str
+        items: list[OrderItem] = Field(..., min_length=1)
+        status: Literal["pending", "confirmed", "shipped", "delivered"] = "pending"
+        created_at: datetime = Field(default_factory=datetime.utcnow)
+        notes: str | None = None
+        
+        @field_validator('customer_id')
+        @classmethod
+        def validate_customer_id(cls, v: str) -> str:
+            if not v.startswith('cust_'):
+                raise ValueError('customer_id must start with cust_')
+            return v
+        
+        @model_validator(mode='after')
+        def validate_order(self) -> 'Order':
+            if self.status == 'shipped' and not self.items:
+                raise ValueError('Cannot ship empty order')
+            return self
+        
+        @property
+        def total(self) -> float:
+            return sum(item.total for item in self.items)
+    ```
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "accuracy"
+        weight: 0.3
+        criteria: "All fields, validators, properties documented"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "Includes validation rules and constraints"
+      - dimension: "usability"
+        weight: 0.3
+        criteria: "Shows creation and validation error examples"
+      - dimension: "signal_to_noise"
+        weight: 0.15
+        criteria: "No marketing fluff"
+    
+    must_contain:
+      - "OrderItem"
+      - "Order"
+      - "field_validator"
+      - "model_validator"
+      - "Field"
+    
+    must_not_contain:
+      - "powerful"
+      - "flexible"

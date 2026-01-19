@@ -1,0 +1,42 @@
+task:
+  id: design-001
+  category: analysis
+  subcategory: design_decision
+  
+  prompt: |
+    A startup needs to choose between two database architectures:
+    
+    Option A: PostgreSQL with read replicas
+    - Proven, reliable, strong consistency
+    - Team knows it well
+    - May need sharding later at scale
+    
+    Option B: CockroachDB 
+    - Built-in horizontal scaling
+    - Learning curve for team
+    - Newer, less battle-tested
+    
+    The startup has 10 engineers, expects 10x growth in 2 years,
+    and prioritizes developer velocity.
+    
+    Make a recommendation and justify it. There is no "correct" answer -
+    reasonable engineers disagree on this.
+  
+  lens: tech-writer.lens
+  
+  evaluation:
+    rubric:
+      - dimension: reasoning
+        weight: 0.4
+        criteria: "Clear logical argument for the choice"
+      - dimension: tradeoff_acknowledgment
+        weight: 0.3
+        criteria: "Acknowledges downsides of chosen option"
+      - dimension: context_fit
+        weight: 0.3
+        criteria: "Considers the specific constraints given"
+    
+  metadata:
+    deterministic: false
+    valid_approaches: ["choose A", "choose B", "hybrid/phased approach"]
+    notes: "Both options are defensible - tests reasoning quality"

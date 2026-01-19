@@ -1,0 +1,47 @@
+# Documentation Task: How-to for environment management
+task:
+  id: "docs-howto-005"
+  category: "documentation"
+  subcategory: "howto"
+  
+  prompt: |
+    Write a how-to guide for managing Python project environments.
+    
+    Cover:
+    1. Creating virtual environments (venv, uv)
+    2. Managing dependencies with pyproject.toml
+    3. Lock files for reproducibility
+    4. Development vs production dependencies
+    5. Environment variables with .env files
+    6. CI/CD considerations
+    
+    Compare uv to pip/pip-tools approaches.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "actionability"
+        weight: 0.3
+        criteria: "Commands are copy-paste ready"
+      - dimension: "accuracy"
+        weight: 0.3
+        criteria: "Modern best practices (pyproject.toml, uv)"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "All six topics covered"
+      - dimension: "comparison"
+        weight: 0.15
+        criteria: "Fair comparison of approaches"
+    
+    must_contain:
+      - "python -m venv"
+      - "uv"
+      - "pyproject.toml"
+      - "requirements"
+      - ".env"
+    
+    must_not_contain:
+      - "simple"
+      - "easy"
+      - "just"

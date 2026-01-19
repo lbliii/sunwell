@@ -1,0 +1,47 @@
+# Documentation Task: Explanation of async vs threading
+task:
+  id: "docs-explanation-005"
+  category: "documentation"
+  subcategory: "explanation"
+  
+  prompt: |
+    Write an explanation comparing async/await vs threading in Python.
+    
+    Cover:
+    1. When to use async (I/O bound, many concurrent connections)
+    2. When to use threading (legacy blocking code, simple parallelism)
+    3. When to use multiprocessing (CPU bound)
+    4. How asyncio event loop works
+    5. GIL implications for each
+    6. Memory and context-switching overhead comparison
+    
+    Include decision flowchart or criteria.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "clarity"
+        weight: 0.3
+        criteria: "Complex topic explained clearly"
+      - dimension: "accuracy"
+        weight: 0.3
+        criteria: "Technical details correct"
+      - dimension: "decision_help"
+        weight: 0.25
+        criteria: "Reader knows which to choose"
+      - dimension: "balance"
+        weight: 0.15
+        criteria: "Fair treatment of each approach"
+    
+    must_contain:
+      - "asyncio"
+      - "threading"
+      - "multiprocessing"
+      - "I/O bound"
+      - "CPU bound"
+      - "GIL"
+    
+    must_not_contain:
+      - "always use"
+      - "never use"

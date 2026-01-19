@@ -1,0 +1,79 @@
+# Code Review Task: Memory efficiency
+task:
+  id: "review-perf-006"
+  category: "code_review"
+  subcategory: "performance"
+  
+  prompt: |
+    Review this code for memory efficiency issues:
+    
+    ```python
+    def process_large_file(path: str) -> list[dict]:
+        with open(path) as f:
+            lines = f.readlines()
+        
+        results = []
+        for line in lines:
+            data = json.loads(line)
+            processed = transform(data)
+            results.append(processed)
+        
+        return results
+    
+    def aggregate_logs(log_files: list[str]) -> dict:
+        all_logs = []
+        for path in log_files:
+            with open(path) as f:
+                all_logs.extend(json.load(f))
+        
+        # Group by user
+        by_user = {}
+        for log in all_logs:
+            user_id = log['user_id']
+            if user_id not in by_user:
+                by_user[user_id] = []
+            by_user[user_id].append(log)
+        
+        return by_user
+    
+    def generate_report(users: list[dict]) -> str:
+        report = ""
+        for user in users:
+            report += f"User: {user['name']}\n"
+            report += f"Email: {user['email']}\n"
+            report += "-" * 40 + "\n"
+        return report
+    ```
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.35
+        criteria: "Identifies all memory issues"
+      - dimension: "alternatives"
+        weight: 0.35
+        criteria: "Suggests streaming/generator alternatives"
+      - dimension: "explanation"
+        weight: 0.2
+        criteria: "Explains memory impact"
+      - dimension: "practicality"
+        weight: 0.1
+        criteria: "Considers when it matters"
+    
+    must_contain:
+      - "generator"
+      - "yield"
+      - "readlines"
+      - "string concatenation"
+    
+    must_not_contain:
+      - "fine for small"
+      - "acceptable"
+    
+    ground_truth_issues:
+      - "readlines() loads entire file into memory"
+      - "Building results list instead of yielding"
+      - "all_logs accumulates all files in memory"
+      - "String concatenation creates many intermediate strings"

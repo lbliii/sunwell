@@ -6,7 +6,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.simulacrum.turn import Learning, Turn, Episode
+    from sunwell.simulacrum.core.turn import Learning, Turn
+    from sunwell.simulacrum.core.memory import Episode
 
 
 @dataclass

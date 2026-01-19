@@ -1,0 +1,69 @@
+# Code Review Task: Command injection
+task:
+  id: "review-security-009"
+  category: "code_review"
+  subcategory: "security"
+  
+  prompt: |
+    Review this code for security vulnerabilities:
+    
+    ```python
+    import subprocess
+    import os
+    
+    def convert_image(input_path: str, output_path: str, format: str):
+        cmd = f"convert {input_path} -format {format} {output_path}"
+        os.system(cmd)
+    
+    def run_linter(filename: str, config: str = "default"):
+        result = subprocess.run(
+            f"pylint {filename} --rcfile={config}",
+            shell=True,
+            capture_output=True,
+        )
+        return result.stdout.decode()
+    
+    def backup_database(db_name: str, backup_dir: str):
+        timestamp = datetime.now().strftime("%Y%m%d")
+        cmd = ["pg_dump", db_name, "-f", f"{backup_dir}/{db_name}_{timestamp}.sql"]
+        subprocess.call(cmd)
+    
+    def ping_host(hostname: str) -> bool:
+        result = subprocess.run(
+            ["ping", "-c", "1", hostname],
+            capture_output=True,
+        )
+        return result.returncode == 0
+    ```
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.4
+        criteria: "Identifies command injection vulnerabilities"
+      - dimension: "severity"
+        weight: 0.3
+        criteria: "Correctly identifies which are exploitable"
+      - dimension: "actionability"
+        weight: 0.2
+        criteria: "Shows safe subprocess usage"
+      - dimension: "nuance"
+        weight: 0.1
+        criteria: "Distinguishes safe vs unsafe patterns"
+    
+    must_contain:
+      - "command injection"
+      - "os.system"
+      - "shell=True"
+      - "subprocess"
+    
+    must_not_contain:
+      - "all unsafe"
+    
+    ground_truth_issues:
+      - "convert_image: os.system with string interpolation - RCE"
+      - "run_linter: shell=True with user input - RCE"
+      - "backup_database: path injection in output file"
+      - "ping_host: safe (list args, no shell) but hostname should be validated"

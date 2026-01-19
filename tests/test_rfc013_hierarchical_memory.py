@@ -17,18 +17,18 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.simulacrum.turn import Turn, TurnType
-from sunwell.simulacrum.chunks import Chunk, ChunkType, ChunkSummary
-from sunwell.simulacrum.config import ChunkConfig, DEFAULT_CHUNK_CONFIG
-from sunwell.simulacrum.ctf import (
+from sunwell.simulacrum.core.turn import Turn, TurnType
+from sunwell.simulacrum.hierarchical.chunks import Chunk, ChunkType, ChunkSummary
+from sunwell.simulacrum.hierarchical.config import ChunkConfig, DEFAULT_CHUNK_CONFIG
+from sunwell.simulacrum.hierarchical.ctf import (
     CTFEncoder,
     CTFDecoder,
     encode_chunk_summaries,
     decode_chunk_summaries,
 )
-from sunwell.simulacrum.chunk_manager import ChunkManager
-from sunwell.simulacrum.summarizer import Summarizer
-from sunwell.simulacrum.store import SimulacrumStore, StorageConfig
+from sunwell.simulacrum.hierarchical.chunk_manager import ChunkManager
+from sunwell.simulacrum.hierarchical.summarizer import Summarizer
+from sunwell.simulacrum.core.store import SimulacrumStore, StorageConfig
 
 
 # =============================================================================

@@ -1,0 +1,46 @@
+# Documentation Task: How-to for database migrations
+task:
+  id: "docs-howto-002"
+  category: "documentation"
+  subcategory: "howto"
+  
+  prompt: |
+    Write a how-to guide for managing database migrations with Alembic.
+    
+    Assume the reader has SQLAlchemy models and wants to:
+    1. Initialize Alembic in their project
+    2. Generate a migration from model changes
+    3. Apply migrations
+    4. Rollback a migration
+    5. Handle merge conflicts in migrations
+    
+    Include specific commands and explain what each does.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "actionability"
+        weight: 0.35
+        criteria: "Commands are copy-paste ready"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "Covers all five scenarios"
+      - dimension: "accuracy"
+        weight: 0.25
+        criteria: "Commands and explanations are correct"
+      - dimension: "troubleshooting"
+        weight: 0.15
+        criteria: "Addresses common issues"
+    
+    must_contain:
+      - "alembic init"
+      - "alembic revision"
+      - "alembic upgrade"
+      - "alembic downgrade"
+      - "--autogenerate"
+    
+    must_not_contain:
+      - "simply"
+      - "just run"
+      - "easy"

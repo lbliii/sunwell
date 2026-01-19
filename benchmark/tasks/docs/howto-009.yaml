@@ -1,0 +1,46 @@
+# Documentation Task: How-to for testing async code
+task:
+  id: "docs-howto-009"
+  category: "documentation"
+  subcategory: "howto"
+  
+  prompt: |
+    Write a how-to guide for testing async Python code with pytest.
+    
+    Cover:
+    1. Setting up pytest-asyncio
+    2. Writing async test functions
+    3. Async fixtures
+    4. Mocking async functions
+    5. Testing timeouts and cancellation
+    6. Testing async generators
+    
+    Include complete, runnable examples.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "completeness"
+        weight: 0.3
+        criteria: "All six topics covered"
+      - dimension: "accuracy"
+        weight: 0.3
+        criteria: "pytest-asyncio usage correct"
+      - dimension: "examples"
+        weight: 0.25
+        criteria: "Examples are runnable"
+      - dimension: "actionability"
+        weight: 0.15
+        criteria: "Reader can test their async code"
+    
+    must_contain:
+      - "pytest.mark.asyncio"
+      - "@pytest.fixture"
+      - "async def test_"
+      - "AsyncMock"
+      - "asyncio.wait_for"
+    
+    must_not_contain:
+      - "simple"
+      - "easy"

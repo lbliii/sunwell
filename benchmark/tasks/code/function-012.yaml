@@ -1,0 +1,61 @@
+# Code Generation Task: State machine
+task:
+  id: "code-function-012"
+  category: "code_generation"
+  subcategory: "function"
+  
+  prompt: |
+    Implement a finite state machine DSL.
+    
+    Requirements:
+    - Define states and transitions declaratively
+    - Guards (conditions) on transitions
+    - Actions on enter/exit state and on transition
+    - Current state tracking
+    - Transition history
+    
+    Example:
+    ```python
+    order = StateMachine(initial="draft")
+    
+    order.add_state("draft", on_enter=log_created)
+    order.add_state("pending", on_enter=notify_warehouse)
+    order.add_state("shipped", on_enter=notify_customer)
+    order.add_state("delivered")
+    
+    order.add_transition("draft", "pending", 
+        event="submit", guard=has_items, action=reserve_inventory)
+    order.add_transition("pending", "shipped", 
+        event="ship", action=update_tracking)
+    order.add_transition("shipped", "delivered", 
+        event="deliver")
+    
+    order.trigger("submit")  # draft -> pending
+    ```
+  
+  lens: "coder.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "correctness"
+        weight: 0.35
+        criteria: "State machine logic correct"
+      - dimension: "features"
+        weight: 0.25
+        criteria: "Guards, actions, history work"
+      - dimension: "usability"
+        weight: 0.25
+        criteria: "Clean declarative API"
+      - dimension: "errors"
+        weight: 0.15
+        criteria: "Good error messages for invalid transitions"
+    
+    must_contain:
+      - "class StateMachine"
+      - "add_state"
+      - "add_transition"
+      - "trigger"
+      - "current_state"
+    
+    must_not_contain:
+      - "pass  # TODO"

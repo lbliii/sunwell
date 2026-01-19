@@ -1,0 +1,46 @@
+# Documentation Task: Explanation of dependency injection
+task:
+  id: "docs-explanation-002"
+  category: "documentation"
+  subcategory: "explanation"
+  
+  prompt: |
+    Write an explanation of Dependency Injection in Python.
+    
+    Cover:
+    1. What is dependency injection and why it matters
+    2. The problem it solves (tight coupling, testing difficulty)
+    3. Manual DI vs DI frameworks
+    4. Common patterns (constructor injection, parameter injection)
+    5. When to use DI vs when it's overkill
+    
+    Use concrete Python examples showing before/after code.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "clarity"
+        weight: 0.3
+        criteria: "Concepts explained clearly for intermediate developers"
+      - dimension: "examples"
+        weight: 0.3
+        criteria: "Before/after examples demonstrate the benefit"
+      - dimension: "accuracy"
+        weight: 0.25
+        criteria: "Technical content is correct"
+      - dimension: "balance"
+        weight: 0.15
+        criteria: "Acknowledges tradeoffs, not just benefits"
+    
+    must_contain:
+      - "dependency"
+      - "inject"
+      - "testing"
+      - "coupling"
+      - "__init__"
+    
+    must_not_contain:
+      - "always use"
+      - "never use"
+      - "simple"

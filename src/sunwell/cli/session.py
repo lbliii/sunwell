@@ -8,7 +8,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from sunwell.simulacrum.store import SimulacrumStore
+from sunwell.simulacrum.core.store import SimulacrumStore
 
 console = Console()
 

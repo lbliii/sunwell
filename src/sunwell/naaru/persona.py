@@ -118,11 +118,20 @@ About yourself:
         """Get prefix with optional emoji."""
         return f"{emoji} " if emoji else ""
     
-    def msg_noted(self, fact: str) -> str:
+    def msg_noted(self, fact: str, category: str | None = None) -> str:
         """Format a 'noted fact' message."""
         name = self._get_display_name()
         prefix = self._prefix(self.emoji_note)
-        return f"[dim cyan]{prefix}{name} noted:[/dim cyan] [dim]{fact}[/dim]"
+        
+        # Different verbs for different categories
+        if category == "interest":
+            verb = "sensed"
+            color = "yellow"
+        else:
+            verb = "noted"
+            color = "cyan"
+        
+        return f"[dim {color}]{prefix}{name} {verb}:[/dim {color}] [dim]{fact}[/dim]"
     
     def msg_observed(self, behavior: str, truncate: int = 60) -> str:
         """Format an 'observed behavior' message."""

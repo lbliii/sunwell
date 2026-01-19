@@ -1,0 +1,67 @@
+# Code Review Task: XSS vulnerability
+task:
+  id: "review-security-004"
+  category: "code_review"
+  subcategory: "security"
+  
+  prompt: |
+    Review this Flask template code for security vulnerabilities:
+    
+    ```python
+    from flask import Flask, request, render_template_string
+    
+    app = Flask(__name__)
+    
+    @app.route('/profile')
+    def profile():
+        name = request.args.get('name', 'Guest')
+        bio = request.args.get('bio', '')
+        
+        template = f'''
+        <html>
+        <body>
+            <h1>Welcome, {name}!</h1>
+            <div class="bio">{bio}</div>
+            <script>
+                var userData = "{name}";
+            </script>
+        </body>
+        </html>
+        '''
+        return render_template_string(template)
+    ```
+    
+    Identify security issues and provide fixes.
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.4
+        criteria: "Identifies XSS in HTML, attribute, and JS contexts"
+      - dimension: "actionability"
+        weight: 0.3
+        criteria: "Provides specific fixes for each context"
+      - dimension: "explanation"
+        weight: 0.2
+        criteria: "Explains how each XSS variant works"
+      - dimension: "false_positives"
+        weight: 0.1
+        criteria: "Doesn't flag non-issues"
+    
+    must_contain:
+      - "XSS"
+      - "escape"
+      - "render_template_string"
+      - "script"
+    
+    must_not_contain:
+      - "looks good"
+      - "no issues"
+    
+    ground_truth_issues:
+      - "XSS via name in HTML context"
+      - "XSS via bio in HTML context"
+      - "XSS via name in JavaScript context"
+      - "Use of render_template_string with user input"

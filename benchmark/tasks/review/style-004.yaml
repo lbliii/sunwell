@@ -1,0 +1,83 @@
+# Code Review Task: API design review
+task:
+  id: "review-style-004"
+  category: "code_review"
+  subcategory: "style"
+  
+  prompt: |
+    Review this API design for usability and best practices:
+    
+    ```python
+    class DatabaseManager:
+        def __init__(self, h, p, u, pw, db, pool=True, size=10, timeout=30):
+            self.host = h
+            self.port = p
+            self.user = u
+            self.password = pw
+            self.database = db
+            self.use_pool = pool
+            self.pool_size = size
+            self.timeout = timeout
+        
+        def q(self, sql, *args):
+            """Execute query."""
+            return self._execute(sql, args)
+        
+        def qi(self, sql, *args):
+            """Execute insert and return ID."""
+            return self._execute_insert(sql, args)
+        
+        def qm(self, sql, *args):
+            """Execute query and return many rows."""
+            return self._execute_many(sql, args)
+        
+        def t(self):
+            """Start transaction."""
+            return self._begin_transaction()
+        
+        def c(self):
+            """Commit."""
+            return self._commit()
+        
+        def r(self):
+            """Rollback."""
+            return self._rollback()
+    
+    def connect(host, port, user, password, database):
+        return DatabaseManager(host, port, user, password, database)
+    ```
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.35
+        criteria: "Identifies all API design issues"
+      - dimension: "usability"
+        weight: 0.3
+        criteria: "Explains why design hurts usability"
+      - dimension: "alternatives"
+        weight: 0.25
+        criteria: "Shows improved API design"
+      - dimension: "python_standards"
+        weight: 0.1
+        criteria: "References Python API conventions"
+    
+    must_contain:
+      - "abbreviation"
+      - "keyword"
+      - "context manager"
+      - "descriptive"
+    
+    must_not_contain:
+      - "acceptable"
+      - "fine"
+    
+    ground_truth_issues:
+      - "Single-letter parameter names (h, p, u, pw)"
+      - "Cryptic method names (q, qi, qm, t, c, r)"
+      - "Too many constructor parameters (use keyword-only)"
+      - "Transaction should be context manager"
+      - "No docstrings explaining parameters"
+      - "Inconsistent with Python DB-API conventions"

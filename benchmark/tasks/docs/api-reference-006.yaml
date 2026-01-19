@@ -1,0 +1,68 @@
+# Documentation Task: API Reference for context manager
+task:
+  id: "docs-api-ref-006"
+  category: "documentation"
+  subcategory: "api_reference"
+  
+  prompt: |
+    Write API reference documentation for this async context manager:
+    
+    ```python
+    from contextlib import asynccontextmanager
+    from typing import AsyncIterator
+    
+    @asynccontextmanager
+    async def transaction(
+        conn: AsyncConnection,
+        *,
+        isolation_level: Literal["read_committed", "repeatable_read", "serializable"] = "read_committed",
+        savepoint: bool = False,
+        timeout: float | None = None,
+    ) -> AsyncIterator[Transaction]:
+        """Manage database transaction with automatic commit/rollback.
+        
+        On successful completion, the transaction commits.
+        On exception, the transaction rolls back.
+        
+        Args:
+            conn: Active database connection.
+            isolation_level: Transaction isolation level.
+            savepoint: If True, creates a savepoint instead of full transaction.
+            timeout: Transaction timeout in seconds, None for no timeout.
+            
+        Yields:
+            Transaction: Active transaction object.
+            
+        Raises:
+            TransactionError: If transaction cannot be started.
+            TimeoutError: If transaction exceeds timeout.
+        """
+    ```
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "accuracy"
+        weight: 0.3
+        criteria: "Context manager semantics correctly explained"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "All params, yields, raises documented"
+      - dimension: "usability"
+        weight: 0.3
+        criteria: "Shows async with syntax in example"
+      - dimension: "signal_to_noise"
+        weight: 0.15
+        criteria: "No unnecessary prose"
+    
+    must_contain:
+      - "async with"
+      - "commit"
+      - "rollback"
+      - "isolation_level"
+      - "savepoint"
+    
+    must_not_contain:
+      - "powerful"
+      - "flexible"

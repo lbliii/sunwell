@@ -1,0 +1,46 @@
+# Documentation Task: Explanation of event-driven architecture
+task:
+  id: "docs-explanation-006"
+  category: "documentation"
+  subcategory: "explanation"
+  
+  prompt: |
+    Write an explanation of event-driven architecture for Python developers.
+    
+    Cover:
+    1. What is event-driven architecture
+    2. Events vs commands vs queries
+    3. Event sourcing basics
+    4. Message brokers (RabbitMQ, Redis, Kafka overview)
+    5. Eventual consistency and its implications
+    6. When to use vs traditional request-response
+    
+    Use practical Python examples.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "clarity"
+        weight: 0.3
+        criteria: "Complex architecture explained clearly"
+      - dimension: "accuracy"
+        weight: 0.25
+        criteria: "Patterns correctly described"
+      - dimension: "examples"
+        weight: 0.25
+        criteria: "Python examples illustrate concepts"
+      - dimension: "decision_help"
+        weight: 0.2
+        criteria: "Reader can decide when to use EDA"
+    
+    must_contain:
+      - "event"
+      - "message"
+      - "broker"
+      - "eventual consistency"
+      - "async"
+    
+    must_not_contain:
+      - "always use"
+      - "simple"

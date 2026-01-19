@@ -1,0 +1,63 @@
+# Documentation Task: README for Python library
+task:
+  id: "docs-readme-003"
+  category: "documentation"
+  subcategory: "readme"
+  
+  prompt: |
+    Write a README for a Python library called `taskqueue` for background job processing.
+    
+    Features:
+    - Async task execution with worker pools
+    - Priority queues
+    - Retry with exponential backoff
+    - Redis backend
+    - Task result storage
+    - Scheduled tasks (cron-like)
+    
+    Example API:
+    ```python
+    from taskqueue import TaskQueue, task
+    
+    queue = TaskQueue(redis_url="redis://localhost")
+    
+    @task(queue=queue, retry=3)
+    async def send_email(to: str, subject: str):
+        ...
+    
+    # Enqueue
+    await send_email.enqueue("user@example.com", "Welcome!")
+    
+    # Schedule
+    send_email.schedule("0 9 * * *", "user@example.com", "Daily Report")
+    ```
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "structure"
+        weight: 0.2
+        criteria: "Standard README sections present"
+      - dimension: "api_clarity"
+        weight: 0.3
+        criteria: "API usage is clear from examples"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "All features mentioned with examples"
+      - dimension: "installation"
+        weight: 0.25
+        criteria: "Clear install instructions including Redis"
+    
+    must_contain:
+      - "Installation"
+      - "pip install"
+      - "@task"
+      - "enqueue"
+      - "Redis"
+      - "retry"
+    
+    must_not_contain:
+      - "powerful"
+      - "robust"
+      - "easy"

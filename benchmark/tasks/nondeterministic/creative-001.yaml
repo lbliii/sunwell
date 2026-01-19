@@ -1,0 +1,33 @@
+task:
+  id: creative-001
+  category: analysis
+  subcategory: creative
+  
+  prompt: |
+    Write a 3-sentence product tagline for a meditation app that targets
+    busy executives. There are multiple valid approaches - be creative.
+    
+    Constraints:
+    - Exactly 3 sentences
+    - Must mention "time" or "busy" 
+    - Can be serious OR playful - your choice
+  
+  lens: tech-writer.lens
+  
+  evaluation:
+    # No must_contain - this is subjective
+    rubric:
+      - dimension: creativity
+        weight: 0.4
+        criteria: "Original, memorable, not generic"
+      - dimension: audience_fit
+        weight: 0.3
+        criteria: "Resonates with busy executives"
+      - dimension: brand_voice
+        weight: 0.3
+        criteria: "Coherent tone throughout"
+    
+  metadata:
+    deterministic: false
+    valid_approaches: ["serious/corporate", "playful/witty", "minimalist", "aspirational"]
+    notes: "No single correct answer - tests perspective diversity"

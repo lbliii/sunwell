@@ -1,0 +1,53 @@
+# Code Generation Task: Async batching
+task:
+  id: "code-function-010"
+  category: "code_generation"
+  subcategory: "function"
+  
+  prompt: |
+    Implement an async request batcher that batches individual requests.
+    
+    Requirements:
+    - Collects requests for `max_wait` milliseconds OR until `max_batch_size` reached
+    - Calls batch_fn once with all collected requests
+    - Returns individual results to each caller
+    - Thread-safe for concurrent calls
+    
+    Example usage:
+    ```python
+    async def batch_fetch(user_ids: list[int]) -> list[User]:
+        return await db.fetch_users(user_ids)
+    
+    batcher = Batcher(batch_fn=batch_fetch, max_wait=50, max_batch_size=100)
+    
+    # These concurrent calls get batched into one batch_fetch call
+    user1 = await batcher.execute(1)
+    user2 = await batcher.execute(2)
+    ```
+  
+  lens: "coder.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "correctness"
+        weight: 0.35
+        criteria: "Batching logic correct, results mapped correctly"
+      - dimension: "concurrency"
+        weight: 0.3
+        criteria: "Handles concurrent execute() calls"
+      - dimension: "efficiency"
+        weight: 0.2
+        criteria: "Minimizes latency and batch calls"
+      - dimension: "robustness"
+        weight: 0.15
+        criteria: "Handles errors in batch_fn"
+    
+    must_contain:
+      - "async def"
+      - "await"
+      - "asyncio"
+      - "max_wait"
+      - "max_batch_size"
+    
+    must_not_contain:
+      - "pass  # TODO"

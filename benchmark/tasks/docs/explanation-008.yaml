@@ -1,0 +1,47 @@
+# Documentation Task: Explanation of Python memory model
+task:
+  id: "docs-explanation-008"
+  category: "documentation"
+  subcategory: "explanation"
+  
+  prompt: |
+    Write an explanation of Python's memory model for intermediate developers.
+    
+    Cover:
+    1. Objects, references, and identity (id(), is, ==)
+    2. Mutable vs immutable objects
+    3. Reference counting and garbage collection
+    4. Weak references and when to use them
+    5. Memory profiling with tracemalloc
+    6. Common memory pitfalls (circular references, large collections)
+    
+    Use practical examples throughout.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "clarity"
+        weight: 0.3
+        criteria: "Complex topic explained clearly"
+      - dimension: "accuracy"
+        weight: 0.3
+        criteria: "Memory model correctly described"
+      - dimension: "examples"
+        weight: 0.25
+        criteria: "Practical, illuminating examples"
+      - dimension: "actionable"
+        weight: 0.15
+        criteria: "Reader can debug memory issues"
+    
+    must_contain:
+      - "id()"
+      - "is"
+      - "reference"
+      - "garbage collection"
+      - "weakref"
+      - "tracemalloc"
+    
+    must_not_contain:
+      - "simple"
+      - "easy"

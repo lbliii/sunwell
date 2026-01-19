@@ -1,0 +1,61 @@
+# Agent Task: Multi-file project setup
+task:
+  id: "agent-planning-002"
+  category: "agent"
+  subcategory: "planning"
+  
+  goal: |
+    Create a simple Python CLI calculator with:
+    - A main.py entry point
+    - A calculator.py module with add, subtract, multiply, divide functions
+    - A test_calculator.py with basic tests
+  
+  context:
+    cwd: "/tmp/benchmark-agent-002"
+    trust_level: "workspace"
+  
+  evaluation:
+    planning:
+      min_tasks: 4
+      max_tasks: 12
+      required_modes:
+        - "generate"
+      required_tools:
+        - "write_file"
+      required_dependencies: true
+      
+    execution:
+      must_create_files:
+        - "main.py"
+        - "calculator.py"
+        - "test_calculator.py"
+      must_contain_in_files:
+        calculator.py:
+          - "def add"
+          - "def subtract"
+          - "def multiply"
+          - "def divide"
+        test_calculator.py:
+          - "def test_"
+          - "assert"
+        main.py:
+          - "if __name__"
+    
+    rubric:
+      - dimension: "decomposition"
+        weight: 0.25
+        criteria: "Goal broken into logical file-creation tasks"
+      - dimension: "dependency_accuracy"
+        weight: 0.25
+        criteria: "Dependencies respect file creation order"
+      - dimension: "completeness"
+        weight: 0.3
+        criteria: "All three files created with required functions"
+      - dimension: "coherence"
+        weight: 0.2
+        criteria: "Files work together as a cohesive project"
+
+  expected_task_sequence:
+    - create_calculator_module
+    - create_main_entry
+    - create_tests

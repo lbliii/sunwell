@@ -1,0 +1,45 @@
+# Code Generation Task: Rate limiter
+task:
+  id: "code-function-004"
+  category: "code_generation"
+  subcategory: "function"
+  
+  prompt: |
+    Write a token bucket rate limiter in Python.
+    
+    Requirements:
+    - `max_tokens`: maximum tokens in bucket
+    - `refill_rate`: tokens added per second
+    - `consume(tokens: int = 1) -> bool`: returns True if allowed, False if rate limited
+    - Thread-safe for concurrent access
+    - Support async version with `async def consume_async()`
+    
+    Include type hints and docstring.
+  
+  lens: "coder.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "correctness"
+        weight: 0.35
+        criteria: "Token bucket algorithm correctly implemented"
+      - dimension: "thread_safety"
+        weight: 0.25
+        criteria: "Uses proper locking for concurrent access"
+      - dimension: "completeness"
+        weight: 0.2
+        criteria: "Both sync and async versions work"
+      - dimension: "style"
+        weight: 0.2
+        criteria: "Clean code with type hints and docs"
+    
+    must_contain:
+      - "max_tokens"
+      - "refill_rate"
+      - "consume"
+      - "Lock"
+      - "async def"
+      - "time"
+    
+    must_not_contain:
+      - "pass  # TODO"

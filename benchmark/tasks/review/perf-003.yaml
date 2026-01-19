@@ -1,0 +1,64 @@
+# Code Review Task: Database N+1 queries
+task:
+  id: "review-perf-003"
+  category: "code_review"
+  subcategory: "performance"
+  
+  prompt: |
+    Review this code for performance issues:
+    
+    ```python
+    from sqlalchemy.orm import Session
+    
+    def get_orders_with_items(db: Session, user_id: int):
+        orders = db.query(Order).filter(Order.user_id == user_id).all()
+        result = []
+        for order in orders:
+            items = db.query(OrderItem).filter(OrderItem.order_id == order.id).all()
+            result.append({
+                "order_id": order.id,
+                "items": [{"name": item.name, "price": item.price} for item in items],
+                "total": sum(item.price for item in items),
+            })
+        return result
+    
+    def get_user_stats(db: Session, user_ids: list[int]):
+        stats = []
+        for user_id in user_ids:
+            user = db.query(User).get(user_id)
+            order_count = db.query(Order).filter(Order.user_id == user_id).count()
+            stats.append({"name": user.name, "orders": order_count})
+        return stats
+    ```
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.35
+        criteria: "Identifies N+1 patterns in both functions"
+      - dimension: "actionability"
+        weight: 0.35
+        criteria: "Provides eager loading/batch query solutions"
+      - dimension: "explanation"
+        weight: 0.2
+        criteria: "Explains query count impact"
+      - dimension: "sqlalchemy"
+        weight: 0.1
+        criteria: "Uses correct SQLAlchemy patterns"
+    
+    must_contain:
+      - "N+1"
+      - "joinedload"
+      - "selectinload"
+      - "batch"
+    
+    must_not_contain:
+      - "acceptable"
+      - "minor"
+    
+    ground_truth_issues:
+      - "get_orders_with_items: N+1 queries for items"
+      - "get_user_stats: N+1 queries for users"
+      - "get_user_stats: N+1 queries for order counts"

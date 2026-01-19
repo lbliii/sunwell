@@ -1,0 +1,52 @@
+# Agent Task: Error recovery and dependency handling
+task:
+  id: "agent-recovery-001"
+  category: "agent"
+  subcategory: "recovery"
+  
+  goal: |
+    Create a module that depends on a config file, but the config file
+    doesn't exist yet. The agent should:
+    1. Recognize the dependency
+    2. Create the config file first
+    3. Then create the module that uses it
+  
+  context:
+    cwd: "/tmp/benchmark-agent-recovery-001"
+    trust_level: "workspace"
+  
+  evaluation:
+    planning:
+      min_tasks: 2
+      max_tasks: 6
+      required_modes:
+        - "generate"
+      required_dependencies: true
+      must_handle_missing_dependency: true
+      
+    execution:
+      must_create_files:
+        - "config.json"
+        - "app.py"
+      creation_order:
+        - "config.json"
+        - "app.py"
+      must_contain_in_files:
+        config.json:
+          - "{"
+        app.py:
+          - "config.json"
+          - "json.load"
+    
+    rubric:
+      - dimension: "dependency_recognition"
+        weight: 0.35
+        criteria: "Correctly identifies config must be created first"
+      - dimension: "correct_ordering"
+        weight: 0.35
+        criteria: "Tasks executed in dependency order"
+      - dimension: "completeness"
+        weight: 0.3
+        criteria: "Both files created and linked correctly"
+
+  tests_capability: "dependency_resolution"

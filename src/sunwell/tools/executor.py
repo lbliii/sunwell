@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from sunwell.simulacrum.manager import SimulacrumToolHandler
     from sunwell.tools.web_search import WebSearchHandler
     from sunwell.mirror.handler import MirrorHandler
+    from sunwell.tools.expertise import ExpertiseToolHandler
 
 
 # Type alias for tool handlers
@@ -67,6 +68,7 @@ class ToolExecutor:
     headspace_handler: "SimulacrumToolHandler | None" = None  # RFC-014: Multi-headspace
     web_search_handler: "WebSearchHandler | None" = None  # Web search tools
     mirror_handler: "MirrorHandler | None" = None  # RFC-015: Mirror neurons
+    expertise_handler: "ExpertiseToolHandler | None" = None  # RFC-027: Self-directed expertise
     policy: ToolPolicy | None = None
     audit_path: Path | None = None
     
@@ -110,6 +112,11 @@ class ToolExecutor:
         "approve_proposal", "apply_proposal", "rollback_proposal",
     }, init=False)
     
+    # RFC-027: Expertise tools (self-directed expertise retrieval)
+    _expertise_tools: set[str] = field(default_factory=lambda: {
+        "get_expertise", "verify_against_expertise", "list_expertise_areas",
+    }, init=False)
+    
     def __post_init__(self) -> None:
         """Initialize core tool handlers."""
         # Get blocked patterns from policy or use defaults
@@ -148,7 +155,9 @@ class ToolExecutor:
             "list_files": self._core_handlers.list_files,
             "search_files": self._core_handlers.search_files,
             "run_command": self._core_handlers.run_command,
+            "mkdir": self._core_handlers.mkdir,
             # Git tools (RFC-024)
+            "git_init": self._core_handlers.git_init,
             "git_info": self._core_handlers.git_info,
             "git_status": self._core_handlers.git_status,
             "git_diff": self._core_handlers.git_diff,
@@ -200,6 +209,23 @@ class ToolExecutor:
     def get_available_tools(self) -> list[str]:
         """Get list of available tool names."""
         return list(self._handlers.keys())
+    
+    def get_tool_definitions(self) -> tuple["Tool", ...]:
+        """Get full Tool definitions for available tools (for native tool calling).
+        
+        Returns Tool objects with name, description, and JSON Schema parameters.
+        Use this when passing tools to model.generate(tools=...) for reliable
+        tool calling instead of text-based prompts.
+        """
+        from sunwell.tools.builtins import CORE_TOOLS, GIT_TOOLS, ENV_TOOLS
+        
+        all_tool_defs = {**CORE_TOOLS, **GIT_TOOLS, **ENV_TOOLS}
+        available_names = set(self._handlers.keys())
+        
+        return tuple(
+            tool for name, tool in all_tool_defs.items()
+            if name in available_names
+        )
     
     async def execute(self, tool_call: ToolCall) -> ToolResult:
         """Execute a single tool call.
@@ -303,6 +329,37 @@ class ToolExecutor:
                     tool_call_id=tool_call.id,
                     success=False,
                     output="Mirror tools not configured. Enable with --mirror flag.",
+                )
+        
+        # RFC-027: Route expertise tools to expertise handler
+        if tool_call.name in self._expertise_tools:
+            if self.expertise_handler:
+                try:
+                    output = await self.expertise_handler.handle(
+                        tool_call.name,
+                        tool_call.arguments,
+                    )
+                    elapsed_ms = int((time.monotonic() - start) * 1000)
+                    self._log_audit(tool_call, True, elapsed_ms)
+                    return ToolResult(
+                        tool_call_id=tool_call.id,
+                        success=True,
+                        output=output,
+                        execution_time_ms=elapsed_ms,
+                    )
+                except Exception as e:
+                    elapsed_ms = int((time.monotonic() - start) * 1000)
+                    self._log_audit(tool_call, False, elapsed_ms, str(e))
+                    return ToolResult(
+                        tool_call_id=tool_call.id,
+                        success=False,
+                        output=f"Expertise tool error: {e}",
+                    )
+            else:
+                return ToolResult(
+                    tool_call_id=tool_call.id,
+                    success=False,
+                    output="Expertise tools not configured. Set expertise_handler on ToolExecutor.",
                 )
         
         # Check rate limits

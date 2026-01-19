@@ -1,0 +1,69 @@
+# Documentation Task: Tutorial for building REST API
+task:
+  id: "docs-tutorial-002"
+  category: "documentation"
+  subcategory: "tutorial"
+  
+  prompt: |
+    Write a tutorial for building a REST API endpoint with FastAPI.
+    
+    Target audience: Developer new to FastAPI but familiar with Python.
+    
+    The tutorial should guide them through creating:
+    1. A POST endpoint to create a user
+    2. Request/response models with Pydantic
+    3. Input validation
+    4. Error handling with proper HTTP status codes
+    
+    Use this example code as the end state:
+    
+    ```python
+    from fastapi import FastAPI, HTTPException
+    from pydantic import BaseModel, EmailStr
+    
+    app = FastAPI()
+    
+    class UserCreate(BaseModel):
+        email: EmailStr
+        name: str
+        
+    class UserResponse(BaseModel):
+        id: int
+        email: str
+        name: str
+        
+    @app.post("/users", response_model=UserResponse, status_code=201)
+    async def create_user(user: UserCreate) -> UserResponse:
+        # Implementation here
+        ...
+    ```
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "learning_path"
+        weight: 0.3
+        criteria: "Clear progression from simple to complete"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "Covers all four listed topics"
+      - dimension: "accuracy"
+        weight: 0.25
+        criteria: "Code examples are correct and runnable"
+      - dimension: "engagement"
+        weight: 0.2
+        criteria: "Explains WHY, not just HOW"
+    
+    must_contain:
+      - "FastAPI"
+      - "Pydantic"
+      - "BaseModel"
+      - "@app.post"
+      - "HTTPException"
+      - "status_code"
+    
+    must_not_contain:
+      - "simply"
+      - "easy"
+      - "straightforward"

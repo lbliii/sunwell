@@ -9,12 +9,17 @@ Key features:
 - ContextVar for thread-safe state propagation
 - Batch execution with configurable concurrency
 - Adaptive worker counts based on GIL state (see core.freethreading)
+
+Thread Safety:
+    All shared mutable state (ChunkCache) uses threading.Lock for
+    safe access in free-threaded Python (3.14t).
 """
 
 from __future__ import annotations
 
 import asyncio
 import hashlib
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextvars import ContextVar, copy_context
@@ -234,11 +239,15 @@ class ChunkCache:
     
     Uses hashing for instant deduplication - if we've seen
     this exact content before, skip re-processing.
+    
+    Thread Safety:
+        Uses threading.Lock for thread-safe access in free-threaded Python (3.14t).
     """
     
     def __init__(self) -> None:
         self._cache: dict[str, HashedChunk] = {}
         self._embeddings: dict[str, list[float]] = {}
+        self._lock = threading.Lock()
     
     def get_or_create(self, content: str, **metadata) -> tuple[HashedChunk, bool]:
         """Get existing chunk or create new one.
@@ -247,12 +256,19 @@ class ChunkCache:
             Tuple of (chunk, is_new).
         """
         h = content_hash(content)
+        
+        # Fast path: check cache without lock
         if h in self._cache:
             return self._cache[h], False
         
-        chunk = HashedChunk.create(content, **metadata)
-        self._cache[h] = chunk
-        return chunk, True
+        # Slow path: acquire lock, double-check, create
+        with self._lock:
+            if h in self._cache:
+                return self._cache[h], False
+            
+            chunk = HashedChunk.create(content, **metadata)
+            self._cache[h] = chunk
+            return chunk, True
     
     def get_embedding(self, chunk: HashedChunk) -> list[float] | None:
         """Get cached embedding for chunk."""
@@ -260,13 +276,15 @@ class ChunkCache:
     
     def set_embedding(self, chunk: HashedChunk, embedding: list[float]) -> None:
         """Cache embedding for chunk."""
-        self._embeddings[chunk.content_hash] = embedding
+        with self._lock:
+            self._embeddings[chunk.content_hash] = embedding
     
     @property
     def stats(self) -> dict:
         """Cache statistics."""
-        return {
-            "chunks": len(self._cache),
-            "embeddings": len(self._embeddings),
-            "hit_rate": len(self._embeddings) / max(len(self._cache), 1),
-        }
+        with self._lock:
+            return {
+                "chunks": len(self._cache),
+                "embeddings": len(self._embeddings),
+                "hit_rate": len(self._embeddings) / max(len(self._cache), 1),
+            }

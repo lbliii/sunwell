@@ -119,6 +119,38 @@ CORE_TOOLS: dict[str, Tool] = {
         },
     ),
     
+    # Directory Operations
+    "mkdir": Tool(
+        name="mkdir",
+        description="Create a directory. Creates parent directories if needed (like mkdir -p).",
+        parameters={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Directory path to create, relative to workspace root",
+                },
+            },
+            "required": ["path"],
+        },
+    ),
+    
+    # Git Repository Initialization
+    "git_init": Tool(
+        name="git_init",
+        description="Initialize a new git repository. Creates the directory if it doesn't exist.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Directory path to initialize (default: current directory)",
+                    "default": ".",
+                },
+            },
+        },
+    ),
+    
     # Web Search (requires FULL trust level + API key)
     "web_search": Tool(
         name="web_search",
@@ -548,6 +580,79 @@ ENV_TOOLS: dict[str, Tool] = {
 }
 
 
+# =============================================================================
+# Expertise Tools (RFC-027: Self-Directed Expertise Retrieval)
+# =============================================================================
+
+EXPERTISE_TOOLS: dict[str, Tool] = {
+    "get_expertise": Tool(
+        name="get_expertise",
+        description=(
+            "Retrieve relevant heuristics and best practices for a topic. "
+            "Use this BEFORE starting complex tasks to get domain-specific guidance. "
+            "Returns heuristics with 'always' patterns (things to do) and 'never' patterns (things to avoid)."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "topic": {
+                    "type": "string",
+                    "description": (
+                        "The topic or area you need guidance on. "
+                        "Be specific: 'error handling in async Python' is better than 'Python'."
+                    ),
+                },
+                "top_k": {
+                    "type": "integer",
+                    "description": "Number of relevant heuristics to retrieve (default: 5, max: 10)",
+                    "default": 5,
+                },
+            },
+            "required": ["topic"],
+        },
+    ),
+    
+    "verify_against_expertise": Tool(
+        name="verify_against_expertise",
+        description=(
+            "Verify code or content against retrieved heuristics. "
+            "Use this BEFORE finalizing your response to check for violations. "
+            "Returns a list of violations found and suggestions for improvement."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "The code or content to verify against expertise",
+                },
+                "focus_areas": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": (
+                        "Optional: specific areas to check (e.g., ['error_handling', 'type_safety']). "
+                        "If not provided, checks against all retrieved heuristics."
+                    ),
+                },
+            },
+            "required": ["code"],
+        },
+    ),
+    
+    "list_expertise_areas": Tool(
+        name="list_expertise_areas",
+        description=(
+            "List available heuristic categories in the current lens. "
+            "Use this to discover what guidance is available before requesting specific expertise."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {},
+        },
+    ),
+}
+
+
 def get_tools_for_trust_level(trust_level: str) -> tuple[Tool, ...]:
     """Get tools available at a given trust level.
     
@@ -577,4 +682,4 @@ def get_all_tools() -> dict[str, Tool]:
     Returns:
         Dict of all tool definitions
     """
-    return {**CORE_TOOLS, **GIT_TOOLS, **ENV_TOOLS}
+    return {**CORE_TOOLS, **GIT_TOOLS, **ENV_TOOLS, **EXPERTISE_TOOLS}

@@ -21,7 +21,7 @@ from sunwell.fount.resolver import LensResolver
 from sunwell.runtime.engine import RuntimeEngine
 from sunwell.runtime.model_router import ModelRouter
 from sunwell.schema.loader import LensLoader
-from sunwell.simulacrum import Simulacrum
+from sunwell.simulacrum.core import Simulacrum
 from sunwell.workspace.detector import WorkspaceDetector
 from sunwell.workspace.indexer import CodebaseIndexer
 
@@ -268,7 +268,7 @@ async def _ask_with_binding(
         # Legacy Simulacrum path
         if binding.auto_learn:
             try:
-                from sunwell.simulacrum.extractor import LearningExtractor
+                from sunwell.simulacrum.extractors.extractor import LearningExtractor
                 extractor = LearningExtractor(min_confidence=0.6)
                 learnings = extractor.extract_from_text(final_content)
                 for l in learnings[:3]:  # Max 3 auto-learnings per response
@@ -288,7 +288,7 @@ async def _ask_with_binding(
         
         if binding.auto_learn:
             try:
-                from sunwell.simulacrum.extractor import auto_extract_learnings
+                from sunwell.simulacrum.extractors.extractor import auto_extract_learnings
                 extracted = auto_extract_learnings(final_content, min_confidence=0.6)
                 for learning_text, category, confidence in extracted[:3]:
                     simulacrum_store.add_learning(learning_text, category=category, confidence=confidence)

@@ -2,25 +2,42 @@
 
 Manages singleton instances like SimulacrumManager that are shared
 across CLI commands.
+
+Thread Safety:
+    Uses threading.Lock for singleton initialization to prevent
+    race conditions in free-threaded Python (3.14t).
 """
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 
 # Global headspace manager instance (lazy-loaded)
 _simulacrum_manager = None
+_simulacrum_lock = threading.Lock()
 
 
 def get_simulacrum_manager():
     """Get or create the global SimulacrumManager instance.
     
-    Uses lazy loading to avoid import overhead when not needed.
+    Uses lazy loading with thread-safe double-check locking to avoid
+    import overhead when not needed. Safe for free-threaded Python.
+    
     The manager handles auto-spawn of headspaces based on query patterns.
     Configuration loaded from .sunwell/config.yaml if present.
     """
     global _simulacrum_manager
-    if _simulacrum_manager is None:
+    
+    # Fast path: already initialized
+    if _simulacrum_manager is not None:
+        return _simulacrum_manager
+    
+    # Slow path: acquire lock and double-check
+    with _simulacrum_lock:
+        # Double-check after acquiring lock
+        if _simulacrum_manager is not None:
+            return _simulacrum_manager
         from sunwell.simulacrum.manager import SimulacrumManager, SpawnPolicy, LifecyclePolicy
         from sunwell.embedding import create_embedder
         from sunwell.config import get_config

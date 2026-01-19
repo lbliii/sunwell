@@ -369,6 +369,56 @@ class BenchmarkReporter:
             
             lines.append("")
         
+        # RFC-027: Self-Directed Expertise Metrics
+        self_directed_results = [
+            r for r in results.task_results 
+            if r.self_directed_metrics and r.self_directed_metrics.used_expertise_tools
+        ]
+        
+        if self_directed_results:
+            lines.append("## Self-Directed Expertise (RFC-027)")
+            lines.append("")
+            lines.append("Tasks where the model used expertise tools during generation:")
+            lines.append("")
+            
+            # Aggregate stats
+            total_tool_calls = sum(r.self_directed_metrics.total_tool_calls for r in self_directed_results)
+            total_get = sum(r.self_directed_metrics.get_expertise_calls for r in self_directed_results)
+            total_verify = sum(r.self_directed_metrics.verify_calls for r in self_directed_results)
+            total_list = sum(r.self_directed_metrics.list_expertise_calls for r in self_directed_results)
+            followed_react = sum(1 for r in self_directed_results if r.self_directed_metrics.followed_react_pattern)
+            verified_passed = sum(1 for r in self_directed_results if r.self_directed_metrics.verification_passed)
+            avg_latency = sum(r.self_directed_metrics.tool_latency_ms for r in self_directed_results) / len(self_directed_results)
+            
+            lines.append("### Aggregate Statistics")
+            lines.append("")
+            lines.append("| Metric | Value |")
+            lines.append("|--------|-------|")
+            lines.append(f"| Tasks Using Expertise Tools | {len(self_directed_results)} / {len(results.task_results)} |")
+            lines.append(f"| Total Tool Calls | {total_tool_calls} |")
+            lines.append(f"| - get_expertise() | {total_get} |")
+            lines.append(f"| - verify_against_expertise() | {total_verify} |")
+            lines.append(f"| - list_expertise_areas() | {total_list} |")
+            lines.append(f"| Followed ReAct Pattern | {followed_react} / {len(self_directed_results)} ({followed_react/len(self_directed_results):.0%}) |")
+            lines.append(f"| Verification Passed | {verified_passed} / {total_verify if total_verify else 1} |")
+            lines.append(f"| Avg Tool Latency | {avg_latency:.0f}ms |")
+            lines.append("")
+            
+            # Per-task breakdown
+            lines.append("### Per-Task Breakdown")
+            lines.append("")
+            lines.append("| Task | Calls | Topics | Heuristics | ReAct? | Verify? |")
+            lines.append("|------|-------|--------|------------|--------|---------|")
+            
+            for r in self_directed_results:
+                m = r.self_directed_metrics
+                topics = ", ".join(m.topics_queried[:2]) + ("..." if len(m.topics_queried) > 2 else "")
+                react = "✓" if m.followed_react_pattern else "✗"
+                verify = "✓" if m.verification_passed else ("✗" if m.verification_passed is False else "-")
+                lines.append(f"| {r.task_id} | {m.total_tool_calls} | {topics or '-'} | {m.heuristics_retrieved} | {react} | {verify} |")
+            
+            lines.append("")
+        
         return "\n".join(lines)
     
     def save_results(
@@ -389,7 +439,7 @@ class BenchmarkReporter:
         # Save raw outputs
         raw_outputs: list[dict] = []
         for result in results.task_results:
-            raw_outputs.append({
+            output_dict: dict = {
                 "task_id": result.task_id,
                 "timestamp": result.timestamp,
                 "outputs": {
@@ -402,7 +452,41 @@ class BenchmarkReporter:
                     }
                     for k, v in result.outputs.items()
                 },
-            })
+            }
+            
+            # RFC-027: Include self-directed metrics if available
+            if result.self_directed_metrics:
+                m = result.self_directed_metrics
+                output_dict["self_directed_metrics"] = {
+                    "total_tool_calls": m.total_tool_calls,
+                    "list_expertise_calls": m.list_expertise_calls,
+                    "get_expertise_calls": m.get_expertise_calls,
+                    "verify_calls": m.verify_calls,
+                    "topics_queried": list(m.topics_queried),
+                    "heuristics_retrieved": m.heuristics_retrieved,
+                    "verification_passed": m.verification_passed,
+                    "react_iterations": m.react_iterations,
+                    "tool_latency_ms": m.tool_latency_ms,
+                    "used_expertise_tools": m.used_expertise_tools,
+                    "followed_react_pattern": m.followed_react_pattern,
+                }
+            
+            # RFC-031: Include prefetch metrics if available
+            if result.prefetch_metrics:
+                m = result.prefetch_metrics
+                output_dict["prefetch_metrics"] = {
+                    "topics_detected": list(m.topics_detected),
+                    "expertise_items": m.expertise_items,
+                    "max_relevance_score": m.max_relevance_score,
+                    "min_relevance_score": m.min_relevance_score,
+                    "prefetch_latency_ms": m.prefetch_latency_ms,
+                    "threshold_used": m.threshold_used,
+                    "prompt_expansion_tokens": m.prompt_expansion_tokens,
+                    "reasoning": m.reasoning,
+                    "found_relevant_expertise": m.found_relevant_expertise,
+                }
+            
+            raw_outputs.append(output_dict)
         
         with open(dated_dir / "raw_outputs.jsonl", "w") as f:
             for output in raw_outputs:

@@ -1,0 +1,174 @@
+{
+  "summary": {
+    "total_tasks": 7,
+    "successful_tasks": 7,
+    "failed_tasks": 0,
+    "average_score": 0.8491558441558442,
+    "min_score": 0.7,
+    "max_score": 1.0,
+    "average_planning_score": 0.9428571428571428,
+    "by_category": {
+      "execution": 0.92,
+      "planning": 0.8613636363636363,
+      "project": 0.7,
+      "recovery": 1.0,
+      "research": 0.74
+    }
+  },
+  "results": [
+    {
+      "task_id": "agent-execution-001",
+      "goal": "Create a Python script that prints \"Hello, Sunwell!\" and run it.\n",
+      "planning_score": {
+        "total_tasks": 2,
+        "task_count_valid": true,
+        "required_modes_present": false,
+        "required_tools_present": true,
+        "has_dependencies": true,
+        "dependency_chain_length": 2,
+        "score": 0.8
+      },
+      "execution_score": {
+        "tasks_completed": 2,
+        "tasks_failed": 0,
+        "completion_rate": 1.0,
+        "content_accuracy": 1.0
+      },
+      "overall_score": 0.92,
+      "error": null,
+      "timestamp": "2026-01-18T20:37:12.739882"
+    },
+    {
+      "task_id": "agent-planning-001",
+      "goal": "Create a Python module with a function that calculates factorial,\nthen verify it works correctly.\n",
+      "planning_score": {
+        "total_tasks": 4,
+        "task_count_valid": true,
+        "required_modes_present": true,
+        "required_tools_present": true,
+        "has_dependencies": true,
+        "dependency_chain_length": 4,
+        "score": 1.0
+      },
+      "execution_score": {
+        "tasks_completed": 1,
+        "tasks_failed": 1,
+        "completion_rate": 0.25,
+        "content_accuracy": 1.0
+      },
+      "overall_score": 0.775,
+      "error": null,
+      "timestamp": "2026-01-18T20:37:52.017034"
+    },
+    {
+      "task_id": "agent-planning-002",
+      "goal": "Create a simple Python CLI calculator with:\n- A main.py entry point\n- A calculator.py module with add, subtract, multiply, divide functions\n- A test_calculator.py with basic tests\n",
+      "planning_score": {
+        "total_tasks": 8,
+        "task_count_valid": true,
+        "required_modes_present": true,
+        "required_tools_present": true,
+        "has_dependencies": true,
+        "dependency_chain_length": 3,
+        "score": 1.0
+      },
+      "execution_score": {
+        "tasks_completed": 8,
+        "tasks_failed": 0,
+        "completion_rate": 1.0,
+        "content_accuracy": 0.36363636363636365
+      },
+      "overall_score": 0.8090909090909091,
+      "error": null,
+      "timestamp": "2026-01-18T20:39:27.298002"
+    },
+    {
+      "task_id": "agent-planning-003",
+      "goal": "Build a data pipeline that:\n1. Reads a CSV file with user data\n2. Validates the data (email format, age ranges)\n3. Transforms the data (normalize names, calculate age groups)\n4. Outputs a clean JSON file\n\nThe pipeline should be modular with separate functions for each step.\n",
+      "planning_score": {
+        "total_tasks": 7,
+        "task_count_valid": true,
+        "required_modes_present": true,
+        "required_tools_present": true,
+        "has_dependencies": true,
+        "dependency_chain_length": 6,
+        "score": 1.0
+      },
+      "execution_score": {
+        "tasks_completed": 7,
+        "tasks_failed": 0,
+        "completion_rate": 1.0,
+        "content_accuracy": 1.0
+      },
+      "overall_score": 1.0,
+      "error": null,
+      "timestamp": "2026-01-18T20:41:52.852943"
+    },
+    {
+      "task_id": "agent-project-001",
+      "goal": "Create a simple REST API project structure for a todo app:\n\n- app/\n  - __init__.py\n  - models.py (Todo dataclass with id, title, completed)\n  - routes.py (GET /todos, POST /todos, PUT /todos/{id})\n  - main.py (FastAPI app setup)\n- tests/\n  - __init__.py\n  - test_routes.py (basic API tests)\n- requirements.txt (fastapi, uvicorn, pytest)\n- README.md (setup instructions)\n",
+      "planning_score": {
+        "total_tasks": 9,
+        "task_count_valid": true,
+        "required_modes_present": true,
+        "required_tools_present": true,
+        "has_dependencies": true,
+        "dependency_chain_length": 5,
+        "score": 1.0
+      },
+      "execution_score": {
+        "tasks_completed": 0,
+        "tasks_failed": 1,
+        "completion_rate": 0.0,
+        "content_accuracy": 1.0
+      },
+      "overall_score": 0.7,
+      "error": null,
+      "timestamp": "2026-01-18T20:43:01.680625"
+    },
+    {
+      "task_id": "agent-recovery-001",
+      "goal": "Create a module that depends on a config file, but the config file\ndoesn't exist yet. The agent should:\n1. Recognize the dependency\n2. Create the config file first\n3. Then create the module that uses it\n",
+      "planning_score": {
+        "total_tasks": 3,
+        "task_count_valid": true,
+        "required_modes_present": true,
+        "required_tools_present": true,
+        "has_dependencies": true,
+        "dependency_chain_length": 3,
+        "score": 1.0
+      },
+      "execution_score": {
+        "tasks_completed": 5,
+        "tasks_failed": 0,
+        "completion_rate": 1.0,
+        "content_accuracy": 1.0
+      },
+      "overall_score": 1.0,
+      "error": null,
+      "timestamp": "2026-01-18T20:44:00.215085"
+    },
+    {
+      "task_id": "agent-research-001",
+      "goal": "Analyze the existing auth_module.py fixture file and create:\n1. A README documenting its API\n2. Type stubs in auth_module.pyi\n3. Example usage in examples/auth_example.py\n",
+      "planning_score": {
+        "total_tasks": 4,
+        "task_count_valid": true,
+        "required_modes_present": true,
+        "required_tools_present": false,
+        "has_dependencies": true,
+        "dependency_chain_length": 2,
+        "score": 0.8
+      },
+      "execution_score": {
+        "tasks_completed": 4,
+        "tasks_failed": 0,
+        "completion_rate": 1.0,
+        "content_accuracy": 0.4
+      },
+      "overall_score": 0.74,
+      "error": null,
+      "timestamp": "2026-01-18T20:46:12.027662"
+    }
+  ]
+}

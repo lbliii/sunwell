@@ -1,0 +1,82 @@
+# Code Review Task: Type annotation issues
+task:
+  id: "review-style-003"
+  category: "code_review"
+  subcategory: "style"
+  
+  prompt: |
+    Review this code for type annotation issues and improvements:
+    
+    ```python
+    from typing import List, Dict, Optional, Any, Union
+    
+    def process_items(items: List) -> List:
+        return [transform(item) for item in items]
+    
+    def fetch_data(url: str, params: Dict = {}) -> Dict:
+        response = requests.get(url, params=params)
+        return response.json()
+    
+    def parse_config(data: Any) -> Optional[Dict[str, Any]]:
+        if isinstance(data, dict):
+            return data
+        elif isinstance(data, str):
+            return json.loads(data)
+        return None
+    
+    def calculate(
+        values: Union[List[int], List[float]],
+        operation: str,
+    ) -> Union[int, float]:
+        if operation == "sum":
+            return sum(values)
+        elif operation == "avg":
+            return sum(values) / len(values)
+    
+    class DataProcessor:
+        def __init__(self, config: dict):
+            self.config = config
+        
+        def process(self, data):
+            return self._transform(data)
+        
+        def _transform(self, data) -> dict:
+            return {"processed": data}
+    ```
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.35
+        criteria: "Identifies all type annotation issues"
+      - dimension: "modern_python"
+        weight: 0.3
+        criteria: "Suggests modern syntax (list vs List)"
+      - dimension: "actionability"
+        weight: 0.2
+        criteria: "Shows correct annotations"
+      - dimension: "mypy_awareness"
+        weight: 0.15
+        criteria: "Considers mypy strict mode"
+    
+    must_contain:
+      - "list["
+      - "dict["
+      - "mutable default"
+      - "missing"
+      - "Any"
+    
+    must_not_contain:
+      - "fine"
+      - "acceptable"
+    
+    ground_truth_issues:
+      - "List/Dict without parameters (should be list[T]/dict[K,V])"
+      - "Mutable default argument in fetch_data"
+      - "Using Any loses type safety"
+      - "Union could be simplified with | syntax"
+      - "Missing return type annotation on process method"
+      - "Missing parameter type annotation on process and _transform"
+      - "calculate missing return for invalid operation"

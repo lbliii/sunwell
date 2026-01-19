@@ -1,0 +1,45 @@
+# Code Generation Task: Event emitter
+task:
+  id: "code-function-008"
+  category: "code_generation"
+  subcategory: "function"
+  
+  prompt: |
+    Implement an async event emitter.
+    
+    Requirements:
+    - `on(event, callback)`: register async callback for event
+    - `once(event, callback)`: register callback that fires once
+    - `off(event, callback)`: unregister callback
+    - `emit(event, *args, **kwargs)`: emit event to all listeners
+    - `wait(event, timeout=None) -> data`: async wait for event
+    - Support wildcard '*' to listen to all events
+    
+    All callbacks should run concurrently when event is emitted.
+  
+  lens: "coder.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "correctness"
+        weight: 0.35
+        criteria: "All methods work correctly"
+      - dimension: "async"
+        weight: 0.25
+        criteria: "Proper async handling, concurrent execution"
+      - dimension: "features"
+        weight: 0.2
+        criteria: "once, wildcard, wait with timeout"
+      - dimension: "robustness"
+        weight: 0.2
+        criteria: "Handles errors in callbacks gracefully"
+    
+    must_contain:
+      - "async def"
+      - "on"
+      - "emit"
+      - "wait"
+      - "asyncio.gather"
+    
+    must_not_contain:
+      - "pass  # TODO"

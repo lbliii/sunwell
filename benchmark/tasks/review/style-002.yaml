@@ -1,0 +1,86 @@
+# Code Review Task: Code style and idioms
+task:
+  id: "review-style-002"
+  category: "code_review"
+  subcategory: "style"
+  
+  prompt: |
+    Review this code for Python style and idiom issues:
+    
+    ```python
+    def get_user_name(user):
+        if user != None:
+            if user.name != None:
+                return user.name
+            else:
+                return "Unknown"
+        else:
+            return "Unknown"
+    
+    def process_list(items):
+        result = []
+        for i in range(len(items)):
+            if items[i] % 2 == 0:
+                result.append(items[i] * 2)
+        return result
+    
+    def read_config(path):
+        f = open(path, 'r')
+        data = f.read()
+        f.close()
+        return json.loads(data)
+    
+    class DataProcessor:
+        def __init__(self):
+            self.data = list()
+            self.cache = dict()
+        
+        def add(self, item):
+            self.data.append(item)
+            return
+    
+    def check_permissions(user, resource):
+        if user.is_admin == True:
+            return True
+        elif user.has_permission(resource) == True:
+            return True
+        else:
+            return False
+    ```
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.35
+        criteria: "Identifies all style issues"
+      - dimension: "pythonic"
+        weight: 0.3
+        criteria: "Suggests Pythonic alternatives"
+      - dimension: "explanation"
+        weight: 0.2
+        criteria: "References PEP 8 / Python idioms"
+      - dimension: "actionability"
+        weight: 0.15
+        criteria: "Shows fixed code"
+    
+    must_contain:
+      - "is None"
+      - "enumerate"
+      - "with"
+      - "context manager"
+      - "list comprehension"
+    
+    must_not_contain:
+      - "acceptable"
+      - "fine"
+    
+    ground_truth_issues:
+      - "!= None instead of is not None"
+      - "range(len()) instead of enumerate or direct iteration"
+      - "Manual file open/close instead of context manager"
+      - "list()/dict() instead of []/{ }"
+      - "== True/False instead of direct boolean"
+      - "Unnecessary return statement"
+      - "Nested if-else can be simplified"

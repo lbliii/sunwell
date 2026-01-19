@@ -1,0 +1,47 @@
+# Documentation Task: Explanation of Python's GIL
+task:
+  id: "docs-explanation-003"
+  category: "documentation"
+  subcategory: "explanation"
+  
+  prompt: |
+    Write an explanation of Python's Global Interpreter Lock (GIL).
+    
+    Cover:
+    1. What the GIL is and why CPython has it
+    2. Impact on multithreading performance
+    3. CPU-bound vs I/O-bound workloads
+    4. Workarounds (multiprocessing, asyncio, C extensions)
+    5. Free-threading in Python 3.13+ (PEP 703)
+    
+    Explain when the GIL matters and when it doesn't.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "accuracy"
+        weight: 0.35
+        criteria: "Technical explanation is correct"
+      - dimension: "clarity"
+        weight: 0.25
+        criteria: "Complex topic explained clearly"
+      - dimension: "practical"
+        weight: 0.25
+        criteria: "Actionable guidance on when GIL matters"
+      - dimension: "current"
+        weight: 0.15
+        criteria: "Mentions free-threading developments"
+    
+    must_contain:
+      - "GIL"
+      - "Global Interpreter Lock"
+      - "threading"
+      - "multiprocessing"
+      - "CPU-bound"
+      - "I/O-bound"
+    
+    must_not_contain:
+      - "simple"
+      - "easy"
+      - "just use"

@@ -19,8 +19,8 @@ from typing import TYPE_CHECKING
 from sunwell.models.protocol import Tool
 
 if TYPE_CHECKING:
-    from sunwell.simulacrum.dag import ConversationDAG
-    from sunwell.simulacrum.unified_store import UnifiedMemoryStore
+    from sunwell.simulacrum.core.dag import ConversationDAG
+    from sunwell.simulacrum.topology.unified_store import UnifiedMemoryStore
     from sunwell.embedding.protocol import EmbeddingProtocol
 
 
@@ -332,7 +332,7 @@ class MemoryToolHandler:
     
     def _add_learning(self, fact: str, category: str, confidence: float) -> str:
         """Add a learning to the DAG."""
-        from sunwell.simulacrum.turn import Learning
+        from sunwell.simulacrum.core.turn import Learning
         
         learning = Learning(
             fact=fact,
@@ -345,7 +345,7 @@ class MemoryToolHandler:
     
     def _mark_dead_end(self, approach: str, reason: str) -> str:
         """Mark current path as dead end with context."""
-        from sunwell.simulacrum.turn import Learning
+        from sunwell.simulacrum.core.turn import Learning
         
         if self.dag.active_head:
             self.dag.mark_dead_end(self.dag.active_head)

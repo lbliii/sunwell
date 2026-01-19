@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from sunwell.tools.types import ToolResult
     from sunwell.fount.client import FountClient
     from sunwell.runtime.model_router import ModelRouter
-    from sunwell.simulacrum.store import SimulacrumStore
+    from sunwell.simulacrum.core.store import SimulacrumStore
     from sunwell.routing.cognitive_router import CognitiveRouter
     from sunwell.core.spell import Spell, Grimoire, SpellResult
 
@@ -541,12 +541,14 @@ class RuntimeEngine:
         self,
         allowed_tools: set[str] | None = None,
         include_memory_tools: bool = True,
+        include_expertise_tools: bool = True,
     ) -> list[Tool]:
         """Collect available tools for execution.
         
         Args:
             allowed_tools: Restrict to specific tools (None = all)
             include_memory_tools: Include RFC-014 memory tools (default True)
+            include_expertise_tools: Include RFC-027 expertise tools (default True)
             
         Returns:
             List of Tool definitions for the model
@@ -565,6 +567,14 @@ class RuntimeEngine:
             from sunwell.simulacrum.memory_tools import MEMORY_TOOLS
             
             for name, tool in MEMORY_TOOLS.items():
+                if allowed_tools is None or name in allowed_tools:
+                    tools.append(tool)
+        
+        # RFC-027: Expertise tools (always available when tool_executor has expertise_handler)
+        if include_expertise_tools and self.tool_executor and self.tool_executor.expertise_handler:
+            from sunwell.tools.builtins import EXPERTISE_TOOLS
+            
+            for name, tool in EXPERTISE_TOOLS.items():
                 if allowed_tools is None or name in allowed_tools:
                     tools.append(tool)
         
@@ -587,6 +597,14 @@ class RuntimeEngine:
         if self.simulacrum_store and self.tool_executor:
             if self.simulacrum_store.memory_handler:
                 self.tool_executor.memory_handler = self.simulacrum_store.memory_handler
+        
+        # RFC-027: Wire expertise handler to tool executor if retriever available
+        if self._retriever and self.tool_executor and not self.tool_executor.expertise_handler:
+            from sunwell.tools.expertise import ExpertiseToolHandler
+            self.tool_executor.expertise_handler = ExpertiseToolHandler(
+                retriever=self._retriever,
+                lens=self.lens,
+            )
 
         self._initialized = True
 

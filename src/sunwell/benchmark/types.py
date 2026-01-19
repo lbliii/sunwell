@@ -23,7 +23,40 @@ class Condition(str, Enum):
     FLAT = "flat"           # Full lens context injected
     SELECTIVE = "selective" # Sunwell selective retrieval
     ROUTED = "routed"       # CognitiveRouter + selective retrieval
+    SELF_DIRECTED = "self_directed"  # RFC-027: Model calls expertise tools during generation
+    PREFETCH = "prefetch"   # RFC-031: Tool Orchestrator Shard pre-fetches expertise
     COMPETITOR = "competitor"  # Optional competitor baseline
+
+
+class PromptStrategy(str, Enum):
+    """How to present heuristics in the system prompt.
+    
+    Different strategies work better for different model sizes:
+    - Small models (1-2B): constraints, raw
+    - Medium models (3-8B): guided, cot
+    - Large models (8B+): cot, few_shot, react
+    """
+    
+    RAW = "raw"               # Dump heuristics as-is
+    GUIDED = "guided"         # "Apply these principles to your response"
+    COT = "cot"               # Chain-of-thought: THINK → PLAN → CODE → VERIFY
+    CONSTRAINTS = "constraints"  # Extract MUST/MUST NOT from heuristics
+    FEW_SHOT = "few_shot"     # Include example of applying heuristics
+
+
+class NaaruMode(str, Enum):
+    """Naaru coordination components to enable.
+    
+    These add quality at the cost of more tokens/latency:
+    - harmonic: 3x tokens (3 personas)
+    - resonance: 1.5x tokens (feedback loop)
+    - full: 4x tokens (both)
+    """
+    
+    NONE = "none"             # Single generation
+    HARMONIC = "harmonic"     # Multi-persona voting (Self-Consistency)
+    RESONANCE = "resonance"   # Feedback loop refinement
+    FULL = "full"             # Harmonic + Resonance
 
 
 class TaskCategory(str, Enum):
@@ -152,6 +185,94 @@ class RoutingMetrics:
 
 
 @dataclass(slots=True)
+class SelfDirectedMetrics:
+    """Metrics for self-directed expertise retrieval (RFC-027).
+    
+    Tracks how models use expertise tools during generation:
+    - Tool call frequency and patterns
+    - Topics queried
+    - Whether verification was used
+    - ReAct loop iterations
+    """
+    
+    total_tool_calls: int               # Total expertise tool invocations
+    list_expertise_calls: int           # list_expertise_areas() calls
+    get_expertise_calls: int            # get_expertise() calls
+    verify_calls: int                   # verify_against_expertise() calls
+    topics_queried: tuple[str, ...]     # Topics passed to get_expertise
+    heuristics_retrieved: int           # Total heuristics returned
+    verification_passed: bool | None    # Did verify return "no violations"?
+    react_iterations: int               # Number of ReAct loop iterations
+    tool_latency_ms: int                # Total time in expertise tools
+    
+    @classmethod
+    def empty(cls) -> "SelfDirectedMetrics":
+        """Create empty metrics when self-directed mode not used."""
+        return cls(
+            total_tool_calls=0,
+            list_expertise_calls=0,
+            get_expertise_calls=0,
+            verify_calls=0,
+            topics_queried=(),
+            heuristics_retrieved=0,
+            verification_passed=None,
+            react_iterations=0,
+            tool_latency_ms=0,
+        )
+    
+    @property
+    def used_expertise_tools(self) -> bool:
+        """True if the model actually called any expertise tools."""
+        return self.total_tool_calls > 0
+    
+    @property
+    def followed_react_pattern(self) -> bool:
+        """True if model followed recommended ReAct pattern (list→get→verify)."""
+        return (
+            self.get_expertise_calls > 0 and
+            self.verify_calls > 0
+        )
+
+
+@dataclass(slots=True)
+class PrefetchMetrics:
+    """Metrics for Tool Orchestrator Shard prefetch (RFC-031).
+    
+    Tracks how the Tool Orchestrator Shard pre-fetches expertise
+    before generation, allowing small models to benefit from
+    expertise without needing tool-calling capability.
+    """
+    
+    topics_detected: tuple[str, ...]  # Topics found via semantic similarity
+    expertise_items: int               # Number of expertise items fetched
+    max_relevance_score: float         # Highest relevance score
+    min_relevance_score: float         # Lowest relevance score (of fetched items)
+    prefetch_latency_ms: int           # Time for prefetch operation
+    threshold_used: float              # Similarity threshold
+    prompt_expansion_tokens: int       # Tokens added by expertise
+    reasoning: str                     # Why these topics were selected
+    
+    @classmethod
+    def empty(cls) -> "PrefetchMetrics":
+        """Create empty metrics when prefetch not used."""
+        return cls(
+            topics_detected=(),
+            expertise_items=0,
+            max_relevance_score=0.0,
+            min_relevance_score=0.0,
+            prefetch_latency_ms=0,
+            threshold_used=0.0,
+            prompt_expansion_tokens=0,
+            reasoning="",
+        )
+    
+    @property
+    def found_relevant_expertise(self) -> bool:
+        """True if any relevant expertise was found."""
+        return self.expertise_items > 0
+
+
+@dataclass(slots=True)
 class TaskResult:
     """Result from running a single task across all conditions."""
     
@@ -159,6 +280,8 @@ class TaskResult:
     outputs: dict[str, ConditionOutput]  # Condition name → output
     retrieval_metrics: RetrievalMetrics | None = None
     routing_metrics: RoutingMetrics | None = None  # RFC-020: CognitiveRouter metrics
+    self_directed_metrics: SelfDirectedMetrics | None = None  # RFC-027: Self-directed metrics
+    prefetch_metrics: PrefetchMetrics | None = None  # RFC-031: Tool Orchestrator Shard
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
 

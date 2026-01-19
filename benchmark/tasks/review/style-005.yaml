@@ -1,0 +1,89 @@
+# Code Review Task: Error handling patterns
+task:
+  id: "review-style-005"
+  category: "code_review"
+  subcategory: "style"
+  
+  prompt: |
+    Review this error handling code for style and best practices:
+    
+    ```python
+    class DatabaseError(Exception):
+        pass
+    
+    class ConnectionError(DatabaseError):
+        pass
+    
+    class QueryError(DatabaseError):
+        pass
+    
+    def execute_query(query: str):
+        try:
+            result = db.execute(query)
+            return result
+        except Exception as e:
+            print(f"Error: {e}")
+            raise DatabaseError(str(e))
+    
+    async def fetch_user(user_id: int):
+        try:
+            user = await db.get_user(user_id)
+            if user is None:
+                raise Exception("User not found")
+            return user
+        except Exception:
+            return None
+    
+    def parse_config(data: str) -> dict:
+        try:
+            return json.loads(data)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON: {e}")
+    
+    def process_batch(items: list):
+        errors = []
+        for item in items:
+            try:
+                process(item)
+            except Exception as e:
+                errors.append(str(e))
+        if errors:
+            raise Exception(f"Batch failed: {errors}")
+    ```
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.35
+        criteria: "Identifies all error handling issues"
+      - dimension: "best_practices"
+        weight: 0.3
+        criteria: "Suggests Python error handling best practices"
+      - dimension: "actionability"
+        weight: 0.2
+        criteria: "Shows improved patterns"
+      - dimension: "explanation"
+        weight: 0.15
+        criteria: "Explains why each pattern is problematic"
+    
+    must_contain:
+      - "exception chaining"
+      - "from"
+      - "logging"
+      - "specific"
+      - "swallow"
+    
+    must_not_contain:
+      - "acceptable"
+      - "fine"
+    
+    ground_truth_issues:
+      - "ConnectionError shadows builtin ConnectionError"
+      - "execute_query: loses original traceback"
+      - "execute_query: print instead of logging"
+      - "fetch_user: swallows exception silently"
+      - "fetch_user: raises generic Exception"
+      - "parse_config: should use 'from e' for chaining"
+      - "process_batch: loses individual tracebacks"

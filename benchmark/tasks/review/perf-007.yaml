@@ -1,0 +1,73 @@
+# Code Review Task: Regex performance
+task:
+  id: "review-perf-007"
+  category: "code_review"
+  subcategory: "performance"
+  
+  prompt: |
+    Review this code for regex performance issues:
+    
+    ```python
+    import re
+    
+    def validate_emails(emails: list[str]) -> list[bool]:
+        results = []
+        for email in emails:
+            pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            results.append(bool(re.match(pattern, email)))
+        return results
+    
+    def extract_urls(text: str) -> list[str]:
+        return re.findall(r'https?://[^\s<>"{}|\\^`\[\]]+', text)
+    
+    def redact_ssn(text: str) -> str:
+        return re.sub(r'\d{3}-\d{2}-\d{4}', '***-**-****', text)
+    
+    def parse_log_line(line: str) -> dict | None:
+        pattern = r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \[(\w+)\] (.+)'
+        match = re.match(pattern, line)
+        if match:
+            return {
+                "timestamp": match.group(1),
+                "level": match.group(2),
+                "message": match.group(3),
+            }
+        return None
+    
+    def catastrophic_backtrack(text: str) -> bool:
+        # Check if text matches pattern
+        pattern = r'^(a+)+$'
+        return bool(re.match(pattern, text))
+    ```
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.4
+        criteria: "Identifies all regex issues"
+      - dimension: "explanation"
+        weight: 0.3
+        criteria: "Explains performance implications"
+      - dimension: "actionability"
+        weight: 0.2
+        criteria: "Shows compiled regex, fixes"
+      - dimension: "severity"
+        weight: 0.1
+        criteria: "Identifies catastrophic backtracking"
+    
+    must_contain:
+      - "compile"
+      - "catastrophic"
+      - "backtrack"
+      - "re.compile"
+    
+    must_not_contain:
+      - "fine"
+      - "acceptable"
+    
+    ground_truth_issues:
+      - "validate_emails: pattern recompiled every iteration"
+      - "All patterns should be compiled once at module level"
+      - "catastrophic_backtrack: exponential backtracking on (a+)+"

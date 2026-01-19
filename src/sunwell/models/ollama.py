@@ -161,8 +161,14 @@ class OllamaModel:
         Raises:
             SunwellError: On API errors with structured error info for recovery
         """
+        client = self._get_client()
+        opts = options or GenerateOptions()
+        
+        # Merge tools from parameter and options
+        effective_tools = tools or opts.tools
+        
         # Pre-check tool support to fail fast with helpful error
-        if tools:
+        if effective_tools:
             from sunwell.runtime.model_router import get_model_capability, get_tools_fallback
             cap = get_model_capability(self.model)
             if cap and not cap.tools:
@@ -175,9 +181,6 @@ class OllamaModel:
                         "fallback_model": fallback,
                     },
                 )
-        
-        client = self._get_client()
-        opts = options or GenerateOptions()
 
         messages = self._convert_messages(prompt, opts.system_prompt)
 
@@ -188,7 +191,7 @@ class OllamaModel:
         }
 
         # Pass tools to Ollama
-        converted_tools = self._convert_tools(tools)
+        converted_tools = self._convert_tools(effective_tools)
         if converted_tools:
             kwargs["tools"] = converted_tools
             if tool_choice:
@@ -308,15 +311,16 @@ class OllamaModel:
             system_prompt = opts.system_prompt or ""
         else:
             # Extract system message and concatenate user/assistant messages
+            # NOTE: Do NOT use "Assistant:" prefix - models will echo it infinitely
             parts = []
             for msg in prompt:
                 if msg.role == "system":
                     system_prompt = msg.content or ""
                 elif msg.role == "user":
-                    parts.append(f"User: {msg.content}")
+                    parts.append(f"[USER]\n{msg.content}")
                 elif msg.role == "assistant":
-                    parts.append(f"Assistant: {msg.content}")
-            user_prompt = "\n".join(parts) if parts else ""
+                    parts.append(f"[RESPONSE]\n{msg.content}")
+            user_prompt = "\n\n".join(parts) if parts else ""
         
         payload = {
             "model": self.model,
@@ -328,8 +332,12 @@ class OllamaModel:
         if system_prompt:
             payload["system"] = system_prompt
         
+        # Add stop sequences to prevent role echoing
+        payload["options"] = payload.get("options", {})
+        payload["options"]["stop"] = ["[USER]", "[RESPONSE]"]
+        
         if opts.temperature is not None:
-            payload["options"] = {"temperature": opts.temperature}
+            payload["options"]["temperature"] = opts.temperature
         
         async with httpx.AsyncClient() as client:
             async with client.stream("POST", native_url, json=payload, timeout=120.0) as response:

@@ -1,0 +1,35 @@
+task:
+  id: naming-001
+  category: analysis
+  subcategory: naming
+  
+  prompt: |
+    Name a Python library that does the following:
+    - Validates API responses against OpenAPI schemas
+    - Generates mock data for testing
+    - Integrates with pytest
+    
+    Propose 3 different names with different vibes:
+    1. A serious/professional name
+    2. A clever/punny name  
+    3. A short/memorable name
+    
+    For each, explain why it works.
+  
+  lens: tech-writer.lens
+  
+  evaluation:
+    rubric:
+      - dimension: memorability
+        weight: 0.3
+        criteria: "Names are easy to remember and type"
+      - dimension: clarity
+        weight: 0.3
+        criteria: "Names hint at what the library does"
+      - dimension: originality
+        weight: 0.4
+        criteria: "Names are not generic or overused"
+    
+  metadata:
+    deterministic: false
+    notes: "Naming is famously subjective - there are infinite valid answers"

@@ -40,7 +40,7 @@ task:
     - Invariants: scheme is always lowercase, path starts with /
     - Edge cases found by fuzzing
   
-  lens: "helper.lens"
+  lens: "coder.lens"
   
   evaluation:
     rubric:

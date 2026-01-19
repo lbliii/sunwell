@@ -1,0 +1,81 @@
+# Code Refactoring Task: Extract method
+task:
+  id: "code-refactor-003"
+  category: "code_generation"
+  subcategory: "refactor"
+  
+  prompt: |
+    Refactor this function to be more readable and testable:
+    
+    ```python
+    def process_order(order_data: dict) -> dict:
+        # Validate
+        if not order_data.get('customer_id'):
+            raise ValueError("Missing customer_id")
+        if not order_data.get('items'):
+            raise ValueError("Missing items")
+        for item in order_data['items']:
+            if not item.get('sku') or not item.get('quantity'):
+                raise ValueError(f"Invalid item: {item}")
+            if item['quantity'] < 1:
+                raise ValueError(f"Invalid quantity: {item['quantity']}")
+        
+        # Calculate totals
+        subtotal = 0
+        for item in order_data['items']:
+            price = get_price(item['sku'])
+            subtotal += price * item['quantity']
+        
+        # Apply discounts
+        discount = 0
+        if order_data.get('coupon'):
+            coupon = get_coupon(order_data['coupon'])
+            if coupon and coupon['type'] == 'percent':
+                discount = subtotal * (coupon['value'] / 100)
+            elif coupon and coupon['type'] == 'fixed':
+                discount = min(coupon['value'], subtotal)
+        
+        # Calculate tax
+        tax_rate = get_tax_rate(order_data.get('shipping_address', {}).get('state', 'CA'))
+        tax = (subtotal - discount) * tax_rate
+        
+        # Create order
+        order = {
+            'customer_id': order_data['customer_id'],
+            'items': order_data['items'],
+            'subtotal': subtotal,
+            'discount': discount,
+            'tax': round(tax, 2),
+            'total': round(subtotal - discount + tax, 2),
+        }
+        
+        return order
+    ```
+    
+    Extract logical sections into separate functions.
+  
+  lens: "coder.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "structure"
+        weight: 0.35
+        criteria: "Logical extraction into validate, calculate, apply functions"
+      - dimension: "testability"
+        weight: 0.25
+        criteria: "Each function can be unit tested independently"
+      - dimension: "readability"
+        weight: 0.25
+        criteria: "Main function is clear and easy to follow"
+      - dimension: "correctness"
+        weight: 0.15
+        criteria: "Behavior unchanged"
+    
+    must_contain:
+      - "def validate"
+      - "def calculate"
+      - "def process_order"
+    
+    must_not_contain:
+      - "# Calculate totals"
+      - "# Apply discounts"

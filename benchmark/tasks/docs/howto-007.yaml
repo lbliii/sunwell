@@ -1,0 +1,47 @@
+# Documentation Task: How-to for authentication
+task:
+  id: "docs-howto-007"
+  category: "documentation"
+  subcategory: "howto"
+  
+  prompt: |
+    Write a how-to guide for implementing JWT authentication in a FastAPI application.
+    
+    Cover:
+    1. Installing dependencies (python-jose, passlib)
+    2. Password hashing with bcrypt
+    3. Creating and verifying JWTs
+    4. FastAPI dependency for auth
+    5. Refresh token flow
+    6. Protecting routes with scopes/roles
+    
+    Include security best practices throughout.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "security"
+        weight: 0.35
+        criteria: "Security best practices followed"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "Full auth flow covered"
+      - dimension: "actionability"
+        weight: 0.25
+        criteria: "Code is production-ready"
+      - dimension: "accuracy"
+        weight: 0.15
+        criteria: "JWT implementation is correct"
+    
+    must_contain:
+      - "JWT"
+      - "bcrypt"
+      - "Depends"
+      - "OAuth2PasswordBearer"
+      - "refresh"
+      - "SECRET_KEY"
+    
+    must_not_contain:
+      - "simple"
+      - "easy"

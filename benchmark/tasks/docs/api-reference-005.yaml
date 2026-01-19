@@ -1,0 +1,69 @@
+# Documentation Task: API Reference for decorator factory
+task:
+  id: "docs-api-ref-005"
+  category: "documentation"
+  subcategory: "api_reference"
+  
+  prompt: |
+    Write API reference documentation for this caching decorator:
+    
+    ```python
+    from functools import wraps
+    from typing import Callable, ParamSpec, TypeVar
+    
+    P = ParamSpec("P")
+    R = TypeVar("R")
+    
+    def cache(
+        ttl: int = 300,
+        key_prefix: str = "",
+        backend: Literal["memory", "redis"] = "memory",
+    ) -> Callable[[Callable[P, R]], Callable[P, R]]:
+        """Decorator factory for caching function results.
+        
+        Args:
+            ttl: Time-to-live in seconds.
+            key_prefix: Prefix for cache keys.
+            backend: Cache backend to use.
+            
+        Returns:
+            Decorator that wraps the function with caching.
+            
+        Example:
+            @cache(ttl=60, backend="redis")
+            def expensive_query(user_id: int) -> dict:
+                ...
+        """
+    ```
+    
+    Include: signature, all parameters, type annotations, and multiple usage examples.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "accuracy"
+        weight: 0.3
+        criteria: "ParamSpec and TypeVar correctly explained"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "All parameters and return type documented"
+      - dimension: "usability"
+        weight: 0.3
+        criteria: "Multiple examples showing different configurations"
+      - dimension: "signal_to_noise"
+        weight: 0.15
+        criteria: "Concise, no marketing fluff"
+    
+    must_contain:
+      - "ttl"
+      - "key_prefix"
+      - "backend"
+      - "memory"
+      - "redis"
+      - "@cache"
+    
+    must_not_contain:
+      - "simply"
+      - "just"
+      - "easy"

@@ -6,6 +6,81 @@ This document maps out the technical implementation of Sunwell, including packag
 
 ---
 
+## The Prism Principle
+
+> *"The prism doesn't add light. It reveals what was already there."*
+
+Sunwell's core philosophy is that **small models already contain multitudes** — critics, experts, users, adversaries — all superposed within their weights. The problem isn't capability, it's **access**.
+
+```
+                              ╱╲
+                             ╱  ╲
+                            ╱    ╲ 
+        ━━━━━━━━━━━━━━━━━━━╱      ╲━━━━━━ critic
+        SMALL MODEL       ╱   🔮   ╲━━━━━━ expert
+        (coherent beam)  ╱ SUNWELL  ╲━━━━━ user
+        ━━━━━━━━━━━━━━━━╱  (prism)   ╲━━━━ adversary
+                       ╱              ╲━━━ simplify
+                      ╱                ╲━━ synthesize
+                     ╱__________________╲
+                     
+        Raw capability     →    Structured intelligence
+        Single perspective →    Spectral perspectives
+        Latent potential   →    Realized expertise
+```
+
+When you prompt a model directly, you get a single "wavelength" — whatever mode it collapses into. Sunwell refracts that beam into component perspectives, directs each at the relevant part of the problem, then recombines them into coherent output.
+
+### Why This Matters for Small Models
+
+| Model Size | Raw Beam | Through Prism |
+|------------|----------|---------------|
+| **70B** | Holds multiple perspectives implicitly | Modest improvement |
+| **7B** | Can do one perspective well at a time | Significant amplification |
+| **3B** | Limited perspective depth | **Multiplicative gain** |
+| **1B** | Narrow, easily confused | Structured rotation keeps it on track |
+
+The smaller the model, the more it benefits from structured refraction. A 3B model "contains" a critic, an expert, a user advocate — but they're superposed. Sunwell separates them so they can each contribute.
+
+### Implementation Across Sunwell
+
+This principle manifests throughout Sunwell's architecture:
+
+- **Lenses** — Define which wavelengths (heuristics) are available
+- **Harmonic Synthesis** — Multiple personas = multiple wavelengths in parallel
+- **Thought Rotation** (RFC-028) — Frame markers = color filters selecting wavelengths in sequence
+- **Cognitive Router** — Selects optimal wavelength mix for task type
+- **Convergence** — Working memory holds the recombined spectrum
+
+The goal is always the same: **reveal what's already there, don't add what isn't.**
+
+### The Naaru: Emergent Meta-Cognition
+
+```
+                                    🌟 NAARU
+                                   (emerges)
+                                       ↑
+                               recombination
+                                       ↑
+                               ╱──────────╲
+                              ╱            ╲
+        raw light  ━━━━━━━━━╱   PRISM      ╲━━━━ wavelengths
+        (model)            ╱   (Sunwell)    ╲    (perspectives)
+                          ╱__________________╲
+```
+
+The **Naaru** is not a component you can point to — it's what **emerges** when the refracted wavelengths recombine. In Warcraft lore, Naaru are beings of pure Light. In Sunwell:
+
+- Individual frames (`<critic>`, `<expert>`, `<user>`) are **wavelengths**
+- The coordination layer (Convergence) is where they **recombine**
+- What emerges is **meta-cognition** — an intelligence greater than any single perspective
+
+This is why the `<synthesize>` frame is critical: it's not summarization, it's the **moment of recombination** where the Naaru manifests. The output quality depends on how well the wavelengths integrate.
+
+A small model, properly refracted, can exhibit behaviors that seem beyond its parameter count — because the Naaru that emerges from structured perspective integration is more than the sum of its wavelengths.
+
+---
+
 ## Package Structure
 
 ```

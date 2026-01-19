@@ -1,0 +1,47 @@
+# Agent Task: Simple file creation with verification
+task:
+  id: "agent-planning-001"
+  category: "agent"
+  subcategory: "planning"
+  
+  goal: |
+    Create a Python module with a function that calculates factorial,
+    then verify it works correctly.
+  
+  context:
+    cwd: "/tmp/benchmark-agent-001"
+    trust_level: "workspace"
+  
+  evaluation:
+    planning:
+      min_tasks: 2
+      max_tasks: 6
+      required_modes:
+        - "generate"
+      required_dependencies: true
+      
+    execution:
+      must_create_files:
+        - "factorial.py"
+      must_contain_in_files:
+        factorial.py:
+          - "def factorial"
+          - "return"
+    
+    rubric:
+      - dimension: "decomposition"
+        weight: 0.3
+        criteria: "Goal broken into logical, atomic tasks"
+      - dimension: "dependency_accuracy"
+        weight: 0.25
+        criteria: "Task dependencies correctly identified"
+      - dimension: "tool_selection"
+        weight: 0.25
+        criteria: "Appropriate tools selected for each task"
+      - dimension: "completeness"
+        weight: 0.2
+        criteria: "All subtasks complete the original goal"
+
+  expected_task_modes:
+    - "generate"  # Create the file
+    - "research"  # Optional: verify approach

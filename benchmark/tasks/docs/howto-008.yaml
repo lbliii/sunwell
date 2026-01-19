@@ -1,0 +1,47 @@
+# Documentation Task: How-to for caching
+task:
+  id: "docs-howto-008"
+  category: "documentation"
+  subcategory: "howto"
+  
+  prompt: |
+    Write a how-to guide for implementing caching in a Python web API.
+    
+    Cover:
+    1. In-memory caching with functools.lru_cache
+    2. Redis caching with async support
+    3. Cache invalidation strategies
+    4. Cache-aside vs write-through patterns
+    5. HTTP caching headers (ETag, Cache-Control)
+    6. Distributed cache considerations
+    
+    Include code for a FastAPI application.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "completeness"
+        weight: 0.3
+        criteria: "All six topics covered"
+      - dimension: "accuracy"
+        weight: 0.3
+        criteria: "Caching patterns correctly explained"
+      - dimension: "actionability"
+        weight: 0.25
+        criteria: "Code is production-usable"
+      - dimension: "tradeoffs"
+        weight: 0.15
+        criteria: "Discusses when to use each approach"
+    
+    must_contain:
+      - "lru_cache"
+      - "Redis"
+      - "TTL"
+      - "invalidation"
+      - "ETag"
+      - "Cache-Control"
+    
+    must_not_contain:
+      - "simple"
+      - "easy"

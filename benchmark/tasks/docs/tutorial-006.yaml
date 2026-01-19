@@ -1,0 +1,49 @@
+# Documentation Task: Tutorial for SQLAlchemy
+task:
+  id: "docs-tutorial-006"
+  category: "documentation"
+  subcategory: "tutorial"
+  
+  prompt: |
+    Write a tutorial on using SQLAlchemy 2.0 with async support.
+    
+    Target: Developer familiar with SQL but new to SQLAlchemy.
+    
+    Cover:
+    1. Setting up async engine and session
+    2. Defining models with declarative base
+    3. Basic CRUD operations
+    4. Relationships (one-to-many, many-to-many)
+    5. Querying with select()
+    6. Transactions and session management
+    
+    Use a blog example (User, Post, Tag models).
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "learning_path"
+        weight: 0.3
+        criteria: "Progressive build-up of concepts"
+      - dimension: "accuracy"
+        weight: 0.3
+        criteria: "SQLAlchemy 2.0 syntax correct"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "All six topics covered"
+      - dimension: "examples"
+        weight: 0.15
+        criteria: "Runnable code examples"
+    
+    must_contain:
+      - "create_async_engine"
+      - "AsyncSession"
+      - "DeclarativeBase"
+      - "Mapped"
+      - "select"
+      - "relationship"
+    
+    must_not_contain:
+      - "simple"
+      - "easy"

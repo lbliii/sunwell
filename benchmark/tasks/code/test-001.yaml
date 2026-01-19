@@ -33,7 +33,7 @@ task:
     - Edge cases (empty string, None, unicode, very long emails)
     - Boundary conditions (TLD length limits)
   
-  lens: "helper.lens"
+  lens: "coder.lens"
   
   evaluation:
     rubric:

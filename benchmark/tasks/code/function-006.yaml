@@ -1,0 +1,46 @@
+# Code Generation Task: Circuit breaker
+task:
+  id: "code-function-006"
+  category: "code_generation"
+  subcategory: "function"
+  
+  prompt: |
+    Implement a circuit breaker pattern as a decorator.
+    
+    Requirements:
+    - `failure_threshold`: number of failures before opening circuit
+    - `recovery_timeout`: seconds to wait before trying again
+    - States: CLOSED (normal), OPEN (failing fast), HALF_OPEN (testing)
+    - Track failures per decorated function
+    - When OPEN, raise `CircuitBreakerOpen` immediately
+    - When HALF_OPEN, allow one request; success → CLOSED, failure → OPEN
+    
+    Support both sync and async functions.
+  
+  lens: "coder.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "correctness"
+        weight: 0.4
+        criteria: "All three states and transitions work correctly"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "Sync and async support, custom exception"
+      - dimension: "usability"
+        weight: 0.2
+        criteria: "Clean decorator API"
+      - dimension: "style"
+        weight: 0.15
+        criteria: "Good code organization"
+    
+    must_contain:
+      - "CLOSED"
+      - "OPEN"
+      - "HALF_OPEN"
+      - "failure_threshold"
+      - "recovery_timeout"
+      - "CircuitBreakerOpen"
+    
+    must_not_contain:
+      - "pass  # TODO"

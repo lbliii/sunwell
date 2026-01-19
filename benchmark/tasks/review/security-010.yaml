@@ -1,0 +1,71 @@
+# Code Review Task: Cryptography issues
+task:
+  id: "review-security-010"
+  category: "code_review"
+  subcategory: "security"
+  
+  prompt: |
+    Review this cryptography code for security issues:
+    
+    ```python
+    import hashlib
+    import random
+    from Crypto.Cipher import AES
+    
+    def hash_password(password: str) -> str:
+        return hashlib.md5(password.encode()).hexdigest()
+    
+    def generate_token(length: int = 32) -> str:
+        chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+        return "".join(random.choice(chars) for _ in range(length))
+    
+    def encrypt_data(data: bytes, key: str) -> bytes:
+        cipher = AES.new(key.encode()[:16], AES.MODE_ECB)
+        # Pad to 16 bytes
+        padded = data + b"\x00" * (16 - len(data) % 16)
+        return cipher.encrypt(padded)
+    
+    def verify_signature(message: bytes, signature: bytes, key: bytes) -> bool:
+        expected = hashlib.sha256(key + message).digest()
+        return signature == expected
+    
+    def compare_hashes(hash1: str, hash2: str) -> bool:
+        return hash1 == hash2
+    ```
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.4
+        criteria: "Identifies all crypto weaknesses"
+      - dimension: "explanation"
+        weight: 0.3
+        criteria: "Explains why each is insecure"
+      - dimension: "alternatives"
+        weight: 0.2
+        criteria: "Suggests secure alternatives"
+      - dimension: "severity"
+        weight: 0.1
+        criteria: "Prioritizes by severity"
+    
+    must_contain:
+      - "MD5"
+      - "random"
+      - "ECB"
+      - "timing attack"
+      - "bcrypt"
+      - "secrets"
+    
+    must_not_contain:
+      - "acceptable"
+      - "minor"
+    
+    ground_truth_issues:
+      - "hash_password: MD5 is broken, no salt"
+      - "generate_token: random is not cryptographically secure"
+      - "encrypt_data: ECB mode leaks patterns"
+      - "encrypt_data: null-byte padding is non-standard"
+      - "verify_signature: vulnerable to length extension attack"
+      - "compare_hashes: timing attack vulnerable"

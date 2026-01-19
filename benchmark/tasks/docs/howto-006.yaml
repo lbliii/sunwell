@@ -1,0 +1,46 @@
+# Documentation Task: How-to for error handling
+task:
+  id: "docs-howto-006"
+  category: "documentation"
+  subcategory: "howto"
+  
+  prompt: |
+    Write a how-to guide for implementing proper error handling in a Python web API.
+    
+    Cover:
+    1. Defining custom exception hierarchy
+    2. Exception handlers in FastAPI/Flask
+    3. Error response format (RFC 7807 Problem Details)
+    4. Logging errors with context
+    5. Not leaking sensitive information
+    6. Client-friendly vs internal errors
+    
+    Include complete code examples.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "completeness"
+        weight: 0.3
+        criteria: "All six topics covered"
+      - dimension: "actionability"
+        weight: 0.3
+        criteria: "Code is complete and usable"
+      - dimension: "security"
+        weight: 0.25
+        criteria: "Security considerations addressed"
+      - dimension: "standards"
+        weight: 0.15
+        criteria: "References RFC 7807 or similar"
+    
+    must_contain:
+      - "class"
+      - "Exception"
+      - "@app.exception_handler"
+      - "status_code"
+      - "logging"
+    
+    must_not_contain:
+      - "simply"
+      - "just"

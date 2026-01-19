@@ -1,0 +1,62 @@
+{
+  "baseline": {
+    "n_tasks": 5,
+    "mean_tokens": 1325.6,
+    "total_tokens": 6628,
+    "mean_time_seconds": 23.900108641805126,
+    "total_time_seconds": 119.50054320902564
+  },
+  "baseline_lens": {
+    "n_tasks": 5,
+    "mean_tokens": 1281.6,
+    "total_tokens": 6408,
+    "mean_time_seconds": 21.03228956660023,
+    "total_time_seconds": 105.16144783300115
+  },
+  "harmonic": {
+    "n_tasks": 5,
+    "mean_tokens": 7718.4,
+    "total_tokens": 38592,
+    "mean_time_seconds": 61.85091585002374,
+    "total_time_seconds": 309.2545792501187,
+    "mean_consensus_strength": 1.0
+  },
+  "harmonic_lens": {
+    "n_tasks": 5,
+    "mean_tokens": 10250.0,
+    "total_tokens": 51250,
+    "mean_time_seconds": 47.09206651699496,
+    "total_time_seconds": 235.46033258497482,
+    "mean_consensus_strength": 1.0
+  },
+  "resonance": {
+    "n_tasks": 5,
+    "mean_tokens": 8795.2,
+    "total_tokens": 43976,
+    "mean_time_seconds": 52.50585996679729,
+    "total_time_seconds": 262.52929983398644,
+    "mean_consensus_strength": 1.0,
+    "mean_refinement_attempts": 0.0,
+    "refinement_rate": 0.0
+  },
+  "naaru_full": {
+    "n_tasks": 5,
+    "mean_tokens": 7875.2,
+    "total_tokens": 39376,
+    "mean_time_seconds": 63.01525133341784,
+    "total_time_seconds": 315.0762566670892,
+    "mean_consensus_strength": 1.0,
+    "mean_refinement_attempts": 0.0,
+    "refinement_rate": 0.0
+  },
+  "naaru_full_lens": {
+    "n_tasks": 5,
+    "mean_tokens": 10674.4,
+    "total_tokens": 53372,
+    "mean_time_seconds": 58.87945859200554,
+    "total_time_seconds": 294.3972929600277,
+    "mean_consensus_strength": 1.0,
+    "mean_refinement_attempts": 0.0,
+    "refinement_rate": 0.0
+  }
+}

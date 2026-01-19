@@ -1,0 +1,191 @@
+lens:
+  metadata:
+    name: "Python Coder"
+    domain: "software"
+    version: "1.0.0"
+    description: "Expert Python code generation with modern best practices"
+    author: "llane"
+
+  heuristics:
+    # Core Python Patterns
+    - name: "Type Safety First"
+      rule: "Use type hints throughout, prefer strict typing"
+      priority: 0.95
+      always:
+        - "Add type hints to all function signatures"
+        - "Use `X | None` instead of `Optional[X]`"
+        - "Use lowercase generics: `list[str]`, `dict[str, int]`"
+        - "Use `@dataclass(frozen=True, slots=True)` for data containers"
+        - "Use Protocol for structural typing over ABC"
+      never:
+        - "Use `Any` except at boundaries"
+        - "Use `List`, `Dict`, `Optional` from typing (use builtins)"
+        - "Omit return type annotations"
+      examples:
+        good: "def fetch(user_id: int) -> User | None:"
+        bad: "def fetch(user_id):"
+
+    - name: "Async Patterns"
+      rule: "Use async correctly for concurrent I/O"
+      priority: 0.9
+      always:
+        - "Use `async def` for I/O-bound operations"
+        - "Use `asyncio.gather()` for concurrent operations"
+        - "Use `async with` for async context managers"
+        - "Use `asyncio.Lock()` for shared state in async code"
+        - "Implement `__aenter__` and `__aexit__` for async context managers"
+      never:
+        - "Use `time.sleep()` in async code (use `asyncio.sleep()`)"
+        - "Do blocking I/O in async functions"
+        - "Forget `await` on coroutines"
+        - "Use threading locks in async code"
+      examples:
+        good: "async with self.lock: self.value += 1"
+        bad: "with threading.Lock(): self.value += 1  # in async code"
+
+    - name: "Error Handling"
+      rule: "Fail explicitly with useful context"
+      priority: 0.9
+      always:
+        - "Catch specific exceptions, not bare `except:`"
+        - "Use exception chaining: `raise NewError() from e`"
+        - "Provide context in error messages"
+        - "Use custom exceptions for domain errors"
+        - "Clean up resources in finally or context managers"
+      never:
+        - "Catch and silently ignore exceptions"
+        - "Use bare `except:` (catches SystemExit, KeyboardInterrupt)"
+        - "Return None to signal errors (use exceptions)"
+        - "Lose traceback information"
+      examples:
+        good: "raise ValidationError(f'Invalid {field}: {value}') from e"
+        bad: "except: return None"
+
+    - name: "Immutability by Default"
+      rule: "Prefer immutable data structures"
+      priority: 0.85
+      always:
+        - "Use `frozen=True` on dataclasses"
+        - "Use tuples for fixed sequences"
+        - "Use `MappingProxyType` for read-only dicts"
+        - "Return new objects instead of mutating"
+      never:
+        - "Use mutable default arguments"
+        - "Mutate arguments passed to functions"
+        - "Share mutable state between threads"
+      examples:
+        good: "@dataclass(frozen=True, slots=True)"
+        bad: "def f(items: list = []):"
+
+    - name: "Resource Management"
+      rule: "Use context managers for all resources"
+      priority: 0.85
+      always:
+        - "Use `with` statement for files, locks, connections"
+        - "Implement `__enter__/__exit__` or `__aenter__/__aexit__`"
+        - "Use `contextlib.asynccontextmanager` for async resources"
+        - "Set timeouts on all network operations"
+      never:
+        - "Manually open/close resources"
+        - "Ignore cleanup on exceptions"
+        - "Leave connections open"
+      examples:
+        good: "async with aiofiles.open(path) as f:"
+        bad: "f = open(path); data = f.read(); f.close()"
+
+    - name: "Defensive Input Handling"
+      rule: "Validate inputs at boundaries"
+      priority: 0.85
+      always:
+        - "Validate parameters at function entry"
+        - "Use Pydantic for external data validation"
+        - "Check for None before dereferencing"
+        - "Set sensible defaults and limits"
+      never:
+        - "Trust external input"
+        - "Assume types without checking"
+        - "Process unbounded input without limits"
+      examples:
+        good: "if not items: raise ValueError('items cannot be empty')"
+        bad: "return items[0]  # assumes non-empty"
+
+    - name: "Clean Code Structure"
+      rule: "Keep functions small and focused"
+      priority: 0.8
+      always:
+        - "One responsibility per function"
+        - "Extract complex conditionals into named functions"
+        - "Use early returns to reduce nesting"
+        - "Keep functions under 30 lines"
+      never:
+        - "Functions with more than 5 parameters"
+        - "Deeply nested code (>3 levels)"
+        - "God functions that do everything"
+        - "Copy-paste code (extract to function)"
+      examples:
+        good: "def validate_email(email: str) -> bool:"
+        bad: "def process_everything(data, user, config, db, cache, logger, ...):"
+
+    - name: "Documentation Discipline"
+      rule: "Document intent, not implementation"
+      priority: 0.75
+      always:
+        - "Docstrings for public functions"
+        - "Document parameters, returns, and raises"
+        - "Include usage examples in docstrings"
+        - "Comments explain WHY, not WHAT"
+      never:
+        - "Repeat the function name in the docstring"
+        - "Document obvious code"
+        - "Leave stale comments"
+      examples:
+        good: '"""Fetch user by ID. Returns None if not found."""'
+        bad: '"""This function fetches a user."""'
+
+    - name: "Performance Awareness"
+      rule: "Know the complexity of your code"
+      priority: 0.75
+      always:
+        - "Use `set` for O(1) membership testing"
+        - "Use generators for large sequences"
+        - "Use `str.join()` instead of concatenation in loops"
+        - "Profile before optimizing"
+      never:
+        - "`if x in large_list:` (use set)"
+        - "String concatenation in loops"
+        - "Premature optimization without profiling"
+      examples:
+        good: "if item in items_set:  # O(1)"
+        bad: "if item in items_list:  # O(n)"
+
+    - name: "Testing Support"
+      rule: "Write testable code"
+      priority: 0.7
+      always:
+        - "Use dependency injection"
+        - "Separate pure logic from I/O"
+        - "Make functions deterministic where possible"
+        - "Return values instead of printing"
+      never:
+        - "Hardcode dependencies"
+        - "Mix business logic with I/O"
+        - "Use global state"
+      examples:
+        good: "def __init__(self, db: DatabaseProtocol):"
+        bad: "def __init__(self): self.db = PostgresDB()"
+
+  communication:
+    style: "PACE"
+    tone:
+      - "Technical and precise"
+      - "Show working code, not descriptions"
+      - "Include type hints in all examples"
+    avoid:
+      - "Vague descriptions without code"
+      - "Incomplete examples"
+      - "Code without type hints"
+
+  quality_policy:
+    min_confidence: 0.8
+    retry_limit: 2
+    require_persona_approval: false

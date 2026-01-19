@@ -58,16 +58,18 @@ TRUST_LEVEL_TOOLS: dict[ToolTrust, frozenset[str]] = {
     }),
     
     ToolTrust.WORKSPACE: frozenset({
-        "list_files", "search_files", "read_file", "write_file",
+        "list_files", "search_files", "read_file", "write_file", "mkdir",
         "git_info", "git_status", "git_diff", "git_log", "git_blame", "git_show",
         # Staging operations - reversible, don't modify history
         "git_add", "git_restore",
+        # Repository initialization - creates new repo, doesn't modify history
+        "git_init",
     }),
     
     ToolTrust.SHELL: frozenset({
-        "list_files", "search_files", "read_file", "write_file", "run_command",
+        "list_files", "search_files", "read_file", "write_file", "mkdir", "run_command",
         "git_info", "git_status", "git_diff", "git_log", "git_blame", "git_show",
-        "git_add", "git_restore",
+        "git_add", "git_restore", "git_init",
         # History-modifying operations - require explicit trust
         "git_commit", "git_branch", "git_checkout", "git_stash",
         "git_reset", "git_merge",
@@ -75,9 +77,9 @@ TRUST_LEVEL_TOOLS: dict[ToolTrust, frozenset[str]] = {
     
     ToolTrust.FULL: frozenset({
         # All previous tools
-        "list_files", "search_files", "read_file", "write_file", "run_command",
+        "list_files", "search_files", "read_file", "write_file", "mkdir", "run_command",
         "git_info", "git_status", "git_diff", "git_log", "git_blame", "git_show",
-        "git_add", "git_restore",
+        "git_add", "git_restore", "git_init",
         "git_commit", "git_branch", "git_checkout", "git_stash",
         "git_reset", "git_merge",
         # Network access

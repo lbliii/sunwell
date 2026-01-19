@@ -1,0 +1,76 @@
+# Code Refactoring Task: Introduce dataclasses
+task:
+  id: "code-refactor-006"
+  category: "code_generation"
+  subcategory: "refactor"
+  
+  prompt: |
+    Refactor this code to use dataclasses:
+    
+    ```python
+    class User:
+        def __init__(self, id, email, name, created_at=None, is_active=True):
+            self.id = id
+            self.email = email
+            self.name = name
+            self.created_at = created_at or datetime.utcnow()
+            self.is_active = is_active
+        
+        def __eq__(self, other):
+            if not isinstance(other, User):
+                return False
+            return self.id == other.id
+        
+        def __hash__(self):
+            return hash(self.id)
+        
+        def __repr__(self):
+            return f"User(id={self.id}, email={self.email})"
+        
+        def to_dict(self):
+            return {
+                "id": self.id,
+                "email": self.email,
+                "name": self.name,
+                "created_at": self.created_at.isoformat(),
+                "is_active": self.is_active,
+            }
+        
+        @classmethod
+        def from_dict(cls, data):
+            return cls(
+                id=data["id"],
+                email=data["email"],
+                name=data["name"],
+                created_at=datetime.fromisoformat(data["created_at"]),
+                is_active=data.get("is_active", True),
+            )
+    ```
+    
+    Use @dataclass with appropriate options and field().
+  
+  lens: "coder.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "correctness"
+        weight: 0.35
+        criteria: "Behavior preserved, uses dataclass features"
+      - dimension: "pythonic"
+        weight: 0.3
+        criteria: "Idiomatic dataclass usage"
+      - dimension: "completeness"
+        weight: 0.2
+        criteria: "to_dict/from_dict preserved"
+      - dimension: "type_hints"
+        weight: 0.15
+        criteria: "Proper type annotations"
+    
+    must_contain:
+      - "@dataclass"
+      - "field("
+      - "default_factory"
+    
+    must_not_contain:
+      - "def __init__"
+      - "def __eq__"

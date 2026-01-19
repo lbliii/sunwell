@@ -1,0 +1,70 @@
+{
+  "uniform_med": {
+    "consensus": 1.0,
+    "diversity": 0.9436080410756243,
+    "winning": "quality",
+    "temps": [
+      0.7,
+      0.7,
+      0.7
+    ],
+    "votes": {
+      "security": 0,
+      "quality": 3,
+      "testing": 0
+    },
+    "tokens": 7836,
+    "time": 40.880043582990766
+  },
+  "uniform_high": {
+    "consensus": 1.0,
+    "diversity": 0.9480717185385656,
+    "winning": "quality",
+    "temps": [
+      0.9,
+      0.9,
+      0.9
+    ],
+    "votes": {
+      "security": 0,
+      "quality": 3,
+      "testing": 0
+    },
+    "tokens": 7710,
+    "time": 44.85269558301661
+  },
+  "spread": {
+    "consensus": 1.0,
+    "diversity": 0.9425603693181818,
+    "winning": "quality",
+    "temps": [
+      0.3,
+      0.7,
+      1.0
+    ],
+    "votes": {
+      "security": 0,
+      "quality": 3,
+      "testing": 0
+    },
+    "tokens": 7842,
+    "time": 41.3779758749879
+  },
+  "divergent": {
+    "consensus": 1.0,
+    "diversity": 0.9456995320316282,
+    "winning": "advocate",
+    "temps": [
+      0.4,
+      0.7,
+      1.0
+    ],
+    "votes": {
+      "adversary": 0,
+      "advocate": 3,
+      "naive": 0
+    },
+    "tokens": 7452,
+    "time": 39.38560395804234
+  }
+}

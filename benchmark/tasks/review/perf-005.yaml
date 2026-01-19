@@ -1,0 +1,72 @@
+# Code Review Task: Async performance issues
+task:
+  id: "review-perf-005"
+  category: "code_review"
+  subcategory: "performance"
+  
+  prompt: |
+    Review this async code for performance issues:
+    
+    ```python
+    import asyncio
+    import time
+    
+    async def fetch_all_users(user_ids: list[int]) -> list[dict]:
+        users = []
+        for user_id in user_ids:
+            user = await fetch_user(user_id)
+            users.append(user)
+        return users
+    
+    async def process_items(items: list[dict]) -> list[dict]:
+        results = []
+        for item in items:
+            await asyncio.sleep(0)  # "yield to event loop"
+            result = heavy_cpu_computation(item)
+            results.append(result)
+        return results
+    
+    async def fetch_with_timeout(url: str):
+        start = time.time()
+        result = await fetch(url)
+        if time.time() - start > 5:
+            raise TimeoutError("Request took too long")
+        return result
+    
+    async def batch_save(records: list[dict]):
+        for record in records:
+            await db.insert(record)
+    ```
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.35
+        criteria: "Identifies sequential async, blocking, timeout issues"
+      - dimension: "async_knowledge"
+        weight: 0.3
+        criteria: "Understands async patterns correctly"
+      - dimension: "actionability"
+        weight: 0.25
+        criteria: "Provides asyncio.gather, executors, timeout patterns"
+      - dimension: "explanation"
+        weight: 0.1
+        criteria: "Explains why each pattern is slow"
+    
+    must_contain:
+      - "asyncio.gather"
+      - "sequential"
+      - "blocking"
+      - "asyncio.wait_for"
+    
+    must_not_contain:
+      - "fine"
+      - "acceptable"
+    
+    ground_truth_issues:
+      - "fetch_all_users: sequential awaits instead of gather"
+      - "process_items: CPU-bound work blocks event loop"
+      - "fetch_with_timeout: timeout check happens AFTER await completes"
+      - "batch_save: sequential inserts instead of batch"

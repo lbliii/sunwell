@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-01-18T17:57:40.193843",
+  "model": "ollama/gemma3:1b",
+  "judge_model": "ollama/gemma3:4b",
+  "n_tasks": 5,
+  "conditions": [
+    "baseline",
+    "baseline_lens",
+    "harmonic",
+    "harmonic_lens",
+    "resonance",
+    "naaru_full",
+    "naaru_full_lens"
+  ],
+  "config": {
+    "max_resonance_attempts": 2,
+    "tasks_dir": "benchmark/tasks",
+    "lens_dir": "lenses"
+  }
+}

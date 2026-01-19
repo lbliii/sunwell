@@ -1,0 +1,69 @@
+# Code Review Task: Inefficient algorithms
+task:
+  id: "review-perf-004"
+  category: "code_review"
+  subcategory: "performance"
+  
+  prompt: |
+    Review this code for algorithmic inefficiencies:
+    
+    ```python
+    def find_duplicates(items: list[str]) -> list[str]:
+        duplicates = []
+        for i, item in enumerate(items):
+            if item in items[i+1:] and item not in duplicates:
+                duplicates.append(item)
+        return duplicates
+    
+    def merge_sorted_lists(lists: list[list[int]]) -> list[int]:
+        result = []
+        for lst in lists:
+            result = sorted(result + lst)
+        return result
+    
+    def find_common_elements(list1: list[int], list2: list[int]) -> list[int]:
+        common = []
+        for item in list1:
+            if item in list2 and item not in common:
+                common.append(item)
+        return common
+    
+    def remove_duplicates_preserve_order(items: list) -> list:
+        result = []
+        for item in items:
+            if item not in result:
+                result.append(item)
+        return result
+    ```
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.35
+        criteria: "Identifies O(n²) patterns in all functions"
+      - dimension: "complexity_analysis"
+        weight: 0.25
+        criteria: "Correctly analyzes time complexity"
+      - dimension: "actionability"
+        weight: 0.3
+        criteria: "Provides O(n) or O(n log n) alternatives"
+      - dimension: "python_idioms"
+        weight: 0.1
+        criteria: "Uses Pythonic solutions (set, heapq, dict)"
+    
+    must_contain:
+      - "O(n²)"
+      - "set"
+      - "dict"
+    
+    must_not_contain:
+      - "fine for small"
+      - "premature optimization"
+    
+    ground_truth_issues:
+      - "find_duplicates: O(n²) due to 'in' on list slice"
+      - "merge_sorted_lists: O(k * n * log(n)) instead of O(n * log(k))"
+      - "find_common_elements: O(n*m) instead of O(n+m)"
+      - "remove_duplicates: O(n²) due to 'in' on list"

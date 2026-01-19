@@ -1,0 +1,47 @@
+# Documentation Task: How-to for background tasks
+task:
+  id: "docs-howto-010"
+  category: "documentation"
+  subcategory: "howto"
+  
+  prompt: |
+    Write a how-to guide for running background tasks in a FastAPI application.
+    
+    Cover:
+    1. FastAPI BackgroundTasks for simple cases
+    2. When to use a task queue instead
+    3. Setting up Celery with Redis
+    4. Task retries and error handling
+    5. Monitoring task status
+    6. Scaling workers
+    
+    Include production-ready code examples.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "completeness"
+        weight: 0.3
+        criteria: "All six topics covered"
+      - dimension: "accuracy"
+        weight: 0.3
+        criteria: "FastAPI and Celery patterns correct"
+      - dimension: "decision_help"
+        weight: 0.25
+        criteria: "Clear when to use each approach"
+      - dimension: "production"
+        weight: 0.15
+        criteria: "Production considerations addressed"
+    
+    must_contain:
+      - "BackgroundTasks"
+      - "Celery"
+      - "Redis"
+      - "@app.task"
+      - "retry"
+      - "worker"
+    
+    must_not_contain:
+      - "simple"
+      - "easy"

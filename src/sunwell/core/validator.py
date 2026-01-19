@@ -1,11 +1,22 @@
-"""Validator data models."""
+"""Validator data models.
+
+RFC-035 adds SchemaValidator for lens-provided schema artifact validation.
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any
 
 from sunwell.core.types import Severity, ValidationMethod
+
+
+class SchemaValidationMethod(Enum):
+    """Method for schema validator execution (RFC-035)."""
+
+    CONSTRAINT = "constraint"  # DSL-based deterministic check
+    LLM = "llm"  # LLM-based judgment
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,3 +114,71 @@ class ValidationResult:
         if self.confidence is not None:
             parts.append(f" ({self.confidence:.0%} confidence)")
         return "".join(parts)
+
+
+@dataclass(frozen=True, slots=True)
+class SchemaValidator:
+    """Lens-provided validator for schema artifacts (RFC-035).
+
+    Unlike HeuristicValidator (general content checks), SchemaValidator
+    targets specific artifact types defined in a project schema. These
+    validators extend a project's built-in validators with lens-specific
+    domain expertise.
+
+    Example:
+        A developmental editor lens might add:
+
+        SchemaValidator(
+            name="character_arc_complete",
+            check="Every major character must change by the end",
+            applies_to="character",
+            condition="character.role == 'major'",
+        )
+
+    When combined with a fiction schema, this ensures character arcs
+    are complete for major characters.
+    """
+
+    name: str
+    check: str  # What to verify
+    applies_to: str  # Artifact type (e.g., "character", "scene")
+    condition: str | None = None  # When to apply (e.g., "character.role == 'major'")
+    severity: Severity = Severity.WARNING
+    method: SchemaValidationMethod = SchemaValidationMethod.LLM
+
+    def to_prompt(self, artifact: dict[str, Any]) -> str:
+        """Generate validation prompt for an artifact.
+
+        Args:
+            artifact: The artifact data to validate
+
+        Returns:
+            Prompt for LLM validation
+        """
+        import json
+
+        artifact_str = json.dumps(artifact, indent=2, default=str)
+
+        return f"""Evaluate this {self.applies_to} artifact against the following criterion:
+
+**Check**: {self.check}
+
+**Artifact**:
+```json
+{artifact_str}
+```
+
+Respond with:
+1. PASS or FAIL
+2. Confidence (0.0-1.0)
+3. Brief explanation (1-2 sentences)
+
+Format: PASS|0.95|The artifact meets the criterion because...
+"""
+
+    def to_embedding_text(self) -> str:
+        """Convert to text for embedding/retrieval."""
+        parts = [self.name, self.check, f"applies to: {self.applies_to}"]
+        if self.condition:
+            parts.append(f"when: {self.condition}")
+        return " ".join(parts)

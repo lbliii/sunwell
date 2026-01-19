@@ -1,6 +1,17 @@
-"""Type definitions for Naaru Architecture (RFC-016, RFC-019).
+"""Type definitions for Naaru Architecture (RFC-016, RFC-019, RFC-032, RFC-034).
 
 The Naaru is Sunwell's coordinated intelligence architecture.
+
+RFC-032 Additions:
+- Task: Universal work unit (generalizes Opportunity)
+- TaskMode: How tasks should be executed
+- TaskStatus: Execution status of tasks
+- TaskPlanner protocol: For task planning/decomposition
+
+RFC-034 Additions:
+- Contract-aware task fields (produces, requires, modifies)
+- Parallel group support for concurrent execution
+- Contract tracking for interface-first development
 """
 
 from __future__ import annotations
@@ -10,7 +21,41 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    pass
+
+
+# =============================================================================
+# RFC-032: Task Types (Agent Mode)
+# =============================================================================
+
+
+class TaskMode(Enum):
+    """How a task should be executed (RFC-032).
+    
+    This determines the execution strategy for a Task.
+    """
+    
+    SELF_IMPROVE = "self_improve"  # Modify Sunwell's own code (RFC-019 behavior)
+    GENERATE = "generate"          # Create new files/content
+    MODIFY = "modify"              # Modify existing files
+    EXECUTE = "execute"            # Run commands
+    RESEARCH = "research"          # Gather information only (no side effects)
+    COMPOSITE = "composite"        # Multi-step with subtasks
+
+
+class TaskStatus(Enum):
+    """Execution status of a task (RFC-032)."""
+    
+    PENDING = "pending"        # Not yet started
+    READY = "ready"            # Dependencies satisfied, ready to execute
+    IN_PROGRESS = "in_progress"
+    BLOCKED = "blocked"        # Waiting on dependencies
+    COMPLETED = "completed"
+    FAILED = "failed"
+    SKIPPED = "skipped"        # Skipped due to failed dependency
 
 
 class SessionStatus(Enum):
@@ -90,6 +135,242 @@ class Opportunity:
             estimated_effort=data["estimated_effort"],
             risk_level=RiskLevel(data["risk_level"]),
             details=data.get("details", {}),
+        )
+
+
+# =============================================================================
+# RFC-032: Task (Universal Work Unit)
+# RFC-034: Contract-Aware Parallel Task Planning
+# =============================================================================
+
+
+@dataclass
+class Task:
+    """A unit of work for Naaru to execute (RFC-032, RFC-034).
+    
+    Generalizes Opportunity to support any task type.
+    The original Opportunity class remains unchanged for backward compatibility.
+    Use Task.from_opportunity() and Task.to_opportunity() for conversion.
+    
+    Key additions over Opportunity:
+    - mode: How to execute (generate, modify, execute, etc.)
+    - tools: What tools this task may need
+    - depends_on: Task dependencies for ordering
+    - verification: How to verify completion
+    - subtasks: For composite tasks
+    
+    RFC-034 additions:
+    - produces: Artifacts this task creates (interfaces, types, files)
+    - requires: Artifacts that must exist before this runs
+    - modifies: Resources this task touches (for conflict detection)
+    - parallel_group: Tasks in the same group can run concurrently
+    - contract: Interface signature this task should conform to
+    - is_contract: Whether this task defines an interface vs implements one
+    """
+    
+    id: str
+    description: str
+    mode: TaskMode
+    
+    # Execution context
+    tools: frozenset[str] = field(default_factory=frozenset)  # Tools this task may use
+    target_path: str | None = None       # File/directory to affect
+    working_directory: str = "."
+    
+    # Dependencies
+    depends_on: tuple[str, ...] = ()     # Task IDs that must complete first
+    subtasks: tuple["Task", ...] = ()    # For composite tasks
+    
+    # === RFC-034: Contract-Aware Planning ===
+    
+    # Artifact flow (what this task produces/consumes)
+    produces: frozenset[str] = field(default_factory=frozenset)
+    """Artifacts this task creates: types, interfaces, files, modules.
+    
+    Example: frozenset(["UserProtocol", "user_types.py"])
+    """
+    
+    requires: frozenset[str] = field(default_factory=frozenset)
+    """Artifacts that must exist before this task can run.
+    
+    Unlike depends_on (task IDs), this is semantic: what artifacts are needed.
+    Example: frozenset(["UserProtocol", "AuthInterface"])
+    """
+    
+    modifies: frozenset[str] = field(default_factory=frozenset)
+    """Resources this task may modify (for conflict detection).
+    
+    Two tasks with overlapping `modifies` sets cannot run in parallel.
+    Example: frozenset(["src/models/user.py", "pyproject.toml"])
+    """
+    
+    # Parallelization hints
+    parallel_group: str | None = None
+    """Tasks in the same parallel group can execute concurrently.
+    
+    Groups are typically phases: "contracts", "implementations", "tests".
+    Tasks in the same group MUST have non-overlapping `modifies` sets.
+    """
+    
+    # Contract information
+    is_contract: bool = False
+    """True if this task defines an interface/protocol, not an implementation.
+    
+    Contract tasks are inherently parallelizable (no shared mutable state).
+    """
+    
+    contract: str | None = None
+    """The interface signature this implementation should conform to.
+    
+    Example: "UserProtocol" - the implementation must satisfy this protocol.
+    """
+    
+    # Metadata (compatible with Opportunity)
+    category: str = "general"
+    priority: float = 0.5                # 0.0 - 1.0, higher is more important
+    estimated_effort: str = "medium"     # trivial, small, medium, large
+    risk_level: RiskLevel = RiskLevel.MEDIUM
+    details: dict[str, Any] = field(default_factory=dict)
+    
+    # Execution state
+    status: TaskStatus = TaskStatus.PENDING
+    result: dict[str, Any] | None = None
+    error: str | None = None
+    
+    # Verification
+    verification: str | None = None           # How to verify completion
+    verification_command: str | None = None   # Command to run for verification
+    
+    def is_ready(
+        self,
+        completed_ids: set[str],
+        completed_artifacts: set[str] | None = None,
+    ) -> bool:
+        """Check if all dependencies are satisfied (RFC-034 enhanced).
+        
+        Args:
+            completed_ids: Set of completed task IDs
+            completed_artifacts: Set of produced artifacts (RFC-034)
+            
+        Returns:
+            True if both task dependencies AND required artifacts are satisfied
+        """
+        # Check task dependencies
+        if not all(dep in completed_ids for dep in self.depends_on):
+            return False
+        
+        # RFC-034: Check artifact requirements
+        if completed_artifacts is not None and self.requires:
+            if not self.requires <= completed_artifacts:
+                return False
+        
+        return True
+    
+    def to_opportunity(self) -> Opportunity:
+        """Convert to legacy Opportunity type for backward compatibility.
+        
+        Use this when interfacing with code that expects the original
+        Opportunity type from RFC-019.
+        """
+        # Map category string to OpportunityCategory
+        try:
+            category = OpportunityCategory(self.category)
+        except ValueError:
+            category = OpportunityCategory.OTHER
+        
+        return Opportunity(
+            id=self.id,
+            category=category,
+            description=self.description,
+            target_module=self.target_path or "",
+            priority=self.priority,
+            estimated_effort=self.estimated_effort,
+            risk_level=self.risk_level,
+            details=self.details,
+        )
+    
+    @classmethod
+    def from_opportunity(cls, opp: Opportunity) -> "Task":
+        """Create Task from legacy Opportunity.
+        
+        Use this to upgrade existing Opportunity objects to Tasks.
+        """
+        return cls(
+            id=opp.id,
+            description=opp.description,
+            mode=TaskMode.SELF_IMPROVE,
+            target_path=opp.target_module,
+            category=opp.category.value if hasattr(opp.category, "value") else str(opp.category),
+            priority=opp.priority,
+            estimated_effort=opp.estimated_effort,
+            risk_level=opp.risk_level,
+            details=opp.details,
+        )
+    
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to JSON-serializable dict."""
+        return {
+            "id": self.id,
+            "description": self.description,
+            "mode": self.mode.value,
+            "tools": list(self.tools),
+            "target_path": self.target_path,
+            "working_directory": self.working_directory,
+            "depends_on": list(self.depends_on),
+            "subtasks": [s.to_dict() for s in self.subtasks],
+            # RFC-034: Contract-aware fields
+            "produces": list(self.produces),
+            "requires": list(self.requires),
+            "modifies": list(self.modifies),
+            "parallel_group": self.parallel_group,
+            "is_contract": self.is_contract,
+            "contract": self.contract,
+            # Metadata
+            "category": self.category,
+            "priority": self.priority,
+            "estimated_effort": self.estimated_effort,
+            "risk_level": self.risk_level.value,
+            "details": self.details,
+            "status": self.status.value,
+            "result": self.result,
+            "error": self.error,
+            "verification": self.verification,
+            "verification_command": self.verification_command,
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Task":
+        """Create from dict."""
+        subtasks = tuple(
+            cls.from_dict(s) for s in data.get("subtasks", [])
+        )
+        return cls(
+            id=data["id"],
+            description=data["description"],
+            mode=TaskMode(data.get("mode", "generate")),
+            tools=frozenset(data.get("tools", [])),
+            target_path=data.get("target_path"),
+            working_directory=data.get("working_directory", "."),
+            depends_on=tuple(data.get("depends_on", [])),
+            subtasks=subtasks,
+            # RFC-034: Contract-aware fields
+            produces=frozenset(data.get("produces", [])),
+            requires=frozenset(data.get("requires", [])),
+            modifies=frozenset(data.get("modifies", [])),
+            parallel_group=data.get("parallel_group"),
+            is_contract=data.get("is_contract", False),
+            contract=data.get("contract"),
+            # Metadata
+            category=data.get("category", "general"),
+            priority=data.get("priority", 0.5),
+            estimated_effort=data.get("estimated_effort", "medium"),
+            risk_level=RiskLevel(data.get("risk_level", "medium")),
+            details=data.get("details", {}),
+            status=TaskStatus(data.get("status", "pending")),
+            result=data.get("result"),
+            error=data.get("error"),
+            verification=data.get("verification"),
+            verification_command=data.get("verification_command"),
         )
 
 

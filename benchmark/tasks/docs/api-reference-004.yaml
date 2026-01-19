@@ -1,0 +1,77 @@
+# Documentation Task: API Reference for class with generics
+task:
+  id: "docs-api-ref-004"
+  category: "documentation"
+  subcategory: "api_reference"
+  
+  prompt: |
+    Write API reference documentation for this generic repository class:
+    
+    ```python
+    from typing import TypeVar, Generic, Protocol
+    
+    class HasId(Protocol):
+        id: int
+    
+    T = TypeVar("T", bound=HasId)
+    
+    class Repository(Generic[T]):
+        """Generic repository for CRUD operations."""
+        
+        def __init__(self, session: AsyncSession) -> None: ...
+        
+        async def get(self, id: int) -> T | None:
+            """Retrieve entity by ID."""
+            
+        async def list(
+            self,
+            *,
+            limit: int = 100,
+            offset: int = 0,
+            order_by: str | None = None,
+        ) -> list[T]:
+            """List entities with pagination."""
+            
+        async def create(self, entity: T) -> T:
+            """Create new entity, returns with assigned ID."""
+            
+        async def update(self, entity: T) -> T:
+            """Update existing entity."""
+            
+        async def delete(self, id: int) -> bool:
+            """Delete entity by ID, returns True if deleted."""
+    ```
+    
+    Document the class, its generic type parameter, and all methods.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "accuracy"
+        weight: 0.25
+        criteria: "Generic type parameter correctly explained"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "All methods documented with params and returns"
+      - dimension: "signal_to_noise"
+        weight: 0.2
+        criteria: "No filler, clear explanations"
+      - dimension: "usability"
+        weight: 0.3
+        criteria: "Includes usage example showing generic instantiation"
+    
+    must_contain:
+      - "Generic"
+      - "TypeVar"
+      - "HasId"
+      - "get"
+      - "list"
+      - "create"
+      - "update"
+      - "delete"
+    
+    must_not_contain:
+      - "powerful"
+      - "flexible"
+      - "easy"

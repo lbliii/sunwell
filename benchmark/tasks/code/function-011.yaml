@@ -1,0 +1,56 @@
+# Code Generation Task: Async context manager pool
+task:
+  id: "code-function-011"
+  category: "code_generation"
+  subcategory: "function"
+  
+  prompt: |
+    Implement an async connection pool.
+    
+    Requirements:
+    - `Pool(max_size, create_fn, close_fn)`: configure pool
+    - `acquire() -> async context manager`: get connection from pool
+    - Connections returned to pool on exit
+    - Create new connections up to max_size
+    - Block when pool exhausted, with optional timeout
+    - Health check connections before returning
+    
+    Example:
+    ```python
+    pool = Pool(
+        max_size=10,
+        create_fn=create_db_connection,
+        close_fn=lambda c: c.close(),
+    )
+    
+    async with pool.acquire(timeout=5.0) as conn:
+        await conn.execute("SELECT 1")
+    ```
+  
+  lens: "coder.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "correctness"
+        weight: 0.35
+        criteria: "Pool management logic correct"
+      - dimension: "async"
+        weight: 0.25
+        criteria: "Proper async implementation"
+      - dimension: "robustness"
+        weight: 0.25
+        criteria: "Handles errors, cleanup, timeout"
+      - dimension: "interface"
+        weight: 0.15
+        criteria: "Clean API"
+    
+    must_contain:
+      - "async def"
+      - "acquire"
+      - "max_size"
+      - "__aenter__"
+      - "__aexit__"
+      - "asyncio.Queue"
+    
+    must_not_contain:
+      - "pass  # TODO"

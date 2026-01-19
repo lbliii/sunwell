@@ -1,0 +1,46 @@
+# Documentation Task: Changelog for security release
+task:
+  id: "docs-changelog-003"
+  category: "documentation"
+  subcategory: "changelog"
+  
+  prompt: |
+    Write a changelog entry for version 1.5.3, a security patch release.
+    
+    Changes:
+    - Security: Fixed XSS vulnerability in template rendering (CVE-2026-1234)
+    - Security: Fixed SQL injection in dynamic query builder
+    - Security: Updated dependency `cryptography` to fix timing attack
+    - Fixed: Crash when handling malformed UTF-8 in headers
+    
+    This is a critical security release. Emphasize urgency appropriately.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "format"
+        weight: 0.2
+        criteria: "Follows Keep a Changelog format"
+      - dimension: "security"
+        weight: 0.35
+        criteria: "CVE referenced, severity indicated, upgrade urgency clear"
+      - dimension: "actionability"
+        weight: 0.25
+        criteria: "Users know exactly what to do"
+      - dimension: "professionalism"
+        weight: 0.2
+        criteria: "Serious tone without causing panic"
+    
+    must_contain:
+      - "## [1.5.3]"
+      - "Security"
+      - "CVE"
+      - "XSS"
+      - "SQL injection"
+      - "upgrade"
+    
+    must_not_contain:
+      - "minor"
+      - "small"
+      - "simple"

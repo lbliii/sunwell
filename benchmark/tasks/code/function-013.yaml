@@ -1,0 +1,54 @@
+# Code Generation Task: Async task scheduler
+task:
+  id: "code-function-013"
+  category: "code_generation"
+  subcategory: "function"
+  
+  prompt: |
+    Implement an async task scheduler with cron-like scheduling.
+    
+    Requirements:
+    - Schedule tasks with cron expressions (minute, hour, day, month, weekday)
+    - `schedule(cron_expr, async_fn)`: register a task
+    - `start()`: start the scheduler loop
+    - `stop()`: gracefully stop
+    - Support timezone-aware scheduling
+    - Handle missed runs (catchup option)
+    
+    Example:
+    ```python
+    scheduler = Scheduler(timezone="America/New_York")
+    
+    @scheduler.schedule("0 9 * * 1-5")  # 9 AM weekdays
+    async def daily_report():
+        await generate_report()
+    
+    await scheduler.start()
+    ```
+  
+  lens: "coder.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "correctness"
+        weight: 0.35
+        criteria: "Cron parsing and scheduling correct"
+      - dimension: "async"
+        weight: 0.25
+        criteria: "Proper async implementation"
+      - dimension: "features"
+        weight: 0.25
+        criteria: "Timezone, catchup supported"
+      - dimension: "usability"
+        weight: 0.15
+        criteria: "Clean decorator API"
+    
+    must_contain:
+      - "async def"
+      - "schedule"
+      - "cron"
+      - "timezone"
+      - "asyncio"
+    
+    must_not_contain:
+      - "pass  # TODO"

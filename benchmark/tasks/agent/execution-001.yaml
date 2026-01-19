@@ -1,0 +1,42 @@
+# Agent Task: End-to-end execution test
+task:
+  id: "agent-execution-001"
+  category: "agent"
+  subcategory: "execution"
+  
+  goal: |
+    Create a Python script that prints "Hello, Sunwell!" and run it.
+  
+  context:
+    cwd: "/tmp/benchmark-agent-exec-001"
+    trust_level: "shell"  # Need shell to run the script
+  
+  evaluation:
+    planning:
+      min_tasks: 2
+      max_tasks: 5
+      required_modes:
+        - "generate"
+        - "execute"
+      
+    execution:
+      must_create_files:
+        - "hello.py"
+      must_execute_commands:
+        - "python"
+      expected_output_contains:
+        - "Hello, Sunwell!"
+    
+    rubric:
+      - dimension: "task_completion"
+        weight: 0.4
+        criteria: "Script created and executed successfully"
+      - dimension: "correct_output"
+        weight: 0.3
+        criteria: "Output matches expected string"
+      - dimension: "efficiency"
+        weight: 0.3
+        criteria: "Minimal tasks to achieve goal"
+
+  timeout_seconds: 60
+  allow_retry: false

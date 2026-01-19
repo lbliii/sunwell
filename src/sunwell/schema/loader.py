@@ -3,60 +3,59 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from sunwell.fount.client import FountClient
 
 import yaml
 
+from sunwell.core.errors import ErrorCode, SunwellError, lens_error
+from sunwell.core.framework import Framework, FrameworkCategory
+from sunwell.core.heuristic import AntiHeuristic, CommunicationStyle, Example, Heuristic
 from sunwell.core.lens import (
     Lens,
     LensMetadata,
     Provenance,
+    QualityPolicy,
     Router,
     RouterTier,
-    QualityPolicy,
 )
-from sunwell.core.heuristic import Heuristic, AntiHeuristic, CommunicationStyle, Example
 from sunwell.core.persona import Persona
-from sunwell.core.validator import DeterministicValidator, HeuristicValidator
-from sunwell.core.framework import Framework, FrameworkCategory
-from sunwell.core.workflow import Workflow, WorkflowStep, Refiner
-from sunwell.core.types import (
-    SemanticVersion,
-    LensReference,
-    Severity,
-    ValidationMethod,
-    Tier,
-)
-from sunwell.core.errors import SunwellError, ErrorCode, lens_error
-from sunwell.skills.types import (
-    Skill,
-    SkillType,
-    TrustLevel,
-    Script,
-    Template,
-    Resource,
-    SkillValidation,
-    SkillRetryPolicy,
-)
 from sunwell.core.spell import (
     Spell,
-    Reagent,
-    ReagentType,
-    ReagentMode,
-    SpellExample,
-    SpellValidation,
-    ValidationMode,
     parse_spell,
+)
+from sunwell.core.types import (
+    LensReference,
+    SemanticVersion,
+    Severity,
+    Tier,
+    ValidationMethod,
+)
+from sunwell.core.validator import (
+    DeterministicValidator,
+    HeuristicValidator,
+    SchemaValidationMethod,
+    SchemaValidator,
+)
+from sunwell.core.workflow import Refiner, Workflow, WorkflowStep
+from sunwell.skills.types import (
+    Resource,
+    Script,
+    Skill,
+    SkillRetryPolicy,
+    SkillType,
+    SkillValidation,
+    Template,
+    TrustLevel,
 )
 
 
 class LensLoader:
     """Load lens definitions from files."""
 
-    def __init__(self, fount_client: "FountClient" | None = None):
+    def __init__(self, fount_client: FountClient | None = None):
         self.fount = fount_client
 
     def load(self, path: Path | str) -> Lens:
@@ -219,6 +218,17 @@ class LensLoader:
         if "spellbook" in lens_data:
             spellbook = self._parse_spellbook(lens_data["spellbook"])
 
+        # Parse schema_validators (RFC-035: Schema-aware validation)
+        schema_validators = ()
+        if "schema_validators" in lens_data:
+            schema_validators = self._parse_schema_validators(lens_data["schema_validators"])
+
+        # Also check schema_extensions.validators for backwards compatibility
+        if "schema_extensions" in lens_data:
+            ext_validators = lens_data["schema_extensions"].get("validators", [])
+            if ext_validators:
+                schema_validators = schema_validators + self._parse_schema_validators(ext_validators)
+
         return Lens(
             metadata=metadata,
             extends=extends,
@@ -238,16 +248,23 @@ class LensLoader:
             skills=skills,
             skill_retry=skill_retry,
             spellbook=spellbook,
+            schema_validators=schema_validators,
             source_path=source_path,
         )
 
     def _parse_metadata(self, data: dict[str, Any]) -> LensMetadata:
-        """Parse lens metadata."""
+        """Parse lens metadata.
+
+        RFC-035: Also parses compatible_schemas for domain-specific lenses.
+        """
         name = data.get("name", "Unnamed Lens")
 
         version = SemanticVersion(0, 1, 0)
         if "version" in data:
             version = SemanticVersion.parse(data["version"])
+
+        # RFC-035: Parse compatible_schemas
+        compatible_schemas = tuple(data.get("compatible_schemas", []))
 
         return LensMetadata(
             name=name,
@@ -256,6 +273,7 @@ class LensLoader:
             description=data.get("description"),
             author=data.get("author"),
             license=data.get("license"),
+            compatible_schemas=compatible_schemas,
         )
 
     def _parse_lens_reference(self, data: str | dict) -> LensReference:
@@ -387,6 +405,26 @@ class LensLoader:
             for v in data
         )
 
+    def _parse_schema_validators(
+        self, data: list[dict]
+    ) -> tuple[SchemaValidator, ...]:
+        """Parse schema validators (RFC-035).
+
+        Schema validators are lens-provided validators that target specific
+        artifact types defined in a project schema.
+        """
+        return tuple(
+            SchemaValidator(
+                name=v["name"],
+                check=v["check"],
+                applies_to=v["applies_to"],
+                condition=v.get("condition") or v.get("when"),
+                severity=Severity(v.get("severity", "warning")),
+                method=SchemaValidationMethod(v.get("method", "llm")),
+            )
+            for v in data
+        )
+
     def _parse_workflows(self, data: list[dict]) -> tuple[Workflow, ...]:
         """Parse workflows."""
         workflows = []
@@ -467,11 +505,11 @@ class LensLoader:
         self, data: list[dict], base_path: Path | None = None
     ) -> tuple[Skill, ...]:
         """Parse list of skills, supporting includes from external files.
-        
+
         Skills can be:
         - Inline skill definitions (dict with 'name', 'description', etc.)
         - Include directives (dict with 'include' key pointing to skill file)
-        
+
         Example:
             skills:
               - include: core-skills.yaml    # Load all skills from file
@@ -496,7 +534,7 @@ class LensLoader:
         self, include_ref: str, base_path: Path | None = None
     ) -> list[Skill]:
         """Load skills from an external file.
-        
+
         Supports:
         - "core-skills.yaml" - load all skills from file
         - "core-skills.yaml::skill-name" - load specific skill by name
@@ -509,13 +547,13 @@ class LensLoader:
         else:
             file_path = include_ref
             skill_names = None  # Load all
-        
+
         # Resolve path relative to base_path (lens directory) or skills directory
         search_paths = []
         if base_path:
             search_paths.append(base_path / file_path)
             search_paths.append(base_path.parent / "skills" / file_path)
-        
+
         # Also check the standard skills directory
         from importlib.resources import files
         try:
@@ -524,39 +562,39 @@ class LensLoader:
                 search_paths.append(Path(str(package_skills)))
         except (ImportError, TypeError):
             pass
-        
+
         # Add current working directory
         search_paths.append(Path.cwd() / file_path)
         search_paths.append(Path.cwd() / "skills" / file_path)
-        
+
         # Find the file
         skill_file = None
         for p in search_paths:
             if p.exists():
                 skill_file = p
                 break
-        
+
         if not skill_file:
             raise ValueError(
                 f"Skill include not found: {include_ref}. "
                 f"Searched: {[str(p) for p in search_paths]}"
             )
-        
+
         # Load and parse the skill file
         skill_data = yaml.safe_load(skill_file.read_text())
-        
+
         # The file should have a 'skills' key
         if "skills" not in skill_data:
             raise ValueError(
                 f"Skill file {skill_file} must have a 'skills' key"
             )
-        
+
         # Parse skills from the file
         all_skills = []
         for s in skill_data["skills"]:
             skill = self._parse_skill(s)
             all_skills.append(skill)
-        
+
         # Filter if specific skills requested
         if skill_names:
             all_skills = [s for s in all_skills if s.name in skill_names]
@@ -565,7 +603,7 @@ class LensLoader:
                 raise ValueError(
                     f"Skills not found in {skill_file}: {missing}"
                 )
-        
+
         return all_skills
 
     def _parse_skill(self, data: dict) -> Skill:

@@ -18,6 +18,8 @@ Sunwell retrieves professional heuristics from an expertise graph, injecting onl
 
 ## Installation
 
+### Production Installation
+
 ```bash
 pip install sunwell
 
@@ -26,6 +28,40 @@ pip install sunwell[openai]
 pip install sunwell[anthropic]
 pip install sunwell[all]
 ```
+
+### Development Setup (Free-Threading Recommended)
+
+Sunwell is optimized for Python 3.14t (free-threaded) for optimal parallelism. For development:
+
+**Quick Setup:**
+```bash
+# Using the setup script (recommended)
+./setup-free-threading.sh
+
+# Or using Make
+make setup-env
+```
+
+**Manual Setup:**
+```bash
+# Install uv if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Create venv with Python 3.14t (free-threaded)
+uv venv --python python3.14t .venv
+
+# Activate and install
+source .venv/bin/activate
+uv pip install -e ".[dev]"
+```
+
+**Verify Free-Threading:**
+```bash
+python -c "import sys; print('Free-threaded:', hasattr(sys, '_is_gil_enabled'))"
+# Should print: Free-threaded: True
+```
+
+**Note:** If Python 3.14t is not available, the setup will fall back to standard Python (GIL enabled). For optimal performance with Naaru's parallel workers, use Python 3.14t.
 
 ## Quick Start
 

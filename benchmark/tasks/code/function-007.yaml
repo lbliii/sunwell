@@ -1,0 +1,52 @@
+# Code Generation Task: Dependency injection container
+task:
+  id: "code-function-007"
+  category: "code_generation"
+  subcategory: "function"
+  
+  prompt: |
+    Implement a simple dependency injection container.
+    
+    Requirements:
+    - `register(interface, implementation, singleton=False)`: register a dependency
+    - `resolve(interface) -> instance`: get instance, creating if needed
+    - Support singleton and transient lifetimes
+    - Auto-resolve constructor dependencies
+    - Handle circular dependency detection
+    
+    Example usage:
+    ```python
+    container = Container()
+    container.register(IUserRepo, SQLUserRepo, singleton=True)
+    container.register(IEmailService, SMTPEmailService)
+    
+    # Auto-resolves IUserRepo dependency
+    service = container.resolve(UserService)
+    ```
+  
+  lens: "coder.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "correctness"
+        weight: 0.35
+        criteria: "Registration, resolution, and auto-wiring work"
+      - dimension: "features"
+        weight: 0.25
+        criteria: "Singleton, transient, circular detection"
+      - dimension: "usability"
+        weight: 0.2
+        criteria: "Clean API"
+      - dimension: "robustness"
+        weight: 0.2
+        criteria: "Good error messages for missing/circular deps"
+    
+    must_contain:
+      - "register"
+      - "resolve"
+      - "singleton"
+      - "circular"
+      - "__init__"
+    
+    must_not_contain:
+      - "pass  # TODO"

@@ -1,0 +1,78 @@
+# Code Review Task: SSRF vulnerability
+task:
+  id: "review-security-007"
+  category: "code_review"
+  subcategory: "security"
+  
+  prompt: |
+    Review this code for security vulnerabilities:
+    
+    ```python
+    import httpx
+    from fastapi import FastAPI, Query
+    
+    app = FastAPI()
+    
+    @app.get("/fetch")
+    async def fetch_url(url: str = Query(...)):
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            return {"content": response.text[:1000]}
+    
+    @app.get("/webhook")
+    async def configure_webhook(callback_url: str):
+        # Validate URL format
+        if not callback_url.startswith("http"):
+            raise ValueError("Invalid URL")
+        
+        # Store webhook URL
+        await save_webhook(callback_url)
+        
+        # Test the webhook
+        async with httpx.AsyncClient() as client:
+            await client.post(callback_url, json={"test": True})
+        
+        return {"status": "configured"}
+    
+    @app.get("/preview")
+    async def preview_image(image_url: str):
+        async with httpx.AsyncClient() as client:
+            response = await client.get(image_url)
+            if "image" in response.headers.get("content-type", ""):
+                return Response(content=response.content, media_type=response.headers["content-type"])
+        raise HTTPException(400, "Not an image")
+    ```
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.4
+        criteria: "Identifies SSRF in all three endpoints"
+      - dimension: "explanation"
+        weight: 0.3
+        criteria: "Explains internal network access risks"
+      - dimension: "actionability"
+        weight: 0.2
+        criteria: "Provides URL validation strategies"
+      - dimension: "severity"
+        weight: 0.1
+        criteria: "Correctly identifies as high severity"
+    
+    must_contain:
+      - "SSRF"
+      - "internal"
+      - "localhost"
+      - "127.0.0.1"
+      - "metadata"
+    
+    must_not_contain:
+      - "low risk"
+      - "acceptable"
+    
+    ground_truth_issues:
+      - "fetch_url: SSRF allows access to internal services"
+      - "configure_webhook: SSRF via callback URL"
+      - "preview_image: SSRF via image URL"
+      - "All endpoints vulnerable to cloud metadata access (169.254.169.254)"

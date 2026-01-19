@@ -20,7 +20,7 @@ task:
     
     Include type hints and comprehensive docstring.
   
-  lens: "helper.lens"
+  lens: "coder.lens"
   
   evaluation:
     rubric:

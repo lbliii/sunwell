@@ -45,7 +45,7 @@ task:
     - Composition for behavior
     - Dataclasses or attrs for clean initialization
   
-  lens: "helper.lens"
+  lens: "coder.lens"
   
   evaluation:
     rubric:

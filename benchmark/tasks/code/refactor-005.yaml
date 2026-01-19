@@ -1,0 +1,64 @@
+# Code Refactoring Task: Async conversion
+task:
+  id: "code-refactor-005"
+  category: "code_generation"
+  subcategory: "refactor"
+  
+  prompt: |
+    Convert this synchronous code to async with proper concurrency:
+    
+    ```python
+    import requests
+    import time
+    
+    def fetch_user_data(user_ids: list[int]) -> dict[int, dict]:
+        results = {}
+        for user_id in user_ids:
+            response = requests.get(f"https://api.example.com/users/{user_id}")
+            results[user_id] = response.json()
+        return results
+    
+    def enrich_users(users: dict[int, dict]) -> dict[int, dict]:
+        for user_id, user in users.items():
+            # Fetch additional data
+            orders = requests.get(f"https://api.example.com/users/{user_id}/orders").json()
+            preferences = requests.get(f"https://api.example.com/users/{user_id}/preferences").json()
+            
+            user['orders'] = orders
+            user['preferences'] = preferences
+        return users
+    
+    def process_users(user_ids: list[int]) -> dict[int, dict]:
+        users = fetch_user_data(user_ids)
+        users = enrich_users(users)
+        return users
+    ```
+    
+    Use httpx for async HTTP and asyncio.gather for concurrency.
+  
+  lens: "coder.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "concurrency"
+        weight: 0.35
+        criteria: "Proper use of asyncio.gather for parallel requests"
+      - dimension: "correctness"
+        weight: 0.3
+        criteria: "Same results as sync version"
+      - dimension: "efficiency"
+        weight: 0.2
+        criteria: "Maximizes parallelism"
+      - dimension: "style"
+        weight: 0.15
+        criteria: "Clean async code"
+    
+    must_contain:
+      - "async def"
+      - "await"
+      - "httpx"
+      - "asyncio.gather"
+    
+    must_not_contain:
+      - "requests.get"
+      - "for user_id in user_ids:"

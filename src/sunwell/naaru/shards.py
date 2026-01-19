@@ -68,6 +68,7 @@ class ShardType(Enum):
     QUICK_CHECKER = "quick_checker"
     LOOKAHEAD = "lookahead"
     CONSOLIDATOR = "consolidator"
+    THOUGHT_LEXER = "thought_lexer"  # RFC-028: Analyzes task → rotation plan
 
 
 @dataclass

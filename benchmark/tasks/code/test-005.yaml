@@ -1,0 +1,73 @@
+# Code Generation Task: Integration tests for API
+task:
+  id: "code-test-005"
+  category: "code_generation"
+  subcategory: "test"
+  
+  prompt: |
+    Write integration tests for this FastAPI application:
+    
+    ```python
+    from fastapi import FastAPI, Depends, HTTPException
+    from sqlalchemy.orm import Session
+    
+    app = FastAPI()
+    
+    @app.post("/users")
+    async def create_user(user: UserCreate, db: Session = Depends(get_db)):
+        if await get_user_by_email(db, user.email):
+            raise HTTPException(400, "Email already registered")
+        return await create_user_db(db, user)
+    
+    @app.get("/users/{user_id}")
+    async def get_user(user_id: int, db: Session = Depends(get_db)):
+        user = await get_user_db(db, user_id)
+        if not user:
+            raise HTTPException(404, "User not found")
+        return user
+    
+    @app.put("/users/{user_id}")
+    async def update_user(user_id: int, user: UserUpdate, db: Session = Depends(get_db)):
+        existing = await get_user_db(db, user_id)
+        if not existing:
+            raise HTTPException(404, "User not found")
+        return await update_user_db(db, user_id, user)
+    
+    @app.delete("/users/{user_id}")
+    async def delete_user(user_id: int, db: Session = Depends(get_db)):
+        success = await delete_user_db(db, user_id)
+        if not success:
+            raise HTTPException(404, "User not found")
+        return {"status": "deleted"}
+    ```
+    
+    Use pytest, httpx, and a test database.
+  
+  lens: "coder.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "coverage"
+        weight: 0.3
+        criteria: "Tests all CRUD operations and error cases"
+      - dimension: "isolation"
+        weight: 0.25
+        criteria: "Proper test database setup/teardown"
+      - dimension: "assertions"
+        weight: 0.25
+        criteria: "Verifies response status, body, and db state"
+      - dimension: "organization"
+        weight: 0.2
+        criteria: "Well-structured tests with fixtures"
+    
+    must_contain:
+      - "@pytest.fixture"
+      - "AsyncClient"
+      - "test_create_user"
+      - "test_get_user"
+      - "test_update_user"
+      - "test_delete_user"
+      - "status_code"
+    
+    must_not_contain:
+      - "# TODO"

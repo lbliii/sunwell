@@ -1,0 +1,47 @@
+# Documentation Task: How-to for WebSocket
+task:
+  id: "docs-howto-011"
+  category: "documentation"
+  subcategory: "howto"
+  
+  prompt: |
+    Write a how-to guide for implementing WebSocket connections in FastAPI.
+    
+    Cover:
+    1. Basic WebSocket endpoint
+    2. Connection lifecycle (connect, receive, send, disconnect)
+    3. Broadcasting to multiple clients
+    4. Authentication with WebSockets
+    5. Handling reconnection on client side
+    6. Scaling with Redis pub/sub
+    
+    Include both server and client code examples.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "completeness"
+        weight: 0.3
+        criteria: "All six topics covered"
+      - dimension: "accuracy"
+        weight: 0.3
+        criteria: "FastAPI WebSocket API correct"
+      - dimension: "examples"
+        weight: 0.25
+        criteria: "Server and client code included"
+      - dimension: "production"
+        weight: 0.15
+        criteria: "Scaling considerations addressed"
+    
+    must_contain:
+      - "WebSocket"
+      - "@app.websocket"
+      - "accept"
+      - "receive"
+      - "send"
+      - "broadcast"
+    
+    must_not_contain:
+      - "simple"
+      - "easy"

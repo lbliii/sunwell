@@ -1,0 +1,75 @@
+# Documentation Task: API Reference for protocol
+task:
+  id: "docs-api-ref-009"
+  category: "documentation"
+  subcategory: "api_reference"
+  
+  prompt: |
+    Write API reference documentation for this protocol-based interface:
+    
+    ```python
+    from typing import Protocol, TypeVar, runtime_checkable
+    
+    T = TypeVar("T")
+    
+    @runtime_checkable
+    class Serializable(Protocol):
+        """Protocol for objects that can be serialized."""
+        
+        def to_dict(self) -> dict:
+            """Convert to dictionary representation."""
+            ...
+        
+        @classmethod
+        def from_dict(cls: type[T], data: dict) -> T:
+            """Create instance from dictionary."""
+            ...
+    
+    @runtime_checkable
+    class Cacheable(Protocol):
+        """Protocol for objects that can be cached."""
+        
+        @property
+        def cache_key(self) -> str:
+            """Unique cache key for this object."""
+            ...
+        
+        @property
+        def cache_ttl(self) -> int | None:
+            """TTL in seconds, None for no expiry."""
+            ...
+    
+    class CacheableSerializer(Serializable, Cacheable, Protocol):
+        """Protocol combining Serializable and Cacheable."""
+        pass
+    ```
+    
+    Explain protocols, runtime_checkable, and how to implement them.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "accuracy"
+        weight: 0.3
+        criteria: "Protocol concepts explained correctly"
+      - dimension: "examples"
+        weight: 0.35
+        criteria: "Shows implementation examples"
+      - dimension: "completeness"
+        weight: 0.2
+        criteria: "Covers runtime_checkable, composition"
+      - dimension: "usability"
+        weight: 0.15
+        criteria: "User can implement protocols"
+    
+    must_contain:
+      - "Protocol"
+      - "runtime_checkable"
+      - "isinstance"
+      - "structural"
+      - "duck typing"
+    
+    must_not_contain:
+      - "simple"
+      - "easy"

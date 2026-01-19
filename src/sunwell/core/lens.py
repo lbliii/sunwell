@@ -6,21 +6,24 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sunwell.core.types import SemanticVersion, LensReference, Tier
-from sunwell.core.heuristic import Heuristic, AntiHeuristic, CommunicationStyle
-from sunwell.core.persona import Persona
-from sunwell.core.validator import DeterministicValidator, HeuristicValidator
 from sunwell.core.framework import Framework
-from sunwell.core.workflow import Workflow, Refiner
+from sunwell.core.heuristic import AntiHeuristic, CommunicationStyle, Heuristic
+from sunwell.core.persona import Persona
+from sunwell.core.types import LensReference, SemanticVersion, Tier
+from sunwell.core.validator import DeterministicValidator, HeuristicValidator, SchemaValidator
+from sunwell.core.workflow import Refiner, Workflow
 
 if TYPE_CHECKING:
-    from sunwell.skills.types import Skill, SkillRetryPolicy
     from sunwell.core.spell import Spell
+    from sunwell.skills.types import Skill, SkillRetryPolicy
 
 
 @dataclass(frozen=True, slots=True)
 class LensMetadata:
-    """Lens metadata."""
+    """Lens metadata.
+
+    RFC-035 adds compatible_schemas for domain-specific lenses.
+    """
 
     name: str
     domain: str | None = None
@@ -28,6 +31,19 @@ class LensMetadata:
     description: str | None = None
     author: str | None = None
     license: str | None = None
+
+    # RFC-035: Schema compatibility
+    compatible_schemas: tuple[str, ...] = ()
+    """Schema types this lens is designed for.
+
+    Empty tuple means universal (works with any schema or no schema).
+    Example: ("fiction", "screenplay", "memoir")
+
+    When a lens with compatible_schemas is applied to a project:
+    1. Schema match check: Lens only activates if project.schema.type in compatible_schemas
+    2. Validator merging: schema_validators are added to the project's validator list
+    3. Inheritance preserved: extends/compose work normally; child lenses inherit parent's schemas
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,11 +135,29 @@ class Lens:
     quality_policy: QualityPolicy = field(default_factory=QualityPolicy)
 
     # Skills (RFC-011: Agent Skills integration)
-    skills: tuple["Skill", ...] = ()
-    skill_retry: "SkillRetryPolicy | None" = None
+    skills: tuple[Skill, ...] = ()
+    skill_retry: SkillRetryPolicy | None = None
 
     # Spellbook (RFC-021: Portable Workflow Incantations)
-    spellbook: tuple["Spell", ...] = ()
+    spellbook: tuple[Spell, ...] = ()
+
+    # RFC-035: Schema-specific validators
+    schema_validators: tuple[SchemaValidator, ...] = ()
+    """Validators that only apply when a compatible schema is active.
+
+    These extend the project schema's validators with lens-specific checks.
+    Unlike heuristic_validators (general content), schema_validators target
+    specific artifact types defined in the schema.
+
+    Example:
+        A developmental-editor lens for fiction might add:
+        SchemaValidator(
+            name="character_arc_complete",
+            check="Every major character must change by the end",
+            applies_to="character",
+            condition="character.role == 'major'",
+        )
+    """
 
     # Source tracking
     source_path: Path | None = None
@@ -154,7 +188,7 @@ class Lens:
                 return w
         return None
 
-    def get_skill(self, name: str) -> "Skill | None":
+    def get_skill(self, name: str) -> Skill | None:
         """Get a skill by name."""
         for s in self.skills:
             # Skills use hyphens per Agent Skills spec
@@ -162,7 +196,7 @@ class Lens:
                 return s
         return None
 
-    def get_spell(self, incantation: str) -> "Spell | None":
+    def get_spell(self, incantation: str) -> Spell | None:
         """Get a spell by incantation or alias."""
         incantation_lower = incantation.lower()
         for spell in self.spellbook:

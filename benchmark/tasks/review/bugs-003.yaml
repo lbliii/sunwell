@@ -1,0 +1,75 @@
+# Code Review Task: Race condition
+task:
+  id: "review-bugs-003"
+  category: "code_review"
+  subcategory: "bugs"
+  
+  prompt: |
+    Review this code for bugs and race conditions:
+    
+    ```python
+    import asyncio
+    from dataclasses import dataclass
+    
+    @dataclass
+    class Counter:
+        value: int = 0
+    
+    counter = Counter()
+    
+    async def increment(amount: int = 1):
+        current = counter.value
+        await asyncio.sleep(0.001)  # Simulate async operation
+        counter.value = current + amount
+    
+    async def transfer(from_account: dict, to_account: dict, amount: float):
+        if from_account['balance'] >= amount:
+            await asyncio.sleep(0.01)  # Simulate async DB call
+            from_account['balance'] -= amount
+            to_account['balance'] += amount
+            return True
+        return False
+    
+    class ConnectionPool:
+        def __init__(self, max_size: int = 10):
+            self.connections = []
+            self.max_size = max_size
+        
+        async def get_connection(self):
+            if self.connections:
+                return self.connections.pop()
+            elif len(self.connections) < self.max_size:
+                return await self.create_connection()
+            raise Exception("Pool exhausted")
+    ```
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.4
+        criteria: "Identifies all three race conditions"
+      - dimension: "explanation"
+        weight: 0.3
+        criteria: "Explains how each race condition manifests"
+      - dimension: "actionability"
+        weight: 0.2
+        criteria: "Provides thread-safe alternatives"
+      - dimension: "async_awareness"
+        weight: 0.1
+        criteria: "Understands async concurrency model"
+    
+    must_contain:
+      - "race condition"
+      - "asyncio.Lock"
+      - "atomic"
+    
+    must_not_contain:
+      - "thread-safe"
+      - "no issues"
+    
+    ground_truth_issues:
+      - "increment: read-modify-write race condition"
+      - "transfer: check-then-act race condition (double spend)"
+      - "ConnectionPool: size check race condition"

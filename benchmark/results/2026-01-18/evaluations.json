@@ -1,0 +1,93 @@
+[
+  {
+    "task_id": "code-function-001",
+    "overall_winner": "bare",
+    "selective_wins": false,
+    "deterministic": {
+      "bare": {
+        "passed": false,
+        "must_contain": {
+          "def retry": false,
+          "max_retries": true,
+          "base_delay": true,
+          "async": true,
+          "sleep": true,
+          "except": true
+        },
+        "must_not_contain": {
+          "pass  # TODO": true
+        }
+      },
+      "flat": {
+        "passed": false,
+        "must_contain": {
+          "def retry": false,
+          "max_retries": true,
+          "base_delay": true,
+          "async": true,
+          "sleep": true,
+          "except": true
+        },
+        "must_not_contain": {
+          "pass  # TODO": true
+        }
+      },
+      "selective": {
+        "passed": true,
+        "must_contain": {
+          "def retry": true,
+          "max_retries": true,
+          "base_delay": true,
+          "async": true,
+          "sleep": true,
+          "except": true
+        },
+        "must_not_contain": {
+          "pass  # TODO": true
+        }
+      },
+      "self_directed": {
+        "passed": false,
+        "must_contain": {
+          "def retry": true,
+          "max_retries": false,
+          "base_delay": false,
+          "async": false,
+          "sleep": true,
+          "except": true
+        },
+        "must_not_contain": {
+          "pass  # TODO": true
+        }
+      },
+      "prefetch": {
+        "passed": true,
+        "must_contain": {
+          "def retry": true,
+          "max_retries": true,
+          "base_delay": true,
+          "async": true,
+          "sleep": true,
+          "except": true
+        },
+        "must_not_contain": {
+          "pass  # TODO": true
+        }
+      }
+    },
+    "judge_results": {
+      "selective_vs_bare": {
+        "winner": "a",
+        "avg_score_a": 9.5,
+        "avg_score_b": 7.916666666666667,
+        "agreement_rate": 0.6666666666666666
+      },
+      "selective_vs_flat": {
+        "winner": "b",
+        "avg_score_a": 8.083333333333334,
+        "avg_score_b": 6.333333333333333,
+        "agreement_rate": 0.6666666666666666
+      }
+    }
+  }
+]

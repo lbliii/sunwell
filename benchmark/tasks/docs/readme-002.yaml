@@ -1,0 +1,51 @@
+# Documentation Task: README for CLI tool
+task:
+  id: "docs-readme-002"
+  category: "documentation"
+  subcategory: "readme"
+  
+  prompt: |
+    Write a README for a CLI tool called `datapipe` that processes CSV/JSON files.
+    
+    Features to document:
+    - Read from file or stdin
+    - Filter rows with SQL-like syntax
+    - Select/rename columns
+    - Output to CSV, JSON, or Parquet
+    - Streaming mode for large files
+    
+    Example usage:
+    ```bash
+    datapipe input.csv --filter "age > 18" --select "name,email" --output users.json
+    cat data.json | datapipe --format json --filter "status = 'active'" > active.csv
+    ```
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "structure"
+        weight: 0.25
+        criteria: "Standard README sections (Install, Usage, Examples)"
+      - dimension: "examples"
+        weight: 0.3
+        criteria: "Multiple practical examples"
+      - dimension: "completeness"
+        weight: 0.25
+        criteria: "All features documented"
+      - dimension: "quick_start"
+        weight: 0.2
+        criteria: "User can start using in < 2 minutes"
+    
+    must_contain:
+      - "Installation"
+      - "Usage"
+      - "datapipe"
+      - "--filter"
+      - "--select"
+      - "--output"
+    
+    must_not_contain:
+      - "powerful"
+      - "flexible"
+      - "easy"

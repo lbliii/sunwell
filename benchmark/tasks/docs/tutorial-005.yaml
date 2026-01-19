@@ -1,0 +1,49 @@
+# Documentation Task: Tutorial for type hints
+task:
+  id: "docs-tutorial-005"
+  category: "documentation"
+  subcategory: "tutorial"
+  
+  prompt: |
+    Write a tutorial on Python type hints for intermediate developers.
+    
+    Cover in order:
+    1. Basic type hints (int, str, list, dict)
+    2. Optional and Union types
+    3. Generic types (list[T], dict[K, V])
+    4. TypeVar and Generic classes
+    5. Protocol for structural typing
+    6. Using mypy for type checking
+    
+    Include practical examples showing the benefits of type hints.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "learning_path"
+        weight: 0.3
+        criteria: "Progressive complexity"
+      - dimension: "accuracy"
+        weight: 0.25
+        criteria: "Type syntax is correct"
+      - dimension: "examples"
+        weight: 0.25
+        criteria: "Practical, realistic examples"
+      - dimension: "tooling"
+        weight: 0.2
+        criteria: "Shows mypy integration"
+    
+    must_contain:
+      - "int"
+      - "str"
+      - "Optional"
+      - "Union"
+      - "TypeVar"
+      - "Generic"
+      - "Protocol"
+      - "mypy"
+    
+    must_not_contain:
+      - "easy"
+      - "simple"

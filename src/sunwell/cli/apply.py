@@ -361,10 +361,22 @@ async def _apply_async(
             allowed_tools=frozenset(allowed_tools) if allowed_tools else None,
         )
         
+        # RFC-027: Set up expertise tools if lens is available
+        expertise_handler = None
+        if lens:
+            from sunwell.embedding import create_embedder
+            from sunwell.runtime.retriever import ExpertiseRetriever
+            from sunwell.tools.expertise import ExpertiseToolHandler
+            
+            embedder = create_embedder()
+            retriever = ExpertiseRetriever(lens=lens, embedder=embedder, top_k=5)
+            expertise_handler = ExpertiseToolHandler(retriever=retriever, lens=lens)
+        
         tool_executor = ToolExecutor(
             workspace=workspace_root,
             sandbox=sandbox,
             policy=policy,
+            expertise_handler=expertise_handler,
             audit_path=Path(".sunwell/audit") if verbose else None,
         )
         
@@ -372,6 +384,8 @@ async def _apply_async(
             console.print(f"\n[cyan]Tool Calling:[/cyan] Enabled")
             console.print(f"  Trust level: {trust_level}")
             console.print(f"  Available tools: {', '.join(tool_executor.get_available_tools())}")
+            if expertise_handler:
+                console.print(f"  [green]Self-directed expertise:[/green] Enabled (RFC-027)")
 
     # Set up model router if requested (RFC-015)
     model_router = None
@@ -577,7 +591,7 @@ async def _apply_async(
         await hs.add_assistant_message(final_content, model=f"{provider}:{model_name}")
         
         # Auto-extract learnings from response
-        from sunwell.simulacrum.extractor import auto_extract_learnings
+        from sunwell.simulacrum.extractors.extractor import auto_extract_learnings
         extracted = auto_extract_learnings(final_content, min_confidence=0.6)
         
         for learning_text, category, confidence in extracted[:3]:  # Top 3
@@ -606,7 +620,7 @@ async def _apply_async(
         
         # Auto-extract and store learnings
         try:
-            from sunwell.simulacrum.extractor import auto_extract_learnings
+            from sunwell.simulacrum.extractors.extractor import auto_extract_learnings
             extracted = auto_extract_learnings(final_content, min_confidence=0.6)
             
             for learning_text, category, confidence in extracted[:3]:

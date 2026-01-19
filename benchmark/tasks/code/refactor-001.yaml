@@ -40,7 +40,7 @@ task:
     - Separate concerns (fetching, formatting, advice logic)
     - Be fully testable without network calls
   
-  lens: "helper.lens"
+  lens: "coder.lens"
   
   evaluation:
     rubric:

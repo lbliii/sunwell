@@ -1,0 +1,78 @@
+# Code Generation Task: Write tests for user service
+task:
+  id: "code-test-003"
+  category: "code_generation"
+  subcategory: "test"
+  
+  prompt: |
+    Write pytest tests for this user service:
+    
+    ```python
+    from dataclasses import dataclass
+    from datetime import datetime
+    
+    @dataclass
+    class User:
+        id: int
+        email: str
+        name: str
+        created_at: datetime
+        is_active: bool = True
+    
+    class UserService:
+        def __init__(self, repository, email_service):
+            self.repository = repository
+            self.email_service = email_service
+        
+        async def create_user(self, email: str, name: str) -> User:
+            if await self.repository.get_by_email(email):
+                raise ValueError(f"User with email {email} already exists")
+            
+            user = User(
+                id=0,  # Will be set by repository
+                email=email,
+                name=name,
+                created_at=datetime.utcnow(),
+            )
+            user = await self.repository.save(user)
+            await self.email_service.send_welcome(user.email, user.name)
+            return user
+        
+        async def deactivate_user(self, user_id: int) -> User:
+            user = await self.repository.get(user_id)
+            if not user:
+                raise ValueError(f"User {user_id} not found")
+            user.is_active = False
+            return await self.repository.save(user)
+    ```
+    
+    Test happy paths, error cases, and verify mock interactions.
+  
+  lens: "coder.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "coverage"
+        weight: 0.35
+        criteria: "Tests happy paths and error cases"
+      - dimension: "mocking"
+        weight: 0.25
+        criteria: "Properly mocks repository and email service"
+      - dimension: "assertions"
+        weight: 0.25
+        criteria: "Verifies return values and mock calls"
+      - dimension: "style"
+        weight: 0.15
+        criteria: "Clear test names, good organization"
+    
+    must_contain:
+      - "@pytest.fixture"
+      - "async def test_"
+      - "mock"
+      - "assert"
+      - "pytest.raises"
+      - "ValueError"
+    
+    must_not_contain:
+      - "pass"
+      - "# TODO"

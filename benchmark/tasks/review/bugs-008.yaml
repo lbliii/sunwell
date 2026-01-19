@@ -1,0 +1,78 @@
+# Code Review Task: Iterator bugs
+task:
+  id: "review-bugs-008"
+  category: "code_review"
+  subcategory: "bugs"
+  
+  prompt: |
+    Review this code for iterator and collection bugs:
+    
+    ```python
+    def remove_inactive_users(users: list[User]) -> list[User]:
+        for user in users:
+            if not user.is_active:
+                users.remove(user)
+        return users
+    
+    def process_in_batches(items: Iterator[T], batch_size: int) -> Iterator[list[T]]:
+        batch = []
+        for item in items:
+            batch.append(item)
+            if len(batch) == batch_size:
+                yield batch
+                batch.clear()
+        if batch:
+            yield batch
+    
+    def merge_configs(configs: list[dict]) -> dict:
+        result = configs[0] if configs else {}
+        for config in configs[1:]:
+            result.update(config)
+        return result
+    
+    def cache_results(func):
+        cache = {}
+        def wrapper(*args):
+            if args not in cache:
+                cache[args] = func(*args)
+            return cache[args]
+        return wrapper
+    
+    @cache_results
+    def fetch_data(ids: list[int]) -> list[dict]:
+        return db.fetch(ids)
+    ```
+  
+  lens: "code-reviewer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "detection_rate"
+        weight: 0.4
+        criteria: "Identifies all iterator bugs"
+      - dimension: "explanation"
+        weight: 0.3
+        criteria: "Explains why each is buggy"
+      - dimension: "actionability"
+        weight: 0.2
+        criteria: "Shows correct patterns"
+      - dimension: "python_knowledge"
+        weight: 0.1
+        criteria: "Demonstrates deep Python understanding"
+    
+    must_contain:
+      - "modify"
+      - "iterating"
+      - "clear"
+      - "mutate"
+      - "hashable"
+    
+    must_not_contain:
+      - "correct"
+      - "looks good"
+    
+    ground_truth_issues:
+      - "remove_inactive_users: modifying list while iterating"
+      - "process_in_batches: batch.clear() clears already-yielded reference"
+      - "merge_configs: mutates configs[0]"
+      - "cache_results: list is not hashable, will raise TypeError"

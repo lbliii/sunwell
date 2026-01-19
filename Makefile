@@ -1,34 +1,104 @@
-.PHONY: install dev test lint format clean build
+.PHONY: install dev test lint format clean build setup-env check-uv check-python314t
+
+# Detect Python interpreter
+PYTHON := python3.14t
+ifeq ($(shell command -v python3.14t 2>/dev/null),)
+	# Fallback to system Python if 3.14t not found
+	PYTHON := python3
+	$(warning python3.14t not found, using $(PYTHON). For optimal performance, install Python 3.14t)
+endif
+
+# Check if uv is installed
+check-uv:
+	@command -v uv >/dev/null 2>&1 || ( \
+		echo ""; \
+		echo "❌ uv is not installed or not in PATH"; \
+		echo ""; \
+		echo "Please install uv: https://docs.astral.sh/uv/getting-started/installation/"; \
+		echo ""; \
+		exit 1; \
+	)
+
+# Check if Python 3.14t is available
+check-python314t:
+	@command -v python3.14t >/dev/null 2>&1 || ( \
+		echo ""; \
+		echo "⚠️  python3.14t not found. Using standard Python (GIL enabled)."; \
+		echo ""; \
+		echo "For free-threading, install Python 3.14t:"; \
+		echo "  macOS: brew install python@3.14t"; \
+		echo "  Or build from source: https://github.com/python/cpython"; \
+		echo ""; \
+	)
+
+# Setup free-threading environment with uv
+setup-env: check-uv check-python314t
+	@echo "🔧 Setting up free-threading environment..."
+	@if command -v python3.14t >/dev/null 2>&1; then \
+		echo "✅ Using Python 3.14t (free-threaded)"; \
+		uv venv --python python3.14t .venv; \
+	else \
+		echo "⚠️  Using standard Python (GIL enabled)"; \
+		uv venv .venv; \
+	fi
+	@echo "📥 Installing dependencies..."
+	@uv pip install -e ".[dev]"
+	@echo ""
+	@echo "✅ Environment ready!"
+	@echo ""
+	@echo "To activate:"
+	@echo "  source .venv/bin/activate"
+	@echo ""
+	@echo "To verify free-threading:"
+	@echo "  python -c \"import sys; print('Free-threaded:', hasattr(sys, '_is_gil_enabled'))\""
 
 # Install production dependencies
-install:
-	pip install -e .
+install: check-uv
+	uv pip install -e .
 
 # Install development dependencies
-dev:
-	pip install -e ".[dev]"
+dev: check-uv
+	uv pip install -e ".[dev]"
 
 # Install all optional dependencies
-all:
-	pip install -e ".[all,dev]"
+all: check-uv
+	uv pip install -e ".[all,dev]"
 
-# Run tests
+# Run tests (uses venv Python if available)
 test:
-	pytest tests/ -v
+	@if [ -f .venv/bin/python ]; then \
+		.venv/bin/python -m pytest tests/ -v; \
+	else \
+		$(PYTHON) -m pytest tests/ -v; \
+	fi
 
 # Run tests with coverage
 test-cov:
-	pytest tests/ -v --cov=sunwell --cov-report=html --cov-report=term
+	@if [ -f .venv/bin/python ]; then \
+		.venv/bin/python -m pytest tests/ -v --cov=sunwell --cov-report=html --cov-report=term; \
+	else \
+		$(PYTHON) -m pytest tests/ -v --cov=sunwell --cov-report=html --cov-report=term; \
+	fi
 
 # Lint code
 lint:
-	ruff check src/sunwell tests
-	mypy src/sunwell
+	@if [ -f .venv/bin/ruff ]; then \
+		.venv/bin/ruff check src/sunwell tests; \
+		.venv/bin/python -m mypy src/sunwell; \
+	else \
+		ruff check src/sunwell tests; \
+		mypy src/sunwell; \
+	fi
 
 # Format code
 format:
-	ruff format src/sunwell tests
-	ruff check --fix src/sunwell tests
+	@if [ -f .venv/bin/ruff ]; then \
+		.venv/bin/ruff format src/sunwell tests; \
+		.venv/bin/ruff check --fix src/sunwell tests; \
+	else \
+		ruff format src/sunwell tests; \
+		ruff check --fix src/sunwell tests; \
+	fi
 
 # Clean build artifacts
 clean:
@@ -44,7 +114,11 @@ clean:
 
 # Build distribution
 build: clean
-	python -m build
+	@if [ -f .venv/bin/python ]; then \
+		.venv/bin/python -m build; \
+	else \
+		$(PYTHON) -m build; \
+	fi
 
 # Validate example lenses
 validate-lenses:

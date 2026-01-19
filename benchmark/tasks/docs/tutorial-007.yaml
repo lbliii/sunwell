@@ -1,0 +1,47 @@
+# Documentation Task: Tutorial for dataclasses
+task:
+  id: "docs-tutorial-007"
+  category: "documentation"
+  subcategory: "tutorial"
+  
+  prompt: |
+    Write a tutorial on Python dataclasses for intermediate developers.
+    
+    Cover:
+    1. Basic dataclass usage
+    2. Default values and field()
+    3. Frozen dataclasses for immutability
+    4. Post-init processing with __post_init__
+    5. Inheritance with dataclasses
+    6. Comparison with Pydantic and attrs
+    
+    Use practical examples throughout.
+  
+  lens: "tech-writer.lens"
+  
+  evaluation:
+    rubric:
+      - dimension: "learning_path"
+        weight: 0.3
+        criteria: "Progressive complexity"
+      - dimension: "accuracy"
+        weight: 0.25
+        criteria: "Dataclass features correct"
+      - dimension: "examples"
+        weight: 0.25
+        criteria: "Practical, runnable examples"
+      - dimension: "comparison"
+        weight: 0.2
+        criteria: "Fair comparison with alternatives"
+    
+    must_contain:
+      - "@dataclass"
+      - "field("
+      - "frozen="
+      - "__post_init__"
+      - "Pydantic"
+      - "attrs"
+    
+    must_not_contain:
+      - "simple"
+      - "easy"
