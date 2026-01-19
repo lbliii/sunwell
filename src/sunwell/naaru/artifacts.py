@@ -386,6 +386,19 @@ class ArtifactGraph:
         """Get the number of artifacts that depend on this one."""
         return len(self._dependents.get(artifact_id, set()))
 
+    def get_dependents(self, artifact_id: str) -> set[str]:
+        """Get artifacts that depend on this artifact.
+
+        Used for invalidation cascade in incremental rebuilds (RFC-040).
+
+        Args:
+            artifact_id: The artifact to find dependents for
+
+        Returns:
+            Set of artifact IDs that have this artifact in their requires
+        """
+        return self._dependents.get(artifact_id, set()).copy()
+
     def validate(self) -> list[str]:
         """Validate the graph for completeness and consistency.
 

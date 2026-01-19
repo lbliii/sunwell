@@ -61,7 +61,7 @@ class ParallelConfig:
     """Configuration for parallel task execution (RFC-032)."""
     
     enabled: bool = True
-    max_parallel_tasks: int = 4      # Don't overwhelm system
+    max_parallel_tasks: int = 8      # Matches NaaruConfig default
     max_parallel_writes: int = 2     # Limit concurrent file writes
     parallel_research: bool = True   # Research tasks are always safe
     
@@ -79,7 +79,7 @@ class ParallelConfig:
         """Create from dict."""
         return cls(
             enabled=data.get("enabled", True),
-            max_parallel_tasks=data.get("max_parallel_tasks", 4),
+            max_parallel_tasks=data.get("max_parallel_tasks", 8),
             max_parallel_writes=data.get("max_parallel_writes", 2),
             parallel_research=data.get("parallel_research", True),
         )

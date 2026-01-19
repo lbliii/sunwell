@@ -350,7 +350,8 @@ class TestCoreTools:
     def test_all_core_tools_defined(self) -> None:
         """All expected core tools should be defined."""
         expected_tools = {
-            "read_file", "write_file", "list_files", "search_files", "run_command",
+            "read_file", "write_file", "edit_file", "list_files", "search_files", "run_command",
+            "mkdir", "git_init",  # Directory and git init tools
             "web_search", "web_fetch",  # Web access tools
             "git_info",  # Git info tool
         }

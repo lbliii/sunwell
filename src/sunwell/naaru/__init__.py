@@ -155,6 +155,29 @@ from sunwell.naaru.executor import (
     execute_with_discovery,
 )
 
+# RFC-040: Plan Persistence and Incremental Execution
+from sunwell.naaru.incremental import (
+    ChangeDetector,
+    ChangeReport,
+    IncrementalExecutor,
+    PlanPreview,
+    compute_rebuild_set,
+    find_invalidated,
+)
+from sunwell.naaru.persistence import (
+    ArtifactCompletion,
+    ExecutionStatus,
+    PlanStore,
+    SavedExecution,
+    TraceLogger,
+    get_latest_execution,
+    hash_content,
+    hash_file,
+    hash_goal,
+    resume_execution,
+    save_execution,
+)
+
 # Core runners
 from sunwell.naaru.loop import AutonomousRunner
 from sunwell.naaru.migration import (
@@ -421,4 +444,25 @@ __all__ = [
     "migrate_rfc019_to_rfc033",
     "create_rfc019_equivalent_config",
     "create_rfc028_equivalent_config",
+
+    # RFC-040: Plan Persistence
+    "SavedExecution",
+    "ArtifactCompletion",
+    "ExecutionStatus",
+    "PlanStore",
+    "TraceLogger",
+    "hash_goal",
+    "hash_content",
+    "hash_file",
+    "save_execution",
+    "get_latest_execution",
+    "resume_execution",
+
+    # RFC-040: Incremental Execution
+    "ChangeDetector",
+    "ChangeReport",
+    "IncrementalExecutor",
+    "PlanPreview",
+    "find_invalidated",
+    "compute_rebuild_set",
 ]

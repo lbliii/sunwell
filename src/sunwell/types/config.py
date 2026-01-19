@@ -12,6 +12,44 @@ if TYPE_CHECKING:
 
 
 @dataclass
+class OllamaConfig:
+    """Configuration for Ollama server parallelism.
+    
+    Maps to Ollama environment variables:
+    - OLLAMA_NUM_PARALLEL: Max parallel requests per model
+    - OLLAMA_MAX_LOADED_MODELS: Max models loaded concurrently
+    - OLLAMA_MAX_QUEUE: Max queued requests (default: 512)
+    
+    See: https://github.com/ollama/ollama/blob/main/docs/faq.md#how-does-ollama-handle-concurrent-requests
+    """
+    
+    base_url: str = "http://localhost:11434"
+    """Ollama server URL."""
+    
+    num_parallel: int | None = None
+    """Max parallel requests per model. None = auto-detect from server.
+    
+    Maps to OLLAMA_NUM_PARALLEL. If None, Sunwell queries the server
+    or defaults to 4 (Ollama's default when sufficient VRAM).
+    """
+    
+    max_loaded_models: int | None = None
+    """Max models loaded concurrently. None = server default (3 * GPUs).
+    
+    Maps to OLLAMA_MAX_LOADED_MODELS.
+    """
+    
+    connection_pool_size: int = 20
+    """httpx connection pool size for concurrent requests.
+    
+    Should be >= num_parallel * num_models_in_use.
+    """
+    
+    request_timeout: float = 120.0
+    """Request timeout in seconds for generation calls."""
+
+
+@dataclass
 class EmbeddingConfig:
     """Configuration for embeddings."""
 
@@ -161,8 +199,26 @@ class NaaruConfig:
     enable_parallel_execution: bool = True
     """Execute independent tasks in parallel when possible (RFC-034)."""
     
-    max_parallel_tasks: int = 4
-    """Maximum tasks to execute concurrently (RFC-034)."""
+    max_parallel_tasks: int = 8
+    """Maximum tasks to execute concurrently (RFC-034).
+    
+    Increased from 4 to 8 because:
+    - Ollama defaults to OLLAMA_NUM_PARALLEL=4 per model
+    - With synthesis + judge models, that's 8 concurrent requests
+    - Modern GPUs handle this well with context parallelism
+    
+    Set higher if you have:
+    - High VRAM (24GB+): Try 12-16
+    - Multiple GPUs: Try num_parallel * num_gpus
+    - CPU inference with lots of RAM: Try 16-32
+    """
+    
+    max_parallel_llm_requests: int | None = None
+    """Maximum concurrent LLM requests to Ollama. None = auto-detect.
+    
+    When None, Sunwell uses min(max_parallel_tasks, ollama_num_parallel).
+    Set explicitly to override the auto-detected limit.
+    """
     
     planning_strategy: str = "contract_first"
     """How to decompose goals into tasks (RFC-034).

@@ -166,6 +166,100 @@ class CoreToolHandlers:
 
         return f"✓ Wrote {user_path} ({len(content):,} bytes)"
 
+    async def edit_file(self, args: dict) -> str:
+        """Make targeted edits to a file by replacing specific content.
+        
+        Much safer than write_file for modifying existing files.
+        Creates a backup before editing.
+        
+        Args:
+            args: Dict with path, old_content, new_content, and optional occurrence
+            
+        Returns:
+            Success message with edit details
+            
+        Raises:
+            FileNotFoundError: If file doesn't exist
+            ValueError: If old_content not found or not unique
+        """
+        user_path = args["path"]
+        old_content = args["old_content"]
+        new_content = args["new_content"]
+        occurrence = args.get("occurrence", 1)  # 1=first, -1=last, 0=all
+        
+        path = self._safe_path(user_path, allow_write=True)
+        
+        # GUARD: File must exist for edit (use write_file for new files)
+        if not path.exists():
+            raise FileNotFoundError(
+                f"File not found: {user_path}. Use write_file to create new files."
+            )
+        if not path.is_file():
+            raise ValueError(f"Not a file: {user_path}")
+        
+        # Read current content
+        content = path.read_text(encoding="utf-8")
+        
+        # Find occurrences
+        count = content.count(old_content)
+        
+        if count == 0:
+            # Provide helpful error message
+            preview = old_content[:100] + "..." if len(old_content) > 100 else old_content
+            raise ValueError(
+                f"Content not found in {user_path}.\n"
+                f"Looking for:\n{preview}\n\n"
+                f"Make sure the content matches exactly, including whitespace and indentation."
+            )
+        
+        if count > 1 and occurrence == 1:
+            # Warn about multiple occurrences when only replacing first
+            pass  # Proceed with first occurrence
+        
+        # Create backup before editing
+        backup_path = path.with_suffix(path.suffix + ".bak")
+        backup_path.write_text(content, encoding="utf-8")
+        
+        # Perform the replacement
+        if occurrence == 0:
+            # Replace all
+            new_file_content = content.replace(old_content, new_content)
+            replaced_count = count
+        elif occurrence == -1:
+            # Replace last occurrence
+            idx = content.rfind(old_content)
+            new_file_content = content[:idx] + new_content + content[idx + len(old_content):]
+            replaced_count = 1
+        else:
+            # Replace first occurrence (or nth if occurrence > 1)
+            if occurrence > count:
+                raise ValueError(
+                    f"Requested occurrence {occurrence} but only {count} found in {user_path}"
+                )
+            
+            # Find the nth occurrence
+            idx = -1
+            for _ in range(occurrence):
+                idx = content.find(old_content, idx + 1)
+            
+            new_file_content = content[:idx] + new_content + content[idx + len(old_content):]
+            replaced_count = 1
+        
+        # Write the modified content
+        path.write_text(new_file_content, encoding="utf-8")
+        
+        # Calculate line numbers for the edit (approximate)
+        lines_before = content[:content.find(old_content)].count('\n') + 1
+        old_lines = old_content.count('\n') + 1
+        new_lines = new_content.count('\n') + 1
+        
+        return (
+            f"✓ Edited {user_path}\n"
+            f"  Replaced {replaced_count} occurrence(s) at ~line {lines_before}\n"
+            f"  Lines: {old_lines} → {new_lines}\n"
+            f"  Backup: {backup_path.name}"
+        )
+
     async def list_files(self, args: dict) -> str:
         """List files in directory. Respects blocked patterns."""
         path = self._safe_path(args.get("path", "."))

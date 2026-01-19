@@ -1976,26 +1976,89 @@ Provide key findings in a structured format."""
 
         task.result = {"output": result.output}
 
+    def _strip_markdown_fences(self, content: str) -> str:
+        """Strip markdown code fences from LLM output.
+        
+        Handles:
+        - ```python\n...\n``` (exact match)
+        - ```python\n...\n```\nexplanation text (trailing text after fence)
+        - ``` ... ``` (no language)
+        """
+        import re
+        
+        # Pattern: opening fence, content, closing fence, optionally followed by anything
+        # Non-greedy match for content to stop at first ```
+        pattern = r'^```(?:\w+)?\n(.*?)\n```(?:\s.*)?$'
+        
+        match = re.match(pattern, content.strip(), re.DOTALL)
+        if match:
+            return match.group(1).strip()
+        
+        # Fallback: Find first ``` and last ``` on its own line
+        lines = content.strip().split('\n')
+        
+        # Find start (```python or ``` line)
+        start_idx = None
+        for i, line in enumerate(lines):
+            if line.strip().startswith('```'):
+                start_idx = i
+                break
+        
+        if start_idx is None:
+            return content  # No fences found
+        
+        # Find end (``` line after start)
+        end_idx = None
+        for i in range(start_idx + 1, len(lines)):
+            if lines[i].strip() == '```':
+                end_idx = i
+                break
+        
+        if end_idx is None:
+            # No closing fence - remove just the opening
+            return '\n'.join(lines[start_idx + 1:])
+        
+        # Extract content between fences
+        return '\n'.join(lines[start_idx + 1:end_idx])
+
     async def _generate_task(self, task) -> None:
-        """Generate content using synthesis, then write to file."""
+        """Generate content using synthesis, then write to file.
+        
+        Includes:
+        - Harmonic Synthesis (multi-persona generation) if enabled
+        - Signal-based content validation with escalation to larger model
+        """
         if not self.synthesis_model:
             raise RuntimeError("No synthesis model available for content generation")
 
         from sunwell.models.protocol import GenerateOptions, ToolCall
 
-        # Use synthesis to generate content
-        prompt = f"""Generate the following content:
+        # Base prompt
+        base_prompt = f"""Generate the following content:
 
 TASK: {task.description}
 
-Provide only the content, no explanations:"""
+Provide only the content, no explanations. Do NOT wrap in markdown fences:"""
 
-        result = await self.synthesis_model.generate(
-            prompt,
-            options=GenerateOptions(temperature=0.3, max_tokens=2048),
-        )
-
-        content = result.content or ""
+        # Check if Harmonic Synthesis is enabled
+        if self.config.harmonic_synthesis and task.target_path:
+            content = await self._harmonic_generate(task.description, base_prompt, task.target_path)
+        else:
+            # Single generation
+            result = await self.synthesis_model.generate(
+                base_prompt,
+                options=GenerateOptions(temperature=0.3, max_tokens=2048),
+            )
+            content = result.content or ""
+        
+        # Strip markdown fences if LLM included them despite instructions
+        content = self._strip_markdown_fences(content)
+        
+        # Signal-based content validation (RFC-036 style)
+        if task.target_path:
+            content = await self._validate_and_escalate(
+                content, task.description, task.target_path, base_prompt
+            )
 
         # Write to file if target_path specified and tool_executor available
         if task.target_path and self.tool_executor:
@@ -2012,6 +2075,171 @@ Provide only the content, no explanations:"""
             task.result = {"content": content, "path": task.target_path}
         else:
             task.result = {"content": content}
+    
+    async def _validate_and_escalate(
+        self, 
+        content: str, 
+        task_description: str, 
+        target_path: str,
+        original_prompt: str,
+    ) -> str:
+        """Validate content and escalate to larger model if needed.
+        
+        Uses fast heuristics first (no LLM cost), then escalates if:
+        - Wrong content type (e.g., JSON instead of Python)
+        - Syntax errors
+        - Stub/placeholder content
+        """
+        from sunwell.naaru.experiments.content_validation import (
+            fast_validate,
+            infer_expected_type,
+        )
+        from sunwell.naaru.experiments.signals import Trit
+        from sunwell.models.protocol import GenerateOptions
+        
+        expected_type = infer_expected_type(target_path)
+        result = fast_validate(content, expected_type)
+        
+        if result.signal == Trit.NO:
+            return content  # Looks good, no escalation needed
+        
+        # Content has issues - try to escalate
+        if result.signal == Trit.YES or result.needs_escalation:
+            # Try with escalation model if available
+            escalation_model = self._get_escalation_model()
+            if escalation_model and escalation_model != self.synthesis_model:
+                # Regenerate with larger model - be more explicit about format
+                enhanced_prompt = f"""Generate valid {expected_type.name} code for:
+
+{task_description}
+
+REQUIREMENTS:
+- Output ONLY valid {expected_type.name} code
+- NO explanations, NO markdown, NO comments outside the code
+- The code must be syntactically correct and complete
+- Start directly with imports or code, not text
+
+Previous attempt returned invalid content: {', '.join(result.issues)}"""
+
+                retry_result = await escalation_model.generate(
+                    enhanced_prompt,
+                    options=GenerateOptions(temperature=0.1, max_tokens=3000),
+                )
+                
+                new_content = self._strip_markdown_fences(retry_result.content or "")
+                
+                # Validate the escalated result
+                new_validation = fast_validate(new_content, expected_type)
+                if new_validation.signal == Trit.NO or new_validation.is_valid:
+                    return new_content
+                
+                # Escalation also failed - use new content if it's at least valid syntax
+                # (even if not perfect, better than completely wrong format)
+                if new_validation.detected_type == expected_type:
+                    return new_content
+        
+        # Return original if escalation not available or didn't help
+        return content
+    
+    def _get_escalation_model(self):
+        """Get a larger model for escalation, if available.
+        
+        Tries judge_model first (typically larger), falls back to synthesis_model.
+        """
+        # Use judge_model if it's different from synthesis_model
+        if self.judge_model and self.judge_model != self.synthesis_model:
+            return self.judge_model
+        
+        # No separate escalation model available
+        return None
+    
+    # =========================================================================
+    # Harmonic Synthesis for Agent Mode
+    # =========================================================================
+    
+    # Lens personas for multi-perspective generation
+    HARMONIC_PERSONAS = {
+        "pragmatist": {
+            "name": "Pragmatist",
+            "system": "You are a pragmatic developer. Focus on simple, working code. Avoid over-engineering.",
+        },
+        "quality": {
+            "name": "Quality Engineer", 
+            "system": "You are a quality engineer. Focus on clean, maintainable, well-typed code.",
+        },
+        "security": {
+            "name": "Security Expert",
+            "system": "You are a security expert. Focus on input validation, error handling, safe defaults.",
+        },
+    }
+    
+    async def _harmonic_generate(
+        self, 
+        task_description: str, 
+        base_prompt: str,
+        target_path: str,
+    ) -> str:
+        """Generate content using multiple personas and select the best.
+        
+        Harmonic Synthesis: Instead of generating once, generate with
+        MULTIPLE PERSONAS, then use signals to pick the best.
+        
+        This provides structured variance (different perspectives) rather than
+        random variance (temperature sampling).
+        """
+        from sunwell.models.protocol import GenerateOptions
+        from sunwell.naaru.experiments.content_validation import (
+            fast_validate, infer_expected_type
+        )
+        from sunwell.naaru.experiments.signals import Trit
+        
+        expected_type = infer_expected_type(target_path)
+        candidates: list[tuple[str, str, int]] = []  # (persona, content, quality_score)
+        
+        # Generate with each persona (sequentially to avoid Ollama issues)
+        for persona_id, persona in self.HARMONIC_PERSONAS.items():
+            enhanced_prompt = f"""{persona['system']}
+
+{base_prompt}"""
+            
+            try:
+                result = await self.synthesis_model.generate(
+                    enhanced_prompt,
+                    options=GenerateOptions(temperature=0.4, max_tokens=2048),
+                )
+                content = self._strip_markdown_fences(result.content or "")
+                
+                # Score the content with fast validation
+                validation = fast_validate(content, expected_type)
+                
+                # Score: 0 = bad format, 1 = maybe, 2 = good
+                if validation.signal == Trit.NO:
+                    score = 2  # Valid
+                elif validation.signal == Trit.MAYBE:
+                    score = 1  # Partial
+                else:
+                    score = 0  # Invalid
+                
+                # Bonus for longer content (more complete)
+                if len(content) > 100:
+                    score += 1
+                
+                candidates.append((persona_id, content, score))
+                
+            except Exception:
+                continue  # Skip failed generations
+        
+        if not candidates:
+            # Fallback to basic generation
+            result = await self.synthesis_model.generate(
+                base_prompt,
+                options=GenerateOptions(temperature=0.3, max_tokens=2048),
+            )
+            return result.content or ""
+        
+        # Pick the best candidate
+        best = max(candidates, key=lambda x: x[2])
+        return best[1]
 
     async def _self_improve_task(self, task) -> None:
         """Execute a self-improvement task (RFC-019 behavior)."""

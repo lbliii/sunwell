@@ -318,3 +318,40 @@ def runtime_info() -> dict:
         },
         "gil_status": "disabled" if is_free_threaded() else "enabled",
     }
+
+
+def optimal_llm_workers(
+    ollama_num_parallel: int | None = None,
+    num_models: int = 2,
+) -> int:
+    """Get optimal worker count for LLM workloads.
+    
+    LLM inference is I/O-bound from the client's perspective:
+    - Waiting for network I/O
+    - Waiting for GPU/CPU inference on server
+    
+    The limit is typically the Ollama server's capacity, not the client.
+    
+    Args:
+        ollama_num_parallel: Ollama's OLLAMA_NUM_PARALLEL setting.
+            None = use default (4).
+        num_models: Number of distinct models being used concurrently.
+            E.g., synthesis + judge = 2.
+    
+    Returns:
+        Recommended max_parallel_tasks for Naaru.
+        
+    Strategy:
+        - Cap at ollama_num_parallel * num_models (server limit)
+        - Don't exceed 4x CPU count (client-side limit)
+        - Minimum of 4 for reasonable throughput
+    """
+    # Server-side limit
+    ollama_parallel = ollama_num_parallel or 4
+    server_limit = ollama_parallel * num_models
+    
+    # Client-side limit (I/O bound = high concurrency is fine)
+    client_limit = cpu_count() * 4
+    
+    # Take the minimum, ensure at least 4
+    return max(4, min(server_limit, client_limit))

@@ -47,6 +47,43 @@ CORE_TOOLS: dict[str, Tool] = {
         },
     ),
     
+    "edit_file": Tool(
+        name="edit_file",
+        description=(
+            "Make targeted edits to a file by replacing specific content. "
+            "MUCH safer than write_file for modifying existing files. "
+            "Requires unique context (3-5 lines) to identify the edit location. "
+            "Creates a backup before editing."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "File path relative to workspace root",
+                },
+                "old_content": {
+                    "type": "string",
+                    "description": (
+                        "The exact content to find and replace. "
+                        "Include enough surrounding context (3-5 lines) to uniquely identify the location. "
+                        "Must match exactly, including whitespace and indentation."
+                    ),
+                },
+                "new_content": {
+                    "type": "string",
+                    "description": "The content to replace old_content with",
+                },
+                "occurrence": {
+                    "type": "integer",
+                    "description": "Which occurrence to replace: 1=first (default), -1=last, 0=all",
+                    "default": 1,
+                },
+            },
+            "required": ["path", "old_content", "new_content"],
+        },
+    ),
+    
     "list_files": Tool(
         name="list_files",
         description="List files in a directory. Returns file paths relative to workspace.",

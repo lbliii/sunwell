@@ -58,7 +58,7 @@ TRUST_LEVEL_TOOLS: dict[ToolTrust, frozenset[str]] = {
     }),
     
     ToolTrust.WORKSPACE: frozenset({
-        "list_files", "search_files", "read_file", "write_file", "mkdir",
+        "list_files", "search_files", "read_file", "write_file", "edit_file", "mkdir",
         "git_info", "git_status", "git_diff", "git_log", "git_blame", "git_show",
         # Staging operations - reversible, don't modify history
         "git_add", "git_restore",
@@ -67,7 +67,7 @@ TRUST_LEVEL_TOOLS: dict[ToolTrust, frozenset[str]] = {
     }),
     
     ToolTrust.SHELL: frozenset({
-        "list_files", "search_files", "read_file", "write_file", "mkdir", "run_command",
+        "list_files", "search_files", "read_file", "write_file", "edit_file", "mkdir", "run_command",
         "git_info", "git_status", "git_diff", "git_log", "git_blame", "git_show",
         "git_add", "git_restore", "git_init",
         # History-modifying operations - require explicit trust
@@ -77,7 +77,7 @@ TRUST_LEVEL_TOOLS: dict[ToolTrust, frozenset[str]] = {
     
     ToolTrust.FULL: frozenset({
         # All previous tools
-        "list_files", "search_files", "read_file", "write_file", "mkdir", "run_command",
+        "list_files", "search_files", "read_file", "write_file", "edit_file", "mkdir", "run_command",
         "git_info", "git_status", "git_diff", "git_log", "git_blame", "git_show",
         "git_add", "git_restore", "git_init",
         "git_commit", "git_branch", "git_checkout", "git_stash",
@@ -107,10 +107,10 @@ class ToolResult:
 class ToolRateLimits:
     """Per-session rate limits to prevent abuse."""
     
-    max_tool_calls_per_minute: int = 30
-    max_file_writes_per_minute: int = 10
-    max_shell_commands_per_minute: int = 5
-    max_bytes_written_per_session: int = 10_000_000  # 10MB
+    max_tool_calls_per_minute: int = 60
+    max_file_writes_per_minute: int = 30  # Increased for multi-file generation
+    max_shell_commands_per_minute: int = 10
+    max_bytes_written_per_session: int = 50_000_000  # 50MB
     
     # Tracking
     _tool_calls: list[datetime] = field(default_factory=list, init=False)

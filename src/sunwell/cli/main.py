@@ -154,8 +154,9 @@ async def _run_agent(
     # Load config
     config = get_config()
 
-    # Create model
+    # Create models (synthesis + escalation)
     synthesis_model = None
+    judge_model = None  # Larger model for escalation on validation failures
     try:
         from sunwell.models.ollama import OllamaModel
 
@@ -169,6 +170,30 @@ async def _run_agent(
         synthesis_model = OllamaModel(model=model_name)
         if verbose:
             console.print(f"[dim]Using model: {model_name}[/dim]")
+        
+        # Create escalation model (larger) for content validation retries
+        escalation_model_name = None
+        if config and hasattr(config, "naaru"):
+            wisdom = getattr(config.naaru, "wisdom", None)
+            # "auto" means select automatically, not a literal model name
+            if wisdom and wisdom != "auto":
+                escalation_model_name = wisdom
+        
+        # Default/auto escalation hierarchy: stable-code:3b → gemma3:4b
+        if not escalation_model_name:
+            for candidate in ["stable-code:3b", "gemma3:4b"]:
+                if candidate != model_name:  # Don't use same as synthesis
+                    escalation_model_name = candidate
+                    break
+        
+        if escalation_model_name and escalation_model_name != model_name:
+            try:
+                judge_model = OllamaModel(model=escalation_model_name)
+                if verbose:
+                    console.print(f"[dim]Escalation model: {escalation_model_name}[/dim]")
+            except Exception:
+                pass  # Escalation is optional
+                
     except Exception as e:
         console.print(f"[yellow]Warning: Could not load model: {e}[/yellow]")
 
@@ -216,6 +241,7 @@ async def _run_agent(
     naaru = Naaru(
         sunwell_root=Path.cwd(),
         synthesis_model=synthesis_model,
+        judge_model=judge_model,  # For content validation escalation
         planner=planner,
         tool_executor=tool_executor,
         config=naaru_config,

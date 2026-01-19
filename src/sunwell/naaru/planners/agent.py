@@ -185,8 +185,12 @@ AVAILABLE TOOLS (use ONLY these exact names):
 TASK MODES - Choose based on the action:
 - "research" = READ existing files to understand them (use read_file, list_files, search_files)
 - "generate" = CREATE new files that don't exist (use write_file)
-- "modify"   = EDIT existing files (use write_file after read_file)
+- "modify"   = EDIT existing files (use edit_file - safer than write_file, preserves unchanged content)
 - "execute"  = RUN shell commands (use run_command IF available)
+
+⚠️ IMPORTANT: For modifying existing files, PREFER edit_file over write_file!
+- edit_file replaces specific content while preserving the rest of the file
+- write_file OVERWRITES the entire file (only use for creating NEW files)
 
 WHEN TO USE RESEARCH:
 - Before modifying existing code (read it first!)

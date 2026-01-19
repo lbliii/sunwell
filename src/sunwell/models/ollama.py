@@ -45,33 +45,84 @@ class OllamaModel:
         
     For better system prompt handling (identity enforcement):
         model = OllamaModel(model="gemma3:1b", use_native_api=True)
+    
+    For high parallelism (requires OLLAMA_NUM_PARALLEL >= connections):
+        model = OllamaModel(
+            model="gemma3:1b",
+            max_connections=8,  # Match your OLLAMA_NUM_PARALLEL
+        )
     """
 
     model: str = "gemma3:1b"
     base_url: str = "http://localhost:11434/v1"
     use_native_api: bool = False  # Use /api/generate instead of /v1/chat for better system prompts
+    max_connections: int = 10  # Connection pool size for parallel requests
+    request_timeout: float = 120.0  # Request timeout in seconds
     _client: "AsyncOpenAI | None" = field(default=None, init=False)
+    _httpx_client: "httpx.AsyncClient | None" = field(default=None, init=False)
 
     @property
     def model_id(self) -> str:
         return f"ollama/{self.model}"
 
     def _get_client(self) -> "AsyncOpenAI":
-        """Get or create the OpenAI client configured for Ollama."""
+        """Get or create the OpenAI client configured for Ollama.
+        
+        Configures connection pooling for better parallel request throughput.
+        """
         if self._client is None:
             try:
                 from openai import AsyncOpenAI
+                import httpx
             except ImportError as e:
                 raise ImportError(
                     "OpenAI client not installed. Run: pip install openai>=1.0"
                 ) from e
 
+            # Configure connection pool for parallel requests
+            # This allows multiple concurrent requests to the same Ollama server
+            limits = httpx.Limits(
+                max_connections=self.max_connections,
+                max_keepalive_connections=self.max_connections,
+            )
+            timeout = httpx.Timeout(
+                timeout=self.request_timeout,
+                connect=10.0,
+            )
+            
+            # Create custom httpx client with connection pooling
+            http_client = httpx.AsyncClient(
+                limits=limits,
+                timeout=timeout,
+            )
+
             # Ollama doesn't need an API key, but OpenAI client requires one
             self._client = AsyncOpenAI(
                 base_url=self.base_url,
                 api_key="ollama",  # Placeholder - Ollama ignores this
+                http_client=http_client,
             )
         return self._client
+    
+    def _get_httpx_client(self) -> "httpx.AsyncClient":
+        """Get or create httpx client for native API calls."""
+        if self._httpx_client is None:
+            import httpx
+            
+            limits = httpx.Limits(
+                max_connections=self.max_connections,
+                max_keepalive_connections=self.max_connections,
+            )
+            timeout = httpx.Timeout(
+                timeout=self.request_timeout,
+                connect=10.0,
+            )
+            
+            self._httpx_client = httpx.AsyncClient(
+                limits=limits,
+                timeout=timeout,
+            )
+        return self._httpx_client
 
     def _convert_messages(
         self, 
@@ -297,8 +348,6 @@ class OllamaModel:
         
         See: https://docs.ollama.com/api/generate
         """
-        import httpx
-        
         opts = options or GenerateOptions()
         native_url = self.base_url.replace("/v1", "/api/generate")
         
@@ -339,8 +388,9 @@ class OllamaModel:
         if opts.temperature is not None:
             payload["options"]["temperature"] = opts.temperature
         
-        async with httpx.AsyncClient() as client:
-            async with client.stream("POST", native_url, json=payload, timeout=120.0) as response:
+        # Use pooled client for better parallelism
+        client = self._get_httpx_client()
+        async with client.stream("POST", native_url, json=payload) as response:
                 async for line in response.aiter_lines():
                     if line:
                         try:

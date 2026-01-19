@@ -108,6 +108,15 @@ from sunwell.naaru.experiments.strain import (
     render_strain_map,
     scan_and_triage,
 )
+from sunwell.naaru.experiments.content_validation import (
+    ContentType,
+    ValidationResult,
+    infer_expected_type,
+    detect_content_type,
+    fast_validate,
+    validate_content_quality,
+    validate_and_maybe_escalate,
+)
 
 __all__ = [
     # Speculative
@@ -179,4 +188,12 @@ __all__ = [
     "triage_all_strains",
     "render_strain_map",
     "scan_and_triage",
+    # Content validation (format detection + escalation)
+    "ContentType",
+    "ValidationResult",
+    "infer_expected_type",
+    "detect_content_type",
+    "fast_validate",
+    "validate_content_quality",
+    "validate_and_maybe_escalate",
 ]

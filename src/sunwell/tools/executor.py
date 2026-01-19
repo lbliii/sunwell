@@ -152,6 +152,7 @@ class ToolExecutor:
             # Core file tools
             "read_file": self._core_handlers.read_file,
             "write_file": self._core_handlers.write_file,
+            "edit_file": self._core_handlers.edit_file,  # RFC-041: Surgical editing
             "list_files": self._core_handlers.list_files,
             "search_files": self._core_handlers.search_files,
             "run_command": self._core_handlers.run_command,
@@ -389,6 +390,15 @@ class ToolExecutor:
                     output="File write rate limit exceeded.",
                 )
         
+        if tool_call.name == "edit_file":
+            new_content = tool_call.arguments.get("new_content", "")
+            if not self._rate_limits.check_file_write(len(new_content)):
+                return ToolResult(
+                    tool_call_id=tool_call.id,
+                    success=False,
+                    output="File edit rate limit exceeded.",
+                )
+        
         if tool_call.name == "run_command":
             if not self._rate_limits.check_shell_command():
                 return ToolResult(
@@ -486,6 +496,15 @@ class ToolExecutor:
         if tool_name == "write_file" and "content" in sanitized:
             content_len = len(sanitized["content"])
             sanitized["content"] = f"<{content_len} bytes>"
+        
+        # Don't log edit_file content (both old and new)
+        if tool_name == "edit_file":
+            if "old_content" in sanitized:
+                old_len = len(sanitized["old_content"])
+                sanitized["old_content"] = f"<{old_len} bytes>"
+            if "new_content" in sanitized:
+                new_len = len(sanitized["new_content"])
+                sanitized["new_content"] = f"<{new_len} bytes>"
         
         return sanitized
     

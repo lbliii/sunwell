@@ -96,6 +96,32 @@ def agent() -> None:
     default=1,
     help="Refinement rounds for harmonic planning (default: 1, 0 to disable)",
 )
+# RFC-040: Plan Persistence options
+@click.option(
+    "--incremental", "-i",
+    is_flag=True,
+    help="Only rebuild changed artifacts (RFC-040)",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Force full rebuild (ignore saved state)",
+)
+@click.option(
+    "--show-plan",
+    is_flag=True,
+    help="Show plan with cost estimate (alias for --dry-run with estimates)",
+)
+@click.option(
+    "--diff-plan",
+    is_flag=True,
+    help="Show changes vs previous plan",
+)
+@click.option(
+    "--plan-id",
+    default=None,
+    help="Explicit plan identifier (default: hash of goal)",
+)
 def run(
     goal: str,
     time: int,
@@ -108,6 +134,11 @@ def run(
     harmonic: bool,
     candidates: int,
     refine: int,
+    incremental: bool,
+    force: bool,
+    show_plan: bool,
+    diff_plan: bool,
+    plan_id: str | None,
 ) -> None:
     """Execute a task using agent mode.
 
@@ -125,6 +156,13 @@ def run(
         sunwell agent run "Build API" --harmonic
         sunwell agent run "Build API" --harmonic --candidates 7 --refine 2
 
+    \b
+    For incremental builds (RFC-040):
+        sunwell agent run "Build API" --incremental
+        sunwell agent run "Build API" --show-plan
+        sunwell agent run "Build API" --diff-plan
+        sunwell agent run "Build API" --force
+
     Examples:
 
     \b
@@ -134,14 +172,19 @@ def run(
         sunwell agent run "Create a CLI tool" --dry-run
         sunwell agent run "Build app" --dry-run --show-graph
         sunwell agent run "Build app" --harmonic --verbose
+        sunwell agent run "Build app" --incremental --verbose
     """
     # Override strategy if --harmonic flag is set
     if harmonic:
         strategy = "harmonic"
 
+    # --show-plan implies --dry-run
+    if show_plan or diff_plan:
+        dry_run = True
+
     asyncio.run(_run_agent(
         goal, time, trust, strategy, dry_run, verbose, model, show_graph,
-        candidates, refine,
+        candidates, refine, incremental, force, show_plan, diff_plan, plan_id,
     ))
 
 
@@ -156,6 +199,11 @@ async def _run_agent(
     show_graph: bool,
     candidates: int = 5,
     refine: int = 1,
+    incremental: bool = False,
+    force: bool = False,
+    show_plan: bool = False,
+    diff_plan: bool = False,
+    plan_id: str | None = None,
 ) -> None:
     """Execute agent mode."""
     from sunwell.naaru import Naaru
@@ -208,6 +256,8 @@ async def _run_agent(
         console.print(f"[dim]Trust level: {trust}[/dim]")
         console.print(f"[dim]Strategy: {strategy}[/dim]")
         console.print(f"[dim]Available tools: {', '.join(sorted(available_tools))}[/dim]")
+        if incremental:
+            console.print("[dim]Incremental mode: enabled (RFC-040)[/dim]")
 
     # Create planner based on strategy
     planning_strategy = PlanningStrategy(strategy)
@@ -224,7 +274,7 @@ async def _run_agent(
         if verbose:
             console.print(f"[dim]Harmonic: {candidates} candidates, {refine} refinement rounds[/dim]")
 
-        if dry_run:
+        if dry_run and not show_plan:
             await _harmonic_dry_run(goal, planner, show_graph, verbose)
             return
 
@@ -232,7 +282,7 @@ async def _run_agent(
         # RFC-036: Artifact-first planning
         planner = ArtifactPlanner(model=synthesis_model)
 
-        if dry_run:
+        if dry_run and not show_plan and not diff_plan:
             await _artifact_dry_run(goal, planner, show_graph, verbose)
             return
     else:
@@ -247,6 +297,18 @@ async def _run_agent(
         if dry_run:
             await _task_dry_run(goal, planner, show_graph, verbose)
             return
+
+    # RFC-040: Show plan with cost estimates
+    if show_plan or diff_plan:
+        await _show_plan_preview(goal, planner, plan_id, diff_plan, show_graph, verbose)
+        return
+
+    # RFC-040: Incremental execution
+    if incremental and planning_strategy == PlanningStrategy.ARTIFACT_FIRST:
+        await _incremental_run(
+            goal, planner, plan_id, force, verbose, time, tool_executor
+        )
+        return
 
     # Full execution
     naaru_config = NaaruConfig()
@@ -385,6 +447,187 @@ async def _artifact_dry_run(goal: str, planner, show_graph: bool, verbose: bool)
         console.print("```")
 
 
+async def _show_plan_preview(
+    goal: str,
+    planner,
+    plan_id: str | None,
+    diff_plan: bool,
+    show_graph: bool,
+    verbose: bool,
+) -> None:
+    """Show plan preview with cost estimates (RFC-040)."""
+    from sunwell.naaru import get_model_distribution
+    from sunwell.naaru.incremental import PlanPreview
+    from sunwell.naaru.persistence import PlanStore, hash_goal
+
+    console.print("[yellow]Plan preview - RFC-040[/yellow]\n")
+
+    try:
+        graph = await planner.discover_graph(goal, {"cwd": str(Path.cwd())})
+    except Exception as e:
+        console.print(f"[red]Discovery failed: {e}[/red]")
+        return
+
+    # Create preview with cost estimates
+    store = PlanStore()
+    goal_hash = plan_id or hash_goal(goal)
+    preview = PlanPreview.create(graph, goal, store)
+
+    console.print(f"[bold]📋 Execution Plan:[/bold] {goal}\n")
+
+    # Show waves
+    for i, wave in enumerate(preview.waves, 1):
+        parallel = "⚡" if len(wave) > 1 else "→"
+        console.print(f"Wave {i} {parallel}")
+        for artifact_id in wave:
+            artifact = graph[artifact_id]
+            from sunwell.naaru.artifacts import select_model_tier
+            tier = select_model_tier(artifact, graph)
+            desc = artifact.description[:40] + "..." if len(artifact.description) > 40 else artifact.description
+            console.print(f"  [{tier}] {artifact_id}: {desc}")
+        console.print()
+
+    # Show estimates
+    console.print("[bold]📊 Estimates[/bold]")
+    console.print(f"  Artifacts: {len(graph)}")
+    console.print(f"  Waves: {len(preview.waves)}")
+    console.print(f"  Parallelization: {preview.parallelization_factor:.1f}x")
+    console.print(f"  Model mix: {preview.model_distribution}")
+    console.print(f"  Est. tokens: ~{preview.estimated_tokens:,}")
+    console.print(f"  Est. cost: ~${preview.estimated_cost_usd:.3f}")
+    console.print(f"  Est. time: ~{preview.estimated_duration_seconds:.0f}s")
+
+    # Show changes vs previous (if requested and exists)
+    if diff_plan and preview.previous:
+        console.print("\n[bold]🔄 Changes vs Previous[/bold]")
+        changes = preview.changes
+        if changes:
+            console.print(f"  Added: {len(changes.added)}")
+            console.print(f"  Contract changed: {len(changes.contract_changed)}")
+            console.print(f"  Deps changed: {len(changes.deps_changed)}")
+            console.print(f"  Output modified: {len(changes.output_modified)}")
+            console.print(f"  Removed: {len(changes.removed)}")
+            console.print(f"\n  [green]To rebuild: {len(preview.to_rebuild)}[/green]")
+            console.print(f"  [dim]Unchanged: {preview.skip_count}[/dim]")
+            console.print(f"  [bold]Savings: {preview.savings_percent:.0f}%[/bold]")
+        else:
+            console.print("  [dim]No changes detected[/dim]")
+    elif diff_plan:
+        console.print("\n[dim]No previous plan to compare[/dim]")
+
+    # Show graph if requested
+    if show_graph:
+        console.print("\n[bold]Dependency Graph (Mermaid):[/bold]")
+        console.print("```mermaid")
+        console.print(graph.to_mermaid())
+        console.print("```")
+
+
+async def _incremental_run(
+    goal: str,
+    planner,
+    plan_id: str | None,
+    force: bool,
+    verbose: bool,
+    max_time: int,
+    tool_executor,
+) -> None:
+    """Run with incremental rebuild support (RFC-040)."""
+    from sunwell.naaru.incremental import (
+        ChangeDetector,
+        IncrementalExecutor,
+        PlanPreview,
+        compute_rebuild_set,
+    )
+    from sunwell.naaru.persistence import PlanStore, hash_goal
+
+    console.print("[bold]🔄 Incremental execution (RFC-040)[/bold]\n")
+
+    # Discover graph
+    try:
+        graph = await planner.discover_graph(goal, {"cwd": str(Path.cwd())})
+    except Exception as e:
+        console.print(f"[red]Discovery failed: {e}[/red]")
+        return
+
+    store = PlanStore()
+    goal_hash = plan_id or hash_goal(goal)
+
+    # Check for previous execution
+    previous = store.load(goal_hash) if not force else None
+    if previous:
+        detector = ChangeDetector()
+        changes = detector.detect(graph, previous)
+        to_rebuild = compute_rebuild_set(graph, changes, previous)
+
+        skip_count = len(graph) - len(to_rebuild)
+        console.print(f"📊 Found previous execution")
+        console.print(f"   Unchanged: {skip_count} artifacts")
+        console.print(f"   To rebuild: {len(to_rebuild)} artifacts")
+
+        if changes.all_changed:
+            console.print("\n[bold]Changes detected:[/bold]")
+            if changes.added:
+                console.print(f"   ✨ Added: {', '.join(sorted(changes.added)[:5])}")
+            if changes.contract_changed:
+                console.print(f"   📝 Contract: {', '.join(sorted(changes.contract_changed)[:5])}")
+            if changes.output_modified:
+                console.print(f"   📄 Modified: {', '.join(sorted(changes.output_modified)[:5])}")
+
+        if not to_rebuild:
+            console.print("\n[green]✓ All artifacts up to date![/green]")
+            return
+    else:
+        console.print("[dim]No previous execution found - full build[/dim]")
+
+    # Create artifact creation function
+    async def create_artifact(spec):
+        """Create an artifact using the planner."""
+        # This is a simplified implementation
+        # In practice, this would use the planner's create method
+        result = await planner.create_artifact(spec, {})
+        return result
+
+    # Execute with incremental support
+    executor = IncrementalExecutor(
+        store=store,
+        trace_enabled=verbose,
+    )
+
+    try:
+        result = await executor.execute(
+            graph=graph,
+            create_fn=create_artifact,
+            goal=goal,
+            force_rebuild=force,
+            on_progress=console.print if verbose else None,
+        )
+
+        # Summary
+        console.print(f"\n[bold]═══ Summary ═══[/bold]")
+        console.print(f"  Completed: {len(result.completed)}")
+        console.print(f"  Failed: {len(result.failed)}")
+        console.print(f"  Model distribution: {result.model_distribution}")
+
+        if result.failed:
+            console.print("\n[red]Failed artifacts:[/red]")
+            for aid, error in result.failed.items():
+                console.print(f"  ✗ {aid}: {error[:50]}")
+
+        if len(result.failed) == 0:
+            console.print("\n[green]✓ Incremental build complete[/green]")
+        else:
+            console.print("\n[yellow]⚠ Build completed with errors[/yellow]")
+
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Interrupted - progress saved[/yellow]")
+    except Exception as e:
+        console.print(f"\n[red]Error: {e}[/red]")
+        if verbose:
+            import traceback
+            console.print(traceback.format_exc())
+
+
 async def _harmonic_dry_run(goal: str, planner, show_graph: bool, verbose: bool) -> None:
     """Dry run for harmonic planning (RFC-038)."""
     from sunwell.naaru import get_model_distribution
@@ -483,22 +726,58 @@ def _display_task_graph(tasks: list) -> None:
 @click.option(
     "--checkpoint", "-c",
     type=click.Path(exists=True),
-    help="Resume from specific checkpoint file",
+    help="Resume from specific checkpoint file (task-based)",
 )
-def resume(checkpoint: str | None) -> None:
+@click.option(
+    "--plan-id",
+    default=None,
+    help="Resume specific plan by ID (artifact-based, RFC-040)",
+)
+@click.option(
+    "--verbose", "-v",
+    is_flag=True,
+    help="Show detailed output",
+)
+def resume(checkpoint: str | None, plan_id: str | None, verbose: bool) -> None:
     """Resume an interrupted agent run from checkpoint.
+
+    Supports two modes:
+    - Task-based (RFC-032): --checkpoint option
+    - Artifact-based (RFC-040): --plan-id option
 
     Examples:
 
     \b
-        sunwell agent resume
-        sunwell agent resume --checkpoint .sunwell/checkpoints/agent-2026-01-18.json
+        sunwell agent resume                                    # Latest plan
+        sunwell agent resume --plan-id my-api                   # Specific plan
+        sunwell agent resume --checkpoint .sunwell/checkpoints/agent-*.json
     """
-    asyncio.run(_resume_agent(checkpoint))
+    asyncio.run(_resume_agent(checkpoint, plan_id, verbose))
 
 
-async def _resume_agent(checkpoint_path: str | None) -> None:
+async def _resume_agent(checkpoint_path: str | None, plan_id: str | None, verbose: bool) -> None:
     """Resume agent from checkpoint."""
+    # RFC-040: Artifact-based resume
+    if plan_id or (not checkpoint_path):
+        # Try artifact-based resume first
+        from sunwell.naaru.persistence import PlanStore, get_latest_execution
+
+        store = PlanStore()
+
+        if plan_id:
+            execution = store.load(plan_id)
+        else:
+            execution = get_latest_execution()
+
+        if execution:
+            await _resume_artifact_execution(execution, verbose)
+            return
+        elif plan_id:
+            console.print(f"[red]No plan found with ID: {plan_id}[/red]")
+            return
+        # Fall through to task-based resume
+
+    # RFC-032: Task-based resume
     from sunwell.naaru.checkpoint import AgentCheckpoint, find_latest_checkpoint
 
     # Find checkpoint
@@ -517,7 +796,7 @@ async def _resume_agent(checkpoint_path: str | None) -> None:
     # Show checkpoint info
     summary = cp.get_progress_summary()
 
-    console.print(f"[bold]Resuming:[/bold] {cp.goal}")
+    console.print(f"[bold]Resuming (task-based):[/bold] {cp.goal}")
     console.print(f"   Started: {summary['started_at']}")
     console.print(f"   Progress: {summary['completed']}/{summary['total_tasks']} tasks")
     console.print(f"   Remaining: {summary['remaining']} tasks\n")
@@ -577,6 +856,94 @@ async def _resume_agent(checkpoint_path: str | None) -> None:
     )
 
     console.print(f"\n✨ Complete: {result.completed_count}/{len(result.tasks)} tasks")
+
+
+async def _resume_artifact_execution(execution, verbose: bool) -> None:
+    """Resume artifact-based execution (RFC-040)."""
+    from sunwell.naaru.persistence import (
+        ExecutionStatus,
+        PlanStore,
+        resume_execution,
+    )
+
+    console.print(f"[bold]Resuming (artifact-based):[/bold] {execution.goal}")
+    console.print(f"   Status: {execution.status.value}")
+    console.print(f"   Progress: {len(execution.completed)}/{len(execution.graph)} artifacts")
+    console.print(f"   Progress: {execution.progress_percent:.0f}%\n")
+
+    remaining = execution.get_remaining_artifacts()
+
+    if not remaining:
+        console.print("[green]All artifacts already completed![/green]")
+        return
+
+    # Show execution waves
+    resume_wave = execution.get_resume_wave()
+    waves = execution.graph.execution_waves()
+    console.print(f"[bold]Resume from wave {resume_wave + 1}/{len(waves)}[/bold]")
+
+    console.print("\n[bold]Remaining artifacts:[/bold]")
+    for aid in remaining[:10]:
+        artifact = execution.graph[aid]
+        console.print(f"  • {aid}: {artifact.description[:40]}...")
+
+    if len(remaining) > 10:
+        console.print(f"  ... and {len(remaining) - 10} more")
+
+    # Confirm resume
+    if not click.confirm("\nResume execution?"):
+        console.print("[dim]Aborted[/dim]")
+        return
+
+    # Create artifact creation function
+    # This is a simplified implementation - would need proper planner integration
+    from sunwell.models.ollama import OllamaModel
+    from sunwell.naaru.planners import ArtifactPlanner
+
+    try:
+        model = OllamaModel(model="gemma3:1b")
+        planner = ArtifactPlanner(model=model)
+    except Exception as e:
+        console.print(f"[red]Failed to load model: {e}[/red]")
+        return
+
+    async def create_artifact(spec):
+        """Create an artifact using the planner."""
+        result = await planner.create_artifact(spec, {})
+        return result
+
+    # Resume execution
+    try:
+        result = await resume_execution(
+            execution=execution,
+            create_fn=create_artifact,
+            on_progress=console.print if verbose else None,
+        )
+
+        # Save updated execution
+        store = PlanStore()
+        execution.update_from_result(result)
+        store.save(execution)
+
+        # Summary
+        console.print(f"\n[bold]═══ Summary ═══[/bold]")
+        console.print(f"  Completed: {len(result.completed)}")
+        console.print(f"  Failed: {len(result.failed)}")
+
+        if len(result.failed) == 0:
+            console.print("\n[green]✓ Execution complete[/green]")
+        else:
+            console.print("\n[yellow]⚠ Execution completed with errors[/yellow]")
+            for aid, error in result.failed.items():
+                console.print(f"  ✗ {aid}: {error[:50]}")
+
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Interrupted - progress saved[/yellow]")
+    except Exception as e:
+        console.print(f"\n[red]Error: {e}[/red]")
+        if verbose:
+            import traceback
+            console.print(traceback.format_exc())
 
 
 @agent.command()
@@ -678,17 +1045,31 @@ async def _illuminate(goals: list[str], time: int, verbose: bool) -> None:
 def status() -> None:
     """Show agent status and available checkpoints."""
     from sunwell.naaru.checkpoint import find_latest_checkpoint
+    from sunwell.naaru.persistence import PlanStore
 
     checkpoint_dir = Path.cwd() / ".sunwell" / "checkpoints"
+    store = PlanStore()
 
     console.print("[bold]Agent Status[/bold]\n")
+
+    # Check for saved plans (RFC-040)
+    plans = store.list_recent(limit=5)
+    if plans:
+        console.print(f"[green]✓[/green] Found {len(plans)} saved plan(s)")
+        console.print("\n[bold]Recent plans:[/bold]")
+        for plan in plans[:3]:
+            status_icon = "✓" if plan.is_complete else "◐"
+            console.print(f"  [{status_icon}] {plan.goal[:50]}...")
+            console.print(f"      ID: {plan.goal_hash} | Progress: {plan.progress_percent:.0f}%")
+    else:
+        console.print("[dim]No saved plans found[/dim]")
 
     # Check for checkpoints
     if checkpoint_dir.exists():
         checkpoint_files = list(checkpoint_dir.glob("agent-*.json"))
 
         if checkpoint_files:
-            console.print(f"[green]✓[/green] Found {len(checkpoint_files)} checkpoint(s)")
+            console.print(f"\n[green]✓[/green] Found {len(checkpoint_files)} checkpoint(s)")
 
             # Show latest
             latest = find_latest_checkpoint(checkpoint_dir)
@@ -699,9 +1080,9 @@ def status() -> None:
                 console.print(f"  Progress: {summary['completed']}/{summary['total_tasks']} tasks")
                 console.print(f"  Created: {summary['checkpoint_at']}")
         else:
-            console.print("[dim]No checkpoints found[/dim]")
+            console.print("\n[dim]No task checkpoints found[/dim]")
     else:
-        console.print("[dim]No checkpoint directory found[/dim]")
+        console.print("\n[dim]No checkpoint directory found[/dim]")
 
     # Check for models
     console.print("\n[bold]Model Status:[/bold]")
@@ -711,6 +1092,93 @@ def status() -> None:
         console.print("  [green]✓[/green] Ollama available")
     except Exception:
         console.print("  [red]✗[/red] Ollama not available")
+
+
+@agent.command(name="plans")
+@click.option("--list", "-l", "list_plans", is_flag=True, help="List saved plans")
+@click.option("--clean", is_flag=True, help="Clean old plans (>7 days)")
+@click.option("--delete", "-d", "delete_id", help="Delete a specific plan by ID")
+@click.option("--show", "-s", "show_id", help="Show details of a specific plan")
+def plans_cmd(list_plans: bool, clean: bool, delete_id: str | None, show_id: str | None) -> None:
+    """Manage saved execution plans (RFC-040).
+
+    Examples:
+
+    \b
+        sunwell agent plans --list
+        sunwell agent plans --show abc123
+        sunwell agent plans --delete abc123
+        sunwell agent plans --clean
+    """
+    from sunwell.naaru.persistence import PlanStore
+
+    store = PlanStore()
+
+    if show_id:
+        execution = store.load(show_id)
+        if not execution:
+            console.print(f"[red]Plan not found: {show_id}[/red]")
+            return
+
+        console.print(f"[bold]Plan: {execution.goal_hash}[/bold]\n")
+        console.print(f"  Goal: {execution.goal}")
+        console.print(f"  Status: {execution.status.value}")
+        console.print(f"  Created: {execution.created_at}")
+        console.print(f"  Updated: {execution.updated_at}")
+        console.print(f"\n[bold]Progress:[/bold]")
+        console.print(f"  Artifacts: {len(execution.graph)}")
+        console.print(f"  Completed: {len(execution.completed)}")
+        console.print(f"  Failed: {len(execution.failed)}")
+        console.print(f"  Progress: {execution.progress_percent:.0f}%")
+
+        if execution.failed:
+            console.print("\n[bold]Failed artifacts:[/bold]")
+            for aid, error in list(execution.failed.items())[:5]:
+                console.print(f"  ✗ {aid}: {error[:40]}...")
+
+        console.print(f"\n[bold]Model distribution:[/bold]")
+        for tier, count in execution.model_distribution.items():
+            console.print(f"  {tier}: {count}")
+        return
+
+    if delete_id:
+        if store.delete(delete_id):
+            console.print(f"[green]✓[/green] Deleted plan: {delete_id}")
+        else:
+            console.print(f"[yellow]Plan not found: {delete_id}[/yellow]")
+        return
+
+    if clean:
+        count = store.clean_old(max_age_hours=168.0)  # 7 days
+        console.print(f"[green]✓[/green] Cleaned {count} old plan(s)")
+        return
+
+    # Default: list plans
+    plans = store.list_recent(limit=20)
+    if not plans:
+        console.print("[dim]No saved plans found[/dim]")
+        return
+
+    table = Table(title="Saved Plans")
+    table.add_column("ID", style="cyan")
+    table.add_column("Goal")
+    table.add_column("Status", style="magenta")
+    table.add_column("Progress")
+    table.add_column("Updated")
+
+    for plan in plans:
+        status_style = "green" if plan.is_complete else "yellow"
+        progress = f"{plan.progress_percent:.0f}%"
+        updated = plan.updated_at.strftime("%Y-%m-%d %H:%M")
+        table.add_row(
+            plan.goal_hash[:8],
+            plan.goal[:40] + ("..." if len(plan.goal) > 40 else ""),
+            f"[{status_style}]{plan.status.value}[/{status_style}]",
+            progress,
+            updated,
+        )
+
+    console.print(table)
 
 
 @agent.command(name="benchmark")

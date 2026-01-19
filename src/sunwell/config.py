@@ -24,7 +24,7 @@ from typing import Any
 
 import yaml
 
-from sunwell.types.config import EmbeddingConfig, ModelConfig, NaaruConfig
+from sunwell.types.config import EmbeddingConfig, ModelConfig, NaaruConfig, OllamaConfig
 
 
 @dataclass
@@ -109,6 +109,9 @@ class SunwellConfig:
     naaru: NaaruConfig = field(default_factory=NaaruConfig)
     """Naaru coordinated intelligence configuration."""
     
+    ollama: OllamaConfig = field(default_factory=OllamaConfig)
+    """Ollama server parallelism configuration."""
+    
     verbose: bool = False
     """Enable verbose output by default."""
 
@@ -146,6 +149,12 @@ def _apply_env_overrides(config_dict: dict) -> dict:
         "simulacrum": {"spawn", "lifecycle", "base_path"},
         "embedding": {"prefer_local", "ollama_model", "ollama_url", "fallback_to_hash"},
         "model": {"default_provider", "default_model", "smart_routing"},
+        "naaru": {
+            "name", "title", "voice", "wisdom", "router",
+            "harmonic_synthesis", "resonance", "convergence", "discernment", "attunement",
+            "enable_parallel_execution", "max_parallel_tasks", "max_parallel_llm_requests",
+        },
+        "ollama": {"base_url", "num_parallel", "max_loaded_models", "connection_pool_size", "request_timeout"},
     }
     
     # Known keys that contain underscores (to avoid splitting them)
@@ -156,6 +165,14 @@ def _apply_env_overrides(config_dict: dict) -> dict:
         "auto_name", "stale_days", "archive_days", "min_useful_nodes",
         "min_useful_learnings", "auto_archive", "auto_merge_empty",
         "protect_recently_spawned_days",
+        # Naaru keys
+        "voice_temperature", "voice_models", "wisdom_models", "purity_threshold",
+        "harmonic_synthesis", "num_analysis_shards", "num_synthesis_shards",
+        "router_temperature", "router_cache_size",
+        "enable_parallel_execution", "max_parallel_tasks", "max_parallel_llm_requests",
+        "use_native_ollama_api", "alternate_titles",
+        # Ollama keys
+        "base_url", "num_parallel", "max_loaded_models", "connection_pool_size", "request_timeout",
     }
     
     for key, value in os.environ.items():
@@ -244,12 +261,14 @@ def _dict_to_config(data: dict) -> SunwellConfig:
     embedding_config = EmbeddingConfig(**data.get("embedding", {}))
     model_config = ModelConfig(**data.get("model", {}))
     naaru_config = NaaruConfig(**data.get("naaru", {}))
+    ollama_config = OllamaConfig(**data.get("ollama", {}))
     
     return SunwellConfig(
         simulacrum=simulacrum_config,
         embedding=embedding_config,
         model=model_config,
         naaru=naaru_config,
+        ollama=ollama_config,
         verbose=data.get("verbose", False),
     )
 
@@ -328,6 +347,17 @@ def load_config(path: str | Path | None = None) -> SunwellConfig:
             "router": "qwen2.5:1.5b",
             "router_temperature": 0.1,
             "router_cache_size": 1000,
+            # RFC-034: Parallel Task Execution
+            "enable_parallel_execution": True,
+            "max_parallel_tasks": 8,
+            "max_parallel_llm_requests": None,
+        },
+        "ollama": {
+            "base_url": "http://localhost:11434",
+            "num_parallel": None,  # Auto-detect from server
+            "max_loaded_models": None,  # Server default
+            "connection_pool_size": 20,
+            "request_timeout": 120.0,
         },
         "verbose": False,
     }
@@ -612,6 +642,43 @@ naaru:
   # Shards - Parallel helpers (fragments working in parallel)
   num_analysis_shards: 2
   num_synthesis_shards: 2
+  
+  # Parallel Task Execution (RFC-034)
+  # Execute independent tasks concurrently for faster completion
+  enable_parallel_execution: true
+  
+  # Maximum concurrent tasks
+  # Increased from 4 to 8: handles synthesis + judge models in parallel
+  # For high VRAM (24GB+): try 12-16
+  # For multi-GPU: try num_parallel * num_gpus
+  max_parallel_tasks: 8
+  
+  # Maximum concurrent LLM requests (null = auto-detect from Ollama)
+  # Set explicitly to override auto-detection
+  # max_parallel_llm_requests: 8
+
+# Ollama Server Configuration
+# Controls parallelism at the Ollama server level
+# See: https://github.com/ollama/ollama/blob/main/docs/faq.md#how-does-ollama-handle-concurrent-requests
+ollama:
+  # Ollama server URL
+  base_url: "http://localhost:11434"
+  
+  # Max parallel requests per model (maps to OLLAMA_NUM_PARALLEL)
+  # null = auto-detect from server (default: 4 if sufficient VRAM)
+  # Increase this for high VRAM systems (8-12 for 24GB+)
+  num_parallel: null
+  
+  # Max models loaded concurrently (maps to OLLAMA_MAX_LOADED_MODELS)
+  # null = server default (3 * num_gpus, or 3 for CPU)
+  max_loaded_models: null
+  
+  # Connection pool size for concurrent requests
+  # Should be >= num_parallel * models_in_use
+  connection_pool_size: 20
+  
+  # Request timeout in seconds
+  request_timeout: 120.0
 
 # Global settings
 verbose: false

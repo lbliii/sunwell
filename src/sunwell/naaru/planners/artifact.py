@@ -221,16 +221,21 @@ class ArtifactPlanner:
         - Graph explosion: Raise with clear guidance
         - Cycles: Detect and raise with cycle path
         - Missing root: Discover the final artifact
+        - Signal-based coupling detection (NEW)
         """
+        simplify_hint = ""
+        
         for attempt in range(self.max_retries):
-            artifacts = await self.discover(goal, context)
+            # Add simplification hint if previous attempt had issues
+            effective_goal = f"{goal}\n\n{simplify_hint}" if simplify_hint else goal
+            artifacts = await self.discover(effective_goal, context)
 
             # Check for empty graph
             if not artifacts:
                 if attempt < self.max_retries - 1:
                     # Re-prompt with more guidance
                     hint = "Be more concrete about what files/components need to be created."
-                    goal = f"{goal}\n\nPrevious attempt found no artifacts. {hint}"
+                    simplify_hint = f"Previous attempt found no artifacts. {hint}"
                     continue
                 else:
                     raise DiscoveryFailedError("Discovery produced no artifacts after retries")
@@ -238,6 +243,12 @@ class ArtifactPlanner:
             # Check for graph explosion
             if len(artifacts) > self.limits.max_artifacts:
                 raise GraphExplosionError(len(artifacts), self.limits.max_artifacts)
+            
+            # Signal-based plan health check (NEW)
+            health = self._signal_plan_health(artifacts)
+            if health["needs_simplification"] and attempt < self.max_retries - 1:
+                simplify_hint = self._build_simplification_hint(health)
+                continue
 
             # Build graph
             graph = ArtifactGraph()
@@ -284,6 +295,152 @@ class ArtifactPlanner:
             return graph
 
         raise DiscoveryFailedError(f"Discovery failed after {self.max_retries} attempts")
+
+    def _signal_plan_health(self, artifacts: list[ArtifactSpec]) -> dict[str, Any]:
+        """Signal-based plan health check using 0/1/2 (Trit) scoring.
+        
+        Checks for:
+        - Over-coupling: Too many dependencies per artifact
+        - Bidirectional deps: A→B and B→A (cycle risk)
+        - Transitive cycles: A→B→C→A 
+        - Fan-in/fan-out: Single artifact with too many dependents
+        
+        Returns:
+            Dict with health signals and whether simplification is needed
+        """
+        if not artifacts:
+            return {"needs_simplification": False, "signals": []}
+        
+        signals = []
+        issues = []
+        
+        # Build dependency map
+        dep_map = {a.id: set(a.requires) for a in artifacts}
+        artifact_ids = set(dep_map.keys())
+        
+        # Check 1: Per-artifact coupling (0/1/2)
+        for artifact in artifacts:
+            dep_count = len(artifact.requires)
+            if dep_count >= 5:
+                signals.append(2)  # YES - too coupled
+                issues.append(f"{artifact.id} has {dep_count} deps (max 4)")
+            elif dep_count >= 3:
+                signals.append(1)  # MAYBE - watch it
+            else:
+                signals.append(0)  # NO - clean
+        
+        # Check 2: Bidirectional dependencies (strong cycle indicator)
+        for a_id, a_deps in dep_map.items():
+            for dep_id in a_deps:
+                if dep_id in dep_map and a_id in dep_map.get(dep_id, set()):
+                    signals.append(2)  # Bidirectional = definite problem
+                    issues.append(f"Bidirectional: {a_id} ↔ {dep_id}")
+        
+        # Check 3: Transitive cycle detection (DFS)
+        cycle = self._find_cycle_in_deps(dep_map)
+        if cycle:
+            signals.append(2)
+            cycle_str = " → ".join(cycle + [cycle[0]])
+            issues.append(f"Cycle: {cycle_str}")
+        
+        # Check 4: Unknown dependencies (deps on non-existent artifacts)
+        for artifact in artifacts:
+            unknown = artifact.requires - artifact_ids
+            if unknown:
+                signals.append(2)
+                issues.append(f"{artifact.id} depends on unknown: {unknown}")
+        
+        # Check 5: Average coupling
+        avg_deps = sum(len(a.requires) for a in artifacts) / len(artifacts)
+        if avg_deps > 2.5:
+            signals.append(2)
+            issues.append(f"Average deps={avg_deps:.1f} (max 2.5)")
+        elif avg_deps > 1.5:
+            signals.append(1)
+        
+        # Determine if simplification needed
+        hot_count = sum(1 for s in signals if s == 2)
+        # Trigger on: cycles, bidirectional deps, OR unknown deps (any of these = can't execute)
+        needs_simplification = (
+            hot_count >= 2 or 
+            any("Cycle" in i or "Bidirectional" in i or "unknown" in i for i in issues)
+        )
+        
+        return {
+            "needs_simplification": needs_simplification,
+            "signals": signals,
+            "issues": issues,
+            "hot_count": hot_count,
+            "avg_deps": avg_deps,
+            "artifact_count": len(artifacts),
+        }
+    
+    def _find_cycle_in_deps(self, dep_map: dict[str, set[str]]) -> list[str] | None:
+        """DFS cycle detection on dependency map. Returns cycle path if found."""
+        WHITE, GRAY, BLACK = 0, 1, 2
+        color = {node: WHITE for node in dep_map}
+        parent = {}
+        
+        def dfs(node: str) -> list[str] | None:
+            color[node] = GRAY
+            for dep in dep_map.get(node, set()):
+                if dep not in color:
+                    continue  # Unknown dep, skip
+                if color[dep] == GRAY:
+                    # Back edge = cycle! Reconstruct path
+                    cycle = [dep]
+                    curr = node
+                    while curr != dep:
+                        cycle.append(curr)
+                        curr = parent.get(curr, dep)
+                    return list(reversed(cycle))
+                if color[dep] == WHITE:
+                    parent[dep] = node
+                    result = dfs(dep)
+                    if result:
+                        return result
+            color[node] = BLACK
+            return None
+        
+        for node in dep_map:
+            if color[node] == WHITE:
+                result = dfs(node)
+                if result:
+                    return result
+        return None
+    
+    def _build_simplification_hint(self, health: dict[str, Any]) -> str:
+        """Build a hint for the model to simplify the plan."""
+        issues = health.get("issues", [])
+        
+        hint_parts = ["PLAN HEALTH CHECK FAILED. Please simplify:\n"]
+        
+        # Extract cycle info for specific guidance
+        cycle_issues = [i for i in issues if "Cycle" in i or "Bidirectional" in i]
+        if cycle_issues:
+            hint_parts.append(f"- CRITICAL: {cycle_issues[0]}")
+            hint_parts.append("- Artifacts CANNOT depend on each other in a loop")
+            hint_parts.append("- Use a LAYERED architecture: models → services → routes → app")
+            hint_parts.append("- Lower layers must NOT import from higher layers")
+        
+        # Handle unknown/missing dependencies
+        unknown_issues = [i for i in issues if "unknown" in i.lower()]
+        if unknown_issues:
+            hint_parts.append(f"- CRITICAL: {unknown_issues[0]}")
+            hint_parts.append("- Every dependency MUST be a defined artifact ID")
+            hint_parts.append("- Use EXACTLY the same names in 'requires' as in artifact 'id' fields")
+            hint_parts.append("- If an artifact isn't needed, remove it from requires")
+        
+        if any("deps" in i.lower() for i in issues):
+            hint_parts.append("- REDUCE dependencies per artifact (max 3 each)")
+            hint_parts.append("- Consider merging tightly-coupled artifacts")
+        
+        if health.get("artifact_count", 0) > 8:
+            hint_parts.append("- Use FEWER, LARGER artifacts instead of many small ones")
+        
+        hint_parts.append("\nCreate a SIMPLER plan with clear ONE-WAY dependency flow.")
+        
+        return "\n".join(hint_parts)
 
     async def _break_cycle(
         self,
