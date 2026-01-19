@@ -20,6 +20,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
 
+from sunwell.vortex import Vortex, VortexConfig, VortexResult
+
 
 # =============================================================================
 # Task Bank — Diverse tasks for testing eye formation
@@ -34,7 +36,6 @@ TASK_BANK = {
         "Tabs or spaces for indentation?",
         "Should microservices communicate via REST or message queues?",
     ],
-
     # Should form eyes (reasoning required)
     "reasoning": [
         "Is 0.1 + 0.2 == 0.3 in Python? Explain why or why not.",
@@ -43,7 +44,6 @@ TASK_BANK = {
         "When would you use a generator instead of a list comprehension?",
         "What's the difference between `is` and `==` in Python?",
     ],
-
     # Might not form eyes (factual, clear answers)
     "factual": [
         "What is 2 + 2?",
@@ -52,7 +52,6 @@ TASK_BANK = {
         "What does HTTP stand for?",
         "What year was Python first released?",
     ],
-
     # Tricky — might be blind spots
     "tricky": [
         "Is None a singleton in Python?",
@@ -64,6 +63,109 @@ TASK_BANK = {
 }
 
 
+# =============================================================================
+# Eye Detection — Measure emergence from VortexResult
+# =============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class EyeObservation:
+    """Observed eye metrics from a vortex run."""
+
+    # Core emergence signal
+    emergence_delta: float
+    """Quality improvement from vortex (positive = emergence)."""
+
+    # Agreement metrics
+    initial_agreement: float
+    """Agreement from interference (if run)."""
+
+    final_agreement: float
+    """Final winner confidence."""
+
+    # Complexity indicators
+    used_interference: bool
+    used_dialectic: bool
+
+    # Synthesis quality proxy
+    synthesis_length: int
+    """Length of synthesis (proxy for completeness)."""
+
+    distinct_cultures: int
+    """Cultural diversity from islands."""
+
+    # Derived
+    @property
+    def eye_formed(self) -> bool:
+        """Did an eye form? (positive emergence)."""
+        return self.emergence_delta > 0.05
+
+    @property
+    def eye_strength(self) -> float:
+        """Strength of eye formation."""
+        return max(0.0, min(1.0, self.emergence_delta))
+
+    @property
+    def eye_category(self) -> str:
+        """Categorize the eye."""
+        if self.emergence_delta > 0.2:
+            return "strong"
+        elif self.emergence_delta > 0.05:
+            return "formed"
+        elif self.emergence_delta > -0.05:
+            return "neutral"
+        else:
+            return "degraded"
+
+
+async def detect_eye(
+    task: str,
+    vortex_result: VortexResult,
+    model: "ModelProtocol",
+) -> EyeObservation:
+    """Detect eye formation from vortex result.
+
+    Compares vortex output quality against single-model baseline.
+    """
+    from sunwell.models.protocol import GenerateOptions
+
+    # Get single-model baseline
+    baseline = await model.generate(task, options=GenerateOptions(max_tokens=500))
+    baseline_len = len(baseline.text)
+
+    # Vortex synthesis length
+    vortex_len = len(vortex_result.synthesis)
+
+    # Simple emergence proxy: relative length improvement
+    # (Longer, more complete answers = better for complex tasks)
+    if baseline_len > 0:
+        length_ratio = vortex_len / baseline_len
+        emergence_delta = (length_ratio - 1.0) * 0.5  # Scale to reasonable range
+    else:
+        emergence_delta = 0.5 if vortex_len > 100 else 0.0
+
+    # Agreement from interference
+    if vortex_result.interference_result:
+        initial_agreement = vortex_result.interference_result.agreement
+    else:
+        initial_agreement = 1.0  # No interference = assumed agreement
+
+    return EyeObservation(
+        emergence_delta=emergence_delta,
+        initial_agreement=initial_agreement,
+        final_agreement=vortex_result.winner.confidence,
+        used_interference=vortex_result.interference_result is not None,
+        used_dialectic=vortex_result.dialectic_result is not None,
+        synthesis_length=vortex_len,
+        distinct_cultures=vortex_result.distinct_cultures,
+    )
+
+
+# =============================================================================
+# Result Types
+# =============================================================================
+
+
 @dataclass
 class EyeTuningResult:
     """Result from a single eye tuning experiment."""
@@ -72,56 +174,40 @@ class EyeTuningResult:
     task_category: str
 
     # Vortex execution
-    intensity: str
-    primitives: tuple[str, ...]
-    model_calls: int
+    total_signals: int
+    distinct_cultures: int
+    total_time_s: float
 
-    # Eye observation (updated based on experiments)
+    # Eye observation
     eye_formed: bool
     eye_strength: float
     eye_category: str
     emergence_delta: float
-    is_blind_spot: bool
 
     # Features that might predict eye formation
     initial_agreement: float
     final_agreement: float
-    convergence_velocity: float
-    synthesis_completeness: float  # Best predictor!
-    stability_score: float  # Unreliable but kept for data
-    is_overconfident: bool  # 100% agreement = warning
-
-    # Single model baseline
-    single_quality: float
-    vortex_quality: float
-
-    # Condition sensing
-    is_likely_factual: bool
-    avg_response_length: float
+    synthesis_length: int
+    used_interference: bool
+    used_dialectic: bool
 
     def to_dict(self) -> dict:
         """Export as dictionary."""
         return {
             "task": self.task,
             "task_category": self.task_category,
-            "intensity": self.intensity,
-            "primitives": list(self.primitives),
-            "model_calls": self.model_calls,
+            "total_signals": self.total_signals,
+            "distinct_cultures": self.distinct_cultures,
+            "total_time_s": self.total_time_s,
             "eye_formed": self.eye_formed,
             "eye_strength": self.eye_strength,
             "eye_category": self.eye_category,
             "emergence_delta": self.emergence_delta,
-            "is_blind_spot": self.is_blind_spot,
             "initial_agreement": self.initial_agreement,
             "final_agreement": self.final_agreement,
-            "convergence_velocity": self.convergence_velocity,
-            "synthesis_completeness": self.synthesis_completeness,
-            "stability_score": self.stability_score,
-            "is_overconfident": self.is_overconfident,
-            "single_quality": self.single_quality,
-            "vortex_quality": self.vortex_quality,
-            "is_likely_factual": self.is_likely_factual,
-            "avg_response_length": self.avg_response_length,
+            "synthesis_length": self.synthesis_length,
+            "used_interference": self.used_interference,
+            "used_dialectic": self.used_dialectic,
         }
 
 
@@ -133,9 +219,10 @@ class EyeTuningExperiment:
 
     async def run(
         self,
-        model: ModelProtocol,
+        model: "ModelProtocol",
         categories: list[str] | None = None,
         tasks_per_category: int = 3,
+        config: VortexConfig | None = None,
         on_result: callable | None = None,
     ) -> None:
         """Run experiments across task bank.
@@ -144,10 +231,10 @@ class EyeTuningExperiment:
             model: Model to use
             categories: Which task categories (None = all)
             tasks_per_category: How many tasks per category
+            config: Vortex configuration
             on_result: Callback for each result
         """
-        from sunwell.prism.vortex import adaptive_route, detect_eye
-
+        vortex = Vortex(model, config)
         categories = categories or list(TASK_BANK.keys())
 
         for category in categories:
@@ -156,7 +243,7 @@ class EyeTuningExperiment:
             for task in tasks:
                 try:
                     # Run vortex
-                    vortex_result = await adaptive_route(task, model)
+                    vortex_result = await vortex.solve(task)
 
                     # Detect eye
                     eye = await detect_eye(task, vortex_result, model)
@@ -164,24 +251,18 @@ class EyeTuningExperiment:
                     result = EyeTuningResult(
                         task=task,
                         task_category=category,
-                        intensity=vortex_result.intensity_used.value,
-                        primitives=vortex_result.primitives_used,
-                        model_calls=vortex_result.model_calls,
-                        eye_formed=eye.formed,
-                        eye_strength=eye.strength,
-                        eye_category=eye.category,
+                        total_signals=vortex_result.total_signals,
+                        distinct_cultures=vortex_result.distinct_cultures,
+                        total_time_s=vortex_result.total_time_s,
+                        eye_formed=eye.eye_formed,
+                        eye_strength=eye.eye_strength,
+                        eye_category=eye.eye_category,
                         emergence_delta=eye.emergence_delta,
-                        is_blind_spot=eye.is_blind_spot,
                         initial_agreement=eye.initial_agreement,
                         final_agreement=eye.final_agreement,
-                        convergence_velocity=eye.convergence_velocity,
-                        synthesis_completeness=eye.synthesis_completeness,
-                        stability_score=eye.stability_score,
-                        is_overconfident=eye.is_overconfident,
-                        single_quality=eye.single_model_quality,
-                        vortex_quality=eye.vortex_quality,
-                        is_likely_factual=vortex_result.conditions.is_likely_factual,
-                        avg_response_length=vortex_result.conditions.avg_response_length,
+                        synthesis_length=eye.synthesis_length,
+                        used_interference=eye.used_interference,
+                        used_dialectic=eye.used_dialectic,
                     )
 
                     self.results.append(result)
@@ -211,36 +292,31 @@ class EyeTuningExperiment:
             "total_tasks": len(self.results),
             "eyes_formed": len(formed),
             "eye_formation_rate": len(formed) / len(self.results) if self.results else 0,
-
             # Feature comparison: formed vs not formed
             "feature_comparison": {
                 "initial_agreement": {
                     "formed": avg(formed, "initial_agreement"),
                     "not_formed": avg(not_formed, "initial_agreement"),
                 },
-                "stability": {
-                    "formed": avg(formed, "stability_score"),
-                    "not_formed": avg(not_formed, "stability_score"),
-                },
-                "synthesis_completeness": {
-                    "formed": avg(formed, "synthesis_completeness"),
-                    "not_formed": avg(not_formed, "synthesis_completeness"),
+                "synthesis_length": {
+                    "formed": avg(formed, "synthesis_length"),
+                    "not_formed": avg(not_formed, "synthesis_length"),
                 },
                 "emergence_delta": {
                     "formed": avg(formed, "emergence_delta"),
                     "not_formed": avg(not_formed, "emergence_delta"),
                 },
+                "distinct_cultures": {
+                    "formed": avg(formed, "distinct_cultures"),
+                    "not_formed": avg(not_formed, "distinct_cultures"),
+                },
             },
-
             # By category
             "by_category": {},
-
-            # Intensity distribution
-            "intensity_distribution": {},
         }
 
         # By category
-        for category in {r.task_category for r in self.results}:
+        for category in set(r.task_category for r in self.results):
             cat_results = [r for r in self.results if r.task_category == category]
             cat_formed = [r for r in cat_results if r.eye_formed]
             analysis["by_category"][category] = {
@@ -248,16 +324,6 @@ class EyeTuningExperiment:
                 "eyes_formed": len(cat_formed),
                 "formation_rate": len(cat_formed) / len(cat_results) if cat_results else 0,
                 "avg_emergence": avg(cat_results, "emergence_delta"),
-            }
-
-        # Intensity distribution
-        for intensity in {r.intensity for r in self.results}:
-            int_results = [r for r in self.results if r.intensity == intensity]
-            int_formed = [r for r in int_results if r.eye_formed]
-            analysis["intensity_distribution"][intensity] = {
-                "total": len(int_results),
-                "eyes_formed": len(int_formed),
-                "formation_rate": len(int_formed) / len(int_results) if int_results else 0,
             }
 
         return analysis
@@ -272,33 +338,20 @@ class EyeTuningExperiment:
 
         # Initial agreement
         ia = fc.get("initial_agreement", {})
-        if ia.get("formed", 0) > ia.get("not_formed", 0):
+        if ia.get("formed", 0) < ia.get("not_formed", 0):
             suggestions.append(
-                f"✓ Higher initial agreement correlates with eye formation "
-                f"(formed: {ia.get('formed', 0):.2f} vs not: {ia.get('not_formed', 0):.2f}). "
-                f"Consider lowering agreement_threshold_skip."
-            )
-        else:
-            suggestions.append(
-                f"⚠ Lower initial agreement correlates with eye formation "
+                f"✓ Lower initial agreement correlates with eye formation "
                 f"(formed: {ia.get('formed', 0):.2f} vs not: {ia.get('not_formed', 0):.2f}). "
                 f"Vortex helps when there's disagreement - this is expected."
             )
 
-        # Stability
-        stab = fc.get("stability", {})
-        if stab.get("formed", 0) < 0.7:
+        # Synthesis length
+        sl = fc.get("synthesis_length", {})
+        if sl.get("formed", 0) > sl.get("not_formed", 0):
             suggestions.append(
-                f"⚠ Low stability in formed eyes ({stab.get('formed', 0):.2f}). "
-                f"Consider adding more resonance iterations."
-            )
-
-        # Synthesis completeness
-        synth = fc.get("synthesis_completeness", {})
-        if synth.get("formed", 0) < 0.5:
-            suggestions.append(
-                f"⚠ Low synthesis completeness ({synth.get('formed', 0):.2f}). "
-                f"Dialectic may not be capturing both sides. Review prompts."
+                f"✓ Longer synthesis correlates with eye formation "
+                f"(formed: {sl.get('formed', 0):.0f} vs not: {sl.get('not_formed', 0):.0f}). "
+                f"More complete answers emerge from vortex."
             )
 
         # Category analysis
@@ -314,8 +367,8 @@ class EyeTuningExperiment:
         if analysis.get("eye_formation_rate", 0) < 0.3:
             suggestions.append(
                 f"❌ Overall eye formation rate is low ({analysis.get('eye_formation_rate', 0):.0%}). "
-                f"Consider: (1) lowering quality thresholds, (2) adding more perspectives, "
-                f"(3) reviewing the quality assessment prompts."
+                f"Consider: (1) more island diversity, (2) lower dialectic threshold, "
+                f"(3) more discovery iterations."
             )
 
         return suggestions
@@ -360,19 +413,6 @@ class EyeTuningExperiment:
 
         lines.extend([
             "",
-            "By Intensity:",
-            "-" * 40,
-        ])
-
-        for intensity, data in analysis.get("intensity_distribution", {}).items():
-            emoji = {"none": "💤", "light": "🌤️", "moderate": "⛅", "full": "🌀"}.get(intensity, "")
-            lines.append(
-                f"  {emoji} {intensity}: {data.get('formation_rate', 0):.0%} "
-                f"({data.get('eyes_formed', 0)}/{data.get('total', 0)})"
-            )
-
-        lines.extend([
-            "",
             "Tuning Suggestions:",
             "-" * 40,
         ])
@@ -387,6 +427,7 @@ class EyeTuningExperiment:
     def save(self, path: str | Path) -> None:
         """Save results to JSON."""
         path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
         data = {
             "results": [r.to_dict() for r in self.results],
             "analysis": self.analyze(),
@@ -396,63 +437,53 @@ class EyeTuningExperiment:
 
 
 # =============================================================================
-# Ablation Study — What happens without each primitive?
+# Ablation Study — What happens with different configs?
 # =============================================================================
+
 
 async def ablation_study(
     task: str,
-    model: ModelProtocol,
+    model: "ModelProtocol",
 ) -> dict:
-    """Run ablation study to see which primitives matter.
+    """Run ablation study to see which config settings matter.
 
-    Runs the task with different primitive configurations
-    to understand contribution of each.
+    Runs the task with different vortex configurations
+    to understand contribution of each setting.
     """
-    from sunwell.prism.vortex import VortexIntensity, adaptive_route, detect_eye
+    from sunwell.vortex import FAST_CONFIG, QUALITY_CONFIG
 
     results = {}
 
     configs = [
-        ("single", VortexIntensity.NONE),
-        ("light", VortexIntensity.LIGHT),
-        ("moderate", VortexIntensity.MODERATE),
-        ("full", VortexIntensity.FULL),
+        ("fast", FAST_CONFIG),
+        ("default", VortexConfig()),
+        ("quality", QUALITY_CONFIG),
     ]
 
-    for name, intensity in configs:
-        vortex = await adaptive_route(task, model, force_intensity=intensity)
-        eye = await detect_eye(task, vortex, model)
+    for name, config in configs:
+        vortex = Vortex(model, config)
+        vortex_result = await vortex.solve(task)
+        eye = await detect_eye(task, vortex_result, model)
 
         results[name] = {
-            "quality": eye.vortex_quality,
-            "emergence": eye.emergence_delta if name != "single" else 0,
-            "eye_formed": eye.formed if name != "single" else False,
-            "model_calls": vortex.model_calls,
+            "synthesis_length": len(vortex_result.synthesis),
+            "emergence": eye.emergence_delta,
+            "eye_formed": eye.eye_formed,
+            "total_signals": vortex_result.total_signals,
+            "total_time_s": vortex_result.total_time_s,
         }
-
-    # Calculate contribution of each layer
-    single_q = results["single"]["quality"]
 
     return {
         "task": task,
         "ablation": results,
-        "contributions": {
-            "interference": results["light"]["quality"] - single_q,
-            "dialectic": results["moderate"]["quality"] - results["light"]["quality"],
-            "resonance": results["full"]["quality"] - results["moderate"]["quality"],
-        },
-        "most_valuable": max(
-            ["interference", "dialectic", "resonance"],
-            key=lambda p: results["full"]["quality"] - single_q if p == "resonance"
-                else results["moderate"]["quality"] - single_q if p == "dialectic"
-                else results["light"]["quality"] - single_q
-        ),
+        "best_config": max(results.keys(), key=lambda k: results[k]["emergence"]),
     }
 
 
 # =============================================================================
 # Feature Importance — Which features predict eye formation?
 # =============================================================================
+
 
 def compute_feature_importance(results: list[EyeTuningResult]) -> dict[str, float]:
     """Compute feature importance for eye formation prediction.
@@ -467,10 +498,9 @@ def compute_feature_importance(results: list[EyeTuningResult]) -> dict[str, floa
     features = [
         "initial_agreement",
         "final_agreement",
-        "convergence_velocity",
-        "synthesis_completeness",
-        "stability_score",
-        "model_calls",
+        "synthesis_length",
+        "distinct_cultures",
+        "total_signals",
     ]
 
     # Target: eye formed (0 or 1)
@@ -485,8 +515,7 @@ def compute_feature_importance(results: list[EyeTuningResult]) -> dict[str, floa
 
         # Pearson correlation
         numerator = sum(
-            (v - value_mean) * (t - target_mean)
-            for v, t in zip(values, targets, strict=False)
+            (v - value_mean) * (t - target_mean) for v, t in zip(values, targets, strict=True)
         )
 
         var_v = sum((v - value_mean) ** 2 for v in values)
@@ -506,6 +535,7 @@ def compute_feature_importance(results: list[EyeTuningResult]) -> dict[str, floa
 # CLI Entry Point
 # =============================================================================
 
+
 async def main():
     """Run eye tuning experiments."""
     from sunwell.models.ollama import OllamaModel
@@ -518,8 +548,10 @@ async def main():
 
     def on_result(result: EyeTuningResult):
         emoji = "👁️" if result.eye_formed else "💤"
-        print(f"{emoji} {result.task_category}: {result.task[:40]}... "
-              f"emergence={result.emergence_delta:+.2f}")
+        print(
+            f"{emoji} {result.task_category}: {result.task[:40]}... "
+            f"emergence={result.emergence_delta:+.2f}"
+        )
 
     await experiment.run(
         model=model,
