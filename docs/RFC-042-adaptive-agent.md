@@ -856,6 +856,263 @@ class AdaptiveAgent:
         self.simulacrum.save_session()
 ```
 
+### Intra-Session Learning (Scaling the Task DAG)
+
+Even within a single run, Simulacrum enables iterative expansion:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              "Build a forum app" — ITERATIVE EXPANSION          │
+│                                                                 │
+│  Phase 1: Core Structure (minimal plan)                         │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  Plan: 5 tasks                                            │  │
+│  │    1. User model                                          │  │
+│  │    2. Post model                                          │  │
+│  │    3. Basic routes                                        │  │
+│  │    4. Database setup                                      │  │
+│  │    5. App factory                                         │  │
+│  │                                                           │  │
+│  │  Execute → GATE 1 ✅                                      │  │
+│  │                                                           │  │
+│  │  Learnings extracted:                                     │  │
+│  │    - User.id is Integer primary key                       │  │
+│  │    - Post has user_id foreign key                         │  │
+│  │    - Using Flask-SQLAlchemy pattern                       │  │
+│  │    - SQLite with per-request connections                  │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                          │                                      │
+│                          ▼ (learnings inform expansion)         │
+│                                                                 │
+│  Phase 2: Expand DAG (informed by Phase 1)                      │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  Expand plan: +4 tasks (total: 9)                         │  │
+│  │    6. Comment model (knows: FK to Post, FK to User)       │  │
+│  │    7. Comment routes (knows: Flask-SQLAlchemy pattern)    │  │
+│  │    8. Upvote model (knows: same FK patterns)              │  │
+│  │    9. Upvote routes (knows: per-request DB)               │  │
+│  │                                                           │  │
+│  │  Execute → GATE 2 ✅                                      │  │
+│  │                                                           │  │
+│  │  New learnings:                                           │  │
+│  │    - Polymorphic upvotes (post OR comment)                │  │
+│  │    - Cascade deletes needed                               │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                          │                                      │
+│                          ▼ (learnings inform expansion)         │
+│                                                                 │
+│  Phase 3: Expand DAG (informed by Phase 1 + 2)                  │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  Expand plan: +4 tasks (total: 13)                        │  │
+│  │    10. Notification model (knows: polymorphic pattern)    │  │
+│  │    11. Notification routes                                │  │
+│  │    12. User preferences (cascade delete pattern)          │  │
+│  │    13. Integration tests                                  │  │
+│  │                                                           │  │
+│  │  Execute → GATE 3 ✅                                      │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                          │                                      │
+│                          ▼                                      │
+│                                                                 │
+│  Result: 13 tasks executed, each phase informed by previous     │
+│          No "guessing" at patterns — learned from own output    │
+│          Consistency across models, routes, tests               │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Why this matters**:
+
+Without intra-session learning:
+```
+Plan 13 tasks upfront → Execute all → Inconsistencies everywhere
+- User model uses int IDs, Post uses UUIDs (oops)
+- Comments use SQLAlchemy, Upvotes use raw SQL (oops)
+- Tests assume patterns that don't match implementation
+```
+
+With intra-session learning:
+```
+Plan 5 tasks → Execute → Learn → Expand 4 → Execute → Learn → Expand 4 → Done
+- Every model follows the learned FK pattern
+- Every route follows the learned Flask-SQLAlchemy pattern
+- Tests match actual implementation
+```
+
+### Implementation: Iterative DAG Expansion
+
+```python
+class AdaptiveAgent:
+    """Agent with iterative DAG expansion."""
+    
+    async def run(self, goal: str, session: str | None = None) -> AsyncIterator[AgentEvent]:
+        """Execute with iterative expansion."""
+        
+        # Initialize memory (even for single session)
+        self.simulacrum = SimulacrumStore.ephemeral() if not session else ...
+        
+        # Initial minimal plan
+        plan = await self._plan_minimal(goal)
+        yield AgentEvent(EventType.PLAN_WINNER, {"tasks": len(plan.tasks)})
+        
+        while plan.has_pending_tasks():
+            # Execute to next gate
+            async for event in self._execute_to_gate(plan):
+                yield event
+            
+            # Extract learnings from completed work
+            learnings = await self._extract_learnings(plan.completed_artifacts)
+            for learning in learnings:
+                self.simulacrum.dag.add_learning(learning)
+                yield AgentEvent(EventType.MEMORY_LEARNING, {"fact": learning.fact})
+            
+            # Check if goal is complete or needs expansion
+            completion = await self._assess_completion(goal, plan, self.simulacrum)
+            
+            if completion.is_complete:
+                break
+            
+            if completion.needs_expansion:
+                # Expand DAG with learnings injected
+                expansion = await self._expand_plan(
+                    goal=goal,
+                    current_plan=plan,
+                    learnings=self.simulacrum.dag.learnings,
+                    gaps=completion.gaps,
+                )
+                plan.add_tasks(expansion.new_tasks)
+                yield AgentEvent(EventType.PLAN_EXPANDED, {
+                    "new_tasks": len(expansion.new_tasks),
+                    "total": len(plan.tasks),
+                    "reason": completion.gaps,
+                })
+        
+        yield AgentEvent(EventType.COMPLETE, {"tasks": len(plan.completed_tasks)})
+    
+    async def _plan_minimal(self, goal: str) -> TaskGraph:
+        """Create minimal initial plan — just enough to start learning."""
+        
+        return await self.planner.plan(
+            goal=goal,
+            strategy="minimal",  # Core structure only
+            context="Start with foundational components. We'll expand after learning patterns.",
+        )
+    
+    async def _assess_completion(
+        self,
+        goal: str,
+        plan: TaskGraph,
+        simulacrum: SimulacrumStore,
+    ) -> CompletionAssessment:
+        """Assess if goal is complete or needs expansion."""
+        
+        # Use signals to assess
+        signals = await extract_signals(
+            f"Goal: {goal}\n"
+            f"Completed: {plan.completed_summary}\n"
+            f"Learnings: {simulacrum.dag.learnings_summary}\n"
+            f"Is the goal fully complete? What's missing?",
+            self.model,
+        )
+        
+        return CompletionAssessment(
+            is_complete=signals.goal_complete == "YES",
+            needs_expansion=signals.goal_complete == "NO",
+            gaps=signals.missing_components,
+        )
+    
+    async def _expand_plan(
+        self,
+        goal: str,
+        current_plan: TaskGraph,
+        learnings: list[Learning],
+        gaps: list[str],
+    ) -> PlanExpansion:
+        """Expand plan using learnings to inform new tasks."""
+        
+        # Build context from learnings
+        learning_context = "Patterns established in this codebase:\n"
+        for l in learnings:
+            learning_context += f"- {l.fact}\n"
+        
+        return await self.planner.expand(
+            goal=goal,
+            existing_plan=current_plan,
+            gaps=gaps,
+            context=learning_context,  # Learnings inform expansion
+        )
+```
+
+### Streaming UX for Iterative Expansion
+
+```
+$ sunwell "Build a Flask forum app with users, posts, comments, upvotes"
+
+🎯 Understanding goal...
+   └─ complexity: YES → iterative expansion
+
+📋 Phase 1: Core Structure (minimal plan)
+   └─ 5 tasks planned
+
+⚡ Executing Phase 1...
+   [1/5] User model        ████████████████████ ✓
+   [2/5] Post model        ████████████████████ ✓
+   [3/5] Basic routes      ████████████████████ ✓
+   [4/5] Database setup    ████████████████████ ✓
+   [5/5] App factory       ████████████████████ ✓
+
+   ═══════════════════════════════════════════
+   GATE 1: Core Structure ✅
+   ═══════════════════════════════════════════
+
+📚 Learnings extracted:
+   ├─ "User.id is Integer, primary_key=True"
+   ├─ "Post.user_id is ForeignKey('users.id')"
+   ├─ "Using Flask-SQLAlchemy with create_app pattern"
+   └─ "SQLite with per-request g.db connections"
+
+🔄 Assessing completion...
+   └─ Missing: comments, upvotes
+
+📋 Phase 2: Expanding DAG (+4 tasks)
+   └─ Injecting learnings into plan...
+
+⚡ Executing Phase 2...
+   [6/9] Comment model     ████████████████████ ✓
+         └─ Applied: FK pattern from learnings
+   [7/9] Comment routes    ████████████████████ ✓
+         └─ Applied: Flask-SQLAlchemy pattern
+   [8/9] Upvote model      ████████████████████ ✓
+         └─ Applied: FK pattern, polymorphic
+   [9/9] Upvote routes     ████████████████████ ✓
+
+   ═══════════════════════════════════════════
+   GATE 2: Extended Features ✅
+   ═══════════════════════════════════════════
+
+📚 New learnings:
+   ├─ "Upvote uses polymorphic: target_type + target_id"
+   └─ "Cascade delete on user → posts → comments"
+
+🔄 Assessing completion...
+   └─ Goal complete ✅
+
+✨ Complete: 9 tasks, 2 phases, 6 learnings
+   └─ All patterns consistent across codebase
+```
+
+### Benefits of Iterative Expansion
+
+| Approach | Tasks | Consistency | Adaptability |
+|----------|-------|-------------|--------------|
+| **Plan all upfront** | 13 | Low (guessed patterns) | None |
+| **Iterative expansion** | 9 | High (learned patterns) | High |
+
+**Key insight**: Iterative expansion often requires *fewer* tasks because:
+- Early learnings prevent mistakes that need fixing
+- Patterns are established once, then reused
+- No backtracking to fix inconsistencies
+
 ### Multi-Day Workflow
 
 ```
@@ -1139,6 +1396,8 @@ class EventType(Enum):
     PLAN_START = "plan_start"
     PLAN_CANDIDATE = "plan_candidate"
     PLAN_WINNER = "plan_winner"
+    PLAN_EXPANDED = "plan_expanded"
+    PLAN_ASSESS = "plan_assess"
     
     # Execution events
     TASK_START = "task_start"
@@ -1489,6 +1748,8 @@ class AdaptiveBudget:
 
 | Capability | Sunwell Adaptive | Aider | Cursor | Devin | CrewAI |
 |----|----|----|----|----|----|
+| **Iterative DAG expansion** | ✅ Learn → Expand | ❌ | ❌ | ❌ | ❌ |
+| **Intra-session learning** | ✅ Patterns propagate | ❌ | ❌ | ❌ | ❌ |
 | **Multi-day tasks** | ✅ Simulacrum | ❌ | ❌ | ✅ | ❌ |
 | **Cross-session memory** | ✅ Learnings + dead ends | ❌ | ❌ | Partial | ❌ |
 | **Self-healing fixes** | ✅ Compound Eye + Vortex | Partial | ❌ | ✅ | ❌ |
@@ -1506,7 +1767,21 @@ class AdaptiveBudget:
 
 ### Key Differentiators
 
-**1. Simulacrum (Persistent Memory)**
+**1. Iterative DAG Expansion (Intra-Session Learning)**
+
+No other tool learns from its own output mid-task:
+- Build User model → learn FK patterns → apply to Comment model
+- Establish SQLAlchemy style → propagate to all routes
+- Discover polymorphic pattern → reuse for notifications
+
+```
+Other tools: Plan 15 tasks upfront, inconsistencies across files
+Sunwell:     Plan 5, learn, expand 4, learn, expand 4 — all consistent
+```
+
+This is why "Build a forum app" can produce higher quality code with fewer tasks.
+
+**2. Cross-Session Memory (Simulacrum)**
 
 No other tool remembers learnings across sessions:
 - Start Monday, stop mid-task, resume Wednesday
@@ -1594,6 +1869,138 @@ Sunwell:     N candidates, automatic selection, consensus-driven
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+### Why Haven't Others Done This?
+
+Most agent tools stop at "LLM in a loop." Here's why:
+
+**1. Economic Misalignment**
+
+Cloud AI companies make money from token usage. Sunwell's techniques *reduce* tokens:
+- Early termination saves tokens
+- Confidence shortcuts skip expensive paths
+- Learning from mistakes prevents retry loops
+- Intra-session learning reduces total tasks
+
+```
+Cloud provider incentive: More tokens = more revenue
+Sunwell incentive:        Fewer tokens = better experience
+```
+
+This is why adaptive routing and learning are rare — they're bad for the business model of API providers.
+
+**2. "Bigger Model" Bet**
+
+Most companies assume GPT-5/Claude-4 will solve everything. Why build complex orchestration?
+
+```
+Their bet:    Wait for smarter models
+Sunwell bet:  Orchestration amplifies ANY model (including 1.5B local)
+```
+
+If the "bigger model" bet pays off, Sunwell still benefits (better base). If it doesn't, Sunwell has the infrastructure others lack.
+
+**3. The "Good Enough" Trap**
+
+Single-shot generation works ~70% of the time. That's enough to:
+- Demo impressively
+- Raise funding
+- Ship v1
+- Get Twitter likes
+
+The last 30% (production reliability) requires 10x effort. Most startups skip it.
+
+```
+Demo mode:       70% success is impressive
+Production mode: 70% success is unusable
+```
+
+Sunwell targets production reliability, not demo impressiveness.
+
+**4. Memory Is Architecturally Hard**
+
+Persistent memory requires:
+- DAG structure (not just appending to context)
+- Learning extraction (not just saving chat history)
+- Dead end tracking (negative knowledge)
+- Identity persistence (preferences)
+- Cross-session retrieval (semantic, not keyword)
+
+Most tools: Stuff everything in context window, hope for the best.
+
+```python
+# What most agents do
+context = previous_messages[-10:]  # Hope this is enough
+
+# What Sunwell does
+context = simulacrum.get_relevant_learnings(goal)  # Semantic retrieval
+context += simulacrum.get_dead_ends(goal)          # Avoid past mistakes
+context += simulacrum.identity.preferences          # User style
+```
+
+**5. Verification Is Engineering-Hard**
+
+Actually validating code requires:
+- Process isolation (don't crash the host)
+- Timeout handling (infinite loops)
+- Output capture (what went wrong)
+- Environment setup (dependencies)
+- Multi-language support (Python, JS, Go, etc.)
+
+Most agents: Generate code, show it, hope user runs it.
+
+**6. Local-First Is Trade-Off Hard**
+
+Cloud APIs are easy: send request, get response.
+
+Local models require:
+- Latency hiding (parallel requests)
+- Memory management (model loading)
+- Quality/speed trade-offs (smaller vs larger models)
+- Offline operation (no network assumptions)
+
+Most tools assume always-online cloud access.
+
+**7. Research-Product Gap**
+
+Academic papers have explored:
+- Multi-agent systems
+- Memory-augmented models  
+- Self-consistency checking
+- Iterative refinement
+
+But productizing research requires engineering that most skip:
+- Papers prove concepts; products need reliability
+- Papers use clean datasets; products handle messy reality
+- Papers optimize metrics; products optimize experience
+
+**8. Complexity Budget**
+
+Every feature has a complexity cost. Most teams spend their budget on:
+- UI polish
+- Integrations (VSCode, JetBrains)
+- Marketing features
+- Enterprise compliance
+
+Not on:
+- Signal extraction
+- Multi-model synthesis
+- Adaptive routing
+- Persistent memory
+
+These are invisible to users until they *work*. High risk, high reward.
+
+### Why Sunwell Can Do It
+
+**Local-first economics**: No token revenue to protect. Efficiency directly benefits users.
+
+**Research foundation**: Built on published techniques (compound eye, harmonic synthesis, etc.) not invented from scratch.
+
+**Small model focus**: Designed for 1.5B-7B models. Techniques that help small models help big models more.
+
+**Patience**: Not racing to ship demos. Building infrastructure that compounds.
+
+**Open architecture**: Not a black box. Users can inspect, modify, extend.
+
 ### Sunwell's Unique Value Proposition
 
 **"The agent that gets better over time."**
@@ -1654,13 +2061,22 @@ Sunwell:     N candidates, automatic selection, consensus-driven
 - [ ] Route to harmonic vs single-shot
 - [ ] Auto-detect gates during planning
 - [ ] Stream plan candidates as they're generated
+- [ ] Minimal initial plan for complex goals (iterative expansion)
 
-### Phase 7: Adaptive Execution
+### Phase 7: Iterative DAG Expansion
+- [ ] `_plan_minimal()` for core structure only
+- [ ] `_assess_completion()` with signals
+- [ ] `_expand_plan()` with learnings injected
+- [ ] `PLAN_EXPANDED` event streaming
+- [ ] Learning extraction between phases
+- [ ] Pattern propagation to new tasks
+
+### Phase 8: Adaptive Execution
 - [ ] Per-task confidence scoring
 - [ ] Route low-confidence tasks to vortex
 - [ ] Budget tracking with auto-downgrade
 
-### Phase 8: Simulacrum Integration
+### Phase 9: Simulacrum Integration
 - [ ] Load Simulacrum at session start (`--session` flag)
 - [ ] Inject learnings into planning prompts
 - [ ] Filter out approaches matching dead ends
@@ -1671,9 +2087,10 @@ Sunwell:     N candidates, automatic selection, consensus-driven
 - [ ] `sunwell chat --session` for memory-aware conversations
 - [ ] `sunwell sessions list/export` commands
 
-### Phase 9: Full Integration
+### Phase 10: Full Integration
 - [ ] Make adaptive the default
 - [ ] Make Simulacrum default (auto-create session from goal hash)
+- [ ] Make iterative expansion default for complex goals
 - [ ] Remove explicit technique flags
 - [ ] Comprehensive event coverage
 
@@ -1691,6 +2108,8 @@ Sunwell:     N candidates, automatic selection, consensus-driven
 | Perceived wait time | High | Low | Live updates |
 | Token efficiency | Baseline | -30% | Shortcuts for simple tasks |
 | Cross-session learning | None | Active | Simulacrum persists learnings |
+| Intra-session learning | None | Active | Learn patterns mid-task, propagate |
+| Codebase consistency | Variable | High | Learnings ensure uniform patterns |
 | Mistake repetition | Common | Rare | Dead ends prevent re-trying failures |
 | Multi-day task completion | Unsupported | Supported | Session resume + memory |
 | Onboarding time (repeat users) | Same | Decreasing | Identity remembers preferences |

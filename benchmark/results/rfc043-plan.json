@@ -1,0 +1,166 @@
+{
+  "version": "1.0",
+  "created_at": "2026-01-19T15:16:08.390028",
+  "goal": "Implement: Sunwell Studio is a minimal, beautiful GUI application for creative work with AI. It inverts the traditional IDE paradigm: instead of adding AI to an editor, it adds an editor to an AI. The interface adapts dynamically to what you're building \u2014 code, novels, screenplays, or games \u2014 surfacing relevant context and hiding everything else.",
+  "source_file": "docs/RFC-043-sunwell-studio.md",
+  "expertise": {
+    "enabled": true,
+    "loaded": true,
+    "domain": "software",
+    "heuristic_count": 5,
+    "heuristics": [
+      "Error Handling",
+      "Resource Management",
+      "Type Safety First",
+      "Async Patterns",
+      "Immutability by Default"
+    ],
+    "validator_count": 3,
+    "source_lenses": [
+      "Python Coder"
+    ]
+  },
+  "statistics": {
+    "total_artifacts": 10,
+    "total_waves": 4,
+    "parallelization": 2.5,
+    "model_distribution": {
+      "small": 2,
+      "medium": 7,
+      "large": 1
+    }
+  },
+  "waves": [
+    {
+      "wave": 1,
+      "artifacts": [
+        "SunwellCore",
+        "ArtifactContext"
+      ]
+    },
+    {
+      "wave": 2,
+      "artifacts": [
+        "AIModelManager",
+        "UIFactory"
+      ]
+    },
+    {
+      "wave": 3,
+      "artifacts": [
+        "EditorBase",
+        "SunwellApp"
+      ]
+    },
+    {
+      "wave": 4,
+      "artifacts": [
+        "ScreenplayEditor",
+        "NovelEditor",
+        "CodeEditor",
+        "GameEditor"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "SunwellCore",
+      "description": "Core application class for Sunwell Studio",
+      "domain_type": "component",
+      "produces_file": "src/sunwell/core.py",
+      "requires": [],
+      "wave": 1
+    },
+    {
+      "id": "ArtifactContext",
+      "description": "Manages the context of the currently active artifact (code, novel, etc.)",
+      "domain_type": "service",
+      "produces_file": "src/sunwell/context.py",
+      "requires": [],
+      "wave": 1
+    },
+    {
+      "id": "AIModelManager",
+      "description": "Manages the loading and switching between different AI models.",
+      "domain_type": "service",
+      "produces_file": "src/sunwell/ai_model_manager.py",
+      "requires": [
+        "ArtifactContext"
+      ],
+      "wave": 2
+    },
+    {
+      "id": "UIFactory",
+      "description": "Factory for creating UI components dynamically based on artifact type.",
+      "domain_type": "component",
+      "produces_file": "src/sunwell/ui_factory.py",
+      "requires": [
+        "ArtifactContext",
+        "SunwellCore"
+      ],
+      "wave": 2
+    },
+    {
+      "id": "EditorBase",
+      "description": "Base class for all editors within Sunwell Studio.",
+      "domain_type": "component",
+      "produces_file": "src/sunwell/editor_base.py",
+      "requires": [
+        "UIFactory"
+      ],
+      "wave": 3
+    },
+    {
+      "id": "SunwellApp",
+      "description": "Main application class for Sunwell Studio.",
+      "domain_type": "application",
+      "produces_file": "src/app.py",
+      "requires": [
+        "AIModelManager",
+        "UIFactory",
+        "SunwellCore"
+      ],
+      "wave": 3
+    },
+    {
+      "id": "ScreenplayEditor",
+      "description": "Editor for writing screenplays.",
+      "domain_type": "component",
+      "produces_file": "src/sunwell/editors/screenplay_editor.py",
+      "requires": [
+        "EditorBase"
+      ],
+      "wave": 4
+    },
+    {
+      "id": "NovelEditor",
+      "description": "Editor for writing novels.",
+      "domain_type": "component",
+      "produces_file": "src/sunwell/editors/novel_editor.py",
+      "requires": [
+        "EditorBase"
+      ],
+      "wave": 4
+    },
+    {
+      "id": "CodeEditor",
+      "description": "Editor specifically designed for code editing.",
+      "domain_type": "component",
+      "produces_file": "src/sunwell/editors/code_editor.py",
+      "requires": [
+        "EditorBase"
+      ],
+      "wave": 4
+    },
+    {
+      "id": "GameEditor",
+      "description": "Editor for creating game assets and logic.",
+      "domain_type": "component",
+      "produces_file": "src/sunwell/editors/game_editor.py",
+      "requires": [
+        "EditorBase"
+      ],
+      "wave": 4
+    }
+  ]
+}

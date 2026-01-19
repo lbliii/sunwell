@@ -886,6 +886,165 @@ See `condition_scores.json` for detailed statistics.
         console.print(f"\n📄 Report saved to: {output}")
 
 
+# =============================================================================
+# Planning Evaluation (RFC-043 prep)
+# =============================================================================
+
+
+@benchmark.command("plan-eval")
+@click.argument(
+    "task_path",
+    type=click.Path(exists=True, path_type=Path),
+)
+@click.argument(
+    "plan_path",
+    type=click.Path(exists=True, path_type=Path),
+)
+@click.option(
+    "--output", "-o",
+    type=click.Path(path_type=Path),
+    help="Save evaluation results to JSON",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["human", "json"]),
+    default="human",
+    help="Output format",
+)
+def plan_eval(
+    task_path: Path,
+    plan_path: Path,
+    output: Path | None,
+    output_format: str,
+) -> None:
+    """Evaluate a plan against a benchmark task.
+
+    Measures planning quality:
+    - Coverage: Did the plan include required artifacts?
+    - Coherence: Are dependencies correctly ordered?
+    - Tech Alignment: Did it use the right tech stack?
+    - Granularity: Right level of decomposition?
+    - Speed: How fast was planning?
+
+    \b
+    Examples:
+        sunwell benchmark plan-eval tasks/rfc043.yaml results/plan.json
+        sunwell benchmark plan-eval tasks/rfc043.yaml plan.json -o eval.json
+        sunwell benchmark plan-eval tasks/rfc043.yaml plan.json --format json
+    """
+    from sunwell.benchmark.planning_eval import PlanningEvaluator
+
+    try:
+        evaluator = PlanningEvaluator.from_task(task_path)
+        result = evaluator.evaluate(plan_path)
+
+        if output_format == "json":
+            json_output = json.dumps(result.to_dict(), indent=2)
+            if output:
+                output.write_text(json_output)
+                console.print(f"[green]Evaluation saved to: {output}[/green]")
+            else:
+                print(json_output)
+        else:
+            console.print(result.report())
+
+            if output:
+                output.write_text(json.dumps(result.to_dict(), indent=2))
+                console.print(f"\n[dim]JSON saved to: {output}[/dim]")
+
+    except Exception as e:
+        console.print(f"[red]Evaluation failed: {e}[/red]")
+        raise SystemExit(1)
+
+
+@benchmark.command("plan-compare")
+@click.argument(
+    "task_path",
+    type=click.Path(exists=True, path_type=Path),
+)
+@click.argument(
+    "plans",
+    type=click.Path(exists=True, path_type=Path),
+    nargs=-1,
+    required=True,
+)
+@click.option(
+    "--output", "-o",
+    type=click.Path(path_type=Path),
+    help="Save comparison to JSON",
+)
+def plan_compare(
+    task_path: Path,
+    plans: tuple[Path, ...],
+    output: Path | None,
+) -> None:
+    """Compare multiple plans against the same task.
+
+    Useful for comparing:
+    - Sunwell planner vs baseline model
+    - Different model sizes
+    - Different planning strategies
+
+    \b
+    Examples:
+        sunwell benchmark plan-compare tasks/rfc043.yaml sunwell.json baseline.json
+        sunwell benchmark plan-compare tasks/rfc043.yaml *.json -o comparison.json
+    """
+    from sunwell.benchmark.planning_eval import PlanningEvaluator
+
+    evaluator = PlanningEvaluator.from_task(task_path)
+
+    results = []
+    for plan_path in plans:
+        try:
+            result = evaluator.evaluate(plan_path)
+            results.append({
+                "plan": str(plan_path),
+                "scores": result.to_dict()["scores"],
+            })
+        except Exception as e:
+            results.append({
+                "plan": str(plan_path),
+                "error": str(e),
+            })
+
+    # Display comparison table
+    table = Table(title=f"Plan Comparison: {task_path.name}")
+    table.add_column("Plan", style="cyan")
+    table.add_column("Coverage", justify="right")
+    table.add_column("Coherence", justify="right")
+    table.add_column("Tech", justify="right")
+    table.add_column("Granularity", justify="right")
+    table.add_column("Speed", justify="right")
+    table.add_column("TOTAL", justify="right", style="bold")
+
+    for r in results:
+        if "error" in r:
+            table.add_row(
+                Path(r["plan"]).name,
+                "[red]ERROR[/red]", "", "", "", "",
+                f"[red]{r['error'][:20]}[/red]",
+            )
+        else:
+            scores = r["scores"]
+            table.add_row(
+                Path(r["plan"]).name,
+                f"{scores['coverage']:.0f}",
+                f"{scores['coherence']:.0f}",
+                f"{scores['tech_alignment']:.0f}",
+                f"{scores['granularity']:.0f}",
+                f"{scores['speed']:.0f}",
+                f"{scores['total']:.1f}",
+            )
+
+    console.print(table)
+
+    if output:
+        output.write_text(json.dumps(results, indent=2))
+        console.print(f"\n[dim]Comparison saved to: {output}[/dim]")
+
+
 # Export for CLI integration
 def register_benchmark_commands(cli: click.Group) -> None:
     """Register benchmark commands with main CLI."""

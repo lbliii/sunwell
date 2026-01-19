@@ -1,0 +1,122 @@
+{
+  "version": "1.0",
+  "created_at": "2026-01-19T15:16:58.960559",
+  "goal": "Implement the following specification:\n\n# RFC-043: Sunwell Studio \u2014 The AI-Native Creative Environment\n\n**Status**: Draft  \n**Created**: 2026-01-19  \n**Authors**: Sunwell Team  \n**Depends on**: RFC-042 (Adaptive Agent)\n\n---\n\n## Summary\n\nSunwell Studio is a minimal, beautiful GUI application for creative work with AI. It inverts the traditional IDE paradigm: instead of adding AI to an editor, it adds an editor to an AI. The interface adapts dynamically to what you're building \u2014 code, novels, screenplays, or games \u2014 surfacing relevant context and hiding everything else.\n\n**Core principles:**\n- Ollama-inspired simplicity (one input, focused output)\n- Adaptive UI (panels change based on project and task)\n- One-click preview (\u25b6 TRY IT for instant feedback)\n- Local-first (runs entirely on your machine)\n- Multi-domain (code, prose, scripts, dialogue)\n\n---\n\n## Motivation\n\n### The Problem with Traditional IDEs\n\nTraditional IDEs evolved from text editors over 40 years. They accumulated:\n- Menu bars, toolbars, status bars\n- Dozens of panels (explorer, outline, problems, output, terminal, git, ...)\n- Hundreds of settings\n- Plugin ecosystems\n- The assumption that humans write code\n\n**But in an AI-native world:**\n- The AI writes; the human supervises\n- Context matters more than tools\n- Simplicity beats configurability\n- The output (your creation) is the star\n\n### The Problem with Existing AI Tools\n\n| Tool | Problem |\n|------|---------|\n| Claude Code | Cloud-only, no memory, terminal-only |\n| Cursor | Still a complex IDE, AI bolted on |\n| Copilot | Completion only, no agentic capability |\n| Sudowrite | Writing only, no memory, session-based |\n\n**No tool offers:**\n- Beautiful, minimal GUI\n- Adaptive interface that changes per project type\n- Persistent memory across sessions\n- One-click preview of generated work\n- Local-first privacy\n\n---\n\n## Design Philosophy\n\n### Ollama Energy\n\nOllama succeeded by asking: \"What if running LLMs was just one command?\"\n\nSunwell Studio asks: \"What if creative AI was just one input?\"\n\n```\nBe\n\n[...truncated...]",
+  "source_file": "docs/RFC-043-sunwell-studio.md",
+  "expertise": {
+    "enabled": true,
+    "loaded": true,
+    "domain": "software",
+    "heuristic_count": 5,
+    "heuristics": [
+      "Simplicity",
+      "Readability",
+      "Testing Support",
+      "Performance Awareness",
+      "Clean Code Structure"
+    ],
+    "validator_count": 3,
+    "source_lenses": [
+      "Developer",
+      "Python Coder"
+    ]
+  },
+  "statistics": {
+    "total_artifacts": 6,
+    "total_waves": 4,
+    "parallelization": 1.5,
+    "model_distribution": {
+      "small": 2,
+      "medium": 4,
+      "large": 0
+    }
+  },
+  "waves": [
+    {
+      "wave": 1,
+      "artifacts": [
+        "AuthInterface",
+        "UserProtocol"
+      ]
+    },
+    {
+      "wave": 2,
+      "artifacts": [
+        "AuthService",
+        "UserModel"
+      ]
+    },
+    {
+      "wave": 3,
+      "artifacts": [
+        "UserRoutes"
+      ]
+    },
+    {
+      "wave": 4,
+      "artifacts": [
+        "App"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "AuthInterface",
+      "description": "Interface for authentication operations",
+      "domain_type": "protocol",
+      "produces_file": "src/protocols/auth.py",
+      "requires": [],
+      "wave": 1
+    },
+    {
+      "id": "UserProtocol",
+      "description": "Protocol defining User entity",
+      "domain_type": "protocol",
+      "produces_file": "src/protocols/user.py",
+      "requires": [],
+      "wave": 1
+    },
+    {
+      "id": "AuthService",
+      "description": "JWT-based authentication service",
+      "domain_type": "service",
+      "produces_file": "src/services/auth.py",
+      "requires": [
+        "AuthInterface",
+        "UserProtocol"
+      ],
+      "wave": 2
+    },
+    {
+      "id": "UserModel",
+      "description": "SQLAlchemy model implementing UserProtocol",
+      "domain_type": "model",
+      "produces_file": "src/models/user.py",
+      "requires": [
+        "UserProtocol"
+      ],
+      "wave": 2
+    },
+    {
+      "id": "UserRoutes",
+      "description": "REST endpoints for user operations",
+      "domain_type": "routes",
+      "produces_file": "src/routes/users.py",
+      "requires": [
+        "AuthService",
+        "UserModel"
+      ],
+      "wave": 3
+    },
+    {
+      "id": "App",
+      "description": "Flask application factory",
+      "domain_type": "application",
+      "produces_file": "src/app.py",
+      "requires": [
+        "UserRoutes"
+      ],
+      "wave": 4
+    }
+  ]
+}

@@ -416,3 +416,13 @@ main.add_command(runtime_cmd.runtime)
 main.add_command(skill.exec)
 main.add_command(skill.validate)
 main.add_command(lens.lens)
+
+# Adaptive Agent (RFC-042)
+from sunwell.cli import adaptive_cmd
+
+main.add_command(adaptive_cmd.adaptive)
+
+# Plan command for DAG visualization (RFC-043 prep)
+from sunwell.cli import plan_cmd
+
+main.add_command(plan_cmd.plan)

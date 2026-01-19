@@ -1,0 +1,111 @@
+# Planning Benchmark Task: RFC-043 Sunwell Studio Phase 1
+# 
+# Tests planning quality for a real-world desktop app specification.
+# Compare: Sunwell planner vs baseline model vs human reference.
+
+id: rfc043-phase1
+name: "Sunwell Studio Phase 1"
+category: planning
+difficulty: medium
+domain: desktop-app
+
+# The goal to plan
+goal: |
+  Implement Sunwell Studio Phase 1: A Tauri desktop app with Svelte frontend.
+  
+  Requirements:
+  1. Tauri project with Rust backend (src-tauri/)
+  2. Svelte frontend (src/)
+  3. Launch screen with centered input bar
+  4. Dark theme CSS variables
+  5. IPC bridge to connect frontend to Sunwell Python agent subprocess
+  6. Basic window configuration
+  
+  Output: Working Tauri+Svelte skeleton that can launch.
+
+# Source specification (for reference/grading)
+source_spec: docs/RFC-043-sunwell-studio.md
+
+# Expected artifacts (ground truth for coverage scoring)
+expected_artifacts:
+  required:
+    - id: tauri_project
+      description: "Tauri project initialization"
+      files: ["src-tauri/Cargo.toml", "src-tauri/tauri.conf.json"]
+      
+    - id: svelte_project  
+      description: "Svelte project setup"
+      files: ["package.json", "svelte.config.js", "vite.config.ts"]
+      
+    - id: launch_screen
+      description: "Launch screen component with input bar"
+      files: ["src/routes/Home.svelte", "src/components/InputBar.svelte"]
+      
+    - id: dark_theme
+      description: "Dark theme CSS variables"
+      files: ["src/styles/variables.css"]
+      
+    - id: ipc_bridge
+      description: "Rust IPC bridge for agent communication"
+      files: ["src-tauri/src/agent.rs", "src-tauri/src/commands.rs"]
+      
+    - id: window_config
+      description: "Window configuration"
+      files: ["src-tauri/src/main.rs"]
+      
+    - id: app_shell
+      description: "Root application component"
+      files: ["src/App.svelte"]
+
+  optional:
+    - id: types
+      description: "TypeScript type definitions"
+      files: ["src/types/*.ts"]
+      
+    - id: stores
+      description: "Svelte stores for state"
+      files: ["src/stores/*.ts"]
+
+# Expected dependencies (for coherence scoring)
+expected_dependencies:
+  - from: launch_screen
+    to: [svelte_project, dark_theme]
+  - from: ipc_bridge
+    to: [tauri_project]
+  - from: app_shell
+    to: [launch_screen, ipc_bridge]
+  - from: window_config
+    to: [tauri_project]
+
+# Grading rubric (0-100)
+grading:
+  coverage:
+    weight: 40
+    description: "% of required artifacts discovered"
+    
+  coherence:
+    weight: 25
+    description: "Dependencies are logically ordered (no cycles, correct layering)"
+    
+  tech_alignment:
+    weight: 20
+    description: "Correct tech stack (Tauri/Rust, Svelte, not Python/Flask)"
+    
+  granularity:
+    weight: 10
+    description: "Right level of decomposition (not too coarse, not too fine)"
+    
+  speed:
+    weight: 5
+    description: "Planning completed in reasonable time (<30s)"
+
+# Baseline comparisons
+baselines:
+  human_reference:
+    artifacts: 8
+    waves: 3
+    time_seconds: null  # Human judgment
+    
+  raw_model:
+    # Run same goal through raw model without Sunwell planner
+    prompt: "Create a task list for: {goal}"
