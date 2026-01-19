@@ -1,0 +1,144 @@
+{
+  "version": "1.0",
+  "created_at": "2026-01-19T15:32:12.662684",
+  "goal": "Implement the following specification:\n\n**Goal**: Sunwell Studio is an AI-native creative environment designed to streamline the creative process. It\u2019s a minimalist GUI application that inverts the traditional IDE approach, prioritizing the AI as the primary tool and dynamically adapting its interface to the specific project \u2013 whether it\u2019s code, writing, or screenplays.  The Studio offers a local-first, one-click preview experience with persistent memory, aiming to simplify creation by focusing on the user\u2019s output rather than the tools themselves.\n\n**Tech Stack**: Based on the RFC-043 document, here\u2019s a breakdown of the technology stack specified for Sunwell Studio:\n\n**Languages:**\n\n*   **Python:**  Implied through the use of Ollama and the agentic nature of the AI.\n*   **JavaScript/TypeScript:** Likely used for the UI development (given the description of a GUI application).\n\n**Frameworks/Libraries:**\n\n*   **Ollama:** This is a core component, likely a Python-based framework for running LLMs.\n*   **LLM (Large Language Model):** The specific LLM used isn't defined, but it's central to the application's functionality.\n*   **UI Framework (Unspecified):** The document doesn\u2019t explicitly state the UI framework, but it\u2019s implied to be a modern framework suitable for creating dynamic, adaptive interfaces.\n\n**Tools:**\n\n*   **Terminal:**  Used for interacting with the AI and running generated code/scripts.\n*   **Editor:** The core editor is part of the AI-native environment.\n*   **One-click preview:**  A feature that likely uses a web browser or a sandboxed environment to display the generated output.\n*   **Git:** Mentioned as a dependency, indicating support for version control.\n\n**Key Technologies & Concepts:**\n\n*   **AI-Native Design:** The core philosophy dictates the entire stack, prioritizing the AI as the primary driver of the creative process.\n*   **Adaptive UI:** This is a key design principle, suggesting a framework or approach that allows the UI to dynamically change based on the user's project and task.\n*   **Local-First:**  The application runs entirely on the user's machine, implying a focus on offline functionality and data privacy.\n\n**Important Note:** The document doesn't specify the exact versions or specific implementations of these technologies. It focuses on the overall design and philosophy of the application.\n\n**Phases**: Based on the RFC-043 document, here's a breakdown of the defined implementation phases and milestones for Sunwell Studio:\n\n**1. Initial Launch & Core UI Establishment (Milestone 1):**\n\n*   **Description:** The app opens to the single input field with the \u201cSUNWELL\u201d branding and a prompt for the user to specify what they want to create. This establishes the fundamental, minimalist interface.\n*   **Focus:**  Getting the basic window and input field up and running.\n\n**2. Agent-Driven Content Generation (Milestone 2):**\n\n*   **Description:** The AI agent begins working on the user's request, displaying a progress stream outlining the tasks being performed (e.g., building user models, routes, etc.).\n*   **Focus:**  Demonstrating the AI\u2019s core functionality \u2013 generating content based on user input.\n\n**3. Interactive Preview & \u201cTRY IT\u201d Functionality (Milestone 3):**\n\n*   **Description:**  The \"TRY IT\" button is introduced, allowing the user to immediately see a live preview of the generated content.\n*   **Focus:**  Providing immediate feedback and validating the AI\u2019s output.\n\n**4. Adaptive Interface Refinement (Ongoing):**\n\n*   **Description:** This isn't a discrete milestone but an ongoing process. The adaptive UI dynamically adjusts based on the project type (code, prose, etc.) and the user's actions. The UI evolves to show relevant context and hide irrelevant elements.\n*   **Focus:**  Maintaining the core principles of simplicity and context-awareness throughout the user experience.\n\n**Key Considerations & Implicit Phases:**\n\n*   **Development & Testing:**  These milestones are im",
+  "source_file": "docs/RFC-043-sunwell-studio.md",
+  "expertise": {
+    "enabled": true,
+    "loaded": true,
+    "domain": "software",
+    "heuristic_count": 5,
+    "heuristics": [
+      "Simplicity",
+      "Error Handling",
+      "Documentation Discipline",
+      "Resource Management",
+      "Type Safety First"
+    ],
+    "validator_count": 3,
+    "source_lenses": [
+      "Developer",
+      "Python Coder"
+    ]
+  },
+  "statistics": {
+    "total_artifacts": 8,
+    "total_waves": 4,
+    "parallelization": 2.0,
+    "model_distribution": {
+      "small": 3,
+      "medium": 4,
+      "large": 1
+    }
+  },
+  "waves": [
+    {
+      "wave": 1,
+      "artifacts": [
+        "UIFramework",
+        "PromptTemplate",
+        "SunwellApp"
+      ]
+    },
+    {
+      "wave": 2,
+      "artifacts": [
+        "GitIntegration",
+        "OllamaIntegration"
+      ]
+    },
+    {
+      "wave": 3,
+      "artifacts": [
+        "PreviewEngine",
+        "TerminalInterface"
+      ]
+    },
+    {
+      "wave": 4,
+      "artifacts": [
+        "UserInterface"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "UIFramework",
+      "description": "The UI framework used for the Sunwell Studio GUI.",
+      "domain_type": "component",
+      "produces_file": "src/ui/ui.py",
+      "requires": [],
+      "wave": 1
+    },
+    {
+      "id": "PromptTemplate",
+      "description": "A template for the initial prompt given to the AI agent.",
+      "domain_type": "model",
+      "produces_file": "src/prompts/sunwell_prompt.py",
+      "requires": [],
+      "wave": 1
+    },
+    {
+      "id": "SunwellApp",
+      "description": "The main application entry point for Sunwell Studio.",
+      "domain_type": "application",
+      "produces_file": "src/app.py",
+      "requires": [],
+      "wave": 1
+    },
+    {
+      "id": "GitIntegration",
+      "description": "Handles version control integration.",
+      "domain_type": "service",
+      "produces_file": "src/git.py",
+      "requires": [
+        "SunwellApp"
+      ],
+      "wave": 2
+    },
+    {
+      "id": "OllamaIntegration",
+      "description": "Handles the interaction with the Ollama LLM.",
+      "domain_type": "service",
+      "produces_file": "src/ollama.py",
+      "requires": [
+        "SunwellApp"
+      ],
+      "wave": 2
+    },
+    {
+      "id": "PreviewEngine",
+      "description": "Responsible for generating and displaying the one-click preview.",
+      "domain_type": "service",
+      "produces_file": "src/preview.py",
+      "requires": [
+        "OllamaIntegration",
+        "UIFramework"
+      ],
+      "wave": 3
+    },
+    {
+      "id": "TerminalInterface",
+      "description": "Interface for interacting with the Ollama agent via the terminal.",
+      "domain_type": "component",
+      "produces_file": "src/terminal.py",
+      "requires": [
+        "OllamaIntegration",
+        "UIFramework"
+      ],
+      "wave": 3
+    },
+    {
+      "id": "UserInterface",
+      "description": "The main GUI component of Sunwell Studio.",
+      "domain_type": "component",
+      "produces_file": "src/ui/main_window.py",
+      "requires": [
+        "PreviewEngine",
+        "TerminalInterface",
+        "UIFramework"
+      ],
+      "wave": 4
+    }
+  ]
+}

@@ -55,6 +55,10 @@ class ChunkManager:
     summarizer: Summarizer | None = None
     embedder: EmbeddingProtocol | None = None
 
+    # RFC-045: Intelligence extraction callback
+    _demotion_callback: Any | None = None
+    """Callback to call when chunks are demoted (for intelligence extraction)."""
+
     # Internal state
     _chunks: dict[str, Chunk] = field(default_factory=dict)
     _turn_count: int = 0
@@ -170,6 +174,9 @@ class ChunkManager:
         if not chunk or chunk.turns is None:
             return chunk_id
 
+        # RFC-045: Callback handled by SimulacrumStore._on_chunk_demotion
+        # This method is synchronous; async callback is handled upstream
+
         ctf_content = CTFEncoder.encode_turns(chunk.turns)
         warm_chunk = replace(chunk, turns=None, content_ctf=ctf_content)
 
@@ -179,11 +186,22 @@ class ChunkManager:
 
         return chunk_id
 
+    def set_demotion_callback(self, callback: Any) -> None:
+        """Set callback for chunk demotion (RFC-045).
+
+        Args:
+            callback: Async function(chunk: Chunk, new_tier: str) -> None
+        """
+        self._demotion_callback = callback
+
     def demote_to_cold(self, chunk_id: str) -> str:
         """Demote a warm chunk to cold tier, archiving content."""
         chunk = self._chunks.get(chunk_id)
         if not chunk:
             return chunk_id
+
+        # RFC-045: Callback handled by SimulacrumStore._on_chunk_demotion
+        # This method is synchronous; async callback is handled upstream
 
         archive_ref = None
         if self.config.archive_cold_content:

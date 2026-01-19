@@ -24,6 +24,7 @@ from sunwell.types.memory import ContextBudget
 
 if TYPE_CHECKING:
     from sunwell.embedding.protocol import EmbeddingProtocol
+    from sunwell.intelligence.context import ProjectContext
 
 
 @dataclass
@@ -81,6 +82,10 @@ class UnifiedContext:
                 else:
                     system_parts.append(f"- {node.content[:300]}...")
 
+        # RFC-045: Add project intelligence context
+        if self.intelligence_context:
+            system_parts.append(self.intelligence_context)
+
         messages.append({
             "role": "system",
             "content": "\n".join(system_parts),
@@ -113,6 +118,9 @@ class UnifiedContextAssembler:
 
     embedder: EmbeddingProtocol | None = None
     """Embedder for semantic queries."""
+
+    project_context: ProjectContext | None = None
+    """RFC-045: Project intelligence context."""
 
     budget: ContextBudget = field(default_factory=ContextBudget)
     """Token budget configuration."""
@@ -200,6 +208,43 @@ class UnifiedContextAssembler:
                                 memory_nodes.append((r_node, score * 0.8))
                                 retrieval_sources["topological"] = retrieval_sources.get("topological", 0) + 1
 
+        # RFC-045: Add project intelligence (decisions, failures, patterns)
+        intelligence_context = ""
+        if self.project_context:
+            intelligence_parts = []
+            # Find relevant decisions
+            relevant_decisions = await self.project_context.decisions.find_relevant_decisions(
+                query, top_k=3
+            )
+            if relevant_decisions:
+                intelligence_parts.append("\n\n## 📋 Relevant Architectural Decisions")
+                for decision in relevant_decisions:
+                    intelligence_parts.append(
+                        f"- [{decision.category}] {decision.question} → {decision.choice}"
+                    )
+                    if decision.rationale:
+                        intelligence_parts.append(f"  Rationale: {decision.rationale}")
+                    if decision.rejected:
+                        rejected_str = ", ".join(r.option for r in decision.rejected)
+                        intelligence_parts.append(f"  Rejected: {rejected_str}")
+
+            # Check for similar failures
+            similar_failures = await self.project_context.failures.check_similar_failures(
+                query, top_k=2
+            )
+            if similar_failures:
+                intelligence_parts.append("\n\n## ⚠️ Similar Past Failures")
+                for failure in similar_failures:
+                    intelligence_parts.append(
+                        f"- {failure.error_type}: {failure.description}"
+                    )
+                    intelligence_parts.append(f"  Error: {failure.error_message}")
+                    if failure.root_cause:
+                        intelligence_parts.append(f"  Root cause: {failure.root_cause}")
+
+            if intelligence_parts:
+                intelligence_context = "\n".join(intelligence_parts)
+
         # 4. Estimate tokens
         estimated = self._estimate_tokens(
             system_prompt, recent_turns, memory_nodes, learnings
@@ -213,6 +258,7 @@ class UnifiedContextAssembler:
             learnings=learnings,
             estimated_tokens=estimated,
             retrieval_sources=retrieval_sources,
+            intelligence_context=intelligence_context,
         )
 
     async def assemble_for_code_task(

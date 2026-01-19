@@ -137,24 +137,25 @@ async def _run_agent(
     verbose: bool,
     model_override: str | None,
 ) -> None:
-    """Execute agent mode (RFC-032, RFC-036, RFC-037, RFC-039).
+    """Execute goal with Adaptive Agent (RFC-042).
 
-    This is the unified entry point for goal execution.
-    Uses ExpertiseAwareArtifactPlanner for automatic expertise injection (RFC-039).
+    This is the unified entry point. The Adaptive Agent automatically:
+    - Extracts signals to select techniques
+    - Uses Harmonic planning for complex goals
+    - Validates at gates with fail-fast
+    - Auto-fixes errors with Compound Eye
+    - Persists learnings via Simulacrum
     """
+    from sunwell.adaptive import AdaptiveAgent, AdaptiveBudget, EventType, create_renderer
     from sunwell.config import get_config
-    from sunwell.naaru import Naaru
-    from sunwell.naaru.planners import ExpertiseAwareArtifactPlanner
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust
-    from sunwell.types.config import NaaruConfig
 
     # Load config
     config = get_config()
 
-    # Create models (synthesis + escalation)
+    # Create model
     synthesis_model = None
-    judge_model = None  # Larger model for escalation on validation failures
     try:
         from sunwell.models.ollama import OllamaModel
 
@@ -169,34 +170,11 @@ async def _run_agent(
         if verbose:
             console.print(f"[dim]Using model: {model_name}[/dim]")
 
-        # Create escalation model (larger) for content validation retries
-        escalation_model_name = None
-        if config and hasattr(config, "naaru"):
-            wisdom = getattr(config.naaru, "wisdom", None)
-            # "auto" means select automatically, not a literal model name
-            if wisdom and wisdom != "auto":
-                escalation_model_name = wisdom
-
-        # Default/auto escalation hierarchy: stable-code:3b → gemma3:4b
-        if not escalation_model_name:
-            for candidate in ["stable-code:3b", "gemma3:4b"]:
-                if candidate != model_name:  # Don't use same as synthesis
-                    escalation_model_name = candidate
-                    break
-
-        if escalation_model_name and escalation_model_name != model_name:
-            try:
-                judge_model = OllamaModel(model=escalation_model_name)
-                if verbose:
-                    console.print(f"[dim]Escalation model: {escalation_model_name}[/dim]")
-            except Exception:
-                pass  # Escalation is optional
-
     except Exception as e:
         console.print(f"[yellow]Warning: Could not load model: {e}[/yellow]")
 
     if not synthesis_model:
-        console.print("[red]No model available for planning[/red]")
+        console.print("[red]No model available[/red]")
         return
 
     # Setup tool executor
@@ -211,60 +189,47 @@ async def _run_agent(
         available_tools = frozenset(tool_executor.get_available_tools())
         console.print(f"[dim]Available tools: {', '.join(sorted(available_tools))}[/dim]")
 
-    # Create router for complexity assessment (uses same model, low temperature)
-    router = None
-    try:
-        from sunwell.routing import UnifiedRouter
-        router = UnifiedRouter(model=synthesis_model)
-    except Exception:
-        pass  # Router is optional; planner works without it
-
-    # RFC-039: Use expertise-aware artifact planner
-    # Automatically detects domain and injects relevant heuristics
-    planner = ExpertiseAwareArtifactPlanner(
+    # Create Adaptive Agent
+    agent = AdaptiveAgent(
         model=synthesis_model,
-        router=router,
-        enable_expertise=True,
+        tool_executor=tool_executor,
+        cwd=Path.cwd(),
+        budget=AdaptiveBudget(total_budget=50_000),
     )
 
+    # Dry run: just plan
     if dry_run:
-        await _artifact_dry_run(goal, planner, verbose)
+        console.print("[yellow]Planning only (--plan)[/yellow]\n")
+        async for event in agent.plan(goal):
+            if verbose or event.type in (EventType.PLAN_COMPLETE, EventType.ERROR):
+                _print_event(event, verbose)
         return
 
-    # Full execution
-    naaru_config = NaaruConfig()
-    if config and hasattr(config, "naaru"):
-        naaru_config = config.naaru
-
-    naaru = Naaru(
-        sunwell_root=Path.cwd(),
-        synthesis_model=synthesis_model,
-        judge_model=judge_model,  # For content validation escalation
-        planner=planner,
-        tool_executor=tool_executor,
-        config=naaru_config,
+    # Create renderer based on verbosity
+    from sunwell.adaptive import RendererConfig
+    renderer_config = RendererConfig(
+        mode="interactive",
+        show_signals=verbose,
+        show_gates=verbose,
+        show_learning=verbose,
     )
+    renderer = create_renderer(renderer_config)
 
+    # Full execution
     try:
-        result = await naaru.run(
-            goal=goal,
-            context={"cwd": str(Path.cwd())},
-            on_progress=console.print,
-            max_time_seconds=time,
-        )
+        async for event in agent.run(goal, context={"cwd": str(Path.cwd())}):
+            await renderer.render(event)
 
-        # Show artifacts
-        if result.artifacts:
-            console.print("\n[bold]Created files:[/bold]")
-            for artifact in result.artifacts:
-                console.print(f"  • {artifact}")
-
-        # Summary
-        if result.success:
-            console.print("\n[green]✓ Goal completed successfully[/green]")
-        else:
-            partial_msg = f"({result.completed_count}/{len(result.tasks)})"
-            console.print(f"\n[yellow]⚠ Goal partially completed {partial_msg}[/yellow]")
+            # Show key milestones even in non-verbose mode
+            if not verbose and event.type == EventType.COMPLETE:
+                data = event.data or {}
+                tasks = data.get("tasks_completed", 0)
+                gates = data.get("gates_passed", 0)
+                duration = data.get("duration_s", 0)
+                console.print(
+                    f"\n[green]✓ Complete[/green]: {tasks} tasks, "
+                    f"{gates} gates passed ({duration:.1f}s)"
+                )
 
     except KeyboardInterrupt:
         console.print("\n[yellow]Interrupted by user[/yellow]")
@@ -273,6 +238,21 @@ async def _run_agent(
         if verbose:
             import traceback
             console.print(traceback.format_exc())
+
+
+def _print_event(event, verbose: bool) -> None:
+    """Print an agent event to console."""
+    from sunwell.adaptive import EventType
+
+    if event.type == EventType.PLAN_COMPLETE:
+        data = event.data or {}
+        console.print(f"\n[bold]Plan:[/bold] {data.get('task_count', 0)} tasks")
+        for task in data.get("tasks", [])[:10]:
+            console.print(f"  • {task.get('description', task.get('id', '?'))}")
+    elif event.type == EventType.ERROR:
+        console.print(f"[red]Error: {event.data}[/red]")
+    elif verbose:
+        console.print(f"[dim]{event.type.value}: {event.data}[/dim]")
 
 
 async def _artifact_dry_run(goal: str, planner, verbose: bool) -> None:
@@ -417,12 +397,22 @@ main.add_command(skill.exec)
 main.add_command(skill.validate)
 main.add_command(lens.lens)
 
-# Adaptive Agent (RFC-042)
-from sunwell.cli import adaptive_cmd
-
-main.add_command(adaptive_cmd.adaptive)
-
 # Plan command for DAG visualization (RFC-043 prep)
+
+# Autonomous Backlog (RFC-046)
+from sunwell.cli import backlog_cmd
+
+main.add_command(backlog_cmd.backlog)
+
+# Project Intelligence commands (RFC-045)
+from sunwell.cli import intel_cmd
+
+main.add_command(intel_cmd.intel)
 from sunwell.cli import plan_cmd
 
 main.add_command(plan_cmd.plan)
+
+# Deep Verification (RFC-047)
+from sunwell.cli import verify_cmd
+
+main.add_command(verify_cmd.verify)

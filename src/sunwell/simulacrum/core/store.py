@@ -38,6 +38,8 @@ from sunwell.simulacrum.hierarchical.chunks import Chunk, ChunkSummary
 from sunwell.simulacrum.hierarchical.config import ChunkConfig
 
 if TYPE_CHECKING:
+    from typing import Any
+
     from sunwell.embedding.protocol import EmbeddingProtocol
     from sunwell.simulacrum.hierarchical.chunk_manager import ChunkManager
     from sunwell.simulacrum.hierarchical.summarizer import Summarizer
@@ -117,6 +119,9 @@ class SimulacrumStore:
     _embedder: EmbeddingProtocol | None = field(default=None, init=False)
     """Embedder for semantic retrieval."""
 
+    _intelligence_extractor: Any | None = field(default=None, init=False)
+    """RFC-045: Intelligence extractor for project intelligence."""
+
     def __post_init__(self):
         self.base_path = Path(self.base_path)
         self._ensure_dirs()
@@ -190,6 +195,34 @@ class SimulacrumStore:
             self._unified_store.set_embedder(embedder)
         if self._memory_handler:
             self._memory_handler.embedder = embedder
+
+    async def _on_chunk_demotion(self, chunk: Chunk, new_tier: str) -> None:
+        """Called when a chunk is demoted to warm/cold tier (RFC-045).
+
+        Args:
+            chunk: The chunk being demoted
+            new_tier: The new tier ('warm' or 'cold')
+        """
+        if self._intelligence_extractor and new_tier in ("warm", "cold"):
+            try:
+                await self._intelligence_extractor.on_chunk_demotion(chunk)
+            except Exception as e:
+                # Log but don't fail on intelligence extraction errors
+                # These are non-critical and shouldn't block demotion
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.debug(f"Intelligence extraction failed for chunk {chunk.id}: {e}")
+
+    def set_intelligence_extractor(self, extractor: Any) -> None:
+        """Set the intelligence extractor for RFC-045.
+
+        Args:
+            extractor: IntelligenceExtractor instance for extracting project intelligence
+        """
+        self._intelligence_extractor = extractor
+        # Set callback on chunk manager
+        if self._chunk_manager:
+            self._chunk_manager.set_demotion_callback(self._on_chunk_demotion)
 
     @property
     def unified_store(self) -> UnifiedMemoryStore | None:

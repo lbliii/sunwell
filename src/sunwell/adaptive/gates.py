@@ -72,6 +72,10 @@ class GateType(Enum):
     COMMAND = "command"
     """Run arbitrary command."""
 
+    # Semantic verification (RFC-047)
+    SEMANTIC = "semantic"
+    """Deep verification — does it do the right thing?"""
+
 
 @dataclass(frozen=True, slots=True)
 class ValidationGate:

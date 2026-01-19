@@ -1,0 +1,170 @@
+{
+  "version": "1.0",
+  "created_at": "2026-01-19T15:48:20.560986",
+  "goal": "Implement the following specification:\n\nHere\u2019s a concise implementation goal statement based on the provided verified facts:\n\n**Goal: Develop a Draft Version of Sunwell Studio \u2013 An Inverted IDE for Creative AI Workflows**\n\n**Objective:** To create a functional, draft version of Sunwell Studio, a GUI application leveraging an inverted IDE paradigm to facilitate creative workflows with AI, prioritizing simplicity, adaptive UI, and multi-domain support.\n\n**Key Requirements & Deliverables:**\n\n*   **Core Functionality:** The Studio must provide a single, intuitive input field for initiating AI-driven creative tasks (code, prose, scripts, dialogue).\n*   **One-Click Preview:**  Enable immediate, interactive previews of AI-generated content directly within the Studio.\n*   **Adaptive UI:** Implement a dynamic UI that adjusts based on the selected task and user input, minimizing UI clutter and maximizing creative focus.\n*   **Local-First Operation:** Ensure all data and AI processing occur locally, prioritizing user privacy and responsiveness.\n*   **Multi-Domain Support:**  The Studio must support the generation of content across multiple domains \u2013 code, prose, scripts, and dialogue \u2013 within a single workflow.\n\n**Technology Stack:**\n\n*   **Framework:** (Based on the document, this is initially a draft, but we anticipate)  A GUI framework suitable for rapid prototyping and visual development (e.g., Electron, React Native, or a similar cross-platform solution).\n*   **Language:** Python (likely for AI integration and backend logic, aligning with Ollama\u2019s approach).\n*   **Tools:**  (To be determined during development, but likely includes) Version control (Git), a suitable IDE for Python development, and potentially a local LLM runtime (consistent with the Ollama concept).\n\n**Implementation Phases (Milestones):**\n\n1.  **Core Input & Preview Prototype (2 weeks):** Establish the single input field and basic one-click preview functionality.\n2.  **Adaptive UI Skeleton (3 weeks):** Develop the foundational adaptive UI structure and initial interaction flows.\n3.  **Multi-Domain Support Integration (4 weeks):** Integrate support for code, prose, scripts, and dialogue generation.\n4.  **Local-First Operation & Refinement (2 weeks):**  Finalize local data handling and conduct thorough UI/UX refinement.\n\n**Non-Goals:**  This draft version will *not* include a",
+  "source_file": "docs/RFC-043-sunwell-studio.md",
+  "expertise": {
+    "enabled": true,
+    "loaded": true,
+    "domain": "software",
+    "heuristic_count": 5,
+    "heuristics": [
+      "Simplicity",
+      "Defensive Input Handling",
+      "Testing Support",
+      "Error Handling",
+      "Immutability by Default"
+    ],
+    "validator_count": 3,
+    "source_lenses": [
+      "Developer",
+      "Python Coder"
+    ]
+  },
+  "statistics": {
+    "total_artifacts": 10,
+    "total_waves": 4,
+    "parallelization": 2.5,
+    "model_distribution": {
+      "small": 3,
+      "medium": 6,
+      "large": 1
+    }
+  },
+  "waves": [
+    {
+      "wave": 1,
+      "artifacts": [
+        "LocalStorage",
+        "InputField",
+        "AIModelInterface"
+      ]
+    },
+    {
+      "wave": 2,
+      "artifacts": [
+        "ScriptGenerator",
+        "CodeGenerator",
+        "PreviewPanel",
+        "DialogueGenerator",
+        "ProseGenerator"
+      ]
+    },
+    {
+      "wave": 3,
+      "artifacts": [
+        "AdaptiveUI"
+      ]
+    },
+    {
+      "wave": 4,
+      "artifacts": [
+        "SunwellStudio"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "LocalStorage",
+      "description": "Handles local storage of AI generation parameters and results.",
+      "domain_type": "service",
+      "produces_file": "src/data/local_storage.py",
+      "requires": [],
+      "wave": 1
+    },
+    {
+      "id": "InputField",
+      "description": "The primary input field for user prompts.",
+      "domain_type": "component",
+      "produces_file": "src/ui/input_field.py",
+      "requires": [],
+      "wave": 1
+    },
+    {
+      "id": "AIModelInterface",
+      "description": "Interface for interacting with the AI model.",
+      "domain_type": "protocol",
+      "produces_file": "src/protocols/ai_model.py",
+      "requires": [],
+      "wave": 1
+    },
+    {
+      "id": "ScriptGenerator",
+      "description": "A specific AI model for generating scripts.",
+      "domain_type": "service",
+      "produces_file": "src/ai/script_generator.py",
+      "requires": [
+        "AIModelInterface"
+      ],
+      "wave": 2
+    },
+    {
+      "id": "CodeGenerator",
+      "description": "A specific AI model for generating code.",
+      "domain_type": "service",
+      "produces_file": "src/ai/code_generator.py",
+      "requires": [
+        "AIModelInterface"
+      ],
+      "wave": 2
+    },
+    {
+      "id": "PreviewPanel",
+      "description": "A panel to display the AI-generated preview.",
+      "domain_type": "component",
+      "produces_file": "src/ui/preview_panel.py",
+      "requires": [
+        "InputField"
+      ],
+      "wave": 2
+    },
+    {
+      "id": "DialogueGenerator",
+      "description": "A specific AI model for generating dialogue.",
+      "domain_type": "service",
+      "produces_file": "src/ai/dialogue_generator.py",
+      "requires": [
+        "AIModelInterface"
+      ],
+      "wave": 2
+    },
+    {
+      "id": "ProseGenerator",
+      "description": "A specific AI model for generating prose.",
+      "domain_type": "service",
+      "produces_file": "src/ai/prose_generator.py",
+      "requires": [
+        "AIModelInterface"
+      ],
+      "wave": 2
+    },
+    {
+      "id": "AdaptiveUI",
+      "description": "The core logic for adapting the UI based on the selected task.",
+      "domain_type": "component",
+      "produces_file": "src/ui/adaptive_ui.py",
+      "requires": [
+        "PreviewPanel",
+        "InputField"
+      ],
+      "wave": 3
+    },
+    {
+      "id": "SunwellStudio",
+      "description": "The main application class that orchestrates the entire Studio.",
+      "domain_type": "application",
+      "produces_file": "src/app.py",
+      "requires": [
+        "LocalStorage",
+        "InputField",
+        "ScriptGenerator",
+        "CodeGenerator",
+        "PreviewPanel",
+        "AdaptiveUI",
+        "ProseGenerator",
+        "DialogueGenerator"
+      ],
+      "wave": 4
+    }
+  ]
+}

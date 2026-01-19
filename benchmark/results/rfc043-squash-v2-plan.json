@@ -1,0 +1,152 @@
+{
+  "version": "1.0",
+  "created_at": "2026-01-19T15:53:14.616719",
+  "goal": "Implement the following specification:\n\n**Implementation Goal: Sunwell Studio \u2013 Initial Prototype Development**\n\n**Objective:** To develop a functional prototype of Sunwell Studio, a creative AI application leveraging a novel input-driven workflow, within eight implementation phases, demonstrating core features and utilizing the specified technology stack.\n\n**Deliverables:**\n\n*   **Phase 1-3: Core Engine & Input Handling:** Develop the core application logic utilizing Rust, Tauri, and TypeScript to handle user input and initiate AI processing. This includes the single input field interface and initial integration with a chosen LLM (e.g., Ollama).\n*   **Phase 4-5: Svelte UI Framework Integration:** Implement the user interface using Svelte, focusing on the initial \u201cSUNWELL\u201d display and prompt, replicating the single input field experience.\n*   **Phase 6: Python Integration for AI Processing:** Integrate Python for handling AI model interactions, focusing on the core \u201cone-click preview\u201d functionality (initial implementation).\n*   **Phase 7: Local-First Operation & Activity Tracking:** Implement local-first data storage and rudimentary activity tracking (as demonstrated by \"The Lighthouse Keeper \u00b7 forum-app\") within the Tauri application.\n*   **Phase 8: Prototype Testing & Documentation:** Conduct initial user testing and produce basic documentation outlining the prototype\u2019s functionality and technical architecture.\n\n**Technology Stack:**\n\n*   **Rust:** Backend logic, core application framework.\n*   **Tauri:** Cross-platform desktop application framework.\n*   **Svelte:** User Interface Framework.\n*   **Python:** AI Model Interaction & Processing.\n*   **TypeScript:** Front-end development and type safety.\n\n**Key Requirements:**\n\n*   **Input-Driven Workflow:** The application must open with a single input field, mirroring the core design principle of asking \u201cif creative AI was just one input.\u201d\n*   **AI Integration:** The application must facilitate interaction with an LLM, enabling users to generate content based on their input.\n*   **Local-First Operation:** Data persistence and application state must be managed locally within the Tauri framework.\n*   **Basic UI/UX:** The initial UI must clearly display the \u201cSUNWELL\u201d branding and the primary input field with the prompt.\n\n**Success Criteria:** The prototype will successfully demonstrate the core input-driven workflow, basic AI interaction, and local-first data handling, providing a tangible foundation for future development. This",
+  "source_file": "docs/RFC-043-sunwell-studio.md",
+  "expertise": {
+    "enabled": true,
+    "loaded": true,
+    "domain": "documentation",
+    "heuristic_count": 5,
+    "heuristics": [
+      "Evidence Required",
+      "Accessibility",
+      "User First",
+      "Signal over Noise",
+      "Progressive Disclosure"
+    ],
+    "validator_count": 7,
+    "source_lenses": [
+      "Technical Writer"
+    ]
+  },
+  "statistics": {
+    "total_artifacts": 9,
+    "total_waves": 4,
+    "parallelization": 2.25,
+    "model_distribution": {
+      "small": 3,
+      "medium": 6,
+      "large": 0
+    }
+  },
+  "waves": [
+    {
+      "wave": 1,
+      "artifacts": [
+        "TauriApp",
+        "UserInterface",
+        "PromptTemplate"
+      ]
+    },
+    {
+      "wave": 2,
+      "artifacts": [
+        "RustCore",
+        "LocalStorage",
+        "SvelteUI"
+      ]
+    },
+    {
+      "wave": 3,
+      "artifacts": [
+        "ActivityTracker",
+        "OllamaIntegration"
+      ]
+    },
+    {
+      "wave": 4,
+      "artifacts": [
+        "PythonAI"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "TauriApp",
+      "description": "The Tauri application framework providing the core structure and runtime environment.",
+      "domain_type": "application",
+      "produces_file": "src/tauri/tauri.rs",
+      "requires": [],
+      "wave": 1
+    },
+    {
+      "id": "UserInterface",
+      "description": "The primary user interface for Sunwell Studio, handling input and displaying output.",
+      "domain_type": "component",
+      "produces_file": "src/ui/ui.ts",
+      "requires": [],
+      "wave": 1
+    },
+    {
+      "id": "PromptTemplate",
+      "description": "A template for the initial prompt displayed to the user.",
+      "domain_type": "template",
+      "produces_file": "src/templates/prompt.ts",
+      "requires": [],
+      "wave": 1
+    },
+    {
+      "id": "RustCore",
+      "description": "The Rust backend logic handling user input, AI interaction, and data management.",
+      "domain_type": "component",
+      "produces_file": "src/core/core.rs",
+      "requires": [
+        "UserInterface",
+        "TauriApp"
+      ],
+      "wave": 2
+    },
+    {
+      "id": "LocalStorage",
+      "description": "Handles local-first data storage within the Tauri application.",
+      "domain_type": "service",
+      "produces_file": "src/storage/local_storage.rs",
+      "requires": [
+        "TauriApp"
+      ],
+      "wave": 2
+    },
+    {
+      "id": "SvelteUI",
+      "description": "The Svelte UI framework for rendering the user interface elements.",
+      "domain_type": "component",
+      "produces_file": "src/ui/svelte/app.svelte",
+      "requires": [
+        "UserInterface"
+      ],
+      "wave": 2
+    },
+    {
+      "id": "ActivityTracker",
+      "description": "Tracks user activity within the application for rudimentary analytics.",
+      "domain_type": "service",
+      "produces_file": "src/tracker/activity_tracker.rs",
+      "requires": [
+        "LocalStorage"
+      ],
+      "wave": 3
+    },
+    {
+      "id": "OllamaIntegration",
+      "description": "The component responsible for interacting with the Ollama LLM.",
+      "domain_type": "service",
+      "produces_file": "src/integration/ollama.rs",
+      "requires": [
+        "RustCore"
+      ],
+      "wave": 3
+    },
+    {
+      "id": "PythonAI",
+      "description": "Python script for interacting with the LLM (Ollama).",
+      "domain_type": "script",
+      "produces_file": "src/python/ai.py",
+      "requires": [
+        "RustCore",
+        "OllamaIntegration"
+      ],
+      "wave": 4
+    }
+  ]
+}

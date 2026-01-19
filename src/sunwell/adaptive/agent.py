@@ -86,22 +86,28 @@ class TaskGraph:
 
 @dataclass
 class AdaptiveAgent:
-    """Adaptive agent with signal-driven execution.
+    """Unified adaptive agent with signal-driven execution.
 
-    Makes all advanced features (Vortex, Compound Eye, Harmonic, Resonance)
-    automatic by default. Uses cheap signals to decide when to apply
-    expensive techniques.
+    This is the ONE agent for Sunwell. It automatically selects techniques
+    based on complexity, confidence, and budget. All advanced features
+    (Vortex, Compound Eye, Harmonic, Resonance) are applied automatically
+    when beneficial.
 
     Attributes:
         model: LLM for generation
+        tool_executor: Executor for tools (file I/O, commands, etc.)
         cwd: Working directory
         budget: Token budget configuration
         max_fix_attempts: Maximum fix attempts per error
         session: Optional Simulacrum session name
+        simulacrum: Optional pre-configured Simulacrum store
     """
 
     model: ModelProtocol
     """Model for generation."""
+
+    tool_executor: Any = None
+    """Tool executor for file I/O, commands, etc."""
 
     cwd: Path | None = None
     """Working directory."""
@@ -115,24 +121,82 @@ class AdaptiveAgent:
     session: str | None = None
     """Simulacrum session name for persistence."""
 
+    simulacrum: SimulacrumStore | None = None
+    """Optional pre-configured Simulacrum store."""
+
     # Internal state
-    _simulacrum: SimulacrumStore | None = field(default=None, init=False)
     _learning_store: LearningStore = field(default_factory=LearningStore, init=False)
     _learning_extractor: LearningExtractor = field(
         default_factory=LearningExtractor, init=False
     )
     _validation_runner: ValidationRunner | None = field(default=None, init=False)
     _fix_stage: FixStage | None = field(default=None, init=False)
+    _naaru: Any = field(default=None, init=False)  # Internal Naaru for task execution
 
     def __post_init__(self):
         if self.cwd is None:
             self.cwd = Path.cwd()
         self.cwd = Path(self.cwd)
 
-        # Initialize toolchain
+        # Initialize toolchain for validation
         toolchain = detect_toolchain(self.cwd)
         self._validation_runner = ValidationRunner(toolchain, self.cwd)
         self._fix_stage = FixStage(self.model, self.cwd, self.max_fix_attempts)
+
+        # Initialize Naaru for task execution (if tool_executor provided)
+        if self.tool_executor:
+            self._init_naaru()
+
+    def _init_naaru(self) -> None:
+        """Initialize internal Naaru for task execution."""
+        from sunwell.naaru import Naaru
+        from sunwell.types.config import NaaruConfig
+
+        self._naaru = Naaru(
+            sunwell_root=self.cwd,
+            synthesis_model=self.model,
+            tool_executor=self.tool_executor,
+            config=NaaruConfig(
+                enable_parallel_execution=True,
+                max_parallel_tasks=4,
+            ),
+        )
+
+    async def plan(
+        self,
+        goal: str,
+        context: dict[str, Any] | None = None,
+    ) -> AsyncIterator[AgentEvent]:
+        """Plan without executing (dry run mode).
+
+        Extracts signals, selects technique, and generates plan,
+        but does not execute tasks.
+
+        Args:
+            goal: The user's goal/request
+            context: Optional context
+
+        Yields:
+            Planning events only
+        """
+        # Extract signals
+        yield signal_event("extracting")
+        signals = await self._extract_signals_with_memory(goal)
+        yield signal_event("extracted", signals=signals.to_dict())
+
+        # Show routing decision
+        yield AgentEvent(
+            EventType.SIGNAL_ROUTE,
+            {
+                "planning": signals.planning_route,
+                "execution": signals.execution_route,
+                "confidence": signals.effective_confidence,
+            },
+        )
+
+        # Plan (but don't execute)
+        async for event in self._plan_with_signals(goal, signals, context):
+            yield event
 
     async def run(
         self,
@@ -217,6 +281,21 @@ class AdaptiveAgent:
 
     async def _load_memory(self) -> AsyncIterator[AgentEvent]:
         """Load Simulacrum session if specified."""
+        # Use pre-configured simulacrum if provided
+        if self.simulacrum:
+            yield AgentEvent(
+                EventType.MEMORY_LOADED,
+                {"session": "pre-configured", "turns": 0},
+            )
+            # Load learnings from simulacrum into local store
+            loaded = self._learning_store.load_from_simulacrum(self.simulacrum)
+            if loaded > 0:
+                yield AgentEvent(
+                    EventType.MEMORY_LEARNING,
+                    {"loaded": loaded, "source": "simulacrum"},
+                )
+            return
+
         if not self.session:
             return
 
@@ -226,19 +305,28 @@ class AdaptiveAgent:
             from sunwell.simulacrum.core.store import SimulacrumStore
 
             memory_path = self.cwd / ".sunwell" / "memory"
-            self._simulacrum = SimulacrumStore(memory_path)
+            store = SimulacrumStore(memory_path)
 
             try:
-                self._simulacrum.load_session(self.session)
+                store.load_session(self.session)
+                self.simulacrum = store
                 yield AgentEvent(
                     EventType.MEMORY_LOADED,
                     {
                         "session": self.session,
-                        "turns": len(self._simulacrum.get_dag().turns),
+                        "turns": len(store.get_dag().turns),
                     },
                 )
+                # Load learnings
+                loaded = self._learning_store.load_from_simulacrum(store)
+                if loaded > 0:
+                    yield AgentEvent(
+                        EventType.MEMORY_LEARNING,
+                        {"loaded": loaded, "source": "session"},
+                    )
             except FileNotFoundError:
-                self._simulacrum.new_session(self.session)
+                store.new_session(self.session)
+                self.simulacrum = store
                 yield AgentEvent(EventType.MEMORY_NEW, {"session": self.session})
 
         except ImportError:
@@ -515,14 +603,17 @@ Output ONLY the code (no explanation, no markdown fences):"""
             yield event
 
     async def _save_memory(self) -> AsyncIterator[AgentEvent]:
-        """Save Simulacrum session."""
-        if not self._simulacrum:
+        """Save Simulacrum session and sync learnings."""
+        if not self.simulacrum:
             return
 
-        self._simulacrum.save_session()
+        # Sync learnings to simulacrum for persistence
+        synced = self._learning_store.sync_to_simulacrum(self.simulacrum)
+
+        self.simulacrum.save_session()
         yield AgentEvent(
             EventType.MEMORY_SAVED,
-            {"learnings": len(self._learning_store.learnings)},
+            {"learnings": len(self._learning_store.learnings), "synced": synced},
         )
 
 

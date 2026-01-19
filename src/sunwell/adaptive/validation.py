@@ -7,6 +7,7 @@ Validation levels:
 - Level 1: Syntax (py_compile) - instant, free
 - Level 2: Import (try import) - fast
 - Level 3: Runtime (start, curl) - slower but comprehensive
+- Level 4: Semantic (RFC-047) - deep verification
 
 Key insight: Run validation in parallel with execution to hide latency.
 """
@@ -36,7 +37,7 @@ from sunwell.adaptive.toolchain import (
 )
 
 if TYPE_CHECKING:
-    pass
+    from sunwell.models.protocol import ModelProtocol
 
 
 @dataclass
@@ -118,6 +119,7 @@ class ValidationRunner:
     Executes the validation cascade at each gate:
     1. Static analysis (syntax → lint → type)
     2. Gate-specific check (import, schema, endpoint, etc.)
+    3. Semantic verification (RFC-047) for SEMANTIC gates
 
     Yields events as validation progresses for live UX updates.
     """
@@ -126,10 +128,12 @@ class ValidationRunner:
         self,
         toolchain: LanguageToolchain | None = None,
         cwd: Path | None = None,
+        model: ModelProtocol | None = None,
     ):
         self.cwd = cwd or Path.cwd()
         self.toolchain = toolchain or detect_toolchain(self.cwd)
         self.cascade = StaticAnalysisCascade(self.toolchain, self.cwd)
+        self.model = model  # Required for SEMANTIC gates (RFC-047)
 
     async def validate_gate(
         self,
@@ -246,6 +250,8 @@ class ValidationRunner:
                     passed, message = await self._check_integration(gate)
                 case GateType.COMMAND:
                     passed, message = await self._check_command(gate)
+                case GateType.SEMANTIC:
+                    passed, message = await self._check_semantic(gate, artifacts)
                 case _:
                     passed, message = True, "No specific check"
 
@@ -385,6 +391,73 @@ class ValidationRunner:
         except Exception as e:
             return False, str(e)
 
+    async def _check_semantic(
+        self,
+        gate: ValidationGate,
+        artifacts: list[Artifact],
+    ) -> tuple[bool, str]:
+        """Run deep semantic verification (RFC-047).
+
+        Uses DeepVerifier to check that code does the right thing,
+        not just that it runs.
+        """
+        if not self.model:
+            return False, "SEMANTIC gate requires model (set model in ValidationRunner)"
+
+        if not artifacts:
+            return True, "No artifacts to verify"
+
+        from sunwell.naaru.artifacts import ArtifactSpec
+        from sunwell.verification import create_verifier
+
+        verifier = create_verifier(
+            model=self.model,
+            cwd=self.cwd,
+            level="standard",
+        )
+
+        # Verify each artifact
+        all_passed = True
+        messages: list[str] = []
+        total_confidence = 0.0
+
+        for artifact in artifacts:
+            if artifact.path.suffix != ".py":
+                continue
+
+            # Create artifact spec from gate validation string or defaults
+            artifact_spec = ArtifactSpec(
+                id=artifact.path.stem,
+                description=f"Verify {artifact.path.name}",
+                contract=gate.validation or f"Code in {artifact.path.name} should be correct",
+                produces_file=str(artifact.path),
+                requires=frozenset(),
+                domain_type="code",
+            )
+
+            # Run verification
+            result = await verifier.verify_quick(artifact_spec, artifact.content)
+
+            total_confidence += result.confidence
+
+            if not result.passed:
+                all_passed = False
+                issue_summary = "; ".join(i.description[:50] for i in result.issues[:3])
+                messages.append(
+                    f"{artifact.path.name}: FAILED ({result.confidence:.0%}) - {issue_summary}"
+                )
+            else:
+                messages.append(
+                    f"{artifact.path.name}: PASSED ({result.confidence:.0%})"
+                )
+
+        avg_confidence = total_confidence / len(artifacts) if artifacts else 0.0
+
+        if all_passed:
+            return True, f"Semantic verification passed ({avg_confidence:.0%} confidence)"
+        else:
+            return False, f"Semantic verification failed: {'; '.join(messages)}"
+
     async def _run_subprocess(
         self,
         command: str,
@@ -425,9 +498,11 @@ class ValidationStage:
         self,
         cwd: Path | None = None,
         toolchain: LanguageToolchain | None = None,
+        model: ModelProtocol | None = None,
     ):
         self.cwd = cwd or Path.cwd()
-        self.runner = ValidationRunner(toolchain, self.cwd)
+        self.model = model
+        self.runner = ValidationRunner(toolchain, self.cwd, model)
 
     async def validate_all(
         self,
