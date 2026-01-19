@@ -1,177 +1,246 @@
-# Sunwell
+# 🌟 Sunwell
 
-**RAG for Judgment** — Dynamic expertise retrieval for LLMs.
+[![PyPI version](https://img.shields.io/pypi/v/sunwell.svg)](https://pypi.org/project/sunwell/)
+[![Build Status](https://github.com/lbliii/sunwell/actions/workflows/tests.yml/badge.svg)](https://github.com/lbliii/sunwell/actions/workflows/tests.yml)
+[![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://pypi.org/project/sunwell/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
+**AI agent for software tasks — just say what you want.**
+
+```bash
+sunwell "Build a REST API with auth"
 ```
-RAG:      Query → Retrieve FACTS → Inject → Generate
-Sunwell:  Query → Retrieve HEURISTICS → Inject → Generate → Validate
-```
 
-## What is Sunwell?
+---
 
-Sunwell retrieves professional heuristics from an expertise graph, injecting only relevant components into LLM context. Instead of stuffing all rules into every request, Sunwell uses vector search to select what matters.
+## Why Sunwell?
 
-| System | Retrieves | Output |
-|--------|-----------|--------|
-| **RAG** | Facts, documents | Informed response |
-| **Sunwell** | Heuristics, judgment | Professional-quality response |
+- **Goal-first** — Describe what you want, not how to do it
+- **Artifact planning** — Plans what must exist, parallelizes automatically
+- **Local-first** — Optimized for small models (Gemma 3B, Llama 8B)
+- **Free-threading** — Python 3.14t for true parallelism
+
+---
 
 ## Installation
-
-### Production Installation
 
 ```bash
 pip install sunwell
 
 # With model providers
-pip install sunwell[openai]
-pip install sunwell[anthropic]
-pip install sunwell[all]
+pip install sunwell[ollama]     # Local models (recommended)
+pip install sunwell[openai]     # OpenAI
+pip install sunwell[anthropic]  # Anthropic
+pip install sunwell[all]        # All providers
 ```
 
-### Development Setup (Free-Threading Recommended)
+Requires Python 3.14+
 
-Sunwell is optimized for Python 3.14t (free-threaded) for optimal parallelism. For development:
-
-**Quick Setup:**
-```bash
-# Using the setup script (recommended)
-./setup-free-threading.sh
-
-# Or using Make
-make setup-env
-```
-
-**Manual Setup:**
-```bash
-# Install uv if not already installed
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Create venv with Python 3.14t (free-threaded)
-uv venv --python python3.14t .venv
-
-# Activate and install
-source .venv/bin/activate
-uv pip install -e ".[dev]"
-```
-
-**Verify Free-Threading:**
-```bash
-python -c "import sys; print('Free-threaded:', hasattr(sys, '_is_gil_enabled'))"
-# Should print: Free-threaded: True
-```
-
-**Note:** If Python 3.14t is not available, the setup will fall back to standard Python (GIL enabled). For optimal performance with Naaru's parallel workers, use Python 3.14t.
+---
 
 ## Quick Start
 
+| Command | Description |
+|---------|-------------|
+| `sunwell "goal"` | Execute goal with AI agent |
+| `sunwell "goal" --plan` | Show plan without executing |
+| `sunwell chat` | Interactive conversation mode |
+| `sunwell setup` | First-time configuration |
+
+---
+
+## Usage
+
+<details>
+<summary><strong>Execute Goals</strong> — Tell it what you want</summary>
+
 ```bash
-# One-time setup (creates writer, reviewer, helper bindings)
-sunwell setup
+# Build something
+sunwell "Build a REST API with auth and database"
 
-# Now just ask! No flags needed.
-sunwell ask "Write API docs for auth.py"           # Uses default (writer)
-sunwell ask reviewer "Review this code"            # Uses reviewer binding
-sunwell ask helper "Quick question about Python"   # Uses helper (fast)
+# Write documentation
+sunwell "Write docs for the auth module"
 
-# Your learnings persist across calls!
-sunwell ask "What did we discuss yesterday?"
+# Refactor code
+sunwell "Refactor auth.py to use async"
+
+# Fix bugs
+sunwell "Fix the race condition in cache.py"
 ```
 
-**Custom bindings for specific projects:**
+The agent discovers what artifacts need to exist, plans dependencies, and executes in parallel where possible.
+
+</details>
+
+<details>
+<summary><strong>Plan First</strong> — Review before executing</summary>
+
 ```bash
-sunwell bind create my-project --lens tech-writer.lens --provider anthropic
-sunwell ask my-project "Document the auth module"
+sunwell "Build an e-commerce backend" --plan
 ```
 
-**Interactive chat with model switching:**
-```bash
-sunwell chat tech-writer.lens --session auth-project
-# /switch anthropic:claude-sonnet-4-20250514  ← switch models mid-chat!
+Shows the artifact graph without executing:
+
+```
+Plan for: Build an e-commerce backend
+
+┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
+┃ ID           ┃ Description          ┃ Requires    ┃
+┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━┩
+│ db_schema    │ Database schema      │ -           │
+│ user_model   │ User model           │ db_schema   │
+│ product_mod  │ Product model        │ db_schema   │
+│ auth_service │ Authentication       │ user_model  │
+│ cart_service │ Shopping cart        │ product_mod │
+└──────────────┴──────────────────────┴─────────────┘
+
+Execution Waves (parallel):
+  Wave 1: db_schema
+  Wave 2: user_model, product_mod
+  Wave 3: auth_service, cart_service
 ```
 
-## Creating a Lens
+</details>
 
-A lens is a YAML file defining professional expertise:
+<details>
+<summary><strong>Interactive Chat</strong> — Conversational mode</summary>
+
+```bash
+sunwell chat
+```
+
+For ongoing conversations with context persistence.
+
+</details>
+
+<details>
+<summary><strong>Override Model</strong> — Use specific models</summary>
+
+```bash
+# Use a specific model
+sunwell "Explain this codebase" --model gemma3:8b
+
+# Use a larger model for complex tasks
+sunwell "Design the architecture" --model llama3.1:70b
+```
+
+</details>
+
+---
+
+## Features
+
+| Feature | Description |
+|---------|-------------|
+| **Artifact-First Planning** | Identifies what must exist, derives execution order from dependencies |
+| **Parallel Execution** | Independent artifacts build simultaneously |
+| **Model Distribution** | Assigns small/medium/large models to tasks by complexity |
+| **Tool Use** | File operations, shell commands, code analysis |
+| **Harmonic Synthesis** | Multiple perspectives for higher-quality outputs |
+
+---
+
+## How It Works
+
+Traditional agents plan procedurally: "First do X, then Y, then Z." Sunwell plans declaratively: "These artifacts must exist."
+
+```
+PROCEDURAL:     Goal → [Step 1] → [Step 2] → [Step 3] → Done
+
+ARTIFACT-FIRST: [Artifact A] [Artifact B] [Artifact C]
+                      ↘          ↓         ↙
+                           [Done]
+```
+
+This enables automatic parallelization — all independent artifacts execute simultaneously.
+
+---
+
+## Configuration
+
+<details>
+<summary><strong>sunwell.yaml</strong> — Project configuration</summary>
 
 ```yaml
-lens:
-  metadata:
-    name: "Code Reviewer"
-    domain: "software"
-    version: "0.1.0"
+# sunwell.yaml
+naaru:
+  voice: gemma3:1b          # Default model
+  max_parallel: 4           # Concurrent tasks
+  trust_level: workspace    # Tool permissions
 
-  heuristics:
-    - name: "Security First"
-      rule: "Every code change must consider security implications"
-      always:
-        - "Check for injection vulnerabilities"
-        - "Validate all inputs"
-      never:
-        - "Trust user input"
-        - "Hardcode secrets"
-
-    - name: "Readability"
-      rule: "Code is read more than written"
-      always:
-        - "Descriptive names"
-        - "Small functions"
+# Model routing
+models:
+  small: gemma3:1b          # Simple tasks
+  medium: gemma3:8b         # Standard tasks  
+  large: llama3.1:70b       # Complex reasoning
 ```
 
-## Key Concepts
+</details>
 
-### Lenses
-A **lens** is an expertise graph containing:
-- **Heuristics**: How to think about problems
-- **Framework**: Domain methodology (e.g., Diataxis for docs)
-- **Personas**: Stakeholder simulation for testing
-- **Validators**: Quality gates
-- **Skills**: Action capabilities (see RFC-011)
+<details>
+<summary><strong>Environment Variables</strong></summary>
 
-### Bindings (Your Soul Stone)
-A **binding** attunes you to a lens with your preferences:
 ```bash
-sunwell bind create my-project --lens code-reviewer.lens --provider anthropic
+# API keys
+export OPENAI_API_KEY=...
+export ANTHROPIC_API_KEY=...
+
+# Ollama configuration
+export OLLAMA_HOST=http://localhost:11434
 ```
-Now `sunwell ask my-project "..."` remembers your lens, model, and headspace.
 
-### Headspace (Accumulated Wisdom)
-A **headspace** persists learnings across conversations:
-- **Learnings**: Facts, constraints, patterns discovered
-- **Dead Ends**: Approaches that didn't work (won't repeat)
-- **Focus**: Auto-detects what you're working on
+</details>
 
-Headspaces survive model switches! Start with GPT-4o, switch to Claude mid-conversation, your context travels with you.
+---
 
-### Selective Retrieval
-Unlike flat rule injection, Sunwell embeds lens components and retrieves only relevant ones via vector search. This means:
-- Lower token usage per request
-- Higher signal-to-noise ratio
-- Scales to larger expertise sets
+## Development Setup
 
-### Composition
-Lenses support inheritance and composition:
+Sunwell is optimized for Python 3.14t (free-threaded) for true parallelism.
 
-```yaml
-lens:
-  extends: "sunwell/tech-writer@1.0"
-  
-  heuristics:
-    - name: "Company Standard"
-      rule: "Use ACME logging format"
+```bash
+git clone https://github.com/lbliii/sunwell.git
+cd sunwell
+
+# Setup with free-threading (recommended)
+./setup-free-threading.sh
+
+# Or manually
+uv venv --python python3.14t .venv
+source .venv/bin/activate
+uv pip install -e ".[dev]"
+
+# Verify free-threading
+python -c "import sys; print('Free-threaded:', hasattr(sys, '_is_gil_enabled'))"
 ```
+
+---
 
 ## Architecture
 
 ```
-User Prompt → Classifier → Retriever → Injector → LLM → Validator
-                  │            │
-                  │      Vector Index
-                  │      (expertise embeddings)
-                  │
-              Tier Routing
-              (Fast/Standard/Deep)
+User Goal → Planner → Artifact Graph → Executor → Results
+               │            │
+               │      ┌─────┴─────┐
+               │      ↓           ↓
+            Naaru   [Parallel] [Parallel]
+          (coordinator)   Artifacts
 ```
+
+**Naaru** is the coordinated intelligence layer that:
+- Plans using artifact-first discovery
+- Routes tasks to appropriately-sized models
+- Executes with tool use and validation
+- Synthesizes results from multiple perspectives
+
+---
+
+## Requirements
+
+- **Python 3.14+** (free-threading recommended)
+- **Ollama** for local models (or OpenAI/Anthropic API keys)
+- Linux, macOS, Windows
+
+---
 
 ## License
 

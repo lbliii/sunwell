@@ -81,6 +81,153 @@ A small model, properly refracted, can exhibit behaviors that seem beyond its pa
 
 ---
 
+## Naaru Architecture (RFC-019, RFC-036, RFC-037, RFC-038)
+
+The **Naaru** is Sunwell's coordinated intelligence layer — it orchestrates planning, execution, and synthesis to maximize quality from local models.
+
+### Core Components
+
+```
+User Goal
+    │
+    ▼
+┌─────────────────────────────────────────┐
+│                 NAARU                    │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐ │
+│  │ Planner │→ │Executor │→ │Synthesis│ │
+│  └─────────┘  └─────────┘  └─────────┘ │
+│       │            │            │       │
+│       ▼            ▼            ▼       │
+│  ┌─────────────────────────────────────┐│
+│  │           Tool Executor             ││
+│  │  (file ops, shell, code analysis)   ││
+│  └─────────────────────────────────────┘│
+└─────────────────────────────────────────┘
+    │
+    ▼
+Results + Artifacts
+```
+
+### Planning Strategies
+
+| Strategy | Description | RFC |
+|----------|-------------|-----|
+| **Artifact-First** | Identifies what must exist, derives order from dependencies | RFC-036 |
+| **Harmonic** | Generates multiple plans, evaluates, selects best | RFC-038 |
+| **Agent** | Traditional step-by-step procedural planning | Baseline |
+
+**Artifact-First Planning (RFC-036)** is the default:
+
+```
+PROCEDURAL:     Goal → [Step 1] → [Step 2] → [Step 3] → Done
+
+ARTIFACT-FIRST: [Artifact A] [Artifact B] [Artifact C]
+                      ↘          ↓         ↙
+                           [Done]
+```
+
+Benefits:
+- **Automatic parallelization** — Independent artifacts execute simultaneously
+- **Clear verification** — Does the artifact exist and satisfy its spec?
+- **Incremental execution** — Only build what's missing
+
+### Artifact Graph
+
+```python
+@dataclass(frozen=True, slots=True)
+class Artifact:
+    """A concrete deliverable that must exist when the goal is complete."""
+    id: str
+    description: str
+    requires: frozenset[str] = frozenset()  # Dependencies
+    produces_file: str | None = None
+    domain_type: str | None = None          # e.g., "python_module", "config"
+    
+@dataclass
+class ArtifactGraph:
+    """DAG of artifacts with dependency relationships."""
+    artifacts: dict[str, Artifact]
+    
+    def execution_waves(self) -> list[list[str]]:
+        """Return artifacts grouped by execution wave (parallel batches)."""
+        ...
+    
+    def to_mermaid(self) -> str:
+        """Export graph as Mermaid diagram."""
+        ...
+```
+
+### Model Distribution
+
+Naaru routes tasks to appropriately-sized models:
+
+| Task Complexity | Model Size | Examples |
+|-----------------|------------|----------|
+| **Leaves** (no dependents) | Small (1-3B) | Config files, boilerplate |
+| **Standard** | Medium (7-8B) | Business logic, tests |
+| **Complex** (many dependents) | Large (70B+) | Architecture, integration |
+
+### Tool Executor
+
+The Naaru coordinates tool use with trust levels:
+
+```python
+class ToolTrust(Enum):
+    READ_ONLY = "read_only"    # Only read operations
+    WORKSPACE = "workspace"    # File writes in workspace
+    SHELL = "shell"            # Full shell access
+
+@dataclass
+class ToolPolicy:
+    trust_level: ToolTrust
+    allowed_paths: frozenset[Path] = frozenset()
+    denied_commands: frozenset[str] = frozenset()
+```
+
+Available tools:
+- `read_file`, `write_file`, `list_directory`
+- `run_command` (with trust restrictions)
+- `grep`, `find_files`
+- Code analysis tools
+
+### Harmonic Synthesis (RFC-019)
+
+For quality-critical outputs, Naaru can generate multiple candidates from different "perspectives":
+
+```
+Goal → [Persona 1] → Candidate 1
+    → [Persona 2] → Candidate 2  → Vote/Merge → Final Output
+    → [Persona 3] → Candidate 3
+```
+
+This is particularly effective for:
+- Documentation (clarity from multiple reader perspectives)
+- Code review (security, performance, maintainability perspectives)
+- Architecture (scalability, simplicity, extensibility perspectives)
+
+### CLI Integration (RFC-037)
+
+The goal-first CLI directly invokes Naaru:
+
+```bash
+sunwell "Build a REST API"           # Naaru executes goal
+sunwell "Build a REST API" --plan    # Naaru plans only (dry run)
+```
+
+Internally:
+
+```python
+async def _run_agent(goal: str, ...) -> None:
+    planner = ArtifactPlanner(model=synthesis_model)
+    naaru = Naaru(
+        planner=planner,
+        tool_executor=tool_executor,
+    )
+    result = await naaru.run(goal=goal, max_time_seconds=time)
+```
+
+---
+
 ## Package Structure
 
 ```
@@ -92,19 +239,85 @@ sunwell/
 ├── src/
 │   └── sunwell/
 │       ├── __init__.py         # Public API exports
+│       ├── __main__.py         # Module entry point
+│       ├── cli.py              # CLI exports
+│       ├── config.py           # Configuration loading
+│       ├── binding.py          # Binding management
 │       │
-│       ├── core/               # Core domain models and logic
-│       │   ├── __init__.py
+│       ├── core/               # Core domain models
 │       │   ├── lens.py         # Lens dataclass and loading
 │       │   ├── heuristic.py    # Heuristic models
 │       │   ├── persona.py      # Persona models
 │       │   ├── validator.py    # Validator models
 │       │   ├── workflow.py     # Workflow models
 │       │   ├── framework.py    # Framework/methodology models
+│       │   ├── spell.py        # Spell/cantrip definitions
+│       │   ├── context.py      # Context management
+│       │   ├── errors.py       # Error types
+│       │   ├── freethreading.py # Free-threading utilities
 │       │   └── types.py        # Shared type definitions
 │       │
+│       ├── naaru/              # Coordinated Intelligence (RFC-019+)
+│       │   ├── naaru.py        # Main Naaru coordinator
+│       │   ├── loop.py         # Agent execution loop
+│       │   ├── executor.py     # Task executor
+│       │   ├── parallel.py     # Parallel execution
+│       │   ├── convergence.py  # Result convergence
+│       │   ├── resonance.py    # Feedback loops
+│       │   ├── rotation.py     # Thought rotation
+│       │   ├── selection.py    # Candidate selection
+│       │   ├── refinement.py   # Output refinement
+│       │   ├── discovery.py    # Goal discovery
+│       │   ├── discernment.py  # Quality judgment
+│       │   ├── diversity.py    # Output diversity
+│       │   ├── analysis.py     # Code/context analysis
+│       │   ├── artifacts.py    # Artifact management
+│       │   ├── checkpoint.py   # Execution checkpoints
+│       │   ├── shards.py       # Shard management
+│       │   ├── signals.py      # Inter-component signals
+│       │   ├── unified.py      # Unified interface
+│       │   ├── persona.py      # Naaru persona
+│       │   ├── migration.py    # State migration
+│       │   ├── tool_shard.py   # Tool integration
+│       │   ├── types.py        # Naaru types
+│       │   │
+│       │   └── planners/       # Planning strategies (RFC-036, RFC-038)
+│       │       ├── protocol.py     # Planner protocol
+│       │       ├── artifact.py     # Artifact-first planner
+│       │       ├── harmonic.py     # Harmonic planning
+│       │       ├── agent.py        # Agent planner
+│       │       └── self_improvement.py # Self-improvement
+│       │
+│       ├── simulacrum/         # Persona simulation (40 files)
+│       │   ├── manager.py      # Simulacrum manager
+│       │   ├── persona.py      # Persona definitions
+│       │   ├── synthesis.py    # Harmonic synthesis
+│       │   └── ...             # Additional simulation components
+│       │
+│       ├── mirror/             # Self-improvement system
+│       │   ├── handler.py      # Mirror handler
+│       │   ├── router.py       # Mirror routing
+│       │   ├── analysis.py     # Self-analysis
+│       │   ├── introspection.py # Introspection
+│       │   ├── proposals.py    # Improvement proposals
+│       │   ├── safety.py       # Safety checks
+│       │   ├── tools.py        # Mirror tools
+│       │   └── model_tracker.py # Model tracking
+│       │
+│       ├── identity/           # Memory and learning
+│       │   ├── store.py        # Identity storage
+│       │   ├── extractor.py    # Learning extraction
+│       │   ├── injection.py    # Context injection
+│       │   ├── digest.py       # Memory digest
+│       │   └── commands.py     # Identity commands
+│       │
+│       ├── tools/              # Tool execution
+│       │   ├── executor.py     # Tool executor
+│       │   ├── types.py        # Tool types (ToolPolicy, ToolTrust)
+│       │   ├── registry.py     # Tool registry
+│       │   └── ...             # Built-in tools
+│       │
 │       ├── runtime/            # Lens execution engine
-│       │   ├── __init__.py
 │       │   ├── engine.py       # Main runtime orchestrator
 │       │   ├── classifier.py   # Intent classification
 │       │   ├── retriever.py    # RAG over expertise graph
@@ -112,116 +325,95 @@ sunwell/
 │       │   ├── executor.py     # Model execution
 │       │   └── refinement.py   # Refinement loop logic
 │       │
-│       ├── validation/         # Quality gates
-│       │   ├── __init__.py
-│       │   ├── runner.py       # Validation orchestration
-│       │   ├── deterministic.py # Script-based validators
-│       │   ├── heuristic.py    # AI-based validators
-│       │   └── persona.py      # Persona-based testing
-│       │
-│       ├── router/             # Intent routing and tiers
-│       │   ├── __init__.py
+│       ├── routing/            # Intent routing
 │       │   ├── classifier.py   # Intent classification
-│       │   └── tiers.py        # Tier definitions and routing
+│       │   ├── tiers.py        # Tier definitions
+│       │   └── ...
 │       │
 │       ├── models/             # LLM provider adapters
-│       │   ├── __init__.py
 │       │   ├── protocol.py     # Model protocol definition
 │       │   ├── openai.py       # OpenAI adapter
 │       │   ├── anthropic.py    # Anthropic adapter
-│       │   ├── ollama.py       # Ollama adapter
+│       │   ├── ollama.py       # Ollama adapter (primary)
 │       │   └── mock.py         # Mock for testing
 │       │
 │       ├── embedding/          # Vector embedding and search
-│       │   ├── __init__.py
 │       │   ├── protocol.py     # Embedding protocol
 │       │   ├── index.py        # Vector index management
-│       │   ├── openai.py       # OpenAI embeddings
-│       │   └── local.py        # Local embedding models
+│       │   ├── ollama.py       # Ollama embeddings
+│       │   └── simple.py       # Simple embeddings
 │       │
 │       ├── fount/              # Lens fount client
-│       │   ├── __init__.py
 │       │   ├── client.py       # Fount API client
 │       │   ├── resolver.py     # Dependency resolution
 │       │   └── cache.py        # Local lens cache
 │       │
-│       ├── schema/             # LDL schema and validation
-│       │   ├── __init__.py
-│       │   ├── loader.py       # YAML/JSON lens loading
-│       │   ├── validator.py    # Schema validation
-│       │   ├── versioning.py   # Schema migration
-│       │   ├── ldl-schema.json # JSON Schema definition
-│       │   └── schemas/        # Versioned schemas
-│       │       ├── ldl-1.0.json
-│       │       ├── ldl-1.1.json
-│       │       ├── ldl-1.2.json
-│       │       └── ldl-2.0.json
+│       ├── schema/             # Schema validation
+│       │   ├── loader.py       # YAML/JSON loading
+│       │   └── validator.py    # Schema validation
 │       │
-│       ├── cache/              # Caching infrastructure
-│       │   ├── __init__.py
-│       │   ├── manager.py      # Cache manager
-│       │   ├── lens_cache.py   # Lens caching
-│       │   └── embedding_cache.py # Embedding index cache
+│       ├── context/            # Context resolution
+│       │   ├── resolver.py     # Context resolver
+│       │   ├── reference.py    # Reference resolution
+│       │   ├── ide.py          # IDE integration
+│       │   └── constants.py    # Context constants
 │       │
-│       ├── telemetry/          # Observability
-│       │   ├── __init__.py
-│       │   ├── types.py        # Event types
-│       │   ├── collector.py    # Telemetry backends
-│       │   └── context.py      # Tracing context
+│       ├── project/            # Project management
+│       │   └── ...             # Project-level operations
 │       │
-│       ├── plugins/            # Plugin system
-│       │   ├── __init__.py
-│       │   ├── protocol.py     # Plugin protocols
-│       │   ├── loader.py       # Plugin discovery/loading
-│       │   └── builtin/        # Built-in plugins
-│       │       ├── __init__.py
-│       │       ├── link_checker.py
-│       │       ├── code_syntax.py
-│       │       └── markdown_lint.py
+│       ├── workspace/          # Workspace context
+│       │   └── ...             # Workspace management
 │       │
-│       ├── sandbox/            # Script sandboxing
-│       │   ├── __init__.py
-│       │   ├── executor.py     # Sandbox execution
-│       │   └── backends/       # Sandbox implementations
-│       │       ├── subprocess.py
-│       │       ├── docker.py
-│       │       └── firejail.py
+│       ├── skills/             # Skill system
+│       │   ├── executor.py     # Skill execution
+│       │   └── ...             # Skill definitions
 │       │
-│       ├── state/              # Workflow state management
-│       │   ├── __init__.py
-│       │   ├── store.py        # State storage backends
-│       │   └── workflow.py     # Workflow executor
+│       ├── types/              # Type definitions
+│       │   ├── config.py       # Config types (NaaruConfig)
+│       │   └── ...             # Additional types
 │       │
-│       ├── cli/                # Command-line interface
-│       │   ├── __init__.py
-│       │   ├── main.py         # CLI entry point
-│       │   ├── apply.py        # `sunwell apply` command
-│       │   ├── validate.py     # `sunwell validate` command
-│       │   ├── install.py      # `sunwell install` command
-│       │   ├── test.py         # `sunwell test` command
-│       │   └── publish.py      # `sunwell publish` command
+│       ├── benchmark/          # Benchmarking system
+│       │   ├── cli.py          # Benchmark CLI
+│       │   ├── runner.py       # Benchmark runner
+│       │   ├── evaluator.py    # Output evaluation
+│       │   ├── types.py        # Benchmark types
+│       │   └── naaru/          # Naaru-specific benchmarks
 │       │
-│       └── api/                # HTTP API (optional)
-│           ├── __init__.py
-│           ├── server.py       # FastAPI/Starlette server
-│           └── routes.py       # API endpoints
+│       └── cli/                # Command-line interface (RFC-037)
+│           ├── main.py         # Goal-first CLI entry
+│           ├── chat.py         # Interactive chat
+│           ├── setup.py        # First-time setup
+│           ├── bind.py         # Binding management
+│           ├── config_cmd.py   # Config commands
+│           ├── agent_cmd.py    # Agent commands
+│           ├── naaru_cmd.py    # Naaru commands (alias)
+│           ├── session.py      # Session management
+│           ├── apply.py        # Legacy apply (deprecated)
+│           ├── ask.py          # Legacy ask (deprecated)
+│           ├── lens.py         # Lens management
+│           ├── skill.py        # Skill commands
+│           ├── runtime_cmd.py  # Runtime diagnostics
+│           ├── state.py        # State management
+│           └── helpers.py      # CLI utilities
 │
-├── tests/
-│   ├── conftest.py             # Pytest fixtures
-│   ├── unit/
-│   │   ├── test_lens.py
-│   │   ├── test_retriever.py
-│   │   └── ...
-│   ├── integration/
-│   │   ├── test_runtime.py
-│   │   └── ...
-│   └── fixtures/
-│       └── lenses/             # Test lens files
+├── tests/                      # Test suite
 │
-└── lenses/                     # Example/default lenses
-    ├── tech-writer.lens
-    ├── code-reviewer.lens
-    └── base-writer.lens
+├── lenses/                     # Example lenses
+│   ├── tech-writer.lens
+│   ├── code-reviewer.lens
+│   ├── coder.lens
+│   └── helper.lens
+│
+├── benchmark/                  # Benchmark tasks and results
+│   ├── tasks/
+│   └── results/
+│
+└── docs/                       # RFCs and documentation
+    ├── RFC-034-contract-aware-planning.md
+    ├── RFC-035-domain-agnostic-projects.md
+    ├── RFC-036-artifact-first-planning.md
+    ├── RFC-037-cli-consolidation.md
+    └── RFC-038-harmonic-planning.md
 ```
 
 ---
@@ -1917,77 +2109,133 @@ class LensResolver:
 
 ## CLI Commands
 
+### Goal-First Interface (RFC-037)
+
+The primary interface is goal-first — users state what they want, the agent figures out the rest:
+
+```bash
+sunwell "Build a REST API with auth"     # Execute goal
+sunwell "Build an app" --plan            # Show plan only
+sunwell chat                              # Interactive mode
+```
+
+### Command Hierarchy
+
+```yaml
+# TIER 1: The 90% Path
+sunwell "goal"           # Execute goal (DEFAULT)
+sunwell chat             # Interactive mode
+sunwell setup            # First-time setup
+
+# TIER 2: Power User
+sunwell bind ...         # Manage saved configurations
+sunwell config ...       # Global settings
+
+# TIER 3: Advanced
+sunwell agent ...        # Agent commands
+  sunwell agent run      # Explicit agent mode
+  sunwell agent resume   # Resume from checkpoint
+  sunwell agent status   # Show state
+
+sunwell apply ...        # Legacy (deprecated)
+sunwell ask ...          # Legacy (deprecated)
+sunwell benchmark ...    # Quality testing
+sunwell sessions ...     # Memory management
+```
+
 ### `sunwell/cli/main.py`
 
 ```python
-"""Sunwell CLI entry point."""
-
-import click
-from sunwell.cli import apply, validate, install, test, publish
-
-
-@click.group()
-@click.version_option()
-def cli():
-    """Sunwell - RAG for Judgment."""
-    pass
-
-
-cli.add_command(apply.apply)
-cli.add_command(validate.validate)
-cli.add_command(install.install)
-cli.add_command(test.test)
-cli.add_command(publish.publish)
-
-
-@cli.command()
-def list():
-    """List installed lenses."""
-    ...
-
-
-if __name__ == "__main__":
-    cli()
-```
-
-### `sunwell/cli/apply.py`
-
-```python
-"""The `sunwell apply` command."""
+"""Main CLI entry point - Goal-first interface (RFC-037)."""
 
 import click
 from pathlib import Path
 
 
-@click.command()
-@click.argument("lens", type=click.Path(exists=True))
-@click.argument("prompt")
-@click.option("--model", "-m", default="claude-3-5-sonnet-20241022", help="Model to use")
-@click.option("--stream/--no-stream", default=True, help="Stream output")
-@click.option("--tier", type=click.Choice(["0", "1", "2"]), help="Force execution tier")
-@click.option("--validate/--no-validate", default=True, help="Run validators")
-@click.option("--personas/--no-personas", default=False, help="Run persona testing")
-@click.option("--verbose", "-v", is_flag=True, help="Verbose output")
-async def apply(
-    lens: str,
-    prompt: str,
-    model: str,
-    stream: bool,
-    tier: str | None,
-    validate: bool,
-    personas: bool,
-    verbose: bool,
-):
-    """
-    Apply a lens to a prompt.
+class GoalFirstGroup(click.Group):
+    """Custom group that allows 'sunwell "goal"' syntax."""
     
-    Examples:
-    
-        sunwell apply tech-writer.lens "Write API docs for auth.py"
+    def parse_args(self, ctx, args):
+        if not args:
+            return super().parse_args(ctx, args)
         
-        sunwell apply ./my.lens --model gpt-4 "Review this code"
+        command_names = set(self.list_commands(ctx))
+        first_arg = args[0]
+        
+        # If first arg is NOT a command, treat it as a goal
+        if first_arg not in command_names and not first_arg.startswith("-"):
+            ctx.ensure_object(dict)
+            ctx.obj["_goal"] = first_arg
+            args = args[1:]
+        
+        return super().parse_args(ctx, args)
+
+
+@click.group(cls=GoalFirstGroup, invoke_without_command=True)
+@click.option("--plan", is_flag=True, help="Show plan without executing")
+@click.option("--model", "-m", help="Override model selection")
+@click.option("--verbose", "-v", is_flag=True, help="Show detailed output")
+@click.option("--time", "-t", default=300, help="Max execution time (seconds)")
+@click.option("--trust", type=click.Choice(["read_only", "workspace", "shell"]),
+              default=None, help="Override tool trust level")
+@click.version_option(version="0.1.0")
+@click.pass_context
+def main(ctx, plan: bool, model: str | None, verbose: bool, 
+         time: int, trust: str | None) -> None:
+    """Sunwell — AI agent for software tasks.
+
+    Just tell it what you want:
+    
+        sunwell "Build a REST API with auth"
+        sunwell "Write docs for the CLI module"
+        sunwell "Refactor auth.py to use async"
+
+    For planning without execution:
+    
+        sunwell "Build an app" --plan
+
+    For interactive mode:
+    
+        sunwell chat
     """
-    ...
+    goal = ctx.obj.get("_goal") if ctx.obj else None
+    
+    if goal and ctx.invoked_subcommand is None:
+        # Execute goal with Naaru agent
+        ctx.invoke(_run_goal, goal=goal, dry_run=plan, model=model,
+                   verbose=verbose, time=time, trust=trust or "workspace")
+
+
+async def _run_agent(goal: str, time: int, trust: str, dry_run: bool,
+                     verbose: bool, model_override: str | None) -> None:
+    """Execute agent mode (RFC-032, RFC-036, RFC-037).
+    
+    Strategy is always artifact_first (RFC-036) - no flag needed.
+    """
+    from sunwell.naaru import Naaru
+    from sunwell.naaru.planners import ArtifactPlanner
+    from sunwell.tools.executor import ToolExecutor
+    from sunwell.tools.types import ToolPolicy, ToolTrust
+    
+    # Setup planner (artifact-first by default)
+    planner = ArtifactPlanner(model=synthesis_model)
+    
+    if dry_run:
+        # Show plan without executing
+        graph = await planner.discover_graph(goal, {"cwd": str(Path.cwd())})
+        _show_artifact_plan(graph)
+        return
+    
+    # Full execution with Naaru coordinator
+    naaru = Naaru(
+        sunwell_root=Path.cwd(),
+        synthesis_model=synthesis_model,
+        planner=planner,
+        tool_executor=tool_executor,
+    )
+    
+    result = await naaru.run(goal=goal, max_time_seconds=time)
+    _show_result(result)
 ```
 
 ---
@@ -2004,10 +2252,15 @@ description = "RAG for Judgment - Dynamic expertise retrieval for LLMs"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.14"
-authors = [
-    { name = "llane" }
+authors = [{ name = "llane" }]
+keywords = [
+    "llm",
+    "rag",
+    "expertise",
+    "ai",
+    "prompt-engineering",
+    "free-threading",
 ]
-keywords = ["llm", "rag", "expertise", "ai", "prompt-engineering"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -2017,12 +2270,15 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
+# Sunwell is optimized for free-threaded Python (3.14t)
+# For best performance, use: /usr/local/bin/python3.14t -m sunwell
+
 dependencies = [
     "pyyaml>=6.0",
     "numpy>=1.24",
     "click>=8.1",
     "httpx>=0.25",
-    "pydantic>=2.0",
+    "rich>=13.0",
 ]
 
 [project.optional-dependencies]
@@ -2031,14 +2287,12 @@ anthropic = ["anthropic>=0.18"]
 ollama = ["ollama>=0.1"]
 embeddings = ["sentence-transformers>=2.2"]
 api = ["fastapi>=0.109", "uvicorn>=0.27"]
-telemetry = [
-    "opentelemetry-api>=1.20",
-    "opentelemetry-sdk>=1.20",
-]
-faiss = ["faiss-cpu>=1.7"]              # Production vector index
-qdrant = ["qdrant-client>=1.7"]         # Cloud vector index
-all = [
-    "sunwell[openai,anthropic,ollama,embeddings,api,telemetry]"
+all = ["sunwell[openai,anthropic,ollama,embeddings,api]"]
+benchmark = [
+    "tiktoken>=0.5.0",   # Accurate token counting
+    "scipy>=1.10.0",     # Statistical tests
+    "ruff>=0.2.0",       # Deterministic linting
+    "mypy>=1.8.0",       # Deterministic type checks
 ]
 dev = [
     "pytest>=8.0",
@@ -2047,11 +2301,10 @@ dev = [
     "ruff>=0.2",
     "mypy>=1.8",
     "pre-commit>=3.6",
-    "jsonschema>=4.20",                   # Schema validation in tests
 ]
 
 [project.scripts]
-sunwell = "sunwell.cli.main:cli"
+sunwell = "sunwell.cli:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -2070,10 +2323,16 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
 [tool.mypy]
 python_version = "3.14"
 strict = true
+warn_return_any = true
+warn_unused_ignores = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.uv]
+# Prefer free-threaded Python for true parallelism
+python-preference = "managed"
 ```
 
 ---

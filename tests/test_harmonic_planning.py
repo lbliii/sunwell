@@ -330,7 +330,7 @@ class TestHarmonicPlanner:
         feedback = planner._identify_improvements(metrics)
 
         assert feedback is not None
-        assert "leaf" in feedback.lower() or "parallel" in feedback.lower()
+        assert "leaves" in feedback.lower() or "parallel" in feedback.lower()
 
     def test_identify_improvements_no_issues(self, mock_model):
         """Test improvement identification returns None for good plans."""
