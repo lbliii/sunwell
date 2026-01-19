@@ -122,7 +122,7 @@ def exec(
         }.get(provider, "gpt-4o")
 
     asyncio.run(_exec_skill_async(
-        lens_path, skill_name, task, model, provider, output, 
+        lens_path, skill_name, task, model, provider, output,
         not no_validate, dry_run, verbose
     ))
 
@@ -143,12 +143,12 @@ async def _exec_skill_async(
     fount = FountClient()
     loader = LensLoader(fount_client=fount)
     resolver = LensResolver(loader=loader)
-    
+
     try:
         source = str(lens_path)
         if not (source.startswith("/") or source.startswith("./") or source.startswith("../")):
             source = f"./{source}"
-            
+
         ref = LensReference(source=source)
         lens = await resolver.resolve(ref)
     except SunwellError as e:
@@ -206,7 +206,7 @@ async def _exec_skill_async(
 
     # Display results
     if verbose:
-        console.print(f"\n[cyan]Execution completed:[/cyan]")
+        console.print("\n[cyan]Execution completed:[/cyan]")
         console.print(f"  Time: {result.execution_time_ms}ms")
         if result.scripts_run:
             console.print(f"  Scripts: {', '.join(result.scripts_run)}")

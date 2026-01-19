@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sunwell.naaru.types import Task, TaskMode
 
@@ -19,10 +19,10 @@ if TYPE_CHECKING:
 @dataclass
 class SelfImprovementPlanner:
     """Plans self-improvement tasks for Sunwell (RFC-032).
-    
+
     This is the RFC-019 OpportunityDiscoverer, repackaged as a TaskPlanner.
     It finds things Sunwell could improve about itself.
-    
+
     Example:
         >>> planner = SelfImprovementPlanner(sunwell_root=Path("."), mirror=mirror)
         >>> tasks = await planner.plan(["improve error handling"])
@@ -31,7 +31,7 @@ class SelfImprovementPlanner:
     """
 
     sunwell_root: Path
-    mirror: "MirrorHandler"
+    mirror: MirrorHandler
 
     @property
     def mode(self) -> TaskMode:
@@ -44,11 +44,11 @@ class SelfImprovementPlanner:
         context: dict[str, Any] | None = None,
     ) -> list[Task]:
         """Find improvement opportunities in Sunwell's codebase.
-        
+
         Args:
             goals: What to focus improvement efforts on
             context: Optional context (unused for self-improvement)
-            
+
         Returns:
             List of Tasks representing improvement opportunities
         """

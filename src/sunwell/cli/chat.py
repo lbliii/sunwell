@@ -13,7 +13,6 @@ from rich.panel import Panel
 
 from sunwell.binding import BindingManager
 from sunwell.cli.helpers import create_model
-from sunwell.cli.state import get_simulacrum_manager
 from sunwell.core.errors import SunwellError
 from sunwell.core.types import LensReference
 from sunwell.embedding import create_embedder
@@ -40,18 +39,18 @@ class ChatState:
     models_used: list[str] = field(default_factory=list)
     last_response: str = ""
     tool_executor: object = None
-    
+
     def switch_model(self, new_model: object, new_name: str) -> None:
         """Switch to a new model, tracking history."""
         self.models_used.append(self.model_name)
         self.model = new_model
         self.model_name = new_name
-    
+
     @property
     def mode(self) -> str:
         """Return 'Agent' if tools enabled, else 'Chat'."""
         return "Agent" if self.tools_enabled else "Chat"
-    
+
     @property
     def mode_display(self) -> str:
         """Return mode with trust level for display."""
@@ -67,7 +66,7 @@ class ChatState:
 @click.option("--provider", "-p", default=None, help="Provider")
 @click.option("--memory-path", type=click.Path(), default=".sunwell/memory", help="Memory store path")
 @click.option("--tools/--no-tools", default=None, help="Override tool calling (Agent mode)")
-@click.option("--trust", type=click.Choice(["discovery", "read_only", "workspace", "shell"]), 
+@click.option("--trust", type=click.Choice(["discovery", "read_only", "workspace", "shell"]),
               default=None, help="Override tool trust level")
 @click.option("--smart", is_flag=True, help="Enable RFC-015 Adaptive Model Selection")
 @click.option("--mirror", is_flag=True, help="Enable RFC-015 Mirror Neurons (self-introspection)")
@@ -89,14 +88,14 @@ def chat(
     naaru: bool,
 ) -> None:
     """Start an interactive headspace chat session.
-    
+
     Uses your default binding if no argument given. Can also specify
     a binding name or lens path directly.
-    
+
     Your headspace (learnings, dead ends, context) persists across:
     - Model switches: /switch anthropic:claude-sonnet-4-20250514
     - Session restarts: sunwell chat --session my-project
-    
+
     Key commands:
     - /switch <provider:model>: Switch models mid-conversation
     - /branch <name>: Create a branch to try something
@@ -107,9 +106,9 @@ def chat(
     Examples:
 
         sunwell chat                              # Uses default binding
-        
+
         sunwell chat writer                       # Uses 'writer' binding
-        
+
         sunwell chat lenses/tech-writer.lens     # Direct lens path
 
         sunwell chat --session auth-debug        # Named session
@@ -118,15 +117,15 @@ def chat(
     """
     manager = BindingManager()
     lens_path: str | None = None
-    
+
     # Track if CLI overrode the provider (important for model defaults)
     cli_provider_override = provider is not None
     cli_model_override = model is not None
-    
+
     # Tool settings (may be overridden by CLI flags)
     tools_enabled = tools  # CLI override or None
     trust_level = trust  # CLI override or None
-    
+
     # Resolve binding or lens path
     if binding_or_lens:
         # Check if it's a binding name first
@@ -174,7 +173,7 @@ def chat(
             console.print("  2. Specify a lens: [cyan]sunwell chat path/to/lens.lens[/cyan]")
             console.print("  3. Create a binding: [cyan]sunwell bind create my-chat --lens my.lens[/cyan]")
             sys.exit(1)
-    
+
     # Set defaults
     provider = provider or "openai"
     if model is None:
@@ -184,26 +183,26 @@ def chat(
             "ollama": "gemma3:1b",
             "mock": "mock",
         }.get(provider, "gpt-4o")
-    
+
     # Load lens
     fount = FountClient()
     loader = LensLoader(fount_client=fount)
     resolver = LensResolver(loader=loader)
-    
+
     try:
         source = str(lens_path)
         if not (source.startswith("/") or source.startswith("./") or source.startswith("../")):
             source = f"./{source}"
-            
+
         ref = LensReference(source=source)
         lens = asyncio.run(resolver.resolve(ref))
     except SunwellError as e:
         console.print(f"[red]Error loading/resolving lens:[/red] {e.message}")
         sys.exit(1)
-    
+
     # Initialize memory store
     store = SimulacrumStore(Path(memory_path))
-    
+
     # Create or resume session
     if session:
         try:
@@ -218,33 +217,33 @@ def chat(
         session = store.new_session()
         dag = store.get_dag()
         console.print(f"[green]✓ New session:[/green] {session}")
-    
+
     # Create model
     llm = create_model(provider, model)
     embedder = create_embedder()
-    
+
     # Create context assembler
     assembler = ContextAssembler(
         dag=dag,
         embedder=embedder,
         summarizer=llm,
     )
-    
+
     # Build system prompt from lens
     system_prompt = lens.to_context()
-    
+
     # Determine mode label
     mode_label = "Agent" if tools_enabled else "Chat"
     mode_color = "green" if tools_enabled else "blue"
     trust_display = f" ({trust_level or 'workspace'})" if tools_enabled else ""
-    
+
     console.print(Panel(
         f"[bold]{lens.metadata.name}[/bold] ({provider}:{model}): [{mode_color}]{mode_label}{trust_display}[/{mode_color}]\n"
         f"Commands: /switch, /branch, /learn, /stats, /quit" + (" | /tools on/off" if not tools_enabled else ""),
         title=f"Session: {session}",
         border_style=mode_color,
     ))
-    
+
     # Main chat loop with model state
     asyncio.run(_chat_loop(
         dag=dag,
@@ -273,104 +272,104 @@ async def _generate_with_tools(
     max_iterations: int = 10,
 ) -> str:
     """Generate response with tool calling support.
-    
+
     Handles the multi-turn tool calling loop:
     1. Send prompt + tools to model
     2. If model returns tool calls, execute them
     3. Send tool results back to model
     4. Repeat until model returns text or max iterations
     """
+    from sunwell.models.protocol import Message
     from sunwell.tools.builtins import CORE_TOOLS
-    from sunwell.models.protocol import Message, ToolCall
-    
+
     # Get available tools from executor
     available_tool_names = tool_executor.get_available_tools()
-    
+
     # Build tools list from CORE_TOOLS
     tool_list = [CORE_TOOLS[name] for name in available_tool_names if name in CORE_TOOLS]
-    
+
     # Add mirror tools if mirror handler is configured (RFC-015)
     if tool_executor.mirror_handler:
-        from sunwell.mirror.tools import MIRROR_TOOLS, MIRROR_TOOL_TRUST
+        from sunwell.mirror.tools import MIRROR_TOOL_TRUST, MIRROR_TOOLS
         from sunwell.tools.types import ToolTrust
-        
+
         # Get current trust level
         current_trust = tool_executor.policy.trust_level if tool_executor.policy else ToolTrust.WORKSPACE
         trust_order = ["discovery", "read_only", "workspace", "shell", "full"]
         current_idx = trust_order.index(current_trust.value.lower()) if hasattr(current_trust, 'value') else 2
-        
+
         # Add mirror tools available at current trust level
         for tool_name, tool_def in MIRROR_TOOLS.items():
             required_level = MIRROR_TOOL_TRUST.get(tool_name, "workspace")
             required_idx = trust_order.index(required_level)
             if current_idx >= required_idx:
                 tool_list.append(tool_def)
-    
+
     tools = tuple(tool_list)
-    
+
     # Build conversation as Message objects
     conversation: list[Message] = []
     for msg in messages:
         conversation.append(Message(role=msg["role"], content=msg["content"]))
-    
+
     response_text = ""
-    
-    for iteration in range(max_iterations):
+
+    for _iteration in range(max_iterations):
         # Generate with tools
         result = await model.generate(
             tuple(conversation),
             tools=tools,
             tool_choice="auto",
         )
-        
+
         # If no tool calls, we're done
         if not result.has_tool_calls:
             response_text = result.text
             console.print(response_text, end="")
             break
-        
+
         # Add assistant message with tool calls to conversation
         conversation.append(Message(
             role="assistant",
             content=result.content,
             tool_calls=result.tool_calls,
         ))
-        
+
         # Execute each tool call
         for tool_call in result.tool_calls:
             console.print(f"\n[cyan]⚡ {tool_call.name}[/cyan]", end="")
             args_preview = ", ".join(f"{k}={repr(v)[:30]}" for k, v in list(tool_call.arguments.items())[:2])
             console.print(f"[dim]({args_preview})[/dim]")
-            
+
             # Execute the tool
             tool_result = await tool_executor.execute(tool_call)
-            
+
             # Show result status
             if tool_result.success:
                 output_preview = tool_result.output[:100] + "..." if len(tool_result.output) > 100 else tool_result.output
                 console.print(f"[green]✓[/green] [dim]{output_preview}[/dim]")
             else:
                 console.print(f"[red]✗[/red] {tool_result.error}")
-            
+
             # Add tool result to conversation
             conversation.append(Message(
                 role="tool",
                 content=tool_result.output if tool_result.success else f"Error: {tool_result.error}",
                 tool_call_id=tool_call.id,
             ))
-        
+
         console.print()  # Newline after tool results
     else:
         # Max iterations reached
         console.print(f"\n[yellow]⚠ Max tool iterations ({max_iterations}) reached[/yellow]")
         response_text = result.text if result else ""
-    
+
     return response_text
 
 
 async def _chat_loop(
     dag: ConversationDAG,
-    store: SimulacrumStore, 
+    store: SimulacrumStore,
     assembler: ContextAssembler,
     initial_model,
     initial_model_name: str,
@@ -386,19 +385,18 @@ async def _chat_loop(
     identity_enabled: bool = True,  # RFC-023: Adaptive identity
 ) -> None:
     """Main interactive chat loop with model-switching support.
-    
+
     When naaru_enabled=True, uses Naaru's Shards for parallel processing:
     - Consolidator: Extract learnings in background
     - Memory Fetcher: Pre-fetch relevant history
     - Lookahead: Pre-embed queries for next turn
-    
+
     When identity_enabled=True (RFC-023), uses adaptive identity:
     - Extracts behavioral observations from user messages
     - Periodically digests into identity prompt
     - Injects identity into system prompt
     """
-    from sunwell.runtime.model_router import ModelRouter
-    
+
     # RFC-023: Initialize identity store
     identity_store = None
     if identity_enabled and memory_path:
@@ -413,43 +411,42 @@ async def _chat_loop(
         except Exception as e:
             console.print(f"[dim yellow]Identity disabled: {e}[/dim yellow]")
             identity_store = None
-    
+
     # Set up tool executor if tools enabled
     tool_executor = None
     mirror_handler = None
-    
+
     if tools_enabled:
         from sunwell.tools.executor import ToolExecutor
         from sunwell.tools.types import ToolPolicy, ToolTrust
-        
+
         workspace_root = Path.cwd()
-        
+
         # Create sandbox for shell commands if trust allows
         sandbox = None
         if trust_level in ("shell", "full"):
             from sunwell.skills.sandbox import ScriptSandbox
             from sunwell.skills.types import TrustLevel
             sandbox = ScriptSandbox(trust=TrustLevel.SANDBOXED)
-        
+
         policy = ToolPolicy(
             trust_level=ToolTrust.from_string(trust_level),
         )
-        
+
         # RFC-015: Set up mirror handler if enabled
         if mirror_enabled or model_routing_enabled:
-            from sunwell.mirror import MirrorHandler
-            
             # Find sunwell root (where src/sunwell lives)
             import sunwell
+            from sunwell.mirror import MirrorHandler
             sunwell_root = Path(sunwell.__file__).parent.parent.parent
-            
+
             # Get lens config for model routing
             lens_config = None
             if lens and hasattr(lens, "raw_config"):
                 lens_config = lens.raw_config
-            
+
             mirror_storage = memory_path / "mirror" if memory_path else Path(".sunwell/mirror")
-            
+
             mirror_handler = MirrorHandler(
                 sunwell_root=sunwell_root,
                 storage_path=mirror_storage,
@@ -457,24 +454,24 @@ async def _chat_loop(
                 lens_config=lens_config,
                 session_model=initial_model_name,
             )
-            
+
             if mirror_enabled:
                 console.print("[cyan]Mirror Neurons:[/cyan] Enabled (self-introspection)")
             if model_routing_enabled:
                 console.print("[cyan]Model Routing:[/cyan] Enabled (task-aware model selection)")
-        
+
         # RFC-027: Set up expertise tools if lens is available
         expertise_handler = None
         if lens:
             from sunwell.embedding import create_embedder
             from sunwell.runtime.retriever import ExpertiseRetriever
             from sunwell.tools.expertise import ExpertiseToolHandler
-            
+
             embedder = create_embedder()
             retriever = ExpertiseRetriever(lens=lens, embedder=embedder, top_k=5)
             expertise_handler = ExpertiseToolHandler(retriever=retriever, lens=lens)
             console.print("[cyan]Self-Directed Expertise:[/cyan] Enabled (RFC-027)")
-        
+
         tool_executor = ToolExecutor(
             workspace=workspace_root,
             sandbox=sandbox,
@@ -482,17 +479,17 @@ async def _chat_loop(
             mirror_handler=mirror_handler,
             expertise_handler=expertise_handler,
         )
-    
+
     # Mutable chat state
     state = ChatState(
-        model=initial_model, 
+        model=initial_model,
         model_name=initial_model_name,
         lens_name=lens.metadata.name if lens else "Assistant",
         tools_enabled=tools_enabled,
         trust_level=trust_level,
         tool_executor=tool_executor,
     )
-    
+
     # Set up model router if requested (RFC-015)
     model_router = None
     if smart:
@@ -503,15 +500,15 @@ async def _chat_loop(
             stupid_model = create_model("ollama", "gemma3:1b")
         elif provider == "openai":
             stupid_model = create_model("openai", "gpt-4o-mini")
-            
+
         model_router = ModelRouter(
             primary_model=initial_model,
             stupid_model=stupid_model,
             lens=lens,
         )
-        
+
         if lens:
-            console.print(f"[cyan]Adaptive Model Selection:[/cyan] Enabled")
+            console.print("[cyan]Adaptive Model Selection:[/cyan] Enabled")
 
     # RFC-019: Initialize Naaru Shards for parallel processing
     shard_pool = None
@@ -521,16 +518,16 @@ async def _chat_loop(
         try:
             from sunwell.naaru.convergence import Convergence
             from sunwell.naaru.shards import ShardPool, ShardType
-            
+
             convergence = Convergence(capacity=7)  # Miller's Law: 7±2 items
             shard_pool = ShardPool(convergence=convergence)
-            
+
             # Create tiny LLM for fact extraction (RFC-020 style micro-distillation)
             try:
+                from sunwell.config import get_config, resolve_naaru_model
                 from sunwell.models.ollama import OllamaModel
                 from sunwell.naaru.persona import MURU
-                from sunwell.config import get_config, resolve_naaru_model
-                
+
                 cfg = get_config()
                 voice_model = resolve_naaru_model(
                     cfg.naaru.voice,
@@ -555,15 +552,15 @@ async def _chat_loop(
             naaru_enabled = False  # Fall back if Naaru not available
 
     await assembler.initialize()
-    
+
     while True:
         try:
             # Get user input
             user_input = console.input("\n[bold cyan]You:[/bold cyan] ").strip()
-            
+
             if not user_input:
                 continue
-            
+
             # Handle commands
             if user_input.startswith("/"):
                 cmd_result = await _handle_chat_command(
@@ -575,7 +572,7 @@ async def _chat_loop(
                 if cmd_result == "quit":
                     break
                 continue
-            
+
             # RFC-023: Inject identity into system prompt
             # Always inject M'uru's identity; user identity only if usable
             from sunwell.identity.injection import build_system_prompt_with_identity
@@ -585,26 +582,26 @@ async def _chat_loop(
             effective_system_prompt = build_system_prompt_with_identity(
                 system_prompt, user_identity, include_muru_identity=True
             )
-            
+
             # Assemble context BEFORE adding user turn (so it's not duplicated)
             context = await assembler.assemble(
                 query=user_input,
                 system_prompt=effective_system_prompt,
             )
-            
+
             # Show retrieval info
             if context.retrieved_turns:
                 console.print(f"[dim]Retrieved {len(context.retrieved_turns)} relevant turns from history[/dim]")
             if context.compression_applied:
-                console.print(f"[dim]Compressed old context to fit window[/dim]")
-            
+                console.print("[dim]Compressed old context to fit window[/dim]")
+
             # Build messages: context + current user input
             messages = context.to_messages()
             messages.append({"role": "user", "content": user_input})
-            
+
             # Now add user turn to DAG for future history
             dag.add_user_message(user_input)
-            
+
             # Extract facts from user message (name, preferences, context)
             # RFC-019: Use Naaru Consolidator Shard if available
             # RFC-023: Also extract behaviors for identity
@@ -629,7 +626,7 @@ async def _chat_loop(
                         console.print(f"[dim]+ Noted: {fact_text}[/dim]")
                 except ImportError:
                     pass
-                
+
                 # RFC-023: Extract behaviors (fallback regex)
                 if identity_store:
                     try:
@@ -641,15 +638,15 @@ async def _chat_loop(
                             console.print(MURU.msg_observed(behavior_text))
                     except ImportError:
                         pass
-            
+
             # RFC-015: Adaptive Model Selection
             if model_router:
                 # Pass requires_tools hint to the router (from state.tools_enabled)
                 recommended_model_id = await model_router.route(
-                    user_input, 
+                    user_input,
                     requires_tools=state.tools_enabled
                 )
-                
+
                 # If the recommended model is different and from the same provider, switch
                 provider = state.model_name.split(":")[0]
                 if recommended_model_id != state.model_name.split(":")[1]:
@@ -659,10 +656,10 @@ async def _chat_loop(
                         console.print(f"[dim]Auto-switched to {recommended_model_id} for this task[/dim]")
                     except Exception:
                         pass # Ignore failures in auto-switching
-            
+
             mode_indicator = f"[green]{state.mode}[/green]" if state.tools_enabled else ""
             console.print(f"\n[bold green]{state.lens_name}[/bold green] [dim]({state.model_name})[/dim]{' ' + mode_indicator if mode_indicator else ''}: ", end="")
-            
+
             if state.tools_enabled and state.tool_executor:
                 # Tool-aware generation
                 response = await _generate_with_tools(
@@ -674,27 +671,27 @@ async def _chat_loop(
             else:
                 # Standard streaming generation with proper message structure
                 from sunwell.models.protocol import Message
-                
+
                 # Convert dict messages to Message objects with proper roles
                 structured_messages = tuple(
                     Message(role=m["role"], content=m["content"])
                     for m in messages
                 )
-                
+
                 response_parts = []
                 async for chunk in state.model.generate_stream(structured_messages):
                     console.print(chunk, end="")
                     response_parts.append(chunk)
                 response = "".join(response_parts)
-            
+
             console.print()
-            
+
             # Track last response for /write command
             state.last_response = response
-            
+
             # Add assistant turn to DAG (tracks which model generated it)
             dag.add_assistant_message(response, model=state.model_name)
-            
+
             # Auto-extract learnings from response
             # RFC-019: Use Naaru Consolidator Shard if available
             if shard_pool and naaru_enabled:
@@ -717,13 +714,13 @@ async def _chat_loop(
                         dag.add_learning(learning)
                 except ImportError:
                     pass  # Learning extractor not available
-            
+
             # RFC-023: Check if identity digest needed
             if identity_store and identity_store.needs_digest(len(dag.turns)):
                 asyncio.create_task(_digest_identity_background(
                     identity_store, tiny_model, len(dag.turns), console
                 ))
-            
+
         except KeyboardInterrupt:
             console.print("\n[yellow]Interrupted. Saving session...[/yellow]")
             break
@@ -744,10 +741,10 @@ async def _chat_loop(
             console.print(f"\n[red]Unexpected error:[/red] {e}")
             console.print("[dim]Type /quit to exit or continue with your next message.[/dim]")
             continue
-    
+
     # Save on exit with model history
     store.save_session()
-    
+
     # RFC-023: Persist identity to global on exit
     if identity_store:
         try:
@@ -756,10 +753,10 @@ async def _chat_loop(
             console.print(f"[dim]{MURU.name} saved ({len(identity_store.identity.observations)} observations)[/dim]")
         except Exception:
             pass  # Non-critical
-    
+
     if state.models_used:
         console.print(f"[dim]Models used: {' → '.join(state.models_used + [state.model_name])}[/dim]")
-    console.print(f"[green]✓ Session saved[/green]")
+    console.print("[green]✓ Session saved[/green]")
 
 
 async def _handle_chat_command(
@@ -776,10 +773,10 @@ async def _handle_chat_command(
     parts = command.split(maxsplit=1)
     cmd = parts[0].lower()
     arg = parts[1] if len(parts) > 1 else ""
-    
+
     if cmd == "/quit" or cmd == "/exit":
         return "quit"
-    
+
     elif cmd == "/switch":
         # Switch to a different model mid-conversation
         if not arg:
@@ -795,23 +792,23 @@ async def _handle_chat_command(
                 else:
                     new_provider = arg
                     new_model = {"openai": "gpt-4o", "anthropic": "claude-sonnet-4-20250514"}.get(arg, "gpt-4o")
-                
+
                 new_llm = create_model(new_provider, new_model)
                 old_name = state.model_name
                 state.switch_model(new_llm, f"{new_provider}:{new_model}")
-                
+
                 console.print(f"[green]✓ Switched model:[/green] {old_name} → {state.model_name}")
-                console.print(f"[dim]Your headspace (learnings, history, dead ends) is preserved.[/dim]")
+                console.print("[dim]Your headspace (learnings, history, dead ends) is preserved.[/dim]")
             except Exception as e:
                 console.print(f"[red]Failed to switch: {e}[/red]")
-    
+
     elif cmd == "/models":
         # Show model history
         if state.models_used:
             console.print(f"[bold]Model history:[/bold] {' → '.join(state.models_used + [state.model_name])}")
         else:
             console.print(f"[bold]Current model:[/bold] {state.model_name}")
-    
+
     elif cmd == "/tools":
         # Toggle or configure tools
         if not arg:
@@ -823,9 +820,10 @@ async def _handle_chat_command(
             if not state.tool_executor:
                 # Initialize tool executor
                 from pathlib import Path as PathLib
+
                 from sunwell.tools.executor import ToolExecutor
                 from sunwell.tools.types import ToolPolicy, ToolTrust
-                
+
                 policy = ToolPolicy(trust_level=ToolTrust.from_string(state.trust_level))
                 state.tool_executor = ToolExecutor(
                     workspace=PathLib.cwd(),
@@ -840,11 +838,11 @@ async def _handle_chat_command(
         else:
             console.print(f"[red]Unknown: /tools {arg}[/red]")
             console.print("  Usage: /tools on|off")
-    
+
     elif cmd == "/save":
         store.save_session()
         console.print("[green]✓ Session saved[/green]")
-    
+
     elif cmd == "/write":
         # Write last response to a file
         if not arg:
@@ -861,7 +859,7 @@ async def _handle_chat_command(
                 console.print(f"[green]✓ Saved to:[/green] {path}")
             except Exception as e:
                 console.print(f"[red]Failed to write: {e}[/red]")
-    
+
     elif cmd == "/read":
         # Read a file into context
         if not arg:
@@ -885,7 +883,7 @@ async def _handle_chat_command(
                     dag.add_user_message(f"[File: {path}]\n```\n{content}\n```")
             except Exception as e:
                 console.print(f"[red]Failed to read: {e}[/red]")
-    
+
     elif cmd == "/debug":
         # Debug commands for troubleshooting
         if arg == "prompt" or arg == "system":
@@ -917,19 +915,19 @@ async def _handle_chat_command(
             console.print("[bold]Debug commands:[/bold]")
             console.print("  /debug prompt   - Show effective system prompt")
             console.print("  /debug identity - Show identity state")
-    
+
     elif cmd == "/stats":
         stats = dag.stats
         console.print(f"Turns: {stats['total_turns']} | Branches: {stats['branches']} | "
                      f"Dead ends: {stats['dead_ends']} | Learnings: {stats['learnings']}")
-    
+
     elif cmd == "/branch":
         if not arg:
             console.print("[red]Usage: /branch <name>[/red]")
         else:
             dag.branch(arg)
             console.print(f"[green]✓ Created branch:[/green] {arg}")
-    
+
     elif cmd == "/checkout":
         if not arg:
             console.print("[red]Usage: /checkout <branch>[/red]")
@@ -940,11 +938,11 @@ async def _handle_chat_command(
                 console.print(f"[green]✓ Switched to:[/green] {arg}")
             except ValueError as e:
                 console.print(f"[red]{e}[/red]")
-    
+
     elif cmd == "/dead-end":
         dag.mark_dead_end()
         console.print("[yellow]✓ Marked current path as dead end[/yellow]")
-    
+
     elif cmd == "/learn":
         if not arg:
             console.print("[red]Usage: /learn <fact>[/red]")
@@ -956,8 +954,8 @@ async def _handle_chat_command(
                 category="fact",
             )
             dag.add_learning(learning)
-            console.print(f"[green]✓ Learning added[/green]")
-    
+            console.print("[green]✓ Learning added[/green]")
+
     elif cmd == "/learnings":
         learnings = dag.get_active_learnings()
         if not learnings:
@@ -966,18 +964,19 @@ async def _handle_chat_command(
             console.print("[bold]Learnings:[/bold]")
             for l in learnings:
                 console.print(f"  [{l.category}] {l.fact}")
-    
+
     elif cmd == "/memory":
         # RFC-026: Unified memory view
-        from sunwell.simulacrum.unified_view import UnifiedMemoryView
         import json as json_module
-        
+
+        from sunwell.simulacrum.unified_view import UnifiedMemoryView
+
         view = UnifiedMemoryView.from_session(
             dag=dag,
             identity_store=identity_store,
             session_name=store.session_name if hasattr(store, 'session_name') else "",
         )
-        
+
         if arg.lower() == "json":
             console.print(json_module.dumps(view.to_json(), indent=2))
         elif arg.lower() == "facts":
@@ -996,7 +995,7 @@ async def _handle_chat_command(
                 console.print("[dim]No identity model yet[/dim]")
         else:
             console.print(view.render_panel())
-    
+
     elif cmd == "/identity":
         # RFC-023: Identity management commands
         if not identity_store:
@@ -1007,7 +1006,7 @@ async def _handle_chat_command(
             await handle_identity_command(
                 arg, identity_store, console, tiny_model, len(dag.turns)
             )
-    
+
     elif cmd == "/help":
         console.print("""
 [bold]File Operations:[/bold]
@@ -1052,11 +1051,11 @@ async def _handle_chat_command(
 [bold]Tip:[/bold] Your headspace persists when you /switch models!
 [bold]Tip:[/bold] Use /tools on to enable Agent mode with file read/write!
 """)
-    
+
     elif cmd == "/trace":
         # Turn-by-turn evolution analysis
         from sunwell.simulacrum.tracer import TRACER
-        
+
         if arg.lower() == "clear":
             TRACER.clear()
             console.print("[green]✓ Trace history cleared[/green]")
@@ -1070,31 +1069,31 @@ async def _handle_chat_command(
         else:
             report = TRACER.get_evolution_report()
             console.print(report)
-    
+
     else:
         console.print(f"[red]Unknown command: {cmd}[/red]")
         console.print("[dim]Type /help for available commands[/dim]")
-    
+
     return None
 
 
 # RFC-019: Naaru Shard helper functions for background processing
 
 async def _naaru_extract_user_facts(
-    shard_pool: "ShardPool",
+    shard_pool: ShardPool,
     dag: ConversationDAG,
     user_input: str,
     console,
     tiny_model=None,  # Optional tiny LLM for fact extraction
 ) -> None:
     """Use Naaru Consolidator Shard to extract facts from user input.
-    
+
     Uses tiny LLM (gemma3:1b) for flexible fact extraction:
     - "i have a cat named milo" → Noted: User has a cat named Milo
     - "her nickname is kiki" → Noted: User's cat's nickname is Kiki
-    
+
     Falls back to regex patterns if no tiny model available.
-    
+
     Runs in background while model generates response.
     """
     try:
@@ -1106,7 +1105,7 @@ async def _naaru_extract_user_facts(
             # Fall back to regex
             from sunwell.simulacrum.extractors.extractor import extract_user_facts
             user_facts = extract_user_facts(user_input)
-        
+
         for fact_text, category, confidence in user_facts:
             learning = Learning(
                 fact=fact_text,
@@ -1124,30 +1123,29 @@ async def _naaru_extract_user_facts(
 
 
 async def _naaru_consolidate_learnings(
-    shard_pool: "ShardPool",
+    shard_pool: ShardPool,
     dag: ConversationDAG,
     response: str,
     user_input: str,
     console=None,  # For visibility into what Naaru did
 ) -> None:
     """Use Naaru Consolidator Shard to extract learnings from response.
-    
+
     Runs in background after response is shown to user.
     Shows what was learned so user knows what Naaru did.
     """
-    from sunwell.naaru.shards import ShardType
-    
+
     try:
         # Use Shard's consolidate method
-        result = await shard_pool.consolidate_learnings(
+        await shard_pool.consolidate_learnings(
             task={"user_input": user_input, "response": response},
             result={"content": response},
         )
-        
+
         # Also run inline extraction for now (Shard stores in Convergence)
         from sunwell.simulacrum.extractors.extractor import auto_extract_learnings
         extracted = auto_extract_learnings(response, min_confidence=0.6)
-        
+
         added_count = 0
         for learning_text, category, confidence in extracted[:3]:
             learning = Learning(
@@ -1162,7 +1160,7 @@ async def _naaru_consolidate_learnings(
             if console:
                 from sunwell.naaru.persona import MURU
                 console.print(MURU.msg_learned(learning_text))
-        
+
         # Summary if learnings were added
         if added_count > 0 and console:
             console.print(f"[dim]📚 Total learnings in session: {len(dag.learnings)}[/dim]")
@@ -1175,7 +1173,7 @@ async def _naaru_consolidate_learnings(
 # RFC-023: Identity extraction and digest helper functions
 
 async def _naaru_extract_user_facts_and_behaviors(
-    shard_pool: "ShardPool",
+    shard_pool: ShardPool,
     dag: ConversationDAG,
     user_input: str,
     console,
@@ -1183,19 +1181,19 @@ async def _naaru_extract_user_facts_and_behaviors(
     identity_store=None,
 ) -> None:
     """Extract facts AND behaviors from user input.
-    
+
     RFC-023 extension of _naaru_extract_user_facts to also capture
     behavioral observations for the identity system.
-    
+
     Includes turn-by-turn tracing for evolution analysis.
     """
     # Import tracer for turn evolution tracking
     from sunwell.simulacrum.tracer import TRACER
-    
+
     # Begin tracing this turn
     turn_id = dag.active_head or "unknown"
     TRACER.begin_turn(turn_id, user_input)
-    
+
     # Snapshot identity before extraction
     if identity_store:
         TRACER.log_identity_snapshot(
@@ -1206,15 +1204,15 @@ async def _naaru_extract_user_facts_and_behaviors(
             tone=identity_store.identity.tone,
             values=identity_store.identity.values,
         )
-    
+
     try:
         if tiny_model:
             # Use two-tier extraction (RFC-023)
             from sunwell.identity.extractor import extract_with_categories
             facts, behaviors = await extract_with_categories(user_input, tiny_model)
-            
+
             from sunwell.naaru.persona import MURU
-            
+
             # Store facts in DAG (existing behavior)
             for fact_text, category, confidence in facts:
                 learning = Learning(
@@ -1225,29 +1223,29 @@ async def _naaru_extract_user_facts_and_behaviors(
                 )
                 dag.add_learning(learning)
                 console.print(MURU.msg_noted(fact_text, category))
-                
+
                 # Trace the extraction
                 TRACER.log_extraction("fact", fact_text, confidence, category)
-            
+
             # Store behaviors in identity store (RFC-023)
             if identity_store:
                 for behavior_text, confidence in behaviors:
                     identity_store.add_observation(
-                        behavior_text, 
-                        confidence, 
+                        behavior_text,
+                        confidence,
                         turn_id=dag.active_head
                     )
                     console.print(MURU.msg_observed(behavior_text))
-                    
+
                     # Trace the extraction
                     TRACER.log_extraction("behavior", behavior_text, confidence)
         else:
             # Fall back to regex for both
             from sunwell.simulacrum.extractors.extractor import extract_user_facts
             user_facts = extract_user_facts(user_input)
-            
+
             from sunwell.naaru.persona import MURU
-            
+
             for fact_text, category, confidence in user_facts:
                 learning = Learning(
                     fact=fact_text,
@@ -1257,10 +1255,10 @@ async def _naaru_extract_user_facts_and_behaviors(
                 )
                 dag.add_learning(learning)
                 console.print(MURU.msg_noted(fact_text, category))
-                
+
                 # Trace the extraction
                 TRACER.log_extraction("fact", fact_text, confidence, category)
-            
+
             # RFC-023: Extract behaviors with regex fallback
             if identity_store:
                 from sunwell.identity.extractor import extract_behaviors_regex
@@ -1268,10 +1266,10 @@ async def _naaru_extract_user_facts_and_behaviors(
                 for behavior_text, confidence in behaviors:
                     identity_store.add_observation(behavior_text, confidence)
                     console.print(MURU.msg_observed(behavior_text))
-                    
+
                     # Trace the extraction
                     TRACER.log_extraction("behavior", behavior_text, confidence)
-        
+
         # Snapshot identity after extraction
         if identity_store:
             TRACER.log_identity_snapshot(
@@ -1282,7 +1280,7 @@ async def _naaru_extract_user_facts_and_behaviors(
                 tone=identity_store.identity.tone,
                 values=identity_store.identity.values,
             )
-        
+
     except Exception as e:
         from sunwell.naaru.persona import MURU
         console.print(MURU.msg_error("extraction", str(e)))
@@ -1298,14 +1296,14 @@ async def _digest_identity_background(
     console,
 ) -> None:
     """Background task to digest identity from observations.
-    
+
     RFC-023: Synthesizes behavioral observations into identity prompt.
     """
     try:
         from sunwell.identity.digest import digest_identity, quick_digest
-        
+
         obs_texts = [o.observation for o in identity_store.identity.observations]
-        
+
         if tiny_model:
             new_identity = await digest_identity(
                 observations=obs_texts,
@@ -1324,7 +1322,7 @@ async def _digest_identity_background(
                 )
             else:
                 return
-        
+
         if new_identity.is_usable():
             identity_store.update_digest(
                 prompt=new_identity.prompt,

@@ -1,0 +1,115 @@
+# Operation Classification Benchmark
+#
+# Tests compound intelligence patterns on math operation classification.
+# Baseline: 40% (direct ask), Target: 86% (grounded debate)
+#
+# Run:
+#   python -m sunwell.benchmark.compound benchmark/tasks/compound/operation_classification.yaml
+
+task_id: compound-operation-classification
+description: Classify math operations from natural language phrases
+model: gemma3:1b
+temperature: 0.7
+version: "1.0"
+
+# Test cases for operation classification
+cases:
+  - input: "twice as old as"
+    expected: MULTIPLY
+    category: multiplication
+    
+  - input: "3 years older than"
+    expected: ADD
+    category: addition
+    
+  - input: "half the age of"
+    expected: DIVIDE
+    category: division
+    
+  - input: "5 less than"
+    expected: SUBTRACT
+    category: subtraction
+    
+  - input: "double the amount"
+    expected: MULTIPLY
+    category: multiplication
+    
+  - input: "reduced by 10"
+    expected: SUBTRACT
+    category: subtraction
+    
+  - input: "a third of"
+    expected: DIVIDE
+    category: division
+    
+  - input: "increased by 7"
+    expected: ADD
+    category: addition
+    
+  - input: "triple the size"
+    expected: MULTIPLY
+    category: multiplication
+    
+  - input: "decreased by half"
+    expected: DIVIDE
+    category: division
+
+# Experimental conditions to compare
+conditions:
+  - name: direct
+    description: "Ask directly without grounding"
+    calls: 1
+    prompt_template: |
+      What math operation does "{input}" represent?
+      Answer with exactly one word: ADD, SUBTRACT, MULTIPLY, or DIVIDE
+    
+  - name: grounded
+    description: "Provide examples first (few-shot)"
+    calls: 1
+    prompt_template: |
+      Examples:
+      - "twice as old" → MULTIPLY
+      - "3 years older" → ADD
+      - "half the age" → DIVIDE
+      - "5 less than" → SUBTRACT
+      
+      What math operation does "{input}" represent?
+      Answer: 
+    
+  - name: debate
+    description: "Thesis/antithesis/synthesis (3 calls)"
+    calls: 3
+    pattern: grounded_debate
+    
+  - name: grounded_debate
+    description: "Grounding + debate (best combination)"
+    calls: 3
+    pattern: grounded_debate
+    use_lens_heuristics: true
+
+# Expected results (baseline from experiments)
+expected_results:
+  direct: 
+    accuracy: 0.40
+    note: "Model confidently wrong"
+  grounded: 
+    accuracy: 0.70
+    note: "Examples activate patterns"
+  debate: 
+    accuracy: 0.80
+    note: "Dialectic surfaces disagreement"
+  grounded_debate: 
+    accuracy: 0.86
+    note: "Best combination"
+
+# Scoring configuration
+scoring:
+  correct: 1
+  incorrect: 0
+  partial: 0  # No partial credit for classification
+
+# Metrics to compute
+metrics:
+  - accuracy
+  - calls_per_correct
+  - confidence_calibration

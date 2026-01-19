@@ -10,16 +10,16 @@ if TYPE_CHECKING:
 
 def migrate_rfc019_to_rfc033(old_config: NaaruConfig) -> NaaruConfig:
     """Migrate RFC-019 NaaruConfig to RFC-033 unified architecture.
-    
+
     Converts old flags (harmonic_synthesis, resonance, discernment) to
     new unified layer configuration (diversity, selection, refinement).
-    
+
     Args:
         old_config: NaaruConfig with RFC-019 fields
-        
+
     Returns:
         New NaaruConfig with RFC-033 fields set appropriately
-        
+
     Example:
         >>> # Old (RFC-019)
         >>> config = NaaruConfig(
@@ -27,7 +27,7 @@ def migrate_rfc019_to_rfc033(old_config: NaaruConfig) -> NaaruConfig:
         ...     resonance=2,
         ...     discernment=True,
         ... )
-        >>> 
+        >>>
         >>> # New (RFC-033)
         >>> new_config = migrate_rfc019_to_rfc033(config)
         >>> # Equivalent to:
@@ -39,7 +39,7 @@ def migrate_rfc019_to_rfc033(old_config: NaaruConfig) -> NaaruConfig:
         >>> # )
     """
     from sunwell.types.config import NaaruConfig
-    
+
     # Map old flags to new strategies
     if old_config.harmonic_synthesis:
         diversity = "harmonic"
@@ -50,16 +50,13 @@ def migrate_rfc019_to_rfc033(old_config: NaaruConfig) -> NaaruConfig:
     else:
         diversity = "none"
         selection = "passthrough"
-    
+
     # Map resonance to refinement
     if old_config.resonance > 0:
-        if old_config.discernment:
-            refinement = "tiered"
-        else:
-            refinement = "full"
+        refinement = "tiered" if old_config.discernment else "full"
     else:
         refinement = "none"
-    
+
     # Create new config with migrated values
     return NaaruConfig(
         # Preserve all existing fields
@@ -102,7 +99,7 @@ def migrate_rfc019_to_rfc033(old_config: NaaruConfig) -> NaaruConfig:
 
 def create_rfc019_equivalent_config() -> NaaruConfig:
     """Create a config equivalent to RFC-019 default behavior.
-    
+
     Returns:
         NaaruConfig that matches RFC-019 defaults:
         - harmonic_synthesis=True
@@ -110,7 +107,7 @@ def create_rfc019_equivalent_config() -> NaaruConfig:
         - discernment=True
     """
     from sunwell.types.config import NaaruConfig
-    
+
     return NaaruConfig(
         diversity="harmonic",
         selection="voting",
@@ -122,7 +119,7 @@ def create_rfc019_equivalent_config() -> NaaruConfig:
 
 def create_rfc028_equivalent_config() -> NaaruConfig:
     """Create a config equivalent to RFC-028 (Rotation) behavior.
-    
+
     Returns:
         NaaruConfig that matches RFC-028 defaults:
         - rotation=True
@@ -130,7 +127,7 @@ def create_rfc028_equivalent_config() -> NaaruConfig:
         - No refinement
     """
     from sunwell.types.config import NaaruConfig
-    
+
     return NaaruConfig(
         diversity="rotation",
         selection="passthrough",

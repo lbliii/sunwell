@@ -27,7 +27,7 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": [],
         },
     ),
-    
+
     "switch_simulacrum": Tool(
         name="switch_simulacrum",
         description=(
@@ -46,7 +46,7 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": ["name"],
         },
     ),
-    
+
     "create_simulacrum": Tool(
         name="create_simulacrum",
         description=(
@@ -74,7 +74,7 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": ["name", "description"],
         },
     ),
-    
+
     "suggest_simulacrum": Tool(
         name="suggest_simulacrum",
         description=(
@@ -92,7 +92,7 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": ["topic"],
         },
     ),
-    
+
     "query_all_simulacrums": Tool(
         name="query_all_simulacrums",
         description=(
@@ -116,7 +116,7 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": ["query"],
         },
     ),
-    
+
     "current_simulacrum": Tool(
         name="current_simulacrum",
         description="Get information about the currently active simulacrum.",
@@ -126,7 +126,7 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": [],
         },
     ),
-    
+
     "route_query": Tool(
         name="route_query",
         description=(
@@ -151,7 +151,7 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": ["query"],
         },
     ),
-    
+
     "spawn_status": Tool(
         name="spawn_status",
         description=(
@@ -165,7 +165,7 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": [],
         },
     ),
-    
+
     "simulacrum_health": Tool(
         name="simulacrum_health",
         description=(
@@ -179,7 +179,7 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": [],
         },
     ),
-    
+
     "archive_simulacrum": Tool(
         name="archive_simulacrum",
         description=(
@@ -203,7 +203,7 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": ["name"],
         },
     ),
-    
+
     "restore_simulacrum": Tool(
         name="restore_simulacrum",
         description=(
@@ -221,7 +221,7 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": ["name"],
         },
     ),
-    
+
     "list_archived": Tool(
         name="list_archived",
         description="List all archived simulacrums that can be restored.",
@@ -231,7 +231,7 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": [],
         },
     ),
-    
+
     "cleanup_simulacrums": Tool(
         name="cleanup_simulacrums",
         description=(
@@ -250,7 +250,7 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": [],
         },
     ),
-    
+
     "shrink_simulacrum": Tool(
         name="shrink_simulacrum",
         description=(
@@ -279,78 +279,78 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
 @dataclass
 class SimulacrumToolHandler:
     """Handles simulacrum management tool calls."""
-    
-    manager: "SimulacrumManager"
-    
+
+    manager: SimulacrumManager
+
     async def handle(self, tool_name: str, arguments: dict) -> str:
         """Handle a simulacrum tool call."""
         if tool_name == "list_simulacrums":
             return self._list_simulacrums()
-        
+
         elif tool_name == "switch_simulacrum":
             return self._switch_simulacrum(arguments["name"])
-        
+
         elif tool_name == "create_simulacrum":
             return self._create_simulacrum(
                 name=arguments["name"],
                 description=arguments["description"],
                 domains=tuple(arguments.get("domains", [])),
             )
-        
+
         elif tool_name == "suggest_simulacrum":
             return self._suggest_simulacrum(arguments["topic"])
-        
+
         elif tool_name == "query_all_simulacrums":
             return await self._query_all(
                 query=arguments["query"],
                 limit=arguments.get("limit", 3),
             )
-        
+
         elif tool_name == "current_simulacrum":
             return self._current_simulacrum()
-        
+
         elif tool_name == "route_query":
             return self._route_query(
                 query=arguments["query"],
                 activate=arguments.get("activate", True),
             )
-        
+
         elif tool_name == "spawn_status":
             return self._spawn_status()
-        
+
         elif tool_name == "simulacrum_health":
             return self._simulacrum_health()
-        
+
         elif tool_name == "archive_simulacrum":
             return self._archive_simulacrum(
                 name=arguments["name"],
                 reason=arguments.get("reason", "manual"),
             )
-        
+
         elif tool_name == "restore_simulacrum":
             return self._restore_simulacrum(arguments["name"])
-        
+
         elif tool_name == "list_archived":
             return self._list_archived()
-        
+
         elif tool_name == "cleanup_simulacrums":
             return self._cleanup_simulacrums(
                 dry_run=arguments.get("dry_run", True),
             )
-        
+
         elif tool_name == "shrink_simulacrum":
             return self._shrink_simulacrum(
                 name=arguments["name"],
                 keep_recent_days=arguments.get("keep_recent_days", 30),
             )
-        
+
         return f"Unknown simulacrum tool: {tool_name}"
-    
+
     def _list_simulacrums(self) -> str:
         simulacrums = self.manager.list_simulacrums()
         if not simulacrums:
             return "No simulacrums exist yet. Create one with create_simulacrum."
-        
+
         lines = ["Available simulacrums:"]
         for meta in simulacrums:
             active = " (active)" if meta.name == self.manager.active_name else ""
@@ -360,7 +360,7 @@ class SimulacrumToolHandler:
                 f"({meta.node_count} nodes, {meta.learning_count} learnings)"
             )
         return "\n".join(lines)
-    
+
     def _switch_simulacrum(self, name: str) -> str:
         try:
             self.manager.activate(name)
@@ -373,7 +373,7 @@ class SimulacrumToolHandler:
         except KeyError:
             available = ", ".join(m.name for m in self.manager.list_simulacrums())
             return f"Simulacrum '{name}' not found. Available: {available}"
-    
+
     def _create_simulacrum(
         self,
         name: str,
@@ -390,7 +390,7 @@ class SimulacrumToolHandler:
             )
         except ValueError as e:
             return f"Error: {e}"
-    
+
     def _suggest_simulacrum(self, topic: str) -> str:
         suggestions = self.manager.suggest(topic)
         if not suggestions:
@@ -398,7 +398,7 @@ class SimulacrumToolHandler:
                 f"No relevant simulacrums found for '{topic}'. "
                 "Consider creating a new one with create_simulacrum."
             )
-        
+
         lines = [f"Suggested simulacrums for '{topic}':"]
         for meta, score in suggestions:
             active = " (currently active)" if meta.name == self.manager.active_name else ""
@@ -406,12 +406,12 @@ class SimulacrumToolHandler:
                 f"- **{meta.name}** ({score:.0%} relevance){active}: {meta.description}"
             )
         return "\n".join(lines)
-    
+
     async def _query_all(self, query: str, limit: int) -> str:
         results = self.manager.query_all(query, limit_per_simulacrum=limit)
         if not results:
             return f"No results found for '{query}' across any simulacrum."
-        
+
         lines = [f"Results for '{query}' across all simulacrums:"]
         current_hs = None
         for hs_name, node, score in results[:15]:  # Cap total results
@@ -419,20 +419,20 @@ class SimulacrumToolHandler:
                 lines.append(f"\n**From {hs_name}:**")
                 current_hs = hs_name
             lines.append(f"- [{score:.0%}] {node.content[:150]}...")
-        
+
         return "\n".join(lines)
-    
+
     def _current_simulacrum(self) -> str:
         name = self.manager.active_name
         if not name:
             return "No simulacrum is currently active. Use switch_simulacrum to activate one."
-        
+
         meta = self.manager._metadata[name]
         store = self.manager.active
         stats = store.stats() if store else {}
-        
+
         auto_tag = " (auto-spawned)" if meta.auto_spawned else ""
-        
+
         return (
             f"**Active Simulacrum: {name}**{auto_tag}\n"
             f"  Description: {meta.description}\n"
@@ -442,20 +442,20 @@ class SimulacrumToolHandler:
             f"  Memory nodes: {stats.get('unified_store', {}).get('total_nodes', 0)}\n"
             f"  Learnings: {stats.get('dag_stats', {}).get('learnings', 0)}"
         )
-    
+
     def _route_query(self, query: str, activate: bool) -> str:
         store, was_spawned, explanation = self.manager.route_query(query, activate=activate)
-        
+
         if was_spawned:
             return f"🆕 {explanation}\nA new simulacrum was created because this topic is novel."
         elif store:
             return f"✓ {explanation}"
         else:
             return f"⏳ {explanation}"
-    
+
     def _spawn_status(self) -> str:
         status = self.manager.check_spawn_status()
-        
+
         lines = [
             "**Auto-Spawn Status**",
             f"  Enabled: {status['spawn_enabled']}",
@@ -465,7 +465,7 @@ class SimulacrumToolHandler:
             f"  Simulacrums: {status['simulacrum_count']}/{status['max_simulacrums']}",
             f"  Unmatched queries tracked: {status['unmatched_queries']}",
         ]
-        
+
         if status['pending_domains']:
             lines.append("\n**Pending Domains** (potential new simulacrums):")
             for domain in status['pending_domains']:
@@ -478,41 +478,41 @@ class SimulacrumToolHandler:
                 )
         else:
             lines.append("\nNo pending domains (all queries matched existing simulacrums)")
-        
+
         return "\n".join(lines)
-    
+
     def _simulacrum_health(self) -> str:
         health = self.manager.check_health()
-        
+
         lines = ["**Simulacrum Health Report**"]
         lines.append(f"Total active: {health['total_simulacrums']}")
         lines.append(f"Total archived: {health['total_archived']}")
-        
+
         if health["stale"]:
             lines.append("\n**⚠️ Stale Simulacrums** (not accessed recently):")
             for name, days in health["stale"][:5]:
                 lines.append(f"  - {name}: {days} days since last access")
-        
+
         if health["empty"]:
             lines.append("\n**📭 Empty/Low-Value Simulacrums:**")
             for name in health["empty"][:5]:
                 lines.append(f"  - {name}")
-        
+
         if health["archive_candidates"]:
             lines.append("\n**📦 Archive Candidates** (very stale):")
             for name in health["archive_candidates"][:5]:
                 lines.append(f"  - {name}")
-        
+
         if health["merge_candidates"]:
             lines.append("\n**🔀 Merge Candidates** (similar domains):")
             for name1, name2, sim in health["merge_candidates"][:5]:
                 lines.append(f"  - {name1} ↔ {name2} ({sim:.0%} overlap)")
-        
+
         if not any([health["stale"], health["empty"], health["archive_candidates"], health["merge_candidates"]]):
             lines.append("\n✅ All simulacrums are healthy!")
-        
+
         return "\n".join(lines)
-    
+
     def _archive_simulacrum(self, name: str, reason: str) -> str:
         try:
             meta = self.manager.archive(name, reason=reason)
@@ -526,7 +526,7 @@ class SimulacrumToolHandler:
             return f"❌ Simulacrum '{name}' not found."
         except ValueError as e:
             return f"❌ Cannot archive: {e}"
-    
+
     def _restore_simulacrum(self, name: str) -> str:
         try:
             self.manager.restore(name)
@@ -536,12 +536,12 @@ class SimulacrumToolHandler:
             return f"❌ No archived simulacrum '{name}'. Archived: {available or 'none'}"
         except FileNotFoundError as e:
             return f"❌ Archive file missing: {e}"
-    
+
     def _list_archived(self) -> str:
         archived = self.manager.list_archived()
         if not archived:
             return "No archived simulacrums. Use archive_simulacrum to archive stale ones."
-        
+
         lines = ["**Archived Simulacrums** (can be restored):"]
         for meta in archived:
             lines.append(
@@ -550,35 +550,35 @@ class SimulacrumToolHandler:
                 f"    Had: {meta.node_count} nodes, {meta.learning_count} learnings"
             )
         return "\n".join(lines)
-    
+
     def _cleanup_simulacrums(self, dry_run: bool) -> str:
         actions = self.manager.cleanup(dry_run=dry_run)
-        
+
         mode = "DRY RUN - No changes made" if dry_run else "CLEANUP COMPLETE"
         lines = [f"**{mode}**"]
-        
+
         if actions["archived"]:
             lines.append("\n📦 Archived:")
             for item in actions["archived"]:
                 lines.append(f"  - {item}")
-        
+
         if actions["merged"]:
             lines.append("\n🔀 Merged:")
             for item in actions["merged"]:
                 lines.append(f"  - {item}")
-        
+
         if actions["deleted"]:
             lines.append("\n🗑️ Deleted:")
             for item in actions["deleted"]:
                 lines.append(f"  - {item}")
-        
+
         if not any([actions["archived"], actions["merged"], actions["deleted"]]):
             lines.append("\n✅ Nothing to clean up!")
         elif dry_run:
             lines.append("\nRun with dry_run=false to execute these changes.")
-        
+
         return "\n".join(lines)
-    
+
     def _shrink_simulacrum(self, name: str, keep_recent_days: int) -> str:
         try:
             stats = self.manager.shrink(name, keep_recent_days=keep_recent_days)

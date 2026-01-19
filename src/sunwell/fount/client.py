@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from sunwell.core.errors import SunwellError, ErrorCode
+from sunwell.core.errors import ErrorCode, SunwellError
 
 if TYPE_CHECKING:
     from sunwell.fount.cache import FountCache
@@ -33,11 +33,11 @@ class FountClient:
 
     async def fetch(self, source: str, version: str | None = None) -> str:
         """Fetch lens from fount, using cache if available.
-        
+
         Args:
             source: Lens name (e.g., 'nvidia/tech-writer')
             version: Optional version string
-            
+
         Returns:
             Raw lens YAML content
         """
@@ -81,7 +81,7 @@ lens:
     - name: "Signal over Noise"
       rule: "Every sentence must earn its place"
 """
-        
+
         raise SunwellError(
             code=ErrorCode.LENS_NOT_FOUND,
             context={"lens": source, "path": "fount", "detail": "Simulated client"},

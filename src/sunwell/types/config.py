@@ -3,48 +3,46 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Literal, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from sunwell.naaru.rotation import ModelSize
-    from sunwell.naaru.planners.protocol import PlanningStrategy
 
 
 @dataclass
 class OllamaConfig:
     """Configuration for Ollama server parallelism.
-    
+
     Maps to Ollama environment variables:
     - OLLAMA_NUM_PARALLEL: Max parallel requests per model
     - OLLAMA_MAX_LOADED_MODELS: Max models loaded concurrently
     - OLLAMA_MAX_QUEUE: Max queued requests (default: 512)
-    
+
     See: https://github.com/ollama/ollama/blob/main/docs/faq.md#how-does-ollama-handle-concurrent-requests
     """
-    
+
     base_url: str = "http://localhost:11434"
     """Ollama server URL."""
-    
+
     num_parallel: int | None = None
     """Max parallel requests per model. None = auto-detect from server.
-    
+
     Maps to OLLAMA_NUM_PARALLEL. If None, Sunwell queries the server
     or defaults to 4 (Ollama's default when sufficient VRAM).
     """
-    
+
     max_loaded_models: int | None = None
     """Max models loaded concurrently. None = server default (3 * GPUs).
-    
+
     Maps to OLLAMA_MAX_LOADED_MODELS.
     """
-    
+
     connection_pool_size: int = 20
     """httpx connection pool size for concurrent requests.
-    
+
     Should be >= num_parallel * num_models_in_use.
     """
-    
+
     request_timeout: float = 120.0
     """Request timeout in seconds for generation calls."""
 
@@ -83,11 +81,11 @@ class ModelConfig:
 @dataclass
 class NaaruConfig:
     """Configuration for the Naaru coordinated intelligence architecture.
-    
+
     This is the single source of truth. Used by:
     - config.py for YAML/env loading
     - naaru/naaru.py for runtime defaults
-    
+
     Thematic naming based on Naaru lore:
     - Voice: The model that speaks/creates (synthesis)
     - Wisdom: The model that judges/evaluates
@@ -157,28 +155,28 @@ class NaaruConfig:
 
     attunement: bool = True
     """Enable intent-aware cognitive routing (RFC-020).
-    
+
     DEPRECATED in RFC-030: Use `router` instead. This flag is kept for
     backward compatibility and will be removed in v0.6.
     """
 
     attunement_model: Any | None = None
     """Model for cognitive routing (None = use voice model).
-    
+
     DEPRECATED in RFC-030: Use `router` instead.
     """
 
     # RFC-030: Unified Router (replaces attunement, discernment, model routing)
     router: str = "qwen2.5:1.5b"
     """Single model for ALL routing decisions (RFC-030).
-    
+
     This tiny model handles:
     - Intent classification
     - Complexity assessment
     - Lens selection
     - Tool prediction
     - User mood/expertise detection
-    
+
     Recommended: qwen2.5:1.5b (fast, accurate JSON output)
     """
 
@@ -194,43 +192,43 @@ class NaaruConfig:
 
     num_synthesis_shards: int = 2
     """Number of synthesis worker shards."""
-    
+
     # RFC-034: Parallel Task Execution
     enable_parallel_execution: bool = True
     """Execute independent tasks in parallel when possible (RFC-034)."""
-    
+
     max_parallel_tasks: int = 8
     """Maximum tasks to execute concurrently (RFC-034).
-    
+
     Increased from 4 to 8 because:
     - Ollama defaults to OLLAMA_NUM_PARALLEL=4 per model
     - With synthesis + judge models, that's 8 concurrent requests
     - Modern GPUs handle this well with context parallelism
-    
+
     Set higher if you have:
     - High VRAM (24GB+): Try 12-16
     - Multiple GPUs: Try num_parallel * num_gpus
     - CPU inference with lots of RAM: Try 16-32
     """
-    
+
     max_parallel_llm_requests: int | None = None
     """Maximum concurrent LLM requests to Ollama. None = auto-detect.
-    
+
     When None, Sunwell uses min(max_parallel_tasks, ollama_num_parallel).
     Set explicitly to override the auto-detected limit.
     """
-    
+
     planning_strategy: str = "contract_first"
     """How to decompose goals into tasks (RFC-034).
-    
+
     - "sequential": RFC-032 behavior, linear dependencies
     - "contract_first": Identify contracts first, then implementations (default)
     - "resource_aware": Minimize file conflicts for maximum parallelism
     """
-    
+
     parallel_failure_mode: Literal["complete", "cancel"] = "complete"
     """What to do when one task in a parallel batch fails (RFC-034).
-    
+
     - "complete": Let other tasks finish (default, maximizes useful work)
     - "cancel": Stop all sibling tasks immediately
     """
@@ -238,36 +236,36 @@ class NaaruConfig:
     # RFC-038: Harmonic Planning
     harmonic_planning: bool = True
     """Enable multi-candidate plan generation (RFC-038).
-    
+
     Default True because:
     - With Naaru, overhead is <50ms (negligible)
     - Quality improvement is significant (>15% better plans)
     - Users get better plans without thinking about it
-    
+
     Use --no-harmonic to disable explicitly.
     """
 
     harmonic_candidates: int = 5
     """Number of plan candidates to generate.
-    
+
     5 is the sweet spot: enough diversity, near-zero marginal cost with Naaru.
     Benchmarks show diminishing returns beyond 7.
     """
 
     harmonic_refinement: int = 1
     """Rounds of iterative plan refinement.
-    
+
     Default 1 (single refinement pass) because:
     - Cheap with Naaru (context cached in Convergence)
     - Often improves score by 5-10%
     - Second pass rarely improves further
-    
+
     Set to 0 for fastest planning, 2 for quality-critical work.
     """
 
     harmonic_variance: str = "prompting"
     """Variance strategy for candidate generation.
-    
+
     - "prompting": Different discovery prompts (parallel-first, minimal, etc.)
     - "temperature": Vary temperature for exploration
     - "constraints": Add different structural constraints
@@ -280,7 +278,7 @@ class NaaruConfig:
 
     rotation_intensity: str = "auto"
     """Rotation intensity: "auto", "heavy", "standard", "light", "none".
-    
+
     - auto: Detect model size and adjust automatically
     - heavy: Explicit XML frames, longer frame durations (for tiny models)
     - standard: Explicit XML frames, normal durations (for small models)
@@ -293,7 +291,7 @@ class NaaruConfig:
 
     lexer_model: Any | None = None
     """Model for ThoughtLexer task classification (RFC-028).
-    
+
     Needs a model capable of producing JSON (qwen2.5:3b recommended).
     If None, falls back to attunement_model, then keyword classification.
     """
@@ -301,72 +299,72 @@ class NaaruConfig:
     # RFC-033: Unified Architecture (composable layers)
     diversity: str = "auto"
     """Diversity strategy: "none", "sampling", "rotation", "harmonic", "auto".
-    
+
     - none: Single generation (1x cost)
     - sampling: Temperature-based diversity (3x cost, 0 prompt overhead)
     - rotation: Cognitive frame markers (1.2x cost)
     - harmonic: Multi-persona generation (3.5x-6x cost)
     - auto: Select based on task analysis
     """
-    
+
     diversity_count: int = 3
     """Number of candidates for sampling/harmonic strategies."""
-    
+
     diversity_temps: tuple[float, ...] = (0.3, 0.7, 1.0)
     """Temperature values for sampling strategy."""
-    
+
     selection: str = "auto"
     """Selection strategy: "passthrough", "heuristic", "voting", "judge", "auto".
-    
+
     - passthrough: Return first candidate (free)
     - heuristic: Score using rules (free, CPU only)
     - voting: Personas vote on candidates (~500 tokens)
     - judge: Full LLM evaluation (~1000 tokens per candidate)
     - auto: Select based on diversity strategy and task
     """
-    
+
     refinement: str = "auto"
     """Refinement strategy: "none", "tiered", "full", "auto".
-    
+
     - none: Skip refinement (free)
     - tiered: Lightweight validation first, escalate if needed (0-2000 tokens)
     - full: Always use full LLM judge, iterate until approved (~2000 tokens per iteration)
     - auto: Select based on cost budget and task
     """
-    
+
     refinement_max_attempts: int = 2
     """Maximum refinement attempts for tiered/full strategies."""
-    
+
     cost_budget: str = "normal"
     """Cost budget: "minimal", "normal", "quality".
-    
+
     - minimal: ≤1.5x cost (single generation)
     - normal: ≤4x cost (sampling + heuristic or rotation + tiered)
     - quality: ≤10x cost (harmonic + voting + full refinement)
     """
-    
+
     task_type: str = "auto"
     """Task type hint: "code", "creative", "analysis", "auto".
-    
+
     Used for heuristic selection and task analysis.
     """
 
     @classmethod
-    def for_model_size(cls, model_size: "ModelSize", **overrides: Any) -> "NaaruConfig":
+    def for_model_size(cls, model_size: ModelSize, **overrides: Any) -> NaaruConfig:
         """Create config optimized for a specific model size.
-        
+
         Smaller models benefit from more scaffolding (rotation, harmonic synthesis).
         Larger models perform better with less structure.
-        
+
         Args:
             model_size: The target model size
             **overrides: Override any preset values
-            
+
         Returns:
             NaaruConfig tuned for the model size
         """
         from sunwell.naaru.rotation import ModelSize
-        
+
         presets: dict[ModelSize, dict[str, Any]] = {
             ModelSize.TINY: {
                 "rotation": True,

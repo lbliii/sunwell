@@ -15,14 +15,14 @@ Example:
     ...     print(f"{ref.raw}: {len(ctx.content)} chars")
 """
 
-from sunwell.context.reference import ContextReference, ResolvedContext
-from sunwell.context.resolver import ContextResolver
-from sunwell.context.ide import IDEContext
 from sunwell.context.constants import (
-    MAX_INLINE_CHARS,
     MAX_CONTEXT_CHARS,
+    MAX_INLINE_CHARS,
     MAX_TOTAL_CONTEXT,
 )
+from sunwell.context.ide import IDEContext
+from sunwell.context.reference import ContextReference, ResolvedContext
+from sunwell.context.resolver import ContextResolver
 
 __all__ = [
     "ContextReference",

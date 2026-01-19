@@ -16,7 +16,7 @@ console = Console()
 @click.group()
 def sessions() -> None:
     """Manage neverending conversation sessions.
-    
+
     Sessions persist across restarts, enabling multi-day conversations
     that never lose context.
     """
@@ -36,18 +36,18 @@ def sessions_list(path: str) -> None:
     """
     store = SimulacrumStore(Path(path))
     saved = store.list_sessions()
-    
+
     if not saved:
         console.print("[yellow]No sessions found.[/yellow]")
         console.print(f"[dim]Storage path: {path}[/dim]")
         return
-    
+
     table = Table(title="Saved Sessions")
     table.add_column("ID", style="cyan")
     table.add_column("Name", style="green")
     table.add_column("Turns", style="yellow")
     table.add_column("Created", style="dim")
-    
+
     for s in saved:
         table.add_row(
             s["id"],
@@ -55,7 +55,7 @@ def sessions_list(path: str) -> None:
             str(s.get("turns", 0)),
             s.get("created", "-")[:16] if s.get("created") else "-",
         )
-    
+
     console.print(table)
 
 
@@ -70,18 +70,18 @@ def sessions_stats(path: str) -> None:
     """
     store = SimulacrumStore(Path(path))
     stats = store.stats()
-    
+
     table = Table(title="Memory Store Stats")
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="green")
-    
+
     table.add_row("Session ID", stats.get("session_id", "-"))
     table.add_row("Hot Turns", str(stats.get("hot_turns", 0)))
     table.add_row("Warm Files", str(stats.get("warm_files", 0)))
     table.add_row("Warm Size", f"{stats.get('warm_size_mb', 0):.2f} MB")
     table.add_row("Cold Files", str(stats.get("cold_files", 0)))
     table.add_row("Cold Size", f"{stats.get('cold_size_mb', 0):.2f} MB")
-    
+
     if "dag_stats" in stats:
         dag = stats["dag_stats"]
         table.add_row("---", "---")
@@ -89,7 +89,7 @@ def sessions_stats(path: str) -> None:
         table.add_row("Branches", str(dag.get("branches", 0)))
         table.add_row("Dead Ends", str(dag.get("dead_ends", 0)))
         table.add_row("Learnings", str(dag.get("learnings", 0)))
-    
+
     console.print(table)
 
 
@@ -107,5 +107,5 @@ def sessions_archive(path: str, older_than: int) -> None:
     """
     store = SimulacrumStore(Path(path))
     moved = store.move_to_cold(older_than_hours=older_than)
-    
+
     console.print(f"[green]✓ Archived {moved} files to cold storage[/green]")

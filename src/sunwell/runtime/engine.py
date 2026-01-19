@@ -7,37 +7,38 @@ Extended with memory tools per RFC-014.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import AsyncIterator, TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union
 
+from sunwell.core.errors import ErrorCode, SunwellError
 from sunwell.core.lens import Lens
-from sunwell.core.types import Tier, Confidence
-from sunwell.core.errors import SunwellError, ErrorCode
-from sunwell.core.validator import ValidationResult
 from sunwell.core.persona import PersonaResult
+from sunwell.core.types import Confidence, Tier
+from sunwell.core.validator import ValidationResult
+from sunwell.embedding.protocol import EmbeddingProtocol
 from sunwell.models.protocol import (
-    ModelProtocol,
     GenerateOptions,
     GenerateResult,
-    TokenUsage,
     Message,
+    ModelProtocol,
+    TokenUsage,
     Tool,
     ToolCall,
 )
-from sunwell.embedding.protocol import EmbeddingProtocol
 from sunwell.runtime.classifier import IntentClassifier
-from sunwell.runtime.retriever import ExpertiseRetriever
 from sunwell.runtime.injector import ContextInjector
+from sunwell.runtime.retriever import ExpertiseRetriever
 
 if TYPE_CHECKING:
-    from sunwell.workspace.indexer import CodebaseIndexer
-    from sunwell.tools.executor import ToolExecutor
-    from sunwell.tools.types import ToolResult
+    from sunwell.core.spell import Grimoire, Spell
     from sunwell.fount.client import FountClient
+    from sunwell.routing.cognitive_router import CognitiveRouter
     from sunwell.runtime.model_router import ModelRouter
     from sunwell.simulacrum.core.store import SimulacrumStore
-    from sunwell.routing.cognitive_router import CognitiveRouter
-    from sunwell.core.spell import Spell, Grimoire, SpellResult
+    from sunwell.tools.executor import ToolExecutor
+    from sunwell.tools.types import ToolResult
+    from sunwell.workspace.indexer import CodebaseIndexer
 
 
 # =============================================================================
@@ -60,7 +61,7 @@ class ToolCallEvent:
 class ToolResultEvent:
     """Tool result (stream resumes)."""
     tool_call: ToolCall
-    result: "ToolResult"
+    result: ToolResult
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,9 +97,9 @@ class ExecutionResult:
 @dataclass(frozen=True, slots=True)
 class ToolAwareResult:
     """Result from tool-aware execution (RFC-012)."""
-    
+
     content: str
-    tool_history: tuple[tuple[ToolCall, "ToolResult"], ...] = ()
+    tool_history: tuple[tuple[ToolCall, ToolResult], ...] = ()
     total_tool_calls: int = 0
     truncated: bool = False  # True if max_tool_calls reached
     token_usage: TokenUsage | None = None
@@ -116,11 +117,11 @@ class RuntimeEngine:
     5. Model execution → generate response
     6. Validation → run quality gates
     7. Refinement → iterate if needed
-    
+
     RFC-012 Extension:
     8. Tool execution → execute tool calls from model
     9. Tool loop → iterate until model produces final response
-    
+
     RFC-014 Extension:
     10. Memory tools → LLM can search/add to multi-topology memory
     """
@@ -130,13 +131,13 @@ class RuntimeEngine:
 
     # Optional dependencies
     embedder: EmbeddingProtocol | None = None
-    codebase_indexer: "CodebaseIndexer | None" = None
-    tool_executor: "ToolExecutor | None" = None  # RFC-012
-    fount_client: "FountClient | None" = None  # Phase 7
-    model_router: "ModelRouter | None" = None  # RFC-015
-    simulacrum_store: "SimulacrumStore | None" = None  # RFC-014
-    cognitive_router: "CognitiveRouter | None" = None  # RFC-020
-    grimoire: "Grimoire | None" = None  # RFC-021
+    codebase_indexer: CodebaseIndexer | None = None
+    tool_executor: ToolExecutor | None = None  # RFC-012
+    fount_client: FountClient | None = None  # Phase 7
+    model_router: ModelRouter | None = None  # RFC-015
+    simulacrum_store: SimulacrumStore | None = None  # RFC-014
+    cognitive_router: CognitiveRouter | None = None  # RFC-020
+    grimoire: Grimoire | None = None  # RFC-021
 
     # Sub-components (lazily initialized)
     _classifier: IntentClassifier | None = field(default=None, init=False)
@@ -144,7 +145,7 @@ class RuntimeEngine:
     _injector: ContextInjector | None = field(default=None, init=False)
     _initialized: bool = field(default=False, init=False)
     _last_routing_decision: dict | None = field(default=None, init=False)
-    _last_spell: "Spell | None" = field(default=None, init=False)  # RFC-021
+    _last_spell: Spell | None = field(default=None, init=False)  # RFC-021
 
     async def execute(
         self,
@@ -181,18 +182,18 @@ class RuntimeEngine:
         self._last_routing_decision = None
         self._last_spell = None
         spell_context = ""
-        
+
         if self.cognitive_router and tier != Tier.FAST_PATH:
             # Use route_with_spell for full context
             routing, spell = await self.cognitive_router.route_with_spell(prompt)
             self._last_routing_decision = routing.to_dict()
             self._last_spell = spell
-            
+
             # RFC-021: Build spell context if spell was matched
             if spell:
                 template_vars = self._get_template_vars(prompt)
                 spell_context = spell.to_system_context(template_vars)
-        
+
         # Step 2: Retrieve relevant lens components (skip for FAST_PATH)
         retrieved_components: tuple[str, ...] = ()
         if tier != Tier.FAST_PATH and self._retriever:
@@ -205,7 +206,7 @@ class RuntimeEngine:
                 # Standard retrieval
                 retrieval = await self._retriever.retrieve(prompt)
             retrieved_components = tuple(h.name for h in retrieval.heuristics)
-            
+
             # RFC-021: Load reagents from spell (force specific heuristics)
             if self._last_spell and self._last_spell.reagents:
                 reagent_names = self._get_reagent_components(self._last_spell)
@@ -230,15 +231,15 @@ class RuntimeEngine:
 
         # Combine lens expertise + spell context + codebase context
         full_prompt_parts = [lens_context]
-        
+
         # RFC-021: Add spell context (instructions, template, quality gates)
         if spell_context:
             full_prompt_parts.append(spell_context)
-        
+
         if code_context:
             full_prompt_parts.append(code_context)
         full_prompt_parts.append(f"---\n\n## Task\n\n{prompt}")
-        
+
         full_prompt = "\n\n".join(full_prompt_parts)
 
         result = await self._execute_with_retry(full_prompt, options)
@@ -248,7 +249,7 @@ class RuntimeEngine:
         # now complete in ~1x latency instead of 8x
         validation_results: tuple[ValidationResult, ...] = ()
         persona_results: tuple[PersonaResult, ...] = ()
-        
+
         if tier == Tier.DEEP_LENS:
             # Maximum parallelism: validators + personas simultaneously
             val_task = self._run_validators(result.content)
@@ -270,7 +271,7 @@ class RuntimeEngine:
             result = await self._refine(
                 result.content, validation_results, persona_results, options
             )
-            
+
             # Re-run validation (parallel within each group)
             if tier == Tier.DEEP_LENS:
                 validation_results, persona_results = await asyncio.gather(
@@ -279,7 +280,7 @@ class RuntimeEngine:
                 )
             else:
                 validation_results = await self._run_validators(result.content)
-            
+
             refinement_count += 1
 
         # Compute confidence
@@ -348,7 +349,7 @@ class RuntimeEngine:
         if code_context:
             full_prompt_parts.append(code_context)
         full_prompt_parts.append(f"---\n\n## Task\n\n{prompt}")
-        
+
         full_prompt = "\n\n".join(full_prompt_parts)
 
         # Stream response
@@ -369,14 +370,14 @@ class RuntimeEngine:
         options: GenerateOptions | None = None,
     ) -> ToolAwareResult:
         """Execute with automatic tool calling loop (RFC-012/014).
-        
+
         Args:
             prompt: User request
             max_tool_calls: Safety limit on iterations
             allowed_tools: Restrict to specific tools (None = all)
             include_memory_tools: Include RFC-014 memory tools (default True)
             options: Generation options
-            
+
         Returns:
             ToolAwareResult with content, tool history, and stats
         """
@@ -385,16 +386,16 @@ class RuntimeEngine:
                 code=ErrorCode.RUNTIME_STATE_INVALID,
                 context={"detail": "ToolExecutor not configured. Set tool_executor on RuntimeEngine."},
             )
-        
+
         if not self._initialized:
             await self._initialize_components()
-        
+
         # Collect available tools (including memory tools if enabled)
         tools = self._collect_tools(
             allowed_tools=allowed_tools,
             include_memory_tools=include_memory_tools,
         )
-        
+
         # Add skill-derived tools from lens
         if hasattr(self.lens, 'skills') and self.lens.skills:
             for skill in self.lens.skills:
@@ -402,16 +403,16 @@ class RuntimeEngine:
                     tool = skill.to_tool()
                     if allowed_tools is None or tool.name in allowed_tools:
                         tools.append(tool)
-        
+
         # Build initial message history
         messages: list[Message] = [
             Message(role="user", content=prompt)
         ]
-        
-        tool_history: list[tuple[ToolCall, "ToolResult"]] = []
+
+        tool_history: list[tuple[ToolCall, ToolResult]] = []
         total_calls = 0
-        
-        for iteration in range(max_tool_calls):
+
+        for _iteration in range(max_tool_calls):
             # Generate with tools available
             result = await self.model.generate(
                 tuple(messages),
@@ -419,7 +420,7 @@ class RuntimeEngine:
                 tool_choice="auto",
                 options=options,
             )
-            
+
             # If no tool calls, we're done
             if not result.has_tool_calls:
                 return ToolAwareResult(
@@ -428,20 +429,20 @@ class RuntimeEngine:
                     total_tool_calls=total_calls,
                     token_usage=result.usage,
                 )
-            
+
             # Execute tool calls
             for tool_call in result.tool_calls:
                 total_calls += 1
                 tool_result = await self.tool_executor.execute(tool_call)
                 tool_history.append((tool_call, tool_result))
-            
+
             # Add assistant message with tool calls
             messages.append(Message(
                 role="assistant",
                 content=result.content,
                 tool_calls=result.tool_calls,
             ))
-            
+
             # Add tool result messages
             for tool_call, tool_result in tool_history[-len(result.tool_calls):]:
                 messages.append(Message(
@@ -449,14 +450,14 @@ class RuntimeEngine:
                     content=tool_result.output,
                     tool_call_id=tool_call.id,
                 ))
-        
+
         # Max iterations reached - generate final response without tools
         final_result = await self.model.generate(
             tuple(messages),
             tools=None,  # No tools for final response
             options=options,
         )
-        
+
         return ToolAwareResult(
             content=final_result.text or "Maximum tool calls reached without completion.",
             tool_history=tuple(tool_history),
@@ -474,7 +475,7 @@ class RuntimeEngine:
         options: GenerateOptions | None = None,
     ) -> AsyncIterator[StreamEvent]:
         """Stream execution with tool support (RFC-012).
-        
+
         Yields StreamEvent objects:
         - TextEvent: Streamed text chunk
         - ToolCallEvent: Tool is being called (pause stream)
@@ -486,18 +487,18 @@ class RuntimeEngine:
                 code=ErrorCode.RUNTIME_STATE_INVALID,
                 context={"detail": "ToolExecutor not configured"},
             )
-        
+
         from sunwell.tools.builtins import CORE_TOOLS
-        
+
         # Collect tools
         tools: list[Tool] = []
         for name, tool in CORE_TOOLS.items():
             if allowed_tools is None or name in allowed_tools:
                 tools.append(tool)
-        
+
         messages: list[Message] = [Message(role="user", content=prompt)]
         tool_count = 0
-        
+
         while tool_count < max_tool_calls:
             # Generate (non-streaming for tool handling)
             result = await self.model.generate(
@@ -505,24 +506,24 @@ class RuntimeEngine:
                 tools=tuple(tools),
                 options=options,
             )
-            
+
             # Yield text content
             if result.content:
                 yield TextEvent(text=result.content)
-            
+
             # If no tool calls, we're done
             if not result.has_tool_calls:
                 yield DoneEvent(total_tool_calls=tool_count)
                 return
-            
+
             # Execute tool calls (stream pauses here)
             for tool_call in result.tool_calls:
                 tool_count += 1
                 yield ToolCallEvent(tool_call=tool_call)
-                
+
                 tool_result = await self.tool_executor.execute(tool_call)
                 yield ToolResultEvent(tool_call=tool_call, result=tool_result)
-                
+
                 # Update message history
                 messages.append(Message(
                     role="assistant",
@@ -534,7 +535,7 @@ class RuntimeEngine:
                     content=tool_result.output,
                     tool_call_id=tool_call.id,
                 ))
-        
+
         yield DoneEvent(total_tool_calls=tool_count, truncated=True)
 
     def _collect_tools(
@@ -544,40 +545,40 @@ class RuntimeEngine:
         include_expertise_tools: bool = True,
     ) -> list[Tool]:
         """Collect available tools for execution.
-        
+
         Args:
             allowed_tools: Restrict to specific tools (None = all)
             include_memory_tools: Include RFC-014 memory tools (default True)
             include_expertise_tools: Include RFC-027 expertise tools (default True)
-            
+
         Returns:
             List of Tool definitions for the model
         """
         from sunwell.tools.builtins import CORE_TOOLS
-        
+
         tools: list[Tool] = []
-        
+
         # Core file/shell tools
         for name, tool in CORE_TOOLS.items():
             if allowed_tools is None or name in allowed_tools:
                 tools.append(tool)
-        
+
         # RFC-014: Memory tools (always available when simulacrum_store is set)
         if include_memory_tools and self.simulacrum_store:
             from sunwell.simulacrum.memory_tools import MEMORY_TOOLS
-            
+
             for name, tool in MEMORY_TOOLS.items():
                 if allowed_tools is None or name in allowed_tools:
                     tools.append(tool)
-        
+
         # RFC-027: Expertise tools (always available when tool_executor has expertise_handler)
         if include_expertise_tools and self.tool_executor and self.tool_executor.expertise_handler:
             from sunwell.tools.builtins import EXPERTISE_TOOLS
-            
+
             for name, tool in EXPERTISE_TOOLS.items():
                 if allowed_tools is None or name in allowed_tools:
                     tools.append(tool)
-        
+
         return tools
 
     async def _initialize_components(self) -> None:
@@ -592,12 +593,12 @@ class RuntimeEngine:
                 embedder=self.embedder,
             )
             await self._retriever.initialize()
-        
+
         # RFC-014: Wire memory handler to tool executor
         if self.simulacrum_store and self.tool_executor:
             if self.simulacrum_store.memory_handler:
                 self.tool_executor.memory_handler = self.simulacrum_store.memory_handler
-        
+
         # RFC-027: Wire expertise handler to tool executor if retriever available
         if self._retriever and self.tool_executor and not self.tool_executor.expertise_handler:
             from sunwell.tools.expertise import ExpertiseToolHandler
@@ -636,19 +637,19 @@ class RuntimeEngine:
 
     async def _run_validators(self, content: str) -> tuple[ValidationResult, ...]:
         """Run heuristic validators on content in PARALLEL.
-        
+
         Uses asyncio.gather for concurrent API calls - in Python 3.14 with
         free-threading, this achieves true parallelism. 4 validators that
         would take 4x API latency now complete in ~1x.
         """
         if not self.lens.heuristic_validators:
             return ()
-        
+
         async def validate_one(validator) -> ValidationResult:
             """Run a single validator."""
             validation_prompt = validator.to_prompt(content)
             response = await self.model.generate(validation_prompt)
-            
+
             # Parse response (format: PASS|0.95|explanation)
             try:
                 parts = response.content.strip().split("|", 2)
@@ -659,7 +660,7 @@ class RuntimeEngine:
                 passed = False
                 confidence = 0.5
                 message = response.content
-            
+
             return ValidationResult(
                 validator_name=validator.name,
                 passed=passed,
@@ -667,46 +668,46 @@ class RuntimeEngine:
                 message=message,
                 confidence=confidence,
             )
-        
+
         # Run ALL validators in parallel - major speedup!
         results = await asyncio.gather(*[
             validate_one(v) for v in self.lens.heuristic_validators
         ])
-        
+
         return tuple(results)
 
     async def _run_personas(self, content: str) -> tuple[PersonaResult, ...]:
         """Run persona evaluations on content in PARALLEL.
-        
+
         Uses asyncio.gather for concurrent API calls. 4 personas that
         would take 4x API latency now complete in ~1x.
         """
         if not self.lens.personas:
             return ()
-        
+
         async def evaluate_one(persona) -> PersonaResult:
             """Run a single persona evaluation."""
             eval_prompt = persona.to_evaluation_prompt(content)
             response = await self.model.generate(eval_prompt)
-            
+
             # Parse response - look for approval indicators
             response_lower = response.content.lower()
             approved = not any(
                 word in response_lower
                 for word in ["fail", "problem", "issue", "concern", "confused"]
             )
-            
+
             return PersonaResult(
                 persona_name=persona.name,
                 approved=approved,
                 feedback=response.content,
             )
-        
+
         # Run ALL personas in parallel - major speedup!
         results = await asyncio.gather(*[
             evaluate_one(p) for p in self.lens.personas
         ])
-        
+
         return tuple(results)
 
         return tuple(results)
@@ -877,13 +878,13 @@ Revise the content to address all feedback while maintaining quality. Return onl
 
         return vars_
 
-    def _get_reagent_components(self, spell: "Spell") -> list[str]:
+    def _get_reagent_components(self, spell: Spell) -> list[str]:
         """Get component names from spell reagents.
 
         Reagents specify which heuristics, personas, or validators
         should be force-loaded for the spell.
         """
-        from sunwell.core.spell import ReagentType, ReagentMode
+        from sunwell.core.spell import ReagentType
 
         component_names = []
 

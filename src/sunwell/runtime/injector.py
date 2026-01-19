@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from sunwell.core.lens import Lens
-from sunwell.core.heuristic import Heuristic
 
 
 @dataclass

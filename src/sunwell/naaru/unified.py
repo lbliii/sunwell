@@ -10,8 +10,7 @@ Each layer offers multiple strategies with different cost/quality tradeoffs.
 
 from __future__ import annotations
 
-import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 from sunwell.naaru.diversity import (
@@ -42,19 +41,19 @@ if TYPE_CHECKING:
 @dataclass(frozen=True, slots=True)
 class TaskAnalysis:
     """Analysis of a task to inform strategy selection."""
-    
+
     is_deterministic: bool
     """Has clear "correct" answer."""
-    
+
     is_creative: bool
     """Benefits from diverse perspectives."""
-    
+
     is_high_stakes: bool
     """Errors are costly."""
-    
+
     complexity: Literal["simple", "moderate", "complex"]
     """Task complexity level."""
-    
+
     @classmethod
     async def analyze(
         cls,
@@ -62,21 +61,21 @@ class TaskAnalysis:
         model: ModelProtocol | None = None,
     ) -> TaskAnalysis:
         """Analyze task to inform strategy selection.
-        
+
         Uses a lightweight model (defaults to router model if available,
         otherwise falls back to keyword-based classification).
-        
+
         Args:
             task: The task description
             model: Optional model for LLM-based analysis
-            
+
         Returns:
             TaskAnalysis with task characteristics
         """
         if model is None:
             # Fallback to keyword-based classification
             return cls._classify_by_keywords(task)
-        
+
         # Use tiny model to classify task
         try:
             result = await model.generate(
@@ -87,10 +86,10 @@ OUTPUT (JSON):
 {{"deterministic": true/false, "creative": true/false, "high_stakes": true/false, "complexity": "simple/moderate/complex"}}
 """,
             )
-            
+
             import json
             import re
-            
+
             text = result.text.strip()
             json_match = re.search(r'\{[^}]+\}', text, re.DOTALL)
             if json_match:
@@ -104,35 +103,35 @@ OUTPUT (JSON):
         except Exception:
             # Fallback to keyword classification on error
             pass
-        
+
         return cls._classify_by_keywords(task)
-    
+
     @classmethod
     def _classify_by_keywords(cls, task: str) -> TaskAnalysis:
         """Fallback keyword-based classification."""
         task_lower = task.lower()
-        
+
         is_deterministic = (
             "correct" in task_lower
             or "validate" in task_lower
             or "check" in task_lower
             or "verify" in task_lower
         )
-        
+
         is_creative = (
             "creative" in task_lower
             or "write" in task_lower
             or "design" in task_lower
             or "brainstorm" in task_lower
         )
-        
+
         is_high_stakes = (
             "security" in task_lower
             or "critical" in task_lower
             or "production" in task_lower
             or "important" in task_lower
         )
-        
+
         word_count = len(task.split())
         if word_count > 100:
             complexity = "complex"
@@ -140,7 +139,7 @@ OUTPUT (JSON):
             complexity = "moderate"
         else:
             complexity = "simple"
-        
+
         return cls(
             is_deterministic=is_deterministic,
             is_creative=is_creative,
@@ -154,34 +153,34 @@ def select_strategies(
     budget: str,
 ) -> tuple[str, str, str]:
     """Select diversity, selection, and refinement strategies.
-    
+
     Args:
         analysis: Task analysis
         budget: Cost budget ("minimal", "normal", "quality")
-        
+
     Returns:
         Tuple of (diversity_strategy, selection_strategy, refinement_strategy)
     """
     # Budget overrides
     if budget == "minimal":
         return ("none", "passthrough", "none")
-    
+
     if budget == "quality":
         return ("harmonic", "voting", "full")
-    
+
     # Task-based selection (normal budget)
     if analysis.is_deterministic and analysis.complexity == "simple":
         return ("none", "passthrough", "none")
-    
+
     if analysis.is_creative:
         if analysis.is_high_stakes:
             return ("harmonic", "voting", "tiered")
         else:
             return ("sampling", "heuristic", "none")
-    
+
     if analysis.is_high_stakes:
         return ("rotation", "passthrough", "full")
-    
+
     # Default: cheap diversity
     return ("sampling", "heuristic", "tiered")
 
@@ -189,31 +188,31 @@ def select_strategies(
 @dataclass(frozen=True, slots=True)
 class UnifiedResult:
     """Result from unified Naaru pipeline."""
-    
+
     text: str
     """Final output text."""
-    
+
     diversity_strategy: str
     """Diversity strategy used."""
-    
+
     selection_strategy: str
     """Selection strategy used."""
-    
+
     refinement_strategy: str
     """Refinement strategy used."""
-    
+
     candidates: list[Candidate]
     """All candidates from diversity layer."""
-    
+
     selected: Candidate
     """Selected candidate."""
-    
+
     refinement: RefinementResult
     """Refinement result."""
-    
+
     total_tokens: int
     """Total tokens used."""
-    
+
     task_analysis: TaskAnalysis | None = None
     """Task analysis (if auto mode was used)."""
 
@@ -226,27 +225,27 @@ async def unified_pipeline(
     task_type: str | None = None,
 ) -> UnifiedResult:
     """Execute unified Naaru pipeline with three composable layers.
-    
+
     Args:
         model: Model for generation
         prompt: Input prompt
         config: Naaru configuration
         judge_model: Model for judging (if None, uses model)
         task_type: Task type hint ("code", "creative", "analysis", "auto")
-        
+
     Returns:
         UnifiedResult with final output and metadata
     """
     if judge_model is None:
         judge_model = model
-    
+
     # Determine strategies (auto mode or explicit)
     diversity_strategy = config.diversity
     selection_strategy = config.selection
     refinement_strategy = config.refinement
-    
+
     task_analysis: TaskAnalysis | None = None
-    
+
     # Auto mode: analyze task and select strategies
     if (
         diversity_strategy == "auto"
@@ -257,17 +256,17 @@ async def unified_pipeline(
         auto_diversity, auto_selection, auto_refinement = select_strategies(
             task_analysis, config.cost_budget
         )
-        
+
         if diversity_strategy == "auto":
             diversity_strategy = auto_diversity
         if selection_strategy == "auto":
             selection_strategy = auto_selection
         if refinement_strategy == "auto":
             refinement_strategy = auto_refinement
-    
+
     # Layer 1: Diversity
     candidates: list[Candidate]
-    
+
     if diversity_strategy == "none":
         candidates = await diversity_none(model, prompt)
     elif diversity_strategy == "sampling":
@@ -279,10 +278,10 @@ async def unified_pipeline(
         candidates = await diversity_harmonic(model, prompt)
     else:
         raise ValueError(f"Unknown diversity strategy: {diversity_strategy}")
-    
+
     # Layer 2: Selection
     selected: Candidate
-    
+
     if selection_strategy == "passthrough":
         selected = select_passthrough(candidates)
     elif selection_strategy == "heuristic":
@@ -312,10 +311,10 @@ async def unified_pipeline(
         selected = await select_judge(judge_model, candidates)
     else:
         raise ValueError(f"Unknown selection strategy: {selection_strategy}")
-    
+
     # Layer 3: Refinement
     refinement: RefinementResult
-    
+
     if refinement_strategy == "none":
         refinement = await refine_none(selected, prompt)
     elif refinement_strategy == "tiered":
@@ -333,10 +332,10 @@ async def unified_pipeline(
         )
     else:
         raise ValueError(f"Unknown refinement strategy: {refinement_strategy}")
-    
+
     # Calculate total tokens
     total_tokens = sum(c.tokens for c in candidates) + refinement.tokens
-    
+
     return UnifiedResult(
         text=refinement.text,
         diversity_strategy=diversity_strategy,
@@ -354,7 +353,7 @@ async def unified_pipeline(
 def create_minimal_config() -> NaaruConfig:
     """Minimal cost: single generation, no frills."""
     from sunwell.types.config import NaaruConfig
-    
+
     return NaaruConfig(
         diversity="none",
         selection="passthrough",
@@ -366,7 +365,7 @@ def create_minimal_config() -> NaaruConfig:
 def create_cheap_diversity_config() -> NaaruConfig:
     """Cheap diversity: sampling + heuristic."""
     from sunwell.types.config import NaaruConfig
-    
+
     return NaaruConfig(
         diversity="sampling",
         selection="heuristic",
@@ -378,7 +377,7 @@ def create_cheap_diversity_config() -> NaaruConfig:
 def create_balanced_config() -> NaaruConfig:
     """Balanced: rotation + heuristic + tiered."""
     from sunwell.types.config import NaaruConfig
-    
+
     return NaaruConfig(
         diversity="rotation",
         selection="passthrough",  # Rotation integrates perspectives
@@ -390,7 +389,7 @@ def create_balanced_config() -> NaaruConfig:
 def create_quality_config() -> NaaruConfig:
     """Quality: harmonic + voting + full."""
     from sunwell.types.config import NaaruConfig
-    
+
     return NaaruConfig(
         diversity="harmonic",
         selection="voting",
@@ -402,7 +401,7 @@ def create_quality_config() -> NaaruConfig:
 def create_auto_config() -> NaaruConfig:
     """Auto: Naaru decides everything."""
     from sunwell.types.config import NaaruConfig
-    
+
     return NaaruConfig(
         diversity="auto",
         selection="auto",

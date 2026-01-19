@@ -1,9 +1,9 @@
 """Embedding and vector search for expertise retrieval."""
 
-from sunwell.embedding.protocol import EmbeddingProtocol, EmbeddingResult
 from sunwell.embedding.index import InMemoryIndex, SearchResult
+from sunwell.embedding.ollama import MODEL_DIMENSIONS, OllamaEmbedding
+from sunwell.embedding.protocol import EmbeddingProtocol, EmbeddingResult
 from sunwell.embedding.simple import HashEmbedding, TFIDFEmbedding
-from sunwell.embedding.ollama import OllamaEmbedding, MODEL_DIMENSIONS
 
 __all__ = [
     "EmbeddingProtocol",

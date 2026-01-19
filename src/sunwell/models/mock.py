@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import AsyncIterator, Union, Literal
+from typing import Literal
 
 from sunwell.models.protocol import (
-    ModelProtocol,
     GenerateOptions,
     GenerateResult,
-    TokenUsage,
     Message,
+    ModelProtocol,
+    TokenUsage,
     Tool,
-    ToolCall,
 )
 
 
@@ -44,10 +44,10 @@ class MockModel:
 
     async def generate(
         self,
-        prompt: Union[str, tuple[Message, ...]],
+        prompt: str | tuple[Message, ...],
         *,
         tools: tuple[Tool, ...] | None = None,
-        tool_choice: Union[Literal["auto", "none", "required"], str, dict] | None = None,
+        tool_choice: Literal["auto", "none", "required"] | str | dict | None = None,
         options: GenerateOptions | None = None,
     ) -> GenerateResult:
         """Generate a mock response."""
@@ -58,7 +58,7 @@ class MockModel:
             prompt_text = "\n".join(
                 m.content or "" for m in prompt if m.role in ("user", "system")
             )
-        
+
         self._prompts.append(prompt_text)
         self._call_count += 1
 
@@ -81,7 +81,7 @@ class MockModel:
 
     async def generate_stream(
         self,
-        prompt: Union[str, tuple[Message, ...]],
+        prompt: str | tuple[Message, ...],
         *,
         tools: tuple[Tool, ...] | None = None,
         options: GenerateOptions | None = None,
@@ -96,10 +96,10 @@ class MockModel:
 @dataclass
 class MockModelWithTools:
     """Mock model with configurable tool call responses.
-    
+
     Use this for testing tool calling scenarios. Provide a sequence
     of GenerateResult objects that will be returned in order.
-    
+
     Example:
         mock = MockModelWithTools([
             GenerateResult(
@@ -110,48 +110,48 @@ class MockModelWithTools:
             GenerateResult(content="Done reading!", model="mock"),
         ])
     """
-    
+
     responses: list[GenerateResult] = field(default_factory=list)
     _call_count: int = field(default=0, init=False)
-    _prompts: list[Union[str, tuple[Message, ...]]] = field(default_factory=list, init=False)
+    _prompts: list[str | tuple[Message, ...]] = field(default_factory=list, init=False)
     _tools_provided: list[tuple[Tool, ...] | None] = field(default_factory=list, init=False)
-    
+
     @property
     def model_id(self) -> str:
         return "mock-model-with-tools"
-    
+
     @property
     def call_count(self) -> int:
         """Number of times generate was called."""
         return self._call_count
-    
+
     @property
-    def prompts(self) -> list[Union[str, tuple[Message, ...]]]:
+    def prompts(self) -> list[str | tuple[Message, ...]]:
         """All prompts received."""
         return self._prompts
-    
+
     @property
     def tools_provided(self) -> list[tuple[Tool, ...] | None]:
         """Tools provided in each call."""
         return self._tools_provided
-    
+
     async def generate(
         self,
-        prompt: Union[str, tuple[Message, ...]],
+        prompt: str | tuple[Message, ...],
         *,
         tools: tuple[Tool, ...] | None = None,
-        tool_choice: Union[Literal["auto", "none", "required"], str, dict] | None = None,
+        tool_choice: Literal["auto", "none", "required"] | str | dict | None = None,
         options: GenerateOptions | None = None,
     ) -> GenerateResult:
         """Return the next pre-configured response."""
         self._prompts.append(prompt)
         self._tools_provided.append(tools)
         self._call_count += 1
-        
+
         if self.responses:
             result = self.responses[(self._call_count - 1) % len(self.responses)]
             return result
-        
+
         # Default: simple text response
         prompt_text = prompt if isinstance(prompt, str) else str(prompt)
         return GenerateResult(
@@ -163,10 +163,10 @@ class MockModelWithTools:
                 total_tokens=len(prompt_text.split()) + 3,
             ),
         )
-    
+
     async def generate_stream(
         self,
-        prompt: Union[str, tuple[Message, ...]],
+        prompt: str | tuple[Message, ...],
         *,
         tools: tuple[Tool, ...] | None = None,
         options: GenerateOptions | None = None,
@@ -182,6 +182,6 @@ class MockModelWithTools:
 def _verify_protocol() -> None:
     model: ModelProtocol = MockModel()
     assert isinstance(model, ModelProtocol)
-    
+
     model_with_tools: ModelProtocol = MockModelWithTools()
     assert isinstance(model_with_tools, ModelProtocol)

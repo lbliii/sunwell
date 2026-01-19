@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
+import click
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-
-import click
 
 from sunwell.core.freethreading import runtime_info
 
@@ -16,12 +15,12 @@ console = Console()
 @click.command()
 def runtime() -> None:
     """Show runtime information and parallelism status.
-    
+
     Displays Python version, free-threading status, and optimal worker counts.
     Use this to verify Sunwell is running with optimal settings.
     """
     info = runtime_info()
-    
+
     # Status indicator
     if info["free_threaded"]:
         status = "[green]✅ FREE-THREADED[/green]"
@@ -29,7 +28,7 @@ def runtime() -> None:
     else:
         status = "[yellow]⚠️  GIL ENABLED[/yellow]"
         detail = "Limited parallelism - consider using Python 3.14t"
-    
+
     console.print(Panel.fit(
         f"[bold]Sunwell Runtime[/bold]\n\n"
         f"Python: {info['python_version']}\n"
@@ -38,13 +37,13 @@ def runtime() -> None:
         f"[dim]{detail}[/dim]",
         title="🔧 Runtime Info",
     ))
-    
+
     # Worker table
     table = Table(title="Adaptive Worker Counts")
     table.add_column("Workload Type", style="cyan")
     table.add_column("Workers", justify="right")
     table.add_column("Reason", style="dim")
-    
+
     for workload, count in info["optimal_workers"].items():
         if workload == "io_bound":
             reason = "Threads wait on I/O"
@@ -55,11 +54,11 @@ def runtime() -> None:
                 reason = "GIL serializes - minimal benefit"
         else:
             reason = "Balanced for mixed workloads"
-        
+
         table.add_row(workload.replace("_", "-"), str(count), reason)
-    
+
     console.print(table)
-    
+
     # Recommendation
     if not info["free_threaded"]:
         console.print()

@@ -1,7 +1,7 @@
 """Naaru - Coordinated Intelligence for Local Models (RFC-016, RFC-019, RFC-032, RFC-034).
 
 The Naaru is Sunwell's answer to maximizing quality and throughput from small
-local models. Instead of a simple worker pool, it implements coordinated 
+local models. Instead of a simple worker pool, it implements coordinated
 intelligence with specialized components that work in harmony.
 
 RFC-032 Additions:
@@ -53,7 +53,7 @@ Thematic Naming (from Naaru lore):
 Example:
     >>> from sunwell.naaru import Naaru, NaaruConfig
     >>> from sunwell.models.ollama import OllamaModel
-    >>> 
+    >>>
     >>> naaru = Naaru(
     ...     sunwell_root=Path("."),
     ...     synthesis_model=OllamaModel("gemma3:1b"),
@@ -64,7 +64,7 @@ Example:
     ...         convergence=7,
     ...     ),
     ... )
-    >>> 
+    >>>
     >>> results = await naaru.illuminate(
     ...     goals=["improve error handling"],
     ...     max_time_seconds=120,
@@ -164,19 +164,6 @@ from sunwell.naaru.incremental import (
     compute_rebuild_set,
     find_invalidated,
 )
-from sunwell.naaru.persistence import (
-    ArtifactCompletion,
-    ExecutionStatus,
-    PlanStore,
-    SavedExecution,
-    TraceLogger,
-    get_latest_execution,
-    hash_content,
-    hash_file,
-    hash_goal,
-    resume_execution,
-    save_execution,
-)
 
 # Core runners
 from sunwell.naaru.loop import AutonomousRunner
@@ -202,6 +189,19 @@ from sunwell.naaru.naaru import (
     ValidationWorker,
 )
 from sunwell.naaru.parallel import ParallelAutonomousRunner, WorkerStats
+from sunwell.naaru.persistence import (
+    ArtifactCompletion,
+    ExecutionStatus,
+    PlanStore,
+    SavedExecution,
+    TraceLogger,
+    get_latest_execution,
+    hash_content,
+    hash_file,
+    hash_goal,
+    resume_execution,
+    save_execution,
+)
 
 # RFC-032: Task Planners
 from sunwell.naaru.planners import (

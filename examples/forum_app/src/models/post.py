@@ -1,11 +1,15 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy.ext.declarative import declarative_base
+from typing import Protocol
 
-class Post(Base):
-    __tablename__ = 'posts'
-    
-    id = Column(Integer, primary_key=True)
-    title = Column(String(100))
-    content = Column(String(500))
-    author_id = Column(Integer, ForeignKey('users.id'))
-    author = relationship('User', back_populates='posts')
+Base = declarative_base()
+
+class Post(Protocol):
+    id: int
+    title: str
+    content: str
+
+class BlogPost(Base, Post):
+    __tablename__ = 'blog_posts'
+    id = Base.Column(Base.Integer, primary_key=True)
+    title = Base.Column(Base.String(100), nullable=False)
+    content = Base.Column(Base.Text(), nullable=False)

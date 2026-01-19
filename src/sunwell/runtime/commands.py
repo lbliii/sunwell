@@ -20,9 +20,10 @@ Why double-colon?
 from __future__ import annotations
 
 import re
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Awaitable, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sunwell.core.lens import Lens
@@ -35,11 +36,11 @@ if TYPE_CHECKING:
 @dataclass(frozen=True, slots=True)
 class ParsedInput:
     """Parsed user input, either a command or regular message."""
-    
+
     command: str | None  # None if regular message
     args: str
     raw: str
-    
+
     @property
     def is_command(self) -> bool:
         """Check if this is a command."""
@@ -49,11 +50,11 @@ class ParsedInput:
 @dataclass
 class ChatSession:
     """Session state for command handlers."""
-    
-    lens: "Lens | None" = None
+
+    lens: Lens | None = None
     last_response: str = ""
     conversation_history: list[dict] = None  # type: ignore
-    
+
     def __post_init__(self):
         if self.conversation_history is None:
             self.conversation_history = []
@@ -73,7 +74,7 @@ COMMAND_PATTERN = re.compile(r'^::([a-zA-Z][\w-]*)\s*(.*)', re.DOTALL)
 
 def parse_input(text: str) -> ParsedInput:
     """Parse user input for ::commands.
-    
+
     Examples:
         parse_input("::save notes.md")  → ParsedInput(command="save", args="notes.md", ...)
         parse_input("::help")           → ParsedInput(command="help", args="", ...)
@@ -81,7 +82,7 @@ def parse_input(text: str) -> ParsedInput:
         parse_input("good/bad choice")  → ParsedInput(command=None, ...)  # No false positive
     """
     text = text.strip()
-    
+
     if text.startswith("::"):
         match = COMMAND_PATTERN.match(text)
         if match:
@@ -90,7 +91,7 @@ def parse_input(text: str) -> ParsedInput:
                 args=match.group(2).strip(),
                 raw=text,
             )
-    
+
     return ParsedInput(command=None, args="", raw=text)
 
 
@@ -117,18 +118,18 @@ def highlight_commands(text: str) -> str:
 
 class CommandRegistry:
     """Registry for ::command handlers."""
-    
+
     def __init__(self):
         self._handlers: dict[str, CommandHandler] = {}
         self._descriptions: dict[str, str] = {}
-    
+
     def register(
-        self, 
-        name: str, 
+        self,
+        name: str,
         description: str = "",
     ) -> Callable[[CommandHandler], CommandHandler]:
         """Decorator to register a command handler.
-        
+
         Usage:
             @commands.register("help", "Show available commands")
             async def cmd_help(args: str, session: ChatSession) -> str:
@@ -139,15 +140,15 @@ class CommandRegistry:
             self._descriptions[name] = description or fn.__doc__ or ""
             return fn
         return decorator
-    
+
     def get(self, name: str) -> CommandHandler | None:
         """Get handler for a command name."""
         return self._handlers.get(name)
-    
+
     async def execute(
-        self, 
-        command: str, 
-        args: str, 
+        self,
+        command: str,
+        args: str,
         session: ChatSession,
     ) -> str | None:
         """Execute a command, return response or None."""
@@ -155,14 +156,14 @@ class CommandRegistry:
         if handler:
             return await handler(args, session)
         return f"Unknown command: ::{command}. Try ::help for available commands."
-    
+
     def get_help(self) -> str:
         """Get formatted help text for all commands."""
         lines = ["Available commands:"]
         for name, desc in sorted(self._descriptions.items()):
             lines.append(f"  ::{name:<12} {desc}")
         return "\n".join(lines)
-    
+
     @property
     def commands(self) -> list[str]:
         """Get list of registered command names."""
@@ -222,10 +223,10 @@ async def cmd_save(args: str, session: ChatSession) -> str:
     """Save last assistant output to file."""
     if not args:
         return "Usage: ::save <path>"
-    
+
     if not session.last_response:
         return "No output to save yet"
-    
+
     try:
         path = Path(args).expanduser()
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -240,25 +241,25 @@ async def cmd_read(args: str, session: ChatSession) -> str:
     """Read a file and add to context."""
     if not args:
         return "Usage: ::read <path>"
-    
+
     try:
         path = Path(args).expanduser()
         if not path.exists():
             return f"File not found: {path}"
-        
+
         content = path.read_text()
         lines = content.split('\n')
-        
+
         # Add to conversation as a system message
         session.conversation_history.append({
             "role": "user",
             "content": f"[File: {path}]\n```\n{content}\n```"
         })
-        
+
         preview = '\n'.join(lines[:10])
         if len(lines) > 10:
             preview += f"\n... ({len(lines) - 10} more lines)"
-        
+
         return f"Read {path} ({len(lines)} lines). Preview:\n```\n{preview}\n```"
     except Exception as e:
         return f"Failed to read: {e}"
@@ -269,15 +270,15 @@ async def cmd_skills(args: str, session: ChatSession) -> str:
     """List skills from current lens."""
     if not session.lens:
         return "No lens loaded"
-    
+
     if not hasattr(session.lens, 'skills') or not session.lens.skills:
         return "No skills defined in current lens"
-    
+
     lines = ["Available skills:"]
     for skill in session.lens.skills:
         trust_icon = {"full": "🔓", "sandboxed": "🔒", "none": "📝"}.get(skill.trust.value, "❓")
         lines.append(f"  {trust_icon} {skill.name}: {skill.description}")
-    
+
     return "\n".join(lines)
 
 
@@ -288,14 +289,14 @@ async def cmd_lens(args: str, session: ChatSession) -> str:
         # Show current lens
         if not session.lens:
             return "No lens loaded"
-        
+
         meta = session.lens.metadata
         return f"""Current lens: {meta.name} v{meta.version}
 Domain: {meta.domain or 'general'}
 Description: {meta.description or 'No description'}
 Heuristics: {len(session.lens.heuristics)}
 Skills: {len(session.lens.skills) if hasattr(session.lens, 'skills') else 0}"""
-    
+
     # Switch lens (requires lens loader integration)
     return f"Switching lens not yet implemented. Use: sunwell chat --lens {args}"
 
@@ -304,11 +305,11 @@ Skills: {len(session.lens.skills) if hasattr(session.lens, 'skills') else 0}"""
 async def cmd_tools(args: str, session: ChatSession) -> str:
     """List available tools."""
     from sunwell.tools.builtins import CORE_TOOLS
-    
+
     lines = ["Available tools:"]
     for name, tool in CORE_TOOLS.items():
         lines.append(f"  • {name}: {tool.description[:60]}...")
-    
+
     return "\n".join(lines)
 
 
@@ -324,7 +325,7 @@ async def cmd_context(args: str, session: ChatSession) -> str:
     """Show current context state."""
     history_count = len(session.conversation_history)
     lens_name = session.lens.metadata.name if session.lens else "None"
-    
+
     return f"""Current context:
 Lens: {lens_name}
 Conversation turns: {history_count}
@@ -341,16 +342,16 @@ async def handle_command(
     registry: CommandRegistry = commands,
 ) -> tuple[bool, str | None]:
     """Process user input, handling commands if present.
-    
+
     Returns:
         Tuple of (is_command, response)
         - If is_command is True, response contains the command result
         - If is_command is False, response is None (input was not a command)
     """
     parsed = parse_input(user_input)
-    
+
     if not parsed.is_command:
         return False, None
-    
+
     response = await registry.execute(parsed.command, parsed.args, session)  # type: ignore
     return True, response

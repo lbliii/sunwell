@@ -4,15 +4,15 @@ RFC-025: Extracted from manager.py into modular subpackage.
 """
 
 from sunwell.simulacrum.manager.manager import SimulacrumManager
-from sunwell.simulacrum.manager.policy import SpawnPolicy, LifecyclePolicy
 from sunwell.simulacrum.manager.metadata import (
-    SimulacrumMetadata,
-    PendingDomain,
     ArchiveMetadata,
+    PendingDomain,
+    SimulacrumMetadata,
 )
+from sunwell.simulacrum.manager.policy import LifecyclePolicy, SpawnPolicy
 from sunwell.simulacrum.manager.tools import (
-    SimulacrumToolHandler,
     SIMULACRUM_TOOLS,
+    SimulacrumToolHandler,
 )
 
 __all__ = [

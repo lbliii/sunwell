@@ -25,7 +25,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-
 # Valid reference types (module-level constant)
 _VALID_TYPES: frozenset[str] = frozenset({
     "file", "dir", "selection", "clipboard", "git", "env",
@@ -39,26 +38,26 @@ _PATTERN = re.compile(r'@(\w+)(?::([^\s,;"\'\]})]+))?')
 @dataclass(frozen=True, slots=True)
 class ContextReference:
     """Parsed @ reference."""
-    
+
     ref_type: str
     """Reference type: file, dir, git, selection, clipboard, env."""
-    
+
     modifier: str | None
     """Optional modifier after : (e.g., file path, git ref)."""
-    
+
     raw: str
     """Original text (e.g., @file:auth.py)."""
-    
+
     @classmethod
     def parse(cls, text: str) -> list[ContextReference]:
         """Extract all @ references from text.
-        
+
         Args:
             text: Input text that may contain @ references
-            
+
         Returns:
             List of parsed ContextReference objects
-            
+
         Example:
             >>> refs = ContextReference.parse("review @file and check @git:staged")
             >>> len(refs)
@@ -73,7 +72,7 @@ class ContextReference:
             ref_type = match.group(1).lower()
             modifier = match.group(2)
             raw = match.group(0)
-            
+
             # Only include valid reference types
             if ref_type in _VALID_TYPES:
                 refs.append(cls(
@@ -81,14 +80,14 @@ class ContextReference:
                     modifier=modifier,
                     raw=raw,
                 ))
-        
+
         return refs
-    
+
     @classmethod
     def is_reference(cls, text: str) -> bool:
         """Check if text contains any @ references."""
         return bool(_PATTERN.search(text))
-    
+
     def __str__(self) -> str:
         """Return the raw reference string."""
         return self.raw
@@ -97,27 +96,27 @@ class ContextReference:
 @dataclass
 class ResolvedContext:
     """Result of resolving a context reference."""
-    
+
     ref: ContextReference
     """The original reference that was resolved."""
-    
+
     content: str
     """The resolved content."""
-    
+
     truncated: bool = False
     """Whether content was truncated due to size limits."""
-    
+
     original_size: int = 0
     """Original size before truncation (0 if not truncated)."""
-    
+
     error: str | None = None
     """Error message if resolution failed."""
-    
+
     @property
     def success(self) -> bool:
         """Whether resolution was successful."""
         return self.error is None
-    
+
     @property
     def summary(self) -> str:
         """Short summary for inline use."""
@@ -126,7 +125,7 @@ class ResolvedContext:
         if self.truncated:
             return f"[{self.ref.raw}: {self.original_size:,} chars, truncated to {len(self.content):,}]"
         return f"[{self.ref.raw}: {len(self.content):,} chars]"
-    
+
     @classmethod
     def from_error(cls, ref: ContextReference, error: str) -> ResolvedContext:
         """Create a failed resolution result."""

@@ -22,13 +22,13 @@ class TestNaaruPersona:
         msg = MURU.msg_noted("User has a cat")
         # Should contain one of the titles (alternates)
         assert "noted" in msg
-        assert ("M'uru" in msg or "The Naaru" in msg)
+        assert ("M'uru" in msg or "The Naaru" in msg or "The Light" in msg)
         assert "User has a cat" in msg
     
     def test_msg_observed(self):
         msg = MURU.msg_observed("Uses casual language")
         assert "observed" in msg
-        assert ("M'uru" in msg or "The Naaru" in msg)
+        assert ("M'uru" in msg or "The Naaru" in msg or "The Light" in msg)
         assert "Uses casual language" in msg
     
     def test_msg_observed_truncation(self):
@@ -40,13 +40,13 @@ class TestNaaruPersona:
     def test_msg_learned(self):
         msg = MURU.msg_learned("API timeout is 5 seconds")
         assert "learned" in msg
-        assert ("M'uru" in msg or "The Naaru" in msg)
+        assert ("M'uru" in msg or "The Naaru" in msg or "The Light" in msg)
         assert "API timeout" in msg
     
     def test_msg_identity_updated(self):
         msg = MURU.msg_identity_updated(0.85)
-        # Alternates between M'uru and The Naaru
-        assert ("M'uru" in msg or "The Naaru" in msg)
+        # Alternates between M'uru, The Naaru, and The Light (per project config)
+        assert ("M'uru" in msg or "The Naaru" in msg or "The Light" in msg)
         assert "85%" in msg
     
     def test_msg_error(self):

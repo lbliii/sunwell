@@ -18,7 +18,7 @@ Example:
     >>> store = PlanStore()
     >>> execution = SavedExecution(goal="Build API", graph=graph)
     >>> store.save(execution)
-    >>> 
+    >>>
     >>> # Later, resume:
     >>> loaded = store.find_by_goal("Build API")
     >>> remaining = loaded.get_remaining_artifacts()
@@ -37,7 +37,6 @@ from typing import Any
 
 from sunwell.naaru.artifacts import ArtifactGraph
 from sunwell.naaru.executor import ArtifactResult, ExecutionResult
-
 
 # =============================================================================
 # Constants
@@ -382,10 +381,10 @@ class PlanStore:
         >>> store = PlanStore()
         >>> execution = SavedExecution(goal="Build API", graph=graph)
         >>> path = store.save(execution)
-        >>> 
+        >>>
         >>> # Load by goal hash
         >>> loaded = store.load(execution.goal_hash)
-        >>> 
+        >>>
         >>> # Or find by goal text
         >>> found = store.find_by_goal("Build API")
     """
@@ -545,11 +544,10 @@ class PlanStore:
             Number of plans deleted
         """
         deleted = 0
-        for goal_hash, path in self.list_all():
+        for goal_hash, _path in self.list_all():
             age = self.get_plan_age_hours(goal_hash)
-            if age and age > max_age_hours:
-                if self.delete(goal_hash):
-                    deleted += 1
+            if age and age > max_age_hours and self.delete(goal_hash):
+                deleted += 1
         return deleted
 
 

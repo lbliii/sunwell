@@ -11,10 +11,10 @@ Key components:
 - injection: System prompt integration
 """
 
-from sunwell.identity.store import Identity, IdentityStore, Observation
-from sunwell.identity.extractor import extract_with_categories, extract_behaviors
 from sunwell.identity.digest import digest_identity
+from sunwell.identity.extractor import extract_behaviors, extract_with_categories
 from sunwell.identity.injection import build_system_prompt_with_identity
+from sunwell.identity.store import Identity, IdentityStore, Observation
 
 __all__ = [
     "Identity",

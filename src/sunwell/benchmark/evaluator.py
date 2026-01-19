@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING
 from sunwell.benchmark.types import (
     AggregatedVerdict,
     BenchmarkTask,
-    Condition,
     DeterministicResult,
     DimensionScore,
     EvaluationResult,
@@ -84,27 +83,27 @@ Respond ONLY with valid JSON, no markdown formatting."""
 @dataclass
 class BenchmarkEvaluator:
     """Evaluate benchmark outputs using three-tier methodology.
-    
+
     Usage:
         evaluator = BenchmarkEvaluator(judge_model=judge)
         result = await evaluator.evaluate(task, task_result)
     """
-    
+
     judge_model: ModelProtocol
     num_judge_runs: int = 3  # For majority vote
     run_code_tests: bool = True  # Enable code execution checks
-    
+
     async def evaluate(
         self,
         task: BenchmarkTask,
         result: TaskResult,
     ) -> EvaluationResult:
         """Run all evaluation tiers for a single task.
-        
+
         Args:
             task: The benchmark task definition
             result: The outputs from running the task
-            
+
         Returns:
             EvaluationResult with deterministic and judge evaluations
         """
@@ -115,35 +114,35 @@ class BenchmarkEvaluator:
                 task=task,
                 output=output.content,
             )
-        
+
         # Tier 2: LLM Judge pairwise comparisons
         judge_results: dict[str, AggregatedVerdict] = {}
-        
+
         # Compare selective vs each baseline
         if "selective" in result.outputs:
             selective_output = result.outputs["selective"].content
-            
+
             for baseline in ["bare", "flat"]:
                 if baseline in result.outputs:
                     baseline_output = result.outputs[baseline].content
-                    
+
                     verdict = await self._llm_judge(
                         task=task,
                         output_a=baseline_output,
                         output_b=selective_output,
                     )
                     judge_results[f"selective_vs_{baseline}"] = verdict
-        
+
         # Determine overall winner
         overall_winner = self._determine_winner(judge_results)
-        
+
         return EvaluationResult(
             task_id=task.id,
             deterministic=deterministic,
             judge_results=judge_results,
             overall_winner=overall_winner,
         )
-    
+
     def _deterministic_eval(
         self,
         task: BenchmarkTask,
@@ -151,28 +150,28 @@ class BenchmarkEvaluator:
     ) -> DeterministicResult:
         """Tier 1: Fast, reproducible checks."""
         output_lower = output.lower()
-        
+
         # Must-contain checks
         must_contain_results: dict[str, bool] = {}
         for term in task.evaluation.must_contain:
             must_contain_results[term] = term.lower() in output_lower
-        
-        # Must-not-contain checks  
+
+        # Must-not-contain checks
         must_not_contain_results: dict[str, bool] = {}
         for term in task.evaluation.must_not_contain:
             must_not_contain_results[term] = term.lower() not in output_lower
-        
+
         # Code execution checks (for code_generation tasks)
         tests_pass = None
         lint_clean = None
         type_check = None
-        
+
         if task.category.value == "code_generation" and self.run_code_tests:
             tests_pass, lint_clean, type_check = self._run_code_checks(
                 output=output,
                 test_suite=task.test_suite,
             )
-        
+
         return DeterministicResult(
             must_contain_results=must_contain_results,
             must_not_contain_results=must_not_contain_results,
@@ -180,29 +179,29 @@ class BenchmarkEvaluator:
             lint_clean=lint_clean,
             type_check=type_check,
         )
-    
+
     def _run_code_checks(
         self,
         output: str,
         test_suite: str | None,
     ) -> tuple[bool | None, bool | None, bool | None]:
         """Run code quality checks on generated code.
-        
+
         Returns:
             Tuple of (tests_pass, lint_clean, type_check)
         """
         # Extract code blocks from output
         code_blocks = re.findall(r'```(?:python)?\n(.*?)```', output, re.DOTALL)
-        
+
         if not code_blocks:
             return None, None, None
-        
+
         code = "\n\n".join(code_blocks)
-        
+
         tests_pass = None
         lint_clean = None
         type_check = None
-        
+
         with tempfile.NamedTemporaryFile(
             mode='w',
             suffix='.py',
@@ -210,7 +209,7 @@ class BenchmarkEvaluator:
         ) as f:
             f.write(code)
             temp_path = Path(f.name)
-        
+
         try:
             # Lint check with ruff
             try:
@@ -222,7 +221,7 @@ class BenchmarkEvaluator:
                 lint_clean = result.returncode == 0
             except (FileNotFoundError, subprocess.TimeoutExpired):
                 lint_clean = None
-            
+
             # Type check with mypy
             try:
                 result = subprocess.run(
@@ -233,7 +232,7 @@ class BenchmarkEvaluator:
                 type_check = result.returncode == 0
             except (FileNotFoundError, subprocess.TimeoutExpired):
                 type_check = None
-            
+
             # Run tests if test suite provided
             if test_suite:
                 try:
@@ -247,9 +246,9 @@ class BenchmarkEvaluator:
                     tests_pass = None
         finally:
             temp_path.unlink(missing_ok=True)
-        
+
         return tests_pass, lint_clean, type_check
-    
+
     async def _llm_judge(
         self,
         task: BenchmarkTask,
@@ -257,12 +256,12 @@ class BenchmarkEvaluator:
         output_b: str,
     ) -> AggregatedVerdict:
         """Tier 2: Pairwise LLM evaluation with position randomization.
-        
+
         Runs multiple comparisons with randomized order and aggregates
         via majority vote to reduce position bias.
         """
         verdicts: list[JudgeVerdict] = []
-        
+
         for _ in range(self.num_judge_runs):
             # Randomize order to prevent position bias
             if random.random() > 0.5:
@@ -271,7 +270,7 @@ class BenchmarkEvaluator:
             else:
                 first, second = output_b, output_a
                 order = "ba"
-            
+
             verdict = await self._single_judge_call(
                 task=task,
                 first_output=first,
@@ -279,9 +278,9 @@ class BenchmarkEvaluator:
                 order=order,
             )
             verdicts.append(verdict)
-        
+
         return self._aggregate_verdicts(verdicts)
-    
+
     async def _single_judge_call(
         self,
         task: BenchmarkTask,
@@ -297,7 +296,7 @@ class BenchmarkEvaluator:
                 f"- **{dim.dimension}** (weight: {dim.weight}): {dim.criteria}"
             )
         rubric_text = "\n".join(rubric_lines) if rubric_lines else "Evaluate on accuracy, completeness, and usability."
-        
+
         # Build prompt
         prompt = JUDGE_PROMPT_TEMPLATE.format(
             task_prompt=task.prompt[:500],
@@ -305,7 +304,7 @@ class BenchmarkEvaluator:
             output_b=second_output[:2000],
             rubric=rubric_text,
         )
-        
+
         # Call judge model
         result = await self.judge_model.generate(
             prompt,
@@ -314,10 +313,10 @@ class BenchmarkEvaluator:
                 max_tokens=1000,
             ),
         )
-        
+
         # Parse response
         return self._parse_judge_response(result.text, order)
-    
+
     def _parse_judge_response(self, response: str, order: str) -> JudgeVerdict:
         """Parse the judge's JSON response."""
         # Try to extract JSON from response
@@ -326,7 +325,7 @@ class BenchmarkEvaluator:
             json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response, re.DOTALL)
             if json_match:
                 response = json_match.group(1)
-            
+
             data = json.loads(response)
         except json.JSONDecodeError:
             # Fallback: try to find JSON-like structure
@@ -346,7 +345,7 @@ class BenchmarkEvaluator:
                     order=order,
                     raw_response=response,
                 )
-        
+
         # Parse dimensions
         dimension_scores: list[DimensionScore] = []
         for dim in data.get("dimensions", []):
@@ -356,10 +355,10 @@ class BenchmarkEvaluator:
                 score_b=float(dim.get("score_b", 5)),
                 justification=dim.get("justification", ""),
             ))
-        
+
         # Parse winner - adjust for order
         winner_str = data.get("overall_winner", "TIE").upper()
-        
+
         if winner_str == "A":
             # "A" in judge's view corresponds to first_output
             winner = Verdict.A_WINS if order == "ab" else Verdict.B_WINS
@@ -367,7 +366,7 @@ class BenchmarkEvaluator:
             winner = Verdict.B_WINS if order == "ab" else Verdict.A_WINS
         else:
             winner = Verdict.TIE
-        
+
         return JudgeVerdict(
             winner=winner,
             dimension_scores=tuple(dimension_scores),
@@ -375,7 +374,7 @@ class BenchmarkEvaluator:
             order=order,
             raw_response=response,
         )
-    
+
     def _aggregate_verdicts(
         self,
         verdicts: list[JudgeVerdict],
@@ -390,12 +389,12 @@ class BenchmarkEvaluator:
                 avg_score_b=0.0,
                 position_bias=0.0,
             )
-        
+
         # Count votes
         a_wins = sum(1 for v in verdicts if v.winner == Verdict.A_WINS)
         b_wins = sum(1 for v in verdicts if v.winner == Verdict.B_WINS)
         ties = sum(1 for v in verdicts if v.winner == Verdict.TIE)
-        
+
         # Majority vote
         if a_wins > b_wins and a_wins > ties:
             winner = Verdict.A_WINS
@@ -403,11 +402,11 @@ class BenchmarkEvaluator:
             winner = Verdict.B_WINS
         else:
             winner = Verdict.TIE
-        
+
         # Calculate agreement rate
         max_votes = max(a_wins, b_wins, ties)
         agreement_rate = max_votes / len(verdicts)
-        
+
         # Calculate average scores
         all_scores_a: list[float] = []
         all_scores_b: list[float] = []
@@ -415,10 +414,10 @@ class BenchmarkEvaluator:
             for ds in v.dimension_scores:
                 all_scores_a.append(ds.score_a)
                 all_scores_b.append(ds.score_b)
-        
+
         avg_score_a = sum(all_scores_a) / len(all_scores_a) if all_scores_a else 5.0
         avg_score_b = sum(all_scores_b) / len(all_scores_b) if all_scores_b else 5.0
-        
+
         # Calculate position bias
         ab_wins = sum(
             1 for v in verdicts
@@ -430,11 +429,11 @@ class BenchmarkEvaluator:
         )
         ab_total = sum(1 for v in verdicts if v.order == "ab")
         ba_total = sum(1 for v in verdicts if v.order == "ba")
-        
+
         ab_rate = ab_wins / ab_total if ab_total > 0 else 0.5
         ba_rate = ba_wins / ba_total if ba_total > 0 else 0.5
         position_bias = abs(ab_rate - ba_rate)
-        
+
         return AggregatedVerdict(
             winner=winner,
             individual_verdicts=tuple(verdicts),
@@ -443,35 +442,35 @@ class BenchmarkEvaluator:
             avg_score_b=avg_score_b,
             position_bias=position_bias,
         )
-    
+
     def _determine_winner(
         self,
         judge_results: dict[str, AggregatedVerdict],
     ) -> str:
         """Determine overall winner across all comparisons.
-        
+
         Returns "selective" if it wins all comparisons, baseline name otherwise.
         """
         if not judge_results:
             return ""
-        
+
         # Check if selective wins all comparisons
         selective_wins_all = all(
             v.winner == Verdict.B_WINS  # B is always selective in our comparisons
             for v in judge_results.values()
         )
-        
+
         if selective_wins_all:
             return "selective"
-        
+
         # Find the baseline that selective lost to
         for key, verdict in judge_results.items():
             if verdict.winner == Verdict.A_WINS:
                 # Extract baseline name from key like "selective_vs_bare"
                 return key.replace("selective_vs_", "")
-        
+
         return "tie"
-    
+
     async def evaluate_suite(
         self,
         tasks: list[BenchmarkTask],
@@ -480,14 +479,14 @@ class BenchmarkEvaluator:
         """Evaluate all results from a benchmark suite."""
         # Create task lookup
         task_map = {t.id: t for t in tasks}
-        
+
         evaluations: list[EvaluationResult] = []
-        
+
         for result in results:
             task = task_map.get(result.task_id)
             if task is None:
                 continue
-            
+
             print(f"  Evaluating {result.task_id}...", end=" ", flush=True)
             try:
                 evaluation = await self.evaluate(task, result)
@@ -496,5 +495,5 @@ class BenchmarkEvaluator:
                 print(winner)
             except Exception as e:
                 print(f"✗ {e}")
-        
+
         return evaluations

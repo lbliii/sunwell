@@ -37,7 +37,7 @@ class ValidationResult:
     content_type: ContentType
     detected_type: ContentType
     issues: tuple[str, ...]
-    
+
     @property
     def needs_escalation(self) -> bool:
         """Whether this should escalate to a larger model."""
@@ -49,7 +49,7 @@ class ValidationResult:
 def infer_expected_type(filename: str) -> ContentType:
     """Infer expected content type from filename."""
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-    
+
     return {
         "py": ContentType.PYTHON,
         "json": ContentType.JSON,
@@ -63,7 +63,7 @@ def infer_expected_type(filename: str) -> ContentType:
 def detect_content_type(content: str) -> ContentType:
     """Detect actual content type from content."""
     content = content.strip()
-    
+
     # JSON detection
     if content.startswith("{") or content.startswith("["):
         try:
@@ -72,7 +72,7 @@ def detect_content_type(content: str) -> ContentType:
             return ContentType.JSON
         except json.JSONDecodeError:
             pass
-    
+
     # Python detection - look for Python-specific patterns
     python_patterns = [
         r"^(from|import)\s+\w+",  # imports
@@ -84,27 +84,27 @@ def detect_content_type(content: str) -> ContentType:
     for pattern in python_patterns:
         if re.search(pattern, content, re.MULTILINE):
             return ContentType.PYTHON
-    
+
     # YAML detection
     if re.match(r"^\w+:\s*\n", content) or content.startswith("---"):
         return ContentType.YAML
-    
+
     # Markdown detection
     if content.startswith("#") or re.search(r"^\*\*\w+\*\*", content, re.MULTILINE):
         return ContentType.MARKDOWN
-    
+
     # SQL detection
     sql_keywords = ["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE TABLE", "DROP"]
     if any(content.upper().startswith(kw) for kw in sql_keywords):
         return ContentType.SQL
-    
+
     return ContentType.UNKNOWN
 
 
 def validate_python_syntax(content: str) -> tuple[bool, list[str]]:
     """Check if content is valid Python syntax."""
     issues = []
-    
+
     try:
         compile(content, "<string>", "exec")
         return True, []
@@ -115,7 +115,7 @@ def validate_python_syntax(content: str) -> tuple[bool, list[str]]:
 
 def fast_validate(content: str, expected_type: ContentType) -> ValidationResult:
     """Fast validation without LLM - uses heuristics.
-    
+
     Returns:
         ValidationResult with signal:
         - NO (0): Content looks valid
@@ -124,7 +124,7 @@ def fast_validate(content: str, expected_type: ContentType) -> ValidationResult:
     """
     detected = detect_content_type(content)
     issues: list[str] = []
-    
+
     # Type mismatch is a strong signal
     if expected_type != ContentType.UNKNOWN and detected != expected_type:
         issues.append(f"Expected {expected_type.name}, got {detected.name}")
@@ -135,12 +135,12 @@ def fast_validate(content: str, expected_type: ContentType) -> ValidationResult:
             detected_type=detected,
             issues=tuple(issues),
         )
-    
+
     # Type-specific validation
     if expected_type == ContentType.PYTHON:
         syntax_valid, syntax_issues = validate_python_syntax(content)
         issues.extend(syntax_issues)
-        
+
         if not syntax_valid:
             return ValidationResult(
                 is_valid=False,
@@ -149,7 +149,7 @@ def fast_validate(content: str, expected_type: ContentType) -> ValidationResult:
                 detected_type=detected,
                 issues=tuple(issues),
             )
-        
+
         # Check for stub/placeholder content
         if len(content.strip().splitlines()) < 3:
             issues.append("Content too short (likely placeholder)")
@@ -160,7 +160,7 @@ def fast_validate(content: str, expected_type: ContentType) -> ValidationResult:
                 detected_type=detected,
                 issues=tuple(issues),
             )
-        
+
         # Check for "pass" only implementations
         if content.strip().endswith("pass") and content.count("pass") > content.count("def "):
             issues.append("Too many 'pass' statements (stub implementation)")
@@ -171,7 +171,7 @@ def fast_validate(content: str, expected_type: ContentType) -> ValidationResult:
                 detected_type=detected,
                 issues=tuple(issues),
             )
-    
+
     # Looks valid
     return ValidationResult(
         is_valid=True,
@@ -189,15 +189,15 @@ async def validate_content_quality(
     model,
 ) -> ValidationResult:
     """Full validation with LLM for quality assessment.
-    
+
     Use when fast_validate returns MAYBE or for high-stakes content.
     """
     # First do fast validation
     fast_result = fast_validate(content, expected_type)
-    
+
     if fast_result.signal == Trit.YES:
         return fast_result  # Already know it's bad
-    
+
     if fast_result.signal == Trit.NO and fast_result.is_valid:
         # Fast check says good, but do a quick LLM sanity check
         prompt = f"""Task: {task_description}
@@ -212,7 +212,7 @@ Does this content fulfill the task correctly?
 2: No, wrong format or doesn't match task
 
 Respond with only 0, 1, or 2."""
-        
+
         try:
             signal = await trit_classify(prompt, model)
             if signal != Trit.NO:
@@ -226,7 +226,7 @@ Respond with only 0, 1, or 2."""
                 )
         except Exception:
             pass  # Fall through to fast result
-    
+
     return fast_result
 
 
@@ -243,7 +243,7 @@ async def validate_and_maybe_escalate(
     regenerate_fn,
 ) -> str:
     """Validate content and escalate to larger model if needed.
-    
+
     Args:
         content: Generated content to validate
         task_description: What the content should do
@@ -251,28 +251,28 @@ async def validate_and_maybe_escalate(
         small_model: Model for validation (tiny/cheap)
         large_model: Model for regeneration (larger/better)
         regenerate_fn: Async function to regenerate content with large model
-        
+
     Returns:
         Validated (or regenerated) content
     """
     expected_type = infer_expected_type(target_path)
-    
+
     # Fast validation first (no LLM cost)
     result = fast_validate(content, expected_type)
-    
+
     if result.signal == Trit.NO:
         return content  # Looks good
-    
+
     if result.signal == Trit.YES:
         # Definitely bad - escalate immediately
         return await regenerate_fn(large_model)
-    
+
     # MAYBE - do LLM validation to decide
     full_result = await validate_content_quality(
         content, expected_type, task_description, small_model
     )
-    
+
     if full_result.needs_escalation:
         return await regenerate_fn(large_model)
-    
+
     return content

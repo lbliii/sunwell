@@ -10,7 +10,7 @@ Like Make or Bazel, Sunwell can now skip unchanged work.
 Example:
     >>> detector = ChangeDetector()
     >>> changes = detector.detect(graph, previous_execution)
-    >>> 
+    >>>
     >>> executor = IncrementalExecutor(store=store)
     >>> result = await executor.execute(graph, create_fn, goal)
 """
@@ -30,11 +30,9 @@ from sunwell.naaru.persistence import (
     PlanStore,
     SavedExecution,
     TraceLogger,
-    hash_content,
     hash_file,
     hash_goal,
 )
-
 
 # Type alias for artifact creation function
 CreateArtifactFn = Callable[[ArtifactSpec], Awaitable[str]]

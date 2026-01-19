@@ -11,15 +11,14 @@ Recommended models:
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Sequence
 
 import numpy as np
 from numpy.typing import NDArray
 
+from sunwell.core.errors import ErrorCode, SunwellError
 from sunwell.embedding.protocol import EmbeddingResult
-from sunwell.core.errors import SunwellError, ErrorCode
-
 
 # Known embedding model dimensions (fallback if not auto-detected)
 MODEL_DIMENSIONS: dict[str, int] = {
@@ -59,7 +58,7 @@ class OllamaEmbedding:
     max_chars_per_text: int = 512  # Truncate long texts to ~128 tokens (safer for small models)
     max_batch_chars: int = 4000  # Batch if total chars exceed this (conservative)
     _dimensions: int | None = field(default=None, init=False)
-    _client: "httpx.AsyncClient | None" = field(default=None, init=False)
+    _client: httpx.AsyncClient | None = field(default=None, init=False)
 
     @property
     def dimensions(self) -> int:
@@ -74,7 +73,7 @@ class OllamaEmbedding:
         # Default fallback (will be corrected on first embed call)
         return 384
 
-    async def _get_client(self) -> "httpx.AsyncClient":
+    async def _get_client(self) -> httpx.AsyncClient:
         """Get or create the HTTP client."""
         if self._client is None:
             try:
@@ -138,14 +137,14 @@ class OllamaEmbedding:
             f"{self.base_url}/api/embed",
             json=payload,
         )
-        
+
         if response.status_code != 200:
             # Capture actual error from Ollama
             try:
                 error_body = response.json().get("error", response.text)
             except Exception:
                 error_body = response.text
-            
+
             raise SunwellError(
                 code=ErrorCode.MODEL_PROVIDER_UNAVAILABLE,
                 context={
@@ -196,14 +195,14 @@ class OllamaEmbedding:
 
         for text in texts:
             text_chars = len(text)
-            
+
             # If adding this text would exceed limit, process current batch
             if batch and batch_chars + text_chars > self.max_batch_chars:
                 result = await self._embed_single_batch(batch)
                 all_vectors.append(result.vectors)
                 batch = []
                 batch_chars = 0
-            
+
             batch.append(text)
             batch_chars += text_chars
 
@@ -239,7 +238,7 @@ class OllamaEmbedding:
             await self._client.aclose()
             self._client = None
 
-    async def __aenter__(self) -> "OllamaEmbedding":
+    async def __aenter__(self) -> OllamaEmbedding:
         """Async context manager entry."""
         return self
 

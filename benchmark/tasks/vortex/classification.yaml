@@ -1,0 +1,100 @@
+# Vortex Experiment Tasks: Classification
+# These tasks test whether interference patterns predict accuracy
+# Ground truth provided for correlation analysis
+
+tasks:
+  - id: classify-001
+    name: "Math operation detection"
+    category: classification
+    task: "What math operation does 'Bob is 3 years older than Carol' imply? Answer: add or subtract"
+    ground_truth: "add"
+    difficulty: easy
+    expected_agreement: high
+    
+  - id: classify-002
+    name: "Math operation detection (ambiguous)"
+    task: "What math operation does 'twice as many' imply? Answer: add or multiply"
+    ground_truth: "multiply"
+    difficulty: medium
+    expected_agreement: medium
+    notes: "Some may interpret as addition"
+    
+  - id: classify-003
+    name: "Code intent detection"
+    task: |
+      What is the primary purpose of this code?
+      ```python
+      def process(items):
+          seen = set()
+          return [x for x in items if not (x in seen or seen.add(x))]
+      ```
+      Answer: sort, deduplicate, filter, transform
+    ground_truth: "deduplicate"
+    difficulty: medium
+    expected_agreement: high
+    
+  - id: classify-004
+    name: "Error type classification"
+    task: |
+      What type of error is this?
+      ```
+      TypeError: unsupported operand type(s) for +: 'int' and 'str'
+      ```
+      Answer: syntax, type, runtime, logic
+    ground_truth: "type"
+    difficulty: easy
+    expected_agreement: high
+    
+  - id: classify-005
+    name: "Design pattern recognition"
+    task: |
+      What design pattern does this implement?
+      ```python
+      class Logger:
+          _instance = None
+          def __new__(cls):
+              if cls._instance is None:
+                  cls._instance = super().__new__(cls)
+              return cls._instance
+      ```
+      Answer: factory, singleton, observer, strategy
+    ground_truth: "singleton"
+    difficulty: easy
+    expected_agreement: high
+
+  - id: classify-006
+    name: "Algorithm complexity"
+    task: |
+      What is the time complexity of this function?
+      ```python
+      def find(arr, target):
+          for i in arr:
+              for j in arr:
+                  if i + j == target:
+                      return (i, j)
+      ```
+      Answer: O(1), O(n), O(n²), O(n log n)
+    ground_truth: "O(n²)"
+    difficulty: medium
+    expected_agreement: high
+
+  - id: classify-007
+    name: "Sentiment analysis (edge case)"
+    task: "What is the sentiment of: 'The food was not bad, I guess.' Answer: positive, negative, neutral"
+    ground_truth: "neutral"
+    difficulty: hard
+    expected_agreement: low
+    notes: "Double negative + hedging creates ambiguity"
+
+  - id: classify-008
+    name: "Code smell detection"
+    task: |
+      What code smell is present?
+      ```python
+      def calculate(a, b, c, d, e, f, g, h):
+          return a + b - c * d / e + f - g * h
+      ```
+      Answer: god_class, long_method, too_many_parameters, magic_numbers
+    ground_truth: "too_many_parameters"
+    difficulty: easy
+    expected_agreement: high

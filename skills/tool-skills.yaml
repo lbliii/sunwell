@@ -1,0 +1,424 @@
+# Sunwell Tool Skills
+# Skills that wrap built-in tool handlers for Agent Skills compatibility
+#
+# These skills:
+# 1. Map `allowed-tools` to Sunwell's handlers
+# 2. Provide high-level guidance for tool usage
+# 3. Are portable via Agent Skills spec
+
+skills:
+  # ============================================================================
+  # FILE OPERATIONS
+  # ============================================================================
+  
+  - name: file-read
+    description: Read file contents from the workspace. Use for viewing source code, configs, or documentation.
+    type: inline
+    trust: sandboxed
+    allowed-tools: read_file
+    instructions: |
+      ## Goal
+      Read and return file contents from the workspace.
+      
+      ## Tool
+      Use the `read_file` tool with parameter:
+      - `path`: Relative path to file in workspace
+      
+      ## Security
+      - Paths are jailed to workspace
+      - Blocked patterns: .env, .git, credentials, secrets
+      
+      ## Example
+      ```
+      read_file(path="src/auth/login.py")
+      ```
+
+  - name: file-write
+    description: Write or create files in the workspace. Creates parent directories automatically.
+    type: inline
+    trust: sandboxed
+    allowed-tools: write_file
+    instructions: |
+      ## Goal
+      Write content to a file, creating it if it doesn't exist.
+      
+      ## Tool
+      Use the `write_file` tool with parameters:
+      - `path`: Relative path to file
+      - `content`: Full content to write
+      
+      ## Behavior
+      - Creates parent directories if needed
+      - Overwrites existing files
+      - UTF-8 encoding
+      
+      ## Example
+      ```
+      write_file(path="src/utils/helper.py", content="def helper(): ...")
+      ```
+
+  - name: file-edit
+    description: Make targeted edits to existing files by replacing specific content.
+    type: inline
+    trust: sandboxed
+    allowed-tools: edit_file
+    instructions: |
+      ## Goal
+      Edit a file by replacing specific content with new content.
+      
+      ## Tool
+      Use the `edit_file` tool with parameters:
+      - `path`: Relative path to file
+      - `old_content`: Exact string to find (must match exactly)
+      - `new_content`: Replacement string
+      
+      ## Best Practices
+      - Use enough context in `old_content` to ensure unique match
+      - Include surrounding lines if needed for uniqueness
+      - For multiple edits, make separate calls
+      
+      ## Example
+      ```
+      edit_file(
+        path="src/config.py",
+        old_content="DEBUG = True",
+        new_content="DEBUG = False"
+      )
+      ```
+
+  - name: file-search
+    description: Search for patterns in files using ripgrep. Fast regex search across codebase.
+    type: inline
+    trust: sandboxed
+    allowed-tools: search_files
+    instructions: |
+      ## Goal
+      Find files or content matching a pattern.
+      
+      ## Tool
+      Use the `search_files` tool with parameters:
+      - `pattern`: Regex pattern to search for
+      - `path`: Optional directory to search in (default: workspace root)
+      - `glob`: Optional file glob filter (e.g., "*.py")
+      
+      ## Examples
+      ```
+      # Find function definitions
+      search_files(pattern="def authenticate", glob="*.py")
+      
+      # Find imports
+      search_files(pattern="from sunwell import", path="src/")
+      
+      # Find TODO comments
+      search_files(pattern="# TODO:")
+      ```
+
+  - name: file-list
+    description: List files and directories in the workspace.
+    type: inline
+    trust: sandboxed
+    allowed-tools: list_files
+    instructions: |
+      ## Goal
+      List contents of a directory.
+      
+      ## Tool
+      Use the `list_files` tool with parameters:
+      - `path`: Directory path (default: workspace root)
+      - `recursive`: If true, list recursively
+      
+      ## Example
+      ```
+      list_files(path="src/", recursive=true)
+      ```
+
+  # ============================================================================
+  # SHELL OPERATIONS
+  # ============================================================================
+
+  - name: shell-run
+    description: Run shell commands in a sandboxed environment. Use for build, test, or analysis commands.
+    type: inline
+    trust: sandboxed
+    allowed-tools: run_command
+    instructions: |
+      ## Goal
+      Execute shell commands safely in the workspace.
+      
+      ## Tool
+      Use the `run_command` tool with parameters:
+      - `command`: Shell command to run
+      - `timeout`: Optional timeout in seconds (default: 30)
+      
+      ## Security
+      - Commands run in workspace directory
+      - Sandboxed: no network, limited syscalls
+      - Dangerous commands may be blocked
+      
+      ## Safe Examples
+      ```
+      run_command(command="python -m pytest tests/")
+      run_command(command="ruff check src/")
+      run_command(command="cat README.md | head -20")
+      ```
+      
+      ## Blocked Examples
+      - `rm -rf /` → blocked
+      - `curl ...` → blocked (no network)
+      - `sudo ...` → blocked
+
+  - name: shell-mkdir
+    description: Create directories in the workspace.
+    type: inline
+    trust: sandboxed
+    allowed-tools: mkdir
+    instructions: |
+      ## Goal
+      Create a directory (and parent directories if needed).
+      
+      ## Tool
+      Use the `mkdir` tool with parameter:
+      - `path`: Directory path to create
+      
+      ## Example
+      ```
+      mkdir(path="src/new_module/utils")
+      ```
+
+  # ============================================================================
+  # GIT OPERATIONS
+  # ============================================================================
+
+  - name: git-status
+    description: Get git repository status including staged, unstaged, and untracked files.
+    type: inline
+    trust: sandboxed
+    allowed-tools: git_status
+    instructions: |
+      ## Goal
+      Check the current state of the git repository.
+      
+      ## Tool
+      Use `git_status` with no parameters.
+      
+      ## Output
+      Returns status including:
+      - Staged changes
+      - Unstaged changes
+      - Untracked files
+      - Current branch
+
+  - name: git-diff
+    description: Show changes between commits, working tree, or staged files.
+    type: inline
+    trust: sandboxed
+    allowed-tools: git_diff
+    instructions: |
+      ## Goal
+      View differences in the repository.
+      
+      ## Tool
+      Use `git_diff` with optional parameters:
+      - `staged`: If true, show staged changes
+      - `path`: Specific file to diff
+      - `commit`: Compare against specific commit
+      
+      ## Examples
+      ```
+      git_diff()  # Working tree changes
+      git_diff(staged=true)  # Staged changes
+      git_diff(path="src/main.py")  # Single file
+      ```
+
+  - name: git-log
+    description: View commit history with messages, authors, and dates.
+    type: inline
+    trust: sandboxed
+    allowed-tools: git_log
+    instructions: |
+      ## Goal
+      View commit history.
+      
+      ## Tool
+      Use `git_log` with optional parameters:
+      - `limit`: Number of commits (default: 10)
+      - `path`: Filter to specific file
+      - `oneline`: Compact format
+      
+      ## Examples
+      ```
+      git_log(limit=5)
+      git_log(path="src/auth.py", limit=10)
+      ```
+
+  - name: git-commit-workflow
+    description: Stage changes and create a commit with a message.
+    type: inline
+    trust: sandboxed
+    allowed-tools: git_add git_commit
+    instructions: |
+      ## Goal
+      Stage files and create a commit.
+      
+      ## Workflow
+      1. Stage files with `git_add`
+      2. Create commit with `git_commit`
+      
+      ## Tools
+      - `git_add(paths=["file1.py", "file2.py"])` or `git_add(all=true)`
+      - `git_commit(message="feat: add feature")`
+      
+      ## Commit Message Format
+      Follow conventional commits:
+      - `feat:` — New feature
+      - `fix:` — Bug fix
+      - `docs:` — Documentation
+      - `refactor:` — Code refactoring
+      - `test:` — Adding tests
+      
+      ## Example
+      ```
+      git_add(paths=["src/new_feature.py", "tests/test_feature.py"])
+      git_commit(message="feat: add user authentication")
+      ```
+
+  - name: git-branch-workflow
+    description: Create, switch, or list git branches.
+    type: inline
+    trust: sandboxed
+    allowed-tools: git_branch git_checkout
+    instructions: |
+      ## Goal
+      Work with git branches.
+      
+      ## Tools
+      - `git_branch()` — List branches
+      - `git_branch(name="feature-x")` — Create branch
+      - `git_checkout(branch="feature-x")` — Switch branch
+      - `git_checkout(branch="feature-x", create=true)` — Create and switch
+      
+      ## Example Workflow
+      ```
+      # Create and switch to new branch
+      git_checkout(branch="feature/auth", create=true)
+      
+      # ... make changes ...
+      
+      # Switch back to main
+      git_checkout(branch="main")
+      ```
+
+  # ============================================================================
+  # COMPOUND SKILLS (Multi-Tool)
+  # ============================================================================
+
+  - name: code-exploration
+    description: Explore and understand a codebase by searching, reading, and analyzing files.
+    type: inline
+    trust: sandboxed
+    allowed-tools: search_files read_file list_files
+    instructions: |
+      ## Goal
+      Systematically explore a codebase to understand its structure and functionality.
+      
+      ## Process
+      1. **List structure**: Use `list_files` to understand directory layout
+      2. **Find entry points**: Search for `main`, `__init__`, `index`
+      3. **Read key files**: Use `read_file` on important files
+      4. **Search patterns**: Use `search_files` for specific functionality
+      
+      ## Exploration Checklist
+      - [ ] Project root files (README, config, package.json/pyproject.toml)
+      - [ ] Source directory structure
+      - [ ] Entry points and main modules
+      - [ ] Test structure
+      - [ ] Key abstractions and patterns
+      
+      ## Output Format
+      Provide a structured summary:
+      ```
+      ## Codebase Overview
+      
+      **Language**: Python 3.14
+      **Structure**: src/ + tests/
+      **Entry Point**: src/main.py
+      
+      ### Key Modules
+      - `src/core/` — Core domain models
+      - `src/api/` — REST API endpoints
+      
+      ### Patterns Observed
+      - Dependency injection
+      - Repository pattern
+      ```
+
+  - name: code-modification
+    description: Make changes to code files with proper backup and verification.
+    type: inline
+    trust: sandboxed
+    allowed-tools: read_file edit_file write_file git_diff
+    instructions: |
+      ## Goal
+      Safely modify code files with verification.
+      
+      ## Process
+      1. **Read first**: Always `read_file` before editing
+      2. **Edit precisely**: Use `edit_file` with exact matches
+      3. **Verify changes**: Use `git_diff` to confirm
+      
+      ## Best Practices
+      - Make minimal, focused changes
+      - Preserve existing formatting and style
+      - Don't add unnecessary changes
+      - Verify the edit worked as expected
+      
+      ## Example Workflow
+      ```
+      # 1. Read current state
+      read_file(path="src/config.py")
+      
+      # 2. Make targeted edit
+      edit_file(
+        path="src/config.py",
+        old_content="DEBUG = True\nLOG_LEVEL = 'INFO'",
+        new_content="DEBUG = False\nLOG_LEVEL = 'WARNING'"
+      )
+      
+      # 3. Verify
+      git_diff(path="src/config.py")
+      ```
+
+  - name: test-and-lint
+    description: Run tests and linting to verify code quality.
+    type: inline
+    trust: sandboxed
+    allowed-tools: run_command
+    instructions: |
+      ## Goal
+      Run quality checks on code.
+      
+      ## Common Commands
+      
+      ### Python
+      ```
+      run_command(command="python -m pytest tests/ -v")
+      run_command(command="ruff check src/")
+      run_command(command="mypy src/")
+      ```
+      
+      ### Node.js
+      ```
+      run_command(command="npm test")
+      run_command(command="npm run lint")
+      ```
+      
+      ## Interpreting Results
+      - Exit code 0 = success
+      - Exit code non-zero = failure
+      - Parse output for specific errors
+      
+      ## Workflow
+      1. Run linter first (fast feedback)
+      2. Run type checker
+      3. Run tests
+      4. Fix any issues found

@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
 
-from sunwell.core.types import IntentCategory, Tier
 from sunwell.core.lens import Lens
+from sunwell.core.types import IntentCategory, Tier
 
 
 @dataclass(frozen=True, slots=True)

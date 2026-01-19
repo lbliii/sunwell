@@ -292,7 +292,7 @@ lens:
     persona_agreement: 0.5
     retry_limit: 2
 
-  # RFC-021: Spellbook - Portable Workflow Incantations
+  # Spellbook - Portable Workflow Incantations
   spellbook:
     # Security-focused deep review
     - incantation: "::security"

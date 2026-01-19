@@ -14,7 +14,7 @@ import re
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sunwell.simulacrum.topology.topology_base import RelationType, ConceptEdge
+from sunwell.simulacrum.topology.topology_base import ConceptEdge, RelationType
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
@@ -22,10 +22,10 @@ if TYPE_CHECKING:
 
 class TopologyExtractor:
     """Extract concept relationships from content using LLM or heuristics."""
-    
-    def __init__(self, model: "ModelProtocol | None" = None):
+
+    def __init__(self, model: ModelProtocol | None = None):
         self.model = model
-    
+
     async def extract_relationships(
         self,
         source_id: str,
@@ -34,18 +34,18 @@ class TopologyExtractor:
         candidate_texts: list[str],
     ) -> list[ConceptEdge]:
         """Identify relationships between a source and candidate chunks.
-        
+
         Uses LLM to detect: elaboration, contradiction, dependency, etc.
         """
         if not self.model or not candidate_ids:
             return []
-        
+
         # Format candidates
         candidates_formatted = "\n\n".join(
             f"[{cid}]: {text[:500]}"
-            for cid, text in zip(candidate_ids, candidate_texts)
+            for cid, text in zip(candidate_ids, candidate_texts, strict=False)
         )
-        
+
         prompt = f"""Analyze relationships between the SOURCE chunk and CANDIDATE chunks.
 
 SOURCE [{source_id}]:
@@ -69,28 +69,28 @@ Valid RELATION_TYPEs:
 Only output strong, clear relationships. Skip weak or uncertain ones.
 
 Relationships:"""
-        
+
         result = await self.model.generate(prompt)
-        
+
         # Parse response
         edges = []
         timestamp = datetime.now().isoformat()
-        
+
         for line in result.text.strip().split("\n"):
             line = line.strip()
             if not line or ":" not in line:
                 continue
-            
+
             try:
                 relation_part, rest = line.split(":", 1)
                 relation_type = RelationType(relation_part.strip().lower())
-                
+
                 # Extract candidate ID (in brackets)
                 match = re.search(r'\[([^\]]+)\]', rest)
                 if match:
                     target_id = match.group(1)
                     reason = rest.replace(f"[{target_id}]", "").strip(" -")
-                    
+
                     if target_id in candidate_ids:
                         edges.append(ConceptEdge(
                             source_id=source_id,
@@ -103,9 +103,9 @@ Relationships:"""
                         ))
             except (ValueError, KeyError):
                 continue  # Skip malformed lines
-        
+
         return edges
-    
+
     def extract_heuristic_relationships(
         self,
         source_id: str,
@@ -114,7 +114,7 @@ Relationships:"""
         candidate_texts: list[str],
     ) -> list[ConceptEdge]:
         """Heuristic relationship detection without LLM.
-        
+
         Detects:
         - Explicit references ("as mentioned in", "see also", "cf.")
         - Contradiction signals ("however", "but", "unlike", "in contrast")
@@ -122,10 +122,10 @@ Relationships:"""
         """
         edges = []
         timestamp = datetime.now().isoformat()
-        
+
         source_lower = source_text.lower()
-        
-        for cid, ctext in zip(candidate_ids, candidate_texts):
+
+        for cid, ctext in zip(candidate_ids, candidate_texts, strict=False):
             # Check for explicit reference
             if cid.lower() in source_lower:
                 edges.append(ConceptEdge(
@@ -137,7 +137,7 @@ Relationships:"""
                     auto_extracted=True,
                     timestamp=timestamp,
                 ))
-            
+
             # Check for contradiction signals near candidate mentions
             contradiction_patterns = [
                 r'\bhowever\b',
@@ -163,7 +163,7 @@ Relationships:"""
                             timestamp=timestamp,
                         ))
                         break
-            
+
             # Check for dependency signals
             dependency_patterns = [
                 r'\brequires?\b',
@@ -188,7 +188,7 @@ Relationships:"""
                             timestamp=timestamp,
                         ))
                         break
-            
+
             # Check for elaboration signals
             elaboration_patterns = [
                 r'\bspecifically\b',
@@ -213,7 +213,7 @@ Relationships:"""
                             timestamp=timestamp,
                         ))
                         break
-            
+
             # Check for summary signals
             summary_patterns = [
                 r'\bin summary\b',
@@ -237,5 +237,5 @@ Relationships:"""
                             timestamp=timestamp,
                         ))
                         break
-        
+
         return edges

@@ -141,7 +141,7 @@ class Skill:
     # Agent Skills spec alignment
     compatibility: str | None = None  # Environment requirements
     allowed_tools: tuple[str, ...] = ()  # Pre-approved tools
-    
+
     # RFC-012: Tool calling integration
     parameters_schema: dict | None = None  # JSON Schema for tool parameters
 
@@ -206,14 +206,14 @@ class Skill:
 
         return "\n".join(parts)
 
-    def to_tool(self) -> "Tool":
+    def to_tool(self) -> Tool:
         """Convert this skill to a callable tool (RFC-012).
-        
+
         Returns:
             A Tool object suitable for LLM function calling.
         """
         from sunwell.models.protocol import Tool
-        
+
         return Tool(
             name=self.name,
             description=self.description,

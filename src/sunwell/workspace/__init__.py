@@ -6,11 +6,11 @@ RFC-024 additions:
 """
 
 from sunwell.workspace.detector import (
-    WorkspaceDetector,
+    DEFAULT_TRUST,
     Workspace,
     WorkspaceConfig,
+    WorkspaceDetector,
     resolve_trust_level,
-    DEFAULT_TRUST,
 )
 from sunwell.workspace.indexer import CodebaseIndexer
 

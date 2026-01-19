@@ -16,16 +16,20 @@ import re
 from typing import TYPE_CHECKING
 
 from sunwell.simulacrum.topology.facets import (
-    ContentFacets, DiataxisType, PersonaType, VerificationState, ConfidenceLevel
+    ConfidenceLevel,
+    ContentFacets,
+    DiataxisType,
+    PersonaType,
+    VerificationState,
 )
 
 if TYPE_CHECKING:
-    from sunwell.simulacrum.topology.structural import DocumentSection, SectionType
+    from sunwell.simulacrum.topology.structural import DocumentSection
 
 
 class FacetExtractor:
     """Extract facets from content using heuristics and patterns."""
-    
+
     # Diataxis detection patterns
     DIATAXIS_PATTERNS: dict[DiataxisType, list[str]] = {
         DiataxisType.TUTORIAL: [
@@ -45,7 +49,7 @@ class FacetExtractor:
             r'\bunderstand\b', r'\btheory\b', r'\bbackground\b',
         ],
     }
-    
+
     # Persona detection patterns
     PERSONA_PATTERNS: dict[PersonaType, list[str]] = {
         PersonaType.NOVICE: [
@@ -57,7 +61,7 @@ class FacetExtractor:
             r'\barchitect\b', r'\boptimiz\b', r'\bperformance\b',
         ],
     }
-    
+
     # Domain keywords
     DOMAIN_KEYWORDS: dict[str, list[str]] = {
         "cli": [r'\bcommand[- ]line\b', r'\bcli\b', r'\bterminal\b', r'\bshell\b'],
@@ -66,28 +70,28 @@ class FacetExtractor:
         "security": [r'\bsecurity\b', r'\bauth\b', r'\btoken\b', r'\bpermission\b'],
         "testing": [r'\btest\b', r'\bpytest\b', r'\bassert\b', r'\bmock\b'],
     }
-    
+
     def extract_from_text(
         self,
         text: str,
-        section: "DocumentSection | None" = None,
+        section: DocumentSection | None = None,
         source_type: str = "docs",
     ) -> ContentFacets:
         """Extract facets from text content."""
         text_lower = text.lower()
-        
+
         # Detect Diataxis type
         diataxis_type = self._detect_diataxis(text_lower, section)
-        
+
         # Detect persona
         persona = self._detect_persona(text_lower)
-        
+
         # Detect domains
         domains = self._detect_domains(text_lower)
-        
+
         # Infer confidence from indicators
         confidence = self._infer_confidence(text_lower)
-        
+
         return ContentFacets(
             diataxis_type=diataxis_type,
             primary_persona=persona,
@@ -97,15 +101,15 @@ class FacetExtractor:
             source_type=source_type,
             source_authority=0.9 if source_type == "docs" else 0.7,
         )
-    
+
     def _detect_diataxis(
         self,
         text: str,
-        section: "DocumentSection | None",
+        section: DocumentSection | None,
     ) -> DiataxisType | None:
         """Detect Diataxis type from text and section."""
         from sunwell.simulacrum.topology.structural import SectionType
-        
+
         # Check section type first (high confidence)
         if section:
             type_mapping = {
@@ -120,33 +124,33 @@ class FacetExtractor:
             }
             if section.section_type in type_mapping:
                 return type_mapping[section.section_type]
-        
+
         # Fall back to pattern matching
         scores: dict[DiataxisType, int] = {}
         for dtype, patterns in self.DIATAXIS_PATTERNS.items():
             scores[dtype] = sum(1 for p in patterns if re.search(p, text))
-        
+
         if scores:
             best = max(scores.items(), key=lambda x: x[1])
             if best[1] > 0:
                 return best[0]
-        
+
         return None
-    
+
     def _detect_persona(self, text: str) -> PersonaType | None:
         """Detect target persona from text."""
         scores: dict[PersonaType, int] = {}
         for persona, patterns in self.PERSONA_PATTERNS.items():
             scores[persona] = sum(1 for p in patterns if re.search(p, text))
-        
+
         if scores:
             best = max(scores.items(), key=lambda x: x[1])
             if best[1] > 0:
                 return best[0]
-        
+
         # Default to pragmatist if no clear signal
         return PersonaType.PRAGMATIST
-    
+
     def _detect_domains(self, text: str) -> list[str]:
         """Detect domain tags from text."""
         domains = []
@@ -154,7 +158,7 @@ class FacetExtractor:
             if any(re.search(p, text) for p in patterns):
                 domains.append(domain)
         return domains
-    
+
     def _infer_confidence(self, text: str) -> ConfidenceLevel:
         """Infer confidence level from uncertainty markers."""
         high_certainty = [
@@ -165,10 +169,10 @@ class FacetExtractor:
             r'\bmaybe\b', r'\bmight\b', r'\bpossibly\b', r'\bprobably\b',
             r'\btypically\b', r'\busually\b', r'\bgenerally\b',
         ]
-        
+
         high_count = sum(1 for p in high_certainty if re.search(p, text))
         low_count = sum(1 for p in low_certainty if re.search(p, text))
-        
+
         if high_count > low_count and high_count > 2:
             return ConfidenceLevel.HIGH
         elif low_count > high_count and low_count > 2:

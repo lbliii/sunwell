@@ -20,26 +20,25 @@ Example:
 from __future__ import annotations
 
 import asyncio
-import threading
+import json
 import queue
+import threading
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable
-import json
+from typing import Any
 
-from sunwell.naaru.types import (
-    SessionStatus,
-    SessionState,
-    SessionConfig,
-    Opportunity,
-    CompletedTask,
-    OpportunityCategory,
-)
-from sunwell.naaru.signals import SignalHandler, StopReason, format_stop_reason
-from sunwell.naaru.discovery import OpportunityDiscoverer
 from sunwell.mirror import MirrorHandler
+from sunwell.naaru.discovery import OpportunityDiscoverer
+from sunwell.naaru.signals import SignalHandler, StopReason, format_stop_reason
+from sunwell.naaru.types import (
+    Opportunity,
+    SessionConfig,
+    SessionState,
+    SessionStatus,
+)
 
 
 @dataclass
@@ -50,7 +49,7 @@ class WorkerStats:
     tasks_failed: int = 0
     proposals_created: int = 0
     total_time_ms: int = 0
-    
+
     def to_dict(self) -> dict:
         return {
             "worker_id": self.worker_id,
@@ -64,10 +63,10 @@ class WorkerStats:
 @dataclass
 class ParallelSessionState(SessionState):
     """Extended state for parallel execution."""
-    
+
     num_workers: int = 1
     worker_stats: list[WorkerStats] = field(default_factory=list)
-    
+
     def to_dict(self) -> dict:
         base = super().to_dict()
         base["num_workers"] = self.num_workers
@@ -75,13 +74,13 @@ class ParallelSessionState(SessionState):
         return base
 
 
-@dataclass 
+@dataclass
 class ParallelAutonomousRunner:
     """Parallel runner using multiple worker threads.
-    
+
     With free-threading enabled, each worker runs in true parallel,
     allowing Sunwell to work on multiple improvements simultaneously.
-    
+
     Example:
         >>> config = SessionConfig(goals=["documentation", "testing"])
         >>> runner = ParallelAutonomousRunner(
@@ -91,13 +90,13 @@ class ParallelAutonomousRunner:
         ... )
         >>> await runner.start()
     """
-    
+
     config: SessionConfig
     sunwell_root: Path
     num_workers: int = 4
     storage_path: Path = None
     on_event: Callable[[str, str, int], None] | None = None
-    
+
     # Internal state
     state: ParallelSessionState = field(init=False)
     _work_queue: queue.Queue = field(init=False)
@@ -106,17 +105,17 @@ class ParallelAutonomousRunner:
     _lock: threading.Lock = field(init=False)
     _executor: ThreadPoolExecutor = field(init=False)
     signals: SignalHandler = field(init=False)
-    
+
     def __post_init__(self):
         if self.storage_path is None:
             self.storage_path = self.sunwell_root / ".sunwell" / "autonomous"
         self.storage_path.mkdir(parents=True, exist_ok=True)
-        
+
         self._work_queue = queue.Queue()
         self._results_queue = queue.Queue()
         self._stop_event = threading.Event()
         self._lock = threading.Lock()
-    
+
     async def start(self) -> ParallelSessionState:
         """Start parallel autonomous execution."""
         # Initialize state
@@ -128,7 +127,7 @@ class ParallelAutonomousRunner:
             num_workers=self.num_workers,
             worker_stats=[WorkerStats(i) for i in range(self.num_workers)],
         )
-        
+
         # Setup signals
         self.signals = SignalHandler(
             session_id=self.state.session_id,
@@ -136,7 +135,7 @@ class ParallelAutonomousRunner:
             on_stop=lambda r: self._request_stop(r),
         )
         self.signals.setup()
-        
+
         try:
             await self.signals.start_file_watcher()
             self._display_banner()
@@ -148,57 +147,57 @@ class ParallelAutonomousRunner:
         finally:
             self.signals.teardown()
             await self._finalize()
-        
+
         return self.state
-    
+
     async def _run_parallel(self) -> None:
         """Run with parallel workers."""
         # Discovery phase
-        self._emit("phase", f"🔍 Discovering opportunities...")
-        
+        self._emit("phase", "🔍 Discovering opportunities...")
+
         discoverer = OpportunityDiscoverer(
             mirror=MirrorHandler(self.sunwell_root, self.storage_path / "mirror"),
             sunwell_root=self.sunwell_root,
         )
         opportunities = await discoverer.discover(self.config.goals)
-        
+
         if not opportunities:
             self._emit("idle", "No opportunities found")
             return
-        
+
         self._emit("discovery", f"Found {len(opportunities)} opportunities")
-        
+
         # Group by category for better parallelism
         by_category = self._group_by_category(opportunities)
         self._display_categories(by_category)
-        
+
         # Queue all work
         for opp in opportunities:
             self._work_queue.put(opp)
-        
+
         self._emit("phase", f"🚀 Starting {self.num_workers} parallel workers...")
-        
+
         # Start worker threads
         self._executor = ThreadPoolExecutor(
             max_workers=self.num_workers,
             thread_name_prefix="sunwell_worker",
         )
-        
+
         # Submit workers
         futures = []
         for worker_id in range(self.num_workers):
             future = self._executor.submit(self._worker_loop, worker_id)
             futures.append(future)
-        
+
         # Process results while workers run
         await self._process_results()
-        
+
         # Wait for workers to finish
         self._stop_event.set()
         self._executor.shutdown(wait=True)
-        
+
         self._emit("phase", "✅ All workers finished")
-    
+
     def _worker_loop(self, worker_id: int) -> None:
         """Worker thread main loop."""
         # Each worker gets its own mirror handler
@@ -206,7 +205,7 @@ class ParallelAutonomousRunner:
             sunwell_root=self.sunwell_root,
             storage_path=self.storage_path / f"mirror_w{worker_id}",
         )
-        
+
         while not self._stop_event.is_set():
             try:
                 # Get work with timeout (allows checking stop event)
@@ -215,17 +214,17 @@ class ParallelAutonomousRunner:
                 if self._work_queue.empty():
                     break
                 continue
-            
+
             # Process the opportunity
             start = datetime.now()
             result = self._process_opportunity(worker_id, mirror, opp)
             elapsed_ms = int((datetime.now() - start).total_seconds() * 1000)
-            
+
             # Record result
             result["elapsed_ms"] = elapsed_ms
             result["worker_id"] = worker_id
             self._results_queue.put(result)
-            
+
             # Update worker stats
             with self._lock:
                 stats = self.state.worker_stats[worker_id]
@@ -235,7 +234,7 @@ class ParallelAutonomousRunner:
                     stats.proposals_created += 1
                 if result.get("error"):
                     stats.tasks_failed += 1
-    
+
     def _process_opportunity(
         self,
         worker_id: int,
@@ -244,11 +243,11 @@ class ParallelAutonomousRunner:
     ) -> dict[str, Any]:
         """Process a single opportunity (runs in worker thread)."""
         import asyncio
-        
+
         # Map category to scope
         scope_map = {
             "error_handling": "validator",
-            "testing": "validator", 
+            "testing": "validator",
             "performance": "workflow",
             "documentation": "heuristic",
             "code_quality": "heuristic",
@@ -256,7 +255,7 @@ class ParallelAutonomousRunner:
             "other": "heuristic",
         }
         scope = scope_map.get(opp.category.value, "heuristic")
-        
+
         # Run async handler in sync context
         async def create_proposal():
             return await mirror.handle("propose_improvement", {
@@ -269,7 +268,7 @@ class ParallelAutonomousRunner:
                 ],
                 "diff": f"# {opp.description}\n# Worker {worker_id}",
             })
-        
+
         try:
             # Create new event loop for this thread
             loop = asyncio.new_event_loop()
@@ -278,34 +277,34 @@ class ParallelAutonomousRunner:
                 result = loop.run_until_complete(create_proposal())
             finally:
                 loop.close()
-            
+
             data = json.loads(result)
-            
+
             if "error" in data:
                 return {
                     "opportunity_id": opp.id,
                     "error": data["error"],
                     "status": "rejected",
                 }
-            
+
             return {
                 "opportunity_id": opp.id,
                 "proposal_id": data.get("proposal_id"),
                 "status": "created",
             }
-            
+
         except Exception as e:
             return {
                 "opportunity_id": opp.id,
                 "error": str(e),
                 "status": "failed",
             }
-    
+
     async def _process_results(self) -> None:
         """Process results from workers."""
         processed = 0
         total = self._work_queue.qsize() + processed
-        
+
         while not self._stop_event.is_set() or not self._results_queue.empty():
             try:
                 result = self._results_queue.get(timeout=0.1)
@@ -317,10 +316,10 @@ class ParallelAutonomousRunner:
                     if self._results_queue.empty():
                         break
                 continue
-            
+
             processed += 1
             worker_id = result.get("worker_id", "?")
-            
+
             if result["status"] == "created":
                 self.state.proposals_created += 1
                 self._emit(
@@ -341,21 +340,21 @@ class ParallelAutonomousRunner:
                     f"[W{worker_id}] ⚠️ {result.get('error', 'unknown')[:40]}",
                     worker_id,
                 )
-            
+
             # Progress update every 5 results
             if processed % 5 == 0:
                 self._emit("progress", f"Progress: {processed}/{total}")
-            
+
             # Check for stop
             if self.signals.stop_requested:
                 self._stop_event.set()
                 break
-    
+
     def _request_stop(self, reason: StopReason) -> None:
         """Handle stop request."""
         self._stop_event.set()
         self._emit("stop", f"Stop requested: {format_stop_reason(reason)}")
-    
+
     def _group_by_category(
         self,
         opportunities: list[Opportunity],
@@ -368,15 +367,15 @@ class ParallelAutonomousRunner:
                 groups[cat] = []
             groups[cat].append(opp)
         return groups
-    
+
     def _emit(self, event: str, message: str, worker_id: int = -1) -> None:
         """Emit event."""
         timestamp = datetime.now().strftime("%H:%M:%S")
         print(f"[{timestamp}] {message}")
-        
+
         if self.on_event:
             self.on_event(event, message, worker_id)
-    
+
     def _display_banner(self) -> None:
         """Display startup banner."""
         print()
@@ -390,14 +389,14 @@ class ParallelAutonomousRunner:
         print("║  With free-threading, all workers run in TRUE PARALLEL!".ljust(79) + "║")
         print("╚" + "═" * 78 + "╝")
         print()
-    
+
     def _display_categories(self, by_category: dict[str, list[Opportunity]]) -> None:
         """Display opportunity categories."""
         print("\n📊 Opportunities by Category:")
         for cat, opps in sorted(by_category.items(), key=lambda x: -len(x[1])):
             print(f"   • {cat}: {len(opps)} items")
         print()
-    
+
     async def _finalize(self) -> None:
         """Finalize session."""
         self.state.stopped_at = datetime.now()
@@ -405,14 +404,14 @@ class ParallelAutonomousRunner:
         self.state.total_runtime_seconds = (
             self.state.stopped_at - self.state.started_at
         ).total_seconds()
-        
+
         # Save state
         path = self.storage_path / f"{self.state.session_id}.json"
         with open(path, "w") as f:
             json.dump(self.state.to_dict(), f, indent=2, default=str)
-        
+
         self._display_summary()
-    
+
     def _display_summary(self) -> None:
         """Display summary with worker stats."""
         print()
@@ -424,11 +423,11 @@ class ParallelAutonomousRunner:
         print(f"║  Proposals:   {self.state.proposals_created} created".ljust(79) + "║")
         print("║" + " " * 78 + "║")
         print("║  Worker Performance:".ljust(79) + "║")
-        
+
         for stats in self.state.worker_stats:
             avg_ms = stats.total_time_ms // max(1, stats.tasks_completed)
             print(f"║    W{stats.worker_id}: {stats.tasks_completed} tasks, {stats.proposals_created} proposals, {avg_ms}ms avg".ljust(79) + "║")
-        
+
         # Calculate speedup
         total_work_time = sum(s.total_time_ms for s in self.state.worker_stats)
         wall_time = int(self.state.total_runtime_seconds * 1000)
@@ -436,6 +435,6 @@ class ParallelAutonomousRunner:
             speedup = total_work_time / wall_time
             print("║" + " " * 78 + "║")
             print(f"║  ⚡ Parallel speedup: {speedup:.1f}x".ljust(79) + "║")
-        
+
         print("╚" + "═" * 78 + "╝")
         print()

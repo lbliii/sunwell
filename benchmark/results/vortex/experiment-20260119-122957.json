@@ -1,0 +1,47 @@
+{
+  "model": "qwen2.5-coder:1.5b",
+  "timestamp": "2026-01-19T12:29:57.629747",
+  "results": {
+    "interference": [
+      {
+        "task": "What is 2 + 2?",
+        "difficulty": "trivial",
+        "agreement": 0.4,
+        "correct": true,
+        "pattern": "destructive"
+      },
+      {
+        "task": "Is 'Bob is 3 years older' addition or subtraction?",
+        "difficulty": "easy",
+        "agreement": 0.2,
+        "correct": false,
+        "pattern": "destructive"
+      },
+      {
+        "task": "What does 'twice as many' mean: add or multiply?",
+        "difficulty": "medium",
+        "agreement": 0.2,
+        "correct": true,
+        "pattern": "destructive"
+      },
+      {
+        "task": "Is 'not bad' positive or negative sentiment?",
+        "difficulty": "ambiguous",
+        "agreement": 0.2,
+        "correct": false,
+        "pattern": "destructive"
+      }
+    ],
+    "resonance": {
+      "pattern": "oscillating",
+      "improvement": 0.0,
+      "peak_iteration": 0
+    },
+    "mini_vortex": {
+      "method": "interference + dialectic",
+      "agreement": 0.2,
+      "single_length": 1799,
+      "vortex_length": 2067
+    }
+  }
+}

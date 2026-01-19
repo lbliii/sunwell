@@ -5,9 +5,9 @@ Extended with tool calling support per RFC-012.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Literal, Protocol, AsyncIterator, Union, runtime_checkable
-
+from typing import Literal, Protocol, runtime_checkable
 
 # =============================================================================
 # Message Types (RFC-012)
@@ -17,16 +17,16 @@ from typing import Literal, Protocol, AsyncIterator, Union, runtime_checkable
 @dataclass(frozen=True, slots=True)
 class Message:
     """A conversation message for multi-turn interactions.
-    
+
     Supports system, user, assistant, and tool result messages.
     """
-    
+
     role: Literal["system", "user", "assistant", "tool"]
     content: str | None = None
-    
+
     # For assistant messages with tool calls
-    tool_calls: tuple["ToolCall", ...] = ()
-    
+    tool_calls: tuple[ToolCall, ...] = ()
+
     # For tool result messages
     tool_call_id: str | None = None
 
@@ -39,28 +39,27 @@ class Message:
 @dataclass(frozen=True, slots=True)
 class Tool:
     """A callable tool the LLM can invoke.
-    
+
     Tools are defined with JSON Schema parameters and can be
     created from Sunwell skills.
     """
-    
+
     name: str
     description: str
     parameters: dict  # JSON Schema
-    
+
     @classmethod
-    def from_skill(cls, skill: "Skill") -> "Tool":
+    def from_skill(cls, skill: Skill) -> Tool:
         """Convert a Sunwell skill to a tool definition.
-        
+
         Args:
             skill: A Skill object with name, description, and optional parameters_schema
-            
+
         Returns:
             A Tool object suitable for LLM function calling
         """
         # Import here to avoid circular dependency
-        from sunwell.skills.types import Skill as SkillType
-        
+
         return cls(
             name=skill.name,
             description=skill.description,
@@ -80,11 +79,11 @@ class Tool:
 @dataclass(frozen=True, slots=True)
 class ToolCall:
     """A tool invocation requested by the LLM.
-    
+
     Contains the unique ID (for correlating results), tool name,
     and parsed arguments.
     """
-    
+
     id: str
     name: str
     arguments: dict
@@ -103,7 +102,7 @@ class GenerateOptions:
     max_tokens: int | None = None
     stop_sequences: tuple[str, ...] = ()
     system_prompt: str | None = None
-    tools: tuple["Tool", ...] | None = None  # RFC-027: Tools for self-directed generation
+    tools: tuple[Tool, ...] | None = None  # RFC-027: Tools for self-directed generation
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,7 +117,7 @@ class TokenUsage:
 @dataclass(frozen=True, slots=True)
 class GenerateResult:
     """Result from model generation.
-    
+
     Migration note: `content` is now `Optional[str]` to support
     tool-only responses. Use the `.text` property for backward
     compatibility with existing code.
@@ -129,16 +128,16 @@ class GenerateResult:
     tool_calls: tuple[ToolCall, ...] = ()  # Tool requests from the model
     usage: TokenUsage | None = None
     finish_reason: str | None = None
-    
+
     @property
     def has_tool_calls(self) -> bool:
         """Check if this result contains tool calls."""
         return len(self.tool_calls) > 0
-    
+
     @property
     def text(self) -> str:
         """Get content as string, defaulting to empty string.
-        
+
         Recommended for all existing code using result.content.
         This ensures backward compatibility when tools are not used.
         """
@@ -155,7 +154,7 @@ class ModelProtocol(Protocol):
     """Protocol for LLM providers.
 
     Implementations: OpenAI, Anthropic, Ollama, Mock, etc.
-    
+
     Extended in RFC-012 to support:
     - Multi-turn conversations via Message tuples
     - Tool/function calling
@@ -169,14 +168,14 @@ class ModelProtocol(Protocol):
 
     async def generate(
         self,
-        prompt: Union[str, tuple[Message, ...]],
+        prompt: str | tuple[Message, ...],
         *,
         tools: tuple[Tool, ...] | None = None,
-        tool_choice: Union[Literal["auto", "none", "required"], str, dict] | None = None,
+        tool_choice: Literal["auto", "none", "required"] | str | dict | None = None,
         options: GenerateOptions | None = None,
     ) -> GenerateResult:
         """Generate a response.
-        
+
         Args:
             prompt: Either a single string prompt, or a tuple of Messages
                     for multi-turn conversations.
@@ -189,7 +188,7 @@ class ModelProtocol(Protocol):
                 - str: Force calling a specific tool by name
                 - dict: Provider-specific tool_choice (passed through)
             options: Generation options (temperature, max_tokens, etc.)
-            
+
         Returns:
             GenerateResult with content, tool_calls, and usage info.
             When tool_calls is non-empty, content may be None.
@@ -198,13 +197,13 @@ class ModelProtocol(Protocol):
 
     async def generate_stream(
         self,
-        prompt: Union[str, tuple[Message, ...]],
+        prompt: str | tuple[Message, ...],
         *,
         tools: tuple[Tool, ...] | None = None,
         options: GenerateOptions | None = None,
     ) -> AsyncIterator[str]:
         """Stream a response for the given prompt.
-        
+
         Note: Streaming with tools may yield partial tool calls.
         Use generate() for complete tool call handling.
         """

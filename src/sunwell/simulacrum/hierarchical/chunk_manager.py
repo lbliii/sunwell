@@ -21,26 +21,25 @@ import hashlib
 import json
 import math
 import time
-import warnings
+from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
-from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
-from sunwell.simulacrum.hierarchical.chunks import Chunk, ChunkType, ChunkSummary
+from sunwell.simulacrum.hierarchical.chunks import Chunk, ChunkSummary, ChunkType
 from sunwell.simulacrum.hierarchical.config import ChunkConfig
-from sunwell.simulacrum.hierarchical.ctf import CTFEncoder, CTFDecoder
+from sunwell.simulacrum.hierarchical.ctf import CTFDecoder, CTFEncoder
 
 if TYPE_CHECKING:
+    from sunwell.embedding.protocol import EmbeddingProtocol
     from sunwell.simulacrum.core.turn import Turn
     from sunwell.simulacrum.summarizer import Summarizer
-    from sunwell.embedding.protocol import EmbeddingProtocol
 
 
 @dataclass
 class ChunkManager:
     """Orchestrates the lifecycle of conversation chunks across tiers.
-    
+
     Responsibilities:
     - Creating micro-chunks from recent turns
     - Consolidating chunks into mini/macro levels
@@ -48,18 +47,18 @@ class ChunkManager:
     - Handling chunk retrieval and expansion
     - Semantic search via embeddings
     """
-    
+
     base_path: Path
     config: ChunkConfig = field(default_factory=ChunkConfig)
-    
+
     # Optional dependencies for processing
-    summarizer: "Summarizer | None" = None
-    embedder: "EmbeddingProtocol | None" = None
-    
+    summarizer: Summarizer | None = None
+    embedder: EmbeddingProtocol | None = None
+
     # Internal state
     _chunks: dict[str, Chunk] = field(default_factory=dict)
     _turn_count: int = 0
-    _pending_turns: list["Turn"] = field(default_factory=list)
+    _pending_turns: list[Turn] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         """Ensure chunk storage structure exists and load existing chunks."""
@@ -91,52 +90,52 @@ class ChunkManager:
 
     # === Turn Ingestion ===
 
-    async def add_turns(self, turns: Sequence["Turn"]) -> list[str]:
+    async def add_turns(self, turns: Sequence[Turn]) -> list[str]:
         """Add turns and trigger chunking logic."""
         new_ids = []
         for turn in turns:
             self._turn_count += 1
             self._pending_turns.append(turn)
-            
+
             if self._turn_count % self.config.micro_chunk_size == 0:
                 chunk_id = await self._create_micro_chunk()
                 new_ids.append(chunk_id)
                 self._maybe_demote_hot_chunks()
-                
+
                 if self._turn_count % self.config.mini_chunk_interval == 0:
                     mini_id = await self._consolidate_mini_chunk()
                     if mini_id:
                         new_ids.append(mini_id)
-                    
+
                 if self._turn_count % self.config.macro_chunk_interval == 0:
                     macro_id = await self._consolidate_macro_chunk()
                     if macro_id:
                         new_ids.append(macro_id)
-                    
+
         return new_ids
 
     async def _create_micro_chunk(self) -> str:
         """Create a micro-chunk from pending turns."""
         turns = tuple(self._pending_turns)
         self._pending_turns = []
-        
+
         start = self._turn_count - len(turns)
         end = self._turn_count
-        
+
         summary = ""
         if self.config.auto_summarize and self.summarizer:
             summary = await self.summarizer.summarize_turns(turns)
-            
+
         key_facts = ()
         if self.config.auto_extract_facts and self.summarizer:
             facts = await self.summarizer.extract_facts(turns)
             key_facts = tuple(facts)
-        
+
         embedding = None
         if self.config.auto_embed and self.embedder:
             text_to_embed = summary or self._turns_to_text(turns)
             embedding = tuple(await self.embedder.embed(text_to_embed))
-            
+
         chunk = Chunk(
             id=self._generate_chunk_id("micro", start, end),
             chunk_type=ChunkType.MICRO,
@@ -149,7 +148,7 @@ class ChunkManager:
             timestamp_end=turns[-1].timestamp if turns else "",
             key_facts=key_facts,
         )
-        
+
         self._chunks[chunk.id] = chunk
         self._save_chunk(chunk, tier="hot")
         return chunk.id
@@ -160,7 +159,7 @@ class ChunkManager:
         """Demote oldest hot chunks to warm tier."""
         hot_chunks = self._get_hot_chunks()
         hot_chunks.sort(key=lambda c: c.turn_range[0])
-        
+
         while len(hot_chunks) > self.config.hot_chunks:
             oldest = hot_chunks.pop(0)
             self.demote_to_warm(oldest.id)
@@ -173,11 +172,11 @@ class ChunkManager:
 
         ctf_content = CTFEncoder.encode_turns(chunk.turns)
         warm_chunk = replace(chunk, turns=None, content_ctf=ctf_content)
-        
+
         self._chunks[chunk_id] = warm_chunk
         self._save_chunk(warm_chunk, tier="warm")
         (self.base_path / "hot" / f"{chunk_id}.json").unlink(missing_ok=True)
-        
+
         return chunk_id
 
     def demote_to_cold(self, chunk_id: str) -> str:
@@ -185,16 +184,16 @@ class ChunkManager:
         chunk = self._chunks.get(chunk_id)
         if not chunk:
             return chunk_id
-            
+
         archive_ref = None
         if self.config.archive_cold_content:
             archive_ref = self._archive_chunk(chunk)
-            
+
         cold_chunk = replace(chunk, turns=None, content_ctf=None, content_ref=archive_ref)
         self._chunks[chunk_id] = cold_chunk
         self._save_chunk(cold_chunk, tier="cold")
         (self.base_path / "warm" / f"{chunk_id}.json").unlink(missing_ok=True)
-        
+
         return chunk_id
 
     def _archive_chunk(self, chunk: Chunk) -> str:
@@ -202,10 +201,10 @@ class ChunkManager:
         data = self._serialize_chunk(chunk)
         archive_ref = f"{chunk.id}.json.gz"
         archive_path = self.base_path / "archive" / archive_ref
-        
+
         with gzip.open(archive_path, "wt", encoding="utf-8") as f:
             json.dump(data, f)
-            
+
         return archive_ref
 
     # === Consolidation ===
@@ -216,22 +215,22 @@ class ChunkManager:
         needed = self.config.mini_chunk_interval // self.config.micro_chunk_size
         if len(micro_chunks) < needed:
             return None
-            
+
         recent = micro_chunks[-needed:]
         summaries = [c.summary for c in recent if c.summary]
         combined_summary = ""
         themes = ()
         key_facts = set()
-        
+
         if self.summarizer:
             combined_summary = await self.summarizer.summarize_turns([t for c in recent for t in (c.turns or ())])
             themes = tuple(await self.summarizer.extract_themes(summaries))
             for c in recent:
                 key_facts.update(c.key_facts)
-        
+
         start = recent[0].turn_range[0]
         end = recent[-1].turn_range[1]
-        
+
         mini_chunk = Chunk(
             id=self._generate_chunk_id("mini", start, end),
             chunk_type=ChunkType.MINI,
@@ -244,12 +243,12 @@ class ChunkManager:
             key_facts=tuple(key_facts),
             child_chunk_ids=tuple(c.id for c in recent),
         )
-        
+
         self._chunks[mini_chunk.id] = mini_chunk
         self._save_chunk(mini_chunk, tier="warm")
         for c in recent:
             self._chunks[c.id] = replace(c, parent_chunk_id=mini_chunk.id)
-            
+
         return mini_chunk.id
 
     async def _consolidate_macro_chunk(self) -> str | None:
@@ -258,22 +257,22 @@ class ChunkManager:
         needed = self.config.macro_chunk_interval // self.config.mini_chunk_interval
         if len(mini_chunks) < needed:
             return None
-            
+
         recent = mini_chunks[-needed:]
         summaries = [c.summary for c in recent if c.summary]
         exec_summary = ""
         themes = set()
         key_facts = set()
-        
+
         if self.summarizer:
             exec_summary = await self.summarizer.generate_executive_summary(summaries)
             for c in recent:
                 themes.update(c.themes)
                 key_facts.update(c.key_facts)
-                
+
         start = recent[0].turn_range[0]
         end = recent[-1].turn_range[1]
-        
+
         macro_chunk = Chunk(
             id=self._generate_chunk_id("macro", start, end),
             chunk_type=ChunkType.MACRO,
@@ -286,12 +285,12 @@ class ChunkManager:
             key_facts=tuple(key_facts),
             child_chunk_ids=tuple(c.id for c in recent),
         )
-        
+
         self._chunks[macro_chunk.id] = macro_chunk
         self._save_chunk(macro_chunk, tier="cold")
         for c in recent:
             self._chunks[c.id] = replace(c, parent_chunk_id=macro_chunk.id)
-            
+
         return macro_chunk.id
 
     # === Retrieval ===
@@ -300,7 +299,7 @@ class ChunkManager:
         """Retrieve relevant chunks using embeddings."""
         if not self.embedder:
             return list(self._chunks.values())[-limit:]
-            
+
         query_embedding = tuple(await self.embedder.embed(query))
         scored = []
         for chunk in self._chunks.values():
@@ -309,7 +308,7 @@ class ChunkManager:
             if chunk.embedding:
                 score = self._cosine_similarity(query_embedding, chunk.embedding)
                 scored.append((score, chunk))
-                
+
         scored.sort(key=lambda x: x[0], reverse=True)
         return [c for _, c in scored[:limit]]
 
@@ -317,12 +316,12 @@ class ChunkManager:
         """Build context window within token budget."""
         context = []
         token_budget = max_tokens
-        
+
         for chunk in self._get_hot_chunks():
             if chunk.token_count <= token_budget:
                 context.append(chunk)
                 token_budget -= chunk.token_count
-                
+
         macro_chunks = [c for c in self._chunks.values() if c.chunk_type == ChunkType.MACRO]
         for chunk in macro_chunks:
             summary_tokens = int(len(chunk.summary.split()) * 1.3)
@@ -333,7 +332,7 @@ class ChunkManager:
                     embedding=chunk.embedding
                 ))
                 token_budget -= summary_tokens
-                
+
         return context
 
     def expand_chunk(self, chunk_id: str) -> Chunk:
@@ -389,7 +388,7 @@ class ChunkManager:
     # === Utilities ===
 
     def _cosine_similarity(self, a: tuple[float, ...], b: tuple[float, ...]) -> float:
-        dot = sum(x * y for x, y in zip(a, b))
+        dot = sum(x * y for x, y in zip(a, b, strict=False))
         norm_a = math.sqrt(sum(x * x for x in a))
         norm_b = math.sqrt(sum(x * x for x in b))
         return dot / (norm_a * norm_b) if norm_a and norm_b else 0.0
@@ -398,7 +397,7 @@ class ChunkManager:
         content = f"{prefix}:{start}:{end}:{time.time()}"
         return f"{prefix}_{hashlib.md5(content.encode()).hexdigest()[:12]}"
 
-    def _turns_to_text(self, turns: tuple["Turn", ...]) -> str:
+    def _turns_to_text(self, turns: tuple[Turn, ...]) -> str:
         return "\n".join(f"{t.turn_type.value}: {t.content[:500]}" for t in turns)
 
     def _save_chunk(self, chunk: Chunk, tier: str) -> None:
@@ -438,7 +437,7 @@ class ChunkManager:
         hot = self._get_hot_chunks()
         warm = self._get_warm_chunks()
         cold = self._get_cold_chunks()
-        
+
         return {
             "total_chunks": len(self._chunks),
             "hot_chunks": len(hot),
@@ -454,15 +453,15 @@ class ChunkManager:
         """Delete archived chunks older than retention limit."""
         if self.config.cold_retention_days <= 0:
             return 0
-            
+
         count = 0
         now = time.time()
         retention_secs = self.config.cold_retention_days * 86400
-        
+
         archive_dir = self.base_path / "archive"
         for archive_file in archive_dir.glob("*.jsonl.gz"):
             if now - archive_file.stat().st_mtime > retention_secs:
                 archive_file.unlink()
                 count += 1
-                
+
         return count

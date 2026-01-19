@@ -1,0 +1,163 @@
+{
+  "timestamp": "2026-01-19T14:21:44.383628",
+  "model": "gemma3:1b",
+  "tasks": [
+    "locality-001",
+    "locality-002"
+  ],
+  "configs": [
+    "baseline",
+    "locality_only",
+    "interference_only",
+    "dialectic_only",
+    "resonance_only",
+    "gradient_only",
+    "full"
+  ],
+  "results": {
+    "locality-001": {
+      "baseline": {
+        "synthesis": "Okay, let\u2019s design a caching strategy for this web application, focusing on read-heavy, rarely updated user profiles, frequently updated news feeds, and consistent session data. We\u2019ll leverage a layer",
+        "total_signals": 9,
+        "distinct_cultures": 1,
+        "migrations": 0,
+        "total_time_s": 11.678419250063598,
+        "total_tokens": 740,
+        "matches_ground_truth": null,
+        "quality_score": null
+      },
+      "locality_only": {
+        "synthesis": "Okay, let's design a caching strategy for a web application with these diverse workloads \u2013 read-heavy user profiles, frequently updated news feeds, and consistent session data.  We\u2019ll focus on a hybri",
+        "total_signals": 27,
+        "distinct_cultures": 3,
+        "migrations": 2,
+        "total_time_s": 21.704297917080112,
+        "total_tokens": 1460,
+        "matches_ground_truth": null,
+        "quality_score": null
+      },
+      "interference_only": {
+        "synthesis": "## Caching Strategy for a Web Application \u2013 A Multi-Tiered Approach\n\nThis response outlines a comprehensive caching strategy for a web application, considering the diverse data types \u2013 user profiles, ",
+        "total_signals": 9,
+        "distinct_cultures": 1,
+        "migrations": 0,
+        "total_time_s": 13.16601120796986,
+        "total_tokens": 980,
+        "matches_ground_truth": null,
+        "quality_score": null
+      },
+      "dialectic_only": {
+        "synthesis": "Okay, let's design a layered caching strategy for a web application with the described read-heavy, frequently updated, and session-critical data types.  The goal is to balance performance, consistency",
+        "total_signals": 9,
+        "distinct_cultures": 1,
+        "migrations": 0,
+        "total_time_s": 10.280549374991097,
+        "total_tokens": 740,
+        "matches_ground_truth": null,
+        "quality_score": null
+      },
+      "resonance_only": {
+        "synthesis": "Okay, let's design a caching strategy for this web application, focusing on reducing load and improving performance.  We\u2019ll prioritize read-heavy workloads for user profiles and session data, while ac",
+        "total_signals": 9,
+        "distinct_cultures": 1,
+        "migrations": 1,
+        "total_time_s": 9.938104333006777,
+        "total_tokens": 740,
+        "matches_ground_truth": null,
+        "quality_score": null
+      },
+      "gradient_only": {
+        "synthesis": "Okay, let\u2019s design a caching strategy for this web application, focusing on read performance and reducing database load. Here\u2019s a comprehensive response, incorporating specific details, trade-offs, an",
+        "total_signals": 9,
+        "distinct_cultures": 1,
+        "migrations": 1,
+        "total_time_s": 9.948959417059086,
+        "total_tokens": 740,
+        "matches_ground_truth": null,
+        "quality_score": null
+      },
+      "full": {
+        "synthesis": "Okay, let's design a caching strategy for a web application with the specified data types \u2013 user profiles, news feeds, and session data.  The goal is to boost performance while maintaining data consis",
+        "total_signals": 27,
+        "distinct_cultures": 3,
+        "migrations": 0,
+        "total_time_s": 21.42057316703722,
+        "total_tokens": 1460,
+        "matches_ground_truth": null,
+        "quality_score": null
+      }
+    },
+    "locality-002": {
+      "baseline": {
+        "synthesis": "Okay, let's thoroughly review this Python code snippet focusing on security, performance, and maintainability, with a particular emphasis on the SQL injection risk.\n\n**Overall Assessment: High Securit",
+        "total_signals": 9,
+        "distinct_cultures": 1,
+        "migrations": 1,
+        "total_time_s": 10.145731542026624,
+        "total_tokens": 740,
+        "matches_ground_truth": null,
+        "quality_score": null
+      },
+      "locality_only": {
+        "synthesis": "Okay, let's thoroughly review this Python code snippet focusing on security, performance, and maintainability, and then provide a detailed analysis with specific details, trade-offs, and examples.\n\n**",
+        "total_signals": 27,
+        "distinct_cultures": 3,
+        "migrations": 3,
+        "total_time_s": 20.77004291699268,
+        "total_tokens": 1460,
+        "matches_ground_truth": null,
+        "quality_score": null
+      },
+      "interference_only": {
+        "synthesis": "Okay, let's thoroughly review this Python code snippet focusing on security, performance, and maintainability, with a strong emphasis on the SQL injection risk.\n\n**Overall Assessment: High Security Ri",
+        "total_signals": 9,
+        "distinct_cultures": 1,
+        "migrations": 0,
+        "total_time_s": 10.100480041932315,
+        "total_tokens": 740,
+        "matches_ground_truth": null,
+        "quality_score": null
+      },
+      "dialectic_only": {
+        "synthesis": "Okay, let's thoroughly review this Python code snippet focusing on security, performance, and maintainability, with a strong emphasis on the SQL injection risk.\n\n**Overall Assessment: High Security Ri",
+        "total_signals": 9,
+        "distinct_cultures": 1,
+        "migrations": 2,
+        "total_time_s": 10.083533541997895,
+        "total_tokens": 740,
+        "matches_ground_truth": null,
+        "quality_score": null
+      },
+      "resonance_only": {
+        "synthesis": "Okay, let's thoroughly review this Python code snippet focusing on security, performance, and maintainability.  The core issue is the direct injection of user-provided data into an SQL query without a",
+        "total_signals": 9,
+        "distinct_cultures": 1,
+        "migrations": 0,
+        "total_time_s": 9.818843457964249,
+        "total_tokens": 740,
+        "matches_ground_truth": null,
+        "quality_score": null
+      },
+      "gradient_only": {
+        "synthesis": "Okay, let's break down this Python code snippet from a security, performance, and maintainability perspective, and then provide a comprehensive analysis and recommendations.\n\n**Overall Assessment: Hig",
+        "total_signals": 9,
+        "distinct_cultures": 1,
+        "migrations": 0,
+        "total_time_s": 12.975555166020058,
+        "total_tokens": 980,
+        "matches_ground_truth": null,
+        "quality_score": null
+      },
+      "full": {
+        "synthesis": "Okay, let's thoroughly review this Python code snippet focusing on security, performance, and maintainability, and then provide a detailed analysis and recommendations.\n\n**Overall Assessment: High Sec",
+        "total_signals": 27,
+        "distinct_cultures": 3,
+        "migrations": 3,
+        "total_time_s": 21.17406795802526,
+        "total_tokens": 1460,
+        "matches_ground_truth": null,
+        "quality_score": null
+      }
+    }
+  }
+}

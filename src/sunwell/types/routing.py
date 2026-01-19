@@ -5,7 +5,7 @@ from enum import Enum
 
 class RoutingTier(int, Enum):
     """Execution tiers for routing decisions (RFC-020).
-    
+
     This is separate from core.Tier which is for router execution tiers.
     This enum is specifically for cognitive routing tier decisions.
     """

@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Any, Literal
+from typing import Literal
 
 
 class Severity(Enum):
@@ -120,14 +120,14 @@ class Confidence:
 
 
 # Re-export SunwellError and ErrorCode from errors module for backward compatibility
-from sunwell.core.errors import SunwellError, ErrorCode
+from sunwell.core.errors import ErrorCode, SunwellError
 
 
 # Legacy ErrorCategory - kept for backward compatibility
 # New code should use ErrorCode from sunwell.core.errors
 class ErrorCategory(Enum):
     """Categories of errors in Sunwell.
-    
+
     DEPRECATED: Use ErrorCode from sunwell.core.errors instead.
     """
 
@@ -177,7 +177,7 @@ class LensResolutionError(SunwellError):
         self.lens_name = lens_name
         self.error_type = error_type
         self.conflicting_lenses = conflicting_lenses
-        
+
         # Map error_type to ErrorCode
         error_code_map = {
             "not_found": ErrorCode.LENS_NOT_FOUND,
@@ -185,7 +185,7 @@ class LensResolutionError(SunwellError):
             "version_conflict": ErrorCode.LENS_VERSION_CONFLICT,
             "merge_conflict": ErrorCode.LENS_MERGE_CONFLICT,
         }
-        
+
         super().__init__(
             code=error_code_map.get(error_type, ErrorCode.LENS_NOT_FOUND),
             context={

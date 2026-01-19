@@ -57,7 +57,7 @@ except ImportError:
 @click.option("--dry-run", is_flag=True, help="Skill execution: don't write files, output to stdout")
 @click.option("--tools/--no-tools", default=False, help="Enable tool calling (RFC-012)")
 @click.option("--tools-only", multiple=True, help="Restrict to specific tools (comma-separated)")
-@click.option("--trust", type=click.Choice(["discovery", "read_only", "workspace", "shell"]), 
+@click.option("--trust", type=click.Choice(["discovery", "read_only", "workspace", "shell"]),
               default="workspace", help="Tool trust level")
 @click.option("--smart", is_flag=True, help="Enable RFC-015 Adaptive Model Selection")
 @click.option("--router-model", default=None, help="Tiny LLM for cognitive routing (RFC-020)")
@@ -87,36 +87,36 @@ def apply(
     verbose: bool,
 ) -> None:
     """Apply a lens to a prompt.
-    
+
     DEPRECATED: Use the goal-first interface instead:
-    
+
         sunwell "Build a REST API with auth"
-    
+
     For interactive sessions:
-    
+
         sunwell chat
-    
+
     ---
-    
+
     Legacy documentation (for backward compatibility):
 
     By default, Sunwell auto-routes queries to relevant headspaces, spawning
     new ones when a novel domain is detected. Use --no-auto-headspace to disable.
-    
+
     With --headspace, explicitly specify which headspace to use:
-    
+
         sunwell apply lens.lens "Question 1" --headspace my-project
         sunwell apply lens.lens "Question 2" --headspace my-project  # Has Q1 context!
         sunwell apply lens.lens "Question 3" --headspace my-project --learn "API timeout is 5s"
-    
+
     Without --headspace (default), headspaces evolve automatically:
-    
+
         sunwell apply lens.lens "How do I set up JWT auth?"  # → Tracked
         sunwell apply lens.lens "Best token expiry times?"   # → Tracked (related)
         sunwell apply lens.lens "How to refresh tokens?"     # → Auto-spawns "jwt-auth-tokens"
-    
+
     With --tools, enable LLM tool calling (RFC-012):
-    
+
         sunwell apply lens.lens "Read config.yaml and summarize" --tools
         sunwell apply lens.lens "Create docs for src/" --tools --trust workspace
         sunwell apply lens.lens "Run tests" --tools --trust shell
@@ -130,7 +130,7 @@ def apply(
         sunwell apply lens.yaml --tier 2 --no-workspace "General writing task"
 
         sunwell apply tech-writer.lens "Create API docs for auth.py" --skill create-api-docs
-        
+
         sunwell apply lens.lens "Read and summarize README.md" --tools
     """
     # RFC-037: Show deprecation warning
@@ -140,7 +140,7 @@ def apply(
     console.print("[dim]    sunwell \"your goal here\"[/dim]")
     console.print("[dim]    sunwell chat  # for interactive sessions[/dim]")
     console.print()
-    
+
     # Auto-select model based on provider if not specified
     if model is None:
         model = {
@@ -148,16 +148,16 @@ def apply(
             "anthropic": "claude-sonnet-4-20250514",
             "mock": "mock-model",
         }.get(provider, "gpt-4o")
-    
+
     # Parse tools_only into a set if provided
     allowed_tools: set[str] | None = None
     if tools_only:
         allowed_tools = set()
         for t in tools_only:
             allowed_tools.update(t.split(","))
-    
+
     asyncio.run(_apply_async(
-        lens_path, prompt, model, provider, stream, tier, 
+        lens_path, prompt, model, provider, stream, tier,
         list(context), not no_workspace, output, save_session,
         headspace, not no_auto_headspace, list(learn), dead_end,
         skill, dry_run, tools, allowed_tools, trust, smart, router_model, verbose
@@ -193,13 +193,13 @@ async def _apply_async(
     fount = FountClient()
     loader = LensLoader(fount_client=fount)
     resolver = LensResolver(loader=loader)
-    
+
     try:
         # Convert local path to a source string that LensReference recognizes as local
         source = str(lens_path)
         if not (source.startswith("/") or source.startswith("./") or source.startswith("../")):
             source = f"./{source}"
-            
+
         ref = LensReference(source=source)
         lens = await resolver.resolve(ref)
     except SunwellError as e:
@@ -211,17 +211,17 @@ async def _apply_async(
 
     # Create model
     model = create_model(provider, model_name)
-    
+
     # Simulacrum handling: explicit name, auto-routing, or none
     hs = None
     headspace_path = None
     simulacrum_store = None  # SimulacrumStore from manager (for persistence)
     was_spawned = False
-    
+
     if headspace_name:
         # Explicit headspace specified - use legacy Simulacrum object
         headspace_path = Path(".sunwell/headspaces") / f"{headspace_name}.json"
-        
+
         if headspace_path.exists():
             hs = Simulacrum.load(headspace_path, lens=lens)
             if verbose:
@@ -233,25 +233,25 @@ async def _apply_async(
             hs = Simulacrum.create(headspace_name, lens=lens)
             if verbose:
                 console.print(f"\n[cyan]Simulacrum:[/cyan] {headspace_name} (new)")
-        
+
         # Add any learnings from command line
         for learning_text in learnings_to_add:
             await hs.add_learning(learning_text, category="fact")
             if verbose:
                 console.print(f"  [green]+ Learning:[/green] {learning_text}")
-        
+
         # Mark dead end if specified
         if dead_end_to_mark:
             hs.mark_dead_end(dead_end_to_mark)
             if verbose:
                 console.print(f"  [yellow]❌ Dead end:[/yellow] {dead_end_to_mark}")
-    
+
     elif auto_headspace:
         # Auto-routing: find best headspace or spawn new one
         try:
             manager = get_simulacrum_manager()
             simulacrum_store, was_spawned, explanation = manager.route_query(prompt)
-            
+
             if simulacrum_store:
                 headspace_name = manager._active_name
                 if verbose:
@@ -273,7 +273,7 @@ async def _apply_async(
         if SkillExecutor is None:
             console.print("[red]Skills not available.[/red]")
             sys.exit(1)
-            
+
         skill = lens.get_skill(skill_name)
         if not skill:
             available = [s.name for s in lens.skills] if lens.skills else []
@@ -313,7 +313,7 @@ async def _apply_async(
 
         # Display result
         if verbose:
-            console.print(f"\n[cyan]Skill Result:[/cyan]")
+            console.print("\n[cyan]Skill Result:[/cyan]")
             console.print(f"  Validation: {'✅ Passed' if skill_result.validation_passed else '⚠️ Issues found'}")
             console.print(f"  Confidence: {skill_result.confidence:.0%}")
             if skill_result.scripts_run:
@@ -340,23 +340,23 @@ async def _apply_async(
     if use_workspace:
         detector = WorkspaceDetector()
         workspace = detector.detect()
-        
+
         if verbose:
             console.print(f"\n[cyan]Workspace:[/cyan] {workspace.root}")
             console.print(f"  Git repo: {'Yes' if workspace.is_git else 'No'}")
-        
+
         # Create codebase indexer
         codebase_indexer = CodebaseIndexer(
             embedder=embedder,
             include_patterns=context_patterns if context_patterns else None,
         )
-        
+
         # Index the workspace
         if verbose:
             console.print("  [dim]Indexing codebase...[/dim]")
-        
+
         index = await codebase_indexer.index_workspace(workspace)
-        
+
         if verbose:
             console.print(f"  Files: {index.file_count} | Chunks: {len(index.chunks)} | Lines: {index.total_lines}")
 
@@ -365,33 +365,33 @@ async def _apply_async(
     if use_tools:
         from sunwell.tools.executor import ToolExecutor
         from sunwell.tools.types import ToolPolicy, ToolTrust
-        
+
         workspace_root = workspace.root if workspace else Path.cwd()
-        
+
         # Create sandbox for run_command
         sandbox = None
         if trust_level in ("shell", "full"):
             from sunwell.skills.sandbox import ScriptSandbox
             from sunwell.skills.types import TrustLevel
             sandbox = ScriptSandbox(trust=TrustLevel.SANDBOXED)
-        
+
         # Create tool policy
         policy = ToolPolicy(
             trust_level=ToolTrust.from_string(trust_level),
             allowed_tools=frozenset(allowed_tools) if allowed_tools else None,
         )
-        
+
         # RFC-027: Set up expertise tools if lens is available
         expertise_handler = None
         if lens:
             from sunwell.embedding import create_embedder
             from sunwell.runtime.retriever import ExpertiseRetriever
             from sunwell.tools.expertise import ExpertiseToolHandler
-            
+
             embedder = create_embedder()
             retriever = ExpertiseRetriever(lens=lens, embedder=embedder, top_k=5)
             expertise_handler = ExpertiseToolHandler(retriever=retriever, lens=lens)
-        
+
         tool_executor = ToolExecutor(
             workspace=workspace_root,
             sandbox=sandbox,
@@ -399,13 +399,13 @@ async def _apply_async(
             expertise_handler=expertise_handler,
             audit_path=Path(".sunwell/audit") if verbose else None,
         )
-        
+
         if verbose:
-            console.print(f"\n[cyan]Tool Calling:[/cyan] Enabled")
+            console.print("\n[cyan]Tool Calling:[/cyan] Enabled")
             console.print(f"  Trust level: {trust_level}")
             console.print(f"  Available tools: {', '.join(tool_executor.get_available_tools())}")
             if expertise_handler:
-                console.print(f"  [green]Self-directed expertise:[/green] Enabled (RFC-027)")
+                console.print("  [green]Self-directed expertise:[/green] Enabled (RFC-027)")
 
     # Set up model router if requested (RFC-015)
     model_router = None
@@ -416,34 +416,34 @@ async def _apply_async(
             stupid_model = create_model("ollama", "gemma3:1b")
         elif provider == "openai":
             stupid_model = create_model("openai", "gpt-4o-mini")
-        
+
         model_router = ModelRouter(
             primary_model=model,
             stupid_model=stupid_model,
             lens=lens,
         )
-        
+
         if verbose:
-            console.print(f"\n[cyan]Adaptive Model Selection:[/cyan] Enabled")
-    
+            console.print("\n[cyan]Adaptive Model Selection:[/cyan] Enabled")
+
     # RFC-020: Cognitive routing
     cognitive_router = None
     if router_model_name:
         from sunwell.routing import CognitiveRouter
-        
+
         router_model = create_model("ollama", router_model_name)
-        
+
         # Discover available lenses
         lens_dir = Path("lenses")
         available_lenses = []
         if lens_dir.exists():
             available_lenses = [p.stem for p in lens_dir.glob("*.lens")]
-        
+
         cognitive_router = CognitiveRouter(
             router_model=router_model,
             available_lenses=available_lenses,
         )
-        
+
         if verbose:
             console.print(f"\n[cyan]Cognitive Routing (RFC-020):[/cyan] {router_model_name}")
 
@@ -467,23 +467,23 @@ async def _apply_async(
     if verbose:
         from sunwell.runtime.classifier import IntentClassifier
         from sunwell.runtime.retriever import ExpertiseRetriever
-        
+
         # Classify intent
         classifier = IntentClassifier(lens=lens)
         classification = classifier.classify(prompt)
-        
-        console.print(f"\n[cyan]Intent Classification:[/cyan]")
+
+        console.print("\n[cyan]Intent Classification:[/cyan]")
         console.print(f"  Tier: [bold]{classification.tier.name}[/bold]")
         if classification.signals:
             console.print(f"  Signals: {', '.join(classification.signals)}")
-        
+
         # Show lens retrieval
         if classification.tier.value > 0:  # Not FAST_PATH
             retriever = ExpertiseRetriever(lens=lens, embedder=embedder, relevance_threshold=0.0)
             await retriever.initialize()
             retrieval = await retriever.retrieve(prompt, top_k=5)
-            
-            console.print(f"\n[cyan]Retrieved Lens Components:[/cyan]")
+
+            console.print("\n[cyan]Retrieved Lens Components:[/cyan]")
             if retrieval.heuristics:
                 console.print("  [green]Heuristics:[/green]")
                 for h in retrieval.heuristics:
@@ -497,16 +497,16 @@ async def _apply_async(
                 console.print("  [red]Validators:[/red]")
                 for v in retrieval.validators:
                     console.print(f"    • {v.name}")
-        
+
         # Show codebase retrieval
         if codebase_indexer:
             code_retrieval = await codebase_indexer.retrieve(prompt, top_k=5)
             if code_retrieval.chunks:
-                console.print(f"\n[cyan]Retrieved Code Context:[/cyan]")
+                console.print("\n[cyan]Retrieved Code Context:[/cyan]")
                 for chunk in code_retrieval.chunks:
                     score = code_retrieval.relevance_scores.get(chunk.id, 0)
                     console.print(f"  [blue]• {chunk.reference}[/blue] [dim](score: {score:.2f})[/dim]")
-        
+
         console.print()
 
     # Build prompt with headspace context if available
@@ -514,16 +514,16 @@ async def _apply_async(
     if hs:
         # Get headspace context (learnings, dead ends, focus)
         hs_context, hs_result = await hs.assemble_context(prompt, parallel=True)
-        
+
         if hs_context:
             full_prompt = f"{hs_context}\n\n---\n\n## Current Task\n\n{prompt}"
-            
+
             if verbose and hs_result.learnings:
-                console.print(f"\n[cyan]Simulacrum Context:[/cyan]")
+                console.print("\n[cyan]Simulacrum Context:[/cyan]")
                 console.print(f"  Learnings injected: {len(hs_result.learnings)}")
                 if hs_result.focus_topics:
                     console.print(f"  Focus: {', '.join(hs_result.focus_topics[:5])}")
-        
+
         # Record user message in headspace
         await hs.add_user_message(prompt)
 
@@ -533,9 +533,9 @@ async def _apply_async(
             # Streaming with tools
             console.print("[dim]Generating with tools...[/dim]\n")
             content_parts = []
-            
-            from sunwell.runtime.engine import TextEvent, ToolCallEvent, ToolResultEvent, DoneEvent
-            
+
+            from sunwell.runtime.engine import DoneEvent, TextEvent, ToolCallEvent, ToolResultEvent
+
             async for event in engine.execute_stream_with_tools(
                 full_prompt,
                 allowed_tools=allowed_tools,
@@ -553,7 +553,7 @@ async def _apply_async(
                 elif isinstance(event, DoneEvent):
                     if event.truncated:
                         console.print(f"\n[yellow]⚠ Max tool calls reached ({event.total_tool_calls})[/yellow]")
-            
+
             console.print()
             final_content = "".join(content_parts)
             result = None
@@ -564,23 +564,23 @@ async def _apply_async(
                     full_prompt,
                     allowed_tools=allowed_tools,
                 )
-            
+
             # Display tool history if verbose
             if verbose and tool_result.tool_history:
-                console.print(f"\n[cyan]Tool Execution History:[/cyan]")
+                console.print("\n[cyan]Tool Execution History:[/cyan]")
                 for tool_call, tool_res in tool_result.tool_history:
                     status = "[green]✓[/green]" if tool_res.success else "[red]✗[/red]"
                     console.print(f"  {status} {tool_call.name}: {tool_res.execution_time_ms}ms")
-            
+
             # Display result
             console.print(Markdown(tool_result.content))
             final_content = tool_result.content
-            
+
             if verbose:
                 console.print(f"\n[dim]Total tool calls: {tool_result.total_tool_calls}[/dim]")
                 if tool_result.truncated:
                     console.print("[yellow]⚠ Max tool calls reached[/yellow]")
-            
+
             result = None  # Different result type
     elif stream:
         # Stream output - collect for potential file writing
@@ -604,27 +604,27 @@ async def _apply_async(
         if verbose:
             console.print()
             display_execution_stats(result)
-    
+
     # Update headspace with response and auto-extract learnings
     if hs and headspace_path:
         # Legacy Simulacrum path
         await hs.add_assistant_message(final_content, model=f"{provider}:{model_name}")
-        
+
         # Auto-extract learnings from response
         from sunwell.simulacrum.extractors.extractor import auto_extract_learnings
         extracted = auto_extract_learnings(final_content, min_confidence=0.6)
-        
+
         for learning_text, category, confidence in extracted[:3]:  # Top 3
             await hs.add_learning(learning_text, category=category, confidence=confidence)
             if verbose:
                 console.print(f"  [green]+ Auto-learned ({category}):[/green] {learning_text[:60]}...")
-        
+
         hs.save(headspace_path)
-        
+
         if verbose:
             stats = hs.stats
             console.print(f"\n[dim]Simulacrum saved: {headspace_name} ({stats['learnings']} learnings)[/dim]")
-    
+
     elif simulacrum_store:
         # SimulacrumStore from manager (auto-routed)
         # Store the turn in the DAG
@@ -637,33 +637,33 @@ async def _apply_async(
             content=final_content,
             model=f"{provider}:{model_name}",
         )
-        
+
         # Auto-extract and store learnings
         try:
             from sunwell.simulacrum.extractors.extractor import auto_extract_learnings
             extracted = auto_extract_learnings(final_content, min_confidence=0.6)
-            
+
             for learning_text, category, confidence in extracted[:3]:
                 simulacrum_store.add_learning(learning_text, category=category, confidence=confidence)
                 if verbose:
                     console.print(f"  [green]+ Auto-learned ({category}):[/green] {learning_text[:60]}...")
         except ImportError:
             pass
-        
+
         # SimulacrumStore auto-saves, but ensure it's flushed
         simulacrum_store.flush()
-        
+
         if verbose:
             stats = simulacrum_store.stats()
             console.print(f"\n[dim]Simulacrum updated: {headspace_name} ({stats.get('total_nodes', 0)} nodes)[/dim]")
-    
+
     # Write output to file if requested
     if output_path:
         output_file = Path(output_path)
         output_file.parent.mkdir(parents=True, exist_ok=True)
         output_file.write_text(final_content)
         console.print(f"\n[green]✓ Output written to:[/green] {output_path}")
-    
+
     # Save session snapshot if requested
     if session_path and result:
         snapshot = EpisodeSnapshot.from_result(

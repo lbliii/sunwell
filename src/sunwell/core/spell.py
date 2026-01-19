@@ -22,7 +22,6 @@ Terminology:
 from __future__ import annotations
 
 import os
-import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -136,7 +135,7 @@ class Spell:
         """Return all incantations including aliases."""
         return (self.incantation,) + self.aliases
 
-    def to_routing_decision(self) -> "RoutingDecision":
+    def to_routing_decision(self) -> RoutingDecision:
         """Convert to RoutingDecision for CognitiveRouter."""
         from sunwell.routing.cognitive_router import Complexity, Intent, RoutingDecision
 
@@ -207,7 +206,7 @@ class Spell:
             result = result.replace(f"{{{{{key}}}}}", value)
         return result
 
-    def merge_with(self, base: "Spell") -> "Spell":
+    def merge_with(self, base: Spell) -> Spell:
         """Merge this spell with a base spell (for override layers)."""
         if not self.merge:
             return self  # Full override
@@ -273,7 +272,7 @@ class SpellResult:
     validation_warnings: tuple[str, ...] = ()
     gate_results: dict[str, bool] = field(default_factory=dict)
 
-    def with_warnings(self, warnings: list[str]) -> "SpellResult":
+    def with_warnings(self, warnings: list[str]) -> SpellResult:
         """Return a new result with added warnings."""
         return SpellResult(
             spell=self.spell,
@@ -309,7 +308,7 @@ class Grimoire:
     # Alias resolution cache
     _alias_map: dict[str, str] = field(default_factory=dict)
 
-    def load(self, lens: "Lens | None" = None) -> None:
+    def load(self, lens: Lens | None = None) -> None:
         """Load spells from all sources (gather the spellbooks)."""
         # Load user spells
         user_path = Path(os.path.expanduser(self.user_path))
@@ -485,7 +484,7 @@ class Grimoire:
 
         return sorted(result, key=lambda s: s.incantation)
 
-    def set_lens(self, lens: "Lens") -> None:
+    def set_lens(self, lens: Lens) -> None:
         """Update the active lens and reload lens spells."""
         self._lens_spells.clear()
         self._alias_map.clear()

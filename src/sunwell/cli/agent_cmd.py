@@ -28,13 +28,13 @@ console = Console()
 @click.group()
 def agent() -> None:
     """Agent commands for task execution and management.
-    
+
     For most use cases, you can skip this command group entirely:
-    
+
     \b
         sunwell "Build a REST API"          # Same as: sunwell agent run "..."
         sunwell "Build an app" --plan       # Same as: sunwell agent run "..." --dry-run
-    
+
     The agent command group is for advanced operations like resuming
     interrupted runs or running self-improvement mode.
     """
@@ -145,7 +145,7 @@ def run(
     \b
     For most cases, you can use the simpler form:
         sunwell "Build a REST API"
-    
+
     \b
     This command provides additional control:
         sunwell agent run "Build API" --strategy contract_first
@@ -456,7 +456,6 @@ async def _show_plan_preview(
     verbose: bool,
 ) -> None:
     """Show plan preview with cost estimates (RFC-040)."""
-    from sunwell.naaru import get_model_distribution
     from sunwell.naaru.incremental import PlanPreview
     from sunwell.naaru.persistence import PlanStore, hash_goal
 
@@ -470,7 +469,7 @@ async def _show_plan_preview(
 
     # Create preview with cost estimates
     store = PlanStore()
-    goal_hash = plan_id or hash_goal(goal)
+    plan_id or hash_goal(goal)
     preview = PlanPreview.create(graph, goal, store)
 
     console.print(f"[bold]📋 Execution Plan:[/bold] {goal}\n")
@@ -536,7 +535,6 @@ async def _incremental_run(
     from sunwell.naaru.incremental import (
         ChangeDetector,
         IncrementalExecutor,
-        PlanPreview,
         compute_rebuild_set,
     )
     from sunwell.naaru.persistence import PlanStore, hash_goal
@@ -561,7 +559,7 @@ async def _incremental_run(
         to_rebuild = compute_rebuild_set(graph, changes, previous)
 
         skip_count = len(graph) - len(to_rebuild)
-        console.print(f"📊 Found previous execution")
+        console.print("📊 Found previous execution")
         console.print(f"   Unchanged: {skip_count} artifacts")
         console.print(f"   To rebuild: {len(to_rebuild)} artifacts")
 
@@ -604,7 +602,7 @@ async def _incremental_run(
         )
 
         # Summary
-        console.print(f"\n[bold]═══ Summary ═══[/bold]")
+        console.print("\n[bold]═══ Summary ═══[/bold]")
         console.print(f"  Completed: {len(result.completed)}")
         console.print(f"  Failed: {len(result.failed)}")
         console.print(f"  Model distribution: {result.model_distribution}")
@@ -764,10 +762,7 @@ async def _resume_agent(checkpoint_path: str | None, plan_id: str | None, verbos
 
         store = PlanStore()
 
-        if plan_id:
-            execution = store.load(plan_id)
-        else:
-            execution = get_latest_execution()
+        execution = store.load(plan_id) if plan_id else get_latest_execution()
 
         if execution:
             await _resume_artifact_execution(execution, verbose)
@@ -861,7 +856,6 @@ async def _resume_agent(checkpoint_path: str | None, plan_id: str | None, verbos
 async def _resume_artifact_execution(execution, verbose: bool) -> None:
     """Resume artifact-based execution (RFC-040)."""
     from sunwell.naaru.persistence import (
-        ExecutionStatus,
         PlanStore,
         resume_execution,
     )
@@ -926,7 +920,7 @@ async def _resume_artifact_execution(execution, verbose: bool) -> None:
         store.save(execution)
 
         # Summary
-        console.print(f"\n[bold]═══ Summary ═══[/bold]")
+        console.print("\n[bold]═══ Summary ═══[/bold]")
         console.print(f"  Completed: {len(result.completed)}")
         console.print(f"  Failed: {len(result.failed)}")
 
@@ -1125,7 +1119,7 @@ def plans_cmd(list_plans: bool, clean: bool, delete_id: str | None, show_id: str
         console.print(f"  Status: {execution.status.value}")
         console.print(f"  Created: {execution.created_at}")
         console.print(f"  Updated: {execution.updated_at}")
-        console.print(f"\n[bold]Progress:[/bold]")
+        console.print("\n[bold]Progress:[/bold]")
         console.print(f"  Artifacts: {len(execution.graph)}")
         console.print(f"  Completed: {len(execution.completed)}")
         console.print(f"  Failed: {len(execution.failed)}")
@@ -1136,7 +1130,7 @@ def plans_cmd(list_plans: bool, clean: bool, delete_id: str | None, show_id: str
             for aid, error in list(execution.failed.items())[:5]:
                 console.print(f"  ✗ {aid}: {error[:40]}...")
 
-        console.print(f"\n[bold]Model distribution:[/bold]")
+        console.print("\n[bold]Model distribution:[/bold]")
         for tier, count in execution.model_distribution.items():
             console.print(f"  {tier}: {count}")
         return

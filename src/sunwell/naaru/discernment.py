@@ -50,15 +50,12 @@ Usage:
 
 from __future__ import annotations
 
-import json
-import re
 import ast
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
 
 from sunwell.models.ollama import OllamaModel
-from sunwell.models.protocol import Tool, ToolCall, GenerateOptions
+from sunwell.models.protocol import GenerateOptions, Tool
 
 
 class DiscernmentVerdict(Enum):
@@ -72,7 +69,7 @@ class DiscernmentVerdict(Enum):
 @dataclass
 class DiscernmentResult:
     """Result from Discernment evaluation."""
-    
+
     verdict: DiscernmentVerdict
     confident: bool  # If True, don't need to escalate to Wisdom
     luminance: float  # 0-10 confidence/quality score
@@ -99,47 +96,46 @@ def check_syntax(code: str) -> tuple[bool, str]:
 def check_imports(code: str) -> tuple[bool, str]:
     """Check if code has necessary imports."""
     tree = ast.parse(code)
-    
+
     imports = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
                 imports.add(alias.name.split('.')[0])
-        elif isinstance(node, ast.ImportFrom):
-            if node.module:
-                imports.add(node.module.split('.')[0])
-    
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imports.add(node.module.split('.')[0])
+
     # Get all names used in the code
     names_used = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Name):
             names_used.add(node.id)
-    
+
     # Common built-ins that don't need imports
-    builtins = {'print', 'len', 'range', 'str', 'int', 'float', 'list', 'dict', 
+    builtins = {'print', 'len', 'range', 'str', 'int', 'float', 'list', 'dict',
                 'set', 'tuple', 'True', 'False', 'None', 'open', 'type', 'isinstance',
                 'hasattr', 'getattr', 'setattr', 'super', 'self', 'cls'}
-    
+
     # Check for common unimported modules
     common_modules = {
         'json': 'json',
-        'os': 'os', 
+        'os': 'os',
         'sys': 'sys',
         'Path': 'pathlib',
         'datetime': 'datetime',
         'asyncio': 'asyncio',
         're': 're',
     }
-    
+
     missing = []
     for name, module in common_modules.items():
         if name in names_used and module not in imports and name not in imports:
             if name not in builtins:
                 missing.append(f"{module} (for {name})")
-    
+
     if missing:
         return False, f"Missing imports: {', '.join(missing)}"
-    
+
     return True, "Imports look complete"
 
 
@@ -149,28 +145,28 @@ def check_docstrings(code: str) -> tuple[bool, str]:
         tree = ast.parse(code)
     except SyntaxError:
         return False, "Cannot check docstrings - syntax error"
-    
+
     missing_docs = []
-    
+
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             # Skip private/dunder methods
             if node.name.startswith('_') and not node.name.startswith('__'):
                 continue
             # Check for docstring
-            if not (node.body and isinstance(node.body[0], ast.Expr) and 
+            if not (node.body and isinstance(node.body[0], ast.Expr) and
                     isinstance(node.body[0].value, ast.Constant)):
                 missing_docs.append(f"function '{node.name}'")
         elif isinstance(node, ast.ClassDef):
-            if not (node.body and isinstance(node.body[0], ast.Expr) and 
+            if not (node.body and isinstance(node.body[0], ast.Expr) and
                     isinstance(node.body[0].value, ast.Constant)):
                 missing_docs.append(f"class '{node.name}'")
-    
+
     if missing_docs and len(missing_docs) <= 3:
         return False, f"Missing docstrings for: {', '.join(missing_docs)}"
     elif len(missing_docs) > 3:
         return False, f"Missing docstrings for {len(missing_docs)} items"
-    
+
     return True, "Docstrings present"
 
 
@@ -180,30 +176,27 @@ def check_error_handling(code: str) -> tuple[bool, str]:
         tree = ast.parse(code)
     except SyntaxError:
         return True, "Cannot check - syntax error"
-    
-    has_try = False
-    has_raise = False
+
     dangerous_patterns = []
-    
+
     for node in ast.walk(tree):
         if isinstance(node, ast.Try):
-            has_try = True
+            pass
         if isinstance(node, ast.Raise):
-            has_raise = True
+            pass
         # Check for bare except
         if isinstance(node, ast.ExceptHandler) and node.type is None:
             dangerous_patterns.append("bare except clause")
         # Check for dangerous patterns
-        if isinstance(node, ast.Call):
-            if isinstance(node.func, ast.Name):
-                if node.func.id == 'eval':
-                    dangerous_patterns.append("use of eval()")
-                if node.func.id == 'exec':
-                    dangerous_patterns.append("use of exec()")
-    
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            if node.func.id == 'eval':
+                dangerous_patterns.append("use of eval()")
+            if node.func.id == 'exec':
+                dangerous_patterns.append("use of exec()")
+
     if dangerous_patterns:
         return False, f"Dangerous patterns: {', '.join(dangerous_patterns)}"
-    
+
     return True, "Error handling looks reasonable"
 
 
@@ -211,7 +204,7 @@ def run_structural_checks(code: str) -> dict[str, tuple[bool, str]]:
     """Run all structural checks on code."""
     # Check syntax first - if it fails, skip other checks
     syntax_result = check_syntax(code)
-    
+
     if not syntax_result[0]:
         # Syntax error - other checks would fail anyway
         return {
@@ -220,7 +213,7 @@ def run_structural_checks(code: str) -> dict[str, tuple[bool, str]]:
             "docstrings": (False, "Cannot check - syntax error"),
             "error_handling": (False, "Cannot check - syntax error"),
         }
-    
+
     return {
         "syntax": syntax_result,
         "imports": check_imports(code),
@@ -237,36 +230,36 @@ def run_structural_checks(code: str) -> dict[str, tuple[bool, str]]:
 @dataclass
 class Discernment:
     """The Naaru's quick insight before full Wisdom judgment.
-    
+
     Uses a tiered approach:
     1. Quick Insight (no LLM) - structural checks catch obvious issues
     2. Discernment (fast model) - rapid approve/reject decisions
     3. Escalate to Wisdom only for uncertain cases
     """
-    
+
     # Fast model for quick decisions (e.g., FunctionGemma)
     insight_model: str = "functiongemma"
-    
+
     # Purity thresholds for escalation
     auto_approve_purity: float = 8.0  # Auto-approve if luminance >= this
     auto_reject_purity: float = 4.0   # Auto-reject if luminance <= this
-    
+
     # Ollama base URL
     base_url: str = "http://localhost:11434/v1"
-    
+
     # Require structural checks to pass for approval
     require_structural_pass: bool = True
-    
+
     # Internal state
     _insight: OllamaModel | None = field(default=None, init=False)
-    
+
     @property
     def insight(self) -> OllamaModel:
         """Get the insight model for quick decisions."""
         if self._insight is None:
             self._insight = OllamaModel(model=self.insight_model, base_url=self.base_url)
         return self._insight
-    
+
     def _extract_code(self, proposal: dict) -> str:
         """Extract code from proposal."""
         # Try different fields where code might be
@@ -275,7 +268,7 @@ class Discernment:
             code = proposal.get("code", "")
         if not code:
             code = proposal.get("content", "")
-        
+
         # Clean up diff format if present
         if code.startswith("```"):
             # Remove markdown code blocks
@@ -289,30 +282,30 @@ class Discernment:
                 if in_block:
                     code_lines.append(line)
             code = "\n".join(code_lines)
-        
+
         return code.strip()
-    
+
     async def evaluate(self, proposal: dict) -> DiscernmentResult:
         """Evaluate a proposal using quick insight + fast model.
-        
+
         Returns:
             DiscernmentResult with verdict and luminance (confidence level)
         """
         code = self._extract_code(proposal)
         category = proposal.get("summary", {}).get("category", "code_quality")
         description = proposal.get("summary", {}).get("rationale", "")
-        
+
         # Step 1: Quick Insight - structural checks (fast, no LLM)
         structural_results = run_structural_checks(code)
         checks_passed = {k: v[0] for k, v in structural_results.items()}
-        
+
         # Count passed/failed
         passed = sum(1 for v in checks_passed.values() if v)
         total = len(checks_passed)
-        
+
         # Collect issues from failed checks
         issues = [v[1] for k, v in structural_results.items() if not v[0]]
-        
+
         # If syntax fails, reject immediately
         if not checks_passed.get("syntax", True):
             return DiscernmentResult(
@@ -323,21 +316,21 @@ class Discernment:
                 reason="Syntax error - code won't run",
                 checks_passed=checks_passed,
             )
-        
+
         # Step 2: Discernment - fast model decision
         try:
             insight_result = await self._quick_insight(code, category, description)
-            
+
             # Combine structural and insight results
             combined_luminance = insight_result.luminance
             if self.require_structural_pass:
                 # Penalize for failed structural checks
                 penalty = (total - passed) * 1.0
                 combined_luminance = max(0, insight_result.luminance - penalty)
-            
+
             # Merge issues
             all_issues = issues + insight_result.issues
-            
+
             # Determine verdict based on purity thresholds
             if combined_luminance >= self.auto_approve_purity and passed == total:
                 return DiscernmentResult(
@@ -349,7 +342,7 @@ class Discernment:
                     reason=f"Luminance {combined_luminance:.1f}/10 - approved",
                     checks_passed=checks_passed,
                 )
-            
+
             elif combined_luminance <= self.auto_reject_purity:
                 return DiscernmentResult(
                     verdict=DiscernmentVerdict.REJECT,
@@ -359,7 +352,7 @@ class Discernment:
                     reason=f"Luminance {combined_luminance:.1f}/10 - rejected",
                     checks_passed=checks_passed,
                 )
-            
+
             elif all_issues and combined_luminance < 7.0:
                 return DiscernmentResult(
                     verdict=DiscernmentVerdict.NEEDS_REFINEMENT,
@@ -369,7 +362,7 @@ class Discernment:
                     reason=f"Luminance {combined_luminance:.1f}/10 - needs refinement",
                     checks_passed=checks_passed,
                 )
-            
+
             else:
                 # Uncertain - escalate to full Wisdom
                 return DiscernmentResult(
@@ -380,11 +373,11 @@ class Discernment:
                     reason="Borderline case - needs Wisdom review",
                     checks_passed=checks_passed,
                 )
-                
+
         except Exception as e:
             # If insight fails, fall back to structural-only
             base_luminance = (passed / total) * 7.0 if total > 0 else 5.0
-            
+
             return DiscernmentResult(
                 verdict=DiscernmentVerdict.UNCERTAIN,
                 confident=False,
@@ -393,15 +386,15 @@ class Discernment:
                 reason="Insight error - escalating to Wisdom",
                 checks_passed=checks_passed,
             )
-    
+
     async def _quick_insight(
-        self, 
-        code: str, 
-        category: str, 
+        self,
+        code: str,
+        category: str,
         description: str,
     ) -> DiscernmentResult:
         """Use fast model for quick insight decision."""
-        
+
         prompt = f"""Review this code change:
 
 Category: {category}
@@ -419,12 +412,12 @@ Decide: approve_code, reject_code, or request_refinement."""
             tool_choice="required",
             options=GenerateOptions(temperature=0.1),
         )
-        
+
         if result.has_tool_calls:
             tc = result.tool_calls[0]
             args = tc.arguments
             luminance = float(args.get("score", 5.0))
-            
+
             return DiscernmentResult(
                 verdict=self._tool_to_verdict(tc.name),
                 confident=True,
@@ -433,7 +426,7 @@ Decide: approve_code, reject_code, or request_refinement."""
                 strengths=args.get("strengths", []),
                 reason=tc.name,
             )
-        
+
         # No tool call - uncertain
         return DiscernmentResult(
             verdict=DiscernmentVerdict.UNCERTAIN,
@@ -441,7 +434,7 @@ Decide: approve_code, reject_code, or request_refinement."""
             luminance=5.0,
             reason="No decision from insight model",
         )
-    
+
     def _tool_to_verdict(self, tool_name: str) -> DiscernmentVerdict:
         """Convert tool name to verdict."""
         mapping = {
@@ -531,13 +524,13 @@ DISCERNMENT_TOOLS = (
 
 async def demo():
     """Demonstrate the Discernment evaluator."""
-    
+
     print("=" * 60)
     print("Discernment Demo (The Naaru's Quick Insight)")
     print("=" * 60)
-    
+
     discerner = Discernment()
-    
+
     # Test proposals
     test_proposals = [
         {
@@ -545,10 +538,10 @@ async def demo():
             "diff": '''
 def calculate_sum(numbers: list[int]) -> int:
     """Calculate the sum of a list of numbers.
-    
+
     Args:
         numbers: List of integers to sum
-        
+
     Returns:
         The sum of all numbers
     """
@@ -587,22 +580,22 @@ def execute_user_code(code_string: str) -> Any:
             "summary": {"category": "code_quality", "rationale": "Execute user code"},
         },
     ]
-    
+
     for proposal in test_proposals:
         print(f"\n{'='*50}")
         print(f"Testing: {proposal['name']}")
         print("-" * 50)
-        
+
         result = await discerner.evaluate(proposal)
-        
+
         print(f"Verdict:    {result.verdict.value}")
         print(f"Confident:  {result.confident}")
         print(f"Luminance:  {result.luminance:.1f}/10")
         print(f"Reason:     {result.reason}")
-        
+
         if result.issues:
             print(f"Issues:     {', '.join(result.issues[:3])}")
-        
+
         checks = result.checks_passed
         print(f"Checks:     {sum(checks.values())}/{len(checks)} passed")
         for check, passed in checks.items():

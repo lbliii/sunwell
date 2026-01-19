@@ -17,18 +17,17 @@ Example:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sunwell.simulacrum.core.dag import ConversationDAG, Learning
     from sunwell.identity.store import IdentityStore
+    from sunwell.simulacrum.core.dag import ConversationDAG
 
 
 @dataclass
 class Fact:
     """A fact extracted from memory."""
-    
+
     content: str
     category: str
     confidence: float
@@ -37,46 +36,46 @@ class Fact:
     issues: list[str] = field(default_factory=list)
 
 
-@dataclass  
+@dataclass
 class UnifiedMemoryView:
     """Aggregates all memory sources into single view.
-    
+
     This is the "single pane of glass" for viewing what Sunwell knows
     about the user and the current session.
     """
-    
+
     # From DAG
     facts: list[Fact] = field(default_factory=list)
     turns_count: int = 0
-    
+
     # From Identity Store
     observations: list[dict[str, Any]] = field(default_factory=list)
     identity_prompt: str | None = None
     identity_confidence: float = 0.0
-    
+
     # Metadata
     session_name: str = ""
     global_identity_loaded: bool = False
-    
+
     @classmethod
     def from_session(
         cls,
-        dag: "ConversationDAG | None" = None,
-        identity_store: "IdentityStore | None" = None,
+        dag: ConversationDAG | None = None,
+        identity_store: IdentityStore | None = None,
         session_name: str = "",
-    ) -> "UnifiedMemoryView":
+    ) -> UnifiedMemoryView:
         """Load unified view from session components.
-        
+
         Args:
             dag: ConversationDAG with facts/learnings
             identity_store: IdentityStore with observations
             session_name: Name of the current session
-            
+
         Returns:
             UnifiedMemoryView aggregating all sources
         """
         view = cls(session_name=session_name)
-        
+
         # Load facts from DAG
         if dag:
             view.turns_count = len(dag.turns)
@@ -90,7 +89,7 @@ class UnifiedMemoryView:
                 # Quality scoring
                 fact.quality_score, fact.issues = score_fact_quality(learning.fact, learning.confidence)
                 view.facts.append(fact)
-        
+
         # Load identity
         if identity_store:
             identity = identity_store.identity
@@ -105,20 +104,20 @@ class UnifiedMemoryView:
             view.identity_prompt = identity.prompt
             view.identity_confidence = identity.confidence
             view.global_identity_loaded = True
-        
+
         return view
-    
+
     def render_panel(self) -> str:
         """Render as text for terminal display.
-        
+
         Returns a Rich-compatible string with the memory summary.
         """
         lines = []
-        
+
         # Header
         lines.append(f"[bold cyan]🧠 MEMORY: {self.session_name or 'default'}[/bold cyan]")
         lines.append("")
-        
+
         # Facts section
         if self.facts:
             lines.append(f"[bold]FACTS ({len(self.facts)})[/bold]")
@@ -132,7 +131,7 @@ class UnifiedMemoryView:
         else:
             lines.append("[dim]No facts learned yet[/dim]")
             lines.append("")
-        
+
         # Identity section
         if self.identity_prompt:
             conf_pct = int(self.identity_confidence * 100)
@@ -143,7 +142,7 @@ class UnifiedMemoryView:
                 prompt_preview += "..."
             lines.append(f"  [italic]{prompt_preview}[/italic]")
             lines.append("")
-        
+
         # Behaviors section
         if self.observations:
             lines.append(f"[bold]BEHAVIORS ({len(self.observations)} observations)[/bold]")
@@ -152,12 +151,12 @@ class UnifiedMemoryView:
             if len(self.observations) > 5:
                 lines.append(f"  [dim]... and {len(self.observations) - 5} more[/dim]")
             lines.append("")
-        
+
         # Stats
         lines.append(f"[dim]Turns: {self.turns_count} | Global identity: {'✓' if self.global_identity_loaded else '✗'}[/dim]")
-        
+
         return "\n".join(lines)
-    
+
     def to_json(self) -> dict[str, Any]:
         """Export as JSON-serializable dict."""
         return {
@@ -184,34 +183,34 @@ class UnifiedMemoryView:
 
 def score_fact_quality(fact: str, confidence: float) -> tuple[float, list[str]]:
     """Score fact quality and return issues.
-    
+
     Heuristics to flag suspicious facts:
     - Too short
     - Looks like category echo (extraction bug)
     - Too generic
-    
+
     Returns:
         Tuple of (quality_score, list_of_issues)
     """
     import re
-    
+
     issues = []
     score = confidence
-    
+
     # Too short
     if len(fact) < 10:
         score -= 0.2
         issues.append("very short")
-    
+
     # Looks like category echo (extraction bug pattern)
     if re.match(r"^[A-Z][a-z]+\s*\(", fact):
         score -= 0.3
         issues.append("looks like category echo")
-    
+
     # Too generic
     generic_patterns = ["user is back", "none", "nothing", "n/a", "unknown"]
     if fact.lower().strip() in generic_patterns:
         score -= 0.4
         issues.append("too generic")
-    
+
     return max(0.0, score), issues

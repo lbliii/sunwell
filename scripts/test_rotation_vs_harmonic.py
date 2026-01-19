@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compare Thought Rotation vs Harmonic Synthesis.
 
-Tests the hypothesis from RFC-028: Rotation can achieve similar quality
+Tests the hypothesis from : Rotation can achieve similar quality
 to Harmonic at ~1/3 the token cost by using frame markers within a 
 single generation instead of parallel generations + voting.
 """

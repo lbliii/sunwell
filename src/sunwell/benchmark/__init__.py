@@ -12,39 +12,39 @@ Components:
 
 Usage:
     from sunwell.benchmark import BenchmarkRunner, BenchmarkEvaluator
-    
+
     runner = BenchmarkRunner(model=model, lens_loader=loader)
     results = await runner.run_suite(category="docs")
-    
+
     evaluator = BenchmarkEvaluator(judge_model=judge)
     evaluation = await evaluator.evaluate_suite(results)
-    
+
     # Naaru benchmark (RFC-027)
     from sunwell.benchmark.naaru import NaaruBenchmarkRunner
     naaru_runner = NaaruBenchmarkRunner(model=model, judge_model=judge, ...)
     naaru_results = await naaru_runner.run_suite()
 """
 
-from sunwell.benchmark.types import (
-    BenchmarkTask,
-    TaskResult,
-    EvaluationResult,
-    JudgeVerdict,
-    RubricDimension,
-    DeterministicResult,
-    RetrievalMetrics,
-    BenchmarkResults,
-    StatisticalSummary,
-)
-from sunwell.benchmark.runner import BenchmarkRunner
 from sunwell.benchmark.evaluator import BenchmarkEvaluator
-from sunwell.benchmark.report import BenchmarkReporter
 
 # Naaru benchmark (RFC-027) - import conditionally to avoid circular imports
 from sunwell.benchmark.naaru import (
+    NaaruBenchmarkResults,
     NaaruBenchmarkRunner,
     NaaruCondition,
-    NaaruBenchmarkResults,
+)
+from sunwell.benchmark.report import BenchmarkReporter
+from sunwell.benchmark.runner import BenchmarkRunner
+from sunwell.benchmark.types import (
+    BenchmarkResults,
+    BenchmarkTask,
+    DeterministicResult,
+    EvaluationResult,
+    JudgeVerdict,
+    RetrievalMetrics,
+    RubricDimension,
+    StatisticalSummary,
+    TaskResult,
 )
 
 __all__ = [

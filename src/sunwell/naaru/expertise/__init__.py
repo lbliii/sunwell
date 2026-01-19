@@ -20,15 +20,15 @@ Example:
     ...     ExpertiseExtractor,
     ...     ExpertiseAwareArtifactPlanner,
     ... )
-    >>> 
+    >>>
     >>> classifier = DomainClassifier()
     >>> domain, confidence = classifier.classify("Write docs for the CLI")
     >>> # domain = "documentation", confidence = 0.9
-    >>> 
+    >>>
     >>> discovery = LensDiscovery()
     >>> lenses = await discovery.discover(domain)
     >>> # lenses = [tech-writer.lens, ...]
-    >>> 
+    >>>
     >>> extractor = ExpertiseExtractor(lenses)
     >>> expertise = await extractor.extract("Write docs for the CLI")
     >>> # expertise.heuristics = [Progressive Disclosure, Diataxis, ...]
@@ -36,8 +36,8 @@ Example:
 
 from sunwell.naaru.expertise.classifier import (
     Domain,
-    DomainClassifier,
     DomainClassification,
+    DomainClassifier,
 )
 from sunwell.naaru.expertise.context import (
     ExpertiseContext,

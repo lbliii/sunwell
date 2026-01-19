@@ -20,13 +20,14 @@ Supports:
 
 from __future__ import annotations
 
+import contextlib
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from sunwell.simulacrum.core.turn import Turn, Learning
     from sunwell.models.protocol import ModelProtocol
+    from sunwell.simulacrum.core.turn import Turn
 
 
 # Patterns that indicate a learning (from final responses)
@@ -52,7 +53,7 @@ USER_FACT_PATTERNS = {
         r"(?:my (?:project|app|team|company) is) ([^\.]{3,50})",  # "my project is sunwell"
         r"(?:i prefer|i like|i use) ([^\.]{3,50})",  # "i prefer typescript"
     ],
-    
+
     # Constraints
     "constraint": [
         r"(?:cannot|can't|won't|doesn't) ([^\.]+)",  # "can't exceed 1000"
@@ -60,7 +61,7 @@ USER_FACT_PATTERNS = {
         r"(?:requires?|needs?) ([^\.]+?) (?:to|before|first)",  # "requires auth to access"
         r"(?:only works|only valid) (?:with|when|if) ([^\.]+)",  # "only works with v2"
     ],
-    
+
     # Dead ends
     "dead_end": [
         r"(?:tried|attempted) ([^\.]+?) (?:but|however|didn't|failed)",  # "tried X but failed"
@@ -68,7 +69,7 @@ USER_FACT_PATTERNS = {
         r"(?:this approach|that method|this solution) (?:won't|doesn't|failed)",
         r"dead.?end|doesn't help|no luck|didn't work",
     ],
-    
+
     # Patterns
     "pattern": [
         r"(?:whenever|every time|each time) ([^\.]+)",  # "whenever X happens"
@@ -86,7 +87,7 @@ THINKING_PATTERNS = {
         r"(?:the .{0,30}) (?:is|are|has|have) (\d+[^\n,]*)",  # "the timeout is 5s"
         r"(?:found|discovered|noticed) (?:that )?([^,\n]+)",  # "found that auth is required"
     ],
-    
+
     # Rejected alternatives (GOLD for dead ends!)
     "dead_end": [
         r"(?:but |however |although )(?:that |this )(?:won't|wouldn't|can't|couldn't) ([^\n,]+)",
@@ -96,7 +97,7 @@ THINKING_PATTERNS = {
         r"(?:too |overly )(?:slow|expensive|complex|risky)([^\n,]*)",  # "too slow for production"
         r"(?:not viable|not feasible|not practical|won't scale)([^\n,]*)",
     ],
-    
+
     # Constraints/assumptions
     "constraint": [
         r"(?:assuming|given that|since|because) ([^\n,]+?) (?:we|I|this)",  # "assuming auth is required..."
@@ -104,7 +105,7 @@ THINKING_PATTERNS = {
         r"(?:the constraint|limitation|restriction) (?:is|here is) ([^\n,]+)",
         r"(?:can only|must only|should only) ([^\n,]+)",
     ],
-    
+
     # Uncertainty signals (lower confidence)
     "uncertainty": [
         r"(?:I'm not sure|not certain|unclear|might be wrong) ([^\n,]+)",
@@ -117,19 +118,19 @@ THINKING_PATTERNS = {
 @dataclass
 class ExtractedLearning:
     """A learning extracted from conversation."""
-    
+
     text: str
     """The extracted learning text."""
-    
+
     category: Literal["fact", "constraint", "dead_end", "pattern"]
     """Type of learning."""
-    
+
     confidence: float
     """Confidence in extraction (0-1)."""
-    
+
     source_text: str
     """Original text this was extracted from."""
-    
+
     pattern_matched: str
     """Which pattern triggered this extraction."""
 
@@ -137,46 +138,46 @@ class ExtractedLearning:
 @dataclass
 class LearningExtractor:
     """Extracts learnings from conversation automatically.
-    
+
     Uses regex patterns to identify likely learnings.
     Optionally can use an LLM for higher-quality extraction.
     """
-    
+
     min_confidence: float = 0.5
     """Minimum confidence to report a learning."""
-    
+
     use_llm: bool = False
     """Whether to use LLM for extraction (slower but better)."""
-    
-    llm: "ModelProtocol | None" = None
+
+    llm: ModelProtocol | None = None
     """LLM to use for extraction if use_llm=True."""
-    
+
     def extract_from_text(self, text: str) -> list[ExtractedLearning]:
         """Extract learnings from text using pattern matching.
-        
+
         Returns list of extracted learnings, sorted by confidence.
         """
         learnings = []
         text_lower = text.lower()
-        
+
         for category, patterns in LEARNING_PATTERNS.items():
             for pattern in patterns:
                 matches = re.finditer(pattern, text_lower, re.IGNORECASE)
-                
+
                 for match in matches:
                     # Get the captured group or full match
                     learning_text = match.group(1) if match.groups() else match.group(0)
                     learning_text = learning_text.strip()
-                    
+
                     # Skip very short or very long extractions
                     if len(learning_text) < 5 or len(learning_text) > 200:
                         continue
-                    
+
                     # Calculate confidence based on pattern specificity
                     confidence = self._calculate_confidence(
                         learning_text, pattern, category, text
                     )
-                    
+
                     if confidence >= self.min_confidence:
                         learnings.append(ExtractedLearning(
                             text=learning_text,
@@ -185,26 +186,26 @@ class LearningExtractor:
                             source_text=text[:500],
                             pattern_matched=pattern,
                         ))
-        
+
         # Deduplicate similar learnings
         learnings = self._deduplicate(learnings)
-        
+
         # Sort by confidence
         return sorted(learnings, key=lambda l: l.confidence, reverse=True)
-    
-    def extract_from_turn(self, turn: "Turn") -> list[ExtractedLearning]:
+
+    def extract_from_turn(self, turn: Turn) -> list[ExtractedLearning]:
         """Extract learnings from a conversation turn."""
         # Only extract from assistant responses (they contain findings)
         if turn.turn_type.value != "assistant":
             return []
-        
+
         return self.extract_from_text(turn.content)
-    
+
     async def extract_with_llm(self, text: str) -> list[ExtractedLearning]:
         """Use LLM to extract learnings (higher quality, slower)."""
         if not self.llm:
             return self.extract_from_text(text)
-        
+
         prompt = f"""Extract key learnings from this text. For each learning, identify:
 - The fact, constraint, pattern, or dead end
 - Its category (fact, constraint, dead_end, pattern)
@@ -221,11 +222,11 @@ CONFIDENCE: [0.0-1.0]
 Only extract clear, actionable learnings. Skip vague observations."""
 
         result = await self.llm.generate(prompt)
-        
+
         # Parse LLM response
         learnings = []
         current = {}
-        
+
         for line in result.content.split("\n"):
             line = line.strip()
             if line.startswith("LEARNING:"):
@@ -243,11 +244,9 @@ Only extract clear, actionable learnings. Skip vague observations."""
                 if cat in ("fact", "constraint", "dead_end", "pattern"):
                     current["category"] = cat
             elif line.startswith("CONFIDENCE:"):
-                try:
+                with contextlib.suppress(ValueError):
                     current["confidence"] = float(line[11:].strip())
-                except ValueError:
-                    pass
-        
+
         # Don't forget last one
         if current.get("text"):
             learnings.append(ExtractedLearning(
@@ -257,9 +256,9 @@ Only extract clear, actionable learnings. Skip vague observations."""
                 source_text=text[:500],
                 pattern_matched="llm",
             ))
-        
+
         return learnings
-    
+
     def _calculate_confidence(
         self,
         learning: str,
@@ -269,11 +268,11 @@ Only extract clear, actionable learnings. Skip vague observations."""
     ) -> float:
         """Calculate confidence score for an extraction."""
         confidence = 0.5  # Base
-        
+
         # Boost for specific patterns
         if any(x in pattern for x in [r"\d+", "timeout", "limit", "requires"]):
             confidence += 0.2  # Specific patterns more reliable
-        
+
         # Boost for category-specific keywords in context
         if category == "dead_end" and any(x in context.lower() for x in ["failed", "error", "didn't work"]):
             confidence += 0.15
@@ -281,37 +280,37 @@ Only extract clear, actionable learnings. Skip vague observations."""
             confidence += 0.1
         elif category == "constraint" and any(x in context.lower() for x in ["must", "cannot", "blocked"]):
             confidence += 0.15
-        
+
         # Penalty for very generic extractions
         if len(learning) < 10:
             confidence -= 0.2
-        
+
         # Boost for numbers (usually more reliable)
         if re.search(r'\d+', learning):
             confidence += 0.1
-        
+
         return min(1.0, max(0.0, confidence))
-    
+
     def _deduplicate(self, learnings: list[ExtractedLearning]) -> list[ExtractedLearning]:
         """Remove duplicate or very similar learnings."""
         seen = set()
         unique = []
-        
+
         for l in learnings:
             # Normalize for comparison
             normalized = l.text.lower().strip()
-            
+
             # Check for exact or near duplicates
             is_dup = False
             for s in seen:
                 if normalized in s or s in normalized:
                     is_dup = True
                     break
-            
+
             if not is_dup:
                 seen.add(normalized)
                 unique.append(l)
-        
+
         return unique
 
 
@@ -320,12 +319,12 @@ def auto_extract_learnings(
     min_confidence: float = 0.6,
 ) -> list[tuple[str, str, float]]:
     """Convenience function: extract learnings from response.
-    
+
     Returns list of (learning_text, category, confidence) tuples.
     """
     extractor = LearningExtractor(min_confidence=min_confidence)
     extracted = extractor.extract_from_text(response_text)
-    
+
     return [(l.text, l.category, l.confidence) for l in extracted]
 
 
@@ -334,28 +333,28 @@ def extract_user_facts(
     min_confidence: float = 0.7,
 ) -> list[tuple[str, str, float]]:
     """Extract facts stated by user using regex patterns (fallback).
-    
+
     Returns list of (fact_text, category, confidence) tuples.
-    
+
     Note: Prefer extract_user_facts_with_llm() for better accuracy.
     """
     learnings = []
     text_lower = user_message.lower()
-    
+
     for category, patterns in USER_FACT_PATTERNS.items():
         for pattern in patterns:
             matches = re.finditer(pattern, text_lower, re.IGNORECASE)
-            
+
             for match in matches:
                 fact_text = match.group(1).strip() if match.groups() else match.group(0).strip()
-                
+
                 # Skip very short extractions
                 if len(fact_text) < 2 or len(fact_text) > 100:
                     continue
-                
+
                 # High confidence for explicit statements
                 confidence = 0.9
-                
+
                 # Format nicely based on pattern
                 if "name" in pattern:
                     fact_text = f"User's name is {fact_text}"
@@ -365,39 +364,36 @@ def extract_user_facts(
                     fact_text = f"User is working with {fact_text}"
                 elif "prefer" in pattern or "like" in pattern:
                     fact_text = f"User prefers {fact_text}"
-                
+
                 learnings.append((fact_text, category, confidence))
-    
+
     return learnings
 
 
 def _is_low_quality_fact(text: str) -> bool:
     """Quick sanity check for obviously bad extractions.
-    
+
     Not heavy regex - just basic quality gates. Trust the LLM prompt.
     """
     text_clean = text.strip().lower()
-    
+
     # Too short to be useful
     if len(text_clean) < 8:
         return True
-    
+
     # Looks like a category label (starts with generic word + parenthetical)
     first_word = text_clean.split()[0].rstrip("s:,")
     if first_word in ("names", "preferences", "context", "relationships", "facts") and "(" in text_clean:
         return True
-    
+
     # Just says "none" or similar
-    if text_clean in ("none", "nothing", "n/a", "no facts"):
-        return True
-    
-    return False
+    return text_clean in ("none", "nothing", "n/a", "no facts")
 
 
 def _infer_fact_category(fact_text: str) -> str:
     """Infer semantic category from fact content."""
     text_lower = fact_text.lower()
-    
+
     if any(kw in text_lower for kw in ["named", "name is", "called", "nickname"]):
         return "names"
     if any(kw in text_lower for kw in ["pet", "cat", "dog", "family", "wife", "husband"]):
@@ -406,7 +402,7 @@ def _infer_fact_category(fact_text: str) -> str:
         return "context"
     if any(kw in text_lower for kw in ["prefer", "like", "favorite"]):
         return "preferences"
-    
+
     return "fact"
 
 
@@ -439,32 +435,32 @@ Examples:
 
 async def extract_user_facts_with_llm(
     user_message: str,
-    model: "ModelProtocol",
+    model: ModelProtocol,
 ) -> list[tuple[str, str, float]]:
     """Extract facts from user message using a tiny LLM.
-    
+
     Much more flexible than regex - catches natural variations like:
     - "i have a cat named milo"
     - "milo is my russian blue"
     - "her nickname is kiki"
-    
+
     Includes echo filtering to prevent prompt example leakage.
-    
+
     Args:
         user_message: The user's input message
         model: A tiny LLM (gemma3:1b, gpt-4o-mini, etc.)
-    
+
     Returns:
         List of (fact_text, category, confidence) tuples.
     """
     from sunwell.models.protocol import Message
-    
+
     prompt = _FACT_EXTRACTION_PROMPT.format(message=user_message)
-    
+
     try:
         result = await model.generate((Message(role="user", content=prompt),))
         response = result.content.strip()
-        
+
         # Parse response with echo filtering
         facts = []
         for line in response.split("\n"):
@@ -472,7 +468,7 @@ async def extract_user_facts_with_llm(
             if line.startswith("FACT:"):
                 fact_text = line[5:].strip()
                 # Filter out echoes and invalid responses
-                if (fact_text 
+                if (fact_text
                     and fact_text.upper() != "NONE"
                     and not _is_low_quality_fact(fact_text)):
                     # Infer actual category from content
@@ -480,7 +476,7 @@ async def extract_user_facts_with_llm(
                     facts.append((fact_text, category, 0.85))
             elif line.upper() == "NONE":
                 break
-        
+
         return facts
     except Exception:
         # Fall back to regex on error

@@ -34,7 +34,7 @@ Components:
 
 Example:
     >>> from sunwell.naaru import Naaru, NaaruConfig
-    >>> 
+    >>>
     >>> naaru = Naaru(
     ...     synthesis_model=OllamaModel("gemma3:1b"),
     ...     judge_model=OllamaModel("gemma3:4b"),
@@ -43,7 +43,7 @@ Example:
     ...         resonance_max_attempts=2,
     ...     ),
     ... )
-    >>> 
+    >>>
     >>> results = await naaru.illuminate(
     ...     goals=["improve error handling"],
     ...     max_time_seconds=120,
@@ -63,6 +63,7 @@ Lore:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import uuid
 from abc import ABC, abstractmethod
@@ -158,7 +159,7 @@ class NaaruMessage:
 
 class MessageBus:
     """Central communication bus connecting Naaru regions.
-    
+
     Like the brain's corpus callosum, this allows different specialized
     regions to communicate and coordinate.
     """
@@ -301,10 +302,10 @@ class AnalysisWorker(RegionWorker):
 
 class HarmonicSynthesisWorker(RegionWorker):
     """Synthesis region with Harmonic Synthesis (multi-persona generation).
-    
+
     Harmonic Synthesis: Instead of generating once, the Naaru generates with
     MULTIPLE PERSONAS in parallel, then has them vote on the best solution.
-    
+
     The key insight: temperature diversity gives random variance,
     lens diversity gives STRUCTURED variance based on domain knowledge.
     """
@@ -363,12 +364,12 @@ class HarmonicSynthesisWorker(RegionWorker):
     @property
     def thought_lexer(self) -> ThoughtLexer:
         """Get or create the ThoughtLexer (RFC-028).
-        
+
         Model priority for task classification:
         1. config.lexer_model (explicit)
         2. routing_worker.router_model (attunement model, typically qwen2.5:3b)
         3. None (falls back to keyword classification)
-        
+
         Does NOT use synthesis model - it's too small for reliable JSON.
         """
         if self._thought_lexer is None:
@@ -455,15 +456,15 @@ class HarmonicSynthesisWorker(RegionWorker):
 
     async def harmonize(self, opportunity: dict, routing: dict | None = None) -> dict | None:
         """Harmonic Synthesis - Multi-persona generation with voting.
-        
+
         This is the novel technique from RFC-019:
         1. Generate with ALL lens personas IN PARALLEL
         2. Each persona votes on all candidates
         3. Winner = majority vote
-        
+
         Theory: Standard self-consistency uses temperature for variance.
         Harmonic Synthesis uses STRUCTURED variance via domain expertise.
-        
+
         Args:
             opportunity: Task description and metadata
             routing: RFC-020 Attunement decision with intent, lens, focus
@@ -615,14 +616,14 @@ Respond with ONLY the number (1, 2, or 3):"""
         routing: dict | None = None,
     ) -> dict | None:
         """Shard-assisted synthesis - Overlap generation with CPU helpers.
-        
+
         While the GPU generates tokens, CPU-bound Shards gather context:
         - Memory Fetcher: Query SimulacrumStore
         - Context Preparer: Load lens, embed query
         - Lookahead: Pre-fetch for next task
-        
+
         This overlaps I/O with compute for faster wall-clock time.
-        
+
         Args:
             routing: RFC-020 Attunement decision with intent, lens, focus
         """
@@ -719,7 +720,7 @@ Code only:"""
 
     async def _synthesize_with_llm(self, opportunity: dict, routing: dict | None = None) -> dict | None:
         """Standard LLM synthesis (no Harmonic or Shards).
-        
+
         Args:
             routing: RFC-020 Attunement decision with intent, lens, focus
         """
@@ -871,7 +872,7 @@ Code only, no explanations:"""
 
 class ValidationWorker(RegionWorker):
     """Validation region with Tiered Validation.
-    
+
     Tiered Validation:
     1. Structural checks (no LLM) - catch syntax errors, missing imports
     2. FunctionGemma (270M) - fast approve/reject for clear cases
@@ -1155,7 +1156,7 @@ class ExecutiveWorker(RegionWorker):
 
 class CognitiveRoutingWorker(RegionWorker):
     """Routing region - RFC-030 UnifiedRouter for all routing decisions.
-    
+
     RFC-030 MIGRATION: Now uses UnifiedRouter instead of CognitiveRouter.
     The UnifiedRouter handles ALL routing decisions in a single inference:
     - intent: What kind of task is this?
@@ -1165,7 +1166,7 @@ class CognitiveRoutingWorker(RegionWorker):
     - mood: User's emotional state
     - expertise: User's skill level
     - confidence: How certain is the routing?
-    
+
     Backward Compatibility:
         The output format is compatible with legacy consumers via
         LegacyRoutingAdapter. Existing code using the routing dict
@@ -1238,7 +1239,7 @@ class CognitiveRoutingWorker(RegionWorker):
 
     async def _route_task(self, task: str, context: dict | None = None) -> dict:
         """Route a task and return the routing decision.
-        
+
         RFC-030: Uses UnifiedRouter by default, falling back to heuristics.
         Output format is backward-compatible with legacy consumers.
         """
@@ -1322,11 +1323,11 @@ class CognitiveRoutingWorker(RegionWorker):
 
 class ToolRegionWorker(RegionWorker):
     """Executes tools on behalf of other regions (RFC-032).
-    
+
     This is the bridge between Naaru's cognitive architecture and
     the outside world. All file I/O, commands, and web access
     flow through here.
-    
+
     Message Types Handled:
     - TOOL_REQUEST: Execute a tool and return result
     - TOOL_BATCH: Execute multiple tools (parallel when possible)
@@ -1422,7 +1423,7 @@ class ToolRegionWorker(RegionWorker):
 @dataclass
 class AgentResult:
     """Result from agent mode execution (RFC-032).
-    
+
     Contains the goal, executed tasks, and any artifacts produced.
     """
 
@@ -1459,23 +1460,23 @@ class AgentResult:
 @dataclass
 class Naaru:
     """The Naaru - Coordinated Intelligence for Local Models.
-    
+
     This is the main entry point for the RFC-019 architecture.
     It coordinates all components to maximize quality and throughput
     from small local models.
-    
+
     RFC-032 additions:
     - planner: TaskPlanner for goal decomposition
     - tool_executor: ToolExecutor for external actions
     - run(): Execute arbitrary user tasks (agent mode)
-    
+
     Example (self-improvement mode):
         >>> naaru = Naaru(
         ...     synthesis_model=OllamaModel("gemma3:1b"),
         ...     judge_model=OllamaModel("gemma3:4b"),
         ... )
         >>> results = await naaru.illuminate(goals=["improve error handling"])
-    
+
     Example (agent mode - RFC-032):
         >>> naaru = Naaru(
         ...     synthesis_model=OllamaModel("gemma3:1b"),
@@ -1519,14 +1520,14 @@ class Naaru:
         on_output: Callable[[str], None] = None,
     ) -> dict:
         """Have the Naaru illuminate goals and generate improvements.
-        
+
         The Naaru's light reveals the best path forward.
-        
+
         Args:
             goals: What to focus on
             max_time_seconds: Maximum thinking time
             on_output: Callback for progress updates
-            
+
         Returns:
             Results dict with proposals and stats
         """
@@ -1602,10 +1603,8 @@ class Naaru:
 
         for task in tasks:
             task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await task
-            except asyncio.CancelledError:
-                pass
 
         # Collect results
         results = self._collect_results()
@@ -1641,19 +1640,19 @@ class Naaru:
         max_time_seconds: float = 300,
     ) -> AgentResult:
         """Execute an arbitrary user task (RFC-032 Agent Mode).
-        
+
         This is the RFC-032 agent mode entry point. Unlike illuminate(),
         which focuses on self-improvement, run() can execute any user goal.
-        
+
         Args:
             goal: What the user wants to accomplish
             context: Optional context (cwd, file state, etc.)
             on_progress: Callback for progress updates
             max_time_seconds: Maximum execution time
-            
+
         Returns:
             AgentResult with outputs, artifacts, and execution trace
-            
+
         Example:
             >>> result = await naaru.run(
             ...     "Build a React forum app",
@@ -1723,7 +1722,7 @@ class Naaru:
         max_time: float,
     ) -> list:
         """Execute tasks respecting dependencies AND parallelization (RFC-032, RFC-034).
-        
+
         RFC-034 enhancements:
         - Tracks produced artifacts for artifact-based dependencies
         - Groups ready tasks for parallel execution based on resource conflicts
@@ -1815,14 +1814,14 @@ class Naaru:
 
     def _group_for_parallel_execution(self, ready: list) -> list[list]:
         """Group ready tasks into parallel-safe batches (RFC-034).
-        
+
         Tasks can run in parallel if:
         1. They're in the same parallel_group (or both have None)
         2. Their `modifies` sets don't overlap (no file conflicts)
-        
+
         Args:
             ready: List of ready tasks
-            
+
         Returns:
             List of batches, where each batch can execute concurrently
         """
@@ -1909,7 +1908,7 @@ Provide key findings in a structured format."""
 
     async def _execute_command_task(self, task) -> None:
         """Execute a shell command task using the task's specified tools.
-        
+
         RFC-032: Tasks specify which tools they need. For execute mode:
         - If task has tools like git_init, use those directly
         - Fall back to run_command only if no specific tools specified
@@ -1978,52 +1977,52 @@ Provide key findings in a structured format."""
 
     def _strip_markdown_fences(self, content: str) -> str:
         """Strip markdown code fences from LLM output.
-        
+
         Handles:
         - ```python\n...\n``` (exact match)
         - ```python\n...\n```\nexplanation text (trailing text after fence)
         - ``` ... ``` (no language)
         """
         import re
-        
+
         # Pattern: opening fence, content, closing fence, optionally followed by anything
         # Non-greedy match for content to stop at first ```
         pattern = r'^```(?:\w+)?\n(.*?)\n```(?:\s.*)?$'
-        
+
         match = re.match(pattern, content.strip(), re.DOTALL)
         if match:
             return match.group(1).strip()
-        
+
         # Fallback: Find first ``` and last ``` on its own line
         lines = content.strip().split('\n')
-        
+
         # Find start (```python or ``` line)
         start_idx = None
         for i, line in enumerate(lines):
             if line.strip().startswith('```'):
                 start_idx = i
                 break
-        
+
         if start_idx is None:
             return content  # No fences found
-        
+
         # Find end (``` line after start)
         end_idx = None
         for i in range(start_idx + 1, len(lines)):
             if lines[i].strip() == '```':
                 end_idx = i
                 break
-        
+
         if end_idx is None:
             # No closing fence - remove just the opening
             return '\n'.join(lines[start_idx + 1:])
-        
+
         # Extract content between fences
         return '\n'.join(lines[start_idx + 1:end_idx])
 
     async def _generate_task(self, task) -> None:
         """Generate content using synthesis, then write to file.
-        
+
         Includes:
         - Harmonic Synthesis (multi-persona generation) if enabled
         - Signal-based content validation with escalation to larger model
@@ -2050,10 +2049,10 @@ Provide only the content, no explanations. Do NOT wrap in markdown fences:"""
                 options=GenerateOptions(temperature=0.3, max_tokens=2048),
             )
             content = result.content or ""
-        
+
         # Strip markdown fences if LLM included them despite instructions
         content = self._strip_markdown_fences(content)
-        
+
         # Signal-based content validation (RFC-036 style)
         if task.target_path:
             content = await self._validate_and_escalate(
@@ -2075,34 +2074,34 @@ Provide only the content, no explanations. Do NOT wrap in markdown fences:"""
             task.result = {"content": content, "path": task.target_path}
         else:
             task.result = {"content": content}
-    
+
     async def _validate_and_escalate(
-        self, 
-        content: str, 
-        task_description: str, 
+        self,
+        content: str,
+        task_description: str,
         target_path: str,
         original_prompt: str,
     ) -> str:
         """Validate content and escalate to larger model if needed.
-        
+
         Uses fast heuristics first (no LLM cost), then escalates if:
         - Wrong content type (e.g., JSON instead of Python)
         - Syntax errors
         - Stub/placeholder content
         """
+        from sunwell.models.protocol import GenerateOptions
         from sunwell.naaru.experiments.content_validation import (
             fast_validate,
             infer_expected_type,
         )
         from sunwell.naaru.experiments.signals import Trit
-        from sunwell.models.protocol import GenerateOptions
-        
+
         expected_type = infer_expected_type(target_path)
         result = fast_validate(content, expected_type)
-        
+
         if result.signal == Trit.NO:
             return content  # Looks good, no escalation needed
-        
+
         # Content has issues - try to escalate
         if result.signal == Trit.YES or result.needs_escalation:
             # Try with escalation model if available
@@ -2125,38 +2124,38 @@ Previous attempt returned invalid content: {', '.join(result.issues)}"""
                     enhanced_prompt,
                     options=GenerateOptions(temperature=0.1, max_tokens=3000),
                 )
-                
+
                 new_content = self._strip_markdown_fences(retry_result.content or "")
-                
+
                 # Validate the escalated result
                 new_validation = fast_validate(new_content, expected_type)
                 if new_validation.signal == Trit.NO or new_validation.is_valid:
                     return new_content
-                
+
                 # Escalation also failed - use new content if it's at least valid syntax
                 # (even if not perfect, better than completely wrong format)
                 if new_validation.detected_type == expected_type:
                     return new_content
-        
+
         # Return original if escalation not available or didn't help
         return content
-    
+
     def _get_escalation_model(self):
         """Get a larger model for escalation, if available.
-        
+
         Tries judge_model first (typically larger), falls back to synthesis_model.
         """
         # Use judge_model if it's different from synthesis_model
         if self.judge_model and self.judge_model != self.synthesis_model:
             return self.judge_model
-        
+
         # No separate escalation model available
         return None
-    
+
     # =========================================================================
     # Harmonic Synthesis for Agent Mode
     # =========================================================================
-    
+
     # Lens personas for multi-perspective generation
     HARMONIC_PERSONAS = {
         "pragmatist": {
@@ -2164,7 +2163,7 @@ Previous attempt returned invalid content: {', '.join(result.issues)}"""
             "system": "You are a pragmatic developer. Focus on simple, working code. Avoid over-engineering.",
         },
         "quality": {
-            "name": "Quality Engineer", 
+            "name": "Quality Engineer",
             "system": "You are a quality engineer. Focus on clean, maintainable, well-typed code.",
         },
         "security": {
@@ -2172,46 +2171,44 @@ Previous attempt returned invalid content: {', '.join(result.issues)}"""
             "system": "You are a security expert. Focus on input validation, error handling, safe defaults.",
         },
     }
-    
+
     async def _harmonic_generate(
-        self, 
-        task_description: str, 
+        self,
+        task_description: str,
         base_prompt: str,
         target_path: str,
     ) -> str:
         """Generate content using multiple personas and select the best.
-        
+
         Harmonic Synthesis: Instead of generating once, generate with
         MULTIPLE PERSONAS, then use signals to pick the best.
-        
+
         This provides structured variance (different perspectives) rather than
         random variance (temperature sampling).
         """
         from sunwell.models.protocol import GenerateOptions
-        from sunwell.naaru.experiments.content_validation import (
-            fast_validate, infer_expected_type
-        )
+        from sunwell.naaru.experiments.content_validation import fast_validate, infer_expected_type
         from sunwell.naaru.experiments.signals import Trit
-        
+
         expected_type = infer_expected_type(target_path)
         candidates: list[tuple[str, str, int]] = []  # (persona, content, quality_score)
-        
+
         # Generate with each persona (sequentially to avoid Ollama issues)
         for persona_id, persona in self.HARMONIC_PERSONAS.items():
             enhanced_prompt = f"""{persona['system']}
 
 {base_prompt}"""
-            
+
             try:
                 result = await self.synthesis_model.generate(
                     enhanced_prompt,
                     options=GenerateOptions(temperature=0.4, max_tokens=2048),
                 )
                 content = self._strip_markdown_fences(result.content or "")
-                
+
                 # Score the content with fast validation
                 validation = fast_validate(content, expected_type)
-                
+
                 # Score: 0 = bad format, 1 = maybe, 2 = good
                 if validation.signal == Trit.NO:
                     score = 2  # Valid
@@ -2219,16 +2216,16 @@ Previous attempt returned invalid content: {', '.join(result.issues)}"""
                     score = 1  # Partial
                 else:
                     score = 0  # Invalid
-                
+
                 # Bonus for longer content (more complete)
                 if len(content) > 100:
                     score += 1
-                
+
                 candidates.append((persona_id, content, score))
-                
+
             except Exception:
                 continue  # Skip failed generations
-        
+
         if not candidates:
             # Fallback to basic generation
             result = await self.synthesis_model.generate(
@@ -2236,7 +2233,7 @@ Previous attempt returned invalid content: {', '.join(result.issues)}"""
                 options=GenerateOptions(temperature=0.3, max_tokens=2048),
             )
             return result.content or ""
-        
+
         # Pick the best candidate
         best = max(candidates, key=lambda x: x[2])
         return best[1]
@@ -2283,7 +2280,7 @@ Previous attempt returned invalid content: {', '.join(result.issues)}"""
         completed_artifacts: set[str] | None = None,
     ) -> list:
         """Detect tasks blocked by failed dependencies or missing artifacts (RFC-032, RFC-034).
-        
+
         RFC-034: Also detects artifact-based deadlocks where required artifacts
         will never be produced (because the producing task failed).
         """
@@ -2495,7 +2492,7 @@ async def demo():
     print("\nExample usage:")
     print('''
     from sunwell.naaru import Naaru, NaaruConfig
-    
+
     naaru = Naaru(
         sunwell_root=Path("."),
         synthesis_model=OllamaModel("gemma3:1b"),
@@ -2505,7 +2502,7 @@ async def demo():
             resonance=2,
         ),
     )
-    
+
     results = await naaru.illuminate(
         goals=["improve error handling"],
         max_time_seconds=120,

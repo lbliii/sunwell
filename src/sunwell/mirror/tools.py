@@ -31,7 +31,7 @@ MIRROR_TOOLS: dict[str, Tool] = {
             "required": ["module"],
         },
     ),
-    
+
     "introspect_lens": Tool(
         name="introspect_lens",
         description=(
@@ -49,7 +49,7 @@ MIRROR_TOOLS: dict[str, Tool] = {
             },
         },
     ),
-    
+
     "introspect_simulacrum": Tool(
         name="introspect_simulacrum",
         description=(
@@ -67,7 +67,7 @@ MIRROR_TOOLS: dict[str, Tool] = {
             },
         },
     ),
-    
+
     "introspect_execution": Tool(
         name="introspect_execution",
         description=(
@@ -89,7 +89,7 @@ MIRROR_TOOLS: dict[str, Tool] = {
             },
         },
     ),
-    
+
     # === ANALYSIS TOOLS ===
     "analyze_patterns": Tool(
         name="analyze_patterns",
@@ -114,7 +114,7 @@ MIRROR_TOOLS: dict[str, Tool] = {
             "required": ["focus"],
         },
     ),
-    
+
     "analyze_failures": Tool(
         name="analyze_failures",
         description=(
@@ -132,7 +132,7 @@ MIRROR_TOOLS: dict[str, Tool] = {
             },
         },
     ),
-    
+
     # === PROPOSAL TOOLS ===
     "propose_improvement": Tool(
         name="propose_improvement",
@@ -165,7 +165,7 @@ MIRROR_TOOLS: dict[str, Tool] = {
             "required": ["scope", "problem", "evidence", "diff"],
         },
     ),
-    
+
     "list_proposals": Tool(
         name="list_proposals",
         description="List improvement proposals, optionally filtered by status.",
@@ -180,7 +180,7 @@ MIRROR_TOOLS: dict[str, Tool] = {
             },
         },
     ),
-    
+
     "get_proposal": Tool(
         name="get_proposal",
         description="Get details of a specific proposal by ID.",
@@ -195,7 +195,7 @@ MIRROR_TOOLS: dict[str, Tool] = {
             "required": ["proposal_id"],
         },
     ),
-    
+
     # === APPLICATION TOOLS (elevated trust required) ===
     "submit_proposal": Tool(
         name="submit_proposal",
@@ -211,7 +211,7 @@ MIRROR_TOOLS: dict[str, Tool] = {
             "required": ["proposal_id"],
         },
     ),
-    
+
     "approve_proposal": Tool(
         name="approve_proposal",
         description=(
@@ -229,7 +229,7 @@ MIRROR_TOOLS: dict[str, Tool] = {
             "required": ["proposal_id"],
         },
     ),
-    
+
     "apply_proposal": Tool(
         name="apply_proposal",
         description=(
@@ -251,7 +251,7 @@ MIRROR_TOOLS: dict[str, Tool] = {
             "required": ["proposal_id"],
         },
     ),
-    
+
     "rollback_proposal": Tool(
         name="rollback_proposal",
         description="Rollback a previously applied proposal to its original state.",
@@ -266,7 +266,7 @@ MIRROR_TOOLS: dict[str, Tool] = {
             "required": ["proposal_id"],
         },
     ),
-    
+
     # === MODEL ROUTING TOOLS (Phase 5) ===
     "analyze_model_performance": Tool(
         name="analyze_model_performance",
@@ -289,7 +289,7 @@ MIRROR_TOOLS: dict[str, Tool] = {
             },
         },
     ),
-    
+
     "propose_model_routing": Tool(
         name="propose_model_routing",
         description=(
@@ -320,7 +320,7 @@ MIRROR_TOOLS: dict[str, Tool] = {
             "required": ["category", "proposed_model", "evidence"],
         },
     ),
-    
+
     "get_routing_info": Tool(
         name="get_routing_info",
         description=(
@@ -345,22 +345,22 @@ MIRROR_TOOL_TRUST: dict[str, str] = {
     "introspect_lens": "discovery",
     "introspect_simulacrum": "discovery",
     "introspect_execution": "discovery",
-    
+
     # Analysis - read-only, just computes insights
     "analyze_patterns": "read_only",
     "analyze_failures": "read_only",
     "analyze_model_performance": "read_only",  # Phase 5
-    
+
     # Proposals - creating proposals is read-only (doesn't apply changes)
     "propose_improvement": "read_only",
     "propose_model_routing": "read_only",  # Phase 5
     "list_proposals": "read_only",
     "get_proposal": "read_only",
     "submit_proposal": "read_only",
-    
+
     # Routing info - read-only
     "get_routing_info": "read_only",  # Phase 5
-    
+
     # Application - requires workspace access to modify lens/config
     "approve_proposal": "workspace",
     "apply_proposal": "workspace",
@@ -370,24 +370,24 @@ MIRROR_TOOL_TRUST: dict[str, str] = {
 
 def get_mirror_tools_for_trust(trust_level: str) -> dict[str, Tool]:
     """Get mirror tools available at a given trust level.
-    
+
     Args:
         trust_level: One of 'discovery', 'read_only', 'workspace', 'shell', 'full'
-        
+
     Returns:
         Dict of tool_name -> Tool for tools available at that level
     """
     trust_order = ["discovery", "read_only", "workspace", "shell", "full"]
-    
+
     try:
         level_idx = trust_order.index(trust_level.lower())
     except ValueError:
         level_idx = 0  # Default to discovery
-    
+
     available = {}
     for name, required_level in MIRROR_TOOL_TRUST.items():
         required_idx = trust_order.index(required_level)
         if level_idx >= required_idx:
             available[name] = MIRROR_TOOLS[name]
-    
+
     return available

@@ -1,23 +1,12 @@
-from typing import Protocol, Any
+from typing import Optional
 
+class User:
+    def __init__(self, username: str, email: Optional[str] = None):
+        self.user_name = username
+        self.email = email
 
-class UserEntity(Protocol):
-    id: int
-    username: str
-    email: str
-    password: str
-
-
-def create_user(user: UserEntity) -> None:
-    print(f"User created with id {user.get('id')}")
-
-
-# Example usage
-user = {
-    "id": 1,
-    "username": "john_doe",
-    "email": "john.doe@example.com",
-    "password": "secret123"
-}
-
-create_user(user)
+    def get_user(self):
+        return {
+            'username': self.user_name,
+            'email': self.email
+        }

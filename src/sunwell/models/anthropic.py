@@ -2,18 +2,19 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import AsyncIterator, TYPE_CHECKING, Union, Literal
+from typing import TYPE_CHECKING, Literal
 
+from sunwell.core.errors import from_anthropic_error
 from sunwell.models.protocol import (
     GenerateOptions,
     GenerateResult,
-    TokenUsage,
     Message,
+    TokenUsage,
     Tool,
     ToolCall,
 )
-from sunwell.core.errors import from_anthropic_error
 
 if TYPE_CHECKING:
     from anthropic import AsyncAnthropic
@@ -24,7 +25,7 @@ class AnthropicModel:
     """Anthropic Claude model adapter with tool calling support.
 
     Requires: pip install sunwell[anthropic]
-    
+
     Supports:
     - Standard text generation
     - Multi-turn conversations via Message tuples
@@ -34,13 +35,13 @@ class AnthropicModel:
     model: str = "claude-sonnet-4-20250514"
     api_key: str | None = None
     max_tokens: int = 4096
-    _client: "AsyncAnthropic | None" = field(default=None, init=False)
+    _client: AsyncAnthropic | None = field(default=None, init=False)
 
     @property
     def model_id(self) -> str:
         return self.model
 
-    def _get_client(self) -> "AsyncAnthropic":
+    def _get_client(self) -> AsyncAnthropic:
         """Get or create the Anthropic client."""
         if self._client is None:
             try:
@@ -54,17 +55,17 @@ class AnthropicModel:
         return self._client
 
     def _convert_messages(
-        self, 
-        prompt: Union[str, tuple[Message, ...]],
+        self,
+        prompt: str | tuple[Message, ...],
     ) -> tuple[list[dict], str | None]:
         """Convert prompt to Anthropic message format.
-        
+
         Returns:
             Tuple of (messages list, system prompt or None)
         """
         system_prompt = None
         messages = []
-        
+
         if isinstance(prompt, str):
             # Simple string prompt
             messages.append({"role": "user", "content": prompt})
@@ -102,14 +103,14 @@ class AnthropicModel:
                             }
                         ],
                     })
-        
+
         return messages, system_prompt
 
     def _convert_tools(self, tools: tuple[Tool, ...] | None) -> list[dict] | None:
         """Convert Sunwell tools to Anthropic tool format."""
         if not tools:
             return None
-        
+
         return [
             {
                 "name": t.name,
@@ -121,16 +122,16 @@ class AnthropicModel:
 
     def _convert_tool_choice(
         self,
-        tool_choice: Union[Literal["auto", "none", "required"], str, dict] | None,
+        tool_choice: Literal["auto", "none", "required"] | str | dict | None,
     ) -> dict | None:
         """Convert tool_choice to Anthropic format."""
         if tool_choice is None:
             return None
-        
+
         if isinstance(tool_choice, dict):
             # Pass through provider-specific format
             return tool_choice
-        
+
         if tool_choice == "auto":
             return {"type": "auto"}
         elif tool_choice == "none":
@@ -144,14 +145,14 @@ class AnthropicModel:
 
     async def generate(
         self,
-        prompt: Union[str, tuple[Message, ...]],
+        prompt: str | tuple[Message, ...],
         *,
         tools: tuple[Tool, ...] | None = None,
-        tool_choice: Union[Literal["auto", "none", "required"], str, dict] | None = None,
+        tool_choice: Literal["auto", "none", "required"] | str | dict | None = None,
         options: GenerateOptions | None = None,
     ) -> GenerateResult:
         """Generate a response using Claude.
-        
+
         Supports both simple prompts and multi-turn conversations with tools.
         """
         client = self._get_client()
@@ -180,7 +181,7 @@ class AnthropicModel:
         anthropic_tools = self._convert_tools(tools)
         if anthropic_tools:
             kwargs["tools"] = anthropic_tools
-            
+
             converted_choice = self._convert_tool_choice(tool_choice)
             if converted_choice:
                 kwargs["tool_choice"] = converted_choice
@@ -193,7 +194,7 @@ class AnthropicModel:
         # Parse response content blocks
         content = None
         tool_calls = []
-        
+
         for block in response.content:
             if block.type == "text":
                 content = block.text
@@ -218,13 +219,13 @@ class AnthropicModel:
 
     async def generate_stream(
         self,
-        prompt: Union[str, tuple[Message, ...]],
+        prompt: str | tuple[Message, ...],
         *,
         tools: tuple[Tool, ...] | None = None,
         options: GenerateOptions | None = None,
     ) -> AsyncIterator[str]:
         """Stream a response using Claude.
-        
+
         Note: Tool calls are not yielded during streaming.
         Use generate() for complete tool call handling.
         """

@@ -6,7 +6,6 @@ Extended for RFC-024 with git operations and environment access.
 
 from sunwell.models.protocol import Tool
 
-
 # =============================================================================
 # Core Tool Definitions
 # =============================================================================
@@ -27,7 +26,7 @@ CORE_TOOLS: dict[str, Tool] = {
             "required": ["path"],
         },
     ),
-    
+
     "write_file": Tool(
         name="write_file",
         description="Write content to a file. Creates parent directories if needed. Overwrites existing files.",
@@ -46,7 +45,7 @@ CORE_TOOLS: dict[str, Tool] = {
             "required": ["path", "content"],
         },
     ),
-    
+
     "edit_file": Tool(
         name="edit_file",
         description=(
@@ -83,7 +82,7 @@ CORE_TOOLS: dict[str, Tool] = {
             "required": ["path", "old_content", "new_content"],
         },
     ),
-    
+
     "list_files": Tool(
         name="list_files",
         description="List files in a directory. Returns file paths relative to workspace.",
@@ -103,7 +102,7 @@ CORE_TOOLS: dict[str, Tool] = {
             },
         },
     ),
-    
+
     # Search
     "search_files": Tool(
         name="search_files",
@@ -129,7 +128,7 @@ CORE_TOOLS: dict[str, Tool] = {
             "required": ["pattern"],
         },
     ),
-    
+
     # Shell (sandboxed)
     "run_command": Tool(
         name="run_command",
@@ -155,7 +154,7 @@ CORE_TOOLS: dict[str, Tool] = {
             "required": ["command"],
         },
     ),
-    
+
     # Directory Operations
     "mkdir": Tool(
         name="mkdir",
@@ -171,7 +170,7 @@ CORE_TOOLS: dict[str, Tool] = {
             "required": ["path"],
         },
     ),
-    
+
     # Git Repository Initialization
     "git_init": Tool(
         name="git_init",
@@ -187,7 +186,7 @@ CORE_TOOLS: dict[str, Tool] = {
             },
         },
     ),
-    
+
     # Web Search (requires FULL trust level + API key)
     "web_search": Tool(
         name="web_search",
@@ -208,7 +207,7 @@ CORE_TOOLS: dict[str, Tool] = {
             "required": ["query"],
         },
     ),
-    
+
     "web_fetch": Tool(
         name="web_fetch",
         description="Fetch and extract content from a single web page URL. Returns the page title, main content, and links found.",
@@ -223,7 +222,7 @@ CORE_TOOLS: dict[str, Tool] = {
             "required": ["url"],
         },
     ),
-    
+
     # Git Information (read-only, safe at workspace level)
     "git_info": Tool(
         name="git_info",
@@ -255,7 +254,7 @@ GIT_TOOLS: dict[str, Tool] = {
     # --------------------------------------------------------------------------
     # Read Operations (READ_ONLY trust level)
     # --------------------------------------------------------------------------
-    
+
     "git_status": Tool(
         name="git_status",
         description="Show working tree status: modified, staged, untracked files.",
@@ -270,7 +269,7 @@ GIT_TOOLS: dict[str, Tool] = {
             },
         },
     ),
-    
+
     "git_diff": Tool(
         name="git_diff",
         description="Show changes between commits, working tree, or staged area.",
@@ -293,7 +292,7 @@ GIT_TOOLS: dict[str, Tool] = {
             },
         },
     ),
-    
+
     "git_log": Tool(
         name="git_log",
         description="Show commit history.",
@@ -321,7 +320,7 @@ GIT_TOOLS: dict[str, Tool] = {
             },
         },
     ),
-    
+
     "git_blame": Tool(
         name="git_blame",
         description="Show what revision and author last modified each line of a file.",
@@ -340,7 +339,7 @@ GIT_TOOLS: dict[str, Tool] = {
             "required": ["path"],
         },
     ),
-    
+
     "git_show": Tool(
         name="git_show",
         description="Show commit details and diff.",
@@ -359,11 +358,11 @@ GIT_TOOLS: dict[str, Tool] = {
             },
         },
     ),
-    
+
     # --------------------------------------------------------------------------
     # Staging Operations (WORKSPACE trust level)
     # --------------------------------------------------------------------------
-    
+
     "git_add": Tool(
         name="git_add",
         description="Stage files for commit. Safe operation - doesn't modify history.",
@@ -383,7 +382,7 @@ GIT_TOOLS: dict[str, Tool] = {
             },
         },
     ),
-    
+
     "git_restore": Tool(
         name="git_restore",
         description="Restore working tree files or unstage files.",
@@ -408,11 +407,11 @@ GIT_TOOLS: dict[str, Tool] = {
             "required": ["paths"],
         },
     ),
-    
+
     # --------------------------------------------------------------------------
     # Write Operations (SHELL trust level - modifies history/branches)
     # --------------------------------------------------------------------------
-    
+
     "git_commit": Tool(
         name="git_commit",
         description="Create a commit with staged changes. Modifies repository history.",
@@ -432,7 +431,7 @@ GIT_TOOLS: dict[str, Tool] = {
             "required": ["message"],
         },
     ),
-    
+
     "git_branch": Tool(
         name="git_branch",
         description="List, create, or delete branches.",
@@ -456,7 +455,7 @@ GIT_TOOLS: dict[str, Tool] = {
             },
         },
     ),
-    
+
     "git_checkout": Tool(
         name="git_checkout",
         description="Switch branches or restore files.",
@@ -476,7 +475,7 @@ GIT_TOOLS: dict[str, Tool] = {
             "required": ["target"],
         },
     ),
-    
+
     "git_stash": Tool(
         name="git_stash",
         description="Stash or restore uncommitted changes.",
@@ -500,7 +499,7 @@ GIT_TOOLS: dict[str, Tool] = {
             },
         },
     ),
-    
+
     "git_reset": Tool(
         name="git_reset",
         description="Reset current HEAD to specified state. Can modify history.",
@@ -526,7 +525,7 @@ GIT_TOOLS: dict[str, Tool] = {
             },
         },
     ),
-    
+
     "git_merge": Tool(
         name="git_merge",
         description="Merge another branch into current branch.",
@@ -600,7 +599,7 @@ ENV_TOOLS: dict[str, Tool] = {
             "required": ["name"],
         },
     ),
-    
+
     "list_env": Tool(
         name="list_env",
         description="List available (non-secret) environment variables.",
@@ -648,7 +647,7 @@ EXPERTISE_TOOLS: dict[str, Tool] = {
             "required": ["topic"],
         },
     ),
-    
+
     "verify_against_expertise": Tool(
         name="verify_against_expertise",
         description=(
@@ -675,7 +674,7 @@ EXPERTISE_TOOLS: dict[str, Tool] = {
             "required": ["code"],
         },
     ),
-    
+
     "list_expertise_areas": Tool(
         name="list_expertise_areas",
         description=(
@@ -692,21 +691,21 @@ EXPERTISE_TOOLS: dict[str, Tool] = {
 
 def get_tools_for_trust_level(trust_level: str) -> tuple[Tool, ...]:
     """Get tools available at a given trust level.
-    
+
     Args:
         trust_level: One of 'discovery', 'read_only', 'workspace', 'shell', 'full'
-        
+
     Returns:
         Tuple of Tool objects available at that trust level
     """
-    from sunwell.tools.types import ToolTrust, TRUST_LEVEL_TOOLS
-    
+    from sunwell.tools.types import TRUST_LEVEL_TOOLS, ToolTrust
+
     level = ToolTrust.from_string(trust_level)
     allowed_names = TRUST_LEVEL_TOOLS.get(level, frozenset())
-    
+
     # Combine all tool dictionaries
     all_tools = {**CORE_TOOLS, **GIT_TOOLS, **ENV_TOOLS}
-    
+
     return tuple(
         tool for name, tool in all_tools.items()
         if name in allowed_names
@@ -715,7 +714,7 @@ def get_tools_for_trust_level(trust_level: str) -> tuple[Tool, ...]:
 
 def get_all_tools() -> dict[str, Tool]:
     """Get all available tools (for documentation or inspection).
-    
+
     Returns:
         Dict of all tool definitions
     """

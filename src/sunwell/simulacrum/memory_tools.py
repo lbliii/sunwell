@@ -19,16 +19,16 @@ from typing import TYPE_CHECKING
 from sunwell.models.protocol import Tool
 
 if TYPE_CHECKING:
+    from sunwell.embedding.protocol import EmbeddingProtocol
     from sunwell.simulacrum.core.dag import ConversationDAG
     from sunwell.simulacrum.topology.unified_store import UnifiedMemoryStore
-    from sunwell.embedding.protocol import EmbeddingProtocol
 
 
 # === Memory Tool Definitions ===
 
 MEMORY_TOOLS: dict[str, Tool] = {
     # === Search & Recall ===
-    
+
     "search_memory": Tool(
         name="search_memory",
         description=(
@@ -58,7 +58,7 @@ MEMORY_TOOLS: dict[str, Tool] = {
             "required": ["query"],
         },
     ),
-    
+
     "recall_user_info": Tool(
         name="recall_user_info",
         description=(
@@ -70,7 +70,7 @@ MEMORY_TOOLS: dict[str, Tool] = {
             "properties": {},
         },
     ),
-    
+
     "find_related": Tool(
         name="find_related",
         description=(
@@ -94,7 +94,7 @@ MEMORY_TOOLS: dict[str, Tool] = {
             "required": ["topic"],
         },
     ),
-    
+
     "find_contradictions": Tool(
         name="find_contradictions",
         description=(
@@ -112,9 +112,9 @@ MEMORY_TOOLS: dict[str, Tool] = {
             "required": ["statement"],
         },
     ),
-    
+
     # === Store & Track ===
-    
+
     "add_learning": Tool(
         name="add_learning",
         description=(
@@ -143,7 +143,7 @@ MEMORY_TOOLS: dict[str, Tool] = {
             "required": ["fact", "category"],
         },
     ),
-    
+
     "mark_dead_end": Tool(
         name="mark_dead_end",
         description=(
@@ -171,58 +171,58 @@ MEMORY_TOOLS: dict[str, Tool] = {
 
 class MemoryToolHandler:
     """Handles memory tool execution.
-    
+
     Bridges RFC-012 tool calls to RFC-014 memory operations.
     """
-    
+
     def __init__(
         self,
-        dag: "ConversationDAG",
-        store: "UnifiedMemoryStore | None" = None,
-        embedder: "EmbeddingProtocol | None" = None,
+        dag: ConversationDAG,
+        store: UnifiedMemoryStore | None = None,
+        embedder: EmbeddingProtocol | None = None,
     ):
         self.dag = dag
         self.store = store
         self.embedder = embedder
-    
+
     async def handle(self, tool_name: str, arguments: dict) -> str:
         """Execute a memory tool and return result."""
-        
+
         if tool_name == "search_memory":
             return await self._search_memory(
                 query=arguments["query"],
                 content_type=arguments.get("content_type", "any"),
                 limit=arguments.get("limit", 5),
             )
-        
+
         elif tool_name == "recall_user_info":
             return await self._recall_user_info()
-        
+
         elif tool_name == "find_related":
             return await self._find_related(
                 topic=arguments["topic"],
                 relationship=arguments.get("relationship", "any"),
             )
-        
+
         elif tool_name == "find_contradictions":
             return await self._find_contradictions(arguments["statement"])
-        
+
         elif tool_name == "add_learning":
             return self._add_learning(
                 fact=arguments["fact"],
                 category=arguments["category"],
                 confidence=arguments.get("confidence", 1.0),
             )
-        
+
         elif tool_name == "mark_dead_end":
             return self._mark_dead_end(
                 approach=arguments["approach"],
                 reason=arguments["reason"],
             )
-        
+
         else:
             return f"Unknown memory tool: {tool_name}"
-    
+
     async def _search_memory(
         self,
         query: str,
@@ -231,13 +231,13 @@ class MemoryToolHandler:
     ) -> str:
         """Search memory using hybrid retrieval."""
         results = []
-        
+
         # Search learnings
         if content_type in ("any", "learning", "user_info"):
             for learning in self.dag.get_active_learnings():
                 if query.lower() in learning.fact.lower():
                     results.append(f"[Learning/{learning.category}] {learning.fact}")
-        
+
         # Search conversation history
         if content_type in ("any", "conversation"):
             for turn in self.dag.iter_all_turns():
@@ -246,42 +246,42 @@ class MemoryToolHandler:
                     results.append(f"[{prefix}] {turn.content[:200]}...")
                     if len(results) >= limit:
                         break
-        
+
         # Search unified store if available
         if self.store and content_type in ("any", "decision", "dead_end"):
             store_results = self.store.query(text_query=query, limit=limit)
-            for node, score in store_results:
+            for node, _score in store_results:
                 results.append(f"[Memory] {node.content[:200]}...")
-        
+
         if not results:
             return f"No results found for '{query}'"
-        
+
         return "\n".join(results[:limit])
-    
+
     async def _recall_user_info(self) -> str:
         """Recall all user_info category learnings."""
         user_learnings = [
             l for l in self.dag.get_active_learnings()
             if l.category == "user_info"
         ]
-        
+
         if not user_learnings:
             return "No user information stored."
-        
+
         return "\n".join(f"- {l.fact}" for l in user_learnings)
-    
+
     async def _find_related(self, topic: str, relationship: str) -> str:
         """Find related concepts via graph traversal."""
         if not self.store:
             return "Unified memory store not available."
-        
+
         # Find node matching topic
         candidates = self.store.query(text_query=topic, limit=1)
         if not candidates:
             return f"No information found about '{topic}'"
-        
+
         node, _ = candidates[0]
-        
+
         # Get related via graph
         if relationship == "elaborates":
             related = self.store.find_elaborations(node.id)
@@ -291,12 +291,12 @@ class MemoryToolHandler:
             related = self.store.find_dependencies(node.id)
         else:
             related = self.store.find_related(node.id, depth=2)
-        
+
         if not related:
             return f"No related information found for '{topic}'"
-        
+
         return "\n".join(f"- {n.content[:200]}..." for n in related[:5])
-    
+
     async def _find_contradictions(self, statement: str) -> str:
         """Find information contradicting a statement."""
         if not self.store:
@@ -311,11 +311,11 @@ class MemoryToolHandler:
                     f"- {t.content[:200]}..." for t in dead_end_turns[:5]
                 )
             return "No contradictions found."
-        
+
         # Search and check for contradictions
         candidates = self.store.query(text_query=statement, limit=5)
         contradictions = []
-        
+
         for node, _ in candidates:
             edges = self.store._concept_graph.find_contradictions(node.id)
             for edge in edges:
@@ -324,16 +324,16 @@ class MemoryToolHandler:
                     contradictions.append(
                         f"- {target.content[:200]}... (confidence: {edge.confidence:.2f})"
                     )
-        
+
         if not contradictions:
             return "No contradictions found."
-        
+
         return "Potential contradictions:\n" + "\n".join(contradictions[:5])
-    
+
     def _add_learning(self, fact: str, category: str, confidence: float) -> str:
         """Add a learning to the DAG."""
         from sunwell.simulacrum.core.turn import Learning
-        
+
         learning = Learning(
             fact=fact,
             category=category,
@@ -342,14 +342,14 @@ class MemoryToolHandler:
         )
         self.dag.add_learning(learning)
         return f"✓ Learned: [{category}] {fact}"
-    
+
     def _mark_dead_end(self, approach: str, reason: str) -> str:
         """Mark current path as dead end with context."""
         from sunwell.simulacrum.core.turn import Learning
-        
+
         if self.dag.active_head:
             self.dag.mark_dead_end(self.dag.active_head)
-            
+
             # Add learning about the dead end
             learning = Learning(
                 fact=f"Dead end: {approach} - {reason}",
@@ -358,7 +358,7 @@ class MemoryToolHandler:
                 source_turns=(self.dag.active_head,),
             )
             self.dag.add_learning(learning)
-            
+
             return f"✓ Marked as dead end: {approach}"
-        
+
         return "No active conversation to mark."

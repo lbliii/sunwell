@@ -4,63 +4,62 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Callable
 
-from sunwell.naaru.types import (
-    SessionStatus,
-    SessionState,
-    SessionConfig,
-    Opportunity,
-    CompletedTask,
-    RiskLevel,
-)
-from sunwell.naaru.signals import SignalHandler, StopReason, format_stop_reason
-from sunwell.naaru.discovery import OpportunityDiscoverer
 from sunwell.mirror import MirrorHandler
+from sunwell.naaru.discovery import OpportunityDiscoverer
+from sunwell.naaru.signals import SignalHandler, StopReason, format_stop_reason
+from sunwell.naaru.types import (
+    CompletedTask,
+    Opportunity,
+    SessionConfig,
+    SessionState,
+    SessionStatus,
+)
 
 
 @dataclass
 class AutonomousRunner:
     """Main runner for autonomous mode.
-    
+
     Executes the autonomous control loop:
     1. Discover improvement opportunities
     2. Prioritize by goal alignment
     3. Work on each opportunity
     4. Checkpoint progress
     5. Repeat until stopped or limits reached
-    
+
     Example:
         >>> config = SessionConfig(goals=["improve error handling"])
         >>> runner = AutonomousRunner(config, sunwell_root=Path("."))
         >>> await runner.start()
     """
-    
+
     config: SessionConfig
     sunwell_root: Path
     storage_path: Path = None
     on_event: Callable[[str, str], None] | None = None
-    
+
     # Internal state
     state: SessionState = field(init=False)
     mirror: MirrorHandler = field(init=False)
     discoverer: OpportunityDiscoverer = field(init=False)
     signals: SignalHandler = field(init=False)
     _loop_start: datetime = field(init=False)
-    
+
     def __post_init__(self):
         """Initialize components."""
         if self.storage_path is None:
             self.storage_path = self.sunwell_root / ".sunwell" / "autonomous"
-        
+
         self.storage_path.mkdir(parents=True, exist_ok=True)
-    
+
     async def start(self) -> SessionState:
         """Start the autonomous loop.
-        
+
         Returns:
             Final session state
         """
@@ -71,19 +70,19 @@ class AutonomousRunner:
             status=SessionStatus.RUNNING,
             started_at=datetime.now(),
         )
-        
+
         # Initialize mirror handler
         self.mirror = MirrorHandler(
             sunwell_root=self.sunwell_root,
             storage_path=self.storage_path / "mirror",
         )
-        
+
         # Initialize discoverer
         self.discoverer = OpportunityDiscoverer(
             mirror=self.mirror,
             sunwell_root=self.sunwell_root,
         )
-        
+
         # Setup signal handling
         self.signals = SignalHandler(
             session_id=self.state.session_id,
@@ -91,18 +90,18 @@ class AutonomousRunner:
             on_stop=lambda r: self._emit("stop_signal", format_stop_reason(r)),
         )
         self.signals.setup()
-        
+
         try:
             # Start file watcher for stop command
             await self.signals.start_file_watcher()
-            
+
             # Display startup banner
             self._display_banner()
-            
+
             # Run the main loop
             self._loop_start = datetime.now()
             await self._run_loop()
-            
+
         except Exception as e:
             self.state.status = SessionStatus.FAILED
             self.state.stop_reason = str(e)
@@ -111,58 +110,58 @@ class AutonomousRunner:
             # Cleanup
             self.signals.teardown()
             await self._finalize()
-        
+
         return self.state
-    
+
     async def _run_loop(self) -> None:
         """Main execution loop."""
         # Discovery phase
         self._emit("phase", "Discovery - Scanning for opportunities...")
         self.state.opportunities = await self.discoverer.discover(self.config.goals)
-        
+
         if not self.state.opportunities:
             self._emit("idle", "No opportunities found")
             self.signals.request_stop(StopReason.IDLE)
             return
-        
+
         self._emit(
             "discovery_complete",
             f"Found {len(self.state.opportunities)} opportunities",
         )
-        
+
         # Display top opportunities
         self._display_opportunities()
-        
+
         # Work loop
         while not self._should_stop():
             # Update runtime
             self.state.total_runtime_seconds = (
                 datetime.now() - self._loop_start
             ).total_seconds()
-            
+
             # Work on next opportunity
             if self.state.opportunities:
                 await self._work_on_next()
             else:
                 self.signals.request_stop(StopReason.COMPLETED)
                 break
-            
+
             # Checkpoint
             await self._checkpoint()
-            
+
             # Cooldown between changes
             await asyncio.sleep(self.config.min_seconds_between_changes)
-    
+
     async def _work_on_next(self) -> None:
         """Work on the next highest priority opportunity."""
         opp = self.state.opportunities.pop(0)
         self.state.current_task = opp
-        
+
         self._emit("work_start", f"Starting: {opp.description}")
-        
+
         result = "failed"
         proposal_id = None
-        
+
         try:
             # Map category to proposal scope
             scope_map = {
@@ -175,7 +174,7 @@ class AutonomousRunner:
                 "other": "heuristic",
             }
             scope = scope_map.get(opp.category.value, "heuristic")
-            
+
             # Generate proposal using mirror neurons
             proposal_result = await self.mirror.handle("propose_improvement", {
                 "scope": scope,
@@ -187,9 +186,9 @@ class AutonomousRunner:
                 ],
                 "diff": f"# Improvement for: {opp.description}\n# Auto-generated by autonomous mode",
             })
-            
+
             proposal_data = json.loads(proposal_result)
-            
+
             if "error" in proposal_data:
                 self._emit("rejected", f"Safety check failed: {proposal_data['error']}")
                 self.state.proposals_rejected += 1
@@ -198,23 +197,23 @@ class AutonomousRunner:
                 proposal_id = proposal_data.get("proposal_id")
                 self.state.proposals_created += 1
                 self._emit("proposal_created", f"Created {proposal_id}")
-                
+
                 # Decide: auto-apply or queue
                 if self._can_auto_apply(opp):
                     # Submit and approve
                     await self.mirror.handle("submit_proposal", {"proposal_id": proposal_id})
-                    
+
                     # For demo purposes, we'll approve it
                     from sunwell.mirror.proposals import ProposalManager
                     manager = ProposalManager(self.storage_path / "mirror" / "proposals")
                     manager.approve_proposal(proposal_id)
-                    
+
                     # Apply
                     apply_result = await self.mirror.handle("apply_proposal", {
                         "proposal_id": proposal_id,
                     })
                     apply_data = json.loads(apply_result)
-                    
+
                     if "error" not in apply_data:
                         self.state.proposals_auto_applied += 1
                         result = "auto_applied"
@@ -229,14 +228,14 @@ class AutonomousRunner:
                     self.state.proposals_queued += 1
                     result = "queued"
                     self._emit("queued", f"Queued for review: {proposal_id}")
-                
+
                 self.state.consecutive_failures = 0
-                
+
         except Exception as e:
             self._emit("error", f"Failed: {e}")
             self.state.consecutive_failures += 1
             result = "failed"
-        
+
         # Record completion
         self.state.completed.append(CompletedTask(
             opportunity_id=opp.id,
@@ -244,25 +243,25 @@ class AutonomousRunner:
             result=result,
             timestamp=datetime.now(),
         ))
-        
+
         self.state.current_task = None
-    
+
     def _can_auto_apply(self, opp: Opportunity) -> bool:
         """Check if an opportunity can be auto-applied."""
         if not self.config.auto_apply_enabled:
             return False
-        
+
         if self.state.proposals_auto_applied >= self.config.max_auto_apply:
             return False
-        
+
         return opp.risk_level.can_auto_apply()
-    
+
     def _should_stop(self) -> bool:
         """Check if the loop should stop."""
         # Check signal handler
         if self.signals.stop_requested:
             return True
-        
+
         # Check limits
         return self.signals.check_limits(
             runtime_seconds=self.state.total_runtime_seconds,
@@ -272,40 +271,40 @@ class AutonomousRunner:
             consecutive_failures=self.state.consecutive_failures,
             max_failures=self.config.max_consecutive_failures,
         )
-    
+
     async def _checkpoint(self) -> None:
         """Save current state to disk."""
         self.state.checkpoint_at = datetime.now()
         checkpoint_path = self.storage_path / f"{self.state.session_id}.json"
         self.state.save(checkpoint_path)
-        
+
         if self.config.verbose:
-            self._emit("checkpoint", f"Saved checkpoint")
-    
+            self._emit("checkpoint", "Saved checkpoint")
+
     async def _finalize(self) -> None:
         """Finalize the session."""
         self.state.stopped_at = datetime.now()
         self.state.stop_reason = format_stop_reason(
             self.signals.stop_reason or StopReason.COMPLETED
         )
-        
+
         if self.state.status == SessionStatus.RUNNING:
             if self.signals.stop_reason in [StopReason.COMPLETED, StopReason.IDLE]:
                 self.state.status = SessionStatus.COMPLETED
             else:
                 self.state.status = SessionStatus.PAUSED
-        
+
         # Final save
         checkpoint_path = self.storage_path / f"{self.state.session_id}.json"
         self.state.save(checkpoint_path)
-        
+
         # Display summary
         self._display_summary()
-    
+
     def _emit(self, event: str, message: str) -> None:
         """Emit a progress event."""
         timestamp = datetime.now().strftime("%H:%M:%S")
-        
+
         # Map events to emojis
         emojis = {
             "phase": "📋",
@@ -320,13 +319,13 @@ class AutonomousRunner:
             "idle": "😴",
             "stop_signal": "⏸️",
         }
-        
+
         emoji = emojis.get(event, "•")
         print(f"[{timestamp}] {emoji} {message}")
-        
+
         if self.on_event:
             self.on_event(event, message)
-    
+
     def _display_banner(self) -> None:
         """Display startup banner."""
         print()
@@ -343,7 +342,7 @@ class AutonomousRunner:
         print("║    • sunwell auto stop - Stop from another terminal".ljust(79) + "║")
         print("╚" + "═" * 78 + "╝")
         print()
-    
+
     def _display_opportunities(self) -> None:
         """Display top opportunities."""
         print()
@@ -354,12 +353,12 @@ class AutonomousRunner:
             )
             print(f"   {i}. [{opp.priority:.2f}] {risk_emoji} {opp.description}")
         print()
-    
+
     def _display_summary(self) -> None:
         """Display session summary."""
         progress = self.state.get_progress_summary()
         runtime = timedelta(seconds=int(self.state.total_runtime_seconds))
-        
+
         print()
         print("╔" + "═" * 78 + "╗")
         print("║" + " 📊 SESSION SUMMARY".ljust(78) + "║")
@@ -375,12 +374,12 @@ class AutonomousRunner:
         print(f"║    • Rejected:      {progress['proposals_rejected']}".ljust(79) + "║")
         print("║" + " " * 78 + "║")
         print("║  Next Steps:".ljust(79) + "║")
-        
+
         if progress['proposals_queued'] > 0:
             print("║    • Review queued proposals".ljust(79) + "║")
         if self.state.status == SessionStatus.PAUSED:
             print(f"║    • Resume: sunwell autonomous resume {self.state.session_id}".ljust(79) + "║")
-        
+
         print("╚" + "═" * 78 + "╝")
         print()
 
@@ -390,32 +389,32 @@ async def resume_session(
     sunwell_root: Path,
 ) -> SessionState:
     """Resume a paused session.
-    
+
     Args:
         session_path: Path to the session JSON file
         sunwell_root: Sunwell root directory
-        
+
     Returns:
         Final session state
     """
     # Load state
     state = SessionState.load(session_path)
-    
+
     if state.status not in [SessionStatus.PAUSED, SessionStatus.RUNNING]:
         raise ValueError(f"Cannot resume session with status: {state.status.value}")
-    
+
     # Create runner with existing config
     runner = AutonomousRunner(
         config=state.config,
         sunwell_root=sunwell_root,
         storage_path=session_path.parent,
     )
-    
+
     # Restore state
     runner.state = state
     runner.state.status = SessionStatus.RUNNING
-    
+
     # Continue from where we left off
     # ... (simplified - full implementation would restore opportunities, etc.)
-    
+
     return await runner.start()

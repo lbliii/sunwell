@@ -4,12 +4,12 @@ Extended with tool calling support per RFC-012.
 """
 
 from sunwell.models.protocol import (
-    ModelProtocol,
     GenerateOptions,
     GenerateResult,
-    TokenUsage,
     # RFC-012: Tool calling types
     Message,
+    ModelProtocol,
+    TokenUsage,
     Tool,
     ToolCall,
 )

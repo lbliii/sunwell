@@ -33,16 +33,16 @@ Naming Rationale:
 
 Example:
     >>> from sunwell.naaru.convergence import Convergence, Slot
-    >>> 
+    >>>
     >>> convergence = Convergence(capacity=7)
-    >>> 
+    >>>
     >>> # Add a memory slot
     >>> await convergence.add(Slot(
     ...     id="memories:error_handling",
     ...     content=["Use specific exceptions", "Include context"],
     ...     relevance=0.9,
     ... ))
-    >>> 
+    >>>
     >>> # Retrieve when needed
     >>> slot = await convergence.get("memories:error_handling")
     >>> print(slot.content)
@@ -58,7 +58,7 @@ from typing import Any
 
 class SlotSource(Enum):
     """Source of a slot's content - which Shard populated it."""
-    
+
     MEMORY_FETCHER = "memory_fetcher"
     CONTEXT_PREPARER = "context_preparer"
     QUICK_CHECKER = "quick_checker"
@@ -71,7 +71,7 @@ class SlotSource(Enum):
 @dataclass
 class Slot:
     """A slot in the Convergence (working memory).
-    
+
     Attributes:
         id: Unique identifier for this slot
         content: The slot's content (any type)
@@ -80,14 +80,14 @@ class Slot:
         ready: Whether the content is ready to use
         ttl: Time-to-live in seconds (None = no expiry)
     """
-    
+
     id: str
     content: Any
     relevance: float = 1.0
     source: SlotSource | None = None
     ready: bool = True
     ttl: float | None = None
-    
+
     # Timestamp for TTL calculation
     created_at: float = field(default_factory=lambda: asyncio.get_event_loop().time())
 
@@ -95,19 +95,19 @@ class Slot:
 @dataclass
 class Convergence:
     """Shared working memory with limited capacity (7±2 slots).
-    
+
     Like human working memory:
     - Limited capacity (can't hold everything)
     - Items decay if not refreshed (via TTL)
     - Most relevant items stay
     - Shards can pre-load anticipated needs
-    
+
     The Convergence is the central meeting point where all Naaru
     components share their findings.
-    
+
     Example:
         >>> convergence = Convergence(capacity=7)
-        >>> 
+        >>>
         >>> # Shard adds memory context
         >>> await convergence.add(Slot(
         ...     id="memories:testing",
@@ -115,20 +115,20 @@ class Convergence:
         ...     relevance=0.9,
         ...     source=SlotSource.MEMORY_FETCHER,
         ... ))
-        >>> 
+        >>>
         >>> # Synthesis retrieves it
         >>> slot = await convergence.get("memories:testing")
         >>> if slot and slot.ready:
         ...     memories = slot.content
     """
-    
+
     capacity: int = 7  # Miller's magical number (7±2)
     slots: list[Slot] = field(default_factory=list)
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
-    
+
     # Statistics
     _stats: dict = field(default_factory=dict, init=False)
-    
+
     def __post_init__(self):
         self._stats = {
             "adds": 0,
@@ -136,43 +136,43 @@ class Convergence:
             "hits": 0,
             "misses": 0,
         }
-    
+
     async def add(self, slot: Slot) -> bool:
         """Add item to working memory, evicting if at capacity.
-        
+
         If a slot with the same ID exists, it will be updated.
         If at capacity, the least relevant slot is evicted.
-        
+
         Args:
             slot: The slot to add
-            
+
         Returns:
             True if added successfully
         """
         async with self._lock:
             self._stats["adds"] += 1
-            
+
             # Check if already present - update if so
             for i, existing in enumerate(self.slots):
                 if existing.id == slot.id:
                     self.slots[i] = slot
                     return True
-            
+
             # At capacity - evict least relevant
             if len(self.slots) >= self.capacity:
                 self.slots.sort(key=lambda s: s.relevance)
-                evicted = self.slots.pop(0)
+                self.slots.pop(0)
                 self._stats["evictions"] += 1
-            
+
             self.slots.append(slot)
             return True
-    
+
     async def get(self, slot_id: str) -> Slot | None:
         """Get item from working memory by ID.
-        
+
         Args:
             slot_id: The slot's unique identifier
-            
+
         Returns:
             The slot if found, None otherwise
         """
@@ -187,43 +187,43 @@ class Convergence:
                             self.slots.remove(slot)
                             self._stats["misses"] += 1
                             return None
-                    
+
                     self._stats["hits"] += 1
                     return slot
-            
+
             self._stats["misses"] += 1
             return None
-    
+
     async def get_all_ready(self) -> list[Slot]:
         """Get all ready items from working memory.
-        
+
         Returns:
             List of slots that are ready to use
         """
         async with self._lock:
             return [s for s in self.slots if s.ready]
-    
+
     async def get_by_source(self, source: SlotSource) -> list[Slot]:
         """Get all items from a specific source.
-        
+
         Args:
             source: The slot source to filter by
-            
+
         Returns:
             List of slots from that source
         """
         async with self._lock:
             return [s for s in self.slots if s.source == source]
-    
+
     async def update_relevance(self, slot_id: str, relevance: float) -> bool:
         """Update the relevance score of a slot.
-        
+
         Higher relevance = less likely to be evicted.
-        
+
         Args:
             slot_id: The slot's unique identifier
             relevance: New relevance score (0.0-1.0)
-            
+
         Returns:
             True if slot was found and updated
         """
@@ -233,14 +233,14 @@ class Convergence:
                     slot.relevance = max(0.0, min(1.0, relevance))
                     return True
             return False
-    
+
     async def mark_ready(self, slot_id: str, ready: bool = True) -> bool:
         """Mark a slot as ready or not ready.
-        
+
         Args:
             slot_id: The slot's unique identifier
             ready: Whether the slot is ready
-            
+
         Returns:
             True if slot was found and updated
         """
@@ -250,13 +250,13 @@ class Convergence:
                     slot.ready = ready
                     return True
             return False
-    
+
     async def remove(self, slot_id: str) -> bool:
         """Remove a slot from working memory.
-        
+
         Args:
             slot_id: The slot's unique identifier
-            
+
         Returns:
             True if slot was found and removed
         """
@@ -266,15 +266,15 @@ class Convergence:
                     self.slots.remove(slot)
                     return True
             return False
-    
+
     async def clear(self) -> None:
         """Clear all slots from working memory."""
         async with self._lock:
             self.slots.clear()
-    
+
     async def cleanup_expired(self) -> int:
         """Remove all expired slots.
-        
+
         Returns:
             Number of slots removed
         """
@@ -287,10 +287,10 @@ class Convergence:
             for slot in expired:
                 self.slots.remove(slot)
             return len(expired)
-    
+
     def get_stats(self) -> dict:
         """Get convergence statistics.
-        
+
         Returns:
             Dict with adds, evictions, hits, misses, current_size
         """
@@ -300,10 +300,10 @@ class Convergence:
             "capacity": self.capacity,
             "utilization": len(self.slots) / self.capacity if self.capacity > 0 else 0,
         }
-    
+
     async def snapshot(self) -> list[dict]:
         """Get a snapshot of all slots for debugging.
-        
+
         Returns:
             List of slot info dicts
         """
@@ -331,12 +331,12 @@ async def demo():
     print("=" * 60)
     print("Convergence (Working Memory) Demo")
     print("=" * 60)
-    
+
     convergence = Convergence(capacity=7)
-    
+
     print(f"\nCapacity: {convergence.capacity} (Miller's Law)")
     print()
-    
+
     # Add some slots
     test_slots = [
         Slot(
@@ -359,23 +359,23 @@ async def demo():
             ready=False,
         ),
     ]
-    
+
     print("📥 Adding slots...")
     for slot in test_slots:
         await convergence.add(slot)
         print(f"   Added: {slot.id} (relevance: {slot.relevance})")
-    
+
     print("\n📊 Current state:")
     snapshot = await convergence.snapshot()
     for s in snapshot:
         ready = "✓" if s["ready"] else "○"
         print(f"   {ready} {s['id']} - {s['relevance']:.1f} - {s['source']}")
-    
+
     print("\n🔍 Retrieving 'memories:error_handling'...")
     slot = await convergence.get("memories:error_handling")
     if slot:
         print(f"   Found: {slot.content}")
-    
+
     print("\n📈 Statistics:")
     stats = convergence.get_stats()
     for key, value in stats.items():

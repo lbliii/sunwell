@@ -17,38 +17,38 @@ Example:
     >>> mirror = MirrorHandler(sunwell_root=Path("."))
     >>> source = await mirror.introspect_source("sunwell.tools.executor")
     >>> patterns = await mirror.analyze_patterns(scope="session", focus="latency")
-    
+
     # Phase 5: Model-aware routing
     >>> best_model = mirror.select_model_for_task("introspect_source")
 """
 
-from sunwell.mirror.introspection import (
-    SourceIntrospector,
-    LensIntrospector,
-    SimulacrumIntrospector,
-    ExecutionIntrospector,
-)
 from sunwell.mirror.analysis import (
-    PatternAnalyzer,
     FailureAnalyzer,
-)
-from sunwell.mirror.proposals import (
-    Proposal,
-    ProposalStatus,
-    ProposalType,
-    ProposalManager,
+    PatternAnalyzer,
 )
 from sunwell.mirror.handler import MirrorHandler
-from sunwell.mirror.tools import MIRROR_TOOLS, MIRROR_TOOL_TRUST, get_mirror_tools_for_trust
-from sunwell.mirror.model_tracker import ModelPerformanceTracker, ModelPerformanceEntry
+from sunwell.mirror.introspection import (
+    ExecutionIntrospector,
+    LensIntrospector,
+    SimulacrumIntrospector,
+    SourceIntrospector,
+)
+from sunwell.mirror.model_tracker import ModelPerformanceEntry, ModelPerformanceTracker
+from sunwell.mirror.proposals import (
+    Proposal,
+    ProposalManager,
+    ProposalStatus,
+    ProposalType,
+)
 from sunwell.mirror.router import (
+    TASK_CATEGORY_MAP,
     ModelRouter,
     ModelRoutingConfig,
-    TASK_CATEGORY_MAP,
     get_all_task_categories,
     get_tools_for_category,
 )
 from sunwell.mirror.safety import SafetyChecker, SafetyPolicy, validate_diff_safety
+from sunwell.mirror.tools import MIRROR_TOOL_TRUST, MIRROR_TOOLS, get_mirror_tools_for_trust
 
 __all__ = [
     # Introspection

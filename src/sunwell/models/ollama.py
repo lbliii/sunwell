@@ -14,18 +14,19 @@ See: https://docs.ollama.com/api/generate
 from __future__ import annotations
 
 import json
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import AsyncIterator, TYPE_CHECKING, Union, Literal
+from typing import TYPE_CHECKING, Literal
 
+from sunwell.core.errors import ErrorCode, SunwellError, from_openai_error
 from sunwell.models.protocol import (
     GenerateOptions,
     GenerateResult,
-    TokenUsage,
     Message,
+    TokenUsage,
     Tool,
     ToolCall,
 )
-from sunwell.core.errors import SunwellError, ErrorCode, from_openai_error
 
 if TYPE_CHECKING:
     from openai import AsyncOpenAI
@@ -36,16 +37,16 @@ class OllamaModel:
     """Ollama model adapter with native API support for better system prompts.
 
     Requires: pip install sunwell[ollama] (or just openai>=1.0)
-    
+
     Ollama must be running locally: ollama serve
-    
+
     Usage:
         model = OllamaModel(model="gemma3:1b")
         result = await model.generate("Hello!")
-        
+
     For better system prompt handling (identity enforcement):
         model = OllamaModel(model="gemma3:1b", use_native_api=True)
-    
+
     For high parallelism (requires OLLAMA_NUM_PARALLEL >= connections):
         model = OllamaModel(
             model="gemma3:1b",
@@ -58,22 +59,22 @@ class OllamaModel:
     use_native_api: bool = False  # Use /api/generate instead of /v1/chat for better system prompts
     max_connections: int = 10  # Connection pool size for parallel requests
     request_timeout: float = 120.0  # Request timeout in seconds
-    _client: "AsyncOpenAI | None" = field(default=None, init=False)
-    _httpx_client: "httpx.AsyncClient | None" = field(default=None, init=False)
+    _client: AsyncOpenAI | None = field(default=None, init=False)
+    _httpx_client: httpx.AsyncClient | None = field(default=None, init=False)
 
     @property
     def model_id(self) -> str:
         return f"ollama/{self.model}"
 
-    def _get_client(self) -> "AsyncOpenAI":
+    def _get_client(self) -> AsyncOpenAI:
         """Get or create the OpenAI client configured for Ollama.
-        
+
         Configures connection pooling for better parallel request throughput.
         """
         if self._client is None:
             try:
-                from openai import AsyncOpenAI
                 import httpx
+                from openai import AsyncOpenAI
             except ImportError as e:
                 raise ImportError(
                     "OpenAI client not installed. Run: pip install openai>=1.0"
@@ -89,7 +90,7 @@ class OllamaModel:
                 timeout=self.request_timeout,
                 connect=10.0,
             )
-            
+
             # Create custom httpx client with connection pooling
             http_client = httpx.AsyncClient(
                 limits=limits,
@@ -103,12 +104,12 @@ class OllamaModel:
                 http_client=http_client,
             )
         return self._client
-    
-    def _get_httpx_client(self) -> "httpx.AsyncClient":
+
+    def _get_httpx_client(self) -> httpx.AsyncClient:
         """Get or create httpx client for native API calls."""
         if self._httpx_client is None:
             import httpx
-            
+
             limits = httpx.Limits(
                 max_connections=self.max_connections,
                 max_keepalive_connections=self.max_connections,
@@ -117,7 +118,7 @@ class OllamaModel:
                 timeout=self.request_timeout,
                 connect=10.0,
             )
-            
+
             self._httpx_client = httpx.AsyncClient(
                 limits=limits,
                 timeout=timeout,
@@ -125,13 +126,13 @@ class OllamaModel:
         return self._httpx_client
 
     def _convert_messages(
-        self, 
-        prompt: Union[str, tuple[Message, ...]],
+        self,
+        prompt: str | tuple[Message, ...],
         system_prompt: str | None = None,
     ) -> list[dict]:
         """Convert prompt to OpenAI message format."""
         messages = []
-        
+
         if isinstance(prompt, str):
             if system_prompt:
                 messages.append({"role": "system", "content": system_prompt})
@@ -165,14 +166,14 @@ class OllamaModel:
                         "tool_call_id": msg.tool_call_id,
                         "content": msg.content or "",
                     })
-        
+
         return messages
 
     def _convert_tools(self, tools: tuple[Tool, ...] | None) -> list[dict] | None:
         """Convert Sunwell tools to OpenAI/Ollama function format."""
         if not tools:
             return None
-        
+
         return [
             {
                 "type": "function",
@@ -187,37 +188,37 @@ class OllamaModel:
 
     def _convert_tool_choice(
         self,
-        tool_choice: Union[Literal["auto", "none", "required"], str, dict] | None,
-    ) -> Union[str, dict, None]:
+        tool_choice: Literal["auto", "none", "required"] | str | dict | None,
+    ) -> str | dict | None:
         """Convert tool_choice to OpenAI/Ollama format."""
         if tool_choice is None:
             return None
-        
+
         if isinstance(tool_choice, dict) or tool_choice in ("auto", "none", "required"):
             return tool_choice
-        
+
         # Force specific tool
         return {"type": "function", "function": {"name": tool_choice}}
 
     async def generate(
         self,
-        prompt: Union[str, tuple[Message, ...]],
+        prompt: str | tuple[Message, ...],
         *,
         tools: tuple[Tool, ...] | None = None,
-        tool_choice: Union[Literal["auto", "none", "required"], str, dict] | None = None,
+        tool_choice: Literal["auto", "none", "required"] | str | dict | None = None,
         options: GenerateOptions | None = None,
     ) -> GenerateResult:
         """Generate a response using Ollama.
-        
+
         Raises:
             SunwellError: On API errors with structured error info for recovery
         """
         client = self._get_client()
         opts = options or GenerateOptions()
-        
+
         # Merge tools from parameter and options
         effective_tools = tools or opts.tools
-        
+
         # Pre-check tool support to fail fast with helpful error
         if effective_tools:
             from sunwell.runtime.model_router import get_model_capability, get_tools_fallback
@@ -290,13 +291,13 @@ class OllamaModel:
 
     async def generate_stream(
         self,
-        prompt: Union[str, tuple[Message, ...]],
+        prompt: str | tuple[Message, ...],
         *,
         tools: tuple[Tool, ...] | None = None,
         options: GenerateOptions | None = None,
     ) -> AsyncIterator[str]:
         """Stream a response using Ollama.
-        
+
         If use_native_api=True, uses /api/generate with explicit system override.
         Otherwise uses OpenAI-compatible /v1/chat/completions.
         """
@@ -309,7 +310,7 @@ class OllamaModel:
 
     async def _generate_stream_openai(
         self,
-        prompt: Union[str, tuple[Message, ...]],
+        prompt: str | tuple[Message, ...],
         *,
         options: GenerateOptions | None = None,
     ) -> AsyncIterator[str]:
@@ -337,24 +338,24 @@ class OllamaModel:
 
     async def _generate_stream_native(
         self,
-        prompt: Union[str, tuple[Message, ...]],
+        prompt: str | tuple[Message, ...],
         *,
         options: GenerateOptions | None = None,
     ) -> AsyncIterator[str]:
         """Stream using native Ollama /api/generate with explicit system override.
-        
+
         The native API's `system` field properly overrides the model's built-in
         system prompt, which is more reliable for identity enforcement.
-        
+
         See: https://docs.ollama.com/api/generate
         """
         opts = options or GenerateOptions()
         native_url = self.base_url.replace("/v1", "/api/generate")
-        
+
         # Extract system prompt and build user prompt from messages
         system_prompt = ""
         user_prompt = ""
-        
+
         if isinstance(prompt, str):
             user_prompt = prompt
             system_prompt = opts.system_prompt or ""
@@ -370,24 +371,24 @@ class OllamaModel:
                 elif msg.role == "assistant":
                     parts.append(f"[RESPONSE]\n{msg.content}")
             user_prompt = "\n\n".join(parts) if parts else ""
-        
+
         payload = {
             "model": self.model,
             "prompt": user_prompt,
             "stream": True,
         }
-        
+
         # Explicit system override - this is the key difference
         if system_prompt:
             payload["system"] = system_prompt
-        
+
         # Add stop sequences to prevent role echoing
         payload["options"] = payload.get("options", {})
         payload["options"]["stop"] = ["[USER]", "[RESPONSE]"]
-        
+
         if opts.temperature is not None:
             payload["options"]["temperature"] = opts.temperature
-        
+
         # Use pooled client for better parallelism
         client = self._get_httpx_client()
         async with client.stream("POST", native_url, json=payload) as response:

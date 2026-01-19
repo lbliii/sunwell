@@ -62,15 +62,14 @@ from sunwell.simulacrum.parallel import ParallelRetriever
 # All other items should be imported from their subpackages
 
 from sunwell.simulacrum.core import (
+    ConversationDAG,
+    Learning,
     Simulacrum,
     SimulacrumStore,
     StorageConfig,
     Turn,
     TurnType,
-    Learning,
-    ConversationDAG,
 )
-
 from sunwell.simulacrum.manager import (
     SimulacrumManager,
     SimulacrumMetadata,
@@ -85,7 +84,7 @@ __all__ = [
     "TurnType",
     "Learning",
     "ConversationDAG",
-    
+
     # Multi-simulacrum management (commonly used)
     "SimulacrumManager",
     "SimulacrumMetadata",

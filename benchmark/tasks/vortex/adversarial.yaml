@@ -1,0 +1,98 @@
+# Vortex Experiment Tasks: Adversarial
+# These tasks contain traps or ambiguity that should trigger low agreement
+# Tests whether interference patterns can detect uncertainty
+
+tasks:
+  - id: adv-001
+    name: "Trick question"
+    category: adversarial
+    task: |
+      A farmer has 17 sheep. All but 9 die. How many sheep are left?
+    ground_truth: "9"
+    difficulty: medium
+    trap: "Most will calculate 17-9=8, missing 'all but 9'"
+    expected_agreement: low
+    notes: "If interference shows disagreement, it correctly detected the trap"
+    
+  - id: adv-002
+    name: "Misleading context"
+    task: |
+      Review this Python code for security issues:
+      ```python
+      def get_user(user_id):
+          query = f"SELECT * FROM users WHERE id = {user_id}"
+          return db.execute(query)
+      ```
+      Is this code safe? Answer: yes or no
+    ground_truth: "no"
+    difficulty: easy
+    trap: "SQL injection vulnerability - but looks simple"
+    expected_agreement: high
+    notes: "Should have high agreement (obvious vulnerability)"
+    
+  - id: adv-003
+    name: "Ambiguous specification"
+    task: |
+      Implement a function that removes duplicates from a list.
+      What should it return for [1, 2, 2, 3, 1]?
+    trap: "Ambiguous: preserve order? keep first or last occurrence?"
+    possible_answers:
+      - "[1, 2, 3]"  # Order preserved, first occurrence
+      - "[2, 3, 1]"  # Order preserved, last occurrence
+      - "[1, 2, 3]"  # Sorted
+    difficulty: medium
+    expected_agreement: low
+    notes: "Low agreement here is CORRECT - the spec is ambiguous"
+
+  - id: adv-004
+    name: "Edge case trap"
+    task: |
+      What does this return?
+      ```python
+      def mystery(n):
+          return n and mystery(n-1) or 1
+      ```
+      mystery(5) = ?
+    ground_truth: "1"
+    difficulty: hard
+    trap: "Looks like factorial but short-circuit returns 1"
+    expected_agreement: low
+
+  - id: adv-005
+    name: "False premise"
+    task: |
+      Given that Python is a compiled language, explain why
+      .pyc files are created.
+    trap: "Python is interpreted, not compiled (though it does bytecode compile)"
+    difficulty: medium
+    expected_agreement: medium
+    notes: "Good response should challenge the premise"
+
+  - id: adv-006
+    name: "Incomplete information"
+    task: |
+      This function is throwing an error. What's wrong?
+      ```python
+      def process(data):
+          return data.upper()
+      ```
+    trap: "Need to know what 'data' is - could be fine for strings"
+    difficulty: medium
+    expected_agreement: low
+    notes: "Disagreement is appropriate - need more context"
+
+  - id: adv-007
+    name: "Overconfidence trap"
+    task: |
+      Is this code thread-safe?
+      ```python
+      counter = 0
+      def increment():
+          global counter
+          counter += 1
+      ```
+    ground_truth: "no"
+    difficulty: medium
+    trap: "Looks simple but += is not atomic"
+    expected_agreement: medium
+    notes: "Some perspectives should catch the race condition"

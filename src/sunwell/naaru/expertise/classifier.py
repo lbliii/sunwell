@@ -22,7 +22,7 @@ from enum import Enum
 
 class Domain(Enum):
     """Recognized goal domains."""
-    
+
     DOCUMENTATION = "documentation"
     CODE = "code"
     REVIEW = "review"
@@ -35,11 +35,11 @@ class Domain(Enum):
 @dataclass(frozen=True, slots=True)
 class DomainClassification:
     """Result of domain classification."""
-    
+
     domain: Domain
     confidence: float  # 0.0 to 1.0
     signals: tuple[str, ...]  # Keywords that triggered classification
-    
+
     @property
     def is_confident(self) -> bool:
         """Whether classification confidence is high enough for expertise loading."""
@@ -158,44 +158,44 @@ NEGATIVE_SIGNALS: dict[Domain, dict[str, float]] = {
 @dataclass
 class DomainClassifier:
     """Classify goals into domains for expertise selection.
-    
+
     Uses weighted keyword matching for fast, local classification.
     No LLM required - purely heuristic-based.
-    
+
     Example:
         >>> classifier = DomainClassifier()
         >>> result = classifier.classify("Write docs for the CLI module")
         >>> result.domain
         Domain.DOCUMENTATION
     """
-    
+
     # Custom signal overrides
     custom_signals: dict[Domain, dict[str, float]] = field(default_factory=dict)
-    
+
     # Minimum confidence to return a domain (else GENERAL)
     min_confidence: float = 0.1
-    
+
     def classify(self, goal: str) -> DomainClassification:
         """Classify a goal into a domain.
-        
+
         Args:
             goal: The user's goal string
-            
+
         Returns:
             DomainClassification with domain, confidence, and matched signals
         """
         goal_lower = goal.lower()
-        
+
         # Score each domain
         domain_scores: dict[Domain, tuple[float, list[str]]] = {}
-        
+
         for domain in Domain:
             if domain == Domain.GENERAL:
                 continue
-                
+
             score, signals = self._score_domain(goal_lower, domain)
             domain_scores[domain] = (score, signals)
-        
+
         # Find best domain
         if not domain_scores:
             return DomainClassification(
@@ -203,13 +203,13 @@ class DomainClassifier:
                 confidence=0.0,
                 signals=(),
             )
-        
+
         best_domain = max(domain_scores, key=lambda d: domain_scores[d][0])
         best_score, best_signals = domain_scores[best_domain]
-        
+
         # Normalize confidence (cap at 1.0)
         confidence = min(best_score, 1.0)
-        
+
         # Fall back to GENERAL if confidence too low
         if confidence < self.min_confidence:
             return DomainClassification(
@@ -217,48 +217,48 @@ class DomainClassifier:
                 confidence=confidence,
                 signals=tuple(best_signals),
             )
-        
+
         return DomainClassification(
             domain=best_domain,
             confidence=confidence,
             signals=tuple(best_signals),
         )
-    
+
     def _score_domain(
-        self, 
-        goal_lower: str, 
+        self,
+        goal_lower: str,
         domain: Domain,
     ) -> tuple[float, list[str]]:
         """Calculate score for a domain.
-        
+
         Returns (score, matched_signals).
         """
         # Get signals for this domain
         signals = DOMAIN_SIGNALS.get(domain, {})
         custom = self.custom_signals.get(domain, {})
-        
+
         # Merge custom signals (custom overrides default)
         all_signals = {**signals, **custom}
-        
+
         score = 0.0
         matched = []
-        
+
         for signal, weight in all_signals.items():
             if signal in goal_lower:
                 score += weight
                 matched.append(signal)
-        
+
         # Apply negative signals
         negative = NEGATIVE_SIGNALS.get(domain, {})
         for signal, penalty in negative.items():
             if signal in goal_lower:
                 score += penalty  # penalty is negative
-        
+
         return (score, matched)
-    
+
     def add_signal(self, domain: Domain, signal: str, weight: float = 1.0) -> None:
         """Add a custom signal for a domain.
-        
+
         Args:
             domain: Target domain
             signal: Keyword or phrase to match (lowercase)
@@ -272,12 +272,12 @@ class DomainClassifier:
 # Convenience function for quick classification
 def classify_domain(goal: str) -> DomainClassification:
     """Classify a goal into a domain.
-    
+
     Convenience function using default DomainClassifier.
-    
+
     Args:
         goal: The user's goal string
-        
+
     Returns:
         DomainClassification with domain, confidence, and matched signals
     """

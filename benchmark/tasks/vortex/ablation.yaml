@@ -1,0 +1,228 @@
+# Vortex Ablation Study Tasks
+# Tasks designed to measure contribution of each vortex component:
+# - Locality (islands prevent premature convergence)
+# - Interference (multiple perspectives)
+# - Dialectic (thesis/antithesis/synthesis)
+# - Resonance (iterative refinement)
+# - Gradient (decomposition)
+
+tasks:
+  # =============================================================================
+  # Locality Ablation Tasks (benefits from cultural diversity)
+  # =============================================================================
+  
+  - id: locality-001
+    name: "Design problem with multiple valid approaches"
+    category: ablation-locality
+    task: |
+      Design a caching strategy for a web application that serves:
+      - User profiles (read-heavy, rarely updated)
+      - News feeds (frequently updated, personalized)
+      - Session data (must be consistent)
+      
+      What caching approach would you recommend?
+    difficulty: medium
+    notes: |
+      Without locality: Models converge to a single approach early.
+      With locality: Different islands explore Redis, Memcached, in-memory, CDN.
+      Expected: Islands with different "cultures" produce more diverse solutions.
+    expected_benefit: locality
+    
+  - id: locality-002
+    name: "Multi-perspective code review"
+    category: ablation-locality
+    task: |
+      Review this code from security, performance, and maintainability perspectives:
+      ```python
+      def process_user_input(data):
+          query = f"SELECT * FROM users WHERE name = '{data['name']}'"
+          result = db.execute(query)
+          return json.dumps(result)
+      ```
+    difficulty: easy
+    notes: |
+      Without locality: May focus on one issue.
+      With locality: Each island develops different "culture" (security, perf, clean code).
+    expected_benefit: locality
+    
+  # =============================================================================
+  # Interference Ablation Tasks (benefits from agreement measurement)
+  # =============================================================================
+  
+  - id: interference-001
+    name: "Ambiguous requirement interpretation"
+    category: ablation-interference
+    task: |
+      A client says: "The system should be fast enough."
+      What questions would you ask to clarify this requirement?
+    difficulty: easy
+    notes: |
+      Interference measures agreement across perspectives.
+      Low agreement → uncertainty → need more clarification.
+    expected_benefit: interference
+    
+  - id: interference-002
+    name: "API error handling decision"
+    category: ablation-interference
+    task: |
+      Should a REST API return HTTP 404 or 204 when a resource doesn't exist
+      for a GET request? What are the tradeoffs?
+    difficulty: medium
+    notes: |
+      Constructive interference (high agreement): Use 404, it's standard.
+      Destructive interference: Perspectives disagree → need dialectic.
+    expected_benefit: interference
+    
+  # =============================================================================
+  # Dialectic Ablation Tasks (benefits from thesis/antithesis)
+  # =============================================================================
+  
+  - id: dialectic-001
+    name: "Microservices vs monolith"
+    category: ablation-dialectic
+    task: |
+      For a new e-commerce platform with 5 developers, should we use
+      microservices or a monolith? Consider team size, deployment complexity,
+      and future growth.
+    difficulty: medium
+    notes: |
+      Clear thesis/antithesis structure.
+      Without dialectic: May default to popular opinion (microservices).
+      With dialectic: Forces consideration of both sides → better synthesis.
+    expected_benefit: dialectic
+    
+  - id: dialectic-002
+    name: "ORM vs raw SQL"
+    category: ablation-dialectic
+    task: |
+      When should you use an ORM vs raw SQL? What are the tradeoffs for
+      a high-traffic application with complex queries?
+    difficulty: medium
+    notes: |
+      Natural thesis (ORM: safety, DRY) vs antithesis (SQL: performance, control).
+    expected_benefit: dialectic
+    
+  # =============================================================================
+  # Resonance Ablation Tasks (benefits from iterative refinement)
+  # =============================================================================
+  
+  - id: resonance-001
+    name: "Documentation quality"
+    category: ablation-resonance
+    task: |
+      Write a README for a Python CLI tool that converts CSV to JSON.
+      Include installation, usage examples, and common issues.
+    difficulty: easy
+    notes: |
+      First draft often misses edge cases.
+      Resonance (feedback loop) catches: missing examples, unclear wording.
+    expected_benefit: resonance
+    
+  - id: resonance-002
+    name: "Error message improvement"
+    category: ablation-resonance
+    task: |
+      Improve this error message:
+      "Error: Operation failed (code: 12)"
+      
+      Rewrite it to be helpful for debugging.
+    difficulty: easy
+    notes: |
+      Resonance helps refine: specificity, actionability, context.
+    expected_benefit: resonance
+    
+  # =============================================================================
+  # Gradient Ablation Tasks (benefits from decomposition)
+  # =============================================================================
+  
+  - id: gradient-001
+    name: "Complex feature implementation"
+    category: ablation-gradient
+    task: |
+      Implement a rate limiter for an API with these requirements:
+      - Per-user limits (100 req/min)
+      - Per-IP limits (1000 req/min)
+      - Graceful handling when limit exceeded
+      - Distributed (works across multiple servers)
+      
+      What are the implementation steps?
+    difficulty: hard
+    notes: |
+      Without gradient: May try to solve everything at once.
+      With gradient: Decomposes into subtasks with difficulty estimates.
+      Easy subtasks: Basic counter, response handling.
+      Hard subtasks: Distributed state, race conditions.
+    expected_benefit: gradient
+    
+  - id: gradient-002
+    name: "System design decomposition"
+    category: ablation-gradient
+    task: |
+      Design a URL shortener. What components are needed?
+    difficulty: medium
+    notes: |
+      Gradient should identify:
+      - Easy: Basic redirect, simple UI
+      - Medium: URL generation, storage
+      - Hard: Analytics, scale, custom domains
+    expected_benefit: gradient
+
+# =============================================================================
+# Ablation Study Configuration
+# =============================================================================
+
+ablation_config:
+  # Baseline: All components disabled
+  baseline:
+    n_islands: 1
+    interference_enabled: false
+    dialectic_enabled: false
+    resonance_iterations: 0
+    gradient_enabled: false
+    
+  # Individual component tests
+  locality_only:
+    n_islands: 3
+    interference_enabled: false
+    dialectic_enabled: false
+    resonance_iterations: 0
+    gradient_enabled: false
+    
+  interference_only:
+    n_islands: 1
+    interference_enabled: true
+    interference_perspectives: 3
+    dialectic_enabled: false
+    resonance_iterations: 0
+    gradient_enabled: false
+    
+  dialectic_only:
+    n_islands: 1
+    interference_enabled: false
+    dialectic_enabled: true
+    resonance_iterations: 0
+    gradient_enabled: false
+    
+  resonance_only:
+    n_islands: 1
+    interference_enabled: false
+    dialectic_enabled: false
+    resonance_iterations: 2
+    gradient_enabled: false
+    
+  gradient_only:
+    n_islands: 1
+    interference_enabled: false
+    dialectic_enabled: false
+    resonance_iterations: 0
+    gradient_enabled: true
+    
+  # Full vortex
+  full:
+    n_islands: 3
+    interference_enabled: true
+    interference_perspectives: 3
+    dialectic_enabled: true
+    dialectic_threshold: 0.6
+    resonance_iterations: 2
+    gradient_enabled: true

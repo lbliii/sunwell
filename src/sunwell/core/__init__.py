@@ -1,47 +1,47 @@
 """Core domain models for Sunwell."""
 
+from sunwell.core.context import AppContext
+from sunwell.core.framework import Framework, FrameworkCategory
+from sunwell.core.freethreading import (
+    WorkloadType,
+    is_free_threaded,
+    optimal_workers,
+    run_cpu_bound,
+    run_parallel,
+    run_parallel_async,
+    runtime_info,
+)
+from sunwell.core.heuristic import AntiHeuristic, CommunicationStyle, Heuristic
 from sunwell.core.lens import Lens, LensMetadata
-from sunwell.core.heuristic import Heuristic, AntiHeuristic, CommunicationStyle
 from sunwell.core.persona import Persona
+from sunwell.core.spell import (
+    Grimoire,
+    Reagent,
+    ReagentMode,
+    ReagentType,
+    Spell,
+    SpellExample,
+    SpellResult,
+    SpellValidation,
+    ValidationMode,
+    parse_spell,
+    validate_spell_output,
+)
+from sunwell.core.types import (
+    Confidence,
+    IntentCategory,
+    LensReference,
+    SemanticVersion,
+    Severity,
+    Tier,
+    ValidationMethod,
+)
 from sunwell.core.validator import (
     DeterministicValidator,
     HeuristicValidator,
     ValidationResult,
 )
-from sunwell.core.framework import Framework, FrameworkCategory
-from sunwell.core.workflow import Workflow, WorkflowStep, Refiner
-from sunwell.core.types import (
-    Severity,
-    Tier,
-    ValidationMethod,
-    IntentCategory,
-    SemanticVersion,
-    LensReference,
-    Confidence,
-)
-from sunwell.core.freethreading import (
-    is_free_threaded,
-    optimal_workers,
-    WorkloadType,
-    run_parallel,
-    run_parallel_async,
-    run_cpu_bound,
-    runtime_info,
-)
-from sunwell.core.spell import (
-    Spell,
-    SpellValidation,
-    SpellExample,
-    Reagent,
-    ReagentType,
-    ReagentMode,
-    ValidationMode,
-    Grimoire,
-    SpellResult,
-    parse_spell,
-    validate_spell_output,
-)
-from sunwell.core.context import AppContext
+from sunwell.core.workflow import Refiner, Workflow, WorkflowStep
 
 __all__ = [
     "Lens",

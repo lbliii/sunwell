@@ -12,20 +12,22 @@ A single unit of memory with:
 Part of RFC-014: Multi-Topology Memory.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
 
 from sunwell.simulacrum.hierarchical.chunks import Chunk
+from sunwell.simulacrum.topology.facets import ContentFacets
 from sunwell.simulacrum.topology.spatial import SpatialContext
 from sunwell.simulacrum.topology.structural import DocumentSection
-from sunwell.simulacrum.topology.facets import ContentFacets
 from sunwell.simulacrum.topology.topology_base import ConceptEdge
 
 
 @dataclass
 class MemoryNode:
     """Unified memory node combining all topology dimensions.
-    
+
     A single unit of memory with:
     - Content (text, code, etc.)
     - Temporal position (RFC-013 chunk)
@@ -34,61 +36,61 @@ class MemoryNode:
     - Faceted tags (multi-dimensional)
     - Graph edges (relationships to other nodes)
     """
-    
+
     id: str
     """Unique identifier."""
-    
+
     content: str
     """The actual content."""
-    
+
     # === Temporal (RFC-013) ===
     chunk: Chunk | None = None
     """RFC-013 chunk data (turn-based chunking)."""
-    
+
     # === Spatial ===
     spatial: SpatialContext | None = None
     """Position context (file, line, section path)."""
-    
+
     # === Structural ===
     section: DocumentSection | None = None
     """Document section context."""
-    
+
     # === Multi-Faceted ===
     facets: ContentFacets | None = None
     """Cross-dimensional tags."""
-    
+
     # === Topological ===
     outgoing_edges: list[ConceptEdge] = field(default_factory=list)
     """Relationships where this node is source."""
-    
+
     incoming_edges: list[ConceptEdge] = field(default_factory=list)
     """Relationships where this node is target."""
-    
+
     # === Metadata ===
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
-    
+
     # === Retrieval ===
     embedding: tuple[float, ...] | None = None
     """Vector embedding for semantic search."""
-    
+
     def summary(self) -> str:
         """Generate human-readable summary."""
         parts = []
-        
+
         if self.spatial:
             parts.append(str(self.spatial))
-        
+
         if self.section:
             parts.append(f"[{self.section.section_type.value}]")
-        
+
         if self.facets and self.facets.diataxis_type:
             parts.append(f"({self.facets.diataxis_type.value})")
-        
+
         parts.append(self.content[:100] + "..." if len(self.content) > 100 else self.content)
-        
+
         return " ".join(parts)
-    
+
     def to_dict(self) -> dict:
         """Serialize node for storage."""
         return {
@@ -126,15 +128,19 @@ class MemoryNode:
             # Embedding
             "embedding": list(self.embedding) if self.embedding else None,
         }
-    
+
     @classmethod
-    def from_dict(cls, data: dict) -> "MemoryNode":
+    def from_dict(cls, data: dict) -> MemoryNode:
         """Deserialize node from storage."""
-        from sunwell.simulacrum.topology.spatial import SpatialContext, PositionType
         from sunwell.simulacrum.topology.facets import (
-            ContentFacets, DiataxisType, PersonaType, VerificationState, ConfidenceLevel
+            ConfidenceLevel,
+            ContentFacets,
+            DiataxisType,
+            PersonaType,
+            VerificationState,
         )
-        
+        from sunwell.simulacrum.topology.spatial import PositionType, SpatialContext
+
         # Reconstruct spatial
         spatial = None
         if data.get("spatial"):
@@ -152,7 +158,7 @@ class MemoryNode:
                 url=s.get("url"),
                 anchor=s.get("anchor"),
             )
-        
+
         # Reconstruct facets
         facets = None
         if data.get("facets"):
@@ -169,12 +175,12 @@ class MemoryNode:
                 source_type=f_data.get("source_type"),
                 source_authority=f_data.get("source_authority", 1.0),
             )
-        
+
         # Reconstruct embedding
         embedding = None
         if data.get("embedding"):
             embedding = tuple(data["embedding"])
-        
+
         return cls(
             id=data["id"],
             content=data["content"],

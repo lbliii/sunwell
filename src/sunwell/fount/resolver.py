@@ -20,10 +20,10 @@ class LensResolver:
 
     async def resolve(self, ref: LensReference) -> Lens:
         """Resolve a lens and all its dependencies recursively.
-        
+
         Args:
             ref: Reference to the root lens to resolve
-            
+
         Returns:
             A fully resolved and merged Lens object
         """
@@ -68,11 +68,11 @@ class LensResolver:
 
     def _merge_lenses(self, root: Lens, bases: list[Lens]) -> Lens:
         """Merge root lens with its base/composed lenses.
-        
+
         Root lens fields override or extend the base lenses.
         """
         from dataclasses import replace
-        
+
         # Start with root fields
         heuristics = list(root.heuristics)
         anti_heuristics = list(root.anti_heuristics)
@@ -82,7 +82,7 @@ class LensResolver:
         workflows = list(root.workflows)
         refiners = list(root.refiners)
         skills = list(root.skills)
-        
+
         # Collect from bases (additive, deduplicated by name)
         for base in bases:
             # Heuristics
@@ -90,42 +90,42 @@ class LensResolver:
             for h in base.heuristics:
                 if h.name not in existing_h:
                     heuristics.append(h)
-            
+
             # Anti-heuristics
             existing_ah = {ah.name for ah in anti_heuristics}
             for ah in base.anti_heuristics:
                 if ah.name not in existing_ah:
                     anti_heuristics.append(ah)
-                    
+
             # Personas
             existing_p = {p.name for p in personas}
             for p in base.personas:
                 if p.name not in existing_p:
                     personas.append(p)
-                    
+
             # Validators
             existing_dv = {v.name for v in det_validators}
             for v in base.deterministic_validators:
                 if v.name not in existing_dv:
                     det_validators.append(v)
-                    
+
             existing_hv = {v.name for v in heur_validators}
             for v in base.heuristic_validators:
                 if v.name not in existing_hv:
                     heur_validators.append(v)
-                    
+
             # Workflows
             existing_w = {w.name for w in workflows}
             for w in base.workflows:
                 if w.name not in existing_w:
                     workflows.append(w)
-                    
+
             # Refiners
             existing_r = {r.name for r in refiners}
             for r in base.refiners:
                 if r.name not in existing_r:
                     refiners.append(r)
-                    
+
             # Skills
             existing_s = {s.name for s in skills}
             for s in base.skills:
@@ -139,28 +139,28 @@ class LensResolver:
                 if base.communication:
                     communication = base.communication
                     break
-                    
+
         framework = root.framework
         if not framework:
             for base in bases:
                 if base.framework:
                     framework = base.framework
                     break
-                    
+
         provenance = root.provenance
         if not provenance:
             for base in bases:
                 if base.provenance:
                     provenance = base.provenance
                     break
-                    
+
         router = root.router
         if not router:
             for base in bases:
                 if base.router:
                     router = base.router
                     break
-                    
+
         skill_retry = root.skill_retry
         if not skill_retry:
             for base in bases:

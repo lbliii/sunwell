@@ -22,15 +22,16 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from rich.console import Console
+
     from sunwell.identity.store import IdentityStore
 
 
-def format_identity_display(identity_store: "IdentityStore") -> str:
+def format_identity_display(identity_store: IdentityStore) -> str:
     """Format identity for display in Rich panel."""
     identity = identity_store.identity
-    
+
     lines = []
-    
+
     # Status line
     if identity.paused:
         status = "[yellow]Paused ⏸[/yellow]"
@@ -38,36 +39,36 @@ def format_identity_display(identity_store: "IdentityStore") -> str:
         status = "[green]Active ✓[/green]"
     else:
         status = "[dim]Inactive[/dim]"
-    
+
     conf_color = "green" if identity.confidence >= 0.8 else "yellow" if identity.confidence >= 0.6 else "red"
     lines.append(f"Status: {status}     Confidence: [{conf_color}]{identity.confidence:.0%}[/{conf_color}]")
-    
+
     # Last updated
     if identity.last_digest:
         lines.append(f"Last Updated: {identity.last_digest.strftime('%Y-%m-%d %H:%M')} (turn {identity.turn_count_at_digest})")
     else:
         lines.append("Last Updated: Never (no digest yet)")
-    
+
     # Source
     if identity.inherited:
         lines.append("Source: [cyan]global[/cyan] (inherited)")
     else:
         lines.append("Source: [cyan]session[/cyan]")
-    
+
     lines.append("")
-    
+
     # Tone
     if identity.tone:
         lines.append(f"[bold]Tone:[/bold] {identity.tone}")
         lines.append("")
-    
+
     # Values
     if identity.values:
         lines.append("[bold]Values:[/bold]")
         for value in identity.values[:5]:
             lines.append(f"  • {value}")
         lines.append("")
-    
+
     # Prompt
     if identity.prompt:
         lines.append("[bold]Interaction Guide:[/bold]")
@@ -83,7 +84,7 @@ def format_identity_display(identity_store: "IdentityStore") -> str:
         if current_line.strip():
             lines.append(current_line)
         lines.append("")
-    
+
     # Recent observations
     if identity.observations:
         recent = identity.observations[-5:]
@@ -93,22 +94,22 @@ def format_identity_display(identity_store: "IdentityStore") -> str:
             obs_text = obs.observation[:45] + "..." if len(obs.observation) > 45 else obs.observation
             lines.append(f"  • {obs_text:50} {conf_display}")
         lines.append("")
-    
+
     # Help hint
     lines.append("[dim]/identity rate[/dim] to provide feedback")
-    
+
     return "\n".join(lines)
 
 
 async def handle_identity_command(
     arg: str,
-    identity_store: "IdentityStore",
-    console: "Console",
+    identity_store: IdentityStore,
+    console: Console,
     tiny_model=None,
     turn_count: int = 0,
 ) -> None:
     """Handle /identity commands.
-    
+
     Args:
         arg: Command argument (rate, refresh, clear, pause, resume, export, or empty)
         identity_store: The IdentityStore instance
@@ -117,8 +118,9 @@ async def handle_identity_command(
         turn_count: Current turn count for digest tracking
     """
     from rich.panel import Panel
+
     from sunwell.naaru.persona import MURU
-    
+
     if not arg:
         # Main view: /identity
         display = format_identity_display(identity_store)
@@ -128,35 +130,35 @@ async def handle_identity_command(
             border_style="cyan",
         ))
         return
-    
+
     subcmd = arg.lower().split()[0]
     subarg = arg[len(subcmd):].strip() if len(arg) > len(subcmd) else ""
-    
+
     if subcmd == "rate":
         # Rate the identity model
         await _handle_rate(identity_store, console, subarg)
-    
+
     elif subcmd == "refresh":
         # Force re-synthesis
         await _handle_refresh(identity_store, console, tiny_model, turn_count)
-    
+
     elif subcmd == "clear":
         identity_store.clear()
         console.print("[green]✓ Identity cleared[/green]")
         console.print("[dim]Starting fresh - behavioral observations will rebuild over time.[/dim]")
-    
+
     elif subcmd == "pause":
         identity_store.pause()
         console.print("[yellow]⏸ Behavioral learning paused[/yellow]")
         console.print("[dim]Existing identity will still be used. Use /identity resume to continue learning.[/dim]")
-    
+
     elif subcmd == "resume":
         identity_store.resume()
         console.print("[green]✓ Behavioral learning resumed[/green]")
-    
+
     elif subcmd == "export":
         await _handle_export(identity_store, console, subarg)
-    
+
     else:
         console.print(f"[red]Unknown: /identity {subcmd}[/red]")
         console.print("""
@@ -172,19 +174,20 @@ async def handle_identity_command(
 
 
 async def _handle_rate(
-    identity_store: "IdentityStore",
-    console: "Console",
+    identity_store: IdentityStore,
+    console: Console,
     rating_input: str,
 ) -> None:
     """Handle /identity rate command."""
     from rich.panel import Panel
+
     from sunwell.naaru.persona import MURU
-    
+
     if not identity_store.identity.prompt:
         console.print("[yellow]No identity model to rate yet.[/yellow]")
         console.print("[dim]Keep chatting to build an identity model.[/dim]")
         return
-    
+
     if not rating_input:
         # Show rating prompt
         console.print(Panel(
@@ -202,12 +205,12 @@ Your rating helps improve M'uru's learning.
             border_style="cyan",
         ))
         return
-    
+
     try:
         rating = int(rating_input.strip())
         if rating < 1 or rating > 5:
             raise ValueError("Rating must be 1-5")
-        
+
         # Log rating (telemetry is opt-in per RFC-023)
         # For now, just acknowledge
         feedback_map = {
@@ -217,21 +220,21 @@ Your rating helps improve M'uru's learning.
             4: "Great! Small tweaks may come with more observations.",
             5: "Excellent! The model seems to capture your style well.",
         }
-        
+
         console.print(f"[green]✓ Rating saved: {rating}/5[/green]")
         console.print(f"[dim]{feedback_map[rating]}[/dim]")
-        
+
         # If rating is low, suggest clear
         if rating <= 2:
             console.print("[dim]Tip: Use /identity clear to start fresh.[/dim]")
-        
+
     except ValueError:
         console.print("[red]Please enter a number 1-5[/red]")
 
 
 async def _handle_refresh(
-    identity_store: "IdentityStore",
-    console: "Console",
+    identity_store: IdentityStore,
+    console: Console,
     tiny_model,
     turn_count: int,
 ) -> None:
@@ -240,34 +243,34 @@ async def _handle_refresh(
         console.print("[yellow]No observations to digest yet.[/yellow]")
         console.print("[dim]Keep chatting to build behavioral observations.[/dim]")
         return
-    
+
     if not tiny_model:
         console.print("[yellow]No tiny model available for digest.[/yellow]")
         console.print("[dim]Digest requires gemma3:1b or similar. Using heuristic fallback.[/dim]")
-        
+
         # Try quick heuristic digest
         from sunwell.identity.digest import quick_digest
         obs_texts = [o.observation for o in identity_store.identity.observations]
         prompt, confidence = await quick_digest(obs_texts, identity_store.identity.prompt)
-        
+
         if prompt:
             identity_store.update_digest(prompt, confidence, turn_count)
             console.print(f"[green]✓ Identity refreshed (heuristic, confidence: {confidence:.0%})[/green]")
         else:
             console.print("[yellow]Not enough consistent observations for heuristic digest.[/yellow]")
         return
-    
+
     console.print("[dim]Digesting observations...[/dim]")
-    
+
     from sunwell.identity.digest import digest_identity
-    
+
     obs_texts = [o.observation for o in identity_store.identity.observations]
     new_identity = await digest_identity(
         observations=obs_texts,
         current_identity=identity_store.identity,
         tiny_model=tiny_model,
     )
-    
+
     if new_identity.is_usable():
         identity_store.update_digest(
             prompt=new_identity.prompt,
@@ -282,16 +285,16 @@ async def _handle_refresh(
 
 
 async def _handle_export(
-    identity_store: "IdentityStore",
-    console: "Console",
+    identity_store: IdentityStore,
+    console: Console,
     path_arg: str,
 ) -> None:
     """Handle /identity export command."""
     export_data = identity_store.export()
-    
+
     # Add export metadata
     export_data["exported_at"] = datetime.now().isoformat()
-    
+
     if path_arg:
         # Export to file
         try:

@@ -23,26 +23,26 @@ RFC-027 additions:
 - System prompt for ReAct-style tool usage
 """
 
-from sunwell.tools.types import ToolTrust, ToolResult, ToolRateLimits, TRUST_LEVEL_TOOLS
 from sunwell.tools.builtins import (
     CORE_TOOLS,
-    GIT_TOOLS,
-    ENV_TOOLS,
-    EXPERTISE_TOOLS,
     ENV_ALLOWLIST,
     ENV_BLOCKLIST_PATTERNS,
-    get_tools_for_trust_level,
+    ENV_TOOLS,
+    EXPERTISE_TOOLS,
+    GIT_TOOLS,
     get_all_tools,
+    get_tools_for_trust_level,
 )
-from sunwell.tools.handlers import CoreToolHandlers, PathSecurityError
 from sunwell.tools.executor import ToolExecutor
 from sunwell.tools.expertise import ExpertiseToolHandler, get_self_directed_prompt
+from sunwell.tools.handlers import CoreToolHandlers, PathSecurityError
+from sunwell.tools.types import TRUST_LEVEL_TOOLS, ToolRateLimits, ToolResult, ToolTrust
 from sunwell.tools.web_search import (
-    WebSearchProvider,
-    WebSearchResult,
+    OllamaWebSearch,
     WebFetchResult,
     WebSearchHandler,
-    OllamaWebSearch,
+    WebSearchProvider,
+    WebSearchResult,
     create_web_search_provider,
 )
 

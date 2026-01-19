@@ -48,7 +48,7 @@ This principle manifests throughout Sunwell's architecture:
 
 - **Lenses** — Define which wavelengths (heuristics) are available
 - **Harmonic Synthesis** — Multiple personas = multiple wavelengths in parallel
-- **Thought Rotation** (RFC-028) — Frame markers = color filters selecting wavelengths in sequence
+- **Thought Rotation** — Frame markers = color filters selecting wavelengths in sequence
 - **Cognitive Router** — Selects optimal wavelength mix for task type
 - **Convergence** — Working memory holds the recombined spectrum
 
@@ -81,7 +81,7 @@ A small model, properly refracted, can exhibit behaviors that seem beyond its pa
 
 ---
 
-## Naaru Architecture (RFC-019, RFC-036, RFC-037, RFC-038, RFC-039)
+## Naaru Architecture
 
 The **Naaru** is Sunwell's coordinated intelligence layer — it orchestrates planning, execution, and synthesis to maximize quality from local models.
 
@@ -112,11 +112,11 @@ Results + Artifacts
 
 | Strategy | Description | RFC |
 |----------|-------------|-----|
-| **Artifact-First** | Identifies what must exist, derives order from dependencies | RFC-036 |
-| **Harmonic** | Generates multiple plans, evaluates, selects best | RFC-038 |
+| **Artifact-First** | Identifies what must exist, derives order from dependencies | Default |
+| **Harmonic** | Generates multiple plans, evaluates, selects best | Multi-candidate |
 | **Agent** | Traditional step-by-step procedural planning | Baseline |
 
-**Artifact-First Planning (RFC-036)** is the default:
+**Artifact-First Planning** is the default:
 
 ```
 PROCEDURAL:     Goal → [Step 1] → [Step 2] → [Step 3] → Done
@@ -190,7 +190,7 @@ Available tools:
 - `grep`, `find_files`
 - Code analysis tools
 
-### Harmonic Synthesis (RFC-019)
+### Harmonic Synthesis
 
 For quality-critical outputs, Naaru can generate multiple candidates from different "perspectives":
 
@@ -205,7 +205,7 @@ This is particularly effective for:
 - Code review (security, performance, maintainability perspectives)
 - Architecture (scalability, simplicity, extensibility perspectives)
 
-### CLI Integration (RFC-037)
+### CLI Integration
 
 The goal-first CLI directly invokes Naaru:
 
@@ -257,7 +257,7 @@ sunwell/
 │       │   ├── freethreading.py # Free-threading utilities
 │       │   └── types.py        # Shared type definitions
 │       │
-│       ├── naaru/              # Coordinated Intelligence (RFC-019+)
+│       ├── naaru/              # Coordinated Intelligence
 │       │   ├── naaru.py        # Main Naaru coordinator
 │       │   ├── loop.py         # Agent execution loop
 │       │   ├── executor.py     # Task executor
@@ -281,7 +281,7 @@ sunwell/
 │       │   ├── tool_shard.py   # Tool integration
 │       │   ├── types.py        # Naaru types
 │       │   │
-│       │   └── planners/       # Planning strategies (RFC-036, RFC-038)
+│       │   └── planners/       # Planning strategies
 │       │       ├── protocol.py     # Planner protocol
 │       │       ├── artifact.py     # Artifact-first planner
 │       │       ├── harmonic.py     # Harmonic planning
@@ -379,7 +379,7 @@ sunwell/
 │       │   ├── types.py        # Benchmark types
 │       │   └── naaru/          # Naaru-specific benchmarks
 │       │
-│       └── cli/                # Command-line interface (RFC-037)
+│       └── cli/                # Command-line interface
 │           ├── main.py         # Goal-first CLI entry
 │           ├── chat.py         # Interactive chat
 │           ├── setup.py        # First-time setup
@@ -408,12 +408,7 @@ sunwell/
 │   ├── tasks/
 │   └── results/
 │
-└── docs/                       # RFCs and documentation
-    ├── RFC-034-contract-aware-planning.md
-    ├── RFC-035-domain-agnostic-projects.md
-    ├── RFC-036-artifact-first-planning.md
-    ├── RFC-037-cli-consolidation.md
-    └── RFC-038-harmonic-planning.md
+└── docs/                       # Design documents
 ```
 
 ---
@@ -2109,7 +2104,7 @@ class LensResolver:
 
 ## CLI Commands
 
-### Goal-First Interface (RFC-037)
+### Goal-First Interface
 
 The primary interface is goal-first — users state what they want, the agent figures out the rest:
 
@@ -2146,7 +2141,7 @@ sunwell sessions ...     # Memory management
 ### `sunwell/cli/main.py`
 
 ```python
-"""Main CLI entry point - Goal-first interface (RFC-037)."""
+"""Main CLI entry point - Goal-first interface."""
 
 import click
 from pathlib import Path
@@ -2208,10 +2203,7 @@ def main(ctx, plan: bool, model: str | None, verbose: bool,
 
 async def _run_agent(goal: str, time: int, trust: str, dry_run: bool,
                      verbose: bool, model_override: str | None) -> None:
-    """Execute agent mode (RFC-032, RFC-036, RFC-037).
-    
-    Strategy is always artifact_first (RFC-036) - no flag needed.
-    """
+    """Execute agent mode with artifact-first planning."""
     from sunwell.naaru import Naaru
     from sunwell.naaru.planners import ArtifactPlanner
     from sunwell.tools.executor import ToolExecutor

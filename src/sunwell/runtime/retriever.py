@@ -5,12 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from sunwell.core.lens import Lens
 from sunwell.core.heuristic import Heuristic
+from sunwell.core.lens import Lens
 from sunwell.core.persona import Persona
 from sunwell.core.validator import HeuristicValidator
-from sunwell.embedding.protocol import EmbeddingProtocol
 from sunwell.embedding.index import InMemoryIndex
+from sunwell.embedding.protocol import EmbeddingProtocol
 
 if TYPE_CHECKING:
     from sunwell.routing.cognitive_router import RoutingDecision
@@ -151,32 +151,32 @@ class ExpertiseRetriever:
     async def retrieve_with_routing(
         self,
         query: str,
-        routing: "RoutingDecision",
+        routing: RoutingDecision,
     ) -> RetrievalResult:
         """Retrieve with routing hints from CognitiveRouter (RFC-020).
-        
+
         The routing decision provides:
         - focus: Terms to boost in the query for better relevance
         - top_k: Adjusted retrieval count based on task complexity
         - threshold: Adjusted relevance threshold
-        
+
         Args:
             query: The original task/query
             routing: RoutingDecision from CognitiveRouter
-            
+
         Returns:
             RetrievalResult with routing-optimized heuristics
         """
         # Boost query with focus terms
         focus_str = " ".join(routing.focus) if routing.focus else ""
         boosted_query = f"{query} {focus_str}".strip()
-        
+
         # Use routing-adjusted parameters
         return await self.retrieve(
             boosted_query,
             top_k=routing.top_k,
         )
-    
+
     def get_stats(self) -> dict:
         """Get retriever statistics."""
         return {

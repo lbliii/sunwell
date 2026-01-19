@@ -13,12 +13,12 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from sunwell.simulacrum.topology.spatial import SpatialContext, PositionType
+from sunwell.simulacrum.topology.spatial import PositionType, SpatialContext
 
 
 class SpatialExtractor:
     """Extract spatial context from content sources."""
-    
+
     @staticmethod
     def from_markdown(
         file_path: str,
@@ -26,7 +26,7 @@ class SpatialExtractor:
         line_start: int = 1,
     ) -> list[tuple[str, SpatialContext]]:
         """Extract chunks with spatial context from markdown.
-        
+
         Returns list of (chunk_text, spatial_context) pairs.
         """
         chunks = []
@@ -34,13 +34,13 @@ class SpatialExtractor:
         current_level = 0
         current_chunk_lines: list[str] = []
         chunk_start_line = line_start
-        
+
         lines = content.split("\n")
-        
+
         for i, line in enumerate(lines, start=line_start):
             # Detect heading
             heading_match = re.match(r'^(#{1,6})\s+(.+)$', line)
-            
+
             if heading_match:
                 # Save previous chunk
                 if current_chunk_lines:
@@ -54,22 +54,22 @@ class SpatialExtractor:
                             heading_level=current_level,
                         )
                         chunks.append((chunk_text, ctx))
-                
+
                 # Update section path
                 level = len(heading_match.group(1))
                 title = heading_match.group(2).strip()
-                
+
                 # Pop sections at same or higher level
                 while len(current_section_path) >= level:
                     current_section_path.pop()
-                
+
                 current_section_path.append(title)
                 current_level = level
                 current_chunk_lines = [line]
                 chunk_start_line = i
             else:
                 current_chunk_lines.append(line)
-        
+
         # Don't forget last chunk
         if current_chunk_lines:
             chunk_text = "\n".join(current_chunk_lines)
@@ -82,22 +82,22 @@ class SpatialExtractor:
                     heading_level=current_level,
                 )
                 chunks.append((chunk_text, ctx))
-        
+
         return chunks
-    
+
     @staticmethod
     def from_python(
         file_path: str,
         content: str,
     ) -> list[tuple[str, SpatialContext]]:
         """Extract chunks with spatial context from Python code.
-        
+
         Uses AST to identify module/class/function boundaries.
         """
         import ast
-        
+
         chunks = []
-        
+
         try:
             tree = ast.parse(content)
         except SyntaxError:
@@ -107,18 +107,18 @@ class SpatialExtractor:
                 file_path=file_path,
                 module_path=file_path.replace("/", ".").replace(".py", ""),
             ))]
-        
+
         module_path = file_path.replace("/", ".").replace(".py", "")
         if module_path.startswith("src."):
             module_path = module_path[4:]
-        
+
         def extract_node(
             node: ast.AST,
             class_name: str | None = None,
             depth: int = 0,
         ) -> None:
             """Recursively extract code chunks."""
-            
+
             if isinstance(node, ast.ClassDef):
                 # Extract class
                 chunk_text = ast.get_source_segment(content, node)
@@ -132,11 +132,11 @@ class SpatialExtractor:
                         scope_depth=depth,
                     )
                     chunks.append((chunk_text, ctx))
-                
+
                 # Recurse into class body
                 for child in node.body:
                     extract_node(child, class_name=node.name, depth=depth + 1)
-            
+
             elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 # Extract function
                 chunk_text = ast.get_source_segment(content, node)
@@ -151,13 +151,13 @@ class SpatialExtractor:
                         scope_depth=depth,
                     )
                     chunks.append((chunk_text, ctx))
-        
+
         # Extract top-level items
         for node in ast.iter_child_nodes(tree):
             extract_node(node, depth=0)
-        
+
         return chunks
-    
+
     @staticmethod
     def from_url(
         url: str,
@@ -170,7 +170,7 @@ class SpatialExtractor:
             url=url,
             anchor=anchor,
         )
-    
+
     @staticmethod
     def from_conversation(
         turn_index: int,
@@ -181,7 +181,7 @@ class SpatialExtractor:
             position_type=PositionType.CONVERSATION,
             line_range=(turn_index, turn_index),
         )
-    
+
     @classmethod
     def extract_from_file(
         cls,
@@ -189,13 +189,13 @@ class SpatialExtractor:
     ) -> list[tuple[str, SpatialContext]]:
         """Auto-detect file type and extract chunks with spatial context."""
         path = Path(file_path)
-        
+
         if not path.exists():
             return []
-        
+
         content = path.read_text()
         file_path_str = str(path)
-        
+
         if path.suffix in {".md", ".markdown", ".rst", ".txt"}:
             return cls.from_markdown(file_path_str, content)
         elif path.suffix == ".py":

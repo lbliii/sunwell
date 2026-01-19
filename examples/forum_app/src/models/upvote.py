@@ -1,15 +1,35 @@
-from sqlalchemy import Column, Integer, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, ForeignKey
 from sqlalchemy.orm import relationship
+from typing import Optional
 
-class ForumUpvote(Base):
-    __tablename__ = 'forum_upvotes'
+class User:
+    id = Column(Integer, primary_key=True)
+    username = Column(String)
+
+class UpvoteProtocol:
+    def __init__(self, user_id: int):
+        self.user_id = user_id
+
+    @classmethod
+    def from_user(cls, user: User) -> 'Upvote':
+        return cls(user.id)
+
+    def to_dict(self) -> dict:
+        return {'user_id': self.user_id}
+
+class Upvote:
+    __tablename__ = 'upvotes'
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    forum_post_id = Column(Integer, ForeignKey('forum_posts.id'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id'))
+    upvoted_by = relationship("User", back_populates="upvotes")
 
-    user = relationship("User", back_populates="upvotes")
-    forum_post = relationship("ForumPost", back_populates="upvotes")
+    def __init__(self, user_id: int):
+        self.user_id = user_id
 
-    def __repr__(self):
-        return f"ForumUpvote(user_id={self.user_id}, forum_post_id={self.forum_post_id})"
+    @classmethod
+    def from_user(cls, user: User) -> 'Upvote':
+        return cls(user.id)
+
+    def to_dict(self) -> dict:
+        return {'user_id': self.user_id}

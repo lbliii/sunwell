@@ -124,7 +124,7 @@ async def main() -> None:
         print("   This suggests the VOTING mechanism itself causes convergence,")
         print("   not the output generation.")
         print()
-        print("   Consider: Thought Rotation (RFC-028) instead of voting?")
+        print("   Consider: Thought Rotation instead of voting?")
 
 
 if __name__ == "__main__":

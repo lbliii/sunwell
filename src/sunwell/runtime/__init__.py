@@ -1,8 +1,8 @@
 """Runtime engine for lens execution."""
 
-from sunwell.runtime.engine import RuntimeEngine, ExecutionResult
+from sunwell.runtime.classifier import ClassificationResult, IntentClassifier
+from sunwell.runtime.engine import ExecutionResult, RuntimeEngine
 from sunwell.runtime.retriever import ExpertiseRetriever, RetrievalResult
-from sunwell.runtime.classifier import IntentClassifier, ClassificationResult
 
 __all__ = [
     "RuntimeEngine",

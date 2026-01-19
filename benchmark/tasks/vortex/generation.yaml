@@ -1,0 +1,96 @@
+# Vortex Experiment Tasks: Generation
+# These tasks test whether the full vortex improves creative output
+# Good for testing dialectic (thesis/antithesis helps balance)
+
+tasks:
+  - id: gen-001
+    name: "Function implementation"
+    category: generation
+    task: |
+      Implement a function that validates an email address.
+      Requirements:
+      - Must have @ symbol
+      - Must have domain with dot
+      - Return True/False
+    evaluation:
+      - "Has function definition"
+      - "Checks for @ symbol"
+      - "Checks for domain"
+      - "Returns boolean"
+    difficulty: easy
+    
+  - id: gen-002
+    name: "Error message writing"
+    task: |
+      Write a user-friendly error message for:
+      "FileNotFoundError: config.yaml not found in /app/config/"
+      
+      The message should:
+      - Explain what went wrong
+      - Suggest how to fix it
+      - Be non-technical
+    evaluation:
+      - "Explains missing file"
+      - "Provides actionable fix"
+      - "Avoids jargon"
+    difficulty: medium
+    notes: "Dialectic helps balance technical accuracy vs user-friendliness"
+
+  - id: gen-003
+    name: "API documentation"
+    task: |
+      Write documentation for this function:
+      ```python
+      def retry(fn, max_attempts=3, delay=1.0, backoff=2.0):
+          ...
+      ```
+      Include: description, parameters, return value, example.
+    evaluation:
+      - "Clear description"
+      - "All parameters documented"
+      - "Working example"
+    difficulty: medium
+    
+  - id: gen-004
+    name: "Test case generation"
+    task: |
+      Generate test cases for this function:
+      ```python
+      def divide(a: float, b: float) -> float:
+          if b == 0:
+              raise ValueError("Cannot divide by zero")
+          return a / b
+      ```
+      Include edge cases.
+    evaluation:
+      - "Tests normal case"
+      - "Tests zero divisor"
+      - "Tests negative numbers"
+      - "Tests floats"
+    difficulty: medium
+
+  - id: gen-005
+    name: "Code refactoring"
+    task: |
+      Refactor this code to be more readable:
+      ```python
+      def f(x):
+          return [i for i in x if i%2==0 and i>0 and i<100]
+      ```
+    evaluation:
+      - "Better function name"
+      - "Clear variable names"
+      - "Readable conditions"
+    difficulty: easy
+
+  - id: gen-006
+    name: "Explanation writing"
+    task: |
+      Explain how a hash table works to someone who knows arrays
+      but not hash tables. Use an analogy.
+    evaluation:
+      - "Uses accessible analogy"
+      - "Explains key concepts (hashing, buckets, collisions)"
+      - "Connects to prior knowledge (arrays)"
+    difficulty: hard
+    notes: "Tests multiple perspectives (teacher, expert, simplifier)"

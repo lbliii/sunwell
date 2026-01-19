@@ -13,6 +13,8 @@ Example:
     >>> print(f"Selected: depth={metrics.depth}, parallelism={metrics.parallelism_factor:.2f}")
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import re
@@ -191,7 +193,7 @@ class HarmonicPlanner:
         >>> print(f"Selected: depth={metrics.depth}, score={metrics.score:.1f}")
     """
 
-    model: "ModelProtocol"
+    model: ModelProtocol
     """Model for artifact discovery."""
 
     candidates: int = 5
@@ -207,11 +209,11 @@ class HarmonicPlanner:
     """Artifact limits passed to underlying ArtifactPlanner."""
 
     # RFC-035: Schema-aware planning
-    project_schema: "ProjectSchema | None" = None
+    project_schema: ProjectSchema | None = None
     """Project schema for domain-specific artifact types."""
 
     # Naaru integration
-    convergence: "Convergence | None" = None
+    convergence: Convergence | None = None
     """Shared working memory for context caching."""
 
     use_free_threading: bool = True
@@ -700,7 +702,7 @@ Output the COMPLETE revised artifact list as JSON array:
     ) -> list[dict]:
         """Get summary info for each candidate (for verbose CLI output)."""
         summaries = []
-        for i, (graph, metrics) in enumerate(zip(candidates, scores, strict=True)):
+        for i, (_graph, metrics) in enumerate(zip(candidates, scores, strict=True)):
             summaries.append(
                 {
                     "index": i,

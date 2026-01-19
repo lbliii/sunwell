@@ -48,30 +48,30 @@ def ask(
     verbose: bool,
 ) -> None:
     """Ask a question using a binding (or default).
-    
+
     DEPRECATED: Use the goal-first interface instead:
-    
+
         sunwell "Build a REST API with auth"
-    
+
     For interactive sessions:
-    
+
         sunwell chat
-    
+
     ---
-    
+
     Legacy documentation (for backward compatibility):
-    
+
     The simplest way to use Sunwell! Create a binding once,
     then just ask questions without any flags.
-    
+
     Examples:
-    
+
         # With named binding
         sunwell ask my-project "Write API docs"
-        
+
         # With default binding (if set)
         sunwell ask "Review this code"
-        
+
         # With overrides
         sunwell ask my-project "Complex task" --tier 2
     """
@@ -82,13 +82,13 @@ def ask(
     console.print("[dim]    sunwell \"your goal here\"[/dim]")
     console.print("[dim]    sunwell chat  # for interactive sessions[/dim]")
     console.print()
-    
+
     manager = BindingManager()
-    
+
     # Figure out if first arg is a binding name or the prompt
     binding_name: str | None = None
     actual_prompt: str
-    
+
     if prompt is not None:
         # Two args: first is binding name, second is prompt
         binding_name = binding_or_prompt
@@ -99,10 +99,10 @@ def ask(
         if manager.get(binding_or_prompt):
             console.print(f"[red]Missing prompt. Usage: sunwell ask {binding_or_prompt} \"your prompt\"[/red]")
             sys.exit(1)
-        
+
         # It's just a prompt, use default binding
         actual_prompt = binding_or_prompt
-    
+
     # Get binding
     binding, is_temp = get_binding_or_create_temp(
         binding_name=binding_name,
@@ -111,13 +111,13 @@ def ask(
         model=model,
         headspace=None,
     )
-    
+
     if not binding:
         console.print("[red]No binding specified and no default set.[/red]")
         console.print("[dim]Create a binding: sunwell bind create my-project --lens my.lens[/dim]")
         console.print("[dim]Or set a default: sunwell bind default my-project[/dim]")
         sys.exit(1)
-    
+
     # Apply overrides
     if provider:
         binding.provider = provider
@@ -125,12 +125,12 @@ def ask(
         binding.model = model
     final_tier = int(tier) if tier else binding.tier
     final_verbose = verbose or binding.verbose
-    
+
     # Mark as used
     if not is_temp:
         binding.touch()
         manager._save(binding)
-    
+
     # Now run apply with the binding's settings
     asyncio.run(_ask_with_binding(
         binding=binding,
@@ -155,28 +155,28 @@ async def _ask_with_binding(
     fount = FountClient()
     loader = LensLoader(fount_client=fount)
     resolver = LensResolver(loader=loader)
-    
+
     try:
         source = str(binding.lens_path)
         if not (source.startswith("/") or source.startswith("./") or source.startswith("../")):
             source = f"./{source}"
-            
+
         ref = LensReference(source=source)
         lens = await resolver.resolve(ref)
     except SunwellError as e:
         console.print(f"[red]Error loading/resolving lens:[/red] {e.message}")
         sys.exit(1)
-    
+
     # Show binding info
     if verbose:
         console.print(f"[cyan]Binding:[/cyan] {binding.name}")
         console.print(f"[cyan]Lens:[/cyan] {lens.metadata.name}")
         console.print(f"[cyan]Model:[/cyan] {binding.provider}:{binding.model}")
-    
+
     # Create model
     model = create_model(binding.provider, binding.model)
     embedder = create_embedder()
-    
+
     # Set up workspace indexing
     codebase_indexer = None
     if binding.index_workspace:
@@ -194,13 +194,13 @@ async def _ask_with_binding(
         except Exception as e:
             if verbose:
                 console.print(f"[dim]Workspace indexing skipped: {e}[/dim]")
-    
+
     # Simulacrum handling: explicit from binding, auto-routing, or create new
     headspace = None
     simulacrum_store = None
     headspace_name = None
     was_spawned = False
-    
+
     if binding.simulacrum:
         # Explicit headspace in binding - use legacy path
         headspace_name = binding.simulacrum
@@ -211,7 +211,7 @@ async def _ask_with_binding(
             headspace = Simulacrum.create(headspace_name, lens=lens)
         headspace.current_model = binding.model
         headspace.focus.update_from_query(prompt)
-        
+
         if verbose:
             console.print(f"[cyan]Simulacrum:[/cyan] {headspace_name} ({len(headspace.long_term.learnings)} learnings)")
     else:
@@ -219,7 +219,7 @@ async def _ask_with_binding(
         try:
             manager = get_simulacrum_manager()
             simulacrum_store, was_spawned, explanation = manager.route_query(prompt)
-            
+
             if simulacrum_store:
                 headspace_name = manager._active_name
                 if verbose:
@@ -235,7 +235,7 @@ async def _ask_with_binding(
         except Exception as e:
             if verbose:
                 console.print(f"[dim]Auto-headspace skipped: {e}[/dim]")
-    
+
     # Set up model router if requested (RFC-015)
     model_router = None
     if smart:
@@ -244,15 +244,15 @@ async def _ask_with_binding(
             stupid_model = create_model("ollama", "gemma3:1b")
         elif binding.provider == "openai":
             stupid_model = create_model("openai", "gpt-4o-mini")
-            
+
         model_router = ModelRouter(
             primary_model=model,
             stupid_model=stupid_model,
             lens=lens,
         )
-        
+
         if verbose:
-            console.print(f"[cyan]Adaptive Model Selection:[/cyan] Enabled")
+            console.print("[cyan]Adaptive Model Selection:[/cyan] Enabled")
 
     # Create engine (headspace is managed separately for now)
     engine = RuntimeEngine(
@@ -262,10 +262,10 @@ async def _ask_with_binding(
         codebase_indexer=codebase_indexer,
         model_router=model_router,
     )
-    
+
     # Execute
     tier_enum = Tier(tier)
-    
+
     if binding.stream:
         console.print()
         content_parts = []
@@ -279,10 +279,10 @@ async def _ask_with_binding(
             result = await engine.execute(prompt, force_tier=tier_enum if tier_enum else None)
         console.print(Markdown(result.content))
         final_content = result.content
-        
+
         if verbose:
             display_execution_stats(result)
-    
+
     # Auto-learn from response and save
     if headspace and headspace_name:
         # Legacy Simulacrum path
@@ -297,15 +297,15 @@ async def _ask_with_binding(
                         console.print(f"[dim]+ Auto-learned ({l.category}): {l.text[:50]}...[/dim]")
             except ImportError:
                 pass  # Learning extractor not available
-        
+
         headspace_path = Path(".sunwell/headspaces") / f"{headspace_name}.json"
         headspace.save(headspace_path)
-        
+
     elif simulacrum_store and headspace_name:
         # SimulacrumStore from manager (auto-routed)
         simulacrum_store.add_turn(role="user", content=prompt)
         simulacrum_store.add_turn(role="assistant", content=final_content, model=f"{binding.provider}:{binding.model}")
-        
+
         if binding.auto_learn:
             try:
                 from sunwell.simulacrum.extractors.extractor import auto_extract_learnings
@@ -316,13 +316,13 @@ async def _ask_with_binding(
                         console.print(f"[dim]+ Auto-learned ({category}): {learning_text[:50]}...[/dim]")
             except ImportError:
                 pass
-        
+
         simulacrum_store.flush()
-        
+
         if verbose:
             stats = simulacrum_store.stats()
             console.print(f"[dim]Simulacrum updated: {headspace_name} ({stats.get('total_nodes', 0)} nodes)[/dim]")
-    
+
     # Write output
     if output:
         Path(output).parent.mkdir(parents=True, exist_ok=True)

@@ -13,29 +13,29 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Awaitable, Callable, Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from sunwell.models.protocol import ToolCall
+from sunwell.tools.handlers import CoreToolHandlers, PathSecurityError
 from sunwell.tools.types import (
-    ToolResult,
-    ToolRateLimits,
     ToolAuditEntry,
     ToolPolicy,
-    ToolTrust,
+    ToolRateLimits,
+    ToolResult,
 )
-from sunwell.tools.handlers import CoreToolHandlers, PathSecurityError
 
 if TYPE_CHECKING:
-    from sunwell.skills.sandbox import ScriptSandbox
-    from sunwell.skills.executor import SkillExecutor
-    from sunwell.simulacrum.memory_tools import MemoryToolHandler
-    from sunwell.simulacrum.manager import SimulacrumToolHandler
-    from sunwell.tools.web_search import WebSearchHandler
     from sunwell.mirror.handler import MirrorHandler
+    from sunwell.simulacrum.manager import SimulacrumToolHandler
+    from sunwell.simulacrum.memory_tools import MemoryToolHandler
+    from sunwell.skills.executor import SkillExecutor
+    from sunwell.skills.sandbox import ScriptSandbox
     from sunwell.tools.expertise import ExpertiseToolHandler
+    from sunwell.tools.web_search import WebSearchHandler
 
 
 # Type alias for tool handlers
@@ -45,13 +45,13 @@ ToolHandler = Callable[[dict], Awaitable[str]]
 @dataclass
 class ToolExecutor:
     """Execute tool calls locally.
-    
+
     This is a dispatcher that routes tool calls to appropriate handlers:
     - Built-in tools → CoreToolHandlers
     - Skill-derived tools → SkillExecutor (RFC-011)
     - Memory tools → MemoryToolHandler (RFC-014)
     - Learned tools → LearnedToolHandler (future)
-    
+
     Args:
         workspace: Root directory for file operations
         sandbox: ScriptSandbox for command execution (RFC-011)
@@ -60,30 +60,30 @@ class ToolExecutor:
         policy: Tool execution policy (trust level, allowed tools)
         audit_path: Where to write audit logs (None to disable)
     """
-    
+
     workspace: Path
-    sandbox: "ScriptSandbox | None" = None
-    skill_executor: "SkillExecutor | None" = None
-    memory_handler: "MemoryToolHandler | None" = None  # RFC-014
-    headspace_handler: "SimulacrumToolHandler | None" = None  # RFC-014: Multi-headspace
-    web_search_handler: "WebSearchHandler | None" = None  # Web search tools
-    mirror_handler: "MirrorHandler | None" = None  # RFC-015: Mirror neurons
-    expertise_handler: "ExpertiseToolHandler | None" = None  # RFC-027: Self-directed expertise
+    sandbox: ScriptSandbox | None = None
+    skill_executor: SkillExecutor | None = None
+    memory_handler: MemoryToolHandler | None = None  # RFC-014
+    headspace_handler: SimulacrumToolHandler | None = None  # RFC-014: Multi-headspace
+    web_search_handler: WebSearchHandler | None = None  # Web search tools
+    mirror_handler: MirrorHandler | None = None  # RFC-015: Mirror neurons
+    expertise_handler: ExpertiseToolHandler | None = None  # RFC-027: Self-directed expertise
     policy: ToolPolicy | None = None
     audit_path: Path | None = None
-    
+
     # Handler registry
     _handlers: dict[str, ToolHandler] = field(default_factory=dict)
     _core_handlers: CoreToolHandlers | None = field(default=None, init=False)
     _rate_limits: ToolRateLimits = field(default_factory=ToolRateLimits, init=False)
     _audit_entries: list[ToolAuditEntry] = field(default_factory=list, init=False)
-    
+
     # RFC-014: Memory tools (always available regardless of trust level)
     _memory_tools: set[str] = field(default_factory=lambda: {
         "search_memory", "recall_user_info", "find_related",
         "find_contradictions", "add_learning", "mark_dead_end",
     }, init=False)
-    
+
     # RFC-014: Simulacrum management tools (always available)
     _simulacrum_tools: set[str] = field(default_factory=lambda: {
         "list_headspaces", "switch_headspace", "create_headspace",
@@ -92,12 +92,12 @@ class ToolExecutor:
         "headspace_health", "archive_headspace", "restore_headspace",  # Lifecycle tools
         "list_archived", "cleanup_headspaces", "shrink_headspace",
     }, init=False)
-    
+
     # Web search tools (require FULL trust level)
     _web_tools: set[str] = field(default_factory=lambda: {
         "web_search", "web_fetch",
     }, init=False)
-    
+
     # RFC-015: Mirror neuron tools (self-introspection and self-improvement)
     _mirror_tools: set[str] = field(default_factory=lambda: {
         # Introspection (DISCOVERY trust)
@@ -111,12 +111,12 @@ class ToolExecutor:
         # Application (WORKSPACE trust)
         "approve_proposal", "apply_proposal", "rollback_proposal",
     }, init=False)
-    
+
     # RFC-027: Expertise tools (self-directed expertise retrieval)
     _expertise_tools: set[str] = field(default_factory=lambda: {
         "get_expertise", "verify_against_expertise", "list_expertise_areas",
     }, init=False)
-    
+
     def __post_init__(self) -> None:
         """Initialize core tool handlers."""
         # Get blocked patterns from policy or use defaults
@@ -124,7 +124,7 @@ class ToolExecutor:
         if self.policy and self.policy.blocked_paths:
             from sunwell.tools.handlers import DEFAULT_BLOCKED_PATTERNS
             blocked_patterns = DEFAULT_BLOCKED_PATTERNS | self.policy.blocked_paths
-        
+
         # Initialize core tool handlers - only pass blocked_patterns if we have a custom value
         if blocked_patterns is not None:
             self._core_handlers = CoreToolHandlers(
@@ -137,14 +137,14 @@ class ToolExecutor:
                 self.workspace,
                 self.sandbox,
             )
-        
+
         # Initialize rate limits from policy
         if self.policy and self.policy.rate_limits:
             self._rate_limits = self.policy.rate_limits
-        
+
         # Register built-in tools (filtered by policy)
         self._register_core_tools()
-    
+
     def _register_core_tools(self) -> None:
         """Register built-in tools filtered by policy."""
         # Map tool names to handlers
@@ -177,7 +177,7 @@ class ToolExecutor:
             "get_env": self._core_handlers.get_env,
             "list_env": self._core_handlers.list_env,
         }
-        
+
         # Filter by policy
         if self.policy:
             allowed = self.policy.get_allowed_tools()
@@ -186,12 +186,12 @@ class ToolExecutor:
                     self._handlers[name] = handler
         else:
             # No policy = default to WORKSPACE level
-            from sunwell.tools.types import ToolTrust, TRUST_LEVEL_TOOLS
+            from sunwell.tools.types import TRUST_LEVEL_TOOLS, ToolTrust
             default_allowed = TRUST_LEVEL_TOOLS[ToolTrust.WORKSPACE]
             for name, handler in all_handlers.items():
                 if name in default_allowed:
                     self._handlers[name] = handler
-        
+
         # Register web search tools if handler provided and policy allows
         if self.web_search_handler:
             allowed = self.policy.get_allowed_tools() if self.policy else set()
@@ -199,46 +199,46 @@ class ToolExecutor:
                 self._handlers["web_search"] = self.web_search_handler.web_search
             if "web_fetch" in allowed:
                 self._handlers["web_fetch"] = self.web_search_handler.web_fetch
-    
+
     def register(self, name: str, handler: ToolHandler) -> None:
         """Register a custom tool handler.
-        
+
         Use this to add skill-derived tools or custom extensions.
         """
         self._handlers[name] = handler
-    
+
     def get_available_tools(self) -> list[str]:
         """Get list of available tool names."""
         return list(self._handlers.keys())
-    
-    def get_tool_definitions(self) -> tuple["Tool", ...]:
+
+    def get_tool_definitions(self) -> tuple[Tool, ...]:
         """Get full Tool definitions for available tools (for native tool calling).
-        
+
         Returns Tool objects with name, description, and JSON Schema parameters.
         Use this when passing tools to model.generate(tools=...) for reliable
         tool calling instead of text-based prompts.
         """
-        from sunwell.tools.builtins import CORE_TOOLS, GIT_TOOLS, ENV_TOOLS
-        
+        from sunwell.tools.builtins import CORE_TOOLS, ENV_TOOLS, GIT_TOOLS
+
         all_tool_defs = {**CORE_TOOLS, **GIT_TOOLS, **ENV_TOOLS}
         available_names = set(self._handlers.keys())
-        
+
         return tuple(
             tool for name, tool in all_tool_defs.items()
             if name in available_names
         )
-    
+
     async def execute(self, tool_call: ToolCall) -> ToolResult:
         """Execute a single tool call.
-        
+
         Args:
             tool_call: The tool call to execute
-            
+
         Returns:
             ToolResult with success status, output, and metadata
         """
         start = time.monotonic()
-        
+
         # RFC-014: Route memory tools to memory handler
         if tool_call.name in self._memory_tools:
             if self.memory_handler:
@@ -269,7 +269,7 @@ class ToolExecutor:
                     success=False,
                     output="Memory tools not configured. Set memory_handler on ToolExecutor.",
                 )
-        
+
         # RFC-014: Route headspace tools to headspace handler
         if tool_call.name in self._simulacrum_tools:
             if self.headspace_handler:
@@ -300,7 +300,7 @@ class ToolExecutor:
                     success=False,
                     output="Simulacrum tools not configured. Set headspace_handler on ToolExecutor.",
                 )
-        
+
         # RFC-015: Route mirror tools to mirror handler
         if tool_call.name in self._mirror_tools:
             if self.mirror_handler:
@@ -331,7 +331,7 @@ class ToolExecutor:
                     success=False,
                     output="Mirror tools not configured. Enable with --mirror flag.",
                 )
-        
+
         # RFC-027: Route expertise tools to expertise handler
         if tool_call.name in self._expertise_tools:
             if self.expertise_handler:
@@ -362,7 +362,7 @@ class ToolExecutor:
                     success=False,
                     output="Expertise tools not configured. Set expertise_handler on ToolExecutor.",
                 )
-        
+
         # Check rate limits
         if not self._rate_limits.check_tool_call():
             return ToolResult(
@@ -370,7 +370,7 @@ class ToolExecutor:
                 success=False,
                 output="Rate limit exceeded. Please wait before making more tool calls.",
             )
-        
+
         # Find handler
         handler = self._handlers.get(tool_call.name)
         if not handler:
@@ -379,7 +379,7 @@ class ToolExecutor:
                 success=False,
                 output=f"Unknown tool: {tool_call.name}. Available: {', '.join(self._handlers.keys())}",
             )
-        
+
         # Additional rate limit checks for specific tools
         if tool_call.name == "write_file":
             content = tool_call.arguments.get("content", "")
@@ -389,7 +389,7 @@ class ToolExecutor:
                     success=False,
                     output="File write rate limit exceeded.",
                 )
-        
+
         if tool_call.name == "edit_file":
             new_content = tool_call.arguments.get("new_content", "")
             if not self._rate_limits.check_file_write(len(new_content)):
@@ -398,23 +398,22 @@ class ToolExecutor:
                     success=False,
                     output="File edit rate limit exceeded.",
                 )
-        
-        if tool_call.name == "run_command":
-            if not self._rate_limits.check_shell_command():
-                return ToolResult(
-                    tool_call_id=tool_call.id,
-                    success=False,
-                    output="Shell command rate limit exceeded.",
-                )
-        
+
+        if tool_call.name == "run_command" and not self._rate_limits.check_shell_command():
+            return ToolResult(
+                tool_call_id=tool_call.id,
+                success=False,
+                output="Shell command rate limit exceeded.",
+            )
+
         # Execute handler
         try:
             output = await handler(tool_call.arguments)
             elapsed_ms = int((time.monotonic() - start) * 1000)
-            
+
             # Audit log
             self._log_audit(tool_call, True, elapsed_ms)
-            
+
             return ToolResult(
                 tool_call_id=tool_call.id,
                 success=True,
@@ -445,7 +444,7 @@ class ToolExecutor:
                 success=False,
                 output=f"Not found: {e}",
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             elapsed_ms = int((time.monotonic() - start) * 1000)
             self._log_audit(tool_call, False, elapsed_ms, "Timeout")
             return ToolResult(
@@ -461,19 +460,19 @@ class ToolExecutor:
                 success=False,
                 output=f"Error: {type(e).__name__}: {e}",
             )
-    
+
     async def execute_batch(
-        self, 
+        self,
         tool_calls: Sequence[ToolCall],
         parallel: bool = False,
     ) -> tuple[ToolResult, ...]:
         """Execute multiple tool calls.
-        
+
         Args:
             tool_calls: Tool calls to execute
             parallel: If True, execute concurrently (use with caution for
                      read-only operations only)
-                     
+
         Returns:
             Tuple of ToolResult objects in the same order as input
         """
@@ -487,16 +486,16 @@ class ToolExecutor:
             for tc in tool_calls:
                 results.append(await self.execute(tc))
             return tuple(results)
-    
+
     def _sanitize_arguments(self, tool_name: str, args: dict) -> dict:
         """Sanitize arguments for audit logging (remove sensitive data)."""
         sanitized = dict(args)
-        
+
         # Don't log file contents
         if tool_name == "write_file" and "content" in sanitized:
             content_len = len(sanitized["content"])
             sanitized["content"] = f"<{content_len} bytes>"
-        
+
         # Don't log edit_file content (both old and new)
         if tool_name == "edit_file":
             if "old_content" in sanitized:
@@ -505,9 +504,9 @@ class ToolExecutor:
             if "new_content" in sanitized:
                 new_len = len(sanitized["new_content"])
                 sanitized["new_content"] = f"<{new_len} bytes>"
-        
+
         return sanitized
-    
+
     def _log_audit(
         self,
         tool_call: ToolCall,
@@ -525,38 +524,38 @@ class ToolExecutor:
             error=error,
         )
         self._audit_entries.append(entry)
-        
+
         # Write to file if audit path configured
         if self.audit_path:
             self._write_audit_entry(entry)
-    
+
     def _write_audit_entry(self, entry: ToolAuditEntry) -> None:
         """Write audit entry to file."""
         # Create audit directory
         self.audit_path.mkdir(parents=True, exist_ok=True)
-        
+
         # Write to daily log file (JSONL format)
         log_file = self.audit_path / f"tools-{entry.timestamp.strftime('%Y-%m-%d')}.jsonl"
         with open(log_file, "a") as f:
             f.write(json.dumps(entry.to_dict()) + "\n")
-    
+
     def get_audit_log(self) -> list[ToolAuditEntry]:
         """Get all audit entries for this session."""
         return list(self._audit_entries)
-    
+
     def get_stats(self) -> dict:
         """Get execution statistics."""
         total = len(self._audit_entries)
         successful = sum(1 for e in self._audit_entries if e.success)
         failed = total - successful
-        
+
         total_time = sum(e.execution_time_ms for e in self._audit_entries)
         avg_time = total_time / total if total > 0 else 0
-        
+
         tool_counts = {}
         for e in self._audit_entries:
             tool_counts[e.tool_name] = tool_counts.get(e.tool_name, 0) + 1
-        
+
         return {
             "total_calls": total,
             "successful": successful,

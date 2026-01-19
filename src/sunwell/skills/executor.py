@@ -11,16 +11,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from sunwell.skills.sandbox import ScriptSandbox, expand_template_variables
 from sunwell.skills.types import (
     Skill,
-    SkillOutput,
-    SkillOutputMetadata,
-    SkillResult,
     SkillError,
+    SkillResult,
     SkillRetryPolicy,
-    TrustLevel,
 )
-from sunwell.skills.sandbox import ScriptSandbox, expand_template_variables
 
 if TYPE_CHECKING:
     from sunwell.core.lens import Lens
@@ -40,8 +37,8 @@ class SkillExecutor:
     """
 
     skill: Skill
-    lens: "Lens"
-    model: "ModelProtocol"
+    lens: Lens
+    model: ModelProtocol
 
     # Configuration
     workspace_root: Path | None = None
@@ -289,7 +286,7 @@ class SkillAwareClassifier:
     Implements implicit skill activation from RFC-011 Section 4.
     """
 
-    lens: "Lens"
+    lens: Lens
     embedder: object | None = None  # EmbeddingProtocol
 
     # Common stopwords to ignore in matching
@@ -328,19 +325,19 @@ class SkillAwareClassifier:
             # Find skill with best matching description keywords (excluding stopwords)
             best_skill = None
             best_score = 0
-            
+
             for skill in self.lens.skills:
                 # Extract content words from description
                 desc_words = set(skill.description.lower().split()) - self.STOPWORDS
                 task_words = set(task_lower.split()) - self.STOPWORDS
-                
+
                 # Count meaningful word matches
                 matches = len(desc_words & task_words)
-                
+
                 if matches > best_score:
                     best_score = matches
                     best_skill = skill
-            
+
             if best_skill and best_score >= 1:
                 return {
                     "skill": best_skill,

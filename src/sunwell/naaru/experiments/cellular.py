@@ -11,7 +11,7 @@ Like biological cells:
 
 Example:
     >>> from sunwell.naaru.experiments.cellular import cellular_discover
-    >>> 
+    >>>
     >>> graph = await cellular_discover(
     ...     goal="Build a REST API with auth",
     ...     model=OllamaModel("gemma3:1b"),
@@ -23,7 +23,7 @@ Example:
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -59,13 +59,13 @@ Otherwise, respond with ONLY this JSON (no explanation):
 @dataclass
 class CellResult:
     """Result from a single cell."""
-    
+
     artifact: ArtifactSpec | None
     """The discovered artifact, or None if cell returned NULL."""
-    
+
     cell_index: int
     """Which cell this was."""
-    
+
     latency_ms: float
     """Time for this cell to respond."""
 
@@ -73,25 +73,25 @@ class CellResult:
 @dataclass
 class CellularDiscoveryResult:
     """Result from cellular discovery."""
-    
+
     graph: ArtifactGraph
     """The emerged artifact graph."""
-    
+
     cells_fired: int
     """Total number of cells fired."""
-    
+
     cells_contributed: int
     """Number of cells that found new artifacts."""
-    
+
     cells_null: int
     """Number of cells that returned NULL (no more artifacts)."""
-    
+
     rounds: int
     """Number of discovery rounds."""
-    
+
     total_latency_ms: float
     """Total time for discovery."""
-    
+
     stabilized: bool
     """Whether discovery stabilized (vs hit max limit)."""
 
@@ -105,41 +105,42 @@ async def _fire_cell(
     """Fire a single cell to discover one artifact."""
     import json
     import time
+
     from sunwell.models.protocol import GenerateOptions
     from sunwell.naaru.artifacts import ArtifactSpec
-    
+
     start = time.perf_counter()
-    
+
     # Format known artifacts for prompt
     if known_artifacts:
         known_str = "\n".join(f"- {aid}" for aid in sorted(known_artifacts))
     else:
         known_str = "(none yet)"
-    
+
     prompt = CELL_PROMPT.format(goal=goal, known_artifacts=known_str)
-    
+
     try:
         result = await model.generate(
             prompt,
             options=GenerateOptions(temperature=0.7, max_tokens=200),
         )
-        
+
         latency = (time.perf_counter() - start) * 1000
         text = result.text.strip()
-        
+
         # Check for NULL response
         if "NULL" in text.upper() or text == "null":
             return CellResult(artifact=None, cell_index=cell_index, latency_ms=latency)
-        
+
         # Try to parse JSON
         # Find JSON in response (model might add explanation)
         json_start = text.find("{")
         json_end = text.rfind("}") + 1
-        
+
         if json_start >= 0 and json_end > json_start:
             json_str = text[json_start:json_end]
             data = json.loads(json_str)
-            
+
             artifact = ArtifactSpec(
                 id=data.get("id", f"artifact_{cell_index}"),
                 description=data.get("description", ""),
@@ -148,11 +149,11 @@ async def _fire_cell(
                 produces_file=data.get("produces_file"),
                 domain_type=data.get("domain_type", "component"),
             )
-            
+
             return CellResult(artifact=artifact, cell_index=cell_index, latency_ms=latency)
-        
+
         return CellResult(artifact=None, cell_index=cell_index, latency_ms=latency)
-        
+
     except Exception:
         latency = (time.perf_counter() - start) * 1000
         return CellResult(artifact=None, cell_index=cell_index, latency_ms=latency)
@@ -168,14 +169,14 @@ async def cellular_discover(
     parallel: bool = False,
 ) -> CellularDiscoveryResult:
     """Discover artifacts through cellular emergence.
-    
+
     Fires multiple "cells" per round. Each cell identifies ONE artifact.
     Discovery continues until cells return NULL (nothing more to add)
     or limits are reached.
-    
+
     Sequential by default for local Ollama compatibility.
     Set parallel=True if your Ollama has OLLAMA_NUM_PARALLEL > cells_per_round.
-    
+
     Args:
         goal: The goal to achieve
         model: The model for cells (same model, many calls)
@@ -184,21 +185,22 @@ async def cellular_discover(
         max_artifacts: Maximum total artifacts
         stabilization_threshold: Stop if N consecutive rounds add nothing
         parallel: Run cells in parallel (requires Ollama parallel support)
-        
+
     Returns:
         CellularDiscoveryResult with emerged graph
     """
     import time
+
     from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
-    
+
     start_time = time.perf_counter()
-    
+
     known_artifacts: dict[str, ArtifactSpec] = {}
     cells_fired = 0
     cells_contributed = 0
     cells_null = 0
     rounds_without_progress = 0
-    
+
     for round_num in range(max_rounds):
         # Fire N cells (sequential by default for local Ollama)
         if parallel:
@@ -212,9 +214,9 @@ async def cellular_discover(
             for i in range(cells_per_round):
                 r = await _fire_cell(goal, set(known_artifacts.keys()), model, cells_fired + i)
                 results.append(r)
-        
+
         cells_fired += len(results)
-        
+
         # Process results
         new_this_round = 0
         for result in results:
@@ -224,7 +226,7 @@ async def cellular_discover(
                 known_artifacts[result.artifact.id] = result.artifact
                 cells_contributed += 1
                 new_this_round += 1
-        
+
         # Check for stabilization
         if new_this_round == 0:
             rounds_without_progress += 1
@@ -232,11 +234,11 @@ async def cellular_discover(
                 break
         else:
             rounds_without_progress = 0
-        
+
         # Check artifact limit
         if len(known_artifacts) >= max_artifacts:
             break
-    
+
     # Build graph from discovered artifacts
     graph = ArtifactGraph()
     for artifact in known_artifacts.values():
@@ -244,7 +246,7 @@ async def cellular_discover(
         filtered_requires = frozenset(
             req for req in artifact.requires if req in known_artifacts
         )
-        
+
         # Create new artifact with filtered requires
         filtered_artifact = ArtifactSpec(
             id=artifact.id,
@@ -255,10 +257,10 @@ async def cellular_discover(
             domain_type=artifact.domain_type,
         )
         graph.add(filtered_artifact)
-    
+
     total_latency = (time.perf_counter() - start_time) * 1000
     stabilized = rounds_without_progress >= stabilization_threshold
-    
+
     return CellularDiscoveryResult(
         graph=graph,
         cells_fired=cells_fired,
@@ -275,24 +277,25 @@ async def cellular_vs_monolithic(
     model: ModelProtocol,
 ) -> dict[str, Any]:
     """Compare cellular discovery vs monolithic discovery.
-    
+
     Runs both approaches and compares results.
-    
+
     Returns:
         Dict with comparison metrics
     """
     import time
+
     from sunwell.naaru.planners.artifact import ArtifactPlanner
-    
+
     # Monolithic discovery
     start = time.perf_counter()
     planner = ArtifactPlanner(model=model)
     mono_graph = await planner.discover_graph(goal)
     mono_latency = (time.perf_counter() - start) * 1000
-    
+
     # Cellular discovery
     cellular_result = await cellular_discover(goal, model)
-    
+
     return {
         "monolithic": {
             "artifacts": len(mono_graph),
@@ -310,7 +313,7 @@ async def cellular_vs_monolithic(
             "artifact_diff": len(cellular_result.graph) - len(mono_graph),
             "latency_ratio": cellular_result.total_latency_ms / mono_latency,
             "overlap": len(
-                set(mono_graph._artifacts.keys()) & 
+                set(mono_graph._artifacts.keys()) &
                 set(cellular_result.graph._artifacts.keys())
             ),
         },

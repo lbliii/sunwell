@@ -150,7 +150,7 @@ class ScriptSandbox:
                 timed_out=False,
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             return ScriptResult(
                 exit_code=-1,
@@ -204,7 +204,7 @@ def expand_template_variables(content: str, context: dict[str, str]) -> str:
         variables[key] = value
         # Lowercase variant
         variables[key.lower()] = value.lower()
-        # Uppercase variant  
+        # Uppercase variant
         variables[key.upper()] = value.upper()
 
     # Simple variable expansion (${VAR})

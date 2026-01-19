@@ -20,24 +20,23 @@ console = Console()
 @click.option("--force", "-f", is_flag=True, help="Overwrite existing bindings")
 def setup(provider: str, model: str | None, lenses_dir: str | None, force: bool) -> None:
     """Set up Sunwell with default bindings.
-    
+
     Creates sensible default bindings for common use cases:
     - writer: Technical writing (default)
     - reviewer: Code review
     - helper: General assistance
-    
+
     Examples:
-    
+
         sunwell setup                           # Use defaults (openai)
-        
+
         sunwell setup --provider anthropic      # Use Claude
-        
+
         sunwell setup --provider openai --model gpt-4o-mini  # Specific model
     """
-    from sunwell.binding import Binding
-    
+
     manager = BindingManager()
-    
+
     # Find lenses directory
     if lenses_dir:
         lens_path = Path(lenses_dir)
@@ -53,12 +52,12 @@ def setup(provider: str, model: str | None, lenses_dir: str | None, force: bool)
             if c.exists() and list(c.glob("*.lens")):
                 lens_path = c
                 break
-        
+
         if not lens_path:
             console.print("[red]No lenses directory found.[/red]")
             console.print("[dim]Specify with --lenses-dir or create ./lenses/[/dim]")
             sys.exit(1)
-    
+
     # Default bindings to create
     default_bindings = [
         {
@@ -81,7 +80,7 @@ def setup(provider: str, model: str | None, lenses_dir: str | None, force: bool)
             "tier": 0,  # Fast for quick questions
         },
     ]
-    
+
     # Auto-select model based on provider
     if model is None:
         model = {
@@ -89,48 +88,48 @@ def setup(provider: str, model: str | None, lenses_dir: str | None, force: bool)
             "anthropic": "claude-sonnet-4-20250514",
             "ollama": "gemma3:1b",
         }.get(provider, "gpt-4o")
-    
-    console.print(f"\n[bold]Setting up Sunwell[/bold]")
+
+    console.print("\n[bold]Setting up Sunwell[/bold]")
     console.print(f"Provider: {provider}")
     console.print(f"Model: {model}")
     console.print(f"Lenses: {lens_path}\n")
-    
+
     created = []
     skipped = []
-    
+
     for binding_def in default_bindings:
         name = binding_def["name"]
         lens_file = lens_path / binding_def["lens"]
-        
+
         # Check if lens exists
         if not lens_file.exists():
             console.print(f"[yellow]⚠ Skipping {name}:[/yellow] {binding_def['lens']} not found")
             skipped.append(name)
             continue
-        
+
         # Check if binding exists
         existing = manager.get(name)
         if existing and not force:
             console.print(f"[dim]• {name}: already exists (use --force to overwrite)[/dim]")
             skipped.append(name)
             continue
-        
+
         # Create binding
-        binding = manager.create(
+        manager.create(
             name=name,
             lens_path=str(lens_file),
             provider=provider,
             model=model,
             tier=binding_def.get("tier", 1),
         )
-        
+
         # Set default if specified
         if binding_def.get("is_default"):
             manager.set_default(name)
-        
+
         console.print(f"[green]✓ {name}:[/green] {binding_def['description']}")
         created.append(name)
-    
+
     # Summary
     console.print()
     if created:
@@ -138,11 +137,11 @@ def setup(provider: str, model: str | None, lenses_dir: str | None, force: bool)
         console.print(f"[bold green]Created {len(created)} binding(s)[/bold green]")
         if default:
             console.print(f"[cyan]Default:[/cyan] {default.name}")
-        
+
         console.print("\n[bold]Quick start:[/bold]")
-        console.print(f"  sunwell ask \"Write docs for my API\"")
-        console.print(f"  sunwell ask reviewer \"Review this code\"")
-        console.print(f"  sunwell ask helper \"Quick question\"")
+        console.print("  sunwell ask \"Write docs for my API\"")
+        console.print("  sunwell ask reviewer \"Review this code\"")
+        console.print("  sunwell ask helper \"Quick question\"")
     else:
         console.print("[yellow]No bindings created.[/yellow]")
         if skipped:

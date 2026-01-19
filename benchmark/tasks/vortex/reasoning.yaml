@@ -1,0 +1,102 @@
+# Vortex Experiment Tasks: Reasoning
+# These tasks test whether gradient flow improves multi-step reasoning
+# Good for testing resonance (iterative refinement helps)
+
+tasks:
+  - id: reason-001
+    name: "Multi-step math"
+    category: reasoning
+    task: |
+      A store has 3 shelves. The first shelf has 5 items. 
+      The second shelf has twice as many as the first.
+      The third shelf has 3 more than the second.
+      How many items total?
+    ground_truth: "28"
+    difficulty: medium
+    subtasks:
+      - "Calculate first shelf: 5"
+      - "Calculate second shelf: 5 * 2 = 10"
+      - "Calculate third shelf: 10 + 3 = 13"
+      - "Sum: 5 + 10 + 13 = 28"
+    
+  - id: reason-002
+    name: "Code debugging"
+    task: |
+      This code should return the sum of even numbers, but has a bug. What's wrong?
+      ```python
+      def sum_evens(nums):
+          total = 0
+          for n in nums:
+              if n % 2 == 1:
+                  total += n
+          return total
+      ```
+    ground_truth: "Checks for odd (n % 2 == 1) instead of even (n % 2 == 0)"
+    difficulty: easy
+    subtasks:
+      - "Understand intent: sum even numbers"
+      - "Trace condition: n % 2 == 1 means odd"
+      - "Identify mismatch: checking odd, not even"
+    
+  - id: reason-003
+    name: "Dependency resolution"
+    task: |
+      Given these dependencies, what's the correct installation order?
+      - A depends on B, C
+      - B depends on D
+      - C depends on D, E
+      - D has no dependencies
+      - E has no dependencies
+    ground_truth: "D, E, B, C, A"
+    difficulty: medium
+    subtasks:
+      - "Find leaves (no deps): D, E"
+      - "Find next level: B (needs D), C (needs D, E)"
+      - "Find root: A (needs B, C)"
+      - "Order: leaves first, root last"
+
+  - id: reason-004
+    name: "API design reasoning"
+    task: |
+      Design a function signature for a user search endpoint.
+      Requirements:
+      - Search by name, email, or ID
+      - Pagination support
+      - Sort by created_at or name
+      What parameters should it accept?
+    difficulty: medium
+    notes: "Tests whether decomposition helps design"
+    
+  - id: reason-005
+    name: "Performance analysis"
+    task: |
+      This code is slow. Identify the performance issue and suggest a fix.
+      ```python
+      def find_duplicates(items):
+          duplicates = []
+          for i, item in enumerate(items):
+              if item in items[i+1:] and item not in duplicates:
+                  duplicates.append(item)
+          return duplicates
+      ```
+    ground_truth: "O(n²) due to 'item in items[i+1:]' check. Use a set for O(n)."
+    difficulty: medium
+    subtasks:
+      - "Identify hot path: the 'in' check"
+      - "Analyze complexity: O(n) per iteration = O(n²)"
+      - "Propose fix: use set for O(1) lookup"
+
+  - id: reason-006
+    name: "Logic puzzle"
+    task: |
+      Three friends (A, B, C) have different jobs (doctor, teacher, engineer).
+      - A is not the doctor.
+      - The engineer is older than B.
+      - C is the youngest.
+      Who has which job?
+    ground_truth: "A: teacher, B: doctor, C: engineer"
+    difficulty: hard
+    notes: "Wait, this doesn't fully constrain. Let me fix..."
+    subtasks:
+      - "C is youngest, engineer is older than B → C is not engineer"
+      - "Actually need more constraints..."

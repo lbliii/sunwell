@@ -15,12 +15,12 @@ console = Console()
 
 def check_free_threading(quiet: bool = False) -> bool:
     """Check if running on free-threaded Python and warn if not.
-    
+
     Returns True if free-threaded, False otherwise.
     """
     if is_free_threaded():
         return True
-    
+
     if not quiet and os.environ.get("SUNWELL_NO_GIL_WARNING") != "1":
         console.print(
             "[yellow]⚠️  Running on standard Python (GIL enabled)[/yellow]"
@@ -35,7 +35,7 @@ def check_free_threading(quiet: bool = False) -> bool:
             "[dim]   Set SUNWELL_NO_GIL_WARNING=1 to suppress this message.[/dim]"
         )
         console.print()
-    
+
     return False
 
 
@@ -78,9 +78,9 @@ def create_model(provider: str, model_name: str):
         return OpenAIModel(model=model_name)
 
     elif provider == "ollama":
-        from sunwell.models.ollama import OllamaModel
         from sunwell.config import get_config
-        
+        from sunwell.models.ollama import OllamaModel
+
         cfg = get_config()
         return OllamaModel(
             model=model_name,
@@ -112,7 +112,7 @@ def display_execution_stats(result) -> None:
         table.add_row("Tokens (completion)", str(result.token_usage.completion_tokens))
 
     console.print(table)
-    
+
     # Show retrieved code if any
     if result.retrieved_code:
         console.print("\n[cyan]Code Context Used:[/cyan]")

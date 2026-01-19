@@ -22,7 +22,7 @@ console = Console()
 @click.group()
 def benchmark() -> None:
     """Quality benchmark framework for validating output quality.
-    
+
     Run benchmarks to compare selective retrieval against baselines.
     """
     pass
@@ -108,27 +108,27 @@ def run(
     naaru: str,
 ) -> None:
     """Run benchmark suite against specified model.
-    
+
     \b
     Examples:
         # Run full benchmark suite
         sunwell benchmark run --model gpt-4o
-        
-        # Run only documentation tasks  
+
+        # Run only documentation tasks
         sunwell benchmark run --category docs
-        
+
         # Quick run with limited tasks
         sunwell benchmark run --max-tasks 5
-        
+
         # Test different prompt strategies
         sunwell benchmark run --model qwen2.5:1.5b --strategy constraints
         sunwell benchmark run --model qwen2.5:1.5b --strategy cot
         sunwell benchmark run --model qwen2.5:1.5b --strategy few_shot
-        
+
         # Enable Naaru coordination (more tokens, better quality)
         sunwell benchmark run --model qwen2.5:1.5b --naaru harmonic
         sunwell benchmark run --model qwen2.5:1.5b --naaru full
-    
+
     \b
     Prompt Strategies (best by model size):
         - constraints: MUST/MUST NOT (best for 1-2B models)
@@ -136,7 +136,7 @@ def run(
         - guided: "Apply these principles" meta-instructions
         - cot: Chain-of-thought (THINK→PLAN→CODE→VERIFY, best for 4B+)
         - few_shot: Include example of applying heuristics
-    
+
     \b
     Naaru Modes (quality vs cost tradeoff):
         - none: Single generation (1x tokens)
@@ -175,17 +175,17 @@ async def _run_benchmark(
     naaru: str = "none",
 ) -> None:
     """Async benchmark execution."""
-    from sunwell.benchmark.runner import BenchmarkRunner
     from sunwell.benchmark.evaluator import BenchmarkEvaluator
     from sunwell.benchmark.report import BenchmarkReporter
-    from sunwell.benchmark.types import PromptStrategy, NaaruMode
+    from sunwell.benchmark.runner import BenchmarkRunner
+    from sunwell.benchmark.types import NaaruMode, PromptStrategy
     from sunwell.models.ollama import OllamaModel
     from sunwell.schema.loader import LensLoader
-    
+
     # Convert string options to enums
     prompt_strategy = PromptStrategy(strategy)
     naaru_mode = NaaruMode(naaru)
-    
+
     # Banner
     console.print()
     console.print("╔" + "═" * 60 + "╗")
@@ -202,14 +202,14 @@ async def _run_benchmark(
         console.print("║" + f"    Router: {router_model} (RFC-020)".ljust(60) + "║")
     console.print("╚" + "═" * 60 + "╝")
     console.print()
-    
+
     # Create model and loader
     llm = OllamaModel(model=model)
     loader = LensLoader()
-    
+
     # Create router model if specified
     router_llm = OllamaModel(model=router_model) if router_model else None
-    
+
     # Create runner with strategy configuration
     runner = BenchmarkRunner(
         model=llm,
@@ -221,49 +221,49 @@ async def _run_benchmark(
         prompt_strategy=prompt_strategy,
         naaru_mode=naaru_mode,
     )
-    
+
     # Run benchmarks
     console.print("📊 Running benchmark tasks...")
     console.print()
-    
+
     task_ids = [task_id] if task_id else None
     results = await runner.run_suite(
         category=category,
         task_ids=task_ids,
         max_tasks=max_tasks,
     )
-    
+
     console.print()
     console.print(f"✅ Completed {len(results.task_results)} tasks")
     console.print()
-    
+
     if skip_eval:
         console.print("⏭️  Skipping evaluation (--skip-eval)")
         return
-    
+
     # Run evaluation
     console.print("🧑‍⚖️ Running LLM evaluation...")
     console.print()
-    
+
     judge_llm = OllamaModel(model=judge_model)
     evaluator = BenchmarkEvaluator(judge_model=judge_llm)
-    
+
     # Load tasks for evaluation
     tasks = runner._load_tasks(category=category, task_ids=task_ids)
     evaluations = await evaluator.evaluate_suite(tasks, list(results.task_results))
-    
+
     console.print()
     console.print(f"✅ Evaluated {len(evaluations)} tasks")
     console.print()
-    
+
     # Compute statistics
     console.print("📈 Computing statistics...")
     reporter = BenchmarkReporter()
     summary = reporter.compute_statistics(list(results.task_results), evaluations)
-    
+
     # Display results
     _display_summary(summary)
-    
+
     # Save results
     console.print()
     reporter.save_results(results, evaluations, summary, output_dir)
@@ -271,12 +271,11 @@ async def _run_benchmark(
 
 def _display_summary(summary) -> None:
     """Display summary statistics in a table."""
-    from sunwell.benchmark.types import StatisticalSummary
-    
+
     table = Table(title="Benchmark Results")
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="green")
-    
+
     table.add_row("Tasks", str(summary.n_tasks))
     table.add_row(
         "Win/Loss/Tie",
@@ -300,7 +299,7 @@ def _display_summary(summary) -> None:
         summary.claim_level(),
         style="bold"
     )
-    
+
     console.print(table)
 
 
@@ -319,7 +318,7 @@ def compare(
     results_dir: Path,
 ) -> None:
     """Compare benchmark results between two versions.
-    
+
     \b
     Examples:
         sunwell benchmark compare v0.1.0 v0.2.0
@@ -328,34 +327,34 @@ def compare(
     console.print()
     console.print(f"📊 Comparing {version1} vs {version2}")
     console.print()
-    
+
     # Load results
     v1_path = results_dir / version1
     v2_path = results_dir / version2
-    
+
     if not v1_path.exists():
         console.print(f"[red]Error: Results not found for {version1}[/red]")
         return
-    
+
     if not v2_path.exists():
         console.print(f"[red]Error: Results not found for {version2}[/red]")
         return
-    
+
     # Load statistics
     v1_stats = _load_statistics(v1_path / "statistics.json")
     v2_stats = _load_statistics(v2_path / "statistics.json")
-    
+
     if v1_stats is None or v2_stats is None:
         console.print("[red]Error: Could not load statistics files[/red]")
         return
-    
+
     # Display comparison
     table = Table(title=f"Version Comparison: {version1} vs {version2}")
     table.add_column("Metric", style="cyan")
     table.add_column(version1, style="yellow")
     table.add_column(version2, style="green")
     table.add_column("Δ", style="bold")
-    
+
     # Win rate
     wr1 = v1_stats.get("win_rate", 0)
     wr2 = v2_stats.get("win_rate", 0)
@@ -366,7 +365,7 @@ def compare(
         f"{wr2:.1%}",
         f"{delta:+.1%}"
     )
-    
+
     # Effect size
     es1 = v1_stats.get("effect_size_cohens_d", 0)
     es2 = v2_stats.get("effect_size_cohens_d", 0)
@@ -377,7 +376,7 @@ def compare(
         f"{es2:.3f}",
         f"{delta:+.3f}"
     )
-    
+
     # p-value
     p1 = v1_stats.get("p_value", 1)
     p2 = v2_stats.get("p_value", 1)
@@ -387,14 +386,14 @@ def compare(
         f"{p2:.4f}",
         f"{p2 - p1:+.4f}"
     )
-    
+
     # Claim level
     cl1 = v1_stats.get("claim_level", "insufficient")
     cl2 = v2_stats.get("claim_level", "insufficient")
     table.add_row("Claim Level", cl1, cl2, "→" if cl1 != cl2 else "=")
-    
+
     console.print(table)
-    
+
     # Regression check
     console.print()
     if wr2 < wr1 - 0.05:
@@ -443,12 +442,12 @@ def report(
     output: Path | None,
 ) -> None:
     """Generate report from benchmark results.
-    
+
     \b
     Examples:
         # Display table summary
         sunwell benchmark report benchmark/results/2024-01-16/
-        
+
         # Generate markdown report
         sunwell benchmark report benchmark/results/2024-01-16/ -f markdown -o report.md
     """
@@ -457,12 +456,12 @@ def report(
     if not stats_path.exists():
         console.print(f"[red]Error: {stats_path} not found[/red]")
         return
-    
+
     stats = _load_statistics(stats_path)
     if stats is None:
         console.print("[red]Error: Could not parse statistics[/red]")
         return
-    
+
     if output_format == "table":
         _display_report_table(stats)
     elif output_format == "json":
@@ -479,7 +478,7 @@ def report(
             content = report_path.read_text()
         else:
             content = _generate_simple_markdown(stats)
-        
+
         if output:
             output.write_text(content)
             console.print(f"Saved to {output}")
@@ -492,7 +491,7 @@ def _display_report_table(stats: dict) -> None:
     table = Table(title="Benchmark Report")
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="green")
-    
+
     table.add_row("Tasks", str(stats.get("n_tasks", 0)))
     table.add_row(
         "Results",
@@ -504,7 +503,7 @@ def _display_report_table(stats: dict) -> None:
         f"{stats.get('effect_size_cohens_d', 0):.3f} "
         f"({stats.get('effect_size_interpretation', 'unknown')})"
     )
-    
+
     sig = "✓ significant" if stats.get("significant") else "✗ not significant"
     table.add_row("p-value", f"{stats.get('p_value', 1):.4f} ({sig})")
     table.add_row(
@@ -512,9 +511,9 @@ def _display_report_table(stats: dict) -> None:
         f"[{stats.get('ci_lower', 0):.3f}, {stats.get('ci_upper', 0):.3f}]"
     )
     table.add_row("Claim Level", stats.get("claim_level", "unknown"))
-    
+
     console.print(table)
-    
+
     # Category breakdown
     categories = stats.get("category_breakdown", {})
     if categories:
@@ -523,14 +522,14 @@ def _display_report_table(stats: dict) -> None:
         cat_table.add_column("Category", style="cyan")
         cat_table.add_column("Win Rate", style="green")
         cat_table.add_column("W/L/T")
-        
+
         for cat, data in categories.items():
             cat_table.add_row(
                 cat,
                 f"{data.get('win_rate', 0):.0%}",
                 f"{data.get('wins', 0)}/{data.get('losses', 0)}/{data.get('ties', 0)}"
             )
-        
+
         console.print(cat_table)
 
 
@@ -539,8 +538,8 @@ def _generate_simple_markdown(stats: dict) -> str:
     lines = [
         "# Benchmark Report",
         "",
-        f"| Metric | Value |",
-        f"|--------|-------|",
+        "| Metric | Value |",
+        "|--------|-------|",
         f"| Tasks | {stats.get('n_tasks', 0)} |",
         f"| Win Rate | {stats.get('win_rate', 0):.1%} |",
         f"| Effect Size | {stats.get('effect_size_cohens_d', 0):.3f} |",
@@ -627,10 +626,10 @@ def naaru(
     verbose: bool,
 ) -> None:
     """Run Naaru benchmark suite (RFC-027).
-    
+
     Validates Naaru's quality claims with statistical rigor by testing
     7 conditions (A-G) that systematically enable features.
-    
+
     \b
     Conditions:
         A: BASELINE      - Raw model capability
@@ -640,18 +639,18 @@ def naaru(
         E: RESONANCE     - Feedback loop refinement
         F: NAARU_FULL    - All techniques combined
         G: NAARU_FULL_LENS - Full Naaru + lens
-    
+
     \b
     Examples:
         # Quick smoke test (5 tasks)
         sunwell benchmark naaru --quick
-        
+
         # Run ablation study
         sunwell benchmark naaru --ablation --max-tasks 30
-        
+
         # Run specific conditions only
         sunwell benchmark naaru --conditions BASELINE,HARMONIC,NAARU_FULL
-        
+
         # Full statistical run (all tasks, all conditions)
         sunwell benchmark naaru --full
     """
@@ -687,7 +686,7 @@ async def _run_naaru_benchmark(
     from sunwell.benchmark.naaru import NaaruBenchmarkRunner, NaaruCondition
     from sunwell.models.ollama import OllamaModel
     from sunwell.schema.loader import LensLoader
-    
+
     # Parse conditions
     conditions: list[NaaruCondition] | None = None
     if conditions_str:
@@ -695,7 +694,7 @@ async def _run_naaru_benchmark(
             NaaruCondition(c.strip().lower())
             for c in conditions_str.split(",")
         ]
-    
+
     # Banner
     console.print()
     console.print("╔" + "═" * 60 + "╗")
@@ -714,12 +713,12 @@ async def _run_naaru_benchmark(
         console.print("║" + f"    Category: {category}".ljust(60) + "║")
     console.print("╚" + "═" * 60 + "╝")
     console.print()
-    
+
     # Create models and runner
     synthesis_model = OllamaModel(model=model)
     judge = OllamaModel(model=judge_model)
     loader = LensLoader()
-    
+
     runner = NaaruBenchmarkRunner(
         model=synthesis_model,
         judge_model=judge,
@@ -728,11 +727,11 @@ async def _run_naaru_benchmark(
         output_dir=output_dir,
         lens_dir=Path("lenses"),
     )
-    
+
     # Run appropriate mode
     console.print("📊 Running Naaru benchmark...")
     console.print()
-    
+
     if quick:
         results = await runner.run_quick(n_tasks=5)
     elif ablation:
@@ -743,14 +742,14 @@ async def _run_naaru_benchmark(
             conditions=conditions,
             max_tasks=max_tasks,
         )
-    
+
     console.print()
     console.print(f"✅ Completed {results.n_tasks} tasks across {len(results.conditions)} conditions")
     console.print()
-    
+
     # Display summary
     _display_naaru_summary(results)
-    
+
     # Save results
     results_dir = runner.save_results(results, output_dir)
     console.print()
@@ -759,33 +758,32 @@ async def _run_naaru_benchmark(
 
 def _display_naaru_summary(results) -> None:
     """Display Naaru benchmark summary."""
-    from sunwell.benchmark.naaru.types import NaaruCondition
-    
+
     table = Table(title="Naaru Benchmark Summary")
     table.add_column("Condition", style="cyan")
     table.add_column("Tasks", style="white")
     table.add_column("Avg Tokens", style="yellow")
     table.add_column("Avg Time (s)", style="green")
     table.add_column("Consensus", style="magenta")
-    
+
     # Compute per-condition stats
     condition_data: dict = {}
     for condition in results.conditions:
         tokens_list: list[int] = []
         times_list: list[float] = []
         consensus_list: list[float] = []
-        
+
         for task_result in results.results:
             output = task_result.outputs.get(condition)
             if output is None:
                 continue
-            
+
             tokens_list.append(output.tokens_used)
             times_list.append(output.time_seconds)
-            
+
             if output.harmonic_metrics:
                 consensus_list.append(output.harmonic_metrics.consensus_strength)
-        
+
         if tokens_list:
             condition_data[condition] = {
                 "n_tasks": len(tokens_list),
@@ -793,7 +791,7 @@ def _display_naaru_summary(results) -> None:
                 "avg_time": sum(times_list) / len(times_list),
                 "consensus": sum(consensus_list) / len(consensus_list) if consensus_list else None,
             }
-    
+
     for condition, data in condition_data.items():
         consensus_str = f"{data['consensus']:.2f}" if data['consensus'] else "—"
         table.add_row(
@@ -803,7 +801,7 @@ def _display_naaru_summary(results) -> None:
             f"{data['avg_time']:.2f}",
             consensus_str,
         )
-    
+
     console.print(table)
 
 
@@ -822,24 +820,23 @@ def naaru_report(
     output: Path | None,
 ) -> None:
     """Generate report from Naaru benchmark results.
-    
+
     \b
     Example:
         sunwell benchmark naaru-report benchmark/results/naaru/2026-01-18/
     """
-    from sunwell.benchmark.naaru.analysis import NaaruReportGenerator
-    
+
     # Load results
     config_path = results_path / "config.json"
     if not config_path.exists():
         console.print(f"[red]Error: {config_path} not found[/red]")
         return
-    
+
     config = _load_statistics(config_path)
     if config is None:
         console.print("[red]Error: Could not parse config[/red]")
         return
-    
+
     # Generate simple summary for now
     console.print()
     console.print("📊 Naaru Benchmark Results")
@@ -848,7 +845,7 @@ def naaru_report(
     console.print(f"  Judge: {config.get('judge_model', 'unknown')}")
     console.print(f"  Tasks: {config.get('n_tasks', 0)}")
     console.print(f"  Conditions: {', '.join(config.get('conditions', []))}")
-    
+
     # Load condition scores if available
     scores_path = results_path / "condition_scores.json"
     if scores_path.exists():
@@ -860,7 +857,7 @@ def naaru_report(
             table.add_column("Tasks", style="white")
             table.add_column("Avg Tokens", style="yellow")
             table.add_column("Refinement Rate", style="green")
-            
+
             for cond, data in scores.items():
                 ref_rate = data.get("refinement_rate")
                 ref_str = f"{ref_rate:.1%}" if ref_rate is not None else "—"
@@ -870,9 +867,9 @@ def naaru_report(
                     f"{data.get('mean_tokens', 0):.0f}",
                     ref_str,
                 )
-            
+
             console.print(table)
-    
+
     if output:
         # Generate markdown report
         report_content = f"""# Naaru Benchmark Report

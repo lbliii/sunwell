@@ -2,19 +2,17 @@
 
 The primary interface is now simply:
     sunwell "Build a REST API with auth"
-    
+
 All other commands are progressive disclosure for power users.
 """
 
 from __future__ import annotations
 
 import asyncio
-import sys
 from pathlib import Path
 
 import click
 from rich.console import Console
-from rich.panel import Panel
 
 from sunwell.cli.helpers import check_free_threading, load_dotenv
 
@@ -24,16 +22,16 @@ console = Console()
 # RFC-037: Custom group that supports goal-first interface
 class GoalFirstGroup(click.Group):
     """Custom group that allows 'sunwell "goal"' syntax while preserving subcommands."""
-    
+
     def parse_args(self, ctx, args):
         """Override to handle goal-first pattern."""
         # If no args, proceed normally
         if not args:
             return super().parse_args(ctx, args)
-        
+
         # Get list of known command names
         command_names = set(self.list_commands(ctx))
-        
+
         # If first arg is NOT a command and NOT an option, treat it as a goal
         first_arg = args[0]
         if (
@@ -45,7 +43,7 @@ class GoalFirstGroup(click.Group):
             ctx.ensure_object(dict)
             ctx.obj["_goal"] = first_arg
             args = args[1:]  # Remove goal from args
-        
+
         return super().parse_args(ctx, args)
 
 
@@ -72,24 +70,24 @@ def main(
 
     \b
     Just tell it what you want:
-    
+
         sunwell "Build a REST API with auth"
         sunwell "Write docs for the CLI module"
         sunwell "Refactor auth.py to use async"
 
     \b
     For planning without execution:
-    
+
         sunwell "Build an app" --plan
 
     \b
     For interactive mode:
-    
+
         sunwell chat
 
     \b
     For power users - see all commands:
-    
+
         sunwell --help
     """
     load_dotenv()
@@ -140,7 +138,7 @@ async def _run_agent(
     model_override: str | None,
 ) -> None:
     """Execute agent mode (RFC-032, RFC-036, RFC-037, RFC-039).
-    
+
     This is the unified entry point for goal execution.
     Uses ExpertiseAwareArtifactPlanner for automatic expertise injection (RFC-039).
     """
@@ -170,7 +168,7 @@ async def _run_agent(
         synthesis_model = OllamaModel(model=model_name)
         if verbose:
             console.print(f"[dim]Using model: {model_name}[/dim]")
-        
+
         # Create escalation model (larger) for content validation retries
         escalation_model_name = None
         if config and hasattr(config, "naaru"):
@@ -178,14 +176,14 @@ async def _run_agent(
             # "auto" means select automatically, not a literal model name
             if wisdom and wisdom != "auto":
                 escalation_model_name = wisdom
-        
+
         # Default/auto escalation hierarchy: stable-code:3b → gemma3:4b
         if not escalation_model_name:
             for candidate in ["stable-code:3b", "gemma3:4b"]:
                 if candidate != model_name:  # Don't use same as synthesis
                     escalation_model_name = candidate
                     break
-        
+
         if escalation_model_name and escalation_model_name != model_name:
             try:
                 judge_model = OllamaModel(model=escalation_model_name)
@@ -193,7 +191,7 @@ async def _run_agent(
                     console.print(f"[dim]Escalation model: {escalation_model_name}[/dim]")
             except Exception:
                 pass  # Escalation is optional
-                
+
     except Exception as e:
         console.print(f"[yellow]Warning: Could not load model: {e}[/yellow]")
 
@@ -224,7 +222,7 @@ async def _run_agent(
     # RFC-039: Use expertise-aware artifact planner
     # Automatically detects domain and injects relevant heuristics
     planner = ExpertiseAwareArtifactPlanner(
-        model=synthesis_model, 
+        model=synthesis_model,
         router=router,
         enable_expertise=True,
     )
@@ -352,10 +350,12 @@ async def _artifact_dry_run(goal: str, planner, verbose: bool) -> None:
 
 # Import and register chat command (interactive mode)
 from sunwell.cli import chat
+
 main.add_command(chat.chat)
 
 # Import and register setup command (first-time setup)
 from sunwell.cli import setup
+
 main.add_command(setup.setup)
 
 
@@ -365,10 +365,12 @@ main.add_command(setup.setup)
 
 # Manage saved configurations
 from sunwell.cli import bind
+
 main.add_command(bind.bind)
 
 # Global settings
 from sunwell.cli import config_cmd
+
 main.add_command(config_cmd.config)
 
 
@@ -378,6 +380,7 @@ main.add_command(config_cmd.config)
 
 # Agent commands (renamed from 'naaru' for clarity - RFC-037)
 from sunwell.cli import agent_cmd
+
 main.add_command(agent_cmd.agent)
 
 # Keep 'naaru' as hidden alias for backward compatibility
@@ -392,19 +395,23 @@ main.add_command(naaru_alias)
 
 # Legacy commands (with deprecation warnings)
 from sunwell.cli import apply, ask
+
 main.add_command(apply.apply)
 main.add_command(ask.ask)
 
 # Session management
 from sunwell.cli import session
+
 main.add_command(session.sessions)
 
 # Benchmark suite
 from sunwell.benchmark.cli import benchmark
+
 main.add_command(benchmark)
 
 # Development tools
-from sunwell.cli import runtime_cmd, skill, lens
+from sunwell.cli import lens, runtime_cmd, skill
+
 main.add_command(runtime_cmd.runtime)
 main.add_command(skill.exec)
 main.add_command(skill.validate)

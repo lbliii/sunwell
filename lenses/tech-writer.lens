@@ -328,7 +328,7 @@ lens:
     persona_agreement: 0.5
     retry_limit: 2
 
-  # RFC-011: Agent Skills integration
+  # Agent Skills integration
   skills:
     # Include core skills library (file ops, code analysis, validation)
     - include: ../skills/core-skills.yaml

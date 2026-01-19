@@ -30,50 +30,50 @@ from dataclasses import dataclass, field
 @dataclass
 class IDEContext:
     """Context from IDE extension.
-    
+
     This dataclass captures the current state of the IDE to enable
     @file, @selection, and other context references.
-    
+
     Passed via:
     - Environment variable: SUNWELL_IDE_CONTEXT (path to JSON file)
     - CLI option: --ide-context <path>
     - Stdin pipe: echo '{"focused_file": "..."}' | sunwell ...
     """
-    
+
     focused_file: str | None = None
     """Currently focused file path (absolute)."""
-    
+
     selection: str | None = None
     """Selected text content."""
-    
+
     cursor_position: tuple[int, int] | None = None
     """Cursor position as (line, column), 0-indexed."""
-    
+
     open_files: list[str] = field(default_factory=list)
     """All open file paths."""
-    
+
     visible_range: tuple[int, int] | None = None
     """Visible line range as (start, end)."""
-    
+
     diagnostics: list[dict] | None = None
     """Linter errors/warnings from IDE.
-    
+
     Each diagnostic dict has:
     - line: int - line number
     - message: str - diagnostic message
     - severity: int - severity level
     """
-    
+
     workspace_folders: list[str] = field(default_factory=list)
     """Workspace folders from IDE (multi-root support)."""
-    
+
     @classmethod
     def from_json(cls, data: dict) -> IDEContext:
         """Parse from JSON (from IDE extension).
-        
+
         Args:
             data: Dictionary with IDE context fields
-            
+
         Returns:
             IDEContext instance
         """
@@ -86,30 +86,30 @@ class IDEContext:
             diagnostics=data.get("diagnostics"),
             workspace_folders=data.get("workspace_folders", []),
         )
-    
+
     @classmethod
     def from_file(cls, path: str) -> IDEContext:
         """Load from a JSON file.
-        
+
         Args:
             path: Path to JSON file
-            
+
         Returns:
             IDEContext instance
-            
+
         Raises:
             FileNotFoundError: If file doesn't exist
             json.JSONDecodeError: If file is not valid JSON
         """
         with open(path, encoding="utf-8") as f:
             return cls.from_json(json.load(f))
-    
+
     @classmethod
     def from_env(cls) -> IDEContext | None:
         """Load from SUNWELL_IDE_CONTEXT environment variable.
-        
+
         The environment variable should contain a path to a JSON file.
-        
+
         Returns:
             IDEContext instance if env var is set and file is valid,
             None otherwise.
@@ -117,12 +117,12 @@ class IDEContext:
         path = os.environ.get("SUNWELL_IDE_CONTEXT")
         if not path:
             return None
-        
+
         try:
             return cls.from_file(path)
         except (FileNotFoundError, json.JSONDecodeError):
             return None
-    
+
     def to_json(self) -> dict:
         """Convert to JSON-serializable dict."""
         return {
@@ -134,11 +134,11 @@ class IDEContext:
             "diagnostics": self.diagnostics,
             "workspace_folders": self.workspace_folders,
         }
-    
+
     def has_selection(self) -> bool:
         """Check if there's selected text."""
         return bool(self.selection)
-    
+
     def has_focused_file(self) -> bool:
         """Check if there's a focused file."""
         return bool(self.focused_file)

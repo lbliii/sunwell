@@ -19,11 +19,10 @@ from typing import Any
 
 from sunwell.routing.cognitive_router import (
     CognitiveRouter,
-    RoutingDecision,
-    Intent,
     Complexity,
+    Intent,
+    RoutingDecision,
 )
-
 
 # =============================================================================
 # Tier System (RFC-022)
@@ -32,7 +31,7 @@ from sunwell.routing.cognitive_router import (
 
 class Tier(int, Enum):
     """Execution tiers for routing decisions."""
-    
+
     FAST = 0    # No analysis, direct dispatch, ~50ms
     LIGHT = 1   # Brief acknowledgment, auto-proceed, ~200ms
     FULL = 2    # Full CoT reasoning, confirmation required, ~500ms
@@ -41,11 +40,11 @@ class Tier(int, Enum):
 @dataclass
 class TierBehavior:
     """Behavior configuration for each tier."""
-    
+
     show_reasoning: bool
     require_confirmation: bool
     output_format: str  # compact | standard | detailed
-    
+
     @classmethod
     def for_tier(cls, tier: Tier) -> TierBehavior:
         """Get behavior for a tier."""
@@ -77,14 +76,14 @@ class TierBehavior:
 @dataclass(frozen=True)
 class RoutingExemplar:
     """Gold-standard routing example for pattern matching.
-    
+
     Exemplars teach the router what good routing looks like.
     They're used for:
     1. Pattern matching (find similar exemplar)
     2. Confidence calibration (similar to exemplar = high confidence)
     3. Self-verification (does decision match exemplar reasoning?)
     """
-    
+
     input: str                     # User request
     context_hints: tuple[str, ...] # Expected context signals
     reasoning: str                 # Why this routing is correct
@@ -132,7 +131,7 @@ ROUTING_EXEMPLARS: tuple[RoutingExemplar, ...] = (
         tier=Tier.FAST,
         tags=("command", "review", "security"),
     ),
-    
+
     # --- TESTING ---
     RoutingExemplar(
         input="write tests for the user service",
@@ -156,7 +155,7 @@ ROUTING_EXEMPLARS: tuple[RoutingExemplar, ...] = (
         tier=Tier.LIGHT,
         tags=("test", "coverage", "improve"),
     ),
-    
+
     # --- DOCUMENTATION ---
     RoutingExemplar(
         input="document this function",
@@ -180,7 +179,7 @@ ROUTING_EXEMPLARS: tuple[RoutingExemplar, ...] = (
         tier=Tier.LIGHT,
         tags=("readme", "documentation", "project"),
     ),
-    
+
     # --- REFACTORING ---
     RoutingExemplar(
         input="make this code cleaner",
@@ -204,7 +203,7 @@ ROUTING_EXEMPLARS: tuple[RoutingExemplar, ...] = (
         tier=Tier.FAST,
         tags=("extract", "refactor", "function"),
     ),
-    
+
     # --- AMBIGUOUS ---
     RoutingExemplar(
         input="help with this code",
@@ -228,7 +227,7 @@ ROUTING_EXEMPLARS: tuple[RoutingExemplar, ...] = (
         tier=Tier.LIGHT,
         tags=("fix", "error", "debug"),
     ),
-    
+
     # --- ANALYSIS ---
     RoutingExemplar(
         input="explain how this authentication flow works",
@@ -263,12 +262,12 @@ ROUTING_EXEMPLARS: tuple[RoutingExemplar, ...] = (
 @dataclass
 class ConfidenceRubric:
     """Explicit confidence scoring rubric.
-    
+
     Replaces LLM "vibes" with deterministic scoring.
     """
-    
+
     base_score: int = 50
-    
+
     # Positive signals (add points)
     explicit_shortcut: int = 20      # ::command patterns
     clear_action_verb: int = 15      # review, test, document
@@ -276,14 +275,14 @@ class ConfidenceRubric:
     file_state_match: int = 10       # File exists/doesn't as expected
     exemplar_match_high: int = 10    # >0.85 similarity to exemplar
     exemplar_match_mod: int = 5      # >0.7 similarity to exemplar
-    
+
     # Negative signals (subtract points)
     no_file_context: int = -20       # No file mentioned or focused
     ambiguous_verb: int = -15        # fix, help, improve
     multi_file_scope: int = -15      # Multiple files mentioned
     conflicting_signals: int = -10   # Contradictory hints
     no_exemplar_match: int = -10     # <0.5 similarity to any exemplar
-    
+
     # Action verbs
     CLEAR_VERBS = frozenset({
         "review", "audit", "check", "validate",
@@ -292,12 +291,12 @@ class ConfidenceRubric:
         "refactor", "extract", "rename",
         "debug", "trace", "profile",
     })
-    
+
     AMBIGUOUS_VERBS = frozenset({
         "fix", "help", "improve", "update", "change", "modify",
         "look", "handle", "deal", "work",
     })
-    
+
     def calculate(
         self,
         task: str,
@@ -305,48 +304,48 @@ class ConfidenceRubric:
         exemplar_similarity: float | None,
     ) -> tuple[int, str]:
         """Calculate confidence score with explanation.
-        
+
         Returns:
             Tuple of (score 0-100, explanation string)
         """
         score = self.base_score
         reasons: list[str] = []
-        
+
         task_lower = task.lower()
         words = task_lower.split()
-        
+
         # Check for explicit shortcut
         if task.strip().startswith("::"):
             score += self.explicit_shortcut
             reasons.append(f"+{self.explicit_shortcut} explicit shortcut")
-        
+
         # Check for clear action verb
         if any(verb in words for verb in self.CLEAR_VERBS):
             score += self.clear_action_verb
             reasons.append(f"+{self.clear_action_verb} clear action verb")
-        
+
         # Check for ambiguous verb
         if any(verb in words for verb in self.AMBIGUOUS_VERBS):
             score += self.ambiguous_verb  # Negative
             reasons.append(f"{self.ambiguous_verb} ambiguous verb")
-        
+
         # Check file context
         has_file = context and context.get("file") or context and context.get("focused_file")
         file_in_task = bool(re.search(r'\b\w+\.(py|js|ts|md|yaml|json)\b', task))
-        
+
         if has_file or file_in_task:
             score += self.single_file_target
             reasons.append(f"+{self.single_file_target} file target")
         elif not has_file and not file_in_task:
             score += self.no_file_context  # Negative
             reasons.append(f"{self.no_file_context} no file context")
-        
+
         # Check multi-file scope
         file_matches = re.findall(r'\b\w+\.(py|js|ts|md|yaml|json)\b', task)
         if len(file_matches) > 1:
             score += self.multi_file_scope  # Negative
             reasons.append(f"{self.multi_file_scope} multi-file scope")
-        
+
         # Check exemplar similarity
         if exemplar_similarity is not None:
             if exemplar_similarity > 0.85:
@@ -358,12 +357,12 @@ class ConfidenceRubric:
             elif exemplar_similarity < 0.5:
                 score += self.no_exemplar_match  # Negative
                 reasons.append(f"{self.no_exemplar_match} low exemplar match ({exemplar_similarity:.2f})")
-        
+
         # Clamp to 0-100
         score = max(0, min(100, score))
-        
+
         return score, " | ".join(reasons)
-    
+
     def to_confidence_level(self, score: int) -> str:
         """Convert numeric score to confidence level."""
         if score >= 80:
@@ -372,7 +371,7 @@ class ConfidenceRubric:
             return "MEDIUM"
         else:
             return "LOW"
-    
+
     def score_to_tier(self, score: int, has_explicit_shortcut: bool) -> Tier:
         """Determine appropriate tier from confidence score."""
         if has_explicit_shortcut and score >= 80:
@@ -391,16 +390,16 @@ class ConfidenceRubric:
 @dataclass
 class VerificationResult:
     """Result of self-verification check."""
-    
+
     passed: bool
     action: str  # proceed | escalate | clarify
     red_flags: list[str] = field(default_factory=list)
     adjusted_confidence: str | None = None
-    
+
     def should_escalate(self) -> bool:
         """Check if we should escalate to higher tier."""
         return self.action == "escalate"
-    
+
     def should_clarify(self) -> bool:
         """Check if we should ask user for clarification."""
         return self.action == "clarify"
@@ -410,7 +409,7 @@ class VerificationResult:
 ANTI_PATTERNS: dict[str, dict[str, Any]] = {
     "review_empty": {
         "check": lambda task, ctx, dec: (
-            dec.intent == Intent.CODE_REVIEW and 
+            dec.intent == Intent.CODE_REVIEW and
             ctx and ctx.get("file_state") == "empty"
         ),
         "message": "Cannot review empty file - should be CREATION task",
@@ -451,25 +450,25 @@ def verify_routing(
     confidence_level: str,
 ) -> VerificationResult:
     """Self-verify a routing decision before dispatch.
-    
+
     Checks for:
     1. Capability match - Does lens handle this intent?
     2. State match - Does file state match operation?
     3. Anti-patterns - Known routing mistakes?
-    
+
     Returns:
         VerificationResult with action recommendation
     """
     red_flags: list[str] = []
-    
+
     # Check anti-patterns
-    for name, pattern in ANTI_PATTERNS.items():
+    for _name, pattern in ANTI_PATTERNS.items():
         try:
             if pattern["check"](task, context, decision):
                 red_flags.append(f"[{pattern['severity']}] {pattern['message']}")
         except Exception:
             pass  # Skip failing checks
-    
+
     # Capability match: Does lens typically handle this intent?
     LENS_CAPABILITIES = {
         "code-reviewer": {Intent.CODE_REVIEW, Intent.ANALYSIS, Intent.REFACTORING, Intent.DEBUGGING},
@@ -477,17 +476,17 @@ def verify_routing(
         "team-qa": {Intent.TESTING},
         "helper": set(Intent),  # Helper handles everything
     }
-    
+
     lens_caps = LENS_CAPABILITIES.get(decision.lens, set())
     if decision.intent not in lens_caps and decision.lens != "helper":
         red_flags.append(f"Lens '{decision.lens}' doesn't typically handle intent '{decision.intent.value}'")
-    
+
     # Determine action based on red flags and confidence
     if not red_flags:
         return VerificationResult(passed=True, action="proceed")
-    
+
     high_severity = any("[high]" in flag for flag in red_flags)
-    
+
     if high_severity:
         return VerificationResult(
             passed=False,
@@ -524,7 +523,7 @@ def verify_routing(
 @dataclass
 class AttunementResult:
     """Result from TieredAttunement routing."""
-    
+
     decision: RoutingDecision
     tier: Tier
     confidence_score: int
@@ -534,7 +533,7 @@ class AttunementResult:
     exemplar_similarity: float | None
     verification: VerificationResult
     behavior: TierBehavior
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
@@ -561,33 +560,33 @@ class AttunementResult:
 @dataclass
 class TieredAttunement:
     """Enhanced cognitive routing with DORI-inspired techniques.
-    
+
     Wraps CognitiveRouter with:
     - Tiered execution (Fast/Light/Full)
     - Exemplar-based pattern matching
     - Calibrated confidence scoring
     - Self-verification before dispatch
-    
+
     Example:
         attunement = TieredAttunement(
             router=CognitiveRouter(model, lenses),
         )
-        
+
         result = await attunement.route("Review auth.py for security")
         # result.tier = Tier.FAST (explicit target + clear intent)
         # result.confidence_score = 85
         # result.verification.passed = True
     """
-    
+
     router: CognitiveRouter
     exemplars: tuple[RoutingExemplar, ...] = ROUTING_EXEMPLARS
     rubric: ConfidenceRubric = field(default_factory=ConfidenceRubric)
-    
+
     # Stats tracking
-    _tier_counts: dict[Tier, int] = field(default_factory=lambda: {t: 0 for t in Tier})
+    _tier_counts: dict[Tier, int] = field(default_factory=lambda: dict.fromkeys(Tier, 0))
     _escalations: int = field(default=0, init=False)
     _clarifications: int = field(default=0, init=False)
-    
+
     async def route(
         self,
         task: str,
@@ -595,26 +594,26 @@ class TieredAttunement:
         tier_override: Tier | None = None,
     ) -> AttunementResult:
         """Route a task with tiered execution.
-        
+
         Args:
             task: The task description or command
             context: Optional context (file state, recent edits, etc.)
             tier_override: Force a specific tier (--fast, --full flags)
-            
+
         Returns:
             AttunementResult with full routing information
         """
         # Step 1: Match exemplar
         exemplar, similarity = self._match_exemplar(task)
-        
+
         # Step 2: Calculate calibrated confidence
         conf_score, conf_explanation = self.rubric.calculate(task, context, similarity)
         conf_level = self.rubric.to_confidence_level(conf_score)
-        
+
         # Step 3: Determine tier
         has_shortcut = task.strip().startswith("::")
         tier = tier_override or self.rubric.score_to_tier(conf_score, has_shortcut)
-        
+
         # Step 4: Route based on tier
         if tier == Tier.FAST:
             decision = await self._route_fast(task, context, exemplar)
@@ -622,29 +621,29 @@ class TieredAttunement:
             decision = await self._route_light(task, context, exemplar)
         else:
             decision = await self._route_full(task, context)
-        
+
         # Step 5: Self-verify
         verification = verify_routing(task, context, decision, conf_level)
-        
+
         # Step 6: Handle escalation if needed
         if verification.should_escalate() and tier != Tier.FULL:
             self._escalations += 1
             # Recursively route at higher tier
             return await self.route(task, context, tier_override=Tier.FULL)
-        
+
         if verification.should_clarify():
             self._clarifications += 1
-        
+
         # Update stats
         self._tier_counts[tier] += 1
-        
+
         # Get behavior for this tier
         behavior = TierBehavior.for_tier(tier)
-        
+
         # Adjust confidence if verification flagged issues
         if verification.adjusted_confidence:
             conf_level = verification.adjusted_confidence
-        
+
         return AttunementResult(
             decision=decision,
             tier=tier,
@@ -656,38 +655,38 @@ class TieredAttunement:
             verification=verification,
             behavior=behavior,
         )
-    
+
     def _match_exemplar(self, task: str) -> tuple[RoutingExemplar | None, float | None]:
         """Find the most similar exemplar using keyword matching.
-        
+
         Simple keyword overlap scoring (no embedding needed).
         """
         task_lower = task.lower()
         task_words = set(task_lower.split())
-        
+
         best_match: RoutingExemplar | None = None
         best_score = 0.0
-        
+
         for exemplar in self.exemplars:
             # Score based on tag overlap
             tag_overlap = len(set(exemplar.tags) & task_words)
-            
+
             # Also check input similarity
             exemplar_words = set(exemplar.input.lower().split())
             word_overlap = len(task_words & exemplar_words)
-            
+
             # Combined score (normalized)
             score = (tag_overlap * 0.6 + word_overlap * 0.4) / max(len(task_words), 1)
-            
+
             if score > best_score:
                 best_score = score
                 best_match = exemplar
-        
+
         # Normalize to 0-1 range
         similarity = min(best_score * 2, 1.0) if best_score > 0 else None
-        
+
         return best_match, similarity
-    
+
     async def _route_fast(
         self,
         task: str,
@@ -695,7 +694,7 @@ class TieredAttunement:
         exemplar: RoutingExemplar | None,
     ) -> RoutingDecision:
         """Tier 0: Fast path routing.
-        
+
         Uses exemplar or heuristics only - no LLM call.
         """
         # If we have a good exemplar match, use it directly
@@ -711,10 +710,10 @@ class TieredAttunement:
                 confidence=0.9 if exemplar.confidence == "HIGH" else 0.7,
                 reasoning=f"Exemplar match: '{exemplar.input[:30]}...'",
             )
-        
+
         # Fall back to heuristic routing
         return self.router._heuristic_fallback(task)
-    
+
     async def _route_light(
         self,
         task: str,
@@ -722,7 +721,7 @@ class TieredAttunement:
         exemplar: RoutingExemplar | None,
     ) -> RoutingDecision:
         """Tier 1: Light routing.
-        
+
         Quick LLM check if available, otherwise enhanced heuristics.
         """
         # Try quick LLM route if model available
@@ -731,18 +730,18 @@ class TieredAttunement:
         except Exception:
             # Fall back to exemplar or heuristic
             return await self._route_fast(task, context, exemplar)
-    
+
     async def _route_full(
         self,
         task: str,
         context: dict[str, Any] | None,
     ) -> RoutingDecision:
         """Tier 2: Full routing with CoT reasoning.
-        
+
         Uses full LLM routing with detailed prompt.
         """
         return await self.router.route(task, context)
-    
+
     def get_stats(self) -> dict[str, Any]:
         """Get attunement statistics."""
         total = sum(self._tier_counts.values())
@@ -770,11 +769,11 @@ def create_tiered_attunement(
     available_lenses: list[str],
 ) -> TieredAttunement:
     """Create a TieredAttunement with default configuration.
-    
+
     Args:
         router_model: Model for LLM-based routing
         available_lenses: List of available lens names
-        
+
     Returns:
         Configured TieredAttunement instance
     """
@@ -782,5 +781,5 @@ def create_tiered_attunement(
         router_model=router_model,
         available_lenses=available_lenses,
     )
-    
+
     return TieredAttunement(router=router)

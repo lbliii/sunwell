@@ -9,26 +9,25 @@ Provides structured error handling with:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Any
 
 
 class ErrorCode(IntEnum):
     """Numeric error codes organized by category.
-    
+
     Format: XYYY where X = category, YYY = specific error
-    
+
     Categories:
         1xxx - Model/Provider errors
-        2xxx - Lens errors  
+        2xxx - Lens errors
         3xxx - Tool/Skill errors
         4xxx - Validation errors
         5xxx - Configuration errors
         6xxx - Runtime errors
         7xxx - Network/IO errors
     """
-    
+
     # 1xxx - Model/Provider Errors
     MODEL_NOT_FOUND = 1001
     MODEL_AUTH_FAILED = 1002
@@ -40,7 +39,7 @@ class ErrorCode(IntEnum):
     MODEL_STREAMING_NOT_SUPPORTED = 1008
     MODEL_PROVIDER_UNAVAILABLE = 1009
     MODEL_RESPONSE_INVALID = 1010
-    
+
     # 2xxx - Lens Errors
     LENS_NOT_FOUND = 2001
     LENS_PARSE_ERROR = 2002
@@ -49,7 +48,7 @@ class ErrorCode(IntEnum):
     LENS_MERGE_CONFLICT = 2005
     LENS_INVALID_SCHEMA = 2006
     LENS_FOUNT_UNAVAILABLE = 2007
-    
+
     # 3xxx - Tool/Skill Errors
     TOOL_NOT_FOUND = 3001
     TOOL_PERMISSION_DENIED = 3002
@@ -61,23 +60,23 @@ class ErrorCode(IntEnum):
     SKILL_EXECUTION_FAILED = 3103
     SKILL_VALIDATION_FAILED = 3104
     SKILL_SANDBOX_VIOLATION = 3105
-    
+
     # 4xxx - Validation Errors
     VALIDATION_SCRIPT_FAILED = 4001
     VALIDATION_TIMEOUT = 4002
     VALIDATION_INVALID_OUTPUT = 4003
     VALIDATION_CONFIDENCE_LOW = 4004
-    
+
     # 5xxx - Configuration Errors
     CONFIG_MISSING = 5001
     CONFIG_INVALID = 5002
     CONFIG_ENV_MISSING = 5003
-    
+
     # 6xxx - Runtime Errors
     RUNTIME_STATE_INVALID = 6001
     RUNTIME_MEMORY_EXHAUSTED = 6002
     RUNTIME_CONCURRENT_LIMIT = 6003
-    
+
     # 7xxx - Network/IO Errors
     NETWORK_UNREACHABLE = 7001
     NETWORK_TIMEOUT = 7002
@@ -98,7 +97,7 @@ class ErrorCode(IntEnum):
             6: "runtime",
             7: "io",
         }.get(prefix, "unknown")
-    
+
     @property
     def is_recoverable(self) -> bool:
         """Whether this error type is typically recoverable."""
@@ -125,7 +124,7 @@ ERROR_MESSAGES: dict[ErrorCode, str] = {
     ErrorCode.MODEL_STREAMING_NOT_SUPPORTED: "Model '{model}' does not support streaming.",
     ErrorCode.MODEL_PROVIDER_UNAVAILABLE: "Provider '{provider}' is unavailable. Is it running?",
     ErrorCode.MODEL_RESPONSE_INVALID: "Invalid response from model: {detail}",
-    
+
     # Lens errors
     ErrorCode.LENS_NOT_FOUND: "Lens '{lens}' not found at '{path}'.",
     ErrorCode.LENS_PARSE_ERROR: "Failed to parse lens '{lens}': {detail}",
@@ -134,8 +133,8 @@ ERROR_MESSAGES: dict[ErrorCode, str] = {
     ErrorCode.LENS_MERGE_CONFLICT: "Cannot merge lenses: {detail}",
     ErrorCode.LENS_INVALID_SCHEMA: "Invalid lens schema: {detail}",
     ErrorCode.LENS_FOUNT_UNAVAILABLE: "Fount registry unavailable. Using local lenses only.",
-    
-    # Tool/Skill errors  
+
+    # Tool/Skill errors
     ErrorCode.TOOL_NOT_FOUND: "Tool '{tool}' not registered.",
     ErrorCode.TOOL_PERMISSION_DENIED: "Permission denied for tool '{tool}': {detail}",
     ErrorCode.TOOL_EXECUTION_FAILED: "Tool '{tool}' failed: {detail}",
@@ -146,23 +145,23 @@ ERROR_MESSAGES: dict[ErrorCode, str] = {
     ErrorCode.SKILL_EXECUTION_FAILED: "Skill '{skill}' execution failed: {detail}",
     ErrorCode.SKILL_VALIDATION_FAILED: "Skill '{skill}' output validation failed: {detail}",
     ErrorCode.SKILL_SANDBOX_VIOLATION: "Skill '{skill}' violated sandbox: {detail}",
-    
+
     # Validation errors
     ErrorCode.VALIDATION_SCRIPT_FAILED: "Validation script '{script}' failed with exit code {exit_code}.",
     ErrorCode.VALIDATION_TIMEOUT: "Validation timed out after {timeout}s.",
     ErrorCode.VALIDATION_INVALID_OUTPUT: "Validator '{validator}' returned invalid output: {detail}",
     ErrorCode.VALIDATION_CONFIDENCE_LOW: "Confidence score {score} below threshold {threshold}.",
-    
+
     # Config errors
     ErrorCode.CONFIG_MISSING: "Required configuration '{key}' not found.",
     ErrorCode.CONFIG_INVALID: "Invalid configuration for '{key}': {detail}",
     ErrorCode.CONFIG_ENV_MISSING: "Environment variable '{var}' not set.",
-    
+
     # Runtime errors
     ErrorCode.RUNTIME_STATE_INVALID: "Invalid runtime state: {detail}",
     ErrorCode.RUNTIME_MEMORY_EXHAUSTED: "Memory limit exceeded. Consider reducing context size.",
     ErrorCode.RUNTIME_CONCURRENT_LIMIT: "Concurrent request limit reached ({limit}).",
-    
+
     # IO errors
     ErrorCode.NETWORK_UNREACHABLE: "Cannot reach {host}. Check your network connection.",
     ErrorCode.NETWORK_TIMEOUT: "Network request to {host} timed out.",
@@ -224,13 +223,13 @@ RECOVERY_HINTS: dict[ErrorCode, list[str]] = {
 
 class SunwellError(Exception):
     """Base error type for all Sunwell errors.
-    
+
     Provides structured error information for:
     - Programmatic error handling (code)
     - User-friendly display (message)
     - Self-healing capabilities (recovery_hints)
     - Debugging (context, cause)
-    
+
     Example:
         >>> err = SunwellError(
         ...     code=ErrorCode.MODEL_TOOLS_NOT_SUPPORTED,
@@ -241,7 +240,7 @@ class SunwellError(Exception):
         >>> print(err.recovery_hints[0])
         Switch to a model that supports tools (e.g., llama3:8b, gpt-4o-mini)
     """
-    
+
     def __init__(
         self,
         code: ErrorCode,
@@ -252,7 +251,7 @@ class SunwellError(Exception):
         self.context = context or {}
         self.cause = cause
         super().__init__(str(self))
-    
+
     @property
     def message(self) -> str:
         """Get the formatted user-friendly message."""
@@ -262,7 +261,7 @@ class SunwellError(Exception):
         except KeyError:
             # Fallback if context doesn't have all keys
             return template
-    
+
     @property
     def recovery_hints(self) -> list[str]:
         """Get recovery suggestions for this error."""
@@ -275,28 +274,28 @@ class SunwellError(Exception):
             except KeyError:
                 formatted.append(hint)
         return formatted
-    
+
     @property
     def is_recoverable(self) -> bool:
         """Whether this error is typically recoverable."""
         return self.code.is_recoverable
-    
-    @property 
+
+    @property
     def category(self) -> str:
         """Get the error category."""
         return self.code.category
-    
+
     @property
     def error_id(self) -> str:
         """Get the error ID string (e.g., 'SW-1007')."""
         return f"SW-{self.code.value}"
-    
+
     def __str__(self) -> str:
         return f"[{self.error_id}] {self.message}"
-    
+
     def __repr__(self) -> str:
         return f"SunwellError(code={self.code!r}, context={self.context!r})"
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dict for logging/API responses."""
         return {
@@ -308,10 +307,10 @@ class SunwellError(Exception):
             "recovery_hints": self.recovery_hints,
             "context": self.context,
         }
-    
+
     def for_llm(self) -> str:
         """Format error for LLM consumption (self-healing).
-        
+
         Provides structured information the LLM can use to:
         - Understand what went wrong
         - Choose a recovery strategy
@@ -322,15 +321,15 @@ class SunwellError(Exception):
             f"Category: {self.category}",
             f"Recoverable: {self.is_recoverable}",
         ]
-        
+
         if self.recovery_hints:
             parts.append("Recovery options:")
             for i, hint in enumerate(self.recovery_hints, 1):
                 parts.append(f"  {i}. {hint}")
-        
+
         if self.context:
             parts.append(f"Context: {self.context}")
-            
+
         return "\n".join(parts)
 
 
@@ -410,11 +409,11 @@ def from_openai_error(exc: Exception, model: str, provider: str) -> SunwellError
     """Translate OpenAI client exceptions to SunwellError."""
     exc_type = type(exc).__name__
     message = str(exc)
-    
+
     # Parse error message for specific cases
     if "does not support tools" in message:
         return tools_not_supported(model, provider)
-    
+
     if "rate_limit" in exc_type.lower() or "rate limit" in message.lower():
         # Try to extract retry-after
         retry_after = 60  # Default
@@ -423,7 +422,7 @@ def from_openai_error(exc: Exception, model: str, provider: str) -> SunwellError
             context={"model": model, "provider": provider, "retry_after": retry_after},
             cause=exc,
         )
-    
+
     if "auth" in exc_type.lower() or "401" in message:
         env_var = f"{provider.upper()}_API_KEY"
         return SunwellError(
@@ -431,28 +430,28 @@ def from_openai_error(exc: Exception, model: str, provider: str) -> SunwellError
             context={"model": model, "provider": provider, "env_var": env_var},
             cause=exc,
         )
-    
+
     if "context" in message.lower() and ("exceeded" in message.lower() or "too long" in message.lower()):
         return SunwellError(
             code=ErrorCode.MODEL_CONTEXT_EXCEEDED,
             context={"model": model, "provider": provider, "limit": "unknown"},
             cause=exc,
         )
-    
+
     if "timeout" in exc_type.lower() or "timeout" in message.lower():
         return SunwellError(
             code=ErrorCode.MODEL_TIMEOUT,
             context={"model": model, "provider": provider, "timeout": "unknown"},
             cause=exc,
         )
-    
+
     if "connection" in message.lower() or "unreachable" in message.lower():
         return SunwellError(
             code=ErrorCode.MODEL_PROVIDER_UNAVAILABLE,
             context={"model": model, "provider": provider},
             cause=exc,
         )
-    
+
     # Generic API error
     return SunwellError(
         code=ErrorCode.MODEL_API_ERROR,
@@ -466,42 +465,42 @@ def from_anthropic_error(exc: Exception, model: str) -> SunwellError:
     exc_type = type(exc).__name__
     message = str(exc)
     provider = "anthropic"
-    
+
     if "rate" in exc_type.lower() or "rate limit" in message.lower():
         return SunwellError(
             code=ErrorCode.MODEL_RATE_LIMITED,
             context={"model": model, "provider": provider, "retry_after": 60},
             cause=exc,
         )
-    
+
     if "auth" in exc_type.lower() or "401" in message or "invalid api key" in message.lower():
         return SunwellError(
             code=ErrorCode.MODEL_AUTH_FAILED,
             context={"model": model, "provider": provider, "env_var": "ANTHROPIC_API_KEY"},
             cause=exc,
         )
-    
+
     if "overloaded" in message.lower():
         return SunwellError(
             code=ErrorCode.MODEL_PROVIDER_UNAVAILABLE,
             context={"model": model, "provider": provider},
             cause=exc,
         )
-    
+
     if "context" in message.lower() or "too many tokens" in message.lower():
         return SunwellError(
             code=ErrorCode.MODEL_CONTEXT_EXCEEDED,
             context={"model": model, "provider": provider, "limit": "unknown"},
             cause=exc,
         )
-    
+
     if "timeout" in exc_type.lower() or "timeout" in message.lower():
         return SunwellError(
             code=ErrorCode.MODEL_TIMEOUT,
             context={"model": model, "provider": provider, "timeout": "unknown"},
             cause=exc,
         )
-    
+
     # Generic API error
     return SunwellError(
         code=ErrorCode.MODEL_API_ERROR,
