@@ -8,6 +8,7 @@ use crate::workspace::{
     extract_project_name, resolve_workspace, shorten_path, slugify,
     RecentProjectsStore, ResolutionSource, WorkspaceResult,
 };
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -308,4 +309,530 @@ pub async fn check_path_available(path: String) -> Result<bool, String> {
         Ok(mut entries) => Ok(entries.next().is_none()),
         Err(_) => Ok(false),
     }
+}
+
+// =============================================================================
+// Project Discovery & Status (Per-Project Resume)
+// =============================================================================
+
+/// Status of a project's agent execution.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ExecutionStatus {
+    /// No execution history
+    None,
+    /// Execution completed successfully
+    Complete,
+    /// Execution was interrupted (has checkpoint)
+    Interrupted,
+    /// Execution failed with error
+    Failed,
+}
+
+/// Task from a checkpoint (for display).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CheckpointTask {
+    pub id: String,
+    pub description: String,
+    pub completed: bool,
+}
+
+/// Detailed status of a discovered project.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectStatus {
+    pub path: String,
+    pub display_path: String,
+    pub name: String,
+    pub status: ExecutionStatus,
+    pub last_goal: Option<String>,
+    pub tasks_completed: Option<u32>,
+    pub tasks_total: Option<u32>,
+    pub tasks: Option<Vec<CheckpointTask>>,
+    pub last_activity: Option<String>,
+}
+
+/// Scan ~/Sunwell/projects/ for all projects.
+#[tauri::command]
+pub async fn scan_projects() -> Result<Vec<ProjectStatus>, String> {
+    let projects_root = default_workspace_root();
+    
+    if !projects_root.exists() {
+        return Ok(vec![]);
+    }
+
+    let mut projects = Vec::new();
+
+    let entries = std::fs::read_dir(&projects_root)
+        .map_err(|e| format!("Failed to read projects directory: {}", e))?;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        
+        // Skip non-directories
+        if !path.is_dir() {
+            continue;
+        }
+
+        // Skip hidden directories
+        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+            if name.starts_with('.') {
+                continue;
+            }
+        }
+
+        // Get project status
+        if let Ok(status) = get_project_status_internal(&path) {
+            projects.push(status);
+        }
+    }
+
+    // Sort by last activity (most recent first)
+    projects.sort_by(|a, b| {
+        let a_time = a.last_activity.as_ref().map(|s| s.as_str()).unwrap_or("");
+        let b_time = b.last_activity.as_ref().map(|s| s.as_str()).unwrap_or("");
+        b_time.cmp(a_time)
+    });
+
+    Ok(projects)
+}
+
+/// Get status for a specific project.
+#[tauri::command]
+pub async fn get_project_status(path: String) -> Result<ProjectStatus, String> {
+    let path = PathBuf::from(path);
+    get_project_status_internal(&path)
+}
+
+/// Internal function to get project status.
+fn get_project_status_internal(path: &PathBuf) -> Result<ProjectStatus, String> {
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown")
+        .to_string();
+
+    let sunwell_dir = path.join(".sunwell");
+    let checkpoints_dir = sunwell_dir.join("checkpoints");
+
+    // Check for checkpoints (interrupted execution)
+    let checkpoint_info = find_latest_checkpoint(&checkpoints_dir);
+
+    let (status, last_goal, tasks_completed, tasks_total, tasks, last_activity) = 
+        if let Some(info) = checkpoint_info {
+            (
+                if info.is_complete {
+                    ExecutionStatus::Complete
+                } else {
+                    ExecutionStatus::Interrupted
+                },
+                Some(info.goal),
+                Some(info.completed),
+                Some(info.total),
+                Some(info.tasks),
+                Some(info.timestamp),
+            )
+        } else {
+            (ExecutionStatus::None, None, None, None, None, get_dir_mtime(path))
+        };
+
+    Ok(ProjectStatus {
+        path: path.to_string_lossy().to_string(),
+        display_path: shorten_path(path),
+        name,
+        status,
+        last_goal,
+        tasks_completed,
+        tasks_total,
+        tasks,
+        last_activity,
+    })
+}
+
+/// Checkpoint summary info.
+struct CheckpointInfo {
+    goal: String,
+    completed: u32,
+    total: u32,
+    is_complete: bool,
+    timestamp: String,
+    tasks: Vec<CheckpointTask>,
+}
+
+/// Find and parse the latest checkpoint file.
+fn find_latest_checkpoint(checkpoints_dir: &PathBuf) -> Option<CheckpointInfo> {
+    if !checkpoints_dir.exists() {
+        return None;
+    }
+
+    let entries = std::fs::read_dir(checkpoints_dir).ok()?;
+    
+    let mut latest: Option<(PathBuf, std::time::SystemTime)> = None;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) == Some("json") {
+            if let Ok(meta) = path.metadata() {
+                if let Ok(mtime) = meta.modified() {
+                    if latest.is_none() || mtime > latest.as_ref().unwrap().1 {
+                        latest = Some((path, mtime));
+                    }
+                }
+            }
+        }
+    }
+
+    let (checkpoint_path, mtime) = latest?;
+    
+    // Parse checkpoint JSON
+    let content = std::fs::read_to_string(&checkpoint_path).ok()?;
+    let json: serde_json::Value = serde_json::from_str(&content).ok()?;
+
+    let goal = json.get("goal")?.as_str()?.to_string();
+    let tasks_json = json.get("tasks")?.as_array()?;
+    let completed_ids: std::collections::HashSet<String> = json
+        .get("completed_ids")?
+        .as_array()?
+        .iter()
+        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+        .collect();
+    
+    // Parse task details
+    let tasks: Vec<CheckpointTask> = tasks_json
+        .iter()
+        .filter_map(|t| {
+            let id = t.get("id")?.as_str()?.to_string();
+            // Try different possible field names for description
+            let description = t.get("description")
+                .or_else(|| t.get("title"))
+                .or_else(|| t.get("name"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("Task")
+                .to_string();
+            let completed = completed_ids.contains(&id);
+            Some(CheckpointTask { id, description, completed })
+        })
+        .collect();
+    
+    let total = tasks.len() as u32;
+    let completed = tasks.iter().filter(|t| t.completed).count() as u32;
+    let is_complete = completed >= total && total > 0;
+
+    // Format timestamp
+    let timestamp = mtime
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .map(|d| {
+            DateTime::<Utc>::from_timestamp(d.as_secs() as i64, 0)
+                .map(|dt| dt.format("%Y-%m-%dT%H:%M:%SZ").to_string())
+                .unwrap_or_default()
+        })
+        .unwrap_or_default();
+
+    Some(CheckpointInfo {
+        goal,
+        completed,
+        total,
+        is_complete,
+        timestamp,
+        tasks,
+    })
+}
+
+/// Get directory modification time as ISO string.
+fn get_dir_mtime(path: &PathBuf) -> Option<String> {
+    let meta = std::fs::metadata(path).ok()?;
+    let mtime = meta.modified().ok()?;
+    let duration = mtime.duration_since(std::time::UNIX_EPOCH).ok()?;
+    DateTime::<Utc>::from_timestamp(duration.as_secs() as i64, 0)
+        .map(|dt| dt.format("%Y-%m-%dT%H:%M:%SZ").to_string())
+}
+
+/// Resume an interrupted project.
+#[tauri::command]
+pub async fn resume_project(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    path: String,
+) -> Result<RunGoalResult, String> {
+    let project_path = PathBuf::from(&path);
+
+    if !project_path.exists() {
+        return Err(format!("Project path does not exist: {}", path));
+    }
+
+    // Check if there's something to resume
+    let status = get_project_status_internal(&project_path)?;
+    if status.status != ExecutionStatus::Interrupted {
+        return Err("No interrupted execution to resume".to_string());
+    }
+
+    // Start agent in resume mode
+    let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
+    agent.resume_goal(app, &project_path)?;
+
+    Ok(RunGoalResult {
+        success: true,
+        message: "Agent resumed".to_string(),
+        workspace_path: shorten_path(&project_path),
+    })
+}
+
+// =============================================================================
+// Project Access Commands (files, terminal, edit)
+// =============================================================================
+
+/// Open project folder in system file manager (Finder/Explorer).
+#[tauri::command]
+pub async fn open_in_finder(path: String) -> Result<(), String> {
+    let path = PathBuf::from(&path);
+    
+    if !path.exists() {
+        return Err(format!("Path does not exist: {}", path.display()));
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open Finder: {}", e))?;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open Explorer: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open file manager: {}", e))?;
+    }
+
+    Ok(())
+}
+
+/// Open terminal at project directory.
+#[tauri::command]
+pub async fn open_terminal(path: String) -> Result<(), String> {
+    let path = PathBuf::from(&path);
+    
+    if !path.exists() {
+        return Err(format!("Path does not exist: {}", path.display()));
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        // Try iTerm first, fall back to Terminal.app
+        let iterm_script = format!(
+            r#"tell application "iTerm"
+                create window with default profile
+                tell current session of current window
+                    write text "cd '{}'"
+                end tell
+            end tell"#,
+            path.display()
+        );
+
+        let result = std::process::Command::new("osascript")
+            .args(["-e", &iterm_script])
+            .output();
+
+        if result.is_err() || !result.as_ref().unwrap().status.success() {
+            // Fall back to Terminal.app
+            let terminal_script = format!(
+                r#"tell application "Terminal"
+                    do script "cd '{}'"
+                    activate
+                end tell"#,
+                path.display()
+            );
+            std::process::Command::new("osascript")
+                .args(["-e", &terminal_script])
+                .spawn()
+                .map_err(|e| format!("Failed to open Terminal: {}", e))?;
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/c", "start", "cmd", "/k", &format!("cd /d {}", path.display())])
+            .spawn()
+            .map_err(|e| format!("Failed to open terminal: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // Try common terminal emulators
+        let terminals = ["gnome-terminal", "konsole", "xfce4-terminal", "xterm"];
+        let mut success = false;
+        
+        for term in &terminals {
+            let result = std::process::Command::new(term)
+                .arg("--working-directory")
+                .arg(&path)
+                .spawn();
+            
+            if result.is_ok() {
+                success = true;
+                break;
+            }
+        }
+        
+        if !success {
+            return Err("No supported terminal emulator found".to_string());
+        }
+    }
+
+    Ok(())
+}
+
+/// File entry for the file tree.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileEntry {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+    pub children: Option<Vec<FileEntry>>,
+    pub size: Option<u64>,
+}
+
+/// List files in a project directory (for file tree display).
+#[tauri::command]
+pub async fn list_project_files(path: String, max_depth: Option<u32>) -> Result<Vec<FileEntry>, String> {
+    let path = PathBuf::from(&path);
+    
+    if !path.exists() {
+        return Err(format!("Path does not exist: {}", path.display()));
+    }
+
+    let max_depth = max_depth.unwrap_or(3);
+    let entries = list_dir_recursive(&path, 0, max_depth)?;
+    Ok(entries)
+}
+
+/// Recursively list directory contents.
+fn list_dir_recursive(dir: &PathBuf, depth: u32, max_depth: u32) -> Result<Vec<FileEntry>, String> {
+    let mut entries = Vec::new();
+    
+    let read_dir = std::fs::read_dir(dir)
+        .map_err(|e| format!("Failed to read directory: {}", e))?;
+
+    for entry in read_dir.flatten() {
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+        
+        // Skip hidden files and common ignored directories
+        if name.starts_with('.') 
+            || name == "node_modules" 
+            || name == "__pycache__"
+            || name == "target"
+            || name == "venv"
+            || name == ".venv"
+            || name == "dist"
+            || name == "build"
+        {
+            continue;
+        }
+
+        let is_dir = path.is_dir();
+        let size = if !is_dir {
+            std::fs::metadata(&path).ok().map(|m| m.len())
+        } else {
+            None
+        };
+
+        let children = if is_dir && depth < max_depth {
+            Some(list_dir_recursive(&path, depth + 1, max_depth).unwrap_or_default())
+        } else if is_dir {
+            Some(vec![]) // Indicate it's expandable but not loaded
+        } else {
+            None
+        };
+
+        entries.push(FileEntry {
+            name,
+            path: path.to_string_lossy().to_string(),
+            is_dir,
+            children,
+            size,
+        });
+    }
+
+    // Sort: directories first, then alphabetically
+    entries.sort_by(|a, b| {
+        match (a.is_dir, b.is_dir) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+        }
+    });
+
+    Ok(entries)
+}
+
+/// Read file contents (for preview).
+#[tauri::command]
+pub async fn read_file_contents(path: String, max_size: Option<u64>) -> Result<String, String> {
+    let path = PathBuf::from(&path);
+    let max_size = max_size.unwrap_or(100_000); // 100KB default
+    
+    if !path.exists() {
+        return Err("File does not exist".to_string());
+    }
+    
+    if !path.is_file() {
+        return Err("Path is not a file".to_string());
+    }
+
+    let metadata = std::fs::metadata(&path)
+        .map_err(|e| format!("Failed to read metadata: {}", e))?;
+    
+    if metadata.len() > max_size {
+        return Err(format!("File too large ({} bytes)", metadata.len()));
+    }
+
+    std::fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read file: {}", e))
+}
+
+/// Open project in code editor (VS Code, Cursor, etc.).
+#[tauri::command]
+pub async fn open_in_editor(path: String) -> Result<(), String> {
+    let path = PathBuf::from(&path);
+    
+    if !path.exists() {
+        return Err(format!("Path does not exist: {}", path.display()));
+    }
+
+    // Try editors in order of preference
+    let editors = ["cursor", "code", "codium", "subl", "atom"];
+    
+    for editor in &editors {
+        let result = std::process::Command::new(editor)
+            .arg(&path)
+            .spawn();
+        
+        if result.is_ok() {
+            return Ok(());
+        }
+    }
+
+    // Fallback: try to open with system default
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .args(["-a", "TextEdit", path.to_str().unwrap_or("")])
+            .spawn()
+            .map_err(|e| format!("Failed to open editor: {}", e))?;
+        return Ok(());
+    }
+
+    Err("No supported code editor found. Install VS Code or Cursor.".to_string())
 }

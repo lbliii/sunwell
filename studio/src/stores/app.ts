@@ -45,6 +45,13 @@ export function goToPreview(): void {
   currentRoute.set('preview');
 }
 
+/**
+ * Go to planning view (DAG visualization).
+ */
+export function goToPlanning(): void {
+  currentRoute.set('planning');
+}
+
 // ═══════════════════════════════════════════════════════════════
 // DERIVED
 // ═══════════════════════════════════════════════════════════════
@@ -52,3 +59,4 @@ export function goToPreview(): void {
 export const isHome = derived(currentRoute, $r => $r === 'home');
 export const isProject = derived(currentRoute, $r => $r === 'project');
 export const isPreview = derived(currentRoute, $r => $r === 'preview');
+export const isPlanning = derived(currentRoute, $r => $r === 'planning');

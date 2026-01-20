@@ -42,9 +42,20 @@ fn main() {
             commands::remove_recent_project,
             commands::open_project,
             commands::get_project_info,
+            // Project discovery & resume
+            commands::scan_projects,
+            commands::get_project_status,
+            commands::resume_project,
             // Preview
             commands::launch_preview,
             commands::stop_preview,
+            // Project access (files, terminal, edit)
+            commands::open_in_finder,
+            commands::open_terminal,
+            commands::open_in_editor,
+            // File tree
+            commands::list_project_files,
+            commands::read_file_contents,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -17,6 +17,7 @@ serde_json = "1"
 tokio = { version = "1", features = ["full"] }
 async-stream = "0.3"
 dirs = "5"  # Platform-appropriate home/config directories
+chrono = { version = "0.4", features = ["serde"] }  # DateTime formatting
 
 [features]
 default = ["custom-protocol"]

@@ -152,6 +152,74 @@ impl AgentBridge {
         Ok(())
     }
 
+    /// Resume an interrupted goal and stream events to the frontend.
+    pub fn resume_goal(
+        &mut self,
+        app: AppHandle,
+        project_path: &Path,
+    ) -> Result<(), String> {
+        if self.running.load(Ordering::SeqCst) {
+            return Err("Agent already running".to_string());
+        }
+
+        // Start the Sunwell agent in resume mode with JSON output
+        let mut child = Command::new("sunwell")
+            .args(["agent", "resume", "--json"])
+            .current_dir(project_path)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Failed to start agent: {}", e))?;
+
+        let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
+        self.process = Some(child);
+        self.running.store(true, Ordering::SeqCst);
+
+        let running = self.running.clone();
+
+        // Spawn thread to read NDJSON events
+        std::thread::spawn(move || {
+            let reader = BufReader::new(stdout);
+
+            for line in reader.lines() {
+                if !running.load(Ordering::SeqCst) {
+                    break;
+                }
+
+                match line {
+                    Ok(json_line) => {
+                        if json_line.is_empty() {
+                            continue;
+                        }
+
+                        match serde_json::from_str::<AgentEvent>(&json_line) {
+                            Ok(event) => {
+                                let _ = app.emit("agent-event", &event);
+
+                                if event.event_type == "complete" || event.event_type == "error" {
+                                    running.store(false, Ordering::SeqCst);
+                                    break;
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("Failed to parse event: {} - {}", e, json_line);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to read line: {}", e);
+                        break;
+                    }
+                }
+            }
+
+            running.store(false, Ordering::SeqCst);
+            let _ = app.emit("agent-stopped", ());
+        });
+
+        Ok(())
+    }
+
     /// Stop the running agent.
     pub fn stop(&mut self) -> Result<(), String> {
         self.running.store(false, Ordering::SeqCst);

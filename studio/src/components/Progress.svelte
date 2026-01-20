@@ -2,6 +2,7 @@
   Progress — Task progress visualization
   
   Shows task list with progress bars, matching the RFC mockups.
+  Includes placeholders for expected tasks not yet received.
 -->
 <script lang="ts">
   import type { Task } from '$lib/types';
@@ -9,13 +10,14 @@
   export let tasks: Task[] = [];
   export let currentIndex = -1;
   export let showAll = true;
+  export let totalExpected = 0;
   
   function getStatusIcon(status: Task['status']): string {
     switch (status) {
-      case 'complete': return '✓';
-      case 'failed': return '✗';
-      case 'running': return '•';
-      default: return '○';
+      case 'complete': return '[ok]';
+      case 'failed': return '[x]';
+      case 'running': return '[..]';
+      default: return '[ ]';
     }
   }
   
@@ -23,15 +25,23 @@
     return status;
   }
   
+  // Calculate placeholder count for tasks we expect but haven't received
+  $: placeholderCount = Math.max(0, totalExpected - tasks.length);
+  $: placeholders = Array(placeholderCount).fill(null).map((_, i) => ({
+    index: tasks.length + i,
+  }));
+  
   $: visibleTasks = showAll ? tasks : tasks.slice(0, 8);
-  $: hasMore = !showAll && tasks.length > 8;
+  $: visiblePlaceholders = showAll ? placeholders : placeholders.slice(0, Math.max(0, 8 - visibleTasks.length));
+  $: hasMore = !showAll && (tasks.length + placeholders.length) > 8;
 </script>
 
 <div class="progress-container">
   {#each visibleTasks as task, i}
+    {@const isLast = i === tasks.length - 1 && placeholders.length === 0}
     <div class="task-row" class:current={i === currentIndex}>
       <span class="task-prefix">
-        {#if i === currentIndex}├─{:else if i === tasks.length - 1}└─{:else}├─{/if}
+        {#if isLast}└─{:else}├─{/if}
       </span>
       <span class="task-number">[{i + 1}]</span>
       <span class="task-description">{task.description}</span>
@@ -47,10 +57,26 @@
     </div>
   {/each}
   
+  <!-- Placeholder rows for expected tasks not yet received -->
+  {#each visiblePlaceholders as placeholder, i}
+    {@const isLast = i === visiblePlaceholders.length - 1}
+    <div class="task-row placeholder">
+      <span class="task-prefix">
+        {#if isLast}└─{:else}├─{/if}
+      </span>
+      <span class="task-number">[{placeholder.index + 1}]</span>
+      <span class="task-description placeholder-text">Queued...</span>
+      <div class="task-progress">
+        <div class="progress-bar"></div>
+      </div>
+      <span class="task-status">○</span>
+    </div>
+  {/each}
+  
   {#if hasMore}
     <div class="task-row more">
       <span class="task-prefix">└─</span>
-      <span class="task-description">... {tasks.length - 8} more</span>
+      <span class="task-description">... {tasks.length + placeholders.length - 8} more</span>
     </div>
   {/if}
 </div>
@@ -130,6 +156,15 @@
   }
   
   .more {
+    color: var(--text-tertiary);
+  }
+  
+  .placeholder {
+    opacity: 0.5;
+  }
+  
+  .placeholder-text {
+    font-style: italic;
     color: var(--text-tertiary);
   }
   

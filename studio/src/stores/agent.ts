@@ -10,7 +10,9 @@ import type {
   AgentEvent, 
   AgentEventType, 
   AgentStatus,
-  Task 
+  Task,
+  Concept,
+  ConceptCategory
 } from '$lib/types';
 
 // RFC-053: Set to false to use real Sunwell agent
@@ -31,7 +33,54 @@ const initialState: AgentState = {
   endTime: null,
   error: null,
   learnings: [],
+  concepts: [],
 };
+
+// ═══════════════════════════════════════════════════════════════
+// CONCEPT EXTRACTION
+// ═══════════════════════════════════════════════════════════════
+
+const CONCEPT_PATTERNS: Record<ConceptCategory, RegExp[]> = {
+  framework: [/\bflask\b/i, /\bfastapi\b/i, /\bdjango\b/i, /\bexpress\b/i, /\bsvelte\b/i, /\breact\b/i, /\bvue\b/i, /\bnext\.?js\b/i],
+  database: [/\bsqlite\b/i, /\bpostgres(?:ql)?\b/i, /\bmysql\b/i, /\bsqlalchemy\b/i, /\bprisma\b/i, /\bmongodb\b/i, /\bredis\b/i],
+  testing: [/\bpytest\b/i, /\bjest\b/i, /\bunittest\b/i, /\bvitest\b/i, /\bmocha\b/i],
+  pattern: [/\brest\s?api\b/i, /\bgraphql\b/i, /\bmvc\b/i, /\bcrud\b/i, /\borm\b/i],
+  tool: [/\bdocker\b/i, /\bgit\b/i, /\bnpm\b/i, /\bpip\b/i, /\bcargo\b/i, /\buv\b/i],
+  language: [/\bpython\b/i, /\btypescript\b/i, /\bjavascript\b/i, /\brust\b/i, /\bgo\b/i],
+};
+
+function extractConcepts(learning: string): Concept[] {
+  const concepts: Concept[] = [];
+  const seen = new Set<string>();
+  
+  for (const [category, patterns] of Object.entries(CONCEPT_PATTERNS)) {
+    for (const pattern of patterns) {
+      const match = learning.match(pattern);
+      if (match) {
+        const id = match[0].toLowerCase().replace(/\s+/g, '');
+        if (!seen.has(id)) {
+          seen.add(id);
+          concepts.push({
+            id,
+            label: match[0],
+            category: category as ConceptCategory,
+            timestamp: Date.now(),
+          });
+        }
+      }
+    }
+  }
+  return concepts;
+}
+
+function deduplicateConcepts(concepts: Concept[]): Concept[] {
+  const seen = new Set<string>();
+  return concepts.filter(c => {
+    if (seen.has(c.id)) return false;
+    seen.add(c.id);
+    return true;
+  });
+}
 
 export const agentState = writable<AgentState>(initialState);
 
@@ -188,15 +237,21 @@ async function runDemoGoal(goal: string): Promise<boolean> {
   }
 
   // Done!
+  const demoLearnings = [
+    'Detected Flask web framework',
+    'Using SQLAlchemy for ORM',
+    'pytest available for testing',
+    'SQLite database detected',
+  ];
+  
+  const demoConcepts: Concept[] = demoLearnings.flatMap(extractConcepts);
+  
   agentState.update(s => ({
     ...s,
     status: 'done',
     endTime: Date.now(),
-    learnings: [
-      'Detected Flask web framework',
-      'Using SQLAlchemy for ORM',
-      'pytest for testing',
-    ],
+    learnings: demoLearnings,
+    concepts: deduplicateConcepts(demoConcepts),
   }));
 
   return true;
@@ -382,9 +437,11 @@ function handleAgentEvent(event: AgentEvent): void {
     case 'memory_learning': {
       const fact = (data.fact as string) ?? '';
       if (fact) {
+        const newConcepts = extractConcepts(fact);
         agentState.update(s => ({
           ...s,
           learnings: [...s.learnings, fact],
+          concepts: deduplicateConcepts([...s.concepts, ...newConcepts]),
         }));
       }
       break;

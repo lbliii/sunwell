@@ -1,39 +1,52 @@
-# Import necessary libraries
-from flask import Flask, jsonify, request
-from flask_sqlalchemy import SQLAlchemy
+"""Users routes - Create, read, delete users."""
+from flask import Blueprint, request, jsonify
+from app import db
+from models.user import User
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
-db = SQLAlchemy(app)
+users_bp = Blueprint('users', __name__)
 
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
 
-@app.route('/users', methods=['POST'])
+@users_bp.route('/users', methods=['POST'])
 def create_user():
+    """Create a new user."""
     data = request.get_json()
-    new_user = User(username=data['username'], email=data['email'])
-    db.session.add(new_user)
+    if not data or 'username' not in data or 'email' not in data:
+        return jsonify({'error': 'Username and email are required'}), 400
+    
+    # Check if user already exists
+    if User.query.filter_by(username=data['username']).first():
+        return jsonify({'error': 'Username already exists'}), 400
+    if User.query.filter_by(email=data['email']).first():
+        return jsonify({'error': 'Email already exists'}), 400
+    
+    user = User(
+        username=data['username'],
+        email=data['email']
+    )
+    db.session.add(user)
     db.session.commit()
-    return jsonify({'message': 'User created successfully'}), 201
+    
+    return jsonify(user.to_dict()), 201
 
-@app.route('/users/<int:user_id>', methods=['GET'])
+
+@users_bp.route('/users', methods=['GET'])
+def get_users():
+    """Get all users."""
+    users = User.query.all()
+    return jsonify([user.to_dict() for user in users])
+
+
+@users_bp.route('/users/<int:user_id>', methods=['GET'])
 def get_user(user_id):
+    """Get a single user by ID."""
     user = User.query.get_or_404(user_id)
-    return jsonify({
-        'id': user.id,
-        'username': user.username,
-        'email': user.email
-    })
+    return jsonify(user.to_dict())
 
-@app.route('/users', methods=['DELETE'])
+
+@users_bp.route('/users/<int:user_id>', methods=['DELETE'])
 def delete_user(user_id):
+    """Delete a user."""
     user = User.query.get_or_404(user_id)
     db.session.delete(user)
     db.session.commit()
     return jsonify({'message': 'User deleted successfully'})
-
-if __name__ == '__main__':
-    app.run(debug=True)

@@ -8,6 +8,7 @@
   import Home from './routes/Home.svelte';
   import Project from './routes/Project.svelte';
   import Preview from './routes/Preview.svelte';
+  import Planning from './routes/Planning.svelte';
   import { currentRoute, isInitialized } from './stores/app';
   
   onMount(() => {
@@ -22,6 +23,8 @@
     <Project />
   {:else if $currentRoute === 'preview'}
     <Preview />
+  {:else if $currentRoute === 'planning'}
+    <Planning />
   {/if}
 </div>
 

@@ -1,29 +1,31 @@
 <!--
   Home — Launch screen
   
-  The minimal, beautiful entry point. Just a logo, input, and recent projects.
-  Matches the RFC mockup exactly.
+  The minimal, beautiful entry point. Just a logo, input, and projects list.
+  Shows all projects from ~/Sunwell/projects/ with status and resume capability.
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
   import Logo from '../components/Logo.svelte';
   import InputBar from '../components/InputBar.svelte';
   import RecentProjects from '../components/RecentProjects.svelte';
-  import { goToProject } from '../stores/app';
+  import { goToProject, goToPlanning } from '../stores/app';
   import { 
-    recentProjects, 
-    loadRecentProjects, 
+    discoveredProjects,
+    isScanning,
+    scanProjects, 
     createProject,
-    openProject 
+    openProject,
+    resumeProject,
   } from '../stores/project';
-  import { runGoal } from '../stores/agent';
-  import type { RecentProject } from '$lib/types';
+  import { runGoal, agentState } from '../stores/agent';
+  import type { ProjectStatus } from '$lib/types';
   
   let inputValue = '';
   let inputBar: InputBar;
   
   onMount(() => {
-    loadRecentProjects();
+    scanProjects();
     inputBar?.focus();
   });
   
@@ -41,10 +43,27 @@
     goToProject();
   }
   
-  async function handleSelectProject(event: CustomEvent<RecentProject>) {
+  async function handleSelectProject(event: CustomEvent<ProjectStatus>) {
     const project = event.detail;
     await openProject(project.path);
     goToProject();
+  }
+  
+  async function handleResumeProject(event: CustomEvent<ProjectStatus>) {
+    const project = event.detail;
+    
+    // Open the project first
+    await openProject(project.path);
+    
+    // Navigate to project view
+    goToProject();
+    
+    // Resume the agent
+    await resumeProject(project.path);
+  }
+  
+  function handleViewDag() {
+    goToPlanning();
   }
 </script>
 
@@ -63,9 +82,19 @@
     </div>
     
     <RecentProjects 
-      projects={$recentProjects}
+      projects={$discoveredProjects}
+      loading={$isScanning}
       on:select={handleSelectProject}
+      on:resume={handleResumeProject}
     />
+    
+    <!-- Quick actions -->
+    <div class="quick-actions">
+      <button class="quick-action" on:click={handleViewDag}>
+        <span class="action-icon">⬡</span>
+        <span class="action-label">View Pipeline</span>
+      </button>
+    </div>
   </div>
   
   <footer class="version">
@@ -96,6 +125,37 @@
     display: flex;
     justify-content: center;
     margin-top: var(--space-8);
+  }
+  
+  .quick-actions {
+    display: flex;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+  }
+  
+  .quick-action {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+  
+  .quick-action:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--text-tertiary);
+    color: var(--text-primary);
+  }
+  
+  .action-icon {
+    font-size: var(--text-base);
   }
   
   .version {
