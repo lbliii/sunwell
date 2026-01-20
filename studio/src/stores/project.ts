@@ -3,7 +3,7 @@
  */
 
 import { writable, derived } from 'svelte/store';
-import type { Project, RecentProject, ProjectType, ProjectStatus } from '$lib/types';
+import type { Project, RecentProject, ProjectType, ProjectStatus, ProjectManageResult, ProjectLearnings } from '$lib/types';
 
 // RFC-053: Demo mode - same as agent store
 // Set to false to use real project discovery
@@ -229,6 +229,132 @@ export function createProject(goal: string): Project {
  */
 export function closeProject(): void {
   currentProject.set(null);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROJECT LIFECYCLE (Delete, Archive, Iterate)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Delete a project permanently.
+ */
+export async function deleteProject(path: string): Promise<ProjectManageResult> {
+  if (DEMO_MODE) {
+    discoveredProjects.update(projects => projects.filter(p => p.path !== path));
+    return { success: true, message: `Deleted project`, new_path: null };
+  }
+
+  try {
+    isLoading.set(true);
+    error.set(null);
+    
+    const { invoke } = await import('@tauri-apps/api/core');
+    const result = await invoke<ProjectManageResult>('delete_project', { path });
+    
+    if (result.success) {
+      await scanProjects();
+    }
+    
+    return result;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    error.set(msg);
+    return { success: false, message: msg, new_path: null };
+  } finally {
+    isLoading.set(false);
+  }
+}
+
+/**
+ * Archive a project (move to ~/Sunwell/archived/).
+ */
+export async function archiveProject(path: string): Promise<ProjectManageResult> {
+  if (DEMO_MODE) {
+    discoveredProjects.update(projects => projects.filter(p => p.path !== path));
+    return { success: true, message: `Archived project`, new_path: '~/Sunwell/archived/demo' };
+  }
+
+  try {
+    isLoading.set(true);
+    error.set(null);
+    
+    const { invoke } = await import('@tauri-apps/api/core');
+    const result = await invoke<ProjectManageResult>('archive_project', { path });
+    
+    if (result.success) {
+      await scanProjects();
+    }
+    
+    return result;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    error.set(msg);
+    return { success: false, message: msg, new_path: null };
+  } finally {
+    isLoading.set(false);
+  }
+}
+
+/**
+ * Iterate on a project - create a new version informed by learnings.
+ */
+export async function iterateProject(path: string, newGoal?: string): Promise<ProjectManageResult> {
+  if (DEMO_MODE) {
+    console.log('Demo: Iterating project at', path, 'with goal:', newGoal);
+    const baseName = path.split('/').pop() || 'project';
+    return { 
+      success: true, 
+      message: `Created ${baseName}-v2`, 
+      new_path: `/demo/${baseName}-v2` 
+    };
+  }
+
+  try {
+    isLoading.set(true);
+    error.set(null);
+    
+    const { invoke } = await import('@tauri-apps/api/core');
+    const result = await invoke<ProjectManageResult>('iterate_project', { 
+      path, 
+      newGoal: newGoal ?? null 
+    });
+    
+    // Refresh project list
+    if (result.success) {
+      await scanProjects();
+    }
+    
+    return result;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    error.set(msg);
+    return { success: false, message: msg, new_path: null };
+  } finally {
+    isLoading.set(false);
+  }
+}
+
+/**
+ * Get learnings from a project (for UI display before iterating).
+ */
+export async function getProjectLearnings(path: string): Promise<ProjectLearnings | null> {
+  if (DEMO_MODE) {
+    return {
+      original_goal: 'create a forum app with posts and comments',
+      decisions: ['Used Flask for simplicity', 'SQLite for local development'],
+      failures: ['Redis caching was overkill', 'JWT auth too complex'],
+      completed_tasks: ['Set up Flask', 'Create models', 'CRUD for posts'],
+      pending_tasks: ['User auth', 'Comments CRUD', 'Tests'],
+    };
+  }
+
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return await invoke<ProjectLearnings>('get_project_learnings', { path });
+  } catch (e) {
+    error.set(e instanceof Error ? e.message : String(e));
+    return null;
+  }
 }
 
 /**

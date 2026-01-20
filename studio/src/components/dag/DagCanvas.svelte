@@ -150,6 +150,8 @@
     class="dag-canvas"
     width="100%"
     height="100%"
+    role="img"
+    aria-label="Task dependency graph"
     on:mousedown={handleMouseDown}
     on:mousemove={handleMouseMove}
     on:mouseup={handleMouseUp}

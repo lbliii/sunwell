@@ -834,5 +834,269 @@ pub async fn open_in_editor(path: String) -> Result<(), String> {
         return Ok(());
     }
 
+    #[cfg(not(target_os = "macos"))]
     Err("No supported code editor found. Install VS Code or Cursor.".to_string())
+}
+
+// =============================================================================
+// Project Management (Delete, Archive, Iterate)
+// =============================================================================
+
+/// Result of a project management operation.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProjectManageResult {
+    pub success: bool,
+    pub message: String,
+    pub new_path: Option<String>,
+}
+
+/// Delete a project permanently.
+#[tauri::command]
+pub async fn delete_project(
+    state: State<'_, AppState>,
+    path: String,
+) -> Result<ProjectManageResult, String> {
+    let path = PathBuf::from(&path);
+    
+    if !path.exists() {
+        return Err(format!("Project does not exist: {}", path.display()));
+    }
+
+    let name = path.file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("project")
+        .to_string();
+
+    // Remove from recent projects
+    let mut recent_store = state.recent_projects.lock().map_err(|e| e.to_string())?;
+    recent_store.remove(&path);
+    let _ = recent_store.save();
+    drop(recent_store);
+
+    // Delete the directory
+    std::fs::remove_dir_all(&path)
+        .map_err(|e| format!("Failed to delete project: {}", e))?;
+
+    Ok(ProjectManageResult {
+        success: true,
+        message: format!("Deleted project '{}'", name),
+        new_path: None,
+    })
+}
+
+/// Archive a project (move to ~/Sunwell/archived/).
+#[tauri::command]
+pub async fn archive_project(
+    state: State<'_, AppState>,
+    path: String,
+) -> Result<ProjectManageResult, String> {
+    let path = PathBuf::from(&path);
+    
+    if !path.exists() {
+        return Err(format!("Project does not exist: {}", path.display()));
+    }
+
+    let name = path.file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("project")
+        .to_string();
+
+    // Create archive directory
+    let archive_root = default_workspace_root().parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| dirs::home_dir().unwrap_or_default().join("Sunwell"))
+        .join("archived");
+    
+    std::fs::create_dir_all(&archive_root)
+        .map_err(|e| format!("Failed to create archive directory: {}", e))?;
+
+    // Generate unique archive name with timestamp
+    let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
+    let archive_name = format!("{}_{}", name, timestamp);
+    let archive_path = archive_root.join(&archive_name);
+
+    // Move the project
+    std::fs::rename(&path, &archive_path)
+        .map_err(|e| format!("Failed to archive project: {}", e))?;
+
+    // Remove from recent projects
+    let mut recent_store = state.recent_projects.lock().map_err(|e| e.to_string())?;
+    recent_store.remove(&path);
+    let _ = recent_store.save();
+
+    Ok(ProjectManageResult {
+        success: true,
+        message: format!("Archived '{}' to ~/Sunwell/archived/", name),
+        new_path: Some(shorten_path(&archive_path)),
+    })
+}
+
+/// Learnings extracted from a project for iteration.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProjectLearnings {
+    pub original_goal: Option<String>,
+    pub decisions: Vec<String>,
+    pub failures: Vec<String>,
+    pub completed_tasks: Vec<String>,
+    pub pending_tasks: Vec<String>,
+}
+
+/// Extract learnings from a project's .sunwell directory.
+fn extract_project_learnings(path: &PathBuf) -> ProjectLearnings {
+    let sunwell_dir = path.join(".sunwell");
+    let mut learnings = ProjectLearnings {
+        original_goal: None,
+        decisions: Vec::new(),
+        failures: Vec::new(),
+        completed_tasks: Vec::new(),
+        pending_tasks: Vec::new(),
+    };
+
+    // Extract goal and tasks from checkpoint
+    if let Some(checkpoint_info) = find_latest_checkpoint(&sunwell_dir.join("checkpoints")) {
+        learnings.original_goal = Some(checkpoint_info.goal);
+        for task in checkpoint_info.tasks {
+            if task.completed {
+                learnings.completed_tasks.push(task.description);
+            } else {
+                learnings.pending_tasks.push(task.description);
+            }
+        }
+    }
+
+    // Extract decisions from intelligence
+    let decisions_path = sunwell_dir.join("intelligence").join("decisions.jsonl");
+    if decisions_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&decisions_path) {
+            for line in content.lines() {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
+                    if let Some(decision) = json.get("decision").and_then(|d| d.as_str()) {
+                        learnings.decisions.push(decision.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    // Extract failures from intelligence
+    let failures_path = sunwell_dir.join("intelligence").join("failures.jsonl");
+    if failures_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&failures_path) {
+            for line in content.lines() {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
+                    if let Some(approach) = json.get("approach").and_then(|a| a.as_str()) {
+                        let reason = json.get("reason").and_then(|r| r.as_str()).unwrap_or("failed");
+                        learnings.failures.push(format!("{} ({})", approach, reason));
+                    }
+                }
+            }
+        }
+    }
+
+    learnings
+}
+
+/// Iterate on a project - create a new version informed by learnings.
+#[tauri::command]
+pub async fn iterate_project(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    path: String,
+    new_goal: Option<String>,
+) -> Result<ProjectManageResult, String> {
+    let path = PathBuf::from(&path);
+    
+    if !path.exists() {
+        return Err(format!("Project does not exist: {}", path.display()));
+    }
+
+    let name = path.file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("project")
+        .to_string();
+
+    // Extract learnings from original project
+    let learnings = extract_project_learnings(&path);
+
+    // Generate new project name (increment version)
+    let new_name = generate_iteration_name(&name);
+    let new_path = path.parent()
+        .map(|p| p.join(&new_name))
+        .ok_or("Failed to determine new project path")?;
+
+    // Create new project directory
+    ensure_workspace_exists(&new_path)
+        .map_err(|e| format!("Failed to create iteration directory: {}", e))?;
+
+    // Create .sunwell directory with inherited learnings
+    let new_sunwell = new_path.join(".sunwell");
+    std::fs::create_dir_all(&new_sunwell)
+        .map_err(|e| format!("Failed to create .sunwell directory: {}", e))?;
+
+    // Write learnings context for the agent to consume
+    let context_path = new_sunwell.join("iteration_context.json");
+    let context_json = serde_json::json!({
+        "iteration_of": path.to_string_lossy(),
+        "original_goal": learnings.original_goal,
+        "learned_decisions": learnings.decisions,
+        "failed_approaches": learnings.failures,
+        "completed_in_previous": learnings.completed_tasks,
+        "pending_from_previous": learnings.pending_tasks,
+    });
+    std::fs::write(&context_path, serde_json::to_string_pretty(&context_json).unwrap_or_default())
+        .map_err(|e| format!("Failed to write iteration context: {}", e))?;
+
+    // Formulate the iteration goal
+    let iteration_goal = if let Some(goal) = new_goal {
+        goal
+    } else if let Some(original) = &learnings.original_goal {
+        format!(
+            "Iterate on: {} — Build an improved version using learnings from the previous attempt. Avoid: {:?}",
+            original,
+            learnings.failures.iter().take(3).collect::<Vec<_>>()
+        )
+    } else {
+        format!("Continue developing {} with improvements", name)
+    };
+
+    // Start agent with the new goal
+    let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
+    agent.run_goal(app, &iteration_goal, &new_path)?;
+
+    Ok(ProjectManageResult {
+        success: true,
+        message: format!("Created iteration '{}' from '{}'", new_name, name),
+        new_path: Some(shorten_path(&new_path)),
+    })
+}
+
+/// Generate the next iteration name (e.g., "myproject" -> "myproject-v2").
+fn generate_iteration_name(name: &str) -> String {
+    // Check if name already has version suffix
+    let version_re = regex::Regex::new(r"-v(\d+)$").ok();
+    
+    if let Some(re) = version_re {
+        if let Some(caps) = re.captures(name) {
+            if let Some(v) = caps.get(1) {
+                if let Ok(num) = v.as_str().parse::<u32>() {
+                    let base = &name[..name.len() - caps.get(0).unwrap().len()];
+                    return format!("{}-v{}", base, num + 1);
+                }
+            }
+        }
+    }
+    
+    format!("{}-v2", name)
+}
+
+/// Get learnings for a project (for display in UI).
+#[tauri::command]
+pub async fn get_project_learnings(path: String) -> Result<ProjectLearnings, String> {
+    let path = PathBuf::from(&path);
+    
+    if !path.exists() {
+        return Err(format!("Project does not exist: {}", path.display()));
+    }
+
+    Ok(extract_project_learnings(&path))
 }

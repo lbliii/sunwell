@@ -2,6 +2,7 @@
 
 Provides:
 - sunwell backlog: View prioritized backlog
+- sunwell backlog run <id>: Execute a specific goal by ID (RFC-056)
 - sunwell backlog --execute: Execute in supervised mode
 - sunwell backlog --autonomous: Execute with guardrails (RFC-048)
 - sunwell backlog refresh: Force refresh from signals
@@ -123,6 +124,268 @@ async def _show_backlog(json_output: bool, mermaid: bool) -> None:
 
     if len(execution_order) > 20:
         console.print(f"\n... and {len(execution_order) - 20} more goals")
+
+
+@backlog.command("run")
+@click.argument("goal_id")
+@click.option(
+    "--time", "-t",
+    default=300,
+    help="Max execution time in seconds (default: 300)",
+)
+@click.option(
+    "--trust",
+    type=click.Choice(["read_only", "workspace", "shell"]),
+    default="workspace",
+    help="Tool trust level",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Plan only, don't execute",
+)
+@click.option(
+    "--verbose", "-v",
+    is_flag=True,
+    help="Show detailed output",
+)
+@click.option(
+    "--json",
+    "json_output",
+    is_flag=True,
+    help="Output NDJSON events for programmatic consumption (RFC-056)",
+)
+@click.pass_context
+def run_goal(
+    ctx,
+    goal_id: str,
+    time: int,
+    trust: str,
+    dry_run: bool,
+    verbose: bool,
+    json_output: bool,
+) -> None:
+    """Execute a specific backlog goal by ID (RFC-056).
+
+    This runs a goal from the existing backlog, preserving the goal's
+    metadata and marking it as in_progress/completed.
+
+    \b
+    Examples:
+        sunwell backlog run add-auth
+        sunwell backlog run user-model --dry-run
+        sunwell backlog run fix-bug --json  # For Studio integration
+
+    Use 'sunwell backlog show' to see available goal IDs.
+    """
+    asyncio.run(_run_backlog_goal(
+        goal_id, time, trust, dry_run, verbose, json_output
+    ))
+
+
+async def _run_backlog_goal(
+    goal_id: str,
+    time: int,
+    trust: str,
+    dry_run: bool,
+    verbose: bool,
+    json_output: bool,
+) -> None:
+    """Execute a specific backlog goal."""
+    from sunwell.naaru import Naaru
+    from sunwell.naaru.planners import ArtifactPlanner
+    from sunwell.tools.executor import ToolExecutor
+    from sunwell.tools.types import ToolPolicy, ToolTrust
+    from sunwell.types.config import NaaruConfig
+    from sunwell.config import get_config
+
+    root = Path.cwd()
+    manager = BacklogManager(root=root)
+    manager._load()
+
+    # Find the goal
+    goal = manager.backlog.goals.get(goal_id)
+    
+    # Also try partial match if exact match not found
+    if goal is None:
+        for gid, g in manager.backlog.goals.items():
+            if gid.startswith(goal_id) or goal_id in gid:
+                goal = g
+                goal_id = gid
+                break
+    
+    if goal is None:
+        if json_output:
+            import json as json_module
+            print(json_module.dumps({
+                "type": "error",
+                "data": {"message": f"Goal not found: {goal_id}"},
+                "timestamp": __import__("time").time(),
+            }))
+        else:
+            console.print(f"[red]❌ Goal not found: {goal_id}[/red]")
+            console.print("\nAvailable goals:")
+            for gid in list(manager.backlog.goals.keys())[:10]:
+                console.print(f"  - {gid}")
+        return
+
+    # Check if goal is already completed
+    if goal_id in manager.backlog.completed:
+        if json_output:
+            import json as json_module
+            print(json_module.dumps({
+                "type": "error",
+                "data": {"message": f"Goal already completed: {goal_id}"},
+                "timestamp": __import__("time").time(),
+            }))
+        else:
+            console.print(f"[yellow]⚠️  Goal already completed: {goal_id}[/yellow]")
+        return
+
+    # Check if blocked
+    if goal_id in manager.backlog.blocked:
+        reason = manager.backlog.blocked[goal_id]
+        if json_output:
+            import json as json_module
+            print(json_module.dumps({
+                "type": "error",
+                "data": {"message": f"Goal is blocked: {reason}"},
+                "timestamp": __import__("time").time(),
+            }))
+        else:
+            console.print(f"[yellow]🚫 Goal is blocked: {reason}[/yellow]")
+        return
+
+    # Check dependencies
+    for dep_id in goal.requires:
+        if dep_id not in manager.backlog.completed:
+            if json_output:
+                import json as json_module
+                print(json_module.dumps({
+                    "type": "error",
+                    "data": {"message": f"Dependency not met: {dep_id}"},
+                    "timestamp": __import__("time").time(),
+                }))
+            else:
+                console.print(f"[yellow]⏳ Dependency not met: {dep_id}[/yellow]")
+            return
+
+    # Mark as in_progress
+    manager.backlog.in_progress = goal_id
+    manager._save()
+
+    if not json_output:
+        console.print(f"\n🎯 [bold]Running goal:[/bold] {goal.title}")
+        console.print(f"   ID: {goal_id}")
+        console.print(f"   Category: {goal.category}")
+        console.print(f"   Complexity: {goal.estimated_complexity}")
+        console.print()
+
+    # Build the goal description for the agent
+    goal_text = goal.description or goal.title
+
+    if dry_run:
+        if not json_output:
+            console.print(f"[yellow]Dry run - would execute: {goal_text}[/yellow]")
+        return
+
+    # Load config and create agent
+    config = get_config()
+
+    try:
+        from sunwell.config import resolve_naaru_model
+        from sunwell.models.ollama import OllamaModel
+
+        model_name = None
+        if config and hasattr(config, "naaru"):
+            model_name = resolve_naaru_model(
+                config.naaru.voice,
+                list(config.naaru.voice_models),
+            )
+
+        if not model_name:
+            model_name = "gemma3:4b"
+
+        synthesis_model = OllamaModel(model=model_name)
+    except Exception as e:
+        if json_output:
+            import json as json_module
+            print(json_module.dumps({
+                "type": "error",
+                "data": {"message": f"Failed to load model: {e}"},
+                "timestamp": __import__("time").time(),
+            }))
+        else:
+            console.print(f"[red]❌ Failed to load model: {e}[/red]")
+        return
+
+    # Create planner
+    planner = ArtifactPlanner(
+        model=synthesis_model,
+        strategy="artifact_first",
+    )
+
+    # Create tool executor
+    executor = ToolExecutor(
+        policy=ToolPolicy(
+            default_trust=ToolTrust(trust),
+            allow_shell=trust == "shell",
+            require_confirmation=False,
+            max_execution_time=time,
+        )
+    )
+
+    # Create Naaru agent
+    naaru = Naaru(
+        model=synthesis_model,
+        planner=planner,
+        executor=executor,
+        config=NaaruConfig(
+            max_execution_time=time,
+            verbose=verbose,
+        ),
+    )
+
+    # Run the agent
+    success = False
+    try:
+        if json_output:
+            # Stream NDJSON events
+            import json as json_module
+            async for event in naaru.run(goal_text, context={"cwd": str(root)}):
+                print(json_module.dumps({
+                    "type": event.type.value if hasattr(event.type, 'value') else str(event.type),
+                    "data": event.data,
+                    "timestamp": event.timestamp,
+                }), flush=True)
+        else:
+            # Rich console output
+            async for event in naaru.run(goal_text, context={"cwd": str(root)}):
+                if verbose:
+                    console.print(f"[dim]{event.type}: {event.data}[/dim]")
+        
+        success = True
+    except Exception as e:
+        if json_output:
+            import json as json_module
+            print(json_module.dumps({
+                "type": "error",
+                "data": {"message": str(e)},
+                "timestamp": __import__("time").time(),
+            }))
+        else:
+            console.print(f"[red]❌ Execution failed: {e}[/red]")
+
+    # Mark as completed or clear in_progress
+    manager._load()  # Reload in case of concurrent changes
+    manager.backlog.in_progress = None
+    
+    if success:
+        manager.backlog.completed.add(goal_id)
+        if not json_output:
+            console.print(f"\n[green]✅ Goal completed: {goal_id}[/green]")
+    
+    manager._save()
 
 
 @backlog.command()

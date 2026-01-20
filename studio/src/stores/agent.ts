@@ -14,6 +14,7 @@ import type {
   Concept,
   ConceptCategory
 } from '$lib/types';
+import { updateNode, completeNode } from './dag';
 
 // RFC-053: Set to false to use real Sunwell agent
 // Set to true to use mock data for testing without the CLI
@@ -386,10 +387,17 @@ function handleAgentEvent(event: AgentEvent): void {
           };
         }
       });
+      
+      // RFC-056: Also update DAG store
+      updateNode(taskId, { 
+        status: 'running',
+        currentAction: description,
+      });
       break;
     }
 
     case 'task_progress': {
+      const taskId = (data.task_id as string) ?? '';
       const progress = (data.progress as number) ?? 0;
       agentState.update(s => {
         if (s.currentTaskIndex >= 0 && s.currentTaskIndex < s.tasks.length) {
@@ -402,6 +410,11 @@ function handleAgentEvent(event: AgentEvent): void {
         }
         return s;
       });
+      
+      // RFC-056: Also update DAG store
+      if (taskId) {
+        updateNode(taskId, { progress });
+      }
       break;
     }
 
@@ -417,6 +430,11 @@ function handleAgentEvent(event: AgentEvent): void {
         );
         return { ...s, tasks };
       });
+      
+      // RFC-056: Also update DAG store - this updates dependent nodes to 'ready'
+      if (taskId) {
+        completeNode(taskId);
+      }
       break;
     }
 
@@ -430,6 +448,11 @@ function handleAgentEvent(event: AgentEvent): void {
         );
         return { ...s, tasks };
       });
+      
+      // RFC-056: Also update DAG store
+      if (taskId) {
+        updateNode(taskId, { status: 'failed' });
+      }
       break;
     }
 

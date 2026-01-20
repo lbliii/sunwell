@@ -83,8 +83,12 @@ endif
 # DEVELOPMENT COMMANDS
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# Verify Python environment
+env:
+	@python -c "import sys; ft = not sys._is_gil_enabled() if hasattr(sys, '_is_gil_enabled') else False; print('Python:', sys.version.split()[0], '(free-threaded)' if ft else '(GIL enabled - WRONG!)')"
+
 # Run all checks
-check:
+check: env
 	@echo "🔍 Running checks..."
 	@ruff check src/
 	@ty check src/

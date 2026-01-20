@@ -3159,6 +3159,7 @@ dependencies = [
  "async-stream",
  "chrono",
  "dirs 5.0.1",
+ "regex",
  "serde",
  "serde_json",
  "tauri",

@@ -10,6 +10,7 @@
   import LearningsPanel from '../components/LearningsPanel.svelte';
   import InputBar from '../components/InputBar.svelte';
   import FileTree from '../components/FileTree.svelte';
+  import { DagCanvas, DagControls, DagDetail } from '../components/dag';
   import { goHome, goToPreview } from '../stores/app';
   import { currentProject, resumeProject } from '../stores/project';
   import { 
@@ -17,15 +18,19 @@
     isRunning, 
     isDone, 
     hasError,
-    progress,
     duration,
     completedTasks,
     stopAgent,
     resetAgent,
     runGoal
   } from '../stores/agent';
+  import { 
+    dagGraph, 
+    setGraph, 
+    selectedNode
+  } from '../stores/dag';
   import { invoke } from '@tauri-apps/api/core';
-  import type { ProjectStatus, FileEntry } from '$lib/types';
+  import type { ProjectStatus, FileEntry, DagGraph, MemoryStats, IntelligenceData } from '$lib/types';
   import { onMount } from 'svelte';
   
   // Project status for showing last run info
@@ -38,6 +43,18 @@
   let isLoadingFiles = true;
   let selectedFile: { path: string; name: string; content: string } | null = null;
   let isLoadingPreview = false;
+  
+  // View tabs state (RFC-056, RFC-057)
+  type ViewTab = 'progress' | 'pipeline' | 'memory';
+  let activeTab: ViewTab = 'progress';
+  let isLoadingDag = false;
+  let dagError: string | null = null;
+  
+  // Memory tab state (RFC-013, RFC-014)
+  let memoryStats: MemoryStats | null = null;
+  let intelligenceData: IntelligenceData | null = null;
+  let isLoadingMemory = false;
+  let memoryError: string | null = null;
   
   onMount(async () => {
     if ($currentProject?.path) {
@@ -54,7 +71,74 @@
       await loadProjectFiles();
     }
     isLoadingStatus = false;
+    
+    // RFC-056: Auto-refresh DAG on tab focus
+    const handleVisibilityChange = () => {
+      if (!document.hidden && activeTab === 'pipeline' && $currentProject?.path) {
+        loadDag();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   });
+  
+  // RFC-056: Load DAG when switching to pipeline tab
+  $: if (activeTab === 'pipeline' && $currentProject?.path) {
+    loadDag();
+  }
+  
+  // RFC-013/014: Load memory when switching to memory tab
+  $: if (activeTab === 'memory' && $currentProject?.path) {
+    loadMemory();
+  }
+  
+  // RFC-056: Refresh DAG after agent completes
+  $: if ($isDone && activeTab === 'pipeline' && $currentProject?.path) {
+    loadDag();
+  }
+  
+  async function loadDag() {
+    if (!$currentProject?.path) return;
+    
+    isLoadingDag = true;
+    dagError = null;
+    
+    try {
+      const graph = await invoke<DagGraph>('get_project_dag', { 
+        path: $currentProject.path 
+      });
+      setGraph(graph);
+    } catch (e) {
+      console.error('Failed to load DAG:', e);
+      dagError = e instanceof Error ? e.message : String(e);
+    } finally {
+      isLoadingDag = false;
+    }
+  }
+  
+  async function loadMemory() {
+    if (!$currentProject?.path) return;
+    
+    isLoadingMemory = true;
+    memoryError = null;
+    
+    try {
+      const [stats, intel] = await Promise.all([
+        invoke<MemoryStats>('get_memory_stats', { path: $currentProject.path }),
+        invoke<IntelligenceData>('get_intelligence', { path: $currentProject.path })
+      ]);
+      memoryStats = stats;
+      intelligenceData = intel;
+    } catch (e) {
+      console.error('Failed to load memory:', e);
+      memoryError = e instanceof Error ? e.message : String(e);
+    } finally {
+      isLoadingMemory = false;
+    }
+  }
   
   async function loadProjectFiles() {
     if (!$currentProject?.path) return;
@@ -99,8 +183,7 @@
     loadProjectFiles();
   }
   
-  // Reactive: check if there's an interrupted run to resume
-  $: canResume = projectStatus?.status === 'interrupted';
+  // Reactive: extract project status info
   $: lastGoal = projectStatus?.last_goal;
   $: taskProgress = projectStatus?.tasks_completed && projectStatus?.tasks_total
     ? `${projectStatus.tasks_completed}/${projectStatus.tasks_total} tasks`
@@ -213,12 +296,213 @@
       <span class="goal-prompt">&gt;</span>
       <span class="goal-text">{$agentState.goal}</span>
     </div>
-    <hr class="divider" />
   {/if}
+  
+  <!-- View Tabs (RFC-056, RFC-057) -->
+  <div class="view-tabs">
+    <button 
+      class="tab" 
+      class:active={activeTab === 'progress'}
+      on:click={() => activeTab = 'progress'}
+    >
+      Progress
+    </button>
+    <button 
+      class="tab" 
+      class:active={activeTab === 'pipeline'}
+      on:click={() => activeTab = 'pipeline'}
+    >
+      Pipeline
+    </button>
+    <button 
+      class="tab" 
+      class:active={activeTab === 'memory'}
+      on:click={() => activeTab = 'memory'}
+    >
+      Memory
+    </button>
+  </div>
   
   <!-- Content -->
   <main class="content">
-    {#if $isRunning}
+    {#if activeTab === 'pipeline'}
+      <!-- Pipeline View (RFC-056) -->
+      <div class="pipeline-view">
+        <DagControls 
+          onFitView={() => {}}
+          onRefresh={loadDag}
+        />
+        
+        {#if isLoadingDag}
+          <div class="pipeline-loading">
+            <span class="loading-icon animate-pulse">::</span>
+            <span>Loading pipeline...</span>
+          </div>
+        {:else if dagError}
+          <div class="pipeline-error">
+            <span class="error-icon">[x]</span>
+            <span>{dagError}</span>
+            <Button variant="ghost" size="sm" on:click={loadDag}>Retry</Button>
+          </div>
+        {:else if $dagGraph.nodes.length === 0}
+          <div class="pipeline-empty">
+            <p class="empty-title">No pipeline yet</p>
+            <p class="empty-description">Run a goal to see your task pipeline</p>
+          </div>
+        {:else}
+          <div class="pipeline-content">
+            <DagCanvas />
+            {#if $selectedNode}
+              <DagDetail />
+            {/if}
+          </div>
+        {/if}
+      </div>
+    {:else if activeTab === 'memory'}
+      <!-- Memory View (RFC-013, RFC-014) -->
+      <div class="memory-view">
+        {#if isLoadingMemory}
+          <div class="memory-loading">
+            <span class="loading-icon animate-pulse">::</span>
+            <span>Loading memory...</span>
+          </div>
+        {:else if memoryError}
+          <div class="memory-error">
+            <span class="error-icon">[x]</span>
+            <span>{memoryError}</span>
+            <Button variant="ghost" size="sm" on:click={loadMemory}>Retry</Button>
+          </div>
+        {:else}
+          <div class="memory-content">
+            <!-- Memory Stats -->
+            <section class="memory-section">
+              <h3 class="memory-section-title">// Memory Stats</h3>
+              {#if memoryStats}
+                <div class="stats-grid">
+                  <div class="stat-card">
+                    <span class="stat-value">{memoryStats.totalTurns}</span>
+                    <span class="stat-label">Total Turns</span>
+                  </div>
+                  <div class="stat-card">
+                    <span class="stat-value">{memoryStats.hotTurns}</span>
+                    <span class="stat-label">Hot (Recent)</span>
+                  </div>
+                  <div class="stat-card">
+                    <span class="stat-value">{memoryStats.warmFiles}</span>
+                    <span class="stat-label">Warm Files</span>
+                  </div>
+                  <div class="stat-card">
+                    <span class="stat-value">{memoryStats.coldFiles}</span>
+                    <span class="stat-label">Archived</span>
+                  </div>
+                  <div class="stat-card">
+                    <span class="stat-value">{memoryStats.branches}</span>
+                    <span class="stat-label">Branches</span>
+                  </div>
+                  <div class="stat-card">
+                    <span class="stat-value">{memoryStats.learnings}</span>
+                    <span class="stat-label">Learnings</span>
+                  </div>
+                </div>
+              {:else}
+                <p class="empty-text">No memory data yet</p>
+              {/if}
+            </section>
+            
+            <!-- Learnings (from agent runs) -->
+            <section class="memory-section">
+              <h3 class="memory-section-title">// Learnings ({intelligenceData?.totalLearnings ?? 0})</h3>
+              {#if intelligenceData && intelligenceData.learnings.length > 0}
+                <div class="intelligence-list">
+                  {#each intelligenceData.learnings as learning}
+                    <div class="intelligence-item learning">
+                      <span class="item-icon">[📚]</span>
+                      <div class="item-content">
+                        <p class="item-title">{learning.fact}</p>
+                        <p class="item-meta">
+                          <span class="item-category">{learning.category}</span>
+                          {#if learning.sourceFile}
+                            <span class="item-source">{learning.sourceFile}</span>
+                          {/if}
+                        </p>
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              {:else}
+                <p class="empty-text">No learnings yet — run a goal to start learning</p>
+              {/if}
+            </section>
+            
+            <!-- Dead Ends (approaches that didn't work) -->
+            <section class="memory-section">
+              <h3 class="memory-section-title">// Dead Ends ({intelligenceData?.totalDeadEnds ?? 0})</h3>
+              {#if intelligenceData && intelligenceData.deadEnds.length > 0}
+                <div class="intelligence-list">
+                  {#each intelligenceData.deadEnds as deadEnd}
+                    <div class="intelligence-item dead-end">
+                      <span class="item-icon">[⚠]</span>
+                      <div class="item-content">
+                        <p class="item-title">{deadEnd.approach}</p>
+                        {#if deadEnd.reason}
+                          <p class="item-detail">{deadEnd.reason}</p>
+                        {/if}
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              {:else}
+                <p class="empty-text">No dead ends recorded</p>
+              {/if}
+            </section>
+            
+            <!-- Decisions -->
+            <section class="memory-section">
+              <h3 class="memory-section-title">// Decisions ({intelligenceData?.totalDecisions ?? 0})</h3>
+              {#if intelligenceData && intelligenceData.decisions.length > 0}
+                <div class="intelligence-list">
+                  {#each intelligenceData.decisions as decision}
+                    <div class="intelligence-item decision">
+                      <span class="item-icon">[✓]</span>
+                      <div class="item-content">
+                        <p class="item-title">{decision.decision}</p>
+                        {#if decision.rationale}
+                          <p class="item-detail">{decision.rationale}</p>
+                        {/if}
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              {:else}
+                <p class="empty-text">No decisions recorded</p>
+              {/if}
+            </section>
+            
+            <!-- Failed Approaches (legacy) -->
+            <section class="memory-section">
+              <h3 class="memory-section-title">// Avoided Paths ({intelligenceData?.totalFailures ?? 0})</h3>
+              {#if intelligenceData && intelligenceData.failures.length > 0}
+                <div class="intelligence-list">
+                  {#each intelligenceData.failures as failure}
+                    <div class="intelligence-item failure">
+                      <span class="item-icon">[✗]</span>
+                      <div class="item-content">
+                        <p class="item-title">{failure.approach}</p>
+                        {#if failure.reason}
+                          <p class="item-detail">{failure.reason}</p>
+                        {/if}
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              {:else}
+                <p class="empty-text">No failed approaches recorded</p>
+              {/if}
+            </section>
+          </div>
+        {/if}
+      </div>
+    {:else if $isRunning}
       <!-- Working State -->
       <div class="working animate-fadeIn">
         <div class="status-header">
@@ -450,8 +734,8 @@
   
   <!-- File Preview Panel -->
   {#if selectedFile}
-    <div class="preview-overlay" on:click={closePreview} on:keydown={(e) => e.key === 'Escape' && closePreview()}>
-      <div class="preview-panel" on:click|stopPropagation>
+    <div class="preview-overlay" role="button" tabindex="0" on:click={closePreview} on:keydown={(e) => e.key === 'Escape' && closePreview()}>
+      <div class="preview-panel" role="dialog" aria-modal="true" on:click|stopPropagation on:keydown|stopPropagation>
         <header class="preview-header">
           <span class="preview-filename">{selectedFile.name}</span>
           <button class="preview-close" on:click={closePreview}>✕</button>
@@ -481,6 +765,96 @@
     margin-bottom: var(--space-4);
   }
   
+  /* View Tabs (RFC-056) */
+  .view-tabs {
+    display: flex;
+    gap: var(--space-1);
+    margin-bottom: var(--space-4);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: var(--space-2);
+  }
+  
+  .tab {
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--text-sm);
+    font-family: var(--font-mono);
+    color: var(--text-tertiary);
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+  
+  .tab:hover {
+    color: var(--text-secondary);
+  }
+  
+  .tab.active {
+    color: var(--text-primary);
+    border-bottom-color: var(--text-primary);
+  }
+  
+  /* Pipeline View (RFC-056) */
+  .pipeline-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 500px;
+  }
+  
+  .pipeline-content {
+    flex: 1;
+    display: flex;
+    min-height: 400px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  
+  .pipeline-loading,
+  .pipeline-error,
+  .pipeline-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    color: var(--text-tertiary);
+    padding: var(--space-8);
+  }
+  
+  .pipeline-loading {
+    font-family: var(--font-mono);
+  }
+  
+  .loading-icon {
+    font-size: var(--text-xl);
+  }
+  
+  .pipeline-error {
+    color: var(--error);
+  }
+  
+  .error-icon {
+    font-size: var(--text-xl);
+    font-weight: 600;
+  }
+  
+  .empty-title {
+    font-size: var(--text-lg);
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin: 0;
+  }
+  
+  .empty-description {
+    font-size: var(--text-sm);
+    margin: 0;
+  }
+  
   .back-btn {
     color: var(--text-secondary);
     font-family: var(--font-mono);
@@ -507,12 +881,6 @@
   
   .goal-text {
     color: var(--text-primary);
-  }
-  
-  .divider {
-    border: none;
-    border-top: 1px solid var(--border-color);
-    margin: var(--space-4) 0;
   }
   
   /* Content */
@@ -727,13 +1095,6 @@
     max-width: 600px;
   }
   
-  .last-run-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-4);
-  }
-  
   .status-badge {
     display: flex;
     align-items: center;
@@ -768,61 +1129,6 @@
   .last-activity {
     font-size: var(--text-xs);
     color: var(--text-tertiary);
-  }
-  
-  /* Checkpoint Tasks */
-  .checkpoint-tasks {
-    display: flex;
-    flex-direction: column;
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    margin: var(--space-2) 0;
-  }
-  
-  .checkpoint-task {
-    display: grid;
-    grid-template-columns: 24px 36px 1fr 24px;
-    align-items: center;
-    gap: var(--space-1);
-    padding: var(--space-1) 0;
-    color: var(--text-secondary);
-  }
-  
-  .checkpoint-task.completed {
-    color: var(--text-tertiary);
-  }
-  
-  .checkpoint-task .task-prefix {
-    color: var(--text-tertiary);
-  }
-  
-  .checkpoint-task .task-number {
-    color: var(--text-tertiary);
-  }
-  
-  .checkpoint-task .task-description {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  
-  .checkpoint-task .task-status {
-    text-align: center;
-  }
-  
-  .checkpoint-task.completed .task-status {
-    color: var(--success);
-  }
-  
-  .task-summary {
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    color: var(--text-tertiary);
-    margin: 0;
-  }
-  
-  .resume-action {
-    margin-top: var(--space-2);
   }
   
   /* Quick Actions */
@@ -985,5 +1291,175 @@
   
   .preview-code code {
     display: block;
+  }
+  
+  /* Memory View (RFC-013, RFC-014) */
+  .memory-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 400px;
+  }
+  
+  .memory-loading,
+  .memory-error {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    color: var(--text-tertiary);
+    padding: var(--space-8);
+    font-family: var(--font-mono);
+  }
+  
+  .memory-error {
+    color: var(--error);
+  }
+  
+  .memory-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+    padding: var(--space-4) 0;
+  }
+  
+  .memory-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+  }
+  
+  .memory-section-title {
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    margin: 0 0 var(--space-4) 0;
+  }
+  
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: var(--space-3);
+  }
+  
+  .stat-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-3);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+  }
+  
+  .stat-value {
+    font-size: var(--text-xl);
+    font-weight: 600;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+  }
+  
+  .stat-label {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+  }
+  
+  .intelligence-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  
+  .intelligence-item {
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    border-left: 3px solid transparent;
+  }
+  
+  .intelligence-item.decision {
+    border-left-color: var(--success);
+  }
+  
+  .intelligence-item.failure {
+    border-left-color: var(--error);
+  }
+  
+  .intelligence-item.learning {
+    border-left-color: var(--accent, #8b5cf6);
+  }
+  
+  .intelligence-item.dead-end {
+    border-left-color: var(--warning, #f59e0b);
+  }
+  
+  .item-icon {
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    flex-shrink: 0;
+  }
+  
+  .intelligence-item.decision .item-icon {
+    color: var(--success);
+  }
+  
+  .intelligence-item.failure .item-icon {
+    color: var(--error);
+  }
+  
+  .intelligence-item.learning .item-icon {
+    color: var(--accent, #8b5cf6);
+  }
+  
+  .intelligence-item.dead-end .item-icon {
+    color: var(--warning, #f59e0b);
+  }
+  
+  .item-content {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .item-title {
+    font-size: var(--text-sm);
+    color: var(--text-primary);
+    margin: 0;
+    font-weight: 500;
+  }
+  
+  .item-detail {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    margin: var(--space-1) 0 0 0;
+    line-height: 1.4;
+  }
+  
+  .item-meta {
+    display: flex;
+    gap: var(--space-2);
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    margin: var(--space-1) 0 0 0;
+  }
+  
+  .item-category {
+    padding: 1px 6px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+  }
+  
+  .item-source {
+    opacity: 0.7;
   }
 </style>

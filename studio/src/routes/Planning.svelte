@@ -3,36 +3,76 @@
   
   Shows the project's task graph with interactive navigation,
   progress tracking, and "what-if" analysis.
+  
+  RFC-056: Now loads real data from .sunwell/ when a project is open.
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { invoke } from '@tauri-apps/api/core';
   import { DagCanvas, DagControls, DagDetail } from '../components/dag';
   import { 
     dagGraph, 
     dagViewState, 
-    loadDemoGraph, 
+    loadDemoGraph,
+    setGraph,
     selectedNode,
     totalProgress 
   } from '../stores/dag';
   import { goHome } from '../stores/app';
   import { currentProject } from '../stores/project';
+  import type { DagGraph } from '$lib/types';
   
   let canvas: DagCanvas;
+  let isLoading = false;
   
   onMount(() => {
-    // Load demo data for now
-    // TODO: Wire to actual backlog data
-    if ($dagGraph.nodes.length === 0) {
-      loadDemoGraph();
-    }
+    loadDag();
+    
+    // RFC-056: Auto-refresh on tab focus
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadDag();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   });
+  
+  async function loadDag() {
+    // If we have a project, load real data
+    if ($currentProject?.path) {
+      isLoading = true;
+      try {
+        const graph = await invoke<DagGraph>('get_project_dag', {
+          path: $currentProject.path
+        });
+        setGraph(graph);
+      } catch (e) {
+        console.error('Failed to load DAG:', e);
+        // Fall back to demo if real data fails
+        if ($dagGraph.nodes.length === 0) {
+          loadDemoGraph();
+        }
+      } finally {
+        isLoading = false;
+      }
+    } else {
+      // No project selected, show demo
+      if ($dagGraph.nodes.length === 0) {
+        loadDemoGraph();
+      }
+    }
+  }
   
   function handleFitView() {
     canvas?.fitToView();
   }
   
   function handleRefresh() {
-    loadDemoGraph();
+    loadDag();
     setTimeout(() => canvas?.fitToView(), 100);
   }
   

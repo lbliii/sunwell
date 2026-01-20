@@ -280,7 +280,15 @@ class AdaptiveAgent:
         )
 
     async def _load_memory(self) -> AsyncIterator[AgentEvent]:
-        """Load Simulacrum session if specified."""
+        """Load Simulacrum session if specified, plus disk-persisted learnings."""
+        # Always try to load disk-persisted learnings first
+        disk_loaded = self._learning_store.load_from_disk(self.cwd)
+        if disk_loaded > 0:
+            yield AgentEvent(
+                EventType.MEMORY_LEARNING,
+                {"loaded": disk_loaded, "source": "disk"},
+            )
+
         # Use pre-configured simulacrum if provided
         if self.simulacrum:
             yield AgentEvent(
@@ -603,18 +611,25 @@ Output ONLY the code (no explanation, no markdown fences):"""
             yield event
 
     async def _save_memory(self) -> AsyncIterator[AgentEvent]:
-        """Save Simulacrum session and sync learnings."""
-        if not self.simulacrum:
-            return
+        """Save learnings to disk and optionally to Simulacrum session."""
+        # Always save to disk for cross-session persistence
+        disk_saved = self._learning_store.save_to_disk(self.cwd)
 
-        # Sync learnings to simulacrum for persistence
-        synced = self._learning_store.sync_to_simulacrum(self.simulacrum)
+        # Also sync to simulacrum if available
+        sim_synced = 0
+        if self.simulacrum:
+            sim_synced = self._learning_store.sync_to_simulacrum(self.simulacrum)
+            self.simulacrum.save_session()
 
-        self.simulacrum.save_session()
-        yield AgentEvent(
-            EventType.MEMORY_SAVED,
-            {"learnings": len(self._learning_store.learnings), "synced": synced},
-        )
+        if disk_saved > 0 or sim_synced > 0:
+            yield AgentEvent(
+                EventType.MEMORY_SAVED,
+                {
+                    "learnings": len(self._learning_store.learnings),
+                    "disk_saved": disk_saved,
+                    "sim_synced": sim_synced,
+                },
+            )
 
 
 # =============================================================================

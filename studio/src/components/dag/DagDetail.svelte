@@ -1,8 +1,12 @@
 <!--
   DagDetail — Expanded detail panel for selected node
+  RFC-056: Wired to execute_dag_node for real execution
 -->
 <script lang="ts">
-  import { selectedNode, selectNode, completeNode, layoutedGraph } from '../../stores/dag';
+  import { invoke } from '@tauri-apps/api/core';
+  import { selectedNode, selectNode, completeNode, layoutedGraph, updateNode } from '../../stores/dag';
+  import { currentProject } from '../../stores/project';
+  import { isRunning as agentIsRunning } from '../../stores/agent';
   import Button from '../Button.svelte';
   
   $: node = $selectedNode;
@@ -13,14 +17,50 @@
     ? $layoutedGraph.nodes.filter(n => n.dependsOn.includes(node.id))
     : [];
   
+  let isExecuting = false;
+  let executeError: string | null = null;
+  
   function handleClose() {
     selectNode(null);
   }
   
-  function handleExecute() {
-    if (!node) return;
-    // TODO: Wire to actual execution
-    console.log('Execute:', node.id);
+  async function handleExecute() {
+    if (!node || !$currentProject?.path) return;
+    
+    // Check if agent is already running
+    if ($agentIsRunning) {
+      executeError = 'Agent is already running. Stop it first.';
+      return;
+    }
+    
+    // Check if node is ready
+    if (node.status !== 'ready' && node.status !== 'pending') {
+      executeError = 'Node is not ready to execute';
+      return;
+    }
+    
+    isExecuting = true;
+    executeError = null;
+    
+    try {
+      // Optimistically update UI
+      updateNode(node.id, { status: 'running', currentAction: 'Starting...' });
+      
+      // Call Rust command
+      await invoke('execute_dag_node', {
+        path: $currentProject.path,
+        nodeId: node.id,
+      });
+      
+      // Success - agent will emit events that update the DAG
+    } catch (e) {
+      console.error('Failed to execute:', e);
+      executeError = e instanceof Error ? e.message : String(e);
+      // Revert status on error
+      updateNode(node.id, { status: 'ready', currentAction: undefined });
+    } finally {
+      isExecuting = false;
+    }
   }
   
   function handleMarkComplete() {
@@ -134,12 +174,25 @@
     
     <!-- Actions -->
     <footer class="detail-actions">
+      {#if executeError}
+        <p class="execute-error">{executeError}</p>
+      {/if}
       {#if node.status === 'ready' || node.status === 'pending'}
-        <Button variant="primary" size="sm" icon="▶" on:click={handleExecute}>
-          Execute
+        <Button 
+          variant="primary" 
+          size="sm" 
+          icon={isExecuting ? '...' : '▶'} 
+          on:click={handleExecute}
+          disabled={isExecuting || node.status === 'running' || $agentIsRunning}
+        >
+          {isExecuting ? 'Starting...' : $agentIsRunning ? 'Agent busy' : 'Execute'}
+        </Button>
+      {:else if node.status === 'running'}
+        <Button variant="secondary" size="sm" disabled>
+          Running...
         </Button>
       {/if}
-      {#if node.status !== 'complete' && node.status !== 'failed'}
+      {#if node.status !== 'complete' && node.status !== 'failed' && node.status !== 'running'}
         <Button variant="ghost" size="sm" on:click={handleMarkComplete}>
           Mark Complete
         </Button>
@@ -335,6 +388,14 @@
     padding: 16px;
     margin-top: auto;
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
+  }
+  
+  .execute-error {
+    width: 100%;
+    font-size: 11px;
+    color: var(--error);
+    margin: 0 0 8px 0;
   }
 </style>

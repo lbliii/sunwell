@@ -334,7 +334,7 @@ async def _run_agent(
     # RFC-040: Incremental execution
     if incremental and planning_strategy == PlanningStrategy.ARTIFACT_FIRST:
         await _incremental_run(
-            goal, planner, plan_id, force, verbose, time, tool_executor
+            goal, planner, plan_id, force, verbose, time, tool_executor, json_output
         )
         return
 
@@ -599,8 +599,12 @@ async def _incremental_run(
     verbose: bool,
     max_time: int,
     tool_executor,
+    json_output: bool = False,
 ) -> None:
     """Run with incremental rebuild support (RFC-040)."""
+    import json as json_lib
+    import sys
+
     from sunwell.naaru.incremental import (
         ChangeDetector,
         IncrementalExecutor,
@@ -608,13 +612,38 @@ async def _incremental_run(
     )
     from sunwell.naaru.persistence import PlanStore, hash_goal
 
-    console.print("[bold]🔄 Incremental execution (RFC-040)[/bold]\n")
+    # Helper for JSON output mode
+    def emit(event_type: str, data: dict | None = None) -> None:
+        """Emit event as console or JSON."""
+        if json_output:
+            import time
+            event = {
+                "type": event_type,
+                "data": data or {},
+                "timestamp": time.time(),
+            }
+            print(json_lib.dumps(event), file=sys.stdout, flush=True)
+        elif data and "message" in data:
+            console.print(data["message"])
+
+    def log(message: str) -> None:
+        """Log message respecting output mode."""
+        if json_output:
+            emit("log", {"message": message})
+        else:
+            console.print(message)
+
+    log("[bold]🔄 Incremental execution (RFC-040)[/bold]\n")
 
     # Discover graph
+    emit("plan_start", {"goal": goal})
     try:
         graph = await planner.discover_graph(goal, {"cwd": str(Path.cwd())})
+        emit("plan_expanded", {"artifact_count": len(graph)})
     except Exception as e:
-        console.print(f"[red]Discovery failed: {e}[/red]")
+        emit("error", {"message": f"Discovery failed: {e}"})
+        if not json_output:
+            console.print(f"[red]Discovery failed: {e}[/red]")
         return
 
     store = PlanStore()
@@ -622,38 +651,46 @@ async def _incremental_run(
 
     # Check for previous execution
     previous = store.load(goal_hash) if not force else None
+    to_rebuild = set(graph)  # Default: rebuild all
+
     if previous:
         detector = ChangeDetector()
         changes = detector.detect(graph, previous)
         to_rebuild = compute_rebuild_set(graph, changes, previous)
 
         skip_count = len(graph) - len(to_rebuild)
-        console.print("📊 Found previous execution")
-        console.print(f"   Unchanged: {skip_count} artifacts")
-        console.print(f"   To rebuild: {len(to_rebuild)} artifacts")
+        log("📊 Found previous execution")
+        log(f"   Unchanged: {skip_count} artifacts")
+        log(f"   To rebuild: {len(to_rebuild)} artifacts")
 
         if changes.all_changed:
-            console.print("\n[bold]Changes detected:[/bold]")
+            log("\n[bold]Changes detected:[/bold]")
             if changes.added:
-                console.print(f"   ✨ Added: {', '.join(sorted(changes.added)[:5])}")
+                log(f"   ✨ Added: {', '.join(sorted(changes.added)[:5])}")
             if changes.contract_changed:
-                console.print(f"   📝 Contract: {', '.join(sorted(changes.contract_changed)[:5])}")
+                log(f"   📝 Contract: {', '.join(sorted(changes.contract_changed)[:5])}")
             if changes.output_modified:
-                console.print(f"   📄 Modified: {', '.join(sorted(changes.output_modified)[:5])}")
+                log(f"   📄 Modified: {', '.join(sorted(changes.output_modified)[:5])}")
 
         if not to_rebuild:
-            console.print("\n[green]✓ All artifacts up to date![/green]")
+            emit("complete", {"message": "All artifacts up to date", "completed": 0, "failed": 0})
+            if not json_output:
+                console.print("\n[green]✓ All artifacts up to date![/green]")
             return
     else:
-        console.print("[dim]No previous execution found - full build[/dim]")
+        log("[dim]No previous execution found - full build[/dim]")
 
     # Create artifact creation function
     async def create_artifact(spec):
         """Create an artifact using the planner."""
-        # This is a simplified implementation
-        # In practice, this would use the planner's create method
-        result = await planner.create_artifact(spec, {})
-        return result
+        emit("task_start", {"artifact_id": spec.id, "description": spec.description})
+        try:
+            result = await planner.create_artifact(spec, {})
+            emit("task_complete", {"artifact_id": spec.id})
+            return result
+        except Exception as e:
+            emit("task_failed", {"artifact_id": spec.id, "error": str(e)})
+            raise
 
     # Execute with incremental support
     executor = IncrementalExecutor(
@@ -661,38 +698,56 @@ async def _incremental_run(
         trace_enabled=verbose,
     )
 
+    def progress_handler(msg: str) -> None:
+        if json_output:
+            emit("task_progress", {"message": msg})
+        else:
+            console.print(msg)
+
     try:
         result = await executor.execute(
             graph=graph,
             create_fn=create_artifact,
             goal=goal,
             force_rebuild=force,
-            on_progress=console.print if verbose else None,
+            on_progress=progress_handler if verbose else None,
         )
 
         # Summary
-        console.print("\n[bold]═══ Summary ═══[/bold]")
-        console.print(f"  Completed: {len(result.completed)}")
-        console.print(f"  Failed: {len(result.failed)}")
-        console.print(f"  Model distribution: {result.model_distribution}")
-
-        if result.failed:
-            console.print("\n[red]Failed artifacts:[/red]")
-            for aid, error in result.failed.items():
-                console.print(f"  ✗ {aid}: {error[:50]}")
-
-        if len(result.failed) == 0:
-            console.print("\n[green]✓ Incremental build complete[/green]")
+        if json_output:
+            emit("complete", {
+                "completed": len(result.completed),
+                "failed": len(result.failed),
+                "model_distribution": result.model_distribution,
+                "failed_artifacts": {aid: err[:100] for aid, err in result.failed.items()},
+            })
         else:
-            console.print("\n[yellow]⚠ Build completed with errors[/yellow]")
+            console.print("\n[bold]═══ Summary ═══[/bold]")
+            console.print(f"  Completed: {len(result.completed)}")
+            console.print(f"  Failed: {len(result.failed)}")
+            console.print(f"  Model distribution: {result.model_distribution}")
+
+            if result.failed:
+                console.print("\n[red]Failed artifacts:[/red]")
+                for aid, error in result.failed.items():
+                    console.print(f"  ✗ {aid}: {error[:50]}")
+
+            if len(result.failed) == 0:
+                console.print("\n[green]✓ Incremental build complete[/green]")
+            else:
+                console.print("\n[yellow]⚠ Build completed with errors[/yellow]")
 
     except KeyboardInterrupt:
-        console.print("\n[yellow]Interrupted - progress saved[/yellow]")
+        emit("error", {"message": "Interrupted by user"})
+        if not json_output:
+            console.print("\n[yellow]Interrupted - progress saved[/yellow]")
     except Exception as e:
-        console.print(f"\n[red]Error: {e}[/red]")
-        if verbose:
-            import traceback
-            console.print(traceback.format_exc())
+        emit("error", {"message": str(e)})
+        if not json_output:
+            console.print(f"\n[red]Error: {e}[/red]")
+            if verbose:
+                import traceback
+                console.print(traceback.format_exc())
 
 
 async def _harmonic_dry_run(goal: str, planner, show_graph: bool, verbose: bool) -> None:

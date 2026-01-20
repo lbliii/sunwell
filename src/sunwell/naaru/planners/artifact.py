@@ -703,6 +703,139 @@ Output JSON:
         )
 
     # =========================================================================
+    # Artifact Creation
+    # =========================================================================
+
+    async def create_artifact(
+        self,
+        artifact: ArtifactSpec,
+        context: dict[str, Any] | None = None,
+    ) -> str:
+        """Create the content for an artifact based on its specification.
+
+        Uses the model to generate code/content that satisfies the artifact's
+        contract and description.
+
+        Args:
+            artifact: The artifact specification
+            context: Optional context (completed artifacts, cwd, etc.)
+
+        Returns:
+            Generated content as a string
+        """
+        prompt = self._build_creation_prompt(artifact, context)
+
+        from sunwell.models.protocol import GenerateOptions
+
+        result = await self.model.generate(
+            prompt,
+            options=GenerateOptions(temperature=0.2, max_tokens=4000),
+        )
+
+        # Extract code from response (may be wrapped in markdown code blocks)
+        content = result.content or ""
+        return self._extract_code(content, artifact.produces_file)
+
+    def _build_creation_prompt(
+        self,
+        artifact: ArtifactSpec,
+        context: dict[str, Any] | None = None,
+    ) -> str:
+        """Build prompt for creating artifact content."""
+        # Determine file extension for language hints
+        file_ext = ""
+        if artifact.produces_file and "." in artifact.produces_file:
+            file_ext = artifact.produces_file.split(".")[-1]
+        else:
+            file_ext = "py"
+
+        language_hint = {
+            "py": "Python",
+            "js": "JavaScript",
+            "ts": "TypeScript",
+            "rs": "Rust",
+            "go": "Go",
+            "java": "Java",
+            "md": "Markdown",
+            "json": "JSON",
+            "yaml": "YAML",
+            "yml": "YAML",
+        }.get(file_ext, "Python")
+
+        # Build context section
+        context_section = ""
+        if context and "completed" in context:
+            completed_desc = "\n".join(
+                f"- {aid}: {info.get('description', 'completed')}"
+                for aid, info in context.get("completed", {}).items()
+            )
+            context_section = f"\n\nCOMPLETED DEPENDENCIES:\n{completed_desc}"
+
+        return f"""Create the following artifact:
+
+ARTIFACT: {artifact.id}
+DESCRIPTION: {artifact.description}
+CONTRACT: {artifact.contract}
+FILE: {artifact.produces_file or f"{artifact.id.lower()}.py"}
+TYPE: {artifact.domain_type or "component"}
+REQUIRES: {list(artifact.requires) if artifact.requires else "none"}
+{context_section}
+
+=== REQUIREMENTS ===
+
+Generate {language_hint} code that:
+1. Fully satisfies the CONTRACT specified above
+2. Is complete and ready to use (no placeholders or TODOs)
+3. Follows best practices for {language_hint}
+4. Includes necessary imports
+5. Has clear docstrings/comments
+
+=== OUTPUT FORMAT ===
+
+Output ONLY the code for this file. No explanations before or after.
+Start directly with the code (imports, class definitions, etc.).
+
+```{file_ext}
+"""
+
+    def _extract_code(self, response: str, filename: str | None = None) -> str:
+        """Extract code from LLM response, handling markdown code blocks."""
+        # Try to extract from markdown code block
+        import re
+
+        # Pattern for code blocks with any language tag
+        code_match = re.search(r"```(?:\w+)?\s*\n(.*?)```", response, re.DOTALL)
+        if code_match:
+            return code_match.group(1).strip()
+
+        # If no code block, check if response starts with typical code patterns
+        lines = response.strip().split("\n")
+        code_starters = (
+            "import ", "from ", "#!", "//", "/*", "class ", "def ",
+            "const ", "let ", "var ", "function ", "package ",
+        )
+        data_starters = ("{", "[", "---")  # JSON, YAML
+        if lines and (
+            lines[0].startswith(code_starters)
+            or lines[0].strip().startswith(data_starters)
+        ):
+            return response.strip()
+
+        # If response contains code block markers without closing, extract what's after
+        if "```" in response:
+            parts = response.split("```")
+            if len(parts) >= 2:
+                # Take content after first ```, strip language tag if present
+                code = parts[1]
+                first_newline = code.find("\n")
+                if first_newline > 0 and first_newline < 20:  # Likely a language tag
+                    code = code[first_newline + 1:]
+                return code.strip()
+
+        # Fallback: return as-is
+        return response.strip()
+
+    # =========================================================================
     # Prompt Building
     # =========================================================================
 

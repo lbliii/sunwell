@@ -11,6 +11,7 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 
 /// Agent event types matching Python's EventType enum.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EventType {
@@ -92,9 +93,9 @@ impl AgentBridge {
             return Err("Agent already running".to_string());
         }
 
-        // Start the Sunwell agent with JSON output
+        // Start the Sunwell agent with JSON output and incremental persistence (RFC-040)
         let mut child = Command::new("sunwell")
-            .args(["agent", "run", "--json", goal])
+            .args(["agent", "run", "--json", "--incremental", goal])
             .current_dir(project_path)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -220,6 +221,77 @@ impl AgentBridge {
         Ok(())
     }
 
+    /// Run a specific backlog goal by ID (RFC-056).
+    pub fn run_backlog_goal(
+        &mut self,
+        app: AppHandle,
+        goal_id: &str,
+        project_path: &Path,
+    ) -> Result<(), String> {
+        if self.running.load(Ordering::SeqCst) {
+            return Err("Agent already running".to_string());
+        }
+
+        // Start the Sunwell agent with backlog run command
+        let mut child = Command::new("sunwell")
+            .args(["backlog", "run", goal_id, "--json"])
+            .current_dir(project_path)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Failed to start agent: {}", e))?;
+
+        let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
+        self.process = Some(child);
+        self.running.store(true, Ordering::SeqCst);
+
+        let running = self.running.clone();
+
+        // Spawn thread to read NDJSON events
+        std::thread::spawn(move || {
+            let reader = BufReader::new(stdout);
+
+            for line in reader.lines() {
+                if !running.load(Ordering::SeqCst) {
+                    break;
+                }
+
+                match line {
+                    Ok(json_line) => {
+                        if json_line.is_empty() {
+                            continue;
+                        }
+
+                        match serde_json::from_str::<AgentEvent>(&json_line) {
+                            Ok(event) => {
+                                // Emit event to frontend
+                                let _ = app.emit("agent-event", &event);
+
+                                // Check if this is a terminal event
+                                if event.event_type == "complete" || event.event_type == "error" {
+                                    running.store(false, Ordering::SeqCst);
+                                    break;
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("Failed to parse event: {} - {}", e, json_line);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to read line: {}", e);
+                        break;
+                    }
+                }
+            }
+
+            running.store(false, Ordering::SeqCst);
+            let _ = app.emit("agent-stopped", ());
+        });
+
+        Ok(())
+    }
+
     /// Stop the running agent.
     pub fn stop(&mut self) -> Result<(), String> {
         self.running.store(false, Ordering::SeqCst);
@@ -232,6 +304,7 @@ impl AgentBridge {
     }
 
     /// Check if agent is running.
+    #[allow(dead_code)]
     pub fn is_running(&self) -> bool {
         self.running.load(Ordering::SeqCst)
     }

@@ -392,6 +392,10 @@ class PlanStore:
     base_path: Path = field(default_factory=lambda: DEFAULT_PLANS_DIR)
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
+    def __post_init__(self) -> None:
+        """Ensure storage directory exists."""
+        self.base_path.mkdir(parents=True, exist_ok=True)
+
     def save(self, execution: SavedExecution) -> Path:
         """Save execution state to disk (thread-safe).
 

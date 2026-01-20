@@ -472,3 +472,140 @@ class LearningStore:
             return loaded
         except (ImportError, AttributeError):
             return 0
+
+    def save_to_disk(self, base_path: Path | None = None) -> int:
+        """Persist learnings to .sunwell/intelligence/learnings.jsonl.
+
+        This enables cross-session learning without requiring a full Simulacrum setup.
+        Learnings are appended to the file, deduplicating by learning ID.
+
+        Args:
+            base_path: Project root (defaults to cwd)
+
+        Returns:
+            Number of learnings saved
+        """
+        import json
+        from datetime import datetime
+        from pathlib import Path
+
+        if not self.learnings and not self.dead_ends:
+            return 0
+
+        base = base_path or Path.cwd()
+        intel_dir = base / ".sunwell" / "intelligence"
+        intel_dir.mkdir(parents=True, exist_ok=True)
+
+        learnings_path = intel_dir / "learnings.jsonl"
+        dead_ends_path = intel_dir / "dead_ends.jsonl"
+
+        # Load existing IDs to avoid duplicates
+        existing_ids: set[str] = set()
+        if learnings_path.exists():
+            with open(learnings_path) as f:
+                for line in f:
+                    if line.strip():
+                        try:
+                            data = json.loads(line)
+                            existing_ids.add(data.get("id", ""))
+                        except json.JSONDecodeError:
+                            pass
+
+        # Append new learnings
+        saved = 0
+        timestamp = datetime.now().isoformat()
+
+        with open(learnings_path, "a") as f:
+            for lrn in self.learnings:
+                if lrn.id not in existing_ids:
+                    record = {
+                        "id": lrn.id,
+                        "fact": lrn.fact,
+                        "category": lrn.category,
+                        "confidence": lrn.confidence,
+                        "source_file": lrn.source_file,
+                        "source_line": lrn.source_line,
+                        "created_at": timestamp,
+                    }
+                    f.write(json.dumps(record) + "\n")
+                    saved += 1
+
+        # Also save dead ends
+        existing_approaches: set[str] = set()
+        if dead_ends_path.exists():
+            with open(dead_ends_path) as f:
+                for line in f:
+                    if line.strip():
+                        try:
+                            data = json.loads(line)
+                            existing_approaches.add(data.get("approach", ""))
+                        except json.JSONDecodeError:
+                            pass
+
+        with open(dead_ends_path, "a") as f:
+            for de in self.dead_ends:
+                if de.approach not in existing_approaches:
+                    record = {
+                        "approach": de.approach,
+                        "reason": de.reason,
+                        "context": de.context,
+                        "created_at": timestamp,
+                    }
+                    f.write(json.dumps(record) + "\n")
+
+        return saved
+
+    def load_from_disk(self, base_path: Path | None = None) -> int:
+        """Load learnings from .sunwell/intelligence/learnings.jsonl.
+
+        Args:
+            base_path: Project root (defaults to cwd)
+
+        Returns:
+            Number of learnings loaded
+        """
+        import json
+        from pathlib import Path
+
+        base = base_path or Path.cwd()
+        learnings_path = base / ".sunwell" / "intelligence" / "learnings.jsonl"
+        dead_ends_path = base / ".sunwell" / "intelligence" / "dead_ends.jsonl"
+
+        loaded = 0
+
+        if learnings_path.exists():
+            with open(learnings_path) as f:
+                for line in f:
+                    if not line.strip():
+                        continue
+                    try:
+                        data = json.loads(line)
+                        lrn = Learning(
+                            fact=data["fact"],
+                            category=data.get("category", "pattern"),
+                            confidence=data.get("confidence", 0.7),
+                            source_file=data.get("source_file"),
+                            source_line=data.get("source_line"),
+                        )
+                        self.add_learning(lrn)
+                        loaded += 1
+                    except (json.JSONDecodeError, KeyError):
+                        pass
+
+        if dead_ends_path.exists():
+            with open(dead_ends_path) as f:
+                for line in f:
+                    if not line.strip():
+                        continue
+                    try:
+                        data = json.loads(line)
+                        de = DeadEnd(
+                            approach=data["approach"],
+                            reason=data.get("reason", ""),
+                            context=data.get("context"),
+                        )
+                        self.add_dead_end(de)
+                    except (json.JSONDecodeError, KeyError):
+                        pass
+
+        return loaded
