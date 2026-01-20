@@ -564,3 +564,148 @@ async def _endorse_decision(decision_id: str) -> None:
         console.print(f"   Total endorsements: {len(updated.endorsements)}")
     else:
         console.print("[yellow]Could not endorse decision[/yellow]")
+
+
+@team.command()
+@click.option("--dry-run", is_flag=True, help="Show what would be migrated")
+@click.option("--all", "migrate_all", is_flag=True, help="Migrate all personal decisions")
+def migrate(dry_run: bool, migrate_all: bool) -> None:
+    """Migrate personal decisions to team knowledge.
+
+    \b
+    This promotes RFC-045 personal decisions to RFC-052 team decisions.
+
+    \b
+    Example:
+        sunwell team migrate --dry-run     # Preview what would be migrated
+        sunwell team migrate --all         # Migrate all personal decisions
+    """
+    asyncio.run(_migrate_decisions(dry_run, migrate_all))
+
+
+async def _migrate_decisions(dry_run: bool, migrate_all: bool) -> None:
+    """Migrate personal decisions to team."""
+    from sunwell.intelligence.decisions import DecisionMemory
+    from sunwell.team import KnowledgePropagator, TeamKnowledgeStore
+
+    intelligence_path = Path.cwd() / ".sunwell" / "intelligence"
+    if not intelligence_path.exists():
+        console.print("[yellow]No personal decisions found (.sunwell/intelligence/ does not exist)[/yellow]")
+        return
+
+    personal_store = DecisionMemory(base_path=intelligence_path)
+    team_store = TeamKnowledgeStore(Path.cwd())
+    propagator = KnowledgePropagator(team_store, personal_store)
+
+    # Get existing team decision IDs
+    team_decisions = await team_store.get_decisions()
+    team_ids = {d.id for d in team_decisions}
+
+    # Get personal decisions
+    personal_decisions = await personal_store.get_decisions(active_only=True)
+
+    # Filter to those not already in team
+    candidates = [d for d in personal_decisions if d.id not in team_ids]
+
+    if not candidates:
+        console.print("[green]No new decisions to migrate.[/green]")
+        return
+
+    # Show candidates
+    console.print(f"\n[bold]Found {len(candidates)} personal decisions to migrate:[/bold]\n")
+
+    table = Table()
+    table.add_column("ID", style="cyan")
+    table.add_column("Category")
+    table.add_column("Question")
+    table.add_column("Choice", style="green")
+    table.add_column("Confidence")
+    table.add_column("Promote?", style="yellow")
+
+    for d in candidates:
+        should_promote = await propagator.should_promote(d)
+        table.add_row(
+            d.id[:8] + "...",
+            d.category,
+            d.question[:35] + ("..." if len(d.question) > 35 else ""),
+            d.choice[:25] + ("..." if len(d.choice) > 25 else ""),
+            f"{d.confidence:.0%}",
+            "✓" if should_promote else "-",
+        )
+
+    console.print(table)
+
+    if dry_run:
+        console.print("\n[yellow]Dry run - no changes made. Remove --dry-run to migrate.[/yellow]")
+        return
+
+    if not migrate_all:
+        console.print("\n[yellow]Use --all to migrate all decisions.[/yellow]")
+        return
+
+    # Perform migration
+    console.print("\n[cyan]Migrating decisions to team knowledge...[/cyan]")
+
+    author = await team_store.get_git_user()
+    migrated = 0
+
+    for d in candidates:
+        try:
+            team_decision = await propagator.promote_to_team(d, author)
+            console.print(f"  [green]✓[/green] {d.question[:50]}...")
+            migrated += 1
+        except Exception as e:
+            console.print(f"  [red]✗[/red] {d.question[:50]}... ({e})")
+
+    console.print(f"\n[green]✓ Migrated {migrated}/{len(candidates)} decisions to team knowledge[/green]")
+
+
+@team.command()
+def init() -> None:
+    """Initialize team intelligence for this project.
+
+    \b
+    Creates:
+    - .sunwell/team/ directory (git-tracked)
+    - .sunwell/.gitignore (proper ignore rules)
+    - Shows team onboarding if knowledge exists
+    """
+    asyncio.run(_init_team())
+
+
+async def _init_team() -> None:
+    """Initialize team intelligence."""
+    from sunwell.team import TeamKnowledgeStore, TeamOnboarding
+    from sunwell.team.gitignore_template import ensure_sunwell_structure
+
+    project_root = Path.cwd()
+
+    console.print("[cyan]Initializing team intelligence...[/cyan]")
+
+    # Ensure directory structure
+    ensure_sunwell_structure(project_root)
+    console.print("  [green]✓[/green] Created .sunwell/ directory structure")
+    console.print("  [green]✓[/green] Created .sunwell/.gitignore")
+
+    # Initialize store
+    store = TeamKnowledgeStore(project_root)
+
+    # Check for existing team knowledge
+    decisions = await store.get_decisions()
+    failures = await store.get_failures()
+
+    if decisions or failures:
+        console.print(f"\n[bold]Existing team knowledge found:[/bold]")
+        console.print(f"  - {len(decisions)} decisions")
+        console.print(f"  - {len(failures)} failure patterns")
+
+        # Show onboarding
+        onboarding = TeamOnboarding(store)
+        summary = await onboarding.generate_onboarding_summary()
+        console.print(summary.format_welcome_message())
+    else:
+        console.print("\n[dim]No existing team knowledge found. Start adding decisions:[/dim]")
+        console.print("  sunwell team add-decision <category> <question> <choice> -r <rationale>")
+
+    console.print("\n[green]✓ Team intelligence initialized[/green]")
+    console.print("\n[dim]Remember to commit .sunwell/team/ to share with your team.[/dim]")

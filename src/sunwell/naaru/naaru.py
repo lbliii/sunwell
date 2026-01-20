@@ -1513,6 +1513,31 @@ class Naaru:
         self._routing_worker = None
         self._tool_worker = None
 
+    # =========================================================================
+    # RFC-053: Event Streaming
+    # =========================================================================
+
+    def _emit_event(self, event_type: str, **data: Any) -> None:
+        """Emit an AgentEvent to the configured callback (RFC-053).
+
+        If no callback is configured, this is a no-op.
+
+        Args:
+            event_type: Event type from EventType enum (as string)
+            **data: Event payload data
+        """
+        if self.config.event_callback is None:
+            return
+
+        from sunwell.adaptive.events import AgentEvent, EventType
+
+        try:
+            event = AgentEvent(EventType(event_type), data)
+            self.config.event_callback(event)
+        except ValueError:
+            # Unknown event type - skip
+            pass
+
     async def illuminate(
         self,
         goals: list[str],
@@ -1681,8 +1706,12 @@ class Naaru:
 
         # Phase 1: Plan
         output("🎯 Planning...")
+        self._emit_event("plan_start", goal=goal)
         tasks = await self.planner.plan([goal], context)
         output(f"   Created {len(tasks)} tasks")
+
+        # RFC-053: Emit plan_winner with task count
+        self._emit_event("plan_winner", tasks=len(tasks))
 
         for i, task in enumerate(tasks, 1):
             deps = f" (after: {', '.join(task.depends_on)})" if task.depends_on else ""
@@ -1705,6 +1734,14 @@ class Naaru:
 
         # Collect artifacts
         artifacts = self._collect_artifacts(tasks)
+
+        # RFC-053: Emit completion event
+        self._emit_event(
+            "complete",
+            tasks_completed=completed,
+            tasks_failed=failed,
+            duration_s=elapsed,
+        )
 
         return AgentResult(
             goal=goal,
@@ -1775,23 +1812,37 @@ class Naaru:
                     task = batch[0]
                     task.status = TaskStatus.IN_PROGRESS
                     output(f"   → {task.description}")
+                    task_start_time = datetime.now()
+                    # RFC-053: Emit task_start
+                    self._emit_event("task_start", task_id=task.id, description=task.description)
 
                     try:
                         await self._execute_single_task(task)
                         task.status = TaskStatus.COMPLETED
                         completed_ids.add(task.id)
                         completed_artifacts.update(task.produces)
+                        duration_ms = int((datetime.now() - task_start_time).total_seconds() * 1000)
                         output(f"   ✅ {task.id}")
+                        # RFC-053: Emit task_complete
+                        self._emit_event("task_complete", task_id=task.id, duration_ms=duration_ms)
                     except Exception as e:
                         task.status = TaskStatus.FAILED
                         task.error = str(e)
                         output(f"   ❌ {task.id}: {e}")
+                        # RFC-053: Emit task_failed
+                        self._emit_event("task_failed", task_id=task.id, error=str(e))
                 else:
                     # Multiple tasks - execute in parallel (RFC-034)
                     output(f"   ⚡ Executing {len(batch)} tasks in parallel")
+                    task_start_times: dict[str, datetime] = {}
                     for task in batch:
                         task.status = TaskStatus.IN_PROGRESS
+                        task_start_times[task.id] = datetime.now()
                         output(f"      → {task.description}")
+                        # RFC-053: Emit task_start for each parallel task
+                        self._emit_event(
+                            "task_start", task_id=task.id, description=task.description
+                        )
 
                     # Execute all tasks concurrently
                     results = await asyncio.gather(
@@ -1800,15 +1851,25 @@ class Naaru:
                     )
 
                     for task, result in zip(batch, results, strict=True):
+                        start_t = task_start_times[task.id]
+                        duration_ms = int((datetime.now() - start_t).total_seconds() * 1000)
                         if isinstance(result, Exception):
                             task.status = TaskStatus.FAILED
                             task.error = str(result)
                             output(f"      ❌ {task.id}: {result}")
+                            # RFC-053: Emit task_failed
+                            self._emit_event(
+                                "task_failed", task_id=task.id, error=str(result)
+                            )
                         else:
                             task.status = TaskStatus.COMPLETED
                             completed_ids.add(task.id)
                             completed_artifacts.update(task.produces)
                             output(f"      ✅ {task.id}")
+                            # RFC-053: Emit task_complete
+                            self._emit_event(
+                                "task_complete", task_id=task.id, duration_ms=duration_ms
+                            )
 
         return tasks
 

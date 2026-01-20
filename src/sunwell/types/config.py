@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
+    from sunwell.adaptive.events import AgentEvent
     from sunwell.naaru.rotation import ModelSize
 
 
@@ -347,6 +349,19 @@ class NaaruConfig:
     """Task type hint: "code", "creative", "analysis", "auto".
 
     Used for heuristic selection and task analysis.
+    """
+
+    # RFC-053: Studio Agent Bridge - Event streaming
+    event_callback: Callable[[AgentEvent], None] | None = None
+    """Callback for streaming AgentEvent objects (RFC-053).
+
+    When set, events are forwarded to this callback during execution.
+    Used by Studio to receive real-time progress updates via --json mode.
+
+    Example:
+        >>> def emit_json(event: AgentEvent) -> None:
+        ...     print(json.dumps(event.to_dict()), flush=True)
+        >>> config = NaaruConfig(event_callback=emit_json)
     """
 
     @classmethod

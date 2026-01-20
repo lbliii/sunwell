@@ -1105,6 +1105,346 @@ Principles:
 
 ---
 
+## Workspace Location & Project Storage
+
+A critical UX question: when users say "Build a forum app", **where does it go?**
+
+This section defines unified behavior across CLI and Desktop interfaces.
+
+### Design Principles
+
+1. **Sensible defaults** — Works out of the box with zero configuration
+2. **No surprises** — Always show where files will be created before writing
+3. **Progressive disclosure** — Power users can customize, everyone else ignores
+4. **Shared behavior** — CLI and Desktop use the same logic
+
+### Default Workspace Location
+
+```
+macOS/Linux:  ~/Sunwell/
+Windows:      %USERPROFILE%\Sunwell\
+
+Structure:
+~/Sunwell/
+├── projects/           # User-created projects
+│   ├── forum-app/
+│   ├── lighthouse-novel/
+│   └── ...
+├── .sunwell/           # Global config & memory
+│   ├── config.yaml     # User preferences
+│   ├── memory/         # Global simulacrum (cross-project learnings)
+│   └── recent.json     # Recent projects list
+└── .cache/             # Embeddings, indexes (safe to delete)
+```
+
+**Why `~/Sunwell/` over `~/.sunwell/`?**
+- Projects are user content, not hidden config
+- Visible in file browsers for easy navigation
+- Matches Ollama's `~/.ollama/` pattern but for user-facing content
+
+### Workspace Detection Logic
+
+When Sunwell starts, it resolves the workspace using this precedence:
+
+```
+1. Explicit flag:     --workspace /path/to/project
+2. Environment:       SUNWELL_WORKSPACE=/path
+3. Current directory: If cwd contains .sunwell/ or project markers
+4. Walk up:           Find nearest parent with .sunwell/ or project markers
+5. Default:           ~/Sunwell/projects/
+```
+
+```python
+class WorkspaceResolver:
+    """Unified workspace resolution for CLI and Desktop."""
+    
+    PROJECT_MARKERS = (
+        ".sunwell",           # Explicit Sunwell project
+        "pyproject.toml",     # Python
+        "package.json",       # Node
+        "Cargo.toml",         # Rust
+        "go.mod",             # Go
+        ".git",               # Git repository
+    )
+    
+    def resolve(
+        self,
+        explicit: Path | None = None,
+        start: Path | None = None,
+    ) -> WorkspaceResult:
+        """Resolve workspace with context about how it was found."""
+        
+        # 1. Explicit always wins
+        if explicit:
+            return WorkspaceResult(
+                path=explicit,
+                source="explicit",
+                confidence=1.0,
+            )
+        
+        # 2. Environment variable
+        if env_ws := os.environ.get("SUNWELL_WORKSPACE"):
+            return WorkspaceResult(
+                path=Path(env_ws),
+                source="environment",
+                confidence=1.0,
+            )
+        
+        # 3. Current directory or walk up
+        start = start or Path.cwd()
+        found = self._find_project_root(start)
+        
+        if found:
+            return WorkspaceResult(
+                path=found,
+                source="detected",
+                confidence=0.9,
+            )
+        
+        # 4. Default workspace
+        default = self._default_workspace()
+        return WorkspaceResult(
+            path=default,
+            source="default",
+            confidence=0.5,  # Low confidence = should confirm
+        )
+    
+    def _default_workspace(self) -> Path:
+        """Platform-appropriate default workspace."""
+        return Path.home() / "Sunwell" / "projects"
+```
+
+### CLI Behavior
+
+#### Running from Project Directory (Happy Path)
+```bash
+$ cd ~/projects/forum-app
+$ sunwell "Add user authentication"
+
+☀️ Sunwell
+Working in: forum-app (~/projects/forum-app)
+...
+```
+
+#### Running from Random Location (Warning + Confirmation)
+```bash
+$ cd /tmp
+$ sunwell "Build a REST API"
+
+⚠️  No project found in /tmp
+
+Where should I create this project?
+
+  [1] ~/Sunwell/projects/rest-api/  (default)
+  [2] Create here: /tmp/rest-api/
+  [3] Choose different location...
+
+Choice [1]: █
+```
+
+#### Running with Explicit Path
+```bash
+$ sunwell "Build a REST API" --workspace ~/work/api-project
+# No confirmation needed — explicit path
+```
+
+#### Non-Interactive Mode (CI/Scripts)
+```bash
+$ sunwell "Build a REST API" --yes
+# Uses default: ~/Sunwell/projects/rest-api/
+# No prompts, exits non-zero if ambiguous
+```
+
+### Desktop App Behavior
+
+#### First Launch
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│                           ☀️                                    │
+│                        SUNWELL                                  │
+│                                                                 │
+│                                                                 │
+│     ┌───────────────────────────────────────────────────┐      │
+│     │ What would you like to create?                    │      │
+│     └───────────────────────────────────────────────────┘      │
+│                                                                 │
+│                                                                 │
+│     Projects will be saved to: ~/Sunwell/projects/             │
+│     [Change...]                                                │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+The app silently creates `~/Sunwell/` on first use. A subtle link allows changing it.
+
+#### Creating a New Project
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│  > Build a forum app with user authentication                  │
+│                                                                 │
+│  ────────────────────────────────────────────────────────────  │
+│                                                                 │
+│  📁 Creating: ~/Sunwell/projects/forum-app/                    │
+│                                                                 │
+│  Building                                                       │
+│  ├─ [1] Project structure                ████████████████  ✓   │
+│  ...                                                           │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Always shows where files go. Project name derived from goal ("forum app" → `forum-app/`).
+
+#### Opening Existing Project
+
+Menu: **File → Open Project...** or drag folder onto window.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ☀️ Open Project                                                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Recent                                                         │
+│  ├─ 📁 forum-app         ~/Sunwell/projects/forum-app          │
+│  ├─ 📖 lighthouse-novel  ~/Writing/lighthouse/                 │
+│  └─ 🔧 work-api          ~/work/api-project/                   │
+│                                                                 │
+│  ─────────────────────────────────────────────────────────────  │
+│                                                                 │
+│  [Browse...]                                                    │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Settings
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ⚙️ Settings                                                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Projects Location                                              │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │ ~/Sunwell/projects/                          [Browse...]  │ │
+│  └───────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│  ☑ Always confirm before creating new projects                 │
+│  ☐ Use project name from goal (uncheck to always ask)          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Project Naming
+
+When creating from a goal, derive a sensible directory name:
+
+```python
+def derive_project_name(goal: str) -> str:
+    """Extract project name from natural language goal.
+    
+    Examples:
+        "Build a forum app" → "forum-app"
+        "Create a REST API for user management" → "user-api"
+        "Write a novel about time travel" → "time-travel-novel"
+    """
+    # Use LLM for ambiguous cases, rules for obvious ones
+    ...
+```
+
+If derivation fails or is ambiguous, ask:
+```
+What should I name this project?
+> my-api█
+```
+
+### Collision Handling
+
+When target directory exists:
+
+```
+⚠️  ~/Sunwell/projects/forum-app/ already exists
+
+  [1] Open existing project
+  [2] Create forum-app-2/
+  [3] Choose different name...
+  [4] Cancel
+
+Choice [1]: █
+```
+
+### Implementation Notes
+
+#### Shared Module
+
+Both CLI and Desktop use the same Rust/Python module:
+
+```rust
+// src-tauri/src/workspace.rs (or sunwell/workspace/resolver.py)
+
+pub struct WorkspaceResolver {
+    default_root: PathBuf,
+}
+
+impl WorkspaceResolver {
+    pub fn resolve(&self, explicit: Option<PathBuf>) -> WorkspaceResult {
+        // Unified logic for both interfaces
+    }
+    
+    pub fn default_root() -> PathBuf {
+        // Platform-specific default
+        #[cfg(target_os = "macos")]
+        return dirs::home_dir().unwrap().join("Sunwell").join("projects");
+        
+        #[cfg(target_os = "windows")]
+        return dirs::home_dir().unwrap().join("Sunwell").join("projects");
+        
+        #[cfg(target_os = "linux")]
+        return dirs::home_dir().unwrap().join("Sunwell").join("projects");
+    }
+}
+```
+
+#### Config Persistence
+
+```yaml
+# ~/.sunwell/config.yaml (global)
+workspace:
+  default_location: ~/Sunwell/projects
+  confirm_new_projects: true
+  derive_names_from_goal: true
+
+# ~/Sunwell/projects/forum-app/.sunwell/config.yaml (project)
+# Project-specific overrides
+```
+
+#### Recent Projects Storage
+
+```json
+// ~/.sunwell/recent.json
+{
+  "projects": [
+    {
+      "path": "/Users/me/Sunwell/projects/forum-app",
+      "name": "forum-app",
+      "type": "code_python",
+      "last_opened": "2026-01-19T10:30:00Z"
+    }
+  ],
+  "max_recent": 20
+}
+```
+
+### Migration Path
+
+For existing CLI users who have projects scattered:
+
+1. **No forced migration** — Sunwell works in any directory with project markers
+2. **Gentle suggestion** — "Tip: Move to ~/Sunwell/projects/ for cross-project memory"
+3. **Import command** — `sunwell import ~/old-project` copies/links to default workspace
+
+---
+
 ## Technical Architecture
 
 ### Stack

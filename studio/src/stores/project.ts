@@ -3,8 +3,11 @@
  */
 
 import { writable, derived } from 'svelte/store';
-import { invoke } from '@tauri-apps/api/core';
 import type { Project, RecentProject, ProjectType } from '$lib/types';
+
+// RFC-053: Demo mode - same as agent store
+// Set to false to use real project discovery
+const DEMO_MODE = false;
 
 // ═══════════════════════════════════════════════════════════════
 // STATE
@@ -44,10 +47,21 @@ export const isCreativeProject = derived(
  * Load recent projects from storage.
  */
 export async function loadRecentProjects(): Promise<void> {
+  if (DEMO_MODE) {
+    // Return demo projects
+    recentProjects.set([
+      { path: '/demo/flask-api', name: 'flask-api', last_opened: Date.now() - 3600000, project_type: 'code_python' },
+      { path: '/demo/react-app', name: 'react-app', last_opened: Date.now() - 86400000, project_type: 'code_web' },
+      { path: '/demo/rust-cli', name: 'rust-cli', last_opened: Date.now() - 172800000, project_type: 'code_rust' },
+    ]);
+    return;
+  }
+
   try {
     isLoading.set(true);
     error.set(null);
     
+    const { invoke } = await import('@tauri-apps/api/core');
     const projects = await invoke<RecentProject[]>('get_recent_projects');
     recentProjects.set(projects);
   } catch (e) {
@@ -61,10 +75,23 @@ export async function loadRecentProjects(): Promise<void> {
  * Open a project from a path.
  */
 export async function openProject(path: string): Promise<Project | null> {
+  if (DEMO_MODE) {
+    const project: Project = {
+      path,
+      name: path.split('/').pop() || 'project',
+      project_type: 'code_python',
+      description: 'Demo project',
+      files_count: 42,
+    };
+    currentProject.set(project);
+    return project;
+  }
+
   try {
     isLoading.set(true);
     error.set(null);
     
+    const { invoke } = await import('@tauri-apps/api/core');
     const project = await invoke<Project>('open_project', { path });
     currentProject.set(project);
     return project;

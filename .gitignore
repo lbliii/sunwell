@@ -54,3 +54,41 @@ Thumbs.db
 # Project specific
 *.lens.cache/
 .sunwell/
+
+# ===========================================
+# Sunwell Studio (Tauri + Svelte + Vite)
+# ===========================================
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm
+.pnpm-store/
+
+# Vite / Svelte build output
+studio/dist/
+studio/.svelte-kit/
+*.local
+
+# Rust / Cargo
+studio/src-tauri/target/
+**/*.rs.bk
+Cargo.lock
+!studio/src-tauri/Cargo.lock
+
+# Tauri
+studio/src-tauri/gen/schemas/
+!studio/src-tauri/gen/schemas/.gitkeep
+
+# Bundle output (Tauri builds)
+studio/src-tauri/target/release/bundle/
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log

@@ -1,138 +1,113 @@
-.PHONY: install dev test lint format clean build setup-env check-uv check-python314t
+# ═══════════════════════════════════════════════════════════════════════════════
+# Sunwell — AI-Native Development
+# ═══════════════════════════════════════════════════════════════════════════════
 
-# Detect Python interpreter
-PYTHON := python3.14t
-ifeq ($(shell command -v python3.14t 2>/dev/null),)
-	# Fallback to system Python if 3.14t not found
-	PYTHON := python3
-	$(warning python3.14t not found, using $(PYTHON). For optimal performance, install Python 3.14t)
-endif
+.PHONY: help studio studio-dev studio-build install check clean
 
-# Check if uv is installed
-check-uv:
-	@command -v uv >/dev/null 2>&1 || ( \
-		echo ""; \
-		echo "❌ uv is not installed or not in PATH"; \
-		echo ""; \
-		echo "Please install uv: https://docs.astral.sh/uv/getting-started/installation/"; \
-		echo ""; \
+# Default target
+help:
+	@echo ""
+	@echo "  ╔═══════════════════════════════════════════════════════════════╗"
+	@echo "  ║              ☀️  SUNWELL DEVELOPMENT COMMANDS                  ║"
+	@echo "  ╚═══════════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "  Usage: make <command>"
+	@echo ""
+	@echo "  ┌─────────────────────────────────────────────────────────────────┐"
+	@echo "  │ STUDIO (GUI)                                                    │"
+	@echo "  ├─────────────────────────────────────────────────────────────────┤"
+	@echo "  │ studio        Run Sunwell Studio (demo mode)                    │"
+	@echo "  │ studio-dev    Run Studio with hot reload                        │"
+	@echo "  │ studio-build  Build Studio for production                       │"
+	@echo "  ├─────────────────────────────────────────────────────────────────┤"
+	@echo "  │ CORE (CLI)                                                      │"
+	@echo "  ├─────────────────────────────────────────────────────────────────┤"
+	@echo "  │ install       Install Sunwell CLI (editable)                    │"
+	@echo "  │ agent         Run agent with a goal (GOAL='...')                │"
+	@echo "  ├─────────────────────────────────────────────────────────────────┤"
+	@echo "  │ DEVELOPMENT                                                     │"
+	@echo "  ├─────────────────────────────────────────────────────────────────┤"
+	@echo "  │ check         Run linters and type checks                       │"
+	@echo "  │ test          Run tests                                         │"
+	@echo "  │ clean         Clean build artifacts                             │"
+	@echo "  └─────────────────────────────────────────────────────────────────┘"
+	@echo ""
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# STUDIO COMMANDS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Run Sunwell Studio (demo mode, hot reload)
+studio: studio-deps
+	@echo "☀️  Starting Sunwell Studio..."
+	@cd studio && npm run tauri dev
+
+# Alias for studio
+studio-dev: studio
+
+# Install studio dependencies if needed
+studio-deps:
+	@if [ ! -d "studio/node_modules" ]; then \
+		echo "📦 Installing Studio dependencies..."; \
+		cd studio && npm install; \
+	fi
+	@if ! command -v cargo &> /dev/null; then \
+		echo "⚠️  Rust not found. Install with: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"; \
 		exit 1; \
-	)
-
-# Check if Python 3.14t is available
-check-python314t:
-	@command -v python3.14t >/dev/null 2>&1 || ( \
-		echo ""; \
-		echo "⚠️  python3.14t not found. Using standard Python (GIL enabled)."; \
-		echo ""; \
-		echo "For free-threading, install Python 3.14t:"; \
-		echo "  macOS: brew install python@3.14t"; \
-		echo "  Or build from source: https://github.com/python/cpython"; \
-		echo ""; \
-	)
-
-# Setup free-threading environment with uv
-setup-env: check-uv check-python314t
-	@echo "🔧 Setting up free-threading environment..."
-	@if command -v python3.14t >/dev/null 2>&1; then \
-		echo "✅ Using Python 3.14t (free-threaded)"; \
-		uv venv --python python3.14t .venv; \
-	else \
-		echo "⚠️  Using standard Python (GIL enabled)"; \
-		uv venv .venv; \
 	fi
-	@echo "📥 Installing dependencies..."
-	@uv pip install -e ".[dev]"
-	@echo ""
-	@echo "✅ Environment ready!"
-	@echo ""
-	@echo "To activate:"
-	@echo "  source .venv/bin/activate"
-	@echo ""
-	@echo "To verify free-threading:"
-	@echo "  python -c \"import sys; print('Free-threaded:', hasattr(sys, '_is_gil_enabled'))\""
 
-# Install production dependencies
-install: check-uv
-	uv pip install -e .
+# Build Studio for production
+studio-build: studio-deps
+	@echo "🔨 Building Sunwell Studio..."
+	@cd studio && npm run tauri build
 
-# Install development dependencies
-dev: check-uv
-	uv pip install -e ".[dev]"
+# ═══════════════════════════════════════════════════════════════════════════════
+# CORE COMMANDS
+# ═══════════════════════════════════════════════════════════════════════════════
 
-# Install all optional dependencies
-all: check-uv
-	uv pip install -e ".[all,dev]"
+# Install Sunwell CLI in development mode
+install:
+	@echo "📦 Installing Sunwell..."
+	@pip install -e ".[dev]"
 
-# Run tests (uses venv Python if available)
+# Run agent with a goal
+# Usage: make agent GOAL="Build a Flask API"
+agent:
+ifndef GOAL
+	@echo "Usage: make agent GOAL='your goal here'"
+	@exit 1
+endif
+	@sunwell agent run "$(GOAL)"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DEVELOPMENT COMMANDS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Run all checks
+check:
+	@echo "🔍 Running checks..."
+	@ruff check src/
+	@ty check src/
+
+# Run tests
 test:
-	@if [ -f .venv/bin/python ]; then \
-		.venv/bin/python -m pytest tests/ -v; \
-	else \
-		$(PYTHON) -m pytest tests/ -v; \
-	fi
-
-# Run tests with coverage
-test-cov:
-	@if [ -f .venv/bin/python ]; then \
-		.venv/bin/python -m pytest tests/ -v --cov=sunwell --cov-report=html --cov-report=term; \
-	else \
-		$(PYTHON) -m pytest tests/ -v --cov=sunwell --cov-report=html --cov-report=term; \
-	fi
-
-# Lint code
-lint:
-	@if [ -f .venv/bin/ruff ]; then \
-		.venv/bin/ruff check src/sunwell tests; \
-		.venv/bin/python -m mypy src/sunwell; \
-	else \
-		ruff check src/sunwell tests; \
-		mypy src/sunwell; \
-	fi
-
-# Format code
-format:
-	@if [ -f .venv/bin/ruff ]; then \
-		.venv/bin/ruff format src/sunwell tests; \
-		.venv/bin/ruff check --fix src/sunwell tests; \
-	else \
-		ruff format src/sunwell tests; \
-		ruff check --fix src/sunwell tests; \
-	fi
+	@echo "🧪 Running tests..."
+	@pytest tests/ -v
 
 # Clean build artifacts
 clean:
-	rm -rf build/
-	rm -rf dist/
-	rm -rf *.egg-info/
-	rm -rf src/*.egg-info/
-	rm -rf .pytest_cache/
-	rm -rf .ruff_cache/
-	rm -rf .mypy_cache/
-	rm -rf htmlcov/
-	find . -type d -name __pycache__ -exec rm -rf {} +
+	@echo "🧹 Cleaning..."
+	@rm -rf build/ dist/ *.egg-info .pytest_cache .ruff_cache
+	@rm -rf studio/dist studio/node_modules/.cache
+	@rm -rf studio/src-tauri/target
+	@find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	@echo "✨ Clean!"
 
-# Build distribution
-build: clean
-	@if [ -f .venv/bin/python ]; then \
-		.venv/bin/python -m build; \
-	else \
-		$(PYTHON) -m build; \
-	fi
+# ═══════════════════════════════════════════════════════════════════════════════
+# QUICK START
+# ═══════════════════════════════════════════════════════════════════════════════
 
-# Validate example lenses
-validate-lenses:
-	sunwell validate lenses/tech-writer.lens
-	sunwell validate lenses/code-reviewer.lens
-	sunwell validate lenses/base-writer.lens
-
-# Run a quick smoke test
-smoke:
-	sunwell --help
-	sunwell list --path lenses/
-	sunwell validate lenses/tech-writer.lens
-	@echo "✅ Smoke test passed"
-
-# Apply tech-writer lens with mock model
-demo:
-	sunwell apply lenses/tech-writer.lens "Write API documentation for a user authentication module" --provider mock -v
+# First-time setup
+setup: install studio-deps
+	@echo ""
+	@echo "✅ Setup complete! Run 'make studio' to start."

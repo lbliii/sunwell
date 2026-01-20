@@ -54,6 +54,8 @@ class GoalFirstGroup(click.Group):
 @click.option("--time", "-t", default=300, help="Max execution time (seconds)")
 @click.option("--trust", type=click.Choice(["read_only", "workspace", "shell"]),
               default=None, help="Override tool trust level")
+@click.option("--workspace", "-w", type=click.Path(exists=False),
+              help="Project directory (default: auto-detect or ~/Sunwell/projects/)")
 @click.option("--quiet", "-q", is_flag=True, help="Suppress warnings")
 @click.version_option(version="0.1.0")
 @click.pass_context
@@ -64,6 +66,7 @@ def main(
     verbose: bool,
     time: int,
     trust: str | None,
+    workspace: str | None,
     quiet: bool,
 ) -> None:
     """Sunwell — AI agent for software tasks.
@@ -79,6 +82,11 @@ def main(
     For planning without execution:
 
         sunwell "Build an app" --plan
+
+    \b
+    For a specific project directory:
+
+        sunwell "Add tests" --workspace ~/projects/myapp
 
     \b
     For interactive mode:
@@ -107,6 +115,7 @@ def main(
             verbose=verbose,
             time=time,
             trust=trust or "workspace",
+            workspace=workspace,
         )
 
 
@@ -117,6 +126,7 @@ def main(
 @click.option("--verbose", "-v", is_flag=True)
 @click.option("--time", "-t", default=300)
 @click.option("--trust", default="workspace")
+@click.option("--workspace", "-w", default=None)
 def _run_goal(
     goal: str,
     dry_run: bool,
@@ -124,9 +134,11 @@ def _run_goal(
     verbose: bool,
     time: int,
     trust: str,
+    workspace: str | None,
 ) -> None:
     """Internal command for goal execution."""
-    asyncio.run(_run_agent(goal, time, trust, dry_run, verbose, model))
+    workspace_path = Path(workspace) if workspace else None
+    asyncio.run(_run_agent(goal, time, trust, dry_run, verbose, model, workspace_path))
 
 
 async def _run_agent(
@@ -136,6 +148,7 @@ async def _run_agent(
     dry_run: bool,
     verbose: bool,
     model_override: str | None,
+    workspace_path: Path | None = None,
 ) -> None:
     """Execute goal with Adaptive Agent (RFC-042).
 
@@ -147,12 +160,22 @@ async def _run_agent(
     - Persists learnings via Simulacrum
     """
     from sunwell.adaptive import AdaptiveAgent, AdaptiveBudget, EventType, create_renderer
+    from sunwell.cli.workspace_prompt import resolve_workspace_interactive
     from sunwell.config import get_config
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust
 
     # Load config
     config = get_config()
+
+    # Resolve workspace (RFC-043 addendum)
+    # Extract project name hint from goal for new projects
+    project_name = _extract_project_name(goal)
+    workspace = resolve_workspace_interactive(
+        explicit=workspace_path,
+        project_name=project_name,
+        quiet=not verbose,
+    )
 
     # Create model
     synthesis_model = None
@@ -177,10 +200,10 @@ async def _run_agent(
         console.print("[red]No model available[/red]")
         return
 
-    # Setup tool executor
+    # Setup tool executor with resolved workspace
     trust_level = ToolTrust.from_string(trust)
     tool_executor = ToolExecutor(
-        workspace=Path.cwd(),
+        workspace=workspace,
         policy=ToolPolicy(trust_level=trust_level),
     )
 
@@ -189,11 +212,11 @@ async def _run_agent(
         available_tools = frozenset(tool_executor.get_available_tools())
         console.print(f"[dim]Available tools: {', '.join(sorted(available_tools))}[/dim]")
 
-    # Create Adaptive Agent
+    # Create Adaptive Agent with resolved workspace
     agent = AdaptiveAgent(
         model=synthesis_model,
         tool_executor=tool_executor,
-        cwd=Path.cwd(),
+        cwd=workspace,
         budget=AdaptiveBudget(total_budget=50_000),
     )
 
@@ -253,6 +276,40 @@ def _print_event(event, verbose: bool) -> None:
         console.print(f"[red]Error: {event.data}[/red]")
     elif verbose:
         console.print(f"[dim]{event.type.value}: {event.data}[/dim]")
+
+
+def _extract_project_name(goal: str) -> str | None:
+    """Extract a project name hint from a goal.
+
+    Simple heuristic extraction - looks for common patterns like
+    "build a X app" or "create X".
+
+    Args:
+        goal: Natural language goal
+
+    Returns:
+        Extracted project name or None if unclear
+    """
+    import re
+
+    goal_lower = goal.lower()
+
+    # Pattern: "build/create/make a X app/api/tool/site"
+    patterns = [
+        r"(?:build|create|make|write)\s+(?:a\s+)?(.+?)\s+(?:app|api|tool|site|website|service)",
+        r"(?:build|create|make|write)\s+(?:a\s+)?(.+?)\s+(?:with|using)",
+        r"(?:build|create|make)\s+(?:a\s+)?(.+?)$",
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, goal_lower)
+        if match:
+            name = match.group(1).strip()
+            # Filter out very short or generic results
+            if len(name) > 2 and name not in ("a", "an", "the", "new", "simple"):
+                return name
+
+    return None
 
 
 async def _artifact_dry_run(goal: str, planner, verbose: bool) -> None:
@@ -441,3 +498,8 @@ main.add_command(workers_cmd.workers)
 from sunwell.cli import team_cmd
 
 main.add_command(team_cmd.team)
+
+# Project Import (RFC-043 addendum)
+from sunwell.cli import import_cmd
+
+main.add_command(import_cmd.import_project, name="import")

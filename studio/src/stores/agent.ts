@@ -1,10 +1,10 @@
 /**
  * Agent Store — manages Sunwell agent state and communication
+ * 
+ * Includes a DEMO_MODE for testing without the full Sunwell CLI.
  */
 
 import { writable, derived, get } from 'svelte/store';
-import { invoke } from '@tauri-apps/api/core';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { 
   AgentState, 
   AgentEvent, 
@@ -12,6 +12,10 @@ import type {
   AgentStatus,
   Task 
 } from '$lib/types';
+
+// RFC-053: Set to false to use real Sunwell agent
+// Set to true to use mock data for testing without the CLI
+const DEMO_MODE = false;
 
 // ═══════════════════════════════════════════════════════════════
 // STATE
@@ -32,8 +36,8 @@ const initialState: AgentState = {
 export const agentState = writable<AgentState>(initialState);
 
 // Event listener cleanup
-let eventUnlisten: UnlistenFn | null = null;
-let stopUnlisten: UnlistenFn | null = null;
+let eventUnlisten: (() => void) | null = null;
+let stopUnlisten: (() => void) | null = null;
 
 // ═══════════════════════════════════════════════════════════════
 // DERIVED
@@ -79,7 +83,14 @@ export const completedTasks = derived(
  * Run a goal using the Sunwell agent.
  */
 export async function runGoal(goal: string, projectPath?: string): Promise<boolean> {
+  // Demo mode - simulate agent execution
+  if (DEMO_MODE) {
+    return runDemoGoal(goal);
+  }
+
   try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    
     // Reset state
     agentState.set({
       ...initialState,
@@ -119,10 +130,98 @@ export async function runGoal(goal: string, projectPath?: string): Promise<boole
 }
 
 /**
+ * Demo mode - simulate agent execution with mock tasks.
+ */
+async function runDemoGoal(goal: string): Promise<boolean> {
+  // Generate demo tasks based on goal
+  const demoTasks: Task[] = [
+    { id: '1', description: 'Analyzing goal...', status: 'pending', progress: 0 },
+    { id: '2', description: 'Creating project structure', status: 'pending', progress: 0 },
+    { id: '3', description: 'Setting up models', status: 'pending', progress: 0 },
+    { id: '4', description: 'Implementing routes', status: 'pending', progress: 0 },
+    { id: '5', description: 'Adding authentication', status: 'pending', progress: 0 },
+    { id: '6', description: 'Writing tests', status: 'pending', progress: 0 },
+    { id: '7', description: 'Final verification', status: 'pending', progress: 0 },
+  ];
+
+  agentState.set({
+    ...initialState,
+    status: 'planning',
+    goal,
+    startTime: Date.now(),
+    tasks: demoTasks,
+    totalTasks: demoTasks.length,
+  });
+
+  // Simulate planning phase
+  await sleep(800);
+  
+  agentState.update(s => ({ ...s, status: 'running' }));
+
+  // Simulate each task
+  for (let i = 0; i < demoTasks.length; i++) {
+    // Start task
+    agentState.update(s => {
+      const tasks = [...s.tasks];
+      tasks[i] = { ...tasks[i], status: 'running', progress: 0 };
+      return { ...s, tasks, currentTaskIndex: i };
+    });
+
+    // Simulate progress
+    for (let p = 0; p <= 100; p += 20) {
+      await sleep(150 + Math.random() * 200);
+      agentState.update(s => {
+        const tasks = [...s.tasks];
+        tasks[i] = { ...tasks[i], progress: p };
+        return { ...s, tasks };
+      });
+    }
+
+    // Complete task
+    agentState.update(s => {
+      const tasks = [...s.tasks];
+      tasks[i] = { ...tasks[i], status: 'complete', progress: 100 };
+      return { ...s, tasks };
+    });
+
+    await sleep(200);
+  }
+
+  // Done!
+  agentState.update(s => ({
+    ...s,
+    status: 'done',
+    endTime: Date.now(),
+    learnings: [
+      'Detected Flask web framework',
+      'Using SQLAlchemy for ORM',
+      'pytest for testing',
+    ],
+  }));
+
+  return true;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
  * Stop the running agent.
  */
 export async function stopAgent(): Promise<void> {
+  if (DEMO_MODE) {
+    cleanup();
+    agentState.update(s => ({
+      ...s,
+      status: 'idle',
+      endTime: Date.now(),
+    }));
+    return;
+  }
+
   try {
+    const { invoke } = await import('@tauri-apps/api/core');
     await invoke('stop_agent');
     cleanup();
     agentState.update(s => ({
@@ -148,25 +247,33 @@ export function resetAgent(): void {
 // ═══════════════════════════════════════════════════════════════
 
 async function setupEventListeners(): Promise<void> {
+  if (DEMO_MODE) return;
+
   // Clean up existing listeners
   cleanup();
 
-  // Listen for agent events
-  eventUnlisten = await listen<AgentEvent>('agent-event', (event) => {
-    handleAgentEvent(event.payload);
-  });
+  try {
+    const { listen } = await import('@tauri-apps/api/event');
 
-  // Listen for agent stop
-  stopUnlisten = await listen('agent-stopped', () => {
-    const state = get(agentState);
-    if (state.status !== 'error') {
-      agentState.update(s => ({
-        ...s,
-        status: 'done',
-        endTime: Date.now(),
-      }));
-    }
-  });
+    // Listen for agent events
+    eventUnlisten = await listen<AgentEvent>('agent-event', (event) => {
+      handleAgentEvent(event.payload);
+    });
+
+    // Listen for agent stop
+    stopUnlisten = await listen('agent-stopped', () => {
+      const state = get(agentState);
+      if (state.status !== 'error') {
+        agentState.update(s => ({
+          ...s,
+          status: 'done',
+          endTime: Date.now(),
+        }));
+      }
+    });
+  } catch (e) {
+    console.error('Failed to setup event listeners:', e);
+  }
 }
 
 function cleanup(): void {

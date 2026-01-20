@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 from rich.console import Console
@@ -11,30 +12,34 @@ from rich.table import Table
 from sunwell.core.freethreading import is_free_threaded
 
 console = Console()
+# RFC-053: Separate stderr console for warnings (keeps stdout clean for NDJSON)
+stderr_console = Console(stderr=True)
 
 
 def check_free_threading(quiet: bool = False) -> bool:
     """Check if running on free-threaded Python and warn if not.
 
     Returns True if free-threaded, False otherwise.
+    Warnings are printed to stderr to keep stdout clean for --json mode.
     """
     if is_free_threaded():
         return True
 
     if not quiet and os.environ.get("SUNWELL_NO_GIL_WARNING") != "1":
-        console.print(
+        # RFC-053: Print to stderr so --json mode isn't corrupted
+        stderr_console.print(
             "[yellow]⚠️  Running on standard Python (GIL enabled)[/yellow]"
         )
-        console.print(
+        stderr_console.print(
             "[dim]   For optimal performance, use Python 3.14t (free-threaded):[/dim]"
         )
-        console.print(
+        stderr_console.print(
             "[dim]   /usr/local/bin/python3.14t -m sunwell chat[/dim]"
         )
-        console.print(
+        stderr_console.print(
             "[dim]   Set SUNWELL_NO_GIL_WARNING=1 to suppress this message.[/dim]"
         )
-        console.print()
+        stderr_console.print()
 
     return False
 

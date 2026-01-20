@@ -233,22 +233,41 @@ async def _run_agent(
     # Create model
     synthesis_model = None
     try:
+        from sunwell.config import resolve_naaru_model
         from sunwell.models.ollama import OllamaModel
 
         model_name = model_override
         if not model_name and config and hasattr(config, "naaru"):
-            model_name = getattr(config.naaru, "voice", "gemma3:1b")
+            # Resolve "auto" to actual model using voice_models list
+            model_name = resolve_naaru_model(
+                config.naaru.voice,
+                list(config.naaru.voice_models),
+            )
 
         if not model_name:
-            model_name = "gemma3:1b"
+            model_name = "gemma3:4b"  # Final fallback
 
         synthesis_model = OllamaModel(model=model_name)
-        console.print(f"[dim]Using model: {model_name}[/dim]")
+        # RFC-053: Suppress console output in JSON mode to keep NDJSON clean
+        if not json_output:
+            console.print(f"[dim]Using model: {model_name}[/dim]")
     except Exception as e:
-        console.print(f"[yellow]Warning: Could not load model: {e}[/yellow]")
+        if not json_output:
+            console.print(f"[yellow]Warning: Could not load model: {e}[/yellow]")
 
     if not synthesis_model:
-        console.print("[red]No model available for planning[/red]")
+        if not json_output:
+            console.print("[red]No model available for planning[/red]")
+        else:
+            # RFC-053: Emit error event in JSON mode
+            import json
+            import sys
+
+            from sunwell.adaptive.events import AgentEvent, EventType
+
+            msg = "No model available for planning"
+            error_event = AgentEvent(EventType.ERROR, {"message": msg})
+            print(json.dumps(error_event.to_dict()), file=sys.stdout, flush=True)
         return
 
     # Setup tool executor
@@ -332,39 +351,45 @@ async def _run_agent(
         config=naaru_config,
     )
 
-    # RFC-043: JSON output mode for Sunwell Studio
+    # RFC-053: JSON output mode with real-time event streaming for Sunwell Studio
     if json_output:
         import json
         import sys
 
-        from sunwell.adaptive.events import complete_event
+        from sunwell.adaptive.events import AgentEvent, EventType
+
+        def emit_json(event: AgentEvent) -> None:
+            """Emit event as NDJSON to stdout for Studio consumption."""
+            print(json.dumps(event.to_dict()), file=sys.stdout, flush=True)
+
+        # Configure Naaru with event callback for streaming
+        naaru_config.event_callback = emit_json
+
+        # Rebuild Naaru with updated config
+        naaru = Naaru(
+            sunwell_root=Path.cwd(),
+            synthesis_model=synthesis_model,
+            planner=planner,
+            tool_executor=tool_executor,
+            config=naaru_config,
+        )
 
         try:
-            result = await naaru.run(
+            # Run agent - events stream in real-time via callback
+            await naaru.run(
                 goal=goal,
                 context={"cwd": str(Path.cwd())},
                 on_progress=lambda msg: None,  # Suppress console output
                 max_time_seconds=time,
             )
-
-            # Emit completion event
-            event = complete_event(
-                tasks_completed=result.completed_count,
-                gates_passed=0,  # TODO: track gates
-                duration_s=result.duration_seconds if hasattr(result, "duration_seconds") else 0,
-            )
-            print(json.dumps(event.to_dict()), file=sys.stdout, flush=True)
+            # Note: complete event is emitted by Naaru.run() via callback
 
         except KeyboardInterrupt:
-            from sunwell.adaptive.events import AgentEvent, EventType
-
             error_event = AgentEvent(EventType.ERROR, {"message": "Interrupted by user"})
-            print(json.dumps(error_event.to_dict()), file=sys.stdout, flush=True)
+            emit_json(error_event)
         except Exception as e:
-            from sunwell.adaptive.events import AgentEvent, EventType
-
             error_event = AgentEvent(EventType.ERROR, {"message": str(e)})
-            print(json.dumps(error_event.to_dict()), file=sys.stdout, flush=True)
+            emit_json(error_event)
         return
 
     try:
