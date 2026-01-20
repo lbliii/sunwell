@@ -1,20 +1,27 @@
-"""Decision Memory - RFC-045 Phase 1.
+"""Decision Memory - RFC-045 Phase 1 + RFC-050 Bootstrap Extensions.
 
 Architectural decisions are first-class citizens that persist forever.
 Records why we chose X over Y, with rationale and context.
+
+RFC-050 adds:
+- source field to track bootstrap vs conversation decisions
+- metadata field for provenance tracking
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from sunwell.embedding.protocol import EmbeddingProtocol
+
+# RFC-050: Decision sources
+DecisionSource = Literal["conversation", "bootstrap"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,9 +75,16 @@ class Decision:
     supersedes: str | None = None
     """ID of decision this replaces (if changed)."""
 
+    # RFC-050: Bootstrap extensions
+    source: DecisionSource = "conversation"
+    """Where this decision came from: 'conversation' or 'bootstrap'."""
+
+    metadata: dict[str, Any] | None = None
+    """Optional metadata for provenance tracking (source file, commit, etc.)."""
+
     def to_dict(self) -> dict:
         """Serialize to dictionary for JSON storage."""
-        return {
+        result = {
             "id": self.id,
             "category": self.category,
             "question": self.question,
@@ -89,7 +103,12 @@ class Decision:
             "timestamp": self.timestamp.isoformat(),
             "session_id": self.session_id,
             "supersedes": self.supersedes,
+            # RFC-050: Bootstrap extensions
+            "source": self.source,
         }
+        if self.metadata:
+            result["metadata"] = self.metadata
+        return result
 
     @classmethod
     def from_dict(cls, data: dict) -> Decision:
@@ -113,6 +132,9 @@ class Decision:
             timestamp=datetime.fromisoformat(data["timestamp"]),
             session_id=data["session_id"],
             supersedes=data.get("supersedes"),
+            # RFC-050: Bootstrap extensions
+            source=data.get("source", "conversation"),
+            metadata=data.get("metadata"),
         )
 
     def to_text(self) -> str:
@@ -218,6 +240,9 @@ class DecisionMemory:
         session_id: str = "",
         confidence: float = 1.0,
         supersedes: str | None = None,
+        # RFC-050: Bootstrap extensions
+        source: DecisionSource = "conversation",
+        metadata: dict[str, Any] | None = None,
     ) -> Decision:
         """Record a new architectural decision.
 
@@ -231,17 +256,26 @@ class DecisionMemory:
             session_id: Session identifier
             confidence: Confidence level (0.0-1.0)
             supersedes: ID of decision this replaces (if changed)
+            source: Where decision came from ('conversation' or 'bootstrap')
+            metadata: Optional metadata for provenance tracking
 
         Returns:
             The recorded Decision
+
+        Bootstrap decisions are marked with:
+        - source="bootstrap"
+        - Lower confidence (0.6-0.8)
+        - No rejected options (not known from commits/docs)
+
+        Bootstrap decisions upgrade to conversation confidence when:
+        - User references them without contradiction
+        - Explicit confirmation during chat
         """
         decision_id = self._generate_id(category, question, choice)
 
         # If superseding, mark old decision as superseded
         if supersedes and supersedes in self._decisions:
-            # Update existing decision (create new one with supersedes link)
-            old_decision = self._decisions[supersedes]
-            # Keep old decision but create new one
+            # Note: Old decision is kept, new one references it via supersedes link
             pass
 
         rejected_options = tuple(
@@ -259,8 +293,10 @@ class DecisionMemory:
             context=context,
             confidence=confidence,
             timestamp=datetime.now(),
-            session_id=session_id,
+            session_id=session_id if source == "conversation" else "bootstrap",
             supersedes=supersedes,
+            source=source,
+            metadata=metadata,
         )
 
         self._decisions[decision.id] = decision
@@ -283,12 +319,14 @@ class DecisionMemory:
         self,
         category: str | None = None,
         active_only: bool = True,
+        source: DecisionSource | None = None,
     ) -> list[Decision]:
-        """Get decisions, optionally filtered by category.
+        """Get decisions, optionally filtered by category and/or source.
 
         Args:
             category: Filter by category (None = all)
             active_only: If True, exclude superseded decisions
+            source: Filter by source ('conversation', 'bootstrap', or None for all)
 
         Returns:
             List of decisions
@@ -297,6 +335,9 @@ class DecisionMemory:
 
         if category:
             decisions = [d for d in decisions if d.category == category]
+
+        if source:
+            decisions = [d for d in decisions if d.source == source]
 
         if active_only:
             # Exclude decisions that have been superseded
@@ -307,6 +348,71 @@ class DecisionMemory:
         decisions.sort(key=lambda d: d.timestamp, reverse=True)
 
         return decisions
+
+    async def get_bootstrap_stats(self) -> dict[str, int]:
+        """Get statistics about bootstrapped vs conversation decisions.
+
+        Returns:
+            Dict with counts: {'bootstrap': N, 'conversation': M, 'total': N+M}
+        """
+        all_decisions = await self.get_decisions(active_only=True)
+        bootstrap_count = sum(1 for d in all_decisions if d.source == "bootstrap")
+        conversation_count = sum(1 for d in all_decisions if d.source == "conversation")
+        return {
+            "bootstrap": bootstrap_count,
+            "conversation": conversation_count,
+            "total": len(all_decisions),
+        }
+
+    async def upgrade_bootstrap_decision(
+        self,
+        decision_id: str,
+        new_confidence: float = 0.90,
+        session_id: str = "",
+    ) -> Decision | None:
+        """Upgrade a bootstrap decision to higher confidence after user confirmation.
+
+        Called when user references or confirms a bootstrap decision without contradiction.
+
+        Args:
+            decision_id: ID of the decision to upgrade
+            new_confidence: New confidence level (default 0.90)
+            session_id: Session where confirmation occurred
+
+        Returns:
+            Updated Decision or None if not found
+        """
+        if decision_id not in self._decisions:
+            return None
+
+        old_decision = self._decisions[decision_id]
+        if old_decision.source != "bootstrap":
+            return old_decision  # Already a conversation decision
+
+        # Create upgraded decision
+        upgraded = Decision(
+            id=old_decision.id,
+            category=old_decision.category,
+            question=old_decision.question,
+            choice=old_decision.choice,
+            rejected=old_decision.rejected,
+            rationale=old_decision.rationale,
+            context=old_decision.context,
+            confidence=new_confidence,
+            timestamp=datetime.now(),
+            session_id=session_id or old_decision.session_id,
+            supersedes=None,
+            source="conversation",  # Upgraded to conversation-confirmed
+            metadata={
+                **(old_decision.metadata or {}),
+                "upgraded_from": "bootstrap",
+                "original_confidence": old_decision.confidence,
+            },
+        )
+
+        self._decisions[decision_id] = upgraded
+        self._save_decision(upgraded)
+        return upgraded
 
     async def find_relevant_decisions(
         self,
@@ -421,12 +527,13 @@ class DecisionMemory:
                 if rejected_lower in proposed_lower:
                     return decision
 
-            # If proposed choice is different from existing choice
-            # and they seem to be alternatives
-            if choice_lower != proposed_lower:
-                # Check if they're mutually exclusive (simple heuristic)
-                if self._are_mutually_exclusive(choice_lower, proposed_lower):
-                    return decision
+            # If proposed choice differs and they seem mutually exclusive
+            is_alternative = (
+                choice_lower != proposed_lower and
+                self._are_mutually_exclusive(choice_lower, proposed_lower)
+            )
+            if is_alternative:
+                return decision
 
         return None
 

@@ -1,16 +1,29 @@
 """Backlog Management for Autonomous Backlog (RFC-046 Phase 3).
 
 Maintain goal DAG and coordinate execution.
+
+RFC-051 Extensions:
+- claim_goal(goal_id, worker_id) - Claim a goal for multi-instance
+- exclusive_access() - Context manager for cross-process safety
+- get_pending_goals() - Get unclaimed, incomplete goals
+- mark_failed(goal_id, error) - Mark a goal as failed
+- get_goal(goal_id) - Get a goal by ID
 """
 
 from __future__ import annotations
 
+import contextlib
+import fcntl
 import json
-from dataclasses import dataclass, field
+import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sunwell.backlog.goals import Goal, GoalGenerator, GoalPolicy, GoalResult
+from sunwell.backlog.goals import Goal, GoalGenerator, GoalPolicy, GoalResult, GoalScope
 from sunwell.backlog.signals import SignalExtractor
 
 if TYPE_CHECKING:
@@ -147,6 +160,9 @@ class BacklogManager:
             blocked={},
         )
 
+        # External ref index for deduplication (RFC-049)
+        self._external_refs: dict[str, str] = {}  # external_ref → goal_id
+
         # Load existing backlog
         self._load()
 
@@ -226,6 +242,199 @@ class BacklogManager:
         self.backlog.in_progress = None
         self._save()
 
+    async def add_external_goal(self, goal: Goal) -> None:
+        """Add a goal from an external event (RFC-049).
+
+        External goals are:
+        1. Tracked with external_ref for deduplication
+        2. Prioritized alongside internal goals
+        3. Logged separately for auditing
+
+        Args:
+            goal: The goal to add (must have external_ref set)
+        """
+        self.backlog.goals[goal.id] = goal
+
+        # Track external reference for deduplication
+        if goal.external_ref:
+            self._external_refs[goal.external_ref] = goal.id
+
+        self._save()
+
+    async def get_goals_by_external_ref(self, ref: str) -> list[Goal]:
+        """Get goals associated with an external reference (RFC-049).
+
+        Args:
+            ref: External reference ID (e.g., 'github:issue:123')
+
+        Returns:
+            List of goals with this external reference (usually 0 or 1)
+        """
+        goal_id = self._external_refs.get(ref)
+        if goal_id and goal_id in self.backlog.goals:
+            return [self.backlog.goals[goal_id]]
+        return []
+
+    # =========================================================================
+    # RFC-051: Multi-Instance Coordination Methods
+    # =========================================================================
+
+    @asynccontextmanager
+    async def exclusive_access(self) -> AsyncIterator[None]:
+        """Acquire exclusive access to backlog.
+
+        Uses flock for cross-process safety. Must be used when
+        modifying backlog from multiple worker processes.
+
+        Example:
+            async with backlog_manager.exclusive_access():
+                goal = await backlog_manager.get_pending_goals()[0]
+                await backlog_manager.claim_goal(goal.id, worker_id=1)
+        """
+        lock_path = self.backlog_path / "backlog.lock"
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            # Reload to get latest state
+            self._load()
+            yield
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+            os.close(fd)
+
+    async def claim_goal(self, goal_id: str, worker_id: int) -> bool:
+        """Claim a goal for a worker (RFC-051).
+
+        Must be called within exclusive_access() context.
+
+        Args:
+            goal_id: ID of the goal to claim
+            worker_id: ID of the claiming worker
+
+        Returns:
+            True if successfully claimed, False if already claimed
+        """
+        goal = self.backlog.goals.get(goal_id)
+        if goal is None:
+            return False
+
+        # Check if already claimed
+        if goal.claimed_by is not None:
+            return False
+
+        # Create new goal with claim info
+        claimed_goal = Goal(
+            id=goal.id,
+            title=goal.title,
+            description=goal.description,
+            source_signals=goal.source_signals,
+            priority=goal.priority,
+            estimated_complexity=goal.estimated_complexity,
+            requires=goal.requires,
+            category=goal.category,
+            auto_approvable=goal.auto_approvable,
+            scope=goal.scope,
+            external_ref=goal.external_ref,
+            claimed_by=worker_id,
+            claimed_at=datetime.now(),
+        )
+
+        self.backlog.goals[goal_id] = claimed_goal
+        self._save()
+        return True
+
+    async def get_pending_goals(self) -> list[Goal]:
+        """Get goals that are pending (not completed, not blocked).
+
+        For multi-instance, this returns goals in execution order
+        that haven't been completed or blocked.
+
+        Returns:
+            List of pending goals in priority order
+        """
+        pending = []
+        for goal in self.backlog.execution_order():
+            if goal.id not in self.backlog.completed and goal.id not in self.backlog.blocked:
+                pending.append(goal)
+        return pending
+
+    async def get_goal(self, goal_id: str) -> Goal | None:
+        """Get a goal by ID.
+
+        Args:
+            goal_id: ID of the goal to retrieve
+
+        Returns:
+            The goal, or None if not found
+        """
+        return self.backlog.goals.get(goal_id)
+
+    async def mark_complete(self, goal_id: str) -> None:
+        """Mark a goal as completed (RFC-051).
+
+        Args:
+            goal_id: ID of the goal to mark complete
+        """
+        self.backlog.completed.add(goal_id)
+        self.backlog.in_progress = None
+        self._save()
+
+    async def mark_failed(self, goal_id: str, error: str) -> None:
+        """Mark a goal as failed (RFC-051).
+
+        Args:
+            goal_id: ID of the goal that failed
+            error: Error message describing the failure
+        """
+        self.backlog.blocked[goal_id] = f"Failed: {error}"
+        self.backlog.in_progress = None
+        self._save()
+
+    async def unclaim_goal(self, goal_id: str) -> None:
+        """Remove claim from a goal (RFC-051).
+
+        Used when a worker fails or abandons a goal.
+
+        Args:
+            goal_id: ID of the goal to unclaim
+        """
+        goal = self.backlog.goals.get(goal_id)
+        if goal is None:
+            return
+
+        # Create new goal without claim
+        unclaimed_goal = Goal(
+            id=goal.id,
+            title=goal.title,
+            description=goal.description,
+            source_signals=goal.source_signals,
+            priority=goal.priority,
+            estimated_complexity=goal.estimated_complexity,
+            requires=goal.requires,
+            category=goal.category,
+            auto_approvable=goal.auto_approvable,
+            scope=goal.scope,
+            external_ref=goal.external_ref,
+            claimed_by=None,
+            claimed_at=None,
+        )
+
+        self.backlog.goals[goal_id] = unclaimed_goal
+        self._save()
+
+    def get_claims(self) -> dict[str, int]:
+        """Get current goal claims (RFC-051).
+
+        Returns:
+            Dictionary mapping goal_id → worker_id for claimed goals
+        """
+        claims = {}
+        for goal in self.backlog.goals.values():
+            if goal.claimed_by is not None:
+                claims[goal.id] = goal.claimed_by
+        return claims
+
     async def _record_completion(self, goal_id: str, result: GoalResult) -> None:
         """Record goal completion in history."""
         history_path = self.backlog_path / "completed.jsonl"
@@ -259,6 +468,13 @@ class BacklogManager:
                     max_files=scope_data.get("max_files", 5),
                     max_lines_changed=scope_data.get("max_lines_changed", 500),
                 )
+
+                # RFC-051: Parse claimed_at timestamp
+                claimed_at = None
+                if goal_data.get("claimed_at"):
+                    with contextlib.suppress(ValueError, TypeError):
+                        claimed_at = datetime.fromisoformat(goal_data["claimed_at"])
+
                 goals[gid] = Goal(
                     id=goal_data["id"],
                     title=goal_data["title"],
@@ -270,6 +486,9 @@ class BacklogManager:
                     category=goal_data["category"],
                     auto_approvable=goal_data.get("auto_approvable", False),
                     scope=scope,
+                    external_ref=goal_data.get("external_ref"),  # RFC-049
+                    claimed_by=goal_data.get("claimed_by"),  # RFC-051
+                    claimed_at=claimed_at,  # RFC-051
                 )
 
             self.backlog = Backlog(
@@ -278,6 +497,15 @@ class BacklogManager:
                 in_progress=data.get("in_progress"),
                 blocked=data.get("blocked", {}),
             )
+
+            # Load or rebuild external refs index (RFC-049)
+            self._external_refs = data.get("external_refs", {})
+            if not self._external_refs:
+                # Rebuild index from goals if migrating from old schema
+                for goal in self.backlog.goals.values():
+                    if goal.external_ref:
+                        self._external_refs[goal.external_ref] = goal.id
+
         except (json.JSONDecodeError, KeyError, TypeError, ValueError):
             # Invalid data - start fresh
             pass
@@ -288,6 +516,7 @@ class BacklogManager:
         current_path.parent.mkdir(parents=True, exist_ok=True)
 
         data = {
+            "schema_version": 3,  # RFC-051: Added claimed_by/claimed_at
             "goals": {
                 gid: {
                     "id": goal.id,
@@ -303,12 +532,24 @@ class BacklogManager:
                         "max_files": goal.scope.max_files,
                         "max_lines_changed": goal.scope.max_lines_changed,
                     },
+                    "external_ref": goal.external_ref,  # RFC-049
+                    "claimed_by": goal.claimed_by,  # RFC-051
+                    "claimed_at": (
+                        goal.claimed_at.isoformat() if goal.claimed_at else None
+                    ),  # RFC-051
                 }
                 for gid, goal in self.backlog.goals.items()
             },
             "completed": list(self.backlog.completed),
             "in_progress": self.backlog.in_progress,
             "blocked": self.backlog.blocked,
+            "external_refs": self._external_refs,  # RFC-049
         }
 
-        current_path.write_text(json.dumps(data, indent=2))
+        # Use file locking for process safety (RFC-049/051)
+        with open(current_path, "w") as f:
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            try:
+                json.dump(data, f, indent=2)
+            finally:
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)

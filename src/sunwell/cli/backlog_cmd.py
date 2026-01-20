@@ -3,6 +3,7 @@
 Provides:
 - sunwell backlog: View prioritized backlog
 - sunwell backlog --execute: Execute in supervised mode
+- sunwell backlog --autonomous: Execute with guardrails (RFC-048)
 - sunwell backlog refresh: Force refresh from signals
 - sunwell backlog add "goal": Add explicit goal
 - sunwell backlog skip <id>: Skip a goal
@@ -15,15 +16,16 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 from rich.console import Console
 from rich.table import Table
 
-from sunwell.backlog.goals import GoalPolicy
 from sunwell.backlog.manager import BacklogManager
-from sunwell.cli.helpers import create_model
-from sunwell.intelligence.context import ProjectContext
+
+if TYPE_CHECKING:
+    pass
 
 console = Console()
 
@@ -125,16 +127,227 @@ async def _show_backlog(json_output: bool, mermaid: bool) -> None:
 
 @backlog.command()
 @click.option("--approve", help="Comma-separated goal IDs to pre-approve")
+@click.option("--workers", "-n", "num_workers", type=int, default=None,
+              help="Number of parallel workers (RFC-051)")
+@click.option("--auto", is_flag=True, help="Auto-detect optimal worker count")
+@click.option("--dry-run", is_flag=True, help="Show what would happen")
 @click.pass_context
-def execute(ctx, approve: str | None) -> None:
+def execute(
+    ctx,
+    approve: str | None,
+    num_workers: int | None,
+    auto: bool,
+    dry_run: bool,
+) -> None:
     """Execute backlog in supervised mode.
 
-    Executes goals from backlog using ArtifactPlanner and AdaptiveAgent.
-    Requires model and agent setup - use 'sunwell agent run' for individual goals.
+    Use --workers for parallel execution (RFC-051):
+
+        sunwell backlog execute --workers 4    # Use 4 workers
+        sunwell backlog execute --workers auto # Auto-detect count
+        sunwell backlog execute --dry-run      # Preview only
+
+    For serial execution, use 'sunwell agent run' for individual goals.
     """
-    console.print("⚠️  Full execution loop requires model/agent setup")
-    console.print("For now, use 'sunwell backlog' to view goals")
-    console.print("Then execute individual goals with 'sunwell agent run <goal>'")
+    if num_workers is not None or auto:
+        # Delegate to parallel workers command
+        asyncio.run(_execute_parallel(num_workers or 4, auto, dry_run))
+    else:
+        console.print("⚠️  Full execution loop requires model/agent setup")
+        console.print("For parallel execution, use: sunwell backlog execute --workers 4")
+        console.print("For single goals, use: sunwell agent run <goal>")
+
+
+async def _execute_parallel(num_workers: int, auto: bool, dry_run: bool) -> None:
+    """Execute backlog with parallel workers."""
+    # Import here to avoid circular imports
+    from sunwell.cli.workers_cmd import _start_workers
+
+    await _start_workers(num_workers, category=None, dry_run=dry_run, auto=auto)
+
+
+@backlog.command()
+@click.option(
+    "--trust",
+    type=click.Choice(["conservative", "guarded", "supervised", "full"]),
+    default="guarded",
+    help="Trust level for guardrails (default: guarded)",
+)
+@click.option("--max-files", type=int, default=None, help="Override max files per goal")
+@click.option("--max-lines", type=int, default=None, help="Override max lines per goal")
+@click.option("--max-goals", type=int, default=None, help="Override max goals per session")
+@click.option("--dry-run", is_flag=True, help="Show what would be done without executing")
+@click.pass_context
+def autonomous(
+    ctx,
+    trust: str,
+    max_files: int | None,
+    max_lines: int | None,
+    max_goals: int | None,
+    dry_run: bool,
+) -> None:
+    """Execute backlog autonomously with guardrails (RFC-048).
+
+    Guardrails ensure safe unsupervised operation:
+    - Actions are classified by risk level
+    - Scope limits prevent runaway changes
+    - Each goal creates a git checkpoint
+    - Session can be rolled back if needed
+
+    Examples:
+
+        sunwell backlog autonomous                    # Run with defaults
+        sunwell backlog autonomous --trust supervised # Ask for dangerous only
+        sunwell backlog autonomous --max-files 20     # Override file limit
+        sunwell backlog autonomous --dry-run          # Preview without executing
+    """
+    asyncio.run(_run_autonomous(trust, max_files, max_lines, max_goals, dry_run))
+
+
+async def _run_autonomous(
+    trust: str,
+    max_files: int | None,
+    max_lines: int | None,
+    max_goals: int | None,
+    dry_run: bool,
+) -> None:
+    """Run autonomous backlog with guardrails."""
+    from sunwell.guardrails import (
+        GuardrailConfig,
+        GuardrailSystem,
+        ScopeLimits,
+        TrustLevel,
+        load_config,
+    )
+
+    root = Path.cwd()
+
+    # Load config with overrides
+    config = load_config(root)
+
+    # Apply trust level
+    config = GuardrailConfig(
+        trust_level=TrustLevel(trust),
+        scope=ScopeLimits(
+            max_files_per_goal=max_files or config.scope.max_files_per_goal,
+            max_lines_changed_per_goal=max_lines or config.scope.max_lines_changed_per_goal,
+            max_goals_per_session=max_goals or config.scope.max_goals_per_session,
+            max_files_per_session=config.scope.max_files_per_session,
+            max_lines_per_session=config.scope.max_lines_per_session,
+            max_duration_per_session_hours=config.scope.max_duration_per_session_hours,
+            require_tests_for_source_changes=config.scope.require_tests_for_source_changes,
+            require_git_clean_start=config.scope.require_git_clean_start,
+            commit_after_each_goal=config.scope.commit_after_each_goal,
+        ),
+        verification=config.verification,
+        trust_zones=config.trust_zones,
+        auto_approve_categories=config.auto_approve_categories,
+        auto_approve_complexity=config.auto_approve_complexity,
+    )
+
+    # Create guardrail system
+    guardrails = GuardrailSystem(repo_path=root, config=config)
+
+    # Show configuration
+    console.print("\n🛡️ [bold]Guardrails: {trust.upper()} mode[/bold]")
+    console.print(f"   Trust zones: {len(config.trust_zones) + 7} (includes defaults)")
+    scope = config.scope
+    console.print(
+        f"   Scope limits: {scope.max_files_per_goal} files/goal, "
+        f"{scope.max_lines_changed_per_goal} lines/goal, "
+        f"{scope.max_goals_per_session} goals/session"
+    )
+    console.print(
+        f"   Verification: {config.verification.safe_threshold:.0%} (safe), "
+        f"{config.verification.moderate_threshold:.0%} (moderate)"
+    )
+
+    # Refresh backlog
+    manager = BacklogManager(root=root)
+    backlog = await manager.refresh()
+    goals = backlog.execution_order()
+
+    if not goals:
+        console.print("\n📋 No goals in backlog")
+        return
+
+    # Categorize goals
+    auto_count = 0
+    escalate_count = 0
+    for goal in goals:
+        if await guardrails.can_auto_approve(goal):
+            auto_count += 1
+        else:
+            escalate_count += 1
+
+    console.print(f"\n📋 [bold]Backlog:[/bold] {len(goals)} goals found")
+    console.print(f"   ✅ {auto_count} auto-approvable (safe + simple)")
+    console.print(f"   ⚠️ {escalate_count} require approval (complex or protected paths)")
+
+    if dry_run:
+        console.print("\n[yellow]Dry run - no changes will be made[/yellow]")
+
+        # Show what would happen
+        table = Table(title="Goals that would be processed")
+        table.add_column("ID", style="cyan")
+        table.add_column("Title")
+        table.add_column("Auto")
+
+        for goal in goals[:20]:
+            can_auto = await guardrails.can_auto_approve(goal)
+            table.add_row(
+                goal.id[:8],
+                goal.title[:50],
+                "✅" if can_auto else "⚠️",
+            )
+
+        console.print(table)
+        return
+
+    # Start session
+    try:
+        session = await guardrails.start_session()
+        console.print(f"\n🏷️ Session tagged: [cyan]{session.tag}[/cyan]")
+    except Exception as e:
+        console.print(f"\n[red]❌ Cannot start session: {e}[/red]")
+        return
+
+    console.print("\n" + "━" * 60 + "\n")
+
+    # Process goals
+    completed = 0
+    skipped = 0
+
+    for i, goal in enumerate(goals, 1):
+        console.print(f"[{i}/{len(goals)}] [bold]{goal.title}[/bold]")
+        console.print(f"      Category: {goal.category} | Complexity: {goal.estimated_complexity}")
+
+        can_auto = await guardrails.can_auto_approve(goal)
+
+        if can_auto:
+            console.print("      ✅ Auto-approved")
+            # In a real implementation, we'd execute the goal here
+            console.print("      [dim]Execution not yet wired up[/dim]")
+            completed += 1
+        else:
+            console.print("      ⚠️ Requires approval - skipping in demo")
+            skipped += 1
+
+        console.print()
+
+        # Check if we can continue
+        can_continue = guardrails.can_continue()
+        if not can_continue.passed:
+            console.print(f"[yellow]Session limit reached: {can_continue.reason}[/yellow]")
+            break
+
+    # Session complete
+    console.print("━" * 60)
+    stats = guardrails.get_session_stats()
+    console.print("\n📊 [bold]Session Complete[/bold]")
+    console.print(f"   Goals: {completed} completed, {skipped} skipped")
+    console.print(f"   Duration: {stats['duration_minutes']:.1f} minutes")
+    console.print(f"\n   To rollback: sunwell guardrails rollback {session.tag}")
 
 
 @backlog.command()

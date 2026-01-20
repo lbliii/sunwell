@@ -416,3 +416,28 @@ main.add_command(plan_cmd.plan)
 from sunwell.cli import verify_cmd
 
 main.add_command(verify_cmd.verify)
+
+# Autonomy Guardrails (RFC-048)
+from sunwell.cli import guardrails_cmd
+
+main.add_command(guardrails_cmd.guardrails)
+
+# External Integration (RFC-049)
+from sunwell.cli import external_cmd
+
+main.add_command(external_cmd.external)
+
+# Fast Bootstrap (RFC-050)
+from sunwell.cli import bootstrap_cmd
+
+main.add_command(bootstrap_cmd.bootstrap)
+
+# Multi-Instance Coordination (RFC-051)
+from sunwell.cli import workers_cmd
+
+main.add_command(workers_cmd.workers)
+
+# Team Intelligence (RFC-052)
+from sunwell.cli import team_cmd
+
+main.add_command(team_cmd.team)

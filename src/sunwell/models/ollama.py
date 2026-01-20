@@ -54,7 +54,7 @@ class OllamaModel:
         )
     """
 
-    model: str = "gemma3:1b"
+    model: str = "gemma3:4b"
     base_url: str = "http://localhost:11434/v1"
     use_native_api: bool = False  # Use /api/generate instead of /v1/chat for better system prompts
     max_connections: int = 10  # Connection pool size for parallel requests

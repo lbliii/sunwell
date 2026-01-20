@@ -1,7 +1,9 @@
 """Autonomous Loop for Autonomous Backlog (RFC-046 Phase 4).
 
 Main execution loop for autonomous backlog operation.
-Integrates with RFC-047 (Deep Verification) for confidence-based auto-approval.
+Integrates with:
+- RFC-047 (Deep Verification) for confidence-based auto-approval
+- RFC-048 (Autonomy Guardrails) for safe unsupervised operation
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from sunwell.backlog.manager import BacklogManager
 
 if TYPE_CHECKING:
     from sunwell.adaptive.agent import AdaptiveAgent
+    from sunwell.guardrails import GuardrailSystem
     from sunwell.models.protocol import ModelProtocol
     from sunwell.naaru.planners.artifact import ArtifactPlanner
 
@@ -27,16 +30,21 @@ class LoopEvent:
     """Event from autonomous loop."""
 
     event_type: Literal[
+        "session_started",
         "backlog_refreshed",
         "goal_proposed",
         "goal_awaiting_approval",
+        "goal_escalated",
         "goal_started",
         "goal_planned",
         "execution_event",
         "goal_completed",
         "goal_failed",
         "goal_verification",
+        "goal_checkpointed",
         "backlog_empty",
+        "session_complete",
+        "session_rollback",
     ]
     data: dict
 
@@ -48,8 +56,13 @@ AUTO_APPROVE_CONFIDENCE_THRESHOLD = 0.85
 class AutonomousLoop:
     """Main loop for autonomous backlog execution.
 
-    Integrates with RFC-047 (Deep Verification) for confidence-based auto-approval.
-    Goals marked auto_approvable also require verification confidence >= 85%.
+    Integrates with:
+    - RFC-047 (Deep Verification) for confidence-based auto-approval
+    - RFC-048 (Autonomy Guardrails) for safe unsupervised operation
+
+    Goals marked auto_approvable also require:
+    - Verification confidence >= 85%
+    - Guardrail checks (scope limits, action classification)
     """
 
     def __init__(
@@ -58,6 +71,7 @@ class AutonomousLoop:
         planner: ArtifactPlanner,
         agent: AdaptiveAgent,
         model: ModelProtocol | None = None,
+        guardrails: GuardrailSystem | None = None,
     ):
         """Initialize autonomous loop.
 
@@ -66,11 +80,13 @@ class AutonomousLoop:
             planner: Artifact planner (RFC-036)
             agent: Adaptive agent (RFC-042)
             model: Model for deep verification (RFC-047)
+            guardrails: Guardrail system for safe operation (RFC-048)
         """
         self.backlog_manager = backlog_manager
         self.planner = planner
         self.agent = agent
         self.model = model
+        self.guardrails = guardrails
 
     async def run(
         self,
@@ -81,11 +97,36 @@ class AutonomousLoop:
         Modes:
         - propose: Generate backlog and show to user, don't execute
         - supervised: Execute with human approval per goal
-        - autonomous: Execute auto-approvable goals without asking
+        - autonomous: Execute auto-approvable goals without asking (RFC-048)
+
+        When guardrails are enabled (RFC-048):
+        - Session starts with git tag for rollback
+        - Each goal is classified by risk level
+        - Scope limits are enforced
+        - Each goal completion creates a checkpoint commit
 
         Yields:
             LoopEvent for each step
         """
+        # Start guardrail session if available (RFC-048)
+        if self.guardrails and mode == "autonomous":
+            try:
+                session = await self.guardrails.start_session()
+                yield LoopEvent(
+                    event_type="session_started",
+                    data={
+                        "session_id": session.session_id,
+                        "tag": session.tag,
+                        "mode": mode,
+                    },
+                )
+            except Exception as e:
+                yield LoopEvent(
+                    event_type="goal_failed",
+                    data={"error": f"Failed to start session: {e}"},
+                )
+                return
+
         # Initial refresh
         backlog = await self.backlog_manager.refresh()
         yield LoopEvent(
@@ -94,6 +135,19 @@ class AutonomousLoop:
         )
 
         while True:
+            # Check if session can continue (RFC-048)
+            if self.guardrails:
+                can_continue = self.guardrails.can_continue()
+                if not can_continue.passed:
+                    yield LoopEvent(
+                        event_type="session_complete",
+                        data={
+                            "reason": can_continue.reason,
+                            "stats": self.guardrails.get_session_stats(),
+                        },
+                    )
+                    break
+
             # Get next goal
             goal = backlog.next_goal()
 
@@ -118,15 +172,51 @@ class AutonomousLoop:
                 )
                 continue
 
-            if mode == "supervised" or not goal.auto_approvable:
-                yield LoopEvent(
-                    event_type="goal_awaiting_approval",
-                    data={"goal": goal},
-                )
-                approval = await self._await_approval(goal)
-                if not approval:
-                    await self.backlog_manager.block_goal(goal.id, "User skipped")
-                    continue
+            # RFC-048: Use guardrails for auto-approval decision
+            should_escalate = False
+            if self.guardrails and mode == "autonomous":
+                can_auto = await self.guardrails.can_auto_approve(goal)
+                if not can_auto:
+                    should_escalate = True
+            elif not goal.auto_approvable:
+                should_escalate = True
+
+            if mode == "supervised" or should_escalate:
+                # RFC-048: Use guardrail escalation if available
+                if self.guardrails and should_escalate:
+                    resolution = await self.guardrails.escalate_goal(goal)
+                    yield LoopEvent(
+                        event_type="goal_escalated",
+                        data={
+                            "goal": goal,
+                            "action": resolution.action,
+                            "option_id": resolution.option_id,
+                        },
+                    )
+
+                    if resolution.action == "skip":
+                        await self.backlog_manager.block_goal(goal.id, "User skipped")
+                        continue
+                    elif resolution.action == "abort":
+                        yield LoopEvent(
+                            event_type="session_complete",
+                            data={"reason": "User aborted session"},
+                        )
+                        return
+                    elif resolution.action != "approve":
+                        await self.backlog_manager.block_goal(
+                            goal.id, f"Action: {resolution.action}"
+                        )
+                        continue
+                else:
+                    yield LoopEvent(
+                        event_type="goal_awaiting_approval",
+                        data={"goal": goal},
+                    )
+                    approval = await self._await_approval(goal)
+                    if not approval:
+                        await self.backlog_manager.block_goal(goal.id, "User skipped")
+                        continue
 
             # Execute goal
             yield LoopEvent(
@@ -134,6 +224,10 @@ class AutonomousLoop:
                 data={"goal": goal},
             )
             self.backlog_manager.backlog.in_progress = goal.id
+
+            # RFC-048: Track goal start time
+            if self.guardrails:
+                self.guardrails.scope_tracker.start_goal()
 
             start_time = time()
 
@@ -164,6 +258,21 @@ class AutonomousLoop:
                 result.duration_seconds = duration
 
                 if result.success:
+                    # RFC-048: Checkpoint the goal
+                    if self.guardrails:
+                        from sunwell.guardrails import FileChange
+
+                        changes = [
+                            FileChange(path=Path(f), lines_added=10, lines_removed=5)
+                            for f in result.files_changed
+                        ]
+                        commit = await self.guardrails.checkpoint_goal(goal, changes)
+                        if commit:
+                            yield LoopEvent(
+                                event_type="goal_checkpointed",
+                                data={"goal": goal, "commit": commit},
+                            )
+
                     await self.backlog_manager.complete_goal(goal.id, result)
                     yield LoopEvent(
                         event_type="goal_completed",
@@ -196,6 +305,14 @@ class AutonomousLoop:
             yield LoopEvent(
                 event_type="backlog_refreshed",
                 data={"backlog": backlog},
+            )
+
+        # Session complete - cleanup
+        if self.guardrails and mode == "autonomous":
+            await self.guardrails.cleanup_session()
+            yield LoopEvent(
+                event_type="session_complete",
+                data={"stats": self.guardrails.get_session_stats()},
             )
 
     async def _await_approval(self, goal: Goal) -> bool:

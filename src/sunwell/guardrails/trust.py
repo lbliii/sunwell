@@ -3,6 +3,8 @@
 Evaluates paths against trust zones to determine risk overrides.
 """
 
+from __future__ import annotations
+
 from fnmatch import fnmatch
 from pathlib import Path
 
@@ -174,9 +176,8 @@ class TrustZoneEvaluator:
             return True
 
         # Try with ** prefix for nested matching
-        if not pattern.startswith("**"):
-            if fnmatch(path, f"**/{pattern}"):
-                return True
+        if not pattern.startswith("**") and fnmatch(path, f"**/{pattern}"):
+            return True
 
         # Check if pattern matches any path component
         path_parts = Path(path).parts

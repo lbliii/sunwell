@@ -1,6 +1,14 @@
-"""Project Context - RFC-045 Phase 5.
+"""Project Context - RFC-045 Phase 5 + RFC-050 Bootstrap + RFC-052 Team Intelligence.
 
-Unified context combining Simulacrum + Project Intelligence.
+Unified context combining Simulacrum + Project Intelligence + Team Intelligence.
+
+RFC-050 adds:
+- OwnershipMap for code ownership tracking
+- BootstrapStatus for tracking bootstrap state
+
+RFC-052 adds:
+- TeamKnowledgeStore for shared team decisions
+- UnifiedIntelligence for team + personal + project
 """
 
 from __future__ import annotations
@@ -10,16 +18,19 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from sunwell.bootstrap.ownership import OwnershipMap
+    from sunwell.bootstrap.types import BootstrapStatus
     from sunwell.intelligence.codebase import CodebaseGraph
     from sunwell.intelligence.decisions import DecisionMemory
     from sunwell.intelligence.failures import FailureMemory
     from sunwell.intelligence.patterns import PatternProfile
     from sunwell.simulacrum.core.store import SimulacrumStore
+    from sunwell.team import TeamKnowledgeStore, UnifiedIntelligence
 
 
 @dataclass
 class ProjectContext:
-    """Unified context combining Simulacrum + Project Intelligence.
+    """Unified context combining Simulacrum + Project Intelligence + Team Intelligence.
 
     This is the main interface for accessing all project intelligence.
     """
@@ -41,6 +52,20 @@ class ProjectContext:
     failures: FailureMemory
     """Failed approaches with root cause analysis."""
 
+    # RFC-050: Bootstrap intelligence
+    ownership: OwnershipMap | None = None
+    """Code ownership from git blame analysis (optional)."""
+
+    bootstrap_status: BootstrapStatus | None = None
+    """When/what was bootstrapped."""
+
+    # RFC-052: Team intelligence
+    team: TeamKnowledgeStore | None = None
+    """Team-shared knowledge (decisions, failures, patterns)."""
+
+    unified: UnifiedIntelligence | None = None
+    """Combined team + personal + project intelligence."""
+
     # Session state
     active_goals: list[str] = field(default_factory=list)
     """What we're currently working on."""
@@ -58,11 +83,17 @@ class ProjectContext:
         Returns:
             ProjectContext with all intelligence loaded
         """
+        from sunwell.bootstrap.ownership import OwnershipMap
         from sunwell.intelligence.codebase import CodebaseGraph
         from sunwell.intelligence.decisions import DecisionMemory
         from sunwell.intelligence.failures import FailureMemory
         from sunwell.intelligence.patterns import PatternProfile
         from sunwell.simulacrum.core.store import SimulacrumStore
+        from sunwell.team import TeamKnowledgeStore, UnifiedIntelligence
+        from sunwell.team.gitignore_template import ensure_sunwell_structure
+
+        # Ensure .sunwell directory structure exists with proper gitignore
+        ensure_sunwell_structure(project_root)
 
         intelligence_path = project_root / ".sunwell" / "intelligence"
         sessions_path = project_root / ".sunwell" / "sessions"
@@ -76,13 +107,61 @@ class ProjectContext:
         patterns = PatternProfile.load(base_path=intelligence_path)
         failures = FailureMemory(base_path=intelligence_path)
 
+        # RFC-050: Load ownership map
+        ownership = OwnershipMap(intelligence_path)
+
+        # RFC-050: Load bootstrap status
+        bootstrap_status = cls._load_bootstrap_status(project_root)
+
+        # RFC-052: Load team intelligence
+        team = TeamKnowledgeStore(project_root)
+
+        # RFC-052: Create unified intelligence (team + personal + project)
+        unified = UnifiedIntelligence(
+            team_store=team,
+            personal_store=decisions,
+            failure_store=failures,
+            project_analyzer=None,  # Codebase analyzer integration is optional
+        )
+
         return cls(
             simulacrum=simulacrum,
             decisions=decisions,
             codebase=codebase,
             patterns=patterns,
             failures=failures,
+            ownership=ownership,
+            bootstrap_status=bootstrap_status,
+            team=team,
+            unified=unified,
         )
+
+    @staticmethod
+    def _load_bootstrap_status(project_root: Path) -> BootstrapStatus | None:
+        """Load bootstrap status from state file."""
+        import json
+        from datetime import datetime, timedelta
+
+        from sunwell.bootstrap.types import BootstrapStatus
+
+        state_path = project_root / ".sunwell" / "bootstrap_state.json"
+        if not state_path.exists():
+            return None
+
+        try:
+            with open(state_path) as f:
+                data = json.load(f)
+
+            return BootstrapStatus(
+                last_run=datetime.fromisoformat(data.get("updated_at", datetime.now().isoformat())),
+                last_commit_scanned=data.get("last_commit", ""),
+                decisions_count=data.get("decisions_count", 0),
+                patterns_count=data.get("patterns_count", 0),
+                ownership_domains=data.get("ownership_domains", 0),
+                scan_duration=timedelta(seconds=data.get("scan_duration_s", 0)),
+            )
+        except (json.JSONDecodeError, OSError, KeyError):
+            return None
 
     async def save(self) -> None:
         """Persist current state."""

@@ -180,7 +180,7 @@ def chat(
         model = {
             "openai": "gpt-4o",
             "anthropic": "claude-sonnet-4-20250514",
-            "ollama": "gemma3:1b",
+            "ollama": "gemma3:4b",
             "mock": "mock",
         }.get(provider, "gpt-4o")
 

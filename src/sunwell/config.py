@@ -331,10 +331,10 @@ def load_config(path: str | Path | None = None) -> SunwellConfig:
             "alternate_titles": True,
             "use_native_ollama_api": True,
             "voice": "auto",
-            "voice_models": ["gemma3:1b", "gemma2:2b", "llama3.2:1b", "phi3:mini", "qwen2:0.5b"],
+            "voice_models": ["gemma3:4b", "gemma3:1b", "llama3.2:3b", "qwen2.5:1.5b", "phi3:mini"],
             "voice_temperature": 0.3,
             "wisdom": "auto",
-            "wisdom_models": ["gemma3:4b", "gemma2:9b", "llama3.2:3b", "phi3:medium", "qwen2:7b"],
+            "wisdom_models": ["gemma3:12b", "gemma3:4b", "qwen3:8b", "llama3.2:3b"],
             "purity_threshold": 6.0,
             "harmonic_synthesis": True,
             "resonance": 2,
@@ -591,32 +591,33 @@ naaru:
 
   # Voice - The model that speaks/creates (synthesis)
   # "auto" tries models from voice_models list in order
-  # Or specify a model directly: "gemma3:1b", "gpt-4o-mini", etc.
+  # Or specify a model directly: "gemma3:4b", "gpt-4o-mini", etc.
   voice: "auto"
 
   # Models to try when voice is "auto" (first available wins)
+  # gemma3:4b is the workhorse - fast and capable for most tasks
   voice_models:
+    - "gemma3:4b"
     - "gemma3:1b"
-    - "gemma2:2b"
-    - "llama3.2:1b"
+    - "llama3.2:3b"
+    - "qwen2.5:1.5b"
     - "phi3:mini"
-    - "qwen2:0.5b"
 
   # Voice temperature (lower = more precise code generation)
   voice_temperature: 0.3
 
   # Wisdom - The model that judges/evaluates
   # "auto" tries models from wisdom_models list in order
-  # Or specify a model directly: "gemma3:4b", "gpt-4o", etc.
+  # Or specify a model directly: "gemma3:12b", "gpt-4o", etc.
   wisdom: "auto"
 
   # Models to try when wisdom is "auto" (first available wins)
+  # gemma3:12b is the brain - used for complex planning, judgment, reasoning
   wisdom_models:
+    - "gemma3:12b"
     - "gemma3:4b"
-    - "gemma2:9b"
+    - "qwen3:8b"
     - "llama3.2:3b"
-    - "phi3:medium"
-    - "qwen2:7b"
 
   # Purity threshold - Minimum quality score to approve (0-10)
   purity_threshold: 6.0

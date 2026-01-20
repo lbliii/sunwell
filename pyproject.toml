@@ -40,7 +40,13 @@ anthropic = ["anthropic>=0.18"]
 ollama = ["ollama>=0.1"]
 embeddings = ["sentence-transformers>=2.2"]
 api = ["fastapi>=0.109", "uvicorn>=0.27"]
-all = ["sunwell[openai,anthropic,ollama,embeddings,api]"]
+external = [
+    "httpx>=0.27.0",           # Async HTTP client for API calls
+    "fastapi>=0.109.0",        # Webhook server
+    "uvicorn>=0.27.0",         # ASGI server for FastAPI
+    "apscheduler>=3.10.0",     # Cron scheduling
+]
+all = ["sunwell[openai,anthropic,ollama,embeddings,api,external]"]
 benchmark = [
     "tiktoken>=0.5.0", # Accurate token counting
     "scipy>=1.10.0",   # Statistical tests (Mann-Whitney, Wilcoxon)

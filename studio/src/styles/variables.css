@@ -1,0 +1,153 @@
+/**
+ * Sunwell Studio — Design System Variables
+ * 
+ * A dark, minimal aesthetic inspired by Ollama and Linear.
+ * Monospace for UI, serif for prose content.
+ */
+
+:root {
+  /* ═══════════════════════════════════════════════════════════════
+     BACKGROUNDS
+     ═══════════════════════════════════════════════════════════════ */
+  --bg-primary: #0d0d0d;      /* Almost black - main background */
+  --bg-secondary: #1a1a1a;    /* Cards, panels, elevated surfaces */
+  --bg-tertiary: #262626;     /* Hover states, subtle emphasis */
+  --bg-elevated: #2a2a2a;     /* Modals, dropdowns, tooltips */
+  --bg-input: #141414;        /* Input fields */
+  
+  /* ═══════════════════════════════════════════════════════════════
+     TEXT
+     ═══════════════════════════════════════════════════════════════ */
+  --text-primary: #e5e5e5;    /* Main text - high contrast */
+  --text-secondary: #8b8b8b;  /* Muted text, descriptions */
+  --text-tertiary: #525252;   /* Very muted, hints, timestamps */
+  --text-inverse: #0d0d0d;    /* Text on light backgrounds */
+  
+  /* ═══════════════════════════════════════════════════════════════
+     ACCENT & BORDERS
+     ═══════════════════════════════════════════════════════════════ */
+  --accent: #f5f5f5;          /* Primary accent - buttons, focus */
+  --accent-muted: #404040;    /* Borders, dividers */
+  --accent-subtle: #2a2a2a;   /* Subtle highlights */
+  
+  /* ═══════════════════════════════════════════════════════════════
+     SEMANTIC COLORS
+     ═══════════════════════════════════════════════════════════════ */
+  --success: #22c55e;         /* Green - passed, complete */
+  --success-muted: #166534;   /* Success backgrounds */
+  --warning: #eab308;         /* Yellow - warnings, pending */
+  --warning-muted: #854d0e;   /* Warning backgrounds */
+  --error: #ef4444;           /* Red - errors, failed */
+  --error-muted: #991b1b;     /* Error backgrounds */
+  --info: #3b82f6;            /* Blue - info, links */
+  --info-muted: #1e40af;      /* Info backgrounds */
+  
+  /* ═══════════════════════════════════════════════════════════════
+     TYPOGRAPHY
+     ═══════════════════════════════════════════════════════════════ */
+  --font-mono: 'Berkeley Mono', 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-serif: 'Newsreader', 'Georgia', 'Times New Roman', serif;
+  
+  /* Font sizes - slightly larger for readability */
+  --text-xs: 0.6875rem;       /* 11px */
+  --text-sm: 0.8125rem;       /* 13px */
+  --text-base: 0.9375rem;     /* 15px */
+  --text-lg: 1.0625rem;       /* 17px */
+  --text-xl: 1.3125rem;       /* 21px */
+  --text-2xl: 1.75rem;        /* 28px */
+  --text-3xl: 2.25rem;        /* 36px */
+  
+  /* Line heights */
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.75;
+  --leading-prose: 1.8;
+  
+  /* ═══════════════════════════════════════════════════════════════
+     SPACING
+     ═══════════════════════════════════════════════════════════════ */
+  --space-1: 0.25rem;         /* 4px */
+  --space-2: 0.5rem;          /* 8px */
+  --space-3: 0.75rem;         /* 12px */
+  --space-4: 1rem;            /* 16px */
+  --space-5: 1.25rem;         /* 20px */
+  --space-6: 1.5rem;          /* 24px */
+  --space-8: 2rem;            /* 32px */
+  --space-10: 2.5rem;         /* 40px */
+  --space-12: 3rem;           /* 48px */
+  --space-16: 4rem;           /* 64px */
+  
+  /* ═══════════════════════════════════════════════════════════════
+     BORDERS & RADII
+     ═══════════════════════════════════════════════════════════════ */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+  
+  --border-width: 1px;
+  --border-color: var(--accent-muted);
+  
+  /* ═══════════════════════════════════════════════════════════════
+     SHADOWS
+     ═══════════════════════════════════════════════════════════════ */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 20px rgba(255, 255, 255, 0.05);
+  
+  /* ═══════════════════════════════════════════════════════════════
+     TRANSITIONS
+     ═══════════════════════════════════════════════════════════════ */
+  --transition-fast: 100ms ease;
+  --transition-normal: 150ms ease;
+  --transition-slow: 300ms ease;
+  
+  /* ═══════════════════════════════════════════════════════════════
+     Z-INDEX SCALE
+     ═══════════════════════════════════════════════════════════════ */
+  --z-base: 0;
+  --z-above: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+  
+  /* ═══════════════════════════════════════════════════════════════
+     COMPONENT-SPECIFIC
+     ═══════════════════════════════════════════════════════════════ */
+  
+  /* Input */
+  --input-height: 48px;
+  --input-height-sm: 36px;
+  --input-padding: var(--space-4);
+  
+  /* Button */
+  --button-height: 48px;
+  --button-height-sm: 36px;
+  --button-padding: var(--space-4) var(--space-6);
+  
+  /* Progress bar */
+  --progress-height: 4px;
+  --progress-bg: var(--accent-muted);
+  --progress-fill: var(--accent);
+  --progress-fill-complete: var(--success);
+  
+  /* Panel */
+  --panel-padding: var(--space-4);
+  --panel-gap: var(--space-4);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   REDUCED MOTION
+   ═══════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transition-fast: 0ms;
+    --transition-normal: 0ms;
+    --transition-slow: 0ms;
+  }
+}

@@ -41,7 +41,8 @@ MODEL_REGISTRY: dict[str, ModelCapability] = {
 
     # Ollama (common ones)
     "gemma3:1b": ModelCapability("gemma3:1b", Tier.FAST_PATH, tools=False, context_window=8192, cost_index=0),
-    "gemma3:4b": ModelCapability("gemma3:4b", Tier.STANDARD, tools=False, context_window=8192, cost_index=0),
+    "gemma3:4b": ModelCapability("gemma3:4b", Tier.STANDARD, tools=False, context_window=128000, cost_index=0),
+    "gemma3:12b": ModelCapability("gemma3:12b", Tier.DEEP_LENS, tools=False, context_window=128000, cost_index=0),
     "gemma2:9b": ModelCapability("gemma2:9b", Tier.STANDARD, tools=False, context_window=8192, cost_index=0),
     "llama3:8b": ModelCapability("llama3:8b", Tier.STANDARD, tools=True, context_window=8192, cost_index=0),
     "llama3.1:8b": ModelCapability("llama3.1:8b", Tier.STANDARD, tools=True, context_window=128000, cost_index=0),

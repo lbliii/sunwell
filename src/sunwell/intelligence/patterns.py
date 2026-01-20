@@ -1,6 +1,11 @@
-"""Pattern Learning - RFC-045 Phase 3.
+"""Pattern Learning - RFC-045 Phase 3 + RFC-050 Bootstrap Extensions.
 
 Learn user preferences through implicit feedback from edits and acceptances.
+
+RFC-050 adds:
+- bootstrap() classmethod to create profile from bootstrap analysis
+- line_length, formatter, linter fields from config scanning
+- Methods to handle bootstrap pattern overrides from user edits
 """
 
 from __future__ import annotations
@@ -10,9 +15,10 @@ import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
-import difflib
+if TYPE_CHECKING:
+    from sunwell.bootstrap.types import BootstrapPatterns
 
 
 @dataclass
@@ -35,6 +41,20 @@ class PatternProfile:
 
     docstring_style: Literal["google", "numpy", "sphinx", "none"] = "google"
     """Docstring format preference."""
+
+    # === RFC-050: Config-derived patterns ===
+
+    line_length: int = 100
+    """Configured line length (from pyproject.toml or similar)."""
+
+    formatter: str | None = None
+    """Detected formatter: 'ruff', 'black', 'yapf', 'autopep8', or None."""
+
+    linter: str | None = None
+    """Detected linter: 'ruff', 'flake8', 'pylint', or None."""
+
+    type_checker: str | None = None
+    """Detected type checker: 'mypy', 'pyright', 'ty', or None."""
 
     # === Architecture Preferences ===
 
@@ -73,6 +93,12 @@ class PatternProfile:
             "import_style": self.import_style,
             "type_annotation_level": self.type_annotation_level,
             "docstring_style": self.docstring_style,
+            # RFC-050: Config-derived patterns
+            "line_length": self.line_length,
+            "formatter": self.formatter,
+            "linter": self.linter,
+            "type_checker": self.type_checker,
+            # Architecture preferences
             "abstraction_level": self.abstraction_level,
             "test_preference": self.test_preference,
             "error_handling": self.error_handling,
@@ -91,6 +117,12 @@ class PatternProfile:
             import_style=data.get("import_style", "absolute"),
             type_annotation_level=data.get("type_annotation_level", "public"),
             docstring_style=data.get("docstring_style", "google"),
+            # RFC-050: Config-derived patterns
+            line_length=data.get("line_length", 100),
+            formatter=data.get("formatter"),
+            linter=data.get("linter"),
+            type_checker=data.get("type_checker"),
+            # Architecture preferences
             abstraction_level=data.get("abstraction_level", 0.5),
             test_preference=data.get("test_preference", "after"),
             error_handling=data.get("error_handling", "exceptions"),
@@ -99,6 +131,57 @@ class PatternProfile:
             prefers_questions=data.get("prefers_questions", False),
             confidence=data.get("confidence", {}),
             evidence=data.get("evidence", {}),
+        )
+
+    @classmethod
+    def bootstrap(cls, patterns: BootstrapPatterns) -> PatternProfile:
+        """Create profile from bootstrap analysis (RFC-050).
+
+        All patterns marked with:
+        - confidence < 0.8 (can be overridden by edits)
+        - evidence from "bootstrap:*" sources
+
+        Args:
+            patterns: Bootstrap patterns from code/config analysis
+
+        Returns:
+            PatternProfile pre-populated from bootstrap
+        """
+        # Build confidence dict (bootstrap patterns have lower confidence)
+        confidence = {
+            "naming_conventions": 0.75,
+            "import_style": 0.70,
+            "type_annotation_level": 0.80,
+            "docstring_style": patterns.docstring_consistency,  # Use actual consistency
+            "line_length": 0.90,  # Config is reliable
+            "formatter": 0.90,
+            "linter": 0.90,
+            "type_checker": 0.90,
+        }
+
+        # Build evidence dict
+        evidence = {
+            "naming_conventions": ["bootstrap:code_analysis"],
+            "import_style": ["bootstrap:code_analysis"],
+            "type_annotation_level": ["bootstrap:code_analysis"],
+            "docstring_style": ["bootstrap:code_analysis"],
+            "line_length": ["bootstrap:config_scan"],
+            "formatter": ["bootstrap:config_scan"],
+            "linter": ["bootstrap:config_scan"],
+            "type_checker": ["bootstrap:config_scan"],
+        }
+
+        return cls(
+            naming_conventions=patterns.naming_conventions,
+            import_style=patterns.import_style,
+            type_annotation_level=patterns.type_annotation_level,
+            docstring_style=patterns.docstring_style,
+            line_length=patterns.line_length,
+            formatter=patterns.formatter,
+            linter=patterns.linter,
+            type_checker=patterns.type_checker,
+            confidence=confidence,
+            evidence=evidence,
         )
 
     @classmethod
@@ -134,6 +217,10 @@ class PatternLearner:
     ) -> PatternProfile:
         """User edited AI output → learn what they changed.
 
+        If edit contradicts a bootstrap pattern:
+        - Override bootstrap pattern
+        - Upgrade confidence to 0.85 (user-confirmed)
+
         Args:
             original: Original code from AI
             edited: User's edited version
@@ -156,6 +243,23 @@ class PatternLearner:
         self._learn_docstring_style(edited, profile, session_id)
 
         return profile
+
+    def _upgrade_from_bootstrap(
+        self,
+        profile: PatternProfile,
+        field: str,
+        session_id: str,
+    ) -> None:
+        """Upgrade a bootstrap pattern to user-confirmed confidence.
+
+        Called when user edit confirms or overrides a bootstrap pattern.
+        """
+        if field in profile.evidence:
+            evidence_list = profile.evidence[field]
+            if any("bootstrap:" in e for e in evidence_list):
+                # This was a bootstrap pattern, upgrade to user-confirmed
+                profile.evidence[field] = [session_id] if session_id else ["user_edit"]
+                profile.confidence[field] = 0.85
 
     def _learn_naming(
         self,

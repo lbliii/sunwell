@@ -1,9 +1,19 @@
 # RFC-043: Sunwell Studio — The AI-Native Creative Environment
 
-**Status**: Draft  
+**Status**: Approved  
 **Created**: 2026-01-19  
+**Updated**: 2026-01-20  
 **Authors**: Sunwell Team  
-**Depends on**: RFC-042 (Adaptive Agent)
+**Confidence**: 84% 🟡  
+**Depends on**: 
+- RFC-042 (Adaptive Agent) — execution engine
+- RFC-045 (Project Intelligence) — persistent memory display
+- RFC-046 (Autonomous Backlog) — goal queue management
+- RFC-047 (Deep Verification) — verification status
+- RFC-048 (Autonomy Guardrails) — escalation UI
+- RFC-049 (External Integration) — CI/git status
+- RFC-050 (Fast Bootstrap) — onboarding flow
+- RFC-051 (Multi-Instance) — parallel agent dashboard
 
 ---
 
@@ -17,6 +27,15 @@ Sunwell Studio is a minimal, beautiful GUI application for creative work with AI
 - One-click preview (▶ TRY IT for instant feedback)
 - Local-first (runs entirely on your machine)
 - Multi-domain (code, prose, scripts, dialogue)
+
+**Integrated capabilities (via dependent RFCs):**
+- 🧠 **Intelligence visibility** — See what Sunwell remembers and has learned (RFC-045)
+- 📋 **Backlog management** — Visual goal queue with execution modes (RFC-046)
+- 🔍 **Verification status** — Real-time semantic correctness feedback (RFC-047)
+- 🛡️ **Guardrail awareness** — Trust zones, limits, and escalation UI (RFC-048)
+- 🔗 **External status** — CI/git/issues integration display (RFC-049)
+- ⚡ **Smart onboarding** — Guided bootstrap with progress visualization (RFC-050)
+- 👥 **Multi-agent dashboard** — Parallel agent coordination (RFC-051)
 
 ---
 
@@ -498,6 +517,424 @@ For creative projects, show what the AI remembers:
 
 ---
 
+## Project Intelligence Integration (RFC-045)
+
+Sunwell Studio surfaces the persistent intelligence visually.
+
+### Intelligence Dashboard
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  🧠 Project Intelligence                                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  📊 Intelligence Health                                         │
+│  ──────────────────────────────────────────────────────────────│
+│  Codebase Graph:     ████████████████████  247 nodes   ✓       │
+│  Decision Memory:    ████████████░░░░░░░░  18 decisions        │
+│  Pattern Learning:   ████████░░░░░░░░░░░░  12 patterns         │
+│  Failure Memory:     ████████████████████  3 dead ends  ✓      │
+│                                                                 │
+│  🎯 Recent Decisions                                            │
+│  ├─ "Use SQLAlchemy for ORM" (3 days ago)                      │
+│  ├─ "API versioning via URL prefix" (5 days ago)               │
+│  └─ "pytest over unittest" (1 week ago)                        │
+│                                                                 │
+│  ⚠️ Dead Ends (Won't Repeat)                                    │
+│  ├─ "Flask-Login with JWT" — caused session conflicts          │
+│  ├─ "Raw SQL in routes" — led to SQL injection risk            │
+│  └─ "Circular imports in models/" — broke on import            │
+│                                                                 │
+│  ✨ Learned Patterns                                            │
+│  ├─ Prefers snake_case for variables                           │
+│  ├─ Tests in tests/ mirror src/ structure                      │
+│  └─ Docstrings use Google style                                │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Contextual Memory Surfacing
+
+The AI proactively surfaces relevant memories during work:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│  💡 Memory Surfaced                                  [Dismiss]  │
+│  ─────────────────────────────────────────────────────────────  │
+│                                                                 │
+│  You tried JWT auth in this project 2 weeks ago. It caused     │
+│  session conflicts with Flask-Login.                           │
+│                                                                 │
+│  📋 Decision: Use session-based auth instead                   │
+│                                                                 │
+│       [Use Session Auth]    [Try JWT Anyway]    [More Details] │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Autonomous Backlog Integration (RFC-046)
+
+The Studio provides a visual interface for the autonomous backlog.
+
+### Backlog Dashboard
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  📋 Autonomous Backlog                          [Refresh] [⚙️]  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  🎯 Ready to Execute (5)                                        │
+│  ─────────────────────────────────────────────────────────────  │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  ☐  Add test coverage for auth.py                        │  │
+│  │      Signal: [COVERAGE] 23% → target 80%                 │  │
+│  │      Priority: HIGH · Est: 15 min · Risk: LOW            │  │
+│  │      [▶ Execute]  [Edit]  [Dismiss]                      │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  ☐  Fix TODO in api/routes.py:89                         │  │
+│  │      Signal: [TODO] "Handle rate limiting"               │  │
+│  │      Priority: MEDIUM · Est: 20 min · Risk: LOW          │  │
+│  │      [▶ Execute]  [Edit]  [Dismiss]                      │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│  │  ... 3 more                                              │  │
+│                                                                 │
+│  🤖 Autonomous Mode                                    [OFF]   │
+│  ─────────────────────────────────────────────────────────────  │
+│  When enabled, Sunwell will auto-execute LOW risk tasks        │
+│  in the background. You'll be notified of completions.         │
+│                                                                 │
+│       [Enable Supervised]    [Enable Autonomous]               │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Execution Modes
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ⚙️ Execution Mode                                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ○ Propose Only                                                │
+│    Sunwell identifies work but waits for your approval         │
+│                                                                 │
+│  ● Supervised                                        [Current]  │
+│    Low-risk tasks auto-execute; you review results             │
+│                                                                 │
+│  ○ Autonomous                                                   │
+│    Sunwell works continuously on approved goal types           │
+│    ⚠️ Requires RFC-048 guardrails enabled                      │
+│                                                                 │
+│                                            [Save] [Cancel]      │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Deep Verification Integration (RFC-047)
+
+The Studio shows verification status for all generated work.
+
+### Verification Status Panel
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  🔍 Deep Verification                                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Last Build: forum-app                          2 minutes ago   │
+│                                                                 │
+│  ✅ Syntax Valid                                                │
+│  ├─ Python: 8 files · 0 errors                                 │
+│  └─ Types: mypy passed                                          │
+│                                                                 │
+│  ✅ Tests Pass                                                  │
+│  ├─ 23 tests · 23 passed · 0 failed                            │
+│  └─ Coverage: 78%                                               │
+│                                                                 │
+│  ✅ Semantic Verification                                       │
+│  ├─ Property tests: 12 properties · all hold                   │
+│  ├─ Behavioral regression: no drift detected                   │
+│  └─ Mutation score: 85%                                         │
+│                                                                 │
+│  ⚠️ Warnings (2)                                                │
+│  ├─ auth.py: Password hashing uses deprecated bcrypt rounds    │
+│  └─ routes.py: Missing rate limiting on /api/posts             │
+│                                                                 │
+│                      [Fix Warnings]  [Details]                  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Autonomy Guardrails Integration (RFC-048)
+
+The Studio provides visibility into guardrails and escalation.
+
+### Trust Zone Indicator
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  🛡️ Autonomy Status                                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Current Mode: SUPERVISED                                       │
+│                                                                 │
+│  Trust Zones                                                    │
+│  ──────────────────────────────────────────────────────────────│
+│  🟢 tests/         Full autonomy (add, modify, delete)         │
+│  🟢 docs/          Full autonomy                                │
+│  🟡 src/           Modify existing only                        │
+│  🔴 .env           Read only                                    │
+│  🔴 migrations/    Blocked                                      │
+│                                                                 │
+│  Session Limits                                                 │
+│  ──────────────────────────────────────────────────────────────│
+│  Files modified:   3 / 20                                       │
+│  Lines changed:    127 / 500                                    │
+│  New files:        1 / 5                                        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Escalation UI
+
+When Sunwell hits a guardrail or needs approval:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  🚨 Approval Required                                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Sunwell wants to:                                              │
+│                                                                 │
+│  📝 Modify src/auth.py                                          │
+│     Add password reset functionality                            │
+│                                                                 │
+│  Why approval needed:                                           │
+│  • File outside auto-approve zone                               │
+│  • Modifies security-sensitive code                             │
+│                                                                 │
+│  Proposed changes:                                              │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ + def reset_password(email: str) -> bool:               │   │
+│  │ +     """Send password reset email."""                  │   │
+│  │ +     user = User.query.filter_by(email=email).first() │   │
+│  │ +     if user:                                          │   │
+│  │ +         token = generate_reset_token(user)            │   │
+│  │ +         send_reset_email(user.email, token)           │   │
+│  │ +     return True  # Don't leak user existence          │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│       [Approve]    [Approve & Trust src/auth.py]    [Reject]   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## External Integration Display (RFC-049)
+
+The Studio shows real-time status from connected systems.
+
+### External Status Bar
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  forum-app                               🔗 GitHub  🔗 CI  ─ □ x │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  🔗 External Connections                                │   │
+│  │                                                         │   │
+│  │  GitHub: ✅ Connected · main branch · 2 PRs open        │   │
+│  │  CI:     ✅ Actions · Last run: passed (3 min ago)      │   │
+│  │  Issues: ✅ 5 open · 2 assigned to Sunwell              │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+```
+
+### Event Feed
+
+```
+│  📡 Event Feed                                                  │
+│  ─────────────────────────────────────────────────────────────  │
+│                                                                 │
+│  🟢 3:42 PM  CI passed on main                                  │
+│  🟡 3:38 PM  PR #47 needs review                                │
+│  🔵 3:35 PM  Issue #89 assigned: "Add rate limiting"            │
+│  🟢 3:30 PM  Sunwell completed: "Fix auth tests"                │
+│  🔴 3:15 PM  CI failed on feature/oauth (fixed)                 │
+│                                                                 │
+│                               [View All]  [Configure Webhooks]  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Fast Bootstrap Flow (RFC-050)
+
+The Studio guides new users through intelligent project setup.
+
+### Bootstrap Welcome
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│                           ☀️                                    │
+│                        SUNWELL                                  │
+│                                                                 │
+│     ┌───────────────────────────────────────────────────┐      │
+│     │ Open a project folder...                       📁  │      │
+│     └───────────────────────────────────────────────────┘      │
+│                                                                 │
+│                          — or —                                 │
+│                                                                 │
+│     ┌───────────────────────────────────────────────────┐      │
+│     │ What would you like to create?                    │      │
+│     └───────────────────────────────────────────────────┘      │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Bootstrap Progress
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  🧠 Getting to Know Your Project                                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Analyzing: ~/projects/forum-app                                │
+│                                                                 │
+│  ├─ [1] Git history                 ████████████████████  ✓    │
+│  │       247 commits · 3 contributors · 8 months                │
+│  │                                                              │
+│  ├─ [2] README & docs               ████████████████████  ✓    │
+│  │       Project purpose, setup instructions extracted          │
+│  │                                                              │
+│  ├─ [3] Code structure              ████████████░░░░░░░░       │
+│  │       Mapping modules, dependencies...                       │
+│  │                                                              │
+│  ├─ [4] Tests & coverage            ░░░░░░░░░░░░░░░░░░░░       │
+│  │                                                              │
+│  └─ [5] TODOs & issues              ░░░░░░░░░░░░░░░░░░░░       │
+│                                                                 │
+│  💡 Finding: This is a Flask app with SQLAlchemy ORM            │
+│     Framework detected: Flask 2.3.2, SQLAlchemy 2.0             │
+│                                                                 │
+│                                                     ~30s left   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Bootstrap Complete
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  🧠 Project Intelligence Ready                                  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ✅ Bootstrap complete for forum-app                            │
+│                                                                 │
+│  Learned:                                                       │
+│  ├─ 247 commits analyzed                                        │
+│  ├─ 12 architectural decisions inferred                         │
+│  ├─ 3 code style patterns detected                              │
+│  ├─ 8 TODOs found                                               │
+│  └─ 78% test coverage baseline                                  │
+│                                                                 │
+│  Ready to assist with:                                          │
+│  • Flask routes and blueprints                                  │
+│  • SQLAlchemy models and migrations                             │
+│  • pytest test patterns                                         │
+│  • Your team's code style                                       │
+│                                                                 │
+│                     ┌─────────────────────┐                    │
+│                     │                     │                    │
+│                     │    🚀 Let's Go      │                    │
+│                     │                     │                    │
+│                     └─────────────────────┘                    │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Multi-Instance Dashboard (RFC-051)
+
+For power users running multiple Sunwell agents in parallel.
+
+### Agent Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  👥 Multi-Agent Dashboard                          [+ New Agent] │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Active Agents (3)                                              │
+│  ─────────────────────────────────────────────────────────────  │
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  🟢 Agent 1 — Tests                           [Focus]    │  │
+│  │     Working: Add coverage for auth module                │  │
+│  │     Progress: ████████████░░░░░░░░  60%  · 3 min         │  │
+│  │     Files: tests/test_auth.py (locked)                   │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  🟢 Agent 2 — Docs                            [Focus]    │  │
+│  │     Working: Update API documentation                    │  │
+│  │     Progress: ████████████████████  95%  · 1 min         │  │
+│  │     Files: docs/api.md (locked)                          │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  🟡 Agent 3 — Feature                         [Focus]    │  │
+│  │     Waiting: Needs approval for src/models.py            │  │
+│  │     ⚠️ [Approve] [Reject] [View Changes]                 │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│  Coordination                                                   │
+│  ─────────────────────────────────────────────────────────────  │
+│  Lock conflicts: 0                                              │
+│  Pending merges: 1                                              │
+│  Total progress: 12 tasks / 15 complete                         │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Conflict Resolution UI
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ⚠️ Coordination Required                                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Agent 1 and Agent 3 both want to modify:                       │
+│  📄 src/models/user.py                                          │
+│                                                                 │
+│  Agent 1 wants to:                                              │
+│  └─ Add test fixtures for User model                            │
+│                                                                 │
+│  Agent 3 wants to:                                              │
+│  └─ Add email verification field                                │
+│                                                                 │
+│  Recommendation: Let Agent 3 go first (feature), then Agent 1   │
+│                                                                 │
+│       [Agent 3 First]    [Agent 1 First]    [Merge Both]        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Visual Design
 
 ### Color Palette
@@ -686,57 +1123,110 @@ Principles:
 
 **Sunwell Core** — The AI engine
 - Python-based agent (existing codebase)
-- Communicates with Tauri via IPC
-- Runs as subprocess or connects to local server
+- Communicates with Tauri via IPC (NDJSON streaming)
+- Runs as subprocess with `sunwell agent run --json`
+- Existing `AgentEvent` schema (`src/sunwell/adaptive/events.py:138`)
+
+### Technology Alternatives Considered
+
+| Option | Pros | Cons | Decision |
+|--------|------|------|----------|
+| **Tauri + Svelte** | ~10MB bundle, Rust security, native feel, simple reactivity | Rust learning curve, younger ecosystem | ✅ Selected |
+| **Electron + React** | Mature ecosystem, familiar stack, rich component libraries | 200MB+ bundle, memory-heavy, feels sluggish | ❌ |
+| **Wails + Vue** | Go backend (familiar to some), decent bundle size | Smaller ecosystem, less native feel | ❌ |
+| **Native (Swift/Kotlin)** | Best performance, truly native | Separate codebases per platform, no web skills transfer | ❌ |
+| **Web-only (PWA)** | No install, works everywhere | No local file access, can't run subprocesses, defeats local-first | ❌ |
+
+**Why Tauri + Svelte:**
+1. **Bundle size** — Critical for "download and go" UX; Tauri is 10-20x smaller than Electron
+2. **Security** — Rust's memory safety is important when spawning subprocesses
+3. **Svelte simplicity** — No virtual DOM, minimal boilerplate, compiles to vanilla JS
+4. **Future mobile** — Tauri v2 supports iOS/Android with same codebase
+5. **Team fit** — Web skills transfer; Rust confined to thin shell layer
 
 ### Project Structure
 
+The Studio lives within the main Sunwell monorepo for easier coordination:
+
 ```
-sunwell-studio/
-├── src-tauri/                    # Rust backend
-│   ├── src/
-│   │   ├── main.rs              # Entry point
-│   │   ├── commands.rs          # IPC commands
-│   │   ├── preview.rs           # Preview management
-│   │   ├── project.rs           # Project detection
-│   │   └── agent.rs             # Sunwell agent bridge
-│   ├── Cargo.toml
-│   └── tauri.conf.json
+sunwell/
+├── src/sunwell/                  # Python agent (existing)
+│   ├── agent/
+│   ├── memory/
+│   ├── intelligence/
+│   └── ...
 │
-├── src/                          # Svelte frontend
-│   ├── App.svelte               # Root component
-│   ├── routes/
-│   │   ├── Home.svelte          # Launch screen
-│   │   ├── Project.svelte       # Working screen
-│   │   └── Preview.svelte       # Preview screen
-│   ├── components/
-│   │   ├── InputBar.svelte
-│   │   ├── Progress.svelte
-│   │   ├── Panel.svelte
-│   │   ├── Button.svelte
-│   │   └── ...
-│   ├── layouts/
-│   │   ├── CodeLayout.svelte
-│   │   ├── NovelLayout.svelte
-│   │   ├── ScreenplayLayout.svelte
-│   │   └── GameLayout.svelte
-│   ├── stores/
-│   │   ├── project.ts
-│   │   ├── agent.ts
-│   │   └── layout.ts
-│   └── styles/
-│       ├── reset.css
-│       ├── variables.css
-│       └── global.css
+├── studio/                       # Tauri + Svelte GUI (NEW)
+│   ├── src-tauri/                # Rust backend
+│   │   ├── src/
+│   │   │   ├── main.rs          # Entry point
+│   │   │   ├── commands.rs      # IPC commands
+│   │   │   ├── preview.rs       # Preview management
+│   │   │   ├── project.rs       # Project detection
+│   │   │   └── agent.rs         # Sunwell agent bridge
+│   │   ├── Cargo.toml
+│   │   └── tauri.conf.json
+│   │
+│   ├── src/                      # Svelte frontend
+│   │   ├── App.svelte           # Root component
+│   │   ├── routes/
+│   │   │   ├── Home.svelte      # Launch screen
+│   │   │   ├── Project.svelte   # Working screen
+│   │   │   └── Preview.svelte   # Preview screen
+│   │   ├── components/
+│   │   │   ├── InputBar.svelte
+│   │   │   ├── Progress.svelte
+│   │   │   ├── Panel.svelte
+│   │   │   ├── Button.svelte
+│   │   │   └── ...
+│   │   ├── layouts/
+│   │   │   ├── CodeLayout.svelte
+│   │   │   ├── NovelLayout.svelte
+│   │   │   ├── ScreenplayLayout.svelte
+│   │   │   └── GameLayout.svelte
+│   │   ├── stores/
+│   │   │   ├── project.ts
+│   │   │   ├── agent.ts
+│   │   │   └── layout.ts
+│   │   └── styles/
+│   │       ├── reset.css
+│   │       ├── variables.css
+│   │       └── global.css
+│   │
+│   ├── package.json
+│   └── vite.config.ts
 │
-├── package.json
-└── vite.config.ts
+├── pyproject.toml                # Python package config
+└── README.md
 ```
+
+**Why monorepo?**
+- Agent API changes and UI updates can be atomic commits
+- Single version number for both components
+- Easier contributor onboarding (one clone)
+- Shared CI/CD pipeline
 
 ### Agent Communication
 
+The Studio communicates with the Sunwell agent via **NDJSON streaming** over subprocess stdout. This builds on the existing `AgentEvent` system already implemented in the agent.
+
+**Existing Infrastructure:**
+- `src/sunwell/adaptive/events.py:138` — `AgentEvent` dataclass with `to_dict()` serialization
+- `src/sunwell/adaptive/renderer.py:348` — `JsonRenderer` that outputs NDJSON
+- `src/sunwell/adaptive/agent.py:205` — `AdaptiveAgent.execute()` yields `AsyncIterator[AgentEvent]`
+
+**Event Types (from `EventType` enum):**
+```
+SIGNAL, PLAN_START, PLAN_CANDIDATE, PLAN_WINNER, TASK_START, TASK_COMPLETE,
+GATE_START, GATE_STEP, GATE_PASS, GATE_FAIL, VALIDATE_START, VALIDATE_LEVEL,
+VALIDATE_PASS, VALIDATE_ERROR, FIX_START, FIX_PROGRESS, FIX_COMPLETE, FIX_FAILED,
+MEMORY_LOAD, MEMORY_LOADED, MEMORY_NEW, MEMORY_LEARNING, MEMORY_SAVED,
+COMPLETE, ERROR, ESCALATE
+```
+
+**Rust Bridge:**
 ```rust
-// src-tauri/src/agent.rs
+// studio/src-tauri/src/agent.rs
 
 use std::process::{Command, Stdio};
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -746,10 +1236,11 @@ pub struct AgentBridge {
 }
 
 impl AgentBridge {
-    pub async fn run_goal(&mut self, goal: &str) -> impl Stream<Item = AgentEvent> {
-        // Start Sunwell agent as subprocess
-        let mut child = Command::new("python")
-            .args(["-m", "sunwell", "--json", goal])
+    pub async fn run_goal(&mut self, goal: &str, project_path: &Path) -> impl Stream<Item = AgentEvent> {
+        // Start Sunwell agent as subprocess with JSON output
+        let mut child = Command::new("sunwell")
+            .args(["agent", "run", "--json", "--goal", goal])
+            .current_dir(project_path)
             .stdout(Stdio::piped())
             .spawn()
             .expect("Failed to start agent");
@@ -757,7 +1248,7 @@ impl AgentBridge {
         let stdout = child.stdout.take().unwrap();
         let reader = BufReader::new(stdout);
         
-        // Stream events as they arrive
+        // Stream NDJSON events as they arrive
         reader.lines().map(|line| {
             let line = line.unwrap();
             serde_json::from_str::<AgentEvent>(&line).unwrap()
@@ -767,7 +1258,7 @@ impl AgentBridge {
 ```
 
 ```typescript
-// src/stores/agent.ts
+// studio/src/stores/agent.ts
 
 import { invoke } from '@tauri-apps/api/tauri';
 import { listen } from '@tauri-apps/api/event';
@@ -818,7 +1309,7 @@ function handleAgentEvent(event: AgentEvent) {
 ### Preview System
 
 ```rust
-// src-tauri/src/preview.rs
+// studio/src-tauri/src/preview.rs
 
 use std::process::Command;
 use std::net::TcpListener;
@@ -944,7 +1435,40 @@ fn find_free_port() -> Result<u16> {
 
 **Deliverable**: Persistent memory integrated into UI
 
-### Phase 7: Polish (Weeks 13-14)
+### Phase 7: Intelligence & Autonomy (Weeks 13-14)
+
+- [ ] Project Intelligence dashboard (RFC-045)
+- [ ] Decision/failure memory display
+- [ ] Autonomous Backlog UI (RFC-046)
+- [ ] Goal queue management
+- [ ] Execution mode selector (propose/supervised/autonomous)
+- [ ] Deep Verification panel (RFC-047)
+
+**Deliverable**: Full intelligence visibility and backlog management
+
+### Phase 8: Guardrails & External (Weeks 15-16)
+
+- [ ] Autonomy Guardrails UI (RFC-048)
+- [ ] Trust zone visualization
+- [ ] Escalation/approval dialogs
+- [ ] External Integration status (RFC-049)
+- [ ] CI/git/issues event feed
+- [ ] Webhook configuration
+
+**Deliverable**: Safe autonomy with external system awareness
+
+### Phase 9: Bootstrap & Multi-Agent (Weeks 17-18)
+
+- [ ] Fast Bootstrap flow (RFC-050)
+- [ ] Project onboarding wizard
+- [ ] Bootstrap progress visualization
+- [ ] Multi-Instance dashboard (RFC-051)
+- [ ] Parallel agent management
+- [ ] Conflict resolution UI
+
+**Deliverable**: Complete onboarding and multi-agent support
+
+### Phase 10: Polish (Weeks 19-20)
 
 - [ ] Keyboard shortcuts
 - [ ] Accessibility audit
@@ -954,7 +1478,7 @@ fn find_free_port() -> Result<u16> {
 
 **Deliverable**: Production-ready application
 
-### Phase 8: Distribution (Weeks 15-16)
+### Phase 11: Distribution (Weeks 21-22)
 
 - [ ] macOS build + signing
 - [ ] Windows build + signing
@@ -1002,11 +1526,70 @@ fn find_free_port() -> Result<u16> {
 
 ---
 
+## Risks & Mitigations
+
+### Technical Risks
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| **Tauri learning curve** | Medium | Medium | Confine Rust to thin IPC layer; bulk of logic in TypeScript/Svelte |
+| **Cross-platform testing** | High | High | CI matrix for macOS/Windows/Linux from Phase 1; beta testers per platform |
+| **Subprocess communication fragility** | Medium | High | Existing `AgentEvent` schema is stable; add heartbeat/timeout handling |
+| **Preview system complexity** | High | Medium | Start with web apps only (Phase 3); add other modes incrementally |
+| **Bundle size creep** | Medium | Low | Set hard 20MB limit; track in CI; tree-shake aggressively |
+
+### Product Risks
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| **Feature creep** | High | High | Strict phase gates; MVP is chat + progress + preview only |
+| **RFC dependency churn** | Low | Medium | All RFCs (045-051) are implemented and stable |
+| **User confusion (too minimal)** | Medium | Medium | Gradual disclosure; discoverable panels on hover/need |
+| **Competition** | Medium | Medium | Focus on local-first + memory; no cloud competitor has this |
+
+### Dependency Risks
+
+| Dependency | Risk | Mitigation |
+|------------|------|------------|
+| **Tauri** | Framework deprecation or breaking changes | v2 is stable; Tauri has corporate backing (CrabNebula) |
+| **Svelte** | Major version changes | Svelte 5 (runes) is stable; migration path documented |
+| **Python subprocess** | Python not installed on user machine | Bundled Python (PyOxidizer) as fallback; clear error messaging |
+| **Ollama** | Model API changes | Abstract model layer; support multiple backends |
+
+### Rollback Plan
+
+If Tauri proves unworkable after Phase 2:
+1. **Fallback to Electron** — Same Svelte frontend, swap shell layer
+2. **Web-only** — Serve from local `sunwell serve` command
+3. **Terminal enhancement** — Rich TUI with existing renderer infrastructure
+
+---
+
 ## References
 
-### Internal
-- RFC-042: Adaptive Agent (event streaming, Simulacrum)
-- Sunwell agent codebase (`src/sunwell/`)
+### Internal RFCs (All Implemented)
+
+| RFC | Feature | Implementation |
+|-----|---------|----------------|
+| RFC-042 | Adaptive Agent | `src/sunwell/adaptive/agent.py` — `AdaptiveAgent` |
+| RFC-045 | Project Intelligence | `src/sunwell/intelligence/context.py` — `ProjectIntelligence` |
+| RFC-046 | Autonomous Backlog | `src/sunwell/backlog/manager.py` — `BacklogManager` |
+| RFC-047 | Deep Verification | `src/sunwell/verification/verifier.py` — `DeepVerifier` |
+| RFC-048 | Autonomy Guardrails | `src/sunwell/guardrails/system.py` — `GuardrailSystem` |
+| RFC-049 | External Integration | `src/sunwell/external/processor.py` — `EventProcessor` |
+| RFC-050 | Fast Bootstrap | `src/sunwell/bootstrap/orchestrator.py` — `BootstrapOrchestrator` |
+| RFC-051 | Multi-Instance | `src/sunwell/parallel/coordinator.py` — `Coordinator` |
+
+### Key Implementation Files
+
+| Component | Path | Purpose |
+|-----------|------|---------|
+| Event streaming | `src/sunwell/adaptive/events.py:138` | `AgentEvent` dataclass |
+| JSON renderer | `src/sunwell/adaptive/renderer.py:348` | `JsonRenderer` for NDJSON output |
+| Agent CLI | `src/sunwell/cli/agent_cmd.py` | `sunwell agent run` command |
+| Goal types | `src/sunwell/backlog/goals.py` | `Goal`, `GoalScope`, `GoalResult` |
+| Trust zones | `src/sunwell/guardrails/trust.py` | `TrustZoneEvaluator` |
+| Bootstrap scanners | `src/sunwell/bootstrap/scanners/` | Git, code, docs, config scanners |
 
 ### External
 - [Tauri](https://tauri.app/) — App framework

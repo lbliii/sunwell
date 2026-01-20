@@ -120,7 +120,7 @@ class NaaruConfig:
 
     # Prioritized list of small models to try for voice (first available wins)
     voice_models: list[str] = field(default_factory=lambda: [
-        "gemma3:1b", "gemma2:2b", "llama3.2:1b", "phi3:mini", "qwen2:0.5b"
+        "gemma3:4b", "gemma3:1b", "llama3.2:3b", "qwen2.5:1.5b", "phi3:mini"
     ])
     """Models to try for voice (in order of preference)."""
 

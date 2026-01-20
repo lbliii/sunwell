@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -85,6 +86,22 @@ class Goal:
 
     scope: GoalScope
     """Bounded scope for safety."""
+
+    external_ref: str | None = None
+    """External reference for deduplication (e.g., 'github:issue:123').
+
+    Using string ref instead of ExternalEvent object because:
+    1. Goal is frozen/serialized — embedding mutable event data is problematic
+    2. Deduplication only needs the ref, not full event
+    3. Full event can be stored separately in ExternalEventStore
+    """
+
+    # RFC-051: Multi-instance coordination fields
+    claimed_by: int | None = None
+    """Worker ID that claimed this goal (None = unclaimed)."""
+
+    claimed_at: datetime | None = None
+    """When the goal was claimed."""
 
 
 @dataclass

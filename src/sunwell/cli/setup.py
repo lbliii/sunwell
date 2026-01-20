@@ -86,7 +86,7 @@ def setup(provider: str, model: str | None, lenses_dir: str | None, force: bool)
         model = {
             "openai": "gpt-4o",
             "anthropic": "claude-sonnet-4-20250514",
-            "ollama": "gemma3:1b",
+            "ollama": "gemma3:4b",
         }.get(provider, "gpt-4o")
 
     console.print("\n[bold]Setting up Sunwell[/bold]")

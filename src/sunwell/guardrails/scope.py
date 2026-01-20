@@ -227,9 +227,10 @@ class ScopeTracker:
         elapsed = datetime.now() - self.session_start
         max_seconds = self.limits.max_duration_per_session_hours * 3600
         if elapsed.total_seconds() > max_seconds:
+            max_hours = self.limits.max_duration_per_session_hours
             return ScopeCheckResult(
                 passed=False,
-                reason=f"Session duration limit reached ({self.limits.max_duration_per_session_hours}h)",
+                reason=f"Session duration limit reached ({max_hours}h)",
                 limit_type="duration_per_session",
             )
 

@@ -14,7 +14,6 @@ from sunwell.guardrails.types import (
     TrustZone,
 )
 
-
 # =============================================================================
 # Default Trust Zones
 # =============================================================================
@@ -186,9 +185,8 @@ class ActionTaxonomy:
             if name.startswith("_"):
                 continue
             value = getattr(cls, name)
-            if isinstance(value, tuple) and len(value) == 2:
-                if value[0] == action_type:
-                    return value[1]
+            if isinstance(value, tuple) and len(value) == 2 and value[0] == action_type:
+                return value[1]
         return ActionRisk.MODERATE  # Default for unknown
 
 

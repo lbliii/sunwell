@@ -122,6 +122,12 @@ def agent() -> None:
     default=None,
     help="Explicit plan identifier (default: hash of goal)",
 )
+@click.option(
+    "--json",
+    "json_output",
+    is_flag=True,
+    help="Output NDJSON events for programmatic consumption (RFC-043)",
+)
 def run(
     goal: str,
     time: int,
@@ -139,6 +145,7 @@ def run(
     show_plan: bool,
     diff_plan: bool,
     plan_id: str | None,
+    json_output: bool,
 ) -> None:
     """Execute a task using agent mode.
 
@@ -185,6 +192,7 @@ def run(
     asyncio.run(_run_agent(
         goal, time, trust, strategy, dry_run, verbose, model, show_graph,
         candidates, refine, incremental, force, show_plan, diff_plan, plan_id,
+        json_output,
     ))
 
 
@@ -204,6 +212,7 @@ async def _run_agent(
     show_plan: bool = False,
     diff_plan: bool = False,
     plan_id: str | None = None,
+    json_output: bool = False,
 ) -> None:
     """Execute agent mode."""
     from sunwell.naaru import Naaru
@@ -322,6 +331,41 @@ async def _run_agent(
         tool_executor=tool_executor,
         config=naaru_config,
     )
+
+    # RFC-043: JSON output mode for Sunwell Studio
+    if json_output:
+        import json
+        import sys
+
+        from sunwell.adaptive.events import complete_event
+
+        try:
+            result = await naaru.run(
+                goal=goal,
+                context={"cwd": str(Path.cwd())},
+                on_progress=lambda msg: None,  # Suppress console output
+                max_time_seconds=time,
+            )
+
+            # Emit completion event
+            event = complete_event(
+                tasks_completed=result.completed_count,
+                gates_passed=0,  # TODO: track gates
+                duration_s=result.duration_seconds if hasattr(result, "duration_seconds") else 0,
+            )
+            print(json.dumps(event.to_dict()), file=sys.stdout, flush=True)
+
+        except KeyboardInterrupt:
+            from sunwell.adaptive.events import AgentEvent, EventType
+
+            error_event = AgentEvent(EventType.ERROR, {"message": "Interrupted by user"})
+            print(json.dumps(error_event.to_dict()), file=sys.stdout, flush=True)
+        except Exception as e:
+            from sunwell.adaptive.events import AgentEvent, EventType
+
+            error_event = AgentEvent(EventType.ERROR, {"message": str(e)})
+            print(json.dumps(error_event.to_dict()), file=sys.stdout, flush=True)
+        return
 
     try:
         result = await naaru.run(
