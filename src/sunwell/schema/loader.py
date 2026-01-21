@@ -14,8 +14,10 @@ from sunwell.core.errors import ErrorCode, SunwellError, lens_error
 from sunwell.core.framework import Framework, FrameworkCategory
 from sunwell.core.heuristic import AntiHeuristic, CommunicationStyle, Example, Heuristic
 from sunwell.core.lens import (
+    Affordances,
     Lens,
     LensMetadata,
+    PrimitiveAffordance,
     Provenance,
     QualityPolicy,
     Router,
@@ -79,7 +81,7 @@ class LensLoader:
                 path=str(path),
                 detail=str(e),
                 cause=e,
-            )
+            ) from e
 
         lens = self._parse_lens(data, source_path=path)
         return lens
@@ -94,7 +96,7 @@ class LensLoader:
                 lens="<string>",
                 detail=str(e),
                 cause=e,
-            )
+            ) from e
 
         return self._parse_lens(data, source_path=source_path)
 
@@ -227,7 +229,13 @@ class LensLoader:
         if "schema_extensions" in lens_data:
             ext_validators = lens_data["schema_extensions"].get("validators", [])
             if ext_validators:
-                schema_validators = schema_validators + self._parse_schema_validators(ext_validators)
+                ext_parsed = self._parse_schema_validators(ext_validators)
+                schema_validators = schema_validators + ext_parsed
+
+        # Parse affordances (RFC-072: Surface primitives)
+        affordances = None
+        if "affordances" in lens_data:
+            affordances = self._parse_affordances(lens_data["affordances"])
 
         return Lens(
             metadata=metadata,
@@ -249,6 +257,7 @@ class LensLoader:
             skill_retry=skill_retry,
             spellbook=spellbook,
             schema_validators=schema_validators,
+            affordances=affordances,
             source_path=source_path,
         )
 
@@ -256,6 +265,7 @@ class LensLoader:
         """Parse lens metadata.
 
         RFC-035: Also parses compatible_schemas for domain-specific lenses.
+        RFC-070: Also parses library metadata (use_cases, tags, icon).
         """
         name = data.get("name", "Unnamed Lens")
 
@@ -266,6 +276,11 @@ class LensLoader:
         # RFC-035: Parse compatible_schemas
         compatible_schemas = tuple(data.get("compatible_schemas", []))
 
+        # RFC-070: Parse library metadata
+        use_cases = tuple(data.get("use_cases", []))
+        tags = tuple(data.get("tags", []))
+        icon = data.get("icon")
+
         return LensMetadata(
             name=name,
             domain=data.get("domain"),
@@ -274,6 +289,9 @@ class LensLoader:
             author=data.get("author"),
             license=data.get("license"),
             compatible_schemas=compatible_schemas,
+            use_cases=use_cases,
+            tags=tags,
+            icon=icon,
         )
 
     def _parse_lens_reference(self, data: str | dict) -> LensReference:
@@ -468,7 +486,10 @@ class LensLoader:
         )
 
     def _parse_router(self, data: dict) -> Router:
-        """Parse router configuration."""
+        """Parse router configuration.
+
+        RFC-070: Also parses shortcuts for skill invocation.
+        """
         tiers = ()
         if "tiers" in data:
             tiers = tuple(
@@ -484,10 +505,14 @@ class LensLoader:
                 for t in data["tiers"]
             )
 
+        # RFC-070: Parse shortcuts
+        shortcuts = data.get("shortcuts", {})
+
         return Router(
             tiers=tiers,
             intent_categories=tuple(data.get("intent_categories", [])),
             signals=data.get("signals", {}),
+            shortcuts=shortcuts,
         )
 
     def _parse_quality_policy(self, data: dict) -> QualityPolicy:
@@ -607,7 +632,10 @@ class LensLoader:
         return all_skills
 
     def _parse_skill(self, data: dict) -> Skill:
-        """Parse a single skill definition."""
+        """Parse a single skill definition.
+
+        RFC-070: Also parses triggers for automatic skill discovery.
+        """
         # Determine skill type
         skill_type_str = data.get("type", "inline")
         skill_type = SkillType(skill_type_str)
@@ -615,6 +643,12 @@ class LensLoader:
         # Parse trust level
         trust_str = data.get("trust", "sandboxed")
         trust = TrustLevel(trust_str)
+
+        # RFC-070: Parse triggers for automatic discovery
+        triggers = data.get("triggers", [])
+        if isinstance(triggers, str):
+            triggers = triggers.split()
+        triggers = tuple(triggers)
 
         # Parse scripts
         scripts = ()
@@ -672,6 +706,7 @@ class LensLoader:
             name=data["name"],
             description=data["description"],
             skill_type=skill_type,
+            triggers=triggers,
             compatibility=data.get("compatibility"),
             allowed_tools=allowed_tools,
             instructions=data.get("instructions"),
@@ -720,3 +755,53 @@ class LensLoader:
                 spell = parse_spell(spell_data)
                 spells.append(spell)
         return tuple(spells)
+
+    # RFC-072: Affordances parsing
+
+    def _parse_affordances(self, data: dict[str, Any] | None) -> Affordances | None:
+        """Parse affordances section from lens YAML.
+
+        Handles the RFC-072 affordances schema:
+
+        affordances:
+          primary:
+            - primitive: CodeEditor
+              default_size: full
+              weight: 1.0
+          secondary:
+            - primitive: TestRunner
+              trigger: "test|coverage"
+              weight: 0.7
+          contextual:
+            - primitive: MemoryPane
+              trigger: "decision|pattern"
+              weight: 0.6
+
+        Args:
+            data: Raw affordances dict from YAML
+
+        Returns:
+            Parsed Affordances or None if data is empty
+        """
+        if not data:
+            return None
+
+        def parse_list(items: list[dict] | None) -> tuple[PrimitiveAffordance, ...]:
+            if not items:
+                return ()
+            return tuple(
+                PrimitiveAffordance(
+                    primitive=item["primitive"],
+                    default_size=item.get("default_size", "panel"),
+                    weight=item.get("weight", 0.5),
+                    trigger=item.get("trigger"),
+                    mode_hint=item.get("mode_hint"),
+                )
+                for item in items
+            )
+
+        return Affordances(
+            primary=parse_list(data.get("primary")),
+            secondary=parse_list(data.get("secondary")),
+            contextual=parse_list(data.get("contextual")),
+        )

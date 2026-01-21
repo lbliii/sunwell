@@ -9,27 +9,34 @@ ALL pre-processing decisions in one inference call:
 4. Tool Prediction — What tools might be needed?
 5. User Mood Detection — What's the user's emotional state?
 6. Expertise Level — What's the user's technical level?
+7. Skill Suggestions — RFC-070: Which skills match the intent? (NEW)
 
 Benefits:
 - One model config, one loaded model, one inference per request
 - Thread-safe LRU cache for repeated queries
 - Graceful fallback to heuristics if model fails
 - Backward-compatible adapter for CognitiveRouter consumers
+- RFC-070: Automatic skill discovery via trigger matching
 
-See: RFC-030-unified-router.md
+See: RFC-030-unified-router.md, RFC-070-dori-lens-migration.md
 """
 
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import json
 import re
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sunwell.models.protocol import ModelProtocol
+
+if TYPE_CHECKING:
+    from sunwell.core.lens import Lens
+    from sunwell.skills.types import Skill
 
 # =============================================================================
 # Intent Taxonomy (RFC-030)
@@ -114,6 +121,13 @@ class RoutingDecision:
     focus: tuple[str, ...] = ()         # Keywords for retrieval boosting
     secondary_lenses: tuple[str, ...] = ()
 
+    # RFC-070: Skill suggestions based on trigger matching
+    suggested_skills: tuple[str, ...] = ()
+    """Skills whose triggers match the input."""
+
+    skill_confidence: float = 0.0
+    """Confidence in skill suggestions (0.0-1.0)."""
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
@@ -127,6 +141,8 @@ class RoutingDecision:
             "reasoning": self.reasoning,
             "focus": list(self.focus),
             "secondary_lenses": list(self.secondary_lenses),
+            "suggested_skills": list(self.suggested_skills),
+            "skill_confidence": self.skill_confidence,
         }
 
     @classmethod
@@ -143,6 +159,8 @@ class RoutingDecision:
             reasoning=data.get("reasoning", ""),
             focus=tuple(data.get("focus", [])),
             secondary_lenses=tuple(data.get("secondary_lenses", [])),
+            suggested_skills=tuple(data.get("suggested_skills", [])),
+            skill_confidence=float(data.get("skill_confidence", 0.0)),
         )
 
 
@@ -210,6 +228,8 @@ class UnifiedRouter:
 
     Thread-safe caching with double-checked locking pattern (Python 3.14t safe).
 
+    RFC-070: Now includes skill suggestion via trigger matching.
+
     Usage:
         router = UnifiedRouter(model=OllamaModel("qwen2.5:1.5b"))
         decision = await router.route("fix the bug in auth.py")
@@ -219,6 +239,11 @@ class UnifiedRouter:
         # decision.lens = "code-reviewer"
         # decision.mood = UserMood.NEUTRAL
         # decision.confidence = 0.85
+
+        # RFC-070: With lens for skill matching
+        decision = await router.route("audit the documentation", lens=tech_writer_lens)
+        # decision.suggested_skills = ("audit-documentation",)
+        # decision.skill_confidence = 0.9
 
     Configuration:
         - model: The tiny model for routing (qwen2.5:1.5b recommended)
@@ -243,19 +268,30 @@ class UnifiedRouter:
         self,
         request: str,
         context: dict[str, Any] | None = None,
+        lens: Lens | None = None,
     ) -> RoutingDecision:
         """Single inference call returns all routing decisions.
+
+        RFC-070: Now supports skill suggestion via lens trigger matching.
 
         Args:
             request: The user's request/task
             context: Optional context (file info, code snippet, etc.)
+            lens: Optional lens for skill trigger matching (RFC-070)
 
         Returns:
-            RoutingDecision with all routing information
+            RoutingDecision with all routing information including suggested_skills
         """
-        # Compute cache key
+        # RFC-070: Check for shortcut commands first
+        if lens and lens.router and lens.router.shortcuts:
+            shortcut_result = self._check_shortcut(request, lens)
+            if shortcut_result:
+                return shortcut_result
+
+        # Compute cache key (include lens name for skill matching)
+        lens_name = lens.metadata.name if lens else None
         context_items = tuple(sorted((context or {}).items()))
-        cache_key = hash((request, context_items))
+        cache_key = hash((request, context_items, lens_name))
 
         # Fast path: check cache without lock
         if cache_key in self._cache:
@@ -277,6 +313,15 @@ class UnifiedRouter:
                 # Fallback to heuristics on any error
                 decision = self.fallback_decision(request, error=str(e))
 
+            # RFC-070: Match skill triggers if lens provided
+            if lens and lens.skills:
+                suggested, confidence = self._match_skill_triggers(request, lens.skills)
+                decision = dataclasses.replace(
+                    decision,
+                    suggested_skills=suggested,
+                    skill_confidence=confidence,
+                )
+
             # Use sync lock for cache mutation (quick, no await)
             with self._sync_lock:
                 # LRU eviction if cache full
@@ -292,6 +337,70 @@ class UnifiedRouter:
                 self._history.append((request, decision))
 
             return decision
+
+    def _check_shortcut(self, request: str, lens: Lens) -> RoutingDecision | None:
+        """Check if request is a shortcut command.
+
+        RFC-070: Returns a pre-built decision for shortcut commands like "::a".
+        """
+        if not lens.router or not lens.router.shortcuts:
+            return None
+
+        request_stripped = request.strip()
+
+        # Check for exact shortcut match
+        if request_stripped in lens.router.shortcuts:
+            skill_name = lens.router.shortcuts[request_stripped]
+            return RoutingDecision(
+                intent=Intent.CODE,  # Skills are action-oriented
+                complexity=Complexity.STANDARD,
+                lens=lens.metadata.name,
+                tools=(),
+                mood=UserMood.NEUTRAL,
+                expertise=UserExpertise.INTERMEDIATE,
+                confidence=1.0,
+                reasoning=f"Shortcut '{request_stripped}' → skill '{skill_name}'",
+                suggested_skills=(skill_name,),
+                skill_confidence=1.0,
+            )
+
+        return None
+
+    def _match_skill_triggers(
+        self,
+        request: str,
+        skills: tuple[Skill, ...],
+    ) -> tuple[tuple[str, ...], float]:
+        """Find skills whose triggers match the input.
+
+        RFC-070: Matches request against skill triggers for automatic discovery.
+
+        Returns:
+            Tuple of (matched skill names, confidence score)
+        """
+        request_lower = request.lower()
+        matches: list[tuple[str, int]] = []  # (skill_name, match_count)
+
+        for skill in skills:
+            if not skill.triggers:
+                continue
+
+            match_count = sum(1 for trigger in skill.triggers if trigger.lower() in request_lower)
+            if match_count > 0:
+                matches.append((skill.name, match_count))
+
+        if not matches:
+            return (), 0.0
+
+        # Sort by match count (descending) and take top matches
+        matches.sort(key=lambda x: x[1], reverse=True)
+
+        # Compute confidence based on match quality
+        # Scale: 1 trigger = 33%, 2 = 67%, 3+ = 100%
+        best_match_count = matches[0][1] if matches else 0
+        confidence = min(1.0, best_match_count / 3)
+
+        return tuple(m[0] for m in matches), confidence
 
     async def _compute_decision(
         self,

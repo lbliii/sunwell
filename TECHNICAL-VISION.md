@@ -4685,15 +4685,272 @@ class SchemaValidator:
 
 ---
 
+## Integration Layer (RFC-067)
+
+The integration layer addresses a critical AI coding assistant failure mode: **creating files without wiring them together**. AI agents consistently fail to import created modules, call written functions, and register handlers.
+
+### Core Insight
+
+Current DAGs model **ordering** (what order to do work), not **connection** (did we wire things together). The integration layer models both.
+
+### Integration Types
+
+```python
+# src/sunwell/integration/types.py
+
+class IntegrationType(Enum):
+    """How components integrate with each other."""
+    IMPORT = "import"     # from x import y
+    CALL = "call"         # obj.method() or func()
+    ROUTE = "route"       # @app.route('/path')
+    CONFIG = "config"     # KEY=value in settings
+    INHERIT = "inherit"   # class Foo(Bar)
+    COMPOSE = "compose"   # self.component = Component()
+
+
+class TaskType(Enum):
+    """Types of tasks in integration-aware planning."""
+    CREATE = "create"     # Create new artifact
+    WIRE = "wire"         # Connect artifacts (explicit, can't be skipped)
+    VERIFY = "verify"     # Verify integrations work
+    REFACTOR = "refactor" # Restructure without behavior change
+```
+
+### Wire Tasks
+
+Wire tasks are **first-class tasks** that explicitly connect artifacts:
+
+```yaml
+# Before: hoping AI wires things
+tasks:
+  - id: auth-1
+    description: "Create User model"
+    produces: ["User"]
+  - id: auth-2
+    description: "Create JWT helpers"
+    requires: ["User"]  # Ordering only!
+
+# After: explicit wiring
+tasks:
+  - id: auth-1
+    task_type: create
+    produces: ["User"]
+  - id: auth-2
+    task_type: create
+    produces: ["create_token"]
+  - id: auth-3
+    task_type: wire  # ← Explicit wiring task
+    description: "Wire JWT to import User"
+    integrations:
+      - artifact_id: User
+        integration_type: import
+        target_file: src/auth/jwt.py
+    verification_checks:
+      - check_type: import_exists
+        pattern: "from.*models.*import.*User"
+```
+
+### IntegrationVerifier
+
+The `IntegrationVerifier` uses AST parsing to verify integrations:
+
+```python
+# src/sunwell/integration/verifier.py
+
+class IntegrationVerifier:
+    """Verify artifacts are wired together, not just created."""
+    
+    async def verify_integration(self, source_file, integration) -> IntegrationResult:
+        """Check that a specific integration exists."""
+        
+    async def verify_artifact_connected(self, artifact) -> IntegrationResult:
+        """Check artifact is used somewhere (not orphaned)."""
+        
+    async def detect_stubs(self, file_path) -> list[StubDetection]:
+        """Find pass, TODO, raise NotImplementedError."""
+        
+    async def detect_orphans(self, artifacts) -> list[OrphanDetection]:
+        """Find artifacts that aren't imported anywhere."""
+```
+
+### Detection Capabilities
+
+| Detection | Method | Example |
+|-----------|--------|---------|
+| **Import exists** | AST parsing | `from models.user import User` |
+| **Call exists** | AST visitor | `service.get_user(id)` |
+| **Route registered** | Regex + AST | `@app.route('/users')` |
+| **Stub detection** | AST + regex | `pass`, `...`, `raise NotImplementedError`, `TODO` |
+| **Orphan detection** | Project scan | File exists but nothing imports it |
+
+---
+
+## Unified Memory Architecture (RFC-065)
+
+Consolidates Sunwell's fragmented learning systems into a single coherent architecture.
+
+### The Problem
+
+Multiple RFCs added storage mechanisms without consolidation:
+- RFC-013/014: Simulacrum sessions (`.sunwell/sessions/`)
+- RFC-042: Adaptive Agent learnings (`.sunwell/learnings/`)
+- RFC-045: Project Intelligence (`.sunwell/intelligence/`)
+- RFC-052: Team Intelligence (`.sunwell/team/`)
+
+### Unified Storage
+
+```
+.sunwell/
+├── memory/                      # NEW: Unified memory store
+│   ├── learnings.jsonl          # All learnings (single format)
+│   ├── decisions.jsonl          # Architectural decisions
+│   ├── failures.jsonl           # Failed approaches
+│   └── index.json               # Quick lookup index
+├── plans/                       # KEPT: Execution state
+└── sessions/                    # KEPT: Conversation DAG
+```
+
+### Learning Categories
+
+```python
+class LearningCategory(Enum):
+    TASK_COMPLETION = "task_completion"  # What was built
+    PATTERN = "pattern"                   # Code patterns discovered
+    TYPE = "type"                         # Type definitions, schemas
+    API = "api"                           # Endpoints, interfaces
+    FIX = "fix"                           # What fixed errors
+    DECISION = "decision"                 # Architectural choices
+    FAILURE = "failure"                   # What didn't work
+```
+
+### Cross-Stack Contract
+
+The memory system is aligned across Python, Rust (Tauri), and TypeScript (Svelte):
+
+| Layer | File | Type |
+|-------|------|------|
+| Python | `memory/types.py` | `Learning` dataclass |
+| Rust | `memory.rs` | `struct Learning` |
+| TypeScript | `lib/types.ts` | `interface Learning` |
+
+---
+
+## Lens Management (RFC-064)
+
+Connects Sunwell's lens system to project execution and Studio UI.
+
+### The Gap
+
+Lenses (expertise containers) were only used by CLI commands (`chat`, `apply`, `ask`). The main agent flow and Studio UI had no lens integration.
+
+### Integration Points
+
+| Component | Integration |
+|-----------|-------------|
+| **AdaptiveAgent** | Auto-selects lens based on goal via `LensDiscovery` |
+| **CLI** | `--lens` flag for explicit override |
+| **Studio** | Lens picker before project start |
+| **Project** | Per-project lens memory |
+
+### Auto-Discovery
+
+```python
+# src/sunwell/naaru/expertise/discovery.py
+
+DOMAIN_LENS_MAP = {
+    Domain.DOCUMENTATION: ["tech-writer.lens", "team-writer.lens"],
+    Domain.CODE: ["coder.lens", "team-dev.lens"],
+    Domain.REVIEW: ["code-reviewer.lens", "team-qa.lens"],
+}
+
+discovery = LensDiscovery()
+lenses = await discovery.discover("code")  # Returns matching lenses
+```
+
+---
+
+## Intelligent Run Button (RFC-066)
+
+AI-powered "Run" button for Studio that analyzes projects and determines how to launch them.
+
+### Analysis Flow
+
+```
+Project → AI Analysis → Run Command → User Confirmation → Execute
+                ↓
+         Fallback: Heuristic detection (no AI needed)
+```
+
+### RunAnalysis Data Model
+
+```python
+@dataclass
+class RunAnalysis:
+    project_type: str        # "React + Vite application"
+    framework: str | None    # "Vite 5.x"
+    language: str            # "TypeScript"
+    command: str             # "npm run dev"
+    prerequisites: list[Prerequisite]  # Missing dependencies
+    confidence: Literal['high', 'medium', 'low']
+    source: Literal['ai', 'heuristic', 'cache', 'user']
+```
+
+### Safety Model
+
+- **Command Allowlist**: Only known-safe binaries (npm, python, cargo, etc.)
+- **Pattern Blocklist**: No shell operators (`;`, `&&`, `|`, etc.)
+- **User Confirmation**: Command always shown before execution
+- **Edit Validation**: User edits re-validated against allowlist
+
+---
+
+## Implementation Status
+
+### Fully Implemented ✅
+
+| System | Location | Notes |
+|--------|----------|-------|
+| **Naaru Architecture** | `src/sunwell/naaru/` | Planning, execution, synthesis |
+| **Artifact-First Planning** | `naaru/planners/artifact.py` | DAG-based execution |
+| **Contract-Aware Tasks** | `naaru/types.py` | `produces`, `requires`, `modifies` |
+| **Integration Types** | `integration/types.py` | RFC-067 data models |
+| **IntegrationVerifier** | `integration/verifier.py` | AST-based detection |
+| **Adaptive Agent** | `adaptive/agent.py` | Learning-enabled execution |
+| **Backlog System** | `backlog/` | Autonomous goal generation |
+| **Guardrails** | `guardrails/` | Safety enforcement |
+| **Studio GUI** | `studio/` | Tauri + Svelte |
+| **DAG Visualization** | `studio/src/components/dag/` | Live execution view |
+| **Lens System** | `core/lens.py` | Expertise containers |
+
+### In Progress 🚧
+
+| System | RFC | Status |
+|--------|-----|--------|
+| **Unified Memory** | RFC-065 | Types defined, migration planned |
+| **Wire Task Generation** | RFC-067 | Types implemented, planner integration pending |
+| **Lens Management UI** | RFC-064 | Backend ready, Studio components pending |
+| **Intelligent Run** | RFC-066 | Design complete, implementation planned |
+
+---
+
 ## Next Steps
 
-1. **Phase 1**: Implement core models and schema loader
-2. **Phase 2**: Build retriever with basic vector search
-3. **Phase 3**: Implement runtime engine
-4. **Phase 4**: Add model adapters (OpenAI, Anthropic)
-5. **Phase 5**: Build CLI
-6. **Phase 6**: Add validation system
-7. **Phase 7**: Fount client
+**Phase 7** (Current): Integration & Memory Consolidation
+- [ ] Complete RFC-067 wire task generation in planner
+- [ ] Implement RFC-065 memory migration
+- [ ] Add RFC-064 lens picker to Studio
+- [ ] Build RFC-066 run analyzer
+
+**Phase 8**: Studio Excellence
+- [ ] Integration edges in DAG visualization
+- [ ] Memory/learnings panel
+- [ ] Run button with analysis modal
+- [ ] Lens browser
+
+**Phase 9**: Production Hardening
+- [ ] Performance benchmarks
+- [ ] Cross-project learnings (optional)
+- [ ] SQLite migration for memory (optional)
 
 ---
 

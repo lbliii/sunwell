@@ -6,13 +6,15 @@ use crate::project::{Project, ProjectDetector, RecentProject};
 use crate::workspace::{
     create_recent_project, default_workspace_root, ensure_workspace_exists,
     extract_project_name, resolve_workspace, shorten_path, slugify,
-    RecentProjectsStore, ResolutionSource, WorkspaceResult,
+    RecentProjectsStore, ResolutionSource, SavedPrompt, SavedPromptsStore, WorkspaceResult,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::sync::Mutex;
-use tauri::State;
+use tauri::{Emitter, State};
 
 /// Application state shared across commands.
 pub struct AppState {
@@ -21,6 +23,7 @@ pub struct AppState {
     pub detector: ProjectDetector,
     pub current_project: Mutex<Option<Project>>,
     pub recent_projects: Mutex<RecentProjectsStore>,
+    pub saved_prompts: Mutex<SavedPromptsStore>,
 }
 
 impl Default for AppState {
@@ -31,6 +34,7 @@ impl Default for AppState {
             detector: ProjectDetector::new(),
             current_project: Mutex::new(None),
             recent_projects: Mutex::new(RecentProjectsStore::load()),
+            saved_prompts: Mutex::new(SavedPromptsStore::load()),
         }
     }
 }
@@ -133,12 +137,16 @@ pub async fn create_project(
 }
 
 /// Run a goal using the Sunwell agent.
+///
+/// RFC-064: Accepts optional lens selection parameters.
 #[tauri::command]
 pub async fn run_goal(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     goal: String,
     project_path: Option<String>,
+    lens: Option<String>,
+    auto_lens: Option<bool>,
 ) -> Result<RunGoalResult, String> {
     // Resolve workspace
     let explicit = project_path.map(PathBuf::from);
@@ -157,9 +165,21 @@ pub async fn run_goal(
             .map_err(|e| format!("Failed to create workspace: {}", e))?;
     }
 
-    // Start agent
+    // Save the prompt
+    let mut prompts_store = state.saved_prompts.lock().map_err(|e| e.to_string())?;
+    prompts_store.add(goal.clone());
+    let _ = prompts_store.save(); // Best effort save
+    drop(prompts_store);
+
+    // Start agent with lens selection (RFC-064)
     let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
-    agent.run_goal(app, &goal, &workspace_path)?;
+    agent.run_goal(
+        app,
+        &goal,
+        &workspace_path,
+        lens.as_deref(),
+        auto_lens.unwrap_or(true),
+    )?;
 
     // Update recent projects
     if let Ok(project) = state.detector.detect(&workspace_path) {
@@ -340,6 +360,7 @@ pub struct CheckpointTask {
 /// Detailed status of a discovered project.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectStatus {
+    pub id: String,
     pub path: String,
     pub display_path: String,
     pub name: String,
@@ -435,7 +456,18 @@ fn get_project_status_internal(path: &PathBuf) -> Result<ProjectStatus, String> 
             (ExecutionStatus::None, None, None, None, None, get_dir_mtime(path))
         };
 
+    // Generate stable ID from path
+    let id = {
+        let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
+        let path_str = canonical.to_string_lossy();
+        let mut hasher = DefaultHasher::new();
+        path_str.hash(&mut hasher);
+        let hash = hasher.finish();
+        format!("{:012x}", hash)
+    };
+
     Ok(ProjectStatus {
+        id,
         path: path.to_string_lossy().to_string(),
         display_path: shorten_path(path),
         name,
@@ -1059,9 +1091,9 @@ pub async fn iterate_project(
         format!("Continue developing {} with improvements", name)
     };
 
-    // Start agent with the new goal
+    // Start agent with the new goal (auto-lens for iterations)
     let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
-    agent.run_goal(app, &iteration_goal, &new_path)?;
+    agent.run_goal(app, &iteration_goal, &new_path, None, true)?;
 
     Ok(ProjectManageResult {
         success: true,
@@ -1099,4 +1131,328 @@ pub async fn get_project_learnings(path: String) -> Result<ProjectLearnings, Str
     }
 
     Ok(extract_project_learnings(&path))
+}
+
+// =============================================================================
+// Saved Prompts Management
+// =============================================================================
+
+/// Get all saved prompts.
+#[tauri::command]
+pub async fn get_saved_prompts(
+    state: State<'_, AppState>,
+) -> Result<Vec<SavedPrompt>, String> {
+    let prompts_store = state.saved_prompts.lock().map_err(|e| e.to_string())?;
+    Ok(prompts_store.get_all().to_vec())
+}
+
+/// Save a prompt (or update its last_used timestamp).
+#[tauri::command]
+pub async fn save_prompt(
+    state: State<'_, AppState>,
+    prompt: String,
+) -> Result<(), String> {
+    let mut prompts_store = state.saved_prompts.lock().map_err(|e| e.to_string())?;
+    prompts_store.add(prompt);
+    prompts_store.save().map_err(|e| e.to_string())
+}
+
+/// Remove a prompt from saved list.
+#[tauri::command]
+pub async fn remove_saved_prompt(
+    state: State<'_, AppState>,
+    prompt: String,
+) -> Result<(), String> {
+    let mut prompts_store = state.saved_prompts.lock().map_err(|e| e.to_string())?;
+    prompts_store.remove(&prompt);
+    prompts_store.save().map_err(|e| e.to_string())
+}
+
+// =============================================================================
+// Run Analysis Commands (RFC-066: Intelligent Run Button)
+// =============================================================================
+
+use crate::heuristic_detect::heuristic_detect;
+use crate::run_analysis::{validate_command_safety, RunAnalysis, RunSession, Source};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tokio::time::timeout;
+
+/// Analyze project to determine how to run it.
+/// Returns cached result if available and project unchanged.
+/// 
+/// Timeout: 10 seconds. Falls back to heuristic detection if AI unavailable.
+#[tauri::command]
+pub async fn analyze_project_for_run(
+    path: String,
+    force_refresh: bool,
+) -> Result<RunAnalysis, String> {
+    let path = PathBuf::from(&path);
+    
+    if !path.exists() {
+        return Err(format!("Path does not exist: {}", path.display()));
+    }
+    
+    // Check for user-saved command first (highest priority)
+    if !force_refresh {
+        if let Some(saved) = load_saved_run_command(&path) {
+            return Ok(saved);
+        }
+    }
+    
+    // Try AI analysis with timeout
+    let ai_result = timeout(
+        Duration::from_secs(10),
+        call_python_run_analyzer(&path)
+    ).await;
+    
+    match ai_result {
+        Ok(Ok(analysis)) => Ok(analysis),
+        Ok(Err(e)) => {
+            // AI failed, try heuristic
+            eprintln!("AI analysis failed: {}, trying heuristic", e);
+            heuristic_detect(&path)
+                .ok_or_else(|| "Unable to detect how to run this project".to_string())
+        }
+        Err(_) => {
+            // Timeout, try heuristic
+            eprintln!("AI analysis timed out, trying heuristic");
+            heuristic_detect(&path)
+                .ok_or_else(|| "Unable to detect how to run this project".to_string())
+        }
+    }
+}
+
+/// Call Python run analyzer via subprocess.
+async fn call_python_run_analyzer(path: &PathBuf) -> Result<RunAnalysis, String> {
+    use std::process::Command;
+    
+    let output = Command::new("python")
+        .args(["-m", "sunwell.tools.run_analyzer", "--path", &path.to_string_lossy()])
+        .output()
+        .map_err(|e| format!("Failed to run Python analyzer: {}", e))?;
+    
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Python analyzer failed: {}", stderr));
+    }
+    
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    serde_json::from_str(&stdout)
+        .map_err(|e| format!("Failed to parse analyzer output: {}", e))
+}
+
+/// Load user-saved run command for a project.
+fn load_saved_run_command(path: &PathBuf) -> Option<RunAnalysis> {
+    let run_json_path = path.join(".sunwell").join("run.json");
+    if !run_json_path.exists() {
+        return None;
+    }
+    
+    let content = std::fs::read_to_string(&run_json_path).ok()?;
+    let mut analysis: RunAnalysis = serde_json::from_str(&content).ok()?;
+    
+    // Mark as user-saved
+    analysis.source = Source::User;
+    analysis.user_saved = true;
+    
+    Some(analysis)
+}
+
+/// Execute the run command for a project.
+/// Re-validates edited commands against the allowlist before execution.
+#[tauri::command]
+pub async fn run_project(
+    app: tauri::AppHandle,
+    path: String,
+    command: String,
+    install_first: bool,
+    save_command: bool,
+) -> Result<RunSession, String> {
+    let path = PathBuf::from(&path);
+    
+    if !path.exists() {
+        return Err(format!("Path does not exist: {}", path.display()));
+    }
+    
+    // Re-validate command against allowlist (even if user edited it)
+    validate_command_safety(&command)
+        .map_err(|e| format!("Command validation failed: {}", e))?;
+    
+    // Optionally run install command first
+    if install_first {
+        run_install_command(&path).await?;
+    }
+    
+    // Save command if requested
+    if save_command {
+        save_run_command_internal(&path, &command)?;
+    }
+    
+    // Execute the run command
+    let session = spawn_run_process(&path, &command)?;
+    
+    // Emit event to frontend
+    let _ = app.emit("run-session-started", &session);
+    
+    Ok(session)
+}
+
+/// Run install command (npm install, pip install, etc.)
+async fn run_install_command(path: &PathBuf) -> Result<(), String> {
+    use std::process::Command;
+    
+    // Detect package manager and run install
+    let (cmd, args): (&str, &[&str]) = if path.join("package.json").exists() {
+        if path.join("pnpm-lock.yaml").exists() {
+            ("pnpm", &["install"])
+        } else if path.join("yarn.lock").exists() {
+            ("yarn", &["install"])
+        } else if path.join("bun.lockb").exists() {
+            ("bun", &["install"])
+        } else {
+            ("npm", &["install"])
+        }
+    } else if path.join("requirements.txt").exists() {
+        ("pip", &["install", "-r", "requirements.txt"])
+    } else if path.join("pyproject.toml").exists() {
+        ("pip", &["install", "-e", "."])
+    } else if path.join("Cargo.toml").exists() {
+        ("cargo", &["build"])
+    } else {
+        return Ok(()); // Nothing to install
+    };
+    
+    let output = Command::new(cmd)
+        .args(args)
+        .current_dir(path)
+        .output()
+        .map_err(|e| format!("Failed to run install: {}", e))?;
+    
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Install failed: {}", stderr));
+    }
+    
+    Ok(())
+}
+
+/// Spawn the run process.
+fn spawn_run_process(path: &PathBuf, command: &str) -> Result<RunSession, String> {
+    use std::process::Command;
+    
+    let parts: Vec<&str> = command.split_whitespace().collect();
+    if parts.is_empty() {
+        return Err("Empty command".to_string());
+    }
+    
+    let (cmd, args) = parts.split_first().unwrap();
+    
+    // Spawn process (don't wait for it)
+    let child = Command::new(cmd)
+        .args(args)
+        .current_dir(path)
+        .spawn()
+        .map_err(|e| format!("Failed to start process: {}", e))?;
+    
+    let pid = child.id();
+    let session_id = format!("run-{}", pid);
+    
+    let started_at = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    
+    Ok(RunSession {
+        id: session_id,
+        project_path: path.to_string_lossy().to_string(),
+        command: command.to_string(),
+        pid,
+        port: None, // Would need to detect this from output
+        started_at,
+    })
+}
+
+/// Save run command internal helper.
+fn save_run_command_internal(path: &PathBuf, command: &str) -> Result<(), String> {
+    let sunwell_dir = path.join(".sunwell");
+    std::fs::create_dir_all(&sunwell_dir)
+        .map_err(|e| format!("Failed to create .sunwell directory: {}", e))?;
+    
+    let run_json_path = sunwell_dir.join("run.json");
+    
+    // Create a minimal analysis to save
+    let analysis = RunAnalysis {
+        project_type: "User-configured".to_string(),
+        framework: None,
+        language: "unknown".to_string(),
+        command: command.to_string(),
+        command_description: "User-saved command".to_string(),
+        working_dir: None,
+        alternatives: vec![],
+        prerequisites: vec![],
+        expected_port: None,
+        expected_url: None,
+        confidence: crate::run_analysis::Confidence::High,
+        source: Source::User,
+        from_cache: false,
+        user_saved: true,
+    };
+    
+    let json = serde_json::to_string_pretty(&analysis)
+        .map_err(|e| format!("Failed to serialize: {}", e))?;
+    
+    std::fs::write(&run_json_path, json)
+        .map_err(|e| format!("Failed to save run command: {}", e))
+}
+
+/// Stop a running project.
+#[tauri::command]
+pub async fn stop_project_run(
+    app: tauri::AppHandle,
+    session_id: String,
+) -> Result<(), String> {
+    // Extract PID from session ID
+    let pid_str = session_id.strip_prefix("run-")
+        .ok_or("Invalid session ID")?;
+    let pid: u32 = pid_str.parse()
+        .map_err(|_| "Invalid session ID")?;
+    
+    // Kill the process
+    #[cfg(unix)]
+    {
+        use std::process::Command;
+        Command::new("kill")
+            .args(["-TERM", &pid.to_string()])
+            .output()
+            .map_err(|e| format!("Failed to stop process: {}", e))?;
+    }
+    
+    #[cfg(windows)]
+    {
+        use std::process::Command;
+        Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/F"])
+            .output()
+            .map_err(|e| format!("Failed to stop process: {}", e))?;
+    }
+    
+    // Emit event to frontend
+    let _ = app.emit("run-session-stopped", &session_id);
+    
+    Ok(())
+}
+
+/// Save user's preferred command for a project.
+#[tauri::command]
+pub async fn save_run_command(
+    path: String,
+    command: String,
+) -> Result<(), String> {
+    let path = PathBuf::from(&path);
+    
+    // Validate first
+    validate_command_safety(&command)
+        .map_err(|e| format!("Command validation failed: {}", e))?;
+    
+    save_run_command_internal(&path, &command)
 }

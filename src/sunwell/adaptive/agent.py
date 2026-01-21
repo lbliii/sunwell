@@ -25,8 +25,15 @@ from sunwell.adaptive.budget import AdaptiveBudget
 from sunwell.adaptive.events import (
     AgentEvent,
     EventType,
+    briefing_loaded_event,
+    briefing_saved_event,
     complete_event,
+    lens_selected_event,
+    lens_suggested_event,
     memory_learning_event,
+    prefetch_complete_event,
+    prefetch_start_event,
+    prefetch_timeout_event,
     signal_event,
     task_complete_event,
     task_start_event,
@@ -39,6 +46,8 @@ from sunwell.adaptive.toolchain import detect_toolchain
 from sunwell.adaptive.validation import Artifact, ValidationRunner, ValidationStage
 
 if TYPE_CHECKING:
+    from sunwell.core.lens import Lens
+    from sunwell.memory.briefing import Briefing, PrefetchedContext
     from sunwell.models.protocol import ModelProtocol
     from sunwell.naaru.types import Task
     from sunwell.simulacrum.core.store import SimulacrumStore
@@ -124,6 +133,23 @@ class AdaptiveAgent:
     simulacrum: SimulacrumStore | None = None
     """Optional pre-configured Simulacrum store."""
 
+    # RFC-064: Lens configuration
+    lens: "Lens | None" = None
+    """Active lens for expertise injection."""
+
+    auto_lens: bool = True
+    """Whether to auto-select lens if none provided."""
+
+    # RFC-071: Briefing configuration
+    enable_briefing: bool = True
+    """Whether to load/save briefings for session continuity."""
+
+    enable_prefetch: bool = True
+    """Whether to pre-load context based on briefing signals."""
+
+    prefetch_timeout: float = 2.0
+    """Maximum time to wait for prefetch (seconds)."""
+
     # Internal state
     _learning_store: LearningStore = field(default_factory=LearningStore, init=False)
     _learning_extractor: LearningExtractor = field(
@@ -132,6 +158,13 @@ class AdaptiveAgent:
     _validation_runner: ValidationRunner | None = field(default=None, init=False)
     _fix_stage: FixStage | None = field(default=None, init=False)
     _naaru: Any = field(default=None, init=False)  # Internal Naaru for task execution
+
+    # RFC-071: Briefing state
+    _briefing: "Briefing | None" = field(default=None, init=False)
+    _prefetched_context: "PrefetchedContext | None" = field(default=None, init=False)
+    _session_learnings: list[Any] = field(default_factory=list, init=False)
+    _current_blockers: list[str] = field(default_factory=list, init=False)
+    _current_goal: str = field(default="", init=False)
 
     def __post_init__(self):
         if self.cwd is None:
@@ -222,9 +255,31 @@ class AdaptiveAgent:
         """
         start_time = time()
 
-        # Load Simulacrum session
+        # RFC-071: Store current goal for briefing
+        self._current_goal = goal
+
+        # Load Simulacrum session and briefing
         async for event in self._load_memory():
             yield event
+
+        # RFC-064: Resolve lens if not already set
+        if self.lens is None and self.auto_lens:
+            from sunwell.adaptive.lens_resolver import resolve_lens_for_goal
+
+            resolution = await resolve_lens_for_goal(
+                goal=goal,
+                project_path=self.cwd,
+                auto_select=True,
+            )
+
+            if resolution.lens:
+                self.lens = resolution.lens
+                yield lens_selected_event(
+                    name=resolution.lens.metadata.name,
+                    source=resolution.source,
+                    confidence=resolution.confidence,
+                    reason=resolution.reason,
+                )
 
         # Extract signals
         yield signal_event("extracting")
@@ -280,8 +335,13 @@ class AdaptiveAgent:
         )
 
     async def _load_memory(self) -> AsyncIterator[AgentEvent]:
-        """Load Simulacrum session if specified, plus disk-persisted learnings."""
-        # Always try to load disk-persisted learnings first
+        """Load Simulacrum session if specified, plus disk-persisted learnings and briefing."""
+        # RFC-071: Load briefing FIRST (instant orientation)
+        if self.enable_briefing:
+            async for event in self._load_briefing():
+                yield event
+
+        # Always try to load disk-persisted learnings
         disk_loaded = self._learning_store.load_from_disk(self.cwd)
         if disk_loaded > 0:
             yield AgentEvent(
@@ -344,6 +404,74 @@ class AdaptiveAgent:
                 {"session": self.session, "note": "Simulacrum not available"},
             )
 
+    async def _load_briefing(self) -> AsyncIterator[AgentEvent]:
+        """Load briefing and optionally run prefetch (RFC-071)."""
+        from sunwell.memory.briefing import Briefing
+
+        briefing = Briefing.load(self.cwd)
+        if not briefing:
+            return
+
+        self._briefing = briefing
+
+        yield briefing_loaded_event(
+            mission=briefing.mission,
+            status=briefing.status.value,
+            has_hazards=len(briefing.hazards) > 0,
+            has_dispatch_hints=bool(briefing.predicted_skills or briefing.suggested_lens),
+        )
+
+        # RFC-071: Run prefetch if enabled
+        if self.enable_prefetch and self._briefing:
+            async for event in self._run_prefetch():
+                yield event
+
+    async def _run_prefetch(self) -> AsyncIterator[AgentEvent]:
+        """Run briefing-driven prefetch with timeout (RFC-071)."""
+        if not self._briefing:
+            return
+
+        yield prefetch_start_event(self._briefing.mission)
+
+        try:
+            from sunwell.prefetch.dispatcher import (
+                analyze_briefing_for_prefetch,
+                execute_prefetch,
+            )
+
+            # Analyze briefing for prefetch plan
+            prefetch_plan = await analyze_briefing_for_prefetch(self._briefing)
+
+            # Execute prefetch with timeout
+            self._prefetched_context = await execute_prefetch(
+                prefetch_plan,
+                self.cwd,
+                timeout=self.prefetch_timeout,
+            )
+
+            if self._prefetched_context:
+                # Suggest lens if different from current
+                if prefetch_plan.suggested_lens and (
+                    not self.lens or prefetch_plan.suggested_lens != getattr(self.lens, "name", None)
+                ):
+                    yield lens_suggested_event(
+                        suggested=prefetch_plan.suggested_lens,
+                        reason="briefing_routing",
+                    )
+
+                yield prefetch_complete_event(
+                    files_loaded=len(self._prefetched_context.files),
+                    learnings_loaded=len(self._prefetched_context.learnings),
+                    skills_activated=list(self._prefetched_context.active_skills),
+                )
+            else:
+                # Prefetch timed out
+                yield prefetch_timeout_event()
+
+        except Exception as e:
+            # Prefetch failed, continue without warm context
+            yield prefetch_timeout_event(error=str(e))
+
     async def _extract_signals_with_memory(self, goal: str) -> AdaptiveSignals:
         """Extract signals with memory context."""
         signals = await extract_signals(goal, self.model)
@@ -367,11 +495,23 @@ class AdaptiveAgent:
             {"technique": signals.planning_route},
         )
 
-        # Build context with learnings
+        # Build context with learnings and lens expertise
         planning_context = context or {}
         learnings_context = self._learning_store.format_for_prompt()
         if learnings_context:
             planning_context["learnings"] = learnings_context
+
+        # RFC-064: Add lens context if available
+        if self.lens:
+            planning_context["lens_context"] = self.lens.to_context()
+
+        # RFC-071: Add briefing context for orientation
+        if self._briefing:
+            planning_context["briefing"] = self._briefing.to_prompt()
+
+        # RFC-071: Add prefetched files if available
+        if self._prefetched_context and self._prefetched_context.files:
+            planning_context["prefetched_files"] = self._prefetched_context.files
 
         if signals.planning_route == "HARMONIC":
             # Use Harmonic planning with multiple candidates
@@ -611,7 +751,7 @@ Output ONLY the code (no explanation, no markdown fences):"""
             yield event
 
     async def _save_memory(self) -> AsyncIterator[AgentEvent]:
-        """Save learnings to disk and optionally to Simulacrum session."""
+        """Save learnings to disk, optionally to Simulacrum, and update briefing."""
         # Always save to disk for cross-session persistence
         disk_saved = self._learning_store.save_to_disk(self.cwd)
 
@@ -630,6 +770,105 @@ Output ONLY the code (no explanation, no markdown fences):"""
                     "sim_synced": sim_synced,
                 },
             )
+
+        # RFC-071: Save briefing
+        if self.enable_briefing:
+            async for event in self._save_briefing():
+                yield event
+
+    async def _save_briefing(self) -> AsyncIterator[AgentEvent]:
+        """Generate and save new briefing based on session work (RFC-071)."""
+        from sunwell.memory.briefing import (
+            Briefing,
+            BriefingStatus,
+            ExecutionSummary,
+            briefing_to_learning,
+            compress_briefing,
+        )
+        from sunwell.routing.briefing_router import (
+            predict_skills_from_briefing,
+            suggest_lens_from_briefing,
+        )
+
+        # Build execution summary from task graph
+        if hasattr(self, "_task_graph") and self._task_graph:
+            summary = ExecutionSummary.from_task_graph(
+                self._task_graph,
+                self._session_learnings,
+            )
+        else:
+            # No task graph, create minimal summary
+            summary = ExecutionSummary(
+                last_action="Session completed.",
+                next_action=None,
+                modified_files=(),
+                tasks_completed=0,
+                gates_passed=0,
+                new_learnings=(),
+            )
+
+        # Determine new status
+        new_status = self._determine_briefing_status()
+
+        # Create or update briefing
+        if self._briefing:
+            old_briefing = self._briefing
+        elif self._current_goal:
+            # First session - create initial briefing
+            old_briefing = Briefing.create_initial(
+                mission=self._current_goal,
+                goal_hash=None,
+            )
+        else:
+            # No goal and no briefing - skip
+            return
+
+        # Predict skills for next session
+        predicted_skills = predict_skills_from_briefing(old_briefing)
+        suggested_lens = suggest_lens_from_briefing(old_briefing)
+
+        # Compress and write new briefing
+        new_briefing = compress_briefing(
+            old_briefing=old_briefing,
+            summary=summary,
+            new_status=new_status,
+            blockers=self._current_blockers,
+            predicted_skills=predicted_skills,
+            suggested_lens=suggested_lens,
+        )
+        new_briefing.save(self.cwd)
+
+        yield briefing_saved_event(
+            status=new_briefing.status.value,
+            next_action=new_briefing.next_action,
+            tasks_completed=summary.tasks_completed,
+        )
+
+        # If mission complete, generate completion learning
+        if new_status == BriefingStatus.COMPLETE:
+            completion_learning = briefing_to_learning(new_briefing)
+            if completion_learning:
+                self._learning_store.add_learning(completion_learning)
+                yield memory_learning_event(
+                    fact=completion_learning.fact,
+                    category="task_completion",
+                )
+
+    def _determine_briefing_status(self) -> "BriefingStatus":
+        """Determine briefing status from task graph state."""
+        from sunwell.memory.briefing import BriefingStatus
+
+        if not hasattr(self, "_task_graph") or not self._task_graph:
+            return BriefingStatus.IN_PROGRESS
+
+        if self._current_blockers:
+            return BriefingStatus.BLOCKED
+
+        # Check if all tasks completed
+        if not self._task_graph.has_pending_tasks():
+            return BriefingStatus.COMPLETE
+
+        return BriefingStatus.IN_PROGRESS
 
 
 # =============================================================================

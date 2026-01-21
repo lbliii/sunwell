@@ -1,4 +1,4 @@
-"""Signal extraction for adaptive routing (RFC-042).
+"""Signal extraction for adaptive routing (RFC-042, RFC-077).
 
 Signals are cheap (~40 tokens) to extract and drive routing decisions:
 - complexity: YES/NO/MAYBE → harmonic vs single-shot planning
@@ -8,13 +8,18 @@ Signals are cheap (~40 tokens) to extract and drive routing decisions:
 - confidence: 0.0-1.0 → vortex vs single-shot execution
 
 The routing table maps signal combinations to techniques.
+
+Two extraction modes:
+1. **Batch extraction** (extract_signals): One call, all signals (~1.5s)
+2. **Fast individual checks** (FastSignalChecker): Quick yes/no checks (~0.5s each)
+   Use when you only need 1-2 specific signals, not full extraction.
 """
 
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
@@ -473,3 +478,121 @@ def classify_error(
         likely_cause="Unknown error type",
         hotspot_file=file_path,
     )
+
+
+# =============================================================================
+# Fast Signal Checker (RFC-077)
+# =============================================================================
+
+
+@dataclass
+class FastSignalChecker:
+    """Quick individual signal checks using FastClassifier (RFC-077).
+
+    Use when you only need 1-2 specific signals, not full extraction.
+    Each check is ~0.5-1s with a small model (llama3.2:3b).
+
+    Example:
+        checker = FastSignalChecker(model)
+
+        # Quick danger check before execution
+        if await checker.is_dangerous("Delete all user data"):
+            raise UserConfirmationRequired("This action could cause data loss")
+
+        # Quick complexity check for routing
+        if await checker.is_complex("Refactor the auth system"):
+            return "HARMONIC"  # Use multi-candidate planning
+    """
+
+    model: ModelProtocol
+    """Small model for fast checks (llama3.2:3b recommended)."""
+
+    _classifier: Any = field(default=None, repr=False)
+
+    async def _get_classifier(self) -> Any:
+        """Lazy-load FastClassifier."""
+        if self._classifier is None:
+            from sunwell.reasoning import FastClassifier
+
+            self._classifier = FastClassifier(model=self.model)
+        return self._classifier
+
+    async def is_dangerous(self, goal: str) -> bool:
+        """Check if goal could cause data loss, security issues, etc.
+
+        Use before executing any autonomous action.
+        """
+        classifier = await self._get_classifier()
+        return await classifier.yes_no(
+            f"Could this action cause data loss, security issues, or system damage: '{goal}'",
+            context="Be conservative - flag anything risky.",
+        )
+
+    async def is_complex(self, goal: str) -> bool:
+        """Check if goal requires multi-step planning.
+
+        Use for routing decisions (single-shot vs harmonic).
+        """
+        classifier = await self._get_classifier()
+        result = await classifier.complexity(goal)
+        return result in ("complex", "standard")
+
+    async def needs_clarification(self, goal: str) -> bool:
+        """Check if goal is ambiguous and needs user clarification.
+
+        Use before starting execution on unclear requests.
+        """
+        classifier = await self._get_classifier()
+        return await classifier.yes_no(
+            f"Is this request ambiguous or unclear: '{goal}'",
+            context="Flag if the request could mean multiple things.",
+        )
+
+    async def needs_tools(self, goal: str) -> bool:
+        """Check if goal requires file/terminal access.
+
+        Use for tool preparation decisions.
+        """
+        classifier = await self._get_classifier()
+        return await classifier.yes_no(
+            f"Does this require file operations, terminal commands, or external tools: '{goal}'"
+        )
+
+    async def severity(self, signal_type: str, content: str, file_path: str) -> str:
+        """Classify severity of a code signal.
+
+        Use for backlog prioritization.
+        """
+        classifier = await self._get_classifier()
+        return await classifier.severity(signal_type, content, file_path)
+
+    async def quick_signals(self, goal: str) -> AdaptiveSignals:
+        """Extract signals using FastClassifier (parallel calls).
+
+        Alternative to extract_signals() when you want JSON-based extraction.
+        Slightly faster for simple goals, more reliable parsing.
+        """
+        import asyncio
+
+        classifier = await self._get_classifier()
+
+        # Run checks in parallel
+        dangerous, complex_check, ambiguous, tools = await asyncio.gather(
+            self.is_dangerous(goal),
+            classifier.complexity(goal),
+            self.needs_clarification(goal),
+            self.needs_tools(goal),
+        )
+
+        # Map to AdaptiveSignals format
+        complexity = "YES" if complex_check == "complex" else (
+            "MAYBE" if complex_check == "standard" else "NO"
+        )
+
+        return AdaptiveSignals(
+            complexity=complexity,  # type: ignore
+            needs_tools="YES" if tools else "NO",  # type: ignore
+            is_ambiguous="YES" if ambiguous else "NO",  # type: ignore
+            is_dangerous="YES" if dangerous else "NO",  # type: ignore
+            confidence=0.7,  # FastClassifier provides moderate confidence
+        )

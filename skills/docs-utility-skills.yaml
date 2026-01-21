@@ -1,0 +1,354 @@
+# skills/docs-utility-skills.yaml
+# RFC-070: Utility skills for documentation workflows
+
+skills:
+  - name: apply-style-guide
+    description: Apply NVIDIA style guide rules to documentation
+    type: inline
+    triggers: ["style guide", "style", "nvidia style", "::style"]
+    allowed_tools: [read_file, search_replace]
+    instructions: |
+      ## NVIDIA Style Guide Rules
+
+      ### Terminology
+      - Use "select" not "click"
+      - Use "enter" not "type"
+      - Use "GPU" not "gpu" (proper noun)
+
+      ### Voice
+      - Use active voice
+      - Use present tense
+      - Use second person ("you")
+
+      ### Structure
+      - One idea per sentence
+      - Sentences < 25 words
+      - Paragraphs < 5 sentences
+
+      ## Process
+      1. Scan for style violations
+      2. Propose corrections
+      3. Apply with user confirmation
+
+  - name: fix-markdown-syntax
+    description: Fix common Markdown/MyST syntax issues
+    type: inline
+    triggers: ["markdown", "md syntax", "myst", "::md"]
+    allowed_tools: [read_file, search_replace]
+    instructions: |
+      ## Common Fixes
+
+      ### Fenced Directives
+      ```markdown
+      # Wrong
+      :::note
+      Content
+      :::
+
+      # Correct (MyST)
+      :::{note}
+      Content
+      :::
+      ```
+
+      ### Tab Sets
+      ```markdown
+      # Correct
+      :::::{tab-set}
+      ::::{tab-item} Python
+      ```python
+      code
+      ```
+      ::::
+      :::::
+      ```
+
+      ### Admonitions
+      ```markdown
+      :::{warning}
+      Important warning text
+      :::
+      ```
+
+      ## Process
+      1. Identify syntax issues
+      2. Apply corrections
+      3. Validate result
+
+  - name: fix-rst-syntax
+    description: Fix common reStructuredText syntax issues
+    type: inline
+    triggers: ["rst", "restructuredtext", "::rst"]
+    allowed_tools: [read_file, search_replace]
+    instructions: |
+      ## Common Fixes
+
+      ### Directives
+      ```rst
+      .. note::
+
+         Content must be indented
+      ```
+
+      ### Code Blocks
+      ```rst
+      .. code-block:: python
+
+         def hello():
+             print("Hello")
+      ```
+
+      ### Cross-references
+      ```rst
+      :ref:`label-name`
+      :doc:`/path/to/doc`
+      ```
+
+  - name: bump-version
+    description: Bump version numbers in documentation
+    type: inline
+    triggers: ["version", "bump", "release", "::bv"]
+    allowed_tools: [read_file, search_replace, grep]
+    instructions: |
+      ## Process
+      1. Find all version references
+      2. Update to new version
+      3. Update changelog
+      4. Verify consistency
+
+      ## Files to Check
+      - README.md
+      - docs/conf.py
+      - pyproject.toml
+      - package.json
+      - CHANGELOG.md
+
+  - name: format-commit-message
+    description: Format commit messages for documentation changes
+    type: inline
+    triggers: ["commit", "commit message"]
+    instructions: |
+      ## Commit Format
+
+      ```
+      docs(<scope>): <description>
+
+      <body>
+
+      <footer>
+      ```
+
+      ## Scopes
+      - api: API documentation
+      - guide: User guides
+      - tutorial: Tutorials
+      - ref: Reference docs
+      - readme: README files
+
+      ## Examples
+      ```
+      docs(api): add authentication endpoint reference
+
+      docs(guide): fix installation steps for Windows
+
+      docs(tutorial): add quick start for Python SDK
+      ```
+
+  - name: bootstrap-sphinx
+    description: Bootstrap a complete Sphinx documentation site
+    type: inline
+    triggers: ["sphinx", "bootstrap", "init docs"]
+    allowed_tools: [write, run_terminal_cmd]
+    instructions: |
+      ## Creates
+
+      ```
+      docs/
+      ├── conf.py           # Sphinx configuration
+      ├── index.rst         # Main index
+      ├── Makefile          # Build commands
+      ├── requirements.txt  # Doc dependencies
+      └── _static/          # Static assets
+      ```
+
+      ## Configuration
+      - NVIDIA theme (if available)
+      - MyST parser for Markdown
+      - autodoc for API docs
+      - intersphinx for cross-refs
+
+  - name: format-index-page
+    description: Format directory index pages consistently
+    type: inline
+    triggers: ["index", "index page", "directory index"]
+    allowed_tools: [read_file, search_replace, list_dir]
+    instructions: |
+      ## Index Page Format
+
+      ```markdown
+      # Section Title
+
+      Brief description of what this section covers.
+
+      ## In This Section
+
+      - [Page 1](./page-1.md) - Description
+      - [Page 2](./page-2.md) - Description
+
+      ## Related
+
+      - [Related Section](../related/)
+      ```
+
+      ## Guidelines
+      - Title matches directory name
+      - Brief intro (2-3 sentences)
+      - Annotated links to all children
+      - Optional related links
+
+  - name: resolve-merge-conflict
+    description: Resolve merge conflicts in documentation files
+    type: inline
+    triggers: ["merge", "conflict", "merge conflict"]
+    allowed_tools: [read_file, search_replace]
+    instructions: |
+      ## Process
+      1. Identify conflict markers
+      2. Analyze both versions
+      3. Merge intelligently:
+         - Prefer newer content dates
+         - Combine non-conflicting additions
+         - Flag ambiguous cases for review
+
+      ## Conflict Markers
+      ```
+      <<<<<<< HEAD
+      Current branch content
+      =======
+      Incoming branch content
+      >>>>>>> branch-name
+      ```
+
+  - name: run-retrospective
+    description: Reflect on documentation task - what worked, what didn't
+    type: inline
+    triggers: ["retro", "retrospective", "reflect", "::retro"]
+    instructions: |
+      ## Retrospective Template
+
+      ### What Went Well
+      - [List successes]
+
+      ### What Could Be Improved
+      - [List challenges]
+
+      ### Lessons Learned
+      - [Key takeaways]
+
+      ### Rule Feedback
+      - [Feedback on rules used]
+
+      ## Output
+      ```markdown
+      ## 📝 Retrospective: [Task]
+
+      ### ✅ What Went Well
+      - Fast research phase
+      - Good evidence coverage
+
+      ### 🔄 What Could Be Improved
+      - Took too long on validation
+      - Missing persona coverage
+
+      ### 💡 Lessons Learned
+      - Start with structure validation
+      - Run personas earlier
+
+      ### 📋 Rule Feedback
+      - `audit-documentation`: Effective, no changes
+      - `polish-documentation`: Add UX pattern detection
+      ```
+
+  - name: manage-tasks
+    description: Manage and track documentation tasks
+    type: inline
+    triggers: ["tasks", "todo", "task list"]
+    instructions: |
+      ## Task Management
+
+      ### Task States
+      - 📋 Pending
+      - 🔄 In Progress
+      - ✅ Completed
+      - ❌ Blocked
+
+      ### Task Format
+      ```markdown
+      - [ ] **Task Name** - Description
+        - Assignee: @name
+        - Due: YYYY-MM-DD
+        - Depends: [other task]
+      ```
+
+      ## Output
+      ```markdown
+      ## 📋 Documentation Tasks
+
+      ### In Progress
+      - 🔄 **API Reference** - Update for v2.0
+        - Progress: 60%
+
+      ### Pending
+      - 📋 **Migration Guide** - Write v1→v2 migration
+        - Blocked by: API Reference
+
+      ### Completed
+      - ✅ **Installation Guide** - Updated for new deps
+      ```
+
+  - name: show-help
+    description: Show context-aware help and available commands
+    type: inline
+    triggers: ["help", "commands", "what can", "::?", "::h"]
+    instructions: |
+      ## Goal
+      Provide context-aware help showing available skills and commands.
+
+      ## Process
+      1. Identify current context (lens, file type, task)
+      2. Show relevant commands for the context
+      3. Provide examples of common workflows
+
+      ## Output Format
+      ```markdown
+      ## 📚 Technical Writer Help
+
+      ### Quick Commands
+      | Command | Skill | Description |
+      |---------|-------|-------------|
+      | `::a` | audit-documentation | Quick validation |
+      | `::a-2` | audit-documentation-deep | Deep audit with triangulation |
+      | `::p` | polish-documentation | Improve clarity and style |
+      | `::m` | modularize-content | Split long documents |
+      | `::health` | check-health | System-wide health check |
+      | `::md` | fix-markdown-syntax | Fix Markdown/MyST issues |
+      | `::fm` | generate-frontmatter | Add/update frontmatter |
+      | `::overview` | create-overview-page | Create overview (Explanation) |
+      | `::architecture` | create-architecture-page | Create architecture doc |
+      | `::features` | create-features-page | Create features catalog |
+
+      ### Workflows
+      - `::w` - Full writing pipeline (classify → research → draft → validate)
+      - `::a-full` - Complete audit pipeline
+
+      ### Natural Language
+      You can also describe what you need:
+      - "Audit this documentation"
+      - "Create an overview page for the API"
+      - "Polish this document for clarity"
+
+      ### Current Context
+      - **Lens**: Technical Writer
+      - **Skills Available**: 32
+      - **Personas**: novice, skeptic, pragmatist, expert
+      ```

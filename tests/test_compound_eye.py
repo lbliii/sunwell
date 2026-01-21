@@ -23,10 +23,6 @@ from sunwell.experiments.compound import (
     FoldStrategy,
     FoldedRegion,
     AttentionFoldResult,
-    _apply_lateral_inhibition,
-    _split_into_regions,
-    _compute_region_similarity,
-    _hash_content,
     chunk_code_by_function,
     chunk_by_lines,
     render_lateral_map,
@@ -34,6 +30,12 @@ from sunwell.experiments.compound import (
     render_compound_map,
     render_signal_stability_map,
     render_attention_fold_map,
+)
+from sunwell.experiments.compound.lateral import _apply_lateral_inhibition
+from sunwell.experiments.compound.temporal import (
+    _split_into_regions,
+    _compute_region_similarity,
+    _hash_content,
 )
 
 
@@ -122,11 +124,11 @@ class TestTemporalFrame:
 
     def test_frame_creation(self):
         frame = TemporalFrame(
-            frame_index=0,
-            content="This is the output",
+            frame_id=0,
             content_hash="abc123",
+            content="This is the output",
         )
-        assert frame.frame_index == 0
+        assert frame.frame_id == 0
         assert frame.content == "This is the output"
         assert frame.content_hash == "abc123"
 
@@ -136,10 +138,10 @@ class TestRegionStability:
 
     def test_stable_region(self):
         region = RegionStability(
-            region_index=0,
+            index=0,
             region_text="Consistent output",
+            frame_hashes=("hash1", "hash1"),
             stability_score=0.95,
-            variants=("Consistent output", "Consistent output"),
             is_stable=True,
         )
         assert region.is_stable
@@ -147,14 +149,14 @@ class TestRegionStability:
 
     def test_unstable_region(self):
         region = RegionStability(
-            region_index=1,
+            index=1,
             region_text="Flickering output",
+            frame_hashes=("hash1", "hash2", "hash3"),
             stability_score=0.3,
-            variants=("Version A", "Version B", "Version C"),
             is_stable=False,
         )
         assert not region.is_stable
-        assert len(region.variants) == 3
+        assert len(region.frame_hashes) == 3
 
 
 class TestTemporalDiffResult:
@@ -162,19 +164,31 @@ class TestTemporalDiffResult:
 
     def test_result_creation(self):
         regions = (
-            RegionStability(0, "stable", 0.9, ("a", "a"), True),
-            RegionStability(1, "unstable", 0.3, ("x", "y", "z"), False),
+            RegionStability(
+                index=0,
+                region_text="stable",
+                frame_hashes=("hash1", "hash1"),
+                stability_score=0.9,
+                is_stable=True,
+            ),
+            RegionStability(
+                index=1,
+                region_text="unstable",
+                frame_hashes=("hash1", "hash2", "hash3"),
+                stability_score=0.3,
+                is_stable=False,
+            ),
         )
         result = TemporalDiffResult(
             frames=(),
             regions=regions,
-            stable_regions=(0,),
             unstable_regions=(1,),
             overall_stability=0.6,
             n_frames=3,
+            stability_threshold=0.85,
         )
-        assert result.flicker_ratio == 0.5
-        assert len(result.get_unstable_text()) == 1
+        assert result.overall_stability == 0.6
+        assert len(result.unstable_regions) == 1
 
 
 class TestSignalStability:
@@ -238,17 +252,17 @@ class TestCompoundEyeResult:
         temporal = TemporalDiffResult(
             frames=(),
             regions=(),
-            stable_regions=(0,),
             unstable_regions=(2,),
             overall_stability=0.5,
             n_frames=3,
+            stability_threshold=0.85,
         )
         result = CompoundEyeResult(
             lateral=lateral,
             temporal=temporal,
             hotspots=(2,),  # Both edge AND unstable
         )
-        assert result.has_hotspots
+        assert len(result.hotspots) > 0
         assert 2 in result.hotspots
 
 
@@ -413,16 +427,28 @@ class TestRendering:
 
     def test_render_temporal_map(self):
         regions = (
-            RegionStability(0, "stable region", 0.95, (), True),
-            RegionStability(1, "unstable region", 0.3, (), False),
+            RegionStability(
+                index=0,
+                region_text="stable region",
+                frame_hashes=(),
+                stability_score=0.95,
+                is_stable=True,
+            ),
+            RegionStability(
+                index=1,
+                region_text="unstable region",
+                frame_hashes=(),
+                stability_score=0.3,
+                is_stable=False,
+            ),
         )
         result = TemporalDiffResult(
             frames=(),
             regions=regions,
-            stable_regions=(0,),
             unstable_regions=(1,),
             overall_stability=0.625,
             n_frames=3,
+            stability_threshold=0.85,
         )
         output = render_temporal_map(result)
         assert "Temporal Stability" in output
@@ -458,10 +484,10 @@ class TestRendering:
         temporal = TemporalDiffResult(
             frames=(),
             regions=(),
-            stable_regions=(),
             unstable_regions=(0,),
             overall_stability=0.5,
             n_frames=3,
+            stability_threshold=0.85,
         )
         result = CompoundEyeResult(
             lateral=lateral,

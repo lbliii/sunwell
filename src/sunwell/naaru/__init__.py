@@ -83,6 +83,28 @@ Lore:
 
 # Core types
 # RFC-034: Task Graph Analysis
+# RFC-067: Integration-Aware DAG types (canonical: sunwell.integration)
+# RFC-067: Integration Verification (canonical: sunwell.integration)
+# RFC-074: Incremental Execution v2 (content-addressed cache)
+# Re-export v2 types from sunwell.incremental for convenience
+from sunwell.incremental import (
+    ExecutionCache,
+    ExecutionPlan,
+    IncrementalResult,
+    SkipDecision,
+    SkipReason,
+)
+from sunwell.incremental import IncrementalExecutor as IncrementalExecutorV2
+from sunwell.integration import (
+    IntegrationCheck,
+    IntegrationCheckType,
+    IntegrationResult,
+    IntegrationType,
+    IntegrationVerifier,
+    RequiredIntegration,
+    StubDetection,
+    TaskType,
+)
 from sunwell.naaru.analysis import (
     ParallelismAnalysis,
     analyze_parallelism,
@@ -127,6 +149,20 @@ from sunwell.naaru.convergence import (
     SlotSource,
 )
 
+# The Coordinator
+from sunwell.naaru.coordinator import (
+    AgentResult,  # RFC-032
+    Naaru,
+)
+
+# Core types
+from sunwell.naaru.core import (
+    MessageBus,
+    MessageType,
+    NaaruMessage,
+    NaaruRegion,
+)
+
 # Discernment - Tiered Validation
 from sunwell.naaru.discernment import (
     Discernment,
@@ -145,6 +181,10 @@ from sunwell.naaru.diversity import (
     diversity_sampling,
 )
 
+# RFC-076: Modular Components
+from sunwell.naaru.events import EventEmitter, NaaruEventEmitter
+from sunwell.naaru.execution import ExecutionCoordinator
+
 # RFC-036: Artifact Execution
 from sunwell.naaru.executor import (
     ArtifactExecutor,
@@ -154,16 +194,7 @@ from sunwell.naaru.executor import (
     execute_artifact_graph,
     execute_with_discovery,
 )
-
-# RFC-040: Plan Persistence and Incremental Execution
-from sunwell.naaru.incremental import (
-    ChangeDetector,
-    ChangeReport,
-    IncrementalExecutor,
-    PlanPreview,
-    compute_rebuild_set,
-    find_invalidated,
-)
+from sunwell.naaru.learnings import LearningExtractor
 
 # Core runners
 from sunwell.naaru.loop import AutonomousRunner
@@ -171,22 +202,6 @@ from sunwell.naaru.migration import (
     create_rfc019_equivalent_config,
     create_rfc028_equivalent_config,
     migrate_rfc019_to_rfc033,
-)
-
-# The Coordinator
-from sunwell.naaru.naaru import (
-    AgentResult,  # RFC-032
-    AnalysisWorker,
-    ExecutiveWorker,
-    HarmonicSynthesisWorker,
-    MemoryWorker,
-    MessageBus,
-    MessageType,
-    Naaru,
-    NaaruMessage,
-    NaaruRegion,
-    ToolRegionWorker,  # RFC-032
-    ValidationWorker,
 )
 from sunwell.naaru.parallel import ParallelAutonomousRunner, WorkerStats
 from sunwell.naaru.persistence import (
@@ -280,6 +295,17 @@ from sunwell.naaru.unified import (
     unified_pipeline,
 )
 
+# Workers
+from sunwell.naaru.workers import (
+    AnalysisWorker,
+    CognitiveRoutingWorker,
+    ExecutiveWorker,
+    HarmonicSynthesisWorker,
+    MemoryWorker,
+    ToolRegionWorker,  # RFC-032
+    ValidationWorker,
+)
+
 # NaaruConfig moved to sunwell.types.config
 from sunwell.types.config import NaaruConfig
 
@@ -296,6 +322,14 @@ __all__ = [
     "Task",
     "TaskMode",
     "TaskStatus",
+
+    # RFC-067: Integration-Aware DAG Types
+    "TaskType",
+    "IntegrationType",
+    "IntegrationCheckType",
+    "RequiredIntegration",
+    "IntegrationCheck",
+    "IntegrationResult",
 
     # Core Runners
     "AutonomousRunner",
@@ -321,6 +355,7 @@ __all__ = [
     "MemoryWorker",
     "ExecutiveWorker",
     "ToolRegionWorker",
+    "CognitiveRoutingWorker",
 
     # RFC-032: Task Planners
     "TaskPlanner",
@@ -458,11 +493,21 @@ __all__ = [
     "get_latest_execution",
     "resume_execution",
 
-    # RFC-040: Incremental Execution
-    "ChangeDetector",
-    "ChangeReport",
-    "IncrementalExecutor",
-    "PlanPreview",
-    "find_invalidated",
-    "compute_rebuild_set",
+    # RFC-074: Incremental Execution v2
+    "ExecutionCache",
+    "ExecutionPlan",
+    "IncrementalResult",
+    "IncrementalExecutorV2",
+    "SkipDecision",
+    "SkipReason",
+
+    # RFC-067: Integration Verification
+    "IntegrationVerifier",
+    "StubDetection",
+
+    # RFC-076: Modular Components
+    "EventEmitter",
+    "NaaruEventEmitter",
+    "ExecutionCoordinator",
+    "LearningExtractor",
 ]

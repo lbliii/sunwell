@@ -138,6 +138,16 @@ class Skill:
     description: str  # Human-readable purpose for discovery
     skill_type: SkillType  # How skill is defined
 
+    # RFC-070: Trigger patterns for automatic discovery
+    triggers: tuple[str, ...] = ()
+    """Keywords/patterns that suggest this skill.
+
+    When router analyzes intent, it matches against skill triggers
+    to suggest relevant skills alongside lens selection.
+
+    Example: triggers: ("audit", "validate", "check", "verify")
+    """
+
     # Agent Skills spec alignment
     compatibility: str | None = None  # Environment requirements
     allowed_tools: tuple[str, ...] = ()  # Pre-approved tools

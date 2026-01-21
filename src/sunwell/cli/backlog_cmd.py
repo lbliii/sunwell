@@ -350,14 +350,10 @@ async def _run_backlog_goal(
     success = False
     try:
         if json_output:
-            # Stream NDJSON events
+            # Stream NDJSON events - use event.to_dict() for consistency
             import json as json_module
             async for event in naaru.run(goal_text, context={"cwd": str(root)}):
-                print(json_module.dumps({
-                    "type": event.type.value if hasattr(event.type, 'value') else str(event.type),
-                    "data": event.data,
-                    "timestamp": event.timestamp,
-                }), flush=True)
+                print(json_module.dumps(event.to_dict()), flush=True)
         else:
             # Rich console output
             async for event in naaru.run(goal_text, context={"cwd": str(root)}):

@@ -791,7 +791,7 @@ class TeamKnowledgeStore:
         b_words = set(b.lower().split())
         overlap = len(a_words & b_words)
         total = len(a_words | b_words)
-        return total > 0 and overlap / total > 0.5
+        return total > 0 and overlap / total >= 0.5
 
     def _path_matches(self, path: Path, pattern: str) -> bool:
         """Check if path matches a glob pattern."""

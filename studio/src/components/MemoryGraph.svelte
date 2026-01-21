@@ -1,5 +1,5 @@
 <!--
-  MemoryGraph — Ambient visualization of agent's learned concepts
+  MemoryGraph — Ambient visualization of agent's learned concepts (Svelte 5)
   
   A small SVG graph that grows as the agent discovers concepts.
   Max 8 visible nodes, older ones fade out.
@@ -7,7 +7,11 @@
 <script lang="ts">
   import type { Concept } from '$lib/types';
   
-  export let concepts: Concept[] = [];
+  interface Props {
+    concepts?: Concept[];
+  }
+  
+  let { concepts = [] }: Props = $props();
   
   // Fixed positions for up to 8 nodes in an organic cluster
   const NODE_POSITIONS = [
@@ -32,28 +36,35 @@
   };
   
   // Take the most recent 8 concepts
-  $: visibleConcepts = concepts.slice(-8);
+  let visibleConcepts = $derived(concepts.slice(-8));
   
-  // Map concepts to positioned nodes
-  $: nodes = visibleConcepts.map((c, i) => ({
-    ...c,
-    x: NODE_POSITIONS[i].x,
-    y: NODE_POSITIONS[i].y,
-    color: CATEGORY_COLORS[c.category] ?? 'var(--text-tertiary)',
-    delay: i * 100,
-  }));
+  // Map concepts to positioned nodes (with bounds check for safety)
+  let nodes = $derived(
+    visibleConcepts
+      .filter((c): c is Concept => c != null)
+      .slice(0, NODE_POSITIONS.length)
+      .map((c, i) => ({
+        ...c,
+        x: NODE_POSITIONS[i]!.x,
+        y: NODE_POSITIONS[i]!.y,
+        color: CATEGORY_COLORS[c.category] ?? 'var(--text-tertiary)',
+        delay: i * 100,
+      }))
+  );
   
   // Create edges between sequential nodes
-  $: edges = nodes.slice(1).map((node, i) => ({
-    x1: nodes[i].x,
-    y1: nodes[i].y,
-    x2: node.x,
-    y2: node.y,
-    key: `${nodes[i].id}-${node.id}`,
-  }));
+  let edges = $derived(
+    nodes.slice(1).map((node, i) => ({
+      x1: nodes[i].x,
+      y1: nodes[i].y,
+      x2: node.x,
+      y2: node.y,
+      key: `${nodes[i].id}-${node.id}`,
+    }))
+  );
 </script>
 
-<div class="memory-graph-container">
+<div class="memory-graph-container" aria-hidden="true">
   <svg viewBox="0 0 120 100" class="memory-graph">
     <!-- Edges -->
     {#each edges as edge (edge.key)}

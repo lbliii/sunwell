@@ -18,11 +18,62 @@ if TYPE_CHECKING:
     from sunwell.skills.types import Skill, SkillRetryPolicy
 
 
+# =============================================================================
+# RFC-072: Surface Affordances
+# =============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class PrimitiveAffordance:
+    """A primitive that a lens can surface (RFC-072).
+
+    Affordances define which UI primitives are relevant for a lens's domain
+    and under what conditions they should be activated.
+    """
+
+    primitive: str
+    """Primitive ID (e.g., "CodeEditor", "Terminal")."""
+
+    default_size: str = "panel"
+    """Default size: "full", "split", "panel", "sidebar", "widget", "floating"."""
+
+    weight: float = 0.5
+    """Base relevance weight (0.0-1.0). Higher = more likely to be selected."""
+
+    trigger: str | None = None
+    """Pipe-separated keywords that activate this primitive (e.g., "test|verify|coverage")."""
+
+    mode_hint: str | None = None
+    """Hint to switch lens when this primitive is activated (e.g., "coder")."""
+
+
+@dataclass(frozen=True, slots=True)
+class Affordances:
+    """Surface affordances for a lens (RFC-072).
+
+    Defines which UI primitives should be shown when this lens is active.
+    Primitives are categorized by importance:
+    - primary: Always shown, core to the domain
+    - secondary: Shown when triggered or space permits
+    - contextual: Floating/widget elements shown on demand
+    """
+
+    primary: tuple[PrimitiveAffordance, ...] = ()
+    """Always-visible primitives (max 2)."""
+
+    secondary: tuple[PrimitiveAffordance, ...] = ()
+    """Conditionally-visible primitives (max 3)."""
+
+    contextual: tuple[PrimitiveAffordance, ...] = ()
+    """Floating/widget primitives (max 2)."""
+
+
 @dataclass(frozen=True, slots=True)
 class LensMetadata:
     """Lens metadata.
 
     RFC-035 adds compatible_schemas for domain-specific lenses.
+    RFC-070 adds library metadata (use_cases, tags, icon).
     """
 
     name: str
@@ -44,6 +95,16 @@ class LensMetadata:
     2. Validator merging: schema_validators are added to the project's validator list
     3. Inheritance preserved: extends/compose work normally; child lenses inherit parent's schemas
     """
+
+    # RFC-070: Library metadata for browsing/filtering
+    use_cases: tuple[str, ...] = ()
+    """When to use this lens (e.g., "API documentation", "Code review")."""
+
+    tags: tuple[str, ...] = ()
+    """Searchable tags (e.g., "python", "documentation", "testing")."""
+
+    icon: str | None = None
+    """Optional icon identifier for UI display."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,6 +136,21 @@ class Router:
     tiers: tuple[RouterTier, ...] = ()
     intent_categories: tuple[str, ...] = ()
     signals: dict[str, str] = field(default_factory=dict)  # keyword → intent
+
+    # RFC-070: Command shortcuts for skill invocation
+    shortcuts: dict[str, str] = field(default_factory=dict)
+    """Maps shortcut commands to skill names.
+
+    Example: {"::a": "audit-documentation", "::p": "polish-documentation"}
+    """
+
+    # RFC-070: Skill routing configuration
+    skill_triggers: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    """Maps skill names to trigger keywords for automatic discovery.
+
+    This is derived from skills' trigger fields during lens loading
+    for efficient runtime lookup.
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,6 +234,10 @@ class Lens:
             condition="character.role == 'major'",
         )
     """
+
+    # RFC-072: Surface affordances
+    affordances: Affordances | None = None
+    """UI primitives this lens surfaces. None = use domain defaults."""
 
     # Source tracking
     source_path: Path | None = None

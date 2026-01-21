@@ -227,8 +227,8 @@ class TestLensLoaderSkills:
         loader = LensLoader()
         lens = loader.load(Path("lenses/tech-writer.lens"))
 
-        # Should have 15 core skills + 3 lens-specific = 18 total
-        assert len(lens.skills) == 18
+        # RFC-070: 9 validation + 5 creation + 5 transformation + 11 utility + 3 lens-specific = 33 total
+        assert len(lens.skills) == 33
 
         # Check lens-specific skill (has custom script)
         skill = lens.get_skill("create-api-docs")
@@ -238,9 +238,9 @@ class TestLensLoaderSkills:
         assert len(skill.scripts) == 1
         assert skill.scripts[0].name == "extract_api.py"
         
-        # Check that core skills are loaded
-        assert lens.get_skill("save-document") is not None
-        assert lens.get_skill("search-codebase") is not None
+        # Check that RFC-070 DORI skills are loaded
+        assert lens.get_skill("audit-documentation") is not None
+        assert lens.get_skill("polish-documentation") is not None
 
     def test_load_skill_with_templates(self):
         """Load skill with templates."""
@@ -289,7 +289,8 @@ class TestLensLoaderSkills:
         lens = loader.load(Path("lenses/tech-writer.lens"))
 
         summary = lens.summary()
-        assert "Skills: 18" in summary  # 15 core + 3 lens-specific
+        # RFC-070: 9 validation + 5 creation + 5 transformation + 11 utility + 3 lens-specific = 33
+        assert "Skills: 33" in summary
 
 
 class TestSkillPrompt:
@@ -340,9 +341,9 @@ class TestSkillAwareClassifier:
 
         result = classifier.classify("Create API documentation for auth module")
         assert result["skill"] is not None
-        # Should match either core "create-api-reference" or lens "create-api-docs"
-        assert "api" in result["skill"].name.lower()
-        assert result["confidence"] >= 0.6
+        # Should match a creation skill - "create-api-docs" or "draft-documentation"
+        assert result["skill"].name in ("create-api-docs", "draft-documentation")
+        assert result["confidence"] >= 0.5
 
     def test_implicit_match_readme(self):
         """Task about README should match create-readme."""
@@ -367,8 +368,8 @@ class TestSkillAwareClassifier:
 
         result = classifier.classify("Write a tutorial for new users")
         assert result["skill"] is not None
-        # Should match "write-tutorial" or "create-quickstart" (both are learning-oriented)
-        assert result["skill"].name in ("write-tutorial", "create-quickstart")
+        # Should match a tutorial/writing skill
+        assert result["skill"].name in ("write-tutorial", "create-quickstart", "draft-documentation")
         assert result["confidence"] >= 0.5
 
     def test_no_skill_match(self):

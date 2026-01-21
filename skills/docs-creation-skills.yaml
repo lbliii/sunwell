@@ -1,0 +1,303 @@
+# skills/docs-creation-skills.yaml
+# RFC-070: Content creation skills for technical documentation
+
+skills:
+  - name: draft-documentation
+    description: Create new documentation with evidence-based research
+    type: inline
+    triggers: ["draft", "write", "create doc", "new doc"]
+    allowed_tools: [read_file, codebase_search, grep, write]
+    instructions: |
+      ## Goal
+      Create documentation grounded in source code evidence.
+
+      ## Process
+      1. **Research**: Search codebase for relevant files
+      2. **Extract**: Pull function signatures, docstrings, tests
+      3. **Classify**: Determine Diataxis type
+      4. **Structure**: Apply type-appropriate template
+      5. **Draft**: Write with heuristics (signal-to-noise, evidence)
+      6. **Cite**: Include file:line references for claims
+
+      ## Rules
+      - Only include verifiable claims
+      - Mark uncertain content with TODO
+      - Link to related content types
+    validate_with:
+      validators: [evidence_required, no_marketing_fluff, front_loaded]
+      personas: [novice, pragmatist]
+      min_confidence: 0.75
+
+  - name: create-overview-page
+    description: Create product/platform overview (Explanation type)
+    type: inline
+    triggers: ["overview", "introduction", "what is", "::overview"]
+    allowed_tools: [read_file, codebase_search, grep, write]
+    instructions: |
+      ## Diataxis Type: EXPLANATION
+
+      ## Structure
+      1. **Opening Hook**: What problem does this solve? (1-2 sentences)
+      2. **What It Is**: Clear definition (1 paragraph)
+      3. **Key Capabilities**: 3-5 bullet points
+      4. **How It Works**: High-level flow (with diagram)
+      5. **When to Use**: Use cases and anti-patterns
+      6. **Next Steps**: Links to tutorial, how-to, reference
+
+      ## Guidelines
+      - 30-second scan test: Value clear immediately
+      - No step-by-step instructions (link to tutorial)
+      - Include architecture diagram if applicable
+    templates:
+      - name: overview-template.md
+        content: |
+          # ${Product Name}
+
+          ${One-sentence hook: what problem does this solve?}
+
+          ## What is ${Product Name}?
+
+          ${Clear definition in 2-3 sentences}
+
+          ## Key Capabilities
+
+          - **${Capability 1}**: ${Brief description}
+          - **${Capability 2}**: ${Brief description}
+          - **${Capability 3}**: ${Brief description}
+
+          ## How It Works
+
+          ${High-level explanation with diagram}
+
+          ```mermaid
+          graph LR
+              A[Input] --> B[${Product}]
+              B --> C[Output]
+          ```
+
+          ## When to Use ${Product Name}
+
+          **Use when**:
+          - ${Use case 1}
+          - ${Use case 2}
+
+          **Don't use when**:
+          - ${Anti-pattern 1}
+
+          ## Next Steps
+
+          - [Get Started](./quickstart.md) — Tutorial
+          - [Configure ${Product}](./configure.md) — How-to
+          - [API Reference](./reference.md) — Reference
+    validate_with:
+      validators: [front_loaded, no_marketing_fluff]
+      personas: [novice]
+      min_confidence: 0.7
+
+  - name: create-architecture-page
+    description: Create architecture explanation page
+    type: inline
+    triggers: ["architecture", "how it works", "internals", "::architecture"]
+    allowed_tools: [read_file, codebase_search, grep, write]
+    instructions: |
+      ## Diataxis Type: EXPLANATION
+
+      ## Structure
+      1. **Purpose**: Why this architecture exists
+      2. **Components**: Major parts and responsibilities
+      3. **Data Flow**: How data moves through system
+      4. **Key Decisions**: Why it's built this way
+      5. **Diagrams**: Visual representations
+
+      ## Diagram Requirements
+      - Component diagram showing major parts
+      - Sequence diagram for key workflows
+      - Use Mermaid for portability
+
+      ## Guidelines
+      - Focus on "why" not "how to use"
+      - Include design trade-offs
+      - Link to reference docs for details
+    templates:
+      - name: architecture-template.md
+        content: |
+          # ${System} Architecture
+
+          ## Overview
+
+          ${Brief description of what this system does and why it exists}
+
+          ## Components
+
+          ```mermaid
+          graph TB
+              subgraph ${System}
+                  A[${Component 1}] --> B[${Component 2}]
+                  B --> C[${Component 3}]
+              end
+          ```
+
+          ### ${Component 1}
+
+          **Purpose**: ${What it does}
+          **Responsibility**: ${What it owns}
+
+          ### ${Component 2}
+
+          **Purpose**: ${What it does}
+          **Responsibility**: ${What it owns}
+
+          ## Data Flow
+
+          ```mermaid
+          sequenceDiagram
+              participant User
+              participant ${Component 1}
+              participant ${Component 2}
+
+              User->>+${Component 1}: Request
+              ${Component 1}->>+${Component 2}: Process
+              ${Component 2}-->>-${Component 1}: Result
+              ${Component 1}-->>-User: Response
+          ```
+
+          ## Key Design Decisions
+
+          ### Decision 1: ${Name}
+
+          **Context**: ${Why this decision was needed}
+          **Decision**: ${What was decided}
+          **Trade-offs**: ${What was gained/lost}
+
+          ## Related Documentation
+
+          - [API Reference](./reference.md)
+          - [Configuration Guide](./configure.md)
+    validate_with:
+      validators: [evidence_required]
+      personas: [expert]
+      min_confidence: 0.8
+
+  - name: create-features-page
+    description: Create comprehensive key features catalog (Reference type)
+    type: inline
+    triggers: ["features", "capabilities", "key features", "::features"]
+    allowed_tools: [read_file, codebase_search, grep, write]
+    instructions: |
+      ## Diataxis Type: REFERENCE
+
+      ## Structure
+      1. **Overview**: What this catalog covers
+      2. **Feature Categories**: Grouped by function
+      3. **Feature Entries**: Name, description, status, links
+
+      ## Feature Entry Format
+      ```markdown
+      ### Feature Name
+
+      **Status**: GA | Beta | Preview
+      **Since**: v1.2.0
+
+      Brief description of what it does.
+
+      - [How to use](./how-to/feature.md)
+      - [API Reference](./reference/feature.md)
+      ```
+
+      ## Guidelines
+      - Group features logically
+      - Include status badges
+      - Link to detailed docs
+    templates:
+      - name: features-template.md
+        content: |
+          # ${Product} Features
+
+          Complete reference of ${Product} capabilities.
+
+          ## Core Features
+
+          ### ${Feature 1}
+
+          **Status**: GA
+          **Since**: v1.0.0
+
+          ${Brief description}
+
+          - [Learn more](./features/feature-1.md)
+
+          ### ${Feature 2}
+
+          **Status**: Beta
+          **Since**: v1.2.0
+
+          ${Brief description}
+
+          - [Learn more](./features/feature-2.md)
+
+          ## Advanced Features
+
+          ### ${Feature 3}
+
+          **Status**: Preview
+          **Since**: v1.3.0
+
+          ${Brief description}
+
+          - [Learn more](./features/feature-3.md)
+    validate_with:
+      validators: [evidence_required]
+      min_confidence: 0.75
+
+  - name: create-ecosystem-page
+    description: Create ecosystem/positioning page
+    type: inline
+    triggers: ["ecosystem", "positioning", "comparison", "::ecosystem"]
+    allowed_tools: [read_file, codebase_search, grep, write]
+    instructions: |
+      ## Diataxis Type: EXPLANATION
+
+      ## Structure
+      1. **Ecosystem Overview**: Where this fits
+      2. **Related Tools**: What it works with
+      3. **Comparison**: How it differs from alternatives
+      4. **Integration Points**: How to connect
+
+      ## Guidelines
+      - Be factual about comparisons
+      - Focus on complementary, not competitive
+      - Include integration diagrams
+    templates:
+      - name: ecosystem-template.md
+        content: |
+          # ${Product} Ecosystem
+
+          ## Where ${Product} Fits
+
+          ${Diagram showing ecosystem positioning}
+
+          ```mermaid
+          graph LR
+              A[${Related Tool 1}] --> B[${Product}]
+              B --> C[${Related Tool 2}]
+              D[${Related Tool 3}] --> B
+          ```
+
+          ## Works With
+
+          | Tool | Integration | Use Case |
+          |------|-------------|----------|
+          | ${Tool 1} | ${Type} | ${When to use} |
+          | ${Tool 2} | ${Type} | ${When to use} |
+
+          ## Comparison
+
+          | Feature | ${Product} | ${Alternative} |
+          |---------|------------|----------------|
+          | ${Feature 1} | ✅ | ❌ |
+          | ${Feature 2} | ✅ | ✅ |
+
+          ## Integration Guides
+
+          - [Integrate with ${Tool 1}](./integrations/tool-1.md)
+          - [Integrate with ${Tool 2}](./integrations/tool-2.md)

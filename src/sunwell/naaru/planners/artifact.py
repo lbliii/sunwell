@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -35,6 +36,7 @@ from sunwell.naaru.artifacts import (
 from sunwell.naaru.types import Task, TaskMode
 
 if TYPE_CHECKING:
+    from sunwell.adaptive.events import AgentEvent
     from sunwell.models.protocol import ModelProtocol
     from sunwell.project.schema import ProjectSchema
 
@@ -80,10 +82,69 @@ class ArtifactPlanner:
     router: Any | None = None  # UnifiedRouter - avoids circular import
     """Router for complexity assessment. If provided, trivial goals skip discovery."""
 
+    # RFC-059: Event callback for discovery progress
+    event_callback: Callable[[AgentEvent], None] | None = None
+    """Optional callback for emitting discovery progress events (RFC-059)."""
+
     @property
     def mode(self) -> TaskMode:
         """This planner produces composite tasks."""
         return TaskMode.COMPOSITE
+
+    # =========================================================================
+    # RFC-059: Event Emission
+    # =========================================================================
+
+    def _emit_event(self, event_type: str, data: dict[str, Any]) -> None:
+        """Emit event via callback if configured (RFC-059).
+
+        RFC-060: Uses create_validated_event() for schema validation.
+        Validation mode controlled by SUNWELL_EVENT_VALIDATION env var.
+        """
+        if self.event_callback is None:
+            return
+
+        try:
+            from sunwell.adaptive.events import EventType
+            from sunwell.adaptive.event_schema import create_validated_event
+
+            # RFC-060: Validate event data against schema
+            event = create_validated_event(EventType(event_type), data)
+            self.event_callback(event)
+        except ValueError as e:
+            # Invalid event type or validation failure (strict mode)
+            import logging
+
+            logging.warning(f"Event validation failed for '{event_type}': {e}")
+        except Exception as e:
+            # Other errors - log but don't break discovery
+            import logging
+
+            logging.warning(f"Event emission failed for '{event_type}': {e}")
+
+    def _emit_error(
+        self,
+        message: str,
+        phase: str | None = None,
+        error_type: str | None = None,
+        **context: Any,
+    ) -> None:
+        """Emit error event with context (RFC-059).
+
+        Args:
+            message: Error message (required)
+            phase: Phase where error occurred ("planning" | "discovery" | "execution" | "validation")
+            error_type: Exception class name
+            **context: Additional context (artifact_id, task_id, goal, etc.)
+        """
+        error_data: dict[str, Any] = {"message": message}
+        if phase:
+            error_data["phase"] = phase
+        if error_type:
+            error_data["error_type"] = error_type
+        if context:
+            error_data["context"] = context
+        self._emit_event("error", error_data)
 
     # =========================================================================
     # Main API
@@ -138,6 +199,12 @@ class ArtifactPlanner:
             GraphExplosionError: If too many artifacts discovered
             CyclicDependencyError: If artifacts form a dependency cycle
         """
+        # RFC-059: Emit discovery start
+        self._emit_event("plan_discovery_progress", {
+            "artifacts_discovered": 0,
+            "phase": "discovering",
+        })
+
         # Complexity gate: trivial goals skip full discovery
         if self.router is not None:
             try:
@@ -146,7 +213,13 @@ class ArtifactPlanner:
                 from sunwell.routing.unified import Complexity
 
                 if decision.complexity == Complexity.TRIVIAL:
-                    return self._trivial_artifact(goal)
+                    graph = self._trivial_artifact(goal)
+                    # RFC-059: Emit complete for trivial case
+                    self._emit_event("plan_discovery_progress", {
+                        "artifacts_discovered": len(graph),
+                        "phase": "complete",
+                    })
+                    return graph
             except Exception:
                 pass  # Fall through to full discovery on router failure
 
@@ -230,6 +303,12 @@ class ArtifactPlanner:
             effective_goal = f"{goal}\n\n{simplify_hint}" if simplify_hint else goal
             artifacts = await self.discover(effective_goal, context)
 
+            # RFC-059: Emit parsing progress
+            self._emit_event("plan_discovery_progress", {
+                "artifacts_discovered": len(artifacts),
+                "phase": "parsing",
+            })
+
             # Check for empty graph
             if not artifacts:
                 if attempt < self.max_retries - 1:
@@ -238,10 +317,25 @@ class ArtifactPlanner:
                     simplify_hint = f"Previous attempt found no artifacts. {hint}"
                     continue
                 else:
+                    self._emit_error(
+                        "Discovery produced no artifacts after retries",
+                        phase="discovery",
+                        error_type="DiscoveryFailedError",
+                        goal=goal,
+                        attempts=self.max_retries,
+                    )
                     raise DiscoveryFailedError("Discovery produced no artifacts after retries")
 
             # Check for graph explosion
             if len(artifacts) > self.limits.max_artifacts:
+                self._emit_error(
+                    f"Graph explosion: {len(artifacts)} artifacts exceeds limit {self.limits.max_artifacts}",
+                    phase="discovery",
+                    error_type="GraphExplosionError",
+                    goal=goal,
+                    artifact_count=len(artifacts),
+                    limit=self.limits.max_artifacts,
+                )
                 raise GraphExplosionError(len(artifacts), self.limits.max_artifacts)
 
             # Signal-based plan health check (NEW)
@@ -250,10 +344,25 @@ class ArtifactPlanner:
                 simplify_hint = self._build_simplification_hint(health)
                 continue
 
+            # RFC-059: Emit building graph progress
+            self._emit_event("plan_discovery_progress", {
+                "artifacts_discovered": len(artifacts),
+                "phase": "building_graph",
+                "total_estimated": len(artifacts),
+            })
+
             # Build graph
             graph = ArtifactGraph()
-            for artifact in artifacts:
+            for i, artifact in enumerate(artifacts):
                 graph.add(artifact)
+
+                # RFC-059: Emit progress every 5 artifacts or at milestones
+                if (i + 1) % 5 == 0 or i == len(artifacts) - 1:
+                    self._emit_event("plan_discovery_progress", {
+                        "artifacts_discovered": i + 1,
+                        "phase": "building_graph",
+                        "total_estimated": len(artifacts),
+                    })
 
             # Check for cycles
             cycle = graph.detect_cycle()
@@ -281,10 +390,19 @@ class ArtifactPlanner:
             # Check depth limit
             max_depth = graph.max_depth()
             if max_depth > self.limits.max_depth:
-                raise DiscoveryFailedError(
+                error_msg = (
                     f"Graph depth ({max_depth}) exceeds limit ({self.limits.max_depth}). "
                     f"Consider breaking the goal into smaller subgoals."
                 )
+                self._emit_error(
+                    error_msg,
+                    phase="discovery",
+                    error_type="DiscoveryFailedError",
+                    goal=goal,
+                    max_depth=max_depth,
+                    depth_limit=self.limits.max_depth,
+                )
+                raise DiscoveryFailedError(error_msg)
 
             # Log orphans (warning, not error)
             orphans = graph.find_orphans()
@@ -292,8 +410,21 @@ class ArtifactPlanner:
                 # Orphans are allowed but noted
                 pass
 
+            # RFC-059: Emit discovery complete
+            self._emit_event("plan_discovery_progress", {
+                "artifacts_discovered": len(graph),
+                "phase": "complete",
+            })
+
             return graph
 
+        self._emit_error(
+            f"Discovery failed after {self.max_retries} attempts",
+            phase="discovery",
+            error_type="DiscoveryFailedError",
+            goal=goal,
+            attempts=self.max_retries,
+        )
         raise DiscoveryFailedError(f"Discovery failed after {self.max_retries} attempts")
 
     def _signal_plan_health(self, artifacts: list[ArtifactSpec]) -> dict[str, Any]:

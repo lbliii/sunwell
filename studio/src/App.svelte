@@ -1,37 +1,40 @@
 <!--
-  App — Root component
+  App — Root component (Svelte 5)
   
   Handles routing between screens and initializes the app.
 -->
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { untrack } from 'svelte';
   import Home from './routes/Home.svelte';
   import Project from './routes/Project.svelte';
   import Preview from './routes/Preview.svelte';
   import Planning from './routes/Planning.svelte';
-  import { currentRoute, isInitialized } from './stores/app';
+  import Library from './routes/Library.svelte';
+  import Interface from './routes/Interface.svelte';
+  import { app, setInitialized } from './stores/app.svelte';
+  import { Route } from '$lib/constants';
   
-  onMount(() => {
-    isInitialized.set(true);
+  $effect(() => {
+    untrack(() => { setInitialized(true); });
   });
 </script>
 
 <div class="app-container">
-  {#if $currentRoute === 'home'}
+  {#if app.route === Route.HOME}
     <Home />
-  {:else if $currentRoute === 'project'}
+  {:else if app.route === Route.PROJECT}
     <Project />
-  {:else if $currentRoute === 'preview'}
+  {:else if app.route === Route.PREVIEW}
     <Preview />
-  {:else if $currentRoute === 'planning'}
+  {:else if app.route === Route.PLANNING}
     <Planning />
+  {:else if app.route === Route.LIBRARY}
+    <Library />
+  {:else if app.route === Route.INTERFACE}
+    <Interface />
   {/if}
 </div>
 
 <style>
-  .app-container {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
+  .app-container { min-height: 100vh; display: flex; flex-direction: column; }
 </style>

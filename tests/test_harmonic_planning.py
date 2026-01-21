@@ -474,3 +474,52 @@ class TestHarmonicPlannerIntegration:
         )
 
         assert isinstance(graph, ArtifactGraph)
+        assert len(graph) > 0
+
+    def test_harmonic_planner_has_create_artifact_method(self, mock_model_with_response):
+        """HarmonicPlanner MUST have create_artifact method for execution compatibility.
+        
+        This test catches the regression where HarmonicPlanner was used for planning
+        but couldn't execute artifacts because create_artifact was missing.
+        
+        HarmonicPlanner must implement the full ArtifactPlanner interface, not just
+        the planning methods (discover_graph).
+        """
+        planner = HarmonicPlanner(
+            model=mock_model_with_response,
+            candidates=2,
+            refinement_rounds=0,
+        )
+
+        # Method must exist and be callable
+        assert hasattr(planner, "create_artifact")
+        assert callable(planner.create_artifact)
+
+    @pytest.mark.asyncio
+    async def test_create_artifact_delegates_to_base_planner(self, mock_model_with_response):
+        """Test that create_artifact delegates to ArtifactPlanner."""
+        planner = HarmonicPlanner(
+            model=mock_model_with_response,
+            candidates=2,
+            refinement_rounds=0,
+        )
+
+        # Create a simple artifact spec
+        artifact = ArtifactSpec(
+            id="TestArtifact",
+            description="Test artifact",
+            contract="Must return 'test content'",
+            requires=[],
+            produces_file=None,
+        )
+
+        # Mock model to return test content
+        mock_model_with_response.generate = AsyncMock(
+            return_value=MagicMock(content="test content")
+        )
+
+        # Should not raise AttributeError
+        result = await planner.create_artifact(artifact)
+
+        assert isinstance(result, str)
+        assert "test content" in result

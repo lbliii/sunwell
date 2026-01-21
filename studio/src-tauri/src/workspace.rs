@@ -81,6 +81,11 @@ pub fn recent_projects_path() -> PathBuf {
     default_config_root().join("recent.json")
 }
 
+/// Get path for saved prompts file.
+pub fn saved_prompts_path() -> PathBuf {
+    default_config_root().join("saved_prompts.json")
+}
+
 /// Walk up from start looking for project markers.
 fn find_project_root(start: &Path) -> Option<PathBuf> {
     let mut current = start.to_path_buf();
@@ -389,6 +394,90 @@ pub fn extract_project_name(goal: &str) -> Option<String> {
     }
 
     None
+}
+
+// =============================================================================
+// Saved Prompts Persistence
+// =============================================================================
+
+/// Saved prompt entry.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SavedPrompt {
+    pub text: String,
+    pub last_used: u64,
+}
+
+/// Maximum number of saved prompts to store.
+const MAX_SAVED_PROMPTS: usize = 50;
+
+/// Saved prompts storage.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SavedPromptsStore {
+    pub prompts: Vec<SavedPrompt>,
+}
+
+impl SavedPromptsStore {
+    /// Load saved prompts from disk.
+    pub fn load() -> Self {
+        let path = saved_prompts_path();
+
+        if !path.exists() {
+            return Self::default();
+        }
+
+        match std::fs::read_to_string(&path) {
+            Ok(content) => serde_json::from_str(&content).unwrap_or_default(),
+            Err(_) => Self::default(),
+        }
+    }
+
+    /// Save prompts to disk.
+    pub fn save(&self) -> std::io::Result<()> {
+        let path = saved_prompts_path();
+
+        // Ensure parent directory exists
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        let content = serde_json::to_string_pretty(self)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
+        std::fs::write(path, content)
+    }
+
+    /// Add or update a prompt in saved list.
+    pub fn add(&mut self, prompt: String) {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+
+        // Remove existing entry with same text
+        self.prompts.retain(|p| p.text != prompt);
+
+        // Add to front
+        self.prompts.insert(
+            0,
+            SavedPrompt {
+                text: prompt,
+                last_used: now,
+            },
+        );
+
+        // Trim to max size
+        self.prompts.truncate(MAX_SAVED_PROMPTS);
+    }
+
+    /// Get all saved prompts, sorted by most recently used.
+    pub fn get_all(&self) -> &[SavedPrompt] {
+        &self.prompts
+    }
+
+    /// Remove a prompt from saved list.
+    pub fn remove(&mut self, prompt: &str) {
+        self.prompts.retain(|p| p.text != prompt);
+    }
 }
 
 #[cfg(test)]

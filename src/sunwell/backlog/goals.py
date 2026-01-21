@@ -103,6 +103,45 @@ class Goal:
     claimed_at: datetime | None = None
     """When the goal was claimed."""
 
+    # RFC-067: Integration-Aware DAG fields
+    produces: tuple[str, ...] = ()
+    """Artifact IDs this goal produces (e.g., 'UserModel', 'login_route').
+
+    Artifacts are explicit outputs that can be verified and connected.
+    """
+
+    integrations: tuple[str, ...] = ()
+    """Integration requirements as serialized JSON strings.
+
+    Each string is a JSON-encoded RequiredIntegration that specifies
+    how this goal connects to its dependencies (import, call, route, etc.).
+    Use Goal.get_integrations() to deserialize.
+    """
+
+    verification_checks: tuple[str, ...] = ()
+    """Verification checks as serialized JSON strings.
+
+    Each string is a JSON-encoded IntegrationCheck to run after completion.
+    Use Goal.get_verification_checks() to deserialize.
+    """
+
+    task_type: Literal["create", "wire", "verify", "refactor"] = "create"
+    """RFC-067: What kind of task this is.
+
+    - create: Generate new artifacts
+    - wire: Connect artifacts together (import, register, call)
+    - verify: Check integrations work end-to-end
+    - refactor: Restructure without changing behavior
+    """
+
+    def is_wire_task(self) -> bool:
+        """Check if this is a wiring task (RFC-067)."""
+        return self.task_type == "wire"
+
+    def is_verify_task(self) -> bool:
+        """Check if this is a verification task (RFC-067)."""
+        return self.task_type == "verify"
+
 
 @dataclass
 class GoalPolicy:

@@ -2,7 +2,7 @@
 # Sunwell — AI-Native Development
 # ═══════════════════════════════════════════════════════════════════════════════
 
-.PHONY: help studio studio-dev studio-build install check clean
+.PHONY: help studio studio-dev studio-build studio-test studio-test-watch studio-test-coverage install check test test-all clean schema schema-verify schema-test schema-demo run-types
 
 # Default target
 help:
@@ -19,6 +19,9 @@ help:
 	@echo "  │ studio        Run Sunwell Studio (demo mode)                    │"
 	@echo "  │ studio-dev    Run Studio with hot reload                        │"
 	@echo "  │ studio-build  Build Studio for production                       │"
+	@echo "  │ studio-test   Run Studio frontend tests                         │"
+	@echo "  │ studio-test-watch  Run Studio tests in watch mode               │"
+	@echo "  │ studio-test-coverage  Run Studio tests with coverage           │"
 	@echo "  ├─────────────────────────────────────────────────────────────────┤"
 	@echo "  │ CORE (CLI)                                                      │"
 	@echo "  ├─────────────────────────────────────────────────────────────────┤"
@@ -28,7 +31,12 @@ help:
 	@echo "  │ DEVELOPMENT                                                     │"
 	@echo "  ├─────────────────────────────────────────────────────────────────┤"
 	@echo "  │ check         Run linters and type checks                       │"
-	@echo "  │ test          Run tests                                         │"
+	@echo "  │ test          Run Python tests                                  │"
+	@echo "  │ test-all      Run all tests (Python + Frontend)                │"
+	@echo "  │ schema        Generate event schemas (JSON + TypeScript)        │"
+	@echo "  │ schema-verify Verify schemas are up-to-date (for CI)           │"
+	@echo "  │ schema-test   Test schema contract                              │"
+	@echo "  │ schema-demo   Demo schema contract system                      │"
 	@echo "  │ clean         Clean build artifacts                             │"
 	@echo "  └─────────────────────────────────────────────────────────────────┘"
 	@echo ""
@@ -60,6 +68,21 @@ studio-deps:
 studio-build: studio-deps
 	@echo "🔨 Building Sunwell Studio..."
 	@cd studio && npm run tauri build
+
+# Run Studio frontend tests
+studio-test: studio-deps
+	@echo "🧪 Running Studio frontend tests..."
+	@cd studio && npm test -- --run
+
+# Run Studio tests in watch mode
+studio-test-watch: studio-deps
+	@echo "👀 Running Studio tests in watch mode..."
+	@cd studio && npm run test:watch
+
+# Run Studio tests with coverage
+studio-test-coverage: studio-deps
+	@echo "📊 Running Studio tests with coverage..."
+	@cd studio && npm run test:coverage
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CORE COMMANDS
@@ -95,8 +118,62 @@ check: env
 
 # Run tests
 test:
-	@echo "🧪 Running tests..."
+	@echo "🧪 Running Python tests..."
 	@pytest tests/ -v
+
+# Run all tests (Python + Frontend)
+test-all: test studio-test
+	@echo "✅ All tests complete!"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SCHEMA COMMANDS (RFC-060)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Generate event schemas (JSON Schema + TypeScript types)
+schema:
+	@echo "📐 Generating event schemas..."
+	@python scripts/generate_event_schema.py
+	@echo ""
+	@echo "✅ Schemas generated:"
+	@echo "   • schemas/agent-events.schema.json"
+	@echo "   • studio/src/lib/agent-events.ts"
+
+# RFC-060: Verify schemas are up-to-date (for CI)
+# Regenerates schemas and checks for uncommitted changes
+schema-verify:
+	@echo "🔍 Verifying schemas are up-to-date (RFC-060)..."
+	@python scripts/generate_event_schema.py
+	@if git diff --exit-code schemas/ studio/src/lib/agent-events.ts > /dev/null 2>&1; then \
+		echo "✅ Schemas are up-to-date"; \
+	else \
+		echo "❌ Schema drift detected! Run 'make schema' and commit the changes."; \
+		echo ""; \
+		echo "Changed files:"; \
+		git diff --name-only schemas/ studio/src/lib/agent-events.ts; \
+		exit 1; \
+	fi
+
+# Test schema contract
+schema-test:
+	@echo "🧪 Testing schema contract..."
+	@pytest tests/test_event_schema_contract.py tests/test_cli_json_output.py -v
+
+# Demo schema contract system
+schema-demo:
+	@echo "🔍 Demonstrating schema contract system..."
+	@python scripts/demo_schema_contract.py
+
+# RFC-066: Run analysis types (manual - TypeScript types are in lib/types.ts)
+# Rust types are in studio/src-tauri/src/run_analysis.rs
+# Python types are in src/sunwell/tools/run_analyzer.py
+run-types:
+	@echo "📐 Run Analysis types are manually maintained across:"
+	@echo "   • schemas/run-analysis.schema.json (source of truth)"
+	@echo "   • studio/src/lib/types.ts (TypeScript)"
+	@echo "   • studio/src-tauri/src/run_analysis.rs (Rust)"
+	@echo "   • src/sunwell/tools/run_analyzer.py (Python)"
+	@echo ""
+	@echo "To validate schema consistency, run: make test"
 
 # Clean build artifacts
 clean:

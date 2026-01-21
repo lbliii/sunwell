@@ -40,6 +40,26 @@ npm install
 npm run tauri dev
 ```
 
+### Development Notes
+
+**Hot Reload Warning**: During development, you may see this warning in the console:
+```
+[TAURI] Couldn't find callback id 3217448598. This might happen when the app is reloaded while Rust is running an asynchronous operation.
+```
+
+This is **expected and harmless** during development. It occurs when:
+- The frontend hot-reloads (Vite reloads the page)
+- While Rust is processing an async `invoke` call
+
+**Why it's safe:**
+- The app continues to work normally
+- Event streaming (`app.emit()`) doesn't rely on callbacks, so agent events still work
+- This only happens during development hot-reloads, not in production builds
+
+**To avoid the warning:**
+- Wait for async operations to complete before saving files (triggers hot reload)
+- Or simply ignore it - it's just a warning, not an error
+
 ### Build
 
 ```bash

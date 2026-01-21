@@ -42,7 +42,11 @@ Integration:
 
 # Types
 # Components
-from sunwell.guardrails.classifier import ActionClassifier, ActionTaxonomy
+from sunwell.guardrails.classifier import (
+    ActionClassifier,
+    ActionTaxonomy,
+    SmartActionClassifier,
+)
 from sunwell.guardrails.config import GuardrailConfig, load_config, save_config
 from sunwell.guardrails.escalation import EscalationHandler
 from sunwell.guardrails.recovery import GuardrailError, RecoveryManager
@@ -81,6 +85,7 @@ __all__ = [
     # Classification
     "ActionClassifier",
     "ActionTaxonomy",
+    "SmartActionClassifier",  # RFC-077: LLM fallback
     # Scope
     "ScopeTracker",
     "ScopeLimits",

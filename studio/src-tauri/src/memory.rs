@@ -265,6 +265,7 @@ pub async fn get_intelligence(path: String) -> Result<IntelligenceData, String> 
     }
 
     // Read learnings (from agent runs)
+    // Source 1: .sunwell/intelligence/learnings.jsonl (JSONL format)
     let learnings_path = intel_path.join("learnings.jsonl");
     if learnings_path.exists() {
         if let Ok(content) = std::fs::read_to_string(&learnings_path) {
@@ -283,9 +284,60 @@ pub async fn get_intelligence(path: String) -> Result<IntelligenceData, String> 
                     });
                 }
             }
-            data.total_learnings = data.learnings.len() as u32;
         }
     }
+
+    // Source 2: .sunwell/learnings/*.json (JSON array format from Naaru)
+    let naaru_learnings_dir = project_path.join(".sunwell/learnings");
+    if naaru_learnings_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&naaru_learnings_dir) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let path = entry.path();
+                if path.extension().map_or(false, |ext| ext == "json") {
+                    if let Ok(content) = std::fs::read_to_string(&path) {
+                        // Parse as JSON array of learning records
+                        if let Ok(json_array) = serde_json::from_str::<serde_json::Value>(&content) {
+                            if let Some(arr) = json_array.as_array() {
+                                for json in arr {
+                                    // Naaru format: type, goal, task_id, task_description, output, timestamp
+                                    let task_id = json.get("task_id").and_then(|v| v.as_str()).unwrap_or("");
+                                    let description = json.get("task_description").and_then(|v| v.as_str()).unwrap_or("");
+                                    let output = json.get("output").and_then(|v| v.as_str()).unwrap_or("");
+                                    let timestamp = json.get("timestamp").and_then(|v| v.as_str());
+
+                                    // Convert Naaru learning format to our Learning struct
+                                    if !task_id.is_empty() {
+                                        data.learnings.push(Learning {
+                                            id: task_id.to_string(),
+                                            fact: format!("Completed: {}", description),
+                                            category: "task_completion".to_string(),
+                                            confidence: 1.0,
+                                            source_file: Some(task_id.to_string()),
+                                            created_at: timestamp.map(String::from),
+                                        });
+                                    }
+                                    
+                                    // If output contains useful info, create a learning from it
+                                    if output.len() > 20 && output.len() < 200 {
+                                        data.learnings.push(Learning {
+                                            id: format!("{}-output", task_id),
+                                            fact: output.chars().take(150).collect::<String>(),
+                                            category: "code".to_string(),
+                                            confidence: 0.8,
+                                            source_file: Some(task_id.to_string()),
+                                            created_at: timestamp.map(String::from),
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    data.total_learnings = data.learnings.len() as u32;
 
     // Read dead ends (approaches that didn't work)
     let dead_ends_path = intel_path.join("dead_ends.jsonl");

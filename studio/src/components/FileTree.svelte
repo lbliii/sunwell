@@ -1,32 +1,43 @@
 <!--
-  FileTree — Browse project files while tasks run
+  FileTree — Browse project files while tasks run (Svelte 5)
   
   Simple expandable tree view of project files.
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { invoke } from '@tauri-apps/api/core';
+  import type { FileEntry } from '$lib/types';
   
-  export let path: string = '';
-  
-  interface FileEntry {
-    name: string;
-    path: string;
-    is_dir: boolean;
-    children: FileEntry[] | null;
-    size: number | null;
+  interface Props {
+    path?: string;
+    files?: FileEntry[];
+    onselect?: (detail: { path: string; name: string; isDir: boolean }) => void;
   }
   
-  let files: FileEntry[] = [];
-  let isLoading = true;
-  let error: string | null = null;
-  let expandedDirs = new Set<string>();
-  let selectedFile: string | null = null;
-  let fileContent: string | null = null;
-  let isLoadingFile = false;
+  let { path = '', files: externalFiles, onselect }: Props = $props();
+  
+  let files = $state<FileEntry[]>([]);
+  let isLoading = $state(true);
+  let _error = $state<string | null>(null);
+  let expandedDirs = $state(new Set<string>());
+  let selectedFile = $state<string | null>(null);
+  let fileContent = $state<string | null>(null);
+  let isLoadingFile = $state(false);
   
   onMount(async () => {
-    await loadFiles();
+    if (externalFiles) {
+      files = externalFiles;
+      isLoading = false;
+    } else {
+      await loadFiles();
+    }
+  });
+  
+  // Update files when externalFiles prop changes
+  $effect(() => {
+    if (externalFiles) {
+      files = externalFiles;
+      isLoading = false;
+    }
   });
   
   async function loadFiles() {
@@ -37,13 +48,14 @@
     
     try {
       isLoading = true;
-      error = null;
+      _error = null;
+      const { invoke } = await import('@tauri-apps/api/core');
       files = await invoke<FileEntry[]>('list_project_files', { 
         path,
         maxDepth: 2
       });
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      _error = e instanceof Error ? e.message : String(e);
       files = getDemoFiles();
     } finally {
       isLoading = false;
@@ -53,25 +65,26 @@
   function getDemoFiles(): FileEntry[] {
     return [
       { name: 'src', path: '/src', is_dir: true, children: [
-        { name: 'app.py', path: '/src/app.py', is_dir: false, children: null, size: 1240 },
-        { name: 'models.py', path: '/src/models.py', is_dir: false, children: null, size: 890 },
-        { name: 'routes.py', path: '/src/routes.py', is_dir: false, children: null, size: 2100 },
-      ], size: null },
+        { name: 'app.py', path: '/src/app.py', is_dir: false, children: undefined, size: 1240 },
+        { name: 'models.py', path: '/src/models.py', is_dir: false, children: undefined, size: 890 },
+        { name: 'routes.py', path: '/src/routes.py', is_dir: false, children: undefined, size: 2100 },
+      ], size: undefined },
       { name: 'tests', path: '/tests', is_dir: true, children: [
-        { name: 'test_app.py', path: '/tests/test_app.py', is_dir: false, children: null, size: 650 },
-      ], size: null },
-      { name: 'requirements.txt', path: '/requirements.txt', is_dir: false, children: null, size: 120 },
-      { name: 'README.md', path: '/README.md', is_dir: false, children: null, size: 450 },
+        { name: 'test_app.py', path: '/tests/test_app.py', is_dir: false, children: undefined, size: 650 },
+      ], size: undefined },
+      { name: 'requirements.txt', path: '/requirements.txt', is_dir: false, children: undefined, size: 120 },
+      { name: 'README.md', path: '/README.md', is_dir: false, children: undefined, size: 450 },
     ];
   }
   
   function toggleDir(dirPath: string) {
-    if (expandedDirs.has(dirPath)) {
-      expandedDirs.delete(dirPath);
+    const newSet = new Set(expandedDirs);
+    if (newSet.has(dirPath)) {
+      newSet.delete(dirPath);
     } else {
-      expandedDirs.add(dirPath);
+      newSet.add(dirPath);
     }
-    expandedDirs = expandedDirs;
+    expandedDirs = newSet;
   }
   
   async function selectFile(file: FileEntry) {
@@ -80,10 +93,15 @@
       return;
     }
     
+    // Dispatch select event for external handling
+    onselect?.({ path: file.path, name: file.name, isDir: file.is_dir });
+    
+    // Also show inline preview
     selectedFile = file.path;
     
     try {
       isLoadingFile = true;
+      const { invoke } = await import('@tauri-apps/api/core');
       fileContent = await invoke<string>('read_file_contents', { 
         path: file.path,
         maxSize: 50000
@@ -100,8 +118,8 @@
     fileContent = null;
   }
   
-  function formatSize(bytes: number | null): string {
-    if (bytes === null) return '';
+  function formatSize(bytes: number | undefined): string {
+    if (bytes === undefined) return '';
     if (bytes < 1024) return `${bytes}B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
@@ -142,10 +160,10 @@
     return result;
   }
   
-  $: flatFiles = flattenFiles(files);
+  let flatFiles = $derived(flattenFiles(files));
 </script>
 
-<div class="file-tree">
+<div class="file-tree" role="tree" aria-label="Project files">
   {#if isLoading}
     <div class="loading">Loading files...</div>
   {:else if files.length === 0}
@@ -160,14 +178,18 @@
             class:selected={selectedFile === file.path}
             class:directory={file.is_dir}
             style="padding-left: {file.depth * 16 + 8}px"
-            on:click={() => selectFile(file)}
+            onclick={() => selectFile(file)}
+            role="treeitem"
+            aria-expanded={file.is_dir ? expandedDirs.has(file.path) : undefined}
+            aria-selected={selectedFile === file.path}
+            type="button"
           >
             {#if file.is_dir}
-              <span class="expand-icon">{expandedDirs.has(file.path) ? '▾' : '▸'}</span>
+              <span class="expand-icon" aria-hidden="true">{expandedDirs.has(file.path) ? '▾' : '▸'}</span>
             {:else}
               <span class="expand-icon"></span>
             {/if}
-            <span class="file-icon">{getFileIcon(file.name, file.is_dir)}</span>
+            <span class="file-icon" aria-hidden="true">{getFileIcon(file.name, file.is_dir)}</span>
             <span class="file-name">{file.name}</span>
             {#if file.size}
               <span class="file-size">{formatSize(file.size)}</span>
@@ -181,7 +203,7 @@
         <div class="file-preview">
           <div class="preview-header">
             <span class="preview-name">{selectedFile.split('/').pop()}</span>
-            <button class="preview-close" on:click={closePreview}>×</button>
+            <button class="preview-close" onclick={closePreview} aria-label="Close preview" type="button">×</button>
           </div>
           <pre class="preview-content">{#if isLoadingFile}Loading...{:else}{fileContent}{/if}</pre>
         </div>
@@ -233,6 +255,9 @@
     color: var(--text-secondary);
     text-align: left;
     transition: background var(--transition-fast);
+    background: transparent;
+    border: none;
+    cursor: pointer;
   }
   
   .file-node:hover {
@@ -243,6 +268,11 @@
   .file-node.selected {
     background: var(--bg-tertiary);
     color: var(--text-primary);
+  }
+  
+  .file-node:focus-visible {
+    outline: 2px solid rgba(201, 162, 39, 0.4);
+    outline-offset: -2px;
   }
   
   .expand-icon {
@@ -300,6 +330,9 @@
     font-size: var(--text-base);
     padding: 0 var(--space-1);
     line-height: 1;
+    background: transparent;
+    border: none;
+    cursor: pointer;
   }
   
   .preview-close:hover {

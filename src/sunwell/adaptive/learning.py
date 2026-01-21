@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -556,7 +557,12 @@ class LearningStore:
         return saved
 
     def load_from_disk(self, base_path: Path | None = None) -> int:
-        """Load learnings from .sunwell/intelligence/learnings.jsonl.
+        """Load learnings from .sunwell/ directories.
+
+        Reads from multiple sources:
+        1. .sunwell/intelligence/learnings.jsonl (JSONL format)
+        2. .sunwell/learnings/*.json (Naaru execution format - JSON arrays)
+        3. .sunwell/intelligence/dead_ends.jsonl
 
         Args:
             base_path: Project root (defaults to cwd)
@@ -570,9 +576,11 @@ class LearningStore:
         base = base_path or Path.cwd()
         learnings_path = base / ".sunwell" / "intelligence" / "learnings.jsonl"
         dead_ends_path = base / ".sunwell" / "intelligence" / "dead_ends.jsonl"
+        naaru_learnings_dir = base / ".sunwell" / "learnings"
 
         loaded = 0
 
+        # Source 1: .sunwell/intelligence/learnings.jsonl (JSONL format)
         if learnings_path.exists():
             with open(learnings_path) as f:
                 for line in f:
@@ -592,6 +600,48 @@ class LearningStore:
                     except (json.JSONDecodeError, KeyError):
                         pass
 
+        # Source 2: .sunwell/learnings/*.json (Naaru execution format)
+        # Format: [{"type": "task_completion", "task_id": ..., "task_description": ..., ...}]
+        if naaru_learnings_dir.exists():
+            for json_file in naaru_learnings_dir.glob("*.json"):
+                try:
+                    with open(json_file) as f:
+                        data = json.load(f)
+                    if isinstance(data, list):
+                        for entry in data:
+                            task_id = entry.get("task_id", "")
+                            description = entry.get("task_description", "")
+                            output = entry.get("output", "")
+
+                            # Create learning from task completion
+                            if task_id and description:
+                                lrn = Learning(
+                                    fact=f"Completed: {description}",
+                                    category="task_completion",
+                                    confidence=1.0,
+                                    source_file=task_id,
+                                )
+                                self.add_learning(lrn)
+                                loaded += 1
+
+                            # Extract useful patterns from output if available
+                            if output and len(output) > 20:
+                                # Extract class/function definitions
+                                for match in re.finditer(
+                                    r"(?:class|def)\s+(\w+)", output
+                                ):
+                                    lrn = Learning(
+                                        fact=f"Defined {match.group(1)} in {task_id}",
+                                        category="pattern",
+                                        confidence=0.9,
+                                        source_file=task_id,
+                                    )
+                                    self.add_learning(lrn)
+                                    loaded += 1
+                except (json.JSONDecodeError, OSError):
+                    pass
+
+        # Source 3: Dead ends
         if dead_ends_path.exists():
             with open(dead_ends_path) as f:
                 for line in f:

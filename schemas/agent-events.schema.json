@@ -1,0 +1,1623 @@
+{
+  "$schema": "http://json-schema.org/draft-2020-12/schema",
+  "$id": "https://sunwell.ai/schemas/agent-events.json",
+  "title": "Sunwell Agent Events",
+  "description": "Schema for NDJSON events emitted by Sunwell CLI",
+  "type": "object",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "memory_load",
+          "description": "Event type: memory_load"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "session_id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "memory_loaded",
+          "description": "Event type: memory_loaded"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "session_id": {
+              "type": "string"
+            },
+            "fact_count": {
+              "type": "integer"
+            },
+            "dead_end_count": {
+              "type": "integer"
+            }
+          },
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "memory_new",
+          "description": "Event type: memory_new"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "session_id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "memory_learning",
+          "description": "Event type: memory_learning"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string"
+            },
+            "category": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "category",
+            "fact"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "memory_dead_end",
+          "description": "Event type: memory_dead_end"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "approach": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "approach"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "memory_checkpoint",
+          "description": "Event type: memory_checkpoint"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "session_id": {
+              "type": "string"
+            },
+            "fact_count": {
+              "type": "integer"
+            }
+          },
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "memory_saved",
+          "description": "Event type: memory_saved"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "session_id": {
+              "type": "string"
+            },
+            "fact_count": {
+              "type": "integer"
+            },
+            "dead_end_count": {
+              "type": "integer"
+            }
+          },
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "signal",
+          "description": "Event type: signal"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string"
+            },
+            "signals": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "signal_route",
+          "description": "Event type: signal_route"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "route": {
+              "type": "string"
+            },
+            "complexity": {
+              "type": "string"
+            },
+            "reasoning": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "route"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "plan_start",
+          "description": "Event type: plan_start"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "goal": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "plan_candidate",
+          "description": "Event type: plan_candidate"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "candidate_index": {
+              "type": "integer"
+            },
+            "artifact_count": {
+              "type": "integer"
+            },
+            "description": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "plan_winner",
+          "description": "Event type: plan_winner"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "tasks": {
+              "type": "integer"
+            },
+            "artifact_count": {
+              "type": "integer"
+            },
+            "gates": {
+              "type": "integer"
+            },
+            "technique": {
+              "type": "string"
+            },
+            "selected_index": {
+              "type": "integer"
+            },
+            "total_candidates": {
+              "type": "integer"
+            },
+            "metrics": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "selection_reason": {
+              "type": "string"
+            },
+            "variance_strategy": {
+              "type": "string"
+            },
+            "variance_config": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "refinement_rounds": {
+              "type": "integer"
+            },
+            "final_score_improvement": {
+              "type": "number"
+            },
+            "score": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "tasks"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "plan_expanded",
+          "description": "Event type: plan_expanded"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "new_tasks": {
+              "type": "integer"
+            },
+            "total_tasks": {
+              "type": "integer"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "plan_assess",
+          "description": "Event type: plan_assess"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "complete": {
+              "type": "boolean"
+            },
+            "remaining_tasks": {
+              "type": "integer"
+            },
+            "assessment": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "plan_candidate_start",
+          "description": "Event type: plan_candidate_start"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "total_candidates": {
+              "type": "integer"
+            },
+            "variance_strategy": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "total_candidates"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "plan_candidate_generated",
+          "description": "Event type: plan_candidate_generated"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "candidate_index": {
+              "type": "integer"
+            },
+            "artifact_count": {
+              "type": "integer"
+            },
+            "progress": {
+              "type": "integer"
+            },
+            "total_candidates": {
+              "type": "integer"
+            },
+            "variance_config": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "required": [
+            "artifact_count",
+            "candidate_index",
+            "total_candidates"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "plan_candidates_complete",
+          "description": "Event type: plan_candidates_complete"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "total_candidates": {
+              "type": "integer"
+            },
+            "total_artifacts": {
+              "type": "integer"
+            },
+            "successful_candidates": {
+              "type": "integer"
+            },
+            "failed_candidates": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "total_candidates"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "plan_candidate_scored",
+          "description": "Event type: plan_candidate_scored"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "candidate_index": {
+              "type": "integer"
+            },
+            "score": {
+              "type": "number"
+            },
+            "progress": {
+              "type": "integer"
+            },
+            "total_candidates": {
+              "type": "integer"
+            },
+            "metrics": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "required": [
+            "score",
+            "candidate_index",
+            "total_candidates"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "plan_scoring_complete",
+          "description": "Event type: plan_scoring_complete"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "total_scored": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "total_scored"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "plan_refine_start",
+          "description": "Event type: plan_refine_start"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "round": {
+              "type": "integer"
+            },
+            "total_rounds": {
+              "type": "integer"
+            },
+            "current_score": {
+              "type": "number"
+            },
+            "improvements_identified": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "round",
+            "total_rounds"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "plan_refine_attempt",
+          "description": "Event type: plan_refine_attempt"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "round": {
+              "type": "integer"
+            },
+            "improvements_applied": {
+              "type": "array",
+              "items": {}
+            },
+            "new_score": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "round"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "plan_refine_complete",
+          "description": "Event type: plan_refine_complete"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "round": {
+              "type": "integer"
+            },
+            "improved": {
+              "type": "boolean"
+            },
+            "old_score": {
+              "type": "number"
+            },
+            "new_score": {
+              "type": "number"
+            },
+            "improvement": {
+              "type": "number"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "improvements_applied": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "round"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "plan_refine_final",
+          "description": "Event type: plan_refine_final"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "total_rounds": {
+              "type": "integer"
+            },
+            "final_score": {
+              "type": "number"
+            },
+            "total_improvements": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "total_rounds"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "plan_discovery_progress",
+          "description": "Event type: plan_discovery_progress"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "artifacts_discovered": {
+              "type": "integer"
+            },
+            "phase": {
+              "type": "string"
+            },
+            "total_estimated": {
+              "type": "integer"
+            },
+            "current_artifact": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "artifacts_discovered",
+            "phase"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "gate_start",
+          "description": "Event type: gate_start"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "gate_id": {
+              "type": "string"
+            },
+            "gate_type": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "gate_type",
+            "gate_id"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "gate_step",
+          "description": "Event type: gate_step"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "gate_id": {
+              "type": "string"
+            },
+            "step": {
+              "type": "string"
+            },
+            "passed": {
+              "type": "boolean"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "gate_id",
+            "passed",
+            "step"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "gate_pass",
+          "description": "Event type: gate_pass"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "gate_id": {
+              "type": "string"
+            },
+            "gate_type": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "gate_id"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "gate_fail",
+          "description": "Event type: gate_fail"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "gate_id": {
+              "type": "string"
+            },
+            "gate_type": {
+              "type": "string"
+            },
+            "failed_step": {
+              "type": "string"
+            },
+            "errors": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "gate_id"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "task_start",
+          "description": "Event type: task_start"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "task_id": {
+              "type": "string"
+            },
+            "artifact_id": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "description",
+            "task_id"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "task_progress",
+          "description": "Event type: task_progress"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "task_id": {
+              "type": "string"
+            },
+            "artifact_id": {
+              "type": "string"
+            },
+            "progress": {
+              "type": "integer"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "task_id"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "task_complete",
+          "description": "Event type: task_complete"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "task_id": {
+              "type": "string"
+            },
+            "artifact_id": {
+              "type": "string"
+            },
+            "duration_ms": {
+              "type": "integer"
+            },
+            "file": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "duration_ms",
+            "task_id"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "task_failed",
+          "description": "Event type: task_failed"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "task_id": {
+              "type": "string"
+            },
+            "artifact_id": {
+              "type": "string"
+            },
+            "error": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "error",
+            "task_id"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "validate_start",
+          "description": "Event type: validate_start"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "artifact_id": {
+              "type": "string"
+            },
+            "validation_levels": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "validate_level",
+          "description": "Event type: validate_level"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "level": {
+              "type": "string"
+            },
+            "artifact_id": {
+              "type": "string"
+            },
+            "passed": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "level"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "validate_error",
+          "description": "Event type: validate_error"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "error_type": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            },
+            "file": {
+              "type": "string"
+            },
+            "line": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "error_type",
+            "message"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "validate_pass",
+          "description": "Event type: validate_pass"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "level": {
+              "type": "string"
+            },
+            "artifact_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "level"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "fix_start",
+          "description": "Event type: fix_start"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "error_count": {
+              "type": "integer"
+            },
+            "artifact_id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "fix_progress",
+          "description": "Event type: fix_progress"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "stage": {
+              "type": "string"
+            },
+            "progress": {
+              "type": "number"
+            },
+            "detail": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "progress",
+            "stage"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "fix_attempt",
+          "description": "Event type: fix_attempt"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "attempt": {
+              "type": "integer"
+            },
+            "fix_type": {
+              "type": "string"
+            },
+            "error_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "attempt"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "fix_complete",
+          "description": "Event type: fix_complete"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "fixes_applied": {
+              "type": "integer"
+            },
+            "errors_remaining": {
+              "type": "integer"
+            }
+          },
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "fix_failed",
+          "description": "Event type: fix_failed"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "attempt": {
+              "type": "integer"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "error_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "attempt"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "complete",
+          "description": "Event type: complete"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "tasks_completed": {
+              "type": "integer"
+            },
+            "tasks_failed": {
+              "type": "integer"
+            },
+            "gates_passed": {
+              "type": "integer"
+            },
+            "duration_s": {
+              "type": "number"
+            },
+            "learnings_count": {
+              "type": "integer"
+            },
+            "completed": {
+              "type": "integer"
+            },
+            "failed": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "tasks_completed"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "error",
+          "description": "Event type: error"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "message": {
+              "type": "string"
+            },
+            "phase": {
+              "type": "string"
+            },
+            "context": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "error_type": {
+              "type": "string"
+            },
+            "traceback": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "message"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "escalate",
+          "description": "Event type: escalate"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "reason": {
+              "type": "string"
+            },
+            "action": {
+              "type": "string"
+            },
+            "context": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "required": [
+            "reason"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    }
+  ]
+}

@@ -1,46 +1,135 @@
 /**
- * Sunwell Studio — Design System Variables
+ * Sunwell Studio — Holy Light Design System
  * 
- * A dark, minimal aesthetic inspired by Ollama and Linear.
- * Monospace for UI, serif for prose content.
+ * A distinctive aesthetic derived from the Sunwell logo.
+ * Golden accents radiating from the void — sacred light emerging from darkness.
+ * 
+ * PHILOSOPHY:
+ * - UI elements use SOFT, PALLID yellows (opacity-based, understated)
+ * - Magical effects (motes, glows) use BRIGHT, RADIANT golds
+ * - The void (dark background) is where the light emerges FROM
  */
 
 :root {
   /* ═══════════════════════════════════════════════════════════════
-     BACKGROUNDS
+     RADIANT GOLDS — Reserved for magical effects (motes, glows, highlights)
+     These are the "holy light" emerging from darkness
      ═══════════════════════════════════════════════════════════════ */
-  --bg-primary: #0d0d0d;      /* Almost black - main background */
-  --bg-secondary: #1a1a1a;    /* Cards, panels, elevated surfaces */
-  --bg-tertiary: #262626;     /* Hover states, subtle emphasis */
-  --bg-elevated: #2a2a2a;     /* Modals, dropdowns, tooltips */
-  --bg-input: #141414;        /* Input fields */
+  --radiant-gold: #ffd700;           /* Pure gold - motes, intense glows */
+  --radiant-gold-light: #ffe566;     /* Bright highlight - glow edges */
+  --radiant-gold-rgb: 255, 215, 0;   /* For rgba() in glows */
+  
+  /* ═══════════════════════════════════════════════════════════════
+     PALLID GOLDS — For UI elements (soft, understated, opacity-based)
+     These provide warmth without jarring brightness
+     ═══════════════════════════════════════════════════════════════ */
+  --ui-gold: #c9a227;                /* Muted gold - primary UI accent */
+  --ui-gold-soft: #a8892a;           /* Softer - borders, subtle emphasis */
+  --ui-gold-pale: #8a7235;           /* Palest - disabled, very subtle */
+  --ui-gold-rgb: 201, 162, 39;       /* For rgba() in UI */
+  
+  /* Warm neutrals (cream tones for gentle warmth) */
+  --warm-white: #fff4d4;             /* Warm glow backgrounds */
+  --warm-cream: #f5e6c8;             /* Softer cream */
+  --warm-sand: #d4c4a8;              /* Muted sand */
+  
+  /* ═══════════════════════════════════════════════════════════════
+     BACKGROUNDS (the void)
+     ═══════════════════════════════════════════════════════════════ */
+  --bg-primary: #0d0d0d;             /* Almost black - main background */
+  --bg-secondary: #1a1a1a;           /* Cards, panels, elevated surfaces */
+  --bg-tertiary: #262626;            /* Hover states, subtle emphasis */
+  --bg-elevated: #2a2a2a;            /* Modals, dropdowns, tooltips */
+  --bg-input: #141414;               /* Input fields */
   
   /* ═══════════════════════════════════════════════════════════════
      TEXT
      ═══════════════════════════════════════════════════════════════ */
-  --text-primary: #e5e5e5;    /* Main text - high contrast */
-  --text-secondary: #8b8b8b;  /* Muted text, descriptions */
-  --text-tertiary: #525252;   /* Very muted, hints, timestamps */
-  --text-inverse: #0d0d0d;    /* Text on light backgrounds */
+  --text-primary: #e5e5e5;           /* Main text - high contrast */
+  --text-secondary: #a8a8a8;         /* Muted text, descriptions */
+  --text-tertiary: #525252;          /* Very muted, hints, timestamps */
+  --text-inverse: #0d0d0d;           /* Text on light backgrounds */
+  --text-gold: #d4b046;              /* Warm gold text (softer than radiant) */
   
   /* ═══════════════════════════════════════════════════════════════
-     ACCENT & BORDERS
+     GLOWS — Use radiant golds for magical effect
      ═══════════════════════════════════════════════════════════════ */
-  --accent: #f5f5f5;          /* Primary accent - buttons, focus */
-  --accent-muted: #404040;    /* Borders, dividers */
-  --accent-subtle: #2a2a2a;   /* Subtle highlights */
+  --glow-gold-subtle: 0 0 8px rgba(255, 215, 0, 0.08);
+  --glow-gold: 0 0 16px rgba(255, 215, 0, 0.15);
+  --glow-gold-strong: 0 0 24px rgba(255, 215, 0, 0.25);
+  --glow-gold-intense: 0 0 32px rgba(255, 215, 0, 0.4);
+  --glow-gold-inset: inset 0 0 12px rgba(255, 215, 0, 0.06);
+  
+  /* ═══════════════════════════════════════════════════════════════
+     GRADIENTS — Soft gradients for UI, brighter for effects
+     ═══════════════════════════════════════════════════════════════ */
+  
+  /* Soft UI gradient (pallid) */
+  --gradient-ui-gold: linear-gradient(
+    135deg,
+    rgba(201, 162, 39, 0.9),
+    rgba(180, 145, 35, 0.95)
+  );
+  
+  /* Progress bar (warm but not harsh) */
+  --gradient-progress: linear-gradient(
+    90deg,
+    rgba(168, 137, 42, 0.8),
+    rgba(201, 162, 39, 0.9)
+  );
+  
+  /* Background aura (very subtle warmth) */
+  --gradient-aura: radial-gradient(
+    ellipse at center,
+    rgba(201, 162, 39, 0.04) 0%,
+    rgba(168, 137, 42, 0.02) 40%,
+    transparent 70%
+  );
+  
+  /* Radiant gradient (for magical effects only) */
+  --gradient-radiant: linear-gradient(
+    135deg,
+    var(--radiant-gold),
+    var(--radiant-gold-light)
+  );
+  
+  /* ═══════════════════════════════════════════════════════════════
+     UI ACCENT MAPPINGS — Using softer pallid golds
+     ═══════════════════════════════════════════════════════════════ */
+  --accent: var(--ui-gold);
+  --accent-muted: var(--ui-gold-soft);
+  --accent-subtle: var(--ui-gold-pale);
+  --accent-primary: var(--ui-gold);
+  --accent-secondary: var(--ui-gold-soft);
+  --accent-hover: rgba(201, 162, 39, 0.15);
+  
+  /* RGB variants */
+  --gold-rgb: var(--ui-gold-rgb);
+  --gold-dark-rgb: 168, 137, 42;
+  
+  /* ═══════════════════════════════════════════════════════════════
+     BORDERS — Opacity-based for softness
+     ═══════════════════════════════════════════════════════════════ */
+  --border-subtle: rgba(201, 162, 39, 0.12);
+  --border-default: rgba(201, 162, 39, 0.25);
+  --border-emphasis: rgba(201, 162, 39, 0.4);
+  --border-color: var(--border-default);
   
   /* ═══════════════════════════════════════════════════════════════
      SEMANTIC COLORS
      ═══════════════════════════════════════════════════════════════ */
-  --success: #22c55e;         /* Green - passed, complete */
-  --success-muted: #166534;   /* Success backgrounds */
-  --warning: #eab308;         /* Yellow - warnings, pending */
-  --warning-muted: #854d0e;   /* Warning backgrounds */
-  --error: #ef4444;           /* Red - errors, failed */
-  --error-muted: #991b1b;     /* Error backgrounds */
-  --info: #3b82f6;            /* Blue - info, links */
-  --info-muted: #1e40af;      /* Info backgrounds */
+  --success: #22c55e;
+  --success-muted: #166534;
+  --success-rgb: 34, 197, 94;
+  --warning: #eab308;
+  --warning-muted: #854d0e;
+  --warning-rgb: 234, 179, 8;
+  --error: #ef4444;
+  --error-muted: #991b1b;
+  --error-rgb: 239, 68, 68;
+  --info: #3b82f6;
+  --info-muted: #1e40af;
+  --info-rgb: 59, 130, 246;
   
   /* ═══════════════════════════════════════════════════════════════
      TYPOGRAPHY
@@ -49,16 +138,14 @@
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-serif: 'Newsreader', 'Georgia', 'Times New Roman', serif;
   
-  /* Font sizes - slightly larger for readability */
-  --text-xs: 0.6875rem;       /* 11px */
-  --text-sm: 0.8125rem;       /* 13px */
-  --text-base: 0.9375rem;     /* 15px */
-  --text-lg: 1.0625rem;       /* 17px */
-  --text-xl: 1.3125rem;       /* 21px */
-  --text-2xl: 1.75rem;        /* 28px */
-  --text-3xl: 2.25rem;        /* 36px */
+  --text-xs: 0.6875rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-lg: 1.0625rem;
+  --text-xl: 1.3125rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
   
-  /* Line heights */
   --leading-tight: 1.25;
   --leading-normal: 1.5;
   --leading-relaxed: 1.75;
@@ -67,16 +154,16 @@
   /* ═══════════════════════════════════════════════════════════════
      SPACING
      ═══════════════════════════════════════════════════════════════ */
-  --space-1: 0.25rem;         /* 4px */
-  --space-2: 0.5rem;          /* 8px */
-  --space-3: 0.75rem;         /* 12px */
-  --space-4: 1rem;            /* 16px */
-  --space-5: 1.25rem;         /* 20px */
-  --space-6: 1.5rem;          /* 24px */
-  --space-8: 2rem;            /* 32px */
-  --space-10: 2.5rem;         /* 40px */
-  --space-12: 3rem;           /* 48px */
-  --space-16: 4rem;           /* 64px */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
   
   /* ═══════════════════════════════════════════════════════════════
      BORDERS & RADII
@@ -86,9 +173,7 @@
   --radius-lg: 12px;
   --radius-xl: 16px;
   --radius-full: 9999px;
-  
   --border-width: 1px;
-  --border-color: var(--accent-muted);
   
   /* ═══════════════════════════════════════════════════════════════
      SHADOWS
@@ -96,7 +181,7 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 20px rgba(255, 255, 255, 0.05);
+  --shadow-glow: var(--glow-gold-subtle);
   
   /* ═══════════════════════════════════════════════════════════════
      TRANSITIONS
@@ -117,26 +202,26 @@
   --z-toast: 500;
   
   /* ═══════════════════════════════════════════════════════════════
+     MOTION INTENSITY
+     ═══════════════════════════════════════════════════════════════ */
+  --motion-intensity: 1;
+  
+  /* ═══════════════════════════════════════════════════════════════
      COMPONENT-SPECIFIC
      ═══════════════════════════════════════════════════════════════ */
-  
-  /* Input */
   --input-height: 48px;
   --input-height-sm: 36px;
   --input-padding: var(--space-4);
   
-  /* Button */
   --button-height: 48px;
   --button-height-sm: 36px;
   --button-padding: var(--space-4) var(--space-6);
   
-  /* Progress bar */
   --progress-height: 4px;
-  --progress-bg: var(--accent-muted);
-  --progress-fill: var(--accent);
+  --progress-bg: rgba(201, 162, 39, 0.15);
+  --progress-fill: var(--gradient-progress);
   --progress-fill-complete: var(--success);
   
-  /* Panel */
   --panel-padding: var(--space-4);
   --panel-gap: var(--space-4);
 }
@@ -149,5 +234,51 @@
     --transition-fast: 0ms;
     --transition-normal: 0ms;
     --transition-slow: 0ms;
+    --motion-intensity: 0;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   GLOBAL KEYFRAMES
+   ═══════════════════════════════════════════════════════════════ */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes goldPulse {
+  0%, 100% { 
+    box-shadow: var(--glow-gold-subtle);
+    opacity: 1;
+  }
+  50% { 
+    box-shadow: var(--glow-gold);
+    opacity: 0.85;
+  }
+}
+
+/* Motes use RADIANT gold (bright, magical) */
+@keyframes riseMote {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0;
+  }
+  10% { opacity: calc(0.8 * var(--motion-intensity)); }
+  80% { opacity: calc(0.5 * var(--motion-intensity)); }
+  100% {
+    transform: translateY(-80px) scale(0.3);
+    opacity: 0;
+  }
+}
+
+@keyframes riseMoteAlt {
+  0% {
+    transform: translateY(0) translateX(0) scale(1);
+    opacity: 0;
+  }
+  10% { opacity: calc(0.7 * var(--motion-intensity)); }
+  100% {
+    transform: translateY(-50px) translateX(8px) scale(0.4);
+    opacity: 0;
   }
 }

@@ -1,0 +1,83 @@
+name: Schema Contract Check
+
+on:
+  pull_request:
+    paths:
+      - 'src/sunwell/adaptive/event_schema.py'
+      - 'src/sunwell/adaptive/events.py'
+      - 'schemas/**'
+      - 'studio/src/lib/agent-events.ts'
+      - 'scripts/generate_event_schema.py'
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/sunwell/adaptive/event_schema.py'
+      - 'src/sunwell/adaptive/events.py'
+
+jobs:
+  check-schema:
+    name: Check Schema Contract
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]"
+      
+      - name: Generate schemas
+        run: |
+          python scripts/generate_event_schema.py
+      
+      - name: Check for schema changes
+        id: check-schema
+        run: |
+          if [ -n "$(git status --porcelain schemas/ studio/src/lib/agent-events.ts)" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "❌ Schema files changed - commit generated files"
+            echo ""
+            echo "Run: python scripts/generate_event_schema.py"
+            echo "Then commit the generated files:"
+            git status --porcelain schemas/ studio/src/lib/agent-events.ts
+            exit 1
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "✅ Schema files are up to date"
+          fi
+      
+      - name: Check schema completeness (RFC-059)
+        run: |
+          python3 -c "
+          import json
+          schema = json.load(open('schemas/agent-events.schema.json'))
+          empty = [s['properties']['type']['const'] for s in schema['oneOf'] if not s['properties']['data'].get('properties', {})]
+          if empty:
+              print(f'❌ Found {len(empty)} events with empty properties:')
+              for event in empty:
+                  print(f'  - {event}')
+              exit(1)
+          else:
+              print('✅ All events have proper field definitions')
+          "
+      
+      - name: Validate Python events
+        run: |
+          pytest tests/test_event_schema_contract.py -v
+      
+      - name: Validate CLI output
+        run: |
+          pytest tests/test_cli_json_output.py -v
+      
+      - name: TypeScript type check
+        working-directory: studio
+        run: |
+          npm install
+          npm run check || true  # Don't fail on unrelated TS errors

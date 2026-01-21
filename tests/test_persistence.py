@@ -1,13 +1,11 @@
-"""Tests for RFC-040 Plan Persistence and Incremental Execution.
+"""Tests for RFC-040/RFC-074 Plan Persistence and Incremental Execution.
 
 Tests cover:
 - SavedExecution creation and serialization
 - PlanStore save/load/list operations
 - Content hashing
-- Change detection
-- Invalidation cascade
-- Incremental rebuild set computation
-- Plan preview generation
+- RFC-074 v2 ExecutionCache operations
+- RFC-074 v2 IncrementalExecutor skip logic
 """
 
 from __future__ import annotations
@@ -18,15 +16,15 @@ from pathlib import Path
 
 import pytest
 
+from sunwell.incremental import (
+    ExecutionCache,
+    ExecutionPlan,
+    IncrementalExecutor,
+    SkipDecision,
+    SkipReason,
+)
 from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
 from sunwell.naaru.executor import ArtifactResult
-from sunwell.naaru.incremental import (
-    ChangeDetector,
-    ChangeReport,
-    PlanPreview,
-    compute_rebuild_set,
-    find_invalidated,
-)
 from sunwell.naaru.persistence import (
     ArtifactCompletion,
     ExecutionStatus,
@@ -426,212 +424,145 @@ def test_trace_logger_clear() -> None:
 
 
 # =============================================================================
-# Test: ChangeDetector
+# Test: RFC-074 v2 ExecutionCache
 # =============================================================================
 
 
-def test_change_detector_no_changes(sample_graph: ArtifactGraph) -> None:
-    """ChangeDetector should detect no changes when graphs match."""
-    execution = SavedExecution(goal="Test", graph=sample_graph)
-
-    detector = ChangeDetector(check_output_files=False)
-    changes = detector.detect(sample_graph, execution)
-
-    assert not changes.has_changes
-    assert len(changes.all_changed) == 0
-
-
-def test_change_detector_added_artifact(sample_graph: ArtifactGraph) -> None:
-    """ChangeDetector should detect added artifacts."""
-    execution = SavedExecution(goal="Test", graph=sample_graph)
-
-    # Create new graph with additional artifact
-    new_graph = ArtifactGraph()
-    for aid in sample_graph:
-        new_graph.add(sample_graph[aid])
-
-    new_graph.add(
-        ArtifactSpec(
-            id="NewArtifact",
-            description="New thing",
-            contract="New contract",
-        )
-    )
-
-    detector = ChangeDetector(check_output_files=False)
-    changes = detector.detect(new_graph, execution)
-
-    assert "NewArtifact" in changes.added
-    assert changes.has_changes
-
-
-def test_change_detector_contract_changed(sample_graph: ArtifactGraph) -> None:
-    """ChangeDetector should detect contract changes."""
-    execution = SavedExecution(goal="Test", graph=sample_graph)
-
-    # Create modified graph
-    new_graph = ArtifactGraph()
-    for aid in sample_graph:
-        artifact = sample_graph[aid]
-        if aid == "UserProtocol":
-            # Change contract
-            artifact = ArtifactSpec(
-                id=artifact.id,
-                description=artifact.description,
-                contract="MODIFIED CONTRACT",  # Changed!
-                produces_file=artifact.produces_file,
-                requires=artifact.requires,
-                domain_type=artifact.domain_type,
-            )
-        new_graph.add(artifact)
-
-    detector = ChangeDetector(check_output_files=False)
-    changes = detector.detect(new_graph, execution)
-
-    assert "UserProtocol" in changes.contract_changed
-
-
-def test_change_detector_removed_artifact(sample_graph: ArtifactGraph) -> None:
-    """ChangeDetector should detect removed artifacts."""
-    execution = SavedExecution(goal="Test", graph=sample_graph)
-
-    # Create graph with one less artifact (need to adjust deps)
-    new_graph = ArtifactGraph()
-    new_graph.add(sample_graph["UserProtocol"])
-    new_graph.add(sample_graph["AuthInterface"])
-    # Skip UserModel, AuthService, App
-
-    detector = ChangeDetector(check_output_files=False)
-    changes = detector.detect(new_graph, execution)
-
-    assert "UserModel" in changes.removed
-    assert "AuthService" in changes.removed
-    assert "App" in changes.removed
-
-
-# =============================================================================
-# Test: Invalidation Cascade
-# =============================================================================
-
-
-def test_find_invalidated_single(sample_graph: ArtifactGraph) -> None:
-    """find_invalidated should cascade from a single change."""
-    # If UserProtocol changes, UserModel and AuthService should be invalidated
-    # AuthService depends on UserProtocol
-    # App depends on AuthService
-    invalidated = find_invalidated(sample_graph, {"UserProtocol"})
-
-    assert "UserProtocol" in invalidated
-    assert "UserModel" in invalidated  # depends on UserProtocol
-    assert "AuthService" in invalidated  # depends on UserProtocol
-    assert "App" in invalidated  # depends on AuthService
-
-
-def test_find_invalidated_multiple(sample_graph: ArtifactGraph) -> None:
-    """find_invalidated should handle multiple starting points."""
-    invalidated = find_invalidated(sample_graph, {"UserProtocol", "AuthInterface"})
-
-    # Everything depends on these leaves
-    assert len(invalidated) == 5  # All artifacts
-
-
-def test_find_invalidated_leaf_only(sample_graph: ArtifactGraph) -> None:
-    """find_invalidated with App should only include App."""
-    invalidated = find_invalidated(sample_graph, {"App"})
-
-    # App has no dependents
-    assert invalidated == {"App"}
-
-
-# =============================================================================
-# Test: compute_rebuild_set
-# =============================================================================
-
-
-def test_compute_rebuild_set_with_changes(sample_graph: ArtifactGraph) -> None:
-    """compute_rebuild_set should include changes and cascade."""
-    changes = ChangeReport(contract_changed={"UserProtocol"})
-
-    to_rebuild = compute_rebuild_set(sample_graph, changes)
-
-    # Should include UserProtocol and all dependents
-    assert "UserProtocol" in to_rebuild
-    assert "UserModel" in to_rebuild
-    assert "AuthService" in to_rebuild
-    assert "App" in to_rebuild
-
-    # AuthInterface unchanged and has no path through UserProtocol
-    assert "AuthInterface" not in to_rebuild
-
-
-def test_compute_rebuild_set_with_incomplete(sample_graph: ArtifactGraph) -> None:
-    """compute_rebuild_set should include incomplete artifacts."""
-    execution = SavedExecution(goal="Test", graph=sample_graph)
-
-    # Complete some but not all
-    execution.mark_completed(
-        ArtifactResult(artifact_id="UserProtocol", content="code", model_tier="small")
-    )
-    execution.mark_completed(
-        ArtifactResult(artifact_id="AuthInterface", content="code", model_tier="small")
-    )
-
-    changes = ChangeReport()  # No changes
-    to_rebuild = compute_rebuild_set(sample_graph, changes, previous=execution)
-
-    # Should include incomplete artifacts
-    assert "UserModel" in to_rebuild
-    assert "AuthService" in to_rebuild
-    assert "App" in to_rebuild
-
-    # Completed should not be included (if no cascade)
-    assert "UserProtocol" not in to_rebuild
-    assert "AuthInterface" not in to_rebuild
-
-
-# =============================================================================
-# Test: PlanPreview
-# =============================================================================
-
-
-def test_plan_preview_creation(sample_graph: ArtifactGraph) -> None:
-    """PlanPreview should compute estimates."""
-    preview = PlanPreview.create(sample_graph)
-
-    assert len(preview.waves) == 3  # 3 layers in sample graph
-    assert preview.estimated_tokens > 0
-    assert preview.estimated_cost_usd > 0
-    assert preview.estimated_duration_seconds > 0
-    assert preview.parallelization_factor > 1.0
-
-
-def test_plan_preview_model_distribution(sample_graph: ArtifactGraph) -> None:
-    """PlanPreview should compute model distribution."""
-    preview = PlanPreview.create(sample_graph)
-
-    total = sum(preview.model_distribution.values())
-    assert total == 5  # 5 artifacts
-
-
-def test_plan_preview_incremental(sample_graph: ArtifactGraph) -> None:
-    """PlanPreview should compute incremental savings."""
+def test_execution_cache_goal_tracking(sample_graph: ArtifactGraph) -> None:
+    """ExecutionCache should track goal→artifacts mapping."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        store = PlanStore(base_path=Path(tmpdir))
+        cache = ExecutionCache(Path(tmpdir) / "cache.db")
 
-        # Save a previous execution with some completed
-        execution = SavedExecution(goal="Test goal", graph=sample_graph)
-        for aid in ["UserProtocol", "AuthInterface"]:
-            execution.mark_completed(
-                ArtifactResult(artifact_id=aid, content="code", model_tier="small")
-            )
-        store.save(execution)
+        # Record a goal execution
+        artifact_ids = ["UserProtocol", "AuthInterface", "UserModel"]
+        cache.record_goal_execution("goal_abc123", artifact_ids, execution_time_ms=1500.0)
 
-        # Create preview with store
-        preview = PlanPreview.create(sample_graph, goal="Test goal", store=store)
+        # Retrieve it
+        result = cache.get_artifacts_for_goal("goal_abc123")
+        assert set(result) == set(artifact_ids)
 
-        assert preview.previous is not None
-        # Changes would be detected based on content hashes
-        # In this case, no actual files exist, so detection varies
+        # Get full details
+        details = cache.get_goal_execution("goal_abc123")
+        assert details is not None
+        assert details["goal_hash"] == "goal_abc123"
+        assert details["execution_time_ms"] == 1500.0
+
+
+def test_execution_cache_goal_not_found(sample_graph: ArtifactGraph) -> None:
+    """ExecutionCache should return None for unknown goals."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cache = ExecutionCache(Path(tmpdir) / "cache.db")
+
+        result = cache.get_artifacts_for_goal("unknown_goal")
+        assert result is None
+
+
+# =============================================================================
+# Test: RFC-074 v2 IncrementalExecutor plan_execution
+# =============================================================================
+
+
+def test_incremental_executor_plan_no_cache(sample_graph: ArtifactGraph) -> None:
+    """IncrementalExecutor should plan full execution when no cache exists."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cache = ExecutionCache(Path(tmpdir) / "cache.db")
+        executor = IncrementalExecutor(graph=sample_graph, cache=cache)
+
+        plan = executor.plan_execution()
+
+        # All artifacts should be scheduled for execution
+        assert len(plan.to_execute) == 5  # 5 artifacts in sample_graph
+        assert len(plan.to_skip) == 0
+
+
+def test_incremental_executor_skip_decisions(sample_graph: ArtifactGraph) -> None:
+    """IncrementalExecutor should provide skip decisions with reasons."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cache = ExecutionCache(Path(tmpdir) / "cache.db")
+        executor = IncrementalExecutor(graph=sample_graph, cache=cache)
+
+        plan = executor.plan_execution()
+
+        # All decisions should have NO_CACHE reason (fresh cache)
+        for artifact_id, decision in plan.decisions.items():
+            assert decision.artifact_id == artifact_id
+            assert not decision.can_skip
+            assert decision.reason == SkipReason.NO_CACHE
+            assert decision.current_hash  # Hash should be computed
+
+
+def test_incremental_executor_force_rerun(sample_graph: ArtifactGraph) -> None:
+    """IncrementalExecutor should respect force_rerun parameter."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cache = ExecutionCache(Path(tmpdir) / "cache.db")
+
+        # First, simulate a successful execution by setting cache entries
+        from sunwell.incremental.cache import ExecutionStatus
+        from sunwell.incremental.hasher import compute_input_hash
+        for artifact_id in sample_graph:
+            spec = sample_graph[artifact_id]
+            input_hash = compute_input_hash(spec, {})
+            cache.set(artifact_id, input_hash, ExecutionStatus.COMPLETED, result={"content": "test"})
+
+        executor = IncrementalExecutor(graph=sample_graph, cache=cache)
+
+        # Plan with force_rerun on specific artifacts
+        plan = executor.plan_execution(force_rerun={"UserProtocol"})
+
+        # UserProtocol should be scheduled (force)
+        assert "UserProtocol" in plan.to_execute
+        decision = plan.decisions["UserProtocol"]
+        assert not decision.can_skip
+        assert decision.reason == SkipReason.FORCE_RERUN
+
+
+# =============================================================================
+# Test: RFC-074 v2 ExecutionPlan properties
+# =============================================================================
+
+
+def test_execution_plan_properties(sample_graph: ArtifactGraph) -> None:
+    """ExecutionPlan should compute derived properties correctly."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cache = ExecutionCache(Path(tmpdir) / "cache.db")
+        executor = IncrementalExecutor(graph=sample_graph, cache=cache)
+
+        plan = executor.plan_execution()
+
+        assert plan.total == 5
+        assert plan.skip_percentage == 0.0  # All need execution
+
+        # Verify to_dict() works
+        plan_dict = plan.to_dict()
+        assert plan_dict["total_artifacts"] == 5
+        assert plan_dict["to_execute"] == 5
+        assert plan_dict["to_skip"] == 0
+
+
+# =============================================================================
+# Test: RFC-074 v2 Provenance (from cache)
+# =============================================================================
+
+
+def test_execution_cache_provenance(sample_graph: ArtifactGraph) -> None:
+    """ExecutionCache should track provenance from graph structure."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cache = ExecutionCache(Path(tmpdir) / "cache.db")
+        executor = IncrementalExecutor(graph=sample_graph, cache=cache)
+
+        # Planning syncs provenance to cache
+        executor.plan_execution()
+
+        # UserProtocol has dependents: UserModel, AuthService
+        dependents = cache.get_direct_dependents("UserProtocol")
+        assert "UserModel" in dependents
+        assert "AuthService" in dependents
+
+        # Get downstream (transitive)
+        downstream = cache.get_downstream("UserProtocol")
+        assert "UserModel" in downstream
+        assert "AuthService" in downstream
+        assert "App" in downstream  # Transitive through AuthService
 
 
 # =============================================================================
@@ -665,3 +596,58 @@ def test_artifact_graph_get_dependents_nonexistent(sample_graph: ArtifactGraph) 
     """get_dependents for non-existent ID should return empty set."""
     dependents = sample_graph.get_dependents("NonExistent")
     assert dependents == set()
+
+
+# =============================================================================
+# Test: Fresh Project (No .sunwell directory) - Regression tests
+# =============================================================================
+
+
+def test_plan_store_creates_directory_on_init() -> None:
+    """PlanStore should create directory structure on initialization."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Use a nested path that doesn't exist
+        base_path = Path(tmpdir) / ".sunwell" / "plans"
+        assert not base_path.exists()
+
+        # Creating PlanStore should create the directory
+        store = PlanStore(base_path=base_path)
+
+        assert base_path.exists()
+        assert base_path.is_dir()
+
+
+def test_plan_store_load_nonexistent_returns_none() -> None:
+    """PlanStore.load should return None for non-existent plans, not error."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        store = PlanStore(base_path=Path(tmpdir))
+
+        # Should return None, not raise exception
+        result = store.load("nonexistent_hash")
+        assert result is None
+
+
+def test_plan_store_find_by_goal_nonexistent_returns_none() -> None:
+    """PlanStore.find_by_goal should return None for non-existent goals."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        store = PlanStore(base_path=Path(tmpdir))
+
+        result = store.find_by_goal("This goal does not exist")
+        assert result is None
+
+
+def test_plan_store_list_recent_empty() -> None:
+    """PlanStore.list_recent should return empty list for empty store."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        store = PlanStore(base_path=Path(tmpdir))
+
+        recent = store.list_recent()
+        assert recent == []
+
+
+def test_plan_store_exists_empty_store() -> None:
+    """PlanStore.exists should return False in empty store."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        store = PlanStore(base_path=Path(tmpdir))
+
+        assert store.exists("any_hash") is False

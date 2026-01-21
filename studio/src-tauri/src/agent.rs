@@ -57,6 +57,13 @@ pub enum EventType {
     Complete,
     Error,
     Escalate,
+    // RFC-067: Integration verification events
+    IntegrationCheckStart,
+    IntegrationCheckPass,
+    IntegrationCheckFail,
+    StubDetected,
+    OrphanDetected,
+    WireTaskGenerated,
 }
 
 /// Agent event from the Python agent (NDJSON line).
@@ -83,19 +90,46 @@ impl AgentBridge {
     }
 
     /// Run a goal and stream events to the frontend.
+    ///
+    /// RFC-064: Supports optional lens selection.
+    /// - `lens`: Explicit lens name (e.g., "coder", "tech-writer")
+    /// - `auto_lens`: Whether to auto-detect lens based on goal (default: true)
     pub fn run_goal(
         &mut self,
         app: AppHandle,
         goal: &str,
         project_path: &Path,
+        lens: Option<&str>,
+        auto_lens: bool,
     ) -> Result<(), String> {
         if self.running.load(Ordering::SeqCst) {
             return Err("Agent already running".to_string());
         }
 
-        // Start the Sunwell agent with JSON output and incremental persistence (RFC-040)
+        // Build args with optional lens parameters (RFC-064)
+        let mut args = vec!["agent", "run", "--json", "--strategy", "harmonic"];
+
+        // Add lens flag if explicitly specified
+        let lens_owned: String;
+        if let Some(lens_name) = lens {
+            args.push("--lens");
+            lens_owned = lens_name.to_string();
+            args.push(&lens_owned);
+        }
+
+        // Disable auto-lens if requested
+        if !auto_lens {
+            args.push("--no-auto-lens");
+        }
+
+        args.push(goal);
+
+        // Start the Sunwell agent with JSON output
+        // Use harmonic planning for better high-level plans, then artifact-first for execution
+        // HarmonicPlanner generates multiple candidates and selects best, then uses ArtifactPlanner
+        // for execution (which supports automatic incremental builds)
         let mut child = Command::new("sunwell")
-            .args(["agent", "run", "--json", "--incremental", goal])
+            .args(&args)
             .current_dir(project_path)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -103,12 +137,29 @@ impl AgentBridge {
             .map_err(|e| format!("Failed to start agent: {}", e))?;
 
         let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
+        let stderr = child.stderr.take();
         self.process = Some(child);
         self.running.store(true, Ordering::SeqCst);
 
         let running = self.running.clone();
 
-        // Spawn thread to read NDJSON events
+        // Spawn thread to drain stderr (prevents blocking if buffer fills)
+        if let Some(stderr) = stderr {
+            std::thread::spawn(move || {
+                let reader = BufReader::new(stderr);
+                for line in reader.lines() {
+                    match line {
+                        Ok(err_line) if !err_line.is_empty() => {
+                            eprintln!("[sunwell stderr] {}", err_line);
+                        }
+                        Err(_) => break,
+                        _ => {}
+                    }
+                }
+            });
+        }
+
+        // Spawn thread to read NDJSON events from stdout
         std::thread::spawn(move || {
             let reader = BufReader::new(stdout);
 
@@ -173,12 +224,29 @@ impl AgentBridge {
             .map_err(|e| format!("Failed to start agent: {}", e))?;
 
         let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
+        let stderr = child.stderr.take();
         self.process = Some(child);
         self.running.store(true, Ordering::SeqCst);
 
         let running = self.running.clone();
 
-        // Spawn thread to read NDJSON events
+        // Spawn thread to drain stderr (prevents blocking if buffer fills)
+        if let Some(stderr) = stderr {
+            std::thread::spawn(move || {
+                let reader = BufReader::new(stderr);
+                for line in reader.lines() {
+                    match line {
+                        Ok(err_line) if !err_line.is_empty() => {
+                            eprintln!("[sunwell stderr] {}", err_line);
+                        }
+                        Err(_) => break,
+                        _ => {}
+                    }
+                }
+            });
+        }
+
+        // Spawn thread to read NDJSON events from stdout
         std::thread::spawn(move || {
             let reader = BufReader::new(stdout);
 
@@ -242,12 +310,29 @@ impl AgentBridge {
             .map_err(|e| format!("Failed to start agent: {}", e))?;
 
         let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
+        let stderr = child.stderr.take();
         self.process = Some(child);
         self.running.store(true, Ordering::SeqCst);
 
         let running = self.running.clone();
 
-        // Spawn thread to read NDJSON events
+        // Spawn thread to drain stderr (prevents blocking if buffer fills)
+        if let Some(stderr) = stderr {
+            std::thread::spawn(move || {
+                let reader = BufReader::new(stderr);
+                for line in reader.lines() {
+                    match line {
+                        Ok(err_line) if !err_line.is_empty() => {
+                            eprintln!("[sunwell stderr] {}", err_line);
+                        }
+                        Err(_) => break,
+                        _ => {}
+                    }
+                }
+            });
+        }
+
+        // Spawn thread to read NDJSON events from stdout
         std::thread::spawn(move || {
             let reader = BufReader::new(stdout);
 

@@ -87,12 +87,12 @@ a:hover {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--accent-muted);
+  background: var(--ui-gold-pale);
   border-radius: var(--radius-full);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-tertiary);
+  background: var(--ui-gold-soft);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -158,6 +158,7 @@ a:hover {
 .text-success { color: var(--success); }
 .text-warning { color: var(--warning); }
 .text-error { color: var(--error); }
+.text-gold { color: var(--text-gold); }
 
 .text-center { text-align: center; }
 .text-left { text-align: left; }

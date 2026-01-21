@@ -22,6 +22,7 @@ sunwell "Build a REST API with auth"
 | **Cost** | Per-request ($$$) | Local models ($0 forever) |
 | **Privacy** | Cloud-based | Nothing leaves your machine |
 | **Autonomy** | Human-in-loop | Can work unsupervised (with guardrails) |
+| **Integration** | Creates files | Creates AND wires artifacts together |
 
 **The bet**: Memory + Privacy + Autonomy > Raw model quality for most development work.
 
@@ -58,8 +59,9 @@ sunwell "Build a forum app with users and posts"
 The agent:
 - Discovers what artifacts need to exist (models, routes, tests)
 - Plans execution order from dependencies
-- Runs independent work in parallel
-- Validates results at quality gates
+- **Runs independent work in parallel** (artifact-first planning)
+- **Generates wire tasks** to connect components together
+- **Verifies integrations** before marking complete
 - Learns from success/failure for next time
 
 ### 2. Remembers Everything
@@ -107,6 +109,18 @@ Guardrails ensure safety:
 - Auto-approvable only for safe categories (tests, docs)
 - Skip or block goals you don't want: `sunwell backlog skip <id>`
 
+### 5. Verifies Integrations (Not Just Creates Files)
+
+```bash
+sunwell verify src/
+```
+
+AI assistants often create files without wiring them. Sunwell detects:
+- **Orphaned artifacts** — Files that exist but nothing imports them
+- **Missing imports** — Components that need each other but aren't connected
+- **Stub implementations** — `pass`, `TODO`, `raise NotImplementedError`
+- **Broken routes** — Handlers that aren't registered
+
 ---
 
 ## Commands
@@ -115,6 +129,7 @@ Guardrails ensure safety:
 |---------|-------------|
 | `sunwell "goal"` | Execute a goal with the AI agent |
 | `sunwell "goal" --plan` | Show the plan without executing |
+| `sunwell "goal" --lens coder` | Execute with specific expertise lens |
 | `sunwell chat` | Interactive conversation mode |
 | `sunwell setup` | First-time configuration |
 
@@ -142,6 +157,7 @@ Guardrails ensure safety:
 | Command | Description |
 |---------|-------------|
 | `sunwell verify <file>` | Deep verification beyond syntax |
+| `sunwell weakness scan` | Find code weaknesses and integration gaps |
 | `sunwell guardrails show` | Show current safety configuration |
 | `sunwell guardrails check` | Validate goals against guardrails |
 | `sunwell guardrails history` | View session history |
@@ -210,6 +226,10 @@ At the heart of Sunwell is **the Naaru** — a coordinated intelligence layer th
 │  │  Project Intelligence │ Autonomous Backlog │ Deep Verification │  │
 │  └───────────────────────────────────────────────────────────────┘  │
 │  ┌───────────────────────────────────────────────────────────────┐  │
+│  │                    INTEGRATION LAYER                          │  │
+│  │  Wire Tasks │ Orphan Detection │ Stub Detection │ AST Analysis │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────────┐  │
 │  │                    NAARU (Planning + Execution)               │  │
 │  │  Harmonic Synthesis │ Resonance │ Artifact-First Planning     │  │
 │  └───────────────────────────────────────────────────────────────┘  │
@@ -223,11 +243,15 @@ At the heart of Sunwell is **the Naaru** — a coordinated intelligence layer th
 ### Key Techniques
 
 - **Artifact-First Planning**: Discovers what must exist, derives execution order from dependencies
+- **Contract-Aware Planning**: Tasks track `produces`/`requires` artifacts for proper ordering
+- **Wire Tasks**: Explicit tasks that connect artifacts together (can't be skipped)
+- **Integration Verification**: AST-based detection of imports, calls, routes, orphans, and stubs
 - **Harmonic Synthesis**: Voice generates with multiple personas (pragmatist, quality engineer, security expert), then they vote on the best
 - **Resonance**: When Wisdom rejects code, Voice refines it with feedback and retries (up to N attempts)
 - **Discernment**: Fast structural checks first, escalate to full Wisdom only when uncertain
 - **Project Intelligence**: Persistent memory that survives sessions — decisions, patterns, failures
 - **Autonomous Backlog**: Self-directed goal generation from codebase analysis
+- **Lens System**: Domain-specific expertise containers with heuristics and validators
 
 ---
 
@@ -259,6 +283,12 @@ guardrails:
   max_files_per_goal: 10
   forbidden_paths: ["secrets.py", ".env"]
   auto_approve: ["tests/*", "docs/*"]
+
+# Integration verification (RFC-067)
+integration:
+  verify_on_complete: true     # Run integration checks after tasks
+  detect_stubs: true           # Find pass/TODO/NotImplementedError
+  detect_orphans: true         # Find unused files
 ```
 
 ### Environment Variables
@@ -287,8 +317,11 @@ npm run tauri dev
 Features:
 - One input, focused output (Ollama-inspired simplicity)
 - Adaptive layouts for code, prose, and creative work
-- Live DAG visualization of planning
+- **Live DAG visualization** of planning and execution
+- **Integration status** on DAG edges (verified ✓, missing ⚠️)
 - Project intelligence dashboard
+- Lens picker and browser
+- Weakness cascade panel
 
 ---
 
@@ -345,6 +378,32 @@ ruff check src/
 
 ---
 
+## Project Structure
+
+```
+sunwell/
+├── src/sunwell/
+│   ├── naaru/          # Coordinated intelligence (planning, execution, synthesis)
+│   ├── integration/    # Wire tasks, orphan/stub detection, AST verification
+│   ├── adaptive/       # Adaptive agent with learning
+│   ├── backlog/        # Autonomous goal generation
+│   ├── guardrails/     # Safety and policy enforcement
+│   ├── intelligence/   # Codebase analysis and project memory
+│   ├── verification/   # Deep verification beyond syntax
+│   ├── simulacrum/     # Persona simulation and conversation DAG
+│   ├── weakness/       # Weakness detection and analysis
+│   ├── tools/          # Tool executor and implementations
+│   ├── models/         # LLM provider adapters (Ollama, OpenAI, Anthropic)
+│   ├── core/           # Core types, lens system, heuristics
+│   └── cli/            # Command-line interface
+├── studio/             # Tauri + Svelte desktop GUI
+├── lenses/             # Example expertise lenses
+├── benchmark/          # Benchmark tasks and results
+└── docs/               # RFCs and design documents
+```
+
+---
+
 ## The Dream
 
 ```
@@ -363,6 +422,7 @@ Friday:        Deploy to production
 
 Saturday:      The Naaru fixes 2 bugs from production logs
                Proposes 3 improvements for Monday review
+               ✓ All integrations verified — no orphans, no stubs
 
 Monday:        You review, approve, ship. Start the next feature.
 

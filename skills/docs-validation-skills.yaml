@@ -1,0 +1,303 @@
+# skills/docs-validation-skills.yaml
+# RFC-070: Validation and auditing skills for technical documentation
+
+skills:
+  # ==========================================================================
+  # AUDIT SKILLS
+  # ==========================================================================
+
+  - name: audit-documentation
+    description: Quick validation of documentation against source code
+    type: inline
+    triggers: ["audit", "validate", "check", "verify", "::a"]
+    allowed_tools: [read_file, codebase_search, grep]
+    instructions: |
+      ## Goal
+      Validate documentation claims against source code.
+
+      ## Process
+      1. Extract all technical claims from the document
+      2. For each claim, search codebase for verification
+      3. Check function signatures, parameters, defaults
+      4. Verify code examples match actual source
+      5. Calculate confidence score per claim
+
+      ## Output Format
+      ```markdown
+      ## 🔍 Audit: [Document Name]
+
+      **Summary**: [N] claims analyzed, [N] verified ([%])
+      **Confidence**: [N]% [🟢|🟡|🟠|🔴]
+
+      ### ✅ Verified ([N])
+      - Claim: [description] — `file:line`
+
+      ### ⚠️ Issues ([N])
+      - Claim: [description] — [issue] — Fix: [action]
+
+      ### 📋 Action Items
+      - [ ] [Priority fix 1]
+      - [ ] [Priority fix 2]
+      ```
+    validate_with:
+      validators: [evidence_required]
+      min_confidence: 0.8
+
+  - name: audit-documentation-deep
+    description: Comprehensive audit with triangulation and confidence scoring
+    type: inline
+    triggers: ["deep audit", "comprehensive", "thorough", "::a-2"]
+    allowed_tools: [read_file, codebase_search, grep, run_terminal_cmd]
+    instructions: |
+      ## Goal
+      Deep validation with 3-path triangulation for critical claims.
+
+      ## Process
+      1. Classify claims by criticality (high/medium/low)
+      2. For HIGH criticality claims, validate via:
+         - Path A: Source code verification
+         - Path B: Test file verification
+         - Path C: Config/schema verification
+      3. Aggregate results: all 3 agree = HIGH confidence
+      4. Calculate overall confidence score
+      5. Run reflexion if confidence < 80%
+
+      ## Triangulation Example
+      **Claim**: "API accepts `limit` parameter with default 100"
+
+      - Path A (Source): `api/users.py:45` → `def get_users(limit: int = 100)`
+      - Path B (Tests): `tests/test_users.py:23` → asserts limit == 100
+      - Path C (Schema): `openapi.yaml:156` → default: 100
+
+      **Result**: 3/3 agree → HIGH confidence (93%)
+    validate_with:
+      validators: [evidence_required]
+      personas: [skeptic]
+      min_confidence: 0.85
+
+  - name: score-confidence
+    description: Calculate detailed confidence scores for documentation claims
+    type: inline
+    triggers: ["confidence", "score", "scoring", "::score"]
+    allowed_tools: [read_file, codebase_search]
+    instructions: |
+      ## Scoring Rubric
+
+      | Component | Weight | Criteria |
+      |-----------|--------|----------|
+      | Evidence Strength | 40 pts | Direct match: 40, Partial: 25, Outdated: 10, None: 0 |
+      | Consistency | 30 pts | Multiple sources agree: 30, Some agree: 20, Conflict: 0 |
+      | Recency | 15 pts | < 30 days: 15, < 90 days: 10, < 1 year: 5, Older: 0 |
+      | Test Coverage | 15 pts | Has tests: 15, Partial: 8, None: 0 |
+
+      ## Confidence Levels
+      - 🟢 90-100%: HIGH — Ship it
+      - 🟡 70-89%: MODERATE — Review recommended
+      - 🟠 50-69%: LOW — Needs work
+      - 🔴 0-49%: UNCERTAIN — Do not ship
+    validate_with:
+      min_confidence: 0.7
+
+  - name: detect-drift
+    description: Find documentation that has drifted from source code
+    type: inline
+    triggers: ["drift", "stale", "outdated", "out of date"]
+    allowed_tools: [read_file, codebase_search, grep, run_terminal_cmd]
+    instructions: |
+      ## Goal
+      Identify documentation that no longer matches source code.
+
+      ## Detection Methods
+      1. **Timestamp comparison**: Doc modified < Source modified
+      2. **Signature mismatch**: Documented signature ≠ actual signature
+      3. **Deprecated references**: Doc mentions removed/renamed items
+      4. **Version drift**: Doc mentions old version numbers
+
+      ## Output
+      ```markdown
+      ## 📉 Drift Report
+
+      ### 🔴 Critical Drift ([N] files)
+      - `docs/api.md` — Last updated 6 months ago, source changed 12 times
+
+      ### 🟡 Moderate Drift ([N] files)
+      - `docs/config.md` — 3 config options removed from source
+      ```
+    scripts:
+      - name: check_drift.py
+        language: python
+        description: Compare doc timestamps to source timestamps
+        content: |
+          import sys
+          from pathlib import Path
+
+          def check_drift(doc_path: str, source_path: str) -> str:
+              doc_mtime = Path(doc_path).stat().st_mtime
+              source_mtime = Path(source_path).stat().st_mtime
+              return "DRIFT" if source_mtime > doc_mtime else "OK"
+
+          if __name__ == '__main__':
+              print(check_drift(sys.argv[1], sys.argv[2]))
+
+  - name: check-health
+    description: System-wide documentation health check
+    type: inline
+    triggers: ["health", "health check", "status", "::health"]
+    allowed_tools: [read_file, codebase_search, grep, list_dir, run_terminal_cmd]
+    instructions: |
+      ## Health Checks
+
+      1. **Drift**: Docs newer than source?
+      2. **Readability**: Flesch-Kincaid score acceptable?
+      3. **Syntax**: Valid Markdown/MyST/RST?
+      4. **Links**: All internal links resolve?
+      5. **Orphans**: Docs not linked from nav?
+      6. **Bloat**: Files > 2000 lines?
+
+      ## Output
+      ```markdown
+      ## 🏥 Documentation Health
+
+      **Overall**: [HEALTHY|WARNING|CRITICAL]
+
+      | Check | Status | Details |
+      |-------|--------|---------|
+      | Drift | 🟢 | 45/47 files current |
+      | Readability | 🟡 | 3 files > grade 12 |
+      | Syntax | 🟢 | All valid |
+      | Links | 🔴 | 5 broken links |
+      | Orphans | 🟡 | 2 orphaned files |
+      ```
+
+  - name: check-readability
+    description: Assess documentation readability scores
+    type: inline
+    triggers: ["readability", "readable", "grade level"]
+    allowed_tools: [read_file]
+    instructions: |
+      ## Readability Metrics
+
+      - **Flesch-Kincaid Grade**: Target 8-10 for technical docs
+      - **Sentence Length**: Target < 25 words average
+      - **Paragraph Length**: Target < 5 sentences
+
+      ## Guidelines
+      - API docs: Grade 10-12 acceptable
+      - Tutorials: Grade 8-10 preferred
+      - Quickstarts: Grade 6-8 ideal
+
+      ## Output
+      ```markdown
+      ## 📊 Readability Report
+
+      | Document | Grade | Avg Sentence | Status |
+      |----------|-------|--------------|--------|
+      | api.md | 11.2 | 18 words | 🟢 |
+      | tutorial.md | 14.5 | 28 words | 🔴 |
+      ```
+
+  - name: lint-structure
+    description: Validate documentation structure against templates
+    type: inline
+    triggers: ["lint", "structure", "template", "schema"]
+    allowed_tools: [read_file]
+    instructions: |
+      ## Structure Validation
+
+      Check that documents match their Diataxis type structure:
+
+      - TUTORIAL: Has objectives, prerequisites, steps, next_steps
+      - HOW-TO: Has goal, prerequisites, steps, troubleshooting
+      - EXPLANATION: Has context, how_it_works, components
+      - REFERENCE: Has purpose, categories, listings
+
+      ## Output
+      ```markdown
+      ## 📋 Structure Lint
+
+      **Document**: [name]
+      **Detected Type**: [TUTORIAL|HOW-TO|EXPLANATION|REFERENCE]
+
+      ### Required Sections
+      - ✅ Prerequisites
+      - ✅ Steps
+      - ❌ Troubleshooting (missing)
+
+      ### Recommendations
+      - Add troubleshooting section for common issues
+      ```
+
+  - name: assess-vdr
+    description: Assess documentation against VDR/VPR/CLU checklist
+    type: inline
+    triggers: ["vdr", "vpr", "clu", "release", "checklist"]
+    allowed_tools: [read_file, list_dir]
+    instructions: |
+      ## VDR Assessment
+
+      Validate Documentation Readiness for product releases:
+
+      ### Required Documentation
+      - [ ] Installation guide
+      - [ ] Quick start / Getting started
+      - [ ] API reference (if applicable)
+      - [ ] Configuration reference
+      - [ ] Troubleshooting guide
+      - [ ] Release notes
+
+      ### Quality Gates
+      - All code examples tested
+      - No broken links
+      - Readability < grade 12
+      - All claims have evidence
+
+      ## Output
+      ```markdown
+      ## 📋 VDR Assessment
+
+      **Ready for Release**: [YES|NO|CONDITIONAL]
+      **Score**: [N]/100
+
+      ### ✅ Passing ([N])
+      - Installation guide present and validated
+
+      ### ❌ Blocking ([N])
+      - Missing troubleshooting guide
+      ```
+
+  - name: audit-code-examples
+    description: Verify all code examples in documentation actually work
+    type: inline
+    triggers: ["code examples", "examples", "snippets"]
+    allowed_tools: [read_file, codebase_search, grep, run_terminal_cmd]
+    instructions: |
+      ## Code Example Validation
+
+      1. Extract all code blocks from document
+      2. For Python: Check syntax with `ast.parse()`
+      3. For imports: Verify modules exist
+      4. For function calls: Verify functions exist with correct signatures
+
+      ## Output
+      ```markdown
+      ### Code Example Audit
+
+      - ✅ Line 45: Python syntax valid
+      - ⚠️ Line 78: Import 'foo' not found in codebase
+      - ❌ Line 112: Function `bar()` has different signature
+      ```
+    scripts:
+      - name: check_python_syntax.py
+        language: python
+        description: Check Python code syntax
+        content: |
+          import ast
+          import sys
+
+          code = sys.stdin.read()
+          try:
+              ast.parse(code)
+              print("VALID")
+          except SyntaxError as e:
+              print(f"ERROR: {e}")
+              sys.exit(1)

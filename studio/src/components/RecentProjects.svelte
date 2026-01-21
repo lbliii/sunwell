@@ -1,26 +1,34 @@
 <!--
-  RecentProjects — List of projects with status, Resume, and management actions
+  RecentProjects — List of projects with status, Resume, and management actions (Svelte 5)
   
   Shows projects from ~/Sunwell/projects/ with execution status.
   Supports: Resume, Iterate, Archive, Delete actions.
 -->
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
   import type { ProjectStatus } from '$lib/types';
   
-  export let projects: ProjectStatus[] = [];
-  export let loading = false;
+  interface Props {
+    projects?: ProjectStatus[];
+    loading?: boolean;
+    onselect?: (project: ProjectStatus) => void;
+    onresume?: (project: ProjectStatus) => void;
+    oniterate?: (project: ProjectStatus) => void;
+    onarchive?: (project: ProjectStatus) => void;
+    ondelete?: (project: ProjectStatus) => void;
+  }
   
-  const dispatch = createEventDispatcher<{ 
-    select: ProjectStatus;
-    resume: ProjectStatus;
-    iterate: ProjectStatus;
-    archive: ProjectStatus;
-    delete: ProjectStatus;
-  }>();
+  let { 
+    projects = [], 
+    loading = false,
+    onselect,
+    onresume,
+    oniterate,
+    onarchive,
+    ondelete,
+  }: Props = $props();
   
   // Track which project's menu is open
-  let openMenuId: string | null = null;
+  let openMenuId = $state<string | null>(null);
   
   function formatTime(timestamp: string | null): string {
     if (!timestamp) return '';
@@ -58,12 +66,12 @@
       openMenuId = null;
       return;
     }
-    dispatch('select', project);
+    onselect?.(project);
   }
   
   function handleResume(event: Event, project: ProjectStatus) {
     event.stopPropagation();
-    dispatch('resume', project);
+    onresume?.(project);
   }
   
   function toggleMenu(event: Event, projectPath: string) {
@@ -74,23 +82,44 @@
   function handleIterate(event: Event, project: ProjectStatus) {
     event.stopPropagation();
     openMenuId = null;
-    dispatch('iterate', project);
+    oniterate?.(project);
   }
   
   function handleArchive(event: Event, project: ProjectStatus) {
     event.stopPropagation();
     openMenuId = null;
-    dispatch('archive', project);
+    onarchive?.(project);
   }
   
   function handleDelete(event: Event, project: ProjectStatus) {
     event.stopPropagation();
     openMenuId = null;
-    dispatch('delete', project);
+    ondelete?.(project);
+  }
+  
+  function handleKeydown(e: KeyboardEvent, project: ProjectStatus) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleSelect(project);
+    }
+  }
+  
+  function handleResumeKeydown(e: KeyboardEvent, project: ProjectStatus) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleResume(e, project);
+    }
+  }
+  
+  function handleMenuKeydown(e: KeyboardEvent, projectPath: string) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleMenu(e, projectPath);
+    }
   }
   
   // Close menu when clicking outside
-  function handleClickOutside(event: MouseEvent) {
+  function handleWindowClick(event: MouseEvent) {
     const target = event.target as HTMLElement;
     if (!target.closest('.action-menu') && !target.closest('.menu-trigger')) {
       openMenuId = null;
@@ -98,7 +127,7 @@
   }
 </script>
 
-<svelte:window on:click={handleClickOutside} />
+<svelte:window onclick={handleWindowClick} />
 
 <div class="projects-section">
   <div class="section-header">
@@ -107,101 +136,112 @@
   </div>
   
   {#if loading}
-    <div class="loading">Scanning projects...</div>
+    <div class="loading" role="status" aria-live="polite">Scanning projects...</div>
   {:else if projects.length === 0}
     <div class="empty">
       <p>No projects yet</p>
       <p class="hint">Enter a goal above to create your first project</p>
     </div>
   {:else}
-    <div class="project-list">
-      {#each projects as project}
+    <div class="project-list" role="list">
+      {#each projects as project (project.path)}
         {@const statusInfo = getStatusInfo(project.status)}
         <div 
           class="project-item"
           class:menu-open={openMenuId === project.path}
-          role="button"
-          tabindex="0"
-          on:click={() => handleSelect(project)}
-          on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleSelect(project)}
+          role="listitem"
         >
-          <div class="project-main">
-            <span class="project-icon">{statusInfo.icon}</span>
-            <span class="project-name">{project.name}</span>
-            {#if statusInfo.label}
-              <span class="project-status {statusInfo.class}">{statusInfo.label}</span>
-            {/if}
-          </div>
-          
-          <div class="project-details">
-            {#if project.last_goal}
-              <span class="project-goal" title={project.last_goal}>
-                {project.last_goal.slice(0, 40)}{project.last_goal.length > 40 ? '...' : ''}
-              </span>
-            {/if}
+          <button
+            class="project-button"
+            onclick={() => handleSelect(project)}
+            onkeydown={(e) => handleKeydown(e, project)}
+            aria-label="Open project {project.name}"
+          >
+            <div class="project-main">
+              <span class="project-icon" aria-hidden="true">{statusInfo.icon}</span>
+              <span class="project-name">{project.name}</span>
+              {#if project.id}
+                <span class="project-id" title="Project ID: {project.id}">#{project.id.slice(0, 8)}</span>
+              {/if}
+              {#if statusInfo.label}
+                <span class="project-status {statusInfo.class}">{statusInfo.label}</span>
+              {/if}
+            </div>
             
-            {#if project.tasks_completed !== null && project.tasks_total !== null}
-              <span class="project-progress">
-                {project.tasks_completed}/{project.tasks_total} tasks
-              </span>
-            {/if}
-            
-            <span class="project-time">{formatTime(project.last_activity)}</span>
-          </div>
+            <div class="project-details">
+              {#if project.last_goal}
+                <span class="project-goal" title={project.last_goal}>
+                  {project.last_goal.slice(0, 40)}{project.last_goal.length > 40 ? '...' : ''}
+                </span>
+              {:else}
+                <span class="project-goal-empty">No goal set</span>
+              {/if}
+              
+              {#if project.tasks_completed !== null && project.tasks_total !== null}
+                <span class="project-progress">
+                  {project.tasks_completed}/{project.tasks_total} tasks
+                </span>
+              {/if}
+              
+              <span class="project-time">{formatTime(project.last_activity)}</span>
+            </div>
+          </button>
           
           <!-- Action buttons -->
           <div class="project-actions">
             {#if project.status === 'interrupted'}
-              <span 
+              <button 
                 class="action-button resume-button"
-                role="button"
-                tabindex="0"
-                on:click={(e) => handleResume(e, project)}
-                on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleResume(e, project)}
+                onclick={(e) => handleResume(e, project)}
+                onkeydown={(e) => handleResumeKeydown(e, project)}
+                aria-label="Resume project {project.name}"
               >
                 Resume
-              </span>
+              </button>
             {/if}
             
             <!-- More actions menu trigger -->
-            <span
+            <button
               class="action-button menu-trigger"
-              role="button"
-              tabindex="0"
-              on:click={(e) => toggleMenu(e, project.path)}
-              on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleMenu(e, project.path)}
-              title="More actions"
+              onclick={(e) => toggleMenu(e, project.path)}
+              onkeydown={(e) => handleMenuKeydown(e, project.path)}
+              aria-label="More actions for {project.name}"
+              aria-expanded={openMenuId === project.path}
+              aria-haspopup="menu"
             >
               ···
-            </span>
+            </button>
             
             <!-- Dropdown menu -->
             {#if openMenuId === project.path}
-              <div class="action-menu">
+              <div class="action-menu" role="menu">
                 <button 
                   class="menu-item iterate"
-                  on:click={(e) => handleIterate(e, project)}
+                  onclick={(e) => handleIterate(e, project)}
                   title="New version from learnings"
+                  role="menuitem"
                 >
-                  <span class="menu-icon">↻</span>
+                  <span class="menu-icon" aria-hidden="true">↻</span>
                   <span class="menu-label">Iterate</span>
                 </button>
                 
                 <button 
                   class="menu-item archive"
-                  on:click={(e) => handleArchive(e, project)}
+                  onclick={(e) => handleArchive(e, project)}
                   title="Move to ~/Sunwell/archived/"
+                  role="menuitem"
                 >
-                  <span class="menu-icon">⌂</span>
+                  <span class="menu-icon" aria-hidden="true">⌂</span>
                   <span class="menu-label">Archive</span>
                 </button>
                 
                 <button 
                   class="menu-item delete"
-                  on:click={(e) => handleDelete(e, project)}
+                  onclick={(e) => handleDelete(e, project)}
                   title="Remove permanently"
+                  role="menuitem"
                 >
-                  <span class="menu-icon">✕</span>
+                  <span class="menu-icon" aria-hidden="true">✕</span>
                   <span class="menu-label">Delete</span>
                 </button>
               </div>
@@ -258,28 +298,38 @@
   }
   
   .project-item {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    padding: var(--space-3);
+    position: relative;
     background: var(--bg-secondary);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
-    color: var(--text-secondary);
-    text-align: left;
-    cursor: pointer;
     transition: all var(--transition-fast);
-    position: relative;
   }
   
   .project-item:hover {
     background: var(--bg-tertiary);
     border-color: var(--border-default);
-    color: var(--text-primary);
   }
   
   .project-item.menu-open {
     z-index: 50;
+  }
+  
+  .project-button {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    width: 100%;
+    padding: var(--space-3);
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    text-align: left;
+    cursor: pointer;
+    transition: color var(--transition-fast);
+  }
+  
+  .project-item:hover .project-button {
+    color: var(--text-primary);
   }
   
   .project-main {
@@ -298,6 +348,19 @@
     font-weight: 500;
     font-size: var(--text-sm);
     font-family: var(--font-mono);
+    transition: color var(--transition-fast);
+  }
+  
+  .project-item:hover .project-name {
+    color: var(--text-gold);
+  }
+  
+  .project-id {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    opacity: 0.6;
+    margin-left: var(--space-1);
   }
   
   .project-status {
@@ -308,18 +371,18 @@
   }
   
   .status-interrupted {
-    background: rgba(255, 170, 0, 0.15);
-    color: #ffaa00;
+    background: rgba(var(--warning-rgb), 0.15);
+    color: var(--warning);
   }
   
   .status-complete {
-    background: rgba(0, 200, 100, 0.15);
-    color: #00c864;
+    background: rgba(var(--success-rgb), 0.15);
+    color: var(--success);
   }
   
   .status-failed {
-    background: rgba(255, 80, 80, 0.15);
-    color: #ff5050;
+    background: rgba(var(--error-rgb), 0.15);
+    color: var(--error);
   }
   
   .project-details {
@@ -336,6 +399,13 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  
+  .project-goal-empty {
+    flex: 1;
+    color: var(--text-tertiary);
+    font-style: italic;
+    font-size: var(--text-xs);
   }
   
   .project-progress {
@@ -359,7 +429,8 @@
     transition: opacity var(--transition-fast);
   }
   
-  .project-item:hover .project-actions {
+  .project-item:hover .project-actions,
+  .project-item:focus-within .project-actions {
     opacity: 1;
   }
   
@@ -375,21 +446,32 @@
     transition: all var(--transition-fast);
   }
   
-  .action-button:hover {
+  .action-button:hover,
+  .action-button:focus {
     background: var(--bg-secondary);
     border-color: var(--text-tertiary);
     color: var(--text-primary);
   }
   
-  .resume-button {
-    background: var(--accent-primary);
-    color: var(--text-primary);
-    border-color: var(--accent-primary);
+  .action-button:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
   
-  .resume-button:hover {
-    background: var(--accent-hover);
-    border-color: var(--accent-hover);
+  .resume-button {
+    background: var(--gradient-ui-gold);
+    color: var(--bg-primary);
+    border-color: rgba(201, 162, 39, 0.3);
+  }
+  
+  .resume-button:hover,
+  .resume-button:focus {
+    background: linear-gradient(
+      135deg,
+      rgba(212, 176, 70, 0.95),
+      rgba(201, 162, 39, 1)
+    );
+    box-shadow: var(--glow-gold-subtle);
   }
   
   .menu-trigger {
@@ -441,8 +523,14 @@
     white-space: nowrap;
   }
   
-  .menu-item:hover {
+  .menu-item:hover,
+  .menu-item:focus {
     color: var(--text-primary);
+  }
+  
+  .menu-item:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
   }
   
   .menu-item .menu-icon {
@@ -453,18 +541,21 @@
     font-weight: 500;
   }
   
-  .menu-item.iterate:hover {
-    background: rgba(100, 180, 255, 0.1);
-    color: #64b4ff;
+  .menu-item.iterate:hover,
+  .menu-item.iterate:focus {
+    background: rgba(var(--info-rgb), 0.1);
+    color: var(--info);
   }
   
-  .menu-item.archive:hover {
-    background: rgba(255, 180, 100, 0.1);
-    color: #ffb464;
+  .menu-item.archive:hover,
+  .menu-item.archive:focus {
+    background: rgba(var(--warning-rgb), 0.1);
+    color: var(--warning);
   }
   
-  .menu-item.delete:hover {
-    background: rgba(255, 100, 100, 0.1);
-    color: #ff6464;
+  .menu-item.delete:hover,
+  .menu-item.delete:focus {
+    background: rgba(var(--error-rgb), 0.1);
+    color: var(--error);
   }
 </style>

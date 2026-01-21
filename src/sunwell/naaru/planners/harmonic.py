@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from enum import Enum
@@ -99,6 +100,32 @@ class PlanMetrics:
             + (1 / max(self.depth, 1)) * 20
             + (1 / (1 + self.file_conflicts)) * 10
         )
+
+
+# =============================================================================
+# Candidate Result (ID-based tracking)
+# =============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class CandidateResult:
+    """A plan candidate with stable ID for tracking through transformations.
+
+    Using explicit IDs instead of array indices prevents alignment bugs
+    between frontend and backend when candidates are filtered or reordered.
+    """
+
+    id: str
+    """Stable identifier (e.g., 'candidate-0', 'candidate-1')."""
+
+    graph: ArtifactGraph
+    """The artifact graph for this candidate."""
+
+    variance_config: dict[str, Any]
+    """Configuration used to generate this candidate."""
+
+    score: PlanMetrics | None = None
+    """Computed metrics (added after scoring)."""
 
 
 # =============================================================================
@@ -219,6 +246,10 @@ class HarmonicPlanner:
     use_free_threading: bool = True
     """Use ThreadPoolExecutor for parallel scoring (benefits from 3.14t)."""
 
+    # RFC-058: Event callback for planning visibility
+    event_callback: Callable[[Any], None] | None = None
+    """Optional callback for emitting planning visibility events (RFC-058)."""
+
     # Internal state
     _base_planner: Any = field(default=None, init=False)
 
@@ -226,6 +257,35 @@ class HarmonicPlanner:
     def mode(self) -> TaskMode:
         """This planner produces composite tasks."""
         return TaskMode.COMPOSITE
+
+    # =========================================================================
+    # RFC-058: Event Emission
+    # =========================================================================
+
+    def _emit_event(self, event_type: str, data: dict[str, Any]) -> None:
+        """Emit event via callback if configured (RFC-058).
+
+        RFC-060: Uses create_validated_event() for schema validation.
+        Validation mode controlled by SUNWELL_EVENT_VALIDATION env var.
+        """
+        if self.event_callback is None:
+            return
+
+        try:
+            from sunwell.adaptive.event_schema import create_validated_event
+            from sunwell.adaptive.events import EventType
+
+            # RFC-060: Validate event data against schema
+            event = create_validated_event(EventType(event_type), data)
+            self.event_callback(event)
+        except ValueError as e:
+            # Invalid event type or validation failure (strict mode)
+            import logging
+            logging.warning(f"Event validation failed for '{event_type}': {e}")
+        except Exception as e:
+            # Other errors - log but don't break planning
+            import logging
+            logging.warning(f"Event emission failed for '{event_type}': {e}")
 
     # =========================================================================
     # Main API
@@ -271,7 +331,7 @@ class HarmonicPlanner:
         Returns:
             Tuple of (best_graph, metrics)
         """
-        # Generate candidates in parallel
+        # Generate candidates in parallel (returns CandidateResult objects with stable IDs)
         candidates = await self._generate_candidates(goal, context)
 
         if not candidates:
@@ -287,22 +347,94 @@ class HarmonicPlanner:
             return graph, self._score_plan(graph)
 
         # Score each candidate (parallel if free-threading enabled)
-        if self.use_free_threading and len(candidates) > 1:
-            scores = await self._score_plans_parallel(candidates)
+        graphs = [c.graph for c in candidates]
+        if self.use_free_threading and len(graphs) > 1:
+            scores = await self._score_plans_parallel(graphs)
         else:
-            scores = [self._score_plan(g) for g in candidates]
+            scores = [self._score_plan(g) for g in graphs]
 
-        # Pair and sort by score (descending)
-        scored = list(zip(candidates, scores, strict=True))
-        scored.sort(key=lambda x: x[1].score, reverse=True)
+        # Create scored candidates (immutable, so create new with score)
+        scored_candidates = [
+            CandidateResult(
+                id=c.id,
+                graph=c.graph,
+                variance_config=c.variance_config,
+                score=scores[i],
+            )
+            for i, c in enumerate(candidates)
+        ]
 
-        best_graph, best_metrics = scored[0][0], scored[0][1]
+        # Emit scored events (use candidate_id for reliable matching)
+        for i, candidate in enumerate(scored_candidates):
+            self._emit_event("plan_candidate_scored", {
+                "candidate_id": candidate.id,
+                "score": candidate.score.score,
+                "progress": i + 1,
+                "total_candidates": len(candidates),
+                "metrics": {
+                    "depth": candidate.score.depth,
+                    "width": candidate.score.width,
+                    "leaf_count": candidate.score.leaf_count,
+                    "artifact_count": candidate.score.artifact_count,
+                    "parallelism_factor": candidate.score.parallelism_factor,
+                    "balance_factor": candidate.score.balance_factor,
+                    "file_conflicts": candidate.score.file_conflicts,
+                    "estimated_waves": candidate.score.estimated_waves,
+                },
+            })
+
+        # Emit scoring complete event
+        self._emit_event("plan_scoring_complete", {
+            "total_scored": len(scores),
+        })
+
+        # Sort by score (descending) and select best
+        scored_candidates.sort(key=lambda c: c.score.score, reverse=True)
+        best = scored_candidates[0]
+
+        # Track refinement state
+        initial_score = best.score.score
+        refinement_rounds_applied = 0
+        best_graph = best.graph
+        best_metrics = best.score
 
         # Optional refinement
         if self.refinement_rounds > 0:
             best_graph, best_metrics = await self._refine_plan(
                 goal, best_graph, best_metrics, context
             )
+            refinement_rounds_applied = self.refinement_rounds
+
+        # Emit winner event with candidate_id (reliable matching)
+        self._plan_winner_emitted = True
+        self._emit_event("plan_winner", {
+            "tasks": len(best_graph),
+            "artifact_count": len(best_graph),
+            "selected_candidate_id": best.id,
+            "total_candidates": len(candidates),
+            "score": best_metrics.score,
+            "metrics": {
+                "score": best_metrics.score,
+                "depth": best_metrics.depth,
+                "width": best_metrics.width,
+                "leaf_count": best_metrics.leaf_count,
+                "parallelism_factor": best_metrics.parallelism_factor,
+                "balance_factor": best_metrics.balance_factor,
+                "file_conflicts": best_metrics.file_conflicts,
+                "estimated_waves": best_metrics.estimated_waves,
+            },
+            "selection_reason": self._format_selection_reason(
+                best_metrics, scored_candidates
+            ),
+            "variance_strategy": self.variance.value,
+            "variance_config": best.variance_config,
+            "refinement_rounds": refinement_rounds_applied,
+            "final_score_improvement": (
+                best_metrics.score - initial_score
+                if refinement_rounds_applied > 0
+                else 0.0
+            ),
+        })
 
         return best_graph, best_metrics
 
@@ -318,6 +450,35 @@ class HarmonicPlanner:
         graph, _ = await self.plan_with_metrics(goal, context)
         return graph
 
+    async def create_artifact(
+        self,
+        artifact: ArtifactSpec,
+        context: dict[str, Any] | None = None,
+    ) -> str:
+        """Create the content for an artifact by delegating to base ArtifactPlanner.
+
+        HarmonicPlanner uses ArtifactPlanner for actual artifact creation.
+        This method is called during execution phase after planning completes.
+
+        Args:
+            artifact: The artifact specification
+            context: Optional context (completed artifacts, cwd, etc.)
+
+        Returns:
+            Generated content as a string
+        """
+        from sunwell.naaru.planners.artifact import ArtifactPlanner
+
+        # Create base planner for artifact creation
+        base_planner = ArtifactPlanner(
+            model=self.model,
+            limits=self.limits,
+            project_schema=self.project_schema,
+        )
+
+        # Delegate to base planner
+        return await base_planner.create_artifact(artifact, context)
+
     # =========================================================================
     # Candidate Generation
     # =========================================================================
@@ -326,8 +487,12 @@ class HarmonicPlanner:
         self,
         goal: str,
         context: dict[str, Any] | None,
-    ) -> list[ArtifactGraph]:
-        """Generate N candidate plans in parallel."""
+    ) -> list[CandidateResult]:
+        """Generate N candidate plans in parallel.
+
+        Returns CandidateResult objects with stable IDs for reliable
+        frontend/backend alignment (no index confusion).
+        """
         from sunwell.naaru.planners.artifact import ArtifactPlanner
 
         # Create base planner
@@ -344,22 +509,63 @@ class HarmonicPlanner:
         # Generate variance configurations
         configs = self._get_variance_configs()
 
+        # RFC-058: Emit candidate generation start event
+        self._emit_event("plan_candidate_start", {
+            "total_candidates": len(configs),
+            "variance_strategy": self.variance.value,
+        })
+
         # Discover all plans in parallel
-        async def discover_with_config(config: dict) -> ArtifactGraph | None:
+        async def discover_with_config(
+            config: dict, index: int
+        ) -> CandidateResult | None:
+            # Generate stable ID for this candidate
+            candidate_id = f"candidate-{index}"
+
             try:
                 # Apply variance to goal prompt
                 varied_goal = self._apply_variance(goal, config)
-                return await base_planner.discover_graph(varied_goal, context)
+                graph = await base_planner.discover_graph(varied_goal, context)
+
+                # Build normalized variance_config
+                variance_config = {
+                    "prompt_style": config.get("prompt_style", "default"),
+                    "temperature": config.get("temperature"),
+                    "constraint": config.get("constraint"),
+                }
+
+                # Emit candidate generated event with ID
+                self._emit_event("plan_candidate_generated", {
+                    "candidate_id": candidate_id,
+                    "artifact_count": len(graph),
+                    "progress": index + 1,
+                    "total_candidates": len(configs),
+                    "variance_config": variance_config,
+                })
+
+                return CandidateResult(
+                    id=candidate_id,
+                    graph=graph,
+                    variance_config=variance_config,
+                )
             except Exception:
                 return None  # Skip failed discoveries
 
         results = await asyncio.gather(
-            *[discover_with_config(c) for c in configs],
+            *[discover_with_config(c, i) for i, c in enumerate(configs)],
             return_exceptions=True,
         )
 
         # Filter successful plans
-        return [g for g in results if isinstance(g, ArtifactGraph)]
+        candidates = [r for r in results if isinstance(r, CandidateResult)]
+
+        # RFC-058: Emit candidates complete event
+        self._emit_event("plan_candidates_complete", {
+            "successful_candidates": len(candidates),
+            "failed_candidates": len(configs) - len(candidates),
+        })
+
+        return candidates
 
     def _get_variance_configs(self) -> list[dict]:
         """Get variance configurations based on strategy."""
@@ -519,13 +725,22 @@ class HarmonicPlanner:
         """Iteratively refine the best plan."""
         current_graph = graph
         current_metrics = metrics
+        initial_score = metrics.score
 
-        for _ in range(self.refinement_rounds):
+        for round_num in range(self.refinement_rounds):
             # Identify improvement opportunities
             feedback = self._identify_improvements(current_metrics)
 
             if not feedback:
                 break  # No improvements identified
+
+            # RFC-058: Emit refine start event
+            self._emit_event("plan_refine_start", {
+                "round": round_num + 1,
+                "total_rounds": self.refinement_rounds,
+                "current_score": current_metrics.score,
+                "improvements_identified": feedback,
+            })
 
             # Ask LLM to refine
             refined = await self._refine_with_feedback(
@@ -537,14 +752,58 @@ class HarmonicPlanner:
 
             refined_metrics = self._score_plan(refined)
 
+            # RFC-058: Emit refine attempt event
+            self._emit_event("plan_refine_attempt", {
+                "round": round_num + 1,
+                "improvements_applied": self._extract_applied_improvements(refined, current_graph),
+            })
+
             # Only accept if improved
             if refined_metrics.score > current_metrics.score:
+                old_score = current_metrics.score
                 current_graph = refined
                 current_metrics = refined_metrics
+
+                # RFC-058: Emit refine complete event (improved)
+                self._emit_event("plan_refine_complete", {
+                    "round": round_num + 1,
+                    "improved": True,
+                    "old_score": old_score,
+                    "new_score": refined_metrics.score,
+                    "improvement": refined_metrics.score - old_score,
+                })
             else:
+                # RFC-058: Emit refine complete event (no improvement)
+                self._emit_event("plan_refine_complete", {
+                    "round": round_num + 1,
+                    "improved": False,
+                    "reason": "Score did not improve",
+                })
                 break  # No improvement, stop
 
+        # RFC-058: Emit refine final event
+        self._emit_event("plan_refine_final", {
+            "total_rounds": round_num + 1 if round_num < self.refinement_rounds else self.refinement_rounds,
+            "initial_score": initial_score,
+            "final_score": current_metrics.score,
+            "total_improvement": current_metrics.score - initial_score,
+        })
+
         return current_graph, current_metrics
+
+    def _extract_applied_improvements(
+        self,
+        refined: ArtifactGraph,
+        original: ArtifactGraph,
+    ) -> str:
+        """Extract description of improvements applied (RFC-058)."""
+        # Simple heuristic: compare artifact counts and structure
+        if len(refined) > len(original):
+            return f"Added {len(refined) - len(original)} artifacts"
+        elif len(refined) < len(original):
+            return f"Removed {len(original) - len(refined)} artifacts"
+        else:
+            return "Restructured dependencies"
 
     def _identify_improvements(self, metrics: PlanMetrics) -> str | None:
         """Identify what could be improved in the plan."""
@@ -694,6 +953,16 @@ Output the COMPLETE revised artifact list as JSON array:
     # =========================================================================
     # Candidate Info (for verbose output)
     # =========================================================================
+
+    def _format_selection_reason(
+        self,
+        best_metrics: PlanMetrics,
+        candidates: list[CandidateResult],
+    ) -> str:
+        """Format selection reason for winner event."""
+        if len(candidates) == 1:
+            return "Only candidate generated"
+        return "Highest composite score (parallelism + balance - depth penalty)"
 
     def get_candidate_summary(
         self,

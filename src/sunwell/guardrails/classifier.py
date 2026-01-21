@@ -1,10 +1,14 @@
-"""Action Classification for Autonomy Guardrails (RFC-048).
+"""Action Classification for Autonomy Guardrails (RFC-048, RFC-077).
 
 Classifies actions by risk level using pattern matching and trust zones.
+RFC-077 adds FastClassifier fallback for edge cases that patterns miss.
 """
+
+from __future__ import annotations
 
 from fnmatch import fnmatch
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from sunwell.guardrails.types import (
     Action,
@@ -13,6 +17,9 @@ from sunwell.guardrails.types import (
     TrustLevel,
     TrustZone,
 )
+
+if TYPE_CHECKING:
+    from sunwell.models.protocol import ModelProtocol
 
 # =============================================================================
 # Default Trust Zones
@@ -469,3 +476,152 @@ class ActionClassifier:
             "db_schema": "Schema changes can cause data loss",
         }
         return reasons.get(action_type, f"Default classification for {action_type}")
+
+
+# =============================================================================
+# LLM-Enhanced Classifier (RFC-077)
+# =============================================================================
+
+
+class SmartActionClassifier(ActionClassifier):
+    """Action classifier with LLM fallback for edge cases (RFC-077).
+
+    Uses FastClassifier to handle cases that pattern matching misses:
+    - Novel action types not in taxonomy
+    - Ambiguous paths that don't match trust zones
+    - Context-dependent risk assessment
+
+    Example:
+        classifier = SmartActionClassifier(model=small_model)
+
+        # Pattern match first, LLM fallback for unknowns
+        classification = await classifier.classify_smart(action)
+    """
+
+    def __init__(
+        self,
+        model: ModelProtocol | None = None,
+        trust_level: TrustLevel = TrustLevel.GUARDED,
+        trust_zones: tuple[TrustZone, ...] | None = None,
+        custom_forbidden_patterns: tuple[str, ...] = (),
+    ):
+        """Initialize smart classifier.
+
+        Args:
+            model: Small model for LLM fallback (llama3.2:3b recommended)
+            trust_level: Overall trust level for this session
+            trust_zones: Custom trust zones (extends defaults)
+            custom_forbidden_patterns: Additional forbidden patterns
+        """
+        super().__init__(trust_level, trust_zones, custom_forbidden_patterns)
+        self._model = model
+        self._classifier: Any = None
+
+    async def _get_classifier(self) -> Any:
+        """Lazy-load FastClassifier."""
+        if self._classifier is None and self._model is not None:
+            from sunwell.reasoning import FastClassifier
+
+            self._classifier = FastClassifier(model=self._model)
+        return self._classifier
+
+    async def classify_smart(self, action: Action) -> ActionClassification:
+        """Classify with LLM fallback for edge cases.
+
+        Strategy:
+        1. Check forbidden patterns (always hard-coded)
+        2. Check trust zones (pattern-based)
+        3. Classify by action type (pattern-based)
+        4. If result is MODERATE and no clear pattern, use LLM
+
+        Args:
+            action: The action to classify
+
+        Returns:
+            ActionClassification with risk level
+        """
+        # First: standard pattern-based classification
+        classification = self.classify(action)
+
+        # If we got a clear answer from patterns, use it
+        if classification.blocking_rule is not None:
+            return classification
+
+        # If risk is clearly SAFE or FORBIDDEN, use pattern result
+        if classification.risk in (ActionRisk.SAFE, ActionRisk.FORBIDDEN):
+            return classification
+
+        # For MODERATE/DANGEROUS without clear pattern, try LLM
+        classifier = await self._get_classifier()
+        if classifier is None:
+            return classification  # No model, use pattern result
+
+        try:
+            # Build context for LLM
+            context = self._build_action_context(action, classification)
+            risk_str = await classifier.risk(
+                action=action.action_type,
+                file_path=action.path or "unknown",
+                change_description=context,
+            )
+
+            # Map LLM result to ActionRisk
+            risk_map = {
+                "safe": ActionRisk.SAFE,
+                "moderate": ActionRisk.MODERATE,
+                "dangerous": ActionRisk.DANGEROUS,
+                "forbidden": ActionRisk.FORBIDDEN,
+            }
+            llm_risk = risk_map.get(risk_str.lower(), ActionRisk.MODERATE)
+
+            # Return LLM-enhanced classification
+            return ActionClassification(
+                action_type=classification.action_type,
+                risk=llm_risk,
+                path=action.path,
+                reason=f"LLM: {risk_str} (pattern: {classification.risk.value})",
+                escalation_required=self._needs_escalation(llm_risk),
+                blocking_rule=None,
+            )
+
+        except Exception:
+            # LLM failed, fall back to pattern result
+            return classification
+
+    def _build_action_context(
+        self, action: Action, classification: ActionClassification
+    ) -> str:
+        """Build context string for LLM risk assessment."""
+        parts = [
+            f"Action: {action.action_type}",
+        ]
+
+        if action.path:
+            parts.append(f"Path: {action.path}")
+
+        if action.command:
+            parts.append(f"Command: {action.command[:100]}")
+
+        if action.content:
+            parts.append(f"Content preview: {action.content[:200]}")
+
+        parts.append(f"Pattern classification: {classification.risk.value}")
+        parts.append(f"Pattern reason: {classification.reason}")
+
+        return "\n".join(parts)
+
+    async def classify_all_smart(
+        self, actions: list[Action]
+    ) -> list[ActionClassification]:
+        """Classify multiple actions with LLM fallback.
+
+        Args:
+            actions: List of actions to classify
+
+        Returns:
+            List of classifications
+        """
+        results = []
+        for action in actions:
+            results.append(await self.classify_smart(action))
+        return results

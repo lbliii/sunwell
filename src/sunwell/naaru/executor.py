@@ -35,6 +35,9 @@ from sunwell.naaru.artifacts import (
 )
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
+    from sunwell.integration import IntegrationVerifier
     from sunwell.naaru.planners.artifact import ArtifactPlanner
 
 
@@ -169,6 +172,7 @@ class ArtifactExecutor:
     3. Optionally discovers new artifacts mid-execution
     4. Verifies artifacts against their contracts
     5. Selects model tier based on artifact depth
+    6. RFC-067: Runs integration verification (stubs, orphans, wiring)
 
     Example:
         >>> executor = ArtifactExecutor(
@@ -193,6 +197,13 @@ class ArtifactExecutor:
 
     on_event: EventCallback | None = None
     """Callback for execution events."""
+
+    # RFC-067: Integration verification
+    integration_verifier: IntegrationVerifier | None = None
+    """Integration verifier for detecting stubs, orphans, and missing wiring."""
+
+    project_root: Path | None = None
+    """Project root for integration verification."""
 
     async def execute(
         self,
@@ -317,7 +328,58 @@ class ArtifactExecutor:
                                 self.dynamic_discovery = False
 
         result.total_duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+
+        # RFC-067: Final integration check - detect orphaned artifacts
+        await self._run_final_integration_checks(graph, result)
+
         return result
+
+    async def _run_final_integration_checks(
+        self,
+        graph: ArtifactGraph,
+        result: ExecutionResult,
+    ) -> None:
+        """Run final integration checks after all artifacts are created.
+
+        Detects orphaned artifacts (produced but not imported/used anywhere).
+        """
+        if not self.integration_verifier or not self.project_root:
+            return
+
+        from pathlib import Path
+
+        from sunwell.integration import ProducedArtifact
+
+        try:
+            # Build list of produced artifacts from completed results
+            produced: list[ProducedArtifact] = []
+            for artifact_id, artifact_result in result.completed.items():
+                if not artifact_result.success:
+                    continue
+
+                artifact = graph[artifact_id]
+                if artifact.produces_file:
+                    file_path = Path(artifact.produces_file)
+                    produced.append(
+                        ProducedArtifact(
+                            id=artifact_id,
+                            artifact_type="file",
+                            location=artifact.produces_file,
+                            file_path=self.project_root / file_path,
+                        )
+                    )
+
+            if produced:
+                orphans = await self.integration_verifier.detect_orphans(produced)
+                if orphans:
+                    orphan_names = ", ".join(o.symbol for o in orphans[:3])
+                    self._emit_event(
+                        "integration_warning",
+                        message=f"⚠️ Orphaned artifacts detected (not imported): {orphan_names}",
+                    )
+        except Exception:
+            # Integration checks are advisory, don't fail execution
+            pass
 
     async def _execute_artifact(
         self,
@@ -361,6 +423,9 @@ class ArtifactExecutor:
                 verification = await self.planner.verify_artifact(artifact, content)
                 verified = verification.passed
 
+            # RFC-067: Run integration verification (stub detection)
+            await self._run_integration_checks(artifact, content)
+
             return ArtifactResult(
                 artifact_id=artifact_id,
                 content=content,
@@ -378,6 +443,47 @@ class ArtifactExecutor:
                 duration_ms=duration_ms,
                 error=str(e),
             )
+
+    async def _run_integration_checks(
+        self,
+        artifact: ArtifactSpec,
+        content: str,
+    ) -> None:
+        """Run RFC-067 integration checks after artifact creation.
+
+        Detects:
+        - Stub implementations (pass, TODO, raise NotImplementedError)
+        - Emits warnings but doesn't fail execution
+
+        Args:
+            artifact: The artifact that was created
+            content: The created content
+        """
+        if not self.integration_verifier or not artifact.produces_file:
+            return
+
+        from pathlib import Path
+
+        file_path = Path(artifact.produces_file)
+        if file_path.suffix != ".py":
+            return
+
+        try:
+            # Detect stubs in the created file
+            full_path = self.project_root / file_path if self.project_root else file_path
+
+            if full_path.exists():
+                stubs = await self.integration_verifier.detect_stubs(full_path)
+                if stubs:
+                    stub_names = ", ".join(s.symbol for s in stubs[:3])
+                    self._emit_event(
+                        "integration_warning",
+                        artifact_id=artifact.id,
+                        message=f"⚠️ Stub implementations detected: {stub_names}",
+                    )
+        except Exception:
+            # Integration checks are advisory, don't fail execution
+            pass
 
     async def _discover_new(
         self,
@@ -437,6 +543,8 @@ async def execute_artifact_graph(
     verify: bool = True,
     dynamic_discovery: bool = True,
     on_event: EventCallback | None = None,
+    integration_verifier: IntegrationVerifier | None = None,
+    project_root: Path | None = None,
 ) -> ExecutionResult:
     """Execute an artifact graph with all features enabled.
 
@@ -450,6 +558,8 @@ async def execute_artifact_graph(
         verify: Whether to verify artifacts
         dynamic_discovery: Whether to discover new artifacts
         on_event: Event callback
+        integration_verifier: RFC-067 integration verifier for stub/orphan detection
+        project_root: Project root for integration verification
 
     Returns:
         ExecutionResult with all completed/failed artifacts
@@ -459,6 +569,8 @@ async def execute_artifact_graph(
         verify=verify,
         dynamic_discovery=dynamic_discovery,
         on_event=on_event,
+        integration_verifier=integration_verifier,
+        project_root=project_root,
     )
     return await executor.execute(graph, create_fn, goal)
 

@@ -1,25 +1,35 @@
 <!--
-  DagEdge — Connection line between nodes
+  DagEdge — Connection line between nodes (Svelte 5)
   
   Draws a smooth bezier curve with optional artifact label.
 -->
 <script lang="ts">
-  import type { DagEdge, DagNode } from '$lib/types';
+  import type { DagEdge as DagEdgeType, DagNode } from '$lib/types';
   
-  export let edge: DagEdge;
-  export let sourceNode: DagNode | undefined;
-  export let targetNode: DagNode | undefined;
-  export let isHighlighted = false;
+  interface Props {
+    edge: DagEdgeType;
+    sourceNode?: DagNode;
+    targetNode?: DagNode;
+    isHighlighted?: boolean;
+  }
+  
+  let { edge, sourceNode, targetNode, isHighlighted = false }: Props = $props();
   
   // Compute path from edge points or calculate from nodes
-  $: pathD = computePath(edge, sourceNode, targetNode);
-  $: midpoint = computeMidpoint(edge, sourceNode, targetNode);
+  let pathD = $derived(computePath(edge, sourceNode, targetNode));
+  let midpoint = $derived(computeMidpoint(edge, sourceNode, targetNode));
   
-  $: isComplete = sourceNode?.status === 'complete';
-  $: isActive = sourceNode?.status === 'running';
+  let isComplete = $derived(sourceNode?.status === 'complete');
+  let isActive = $derived(sourceNode?.status === 'running');
+  
+  // RFC-067: Integration edge styling
+  let isIntegration = $derived(edge.edgeType === 'integration');
+  let verificationStatus = $derived(edge.verificationStatus ?? 'pending');
+  let isMissing = $derived(verificationStatus === 'missing');
+  let isVerified = $derived(verificationStatus === 'verified');
   
   function computePath(
-    edge: DagEdge, 
+    edge: DagEdgeType, 
     source: DagNode | undefined, 
     target: DagNode | undefined
   ): string {
@@ -62,7 +72,7 @@
   }
   
   function computeMidpoint(
-    edge: DagEdge,
+    edge: DagEdgeType,
     source: DagNode | undefined,
     target: DagNode | undefined
   ): { x: number; y: number } {
@@ -80,7 +90,7 @@
   }
 </script>
 
-<g class="dag-edge" class:highlighted={isHighlighted} class:complete={isComplete} class:active={isActive}>
+<g class="dag-edge" class:highlighted={isHighlighted} class:complete={isComplete} class:active={isActive} class:integration={isIntegration} class:missing={isMissing} class:verified={isVerified}>
   <!-- Shadow/glow for highlighted edges -->
   {#if isHighlighted}
     <path
@@ -119,6 +129,22 @@
       >
         {edge.artifact}
       </text>
+    </g>
+  {/if}
+  
+  <!-- RFC-067: Missing integration warning -->
+  {#if isIntegration && isMissing}
+    <g class="integration-warning" transform="translate({midpoint.x}, {midpoint.y})">
+      <circle r="8" fill="var(--error)" />
+      <text x="0" y="4" text-anchor="middle" font-size="10" fill="var(--bg-primary)">⚠</text>
+    </g>
+  {/if}
+  
+  <!-- RFC-067: Verified integration indicator -->
+  {#if isIntegration && isVerified}
+    <g class="integration-verified" transform="translate({midpoint.x}, {midpoint.y})">
+      <circle r="6" fill="var(--success)" />
+      <text x="0" y="3" text-anchor="middle" font-size="8" fill="var(--bg-primary)">✓</text>
     </g>
   {/if}
 </g>
@@ -164,5 +190,41 @@
   
   .edge-label {
     pointer-events: none;
+  }
+  
+  /* RFC-067: Integration edge styling */
+  .dag-edge.integration .edge-line {
+    stroke-dasharray: 8 4;
+    stroke-width: 2;
+    stroke: var(--info);
+  }
+  
+  .dag-edge.integration.missing .edge-line {
+    stroke: var(--error);
+    animation: missing-pulse 1s ease-in-out infinite;
+  }
+  
+  .dag-edge.integration.verified .edge-line {
+    stroke: var(--success);
+    opacity: 0.7;
+  }
+  
+  @keyframes missing-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  
+  .integration-warning {
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+    animation: warning-bounce 0.5s ease-in-out infinite;
+  }
+  
+  @keyframes warning-bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-2px); }
+  }
+  
+  .integration-verified {
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
   }
 </style>

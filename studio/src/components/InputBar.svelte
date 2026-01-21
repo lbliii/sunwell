@@ -1,24 +1,36 @@
 <!--
-  InputBar — The main input for goals/prompts
+  InputBar — Holy Light styled input for goals/prompts (Svelte 5)
   
-  Minimal, focused input with subtle border and glow on focus.
-  Used on home screen and project screens.
+  Uses soft, opacity-based gold for focus states.
+  The glow is subtle warmth, not jarring brightness.
 -->
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import RisingMotes from './RisingMotes.svelte';
   
-  export let value = '';
-  export let placeholder = 'What would you like to create?';
-  export let disabled = false;
-  export let autofocus = false;
+  interface Props {
+    value?: string;
+    placeholder?: string;
+    disabled?: boolean;
+    autofocus?: boolean;
+    showMotes?: boolean;
+    onsubmit?: (value: string) => void;
+  }
   
-  const dispatch = createEventDispatcher<{ submit: string }>();
+  let { 
+    value = $bindable(''), 
+    placeholder = 'What would you like to create?', 
+    disabled = false, 
+    autofocus = false, 
+    showMotes = false,
+    onsubmit 
+  }: Props = $props();
   
-  let inputEl: HTMLInputElement;
+  let inputEl: HTMLInputElement | undefined = $state();
+  let focused = $state(false);
   
   function handleSubmit() {
     if (value.trim() && !disabled) {
-      dispatch('submit', value.trim());
+      onsubmit?.(value.trim());
     }
   }
   
@@ -29,31 +41,48 @@
     }
   }
   
+  function handleFocus() {
+    focused = true;
+  }
+  
+  function handleBlur() {
+    focused = false;
+  }
+  
   export function focus() {
     inputEl?.focus();
   }
 </script>
 
-<div class="input-bar" class:disabled>
+<div class="input-bar" class:disabled class:focused>
+  <!-- svelte-ignore a11y_autofocus -->
   <input
     bind:this={inputEl}
     bind:value
     {placeholder}
     {disabled}
     autofocus={autofocus}
-    on:keydown={handleKeydown}
+    onkeydown={handleKeydown}
+    onfocus={handleFocus}
+    onblur={handleBlur}
     type="text"
     spellcheck="false"
     autocomplete="off"
+    aria-label={placeholder}
   />
   <button 
     class="submit-btn" 
-    on:click={handleSubmit}
+    onclick={handleSubmit}
     {disabled}
     aria-label="Submit"
+    type="button"
   >
     ⏎
   </button>
+  
+  {#if showMotes}
+    <RisingMotes count={5} intensity="subtle" active={focused} />
+  {/if}
 </div>
 
 <style>
@@ -61,17 +90,26 @@
     display: flex;
     align-items: center;
     background: var(--bg-input);
-    border: var(--border-width) solid var(--border-color);
-    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
     padding: 0 var(--space-4);
-    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    transition: 
+      border-color var(--transition-normal), 
+      box-shadow var(--transition-normal),
+      background var(--transition-normal);
     width: 100%;
     max-width: 600px;
+    position: relative;
+    overflow: hidden;
   }
   
-  .input-bar:focus-within {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(245, 245, 245, 0.1);
+  .input-bar:focus-within,
+  .input-bar.focused {
+    border-color: var(--border-emphasis);
+    background: rgba(20, 20, 20, 1);
+    box-shadow: 
+      0 0 0 1px var(--border-default),
+      var(--glow-gold-inset);
   }
   
   .input-bar.disabled {
@@ -89,6 +127,8 @@
     font-size: var(--text-base);
     padding: var(--space-4) 0;
     min-width: 0;
+    position: relative;
+    z-index: 2;
   }
   
   input::placeholder {
@@ -109,15 +149,24 @@
     color: var(--text-tertiary);
     font-size: var(--text-lg);
     border-radius: var(--radius-sm);
-    transition: color var(--transition-fast), background var(--transition-fast);
+    transition: 
+      color var(--transition-fast), 
+      background var(--transition-fast);
+    position: relative;
+    z-index: 2;
   }
   
   .submit-btn:hover:not(:disabled) {
-    color: var(--text-primary);
-    background: var(--bg-tertiary);
+    color: var(--text-gold);
+    background: rgba(201, 162, 39, 0.1);
   }
   
   .submit-btn:disabled {
     cursor: not-allowed;
+  }
+  
+  .submit-btn:focus-visible {
+    outline: 2px solid var(--border-emphasis);
+    outline-offset: 2px;
   }
 </style>

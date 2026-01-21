@@ -1,59 +1,71 @@
 <!--
-  Home — Launch screen
+  Home — Holy Light styled launch screen (Svelte 5)
   
-  The minimal, beautiful entry point. Just a logo, input, and projects list.
-  Shows all projects from ~/Sunwell/projects/ with status and resume capability.
+  The minimal, beautiful entry point approaching the Sunwell.
+  Features golden background aura and ambient rising motes.
 -->
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { untrack } from 'svelte';
   import Logo from '../components/Logo.svelte';
   import InputBar from '../components/InputBar.svelte';
   import RecentProjects from '../components/RecentProjects.svelte';
-  import { goToProject } from '../stores/app';
+  import RisingMotes from '../components/RisingMotes.svelte';
+  import MouseMotes from '../components/MouseMotes.svelte';
+  import Modal from '../components/Modal.svelte';
+  import Button from '../components/Button.svelte';
+  import SavedPrompts from '../components/SavedPrompts.svelte';
+  import SparkleField from '../components/ui/SparkleField.svelte';
+  import LensPicker from '../components/LensPicker.svelte';
+  import LensBadge from '../components/LensBadge.svelte';
+  import { goToProject, goToInterface } from '../stores/app.svelte';
   import { 
-    discoveredProjects,
-    isScanning,
-    scanProjects, 
-    createProject,
+    project,
+    scanProjects,
     openProject,
     resumeProject,
     deleteProject,
     archiveProject,
     iterateProject,
-  } from '../stores/project';
-  import { runGoal, agentState } from '../stores/agent';
+  } from '../stores/project.svelte';
+  import { runGoal } from '../stores/agent.svelte';
+  import { prompts, loadPrompts, removePrompt } from '../stores/prompts.svelte';
+  import { lens, loadLenses, selectLens } from '../stores/lens.svelte';
   import type { ProjectStatus } from '$lib/types';
   
-  let inputValue = '';
+  let inputValue = $state('');
   let inputBar: InputBar;
   
+  // RFC-064: Lens picker state
+  let showLensPicker = $state(false);
+  let pendingGoal = $state<string | null>(null);
+  
   // Confirmation modal state
-  let confirmModal: { 
+  let confirmModal = $state<{ 
     show: boolean; 
     title: string; 
     message: string; 
     action: 'delete' | 'archive'; 
     project: ProjectStatus | null;
     destructive: boolean;
-  } = { show: false, title: '', message: '', action: 'delete', project: null, destructive: false };
+  }>({ show: false, title: '', message: '', action: 'delete', project: null, destructive: false });
   
-  function showConfirm(action: 'delete' | 'archive', project: ProjectStatus) {
+  function showConfirm(action: 'delete' | 'archive', proj: ProjectStatus) {
     if (action === 'delete') {
       confirmModal = {
         show: true,
         title: 'Delete Project',
-        message: `Delete "${project.name}" permanently? This cannot be undone.`,
+        message: `Delete "${proj.name}" permanently? This cannot be undone.`,
         action: 'delete',
-        project,
+        project: proj,
         destructive: true,
       };
     } else {
       confirmModal = {
         show: true,
         title: 'Archive Project',
-        message: `Archive "${project.name}"? This will move it to ~/Sunwell/archived/`,
+        message: `Archive "${proj.name}"? This will move it to ~/Sunwell/archived/`,
         action: 'archive',
-        project,
+        project: proj,
         destructive: false,
       };
     }
@@ -62,14 +74,14 @@
   async function handleConfirm() {
     if (!confirmModal.project) return;
     
-    const project = confirmModal.project;
+    const proj = confirmModal.project;
     const action = confirmModal.action;
     confirmModal = { ...confirmModal, show: false };
     
     if (action === 'delete') {
-      await deleteProject(project.path);
+      await deleteProject(proj.path);
     } else {
-      await archiveProject(project.path);
+      await archiveProject(proj.path);
     }
   }
   
@@ -77,115 +89,172 @@
     confirmModal = { ...confirmModal, show: false };
   }
   
-  onMount(() => {
-    scanProjects();
-    inputBar?.focus();
+  // One-time initialization on mount
+  $effect(() => {
+    untrack(() => {
+      scanProjects();
+      loadPrompts();
+      loadLenses(); // RFC-064: Pre-load lenses
+      inputBar?.focus();
+    });
   });
   
-  async function handleSubmit(event: CustomEvent<string>) {
-    const goal = event.detail;
+  // RFC-064: Show lens picker before starting goal
+  async function handleSubmit(goal: string) {
     if (!goal) return;
+    pendingGoal = goal;
+    showLensPicker = true;
+  }
+  
+  // RFC-064: Handle lens selection and run goal
+  async function handleLensConfirm(lensName: string | null, autoSelect: boolean) {
+    if (!pendingGoal) return;
     
-    // Create a new project from the goal
-    createProject(goal);
+    selectLens(lensName, autoSelect);
     
-    // Start the agent
-    await runGoal(goal);
+    // Run goal with lens selection — pass lens info to backend
+    const workspacePath = await runGoal(pendingGoal, undefined, lensName, autoSelect);
+    if (workspacePath) {
+      await openProject(workspacePath);
+      goToProject();
+    }
     
-    // Navigate to project view
+    pendingGoal = null;
+  }
+  
+  function handleLensPickerClose() {
+    showLensPicker = false;
+    pendingGoal = null;
+  }
+  
+  async function handleSelectProject(proj: ProjectStatus) {
+    await openProject(proj.path);
     goToProject();
   }
   
-  async function handleSelectProject(event: CustomEvent<ProjectStatus>) {
-    const project = event.detail;
-    await openProject(project.path);
+  async function handleResumeProject(proj: ProjectStatus) {
+    await openProject(proj.path);
     goToProject();
+    await resumeProject(proj.path);
   }
   
-  async function handleResumeProject(event: CustomEvent<ProjectStatus>) {
-    const project = event.detail;
-    
-    // Open the project first
-    await openProject(project.path);
-    
-    // Navigate to project view
-    goToProject();
-    
-    // Resume the agent
-    await resumeProject(project.path);
-  }
-  
-  async function handleIterateProject(event: CustomEvent<ProjectStatus>) {
-    const project = event.detail;
-    
-    // Create a new iteration and start the agent
-    const result = await iterateProject(project.path);
-    
+  async function handleIterateProject(proj: ProjectStatus) {
+    const result = await iterateProject(proj.path);
     if (result.success && result.new_path) {
-      // Open the new project
       await openProject(result.new_path);
       goToProject();
     }
   }
   
-  function handleArchiveProject(event: CustomEvent<ProjectStatus>) {
-    showConfirm('archive', event.detail);
+  function handleArchiveProject(proj: ProjectStatus) {
+    showConfirm('archive', proj);
   }
   
-  function handleDeleteProject(event: CustomEvent<ProjectStatus>) {
-    showConfirm('delete', event.detail);
+  function handleDeleteProject(proj: ProjectStatus) {
+    showConfirm('delete', proj);
+  }
+  
+  function handleSelectPrompt(text: string) {
+    inputValue = text;
+    inputBar?.focus();
+  }
+  
+  async function handleRemovePrompt(text: string) {
+    await removePrompt(text);
   }
 </script>
 
-<div class="home">
-  <div class="hero">
-    <Logo size="lg" />
-    
-    <div class="input-section">
-      <InputBar
-        bind:this={inputBar}
-        bind:value={inputValue}
-        placeholder="What would you like to create?"
-        autofocus
-        on:submit={handleSubmit}
-      />
-    </div>
-    
-    <RecentProjects 
-      projects={$discoveredProjects}
-      loading={$isScanning}
-      on:select={handleSelectProject}
-      on:resume={handleResumeProject}
-      on:iterate={handleIterateProject}
-      on:archive={handleArchiveProject}
-      on:delete={handleDeleteProject}
-    />
-  </div>
-  
-  <footer class="version">
-    v0.1.0
-  </footer>
-</div>
-
-<!-- Confirmation Modal -->
-{#if confirmModal.show}
-  <div class="modal-backdrop" on:click={handleCancel} role="presentation">
-    <div class="modal" on:click|stopPropagation role="dialog" aria-modal="true">
-      <h3 class="modal-title">{confirmModal.title}</h3>
-      <p class="modal-message">{confirmModal.message}</p>
-      <div class="modal-actions">
-        <button class="modal-btn cancel" on:click={handleCancel}>Cancel</button>
-        <button 
-          class="modal-btn confirm" 
-          class:destructive={confirmModal.destructive}
-          on:click={handleConfirm}
-        >
-          {confirmModal.action === 'delete' ? 'Delete' : 'Archive'}
-        </button>
+<MouseMotes spawnRate={50} maxParticles={30}>
+  {#snippet children()}
+    <div class="home">
+      <!-- Background aura centered on logo area -->
+      <div class="background-aura"></div>
+      
+      <!-- Ambient rising motes (always visible, more prominent) -->
+      <div class="ambient-motes">
+        <RisingMotes count={12} intensity="normal" />
       </div>
+      
+      <div class="hero">
+        <div class="logo-container">
+          <div class="logo-sparkles">
+            <SparkleField width={16} height={5} density={0.08} speed={250} />
+          </div>
+          <Logo size="lg" />
+        </div>
+        
+        <div class="input-section">
+          <InputBar
+            bind:this={inputBar}
+            bind:value={inputValue}
+            placeholder="What would you like to create?"
+            autofocus
+            showMotes={true}
+            onsubmit={handleSubmit}
+          />
+          <!-- RFC-064: Show selected lens badge -->
+          {#if lens.selection.lens || !lens.selection.autoSelect}
+            <div class="lens-indicator">
+              <LensBadge size="sm" showAuto={false} />
+            </div>
+          {/if}
+        </div>
+        
+        <SavedPrompts
+          prompts={prompts.list}
+          loading={prompts.isLoading}
+          onselect={handleSelectPrompt}
+          onremove={handleRemovePrompt}
+        />
+        
+        <RecentProjects 
+          projects={project.discovered}
+          loading={project.isScanning}
+          onselect={handleSelectProject}
+          onresume={handleResumeProject}
+          oniterate={handleIterateProject}
+          onarchive={handleArchiveProject}
+          ondelete={handleDeleteProject}
+        />
+      </div>
+      
+      <footer class="footer-nav">
+        <button class="chat-mode-btn" onclick={goToInterface}>
+          <span class="chat-icon">💬</span>
+          <span class="chat-label">Chat Mode</span>
+        </button>
+        <span class="version">v0.1.0</span>
+      </footer>
     </div>
+  {/snippet}
+</MouseMotes>
+
+<!-- Confirmation Modal using accessible Modal component -->
+<Modal 
+  isOpen={confirmModal.show}
+  onClose={handleCancel}
+  title={confirmModal.title}
+  description={confirmModal.message}
+>
+  <div class="modal-actions">
+    <Button variant="ghost" onclick={handleCancel}>
+      Cancel
+    </Button>
+    <Button 
+      variant={confirmModal.destructive ? 'secondary' : 'primary'}
+      onclick={handleConfirm}
+    >
+      {confirmModal.action === 'delete' ? 'Delete' : 'Archive'}
+    </Button>
   </div>
-{/if}
+</Modal>
+
+<!-- RFC-064: Lens Picker Modal -->
+<LensPicker
+  isOpen={showLensPicker}
+  onClose={handleLensPickerClose}
+  onConfirm={handleLensConfirm}
+/>
 
 <style>
   .home {
@@ -193,6 +262,37 @@
     flex-direction: column;
     min-height: 100vh;
     padding: var(--space-8);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .background-aura {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    height: 60%;
+    background: 
+      radial-gradient(
+        ellipse 60% 50% at 50% 30%,
+        rgba(255, 215, 0, 0.06) 0%,
+        rgba(218, 165, 32, 0.03) 30%,
+        transparent 60%
+      );
+    pointer-events: none;
+    z-index: 0;
+  }
+  
+  .ambient-motes {
+    position: absolute;
+    top: 15%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 500px;
+    height: 300px;
+    pointer-events: none;
+    z-index: 1;
   }
   
   .hero {
@@ -203,124 +303,86 @@
     justify-content: center;
     gap: var(--space-8);
     animation: fadeIn 0.3s ease;
+    position: relative;
+    z-index: 2;
+  }
+  
+  .logo-container {
+    position: relative;
+  }
+  
+  .logo-sparkles {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0.6;
+    pointer-events: none;
   }
   
   .input-section {
     width: 100%;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
     margin-top: var(--space-8);
   }
   
+  .lens-indicator {
+    animation: fadeIn 0.2s ease;
+  }
+  
+  .footer-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+  }
+  
+  .chat-mode-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    transition: all 0.2s;
+  }
+  
+  .chat-mode-btn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--gold);
+    color: var(--text-primary);
+  }
+  
+  .chat-icon {
+    font-size: var(--text-lg);
+  }
+  
+  .chat-label {
+    font-weight: 500;
+  }
+  
   .version {
-    text-align: right;
     color: var(--text-tertiary);
     font-size: var(--text-xs);
   }
   
   @keyframes fadeIn {
-    from { 
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to { 
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  
-  /* Confirmation Modal */
-  .modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    animation: fadeIn 0.15s ease;
-  }
-  
-  .modal {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-lg);
-    padding: var(--space-6);
-    max-width: 400px;
-    width: 90%;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    animation: modalSlide 0.15s ease;
-  }
-  
-  @keyframes modalSlide {
-    from {
-      opacity: 0;
-      transform: scale(0.95) translateY(-10px);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1) translateY(0);
-    }
-  }
-  
-  .modal-title {
-    margin: 0 0 var(--space-3);
-    font-size: var(--text-lg);
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-  
-  .modal-message {
-    margin: 0 0 var(--space-6);
-    font-size: var(--text-sm);
-    color: var(--text-secondary);
-    line-height: 1.5;
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
   }
   
   .modal-actions {
     display: flex;
     gap: var(--space-3);
     justify-content: flex-end;
-  }
-  
-  .modal-btn {
-    padding: var(--space-2) var(--space-4);
-    border-radius: var(--radius-md);
-    font-size: var(--text-sm);
-    font-weight: 500;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-  }
-  
-  .modal-btn.cancel {
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-default);
-    color: var(--text-secondary);
-  }
-  
-  .modal-btn.cancel:hover {
-    background: var(--bg-primary);
-    color: var(--text-primary);
-  }
-  
-  .modal-btn.confirm {
-    background: var(--accent-primary);
-    border: 1px solid var(--accent-primary);
-    color: var(--text-primary);
-  }
-  
-  .modal-btn.confirm:hover {
-    background: var(--accent-hover);
-    border-color: var(--accent-hover);
-  }
-  
-  .modal-btn.confirm.destructive {
-    background: #c53030;
-    border-color: #c53030;
-  }
-  
-  .modal-btn.confirm.destructive:hover {
-    background: #e53e3e;
-    border-color: #e53e3e;
+    margin-top: var(--space-4);
   }
 </style>

@@ -26,6 +26,18 @@ pub struct DagNode {
     pub depends_on: Vec<String>,
     pub category: Option<String>,
     pub current_action: Option<String>,
+    
+    // RFC-067: Task type discrimination
+    #[serde(default = "default_task_type")]
+    pub task_type: String, // "create", "wire", "verify", "refactor"
+    
+    // RFC-067: What this node produces (for edge labeling)
+    #[serde(default)]
+    pub produces: Vec<String>,
+}
+
+fn default_task_type() -> String {
+    "create".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,6 +47,20 @@ pub struct DagEdge {
     pub source: String,
     pub target: String,
     pub artifact: Option<String>,
+    
+    // RFC-067: Edge type (dependency vs integration)
+    #[serde(default = "default_edge_type")]
+    pub edge_type: String, // "dependency", "integration"
+    
+    // RFC-067: Verification status for integration edges
+    pub verification_status: Option<String>, // "verified", "missing", "pending"
+    
+    // RFC-067: What integration this edge represents
+    pub integration_type: Option<String>, // "import", "call", "route", etc.
+}
+
+fn default_edge_type() -> String {
+    "dependency".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -85,7 +111,34 @@ struct Backlog {
     blocked: HashMap<String, String>,
 }
 
-/// Artifact from plans/<hash>.json
+/// Task from plans/<hash>.json (current agent output format)
+#[derive(Debug, Clone, Deserialize)]
+struct PlanTask {
+    #[serde(default)]
+    id: String,
+    #[serde(default)]
+    description: String,
+    #[serde(default)]
+    depends_on: Vec<String>,
+    #[serde(default)]
+    priority: Option<f32>,
+    #[serde(default)]
+    category: Option<String>,
+    #[serde(default)]
+    status: Option<String>, // "completed", "failed", "pending", etc.
+    #[serde(default)]
+    estimated_effort: Option<String>,
+    // produces/requires for DAG edge computation (RFC-034)
+    #[serde(default)]
+    produces: Vec<String>,
+    #[serde(default)]
+    requires: Vec<String>,
+    // RFC-067: Task type discrimination
+    #[serde(default)]
+    task_type: Option<String>, // "create", "wire", "verify", "refactor"
+}
+
+/// Artifact from plans/<hash>.json (legacy format with graph.artifacts)
 #[derive(Debug, Clone, Deserialize)]
 struct Artifact {
     #[serde(default)]
@@ -100,14 +153,14 @@ struct Artifact {
     category: Option<String>,
 }
 
-/// Graph from plans/<hash>.json
+/// Graph from plans/<hash>.json (legacy format)
 #[derive(Debug, Default, Deserialize)]
 struct ArtifactGraph {
     #[serde(default)]
     artifacts: Vec<Artifact>,
 }
 
-/// Completion record
+/// Completion record (legacy format)
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
 struct ArtifactCompletion {
@@ -118,12 +171,18 @@ struct ArtifactCompletion {
 }
 
 /// Saved execution state from plans/<hash>.json
+/// Supports both current format (tasks at root) and legacy format (graph.artifacts)
 #[derive(Debug, Default, Deserialize)]
 struct SavedExecution {
     #[serde(default)]
     goal: String,
+    // Legacy format: nested under graph.artifacts
     #[serde(default)]
     graph: ArtifactGraph,
+    // Current format: tasks at root level
+    #[serde(default)]
+    tasks: Vec<PlanTask>,
+    // Legacy format: separate completed map
     #[serde(default)]
     completed: HashMap<String, ArtifactCompletion>,
     #[serde(default)]
@@ -202,7 +261,8 @@ pub async fn execute_dag_node(
             .find(|n| n.id == node_id)
             .ok_or_else(|| format!("Node {} not found", node_id))?;
 
-        crate::commands::run_goal(app, state, node.description.clone(), Some(path)).await
+        // DAG nodes use auto-lens detection (no explicit lens)
+        crate::commands::run_goal(app, state, node.description.clone(), Some(path), None, None).await
     }
 }
 
@@ -228,6 +288,137 @@ pub async fn refresh_backlog(path: String) -> Result<DagGraph, String> {
     
     // Return the updated DAG
     get_project_dag(path).await
+}
+
+// =============================================================================
+// RFC-074: Incremental Execution Commands
+// =============================================================================
+
+/// Incremental execution plan response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IncrementalPlan {
+    pub to_execute: Vec<String>,
+    pub to_skip: Vec<String>,
+    pub skip_percentage: f32,
+    pub decisions: Vec<SkipDecision>,
+}
+
+/// Skip decision for a single artifact
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkipDecision {
+    pub artifact_id: String,
+    pub can_skip: bool,
+    pub reason: String,
+    pub current_hash: String,
+    pub previous_hash: Option<String>,
+    pub last_executed_at: Option<String>,
+}
+
+/// Cache statistics response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CacheStats {
+    pub by_status: HashMap<String, i64>,
+    pub total_skips: i64,
+    pub avg_execution_time_ms: f64,
+    pub total_artifacts: i64,
+    pub cache_path: String,
+}
+
+/// Get the incremental execution plan (RFC-074)
+/// 
+/// Calls `sunwell dag plan --json` to get which artifacts will skip vs execute.
+#[tauri::command]
+pub async fn get_incremental_plan(path: String) -> Result<IncrementalPlan, String> {
+    let project_path = PathBuf::from(&path);
+    
+    let output = std::process::Command::new("sunwell")
+        .args(["dag", "plan", "--json"])
+        .current_dir(&project_path)
+        .output()
+        .map_err(|e| format!("Failed to run sunwell dag plan: {}", e))?;
+    
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("dag plan failed: {}", stderr));
+    }
+    
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    serde_json::from_str(&stdout)
+        .map_err(|e| format!("Failed to parse plan output: {} (output: {})", e, stdout))
+}
+
+/// Get cache statistics (RFC-074)
+/// 
+/// Calls `sunwell dag cache stats --json` to get cache metrics.
+#[tauri::command]
+pub async fn get_cache_stats(path: String) -> Result<CacheStats, String> {
+    let project_path = PathBuf::from(&path);
+    
+    let output = std::process::Command::new("sunwell")
+        .args(["dag", "cache", "stats", "--json"])
+        .current_dir(&project_path)
+        .output()
+        .map_err(|e| format!("Failed to run sunwell dag cache stats: {}", e))?;
+    
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("cache stats failed: {}", stderr));
+    }
+    
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    serde_json::from_str(&stdout)
+        .map_err(|e| format!("Failed to parse cache stats: {} (output: {})", e, stdout))
+}
+
+/// Analyze impact of changing an artifact (RFC-074)
+/// 
+/// Calls `sunwell dag impact <artifact_id> --json` to find affected downstream.
+#[tauri::command]
+pub async fn get_artifact_impact(path: String, artifact_id: String) -> Result<Vec<String>, String> {
+    let project_path = PathBuf::from(&path);
+    
+    let output = std::process::Command::new("sunwell")
+        .args(["dag", "impact", &artifact_id, "--json"])
+        .current_dir(&project_path)
+        .output()
+        .map_err(|e| format!("Failed to run sunwell dag impact: {}", e))?;
+    
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("impact analysis failed: {}", stderr));
+    }
+    
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    serde_json::from_str(&stdout)
+        .map_err(|e| format!("Failed to parse impact output: {} (output: {})", e, stdout))
+}
+
+/// Clear the execution cache (RFC-074)
+#[tauri::command]
+pub async fn clear_cache(path: String, artifact_id: Option<String>) -> Result<String, String> {
+    let project_path = PathBuf::from(&path);
+    
+    let mut args = vec!["dag", "cache", "clear", "--force"];
+    if let Some(ref id) = artifact_id {
+        args.push("--artifact");
+        args.push(id);
+    }
+    
+    let output = std::process::Command::new("sunwell")
+        .args(&args)
+        .current_dir(&project_path)
+        .output()
+        .map_err(|e| format!("Failed to run sunwell dag cache clear: {}", e))?;
+    
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("cache clear failed: {}", stderr));
+    }
+    
+    Ok("Cache cleared".to_string())
 }
 
 // =============================================================================
@@ -291,51 +482,151 @@ fn merge_to_dag(backlog: Backlog, execution: Option<SavedExecution>) -> DagGraph
 
     // If we have execution state, use tasks from there
     if let Some(ref exec) = execution {
-        for artifact in &exec.graph.artifacts {
-            let is_completed = exec.completed.contains_key(&artifact.id);
-            let is_failed = exec.failed.contains_key(&artifact.id);
-            let is_current = exec
-                .current_artifact
-                .as_ref()
-                .map_or(false, |c| c == &artifact.id);
+        // Current format: tasks at root level with embedded status
+        if !exec.tasks.is_empty() {
+            // Build produces -> task_id map for dependency resolution
+            let mut producers: HashMap<String, String> = HashMap::new();
+            for task in &exec.tasks {
+                for artifact in &task.produces {
+                    producers.insert(artifact.clone(), task.id.clone());
+                }
+            }
 
-            let status = if is_completed {
-                completed_count += 1;
-                "complete"
-            } else if is_failed {
-                "failed"
-            } else if is_current {
-                "running"
-            } else if is_ready(&artifact.id, &artifact.depends_on, &exec.completed) {
-                "ready"
-            } else {
-                "blocked"
-            };
+            for task in &exec.tasks {
+                let status_str = task.status.as_deref().unwrap_or("pending");
+                let is_completed = status_str == "completed" || status_str == "complete";
+                let is_failed = status_str == "failed";
+                let is_running = status_str == "running" || status_str == "in_progress";
 
-            nodes.push(DagNode {
-                id: artifact.id.clone(),
-                title: truncate_title(&artifact.description),
-                description: artifact.description.clone(),
-                status: status.to_string(),
-                source: "ai".to_string(),
-                progress: if is_completed { 100 } else { 0 },
-                priority: artifact.priority.unwrap_or(0.5),
-                effort: "medium".to_string(),
-                depends_on: artifact.depends_on.clone(),
-                category: artifact.category.clone(),
-                current_action: None,
-            });
+                // Compute effective dependencies: use depends_on if set, else resolve from requires
+                let effective_deps: Vec<String> = if !task.depends_on.is_empty() {
+                    task.depends_on.clone()
+                } else {
+                    // Resolve requires -> produces to find dependency task IDs
+                    task.requires
+                        .iter()
+                        .filter_map(|req| producers.get(req).cloned())
+                        .collect()
+                };
 
-            seen_ids.insert(artifact.id.clone());
+                let status = if is_completed {
+                    completed_count += 1;
+                    "complete"
+                } else if is_failed {
+                    "failed"
+                } else if is_running {
+                    "running"
+                } else if effective_deps.is_empty()
+                    || effective_deps.iter().all(|dep| {
+                        exec.tasks
+                            .iter()
+                            .find(|t| &t.id == dep)
+                            .and_then(|t| t.status.as_deref())
+                            .map_or(false, |s| s == "completed" || s == "complete")
+                    })
+                {
+                    "ready"
+                } else {
+                    "blocked"
+                };
 
-            // Create edges for dependencies
-            for dep in &artifact.depends_on {
-                edges.push(DagEdge {
-                    id: format!("{}->{}", dep, artifact.id),
-                    source: dep.clone(),
-                    target: artifact.id.clone(),
-                    artifact: None,
+                // RFC-067: Determine task type
+                let task_type = task.task_type.clone().unwrap_or_else(|| "create".to_string());
+
+                nodes.push(DagNode {
+                    id: task.id.clone(),
+                    title: truncate_title(&task.description),
+                    description: task.description.clone(),
+                    status: status.to_string(),
+                    source: "ai".to_string(),
+                    progress: if is_completed { 100 } else { 0 },
+                    priority: task.priority.unwrap_or(0.5),
+                    effort: task
+                        .estimated_effort
+                        .clone()
+                        .unwrap_or_else(|| "medium".to_string()),
+                    depends_on: effective_deps.clone(),
+                    category: task.category.clone(),
+                    current_action: None,
+                    // RFC-067 fields
+                    task_type,
+                    produces: task.produces.clone(),
                 });
+
+                seen_ids.insert(task.id.clone());
+
+                // Create edges for dependencies (using effective deps)
+                // RFC-067: Wire tasks get integration edge type
+                let is_wire_task = task.task_type.as_deref() == Some("wire");
+                for dep in &effective_deps {
+                    edges.push(DagEdge {
+                        id: format!("{}->{}", dep, task.id),
+                        source: dep.clone(),
+                        target: task.id.clone(),
+                        artifact: None,
+                        // RFC-067: Set edge type based on task type
+                        edge_type: if is_wire_task { "integration".to_string() } else { "dependency".to_string() },
+                        verification_status: if is_wire_task { Some("pending".to_string()) } else { None },
+                        integration_type: if is_wire_task { Some("import".to_string()) } else { None },
+                    });
+                }
+            }
+        }
+        // Legacy format: graph.artifacts with separate completed map
+        else {
+            for artifact in &exec.graph.artifacts {
+                let is_completed = exec.completed.contains_key(&artifact.id);
+                let is_failed = exec.failed.contains_key(&artifact.id);
+                let is_current = exec
+                    .current_artifact
+                    .as_ref()
+                    .map_or(false, |c| c == &artifact.id);
+
+                let status = if is_completed {
+                    completed_count += 1;
+                    "complete"
+                } else if is_failed {
+                    "failed"
+                } else if is_current {
+                    "running"
+                } else if is_ready(&artifact.id, &artifact.depends_on, &exec.completed) {
+                    "ready"
+                } else {
+                    "blocked"
+                };
+
+                nodes.push(DagNode {
+                    id: artifact.id.clone(),
+                    title: truncate_title(&artifact.description),
+                    description: artifact.description.clone(),
+                    status: status.to_string(),
+                    source: "ai".to_string(),
+                    progress: if is_completed { 100 } else { 0 },
+                    priority: artifact.priority.unwrap_or(0.5),
+                    effort: "medium".to_string(),
+                    depends_on: artifact.depends_on.clone(),
+                    category: artifact.category.clone(),
+                    current_action: None,
+                    // RFC-067 fields (default for legacy format)
+                    task_type: "create".to_string(),
+                    produces: vec![artifact.id.clone()],
+                });
+
+                seen_ids.insert(artifact.id.clone());
+
+                // Create edges for dependencies
+                for dep in &artifact.depends_on {
+                    edges.push(DagEdge {
+                        id: format!("{}->{}", dep, artifact.id),
+                        source: dep.clone(),
+                        target: artifact.id.clone(),
+                        artifact: None,
+                        // RFC-067 fields (default for legacy format)
+                        edge_type: "dependency".to_string(),
+                        verification_status: None,
+                        integration_type: None,
+                    });
+                }
             }
         }
     }
@@ -393,6 +684,9 @@ fn merge_to_dag(backlog: Backlog, execution: Option<SavedExecution>) -> DagGraph
                 Some(goal.category.clone())
             },
             current_action: None,
+            // RFC-067 fields (goals are typically "create" type)
+            task_type: "create".to_string(),
+            produces: vec![],
         });
 
         // Create edges for goal dependencies
@@ -402,6 +696,10 @@ fn merge_to_dag(backlog: Backlog, execution: Option<SavedExecution>) -> DagGraph
                 source: dep.clone(),
                 target: goal_id.clone(),
                 artifact: None,
+                // RFC-067 fields
+                edge_type: "dependency".to_string(),
+                verification_status: None,
+                integration_type: None,
             });
         }
     }

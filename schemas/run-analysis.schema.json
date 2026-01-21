@@ -1,0 +1,164 @@
+{
+  "$schema": "http://json-schema.org/draft-2020-12/schema",
+  "$id": "https://sunwell.ai/schemas/run-analysis.json",
+  "title": "Sunwell Run Analysis",
+  "description": "Schema for project run analysis (RFC-066: Intelligent Run Button)",
+  "definitions": {
+    "Confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low"],
+      "description": "Confidence level of the analysis"
+    },
+    "Source": {
+      "type": "string",
+      "enum": ["ai", "heuristic", "cache", "user"],
+      "description": "How the analysis was determined"
+    },
+    "RunCommand": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "The command to execute"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of what this command does"
+        },
+        "when": {
+          "type": ["string", "null"],
+          "description": "When to use this alternative (e.g., 'for production build')"
+        }
+      },
+      "required": ["command", "description"]
+    },
+    "Prerequisite": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the prerequisite"
+        },
+        "command": {
+          "type": "string",
+          "description": "Command to satisfy this prerequisite"
+        },
+        "satisfied": {
+          "type": "boolean",
+          "description": "Whether this prerequisite is already satisfied"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether this prerequisite is required (vs recommended)"
+        }
+      },
+      "required": ["description", "command", "satisfied", "required"]
+    },
+    "RunAnalysis": {
+      "type": "object",
+      "properties": {
+        "projectType": {
+          "type": "string",
+          "description": "What kind of application this is (e.g., 'React + Vite application')"
+        },
+        "framework": {
+          "type": ["string", "null"],
+          "description": "Framework/tooling used (e.g., 'Vite 5.x')"
+        },
+        "language": {
+          "type": "string",
+          "description": "Primary language (e.g., 'TypeScript', 'Python')"
+        },
+        "command": {
+          "type": "string",
+          "description": "Primary command to run in development mode"
+        },
+        "commandDescription": {
+          "type": "string",
+          "description": "Human-readable description of what the command does"
+        },
+        "workingDir": {
+          "type": ["string", "null"],
+          "description": "Working directory for the command (for monorepos)"
+        },
+        "alternatives": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/RunCommand" },
+          "description": "Alternative commands that can be used"
+        },
+        "prerequisites": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Prerequisite" },
+          "description": "Prerequisites that must be satisfied before running"
+        },
+        "expectedPort": {
+          "type": ["integer", "null"],
+          "description": "Expected port the dev server will run on"
+        },
+        "expectedUrl": {
+          "type": ["string", "null"],
+          "description": "Expected URL the app will be available at"
+        },
+        "confidence": {
+          "$ref": "#/definitions/Confidence"
+        },
+        "source": {
+          "$ref": "#/definitions/Source"
+        },
+        "fromCache": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this result was loaded from cache"
+        },
+        "userSaved": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether the user saved this command for this project"
+        }
+      },
+      "required": [
+        "projectType",
+        "language",
+        "command",
+        "commandDescription",
+        "prerequisites",
+        "confidence",
+        "source"
+      ]
+    },
+    "RunSession": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique session identifier"
+        },
+        "projectPath": {
+          "type": "string",
+          "description": "Path to the project being run"
+        },
+        "command": {
+          "type": "string",
+          "description": "Command that was executed"
+        },
+        "pid": {
+          "type": "integer",
+          "description": "Process ID of the running command"
+        },
+        "port": {
+          "type": ["integer", "null"],
+          "description": "Port the server is running on (if applicable)"
+        },
+        "startedAt": {
+          "type": "integer",
+          "description": "Unix timestamp when the session started"
+        }
+      },
+      "required": ["id", "projectPath", "command", "pid", "startedAt"]
+    }
+  },
+  "oneOf": [
+    { "$ref": "#/definitions/RunAnalysis" },
+    { "$ref": "#/definitions/RunSession" }
+  ]
+}

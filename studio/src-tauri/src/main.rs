@@ -6,11 +6,19 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod agent;
+mod briefing;
 mod commands;
 mod dag;
+mod heuristic_detect;
+mod interface;
+mod lens;
 mod memory;
 mod preview;
 mod project;
+mod run_analysis;
+mod surface;
+mod weakness;
+mod weakness_types;
 mod workspace;
 
 use commands::AppState;
@@ -67,10 +75,58 @@ fn main() {
             dag::get_project_dag,
             dag::execute_dag_node,
             dag::refresh_backlog,
+            // Incremental Execution (RFC-074)
+            dag::get_incremental_plan,
+            dag::get_cache_stats,
+            dag::get_artifact_impact,
+            dag::clear_cache,
             // Memory / Simulacrum (RFC-013, RFC-014)
             memory::get_memory_stats,
             memory::list_sessions,
             memory::get_intelligence,
+            // Saved prompts
+            commands::get_saved_prompts,
+            commands::save_prompt,
+            commands::remove_saved_prompt,
+            // Weakness Cascade (RFC-063)
+            weakness::scan_weaknesses,
+            weakness::preview_cascade,
+            weakness::execute_cascade_fix,
+            weakness::start_cascade_execution,
+            weakness::get_weakness_overlay,
+            weakness::extract_contract,
+            // Lens Management (RFC-064)
+            lens::list_lenses,
+            lens::get_lens_detail,
+            lens::get_project_lens_config,
+            lens::set_project_lens,
+            // Lens Library (RFC-070)
+            lens::get_lens_library,
+            lens::fork_lens,
+            lens::save_lens,
+            lens::delete_lens,
+            lens::get_lens_versions,
+            lens::rollback_lens,
+            lens::set_default_lens,
+            lens::get_lens_content,
+            // Run Analysis (RFC-066)
+            commands::analyze_project_for_run,
+            commands::run_project,
+            commands::stop_project_run,
+            commands::save_run_command,
+            // Briefing System (RFC-071)
+            briefing::get_briefing,
+            briefing::has_briefing,
+            briefing::clear_briefing,
+            // Surface Primitives & Layout (RFC-072)
+            surface::get_primitive_registry,
+            surface::compose_surface,
+            surface::record_layout_success,
+            surface::emit_primitive_event,
+            // Generative Interface (RFC-075)
+            interface::process_goal,
+            interface::list_providers,
+            interface::interface_demo,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

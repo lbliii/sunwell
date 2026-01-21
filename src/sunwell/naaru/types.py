@@ -12,6 +12,9 @@ RFC-034 Additions:
 - Contract-aware task fields (produces, requires, modifies)
 - Parallel group support for concurrent execution
 - Contract tracking for interface-first development
+
+Note: RFC-067 types (TaskType, RequiredIntegration, IntegrationCheck, etc.)
+have been moved to sunwell.integration.types for better organization.
 """
 
 from __future__ import annotations
@@ -22,6 +25,13 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+# RFC-067 types - imported here for Task dataclass fields
+from sunwell.integration.types import (
+    IntegrationCheck,
+    RequiredIntegration,
+    TaskType,
+)
 
 if TYPE_CHECKING:
     pass
@@ -137,16 +147,16 @@ class Opportunity:
             details=data.get("details", {}),
         )
 
-
 # =============================================================================
 # RFC-032: Task (Universal Work Unit)
 # RFC-034: Contract-Aware Parallel Task Planning
 # =============================================================================
+# NOTE: RFC-067 types moved to sunwell.integration.types
 
 
 @dataclass
 class Task:
-    """A unit of work for Naaru to execute (RFC-032, RFC-034).
+    """A unit of work for Naaru to execute (RFC-032, RFC-034, RFC-067).
 
     Generalizes Opportunity to support any task type.
     The original Opportunity class remains unchanged for backward compatibility.
@@ -166,6 +176,11 @@ class Task:
     - parallel_group: Tasks in the same group can run concurrently
     - contract: Interface signature this task should conform to
     - is_contract: Whether this task defines an interface vs implements one
+
+    RFC-067 additions:
+    - task_type: Explicit categorization (create, wire, verify, refactor)
+    - integrations: Structured wiring contracts for dependencies
+    - verification_checks: Checks to run after task completion
     """
 
     id: str
@@ -225,6 +240,32 @@ class Task:
     Example: "UserProtocol" - the implementation must satisfy this protocol.
     """
 
+    # === RFC-067: Integration-Aware DAG ===
+
+    task_type: TaskType = TaskType.CREATE
+    """Explicit task categorization for DAG visualization.
+
+    - CREATE: Creates new artifacts (default)
+    - WIRE: Wires existing artifacts together
+    - VERIFY: Verifies integrations are complete
+    - REFACTOR: Restructures without changing behavior
+    """
+
+    integrations: tuple[RequiredIntegration, ...] = ()
+    """How this task connects to its dependencies (not just what it needs).
+
+    Makes the difference between:
+    - requires: "I need UserProtocol to exist" (ordering)
+    - integrations: "I must `from models.user import User`" (wiring)
+    """
+
+    verification_checks: tuple[IntegrationCheck, ...] = ()
+    """Checks to run after task completion to verify integration.
+
+    Wire tasks typically have verification_checks that ensure
+    the wiring actually happened (import exists, call exists, etc.).
+    """
+
     # Metadata (compatible with Opportunity)
     category: str = "general"
     priority: float = 0.5                # 0.0 - 1.0, higher is more important
@@ -246,7 +287,7 @@ class Task:
         completed_ids: set[str],
         completed_artifacts: set[str] | None = None,
     ) -> bool:
-        """Check if all dependencies are satisfied (RFC-034 enhanced).
+        """Check if all dependencies are satisfied (RFC-034, RFC-067 enhanced).
 
         Args:
             completed_ids: Set of completed task IDs
@@ -265,6 +306,25 @@ class Task:
                 return False
 
         return True
+
+    def is_wire_task(self) -> bool:
+        """Check if this is an integration wiring task (RFC-067).
+
+        Wire tasks are explicit tasks that connect artifacts together.
+        They cannot be skipped and have verification checks.
+        """
+        return self.task_type == TaskType.WIRE
+
+    def is_verify_task(self) -> bool:
+        """Check if this is a verification task (RFC-067).
+
+        Verify tasks check that all integrations are complete.
+        """
+        return self.task_type == TaskType.VERIFY
+
+    def has_pending_verifications(self) -> bool:
+        """Check if this task has verification checks that need to run (RFC-067)."""
+        return len(self.verification_checks) > 0
 
     def to_opportunity(self) -> Opportunity:
         """Convert to legacy Opportunity type for backward compatibility.
@@ -325,6 +385,10 @@ class Task:
             "parallel_group": self.parallel_group,
             "is_contract": self.is_contract,
             "contract": self.contract,
+            # RFC-067: Integration-aware fields
+            "task_type": self.task_type.value,
+            "integrations": [i.to_dict() for i in self.integrations],
+            "verification_checks": [c.to_dict() for c in self.verification_checks],
             # Metadata
             "category": self.category,
             "priority": self.priority,
@@ -344,6 +408,13 @@ class Task:
         subtasks = tuple(
             cls.from_dict(s) for s in data.get("subtasks", [])
         )
+        # RFC-067: Parse integrations and verification checks
+        integrations = tuple(
+            RequiredIntegration.from_dict(i) for i in data.get("integrations", [])
+        )
+        verification_checks = tuple(
+            IntegrationCheck.from_dict(c) for c in data.get("verification_checks", [])
+        )
         return cls(
             id=data["id"],
             description=data["description"],
@@ -360,6 +431,10 @@ class Task:
             parallel_group=data.get("parallel_group"),
             is_contract=data.get("is_contract", False),
             contract=data.get("contract"),
+            # RFC-067: Integration-aware fields
+            task_type=TaskType(data.get("task_type", "create")),
+            integrations=integrations,
+            verification_checks=verification_checks,
             # Metadata
             category=data.get("category", "general"),
             priority=data.get("priority", 0.5),

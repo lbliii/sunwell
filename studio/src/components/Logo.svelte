@@ -1,16 +1,18 @@
 <!--
-  Logo — Sunwell sun logo with title
+  Logo — Sunwell ornate sun logo with title (Svelte 5)
 -->
 <script lang="ts">
-  export let size: 'sm' | 'md' | 'lg' = 'md';
-  export let showTitle = true;
+  import { Size } from '$lib/constants';
+  
+  interface Props {
+    size?: 'sm' | 'md' | 'lg';
+  }
+  
+  let { size = Size.MD }: Props = $props();
 </script>
 
 <div class="logo {size}">
-  <span class="sun">☀️</span>
-  {#if showTitle}
-    <span class="title">SUNWELL</span>
-  {/if}
+  <img src="/sunwell.svg" alt="Sunwell Logo" class="logo-image" />
 </div>
 
 <style>
@@ -18,42 +20,29 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--space-2);
+    justify-content: center;
   }
   
-  .sun {
-    line-height: 1;
-  }
-  
-  .title {
-    font-family: var(--font-mono);
-    font-weight: 500;
-    letter-spacing: 0.2em;
-    color: var(--text-primary);
+  .logo-image {
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
   }
   
   /* Sizes */
-  .sm .sun {
-    font-size: 24px;
+  .sm .logo-image {
+    width: 120px;
+    max-height: 150px;
   }
   
-  .sm .title {
-    font-size: var(--text-sm);
+  .md .logo-image {
+    width: 200px;
+    max-height: 250px;
   }
   
-  .md .sun {
-    font-size: 48px;
-  }
-  
-  .md .title {
-    font-size: var(--text-lg);
-  }
-  
-  .lg .sun {
-    font-size: 72px;
-  }
-  
-  .lg .title {
-    font-size: var(--text-2xl);
+  .lg .logo-image {
+    width: 320px;
+    max-height: 400px;
   }
 </style>

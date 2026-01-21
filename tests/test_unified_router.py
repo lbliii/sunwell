@@ -610,3 +610,299 @@ class TestRoutingDecision:
         
         with pytest.raises(AttributeError):
             decision.intent = Intent.DEBUG
+
+    def test_suggested_skills_in_to_dict(self):
+        """Test that suggested_skills are included in serialization (RFC-070)."""
+        decision = RoutingDecision(
+            intent=Intent.CODE,
+            complexity=Complexity.STANDARD,
+            lens="tech-writer",
+            tools=(),
+            mood=UserMood.NEUTRAL,
+            expertise=UserExpertise.INTERMEDIATE,
+            confidence=0.85,
+            reasoning="Test",
+            suggested_skills=("audit-documentation", "polish-documentation"),
+            skill_confidence=0.9,
+        )
+        
+        d = decision.to_dict()
+        
+        assert d["suggested_skills"] == ["audit-documentation", "polish-documentation"]
+        assert d["skill_confidence"] == 0.9
+
+    def test_suggested_skills_from_dict(self):
+        """Test that suggested_skills are deserialized (RFC-070)."""
+        d = {
+            "intent": "code",
+            "complexity": "standard",
+            "lens": "tech-writer",
+            "tools": [],
+            "mood": "neutral",
+            "expertise": "intermediate",
+            "confidence": 0.85,
+            "reasoning": "Test",
+            "suggested_skills": ["audit-documentation"],
+            "skill_confidence": 0.8,
+        }
+        
+        decision = RoutingDecision.from_dict(d)
+        
+        assert decision.suggested_skills == ("audit-documentation",)
+        assert decision.skill_confidence == 0.8
+
+
+# =============================================================================
+# RFC-070: Skill Trigger Matching Tests
+# =============================================================================
+
+
+class TestSkillTriggerMatching:
+    """Tests for RFC-070 skill trigger matching in UnifiedRouter."""
+
+    @pytest.fixture
+    def mock_lens_with_skills(self):
+        """Create a mock lens with skills that have triggers."""
+        from sunwell.core.lens import Lens, LensMetadata, Router
+        from sunwell.skills.types import Skill, SkillType
+        
+        skills = (
+            Skill(
+                name="audit-documentation",
+                description="Audit docs",
+                skill_type=SkillType.INLINE,
+                triggers=("audit", "validate", "check", "verify"),
+                instructions="Audit the docs",
+            ),
+            Skill(
+                name="polish-documentation",
+                description="Polish docs",
+                skill_type=SkillType.INLINE,
+                triggers=("polish", "improve", "clean up"),
+                instructions="Polish the docs",
+            ),
+            Skill(
+                name="create-overview",
+                description="Create overview",
+                skill_type=SkillType.INLINE,
+                triggers=("overview", "introduction"),
+                instructions="Create overview",
+            ),
+        )
+        
+        router = Router(
+            shortcuts={
+                "::a": "audit-documentation",
+                "::p": "polish-documentation",
+            }
+        )
+        
+        lens = Lens(
+            metadata=LensMetadata(name="test-lens"),
+            skills=skills,
+            router=router,
+        )
+        return lens
+
+    def test_match_single_trigger(self, mock_model, mock_lens_with_skills):
+        """Test matching a single trigger word."""
+        router = UnifiedRouter(model=mock_model)
+        
+        suggested, confidence = router._match_skill_triggers(
+            "Please audit this documentation",
+            mock_lens_with_skills.skills,
+        )
+        
+        assert "audit-documentation" in suggested
+        assert confidence > 0
+
+    def test_match_multiple_triggers(self, mock_model, mock_lens_with_skills):
+        """Test matching multiple trigger words."""
+        router = UnifiedRouter(model=mock_model)
+        
+        # "audit" and "check" are both triggers for audit-documentation
+        suggested, confidence = router._match_skill_triggers(
+            "audit and check the documentation",
+            mock_lens_with_skills.skills,
+        )
+        
+        assert "audit-documentation" in suggested
+        # Higher confidence for multiple matches
+        assert confidence >= 0.33
+
+    def test_no_match_returns_empty(self, mock_model, mock_lens_with_skills):
+        """Test that no triggers returns empty tuple."""
+        router = UnifiedRouter(model=mock_model)
+        
+        suggested, confidence = router._match_skill_triggers(
+            "write some code",
+            mock_lens_with_skills.skills,
+        )
+        
+        assert suggested == ()
+        assert confidence == 0.0
+
+    def test_multiple_skills_matched(self, mock_model, mock_lens_with_skills):
+        """Test that multiple skills can be suggested."""
+        router = UnifiedRouter(model=mock_model)
+        
+        # "audit" matches audit-documentation, "polish" matches polish-documentation
+        suggested, confidence = router._match_skill_triggers(
+            "audit and polish the documentation",
+            mock_lens_with_skills.skills,
+        )
+        
+        assert len(suggested) >= 2
+        assert "audit-documentation" in suggested
+        assert "polish-documentation" in suggested
+
+    def test_case_insensitive_matching(self, mock_model, mock_lens_with_skills):
+        """Test that trigger matching is case-insensitive."""
+        router = UnifiedRouter(model=mock_model)
+        
+        suggested, confidence = router._match_skill_triggers(
+            "AUDIT THIS DOCUMENTATION",
+            mock_lens_with_skills.skills,
+        )
+        
+        assert "audit-documentation" in suggested
+
+
+class TestShortcutCommands:
+    """Tests for RFC-070 shortcut command handling."""
+
+    @pytest.fixture
+    def mock_lens_with_shortcuts(self):
+        """Create a mock lens with shortcuts."""
+        from sunwell.core.lens import Lens, LensMetadata, Router
+        
+        router = Router(
+            shortcuts={
+                "::a": "audit-documentation",
+                "::p": "polish-documentation",
+                "::?": "show-help",
+            }
+        )
+        
+        lens = Lens(
+            metadata=LensMetadata(name="tech-writer"),
+            router=router,
+        )
+        return lens
+
+    def test_shortcut_detected(self, mock_model, mock_lens_with_shortcuts):
+        """Test that shortcut command is detected."""
+        router = UnifiedRouter(model=mock_model)
+        
+        result = router._check_shortcut("::a", mock_lens_with_shortcuts)
+        
+        assert result is not None
+        assert result.suggested_skills == ("audit-documentation",)
+        assert result.skill_confidence == 1.0
+        assert result.confidence == 1.0
+
+    def test_shortcut_with_whitespace(self, mock_model, mock_lens_with_shortcuts):
+        """Test that shortcut with whitespace is detected."""
+        router = UnifiedRouter(model=mock_model)
+        
+        result = router._check_shortcut("  ::p  ", mock_lens_with_shortcuts)
+        
+        assert result is not None
+        assert result.suggested_skills == ("polish-documentation",)
+
+    def test_non_shortcut_returns_none(self, mock_model, mock_lens_with_shortcuts):
+        """Test that non-shortcut returns None."""
+        router = UnifiedRouter(model=mock_model)
+        
+        result = router._check_shortcut("audit this", mock_lens_with_shortcuts)
+        
+        assert result is None
+
+    def test_unknown_shortcut_returns_none(self, mock_model, mock_lens_with_shortcuts):
+        """Test that unknown shortcut returns None."""
+        router = UnifiedRouter(model=mock_model)
+        
+        result = router._check_shortcut("::unknown", mock_lens_with_shortcuts)
+        
+        assert result is None
+
+    def test_lens_without_router_returns_none(self, mock_model):
+        """Test that lens without router returns None."""
+        from sunwell.core.lens import Lens, LensMetadata
+        
+        lens = Lens(metadata=LensMetadata(name="no-router"))
+        router = UnifiedRouter(model=mock_model)
+        
+        result = router._check_shortcut("::a", lens)
+        
+        assert result is None
+
+
+class TestRouteWithSkills:
+    """Tests for the full route() method with skill suggestions."""
+
+    @pytest.fixture
+    def mock_lens_with_skills(self):
+        """Create a mock lens with skills."""
+        from sunwell.core.lens import Lens, LensMetadata, Router
+        from sunwell.skills.types import Skill, SkillType
+        
+        skills = (
+            Skill(
+                name="audit-documentation",
+                description="Audit docs",
+                skill_type=SkillType.INLINE,
+                triggers=("audit", "validate"),
+                instructions="Audit",
+            ),
+        )
+        
+        router = Router(shortcuts={"::a": "audit-documentation"})
+        
+        return Lens(
+            metadata=LensMetadata(name="tech-writer"),
+            skills=skills,
+            router=router,
+        )
+
+    @pytest.mark.asyncio
+    async def test_route_with_lens_includes_skill_suggestions(
+        self, mock_model, mock_generate_result, mock_lens_with_skills
+    ):
+        """Test that route() includes skill suggestions when lens provided."""
+        mock_model.generate = AsyncMock(
+            return_value=mock_generate_result(json.dumps({
+                "intent": "code",
+                "complexity": "standard",
+                "lens": "tech-writer",
+                "tools": [],
+                "mood": "neutral",
+                "expertise": "intermediate",
+                "confidence": 0.8,
+                "reasoning": "Test",
+            }))
+        )
+        
+        router = UnifiedRouter(model=mock_model)
+        decision = await router.route(
+            "audit this documentation",
+            lens=mock_lens_with_skills,
+        )
+        
+        assert "audit-documentation" in decision.suggested_skills
+        assert decision.skill_confidence > 0
+
+    @pytest.mark.asyncio
+    async def test_route_shortcut_bypasses_model(
+        self, mock_model, mock_lens_with_skills
+    ):
+        """Test that shortcut command bypasses model inference."""
+        mock_model.generate = AsyncMock()  # Should not be called
+        
+        router = UnifiedRouter(model=mock_model)
+        decision = await router.route("::a", lens=mock_lens_with_skills)
+        
+        assert decision.suggested_skills == ("audit-documentation",)
+        assert decision.skill_confidence == 1.0
+        # Model should not be called for shortcuts
+        mock_model.generate.assert_not_called()

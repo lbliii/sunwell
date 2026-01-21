@@ -21,6 +21,17 @@ Example:
 from sunwell.adaptive.agent import AdaptiveAgent, TaskGraph, run_adaptive
 from sunwell.adaptive.budget import AdaptiveBudget, CostEstimate
 from sunwell.adaptive.events import AgentEvent, EventType
+from sunwell.adaptive.event_schema import (
+    EventEmitter,
+    ValidatedEventEmitter,
+    create_validated_event,
+    generate_typescript_types,
+    validate_event_data,
+    validated_plan_winner_event,
+    validated_task_complete_event,
+    validated_task_failed_event,
+    validated_task_start_event,
+)
 from sunwell.adaptive.fixer import FixResult, FixStage
 from sunwell.adaptive.gates import GateDetector, GateResult, GateType, ValidationGate
 from sunwell.adaptive.learning import Learning, LearningExtractor, LearningStore
@@ -34,6 +45,7 @@ from sunwell.adaptive.renderer import (
 from sunwell.adaptive.signals import (
     AdaptiveSignals,
     ErrorSignals,
+    FastSignalChecker,
     TaskSignals,
     extract_signals,
 )
@@ -51,6 +63,16 @@ __all__ = [
     # Events
     "AgentEvent",
     "EventType",
+    # Event Schema (Type Safety)
+    "EventEmitter",
+    "ValidatedEventEmitter",
+    "create_validated_event",
+    "validate_event_data",
+    "validated_task_start_event",
+    "validated_task_complete_event",
+    "validated_task_failed_event",
+    "validated_plan_winner_event",
+    "generate_typescript_types",
     # Fixer
     "FixStage",
     "FixResult",
@@ -73,6 +95,7 @@ __all__ = [
     "AdaptiveSignals",
     "ErrorSignals",
     "extract_signals",
+    "FastSignalChecker",  # RFC-077: Quick individual checks
     "TaskSignals",
     # Toolchains
     "LanguageToolchain",

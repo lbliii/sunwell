@@ -1,5 +1,5 @@
 <!--
-  LearningsPanel — Shows what the agent is learning in real-time
+  LearningsPanel — Shows what the agent is learning in real-time (Svelte 5)
   
   Combines a scrollable list of learnings with the MemoryGraph visualization.
   Appears during running and done states.
@@ -8,30 +8,43 @@
   import type { Concept } from '$lib/types';
   import MemoryGraph from './MemoryGraph.svelte';
   
-  export let learnings: string[] = [];
-  export let concepts: Concept[] = [];
-  export let collapsed: boolean = false;
+  interface Props {
+    learnings?: string[];
+    concepts?: Concept[];
+    collapsed?: boolean;
+  }
+  
+  let { 
+    learnings = [], 
+    concepts = [], 
+    collapsed = $bindable(false) 
+  }: Props = $props();
   
   // Limit visible learnings for performance
-  $: visibleLearnings = learnings.slice(-15);
-  $: hiddenCount = Math.max(0, learnings.length - 15);
+  let visibleLearnings = $derived(learnings.slice(-15));
+  let hiddenCount = $derived(Math.max(0, learnings.length - 15));
 </script>
 
 <div class="learnings-panel" class:collapsed>
   <!-- Header with toggle -->
-  <button class="panel-header" on:click={() => collapsed = !collapsed}>
-    <span class="header-icon">[*]</span>
+  <button 
+    class="panel-header" 
+    onclick={() => collapsed = !collapsed}
+    aria-expanded={!collapsed}
+    type="button"
+  >
+    <span class="header-icon" aria-hidden="true">✧</span>
     <span class="header-title">Learnings</span>
     {#if learnings.length > 0}
       <span class="header-count">{learnings.length}</span>
     {/if}
-    <span class="header-toggle">{collapsed ? '▸' : '▾'}</span>
+    <span class="header-toggle" aria-hidden="true">{collapsed ? '▸' : '▾'}</span>
   </button>
   
   {#if !collapsed}
     <div class="panel-content">
       <!-- Learnings list -->
-      <div class="learnings-list">
+      <div class="learnings-list" role="list" aria-label="Learnings">
         {#if hiddenCount > 0}
           <div class="hidden-indicator">
             +{hiddenCount} earlier...
@@ -80,10 +93,19 @@
     color: var(--text-secondary);
     font-size: var(--text-sm);
     transition: color var(--transition-fast);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
   }
   
   .panel-header:hover {
     color: var(--text-primary);
+  }
+  
+  .panel-header:focus-visible {
+    outline: 2px solid rgba(201, 162, 39, 0.4);
+    outline-offset: 2px;
   }
   
   .header-icon {
@@ -155,7 +177,7 @@
   }
   
   .learning-item::before {
-    content: '•';
+    content: '▸';
     position: absolute;
     left: 0;
     color: var(--accent);

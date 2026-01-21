@@ -5,6 +5,8 @@
 
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 /// Type of project being worked on.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -35,6 +37,7 @@ pub enum ProjectType {
 /// A project being worked on.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Project {
+    pub id: String,
     pub path: PathBuf,
     pub name: String,
     pub project_type: ProjectType,
@@ -78,7 +81,11 @@ impl ProjectDetector {
         let project_type = self.detect_type(path);
         let files_count = self.count_files(path);
 
+        // Generate stable ID from path
+        let id = generate_project_id(path);
+
         Ok(Project {
+            id,
             path: path.to_path_buf(),
             name,
             project_type,
@@ -222,4 +229,18 @@ impl Default for ProjectDetector {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Generate a stable project ID from the path.
+/// Uses a hash of the absolute path for consistency.
+fn generate_project_id(path: &Path) -> String {
+    let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+    let path_str = canonical.to_string_lossy();
+    
+    let mut hasher = DefaultHasher::new();
+    path_str.hash(&mut hasher);
+    let hash = hasher.finish();
+    
+    // Use first 12 characters of hex hash for readability
+    format!("{:012x}", hash)
 }

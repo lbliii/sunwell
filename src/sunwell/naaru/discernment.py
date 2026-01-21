@@ -3,10 +3,13 @@
 The Naaru uses Discernment (tiered validation) to efficiently evaluate proposals:
 
 1. Quick structural checks (no LLM) - instant insight
-2. Fast model (e.g., FunctionGemma 270M) - rapid discernment
+2. Fast model (e.g., llama3.2:3b) - rapid discernment via FastClassifier (RFC-077)
 3. Full Wisdom model - deep judgment (only for uncertain cases)
 
 This dramatically reduces validation cost while maintaining quality.
+
+RFC-077: Now uses FastClassifier JSON prompts instead of tool-calling for
+the fast model, enabling use of smaller models (1-3B) that don't support tools.
 
 Architecture:
     ```
@@ -22,8 +25,8 @@ Architecture:
                   │
                   ▼
     ┌─────────────────────────────┐
-    │       DISCERNMENT           │  Fast model (90% of cases)
-    │   (FunctionGemma 270M)      │
+    │       DISCERNMENT           │  FastClassifier (90% of cases)
+    │   (llama3.2:3b, ~1s)        │  RFC-077: JSON prompts, no tools
     └─────────────┬───────────────┘
                   │
           ┌───────┴───────┐
@@ -56,6 +59,7 @@ from enum import Enum
 
 from sunwell.models.ollama import OllamaModel
 from sunwell.models.protocol import GenerateOptions, Tool
+from sunwell.reasoning import ClassificationTemplate, FastClassifier
 
 
 class DiscernmentVerdict(Enum):
@@ -227,6 +231,29 @@ def run_structural_checks(code: str) -> dict[str, tuple[bool, str]]:
 # =============================================================================
 
 
+# RFC-077: FastClassifier template for code review
+CODE_REVIEW_TEMPLATE = ClassificationTemplate(
+    name="code_review",
+    prompt_template='''Review this code change. Respond with ONLY JSON.
+
+Category: {category}
+Purpose: {description}
+
+```python
+{code}
+```
+
+Decide: approve, reject, or refine.
+
+{{"verdict": "approve"|"reject"|"refine", "score": 0-10, "issues": [], "strengths": []}}
+
+JSON:''',
+    output_key="verdict",
+    options=("approve", "reject", "refine"),
+    default="refine",
+)
+
+
 @dataclass
 class Discernment:
     """The Naaru's quick insight before full Wisdom judgment.
@@ -235,10 +262,13 @@ class Discernment:
     1. Quick Insight (no LLM) - structural checks catch obvious issues
     2. Discernment (fast model) - rapid approve/reject decisions
     3. Escalate to Wisdom only for uncertain cases
+
+    RFC-077: Now uses FastClassifier with JSON prompts instead of tool-calling,
+    enabling smaller models (1-3B) that don't support tools.
     """
 
-    # Fast model for quick decisions (e.g., FunctionGemma)
-    insight_model: str = "functiongemma"
+    # Fast model for quick decisions (RFC-077: prefer llama3.2:3b)
+    insight_model: str = "llama3.2:3b"
 
     # Purity thresholds for escalation
     auto_approve_purity: float = 8.0  # Auto-approve if luminance >= this
@@ -250,8 +280,12 @@ class Discernment:
     # Require structural checks to pass for approval
     require_structural_pass: bool = True
 
+    # Use FastClassifier (RFC-077) instead of tool-calling
+    use_fast_classifier: bool = True
+
     # Internal state
     _insight: OllamaModel | None = field(default=None, init=False)
+    _classifier: FastClassifier | None = field(default=None, init=False)
 
     @property
     def insight(self) -> OllamaModel:
@@ -259,6 +293,13 @@ class Discernment:
         if self._insight is None:
             self._insight = OllamaModel(model=self.insight_model, base_url=self.base_url)
         return self._insight
+
+    @property
+    def classifier(self) -> FastClassifier:
+        """Get the FastClassifier for JSON-based decisions (RFC-077)."""
+        if self._classifier is None:
+            self._classifier = FastClassifier(model=self.insight)
+        return self._classifier
 
     def _extract_code(self, proposal: dict) -> str:
         """Extract code from proposal."""
@@ -393,8 +434,69 @@ class Discernment:
         category: str,
         description: str,
     ) -> DiscernmentResult:
-        """Use fast model for quick insight decision."""
+        """Use fast model for quick insight decision.
 
+        RFC-077: Now supports two modes:
+        1. FastClassifier (JSON prompts) - faster, works with smaller models
+        2. Tool-calling (legacy) - for models that support it
+        """
+        if self.use_fast_classifier:
+            return await self._quick_insight_fast(code, category, description)
+        return await self._quick_insight_tools(code, category, description)
+
+    async def _quick_insight_fast(
+        self,
+        code: str,
+        category: str,
+        description: str,
+    ) -> DiscernmentResult:
+        """Quick insight using FastClassifier (RFC-077).
+
+        ~1s with llama3.2:3b vs ~5s+ with tool-calling.
+        """
+        result = await self.classifier.classify_with_template(
+            CODE_REVIEW_TEMPLATE,
+            {
+                "code": code[:2000],  # Truncate for context window
+                "category": category,
+                "description": description,
+            },
+        )
+
+        # Map verdict to DiscernmentVerdict
+        verdict_map = {
+            "approve": DiscernmentVerdict.APPROVE,
+            "reject": DiscernmentVerdict.REJECT,
+            "refine": DiscernmentVerdict.NEEDS_REFINEMENT,
+        }
+        verdict = verdict_map.get(result.value, DiscernmentVerdict.UNCERTAIN)
+
+        # Extract score from raw response if available
+        luminance = 5.0
+        issues: list[str] = []
+        strengths: list[str] = []
+
+        if result.raw_response:
+            luminance = float(result.raw_response.get("score", 5.0))
+            issues = result.raw_response.get("issues", [])
+            strengths = result.raw_response.get("strengths", [])
+
+        return DiscernmentResult(
+            verdict=verdict,
+            confident=result.confidence > 0.6,
+            luminance=luminance,
+            issues=issues if isinstance(issues, list) else [],
+            strengths=strengths if isinstance(strengths, list) else [],
+            reason=f"FastClassifier: {result.value} ({result.confidence:.0%})",
+        )
+
+    async def _quick_insight_tools(
+        self,
+        code: str,
+        category: str,
+        description: str,
+    ) -> DiscernmentResult:
+        """Quick insight using tool-calling (legacy mode)."""
         prompt = f"""Review this code change:
 
 Category: {category}

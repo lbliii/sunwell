@@ -1,0 +1,155 @@
+# skills/docs-transformation-skills.yaml
+# RFC-070: Transformation and improvement skills
+
+skills:
+  - name: polish-documentation
+    description: Quick improvements for clarity, style, and structure
+    type: inline
+    triggers: ["polish", "improve", "clean up", "::p"]
+    allowed_tools: [read_file, search_replace]
+    instructions: |
+      ## Goal
+      Quick polish pass focusing on signal-to-noise and scannability.
+
+      ## Checks
+      1. Remove marketing fluff
+      2. Front-load conclusions
+      3. Convert walls of text to lists
+      4. Add code examples where missing
+      5. Fix passive voice
+      6. Apply UX patterns (tabs, dropdowns)
+
+      ## Output
+      Show before/after for each change with reasoning.
+
+      ## Anti-Patterns to Fix
+      - "powerful", "flexible", "easy", "robust" → remove or replace with specifics
+      - "In order to" → "To"
+      - "It should be noted that" → remove
+      - Passive voice → active voice
+    validate_with:
+      validators: [signal_to_noise, no_marketing_fluff]
+      min_confidence: 0.7
+
+  - name: modularize-content
+    description: Break monolithic document into modular topics
+    type: inline
+    triggers: ["modularize", "split", "break up", "::m"]
+    allowed_tools: [read_file, write, list_dir]
+    instructions: |
+      ## Goal
+      Split a long document into well-scoped subtopics.
+
+      ## Process
+      1. Identify distinct topics (by Diataxis type)
+      2. Create topic directory structure
+      3. Extract each topic to separate file
+      4. Create index.md linking all topics
+      5. Update cross-references
+
+      ## Output Structure
+      ```
+      topic/
+      ├── index.md          # Overview with links
+      ├── getting-started.md  # Tutorial sections
+      ├── configuration.md    # How-to sections
+      └── reference.md        # Reference sections
+      ```
+
+      ## Guidelines
+      - Each file should have single Diataxis type
+      - Index provides navigation and overview
+      - Preserve all content, just reorganize
+
+  - name: generate-frontmatter
+    description: Generate consistent frontmatter for documentation files
+    type: inline
+    triggers: ["frontmatter", "metadata", "::fm"]
+    allowed_tools: [read_file, search_replace]
+    instructions: |
+      ## Frontmatter Schema
+      ```yaml
+      ---
+      title: "Page Title"
+      description: "One-sentence description"
+      author: "Author Name"
+      date_created: "YYYY-MM-DD"
+      date_modified: "YYYY-MM-DD"
+      diataxis_type: "tutorial|how-to|explanation|reference"
+      audience: ["data-scientists", "mles", "admins"]
+      keywords: ["keyword1", "keyword2"]
+      ---
+      ```
+
+      ## Process
+      1. Analyze document content
+      2. Classify Diataxis type
+      3. Identify target audience
+      4. Extract keywords
+      5. Generate frontmatter block
+
+  - name: generate-navigation-map
+    description: Generate navigation indexes for documentation
+    type: inline
+    triggers: ["navigation", "index", "map", "toc", "::map"]
+    allowed_tools: [read_file, list_dir, write]
+    instructions: |
+      ## Goal
+      Create navigation structure from existing documents.
+
+      ## Output Types
+      1. **Index page**: Grouped links with descriptions
+      2. **TOC file**: For Sphinx/MkDocs
+      3. **Sitemap**: For search/SEO
+
+      ## Index Page Format
+      ```markdown
+      # Documentation
+
+      ## Getting Started
+      - [Quick Start](./quickstart.md) - Get up and running in 5 minutes
+      - [Installation](./install.md) - Detailed installation guide
+
+      ## Guides
+      - [Configuration](./configure.md) - Configure for your environment
+      - [Deployment](./deploy.md) - Deploy to production
+
+      ## Reference
+      - [API Reference](./api.md) - Complete API documentation
+      - [Configuration Reference](./config-ref.md) - All options
+      ```
+
+  - name: analyze-fern-migration
+    description: Gap analysis for migrating to Fern documentation platform
+    type: inline
+    triggers: ["fern", "migration", "gap analysis"]
+    allowed_tools: [read_file, list_dir, grep]
+    instructions: |
+      ## Goal
+      Analyze existing docs for Fern migration compatibility.
+
+      ## Checks
+      1. **Frontmatter**: Does it match Fern schema?
+      2. **MDX Components**: Are custom components used?
+      3. **Code Blocks**: Are they annotated correctly?
+      4. **Navigation**: Is docs.yml structure correct?
+
+      ## Output
+      ```markdown
+      ## 🔄 Fern Migration Analysis
+
+      ### Compatible ([N] files)
+      - `api/overview.md` - Ready
+
+      ### Needs Updates ([N] files)
+      - `guides/setup.md` - Frontmatter missing `slug`
+      - `tutorials/first.md` - Uses unsupported `:::note` syntax
+
+      ### Blocking Issues ([N])
+      - Custom MDX component `<CodeSample>` not supported
+
+      ### Migration Steps
+      1. Update frontmatter schema
+      2. Replace custom components
+      3. Generate docs.yml navigation
+      ```

@@ -416,16 +416,16 @@ main.add_command(config_cmd.config)
 # =============================================================================
 
 # Agent commands (renamed from 'naaru' for clarity - RFC-037)
-from sunwell.cli import agent_cmd
+from sunwell.cli.agent import agent
 
-main.add_command(agent_cmd.agent)
+main.add_command(agent)
 
 # Keep 'naaru' as hidden alias for backward compatibility
 # We create a copy of the agent group with hidden=True
 naaru_alias = click.Group(
     name="naaru",
-    commands=agent_cmd.agent.commands,
-    help=agent_cmd.agent.help,
+    commands=agent.commands,
+    help=agent.help,
     hidden=True,
 )
 main.add_command(naaru_alias)
@@ -503,3 +503,33 @@ main.add_command(team_cmd.team)
 from sunwell.cli import import_cmd
 
 main.add_command(import_cmd.import_project, name="import")
+
+# Weakness Cascade (RFC-063)
+from sunwell.cli import weakness_cmd
+
+main.add_command(weakness_cmd.weakness)
+
+# Briefing System (RFC-071)
+from sunwell.cli import briefing_cmd
+
+main.add_command(briefing_cmd.briefing)
+
+# DAG and Incremental Execution (RFC-074)
+from sunwell.cli import dag_cmd
+
+main.add_command(dag_cmd.dag)
+
+# Surface Primitives & Layout (RFC-072)
+from sunwell.cli import surface
+
+main.add_command(surface.surface)
+
+# Generative Interface (RFC-075)
+from sunwell.cli import interface_cmd
+
+main.add_command(interface_cmd.interface)
+
+# Reasoned Decisions (RFC-073)
+from sunwell.cli import reason
+
+main.add_command(reason.reason)
