@@ -25,6 +25,8 @@ def interface() -> None:
 @click.option("--goal", "-g", required=True, help="User goal to process")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.option("--data-dir", "-d", default=None, help="Data directory path")
+@click.option("--provider", "-p", type=click.Choice(["openai", "anthropic", "ollama"]),
+              default=None, help="Model provider (default: from config)")
 @click.option("--model", "-m", default=None, help="Model to use for intent analysis")
 @click.option("--history", default=None, help="JSON array of prior conversation messages")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed output")
@@ -32,6 +34,7 @@ def process(
     goal: str,
     json_output: bool,
     data_dir: str | None,
+    provider: str | None,
     model: str | None,
     history: str | None,
     verbose: bool,
@@ -46,18 +49,20 @@ def process(
             if not json_output:
                 console.print("[yellow]Warning: Could not parse history JSON, ignoring[/yellow]")
 
-    asyncio.run(_process(goal, json_output, data_dir, model, parsed_history, verbose))
+    asyncio.run(_process(goal, json_output, data_dir, provider, model, parsed_history, verbose))
 
 
 async def _process(
     goal: str,
     json_output: bool,
     data_dir_str: str | None,
+    provider_override: str | None,
     model_name: str | None,
     history: list[dict[str, str]] | None,
     verbose: bool,
 ) -> None:
     """Process a goal through the generative interface."""
+    from sunwell.cli.helpers import resolve_model
     from sunwell.interface.analyzer import IntentAnalyzer
     from sunwell.interface.executor import ActionExecutor
     from sunwell.interface.router import InteractionRouter
@@ -73,13 +78,11 @@ async def _process(
     # Initialize providers
     providers = ProviderRegistry.create_default(data_dir)
 
-    # Initialize LLM
+    # Initialize LLM using resolve_model()
     try:
-        from sunwell.models.ollama import OllamaModel
-
-        model = OllamaModel(model=model_name or "gemma3:4b")
+        model = resolve_model(provider_override, model_name)
         if verbose and not json_output:
-            console.print(f"[dim]Using model: {model.model}[/dim]")
+            console.print(f"[dim]Using model: {model.model_name}[/dim]")
     except Exception as e:
         if json_output:
             click.echo(json.dumps({"error": f"Failed to load model: {e}"}))

@@ -2,10 +2,14 @@
  * DAG Store — manages planning view state and graph layout (Svelte 5 runes)
  * 
  * RFC-074: Extended with incremental execution state for skip/execute visualization.
+ * RFC-094: Added debounced reload for backlog event handling.
  */
 
 import dagre from 'dagre';
+import { invoke } from '@tauri-apps/api/core';
+import { get } from 'svelte/store';
 import { DagNodeStatus, DagViewMode } from '$lib/constants';
+import { debounce } from '$lib/debounce';
 import type { 
   DagGraph, 
   DagNode, 
@@ -243,6 +247,39 @@ export function loadDemoGraph(): void {
 }
 
 export function clearGraph(): void { _graph = initialGraph; _viewState = initialViewState; _incrementalPlan = null; _planError = null; }
+
+// RFC-094: Store current project path for reload
+let _currentProjectPath: string | null = null;
+
+export function setProjectPath(path: string | null): void {
+  _currentProjectPath = path;
+}
+
+/**
+ * Reload the DAG from the backend (RFC-094).
+ *
+ * Called by event handlers when backlog changes.
+ */
+async function reloadDagInternal(): Promise<void> {
+  if (!_currentProjectPath) return;
+
+  try {
+    const graph = await invoke<DagGraph>('get_project_dag', { path: _currentProjectPath });
+    setGraph(graph);
+  } catch (e) {
+    console.error('Failed to reload DAG:', e);
+  }
+}
+
+/**
+ * Debounced DAG reload (100ms) to handle rapid event bursts (RFC-094).
+ */
+export const reloadDag = debounce(reloadDagInternal, 100);
+
+/**
+ * Immediate DAG reload for manual refresh (RFC-094).
+ */
+export const reloadDagImmediate = reloadDagInternal;
 
 // RFC-074: Incremental execution actions
 export function setIncrementalPlan(plan: IncrementalPlan | null): void { 

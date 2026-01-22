@@ -128,6 +128,17 @@ async def _show_backlog(json_output: bool, mermaid: bool) -> None:
 @backlog.command("run")
 @click.argument("goal_id")
 @click.option(
+    "--provider", "-p",
+    type=click.Choice(["openai", "anthropic", "ollama"]),
+    default=None,
+    help="Model provider (default: from config)",
+)
+@click.option(
+    "--model", "-m",
+    default=None,
+    help="Override model selection",
+)
+@click.option(
     "--time", "-t",
     default=300,
     help="Max execution time in seconds (default: 300)",
@@ -158,6 +169,8 @@ async def _show_backlog(json_output: bool, mermaid: bool) -> None:
 def run_goal(
     ctx,
     goal_id: str,
+    provider: str | None,
+    model: str | None,
     time: int,
     trust: str,
     dry_run: bool,
@@ -174,45 +187,48 @@ def run_goal(
         sunwell backlog run add-auth
         sunwell backlog run user-model --dry-run
         sunwell backlog run fix-bug --json  # For Studio integration
+        sunwell backlog run auth --provider openai  # Use OpenAI
 
     Use 'sunwell backlog show' to see available goal IDs.
     """
     asyncio.run(_run_backlog_goal(
-        goal_id, time, trust, dry_run, verbose, json_output
+        goal_id, provider, model, time, trust, dry_run, verbose, json_output
     ))
 
 
 async def _run_backlog_goal(
     goal_id: str,
+    provider_override: str | None,
+    model_override: str | None,
     time: int,
     trust: str,
     dry_run: bool,
     verbose: bool,
     json_output: bool,
 ) -> None:
-    """Execute a specific backlog goal."""
-    from sunwell.naaru import Naaru
+    """Execute a specific backlog goal via ExecutionManager (RFC-094)."""
+    from sunwell.cli.helpers import resolve_model
+    from sunwell.config import get_config
+    from sunwell.execution import ExecutionManager, StdoutEmitter
     from sunwell.naaru.planners import ArtifactPlanner
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust
-    from sunwell.types.config import NaaruConfig
-    from sunwell.config import get_config
 
     root = Path.cwd()
-    manager = BacklogManager(root=root)
-    manager._load()
+    emitter = StdoutEmitter(json_output=json_output)
+    manager = ExecutionManager(root=root, emitter=emitter)
 
     # Find the goal
-    goal = manager.backlog.goals.get(goal_id)
-    
+    goal = manager.backlog.backlog.goals.get(goal_id)
+
     # Also try partial match if exact match not found
     if goal is None:
-        for gid, g in manager.backlog.goals.items():
+        for gid, g in manager.backlog.backlog.goals.items():
             if gid.startswith(goal_id) or goal_id in gid:
                 goal = g
                 goal_id = gid
                 break
-    
+
     if goal is None:
         if json_output:
             import json as json_module
@@ -224,12 +240,12 @@ async def _run_backlog_goal(
         else:
             console.print(f"[red]❌ Goal not found: {goal_id}[/red]")
             console.print("\nAvailable goals:")
-            for gid in list(manager.backlog.goals.keys())[:10]:
+            for gid in list(manager.backlog.backlog.goals.keys())[:10]:
                 console.print(f"  - {gid}")
         return
 
     # Check if goal is already completed
-    if goal_id in manager.backlog.completed:
+    if goal_id in manager.backlog.backlog.completed:
         if json_output:
             import json as json_module
             print(json_module.dumps({
@@ -242,8 +258,8 @@ async def _run_backlog_goal(
         return
 
     # Check if blocked
-    if goal_id in manager.backlog.blocked:
-        reason = manager.backlog.blocked[goal_id]
+    if goal_id in manager.backlog.backlog.blocked:
+        reason = manager.backlog.backlog.blocked[goal_id]
         if json_output:
             import json as json_module
             print(json_module.dumps({
@@ -257,7 +273,7 @@ async def _run_backlog_goal(
 
     # Check dependencies
     for dep_id in goal.requires:
-        if dep_id not in manager.backlog.completed:
+        if dep_id not in manager.backlog.backlog.completed:
             if json_output:
                 import json as json_module
                 print(json_module.dumps({
@@ -268,10 +284,6 @@ async def _run_backlog_goal(
             else:
                 console.print(f"[yellow]⏳ Dependency not met: {dep_id}[/yellow]")
             return
-
-    # Mark as in_progress
-    manager.backlog.in_progress = goal_id
-    manager._save()
 
     if not json_output:
         console.print(f"\n🎯 [bold]Running goal:[/bold] {goal.title}")
@@ -292,20 +304,11 @@ async def _run_backlog_goal(
     config = get_config()
 
     try:
-        from sunwell.config import resolve_naaru_model
-        from sunwell.models.ollama import OllamaModel
-
-        model_name = None
-        if config and hasattr(config, "naaru"):
-            model_name = resolve_naaru_model(
-                config.naaru.voice,
-                list(config.naaru.voice_models),
-            )
-
-        if not model_name:
-            model_name = "gemma3:4b"
-
-        synthesis_model = OllamaModel(model=model_name)
+        synthesis_model = resolve_model(provider_override, model_override)
+        if verbose:
+            provider = provider_override or (config.model.default_provider if config else "ollama")
+            model_name = model_override or (config.model.default_model if config else "gemma3:4b")
+            console.print(f"[dim]Using model: {provider}:{model_name}[/dim]")
     except Exception as e:
         if json_output:
             import json as json_module
@@ -319,47 +322,28 @@ async def _run_backlog_goal(
         return
 
     # Create planner
-    planner = ArtifactPlanner(
-        model=synthesis_model,
-        strategy="artifact_first",
-    )
+    planner = ArtifactPlanner(model=synthesis_model)
 
     # Create tool executor
+    trust_level = ToolTrust.from_string(trust)
     executor = ToolExecutor(
-        policy=ToolPolicy(
-            default_trust=ToolTrust(trust),
-            allow_shell=trust == "shell",
-            require_confirmation=False,
-            max_execution_time=time,
-        )
+        workspace=root,
+        policy=ToolPolicy(trust_level=trust_level),
     )
 
-    # Create Naaru agent
-    naaru = Naaru(
-        model=synthesis_model,
-        planner=planner,
-        executor=executor,
-        config=NaaruConfig(
-            max_execution_time=time,
-            verbose=verbose,
-        ),
-    )
-
-    # Run the agent
-    success = False
+    # Execute via ExecutionManager (RFC-094)
+    # All backlog state management (claim, complete, events) is handled internally
     try:
-        if json_output:
-            # Stream NDJSON events - use event.to_dict() for consistency
-            import json as json_module
-            async for event in naaru.run(goal_text, context={"cwd": str(root)}):
-                print(json_module.dumps(event.to_dict()), flush=True)
-        else:
-            # Rich console output
-            async for event in naaru.run(goal_text, context={"cwd": str(root)}):
-                if verbose:
-                    console.print(f"[dim]{event.type}: {event.data}[/dim]")
-        
-        success = True
+        result = await manager.run_goal(
+            goal=goal_text,
+            planner=planner,
+            executor=executor,
+            goal_id=goal_id,
+        )
+
+        if not result.success and not json_output:
+            console.print(f"[red]❌ Failed: {result.error}[/red]")
+
     except Exception as e:
         if json_output:
             import json as json_module
@@ -370,17 +354,6 @@ async def _run_backlog_goal(
             }))
         else:
             console.print(f"[red]❌ Execution failed: {e}[/red]")
-
-    # Mark as completed or clear in_progress
-    manager._load()  # Reload in case of concurrent changes
-    manager.backlog.in_progress = None
-    
-    if success:
-        manager.backlog.completed.add(goal_id)
-        if not json_output:
-            console.print(f"\n[green]✅ Goal completed: {goal_id}[/green]")
-    
-    manager._save()
 
 
 @backlog.command()

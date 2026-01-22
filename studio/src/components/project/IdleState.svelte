@@ -10,10 +10,12 @@
   import FileTree from '../FileTree.svelte';
   import RunButton from '../RunButton.svelte';
   import BriefingPanel from '../BriefingPanel.svelte';
+  import ProviderSelector from '../ProviderSelector.svelte';
   import { project, resumeProject } from '../../stores/project.svelte';
   import { runGoal } from '../../stores/agent.svelte';
   import { briefing, loadBriefing, hasBriefing } from '../../stores/briefing.svelte';
   import { formatRelativeTime } from '$lib/format';
+  import { getRunProvider } from '../../stores/settings.svelte';
   
   interface Props {
     projectStatus?: ProjectStatus | null;
@@ -59,7 +61,8 @@
   
   async function handleNewGoal(goal: string) {
     if (!project.current?.path) return;
-    await runGoal(goal, project.current.path);
+    const provider = getRunProvider();
+    await runGoal(goal, project.current.path, null, true, provider);
   }
   
   async function handleResume() {
@@ -144,7 +147,10 @@
   </section>
   
   <section class="goal-input-section">
-    <p class="input-label">What would you like to build?</p>
+    <div class="input-header">
+      <p class="input-label">What would you like to build?</p>
+      <ProviderSelector />
+    </div>
     <InputBar placeholder="describe your goal..." onsubmit={handleNewGoal} />
   </section>
 </div>
@@ -177,5 +183,6 @@
   .file-tree-container { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: var(--space-2); max-height: 300px; overflow-y: auto; }
   .loading-text, .empty-text { font-size: var(--text-sm); color: var(--text-tertiary); padding: var(--space-4); text-align: center; margin: 0; }
   .goal-input-section { display: flex; flex-direction: column; gap: var(--space-3); margin-top: auto; padding-top: var(--space-8); }
+  .input-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
   .input-label { font-size: var(--text-sm); color: var(--text-tertiary); margin: 0; }
 </style>

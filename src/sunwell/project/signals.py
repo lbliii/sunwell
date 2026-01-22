@@ -42,6 +42,8 @@ class ProjectSignals:
     has_go_mod: bool = False
     has_makefile: bool = False
     has_src_dir: bool = False
+    has_python_in_src: bool = False  # src/app.py, src/main.py, etc.
+    detected_python_framework: str | None = None  # Framework detected from imports
 
     # Documentation signals
     has_docs_dir: bool = False
@@ -84,6 +86,10 @@ class ProjectSignals:
             signals.append("has_makefile")
         if self.has_src_dir:
             signals.append("has_src_dir")
+        if self.has_python_in_src:
+            signals.append("has_python_in_src")
+        if self.detected_python_framework:
+            signals.append(f"python_framework_{self.detected_python_framework}")
         if self.has_docs_dir:
             signals.append("has_docs_dir")
         if self.has_sphinx_conf:
@@ -133,6 +139,16 @@ def gather_project_signals(path: Path) -> ProjectSignals:
     signals.has_go_mod = (path / "go.mod").exists()
     signals.has_makefile = (path / "Makefile").exists()
     signals.has_src_dir = (path / "src").is_dir()
+
+    # Check for Python files in src/ (common Python project structure without pyproject.toml)
+    src_dir = path / "src"
+    if src_dir.is_dir():
+        py_files = ["app.py", "main.py", "__main__.py", "__init__.py"]
+        signals.has_python_in_src = any((src_dir / f).exists() for f in py_files)
+
+        # Try to detect framework from Python imports
+        if signals.has_python_in_src:
+            signals.detected_python_framework = _detect_python_framework_from_src(src_dir)
 
     # Documentation signals
     signals.has_docs_dir = (path / "docs").is_dir()
@@ -275,6 +291,36 @@ def _get_recently_modified(path: Path, limit: int = 10) -> list[Path]:
 
     except OSError:
         return []
+
+
+def _detect_python_framework_from_src(src_dir: Path) -> str | None:
+    """Detect Python framework by examining imports in src/ files.
+
+    Checks app.py and main.py for common framework imports.
+    """
+    files_to_check = ["app.py", "main.py"]
+
+    for filename in files_to_check:
+        file_path = src_dir / filename
+        if file_path.exists():
+            try:
+                content = file_path.read_text(encoding="utf-8")[:5000]  # Limit read size
+                content_lower = content.lower()
+
+                # Check imports for framework detection
+                if "from flask" in content_lower or "import flask" in content_lower:
+                    return "flask"
+                if "from fastapi" in content_lower or "import fastapi" in content_lower:
+                    return "fastapi"
+                if "from django" in content_lower or "import django" in content_lower:
+                    return "django"
+                if "import streamlit" in content_lower or "from streamlit" in content_lower:
+                    return "streamlit"
+
+            except (OSError, UnicodeDecodeError):
+                continue
+
+    return None
 
 
 def _should_ignore(path: Path) -> bool:

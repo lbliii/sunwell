@@ -1,5 +1,5 @@
 /**
- * Planning visibility components (RFC-058)
+ * Planning visibility components (RFC-058, RFC-087)
  */
 
 export { default as PlanningPanel } from './PlanningPanel.svelte';

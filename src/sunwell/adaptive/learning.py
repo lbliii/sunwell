@@ -52,7 +52,7 @@ class Learning:
         import hashlib
 
         content = f"{self.category}:{self.fact}"
-        return hashlib.md5(content.encode()).hexdigest()[:12]
+        return hashlib.blake2b(content.encode(), digest_size=6).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)

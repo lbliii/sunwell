@@ -49,6 +49,12 @@ console = Console()
     help="Output format (default: human)",
 )
 @click.option(
+    "--provider", "-p",
+    type=click.Choice(["openai", "anthropic", "ollama"]),
+    default=None,
+    help="Model provider (default: from config)",
+)
+@click.option(
     "--model", "-m",
     default=None,
     help="Override model selection",
@@ -83,6 +89,7 @@ def plan(
     input_file: str | None,
     output: str | None,
     output_format: str,
+    provider: str | None,
     model: str | None,
     verbose: bool,
     extract_goal: bool,
@@ -115,13 +122,13 @@ def plan(
     # Resolve goal from arguments or file
     if squash and input_file:
         # Use squash extraction (best for avoiding hallucination)
-        final_goal = asyncio.run(_squash_extract(input_file, model, verbose))
+        final_goal = asyncio.run(_squash_extract(input_file, provider, model, verbose))
     elif digest and input_file:
         # Use Simulacrum to fully digest the document
-        final_goal = asyncio.run(_digest_document(input_file, model, verbose))
+        final_goal = asyncio.run(_digest_document(input_file, provider, model, verbose))
     elif compound and input_file:
         # Use Compound Eye to extract requirements
-        final_goal = asyncio.run(_compound_extract(input_file, model, verbose))
+        final_goal = asyncio.run(_compound_extract(input_file, provider, model, verbose))
     else:
         final_goal = _resolve_goal(goal, input_file, extract_goal)
     
@@ -138,6 +145,7 @@ def plan(
         input_file=input_file,
         output_path=output,
         output_format=output_format,
+        provider_override=provider,
         model_override=model,
         verbose=verbose,
     ))
@@ -249,6 +257,7 @@ def _extract_goal_from_rfc(content: str) -> str | None:
 
 async def _squash_extract(
     input_file: str,
+    provider_override: str | None,
     model_override: str | None,
     verbose: bool,
 ) -> str:
@@ -257,7 +266,7 @@ async def _squash_extract(
     This extracts each question 3x and only keeps what all extractors agree on.
     Much more reliable than single-shot extraction.
     """
-    from sunwell.config import get_config
+    from sunwell.cli.helpers import resolve_model
     
     path = Path(input_file)
     content = path.read_text()
@@ -265,17 +274,10 @@ async def _squash_extract(
     if verbose:
         console.print(f"[dim]Squash extracting from {len(content):,} chars (3x per question)...[/dim]")
     
-    # Load model
-    config = get_config()
+    # Load model using resolve_model()
     model = None
     try:
-        from sunwell.models.ollama import OllamaModel
-        model_name = model_override
-        if not model_name and config and hasattr(config, "naaru"):
-            model_name = getattr(config.naaru, "wisdom", "gemma3:4b")
-        if not model_name:
-            model_name = "gemma3:4b"
-        model = OllamaModel(model=model_name)
+        model = resolve_model(provider_override, model_override)
     except Exception as e:
         console.print(f"[yellow]Warning: Could not load model for squash: {e}[/yellow]")
         return f"Implement the following specification:\n\n{_extract_key_sections(content)}"
@@ -314,6 +316,7 @@ async def _squash_extract(
 
 async def _digest_document(
     input_file: str,
+    provider_override: str | None,
     model_override: str | None,
     verbose: bool,
 ) -> str:
@@ -369,6 +372,7 @@ async def _digest_document(
 
 async def _compound_extract(
     input_file: str,
+    provider_override: str | None,
     model_override: str | None,
     verbose: bool,
 ) -> str:
@@ -382,7 +386,7 @@ async def _compound_extract(
     
     Synthesizes into a comprehensive goal.
     """
-    from sunwell.config import get_config
+    from sunwell.cli.helpers import resolve_model
     
     path = Path(input_file)
     content = path.read_text()
@@ -390,17 +394,10 @@ async def _compound_extract(
     if verbose:
         console.print(f"[dim]Analyzing {len(content):,} chars via Compound Eye...[/dim]")
     
-    # Load model
-    config = get_config()
+    # Load model using resolve_model()
     model = None
     try:
-        from sunwell.models.ollama import OllamaModel
-        model_name = model_override
-        if not model_name and config and hasattr(config, "naaru"):
-            model_name = getattr(config.naaru, "wisdom", "gemma3:4b")
-        if not model_name:
-            model_name = "gemma3:4b"
-        model = OllamaModel(model=model_name)
+        model = resolve_model(provider_override, model_override)
     except Exception as e:
         console.print(f"[yellow]Warning: Could not load model for Compound Eye: {e}[/yellow]")
         return f"Implement the following specification:\n\n{_extract_key_sections(content)}"
@@ -488,31 +485,27 @@ async def _plan_async(
     input_file: str | None,
     output_path: str | None,
     output_format: str,
+    provider_override: str | None,
     model_override: str | None,
     verbose: bool,
 ) -> None:
     """Generate and display/save the plan."""
+    from sunwell.cli.helpers import resolve_model
     from sunwell.config import get_config
     from sunwell.naaru import get_model_distribution
     from sunwell.naaru.planners import ExpertiseAwareArtifactPlanner
     from sunwell.routing import UnifiedRouter
 
-    # Load model
+    # Load model using resolve_model()
     config = get_config()
     model = None
 
     try:
-        from sunwell.models.ollama import OllamaModel
-
-        model_name = model_override
-        if not model_name and config and hasattr(config, "naaru"):
-            model_name = getattr(config.naaru, "wisdom", "gemma3:4b")
-        if not model_name:
-            model_name = "gemma3:4b"
-
-        model = OllamaModel(model=model_name)
+        model = resolve_model(provider_override, model_override)
         if output_format == "human":
-            console.print(f"[dim]Using model: {model_name}[/dim]")
+            provider = provider_override or (config.model.default_provider if config else "ollama")
+            model_name = model_override or (config.model.default_model if config else "gemma3:4b")
+            console.print(f"[dim]Using model: {provider}:{model_name}[/dim]")
     except Exception as e:
         console.print(f"[red]Failed to load model: {e}[/red]")
         raise SystemExit(1)

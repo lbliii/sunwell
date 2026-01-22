@@ -22,11 +22,22 @@ console = Console()
     help="Plan ID to resume (RFC-040)",
 )
 @click.option(
+    "--provider",
+    type=click.Choice(["openai", "anthropic", "ollama"]),
+    default=None,
+    help="Model provider (default: from config)",
+)
+@click.option(
+    "--model", "-m",
+    default=None,
+    help="Override model selection",
+)
+@click.option(
     "--verbose", "-v",
     is_flag=True,
     help="Show detailed output",
 )
-def resume(checkpoint: str | None, plan_id: str | None, verbose: bool) -> None:
+def resume(checkpoint: str | None, plan_id: str | None, provider: str | None, model: str | None, verbose: bool) -> None:
     """Resume an interrupted agent run from checkpoint.
 
     Supports two modes:
@@ -40,11 +51,13 @@ def resume(checkpoint: str | None, plan_id: str | None, verbose: bool) -> None:
         sunwell agent resume --plan-id my-api                   # Specific plan
         sunwell agent resume --checkpoint .sunwell/checkpoints/agent-*.json
     """
-    asyncio.run(_resume_agent(checkpoint, plan_id, verbose))
+    asyncio.run(_resume_agent(checkpoint, plan_id, provider, model, verbose))
 
 
-async def _resume_agent(checkpoint_path: str | None, plan_id: str | None, verbose: bool) -> None:
+async def _resume_agent(checkpoint_path: str | None, plan_id: str | None, provider_override: str | None, model_override: str | None, verbose: bool) -> None:
     """Resume agent from checkpoint."""
+    from sunwell.cli.helpers import resolve_model
+
     # RFC-040: Artifact-based resume
     if plan_id or (not checkpoint_path):
         # Try artifact-based resume first
@@ -55,7 +68,7 @@ async def _resume_agent(checkpoint_path: str | None, plan_id: str | None, verbos
         execution = store.load(plan_id) if plan_id else get_latest_execution()
 
         if execution:
-            await _resume_artifact_execution(execution, verbose)
+            await _resume_artifact_execution(execution, provider_override, model_override, verbose)
             return
         elif plan_id:
             console.print(f"[red]No plan found with ID: {plan_id}[/red]")
@@ -114,11 +127,10 @@ async def _resume_agent(checkpoint_path: str | None, plan_id: str | None, verbos
         policy=ToolPolicy(trust_level=ToolTrust.WORKSPACE),
     )
 
-    # Try to load model
+    # Load model using resolve_model()
     synthesis_model = None
     try:
-        from sunwell.models.ollama import OllamaModel
-        synthesis_model = OllamaModel(model="gemma3:1b")
+        synthesis_model = resolve_model(provider_override, model_override)
     except Exception:
         console.print("[yellow]Warning: Could not load model[/yellow]")
 
@@ -143,8 +155,9 @@ async def _resume_agent(checkpoint_path: str | None, plan_id: str | None, verbos
     console.print(f"\n✨ Complete: {result.completed_count}/{len(result.tasks)} tasks")
 
 
-async def _resume_artifact_execution(execution, verbose: bool) -> None:
+async def _resume_artifact_execution(execution, provider_override: str | None, model_override: str | None, verbose: bool) -> None:
     """Resume artifact-based execution (RFC-040)."""
+    from sunwell.cli.helpers import resolve_model
     from sunwell.naaru.persistence import (
         PlanStore,
         resume_execution,
@@ -179,13 +192,11 @@ async def _resume_artifact_execution(execution, verbose: bool) -> None:
         console.print("[dim]Aborted[/dim]")
         return
 
-    # Create artifact creation function
-    # This is a simplified implementation - would need proper planner integration
-    from sunwell.models.ollama import OllamaModel
+    # Create artifact creation function using resolve_model()
     from sunwell.naaru.planners import ArtifactPlanner
 
     try:
-        model = OllamaModel(model="gemma3:1b")
+        model = resolve_model(provider_override, model_override)
         planner = ArtifactPlanner(model=model)
     except Exception as e:
         console.print(f"[red]Failed to load model: {e}[/red]")

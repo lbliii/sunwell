@@ -19,7 +19,7 @@
   import { ProjectHeader, WorkingState, DoneState, ErrorState, IdleState, ProjectOverview } from '../components/project';
   import { project, analyzeProject, clearAnalysis } from '../stores/project.svelte';
   import { agent, runGoal } from '../stores/agent.svelte';
-  import { dag, setGraph } from '../stores/dag.svelte';
+  import { dag, setGraph, setProjectPath } from '../stores/dag.svelte';
   import { scanWeaknesses } from '../stores/weakness.svelte';
   
   // Project status for showing last run info
@@ -86,9 +86,15 @@
     }
   });
   
-  // Load DAG when pipeline tab is selected
+  // RFC-094: Set project path in dag store for reactive reload
   $effect(() => {
-    const shouldLoad = activeTab === ViewTab.PIPELINE && project.current?.path;
+    const path = project.current?.path;
+    setProjectPath(path ?? null);
+  });
+  
+  // Load DAG when pipeline tab is selected (initial load only)
+  $effect(() => {
+    const shouldLoad = activeTab === ViewTab.PIPELINE && project.current?.path && dag.nodes.length === 0;
     if (shouldLoad) {
       untrack(() => {
         if (!isLoadingDag) loadDag();
@@ -106,19 +112,15 @@
     }
   });
   
-  // Refresh data when agent completes - track previous status to detect transitions
+  // RFC-094: Refresh files when agent completes (DAG is handled via events now)
   let prevAgentDone = $state(false);
   $effect(() => {
     const isDone = agent.isDone;
     const path = project.current?.path;
-    // Detect transition from not-done to done
+    // Detect transition from not-done to done - files only, DAG via events
     if (isDone && !prevAgentDone && path) {
-      // Reset filesLoadedForPath to force reload
       filesLoadedForPath = null;
       loadProjectFiles();
-      if (activeTab === ViewTab.PIPELINE) {
-        loadDag();
-      }
     }
     prevAgentDone = isDone;
   });

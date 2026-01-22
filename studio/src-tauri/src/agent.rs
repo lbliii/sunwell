@@ -123,6 +123,13 @@ pub enum EventType {
     SecurityViolation,
     SecurityScanComplete,
     AuditLogEntry,
+
+    // Backlog lifecycle events (RFC-094)
+    BacklogGoalAdded,
+    BacklogGoalStarted,
+    BacklogGoalCompleted,
+    BacklogGoalFailed,
+    BacklogRefreshed,
 }
 
 /// Agent event from the Python agent (NDJSON line).
@@ -151,8 +158,10 @@ impl AgentBridge {
     /// Run a goal and stream events to the frontend.
     ///
     /// RFC-064: Supports optional lens selection.
+    /// RFC-Cloud-Model-Parity: Supports optional provider selection.
     /// - `lens`: Explicit lens name (e.g., "coder", "tech-writer")
     /// - `auto_lens`: Whether to auto-detect lens based on goal (default: true)
+    /// - `provider`: Model provider (e.g., "openai", "anthropic", "ollama")
     pub fn run_goal(
         &mut self,
         app: AppHandle,
@@ -160,6 +169,7 @@ impl AgentBridge {
         project_path: &Path,
         lens: Option<&str>,
         auto_lens: bool,
+        provider: Option<&str>,
     ) -> Result<(), String> {
         if self.running.load(Ordering::SeqCst) {
             return Err("Agent already running".to_string());
@@ -179,6 +189,14 @@ impl AgentBridge {
         // Disable auto-lens if requested
         if !auto_lens {
             args.push("--no-auto-lens");
+        }
+
+        // Add provider flag if explicitly specified (RFC-Cloud-Model-Parity)
+        let provider_owned: String;
+        if let Some(provider_name) = provider {
+            args.push("--provider");
+            provider_owned = provider_name.to_string();
+            args.push(&provider_owned);
         }
 
         args.push(goal);
@@ -264,18 +282,30 @@ impl AgentBridge {
     }
 
     /// Resume an interrupted goal and stream events to the frontend.
+    ///
+    /// RFC-Cloud-Model-Parity: Supports optional provider selection.
     pub fn resume_goal(
         &mut self,
         app: AppHandle,
         project_path: &Path,
+        provider: Option<&str>,
     ) -> Result<(), String> {
         if self.running.load(Ordering::SeqCst) {
             return Err("Agent already running".to_string());
         }
 
+        // Build args with optional provider (RFC-Cloud-Model-Parity)
+        let mut args = vec!["agent", "resume", "--json"];
+        let provider_owned: String;
+        if let Some(provider_name) = provider {
+            args.push("--provider");
+            provider_owned = provider_name.to_string();
+            args.push(&provider_owned);
+        }
+
         // Start the Sunwell agent in resume mode with JSON output
         let mut child = sunwell_command()
-            .args(["agent", "resume", "--json"])
+            .args(&args)
             .current_dir(project_path)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -349,19 +379,31 @@ impl AgentBridge {
     }
 
     /// Run a specific backlog goal by ID (RFC-056).
+    ///
+    /// RFC-Cloud-Model-Parity: Supports optional provider selection.
     pub fn run_backlog_goal(
         &mut self,
         app: AppHandle,
         goal_id: &str,
         project_path: &Path,
+        provider: Option<&str>,
     ) -> Result<(), String> {
         if self.running.load(Ordering::SeqCst) {
             return Err("Agent already running".to_string());
         }
 
+        // Build args with optional provider (RFC-Cloud-Model-Parity)
+        let mut args = vec!["backlog", "run", goal_id, "--json"];
+        let provider_owned: String;
+        if let Some(provider_name) = provider {
+            args.push("--provider");
+            provider_owned = provider_name.to_string();
+            args.push(&provider_owned);
+        }
+
         // Start the Sunwell agent with backlog run command
         let mut child = sunwell_command()
-            .args(["backlog", "run", goal_id, "--json"])
+            .args(&args)
             .current_dir(project_path)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

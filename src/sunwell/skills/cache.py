@@ -1,15 +1,16 @@
-"""Skill execution caching for incremental runs (RFC-087).
+"""Skill execution caching for incremental runs (RFC-087, RFC-094).
 
 This module implements the caching component of RFC-087: Skill-Lens DAG.
 It provides:
 1. Content-based cache keys for skill executions
-2. Thread-safe LRU cache for skill outputs
+2. Thread-safe O(1) LRU cache for skill outputs (RFC-094)
 3. Cache invalidation by skill or content change
 """
 
 
 import hashlib
 import threading
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -66,7 +67,7 @@ class SkillCacheKey:
             skill_hasher.update(script.content.encode())
         for template in skill.templates:
             skill_hasher.update(template.content.encode())
-        skill_hash = skill_hasher.hexdigest()[:16]
+        skill_hash = skill_hasher.hexdigest()[:20]  # 80 bits (RFC-094)
 
         # Hash input context (only the keys this skill requires)
         input_hasher = hashlib.sha256()
@@ -74,7 +75,7 @@ class SkillCacheKey:
             value = context.get(key, "")
             # Hash the string representation (for complex objects)
             input_hasher.update(f"{key}={value!r}".encode())
-        input_hash = input_hasher.hexdigest()[:16]
+        input_hash = input_hasher.hexdigest()[:20]  # 80 bits (RFC-094)
 
         return cls(
             skill_hash=skill_hash,
@@ -128,12 +129,11 @@ class SkillCacheEntry:
 class SkillCache:
     """LRU cache for skill execution results.
 
-    Thread-safe via internal locking.
+    Thread-safe via internal locking. Uses OrderedDict for O(1) LRU operations (RFC-094).
     """
 
     def __init__(self, max_size: int = 1000) -> None:
-        self._cache: dict[str, SkillCacheEntry] = {}
-        self._access_order: list[str] = []  # For LRU eviction
+        self._cache: OrderedDict[str, SkillCacheEntry] = OrderedDict()
         self._lock = threading.Lock()
         self._max_size = max_size
         self._hits = 0
@@ -146,10 +146,8 @@ class SkillCache:
             entry = self._cache.get(key_str)
             if entry:
                 self._hits += 1
-                # Move to end for LRU
-                if key_str in self._access_order:
-                    self._access_order.remove(key_str)
-                self._access_order.append(key_str)
+                # Move to end for LRU — O(1) with OrderedDict
+                self._cache.move_to_end(key_str)
             else:
                 self._misses += 1
             return entry
@@ -171,15 +169,14 @@ class SkillCache:
         )
 
         with self._lock:
-            # Evict if needed
-            while len(self._cache) >= self._max_size and self._access_order:
-                oldest = self._access_order.pop(0)
-                self._cache.pop(oldest, None)
+            # Evict oldest if at capacity — O(1) with OrderedDict
+            while len(self._cache) >= self._max_size:
+                self._cache.popitem(last=False)
 
+            # Remove existing entry if present, then add at end
+            if key_str in self._cache:
+                del self._cache[key_str]
             self._cache[key_str] = entry
-            if key_str in self._access_order:
-                self._access_order.remove(key_str)
-            self._access_order.append(key_str)
 
     def has(self, key: SkillCacheKey) -> bool:
         """Check if key exists without updating access order."""
@@ -200,8 +197,6 @@ class SkillCache:
             ]
             for k in keys_to_remove:
                 del self._cache[k]
-                if k in self._access_order:
-                    self._access_order.remove(k)
             return len(keys_to_remove)
 
     def invalidate_by_hash_prefix(self, skill_hash_prefix: str) -> int:
@@ -216,15 +211,12 @@ class SkillCache:
             ]
             for k in keys_to_remove:
                 del self._cache[k]
-                if k in self._access_order:
-                    self._access_order.remove(k)
             return len(keys_to_remove)
 
     def clear(self) -> None:
         """Clear all cached results."""
         with self._lock:
             self._cache.clear()
-            self._access_order.clear()
             self._hits = 0
             self._misses = 0
 

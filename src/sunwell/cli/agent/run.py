@@ -52,6 +52,12 @@ console = Console()
     help="Show detailed output",
 )
 @click.option(
+    "--provider", "-p",
+    type=click.Choice(["openai", "anthropic", "ollama"]),
+    default=None,
+    help="Model provider (default: from config)",
+)
+@click.option(
     "--model", "-m",
     default=None,
     help="Override synthesis model",
@@ -118,6 +124,7 @@ def run(
     auto_lens: bool,
     dry_run: bool,
     verbose: bool,
+    provider: str | None,
     model: str | None,
     show_graph: bool,
     harmonic: bool,
@@ -173,8 +180,8 @@ def run(
         dry_run = True
 
     asyncio.run(_run_agent(
-        goal, time, trust, strategy, lens, auto_lens, dry_run, verbose, model, show_graph,
-        candidates, refine, incremental, force, show_plan, diff_plan, plan_id,
+        goal, time, trust, strategy, lens, auto_lens, dry_run, verbose, provider, model,
+        show_graph, candidates, refine, incremental, force, show_plan, diff_plan, plan_id,
         json_output,
     ))
 
@@ -188,6 +195,7 @@ async def _run_agent(
     auto_lens: bool,
     dry_run: bool,
     verbose: bool,
+    provider_override: str | None,
     model_override: str | None,
     show_graph: bool,
     candidates: int = 5,
@@ -200,6 +208,7 @@ async def _run_agent(
     json_output: bool = False,
 ) -> None:
     """Execute agent mode."""
+    from sunwell.cli.helpers import resolve_model
     from sunwell.naaru import Naaru
     from sunwell.naaru.planners import (
         AgentPlanner,
@@ -215,27 +224,15 @@ async def _run_agent(
     # Load config
     config = get_config()
 
-    # Create model
+    # Create model using resolve_model() helper
     synthesis_model = None
     try:
-        from sunwell.config import resolve_naaru_model
-        from sunwell.models.ollama import OllamaModel
-
-        model_name = model_override
-        if not model_name and config and hasattr(config, "naaru"):
-            # Resolve "auto" to actual model using voice_models list
-            model_name = resolve_naaru_model(
-                config.naaru.voice,
-                list(config.naaru.voice_models),
-            )
-
-        if not model_name:
-            model_name = "gemma3:4b"  # Final fallback
-
-        synthesis_model = OllamaModel(model=model_name)
+        synthesis_model = resolve_model(provider_override, model_override)
         # RFC-053: Suppress console output in JSON mode to keep NDJSON clean
         if not json_output:
-            console.print(f"[dim]Using model: {model_name}[/dim]")
+            provider = provider_override or (config.model.default_provider if config else "ollama")
+            model_name = model_override or (config.model.default_model if config else "gemma3:4b")
+            console.print(f"[dim]Using model: {provider}:{model_name}[/dim]")
     except Exception as e:
         if not json_output:
             console.print(f"[yellow]Warning: Could not load model: {e}[/yellow]")
@@ -688,274 +685,57 @@ async def _incremental_run(
     tool_executor,
     json_output: bool = False,
 ) -> None:
-    """Run with incremental rebuild support (RFC-074 v2 executor)."""
-    import json as json_lib
-    import sys
-    from datetime import datetime
+    """Run with incremental rebuild support via ExecutionManager (RFC-094).
 
-    from sunwell.incremental import ExecutionCache, IncrementalExecutor
-    from sunwell.naaru.persistence import hash_goal
+    All execution logic is now centralized in ExecutionManager for:
+    - Consistent backlog lifecycle (claim/complete/fail)
+    - IncrementalExecutor with hash-based caching
+    - Event-driven UI updates
+    - Learnings extraction
+    """
+    from sunwell.execution import ExecutionManager, StdoutEmitter
 
-    start_time = datetime.now()
+    if not json_output:
+        console.print("[bold]🔄 Incremental execution (RFC-094)[/bold]\n")
 
-    # Helper for JSON output mode - use standard AgentEvent format with validation
-    def emit(event_type: str, data: dict | None = None) -> None:
-        """Emit event as console or JSON using standard AgentEvent format with validation."""
-        if json_output:
-            from sunwell.adaptive.event_schema import validate_event_data
-            from sunwell.adaptive.events import AgentEvent, EventType
-            try:
-                # Validate and normalize event data
-                validated_data = validate_event_data(EventType(event_type), data or {})
-                event = AgentEvent(EventType(event_type), validated_data)
-                print(json_lib.dumps(event.to_dict()), file=sys.stdout, flush=True)
-            except (ValueError, KeyError):
-                # Fallback for unknown event types (but log warning)
-                import time
-                if verbose:
-                    console.print(f"[yellow]⚠ Unknown event type: {event_type}[/yellow]")
-                fallback_event = {
-                    "type": event_type,
-                    "data": data or {},
-                    "timestamp": time.time(),
-                }
-                print(json_lib.dumps(fallback_event), file=sys.stdout, flush=True)
-        elif data and "message" in data:
-            console.print(data["message"])
-
-    def log(message: str) -> None:
-        """Log message respecting output mode."""
-        if json_output:
-            emit("log", {"message": message})
-        else:
-            console.print(message)
-
-    log("[bold]🔄 Incremental execution (RFC-074)[/bold]\n")
-
-    # Initialize backlog manager for DAG tracking
-    from sunwell.backlog.goals import Goal, GoalScope
-    from sunwell.backlog.manager import BacklogManager
-    backlog_manager = BacklogManager(root=Path.cwd())
-
-    # Discover graph
-    emit("plan_start", {"goal": goal})
-    try:
-        graph = await planner.discover_graph(goal, {"cwd": str(Path.cwd())})
-        # Emit plan_winner with tasks count - this sets totalTasks in frontend
-        emit("plan_winner", {"tasks": len(graph), "artifact_count": len(graph)})
-
-        # Add goal to backlog for DAG tracking (Pipeline view)
-        goal_id = plan_id or hash_goal(goal)
-        backlog_goal = Goal(
-            id=goal_id,
-            title=goal[:100],
-            description=goal,
-            source_signals=(),  # No signals, explicit goal
-            priority=1.0,
-            estimated_complexity="moderate",
-            requires=frozenset(),
-            category="add",
-            auto_approvable=True,
-            scope=GoalScope(max_files=len(graph) * 2, max_lines_changed=len(graph) * 200),
-        )
-        await backlog_manager.add_external_goal(backlog_goal)
-
-    except Exception as e:
-        emit("error", {"message": f"Discovery failed: {e}"})
-        if not json_output:
-            console.print(f"[red]Discovery failed: {e}[/red]")
-        return
-
-    # Initialize v2 cache and executor (RFC-074)
-    cache_path = Path.cwd() / ".sunwell" / "cache" / "execution.db"
-    cache = ExecutionCache(cache_path)
-    goal_hash = plan_id or hash_goal(goal)
-
-    # Create v2 executor
-    executor = IncrementalExecutor(
-        graph=graph,
-        cache=cache,
-        trace_enabled=verbose,
+    # Create emitter and manager
+    emitter = StdoutEmitter(json_output=json_output)
+    manager = ExecutionManager(
+        root=Path.cwd(),
+        emitter=emitter,
     )
 
-    # Convert force flag to artifact ID set
-    force_artifacts = set(graph) if force else None
-
-    # Preview what will execute
-    plan = executor.plan_execution(force_rerun=force_artifacts)
-
-    if plan.to_skip:
-        log("📊 Found previous execution")
-        log(f"   Unchanged: {len(plan.to_skip)} artifacts")
-        log(f"   To rebuild: {len(plan.to_execute)} artifacts")
-
-        if not plan.to_execute:
-            emit("complete", {"message": "All artifacts up to date", "completed": 0, "failed": 0})
-            if not json_output:
-                console.print("\n[green]✓ All artifacts up to date![/green]")
-            return
-    else:
-        log("[dim]No previous execution found - full build[/dim]")
-
-    # Create artifact creation function
-    async def create_artifact(spec):
-        """Create an artifact using the planner and write to disk."""
-        from datetime import datetime
-
-        from sunwell.adaptive.event_schema import (
-            validated_task_complete_event,
-            validated_task_failed_event,
-            validated_task_start_event,
-        )
-        from sunwell.models.protocol import ToolCall
-
-        # Track start time for duration calculation
-        start_time = datetime.now()
-
-        # Use validated event factory (ensures task_id field)
-        start_event = validated_task_start_event(
-            task_id=spec.id,
-            description=spec.description,
-            artifact_id=spec.id,  # Alias for compatibility
-        )
-        if json_output:
-            print(json_lib.dumps(start_event.to_dict()), file=sys.stdout, flush=True)
-        else:
-            console.print(f"  [cyan]→[/cyan] {spec.description}")
-        try:
-            # Generate the content
-            content = await planner.create_artifact(spec, {})
-
-            # Write to disk if artifact specifies a file
-            if spec.produces_file and content:
-                file_path = spec.produces_file
-                # Emit progress event with task_id
-                if json_output:
-                    from sunwell.adaptive.events import AgentEvent, EventType
-                    progress_event = AgentEvent(
-                        EventType.TASK_PROGRESS,
-                        {"task_id": spec.id, "message": f"Writing {file_path}"},
-                    )
-                    print(json_lib.dumps(progress_event.to_dict()), file=sys.stdout, flush=True)
-                write_call = ToolCall(
-                    id=f"write_{spec.id}",
-                    name="write_file",
-                    arguments={"path": file_path, "content": content},
-                )
-                result = await tool_executor.execute(write_call)
-                if result.success:
-                    log(f"  [green]✓[/green] Wrote {file_path}")
-                else:
-                    log(f"  [red]✗[/red] Failed to write {file_path}: {result.output}")
-
-            # Calculate actual duration
-            duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
-
-            # Use validated event factory with actual duration
-            complete_event = validated_task_complete_event(
-                task_id=spec.id,
-                duration_ms=duration_ms,
-                artifact_id=spec.id,
-                file=spec.produces_file,
-            )
-            if json_output:
-                print(json_lib.dumps(complete_event.to_dict()), file=sys.stdout, flush=True)
-            else:
-                console.print(f"  [green]✓[/green] {spec.id}")
-            return content
-        except Exception as e:
-            # Use validated event factory
-            failed_event = validated_task_failed_event(
-                task_id=spec.id,
-                error=str(e),
-                artifact_id=spec.id,
-            )
-            if json_output:
-                print(json_lib.dumps(failed_event.to_dict()), file=sys.stdout, flush=True)
-            else:
-                console.print(f"  [red]✗[/red] {spec.id}: {e}")
-            raise
-
-    def progress_handler(msg: str) -> None:
-        if json_output:
-            emit("task_progress", {"message": msg})
-        else:
-            console.print(msg)
-
     try:
-        # Execute with v2 incremental executor
-        result = await executor.execute(
-            create_fn=create_artifact,
-            force_rerun=force_artifacts,
-            on_progress=progress_handler if verbose else None,
+        result = await manager.run_goal(
+            goal=goal,
+            planner=planner,
+            executor=tool_executor,
+            goal_id=plan_id,
+            force=force,
+            verbose=verbose,
         )
 
-        # Record goal→artifacts mapping for future lookups
-        cache.record_goal_execution(
-            goal_hash,
-            list(graph),
-            execution_time_ms=result.duration_ms,
-        )
-
-        # RFC-054: Extract learnings from completed artifacts
-        learnings_count = await _extract_learnings_from_result_v2(
-            result, graph, emit if json_output else None
-        )
-
-        # Compute model distribution for summary (v2 result doesn't track this)
-        from sunwell.naaru.artifacts import select_model_tier
-        model_distribution: dict[str, int] = {"small": 0, "medium": 0, "large": 0}
-        for artifact_id in graph:
-            artifact = graph[artifact_id]
-            tier = select_model_tier(artifact, graph)
-            model_distribution[tier] += 1
-
-        # Summary
-        completed_count = len(result.completed) + len(result.skipped)
-        if json_output:
-            # Use validated complete event with correct field names
-            from sunwell.adaptive.event_schema import validate_event_data
-            from sunwell.adaptive.events import AgentEvent, EventType
-
-            elapsed = (datetime.now() - start_time).total_seconds()
-            complete_data = validate_event_data(EventType.COMPLETE, {
-                "tasks_completed": completed_count,
-                "tasks_failed": len(result.failed),
-                "completed": completed_count,  # Alias for compatibility
-                "failed": len(result.failed),  # Alias for compatibility
-                "duration_s": elapsed,
-                "learnings_count": learnings_count,
-            })
-            # Add extra fields that aren't in schema but useful
-            complete_data["model_distribution"] = model_distribution
-            complete_data["skipped"] = len(result.skipped)
-            complete_data["failed_artifacts"] = {aid: err[:100] for aid, err in result.failed.items()}
-
-            complete_event = AgentEvent(EventType.COMPLETE, complete_data)
-            print(json_lib.dumps(complete_event.to_dict()), file=sys.stdout, flush=True)
-        else:
+        # Console summary (JSON events already emitted by manager)
+        if not json_output:
             console.print("\n[bold]═══ Summary ═══[/bold]")
-            console.print(f"  Completed: {len(result.completed)}")
-            console.print(f"  Skipped (cached): {len(result.skipped)}")
-            console.print(f"  Failed: {len(result.failed)}")
-            console.print(f"  Model distribution: {model_distribution}")
+            console.print(f"  Completed: {len(result.artifacts_created)}")
+            console.print(f"  Skipped (cached): {len(result.artifacts_skipped)}")
+            console.print(f"  Failed: {len(result.artifacts_failed)}")
 
-            if result.failed:
+            if result.artifacts_failed:
                 console.print("\n[red]Failed artifacts:[/red]")
-                for aid, error in result.failed.items():
-                    console.print(f"  ✗ {aid}: {error[:50]}")
+                for aid in result.artifacts_failed[:10]:
+                    console.print(f"  ✗ {aid}")
 
-            if len(result.failed) == 0:
+            if result.success:
                 console.print("\n[green]✓ Incremental build complete[/green]")
             else:
                 console.print("\n[yellow]⚠ Build completed with errors[/yellow]")
 
     except KeyboardInterrupt:
-        emit("error", {"message": "Interrupted by user"})
         if not json_output:
             console.print("\n[yellow]Interrupted - progress saved[/yellow]")
     except Exception as e:
-        emit("error", {"message": str(e)})
         if not json_output:
             console.print(f"\n[red]Error: {e}[/red]")
             if verbose:
@@ -1030,172 +810,6 @@ async def _harmonic_dry_run(goal: str, planner, show_graph: bool, verbose: bool)
         console.print("```mermaid")
         console.print(graph.to_mermaid())
         console.print("```")
-
-
-async def _extract_learnings_from_result(
-    result,
-    graph,
-    emit: callable | None = None,
-) -> int:
-    """Extract learnings from execution result and persist to .sunwell/intelligence/.
-
-    Args:
-        result: ExecutionResult from incremental executor
-        graph: ArtifactGraph for context
-        emit: Optional event emitter for JSON mode
-
-    Returns:
-        Number of learnings extracted
-    """
-    import json
-    import uuid
-    from datetime import datetime
-
-    try:
-        from sunwell.simulacrum.extractors.extractor import auto_extract_learnings
-    except ImportError:
-        # Learning extractor not available
-        return 0
-
-    learnings = []
-
-    # Extract learnings from completed artifacts
-    for artifact_id in result.completed:
-        artifact = graph.get(artifact_id)
-        if not artifact:
-            continue
-
-        # Get content from artifact result
-        # ExecutionResult.completed maps artifact_id -> ArtifactResult which has .content
-        content = ""
-        artifact_result = result.completed.get(artifact_id)
-        if artifact_result and artifact_result.content:
-            content = artifact_result.content
-        elif artifact.description:
-            content = artifact.description
-
-        if not content:
-            continue
-
-        try:
-            extracted = auto_extract_learnings(content, min_confidence=0.6)
-            for fact, category, confidence in extracted[:3]:  # Max 3 per artifact
-                learning = {
-                    "id": f"learn-{datetime.now().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:6]}",
-                    "fact": fact,
-                    "category": category,
-                    "confidence": confidence,
-                    "source_file": artifact_id,
-                    "created_at": datetime.now().isoformat(),
-                }
-                learnings.append(learning)
-
-                # Emit memory_learning event for real-time updates
-                if emit:
-                    emit("memory_learning", {
-                        "fact": fact,
-                        "category": category,
-                        "confidence": confidence,
-                        "source": artifact_id,
-                    })
-        except Exception:
-            # Learning extraction failed for this artifact
-            continue
-
-    # Persist learnings to .sunwell/intelligence/learnings.jsonl
-    if learnings:
-        intel_path = Path.cwd() / ".sunwell" / "intelligence"
-        intel_path.mkdir(parents=True, exist_ok=True)
-
-        learnings_file = intel_path / "learnings.jsonl"
-        with open(learnings_file, "a") as f:
-            for learning in learnings:
-                f.write(json.dumps(learning) + "\n")
-
-    return len(learnings)
-
-
-async def _extract_learnings_from_result_v2(
-    result,
-    graph,
-    emit: callable | None = None,
-) -> int:
-    """Extract learnings from v2 IncrementalResult and persist to .sunwell/intelligence/.
-
-    Args:
-        result: IncrementalResult from RFC-074 v2 incremental executor
-        graph: ArtifactGraph for context
-        emit: Optional event emitter for JSON mode
-
-    Returns:
-        Number of learnings extracted
-    """
-    import json
-    import uuid
-    from datetime import datetime
-
-    try:
-        from sunwell.simulacrum.extractors.extractor import auto_extract_learnings
-    except ImportError:
-        # Learning extractor not available
-        return 0
-
-    learnings = []
-
-    # Extract learnings from completed artifacts
-    # v2 IncrementalResult.completed is dict[str, dict] with "content" key
-    for artifact_id in result.completed:
-        artifact = graph.get(artifact_id)
-        if not artifact:
-            continue
-
-        # Get content from artifact result (v2 stores as dict with "content" key)
-        content = ""
-        artifact_result = result.completed.get(artifact_id)
-        if artifact_result and artifact_result.get("content"):
-            content = artifact_result["content"]
-        elif artifact.description:
-            content = artifact.description
-
-        if not content:
-            continue
-
-        try:
-            extracted = auto_extract_learnings(content, min_confidence=0.6)
-            for fact, category, confidence in extracted[:3]:  # Max 3 per artifact
-                learning = {
-                    "id": f"learn-{datetime.now().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:6]}",
-                    "fact": fact,
-                    "category": category,
-                    "confidence": confidence,
-                    "source_file": artifact_id,
-                    "created_at": datetime.now().isoformat(),
-                }
-                learnings.append(learning)
-
-                # Emit memory_learning event for real-time updates
-                if emit:
-                    emit("memory_learning", {
-                        "fact": fact,
-                        "category": category,
-                        "confidence": confidence,
-                        "source": artifact_id,
-                    })
-        except Exception:
-            # Learning extraction failed for this artifact
-            continue
-
-    # Persist learnings to .sunwell/intelligence/learnings.jsonl
-    if learnings:
-        intel_path = Path.cwd() / ".sunwell" / "intelligence"
-        intel_path.mkdir(parents=True, exist_ok=True)
-
-        learnings_file = intel_path / "learnings.jsonl"
-        with open(learnings_file, "a") as f:
-            for learning in learnings:
-                f.write(json.dumps(learning) + "\n")
-
-    return len(learnings)
 
 
 def _display_task_graph(tasks: list) -> None:

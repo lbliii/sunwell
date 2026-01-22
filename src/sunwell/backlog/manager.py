@@ -300,14 +300,15 @@ class BacklogManager:
             fcntl.flock(fd, fcntl.LOCK_UN)
             os.close(fd)
 
-    async def claim_goal(self, goal_id: str, worker_id: int) -> bool:
-        """Claim a goal for a worker (RFC-051).
+    async def claim_goal(self, goal_id: str, worker_id: int | None = None) -> bool:
+        """Claim a goal for a worker (RFC-051, RFC-094).
 
-        Must be called within exclusive_access() context.
+        Must be called within exclusive_access() context for multi-instance.
+        Single-instance execution can pass worker_id=None (uses -1 sentinel).
 
         Args:
             goal_id: ID of the goal to claim
-            worker_id: ID of the claiming worker
+            worker_id: ID of the claiming worker (None for single-instance)
 
         Returns:
             True if successfully claimed, False if already claimed
@@ -319,6 +320,9 @@ class BacklogManager:
         # Check if already claimed
         if goal.claimed_by is not None:
             return False
+
+        # For single-instance, use -1 as sentinel
+        effective_worker_id = worker_id if worker_id is not None else -1
 
         # Create new goal with claim info
         claimed_goal = Goal(
@@ -333,7 +337,7 @@ class BacklogManager:
             auto_approvable=goal.auto_approvable,
             scope=goal.scope,
             external_ref=goal.external_ref,
-            claimed_by=worker_id,
+            claimed_by=effective_worker_id,
             claimed_at=datetime.now(),
         )
 
@@ -443,10 +447,36 @@ class BacklogManager:
             "duration_seconds": result.duration_seconds,
             "files_changed": result.files_changed,
             "failure_reason": result.failure_reason,
+            "artifacts_created": result.artifacts_created,  # RFC-094
+            "timestamp": datetime.now().isoformat(),
         }
 
         with history_path.open("a") as f:
             f.write(json.dumps(entry) + "\n")
+
+    async def get_completed_artifacts(self) -> list[str]:
+        """Get list of artifact IDs from completed goals (RFC-094).
+
+        Reads from completion history to find all artifacts created.
+
+        Returns:
+            List of artifact IDs that were successfully created
+        """
+        history_path = self.backlog_path / "completed.jsonl"
+        if not history_path.exists():
+            return []
+
+        artifacts: list[str] = []
+        for line in history_path.read_text().splitlines():
+            if not line.strip():
+                continue
+            try:
+                entry = json.loads(line)
+                artifacts.extend(entry.get("artifacts_created", []))
+            except json.JSONDecodeError:
+                continue
+
+        return artifacts
 
     def _load(self) -> None:
         """Load backlog from disk."""

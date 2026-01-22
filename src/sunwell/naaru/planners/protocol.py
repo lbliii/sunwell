@@ -67,7 +67,7 @@ class PlanningStrategy(Enum):
 
 @runtime_checkable
 class TaskPlanner(Protocol):
-    """Protocol for task planning/decomposition (RFC-032).
+    """Protocol for task planning/decomposition (RFC-032, RFC-094).
 
     Implementations:
     - SelfImprovementPlanner: Find opportunities in Sunwell's codebase
@@ -85,12 +85,14 @@ class TaskPlanner(Protocol):
         self,
         goals: list[str],
         context: dict[str, Any] | None = None,
+        backlog: Any | None = None,
     ) -> list[Task]:
         """Decompose goals into executable tasks.
 
         Args:
             goals: User-specified goals or objectives
             context: Optional context (current directory, file state, etc.)
+            backlog: Optional BacklogContext for existing work awareness (RFC-094)
 
         Returns:
             List of Tasks ordered by priority, respecting dependencies

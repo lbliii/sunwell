@@ -279,9 +279,29 @@ fn detect_python(path: &Path) -> Option<RunAnalysis> {
     let has_app_py = path.join("app.py").exists();
     let has_manage_py = path.join("manage.py").exists();
     
-    if !has_pyproject && !has_requirements && !has_main_py && !has_app_py && !has_manage_py {
+    // Also check inside src/ directory (common Python project structure)
+    let src_dir = path.join("src");
+    let has_src_app_py = src_dir.join("app.py").exists();
+    let has_src_main_py = src_dir.join("main.py").exists();
+    
+    if !has_pyproject && !has_requirements && !has_main_py && !has_app_py && !has_manage_py 
+        && !has_src_app_py && !has_src_main_py {
         return None;
     }
+    
+    // Detect framework from dependencies OR from Python file imports
+    let deps_content = read_python_deps(path);
+    let framework_from_deps = deps_content.as_ref().and_then(|c| detect_python_framework(c));
+    
+    // Also check src/app.py for imports if no framework detected from deps
+    let framework_from_src = if framework_from_deps.is_none() && has_src_app_py {
+        fs::read_to_string(src_dir.join("app.py")).ok()
+            .and_then(|c| detect_python_framework(&c))
+    } else {
+        None
+    };
+    
+    let detected_framework = framework_from_deps.or(framework_from_src);
     
     // Detect framework and determine command
     let (command, description, framework, expected_port, expected_url) = if has_manage_py {
@@ -293,49 +313,55 @@ fn detect_python(path: &Path) -> Option<RunAnalysis> {
             Some(8000),
             Some("http://localhost:8000".to_string()),
         )
-    } else if let Some(content) = read_python_deps(path) {
-        if content.contains("fastapi") || content.contains("FastAPI") {
-            (
-                "python -m uvicorn app:app --reload".to_string(),
+    } else if let Some(fw) = detected_framework {
+        match fw.as_str() {
+            "FastAPI" => (
+                if has_src_app_py {
+                    "python -m uvicorn src.app:app --reload".to_string()
+                } else {
+                    "python -m uvicorn app:app --reload".to_string()
+                },
                 "Start FastAPI with uvicorn".to_string(),
                 Some("FastAPI".to_string()),
                 Some(8000),
                 Some("http://localhost:8000".to_string()),
-            )
-        } else if content.contains("flask") || content.contains("Flask") {
-            (
-                "python -m flask run".to_string(),
+            ),
+            "Flask" => (
+                if has_src_app_py {
+                    "FLASK_APP=src/app.py python -m flask run".to_string()
+                } else {
+                    "python -m flask run".to_string()
+                },
                 "Start Flask development server".to_string(),
                 Some("Flask".to_string()),
                 Some(5000),
                 Some("http://localhost:5000".to_string()),
-            )
-        } else if content.contains("streamlit") {
-            (
-                "streamlit run app.py".to_string(),
+            ),
+            "Streamlit" => (
+                if has_src_app_py {
+                    "streamlit run src/app.py".to_string()
+                } else {
+                    "streamlit run app.py".to_string()
+                },
                 "Start Streamlit app".to_string(),
                 Some("Streamlit".to_string()),
                 Some(8501),
                 Some("http://localhost:8501".to_string()),
-            )
-        } else if has_app_py {
-            (
-                "python app.py".to_string(),
-                "Run app.py".to_string(),
-                None,
-                None,
-                None,
-            )
-        } else if has_main_py {
-            (
-                "python main.py".to_string(),
-                "Run main.py".to_string(),
-                None,
-                None,
-                None,
-            )
-        } else {
-            return None;
+            ),
+            _ => {
+                // Unknown framework but detected something
+                if has_src_app_py {
+                    ("python src/app.py".to_string(), "Run src/app.py".to_string(), None, None, None)
+                } else if has_app_py {
+                    ("python app.py".to_string(), "Run app.py".to_string(), None, None, None)
+                } else if has_src_main_py {
+                    ("python src/main.py".to_string(), "Run src/main.py".to_string(), None, None, None)
+                } else if has_main_py {
+                    ("python main.py".to_string(), "Run main.py".to_string(), None, None, None)
+                } else {
+                    return None;
+                }
+            }
         }
     } else if has_app_py {
         (
@@ -345,10 +371,26 @@ fn detect_python(path: &Path) -> Option<RunAnalysis> {
             None,
             None,
         )
+    } else if has_src_app_py {
+        (
+            "python src/app.py".to_string(),
+            "Run src/app.py".to_string(),
+            None,
+            None,
+            None,
+        )
     } else if has_main_py {
         (
             "python main.py".to_string(),
             "Run main.py".to_string(),
+            None,
+            None,
+            None,
+        )
+    } else if has_src_main_py {
+        (
+            "python src/main.py".to_string(),
+            "Run src/main.py".to_string(),
             None,
             None,
             None,
@@ -401,6 +443,24 @@ fn read_python_deps(path: &Path) -> Option<String> {
     
     // Fall back to requirements.txt
     fs::read_to_string(path.join("requirements.txt")).ok()
+}
+
+/// Detect Python framework from content (deps file or Python source).
+fn detect_python_framework(content: &str) -> Option<String> {
+    // Check for common frameworks (case-insensitive for imports)
+    let lower = content.to_lowercase();
+    
+    if lower.contains("fastapi") {
+        Some("FastAPI".to_string())
+    } else if lower.contains("flask") {
+        Some("Flask".to_string())
+    } else if lower.contains("streamlit") {
+        Some("Streamlit".to_string())
+    } else if lower.contains("django") {
+        Some("Django".to_string())
+    } else {
+        None
+    }
 }
 
 /// Detect Makefile-based projects.

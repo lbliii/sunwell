@@ -4,7 +4,7 @@
 
 import { AgentStatus, TaskStatus, PlanningPhase } from '$lib/constants';
 import type { AgentState, AgentEvent, Task, Concept, ConceptCategory, PlanCandidate } from '$lib/types';
-import { updateNode, completeNode } from './dag.svelte';
+import { updateNode, completeNode, reloadDag } from './dag.svelte';
 import { setActiveLens } from './lens.svelte';
 import {
   handleSkillGraphResolved,
@@ -127,18 +127,20 @@ export const agent = {
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * Run a goal with optional lens selection (RFC-064).
+ * Run a goal with optional lens and provider selection (RFC-064, RFC-Cloud-Model-Parity).
  * 
  * @param goal - The goal to execute
  * @param projectPath - Optional project path
  * @param lens - Optional explicit lens name (e.g., "coder", "tech-writer")
  * @param autoLens - Whether to auto-detect lens based on goal (default: true)
+ * @param provider - Optional model provider (e.g., "openai", "anthropic", "ollama")
  */
 export async function runGoal(
   goal: string,
   projectPath?: string,
   lens?: string | null,
   autoLens?: boolean,
+  provider?: string | null,
 ): Promise<string | null> {
   // Prevent concurrent runs
   if (RUNNING_STATUSES.includes(_state.status)) {
@@ -156,7 +158,7 @@ export async function runGoal(
     _state = { ...initialState, status: AgentStatus.STARTING, goal, startTime: Date.now() };
     await setupEventListeners();
     
-    // RFC-064: Pass lens selection to backend
+    // RFC-064, RFC-Cloud-Model-Parity: Pass lens and provider selection to backend
     const result = await invoke<{ success: boolean; message: string; workspace_path: string }>(
       'run_goal',
       {
@@ -164,6 +166,7 @@ export async function runGoal(
         projectPath,
         lens: lens ?? null,
         autoLens: autoLens ?? true,
+        provider: provider ?? null,
       },
     );
     
@@ -721,6 +724,65 @@ export function handleAgentEvent(event: AgentEvent): void {
           learnings: [..._state.learnings, learning],
         };
       }
+      break;
+    }
+
+    // RFC-094: Backlog lifecycle events — trigger DAG reload
+    case 'backlog_goal_added': {
+      const goalId = (data.goal_id as string) ?? '';
+      const title = (data.title as string) ?? '';
+      _state = {
+        ..._state,
+        learnings: [..._state.learnings, `📋 Goal added: ${title || goalId}`],
+      };
+      reloadDag();
+      break;
+    }
+
+    case 'backlog_goal_started': {
+      const goalId = (data.goal_id as string) ?? '';
+      const title = (data.title as string) ?? '';
+      _state = {
+        ..._state,
+        learnings: [..._state.learnings, `🚀 Goal started: ${title || goalId}`],
+      };
+      reloadDag();
+      break;
+    }
+
+    case 'backlog_goal_completed': {
+      const goalId = (data.goal_id as string) ?? '';
+      const artifacts = (data.artifacts as string[]) ?? [];
+      const failed = (data.failed as string[]) ?? [];
+      const partial = (data.partial as boolean) ?? false;
+      const status = partial 
+        ? `⚠️ Goal completed (partial): ${artifacts.length} created, ${failed.length} failed`
+        : `✅ Goal completed: ${artifacts.length} artifacts created`;
+      _state = {
+        ..._state,
+        learnings: [..._state.learnings, status],
+      };
+      reloadDag();
+      break;
+    }
+
+    case 'backlog_goal_failed': {
+      const goalId = (data.goal_id as string) ?? '';
+      const error = (data.error as string) ?? 'Unknown error';
+      _state = {
+        ..._state,
+        learnings: [..._state.learnings, `❌ Goal failed: ${error}`],
+      };
+      reloadDag();
+      break;
+    }
+
+    case 'backlog_refreshed': {
+      _state = {
+        ..._state,
+        learnings: [..._state.learnings, '🔄 Backlog refreshed'],
+      };
+      reloadDag();
       break;
     }
   }

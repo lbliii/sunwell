@@ -25,11 +25,14 @@ def project() -> None:
 @click.argument("path", type=click.Path(exists=True), default=".")
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
 @click.option("--fresh", is_flag=True, help="Force fresh analysis (skip cache)")
+@click.option("--provider", "-p", type=click.Choice(["openai", "anthropic", "ollama"]),
+              default=None, help="Model provider (default: from config)")
 @click.option("--model", "-m", default=None, help="Model to use for LLM classification")
 def analyze_cmd(
     path: str,
     output_json: bool,
     fresh: bool,
+    provider: str | None,
     model: str | None,
 ) -> None:
     """Analyze a project to understand its intent and state.
@@ -42,37 +45,22 @@ def analyze_cmd(
         sunwell project analyze ~/projects/myapp --json
         sunwell project analyze . --fresh
     """
-    asyncio.run(_analyze(Path(path), output_json, fresh, model))
+    asyncio.run(_analyze(Path(path), output_json, fresh, provider, model))
 
 
 async def _analyze(
     path: Path,
     output_json: bool,
     fresh: bool,
+    provider_override: str | None,
     model_name: str | None,
 ) -> None:
     """Run project analysis."""
-    from sunwell.config import get_config, resolve_naaru_model
-    from sunwell.models.ollama import OllamaModel
+    from sunwell.cli.helpers import resolve_model
     from sunwell.project import analyze_project
 
-    # Resolve model: CLI override > config > auto-detect from available models
-    config = get_config()
-    resolved_model = model_name
-
-    if not resolved_model and config and hasattr(config, "naaru"):
-        # Try to auto-detect an available model from the voice_models list
-        resolved_model = resolve_naaru_model(
-            config.naaru.voice,
-            list(config.naaru.voice_models),
-            check_availability=True,
-        )
-
-    # Final fallback to a common small model
-    if not resolved_model:
-        resolved_model = "gemma3:1b"
-
-    model = OllamaModel(resolved_model)
+    # Load model using resolve_model()
+    model = resolve_model(provider_override, model_name)
 
     try:
         analysis = await analyze_project(path.resolve(), model, force_refresh=fresh)

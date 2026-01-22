@@ -322,3 +322,13 @@ export {
   type SkillWave,
   type SkillGraphState,
 } from './skill-graph.svelte';
+
+// Settings state (RFC-Cloud-Model-Parity)
+export {
+  settings,
+  setProvider,
+  setAutoLens,
+  getRunProvider,
+  type ModelProvider,
+  type Settings,
+} from './settings.svelte';

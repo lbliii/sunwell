@@ -282,6 +282,22 @@ class EventType(Enum):
     AUDIT_LOG_ENTRY = "audit_log_entry"
     """Audit log entry recorded."""
 
+    # Backlog lifecycle events (RFC-094)
+    BACKLOG_GOAL_ADDED = "backlog_goal_added"
+    """Goal added to backlog."""
+
+    BACKLOG_GOAL_STARTED = "backlog_goal_started"
+    """Goal execution started (claimed)."""
+
+    BACKLOG_GOAL_COMPLETED = "backlog_goal_completed"
+    """Goal completed successfully."""
+
+    BACKLOG_GOAL_FAILED = "backlog_goal_failed"
+    """Goal execution failed."""
+
+    BACKLOG_REFRESHED = "backlog_refreshed"
+    """Backlog refreshed from signals."""
+
 
 @dataclass(frozen=True, slots=True)
 class AgentEvent:

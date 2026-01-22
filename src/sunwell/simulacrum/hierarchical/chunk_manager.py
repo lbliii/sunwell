@@ -483,7 +483,7 @@ class ChunkManager:
 
     def _generate_chunk_id(self, prefix: str, start: int, end: int) -> str:
         content = f"{prefix}:{start}:{end}:{time.time()}"
-        return f"{prefix}_{hashlib.md5(content.encode()).hexdigest()[:12]}"
+        return f"{prefix}_{hashlib.blake2b(content.encode(), digest_size=6).hexdigest()}"
 
     def _turns_to_text(self, turns: tuple[Turn, ...]) -> str:
         return "\n".join(f"{t.turn_type.value}: {t.content[:500]}" for t in turns)

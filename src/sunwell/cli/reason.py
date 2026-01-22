@@ -46,6 +46,8 @@ def reason() -> None:
 @reason.command(name="decide")
 @click.argument("decision_type")
 @click.option("--context", "-c", required=True, help="JSON context for the decision")
+@click.option("--provider", "-p", type=click.Choice(["openai", "anthropic", "ollama"]),
+              default=None, help="Model provider (default: from config)")
 @click.option("--model", "-m", default=None, help="Override model selection")
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
 @click.option("--force", is_flag=True, help="Force LLM reasoning (skip cache)")
@@ -53,6 +55,7 @@ def reason() -> None:
 def decide(
     decision_type: str,
     context: str,
+    provider: str | None,
     model: str | None,
     output_json: bool,
     force: bool,
@@ -79,18 +82,20 @@ def decide(
         console.print(f"[red]Invalid JSON context: {e}[/red]")
         raise SystemExit(1) from None
 
-    asyncio.run(_decide(decision_type, context_dict, model, output_json, force, fast))
+    asyncio.run(_decide(decision_type, context_dict, provider, model, output_json, force, fast))
 
 
 async def _decide(
     decision_type: str,
     context: dict,
+    provider_override: str | None,
     model_name: str | None,
     output_json: bool,
     force: bool,
     fast: bool = False,
 ) -> None:
     """Execute the decision."""
+    from sunwell.cli.helpers import resolve_model
     from sunwell.config import get_config
     from sunwell.reasoning import DecisionType, Reasoner
 
@@ -103,25 +108,19 @@ async def _decide(
         console.print(f"[dim]Valid types: {', '.join(valid_types)}[/dim]")
         raise SystemExit(1) from None
 
-    # Load model
+    # Load model using resolve_model()
     try:
-        from sunwell.models.ollama import OllamaModel
-
         config = get_config()
-        model = model_name
+        # Fast mode defaults to smaller, faster model for ollama
+        if fast and not model_name and not provider_override:
+            model_name = "llama3.2:3b"
 
-        # Fast mode defaults to smaller, faster model
-        if fast and not model:
-            model = "llama3.2:3b"
-        elif not model and config and hasattr(config, "naaru"):
-            model = getattr(config.naaru, "wisdom", "qwen3:8b")
-        elif not model:
-            model = "qwen3:8b"
-
-        llm = OllamaModel(model=model)
+        llm = resolve_model(provider_override, model_name)
         mode_str = "[fast]" if fast else ""
         if not output_json:
-            console.print(f"[dim]Using model: {model} {mode_str}[/dim]")
+            provider = provider_override or (config.model.default_provider if config else "ollama")
+            model = model_name or (config.model.default_model if config else "qwen3:8b")
+            console.print(f"[dim]Using model: {provider}:{model} {mode_str}[/dim]")
 
     except Exception as e:
         console.print(f"[red]Failed to load model: {e}[/red]")

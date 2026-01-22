@@ -13,12 +13,12 @@ ALL pre-processing decisions in one inference call:
 
 Benefits:
 - One model config, one loaded model, one inference per request
-- Thread-safe LRU cache for repeated queries
+- Thread-safe O(1) LRU cache for repeated queries (RFC-094)
 - Graceful fallback to heuristics if model fails
 - Backward-compatible adapter for CognitiveRouter consumers
 - RFC-070: Automatic skill discovery via trigger matching
 
-See: RFC-030-unified-router.md, RFC-070-dori-lens-migration.md
+See: RFC-030-unified-router.md, RFC-070-dori-lens-migration.md, RFC-094
 """
 
 
@@ -27,6 +27,7 @@ import dataclasses
 import json
 import re
 import threading
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
@@ -226,6 +227,7 @@ class UnifiedRouter:
     """One tiny model for ALL routing decisions.
 
     Thread-safe caching with double-checked locking pattern (Python 3.14t safe).
+    Uses OrderedDict for O(1) LRU operations (RFC-094).
 
     RFC-070: Now includes skill suggestion via trigger matching.
 
@@ -256,9 +258,8 @@ class UnifiedRouter:
     temperature: float = 0.1
     available_lenses: list[str] = field(default_factory=list)
 
-    # Private state with thread safety
-    _cache: dict[int, RoutingDecision] = field(default_factory=dict, repr=False)
-    _cache_order: list[int] = field(default_factory=list, repr=False)  # For LRU
+    # Private state with thread safety — OrderedDict for O(1) LRU (RFC-094)
+    _cache: OrderedDict[int, RoutingDecision] = field(default_factory=OrderedDict, repr=False)
     _sync_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
     _async_lock: asyncio.Lock | None = field(default=None, repr=False)
     _history: list[tuple[str, RoutingDecision]] = field(default_factory=list, repr=False)
@@ -323,14 +324,11 @@ class UnifiedRouter:
 
             # Use sync lock for cache mutation (quick, no await)
             with self._sync_lock:
-                # LRU eviction if cache full
-                if len(self._cache) >= self.cache_size:
-                    # Remove oldest entry
-                    oldest_key = self._cache_order.pop(0)
-                    del self._cache[oldest_key]
+                # LRU eviction if cache full — O(1) with OrderedDict (RFC-094)
+                while len(self._cache) >= self.cache_size:
+                    self._cache.popitem(last=False)
 
                 self._cache[cache_key] = decision
-                self._cache_order.append(cache_key)
 
                 # Record for history
                 self._history.append((request, decision))
@@ -604,7 +602,6 @@ class UnifiedRouter:
         """Clear the routing cache."""
         with self._sync_lock:
             self._cache.clear()
-            self._cache_order.clear()
 
     def get_stats(self) -> dict[str, Any]:
         """Get router statistics."""

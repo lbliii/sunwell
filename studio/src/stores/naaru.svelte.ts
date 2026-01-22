@@ -57,6 +57,10 @@ export interface ProcessInput {
 	stream?: boolean;
 	timeout?: number;
 	context?: Record<string, unknown>;
+	/** Model provider (RFC-Cloud-Model-Parity) */
+	provider?: string;
+	/** Model name override */
+	model?: string;
 }
 
 export interface CompositionSpec {

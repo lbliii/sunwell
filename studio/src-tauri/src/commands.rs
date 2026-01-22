@@ -140,6 +140,7 @@ pub async fn create_project(
 /// Run a goal using the Sunwell agent.
 ///
 /// RFC-064: Accepts optional lens selection parameters.
+/// RFC-Cloud-Model-Parity: Accepts optional provider selection.
 #[tauri::command]
 pub async fn run_goal(
     app: tauri::AppHandle,
@@ -148,6 +149,7 @@ pub async fn run_goal(
     project_path: Option<String>,
     lens: Option<String>,
     auto_lens: Option<bool>,
+    provider: Option<String>,
 ) -> Result<RunGoalResult, String> {
     // Resolve workspace
     let explicit = project_path.map(PathBuf::from);
@@ -172,7 +174,7 @@ pub async fn run_goal(
     let _ = prompts_store.save(); // Best effort save
     drop(prompts_store);
 
-    // Start agent with lens selection (RFC-064)
+    // Start agent with lens and provider selection (RFC-064, RFC-Cloud-Model-Parity)
     let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
     agent.run_goal(
         app,
@@ -180,6 +182,7 @@ pub async fn run_goal(
         &workspace_path,
         lens.as_deref(),
         auto_lens.unwrap_or(true),
+        provider.as_deref(),
     )?;
 
     // Update recent projects
@@ -581,11 +584,14 @@ fn get_dir_mtime(path: &PathBuf) -> Option<String> {
 }
 
 /// Resume an interrupted project.
+///
+/// RFC-Cloud-Model-Parity: Accepts optional provider selection.
 #[tauri::command]
 pub async fn resume_project(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     path: String,
+    provider: Option<String>,
 ) -> Result<RunGoalResult, String> {
     let project_path = PathBuf::from(&path);
 
@@ -599,9 +605,9 @@ pub async fn resume_project(
         return Err("No interrupted execution to resume".to_string());
     }
 
-    // Start agent in resume mode
+    // Start agent in resume mode with optional provider (RFC-Cloud-Model-Parity)
     let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
-    agent.resume_goal(app, &project_path)?;
+    agent.resume_goal(app, &project_path, provider.as_deref())?;
 
     Ok(RunGoalResult {
         success: true,
@@ -1092,9 +1098,9 @@ pub async fn iterate_project(
         format!("Continue developing {} with improvements", name)
     };
 
-    // Start agent with the new goal (auto-lens for iterations)
+    // Start agent with the new goal (auto-lens for iterations, no provider override)
     let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
-    agent.run_goal(app, &iteration_goal, &new_path, None, true)?;
+    agent.run_goal(app, &iteration_goal, &new_path, None, true, None)?;
 
     Ok(ProjectManageResult {
         success: true,

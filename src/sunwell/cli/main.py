@@ -62,6 +62,8 @@ class GoalFirstGroup(click.Group):
 @click.option("--plan", is_flag=True, help="Show plan without executing")
 @click.option("--open", "open_studio", is_flag=True, help="Open plan in Studio (with --plan)")
 @click.option("--json", "json_output", is_flag=True, help="Output plan as JSON (with --plan)")
+@click.option("--provider", "-p", type=click.Choice(["openai", "anthropic", "ollama"]),
+              default=None, help="Model provider (default: from config)")
 @click.option("--model", "-m", help="Override model selection")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed output")
 @click.option("--time", "-t", default=300, help="Max execution time (seconds)")
@@ -77,6 +79,7 @@ def main(
     plan: bool,
     open_studio: bool,
     json_output: bool,
+    provider: str | None,
     model: str | None,
     verbose: bool,
     time: int,
@@ -142,6 +145,7 @@ def main(
             dry_run=plan,
             open_studio=open_studio,
             json_output=json_output,
+            provider=provider,
             model=model,
             verbose=verbose,
             time=time,
@@ -155,6 +159,7 @@ def main(
 @click.option("--dry-run", is_flag=True)
 @click.option("--open-studio", is_flag=True)
 @click.option("--json-output", is_flag=True)
+@click.option("--provider", "-p", default=None)
 @click.option("--model", "-m", default=None)
 @click.option("--verbose", "-v", is_flag=True)
 @click.option("--time", "-t", default=300)
@@ -165,6 +170,7 @@ def _run_goal(
     dry_run: bool,
     open_studio: bool,
     json_output: bool,
+    provider: str | None,
     model: str | None,
     verbose: bool,
     time: int,
@@ -174,7 +180,7 @@ def _run_goal(
     """Internal command for goal execution."""
     workspace_path = Path(workspace) if workspace else None
     asyncio.run(_run_agent(
-        goal, time, trust, dry_run, verbose, model, workspace_path,
+        goal, time, trust, dry_run, verbose, provider, model, workspace_path,
         open_studio=open_studio, json_output=json_output,
     ))
 
@@ -185,6 +191,7 @@ async def _run_agent(
     trust: str,
     dry_run: bool,
     verbose: bool,
+    provider_override: str | None,
     model_override: str | None,
     workspace_path: Path | None = None,
     *,
@@ -205,6 +212,7 @@ async def _run_agent(
     - json_output: Output plan as JSON for scripting
     """
     from sunwell.adaptive import AdaptiveAgent, AdaptiveBudget, EventType, create_renderer
+    from sunwell.cli.helpers import resolve_model
     from sunwell.cli.workspace_prompt import resolve_workspace_interactive
     from sunwell.config import get_config
     from sunwell.tools.executor import ToolExecutor
@@ -222,21 +230,14 @@ async def _run_agent(
         quiet=not verbose,
     )
 
-    # Create model
+    # Create model using resolve_model() helper
     synthesis_model = None
     try:
-        from sunwell.models.ollama import OllamaModel
-
-        model_name = model_override
-        if not model_name and config and hasattr(config, "naaru"):
-            model_name = getattr(config.naaru, "voice", "gemma3:1b")
-
-        if not model_name:
-            model_name = "gemma3:1b"
-
-        synthesis_model = OllamaModel(model=model_name)
+        synthesis_model = resolve_model(provider_override, model_override)
         if verbose:
-            console.print(f"[dim]Using model: {model_name}[/dim]")
+            provider = provider_override or config.model.default_provider if config else "ollama"
+            model_name = model_override or config.model.default_model if config else "gemma3:4b"
+            console.print(f"[dim]Using model: {provider}:{model_name}[/dim]")
 
     except Exception as e:
         console.print(f"[yellow]Warning: Could not load model: {e}[/yellow]")

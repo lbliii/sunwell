@@ -151,6 +151,8 @@ def preview(ctx: click.Context, artifact_id: str, max_depth: int, as_json: bool)
 @click.option(
     "--confidence-threshold", default=0.7, help="Min confidence to auto-proceed"
 )
+@click.option("--provider", "-p", type=click.Choice(["openai", "anthropic", "ollama"]),
+              default=None, help="Model provider (default: from config)")
 @click.option("--model", "-m", default=None, help="Override model (e.g., gemma3:4b)")
 @click.pass_context
 def fix(
@@ -162,6 +164,7 @@ def fix(
     wave_by_wave: bool,
     show_deltas: bool,
     confidence_threshold: float,
+    provider: str | None,
     model: str | None,
 ) -> None:
     """Fix a weak artifact and all dependents.
@@ -211,19 +214,11 @@ def fix(
             result["tasks"] = engine.compute_regeneration_tasks(preview_result)
             return result
 
-        # Create model and planner
-        from sunwell.config import get_config
-        from sunwell.models.ollama import OllamaModel
+        # Create model and planner using resolve_model()
+        from sunwell.cli.helpers import resolve_model
 
-        config = get_config()
-        model_name = model  # Use CLI override if provided
-        if not model_name and config and hasattr(config, "naaru"):
-            model_name = getattr(config.naaru, "voice", "gemma3:4b")
-        if not model_name:
-            model_name = "gemma3:4b"
-
-        model = OllamaModel(model=model_name)
-        planner = ArtifactPlanner(model=model)
+        resolved_model = resolve_model(provider, model)
+        planner = ArtifactPlanner(model=resolved_model)
         tool_executor = ToolExecutor(workspace=project_root)
 
         def emit_json(event: Any) -> None:

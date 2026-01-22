@@ -17,6 +17,7 @@ export { default as Progress } from './Progress.svelte';
 export { default as RecentProjects } from './RecentProjects.svelte';
 export { default as RisingMotes } from './RisingMotes.svelte';
 export { default as MouseMotes } from './MouseMotes.svelte';
+export { default as ProviderSelector } from './ProviderSelector.svelte';
 export { default as RunButton } from './RunButton.svelte';
 export { default as RunAnalysisView } from './RunAnalysisView.svelte';
 

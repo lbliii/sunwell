@@ -97,6 +97,47 @@ def create_model(provider: str, model_name: str):
         sys.exit(1)
 
 
+def resolve_model(
+    provider_override: str | None = None,
+    model_override: str | None = None,
+):
+    """Resolve model from CLI overrides or config defaults.
+
+    Priority:
+    1. CLI overrides (--provider, --model)
+    2. Config defaults (model.default_provider, model.default_model)
+    3. Hardcoded fallbacks (ollama, gemma3:4b)
+
+    Returns:
+        Model instance ready for use.
+    """
+    from sunwell.config import get_config
+
+    cfg = get_config()
+
+    # Resolve provider
+    provider = provider_override
+    if not provider and cfg and hasattr(cfg, "model"):
+        provider = cfg.model.default_provider
+    if not provider:
+        provider = "ollama"
+
+    # Resolve model name
+    model_name = model_override
+    if not model_name and cfg and hasattr(cfg, "model"):
+        model_name = cfg.model.default_model
+    if not model_name:
+        # Provider-specific defaults
+        model_name = {
+            "openai": "gpt-4o",
+            "anthropic": "claude-sonnet-4-20250514",
+            "ollama": "gemma3:4b",
+            "mock": "mock",
+        }.get(provider, "gemma3:4b")
+
+    return create_model(provider, model_name)
+
+
 def display_execution_stats(result) -> None:
     """Display execution statistics."""
     table = Table(title="Execution Stats")

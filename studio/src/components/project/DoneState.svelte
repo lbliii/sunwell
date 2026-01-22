@@ -13,6 +13,7 @@
   import { goToPreview } from '../../stores/app.svelte';
   import { agent, resetAgent, runGoal } from '../../stores/agent.svelte';
   import { formatDuration } from '$lib/format';
+  import { getRunProvider } from '../../stores/settings.svelte';
   
   interface Props {
     projectFiles?: FileEntry[];
@@ -46,7 +47,8 @@
     const goal = agent.goal;
     if (!goal || !project.current?.path) return;
     resetAgent();
-    await runGoal(goal, project.current.path);
+    const provider = getRunProvider();
+    await runGoal(goal, project.current.path, null, true, provider);
   }
   
   function handleFileSelectInternal(detail: { path: string; name: string; isDir: boolean }) {

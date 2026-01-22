@@ -1,4 +1,7 @@
-"""Tests for the skills module (RFC-011)."""
+"""Tests for the skills module (RFC-011, RFC-094)."""
+
+import time
+from collections import OrderedDict
 
 import pytest
 from pathlib import Path
@@ -14,6 +17,7 @@ from sunwell.skills.types import (
     SkillRetryPolicy,
     validate_skill_name,
 )
+from sunwell.skills.cache import SkillCache, SkillCacheKey, SkillCacheEntry
 from sunwell.skills.sandbox import ScriptSandbox, expand_template_variables
 from sunwell.schema.loader import LensLoader
 
@@ -722,3 +726,264 @@ class TestExportImportRoundtrip:
         assert "Export" in imported.get("instructions", "")
         assert len(imported.get("scripts", [])) == 1
         assert imported["scripts"][0]["name"] == "test.py"
+
+
+# =============================================================================
+# RFC-094: SkillCache O(1) LRU Tests
+# =============================================================================
+
+
+class TestSkillCacheKey:
+    """Tests for SkillCacheKey hash computation."""
+
+    def test_cache_key_hash_length(self):
+        """Cache key hashes should be 20 chars (80 bits, RFC-094)."""
+        skill = Skill(
+            name="test-skill",
+            description="Test",
+            skill_type=SkillType.INLINE,
+            instructions="Do something",
+        )
+        key = SkillCacheKey.compute(skill, {})
+        
+        assert len(key.skill_hash) == 20
+        assert len(key.input_hash) == 20
+
+    def test_cache_key_deterministic(self):
+        """Same inputs should produce same cache key."""
+        skill = Skill(
+            name="test-skill",
+            description="Test",
+            skill_type=SkillType.INLINE,
+            instructions="Do something",
+            requires=frozenset({"input1", "input2"}),
+        )
+        context = {"input1": "value1", "input2": "value2"}
+        
+        key1 = SkillCacheKey.compute(skill, context)
+        key2 = SkillCacheKey.compute(skill, context)
+        
+        assert key1.skill_hash == key2.skill_hash
+        assert key1.input_hash == key2.input_hash
+        assert str(key1) == str(key2)
+
+    def test_cache_key_differs_on_skill_change(self):
+        """Different skill content should produce different keys."""
+        skill1 = Skill(
+            name="test-skill",
+            description="Test",
+            skill_type=SkillType.INLINE,
+            instructions="Do something",
+        )
+        skill2 = Skill(
+            name="test-skill",
+            description="Test",
+            skill_type=SkillType.INLINE,
+            instructions="Do something else",  # Different
+        )
+        
+        key1 = SkillCacheKey.compute(skill1, {})
+        key2 = SkillCacheKey.compute(skill2, {})
+        
+        assert key1.skill_hash != key2.skill_hash
+
+    def test_cache_key_differs_on_input_change(self):
+        """Different input context should produce different keys."""
+        skill = Skill(
+            name="test-skill",
+            description="Test",
+            skill_type=SkillType.INLINE,
+            instructions="Do something",
+            requires=frozenset({"input"}),
+        )
+        
+        key1 = SkillCacheKey.compute(skill, {"input": "value1"})
+        key2 = SkillCacheKey.compute(skill, {"input": "value2"})
+        
+        assert key1.input_hash != key2.input_hash
+
+
+class TestSkillCacheLRU:
+    """Tests for SkillCache LRU behavior (RFC-094)."""
+
+    def _make_skill(self, name: str) -> Skill:
+        """Helper to create a test skill."""
+        return Skill(
+            name=name,
+            description=f"Test skill {name}",
+            skill_type=SkillType.INLINE,
+            instructions=f"Do {name}",
+        )
+
+    def _make_output(self, content: str):
+        """Helper to create a mock SkillOutput."""
+        from sunwell.skills.types import SkillOutput
+        return SkillOutput(content=content)
+
+    def test_cache_uses_ordered_dict(self):
+        """Cache should use OrderedDict for O(1) LRU operations."""
+        cache = SkillCache(max_size=10)
+        assert isinstance(cache._cache, OrderedDict)
+
+    def test_lru_eviction_order(self):
+        """LRU eviction should evict oldest unused entry."""
+        cache = SkillCache(max_size=3)
+        
+        skill_a = self._make_skill("a")
+        skill_b = self._make_skill("b")
+        skill_c = self._make_skill("c")
+        skill_d = self._make_skill("d")
+        
+        key_a = SkillCacheKey.compute(skill_a, {})
+        key_b = SkillCacheKey.compute(skill_b, {})
+        key_c = SkillCacheKey.compute(skill_c, {})
+        key_d = SkillCacheKey.compute(skill_d, {})
+        
+        # Fill cache: A, B, C
+        cache.set(key_a, self._make_output("a"), "a", 100)
+        cache.set(key_b, self._make_output("b"), "b", 100)
+        cache.set(key_c, self._make_output("c"), "c", 100)
+        
+        # Access A to make it "recent"
+        cache.get(key_a)
+        
+        # Add D — should evict B (oldest unused)
+        cache.set(key_d, self._make_output("d"), "d", 100)
+        
+        assert cache.has(key_a)  # Recently accessed
+        assert not cache.has(key_b)  # Evicted (oldest unused)
+        assert cache.has(key_c)
+        assert cache.has(key_d)
+
+    def test_cache_hit_moves_to_end(self):
+        """Cache hit should move entry to end (most recent)."""
+        cache = SkillCache(max_size=3)
+        
+        skill_a = self._make_skill("a")
+        skill_b = self._make_skill("b")
+        skill_c = self._make_skill("c")
+        
+        key_a = SkillCacheKey.compute(skill_a, {})
+        key_b = SkillCacheKey.compute(skill_b, {})
+        key_c = SkillCacheKey.compute(skill_c, {})
+        
+        cache.set(key_a, self._make_output("a"), "a", 100)
+        cache.set(key_b, self._make_output("b"), "b", 100)
+        cache.set(key_c, self._make_output("c"), "c", 100)
+        
+        # A is oldest, access it
+        cache.get(key_a)
+        
+        # Now B is oldest — verify by checking order
+        keys = list(cache._cache.keys())
+        assert keys[0] == str(key_b)  # B is now first (oldest)
+        assert keys[-1] == str(key_a)  # A is now last (most recent)
+
+    def test_cache_hit_rate_tracking(self):
+        """Cache should track hits and misses."""
+        cache = SkillCache(max_size=10)
+        skill = self._make_skill("test")
+        key = SkillCacheKey.compute(skill, {})
+        
+        # Miss
+        cache.get(key)
+        assert cache._misses == 1
+        assert cache._hits == 0
+        
+        # Set
+        cache.set(key, self._make_output("test"), "test", 100)
+        
+        # Hit
+        cache.get(key)
+        assert cache._hits == 1
+        assert cache._misses == 1
+        
+        # Hit rate
+        assert cache.hit_rate == 0.5
+
+    def test_cache_performance_at_scale(self):
+        """Cache operations should be O(1) even at scale."""
+        cache = SkillCache(max_size=10000)
+        
+        # Fill cache
+        skills = []
+        keys = []
+        for i in range(10000):
+            skill = self._make_skill(f"skill-{i}")
+            key = SkillCacheKey.compute(skill, {"i": i})
+            skills.append(skill)
+            keys.append(key)
+            cache.set(key, self._make_output(f"output-{i}"), f"skill-{i}", 100)
+        
+        # Measure access time — should be constant
+        start = time.perf_counter()
+        for i in range(1000):
+            cache.get(keys[i % 10000])
+        elapsed = time.perf_counter() - start
+        
+        # Should complete in <50ms (O(1) * 1000 operations)
+        # Being generous here to avoid flaky tests
+        assert elapsed < 0.05, f"Cache access too slow: {elapsed:.3f}s for 1000 ops"
+
+    def test_cache_invalidate_skill(self):
+        """Invalidate all entries for a skill."""
+        cache = SkillCache(max_size=10)
+        
+        # Use skill with requires to get different input hashes
+        skill = Skill(
+            name="target",
+            description="Test skill",
+            skill_type=SkillType.INLINE,
+            instructions="Do target",
+            requires=frozenset({"a"}),  # Requires 'a' so context affects hash
+        )
+        key1 = SkillCacheKey.compute(skill, {"a": 1})
+        key2 = SkillCacheKey.compute(skill, {"a": 2})
+        
+        other_skill = self._make_skill("other")
+        other_key = SkillCacheKey.compute(other_skill, {})
+        
+        cache.set(key1, self._make_output("1"), "target", 100)
+        cache.set(key2, self._make_output("2"), "target", 100)
+        cache.set(other_key, self._make_output("other"), "other", 100)
+        
+        # Invalidate target skill
+        count = cache.invalidate_skill("target")
+        
+        assert count == 2
+        assert not cache.has(key1)
+        assert not cache.has(key2)
+        assert cache.has(other_key)
+
+    def test_cache_clear(self):
+        """Clear should empty cache and reset stats."""
+        cache = SkillCache(max_size=10)
+        skill = self._make_skill("test")
+        key = SkillCacheKey.compute(skill, {})
+        
+        cache.set(key, self._make_output("test"), "test", 100)
+        cache.get(key)  # Hit
+        
+        cache.clear()
+        
+        assert cache.size == 0
+        assert cache._hits == 0
+        assert cache._misses == 0
+
+    def test_cache_stats(self):
+        """Stats should report accurate information."""
+        cache = SkillCache(max_size=100)
+        skill = self._make_skill("test")
+        key = SkillCacheKey.compute(skill, {})
+        
+        cache.set(key, self._make_output("test"), "test", 100)
+        cache.get(key)  # Hit
+        cache.get(SkillCacheKey.compute(self._make_skill("miss"), {}))  # Miss
+        
+        stats = cache.stats()
+        
+        assert stats["size"] == 1
+        assert stats["max_size"] == 100
+        assert stats["hits"] == 1
+        assert stats["misses"] == 1
+        assert stats["hit_rate"] == 0.5

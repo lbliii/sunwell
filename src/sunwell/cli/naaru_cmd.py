@@ -305,6 +305,12 @@ async def _convergence(slot: str | None, json_output: bool):
     help="Show detailed output",
 )
 @click.option(
+    "--provider", "-p",
+    type=click.Choice(["openai", "anthropic", "ollama"]),
+    default=None,
+    help="Model provider (default: from config)",
+)
+@click.option(
     "--model", "-m",
     default=None,
     help="Override synthesis model",
@@ -321,6 +327,7 @@ def run(
     strategy: str,
     dry_run: bool,
     verbose: bool,
+    provider: str | None,
     model: str | None,
     show_graph: bool,
 ):
@@ -341,7 +348,7 @@ def run(
 
         sunwell naaru run "Build app" --strategy artifact_first --dry-run --show-graph
     """
-    asyncio.run(_run_agent(goal, time, trust, strategy, dry_run, verbose, model, show_graph))
+    asyncio.run(_run_agent(goal, time, trust, strategy, dry_run, verbose, provider, model, show_graph))
 
 
 async def _run_agent(
@@ -351,10 +358,12 @@ async def _run_agent(
     strategy: str,
     dry_run: bool,
     verbose: bool,
+    provider_override: str | None,
     model_override: str | None,
     show_graph: bool,
 ):
     """Execute agent mode."""
+    from sunwell.cli.helpers import resolve_model
     from sunwell.naaru import Naaru
     from sunwell.naaru.planners import AgentPlanner, ArtifactPlanner, PlanningStrategy
     from sunwell.tools.executor import ToolExecutor
@@ -364,20 +373,13 @@ async def _run_agent(
     # Load config
     config = get_config()
 
-    # Create model
+    # Create model using resolve_model()
     synthesis_model = None
     try:
-        from sunwell.models.ollama import OllamaModel
-
-        model_name = model_override
-        if not model_name and config and hasattr(config, "naaru"):
-            model_name = getattr(config.naaru, "voice", "gemma3:1b")
-
-        if not model_name:
-            model_name = "gemma3:1b"
-
-        synthesis_model = OllamaModel(model=model_name)
-        console.print(f"[dim]Using model: {model_name}[/dim]")
+        synthesis_model = resolve_model(provider_override, model_override)
+        provider = provider_override or (config.model.default_provider if config else "ollama")
+        model_name = model_override or (config.model.default_model if config else "gemma3:1b")
+        console.print(f"[dim]Using model: {provider}:{model_name}[/dim]")
     except Exception as e:
         console.print(f"[yellow]Warning: Could not load model: {e}[/yellow]")
 

@@ -1,4 +1,4 @@
-"""Content-addressed hashing for RFC-074 incremental execution.
+"""Content-addressed hashing for RFC-074 incremental execution (RFC-094: 80-bit hashes).
 
 Computes deterministic hashes for artifact inputs, enabling cache hits
 when inputs haven't changed. The hash captures everything that affects
@@ -9,6 +9,10 @@ an artifact's output:
 
 Inspired by Pachyderm's datum hashing pattern:
 https://github.com/pachyderm/pachyderm
+
+Hash length: 20 hex characters (80 bits) for reduced collision probability.
+- 64 bits → 50% collision at ~5 billion entries (2^32)
+- 80 bits → 50% collision at ~1.2 trillion entries (2^40)
 
 Example:
     >>> spec = ArtifactSpec(id="A", description="test", contract="test")
@@ -32,7 +36,7 @@ class ArtifactHash:
 
     Attributes:
         artifact_id: The artifact this hash is for.
-        input_hash: SHA-256 of all inputs that affect this artifact's output.
+        input_hash: SHA-256 truncated to 80 bits (20 hex chars) for reduced collision risk.
         computed_at: Unix timestamp when hash was computed.
     """
 
@@ -56,12 +60,12 @@ def compute_input_hash(
         dependency_hashes: Map of artifact_id → input_hash for all dependencies.
 
     Returns:
-        16-character hex hash.
+        20-character hex hash (80 bits, RFC-094).
 
     Example:
         >>> spec = ArtifactSpec(id="A", description="test", contract="test")
         >>> compute_input_hash(spec, {})
-        'a1b2c3d4e5f6g7h8'
+        'a1b2c3d4e5f6g7h8i9j0'
     """
     hasher = hashlib.sha256()
 
@@ -75,8 +79,8 @@ def compute_input_hash(
         dep_hash = dependency_hashes.get(dep_id, "MISSING")
         hasher.update(f"{dep_id}:{dep_hash}".encode())
 
-    # Truncate to 16 chars for readability
-    return hasher.hexdigest()[:16]
+    # Truncate to 20 chars (80 bits) for reduced collision probability (RFC-094)
+    return hasher.hexdigest()[:20]
 
 
 def compute_spec_hash(spec: ArtifactSpec) -> str:
@@ -88,7 +92,7 @@ def compute_spec_hash(spec: ArtifactSpec) -> str:
         spec: The artifact specification.
 
     Returns:
-        16-character hex hash.
+        20-character hex hash (80 bits, RFC-094).
     """
     hasher = hashlib.sha256()
     hasher.update(spec.id.encode())
@@ -97,7 +101,7 @@ def compute_spec_hash(spec: ArtifactSpec) -> str:
     # Include requirements set (but not their hashes)
     for req in sorted(spec.requires):
         hasher.update(req.encode())
-    return hasher.hexdigest()[:16]
+    return hasher.hexdigest()[:20]
 
 
 def create_artifact_hash(

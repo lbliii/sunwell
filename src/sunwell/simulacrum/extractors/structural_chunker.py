@@ -60,7 +60,7 @@ class StructuralChunker:
                 level = len(heading_match.group(1))
                 title = heading_match.group(2).strip()
 
-                section_id = hashlib.md5(f"{file_path}:{i}:{title}".encode()).hexdigest()[:12]
+                section_id = hashlib.blake2b(f"{file_path}:{i}:{title}".encode(), digest_size=6).hexdigest()
 
                 section = DocumentSection(
                     id=section_id,

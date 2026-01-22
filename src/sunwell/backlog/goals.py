@@ -26,11 +26,17 @@ class GoalResult:
     failure_reason: str = ""
     """Reason if failed."""
 
+    summary: str = ""
+    """Human-readable summary of execution."""
+
     duration_seconds: float = 0.0
     """Time taken to complete."""
 
     files_changed: list[str] = field(default_factory=list)
     """Files that were modified."""
+
+    artifacts_created: list[str] = field(default_factory=list)
+    """Artifact IDs that were created (RFC-094)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -229,7 +235,7 @@ class GoalGenerator:
             if signal.signal_type == "failing_test":
                 goals.append(
                     Goal(
-                        id=f"fix-test-{hashlib.md5(signal_id.encode()).hexdigest()[:8]}",
+                        id=f"fix-test-{hashlib.blake2b(signal_id.encode(), digest_size=4).hexdigest()}",
                         title=f"Fix failing test: {signal.location.symbol or 'unknown'}",
                         description=signal.message,
                         source_signals=(signal_id,),
@@ -245,7 +251,7 @@ class GoalGenerator:
             elif signal.signal_type in ("todo_comment", "fixme_comment"):
                 goals.append(
                     Goal(
-                        id=f"todo-{hashlib.md5(signal_id.encode()).hexdigest()[:8]}",
+                        id=f"todo-{hashlib.blake2b(signal_id.encode(), digest_size=4).hexdigest()}",
                         title=f"Address {signal.signal_type.replace('_', ' ').title()}: {signal.message[:50]}",
                         description=signal.message,
                         source_signals=(signal_id,),
@@ -261,7 +267,7 @@ class GoalGenerator:
             elif signal.signal_type == "type_error":
                 goals.append(
                     Goal(
-                        id=f"type-error-{hashlib.md5(signal_id.encode()).hexdigest()[:8]}",
+                        id=f"type-error-{hashlib.blake2b(signal_id.encode(), digest_size=4).hexdigest()}",
                         title=f"Fix type error in {signal.location.file.name}",
                         description=signal.message,
                         source_signals=(signal_id,),
@@ -278,7 +284,7 @@ class GoalGenerator:
                 if signal.auto_fixable:
                     goals.append(
                         Goal(
-                            id=f"lint-{hashlib.md5(signal_id.encode()).hexdigest()[:8]}",
+                            id=f"lint-{hashlib.blake2b(signal_id.encode(), digest_size=4).hexdigest()}",
                             title=f"Fix lint warning in {signal.location.file.name}",
                             description=signal.message,
                             source_signals=(signal_id,),
@@ -294,7 +300,7 @@ class GoalGenerator:
             elif signal.signal_type == "missing_test":
                 goals.append(
                     Goal(
-                        id=f"coverage-{hashlib.md5(signal_id.encode()).hexdigest()[:8]}",
+                        id=f"coverage-{hashlib.blake2b(signal_id.encode(), digest_size=4).hexdigest()}",
                         title=f"Add test coverage for {signal.location.file.name}",
                         description=signal.message,
                         source_signals=(signal_id,),

@@ -31,6 +31,8 @@ console = Console()
 )
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed output")
 @click.option("--save-tests", is_flag=True, help="Save generated tests to tests/generated/")
+@click.option("--provider", "-p", type=click.Choice(["openai", "anthropic", "ollama"]),
+              default=None, help="Model provider (default: from config)")
 @click.option("--model", "-m", help="Override model selection")
 @click.option("--contract", "-c", help="Explicit contract/specification to verify against")
 @click.option("--quiet", "-q", is_flag=True, help="Only show pass/fail result")
@@ -39,6 +41,7 @@ def verify(
     level: str,
     verbose: bool,
     save_tests: bool,
+    provider: str | None,
     model: str | None,
     contract: str | None,
     quiet: bool,
@@ -52,6 +55,7 @@ def verify(
         sunwell verify src/models/user.py
         sunwell verify src/models/user.py --level thorough
         sunwell verify src/models/user.py --contract "Returns users sorted by date, newest first"
+        sunwell verify src/models/user.py --provider openai  # Use OpenAI
     """
     asyncio.run(
         _verify_file(
@@ -59,6 +63,7 @@ def verify(
             level=level,
             verbose=verbose,
             save_tests=save_tests,
+            provider_override=provider,
             model_override=model,
             contract=contract,
             quiet=quiet,
@@ -71,11 +76,13 @@ async def _verify_file(
     level: str,
     verbose: bool,
     save_tests: bool,
+    provider_override: str | None,
     model_override: str | None,
     contract: str | None,
     quiet: bool,
 ) -> None:
     """Execute deep verification on a file."""
+    from sunwell.cli.helpers import resolve_model
     from sunwell.config import get_config
     from sunwell.naaru.artifacts import ArtifactSpec
     from sunwell.verification import create_verifier
@@ -83,21 +90,14 @@ async def _verify_file(
     # Load config
     config = get_config()
 
-    # Create model
+    # Create model using resolve_model() helper
     synthesis_model = None
     try:
-        from sunwell.models.ollama import OllamaModel
-
-        model_name = model_override
-        if not model_name and config and hasattr(config, "naaru"):
-            model_name = getattr(config.naaru, "voice", "gemma3:1b")
-
-        if not model_name:
-            model_name = "gemma3:1b"
-
-        synthesis_model = OllamaModel(model=model_name)
+        synthesis_model = resolve_model(provider_override, model_override)
         if verbose:
-            console.print(f"[dim]Using model: {model_name}[/dim]")
+            provider = provider_override or (config.model.default_provider if config else "ollama")
+            model_name = model_override or (config.model.default_model if config else "gemma3:4b")
+            console.print(f"[dim]Using model: {provider}:{model_name}[/dim]")
 
     except Exception as e:
         console.print(f"[red]Error: Could not load model: {e}[/red]")

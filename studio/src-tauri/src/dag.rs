@@ -246,7 +246,7 @@ pub async fn execute_dag_node(
     if is_backlog_goal {
         // Use backlog run command for backlog goals
         let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
-        agent.run_backlog_goal(app, &node_id, &project_path)?;
+        agent.run_backlog_goal(app, &node_id, &project_path, None)?;
         
         Ok(crate::commands::RunGoalResult {
             success: true,
@@ -262,8 +262,8 @@ pub async fn execute_dag_node(
             .find(|n| n.id == node_id)
             .ok_or_else(|| format!("Node {} not found", node_id))?;
 
-        // DAG nodes use auto-lens detection (no explicit lens)
-        crate::commands::run_goal(app, state, node.description.clone(), Some(path), None, None).await
+        // DAG nodes use auto-lens detection (no explicit lens), default provider
+        crate::commands::run_goal(app, state, node.description.clone(), Some(path), None, None, None).await
     }
 }
 

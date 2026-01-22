@@ -177,6 +177,9 @@ async def _classify_project(
         scores[ProjectType.CODE] += 3
     if signals.has_src_dir:
         scores[ProjectType.CODE] += 2
+    # Python in src/ with detected framework is a strong signal
+    if signals.has_python_in_src and signals.detected_python_framework:
+        scores[ProjectType.CODE] += 3
 
     # Documentation signals
     if signals.has_docs_dir and signals.markdown_count > 5:
@@ -264,6 +267,19 @@ def _detect_subtype(project_type: ProjectType, signals: ProjectSignals) -> str |
             return "rust-app"
         if signals.has_go_mod:
             return "go-app"
+
+        # Detect from Python source in src/ when no manifest exists
+        if signals.has_python_in_src and signals.detected_python_framework:
+            framework = signals.detected_python_framework.lower()
+            if framework == "flask":
+                return "flask-app"
+            if framework == "fastapi":
+                return "fastapi-api"
+            if framework == "django":
+                return "django-app"
+            if framework == "streamlit":
+                return "streamlit-app"
+            return "python-app"
 
     if project_type == ProjectType.DOCUMENTATION:
         if signals.has_sphinx_conf:
@@ -569,6 +585,56 @@ def _detect_dev_command(signals: ProjectSignals) -> DevCommand | None:
         return DevCommand(
             command="go run .",
             description="Run Go project",
+            expected_url=None,
+        )
+
+    # Detect from Python source in src/ when no manifest exists
+    if signals.has_python_in_src and signals.detected_python_framework:
+        framework = signals.detected_python_framework.lower()
+
+        if framework == "fastapi":
+            return DevCommand(
+                command="python -m uvicorn src.app:app --reload",
+                description="Start FastAPI with uvicorn",
+                prerequisites=(
+                    Prerequisite(
+                        command="pip install fastapi uvicorn",
+                        description="Install FastAPI dependencies",
+                    ),
+                ),
+                expected_url="http://localhost:8000",
+            )
+
+        if framework == "flask":
+            return DevCommand(
+                command="FLASK_APP=src/app.py python -m flask run",
+                description="Start Flask development server",
+                prerequisites=(
+                    Prerequisite(
+                        command="pip install flask",
+                        description="Install Flask",
+                    ),
+                ),
+                expected_url="http://localhost:5000",
+            )
+
+        if framework == "streamlit":
+            return DevCommand(
+                command="streamlit run src/app.py",
+                description="Start Streamlit app",
+                prerequisites=(
+                    Prerequisite(
+                        command="pip install streamlit",
+                        description="Install Streamlit",
+                    ),
+                ),
+                expected_url="http://localhost:8501",
+            )
+
+        # Generic Python app in src/
+        return DevCommand(
+            command="python src/app.py",
+            description="Run Python app",
             expected_url=None,
         )
 
