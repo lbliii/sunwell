@@ -294,8 +294,7 @@
 	}
 </script>
 
-<!-- svelte-ignore a11y_no_noninteractive_tabindex a11y_no_noninteractive_element_interactions -->
-<div
+<section
 	bind:this={containerEl}
 	class="canvas-container"
 	class:panning={isPanning}
@@ -392,7 +391,7 @@
 			{isOverviewMode ? '⊙' : '⊕'}
 		</button>
 	</div>
-</div>
+</section>
 
 <style>
 	.canvas-container {

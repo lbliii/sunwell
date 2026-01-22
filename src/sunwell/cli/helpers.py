@@ -74,11 +74,17 @@ def create_model(provider: str, model_name: str):
 
     elif provider == "anthropic":
         from sunwell.models.anthropic import AnthropicModel
-        return AnthropicModel(model=model_name)
+        return AnthropicModel(
+            model=model_name,
+            api_key=os.environ.get("ANTHROPIC_API_KEY"),
+        )
 
     elif provider == "openai":
         from sunwell.models.openai import OpenAIModel
-        return OpenAIModel(model=model_name)
+        return OpenAIModel(
+            model=model_name,
+            api_key=os.environ.get("OPENAI_API_KEY"),
+        )
 
     elif provider == "ollama":
         from sunwell.config import get_config

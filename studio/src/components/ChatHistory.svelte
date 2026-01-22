@@ -36,8 +36,12 @@
 </script>
 
 {#if isOpen}
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div class="overlay" onclick={onClose} transition:fly={{ opacity: 0 }}></div>
+	<button
+		class="overlay"
+		onclick={onClose}
+		aria-label="Close chat history"
+		transition:fly={{ opacity: 0 }}
+	></button>
 
 	<aside class="chat-history" transition:fly={{ x: -300, duration: 200 }}>
 		<header class="header">
@@ -90,6 +94,8 @@
 		inset: 0;
 		background: rgba(0, 0, 0, 0.5);
 		z-index: 99;
+		border: none;
+		cursor: pointer;
 	}
 
 	.chat-history {

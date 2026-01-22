@@ -27,6 +27,7 @@ from sunwell.project.intent_types import (
     InferredGoal,
     PipelineStep,
     Prerequisite,
+    PreviewType,
     ProjectAnalysis,
     ProjectType,
     SuggestedAction,
@@ -97,7 +98,12 @@ async def analyze_project(
     if project_type == ProjectType.CODE:
         dev_command = _detect_dev_command(signals)
 
-    # 9. Calculate confidence
+    # 9. Detect preview type (RFC: Universal Project Readiness)
+    preview_type, preview_url, preview_file = _detect_preview_type(
+        signals, project_type, subtype, dev_command
+    )
+
+    # 10. Calculate confidence
     confidence = _calculate_confidence(signals, classification_source, classification_confidence)
     confidence_level = (
         "high" if confidence >= 0.85 else "medium" if confidence >= 0.65 else "low"
@@ -115,6 +121,9 @@ async def analyze_project(
         suggested_action=suggested,
         suggested_workspace_primary=workspace_primary,
         dev_command=dev_command,
+        preview_type=preview_type,
+        preview_url=preview_url,
+        preview_file=preview_file,
         confidence=confidence,
         confidence_level=confidence_level,
         detection_signals=signals.summary,
@@ -498,6 +507,110 @@ def _select_workspace_primary(
         return "ProseEditor"
 
     return WORKSPACE_PRIMARIES.get(project_type, "CodeEditor")
+
+
+# =============================================================================
+# Preview Type Detection (RFC: Universal Project Readiness)
+# =============================================================================
+
+
+def _detect_preview_type(
+    signals: ProjectSignals,
+    project_type: ProjectType,
+    subtype: str | None,
+    dev_command: DevCommand | None,
+) -> tuple[PreviewType, str | None, str | None]:
+    """Detect preview type from existing analysis.
+
+    This runs AFTER _classify_project() and _detect_dev_command(),
+    so we can leverage their results.
+
+    Returns:
+        (preview_type, preview_url, preview_file)
+    """
+    # === CODE PROJECTS: Use dev_command info ===
+    if project_type == ProjectType.CODE:
+        if dev_command:
+            if dev_command.expected_url:
+                # Web app with dev server
+                return PreviewType.WEB_VIEW, dev_command.expected_url, None
+            # CLI tool
+            return PreviewType.TERMINAL, None, None
+        return PreviewType.NONE, None, None  # Library, no preview
+
+    # === CREATIVE PROJECTS: Content-based preview ===
+    if project_type == ProjectType.CREATIVE:
+        # Screenplay (Fountain format)
+        if signals.has_fountain:
+            fountain_file = _find_primary_file(signals.path, "**/*.fountain")
+            return PreviewType.SCREENPLAY, None, fountain_file
+
+        # Prose (novel, manuscript)
+        if signals.has_prose:
+            prose_file = _find_primary_prose(signals.path)
+            return PreviewType.PROSE, None, prose_file
+
+        # Dialogue (Yarn Spinner format)
+        yarn_file = _find_primary_file(signals.path, "**/*.yarn")
+        if yarn_file:
+            return PreviewType.DIALOGUE, None, yarn_file
+
+        # Dialogue (ink format)
+        ink_file = _find_primary_file(signals.path, "**/*.ink")
+        if ink_file:
+            return PreviewType.DIALOGUE, None, ink_file
+
+    # === DATA PROJECTS: Notebooks ===
+    if project_type == ProjectType.DATA and signals.has_notebooks:
+        return PreviewType.NOTEBOOK, "http://localhost:8888", None
+
+    # === DOCUMENTATION PROJECTS ===
+    if project_type == ProjectType.DOCUMENTATION:
+        # Sphinx docs can be previewed
+        if signals.has_sphinx_conf:
+            return PreviewType.WEB_VIEW, "http://localhost:8000", None
+        # MkDocs
+        if signals.has_mkdocs:
+            return PreviewType.WEB_VIEW, "http://localhost:8000", None
+
+    # === DEFAULT: No preview ===
+    return PreviewType.NONE, None, None
+
+
+def _find_primary_file(path: Path, pattern: str) -> str | None:
+    """Find the primary file matching a pattern.
+
+    Prefers files in root directory, then alphabetically by name.
+    """
+    files = list(path.glob(pattern))
+    if not files:
+        return None
+    # Prefer files in root, then alphabetically
+    files.sort(key=lambda f: (len(f.parts), f.name))
+    return str(files[0].relative_to(path))
+
+
+def _find_primary_prose(path: Path) -> str | None:
+    """Find the primary prose file (first chapter or main manuscript).
+
+    Looks in common prose project directories.
+    """
+    for dir_name in ["chapters", "manuscript", "content"]:
+        chapter_dir = path / dir_name
+        if chapter_dir.is_dir():
+            chapters = sorted(chapter_dir.glob("*.md"))
+            if chapters:
+                return str(chapters[0].relative_to(path))
+
+    # Fallback: look for any markdown file in root
+    root_md = sorted(path.glob("*.md"))
+    # Exclude common non-prose files
+    exclude = {"README.md", "CHANGELOG.md", "CONTRIBUTING.md", "LICENSE.md"}
+    for md_file in root_md:
+        if md_file.name not in exclude:
+            return str(md_file.relative_to(path))
+
+    return None
 
 
 # =============================================================================

@@ -218,7 +218,7 @@ def _resolve_binding(
             return None, "", "", None, None, None
 
     # Set defaults
-    provider = provider or "openai"
+    provider = provider or "ollama"
     if model is None:
         model = {
             "openai": "gpt-4o",

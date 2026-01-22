@@ -115,7 +115,7 @@ def validate_cmd(lens_path: str) -> None:
 @click.argument("skill_name")
 @click.argument("task")
 @click.option("--model", "-m", default=None, help="Model to use")
-@click.option("--provider", "-p", default="openai", help="Provider")
+@click.option("--provider", "-p", default=None, help="Provider (default: from config)")
 @click.option("--output", "-o", type=click.Path(), help="Write output to file")
 @click.option("--no-validate", is_flag=True, help="Skip lens validation")
 @click.option("--dry-run", is_flag=True, help="Don't write files, output to stdout")
@@ -145,13 +145,25 @@ def exec(
 
         sunwell exec lens.lens my-skill "task" --dry-run
     """
+    from sunwell.config import get_config
+
+    cfg = get_config()
+
+    # Resolve provider from config if not specified
+    if provider is None:
+        provider = cfg.model.default_provider if cfg else "ollama"
+
+    # Resolve model from config if not specified
     if model is None:
-        model = {
-            "openai": "gpt-4o",
-            "anthropic": "claude-sonnet-4-20250514",
-            "ollama": "gemma3:4b",
-            "mock": "mock",
-        }.get(provider, "gpt-4o")
+        if cfg:
+            model = cfg.model.default_model
+        else:
+            model = {
+                "openai": "gpt-4o",
+                "anthropic": "claude-sonnet-4-20250514",
+                "ollama": "gemma3:4b",
+                "mock": "mock",
+            }.get(provider, "gemma3:4b")
 
     asyncio.run(_exec_skill_async(
         lens_path, skill_name, task, model, provider, output,
@@ -320,7 +332,7 @@ def cache_clear(skill_name: str | None) -> None:
 @click.argument("skill_name")
 @click.argument("task")
 @click.option("--model", "-m", default=None, help="Model to use")
-@click.option("--provider", "-p", default="openai", help="Provider")
+@click.option("--provider", "-p", default=None, help="Provider (default: from config)")
 @click.option("--output", "-o", type=click.Path(), help="Write output to file")
 @click.option("--no-validate", is_flag=True, help="Skip lens validation")
 @click.option("--dry-run", is_flag=True, help="Don't write files, output to stdout")
@@ -330,7 +342,7 @@ def exec_legacy(
     skill_name: str,
     task: str,
     model: str | None,
-    provider: str,
+    provider: str | None,
     output: str | None,
     no_validate: bool,
     dry_run: bool,
@@ -340,13 +352,25 @@ def exec_legacy(
 
     Skills are action capabilities defined in lenses (RFC-011).
     """
+    from sunwell.config import get_config
+
+    cfg = get_config()
+
+    # Resolve provider from config if not specified
+    if provider is None:
+        provider = cfg.model.default_provider if cfg else "ollama"
+
+    # Resolve model from config if not specified
     if model is None:
-        model = {
-            "openai": "gpt-4o",
-            "anthropic": "claude-sonnet-4-20250514",
-            "ollama": "gemma3:4b",
-            "mock": "mock",
-        }.get(provider, "gpt-4o")
+        if cfg:
+            model = cfg.model.default_model
+        else:
+            model = {
+                "openai": "gpt-4o",
+                "anthropic": "claude-sonnet-4-20250514",
+                "ollama": "gemma3:4b",
+                "mock": "mock",
+            }.get(provider, "gemma3:4b")
 
     asyncio.run(_exec_skill_async(
         lens_path, skill_name, task, model, provider, output,

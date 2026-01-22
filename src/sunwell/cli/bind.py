@@ -36,7 +36,7 @@ def bind() -> None:
 @bind.command("create")
 @click.argument("name")
 @click.option("--lens", "-l", required=True, type=click.Path(exists=True), help="Path to lens file")
-@click.option("--provider", "-p", default="openai", help="LLM provider")
+@click.option("--provider", "-p", default=None, help="LLM provider (default: from config)")
 @click.option("--model", "-m", help="Model name (auto-selected based on provider if not specified)")
 @click.option("--tier", type=click.Choice(["0", "1", "2"]), default="1", help="Default execution tier")
 @click.option("--no-stream", is_flag=True, help="Disable streaming by default")
@@ -49,7 +49,7 @@ def bind() -> None:
 def bind_create(
     name: str,
     lens: str,
-    provider: str,
+    provider: str | None,
     model: str | None,
     tier: str,
     no_stream: bool,
@@ -71,6 +71,18 @@ def bind_create(
 
         sunwell bind create fast-helper --lens helper.lens --tier 0 --set-default
     """
+    from sunwell.config import get_config
+
+    cfg = get_config()
+
+    # Resolve provider from config if not specified
+    if provider is None:
+        provider = cfg.model.default_provider if cfg else "ollama"
+
+    # Resolve model from config if not specified
+    if model is None:
+        model = cfg.model.default_model if cfg else "gemma3:4b"
+
     manager = BindingManager()
 
     # Check if exists

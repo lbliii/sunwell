@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sunwell.dev/schemas/error.schema.json",
+  "title": "Sunwell Error",
+  "description": "Structured error format for cross-language error handling (Python, Rust, TypeScript)",
+  "type": "object",
+  "required": ["error_id", "code", "category", "message"],
+  "properties": {
+    "error_id": {
+      "type": "string",
+      "pattern": "^SW-\\d{4}$",
+      "description": "Human-readable error ID (e.g., SW-1002)"
+    },
+    "code": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9999,
+      "description": "Numeric error code"
+    },
+    "category": {
+      "type": "string",
+      "enum": ["model", "lens", "tool", "validation", "config", "runtime", "io", "unknown"],
+      "description": "Error category"
+    },
+    "message": {
+      "type": "string",
+      "description": "User-friendly error message"
+    },
+    "recoverable": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether the operation can be retried"
+    },
+    "recovery_hints": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Actionable suggestions to fix the error"
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Additional context for debugging"
+    },
+    "cause": {
+      "type": "string",
+      "description": "Original error message (for debugging)"
+    }
+  },
+  "additionalProperties": false
+}

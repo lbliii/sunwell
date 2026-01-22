@@ -6,7 +6,7 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
-from sunwell.core.errors import from_openai_error
+from sunwell.core.errors import ErrorCode, SunwellError, from_openai_error
 from sunwell.models.protocol import (
     GenerateOptions,
     GenerateResult,
@@ -52,7 +52,22 @@ class OpenAIModel:
                     "OpenAI not installed. Run: pip install sunwell[openai]"
                 ) from e
 
-            self._client = AsyncOpenAI(api_key=self.api_key)
+            # Check for API key BEFORE creating client (gives clear error)
+            if not self.api_key:
+                raise SunwellError(
+                    code=ErrorCode.CONFIG_ENV_MISSING,
+                    context={
+                        "var": "OPENAI_API_KEY",
+                        "provider": "openai",
+                        "flag": "provider ollama",
+                    },
+                )
+
+            try:
+                self._client = AsyncOpenAI(api_key=self.api_key)
+            except Exception as e:
+                raise from_openai_error(e, self.model, "openai") from e
+
         return self._client
 
     def _convert_messages(

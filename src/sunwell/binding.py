@@ -44,11 +44,11 @@ class Binding:
     lens_path: str
     """Path to lens file."""
 
-    provider: str = "openai"
-    """LLM provider."""
+    provider: str = "ollama"
+    """LLM provider (default: from config)."""
 
-    model: str = "gpt-4o"
-    """Model name."""
+    model: str = "gemma3:4b"
+    """Model name (default: from config)."""
 
     simulacrum: str | None = None
     """Associated simulacrum name (defaults to binding name)."""
@@ -134,11 +134,17 @@ class Binding:
         # Migration: support old "headspace" field name
         simulacrum = data.get("simulacrum") or data.get("headspace")
 
+        # Use config defaults for backwards compatibility with old bindings
+        from sunwell.config import get_config
+        cfg = get_config()
+        default_provider = cfg.model.default_provider if cfg else "ollama"
+        default_model = cfg.model.default_model if cfg else "gemma3:4b"
+
         return cls(
             name=data["name"],
             lens_path=data["lens_path"],
-            provider=data.get("provider", "openai"),
-            model=data.get("model", "gpt-4o"),
+            provider=data.get("provider", default_provider),
+            model=data.get("model", default_model),
             simulacrum=simulacrum,
             tier=data.get("tier", 1),
             stream=data.get("stream", True),
@@ -176,17 +182,27 @@ class BindingManager:
         self,
         name: str,
         lens_path: str,
-        provider: str = "openai",
+        provider: str | None = None,
         model: str | None = None,
         **settings,
     ) -> Binding:
         """Create a new binding (attune to a lens)."""
+        from sunwell.config import get_config
+        cfg = get_config()
+
+        # Resolve provider from config if not specified
+        if provider is None:
+            provider = cfg.model.default_provider if cfg else "ollama"
+
         # Auto-select model based on provider if not specified
         if model is None:
-            model = {
-                "openai": "gpt-4o",
-                "anthropic": "claude-sonnet-4-20250514",
-                "ollama": "gemma3:4b",
+            if cfg:
+                model = cfg.model.default_model
+            else:
+                model = {
+                    "openai": "gpt-4o",
+                    "anthropic": "claude-sonnet-4-20250514",
+                    "ollama": "gemma3:4b",
             }.get(provider, "gpt-4o")
 
         binding = Binding(
@@ -318,8 +334,8 @@ def get_binding_or_create_temp(
         temp = Binding(
             name="_temp",
             lens_path=lens_path,
-            provider=provider or "openai",
-            model=model or "gpt-4o",
+            provider=provider or "ollama",
+            model=model or "gemma3:4b",
             simulacrum=simulacrum,
         )
         return temp, True

@@ -22,6 +22,25 @@ class ProjectType(Enum):
     MIXED = "mixed"  # Multiple types
 
 
+class PreviewType(Enum):
+    """How to preview this project (orthogonal to ProjectType).
+
+    ProjectType answers: "What IS this?" (code, creative, data)
+    PreviewType answers: "HOW do I view it?" (web, prose reader, terminal)
+
+    RFC: Universal Project Readiness & Preview
+    """
+
+    WEB_VIEW = "web_view"  # Embedded browser (web apps)
+    TERMINAL = "terminal"  # Pre-filled terminal (CLI tools)
+    PROSE = "prose"  # Formatted reader (novels, articles)
+    SCREENPLAY = "screenplay"  # Fountain renderer (scripts)
+    DIALOGUE = "dialogue"  # Interactive tree (game dialogue)
+    NOTEBOOK = "notebook"  # Jupyter-style (data science)
+    STATIC = "static"  # Just open the file (images, PDFs)
+    NONE = "none"  # No preview (libraries, configs)
+
+
 @dataclass(frozen=True, slots=True)
 class Prerequisite:
     """A prerequisite for running a dev command."""
@@ -34,6 +53,12 @@ class Prerequisite:
 
     check_command: str | None = None
     """Command to check if prerequisite is already met."""
+
+    satisfied: bool = False
+    """Whether this prerequisite is currently met (runtime state)."""
+
+    required: bool = True
+    """If False, preview can work without this (degraded mode)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -148,6 +173,16 @@ class ProjectAnalysis:
     dev_command: DevCommand | None = None
     """Dev server command (only for code projects with servers)."""
 
+    # Preview-specific fields (RFC: Universal Project Readiness)
+    preview_type: PreviewType = field(default_factory=lambda: PreviewType.NONE)
+    """How to preview this project (orthogonal to project_type)."""
+
+    preview_url: str | None = None
+    """URL for web-based previews (e.g., http://localhost:5000)."""
+
+    preview_file: str | None = None
+    """Primary file for content previews (e.g., chapters/ch-01.md)."""
+
     # Confidence (0.0-1.0)
     confidence: float = 0.5
     """How confident we are in this analysis."""
@@ -230,6 +265,10 @@ class ProjectAnalysis:
                 if self.suggested_action
                 else None
             ),
+            # Preview fields (RFC: Universal Project Readiness)
+            "preview_type": self.preview_type.value,
+            "preview_url": self.preview_url,
+            "preview_file": self.preview_file,
         }
 
     @classmethod
@@ -287,6 +326,13 @@ class ProjectAnalysis:
 
         confidence = data.get("confidence", 0.5)
 
+        # Parse preview fields (RFC: Universal Project Readiness)
+        preview_type_value = data.get("preview_type", "none")
+        try:
+            preview_type = PreviewType(preview_type_value)
+        except ValueError:
+            preview_type = PreviewType.NONE
+
         return cls(
             name=data["name"],
             path=Path(data["path"]),
@@ -299,6 +345,9 @@ class ProjectAnalysis:
             suggested_action=suggested_action,
             suggested_workspace_primary=data.get("suggested_workspace_primary", "CodeEditor"),
             dev_command=dev_command,
+            preview_type=preview_type,
+            preview_url=data.get("preview_url"),
+            preview_file=data.get("preview_file"),
             confidence=confidence,
             confidence_level=(
                 "high" if confidence >= 0.85 else "medium" if confidence >= 0.65 else "low"

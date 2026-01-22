@@ -11,6 +11,69 @@ if TYPE_CHECKING:
 
 
 @dataclass
+class SpawnConfig:
+    """Configuration for automatic simulacrum spawning."""
+
+    enabled: bool = True
+    """Whether auto-spawning is enabled."""
+
+    novelty_threshold: float = 0.7
+    """How different a query must be from existing simulacrums to trigger spawn (0-1)."""
+
+    min_queries_before_spawn: int = 3
+    """Minimum queries in a new domain before spawning."""
+
+    domain_coherence_threshold: float = 0.5
+    """How related queries must be to form a coherent simulacrum."""
+
+    max_simulacrums: int = 20
+    """Maximum simulacrums to prevent unbounded growth."""
+
+    auto_name: bool = True
+    """Auto-generate simulacrum names from detected topics."""
+
+
+@dataclass
+class LifecycleConfig:
+    """Configuration for simulacrum lifecycle management."""
+
+    stale_days: int = 30
+    """Days without access before simulacrum is considered stale."""
+
+    archive_days: int = 90
+    """Days without access before auto-archiving."""
+
+    min_useful_nodes: int = 3
+    """Minimum nodes for a simulacrum to be considered useful."""
+
+    min_useful_learnings: int = 1
+    """Minimum learnings for a simulacrum to be considered useful."""
+
+    auto_archive: bool = True
+    """Automatically archive stale simulacrums."""
+
+    auto_merge_empty: bool = True
+    """Auto-merge empty simulacrums into similar ones."""
+
+    protect_recently_spawned_days: int = 7
+    """Don't cleanup simulacrums spawned within this many days."""
+
+
+@dataclass
+class SimulacrumConfig:
+    """Configuration for simulacrum management."""
+
+    base_path: str = ".sunwell/memory"
+    """Base path for simulacrum storage."""
+
+    spawn: SpawnConfig = field(default_factory=SpawnConfig)
+    """Auto-spawn configuration."""
+
+    lifecycle: LifecycleConfig = field(default_factory=LifecycleConfig)
+    """Lifecycle management configuration."""
+
+
+@dataclass
 class OllamaConfig:
     """Configuration for Ollama server parallelism.
 
@@ -67,13 +130,13 @@ class EmbeddingConfig:
 
 @dataclass
 class ModelConfig:
-    """Configuration for model defaults."""
+    """Configuration for model defaults (local-first)."""
 
-    default_provider: str = "openai"
-    """Default model provider."""
+    default_provider: str = "ollama"
+    """Default model provider (ollama for local-first)."""
 
-    default_model: str = "gpt-4o"
-    """Default model name."""
+    default_model: str = "gemma3:4b"
+    """Default model name (gemma3:4b for local-first)."""
 
     smart_routing: bool = False
     """Enable adaptive model selection by default."""

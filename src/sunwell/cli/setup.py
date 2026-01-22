@@ -13,11 +13,11 @@ console = Console()
 
 
 @click.command()
-@click.option("--provider", "-p", default="openai", help="Default LLM provider")
+@click.option("--provider", "-p", default=None, help="Default LLM provider (default: from config)")
 @click.option("--model", "-m", help="Default model (auto-selected if not specified)")
 @click.option("--lenses-dir", type=click.Path(exists=True), help="Directory containing lens files")
 @click.option("--force", "-f", is_flag=True, help="Overwrite existing bindings")
-def setup(provider: str, model: str | None, lenses_dir: str | None, force: bool) -> None:
+def setup(provider: str | None, model: str | None, lenses_dir: str | None, force: bool) -> None:
     """Set up Sunwell with default bindings.
 
     Creates sensible default bindings for common use cases:
@@ -27,12 +27,23 @@ def setup(provider: str, model: str | None, lenses_dir: str | None, force: bool)
 
     Examples:
 
-        sunwell setup                           # Use defaults (openai)
+        sunwell setup                           # Use defaults from config
 
         sunwell setup --provider anthropic      # Use Claude
 
-        sunwell setup --provider openai --model gpt-4o-mini  # Specific model
+        sunwell setup --provider ollama --model gemma3:4b  # Specific model
     """
+    from sunwell.config import get_config
+
+    cfg = get_config()
+
+    # Resolve provider from config if not specified
+    if provider is None:
+        provider = cfg.model.default_provider if cfg else "ollama"
+
+    # Resolve model from config if not specified
+    if model is None:
+        model = cfg.model.default_model if cfg else "gemma3:4b"
 
     manager = BindingManager()
 

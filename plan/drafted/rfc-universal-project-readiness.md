@@ -3,7 +3,25 @@
 **Status**: Draft  
 **Created**: 2026-01-22  
 **Author**: AI Assistant  
-**Related**: RFC-079 (Project Intent Analyzer), RFC-066 (Intelligent Run Button), rfc-backlog-driven-execution
+**Confidence**: 85% 🟢  
+**Extends**: RFC-079 (Project Intent Analyzer)  
+**Related**: RFC-066 (Intelligent Run Button), rfc-backlog-driven-execution
+
+---
+
+## Executive Summary
+
+Extend RFC-079's `ProjectAnalysis` to support **universal preview** for any project type — not just code with dev servers. Add `PreviewType` as an orthogonal dimension to `ProjectType`, enabling "Try It" to work for screenplays, novels, dialogue trees, and any creative project.
+
+**Key changes**:
+1. Add `PreviewType` enum to `intent_types.py`
+2. Extend `ProjectAnalysis` with `preview_type`, `preview_url`, `preview_file`
+3. Implement built-in renderers for prose, screenplay, dialogue
+4. Use existing signals (`has_prose`, `has_fountain`) — no new detection needed
+
+**Not** creating a separate `PreviewAnalysis` type — this extends the existing system.
+
+**Estimated effort**: 3 weeks (type extensions → renderers → studio integration)
 
 ---
 
@@ -67,58 +85,226 @@ For ANY project, we need to answer:
 
 ---
 
-## Design
+## Design Options
 
-### The Simple Model
+### Option A: Extend Existing `ProjectAnalysis` (Recommended)
+
+Add preview-specific fields to the existing `ProjectAnalysis` type from RFC-079.
+
+```python
+# Extend src/sunwell/project/intent_types.py
+
+class PreviewType(Enum):
+    """How to preview this project (orthogonal to ProjectType)."""
+    WEB_VIEW = "web_view"
+    TERMINAL = "terminal"
+    PROSE = "prose"
+    SCREENPLAY = "screenplay"
+    DIALOGUE = "dialogue"
+    NOTEBOOK = "notebook"
+    STATIC = "static"
+    NONE = "none"
+
+@dataclass(frozen=True, slots=True)
+class ProjectAnalysis:
+    # ... existing fields from RFC-079 ...
+    
+    # NEW: Preview-specific fields
+    preview_type: PreviewType = PreviewType.NONE
+    preview_url: str | None = None
+    preview_file: str | None = None
+```
+
+| Pros | Cons |
+|------|------|
+| ✅ Single source of truth | ⚠️ Grows `ProjectAnalysis` size |
+| ✅ No type conversion needed | ⚠️ Couples preview to full analysis |
+| ✅ Reuses existing `DevCommand` and `Prerequisite` | |
+| ✅ Cache coherency | |
+
+### Option B: Separate `PreviewSpec` Derived from Analysis
+
+Create a focused preview type that's computed from `ProjectAnalysis`.
+
+```python
+# src/sunwell/project/preview.py
+
+@dataclass(frozen=True, slots=True)
+class PreviewSpec:
+    """Lightweight preview specification derived from ProjectAnalysis."""
+    preview_type: PreviewType
+    preview_url: str | None
+    preview_file: str | None
+    ready: bool  # All prerequisites satisfied
+    
+def derive_preview_spec(analysis: ProjectAnalysis) -> PreviewSpec:
+    """Derive preview spec from full analysis."""
+    ...
+```
+
+| Pros | Cons |
+|------|------|
+| ✅ Separation of concerns | ⚠️ Two types to maintain |
+| ✅ Lightweight for UI | ⚠️ Requires conversion |
+| ✅ Can cache separately | ⚠️ Potential staleness |
+
+### Option C: Standalone `PreviewAnalysis` (Not Recommended)
+
+Create an independent preview system that doesn't integrate with RFC-079.
+
+| Pros | Cons |
+|------|------|
+| ✅ Complete independence | ❌ Duplicates detection logic |
+| | ❌ Two caches, two codepaths |
+| | ❌ Inconsistent project understanding |
+
+### Recommendation: Option A
+
+**Rationale**: RFC-079's `ProjectAnalysis` already has the infrastructure we need:
+- `DevCommand` with prerequisites (`intent_types.py:84-107`)
+- `ProjectType.CREATIVE` for non-code projects (`intent_types.py:21`)
+- Signal detection for prose/fountain (`signals.py:65-66`)
+- Confidence scoring and caching
+
+Adding `PreviewType` as an orthogonal dimension keeps the system unified:
+- `ProjectType` answers: "What IS this?" (code, creative, data, etc.)
+- `PreviewType` answers: "HOW do I view it?" (web, prose reader, terminal, etc.)
+
+---
+
+## Architecture Impact
+
+### Affected Components
+
+| Component | Change | Risk |
+|-----------|--------|------|
+| `intent_types.py` | Add `PreviewType` enum, extend `ProjectAnalysis` | Low — additive |
+| `intent_analyzer.py` | Add `_detect_preview_type()` function | Low — new code path |
+| `signals.py` | No change — already has `has_prose`, `has_fountain` | None |
+| `studio/src-tauri/src/preview.rs` | Extend `ViewType` enum to match `PreviewType` | Medium — Rust/Python sync |
+| UI components | New preview renderers (prose, screenplay, dialogue) | Medium — new features |
+
+### Integration Points
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                     Preview Flow                                  │
-│                                                                   │
-│   User clicks "Try It"                                           │
-│          │                                                        │
-│          ▼                                                        │
-│   ┌─────────────────┐                                            │
-│   │ 1. DETECT       │  "What kind of project is this?"           │
-│   │    (AI + rules) │  → Flask app, Screenplay, Novel, etc.      │
-│   └────────┬────────┘                                            │
-│            │                                                      │
-│            ▼                                                      │
-│   ┌─────────────────┐                                            │
-│   │ 2. CHECK        │  "What do I need to run it?"               │
-│   │    (prereqs)    │  → Python 3.11, Flask, npm, etc.           │
-│   └────────┬────────┘                                            │
-│            │                                                      │
-│            ▼ (satisfied?)                                         │
-│   ┌─────────────────┐                                            │
-│   │ 3. RUN          │  "How do I start it?"                      │
-│   │    (command)    │  → flask run, npm run dev, etc.            │
-│   └────────┬────────┘                                            │
-│            │                                                      │
-│            ▼                                                      │
-│   ┌─────────────────┐                                            │
-│   │ 4. PREVIEW      │  "Where do I see it?"                      │
-│   │    (view type)  │  → WebView, ProseReader, Terminal, etc.    │
-│   └─────────────────┘                                            │
-│                                                                   │
-└──────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                     RFC-079 + This RFC                          │
+│                                                                 │
+│   analyze_project()                                             │
+│         │                                                       │
+│         ├─→ _classify_project() → ProjectType                   │
+│         ├─→ _detect_dev_command() → DevCommand (existing)       │
+│         └─→ _detect_preview_type() → PreviewType (NEW)          │
+│                     │                                           │
+│                     ▼                                           │
+│              ProjectAnalysis                                    │
+│              ├─ project_type: ProjectType.CREATIVE              │
+│              ├─ dev_command: DevCommand | None                  │
+│              └─ preview_type: PreviewType.PROSE  (NEW)          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### Component 1: Universal Preview Analysis
+## Risks & Mitigations
 
-**The type we return for ANY project:**
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| **AI model unavailable** | Medium | Medium | Heuristics always work; AI is fallback only |
+| **Detection accuracy issues** | Medium | Low | User can override; cached successful runs |
+| **Rust/Python type sync drift** | Medium | Medium | Generate Rust types from Python schema |
+| **Prerequisite check hangs** | Low | Medium | 5s timeout on all subprocess calls |
+| **Cost overruns** | Low | Low | ~$0.0006/analysis; 80% handled by heuristics |
+| **Fountain/dialogue render quality** | Medium | Low | "Good enough" for MVP; iterate with user feedback |
+
+### Fallback Behavior
 
 ```python
-# src/sunwell/project/preview_analysis.py
+# If AI unavailable:
+if ai_error:
+    # Use heuristic best-guess with lower confidence
+    return PreviewAnalysis(
+        preview_type=_heuristic_preview_type(signals),
+        confidence=0.6,  # Lower confidence without AI
+        reasoning="Heuristic detection (AI unavailable)",
+    )
+```
 
-from dataclasses import dataclass
-from enum import Enum
+---
 
+## Design
+
+### The Unified Model
+
+This RFC extends RFC-079's `analyze_project()` to include preview information:
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                   analyze_project() [RFC-079 + this RFC]           │
+│                                                                    │
+│   1. gather_signals()           → ProjectSignals (existing)        │
+│          │                                                         │
+│          ▼                                                         │
+│   2. _classify_project()        → ProjectType (existing)           │
+│          │                                                         │
+│          ▼                                                         │
+│   3. _detect_dev_command()      → DevCommand | None (existing)     │
+│          │                                                         │
+│          ▼                                                         │
+│   4. _detect_preview_type()     → PreviewType (NEW)                │
+│          │                                                         │
+│          ▼                                                         │
+│   ┌─────────────────────────────────────────────────────────────┐  │
+│   │ ProjectAnalysis                                             │  │
+│   │   project_type: ProjectType.CREATIVE                        │  │
+│   │   dev_command: DevCommand | None                            │  │
+│   │   preview_type: PreviewType.PROSE      ← NEW                │  │
+│   │   preview_url: str | None              ← NEW                │  │
+│   │   preview_file: "chapters/ch-01.md"    ← NEW                │  │
+│   └─────────────────────────────────────────────────────────────┘  │
+│                                                                    │
+└────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────┐
+│                   "Try It" Flow (Studio)                           │
+│                                                                    │
+│   User clicks "Try It"                                             │
+│          │                                                         │
+│          ▼                                                         │
+│   load_or_analyze(project_path)  → ProjectAnalysis                 │
+│          │                                                         │
+│          ├── preview_type == WEB_VIEW?                             │
+│          │       └── check_prerequisites()                         │
+│          │       └── start dev_command                             │
+│          │       └── open WebView at preview_url                   │
+│          │                                                         │
+│          ├── preview_type == PROSE | SCREENPLAY | DIALOGUE?        │
+│          │       └── open built-in renderer with preview_file      │
+│          │                                                         │
+│          └── preview_type == TERMINAL?                             │
+│                  └── open terminal with dev_command                │
+│                                                                    │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Component 1: Extending ProjectAnalysis with Preview
+
+Per **Option A**, we extend the existing `ProjectAnalysis` type from RFC-079 rather than creating a separate type.
+
+**New types to add to `src/sunwell/project/intent_types.py`:**
+
+```python
+# src/sunwell/project/intent_types.py (EXTEND existing file)
 
 class PreviewType(Enum):
-    """How to preview this project."""
+    """How to preview this project (orthogonal to ProjectType).
+    
+    ProjectType answers: "What IS this?" (code, creative, data)
+    PreviewType answers: "HOW do I view it?" (web, prose reader, terminal)
+    """
     
     WEB_VIEW = "web_view"      # Embedded browser (web apps)
     TERMINAL = "terminal"      # Pre-filled terminal (CLI tools)
@@ -130,161 +316,175 @@ class PreviewType(Enum):
     NONE = "none"              # No preview (libraries, configs)
 
 
+# Extend existing Prerequisite (intent_types.py:84-107)
 @dataclass(frozen=True, slots=True)
 class Prerequisite:
-    """Something that must be installed/available to preview."""
+    """Something that must be installed/available."""
     
-    name: str
-    """Human-readable name (e.g., 'Python 3.11+')."""
+    command: str
+    """Command to run (e.g., 'pip install flask')."""
     
-    check_command: str | None
-    """Command to check if installed (e.g., 'python3 --version')."""
+    description: str
+    """Human-readable description."""
     
-    install_hint: str
-    """How to install if missing."""
+    check_command: str | None = None
+    """Command to check if already satisfied."""
     
+    # NEW fields for preview checking:
     satisfied: bool = False
-    """Whether this prerequisite is currently met."""
+    """Whether this prerequisite is currently met (runtime state)."""
     
     required: bool = True
-    """If False, preview can work without this (degraded)."""
+    """If False, preview can work without this (degraded mode)."""
 
 
+# Extend existing ProjectAnalysis (intent_types.py:118-163)
 @dataclass(frozen=True, slots=True)
-class PreviewAnalysis:
-    """Everything needed to preview ANY project."""
+class ProjectAnalysis:
+    """Full project understanding including preview capability."""
     
-    # What is it?
-    project_type: str
-    """Human-readable type (e.g., 'Flask web app', 'Fountain screenplay')."""
-    
-    framework: str | None
-    """Detected framework if any (e.g., 'Flask', 'React', 'Fountain')."""
-    
-    # What do I need?
-    prerequisites: tuple[Prerequisite, ...]
-    """What must be installed to preview."""
-    
-    # How do I run it?
-    run_command: str | None
-    """Command to start it (e.g., 'flask run', 'npm run dev')."""
-    
-    run_cwd: str | None
-    """Working directory for run command (relative to project root)."""
-    
-    # Where do I see it?
-    preview_type: PreviewType
-    """Type of preview view to use."""
-    
-    preview_url: str | None
-    """URL to open (for web views)."""
-    
-    preview_file: str | None
-    """File to render (for prose/screenplay)."""
-    
-    # Metadata
+    # ... existing RFC-079 fields ...
+    name: str
+    path: Path
+    project_type: ProjectType
+    project_subtype: str | None
+    goals: tuple[InferredGoal, ...]
+    pipeline: tuple[PipelineStep, ...]
+    current_step: str | None
+    completion_percent: float
+    suggested_action: SuggestedAction | None
+    suggested_workspace_primary: str
+    dev_command: DevCommand | None
     confidence: float
-    """How confident we are (0.0-1.0)."""
+    confidence_level: str
+    detection_signals: tuple[str, ...]
+    classification_source: str
     
-    reasoning: str
-    """Why we classified this way."""
+    # NEW: Preview-specific fields
+    preview_type: PreviewType = PreviewType.NONE
+    """How to preview this project."""
+    
+    preview_url: str | None = None
+    """URL for web-based previews."""
+    
+    preview_file: str | None = None
+    """Primary file for content previews (prose, screenplay)."""
+```
 
+**Key insight**: `ProjectType` and `PreviewType` are orthogonal:
 
-# Examples of what this returns:
+| ProjectType | PreviewType | Example |
+|-------------|-------------|---------|
+| CODE | WEB_VIEW | React app |
+| CODE | TERMINAL | CLI tool |
+| CREATIVE | PROSE | Novel manuscript |
+| CREATIVE | SCREENPLAY | Fountain screenplay |
+| CREATIVE | DIALOGUE | Yarn/ink game dialogue |
+| DATA | NOTEBOOK | Jupyter analysis |
 
-# Flask app in src/app.py:
-PreviewAnalysis(
-    project_type="Flask web application",
-    framework="Flask",
+**Examples of what the extended `ProjectAnalysis` returns:
+
+# Flask app — ProjectType.CODE + PreviewType.WEB_VIEW
+ProjectAnalysis(
+    name="my-flask-app",
+    project_type=ProjectType.CODE,
+    project_subtype="flask-app",
+    dev_command=DevCommand(
+        command="FLASK_APP=src/app.py python -m flask run",
     prerequisites=(
-        Prerequisite("Python 3.8+", "python3 --version", "Install from python.org"),
-        Prerequisite("Flask", "python -c 'import flask'", "pip install flask"),
+            Prerequisite("pip install flask", "Install Flask", "python -c 'import flask'"),
     ),
-    run_command="FLASK_APP=src/app.py python -m flask run",
-    run_cwd=None,
+        expected_url="http://localhost:5000",
+    ),
+    # NEW preview fields:
     preview_type=PreviewType.WEB_VIEW,
     preview_url="http://localhost:5000",
     preview_file=None,
     confidence=0.95,
-    reasoning="Found Flask import in src/app.py",
 )
 
-# Fountain screenplay:
-PreviewAnalysis(
-    project_type="Fountain screenplay",
-    framework="Fountain",
-    prerequisites=(),  # Sunwell has built-in Fountain rendering
-    run_command=None,  # No server needed
-    run_cwd=None,
+# Fountain screenplay — ProjectType.CREATIVE + PreviewType.SCREENPLAY
+ProjectAnalysis(
+    name="my-screenplay",
+    project_type=ProjectType.CREATIVE,
+    project_subtype="fountain-screenplay",
+    dev_command=None,  # No server needed
+    # NEW preview fields:
     preview_type=PreviewType.SCREENPLAY,
     preview_url=None,
     preview_file="screenplay.fountain",
     confidence=0.90,
-    reasoning="Found .fountain file with standard screenplay structure",
 )
 
-# Novel/manuscript:
-PreviewAnalysis(
-    project_type="Novel manuscript",
-    framework=None,
-    prerequisites=(),  # Sunwell has built-in Markdown rendering
-    run_command=None,
-    run_cwd=None,
+# Novel — ProjectType.CREATIVE + PreviewType.PROSE
+ProjectAnalysis(
+    name="my-novel",
+    project_type=ProjectType.CREATIVE,
+    project_subtype="novel-manuscript",
+    dev_command=None,
+    # NEW preview fields:
     preview_type=PreviewType.PROSE,
     preview_url=None,
     preview_file="chapters/chapter-01.md",
     confidence=0.85,
-    reasoning="Found chapters/ directory with Markdown files",
 )
 
-# CLI tool:
-PreviewAnalysis(
-    project_type="Python CLI tool",
-    framework="Click",
+# CLI tool — ProjectType.CODE + PreviewType.TERMINAL
+ProjectAnalysis(
+    name="my-cli",
+    project_type=ProjectType.CODE,
+    project_subtype="python-cli",
+    dev_command=DevCommand(
+        command="python -m myapp --help",
     prerequisites=(
-        Prerequisite("Python 3.8+", "python3 --version", "Install from python.org"),
+            Prerequisite("pip install click", "Install Click"),
     ),
-    run_command="python -m myapp --help",
-    run_cwd=None,
+    ),
+    # NEW preview fields:
     preview_type=PreviewType.TERMINAL,
     preview_url=None,
     preview_file=None,
     confidence=0.80,
-    reasoning="Found click import and __main__.py",
 )
 ```
 
 ---
 
-### Component 2: AI-Powered Detection
+### Component 2: AI-Powered Preview Detection (Small Model)
 
 **Problem**: Heuristics can't recognize every project type.
 
 **Solution**: Use LLM when heuristics fail or have low confidence.
 
-```python
-# src/sunwell/project/preview_analyzer.py
+**Key insight**: This is a perfect task for the **cheapest/fastest model**:
+- Structured JSON output (not creative)
+- Pattern recognition (not reasoning)
+- Low stakes (user can override)
+- Needs to be instant (<2s)
 
-PREVIEW_ANALYSIS_PROMPT = '''Analyze this project and tell me how to preview it.
+| Model | Cost | Speed | Sufficient? |
+|---|---|---|---|
+| Claude Haiku | $0.25/1M | ~0.5s | ✅ Yes |
+| GPT-3.5-turbo | $0.50/1M | ~0.5s | ✅ Yes |
+| Gemini Flash | $0.075/1M | ~0.3s | ✅ Yes |
+| Local (Llama 3 8B) | Free | ~1s | ✅ Yes |
+| Claude Opus | $15/1M | ~3s | ❌ Overkill |
+
+**Use `model_tier: "fast"` for preview detection.**
+
+```python
+# src/sunwell/project/intent_analyzer.py (EXTEND existing file)
+
+PREVIEW_DETECTION_PROMPT = '''What's the best way to preview this project?
 
 ## Project Info
 - Name: {name}
 - Files: {file_tree}
 - Key file contents: {key_files}
 
-## Question
-What does it take to preview this project?
-
 Answer in JSON:
 ```json
 {{
-  "project_type": "Flask web app | React app | Fountain screenplay | Novel | CLI tool | ...",
-  "framework": "Flask | React | Fountain | null",
-  "prerequisites": [
-    {{"name": "Python 3.8+", "check_command": "python3 --version", "install_hint": "..."}}
-  ],
-  "run_command": "flask run | npm run dev | null",
-  "run_cwd": "src | null",
   "preview_type": "web_view | terminal | prose | screenplay | dialogue | notebook | static | none",
   "preview_url": "http://localhost:5000 | null",
   "preview_file": "manuscript.md | screenplay.fountain | null",
@@ -293,62 +493,83 @@ Answer in JSON:
 }}
 ```
 
-Be practical. Focus on: What do I run? What do I look at?
+Focus on: What do I look at? Where do I see the result?
 '''
 
 
-async def analyze_for_preview(
-    path: Path,
-    model: ModelProtocol,
-) -> PreviewAnalysis:
-    """Analyze any project and figure out how to preview it.
+def _detect_preview_type(
+    signals: ProjectSignals,
+    project_type: ProjectType,
+    dev_command: DevCommand | None,
+) -> tuple[PreviewType, str | None, str | None]:
+    """Detect preview type from signals and existing analysis.
     
-    Strategy:
-    1. Try heuristic detection first (fast, free)
-    2. If low confidence or unknown, use LLM
-    3. Return unified PreviewAnalysis
+    Returns:
+        (preview_type, preview_url, preview_file)
     """
-    # Step 1: Try heuristics
-    heuristic_result = heuristic_preview_detect(path)
+    # Web apps with dev commands → WEB_VIEW
+    if dev_command and dev_command.expected_url:
+        return PreviewType.WEB_VIEW, dev_command.expected_url, None
     
-    if heuristic_result and heuristic_result.confidence >= 0.8:
-        return heuristic_result
+    # CLI tools → TERMINAL
+    if dev_command and not dev_command.expected_url:
+        return PreviewType.TERMINAL, None, None
     
-    # Step 2: Use AI for unknown/low-confidence cases
-    context = gather_preview_context(path)
+    # Creative projects based on signals
+    if signals.has_fountain:
+        fountain_file = _find_primary_fountain(signals.path)
+        return PreviewType.SCREENPLAY, None, fountain_file
     
-    prompt = PREVIEW_ANALYSIS_PROMPT.format(
-        name=path.name,
+    if signals.has_prose:
+        prose_file = _find_primary_prose(signals.path)
+        return PreviewType.PROSE, None, prose_file
+    
+    # Data projects with notebooks
+    if signals.has_notebooks:
+        return PreviewType.NOTEBOOK, "http://localhost:8888", None
+    
+    # Default: no preview
+    return PreviewType.NONE, None, None
+
+
+async def _detect_preview_type_with_ai(
+    signals: ProjectSignals,
+    model_provider: ModelProvider,
+) -> tuple[PreviewType, str | None, str | None, float]:
+    """Use AI when heuristics fail or have low confidence.
+    
+    Returns:
+        (preview_type, preview_url, preview_file, confidence)
+    """
+    model = model_provider.get_model(tier="fast")
+    context = gather_preview_context(signals.path)
+    
+    prompt = PREVIEW_DETECTION_PROMPT.format(
+        name=signals.path.name,
         file_tree=context["file_tree"],
         key_files=context["key_files"],
     )
     
-    response = await model.generate(prompt, max_tokens=500)
+    response = await model.generate(
+        prompt,
+        max_tokens=200,
+        response_format={"type": "json_object"},
+    )
     data = _extract_json(response.content)
     
-    # Step 3: Build PreviewAnalysis from AI response
-    prerequisites = tuple(
-        Prerequisite(
-            name=p["name"],
-            check_command=p.get("check_command"),
-            install_hint=p.get("install_hint", ""),
-        )
-        for p in data.get("prerequisites", [])
-    )
-    
-    return PreviewAnalysis(
-        project_type=data["project_type"],
-        framework=data.get("framework"),
-        prerequisites=prerequisites,
-        run_command=data.get("run_command"),
-        run_cwd=data.get("run_cwd"),
-        preview_type=PreviewType(data["preview_type"]),
-        preview_url=data.get("preview_url"),
-        preview_file=data.get("preview_file"),
-        confidence=data.get("confidence", 0.7),
-        reasoning=data.get("reasoning", "AI analysis"),
+    return (
+        PreviewType(data["preview_type"]),
+        data.get("preview_url"),
+        data.get("preview_file"),
+        data.get("confidence", 0.7),
     )
 ```
+
+**Why this works with small models**:
+- Structured JSON output (not open-ended)
+- Finite set of `preview_type` values to choose from
+- Clear examples in the prompt
+- Pattern matching, not reasoning
 
 **Why AI matters**: Heuristics can recognize Flask, React, Django. But what about:
 - A Ren'Py visual novel
@@ -361,759 +582,435 @@ The LLM can figure these out because it understands context, not just file patte
 
 ---
 
-### Component 3: Universal Gate Registry
+### Component 3: Heuristic Preview Detection
 
-**Problem**: Gates only validate code.
-
-**Solution**: YAML-based gate registry for all project types.
-
-```yaml
-# gates/registry.yaml
-
-# =============================================================================
-# Code Gates (existing, referenced for completeness)
-# =============================================================================
-
-syntax:
-  id: syntax
-  category: static
-  description: "Can the code parse?"
-  applies_to: [web_app, cli_tool, library, api_service]
-  check:
-    method: command
-    value: "python -m py_compile {file}"
-  auto_fix: false
-
-lint:
-  id: lint
-  category: static
-  description: "Does it pass linting?"
-  applies_to: [web_app, cli_tool, library, api_service]
-  check:
-    method: command
-    value: "ruff check {file}"
-  auto_fix: true
-  fix_command: "ruff check --fix {file}"
-
-type_check:
-  id: type_check
-  category: static
-  description: "Does it pass type checking?"
-  applies_to: [web_app, cli_tool, library, api_service]
-  check:
-    method: command
-    value: "ty check {file}"
-  auto_fix: false
-
-import_check:
-  id: import_check
-  category: runtime
-  description: "Can we import it?"
-  applies_to: [web_app, cli_tool, library, api_service]
-  check:
-    method: python
-    value: "import {module}"
-  auto_fix: false
-
-# =============================================================================
-# Creative Writing Gates
-# =============================================================================
-
-word_count:
-  id: word_count
-  category: progress
-  description: "Does the content meet word count targets?"
-  applies_to: [novel, short_story, web_serial]
-  check:
-    method: script
-    value: "scripts/gates/word_count.py"
-  parameters:
-    novel_chapter_min: 2000
-    novel_chapter_max: 8000
-    novel_total_min: 50000
-    novel_total_max: 120000
-    short_story_min: 1000
-    short_story_max: 7500
-    web_serial_chapter_min: 1500
-    web_serial_chapter_max: 5000
-  auto_fix: false
-  message_template: "Chapter has {actual} words (target: {min}-{max})"
-
-readability:
-  id: readability
-  category: quality
-  description: "Is the prose readable?"
-  applies_to: [novel, short_story, web_serial, technical_docs]
-  check:
-    method: script
-    value: "scripts/gates/readability.py"
-  parameters:
-    # Flesch-Kincaid Grade Level targets by genre
-    novel_target: 6-10
-    technical_target: 10-14
-    children_target: 3-6
-  auto_fix: false
-  llm_assist: true  # Can suggest rewrites for difficult passages
-
-grammar:
-  id: grammar
-  category: quality
-  description: "Are there grammar issues?"
-  applies_to: [novel, short_story, web_serial, screenplay, technical_docs]
-  check:
-    method: script
-    value: "scripts/gates/grammar.py"
-  auto_fix: true  # Can auto-fix simple issues
-  llm_assist: true  # Complex issues get LLM suggestions
-
-pov_consistency:
-  id: pov_consistency
-  category: consistency
-  description: "Is the point of view consistent?"
-  applies_to: [novel, short_story, web_serial]
-  check:
-    method: llm
-    prompt: |
-      Analyze this chapter for POV consistency.
-      
-      Expected POV: {expected_pov}
-      Content: {content}
-      
-      Check for:
-      1. POV head-hopping (switching whose thoughts we see)
-      2. Tense consistency
-      3. Pronoun consistency
-      
-      Report any violations.
-  auto_fix: false
-  llm_required: true
-
-character_voice:
-  id: character_voice
-  category: consistency
-  description: "Are character voices distinct and consistent?"
-  applies_to: [novel, short_story, web_serial, screenplay, game_dialogue]
-  check:
-    method: llm
-    prompt: |
-      Analyze dialogue for character voice consistency.
-      
-      Characters: {character_profiles}
-      Content: {content}
-      
-      Check:
-      1. Does each character sound distinct?
-      2. Are speech patterns consistent with their profile?
-      3. Does dialogue match their education/background?
-      
-      Report inconsistencies.
-  auto_fix: false
-  llm_required: true
-
-timeline_integrity:
-  id: timeline_integrity
-  category: consistency
-  description: "Do events happen in a consistent timeline?"
-  applies_to: [novel, short_story, web_serial, screenplay]
-  check:
-    method: llm
-    prompt: |
-      Check timeline consistency.
-      
-      Previous events: {timeline_context}
-      Current content: {content}
-      
-      Look for:
-      1. Anachronisms
-      2. Impossible timing (character in two places)
-      3. Forgotten injuries/conditions
-      4. Season/weather inconsistencies
-      
-      Report any timeline issues.
-  auto_fix: false
-  llm_required: true
-
-# =============================================================================
-# Screenplay Gates
-# =============================================================================
-
-fountain_format:
-  id: fountain_format
-  category: format
-  description: "Is the screenplay in valid Fountain format?"
-  applies_to: [screenplay]
-  check:
-    method: script
-    value: "scripts/gates/fountain_validate.py"
-  auto_fix: true  # Can fix common formatting issues
-
-page_count:
-  id: page_count
-  category: progress
-  description: "Is the screenplay within industry page limits?"
-  applies_to: [screenplay]
-  check:
-    method: script
-    value: "scripts/gates/screenplay_pages.py"
-  parameters:
-    feature_min: 90
-    feature_max: 120
-    short_max: 40
-    pilot_target: 30-60
-  auto_fix: false
-  message_template: "Screenplay is {actual} pages (target: {min}-{max})"
-
-scene_numbering:
-  id: scene_numbering
-  category: format
-  description: "Are scenes properly numbered (for production drafts)?"
-  applies_to: [screenplay]
-  check:
-    method: script
-    value: "scripts/gates/scene_numbers.py"
-  auto_fix: true
-  context: "Only required for production drafts, not spec scripts"
-
-dialogue_balance:
-  id: dialogue_balance
-  category: quality
-  description: "Is dialogue reasonably balanced between characters?"
-  applies_to: [screenplay, stage_play]
-  check:
-    method: script
-    value: "scripts/gates/dialogue_balance.py"
-  parameters:
-    max_monologue_lines: 10  # Flag monologues over 10 lines
-    protagonist_dialogue_max_percent: 40  # Protagonist shouldn't dominate
-  auto_fix: false
-  message_template: "{character} has {percent}% of dialogue"
-
-# =============================================================================
-# Web Serial Gates
-# =============================================================================
-
-chapter_hook:
-  id: chapter_hook
-  category: quality
-  description: "Does the chapter have a compelling hook?"
-  applies_to: [web_serial]
-  check:
-    method: llm
-    prompt: |
-      Evaluate the opening hook of this chapter.
-      
-      First 500 words: {opening}
-      
-      Rate 1-10 on:
-      1. Immediate engagement (does it grab attention?)
-      2. Promise of conflict/mystery
-      3. Character voice establishment
-      
-      Web serial readers decide quickly. Is this hook strong enough?
-  auto_fix: false
-  llm_required: true
-
-cliffhanger:
-  id: cliffhanger
-  category: quality
-  description: "Does the chapter end with forward momentum?"
-  applies_to: [web_serial]
-  check:
-    method: llm
-    prompt: |
-      Evaluate the chapter ending.
-      
-      Last 500 words: {ending}
-      
-      Check for:
-      1. Unresolved tension
-      2. Promise of what's next
-      3. Emotional resonance
-      
-      Web serials need readers to click "next chapter". Is this ending compelling?
-  auto_fix: false
-  llm_required: true
-
-posting_schedule:
-  id: posting_schedule
-  category: progress
-  description: "Are you on track for your posting schedule?"
-  applies_to: [web_serial]
-  check:
-    method: script
-    value: "scripts/gates/posting_schedule.py"
-  parameters:
-    schedule: "config.posting_schedule"  # User-defined
-  auto_fix: false
-  message_template: "Next post due in {days} days, {chapters_ready} chapters ready"
-
-# =============================================================================
-# Game Writing Gates
-# =============================================================================
-
-branching_coverage:
-  id: branching_coverage
-  category: quality
-  description: "Do all dialogue branches lead somewhere?"
-  applies_to: [game_dialogue, interactive_fiction]
-  check:
-    method: script
-    value: "scripts/gates/branching_coverage.py"
-  auto_fix: false
-  message_template: "{orphan_count} orphan nodes, {dead_end_count} dead ends"
-
-variable_consistency:
-  id: variable_consistency
-  category: consistency
-  description: "Are dialogue variables used consistently?"
-  applies_to: [game_dialogue, interactive_fiction]
-  check:
-    method: script
-    value: "scripts/gates/yarn_variables.py"
-  auto_fix: false
-
-localization_ready:
-  id: localization_ready
-  category: quality
-  description: "Is dialogue ready for localization?"
-  applies_to: [game_dialogue]
-  check:
-    method: llm
-    prompt: |
-      Check dialogue for localization issues.
-      
-      Content: {content}
-      
-      Flag:
-      1. Idioms that don't translate
-      2. Culture-specific references
-      3. Puns or wordplay
-      4. Hardcoded text lengths
-      
-      These need localization notes.
-  auto_fix: false
-  llm_required: true
-```
-
----
-
-### Component 4: Readiness Check Flow
+Preview detection integrates into the existing `_classify_project()` flow in `intent_analyzer.py`. The heuristics use signals already gathered by RFC-079.
 
 ```python
-# src/sunwell/project/readiness.py
+# src/sunwell/project/intent_analyzer.py (EXTEND existing functions)
 
-from dataclasses import dataclass
-from pathlib import Path
-
-from sunwell.project.anticipation import anticipate_project_needs, AnticipatedNeeds
-from sunwell.project.prerequisites import load_prerequisites, check_prerequisite
-from sunwell.project.gates import load_gates
-
-
-@dataclass(frozen=True, slots=True)
-class ReadinessResult:
-    """Result of checking project readiness."""
+def _detect_preview_type(
+    signals: ProjectSignals,
+    project_type: ProjectType,
+    subtype: str | None,
+    dev_command: DevCommand | None,
+) -> tuple[PreviewType, str | None, str | None]:
+    """Detect preview type from existing analysis.
     
-    genre: str
-    """Detected/anticipated genre."""
-    
-    ready: bool
-    """Whether all required prerequisites are met."""
-    
-    prerequisites_met: tuple[str, ...]
-    """IDs of met prerequisites."""
-    
-    prerequisites_missing: tuple[str, ...]
-    """IDs of missing prerequisites."""
-    
-    prerequisites_optional: tuple[str, ...]
-    """IDs of optional prerequisites that could help."""
-    
-    suggested_tools: tuple[str, ...]
-    """Tool suggestions based on genre."""
-    
-    available_gates: tuple[str, ...]
-    """Gate types that will be available for this project."""
-    
-    setup_commands: tuple[str, ...]
-    """Commands to run to satisfy missing prerequisites."""
-
-
-async def check_project_readiness(
-    path: Path,
-    model: ModelProtocol,
-    user_description: str | None = None,
-) -> ReadinessResult:
-    """Check if a project has everything it needs to succeed.
-    
-    This is the main entry point for project readiness.
-    
-    1. Uses AI to anticipate what the project will need
-    2. Checks each prerequisite
-    3. Reports what's ready and what's missing
-    4. Suggests setup steps
-    
-    Args:
-        path: Project root path.
-        model: LLM for anticipation.
-        user_description: Optional user description of what they're making.
+    This runs AFTER _classify_project() and _detect_dev_command(),
+    so we can leverage their results.
     
     Returns:
-        ReadinessResult with detailed readiness status.
+        (preview_type, preview_url, preview_file)
     """
-    # Step 1: Anticipate needs
-    needs = await anticipate_project_needs(path, model, user_description)
     
-    # Step 2: Load prerequisite definitions
-    all_prerequisites = load_prerequisites()
+    # === CODE PROJECTS: Use dev_command info ===
+    if project_type == ProjectType.CODE:
+        if dev_command:
+            if dev_command.expected_url:
+                # Web app with dev server
+                return PreviewType.WEB_VIEW, dev_command.expected_url, None
+            else:
+                # CLI tool
+                return PreviewType.TERMINAL, None, None
+        return PreviewType.NONE, None, None  # Library, no preview
     
-    # Step 3: Check each relevant prerequisite
-    met: list[str] = []
-    missing: list[str] = []
-    optional: list[str] = []
-    setup_commands: list[str] = []
-    
-    for prereq_id in needs.prerequisites:
-        prereq = all_prerequisites.get(prereq_id)
-        if not prereq:
-            continue
+    # === CREATIVE PROJECTS: Content-based preview ===
+    if project_type == ProjectType.CREATIVE:
+        # Screenplay
+        if signals.has_fountain:
+            fountain_file = _find_primary_file(signals.path, "**/*.fountain")
+            return PreviewType.SCREENPLAY, None, fountain_file
         
-        result = await check_prerequisite(prereq, path)
+        # Prose (novel, manuscript)
+        if signals.has_prose:
+            prose_file = _find_primary_prose(signals.path)
+            return PreviewType.PROSE, None, prose_file
         
-        if result.satisfied:
-            met.append(prereq_id)
-        elif prereq.required:
-            missing.append(prereq_id)
-            if prereq.install.method == "command":
-                setup_commands.append(prereq.install.value)
-        else:
-            optional.append(prereq_id)
+        # Dialogue (Yarn, ink)
+        if yarn_file := _find_primary_file(signals.path, "**/*.yarn"):
+            return PreviewType.DIALOGUE, None, yarn_file
+        if ink_file := _find_primary_file(signals.path, "**/*.ink"):
+            return PreviewType.DIALOGUE, None, ink_file
     
-    # Step 4: Determine available gates
-    all_gates = load_gates()
-    available_gates = [
-        gate_id
-        for gate_id, gate in all_gates.items()
-        if needs.genre.value in gate.applies_to
-    ]
+    # === DATA PROJECTS: Notebooks ===
+    if project_type == ProjectType.DATA:
+        if signals.has_notebooks:
+            return PreviewType.NOTEBOOK, "http://localhost:8888", None
     
-    return ReadinessResult(
-        genre=needs.genre.value,
-        ready=len(missing) == 0,
-        prerequisites_met=tuple(met),
-        prerequisites_missing=tuple(missing),
-        prerequisites_optional=tuple(optional),
-        suggested_tools=needs.suggested_tools,
-        available_gates=tuple(available_gates),
-        setup_commands=tuple(setup_commands),
-    )
+    # === DEFAULT: No preview ===
+    return PreviewType.NONE, None, None
+
+
+def _find_primary_file(path: Path, pattern: str) -> str | None:
+    """Find the primary file matching a pattern."""
+    files = list(path.glob(pattern))
+    if not files:
+        return None
+    # Prefer files in root, then alphabetically
+    files.sort(key=lambda f: (len(f.parts), f.name))
+    return str(files[0].relative_to(path))
+
+
+def _find_primary_prose(path: Path) -> str | None:
+    """Find the primary prose file (first chapter or main manuscript)."""
+    for dir_name in ["chapters", "manuscript"]:
+        chapter_dir = path / dir_name
+        if chapter_dir.is_dir():
+            chapters = sorted(chapter_dir.glob("*.md"))
+            if chapters:
+                return str(chapters[0].relative_to(path))
+    return None
 ```
+
+**Key insight**: Preview detection reuses signals already gathered by RFC-079.
+
+**Expected coverage** (to be validated during implementation):
+- Heuristics: ~70-80% of projects (common frameworks with clear signals)
+- AI fallback: ~20-30% (uncommon formats, ambiguous signals)
 
 ---
 
-### Component 5: Gate Execution for All Types
+### Component 3.5: Self-Validation (Optional, Small Model)
+
+For low-confidence AI detections, a second validation pass catches obvious mismatches:
 
 ```python
-# src/sunwell/project/universal_gates.py
+async def _validate_preview_detection(
+    analysis: ProjectAnalysis,
+    model_provider: ModelProvider,
+) -> bool:
+    """Validate preview detection makes sense.
+    
+    Only runs when:
+    - AI was used for detection (not heuristics)
+    - Confidence < 0.9
+    
+    Returns True if valid, False if suspicious.
+    """
+    if analysis.confidence >= 0.9:
+        return True  # High confidence, skip
+    
+    model = model_provider.get_model(tier="fast")
+    
+    prompt = f'''Sanity check: Does this preview setup make sense?
 
-from dataclasses import dataclass
-from enum import Enum
-from typing import Any
+Project type: {analysis.project_type.value}
+Dev command: {analysis.dev_command.command if analysis.dev_command else "None"}
+Preview type: {analysis.preview_type.value}
 
-
-class GateCategory(Enum):
-    """Categories of gates."""
+Reply with JSON: {{"valid": true/false, "issue": "explanation if invalid"}}
+'''
     
-    STATIC = "static"       # No execution needed (linting, format checking)
-    RUNTIME = "runtime"     # Requires execution (imports, tests)
-    PROGRESS = "progress"   # Milestone checking (word count, page count)
-    QUALITY = "quality"     # Quality metrics (readability, grammar)
-    CONSISTENCY = "consistency"  # Internal consistency (POV, timeline)
-    FORMAT = "format"       # Format validation (Fountain, Markdown)
-
-
-@dataclass(frozen=True, slots=True)
-class UniversalGateResult:
-    """Result of running a universal gate."""
+    response = await model.generate(prompt, max_tokens=100)
+    result = _extract_json(response.content)
     
-    gate_id: str
-    """Gate that was run."""
+    if not result.get("valid", True):
+        logger.warning(f"Preview validation failed: {result.get('issue')}")
+        return False
     
-    passed: bool
-    """Whether the gate passed."""
-    
-    score: float | None
-    """Optional score (0.0-1.0) for quality gates."""
-    
-    message: str
-    """Human-readable result message."""
-    
-    details: dict[str, Any]
-    """Detailed results (varies by gate type)."""
-    
-    auto_fixed: bool
-    """Whether issues were auto-fixed."""
-    
-    suggestions: tuple[str, ...]
-    """Suggestions for improvement."""
-
-
-class UniversalGateRunner:
-    """Runs gates for any project type."""
-    
-    def __init__(
-        self,
-        project_path: Path,
-        model: ModelProtocol | None = None,
-    ):
-        self.project_path = project_path
-        self.model = model
-        self.gate_registry = load_gates()
-    
-    async def run_gate(
-        self,
-        gate_id: str,
-        content: str,
-        context: dict[str, Any] | None = None,
-    ) -> UniversalGateResult:
-        """Run a single gate.
-        
-        Args:
-            gate_id: ID of gate from registry.
-            content: Content to check.
-            context: Additional context (character profiles, timeline, etc.)
-        
-        Returns:
-            UniversalGateResult with pass/fail and details.
-        """
-        gate = self.gate_registry.get(gate_id)
-        if not gate:
-            raise ValueError(f"Unknown gate: {gate_id}")
-        
-        match gate.check.method:
-            case "command":
-                return await self._run_command_gate(gate, content)
-            case "script":
-                return await self._run_script_gate(gate, content, context)
-            case "llm":
-                return await self._run_llm_gate(gate, content, context)
-            case "python":
-                return await self._run_python_gate(gate, content)
-            case _:
-                raise ValueError(f"Unknown check method: {gate.check.method}")
-    
-    async def run_gates_for_artifact(
-        self,
-        artifact_type: str,
-        content: str,
-        context: dict[str, Any] | None = None,
-    ) -> list[UniversalGateResult]:
-        """Run all appropriate gates for an artifact.
-        
-        Automatically selects gates based on artifact type.
-        
-        Args:
-            artifact_type: Type of artifact (chapter, screenplay, module, etc.)
-            content: Content to check.
-            context: Additional context.
-        
-        Returns:
-            List of gate results.
-        """
-        # Map artifact types to gate sets
-        gate_sets = {
-            "chapter": ["word_count", "readability", "grammar", "pov_consistency"],
-            "screenplay": ["fountain_format", "page_count", "dialogue_balance"],
-            "dialogue": ["branching_coverage", "variable_consistency", "character_voice"],
-            "module": ["syntax", "lint", "type_check", "import_check"],
-        }
-        
-        gates_to_run = gate_sets.get(artifact_type, [])
-        results = []
-        
-        for gate_id in gates_to_run:
-            try:
-                result = await self.run_gate(gate_id, content, context)
-                results.append(result)
-            except Exception as e:
-                results.append(UniversalGateResult(
-                    gate_id=gate_id,
-                    passed=False,
-                    score=None,
-                    message=f"Gate error: {e}",
-                    details={},
-                    auto_fixed=False,
-                    suggestions=(),
-                ))
-        
-        return results
+    return True
 ```
+
+**Why self-validation works**:
+- Catch mismatches like "Flask app" + "npm run dev"
+- Second opinion is cheap (~$0.0001)
+- Small models are good at "does this make sense?" checks
 
 ---
 
-### Component 6: Integration with DAG Execution
+### Component 4: Prerequisite Checking
 
-Update the backlog-driven execution to use universal gates:
+Prerequisite checking extends the existing `DevCommand.prerequisites` system from RFC-079.
 
 ```python
-# In ExecutionManager (from rfc-backlog-driven-execution)
+# src/sunwell/project/prereq_check.py
 
-async def _execute_goal(self, goal: BacklogGoal) -> GoalResult:
-    """Execute a goal with universal gate checking."""
+import subprocess
+
+
+def check_prerequisites(analysis: ProjectAnalysis) -> list[Prerequisite]:
+    """Check which prerequisites are satisfied.
     
-    # Plan the goal
-    plan = await self._planner.plan(goal, self._context)
+    Examines dev_command.prerequisites and returns updated list
+    with satisfaction status.
+    """
+    if not analysis.dev_command or not analysis.dev_command.prerequisites:
+        return []
     
-    # Execute artifacts with gates
-    results: list[ArtifactResult] = []
-    
-    for artifact in plan.artifacts:
-        # Create the artifact
-        content = await self._create_artifact(artifact)
-        
-        # Run universal gates for this artifact type
-        gate_results = await self._gate_runner.run_gates_for_artifact(
-            artifact_type=artifact.type,  # "chapter", "module", "screenplay", etc.
-            content=content,
-            context=self._get_gate_context(artifact),
-        )
-        
-        # Check if gates passed
-        all_passed = all(g.passed for g in gate_results)
-        
-        if not all_passed:
-            # Attempt fix if available
-            fixed = await self._attempt_fix(artifact, content, gate_results)
-            if not fixed:
-                # Emit gate failure event
-                await self._emit(EventType.GATE_FAIL, {
-                    "artifact_id": artifact.id,
-                    "failed_gates": [g.gate_id for g in gate_results if not g.passed],
-                })
-        
-        results.append(ArtifactResult(
-            artifact_id=artifact.id,
-            content=content,
-            gate_results=gate_results,
-            passed=all_passed,
+    checked = []
+    for prereq in analysis.dev_command.prerequisites:
+        satisfied = _check_single_prerequisite(prereq)
+        checked.append(Prerequisite(
+            command=prereq.command,
+            description=prereq.description,
+            check_command=prereq.check_command,
+            satisfied=satisfied,
+            required=prereq.required,
         ))
     
-    return GoalResult(
-        goal_id=goal.id,
-        artifacts=results,
-        success=all(r.passed for r in results),
-    )
+    return checked
+
+
+def _check_single_prerequisite(prereq: Prerequisite) -> bool:
+    """Check if a single prerequisite is satisfied."""
+    if not prereq.check_command:
+        return False  # Can't verify, assume not satisfied
+    
+            try:
+                result = subprocess.run(
+                    prereq.check_command,
+                    shell=True,
+                    capture_output=True,
+                    timeout=5,
+                )
+        return result.returncode == 0
+            except (subprocess.TimeoutExpired, OSError):
+        return False
+
+
+def can_preview(analysis: ProjectAnalysis) -> bool:
+    """Check if preview is ready (no server needed or prerequisites met)."""
+    # Content previews (prose, screenplay, dialogue) have no prerequisites
+    if analysis.preview_type in (
+        PreviewType.PROSE,
+        PreviewType.SCREENPLAY,
+        PreviewType.DIALOGUE,
+        PreviewType.STATIC,
+    ):
+        return True
+    
+    # Web/terminal previews need dev_command prerequisites
+    if analysis.dev_command:
+        checked = check_prerequisites(analysis)
+        return all(p.satisfied or not p.required for p in checked)
+    
+    return analysis.preview_type != PreviewType.NONE
+
+
+def missing_prerequisites(analysis: ProjectAnalysis) -> list[Prerequisite]:
+    """Get list of missing required prerequisites."""
+    checked = check_prerequisites(analysis)
+    return [p for p in checked if not p.satisfied and p.required]
 ```
 
 ---
 
-## Migration Strategy
+### Component 5: Built-in Renderers
 
-### Phase 1: Core Infrastructure (Week 1)
-1. Create `AnticipatedNeeds` and anticipation prompt
-2. Create YAML schema for prerequisites and gates
-3. Implement `load_prerequisites()` and `load_gates()`
-4. Implement `check_project_readiness()`
+**Sunwell provides built-in preview for creative formats:**
 
-### Phase 2: Creative Writing Gates (Week 2)
-1. Implement word count gate script
-2. Implement readability gate script
-3. Implement grammar gate (integrate with LanguageTool or LLM)
-4. Implement LLM-based consistency gates
+| Format | Renderer | Notes |
+|---|---|---|
+| Markdown prose | Built-in | Formatted reader with typography |
+| Fountain screenplay | Built-in | Industry-standard formatting |
+| Yarn dialogue | Built-in | Interactive tree player |
+| ink narrative | Built-in | Playable story |
+| Jupyter notebook | Jupyter (external) | Opens in browser |
 
-### Phase 3: Screenplay & Game Writing (Week 3)
-1. Implement Fountain validation script
-2. Implement dialogue balance script
-3. Implement branching coverage script
-4. Integrate Yarn/ink format support
+**For code projects**, we start the dev server and embed WebView.
 
-### Phase 4: Integration (Week 4)
-1. Update `ExecutionManager` to use universal gates
-2. Add readiness check to project open flow
-3. Add gate results to DAG UI
-4. Add prerequisite installation wizard to Studio
+**For prose/screenplay**, we render directly in Sunwell (no external dependencies).
+
+```rust
+// studio/src-tauri/src/preview.rs (existing, to be extended)
+
+pub enum ViewType {
+    WebView,      // Embedded browser (web apps)
+    Terminal,     // Pre-filled terminal (CLI tools)
+    Prose,        // Formatted reader (novels, articles)  ← Add renderer
+    Fountain,     // Screenplay viewer                    ← Add renderer
+    Dialogue,     // Interactive dialogue player          ← Add renderer
+    Generic,      // Generic file viewer
+}
+```
 
 ---
 
-## UI Integration
+## Implementation Plan
 
-### Readiness Panel (on project open)
+### Phase 1: Type Extensions (Week 1)
+
+1. **Add `PreviewType` enum** to `intent_types.py`
+2. **Extend `ProjectAnalysis`** with `preview_type`, `preview_url`, `preview_file`
+3. **Extend `Prerequisite`** with `satisfied`, `required` fields
+4. **Add `_detect_preview_type()`** function to `intent_analyzer.py`
+5. **Update `analyze_project()`** to populate preview fields
+
+**Deliverable**: `analyze_project()` returns preview info for all project types.
+
+### Phase 2: Built-in Renderers (Week 2)
+
+1. **Prose renderer** — Markdown to formatted view with typography
+2. **Fountain renderer** — Screenplay to industry-formatted view
+3. **Dialogue renderer** — Yarn/ink to interactive player
+
+**Deliverable**: `PreviewType.PROSE`, `SCREENPLAY`, `DIALOGUE` can render without external tools.
+
+### Phase 3: Studio Integration (Week 3)
+
+1. **Sync Rust types** — Update `ViewType` in `preview.rs` to match `PreviewType`
+2. **Update "Try It" flow** — Route to correct preview based on `analysis.preview_type`
+3. **Prerequisites UI** — Show missing prerequisites and offer to install
+
+**Deliverable**: End-to-end "Try It" works for any project type.
+
+---
+
+## UI Flow
+
+### "Try It" Button Click
 
 ```
-┌────────────────────────────────────────────────────────────┐
-│ 📋 Project Readiness: Web Serial                           │
-├────────────────────────────────────────────────────────────┤
-│                                                            │
-│ ✅ Ready to create!                                        │
-│                                                            │
-│ Prerequisites:                                             │
-│ ✅ Word processor available                                │
-│ ✅ Grammar tool available                                  │
-│ ⚠️ Platform account (optional)                            │
-│    → Create Royal Road account for publishing              │
-│ ⚠️ Cover art (optional)                                   │
-│    → Commission or create cover for better visibility      │
-│                                                            │
-│ Quality Gates Available:                                   │
-│ • Word count targets (1,500-5,000/chapter)                │
-│ • Readability scoring                                     │
-│ • Grammar checking                                         │
-│ • Chapter hook analysis                                   │
-│ • Cliffhanger evaluation                                  │
-│                                                            │
-│ [Start Creating] [Configure Gates] [Skip]                  │
-└────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  🎬 Try It: Screenplay                                       │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│  Detected: Fountain screenplay                               │
+│  Confidence: 90%                                             │
+│                                                              │
+│  ✅ Ready to preview!                                        │
+│  No external dependencies needed.                            │
+│                                                              │
+│  [▶ Open Preview]                                            │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-### Gate Results in DAG
+```
+┌──────────────────────────────────────────────────────────────┐
+│  🌐 Try It: Flask App                                        │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│  Detected: Flask web application                             │
+│  Confidence: 95%                                             │
+│                                                              │
+│  Prerequisites:                                              │
+│  ✅ Python 3.11+ installed                                   │
+│  ❌ Flask not found                                          │
+│     → pip install flask                                      │
+│                                                              │
+│  [Install & Run] [Run Anyway] [Cancel]                       │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+```
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Chapter 3: The Awakening                                    │
-├─────────────────────────────────────────────────────────────┤
-│ Status: ✅ Complete                                         │
-│                                                             │
-│ Gate Results:                                               │
-│ ✅ Word count: 3,247 words (target: 1,500-5,000)           │
-│ ✅ Readability: Grade 7.2 (target: 6-10)                   │
-│ ⚠️ Grammar: 3 issues found                                 │
-│    → Line 45: "Their" should be "There"                    │
-│    → Line 89: Run-on sentence                              │
-│    → Line 156: Passive voice (consider rewriting)          │
-│ ✅ POV consistency: First person maintained                │
-│ ✅ Chapter hook: 8/10 - Strong opening                     │
-│ ⚠️ Cliffhanger: 6/10 - Could be stronger                  │
-│    → Consider ending on the revelation, not after          │
-│                                                             │
-│ [Fix Grammar] [View Details] [Mark Complete]                │
-└─────────────────────────────────────────────────────────────┘
-```
+### Preview Views
+
+**Web App** → Embedded WebView showing localhost:5000
+
+**Screenplay** → Formatted screenplay with:
+- Character names centered/caps
+- Dialogue indented
+- Scene headings bold
+- Page breaks (90-120 page target)
+
+**Novel** → Formatted prose reader with:
+- Book typography (proper fonts)
+- Chapter navigation
+- Word count display
+- Progress tracking
+
+**Dialogue** → Interactive player with:
+- Current node display
+- Choice buttons
+- Variable state panel
+- Branching path visualization
 
 ---
 
 ## Success Criteria
 
-1. **Any project type gets readiness check** — Novelist gets software suggestions, screenwriter gets format validation
-2. **Gates run at DAG milestones** — Chapter complete? Run word count + readability + grammar
-3. **AI anticipates needs** — "You're writing LitRPG? You'll need stat blocks and a progression system"
-4. **Easy to extend** — Adding new project type = YAML entry, not code changes
-5. **Never blocks** — All gates are advisory, user can always bypass
+| Criterion | Target | Measurement |
+|-----------|--------|-------------|
+| **Coverage** | "Try It" works for ANY project type | Test matrix: Flask, React, Novel, Screenplay, Dialogue, CLI |
+| **Detection accuracy** | ≥90% correct preview type | Measure against test corpus of 50 projects |
+| **Prerequisites UX** | User knows what to install | Prerequisites shown before failed run |
+| **Built-in previews** | No external tools for creative | Prose/screenplay/dialogue render in Sunwell |
+| **Performance** | Heuristics <100ms, AI <2s | Instrumented timing in `analyze_project()` |
+| **Cost** | <$0.001/analysis with AI | Track token usage in telemetry |
+
+### Validation Plan
+
+**Phase 1 exit criteria**:
+- [ ] `analyze_project()` returns valid `preview_type` for all `ProjectType` values
+- [ ] Unit tests cover heuristic detection paths
+- [ ] AI fallback works when heuristics return low confidence
+
+**Phase 2 exit criteria**:
+- [ ] Prose renderer displays Markdown with proper typography
+- [ ] Fountain renderer formats screenplay with character/dialogue styling
+- [ ] Dialogue renderer plays through basic Yarn/ink scripts
+
+**Phase 3 exit criteria**:
+- [ ] "Try It" button routes to correct preview type
+- [ ] Prerequisites modal shows missing dependencies
+- [ ] End-to-end test: Flask, Novel, Screenplay projects all preview correctly
 
 ---
 
-## Open Questions
+## Cost Analysis
 
-1. **Gate ordering**: Should gates run in a specific order? (Fast static checks first, slow LLM checks last?)
-2. **Cross-chapter gates**: Some consistency checks need to span multiple chapters (timeline, character arcs). How to handle?
-3. **User customization**: How much should users be able to customize gate thresholds? (Some authors write 10k chapters)
-4. **Cost management**: LLM gates cost tokens. Run on every save? Only on "check" command? Only before publishing?
+**Per preview analysis (when AI needed):**
+
+| Step | Tokens | Cost (Haiku) | Cost (Flash) |
+|---|---|---|---|
+| Context gathering | ~500 input | $0.000125 | $0.0000375 |
+| Analysis | ~300 output | $0.000375 | $0.0001125 |
+| Validation | ~100 round-trip | $0.000075 | $0.0000225 |
+| **Total** | | **~$0.0006** | **~$0.0002** |
+
+**At scale (estimated):**
+- 1,000 projects/day = $0.60/day (Haiku) or $0.20/day (Flash)
+- If heuristics handle ~75% → ~250 AI calls/day = **~$0.15/day**
+
+**Conclusion**: Cost is negligible. No reason to skimp on AI fallback.
+
+---
+
+## Open Questions (Resolved)
+
+| Question | Decision | Rationale |
+|----------|----------|-----------|
+| **Render fidelity**: How accurate should Fountain rendering be? | "Good enough" for MVP | Industry-perfect requires significant investment. Start with readable formatting, iterate based on user feedback. |
+| **Dialogue complexity**: Support branching variables? Conditions? | Basic playthrough for MVP | Full variable/condition support is complex. Start with linear playthrough + choice selection, add variables in v2. |
+| **Novel navigation**: Chapter list? Table of contents? Search? | Chapter list + word count | Essential for navigation. TOC and search are nice-to-have for v2. |
+
+---
+
+## Future: Quality Gates
+
+This RFC focuses on **preview** — "can I see it working?"
+
+A future RFC should address **quality gates** — "is it good?"
+
+| Gate Type | What It Checks | Applies To |
+|---|---|---|
+| Word count | Chapter within target range | Prose |
+| Readability | Flesch-Kincaid grade level | Prose, Docs |
+| Grammar | Spelling, punctuation, style | All text |
+| POV consistency | No head-hopping | Fiction |
+| Timeline | No anachronisms | Fiction |
+| Fountain format | Valid screenplay syntax | Screenplay |
+| Page count | 90-120 pages | Screenplay |
+| Branch coverage | All paths reachable | Dialogue |
+
+These gates would run in the DAG at artifact completion, similar to how code gates run today.
 
 ---
 
 ## References
 
-- RFC-079: Project Intent Analyzer
-- RFC-042: Validation Gates (original code gates)
-- RFC-066: Intelligent Run Button
+**Extends**:
+- RFC-079: Project Intent Analyzer — adds preview capability to `ProjectAnalysis`
+
+**Related**:
+- RFC-066: Intelligent Run Button — original "Try It" concept (superseded for scope)
+- RFC-042: Validation Gates — code quality gates (future: creative quality gates)
 - rfc-backlog-driven-execution: DAG execution flow
-- TECHNICAL-VISION.md: Workflow quality gates section
+
+**Source files**:
+- `src/sunwell/project/intent_analyzer.py` — main analyzer, lines 95-98 show code-only limitation
+- `src/sunwell/project/intent_types.py` — `ProjectAnalysis`, `DevCommand`, `Prerequisite` types
+- `src/sunwell/project/signals.py` — `has_prose`, `has_fountain` signals (lines 65-66, 178-179)
+- `studio/src-tauri/src/preview.rs` — Rust `ViewType` enum to sync

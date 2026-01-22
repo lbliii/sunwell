@@ -37,11 +37,18 @@ from sunwell.project.intent_types import (
     InferredGoal,
     PipelineStep,
     Prerequisite,
+    PreviewType,
     ProjectAnalysis,
     ProjectType,
     SuggestedAction,
 )
 from sunwell.project.monorepo import SubProject, detect_sub_projects, is_monorepo
+from sunwell.project.prereq_check import (
+    can_preview,
+    check_prerequisites,
+    get_preview_status,
+    missing_prerequisites,
+)
 from sunwell.project.resolver import SchemaResolver
 from sunwell.project.schema import (
     ArtifactField,
@@ -80,6 +87,7 @@ __all__ = [
     "is_lens_compatible",
     # Project Intent Types (RFC-079)
     "ProjectType",
+    "PreviewType",
     "ProjectAnalysis",
     "SuggestedAction",
     "DevCommand",
@@ -87,6 +95,11 @@ __all__ = [
     "PipelineStep",
     "InferredGoal",
     "WORKSPACE_PRIMARIES",
+    # Prerequisite Checking (RFC: Universal Project Readiness)
+    "check_prerequisites",
+    "can_preview",
+    "missing_prerequisites",
+    "get_preview_status",
     # Signals (RFC-079)
     "ProjectSignals",
     "GitStatus",

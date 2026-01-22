@@ -177,7 +177,7 @@ def chat(
             sys.exit(1)
 
     # Set defaults
-    provider = provider or "openai"
+    provider = provider or "ollama"
     if model is None:
         model = {
             "openai": "gpt-4o",

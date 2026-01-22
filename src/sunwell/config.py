@@ -17,79 +17,52 @@ Thread Safety:
 
 import os
 import threading
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-from sunwell.types.config import EmbeddingConfig, ModelConfig, NaaruConfig, OllamaConfig
+from sunwell.types.config import (
+    EmbeddingConfig,
+    LifecycleConfig,
+    ModelConfig,
+    NaaruConfig,
+    OllamaConfig,
+    SimulacrumConfig,
+    SpawnConfig,
+)
 
 
-@dataclass
-class SpawnConfig:
-    """Configuration for automatic simulacrum spawning."""
+def _get_dataclass_defaults() -> dict[str, dict[str, Any]]:
+    """Get defaults from dataclass definitions (single source of truth).
 
-    enabled: bool = True
-    """Whether auto-spawning is enabled."""
+    This ensures config.py stays in sync with types/config.py.
+    """
+    # Create instances to get field defaults
+    simulacrum = SimulacrumConfig()
+    model = ModelConfig()
+    naaru = NaaruConfig()
+    embedding = EmbeddingConfig()
+    ollama = OllamaConfig()
 
-    novelty_threshold: float = 0.7
-    """How different a query must be from existing simulacrums to trigger spawn (0-1)."""
+    # Convert to dicts, filtering out non-serializable fields
+    def to_serializable(obj: object) -> dict[str, Any]:
+        result = {}
+        for k, v in asdict(obj).items():
+            # Skip callbacks and other non-serializable types
+            if callable(v) or k == "event_callback":
+                continue
+            result[k] = v
+        return result
 
-    min_queries_before_spawn: int = 3
-    """Minimum queries in a new domain before spawning."""
-
-    domain_coherence_threshold: float = 0.5
-    """How related queries must be to form a coherent simulacrum."""
-
-    max_simulacrums: int = 20
-    """Maximum simulacrums to prevent unbounded growth."""
-
-    auto_name: bool = True
-    """Auto-generate simulacrum names from detected topics."""
-
-
-@dataclass
-class LifecycleConfig:
-    """Configuration for simulacrum lifecycle management."""
-
-    stale_days: int = 30
-    """Days without access before simulacrum is considered stale."""
-
-    archive_days: int = 90
-    """Days without access before auto-archiving."""
-
-    min_useful_nodes: int = 3
-    """Minimum nodes for a simulacrum to be considered useful."""
-
-    min_useful_learnings: int = 1
-    """Minimum learnings for a simulacrum to be considered useful."""
-
-    auto_archive: bool = True
-    """Automatically archive stale simulacrums."""
-
-    auto_merge_empty: bool = True
-    """Auto-merge empty simulacrums into similar ones."""
-
-    protect_recently_spawned_days: int = 7
-    """Don't cleanup simulacrums spawned within this many days."""
-
-
-@dataclass
-class SimulacrumConfig:
-    """Configuration for simulacrum management."""
-
-    base_path: str = ".sunwell/memory"
-    """Base path for simulacrum storage."""
-
-    spawn: SpawnConfig = field(default_factory=SpawnConfig)
-    """Auto-spawn configuration."""
-
-    lifecycle: LifecycleConfig = field(default_factory=LifecycleConfig)
-    """Lifecycle management configuration."""
-
-
-# Config classes moved to sunwell.types.config - imported above
+    return {
+        "simulacrum": to_serializable(simulacrum),
+        "model": to_serializable(model),
+        "naaru": to_serializable(naaru),
+        "embedding": to_serializable(embedding),
+        "ollama": to_serializable(ollama),
+    }
 
 
 @dataclass
@@ -290,81 +263,16 @@ def load_config(path: str | Path | None = None) -> SunwellConfig:
     """
     global _config
 
-    # Start with defaults as dict
+    # Get defaults from dataclass definitions (single source of truth)
+    dataclass_defaults = _get_dataclass_defaults()
+
+    # Start with defaults from dataclasses (single source of truth)
     config_dict: dict[str, Any] = {
-        "simulacrum": {
-            "base_path": ".sunwell/memory",
-            "spawn": {
-                "enabled": True,
-                "novelty_threshold": 0.7,
-                "min_queries_before_spawn": 3,
-                "domain_coherence_threshold": 0.5,
-                "max_simulacrums": 20,
-                "auto_name": True,
-            },
-            "lifecycle": {
-                "stale_days": 30,
-                "archive_days": 90,
-                "min_useful_nodes": 3,
-                "min_useful_learnings": 1,
-                "auto_archive": True,
-                "auto_merge_empty": True,
-                "protect_recently_spawned_days": 7,
-            },
-        },
-        "embedding": {
-            "prefer_local": True,
-            "ollama_model": "all-minilm",
-            "ollama_url": "http://localhost:11434",
-            "fallback_to_hash": True,
-        },
-        "model": {
-            "default_provider": "openai",
-            "default_model": "gpt-4o",
-            "smart_routing": False,
-        },
-        "naaru": {
-            "name": "M'uru",
-            "title": "The Naaru",
-            "titles": ["M'uru", "The Naaru"],
-            "alternate_titles": True,
-            "use_native_ollama_api": True,
-            # =================================================================
-            # 2-Tier Model Architecture (RFC-081)
-            # Simplified: classifier (1b) + worker (20b)
-            # Middle-tier (4b-12b) removed - quality gap not worth latency
-            # =================================================================
-            # Voice: Fast classifier for routing + trivial answers
-            "voice": "gemma3:1b",
-            "voice_models": ["gemma3:1b", "llama3.2:3b", "qwen2.5:1.5b"],
-            "voice_temperature": 0.3,
-            # Wisdom: The brain - generation, judging, complex reasoning
-            "wisdom": "gpt-oss:20b",
-            "wisdom_models": ["gpt-oss:20b", "gemma3:12b", "llama3:70b"],
-            "purity_threshold": 6.0,
-            "harmonic_synthesis": True,
-            "resonance": 2,
-            "convergence": 7,
-            "discernment": True,
-            "attunement": True,
-            "num_analysis_shards": 2,
-            "num_synthesis_shards": 2,
-            # RFC-030: Unified Router (uses voice model)
-            "router": "gemma3:1b",
-            "router_temperature": 0.1,
-            "router_cache_size": 1000,
-            # RFC-034: Parallel Task Execution
-            "enable_parallel_execution": True,
-            "max_parallel_tasks": 8,
-            "max_parallel_llm_requests": None,
-        },
-        "ollama": {
-            "base_url": "http://localhost:11434",
-            "num_parallel": None,  # Auto-detect from server
-            "max_loaded_models": None,  # Server default
-            "connection_pool_size": 20,
-            "request_timeout": 120.0,
-        },
+        "simulacrum": dataclass_defaults["simulacrum"],
+        "embedding": dataclass_defaults["embedding"],
+        "model": dataclass_defaults["model"],
+        "naaru": dataclass_defaults["naaru"],
+        "ollama": dataclass_defaults["ollama"],
         "verbose": False,
     }
 
@@ -510,6 +418,9 @@ def save_default_config(path: str | Path = ".sunwell/config.yaml") -> Path:
     """
     config_content = '''# Sunwell Configuration
 # https://github.com/sunwell/sunwell
+#
+# NOTE: Actual defaults are defined in sunwell/types/config.py (single source of truth).
+# This file is an example template - edit values you want to override.
 
 # Simulacrum management (auto-evolving memory)
 simulacrum:
@@ -576,11 +487,11 @@ embedding:
 
 # Model defaults
 model:
-  # Default provider (openai, anthropic, ollama)
-  default_provider: "openai"
+  # Default provider (ollama, openai, anthropic)
+  default_provider: "ollama"
 
   # Default model name
-  default_model: "gpt-4o"
+  default_model: "gemma3:4b"
 
   # Enable adaptive model selection by default
   smart_routing: false

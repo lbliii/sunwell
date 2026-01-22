@@ -478,6 +478,92 @@ class BacklogManager:
 
         return artifacts
 
+    async def get_related_goals(
+        self,
+        goal_id: str | None = None,
+        artifact_id: str | None = None,
+    ) -> list[dict]:
+        """Find goals related by shared artifacts (RFC-094).
+
+        This powers "show related goals" UI feature. Goals are related if they:
+        - Created the same artifact (same file path)
+        - Share artifact dependencies
+
+        Args:
+            goal_id: Find goals related to this goal
+            artifact_id: Find goals that created this artifact
+
+        Returns:
+            List of related goal info dicts with:
+            - goal_id: str
+            - title: str
+            - relationship: "created_same_artifact" | "shares_dependency"
+            - shared_artifacts: list[str]
+        """
+        history_path = self.backlog_path / "completed.jsonl"
+        if not history_path.exists():
+            return []
+
+        # Build artifact→goals index
+        artifact_to_goals: dict[str, list[dict]] = {}
+        goal_to_artifacts: dict[str, list[str]] = {}
+
+        for line in history_path.read_text().splitlines():
+            if not line.strip():
+                continue
+            try:
+                entry = json.loads(line)
+                gid = entry.get("goal_id", "")
+                artifacts = entry.get("artifacts_created", [])
+
+                goal_to_artifacts[gid] = artifacts
+                for aid in artifacts:
+                    if aid not in artifact_to_goals:
+                        artifact_to_goals[aid] = []
+                    artifact_to_goals[aid].append({
+                        "goal_id": gid,
+                        "timestamp": entry.get("timestamp"),
+                    })
+            except json.JSONDecodeError:
+                continue
+
+        related: list[dict] = []
+        seen_goals: set[str] = set()
+
+        # Find goals that created the specified artifact
+        if artifact_id and artifact_id in artifact_to_goals:
+            for info in artifact_to_goals[artifact_id]:
+                gid = info["goal_id"]
+                if gid not in seen_goals:
+                    seen_goals.add(gid)
+                    goal = self.backlog.goals.get(gid)
+                    related.append({
+                        "goal_id": gid,
+                        "title": goal.title if goal else gid,
+                        "relationship": "created_artifact",
+                        "shared_artifacts": [artifact_id],
+                    })
+
+        # Find goals related to the specified goal
+        if goal_id:
+            target_artifacts = set(goal_to_artifacts.get(goal_id, []))
+            for gid, artifacts in goal_to_artifacts.items():
+                if gid == goal_id or gid in seen_goals:
+                    continue
+
+                shared = target_artifacts & set(artifacts)
+                if shared:
+                    seen_goals.add(gid)
+                    goal = self.backlog.goals.get(gid)
+                    related.append({
+                        "goal_id": gid,
+                        "title": goal.title if goal else gid,
+                        "relationship": "created_same_artifact",
+                        "shared_artifacts": list(shared),
+                    })
+
+        return related
+
     def _load(self) -> None:
         """Load backlog from disk."""
         current_path = self.backlog_path / "current.json"

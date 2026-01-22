@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
-from sunwell.core.errors import from_anthropic_error
+from sunwell.core.errors import ErrorCode, SunwellError, from_anthropic_error
 from sunwell.models.protocol import (
     GenerateOptions,
     GenerateResult,
@@ -52,7 +52,22 @@ class AnthropicModel:
                     "Anthropic not installed. Run: pip install sunwell[anthropic]"
                 ) from e
 
-            self._client = AsyncAnthropic(api_key=self.api_key)
+            # Check for API key BEFORE creating client (gives clear error)
+            if not self.api_key:
+                raise SunwellError(
+                    code=ErrorCode.CONFIG_ENV_MISSING,
+                    context={
+                        "var": "ANTHROPIC_API_KEY",
+                        "provider": "anthropic",
+                        "flag": "provider ollama",
+                    },
+                )
+
+            try:
+                self._client = AsyncAnthropic(api_key=self.api_key)
+            except Exception as e:
+                raise from_anthropic_error(e, self.model) from e
+
         return self._client
 
     def _convert_messages(

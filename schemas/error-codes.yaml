@@ -1,0 +1,404 @@
+# Error codes - single source of truth
+# Python, Rust, and TypeScript implementations derive from this schema.
+# 
+# Format: XYYY where X = category, YYY = specific error
+#
+# Categories:
+#   1xxx - Model/Provider errors
+#   2xxx - Lens errors
+#   3xxx - Tool/Skill errors
+#   4xxx - Validation errors
+#   5xxx - Configuration errors
+#   6xxx - Runtime errors
+#   7xxx - Network/IO errors
+
+categories:
+  0: unknown
+  1: model
+  2: lens
+  3: tool
+  4: validation
+  5: config
+  6: runtime
+  7: io
+
+errors:
+  # ─────────────────────────────────────────────────────────────────
+  # Model/Provider Errors (1xxx)
+  # ─────────────────────────────────────────────────────────────────
+  MODEL_NOT_FOUND:
+    code: 1001
+    message: "Model '{model}' not found. Check if it's installed or available."
+    recoverable: true
+    hints:
+      - "Run 'ollama list' to see available models"
+      - "Install with 'ollama pull {model}'"
+
+  MODEL_AUTH_FAILED:
+    code: 1002
+    message: "Authentication failed for {provider}. Check your API key."
+    recoverable: false
+    hints:
+      - "Set the API key: export {env_var}=<your-key>"
+      - "Check if your API key is valid and not expired"
+      - "For local models, use --provider ollama (no API key needed)"
+
+  MODEL_RATE_LIMITED:
+    code: 1003
+    message: "Rate limited by {provider}. Retry after {retry_after}s."
+    recoverable: true
+    hints:
+      - "Wait {retry_after} seconds before retrying"
+      - "Switch to a different model or provider"
+      - "Reduce request frequency"
+
+  MODEL_CONTEXT_EXCEEDED:
+    code: 1004
+    message: "Input exceeds model's context window ({limit} tokens)."
+    recoverable: true
+    hints:
+      - "Reduce the input size or conversation history"
+      - "Use a model with a larger context window"
+      - "Enable automatic context summarization"
+
+  MODEL_TIMEOUT:
+    code: 1005
+    message: "Request to {provider} timed out after {timeout}s."
+    recoverable: true
+    hints:
+      - "Check your network connection"
+      - "Try again - the provider may be temporarily slow"
+      - "Switch to a different provider"
+
+  MODEL_API_ERROR:
+    code: 1006
+    message: "API error from {provider}: {detail}"
+    recoverable: true
+    hints:
+      - "Check the provider's status page"
+      - "Try again in a few minutes"
+
+  MODEL_TOOLS_NOT_SUPPORTED:
+    code: 1007
+    message: "Model '{model}' does not support tool calling."
+    recoverable: false
+    hints:
+      - "Switch to a model that supports tools (e.g., llama3:8b, gpt-4o-mini)"
+      - "Disable tools with --no-tools flag"
+      - "Use the model without tool calling for simple conversations"
+
+  MODEL_STREAMING_NOT_SUPPORTED:
+    code: 1008
+    message: "Model '{model}' does not support streaming."
+    recoverable: false
+    hints:
+      - "Use a model that supports streaming"
+      - "Disable streaming with --no-stream flag"
+
+  MODEL_PROVIDER_UNAVAILABLE:
+    code: 1009
+    message: "Provider '{provider}' is unavailable. Is it running?"
+    recoverable: true
+    hints:
+      - "For Ollama: run 'ollama serve'"
+      - "Check the provider URL is correct"
+      - "Switch to a different provider with --provider"
+
+  MODEL_RESPONSE_INVALID:
+    code: 1010
+    message: "Invalid response from model: {detail}"
+    recoverable: true
+    hints:
+      - "Try again - the model may have generated malformed output"
+      - "Try a different model"
+
+  # ─────────────────────────────────────────────────────────────────
+  # Lens Errors (2xxx)
+  # ─────────────────────────────────────────────────────────────────
+  LENS_NOT_FOUND:
+    code: 2001
+    message: "Lens '{lens}' not found at '{path}'."
+    recoverable: false
+    hints:
+      - "Check the lens path is correct"
+      - "Use 'sunwell list' to see available lenses"
+      - "Create the lens with 'sunwell init'"
+
+  LENS_PARSE_ERROR:
+    code: 2002
+    message: "Failed to parse lens '{lens}': {detail}"
+    recoverable: false
+    hints:
+      - "Check the lens file for syntax errors"
+      - "Validate against the lens schema"
+
+  LENS_CIRCULAR_DEPENDENCY:
+    code: 2003
+    message: "Circular dependency detected: {chain}"
+    recoverable: false
+    hints:
+      - "Review lens extends/inherits chain"
+      - "Remove the circular reference"
+
+  LENS_VERSION_CONFLICT:
+    code: 2004
+    message: "Version conflict for '{lens}': {detail}"
+    recoverable: false
+    hints:
+      - "Update the lens to a compatible version"
+      - "Check parent lens requirements"
+
+  LENS_MERGE_CONFLICT:
+    code: 2005
+    message: "Cannot merge lenses: {detail}"
+    recoverable: false
+    hints:
+      - "Check for conflicting settings"
+      - "Use explicit override syntax"
+
+  LENS_INVALID_SCHEMA:
+    code: 2006
+    message: "Invalid lens schema: {detail}"
+    recoverable: false
+    hints:
+      - "Validate the lens against the schema"
+      - "Check for typos in field names"
+
+  LENS_FOUNT_UNAVAILABLE:
+    code: 2007
+    message: "Fount registry unavailable. Using local lenses only."
+    recoverable: true
+    hints:
+      - "Check your network connection"
+      - "The Fount registry may be temporarily down"
+
+  # ─────────────────────────────────────────────────────────────────
+  # Tool/Skill Errors (3xxx)
+  # ─────────────────────────────────────────────────────────────────
+  TOOL_NOT_FOUND:
+    code: 3001
+    message: "Tool '{tool}' not registered."
+    recoverable: false
+    hints:
+      - "Check if the tool is installed"
+      - "Verify the tool name is correct"
+
+  TOOL_PERMISSION_DENIED:
+    code: 3002
+    message: "Permission denied for tool '{tool}': {detail}"
+    recoverable: true
+    hints:
+      - "Increase trust level with --trust flag"
+      - "Add the path to allowed patterns in lens"
+      - "Run with elevated permissions if appropriate"
+
+  TOOL_EXECUTION_FAILED:
+    code: 3003
+    message: "Tool '{tool}' failed: {detail}"
+    recoverable: true
+    hints:
+      - "Check if the tool is installed"
+      - "Try running the command manually"
+      - "Check permissions for the target path"
+
+  TOOL_TIMEOUT:
+    code: 3004
+    message: "Tool '{tool}' timed out after {timeout}s."
+    recoverable: true
+    hints:
+      - "The operation is taking longer than expected"
+      - "Try running the command manually"
+      - "Increase timeout with --timeout flag"
+
+  TOOL_INVALID_ARGUMENTS:
+    code: 3005
+    message: "Invalid arguments for tool '{tool}': {detail}"
+    recoverable: false
+    hints:
+      - "Check the tool documentation for correct arguments"
+      - "Verify argument types and formats"
+
+  SKILL_NOT_FOUND:
+    code: 3101
+    message: "Skill '{skill}' not found."
+    recoverable: false
+    hints:
+      - "Check if the skill is defined in the lens"
+      - "Verify the skill name is correct"
+
+  SKILL_PARSE_ERROR:
+    code: 3102
+    message: "Failed to parse skill '{skill}': {detail}"
+    recoverable: false
+    hints:
+      - "Check the skill definition for syntax errors"
+      - "Validate against the skill schema"
+
+  SKILL_EXECUTION_FAILED:
+    code: 3103
+    message: "Skill '{skill}' execution failed: {detail}"
+    recoverable: true
+    hints:
+      - "Check if sunwell CLI is installed"
+      - "Verify the project path exists"
+      - "Try running 'sunwell --help' to verify installation"
+
+  SKILL_VALIDATION_FAILED:
+    code: 3104
+    message: "Skill '{skill}' output validation failed: {detail}"
+    recoverable: true
+    hints:
+      - "Check the skill's expected output format"
+      - "Review the validation script"
+
+  SKILL_SANDBOX_VIOLATION:
+    code: 3105
+    message: "Skill '{skill}' violated sandbox: {detail}"
+    recoverable: false
+    hints:
+      - "Review skill script for forbidden operations"
+      - "Add required paths to sandbox allowlist"
+      - "Use a higher trust level if script is trusted"
+
+  # ─────────────────────────────────────────────────────────────────
+  # Validation Errors (4xxx)
+  # ─────────────────────────────────────────────────────────────────
+  VALIDATION_SCRIPT_FAILED:
+    code: 4001
+    message: "Validation script '{script}' failed with exit code {exit_code}."
+    recoverable: true
+    hints:
+      - "Check the validation script output"
+      - "Run the script manually to debug"
+
+  VALIDATION_TIMEOUT:
+    code: 4002
+    message: "Validation timed out after {timeout}s."
+    recoverable: true
+    hints:
+      - "The validation is taking too long"
+      - "Try simplifying the validation"
+
+  VALIDATION_INVALID_OUTPUT:
+    code: 4003
+    message: "Validator '{validator}' returned invalid output: {detail}"
+    recoverable: true
+    hints:
+      - "Check the validator's expected output format"
+      - "Review the validator implementation"
+
+  VALIDATION_CONFIDENCE_LOW:
+    code: 4004
+    message: "Confidence score {score} below threshold {threshold}."
+    recoverable: true
+    hints:
+      - "Review the output manually"
+      - "Lower the confidence threshold if acceptable"
+
+  # ─────────────────────────────────────────────────────────────────
+  # Configuration Errors (5xxx)
+  # ─────────────────────────────────────────────────────────────────
+  CONFIG_MISSING:
+    code: 5001
+    message: "Required configuration '{key}' not found."
+    recoverable: false
+    hints:
+      - "Add the configuration to your config file"
+      - "Check documentation for required settings"
+
+  CONFIG_INVALID:
+    code: 5002
+    message: "Invalid configuration for '{key}': {detail}"
+    recoverable: false
+    hints:
+      - "Check the configuration value format"
+      - "See documentation for valid values"
+
+  CONFIG_ENV_MISSING:
+    code: 5003
+    message: "Environment variable '{var}' not set."
+    recoverable: false
+    hints:
+      - "Set the variable: export {var}=<value>"
+      - "Add it to your .env file"
+      - "For local-first usage, use --provider ollama (no keys needed)"
+
+  # ─────────────────────────────────────────────────────────────────
+  # Runtime Errors (6xxx)
+  # ─────────────────────────────────────────────────────────────────
+  RUNTIME_STATE_INVALID:
+    code: 6001
+    message: "Invalid runtime state: {detail}"
+    recoverable: false
+    hints:
+      - "This is an internal error"
+      - "Please report this issue"
+
+  RUNTIME_MEMORY_EXHAUSTED:
+    code: 6002
+    message: "Memory limit exceeded. Consider reducing context size."
+    recoverable: false
+    hints:
+      - "Reduce context window size"
+      - "Close other applications"
+
+  RUNTIME_CONCURRENT_LIMIT:
+    code: 6003
+    message: "Concurrent request limit reached ({limit})."
+    recoverable: true
+    hints:
+      - "Wait for current operations to complete"
+      - "Reduce parallel operations"
+
+  RUNTIME_PROCESS_FAILED:
+    code: 6010
+    message: "Process failed to start: {detail}"
+    recoverable: true
+    hints:
+      - "Check if the command exists in PATH"
+      - "Verify permissions"
+      - "Try running the command manually"
+
+  # ─────────────────────────────────────────────────────────────────
+  # Network/IO Errors (7xxx)
+  # ─────────────────────────────────────────────────────────────────
+  NETWORK_UNREACHABLE:
+    code: 7001
+    message: "Cannot reach {host}. Check your network connection."
+    recoverable: true
+    hints:
+      - "Check your internet connection"
+      - "Verify firewall settings"
+
+  NETWORK_TIMEOUT:
+    code: 7002
+    message: "Network request to {host} timed out."
+    recoverable: true
+    hints:
+      - "Check your network connection"
+      - "The server may be slow - try again"
+
+  FILE_NOT_FOUND:
+    code: 7003
+    message: "File not found: {path}"
+    recoverable: false
+    hints:
+      - "Check if the path is correct"
+      - "Verify the file exists"
+
+  FILE_PERMISSION_DENIED:
+    code: 7004
+    message: "Permission denied: {path}"
+    recoverable: false
+    hints:
+      - "Check file permissions"
+      - "Run with appropriate permissions"
+
+  FILE_WRITE_FAILED:
+    code: 7005
+    message: "Failed to write file: {path}"
+    recoverable: true
+    hints:
+      - "Check disk space"
+      - "Verify write permissions"
+      - "Check if the directory exists"

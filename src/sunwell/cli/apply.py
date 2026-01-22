@@ -37,7 +37,7 @@ except ImportError:
 @click.argument("lens_path", type=click.Path(exists=True))
 @click.argument("prompt")
 @click.option("--model", "-m", default=None, help="Model to use (default: auto based on provider)")
-@click.option("--provider", "-p", default="openai", help="Provider (openai, anthropic, mock)")
+@click.option("--provider", "-p", default=None, help="Provider (default: from config)")
 @click.option("--stream/--no-stream", default=True, help="Stream output")
 @click.option(
     "--tier",
@@ -166,8 +166,8 @@ def apply(
 async def _apply_async(
     lens_path: str,
     prompt: str,
-    model_name: str,
-    provider: str,
+    model_name: str | None,
+    provider: str | None,
     stream: bool,
     tier_str: str | None,
     context_patterns: list[str],
@@ -188,6 +188,18 @@ async def _apply_async(
     verbose: bool,
 ) -> None:
     """Async implementation of apply command."""
+    from sunwell.config import get_config
+
+    cfg = get_config()
+
+    # Resolve provider from config if not specified
+    if provider is None:
+        provider = cfg.model.default_provider if cfg else "ollama"
+
+    # Resolve model from config if not specified
+    if model_name is None:
+        model_name = cfg.model.default_model if cfg else "gemma3:4b"
+
     # Load lens
     fount = FountClient()
     loader = LensLoader(fount_client=fount)

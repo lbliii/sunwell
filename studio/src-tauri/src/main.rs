@@ -9,6 +9,7 @@ mod agent;
 mod briefing;
 mod commands;
 mod dag;
+mod error;
 mod heuristic_detect;
 mod interface;
 mod lens;

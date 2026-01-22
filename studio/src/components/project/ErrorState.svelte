@@ -1,24 +1,41 @@
 <!--
-  ErrorState — Error state UI (Svelte 5)
+  ErrorState — Error state UI with structured error display (Svelte 5)
+  
+  Displays structured errors with recovery hints using the unified error system.
+  Falls back gracefully for raw error strings from older code paths.
 -->
 <script lang="ts">
   import Button from '../Button.svelte';
+  import ErrorDisplay from '../ui/ErrorDisplay.svelte';
   import { goHome } from '../../stores/app.svelte';
-  import { agent, resetAgent } from '../../stores/agent.svelte';
+  import { agent, resetAgent, runGoal } from '../../stores/agent.svelte';
+  import { parseError } from '$lib/error';
+  
+  // Parse the raw error into structured format
+  const parsedError = $derived(parseError(agent.error));
+  
+  // Only show retry if error is recoverable and we have a goal to retry
+  const canRetry = $derived(parsedError.recoverable && agent.goal);
   
   function handleBack() {
     resetAgent();
     goHome();
   }
+  
+  async function handleRetry() {
+    if (!agent.goal) return;
+    
+    const goal = agent.goal;
+    resetAgent();
+    await runGoal(goal);
+  }
 </script>
 
-<div class="error animate-fadeIn" role="alert">
-  <div class="error-header">
-    <span class="error-icon" aria-hidden="true">⊗</span>
-    <span class="error-text">Error</span>
-  </div>
-  
-  <p class="error-message">{agent.error}</p>
+<div class="error-state animate-fadeIn">
+  <ErrorDisplay 
+    error={parsedError}
+    onRetry={canRetry ? handleRetry : undefined}
+  />
   
   <div class="actions">
     <Button variant="secondary" onclick={handleBack}>Go Back</Button>
@@ -26,10 +43,20 @@
 </div>
 
 <style>
-  .error { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-4); flex: 1; }
-  .error-header { display: flex; align-items: center; gap: var(--space-2); }
-  .error-icon { color: var(--error); font-size: var(--text-xl); font-weight: 600; }
-  .error-text { font-size: var(--text-lg); font-weight: 500; color: var(--error); }
-  .error-message { color: var(--text-secondary); text-align: center; max-width: 400px; margin: 0; }
-  .actions { margin-top: var(--space-4); display: flex; justify-content: center; gap: var(--space-4); }
+  .error-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4, 16px);
+    flex: 1;
+    padding: var(--space-8, 32px);
+  }
+  
+  .actions {
+    margin-top: var(--space-4, 16px);
+    display: flex;
+    justify-content: center;
+    gap: var(--space-4, 16px);
+  }
 </style>
