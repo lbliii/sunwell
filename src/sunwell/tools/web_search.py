@@ -9,11 +9,13 @@ Usage:
     page = await provider.fetch("https://example.com")
 """
 
-from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    import httpx
 
 # =============================================================================
 # Data Types

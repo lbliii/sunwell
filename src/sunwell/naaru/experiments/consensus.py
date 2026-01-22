@@ -19,7 +19,6 @@ Example:
     >>> print(f"Votes: {result.vote_distribution}")
 """
 
-from __future__ import annotations
 
 import asyncio
 from collections import Counter

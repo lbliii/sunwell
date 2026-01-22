@@ -24,7 +24,6 @@ Example:
     >>> remaining = loaded.get_remaining_artifacts()
 """
 
-from __future__ import annotations
 
 import hashlib
 import json

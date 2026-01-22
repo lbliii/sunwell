@@ -6,7 +6,6 @@ These protocols define abstract interfaces for major subsystems,
 allowing implementations to be swapped for testing or alternative backends.
 """
 
-from __future__ import annotations
 
 from collections.abc import Callable, Coroutine
 from typing import Any, Protocol, TypeVar, runtime_checkable

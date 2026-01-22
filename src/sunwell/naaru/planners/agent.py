@@ -7,7 +7,6 @@ for parallel execution.
 RFC-035 adds schema-aware planning for domain-agnostic projects.
 """
 
-from __future__ import annotations
 
 import json
 import re

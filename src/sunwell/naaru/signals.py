@@ -1,6 +1,5 @@
 """Signal handling for graceful interruption in the Naaru architecture."""
 
-from __future__ import annotations
 
 import asyncio
 import signal

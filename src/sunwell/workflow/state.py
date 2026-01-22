@@ -6,7 +6,6 @@ State is stored in `.sunwell/state/{branch}/{topic}.json` and supports:
 - Resume across sessions
 """
 
-from __future__ import annotations
 
 import json
 import os

@@ -11,7 +11,6 @@ than the OpenAI-compatible /v1/chat endpoint for identity enforcement.
 See: https://docs.ollama.com/api/generate
 """
 
-from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator
@@ -26,9 +25,12 @@ from sunwell.models.protocol import (
     TokenUsage,
     Tool,
     ToolCall,
+    _sanitize_dict_values,
+    sanitize_llm_content,
 )
 
 if TYPE_CHECKING:
+    import httpx
     from openai import AsyncOpenAI
 
 
@@ -262,17 +264,17 @@ class OllamaModel:
             raise from_openai_error(e, self.model, "ollama") from e
 
         message = response.choices[0].message
-        content = message.content
+        content = sanitize_llm_content(message.content)  # RFC-091: Sanitize at source
         usage = response.usage
 
-        # Parse tool calls if present
+        # Parse tool calls if present (with sanitized arguments)
         tool_calls: tuple[ToolCall, ...] = ()
         if message.tool_calls:
             tool_calls = tuple(
                 ToolCall(
                     id=tc.id,
                     name=tc.function.name,
-                    arguments=json.loads(tc.function.arguments),
+                    arguments=_sanitize_dict_values(json.loads(tc.function.arguments)),
                 )
                 for tc in message.tool_calls
             )
@@ -334,7 +336,7 @@ class OllamaModel:
 
         async for chunk in stream:
             if chunk.choices and chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
+                yield sanitize_llm_content(chunk.choices[0].delta.content) or ""
 
     async def _generate_stream_native(
         self,
@@ -392,14 +394,14 @@ class OllamaModel:
         # Use pooled client for better parallelism
         client = self._get_httpx_client()
         async with client.stream("POST", native_url, json=payload) as response:
-                async for line in response.aiter_lines():
-                    if line:
-                        try:
-                            data = json.loads(line)
-                            if "response" in data:
-                                yield data["response"]
-                        except json.JSONDecodeError:
-                            continue
+            async for line in response.aiter_lines():
+                if line:
+                    try:
+                        data = json.loads(line)
+                        if "response" in data:
+                            yield sanitize_llm_content(data["response"]) or ""
+                    except json.JSONDecodeError:
+                        continue
 
     async def list_models(self) -> list[str]:
         """List available models in local Ollama instance."""

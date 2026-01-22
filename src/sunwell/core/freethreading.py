@@ -19,7 +19,6 @@ When GIL is enabled (standard Python):
 - Keep workers lower to reduce context-switch overhead
 """
 
-from __future__ import annotations
 
 import asyncio
 import os

@@ -21,7 +21,6 @@ Benefits:
 See: RFC-030-unified-router.md, RFC-070-dori-lens-migration.md
 """
 
-from __future__ import annotations
 
 import asyncio
 import dataclasses

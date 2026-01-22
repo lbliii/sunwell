@@ -5,6 +5,8 @@
 # 1. Map `allowed-tools` to Sunwell's handlers
 # 2. Provide high-level guidance for tool usage
 # 3. Are portable via Agent Skills spec
+#
+# RFC-092: All skills declare permissions via presets
 
 skills:
   # ============================================================================
@@ -15,6 +17,7 @@ skills:
     description: Read file contents from the workspace. Use for viewing source code, configs, or documentation.
     type: inline
     trust: sandboxed
+    preset: read-only
     allowed-tools: read_file
     instructions: |
       ## Goal
@@ -37,6 +40,7 @@ skills:
     description: Write or create files in the workspace. Creates parent directories automatically.
     type: inline
     trust: sandboxed
+    preset: workspace-write
     allowed-tools: write_file
     instructions: |
       ## Goal
@@ -61,6 +65,7 @@ skills:
     description: Make targeted edits to existing files by replacing specific content.
     type: inline
     trust: sandboxed
+    preset: workspace-write
     allowed-tools: edit_file
     instructions: |
       ## Goal
@@ -90,6 +95,7 @@ skills:
     description: Search for patterns in files using ripgrep. Fast regex search across codebase.
     type: inline
     trust: sandboxed
+    preset: search-only
     allowed-tools: search_files
     instructions: |
       ## Goal
@@ -117,6 +123,7 @@ skills:
     description: List files and directories in the workspace.
     type: inline
     trust: sandboxed
+    preset: read-only
     allowed-tools: list_files
     instructions: |
       ## Goal
@@ -140,6 +147,7 @@ skills:
     description: Run shell commands in a sandboxed environment. Use for build, test, or analysis commands.
     type: inline
     trust: sandboxed
+    preset: safe-shell
     allowed-tools: run_command
     instructions: |
       ## Goal
@@ -171,6 +179,7 @@ skills:
     description: Create directories in the workspace.
     type: inline
     trust: sandboxed
+    preset: workspace-write
     allowed-tools: mkdir
     instructions: |
       ## Goal
@@ -193,6 +202,7 @@ skills:
     description: Get git repository status including staged, unstaged, and untracked files.
     type: inline
     trust: sandboxed
+    preset: git-read
     allowed-tools: git_status
     instructions: |
       ## Goal
@@ -212,6 +222,7 @@ skills:
     description: Show changes between commits, working tree, or staged files.
     type: inline
     trust: sandboxed
+    preset: git-read
     allowed-tools: git_diff
     instructions: |
       ## Goal
@@ -234,6 +245,7 @@ skills:
     description: View commit history with messages, authors, and dates.
     type: inline
     trust: sandboxed
+    preset: git-read
     allowed-tools: git_log
     instructions: |
       ## Goal
@@ -255,6 +267,7 @@ skills:
     description: Stage changes and create a commit with a message.
     type: inline
     trust: sandboxed
+    preset: git-write
     allowed-tools: git_add git_commit
     instructions: |
       ## Goal
@@ -286,6 +299,7 @@ skills:
     description: Create, switch, or list git branches.
     type: inline
     trust: sandboxed
+    preset: git-write
     allowed-tools: git_branch git_checkout
     instructions: |
       ## Goal
@@ -316,6 +330,7 @@ skills:
     description: Explore and understand a codebase by searching, reading, and analyzing files.
     type: inline
     trust: sandboxed
+    preset: read-only
     allowed-tools: search_files read_file list_files
     instructions: |
       ## Goal
@@ -356,6 +371,11 @@ skills:
     description: Make changes to code files with proper backup and verification.
     type: inline
     trust: sandboxed
+    preset: workspace-write
+    # Override preset to allow git diff for verification
+    permissions:
+      shell:
+        allow: ["git diff"]
     allowed-tools: read_file edit_file write_file git_diff
     instructions: |
       ## Goal
@@ -392,6 +412,7 @@ skills:
     description: Run tests and linting to verify code quality.
     type: inline
     trust: sandboxed
+    preset: safe-shell
     allowed-tools: run_command
     instructions: |
       ## Goal

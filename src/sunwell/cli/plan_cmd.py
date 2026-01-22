@@ -12,7 +12,6 @@ Example:
     sunwell plan --file RFC.md --output plan.json
 """
 
-from __future__ import annotations
 
 import asyncio
 import json
@@ -259,7 +258,6 @@ async def _squash_extract(
     Much more reliable than single-shot extraction.
     """
     from sunwell.config import get_config
-    from sunwell.extraction import squash_extract
     
     path = Path(input_file)
     content = path.read_text()
@@ -329,7 +327,6 @@ async def _digest_document(
     
     No truncation - the full document is available via semantic retrieval.
     """
-    from sunwell.config import get_config
     from sunwell.simulacrum.core.store import SimulacrumStore
     
     path = Path(input_file)

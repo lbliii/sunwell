@@ -1,6 +1,5 @@
 """Bind command group - Manage bindings (attuned lens configurations)."""
 
-from __future__ import annotations
 
 import sys
 from pathlib import Path

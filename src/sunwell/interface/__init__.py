@@ -4,15 +4,26 @@ This module provides an LLM-driven system that analyzes user goals and
 manifests the appropriate interaction type (workspace, view, action, or conversation).
 
 Key components:
-- IntentAnalyzer: LLM-based intent classification
+- IntentPipeline: Two-step classification + response (RECOMMENDED)
+- IntentClassifier: Structured routing decisions
+- ResponseGenerator: Route-aware response generation
+- IntentAnalyzer: Legacy single-prompt approach (deprecated)
 - InteractionRouter: Routes intents to appropriate handlers
 - ActionExecutor: Executes actions against data providers
 - ViewRenderer: Renders views for calendar, lists, notes, etc.
+
+Usage (recommended):
+    >>> from sunwell.interface import IntentPipeline
+    >>> pipeline = IntentPipeline.create(model)
+    >>> analysis = await pipeline.analyze("build a chat app")
 """
 
 from sunwell.interface.analyzer import IntentAnalyzer
 from sunwell.interface.block_actions import BlockActionExecutor, BlockActionResult
+from sunwell.interface.classifier import ClassificationResult, IntentClassifier
 from sunwell.interface.executor import ActionExecutor, ActionResult
+from sunwell.interface.pipeline import IntentPipeline, analyze_with_pipeline
+from sunwell.interface.responder import ResponseGenerator
 from sunwell.interface.router import (
     ActionOutput,
     ConversationOutput,
@@ -35,6 +46,7 @@ __all__ = [
     "IntentAnalysis",
     "InteractionType",
     "ViewSpec",
+    "ClassificationResult",
     # Router
     "ActionOutput",
     "ConversationOutput",
@@ -42,7 +54,12 @@ __all__ = [
     "InteractionRouter",
     "ViewOutput",
     "WorkspaceOutput",
-    # Components
+    # Pipeline (RECOMMENDED)
+    "IntentPipeline",
+    "IntentClassifier",
+    "ResponseGenerator",
+    "analyze_with_pipeline",
+    # Legacy Components
     "IntentAnalyzer",
     "ActionExecutor",
     "ActionResult",

@@ -3,7 +3,6 @@
 Cross-check verification signals to compute final confidence.
 """
 
-from __future__ import annotations
 
 from sunwell.verification.types import (
     BehavioralExecutionResult,

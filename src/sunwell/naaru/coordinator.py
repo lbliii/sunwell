@@ -39,7 +39,6 @@ Components:
 - **Shards**: Parallel helpers (CPU-bound while GPU generates)
 """
 
-from __future__ import annotations
 
 import asyncio
 import contextlib
@@ -421,20 +420,51 @@ class Naaru:
         return self._heuristic_route(input.content)
 
     def _heuristic_route(self, content: str) -> RoutingDecision:
-        """Fallback heuristic routing without LLM."""
+        """Fallback heuristic routing without LLM.
+
+        Updated to use IntentClassifier's patterns for consistency.
+        """
+        import re
+
         content_lower = content.lower()
 
-        # Action patterns
-        action_kws = ["build", "create", "implement", "write code", "make a"]
-        if any(kw in content_lower for kw in action_kws):
-            return RoutingDecision(
-                interaction_type="action",
-                confidence=0.6,
-                tier=2,
-                page_type="project",
-            )
+        # WORKSPACE patterns — complex creation tasks (NOT action)
+        # These should open a full workspace, not just execute an action
+        workspace_patterns = [
+            r"\b(build|create|make|develop|implement|write)\s+(a|an|the|me|us)?\s*\w*\s*(app|application|game|site|website|webapp|tool|project|system|platform|service|api|backend|frontend|cli|script)",
+            r"\b(start|begin|new)\s+(a|an)?\s*(project|app|game|codebase)",
+            r"\b(code|program|develop)\s+(a|an|the|me)?\s*\w+",
+            r"\blet'?s?\s+(build|create|make|code|develop)",
+            r"\bi\s+want\s+to\s+(build|create|make|code|develop)",
+        ]
 
-        # View patterns
+        for pattern in workspace_patterns:
+            if re.search(pattern, content_lower):
+                return RoutingDecision(
+                    interaction_type="workspace",
+                    confidence=0.85,
+                    tier=2,
+                    page_type="project",
+                )
+
+        # ACTION patterns — simple, immediate tasks
+        action_patterns = [
+            r"\b(add|put)\s+.+\s+(to|on|in)\s+(my\s+)?(list|todo|calendar|reminders?)",
+            r"\b(remind|alert)\s+me\s+(to|about|at|in)",
+            r"\b(set|create)\s+(a\s+)?(timer|alarm|reminder)",
+            r"\b(complete|finish|done|check\s+off)\s+.+",
+        ]
+
+        for pattern in action_patterns:
+            if re.search(pattern, content_lower):
+                return RoutingDecision(
+                    interaction_type="action",
+                    confidence=0.7,
+                    tier=1,
+                    page_type="home",
+                )
+
+        # VIEW patterns
         if any(kw in content_lower for kw in ["show", "display", "list", "what is", "find"]):
             return RoutingDecision(
                 interaction_type="view",
@@ -1050,7 +1080,6 @@ class Naaru:
                 workspace=self.workspace,
                 router_model=router_model,
                 available_lenses=available_lenses,
-                use_unified_router=True,
                 cache_size=cache_size,
             )
             self.workers.append(self._routing_worker)

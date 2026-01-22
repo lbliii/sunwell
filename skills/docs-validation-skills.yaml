@@ -1,5 +1,6 @@
 # skills/docs-validation-skills.yaml
 # RFC-070: Validation and auditing skills for technical documentation
+# RFC-092: All skills declare permissions via presets
 
 skills:
   # ==========================================================================
@@ -10,6 +11,7 @@ skills:
     description: Quick validation of documentation against source code
     type: inline
     triggers: ["audit", "validate", "check", "verify", "::a"]
+    preset: read-only
     allowed_tools: [read_file, codebase_search, grep]
     instructions: |
       ## Goal
@@ -47,6 +49,7 @@ skills:
     description: Comprehensive audit with triangulation and confidence scoring
     type: inline
     triggers: ["deep audit", "comprehensive", "thorough", "::a-2"]
+    preset: safe-shell
     allowed_tools: [read_file, codebase_search, grep, run_terminal_cmd]
     instructions: |
       ## Goal
@@ -79,6 +82,7 @@ skills:
     description: Calculate detailed confidence scores for documentation claims
     type: inline
     triggers: ["confidence", "score", "scoring", "::score"]
+    preset: read-only
     allowed_tools: [read_file, codebase_search]
     instructions: |
       ## Scoring Rubric
@@ -102,6 +106,7 @@ skills:
     description: Find documentation that has drifted from source code
     type: inline
     triggers: ["drift", "stale", "outdated", "out of date"]
+    preset: safe-shell
     allowed_tools: [read_file, codebase_search, grep, run_terminal_cmd]
     instructions: |
       ## Goal
@@ -143,6 +148,7 @@ skills:
     description: System-wide documentation health check
     type: inline
     triggers: ["health", "health check", "status", "::health"]
+    preset: safe-shell
     allowed_tools: [read_file, codebase_search, grep, list_dir, run_terminal_cmd]
     instructions: |
       ## Health Checks
@@ -173,6 +179,7 @@ skills:
     description: Assess documentation readability scores
     type: inline
     triggers: ["readability", "readable", "grade level"]
+    preset: read-only
     allowed_tools: [read_file]
     instructions: |
       ## Readability Metrics
@@ -200,6 +207,7 @@ skills:
     description: Validate documentation structure against templates
     type: inline
     triggers: ["lint", "structure", "template", "schema"]
+    preset: read-only
     allowed_tools: [read_file]
     instructions: |
       ## Structure Validation
@@ -231,6 +239,7 @@ skills:
     description: Assess documentation against VDR/VPR/CLU checklist
     type: inline
     triggers: ["vdr", "vpr", "clu", "release", "checklist"]
+    preset: read-only
     allowed_tools: [read_file, list_dir]
     instructions: |
       ## VDR Assessment
@@ -269,6 +278,7 @@ skills:
     description: Verify all code examples in documentation actually work
     type: inline
     triggers: ["code examples", "examples", "snippets"]
+    preset: safe-shell
     allowed_tools: [read_file, codebase_search, grep, run_terminal_cmd]
     instructions: |
       ## Code Example Validation

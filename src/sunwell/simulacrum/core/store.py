@@ -23,7 +23,6 @@ Key features:
 - Token-budgeted context window assembly
 """
 
-from __future__ import annotations
 
 import json
 import shutil

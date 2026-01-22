@@ -514,7 +514,6 @@ class CascadeEngine:
         Returns:
             CascadeExecution with final state
         """
-        import subprocess
 
         execution = CascadeExecution(
             preview=preview,

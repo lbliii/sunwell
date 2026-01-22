@@ -3,7 +3,6 @@
 Execute generated tests in isolated environment.
 """
 
-from __future__ import annotations
 
 import asyncio
 import sys

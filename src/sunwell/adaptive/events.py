@@ -12,12 +12,33 @@ Event categories:
 - Fix: Auto-repair progress
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
 from time import time
-from typing import Any
+from typing import Any, TypedDict
+
+# =============================================================================
+# RFC-090: Plan Transparency Types
+# =============================================================================
+
+
+class TaskSummary(TypedDict):
+    """Minimal task info for plan display (RFC-090)."""
+
+    id: str
+    description: str
+    depends_on: list[str]
+    produces: list[str]  # Artifact paths
+    category: str | None
+
+
+class GateSummary(TypedDict):
+    """Minimal gate info for plan display (RFC-090)."""
+
+    id: str
+    type: str  # "syntax", "lint", "type", "runtime"
+    after_tasks: list[str]
 
 
 class EventType(Enum):
@@ -226,6 +247,41 @@ class EventType(Enum):
     MODEL_HEARTBEAT = "model_heartbeat"
     """Periodic heartbeat during long generation."""
 
+    # Skill graph execution events (RFC-087)
+    SKILL_GRAPH_RESOLVED = "skill_graph_resolved"
+    """Skill graph resolved for lens. Shows skill count and wave count."""
+
+    SKILL_WAVE_START = "skill_wave_start"
+    """Starting execution of a wave of parallel skills."""
+
+    SKILL_WAVE_COMPLETE = "skill_wave_complete"
+    """Wave execution completed. Shows succeeded/failed counts."""
+
+    SKILL_CACHE_HIT = "skill_cache_hit"
+    """Skill result retrieved from cache. Shows time saved."""
+
+    SKILL_EXECUTE_START = "skill_execute_start"
+    """Starting execution of a single skill."""
+
+    SKILL_EXECUTE_COMPLETE = "skill_execute_complete"
+    """Skill execution completed (success or failure)."""
+
+    # Security events (RFC-089)
+    SECURITY_APPROVAL_REQUESTED = "security_approval_requested"
+    """DAG requires user approval before execution. Shows permissions and risk."""
+
+    SECURITY_APPROVAL_RECEIVED = "security_approval_received"
+    """User responded to approval request (approved/rejected)."""
+
+    SECURITY_VIOLATION = "security_violation"
+    """Security violation detected during execution."""
+
+    SECURITY_SCAN_COMPLETE = "security_scan_complete"
+    """Output security scan completed."""
+
+    AUDIT_LOG_ENTRY = "audit_log_entry"
+    """Audit log entry recorded."""
+
 
 @dataclass(frozen=True, slots=True)
 class AgentEvent:
@@ -283,7 +339,7 @@ def signal_event(status: str, **kwargs: Any) -> AgentEvent:
 
 def task_start_event(task_id: str, description: str, **kwargs: Any) -> AgentEvent:
     """Create a task start event.
-    
+
     For type-safe version with validation, use:
     from sunwell.adaptive.event_schema import validated_task_start_event
     """
@@ -762,3 +818,408 @@ def model_heartbeat_event(
             **kwargs,
         },
     )
+
+
+# =============================================================================
+# RFC-087: Skill Graph Event Factories
+# =============================================================================
+
+
+def skill_graph_resolved_event(
+    lens_name: str,
+    skill_count: int,
+    wave_count: int,
+    content_hash: str,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a skill graph resolved event (RFC-087).
+
+    Emitted when the skill graph for a lens has been resolved.
+
+    Args:
+        lens_name: Name of the lens
+        skill_count: Number of skills in graph
+        wave_count: Number of execution waves
+        content_hash: Hash for cache invalidation
+    """
+    return AgentEvent(
+        EventType.SKILL_GRAPH_RESOLVED,
+        {
+            "lens_name": lens_name,
+            "skill_count": skill_count,
+            "wave_count": wave_count,
+            "content_hash": content_hash,
+            **kwargs,
+        },
+    )
+
+
+def skill_wave_start_event(
+    wave_index: int,
+    total_waves: int,
+    skills: list[str],
+    parallel: bool = True,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a skill wave start event (RFC-087).
+
+    Emitted when a wave of parallel skills starts executing.
+
+    Args:
+        wave_index: Index of this wave (0-based)
+        total_waves: Total number of waves
+        skills: Skill names in this wave
+        parallel: Whether skills execute in parallel
+    """
+    return AgentEvent(
+        EventType.SKILL_WAVE_START,
+        {
+            "wave_index": wave_index,
+            "total_waves": total_waves,
+            "skills": skills,
+            "parallel": parallel,
+            **kwargs,
+        },
+    )
+
+
+def skill_wave_complete_event(
+    wave_index: int,
+    duration_ms: int,
+    succeeded: list[str],
+    failed: list[str],
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a skill wave complete event (RFC-087).
+
+    Emitted when a wave finishes execution.
+
+    Args:
+        wave_index: Index of the completed wave
+        duration_ms: Wave execution time in milliseconds
+        succeeded: Skills that succeeded
+        failed: Skills that failed
+    """
+    return AgentEvent(
+        EventType.SKILL_WAVE_COMPLETE,
+        {
+            "wave_index": wave_index,
+            "duration_ms": duration_ms,
+            "succeeded": succeeded,
+            "failed": failed,
+            **kwargs,
+        },
+    )
+
+
+def skill_cache_hit_event(
+    skill_name: str,
+    cache_key: str,
+    saved_ms: int,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a skill cache hit event (RFC-087).
+
+    Emitted when a skill result is retrieved from cache.
+
+    Args:
+        skill_name: Name of the cached skill
+        cache_key: Cache key that matched
+        saved_ms: Estimated time saved in milliseconds
+    """
+    return AgentEvent(
+        EventType.SKILL_CACHE_HIT,
+        {
+            "skill_name": skill_name,
+            "cache_key": cache_key,
+            "saved_ms": saved_ms,
+            **kwargs,
+        },
+    )
+
+
+def skill_execute_start_event(
+    skill_name: str,
+    wave_index: int,
+    requires: list[str],
+    context_keys_available: list[str],
+    *,
+    risk_level: str | None = None,
+    has_permissions: bool = False,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a skill execute start event (RFC-087).
+
+    Emitted when a single skill starts executing.
+
+    Args:
+        skill_name: Name of the skill
+        wave_index: Which wave this skill is in
+        requires: Context keys this skill requires
+        context_keys_available: Context keys currently available
+        risk_level: Security risk level (low/medium/high/critical)
+        has_permissions: Whether skill declares explicit permissions
+    """
+    return AgentEvent(
+        EventType.SKILL_EXECUTE_START,
+        {
+            "skill_name": skill_name,
+            "wave_index": wave_index,
+            "requires": requires,
+            "context_keys_available": context_keys_available,
+            "risk_level": risk_level,
+            "has_permissions": has_permissions,
+            **kwargs,
+        },
+    )
+
+
+def skill_execute_complete_event(
+    skill_name: str,
+    duration_ms: int,
+    produces: list[str],
+    cached: bool,
+    success: bool,
+    error: str | None = None,
+    *,
+    risk_level: str | None = None,
+    violations_detected: int = 0,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a skill execute complete event (RFC-087).
+
+    Emitted when a skill finishes execution (success or failure).
+
+    Args:
+        skill_name: Name of the skill
+        duration_ms: Execution time in milliseconds
+        produces: Context keys this skill produces
+        cached: Whether result was from cache
+        success: Whether execution succeeded
+        error: Error message if failed
+        risk_level: Evaluated security risk level
+        violations_detected: Number of security violations during execution
+    """
+    return AgentEvent(
+        EventType.SKILL_EXECUTE_COMPLETE,
+        {
+            "skill_name": skill_name,
+            "duration_ms": duration_ms,
+            "produces": produces,
+            "cached": cached,
+            "success": success,
+            "error": error,
+            "risk_level": risk_level,
+            "violations_detected": violations_detected,
+            **kwargs,
+        },
+    )
+
+
+# =============================================================================
+# RFC-089: Security Event Factories
+# =============================================================================
+
+
+def security_approval_requested_event(
+    dag_id: str,
+    dag_name: str,
+    skill_count: int,
+    risk_level: str,
+    risk_score: float,
+    flags: list[str],
+    permissions: dict[str, Any] | None = None,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a security approval requested event (RFC-089).
+
+    Emitted when a DAG requires user approval before execution.
+
+    Args:
+        dag_id: Unique DAG identifier
+        dag_name: Human-readable DAG name
+        skill_count: Number of skills in the DAG
+        risk_level: Risk classification (low/medium/high/critical)
+        risk_score: Numeric risk score (0.0-1.0)
+        flags: Risk flags detected
+        permissions: Permission scope requested (filesystem, network, shell, env)
+    """
+    return AgentEvent(
+        EventType.SECURITY_APPROVAL_REQUESTED,
+        {
+            "dag_id": dag_id,
+            "dag_name": dag_name,
+            "skill_count": skill_count,
+            "risk_level": risk_level,
+            "risk_score": risk_score,
+            "flags": flags,
+            "permissions": permissions or {},
+            **kwargs,
+        },
+    )
+
+
+def security_approval_received_event(
+    dag_id: str,
+    approved: bool,
+    modified: bool = False,
+    remembered: bool = False,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a security approval received event (RFC-089).
+
+    Emitted when user responds to an approval request.
+
+    Args:
+        dag_id: DAG that was approved/rejected
+        approved: Whether user approved execution
+        modified: Whether permissions were modified
+        remembered: Whether approval was remembered for session
+    """
+    return AgentEvent(
+        EventType.SECURITY_APPROVAL_RECEIVED,
+        {
+            "dag_id": dag_id,
+            "approved": approved,
+            "modified": modified,
+            "remembered": remembered,
+            **kwargs,
+        },
+    )
+
+
+def security_violation_event(
+    skill_name: str,
+    violation_type: str,
+    evidence: str,
+    detection_method: str,
+    action_taken: str,
+    position: int | None = None,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a security violation event (RFC-089).
+
+    Emitted when a security violation is detected during execution.
+
+    Args:
+        skill_name: Skill that caused the violation
+        violation_type: Type of violation (credential_leak, path_traversal, etc.)
+        evidence: Evidence supporting detection
+        detection_method: How detected (deterministic/llm)
+        action_taken: Response action (logged/paused/aborted)
+        position: Position in output where detected
+    """
+    return AgentEvent(
+        EventType.SECURITY_VIOLATION,
+        {
+            "skill_name": skill_name,
+            "violation_type": violation_type,
+            "evidence": evidence,
+            "detection_method": detection_method,
+            "action_taken": action_taken,
+            "position": position,
+            **kwargs,
+        },
+    )
+
+
+def security_scan_complete_event(
+    output_length: int,
+    violations_found: int,
+    scan_duration_ms: int,
+    method: str,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a security scan complete event (RFC-089).
+
+    Emitted when output security scan completes.
+
+    Args:
+        output_length: Length of scanned output
+        violations_found: Number of violations detected
+        scan_duration_ms: Scan duration in milliseconds
+        method: Scan method (deterministic/llm/both)
+    """
+    return AgentEvent(
+        EventType.SECURITY_SCAN_COMPLETE,
+        {
+            "output_length": output_length,
+            "violations_found": violations_found,
+            "scan_duration_ms": scan_duration_ms,
+            "method": method,
+            **kwargs,
+        },
+    )
+
+
+def audit_log_entry_event(
+    skill_name: str,
+    action: str,
+    risk_level: str,
+    details: str | None = None,
+    dag_id: str | None = None,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create an audit log entry event (RFC-089).
+
+    Emitted when an audit log entry is recorded.
+
+    Args:
+        skill_name: Skill involved
+        action: Action type (execute/violation/denied/error)
+        risk_level: Risk level at time of action
+        details: Human-readable details
+        dag_id: Associated DAG ID
+    """
+    return AgentEvent(
+        EventType.AUDIT_LOG_ENTRY,
+        {
+            "skill_name": skill_name,
+            "action": action,
+            "risk_level": risk_level,
+            "details": details,
+            "dag_id": dag_id,
+            **kwargs,
+        },
+    )
+
+
+# =============================================================================
+# RFC-090: Plan Transparency Event Factory
+# =============================================================================
+
+
+def plan_winner_event(
+    tasks: int,
+    gates: int,
+    technique: str,
+    task_list: list[TaskSummary] | None = None,
+    gate_list: list[GateSummary] | None = None,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a plan winner event with optional task details (RFC-090).
+
+    Emitted when plan selection is complete. Includes task/gate counts
+    for backward compatibility, plus optional detailed lists.
+
+    Args:
+        tasks: Number of tasks in the plan
+        gates: Number of validation gates
+        technique: Planning technique used ("single_shot", "harmonic", "minimal")
+        task_list: Optional list of task summaries for display
+        gate_list: Optional list of gate summaries for display
+    """
+    data: dict[str, Any] = {
+        "tasks": tasks,
+        "gates": gates,
+        "technique": technique,
+        **kwargs,
+    }
+
+    # RFC-090: Include task details if available
+    if task_list is not None:
+        data["task_list"] = task_list
+    if gate_list is not None:
+        data["gate_list"] = gate_list
+
+    return AgentEvent(EventType.PLAN_WINNER, data)

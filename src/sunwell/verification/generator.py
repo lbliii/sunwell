@@ -3,7 +3,6 @@
 Generate behavioral tests from specifications.
 """
 
-from __future__ import annotations
 
 import json
 import re

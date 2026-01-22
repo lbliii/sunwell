@@ -12,7 +12,6 @@ RFC-077 adds LLM-based severity prioritization for context-aware ranking.
 All tools are optional - graceful degradation if missing.
 """
 
-from __future__ import annotations
 
 import json
 import subprocess

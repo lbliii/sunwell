@@ -4,15 +4,12 @@ Extract project intelligence from conversation history when Simulacrum
 demotes chunks to warm/cold tiers.
 """
 
-from __future__ import annotations
 
 import re
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sunwell.intelligence.context import ProjectContext
-    from sunwell.intelligence.decisions import Decision
-    from sunwell.intelligence.failures import FailedApproach
     from sunwell.simulacrum.hierarchical.chunks import Chunk
 
 

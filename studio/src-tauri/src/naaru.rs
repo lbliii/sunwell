@@ -7,6 +7,7 @@
 //! - commands.rs → naaru_process()
 //! - dag.rs → naaru_convergence()
 
+use crate::util::parse_json_safe;
 use serde::{Deserialize, Serialize};
 use std::process::Stdio;
 use tauri::{Emitter, Window};
@@ -181,7 +182,7 @@ pub async fn naaru_process(input: ProcessInput) -> Result<ProcessOutput, String>
     let mut artifacts: Vec<String> = Vec::new();
 
     for line in lines {
-        if let Ok(event) = serde_json::from_str::<NaaruEvent>(line) {
+        if let Ok(event) = parse_json_safe::<NaaruEvent>(line) {
             events.push(event.clone());
 
             // Extract data from events
@@ -211,7 +212,7 @@ pub async fn naaru_process(input: ProcessInput) -> Result<ProcessOutput, String>
                 }
                 _ => {}
             }
-        } else if let Ok(output) = serde_json::from_str::<ProcessOutput>(line) {
+        } else if let Ok(output) = parse_json_safe::<ProcessOutput>(line) {
             // Found a complete ProcessOutput - use it directly
             return Ok(output);
         }
@@ -253,7 +254,7 @@ pub async fn naaru_subscribe(window: Window) -> Result<(), String> {
     // Spawn task to read and emit events
     tokio::spawn(async move {
         while let Ok(Some(line)) = lines.next_line().await {
-            if let Ok(event) = serde_json::from_str::<NaaruEvent>(&line) {
+            if let Ok(event) = parse_json_safe::<NaaruEvent>(&line) {
                 let _ = window.emit("naaru_event", event);
             }
         }
@@ -282,7 +283,7 @@ pub async fn naaru_convergence(slot: String) -> Result<Option<ConvergenceSlot>, 
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&stdout).map_err(|e| format!("Failed to parse convergence: {}", e))
+    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse convergence: {}", e))
 }
 
 /// Cancel current processing.

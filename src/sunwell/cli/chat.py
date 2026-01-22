@@ -1,11 +1,11 @@
 """Chat command - Interactive headspace chat session."""
 
-from __future__ import annotations
 
 import asyncio
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 from rich.console import Console
@@ -23,6 +23,9 @@ from sunwell.schema.loader import LensLoader
 from sunwell.simulacrum.core.dag import ConversationDAG
 from sunwell.simulacrum.core.store import SimulacrumStore
 from sunwell.simulacrum.core.turn import Learning
+
+if TYPE_CHECKING:
+    from sunwell.naaru.shards import ShardPool
 
 console = Console()
 
@@ -509,7 +512,7 @@ async def _chat_loop(
     if naaru_enabled:
         try:
             from sunwell.naaru.convergence import Convergence
-            from sunwell.naaru.shards import ShardPool, ShardType
+            from sunwell.naaru.shards import ShardPool
 
             convergence = Convergence(capacity=7)  # Miller's Law: 7±2 items
             shard_pool = ShardPool(convergence=convergence)
@@ -742,7 +745,7 @@ async def _chat_loop(
     if identity_store:
         try:
             from sunwell.naaru.persona import MURU
-            asyncio.get_event_loop().run_until_complete(identity_store.persist_to_global())
+            await identity_store.persist_to_global()
             console.print(f"[dim]{MURU.name} saved ({len(identity_store.identity.observations)} observations)[/dim]")
         except Exception:
             pass  # Non-critical

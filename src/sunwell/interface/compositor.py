@@ -9,7 +9,6 @@ The compositor predicts UI layout before content is ready,
 enabling instant skeleton rendering while content streams in.
 """
 
-from __future__ import annotations
 
 import json
 import re

@@ -6,7 +6,6 @@ Provides CLI interface for the benchmark framework:
 - sunwell benchmark report - Generate report from results
 """
 
-from __future__ import annotations
 
 import asyncio
 import json

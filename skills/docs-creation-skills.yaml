@@ -1,11 +1,13 @@
 # skills/docs-creation-skills.yaml
 # RFC-070: Content creation skills for technical documentation
+# RFC-092: All skills declare permissions via presets
 
 skills:
   - name: draft-documentation
     description: Create new documentation with evidence-based research
     type: inline
     triggers: ["draft", "write", "create doc", "new doc"]
+    preset: workspace-write
     allowed_tools: [read_file, codebase_search, grep, write]
     instructions: |
       ## Goal
@@ -32,6 +34,7 @@ skills:
     description: Create product/platform overview (Explanation type)
     type: inline
     triggers: ["overview", "introduction", "what is", "::overview"]
+    preset: workspace-write
     allowed_tools: [read_file, codebase_search, grep, write]
     instructions: |
       ## Diataxis Type: EXPLANATION
@@ -98,6 +101,7 @@ skills:
     description: Create architecture explanation page
     type: inline
     triggers: ["architecture", "how it works", "internals", "::architecture"]
+    preset: workspace-write
     allowed_tools: [read_file, codebase_search, grep, write]
     instructions: |
       ## Diataxis Type: EXPLANATION
@@ -182,6 +186,7 @@ skills:
     description: Create comprehensive key features catalog (Reference type)
     type: inline
     triggers: ["features", "capabilities", "key features", "::features"]
+    preset: workspace-write
     allowed_tools: [read_file, codebase_search, grep, write]
     instructions: |
       ## Diataxis Type: REFERENCE
@@ -253,6 +258,7 @@ skills:
     description: Create ecosystem/positioning page
     type: inline
     triggers: ["ecosystem", "positioning", "comparison", "::ecosystem"]
+    preset: workspace-write
     allowed_tools: [read_file, codebase_search, grep, write]
     instructions: |
       ## Diataxis Type: EXPLANATION

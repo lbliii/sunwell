@@ -3,7 +3,6 @@
 Extracts learnings from task execution and persists them for future use.
 """
 
-from __future__ import annotations
 
 import json
 from datetime import datetime

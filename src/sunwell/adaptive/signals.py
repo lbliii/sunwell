@@ -15,7 +15,6 @@ Two extraction modes:
    Use when you only need 1-2 specific signals, not full extraction.
 """
 
-from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field

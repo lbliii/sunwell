@@ -1,6 +1,5 @@
 """Local cache for lenses fetched from the fount."""
 
-from __future__ import annotations
 
 import json
 import shutil

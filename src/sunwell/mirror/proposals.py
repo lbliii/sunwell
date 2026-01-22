@@ -4,7 +4,6 @@ Provides a system for creating, storing, approving, and applying
 improvement proposals with full audit trail and rollback support.
 """
 
-from __future__ import annotations
 
 import json
 import uuid

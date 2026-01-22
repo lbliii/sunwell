@@ -3,7 +3,6 @@
 Provides pattern detection, failure analysis, and behavior diagnostics.
 """
 
-from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass

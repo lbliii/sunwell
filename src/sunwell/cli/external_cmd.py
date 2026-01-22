@@ -277,7 +277,6 @@ def poll(source: str):
 
 async def _poll_source(source: str):
     """Poll a specific source."""
-    import os
 
     from sunwell.backlog.manager import BacklogManager
     from sunwell.external.policy import ExternalGoalPolicy

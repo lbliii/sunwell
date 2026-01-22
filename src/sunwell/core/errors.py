@@ -7,7 +7,6 @@ Provides structured error handling with:
 - Context for debugging
 """
 
-from __future__ import annotations
 
 from enum import IntEnum
 from typing import Any

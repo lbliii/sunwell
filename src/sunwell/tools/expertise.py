@@ -9,7 +9,6 @@ These tools enable a ReAct pattern where the model can request and verify
 guidance during generation, rather than relying only on system-injected context.
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING

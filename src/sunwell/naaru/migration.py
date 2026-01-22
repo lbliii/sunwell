@@ -1,6 +1,5 @@
 """Migration helpers from RFC-019 to RFC-033 unified architecture."""
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING
 

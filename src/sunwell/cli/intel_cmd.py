@@ -3,7 +3,6 @@
 View and manage project intelligence: decisions, failures, patterns, codebase graph.
 """
 
-from __future__ import annotations
 
 import asyncio
 from pathlib import Path

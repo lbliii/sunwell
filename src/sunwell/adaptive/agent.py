@@ -13,7 +13,6 @@ Example:
     ...     print(event)
 """
 
-from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
@@ -25,6 +24,8 @@ from sunwell.adaptive.budget import AdaptiveBudget
 from sunwell.adaptive.events import (
     AgentEvent,
     EventType,
+    GateSummary,
+    TaskSummary,
     briefing_loaded_event,
     briefing_saved_event,
     complete_event,
@@ -35,6 +36,7 @@ from sunwell.adaptive.events import (
     model_start_event,
     model_thinking_event,
     model_tokens_event,
+    plan_winner_event,
     prefetch_complete_event,
     prefetch_start_event,
     prefetch_timeout_event,
@@ -42,18 +44,18 @@ from sunwell.adaptive.events import (
     task_complete_event,
     task_start_event,
 )
-from sunwell.adaptive.metrics import InferenceMetrics, load_profiles_from_disk, save_profiles_to_disk
-from sunwell.adaptive.thinking import ThinkingDetector
 from sunwell.adaptive.fixer import FixStage
 from sunwell.adaptive.gates import GateDetector, ValidationGate
 from sunwell.adaptive.learning import LearningExtractor, LearningStore
+from sunwell.adaptive.metrics import InferenceMetrics
 from sunwell.adaptive.signals import AdaptiveSignals, extract_signals
+from sunwell.adaptive.thinking import ThinkingDetector
 from sunwell.adaptive.toolchain import detect_toolchain
 from sunwell.adaptive.validation import Artifact, ValidationRunner, ValidationStage
 
 if TYPE_CHECKING:
     from sunwell.core.lens import Lens
-    from sunwell.memory.briefing import Briefing, PrefetchedContext
+    from sunwell.memory.briefing import Briefing, BriefingStatus, PrefetchedContext
     from sunwell.models.protocol import ModelProtocol
     from sunwell.naaru.types import Task
     from sunwell.simulacrum.core.store import SimulacrumStore
@@ -140,7 +142,7 @@ class AdaptiveAgent:
     """Optional pre-configured Simulacrum store."""
 
     # RFC-064: Lens configuration
-    lens: "Lens | None" = None
+    lens: Lens | None = None
     """Active lens for expertise injection."""
 
     auto_lens: bool = True
@@ -174,8 +176,8 @@ class AdaptiveAgent:
     _inference_metrics: InferenceMetrics = field(default_factory=InferenceMetrics, init=False)
 
     # RFC-071: Briefing state
-    _briefing: "Briefing | None" = field(default=None, init=False)
-    _prefetched_context: "PrefetchedContext | None" = field(default=None, init=False)
+    _briefing: Briefing | None = field(default=None, init=False)
+    _prefetched_context: PrefetchedContext | None = field(default=None, init=False)
     _session_learnings: list[Any] = field(default_factory=list, init=False)
     _current_blockers: list[str] = field(default_factory=list, init=False)
     _current_goal: str = field(default="", init=False)
@@ -468,8 +470,9 @@ class AdaptiveAgent:
 
             if self._prefetched_context:
                 # Suggest lens if different from current
+                current_lens_name = getattr(self.lens, "name", None)
                 if prefetch_plan.suggested_lens and (
-                    not self.lens or prefetch_plan.suggested_lens != getattr(self.lens, "name", None)
+                    not self.lens or prefetch_plan.suggested_lens != current_lens_name
                 ):
                     yield lens_suggested_event(
                         suggested=prefetch_plan.suggested_lens,
@@ -565,13 +568,34 @@ class AdaptiveAgent:
 
             self._task_graph = TaskGraph(tasks=tasks, gates=gates)
 
-            yield AgentEvent(
-                EventType.PLAN_WINNER,
+            # RFC-090: Serialize task and gate details for plan display
+            task_list: list[TaskSummary] = [
                 {
-                    "tasks": len(tasks),
-                    "gates": len(gates),
-                    "technique": "harmonic",
-                },
+                    "id": t.id,
+                    "description": t.description,
+                    "depends_on": list(t.depends_on),
+                    "produces": list(t.produces) if t.produces else (
+                        [t.target_path] if t.target_path else []
+                    ),
+                    "category": getattr(t, "category", None),
+                }
+                for t in tasks
+            ]
+            gate_list: list[GateSummary] = [
+                {
+                    "id": g.id,
+                    "type": g.gate_type.value,
+                    "after_tasks": list(g.depends_on),
+                }
+                for g in gates
+            ]
+
+            yield plan_winner_event(
+                tasks=len(tasks),
+                gates=len(gates),
+                technique="harmonic",
+                task_list=task_list,
+                gate_list=gate_list,
             )
 
         except ImportError:
@@ -602,13 +626,34 @@ class AdaptiveAgent:
 
             self._task_graph = TaskGraph(tasks=tasks, gates=gates)
 
-            yield AgentEvent(
-                EventType.PLAN_WINNER,
+            # RFC-090: Serialize task and gate details for plan display
+            task_list: list[TaskSummary] = [
                 {
-                    "tasks": len(tasks),
-                    "gates": len(gates),
-                    "technique": "single_shot",
-                },
+                    "id": t.id,
+                    "description": t.description,
+                    "depends_on": list(t.depends_on),
+                    "produces": list(t.produces) if t.produces else (
+                        [t.target_path] if t.target_path else []
+                    ),
+                    "category": getattr(t, "category", None),
+                }
+                for t in tasks
+            ]
+            gate_list: list[GateSummary] = [
+                {
+                    "id": g.id,
+                    "type": g.gate_type.value,
+                    "after_tasks": list(g.depends_on),
+                }
+                for g in gates
+            ]
+
+            yield plan_winner_event(
+                tasks=len(tasks),
+                gates=len(gates),
+                technique="single_shot",
+                task_list=task_list,
+                gate_list=gate_list,
             )
 
         except ImportError:
@@ -622,9 +667,19 @@ class AdaptiveAgent:
             )
             self._task_graph = TaskGraph(tasks=[task], gates=[])
 
-            yield AgentEvent(
-                EventType.PLAN_WINNER,
-                {"tasks": 1, "gates": 0, "technique": "minimal"},
+            # RFC-090: Even minimal fallback includes task details
+            yield plan_winner_event(
+                tasks=1,
+                gates=0,
+                technique="minimal",
+                task_list=[{
+                    "id": "main",
+                    "description": goal,
+                    "depends_on": [],
+                    "produces": [],
+                    "category": None,
+                }],
+                gate_list=[],
             )
 
     async def _execute_with_gates(self) -> AsyncIterator[AgentEvent]:
@@ -726,7 +781,7 @@ class AdaptiveAgent:
         # Collect results from streaming execution
         result_text: str | None = None
 
-        async for event in self._execute_task_streaming(task):
+        async for _event in self._execute_task_streaming(task):
             # The streaming method yields events, but we only care about the result
             # The result is stored internally during streaming
             pass
@@ -1006,7 +1061,7 @@ Output ONLY the code (no explanation, no markdown fences):"""
                     category="task_completion",
                 )
 
-    def _determine_briefing_status(self) -> "BriefingStatus":
+    def _determine_briefing_status(self) -> BriefingStatus:
         """Determine briefing status from task graph state."""
         from sunwell.memory.briefing import BriefingStatus
 

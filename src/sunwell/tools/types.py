@@ -1,6 +1,5 @@
 """Tool types and trust levels for RFC-012 tool calling."""
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime

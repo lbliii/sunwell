@@ -1,20 +1,23 @@
 """Skill executor - runs skills with lens validation.
 
 Implements the execution flow from RFC-011 Section 3.
+RFC-087: Adds IncrementalSkillExecutor for DAG-based execution with caching.
 """
 
-from __future__ import annotations
 
 import asyncio
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sunwell.skills.sandbox import ScriptSandbox, expand_template_variables
 from sunwell.skills.types import (
     Skill,
     SkillError,
+    SkillOutput,
+    SkillOutputMetadata,
     SkillResult,
     SkillRetryPolicy,
 )
@@ -22,6 +25,85 @@ from sunwell.skills.types import (
 if TYPE_CHECKING:
     from sunwell.core.lens import Lens
     from sunwell.models.protocol import ModelProtocol
+    from sunwell.skills.cache import SkillCache
+    from sunwell.skills.graph import SkillGraph
+
+
+# =============================================================================
+# RFC-087: Execution Exceptions
+# =============================================================================
+
+
+class SkillExecutionError(Exception):
+    """Raised when skill execution fails."""
+
+    def __init__(
+        self,
+        skill_name: str,
+        phase: str,  # "setup", "execute", "validate"
+        cause: Exception,
+        recoverable: bool = False,
+    ) -> None:
+        self.skill_name = skill_name
+        self.phase = phase
+        self.cause = cause
+        self.recoverable = recoverable
+        super().__init__(f"Skill '{skill_name}' failed during {phase}: {cause}")
+
+
+class WaveExecutionError(Exception):
+    """Raised when a parallel wave fails."""
+
+    def __init__(self, wave_index: int, failures: list[SkillExecutionError]) -> None:
+        self.wave_index = wave_index
+        self.failures = failures
+        names = [f.skill_name for f in failures]
+        super().__init__(
+            f"Wave {wave_index} failed: {len(failures)} skill(s) failed: {names}"
+        )
+
+
+# =============================================================================
+# RFC-087: Execution Context
+# =============================================================================
+
+
+@dataclass
+class ExecutionContext:
+    """Shared context for skill execution (RFC-087)."""
+
+    data: dict[str, Any] = field(default_factory=dict)
+    """Context data produced by skills (the 'produces' values)."""
+
+    lens_version: str | None = None
+    """Lens version for cache key computation."""
+
+    _lock: threading.Lock = field(default_factory=threading.Lock)
+
+    def get(self, key: str) -> Any:
+        """Get a context value (thread-safe)."""
+        with self._lock:
+            return self.data.get(key)
+
+    def set(self, key: str, value: Any) -> None:
+        """Set a context value (thread-safe)."""
+        with self._lock:
+            self.data[key] = value
+
+    def update(self, values: dict[str, Any]) -> None:
+        """Update multiple context values (thread-safe)."""
+        with self._lock:
+            self.data.update(values)
+
+    def snapshot(self) -> dict[str, Any]:
+        """Get a snapshot of current context (thread-safe)."""
+        with self._lock:
+            return dict(self.data)
+
+    def has_all(self, keys: tuple[str, ...]) -> bool:
+        """Check if all keys are present in context."""
+        with self._lock:
+            return all(k in self.data for k in keys)
 
 
 @dataclass
@@ -347,3 +429,305 @@ class SkillAwareClassifier:
 
         # 3. No skill match — use lens heuristics only
         return {"skill": None, "confidence": 1.0, "reason": "No skill needed"}
+
+
+# =============================================================================
+# RFC-087: Incremental Skill Executor
+# =============================================================================
+
+
+@dataclass
+class SkillExecutionPlan:
+    """Execution plan with cache predictions (RFC-087)."""
+
+    to_execute: list[str]
+    """Skill names that will run."""
+
+    to_skip: list[str]
+    """Skill names with cache hits."""
+
+    waves: list[list[str]]
+    """Execution waves."""
+
+    @property
+    def skip_percentage(self) -> float:
+        """Percentage of skills that will be skipped (0-100)."""
+        total = len(self.to_execute) + len(self.to_skip)
+        return (len(self.to_skip) / total * 100) if total > 0 else 0.0
+
+    def to_dict(self) -> dict:
+        """Serialize for JSON export."""
+        return {
+            "toExecute": self.to_execute,
+            "toSkip": self.to_skip,
+            "waves": self.waves,
+            "skipPercentage": self.skip_percentage,
+        }
+
+
+@dataclass
+class IncrementalSkillExecutor:
+    """Execute skills with caching and incremental updates (RFC-087).
+
+    This executor:
+    1. Computes execution waves from the skill graph
+    2. Checks cache for each skill
+    3. Executes only non-cached skills in parallel waves
+    4. Updates context with produces values
+    5. Caches results for future runs
+    """
+
+    lens: Lens
+    model: ModelProtocol
+    cache: SkillCache | None = None
+    workspace_root: Path | None = None
+
+    def __post_init__(self) -> None:
+        if self.cache is None:
+            from sunwell.skills.cache import SkillCache
+
+            self.cache = SkillCache()
+
+    def plan(
+        self,
+        graph: SkillGraph,
+        context: ExecutionContext,
+    ) -> SkillExecutionPlan:
+        """Plan execution, identifying what will run vs skip.
+
+        Args:
+            graph: Skill graph to execute
+            context: Execution context
+
+        Returns:
+            Execution plan with cache predictions
+        """
+        from sunwell.skills.cache import SkillCacheKey
+
+        to_execute: list[str] = []
+        to_skip: list[str] = []
+        waves = graph.execution_waves()
+
+        for wave in waves:
+            for skill_name in wave:
+                skill = graph.get(skill_name)
+                if skill is None:
+                    continue
+
+                cache_key = SkillCacheKey.compute(
+                    skill, context.snapshot(), context.lens_version
+                )
+
+                if self.cache and self.cache.has(cache_key):
+                    to_skip.append(skill_name)
+                else:
+                    to_execute.append(skill_name)
+
+        return SkillExecutionPlan(
+            to_execute=to_execute,
+            to_skip=to_skip,
+            waves=waves,
+        )
+
+    async def execute(
+        self,
+        graph: SkillGraph,
+        context: ExecutionContext,
+        on_wave_start: Any | None = None,
+        on_wave_complete: Any | None = None,
+        on_skill_start: Any | None = None,
+        on_skill_complete: Any | None = None,
+        on_cache_hit: Any | None = None,
+    ) -> dict[str, SkillOutput]:
+        """Execute skill graph, skipping cached results.
+
+        Args:
+            graph: Skill graph to execute
+            context: Execution context
+            on_wave_start: Callback(wave_index, total_waves, skill_names)
+            on_wave_complete: Callback(wave_index, duration_ms, succeeded, failed)
+            on_skill_start: Callback(skill_name, wave_index, requires, available_keys)
+            on_skill_complete: Callback(skill_name, duration_ms, produces, cached, success, error)
+            on_cache_hit: Callback(skill_name, cache_key, estimated_saved_ms)
+
+        Returns:
+            Mapping of skill name to output
+
+        Raises:
+            WaveExecutionError: If any wave fails
+        """
+        from sunwell.skills.cache import SkillCacheKey
+
+        results: dict[str, SkillOutput] = {}
+        waves = graph.execution_waves()
+        total_waves = len(waves)
+
+        for wave_idx, wave in enumerate(waves):
+            wave_start = time.time()
+
+            if on_wave_start:
+                on_wave_start(wave_idx, total_waves, wave)
+
+            wave_tasks: list = []
+            wave_skills: list[Skill] = []
+            succeeded: list[str] = []
+            failed: list[str] = []
+
+            for skill_name in wave:
+                skill = graph.get(skill_name)
+                if skill is None:
+                    continue
+
+                # Check cache
+                cache_key = SkillCacheKey.compute(
+                    skill, context.snapshot(), context.lens_version
+                )
+
+                cached_entry = self.cache.get(cache_key) if self.cache else None
+                if cached_entry:
+                    results[skill_name] = cached_entry.output
+                    succeeded.append(skill_name)
+
+                    # Update context with cached produces
+                    for key in skill.produces:
+                        if key in cached_entry.output.context:
+                            context.set(key, cached_entry.output.context[key])
+
+                    if on_cache_hit:
+                        on_cache_hit(
+                            skill_name,
+                            str(cache_key),
+                            cached_entry.execution_time_ms,
+                        )
+                    continue
+
+                if on_skill_start:
+                    on_skill_start(
+                        skill_name,
+                        wave_idx,
+                        list(skill.requires),
+                        list(context.snapshot().keys()),
+                    )
+
+                wave_tasks.append(self._execute_skill(skill, context))
+                wave_skills.append(skill)
+
+            if not wave_tasks:
+                wave_duration = int((time.time() - wave_start) * 1000)
+                if on_wave_complete:
+                    on_wave_complete(wave_idx, wave_duration, succeeded, failed)
+                continue
+
+            # Execute wave in parallel
+            wave_results = await asyncio.gather(*wave_tasks, return_exceptions=True)
+
+            # Process results
+            failures: list[SkillExecutionError] = []
+            for skill, result in zip(wave_skills, wave_results, strict=True):
+                if isinstance(result, Exception):
+                    error = SkillExecutionError(
+                        skill.name, "execute", result, recoverable=False
+                    )
+                    failures.append(error)
+                    failed.append(skill.name)
+
+                    if on_skill_complete:
+                        on_skill_complete(
+                            skill.name,
+                            0,
+                            list(skill.produces),
+                            False,
+                            False,
+                            str(result),
+                        )
+                    continue
+
+                output, execution_time_ms = result
+                results[skill.name] = output
+                succeeded.append(skill.name)
+
+                # Update context with produces
+                for key in skill.produces:
+                    if key in output.context:
+                        context.set(key, output.context[key])
+
+                # Cache the result
+                if self.cache:
+                    cache_key = SkillCacheKey.compute(
+                        skill, context.snapshot(), context.lens_version
+                    )
+                    self.cache.set(cache_key, output, skill.name, execution_time_ms)
+
+                if on_skill_complete:
+                    on_skill_complete(
+                        skill.name,
+                        execution_time_ms,
+                        list(skill.produces),
+                        False,
+                        True,
+                        None,
+                    )
+
+            wave_duration = int((time.time() - wave_start) * 1000)
+            if on_wave_complete:
+                on_wave_complete(wave_idx, wave_duration, succeeded, failed)
+
+            if failures:
+                raise WaveExecutionError(wave_idx, failures)
+
+        return results
+
+    async def _execute_skill(
+        self,
+        skill: Skill,
+        context: ExecutionContext,
+    ) -> tuple[SkillOutput, int]:
+        """Execute a single skill.
+
+        Args:
+            skill: Skill to execute
+            context: Execution context
+
+        Returns:
+            Tuple of (output, execution_time_ms)
+        """
+        start_time = time.time()
+
+        # Build context dict for template expansion
+        ctx_dict = context.snapshot()
+
+        # Create single-skill executor
+        executor = SkillExecutor(
+            skill=skill,
+            lens=self.lens,
+            model=self.model,
+            workspace_root=self.workspace_root,
+        )
+
+        # Execute with validation
+        result = await executor.execute(ctx_dict, validate=True)
+
+        execution_time_ms = int((time.time() - start_time) * 1000)
+
+        # Build context values from produces
+        output_context: dict[str, Any] = {}
+        for key in skill.produces:
+            # Convention: skill produces its result content under its name
+            if key == skill.name:
+                output_context[key] = result.content
+            elif key == "content":
+                output_context[key] = result.content
+
+        output = SkillOutput(
+            content=result.content,
+            content_type="text",
+            artifacts=result.artifacts,
+            metadata=SkillOutputMetadata(
+                skill_name=skill.name,
+                execution_time_ms=execution_time_ms,
+                scripts_run=result.scripts_run,
+            ),
+            context=output_context,
+        )
+
+        return output, execution_time_ms

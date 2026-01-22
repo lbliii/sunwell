@@ -4,7 +4,6 @@ This wraps the RFC-019 OpportunityDiscoverer as a TaskPlanner,
 providing backward compatibility while enabling agent mode.
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path

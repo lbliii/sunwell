@@ -52,11 +52,27 @@ async def _analyze(
     model_name: str | None,
 ) -> None:
     """Run project analysis."""
+    from sunwell.config import get_config, resolve_naaru_model
     from sunwell.models.ollama import OllamaModel
     from sunwell.project import analyze_project
 
-    # Get model
-    model = OllamaModel(model_name or "qwen2.5-coder:7b")
+    # Resolve model: CLI override > config > auto-detect from available models
+    config = get_config()
+    resolved_model = model_name
+
+    if not resolved_model and config and hasattr(config, "naaru"):
+        # Try to auto-detect an available model from the voice_models list
+        resolved_model = resolve_naaru_model(
+            config.naaru.voice,
+            list(config.naaru.voice_models),
+            check_availability=True,
+        )
+
+    # Final fallback to a common small model
+    if not resolved_model:
+        resolved_model = "gemma3:1b"
+
+    model = OllamaModel(resolved_model)
 
     try:
         analysis = await analyze_project(path.resolve(), model, force_refresh=fresh)
@@ -68,7 +84,17 @@ async def _analyze(
         raise SystemExit(1) from None
 
     if output_json:
-        console.print(json.dumps(analysis.to_cache_dict(), indent=2))
+        # Output raw JSON to stdout (bypass Rich to avoid ANSI codes)
+        import sys
+
+        output = json.dumps(analysis.to_cache_dict(), indent=2, ensure_ascii=False)
+        # Sanitize: remove control characters except newlines/tabs
+        sanitized = "".join(
+            c for c in output if not (ord(c) < 32 and c not in "\n\r\t")
+        )
+        sys.stdout.write(sanitized)
+        sys.stdout.write("\n")
+        sys.stdout.flush()
         return
 
     # Rich output

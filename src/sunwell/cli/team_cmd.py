@@ -651,7 +651,7 @@ async def _migrate_decisions(dry_run: bool, migrate_all: bool) -> None:
 
     for d in candidates:
         try:
-            team_decision = await propagator.promote_to_team(d, author)
+            await propagator.promote_to_team(d, author)
             console.print(f"  [green]✓[/green] {d.question[:50]}...")
             migrated += 1
         except Exception as e:

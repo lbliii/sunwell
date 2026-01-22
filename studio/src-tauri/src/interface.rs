@@ -2,7 +2,7 @@
 //!
 //! Provides Tauri commands for the LLM-driven interaction routing system.
 
-use crate::util::sunwell_command;
+use crate::util::{parse_json_safe, sunwell_command};
 use serde::{Deserialize, Serialize};
 
 /// Output from the generative interface.
@@ -77,7 +77,7 @@ pub async fn process_goal(
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    serde_json::from_str(&stdout).map_err(|e| format!("Failed to parse output: {} - raw: {}", e, stdout))
+    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse output: {} - raw: {}", e, stdout))
 }
 
 /// List configured providers.
@@ -199,7 +199,7 @@ pub async fn predict_composition(
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    serde_json::from_str(&stdout)
+    parse_json_safe(&stdout)
         .map_err(|e| format!("Failed to parse composition: {} - raw: {}", e, stdout))
 }
 
@@ -243,6 +243,6 @@ pub async fn execute_block_action(
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    serde_json::from_str(&stdout)
+    parse_json_safe(&stdout)
         .map_err(|e| format!("Failed to parse action result: {} - raw: {}", e, stdout))
 }

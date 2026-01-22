@@ -10,7 +10,6 @@ Enables queries like:
 Part of RFC-014: Multi-Topology Memory.
 """
 
-from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass, field

@@ -566,3 +566,305 @@ def set_default(name: str | None, clear: bool) -> None:
             console.print(f"Current default: [cyan]{current}[/cyan]")
         else:
             console.print("No default lens set (auto-select enabled)")
+
+
+# =============================================================================
+# RFC-087: Skill Graph Commands
+# =============================================================================
+
+
+@lens.command("skill-graph")
+@click.argument("lens_name")
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+@click.option("--mermaid", is_flag=True, help="Output as Mermaid diagram")
+def skill_graph(lens_name: str, json_output: bool, mermaid: bool) -> None:
+    """Show the skill dependency graph for a lens (RFC-087).
+
+    Displays skills and their dependencies as a DAG, with execution
+    waves showing which skills can run in parallel.
+
+    Examples:
+
+        sunwell lens skill-graph tech-writer
+
+        sunwell lens skill-graph tech-writer --json
+
+        sunwell lens skill-graph coder --mermaid
+    """
+    asyncio.run(_skill_graph(lens_name, json_output, mermaid))
+
+
+async def _skill_graph(lens_name: str, json_output: bool, mermaid: bool) -> None:
+    """Show skill graph for a lens."""
+    from sunwell.adaptive.lens_resolver import _load_lens
+    from sunwell.naaru.expertise.discovery import LensDiscovery
+    from sunwell.skills.graph import SkillGraph
+
+    discovery = LensDiscovery()
+    lens_obj = await _load_lens(lens_name, discovery)
+
+    if not lens_obj:
+        if json_output:
+            print(json_module.dumps({"error": f"Lens not found: {lens_name}"}))
+        else:
+            console.print(f"[red]Lens not found: {lens_name}[/red]")
+        return
+
+    if not lens_obj.skills:
+        if json_output:
+            print(json_module.dumps({
+                "lensName": lens_name,
+                "skills": {},
+                "waves": [],
+                "contentHash": "",
+            }))
+        else:
+            console.print(f"[yellow]Lens '{lens_name}' has no skills.[/yellow]")
+        return
+
+    # Build skill graph
+    graph = SkillGraph.from_skills(lens_obj.skills)
+
+    if mermaid:
+        print(graph.to_mermaid())
+        return
+
+    if json_output:
+        data = {
+            "lensName": lens_name,
+            "skills": {
+                skill.name: {
+                    "id": skill.name,
+                    "name": skill.name,
+                    "shortcut": "",
+                    "description": skill.description,
+                    "category": skill.skill_type.value,
+                    "dependsOn": [
+                        {
+                            "source": dep.source,
+                            "skillName": dep.skill_name,
+                            "isLocal": dep.is_local,
+                        }
+                        for dep in skill.depends_on
+                    ],
+                    "produces": list(skill.produces),
+                    "requires": list(skill.requires),
+                }
+                for skill in lens_obj.skills
+            },
+            "waves": [
+                {"waveIndex": i, "skills": wave}
+                for i, wave in enumerate(graph.execution_waves())
+            ],
+            "contentHash": graph.content_hash(),
+        }
+        print(json_module.dumps(data, indent=2))
+        return
+
+    # Rich output
+    console.print(f"[bold]Skill Graph: {lens_name}[/bold]")
+    console.print(f"Skills: {len(lens_obj.skills)} | Hash: {graph.content_hash()[:12]}...")
+    console.print()
+
+    waves = graph.execution_waves()
+    for i, wave in enumerate(waves):
+        console.print(f"[cyan]Wave {i + 1}:[/cyan] {', '.join(wave)}")
+
+    console.print()
+    for skill in lens_obj.skills:
+        deps = [d.skill_name for d in skill.depends_on]
+        deps_str = f" ← {', '.join(deps)}" if deps else ""
+        produces_str = f" → {', '.join(skill.produces)}" if skill.produces else ""
+        console.print(f"  • [green]{skill.name}[/green]{deps_str}{produces_str}")
+
+
+@lens.command("skill-plan")
+@click.argument("lens_name")
+@click.option("--context-hash", help="Context hash for cache key computation")
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+def skill_plan(lens_name: str, context_hash: str | None, json_output: bool) -> None:
+    """Show execution plan with cache predictions (RFC-087).
+
+    Predicts which skills will execute vs skip based on cache state.
+
+    Examples:
+
+        sunwell lens skill-plan tech-writer --json
+
+        sunwell lens skill-plan coder --context-hash abc123
+    """
+    asyncio.run(_skill_plan(lens_name, context_hash, json_output))
+
+
+async def _skill_plan(lens_name: str, context_hash: str | None, json_output: bool) -> None:
+    """Show execution plan for a lens."""
+    from sunwell.adaptive.lens_resolver import _load_lens
+    from sunwell.naaru.expertise.discovery import LensDiscovery
+    from sunwell.skills.graph import SkillGraph
+
+    discovery = LensDiscovery()
+    lens_obj = await _load_lens(lens_name, discovery)
+
+    if not lens_obj:
+        if json_output:
+            print(json_module.dumps({"error": f"Lens not found: {lens_name}"}))
+        else:
+            console.print(f"[red]Lens not found: {lens_name}[/red]")
+        return
+
+    if not lens_obj.skills:
+        if json_output:
+            print(json_module.dumps({
+                "graph": {"lensName": lens_name, "skills": {}, "waves": [], "contentHash": ""},
+                "toExecute": [],
+                "toSkip": [],
+                "skipPercentage": 0.0,
+            }))
+        else:
+            console.print(f"[yellow]Lens '{lens_name}' has no skills.[/yellow]")
+        return
+
+    # Build skill graph
+    graph = SkillGraph.from_skills(lens_obj.skills)
+
+    # For now, all skills will execute (no cache integration without runtime context)
+    # In a real execution, this would check the cache
+    all_skills = [s.name for s in lens_obj.skills]
+
+    graph_data = {
+        "lensName": lens_name,
+        "skills": {
+            skill.name: {
+                "id": skill.name,
+                "name": skill.name,
+                "shortcut": "",
+                "description": skill.description,
+                "category": skill.skill_type.value,
+                "dependsOn": [
+                    {
+                        "source": dep.source,
+                        "skillName": dep.skill_name,
+                        "isLocal": dep.is_local,
+                    }
+                    for dep in skill.depends_on
+                ],
+                "produces": list(skill.produces),
+                "requires": list(skill.requires),
+            }
+            for skill in lens_obj.skills
+        },
+        "waves": [
+            {"waveIndex": i, "skills": wave}
+            for i, wave in enumerate(graph.execution_waves())
+        ],
+        "contentHash": graph.content_hash(),
+    }
+
+    data = {
+        "graph": graph_data,
+        "toExecute": all_skills,
+        "toSkip": [],
+        "skipPercentage": 0.0,
+    }
+
+    if json_output:
+        print(json_module.dumps(data, indent=2))
+        return
+
+    console.print(f"[bold]Execution Plan: {lens_name}[/bold]")
+    console.print(f"To Execute: {len(all_skills)} skills")
+    console.print(f"To Skip: 0 skills (0%)")
+    console.print()
+    console.print("[dim]Note: Cache predictions require runtime context.[/dim]")
+
+
+@lens.command("skills")
+@click.argument("lens_name")
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+def lens_skills(lens_name: str, json_output: bool) -> None:
+    """List skills for a lens with DAG information (RFC-087).
+
+    Shows skills with their dependencies, produces, and requires.
+    Used by Studio UI for skill panel.
+
+    Examples:
+
+        sunwell lens skills tech-writer
+
+        sunwell lens skills tech-writer --json
+    """
+    asyncio.run(_lens_skills(lens_name, json_output))
+
+
+async def _lens_skills(lens_name: str, json_output: bool) -> None:
+    """List skills for a lens."""
+    from sunwell.adaptive.lens_resolver import _load_lens
+    from sunwell.naaru.expertise.discovery import LensDiscovery
+
+    discovery = LensDiscovery()
+    lens_obj = await _load_lens(lens_name, discovery)
+
+    if not lens_obj:
+        if json_output:
+            print(json_module.dumps([]))
+        else:
+            console.print(f"[red]Lens not found: {lens_name}[/red]")
+        return
+
+    if not lens_obj.skills:
+        if json_output:
+            print(json_module.dumps([]))
+        else:
+            console.print(f"[yellow]Lens '{lens_name}' has no skills.[/yellow]")
+        return
+
+    # Get router shortcuts if available
+    shortcuts: dict[str, str] = {}
+    if lens_obj.router and lens_obj.router.shortcuts:
+        shortcuts = {v: k for k, v in lens_obj.router.shortcuts.items()}
+
+    skills_data = [
+        {
+            "id": skill.name,
+            "name": skill.name,
+            "shortcut": shortcuts.get(skill.name, ""),
+            "description": skill.description,
+            "category": skill.skill_type.value,
+            "dependsOn": [
+                {
+                    "source": dep.source,
+                    "skillName": dep.skill_name,
+                    "isLocal": dep.is_local,
+                }
+                for dep in skill.depends_on
+            ],
+            "produces": list(skill.produces),
+            "requires": list(skill.requires),
+        }
+        for skill in lens_obj.skills
+    ]
+
+    if json_output:
+        print(json_module.dumps(skills_data, indent=2))
+        return
+
+    table = Table(title=f"Skills: {lens_name}")
+    table.add_column("Name", style="cyan")
+    table.add_column("Shortcut", style="yellow")
+    table.add_column("Type", style="dim")
+    table.add_column("Deps", justify="right")
+    table.add_column("Produces")
+
+    for skill in lens_obj.skills:
+        shortcut = shortcuts.get(skill.name, "-")
+        deps = len(skill.depends_on)
+        produces = ", ".join(skill.produces) if skill.produces else "-"
+        table.add_row(
+            skill.name,
+            shortcut,
+            skill.skill_type.value,
+            str(deps),
+            produces[:30] + "..." if len(produces) > 30 else produces,
+        )
+
+    console.print(table)

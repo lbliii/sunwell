@@ -24,7 +24,6 @@ constrained classification tasks.
 See: RFC-073 (Reasoned Decisions)
 """
 
-from __future__ import annotations
 
 import json
 import re

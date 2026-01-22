@@ -12,7 +12,6 @@ Gives models explicit agency over memory operations:
 Part of RFC-014: Multi-Topology Memory.
 """
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING
 

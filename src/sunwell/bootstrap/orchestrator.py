@@ -3,7 +3,6 @@
 Coordinates all scanners and populates RFC-045 intelligence stores.
 """
 
-from __future__ import annotations
 
 import asyncio
 from datetime import datetime

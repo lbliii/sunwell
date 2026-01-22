@@ -13,7 +13,6 @@ Example:
     >>> print(f"Potential speedup: {analysis['parallelization_ratio']:.1f}x")
 """
 
-from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass

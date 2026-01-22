@@ -11,7 +11,6 @@ RFC-052 adds:
 - UnifiedIntelligence for team + personal + project
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path

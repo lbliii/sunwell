@@ -9,7 +9,6 @@ not competing with task context in the Convergence slots.
 Also injects M'uru's self-identity so it knows its own name.
 """
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING
 

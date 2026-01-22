@@ -8,7 +8,6 @@ This module implements the unified architecture that composes three layers:
 Each layer offers multiple strategies with different cost/quality tradeoffs.
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal

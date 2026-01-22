@@ -7,7 +7,6 @@ It provides three strategies for refining outputs:
 - full: Always use full LLM judge, iterate until approved (~2000 tokens per iteration)
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING

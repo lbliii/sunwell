@@ -2,7 +2,7 @@
 //!
 //! Provides lens discovery, selection, library management, and project configuration.
 
-use crate::util::sunwell_command;
+use crate::util::{parse_json_safe, sunwell_command};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
@@ -172,7 +172,7 @@ pub async fn list_lenses() -> Result<Vec<LensSummary>, String> {
     }
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&json_str).map_err(|e| format!("Failed to parse lens list: {}", e))
+    parse_json_safe(&json_str).map_err(|e| format!("Failed to parse lens list: {}", e))
 }
 
 /// Get details of a specific lens.
@@ -188,7 +188,7 @@ pub async fn get_lens_detail(name: String) -> Result<LensDetail, String> {
     }
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&json_str).map_err(|e| format!("Failed to parse lens detail: {}", e))
+    parse_json_safe(&json_str).map_err(|e| format!("Failed to parse lens detail: {}", e))
 }
 
 /// Get project lens configuration.
@@ -239,7 +239,7 @@ pub async fn get_lens_library(filter: Option<String>) -> Result<Vec<LensLibraryE
     }
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&json_str).map_err(|e| format!("Failed to parse lens library: {}", e))
+    parse_json_safe(&json_str).map_err(|e| format!("Failed to parse lens library: {}", e))
 }
 
 /// Fork a lens to create an editable copy.
@@ -366,7 +366,7 @@ pub async fn get_lens_versions(name: String) -> Result<Vec<LensVersionInfo>, Str
     }
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&json_str).map_err(|e| format!("Failed to parse lens versions: {}", e))
+    parse_json_safe(&json_str).map_err(|e| format!("Failed to parse lens versions: {}", e))
 }
 
 /// Rollback a lens to a previous version.

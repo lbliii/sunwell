@@ -1,6 +1,5 @@
 """Context injection for prompts."""
 
-from __future__ import annotations
 
 from dataclasses import dataclass
 

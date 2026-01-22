@@ -3,7 +3,6 @@
 Convert signals into prioritized goals with dependency inference.
 """
 
-from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
@@ -390,7 +389,6 @@ class GoalGenerator:
         - Fix type errors before adding features
         - Fix lint before other changes
         """
-        goal_map = {g.id: g for g in goals}
         updated: list[Goal] = []
 
         for goal in goals:

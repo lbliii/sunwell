@@ -7,7 +7,6 @@ Core data structures for the quality benchmark framework:
 - Statistical summaries
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime

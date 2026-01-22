@@ -9,7 +9,6 @@ Spatial context answers: "Where is this information located?"
 Part of RFC-014: Multi-Topology Memory.
 """
 
-from __future__ import annotations
 
 import fnmatch
 from dataclasses import dataclass

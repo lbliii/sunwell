@@ -1,10 +1,11 @@
-"""Skill commands - Execute and validate skills from lenses."""
+"""Skill commands - Execute and validate skills from lenses (RFC-011, RFC-087)."""
 
-from __future__ import annotations
 
 import asyncio
+import json as json_module
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 from rich.console import Console
@@ -20,12 +21,43 @@ from sunwell.schema.loader import LensLoader
 from sunwell.skills.executor import SkillExecutor
 from sunwell.workspace.detector import WorkspaceDetector
 
+if TYPE_CHECKING:
+    from sunwell.skills.cache import SkillCache
+
 console = Console()
 
+# Global skill cache instance (shared across commands in same process)
+_skill_cache: SkillCache | None = None
 
-@click.command()
+
+def _get_cache() -> SkillCache:
+    """Get or create the global skill cache."""
+    global _skill_cache
+    if _skill_cache is None:
+        from sunwell.skills.cache import SkillCache
+        _skill_cache = SkillCache(max_size=1000)
+    return _skill_cache
+
+
+# =============================================================================
+# CLI Group
+# =============================================================================
+
+
+@click.group()
+def skill() -> None:
+    """Skill commands - execute, validate, and manage skills (RFC-011, RFC-087)."""
+    pass
+
+
+# =============================================================================
+# Skill Commands
+# =============================================================================
+
+
+@skill.command("validate")
 @click.argument("lens_path", type=click.Path(exists=True))
-def validate(lens_path: str) -> None:
+def validate_cmd(lens_path: str) -> None:
     """Validate a lens file.
 
     Checks:
@@ -35,9 +67,9 @@ def validate(lens_path: str) -> None:
 
     Examples:
 
-        sunwell validate my-lens.lens
+        sunwell skill validate my-lens.lens
 
-        sunwell validate ./lenses/tech-writer.lens
+        sunwell skill validate ./lenses/tech-writer.lens
     """
     loader = LensLoader()
 
@@ -69,16 +101,16 @@ def validate(lens_path: str) -> None:
         # Show skills if present
         if lens.skills:
             console.print("\n[bold]Skills:[/bold]")
-            for skill in lens.skills:
-                trust = {"full": "🔓", "sandboxed": "🔒", "none": "📝"}[skill.trust.value]
-                console.print(f"  {trust} {skill.name}")
+            for s in lens.skills:
+                trust = {"full": "🔓", "sandboxed": "🔒", "none": "📝"}[s.trust.value]
+                console.print(f"  {trust} {s.name}")
 
     except SunwellError as e:
         console.print(f"[red]❌ Invalid lens:[/red] {e.message}")
         sys.exit(1)
 
 
-@click.command()
+@skill.command("exec")
 @click.argument("lens_path", type=click.Path(exists=True))
 @click.argument("skill_name")
 @click.argument("task")
@@ -221,3 +253,116 @@ async def _exec_skill_async(
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         Path(output_path).write_text(result.content)
         console.print(f"\n[green]✓ Written to:[/green] {output_path}")
+
+
+# =============================================================================
+# RFC-087: Skill Cache Commands
+# =============================================================================
+
+
+@skill.command("cache-stats")
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+def cache_stats(json_output: bool) -> None:
+    """Show skill cache statistics (RFC-087).
+
+    Displays cache size, hit rate, and other metrics.
+
+    Examples:
+
+        sunwell skill cache-stats
+
+        sunwell skill cache-stats --json
+    """
+    cache = _get_cache()
+    stats = cache.stats()
+
+    if json_output:
+        print(json_module.dumps(stats, indent=2))
+        return
+
+    console.print("[bold]Skill Cache Statistics[/bold]")
+    console.print(f"Size: {stats['size']} / {stats['max_size']}")
+    console.print(f"Hits: {stats['hits']}")
+    console.print(f"Misses: {stats['misses']}")
+    console.print(f"Hit Rate: {stats['hit_rate']:.1%}")
+
+
+@skill.command("cache-clear")
+@click.option("--skill-name", "-s", "skill_name", help="Clear cache for specific skill only")
+def cache_clear(skill_name: str | None) -> None:
+    """Clear the skill cache (RFC-087).
+
+    Clears all cached skill execution results, or just for a specific skill.
+
+    Examples:
+
+        sunwell skill cache-clear
+
+        sunwell skill cache-clear --skill-name analyze-code
+    """
+    cache = _get_cache()
+
+    if skill_name:
+        count = cache.invalidate_skill(skill_name)
+        console.print(f"[green]✓[/green] Cleared {count} cache entries for skill: {skill_name}")
+    else:
+        cache.clear()
+        console.print("[green]✓[/green] Skill cache cleared")
+
+
+# =============================================================================
+# Legacy Commands (for backward compatibility with `sunwell exec` etc.)
+# =============================================================================
+
+
+@click.command("exec")
+@click.argument("lens_path", type=click.Path(exists=True))
+@click.argument("skill_name")
+@click.argument("task")
+@click.option("--model", "-m", default=None, help="Model to use")
+@click.option("--provider", "-p", default="openai", help="Provider")
+@click.option("--output", "-o", type=click.Path(), help="Write output to file")
+@click.option("--no-validate", is_flag=True, help="Skip lens validation")
+@click.option("--dry-run", is_flag=True, help="Don't write files, output to stdout")
+@click.option("--verbose", "-v", is_flag=True, help="Verbose output")
+def exec_legacy(
+    lens_path: str,
+    skill_name: str,
+    task: str,
+    model: str | None,
+    provider: str,
+    output: str | None,
+    no_validate: bool,
+    dry_run: bool,
+    verbose: bool,
+) -> None:
+    """Execute a skill from a lens (legacy command, use `sunwell skill exec`).
+
+    Skills are action capabilities defined in lenses (RFC-011).
+    """
+    if model is None:
+        model = {
+            "openai": "gpt-4o",
+            "anthropic": "claude-sonnet-4-20250514",
+            "ollama": "gemma3:4b",
+            "mock": "mock",
+        }.get(provider, "gpt-4o")
+
+    asyncio.run(_exec_skill_async(
+        lens_path, skill_name, task, model, provider, output,
+        not no_validate, dry_run, verbose
+    ))
+
+
+@click.command("validate")
+@click.argument("lens_path", type=click.Path(exists=True))
+def validate_legacy(lens_path: str) -> None:
+    """Validate a lens file (legacy command, use `sunwell skill validate`)."""
+    loader = LensLoader()
+
+    try:
+        lens_obj = loader.load(Path(lens_path))
+        console.print(f"[green]✅ Valid lens:[/green] {lens_obj.metadata.name}")
+    except SunwellError as e:
+        console.print(f"[red]❌ Invalid lens:[/red] {e.message}")
+        sys.exit(1)

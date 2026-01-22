@@ -20,7 +20,6 @@ Example:
     >>> print(f"Emerged: {len(graph)} artifacts from {stats['cells_fired']} cells")
 """
 
-from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass

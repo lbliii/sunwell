@@ -3,7 +3,6 @@
 RFC-025: Extracted from manager.py to slim it down.
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass
 

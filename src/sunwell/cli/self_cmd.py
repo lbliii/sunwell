@@ -12,17 +12,15 @@ Example:
     >>> sunwell self proposals list  # List proposals
 """
 
-from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import click
 
 if TYPE_CHECKING:
-    from sunwell.self import Self
+    pass
 
 
 @click.group()

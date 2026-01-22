@@ -9,7 +9,6 @@ Part of RFC-014: Multi-Topology Memory.
 RFC-084: Enhanced with Jaccard similarity for RELATES_TO detection.
 """
 
-from __future__ import annotations
 
 import re
 from datetime import datetime

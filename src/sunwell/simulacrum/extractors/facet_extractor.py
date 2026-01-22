@@ -10,7 +10,6 @@ Automatically detects:
 Part of RFC-014: Multi-Topology Memory.
 """
 
-from __future__ import annotations
 
 import re
 from typing import TYPE_CHECKING

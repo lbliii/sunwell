@@ -256,3 +256,85 @@ async def test_imports_successful():
         LearningExtractor, RendererConfig, RichRenderer,
         TaskGraph, create_renderer, extract_signals, run_adaptive,
     ])
+
+
+class TestRendererConfig:
+    """Tests for RendererConfig dataclass.
+
+    This broke when main.py used non-existent fields (show_signals, show_gates, show_learning).
+    These tests ensure the actual fields are documented and used correctly.
+    """
+
+    def test_renderer_config_defaults(self) -> None:
+        """RendererConfig has sensible defaults."""
+        from sunwell.adaptive import RendererConfig
+
+        config = RendererConfig()
+
+        assert config.mode == "interactive"
+        assert config.refresh_rate == 10
+        assert config.show_learnings is True
+        assert config.verbose is False
+
+    def test_renderer_config_custom_values(self) -> None:
+        """RendererConfig accepts custom values."""
+        from sunwell.adaptive import RendererConfig
+
+        config = RendererConfig(
+            mode="quiet",
+            refresh_rate=5,
+            show_learnings=False,
+            verbose=True,
+        )
+
+        assert config.mode == "quiet"
+        assert config.refresh_rate == 5
+        assert config.show_learnings is False
+        assert config.verbose is True
+
+    def test_renderer_config_valid_modes(self) -> None:
+        """RendererConfig accepts expected mode values."""
+        from sunwell.adaptive import RendererConfig
+
+        # These should not raise
+        RendererConfig(mode="interactive")
+        RendererConfig(mode="quiet")
+        RendererConfig(mode="json")
+
+    def test_renderer_config_signature_stability(self) -> None:
+        """RendererConfig signature matches what CLI expects.
+
+        This test exists because main.py broke using non-existent fields.
+        If this test fails, update both this test AND the CLI.
+        """
+        import inspect
+        from sunwell.adaptive import RendererConfig
+
+        # Get actual fields from the dataclass
+        sig = inspect.signature(RendererConfig)
+        param_names = set(sig.parameters.keys())
+
+        # These are the fields that SHOULD exist
+        expected = {"mode", "refresh_rate", "show_learnings", "verbose"}
+        assert expected == param_names, (
+            f"RendererConfig signature changed! "
+            f"Expected {expected}, got {param_names}. "
+            f"Update cli/main.py if fields were renamed."
+        )
+
+        # These fields should NOT exist (old/removed)
+        forbidden = {"show_signals", "show_gates", "show_learning"}
+        assert forbidden.isdisjoint(param_names), (
+            f"RendererConfig has deprecated fields: {forbidden & param_names}"
+        )
+
+    def test_create_renderer_with_config(self) -> None:
+        """create_renderer accepts RendererConfig."""
+        from sunwell.adaptive import RendererConfig, create_renderer
+
+        config = RendererConfig(mode="interactive", verbose=True)
+        renderer = create_renderer(config)
+
+        assert renderer is not None
+        # Renderer should exist and be configured
+        assert hasattr(renderer, "config")

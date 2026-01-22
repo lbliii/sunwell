@@ -17,7 +17,6 @@ Note: RFC-067 types (TaskType, RequiredIntegration, IntegrationCheck, etc.)
 have been moved to sunwell.integration.types for better organization.
 """
 
-from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field

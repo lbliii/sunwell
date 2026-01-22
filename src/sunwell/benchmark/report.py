@@ -8,7 +8,6 @@ Implements RFC-018 statistical rigor requirements:
 - Per-category breakdowns
 """
 
-from __future__ import annotations
 
 import json
 from dataclasses import dataclass

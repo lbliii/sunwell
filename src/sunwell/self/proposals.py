@@ -685,14 +685,6 @@ class ProposalManager:
 
         try:
             # Check if we're on a branch already
-            current_branch = subprocess.run(
-                ["git", "branch", "--show-current"],
-                cwd=self.source_root,
-                capture_output=True,
-                text=True,
-            )
-            original_branch = current_branch.stdout.strip() or "main"
-
             # Create and checkout branch
             subprocess.run(
                 ["git", "checkout", "-b", branch_name],

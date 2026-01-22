@@ -1,6 +1,5 @@
 """Load lens definitions from YAML/JSON files."""
 
-from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -59,6 +58,103 @@ class LensLoader:
 
     def __init__(self, fount_client: FountClient | None = None):
         self.fount = fount_client
+        self._presets: dict[str, dict] | None = None  # Lazy-loaded presets
+
+    def _load_presets(self) -> dict[str, dict]:
+        """Load permission presets from YAML (RFC-092).
+
+        Presets are loaded lazily and cached. Searches for permission-presets.yaml
+        in standard locations:
+        1. Package skills directory
+        2. Current working directory skills/
+        """
+        if self._presets is not None:
+            return self._presets
+
+        # Search paths for presets file
+        search_paths: list[Path] = []
+
+        # Check package skills directory
+        from importlib.resources import files
+
+        try:
+            package_presets = files("sunwell") / "skills" / "permission-presets.yaml"
+            if package_presets.is_file():
+                search_paths.append(Path(str(package_presets)))
+        except (ImportError, TypeError):
+            pass
+
+        # Check current working directory
+        search_paths.append(Path.cwd() / "skills" / "permission-presets.yaml")
+        search_paths.append(Path.cwd() / "permission-presets.yaml")
+
+        # Find and load the file
+        for path in search_paths:
+            if path.exists():
+                data = yaml.safe_load(path.read_text())
+                self._presets = data.get("presets", {}) if data else {}
+                return self._presets
+
+        # No presets file found - return empty dict
+        self._presets = {}
+        return self._presets
+
+    def _resolve_preset(self, skill_data: dict) -> dict:
+        """Resolve preset inheritance for a skill (RFC-092).
+
+        If skill has a preset, merge preset permissions/security into skill data.
+        Skill-specific values override preset values.
+
+        Args:
+            skill_data: Raw skill dict from YAML
+
+        Returns:
+            Skill dict with resolved permissions/security
+        """
+        preset_name = skill_data.get("preset")
+        if not preset_name:
+            return skill_data
+
+        presets = self._load_presets()
+        preset = presets.get(preset_name)
+
+        if preset is None:
+            raise ValueError(
+                f"Unknown permission preset: '{preset_name}'. "
+                f"Available presets: {list(presets.keys())}"
+            )
+
+        # Create a copy to avoid mutating original
+        resolved = dict(skill_data)
+
+        # Merge permissions (skill overrides preset)
+        if "permissions" in preset:
+            preset_perms = dict(preset["permissions"])
+            skill_perms = resolved.get("permissions", {})
+            if skill_perms:
+                self._deep_merge(preset_perms, skill_perms)
+            resolved["permissions"] = preset_perms
+
+        # Merge security (skill overrides preset)
+        if "security" in preset:
+            preset_sec = dict(preset["security"])
+            skill_sec = resolved.get("security", {})
+            if skill_sec:
+                self._deep_merge(preset_sec, skill_sec)
+            resolved["security"] = preset_sec
+
+        return resolved
+
+    def _deep_merge(self, base: dict, override: dict) -> None:
+        """Deep merge override into base (mutates base).
+
+        Used for merging skill-specific permissions into preset permissions.
+        """
+        for key, value in override.items():
+            if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+                self._deep_merge(base[key], value)
+            else:
+                base[key] = value
 
     def load(self, path: Path | str) -> Lens:
         """Load a lens from a YAML file."""
@@ -635,24 +731,28 @@ class LensLoader:
         """Parse a single skill definition.
 
         RFC-070: Also parses triggers for automatic skill discovery.
+        RFC-092: Resolves preset inheritance for permissions/security.
         """
+        # RFC-092: Resolve preset inheritance first
+        resolved_data = self._resolve_preset(data)
+
         # Determine skill type
-        skill_type_str = data.get("type", "inline")
+        skill_type_str = resolved_data.get("type", "inline")
         skill_type = SkillType(skill_type_str)
 
         # Parse trust level
-        trust_str = data.get("trust", "sandboxed")
+        trust_str = resolved_data.get("trust", "sandboxed")
         trust = TrustLevel(trust_str)
 
         # RFC-070: Parse triggers for automatic discovery
-        triggers = data.get("triggers", [])
+        triggers = resolved_data.get("triggers", [])
         if isinstance(triggers, str):
             triggers = triggers.split()
         triggers = tuple(triggers)
 
         # Parse scripts
         scripts = ()
-        if "scripts" in data:
+        if "scripts" in resolved_data:
             scripts = tuple(
                 Script(
                     name=sc["name"],
@@ -660,36 +760,36 @@ class LensLoader:
                     language=sc.get("language", "python"),
                     description=sc.get("description"),
                 )
-                for sc in data["scripts"]
+                for sc in resolved_data["scripts"]
             )
 
         # Parse templates
         templates = ()
-        if "templates" in data:
+        if "templates" in resolved_data:
             templates = tuple(
                 Template(
                     name=t["name"],
                     content=t["content"],
                 )
-                for t in data["templates"]
+                for t in resolved_data["templates"]
             )
 
         # Parse resources
         resources = ()
-        if "resources" in data:
+        if "resources" in resolved_data:
             resources = tuple(
                 Resource(
                     name=r["name"],
                     url=r.get("url"),
                     path=r.get("path"),
                 )
-                for r in data["resources"]
+                for r in resolved_data["resources"]
             )
 
         # Parse validation binding
         validate_with = SkillValidation()
-        if "validate_with" in data:
-            vw = data["validate_with"]
+        if "validate_with" in resolved_data:
+            vw = resolved_data["validate_with"]
             validate_with = SkillValidation(
                 validators=tuple(vw.get("validators", [])),
                 personas=tuple(vw.get("personas", [])),
@@ -697,27 +797,35 @@ class LensLoader:
             )
 
         # Parse allowed_tools (can be space-delimited string or list)
-        allowed_tools = data.get("allowed_tools", [])
+        allowed_tools = resolved_data.get("allowed_tools", [])
         if isinstance(allowed_tools, str):
             allowed_tools = allowed_tools.split()
         allowed_tools = tuple(allowed_tools)
 
+        # RFC-092: Get preset name and resolved permissions/security
+        preset_name = data.get("preset")  # Original data has preset name
+        permissions = resolved_data.get("permissions")
+        security = resolved_data.get("security")
+
         return Skill(
-            name=data["name"],
-            description=data["description"],
+            name=resolved_data["name"],
+            description=resolved_data["description"],
             skill_type=skill_type,
+            preset=preset_name,
             triggers=triggers,
-            compatibility=data.get("compatibility"),
+            permissions=permissions,
+            security=security,
+            compatibility=resolved_data.get("compatibility"),
             allowed_tools=allowed_tools,
-            instructions=data.get("instructions"),
+            instructions=resolved_data.get("instructions"),
             scripts=scripts,
             templates=templates,
             resources=resources,
-            source=data.get("source"),
-            path=data.get("path"),
+            source=resolved_data.get("source"),
+            path=resolved_data.get("path"),
             trust=trust,
-            timeout=data.get("timeout", 30),
-            override=data.get("override", False),
+            timeout=resolved_data.get("timeout", 30),
+            override=resolved_data.get("override", False),
             validate_with=validate_with,
         )
 

@@ -18,10 +18,8 @@ Usage:
     print(result.report())
 """
 
-from __future__ import annotations
 
 import json
-import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -224,8 +222,7 @@ class PlanningEvaluator:
             return 100.0, {}
 
         plan_artifacts = plan.get("artifacts", [])
-        plan_ids = {a["id"].lower() for a in plan_artifacts}
-        plan_files = set()
+        plan_files: set[str] = set()
         for a in plan_artifacts:
             if a.get("produces_file"):
                 plan_files.add(a["produces_file"].lower())

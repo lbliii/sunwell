@@ -6,6 +6,15 @@ import { AgentStatus, TaskStatus, PlanningPhase } from '$lib/constants';
 import type { AgentState, AgentEvent, Task, Concept, ConceptCategory, PlanCandidate } from '$lib/types';
 import { updateNode, completeNode } from './dag.svelte';
 import { setActiveLens } from './lens.svelte';
+import {
+  handleSkillGraphResolved,
+  handleSkillWaveStart,
+  handleSkillWaveComplete,
+  handleSkillCacheHit,
+  handleSkillExecuteStart,
+  handleSkillExecuteComplete,
+} from './skill-graph.svelte';
+import { handleSecurityEvent } from './security.svelte';
 
 const DEMO_MODE = false;
 
@@ -594,6 +603,124 @@ export function handleAgentEvent(event: AgentEvent): void {
         ..._state,
         learnings: [..._state.learnings, `🎯 Lens suggested: ${suggested} (${reason})`],
       };
+      break;
+    }
+
+    // RFC-087: Skill graph execution events
+    case 'skill_graph_resolved': {
+      handleSkillGraphResolved({
+        lens_name: (data.lens_name as string) ?? '',
+        skill_count: (data.skill_count as number) ?? 0,
+        wave_count: (data.wave_count as number) ?? 0,
+        content_hash: (data.content_hash as string) ?? '',
+      });
+      const skillCount = (data.skill_count as number) ?? 0;
+      const waveCount = (data.wave_count as number) ?? 0;
+      const lensName = (data.lens_name as string) ?? '';
+      _state = {
+        ..._state,
+        learnings: [..._state.learnings, `🔧 Skill graph: ${skillCount} skills in ${waveCount} waves (${lensName})`],
+      };
+      break;
+    }
+
+    case 'skill_wave_start': {
+      handleSkillWaveStart({
+        wave_index: (data.wave_index as number) ?? 0,
+        total_waves: (data.total_waves as number) ?? 1,
+        skills: (data.skills as string[]) ?? [],
+        parallel: (data.parallel as boolean) ?? true,
+      });
+      const waveIndex = (data.wave_index as number) ?? 0;
+      const totalWaves = (data.total_waves as number) ?? 1;
+      const skills = (data.skills as string[]) ?? [];
+      _state = {
+        ..._state,
+        learnings: [..._state.learnings, `⚡ Wave ${waveIndex + 1}/${totalWaves}: ${skills.join(', ')}`],
+      };
+      break;
+    }
+
+    case 'skill_wave_complete': {
+      handleSkillWaveComplete({
+        wave_index: (data.wave_index as number) ?? 0,
+        duration_ms: (data.duration_ms as number) ?? 0,
+        succeeded: (data.succeeded as string[]) ?? [],
+        failed: (data.failed as string[]) ?? [],
+      });
+      const waveIndex = (data.wave_index as number) ?? 0;
+      const durationMs = (data.duration_ms as number) ?? 0;
+      const succeeded = (data.succeeded as string[]) ?? [];
+      const failed = (data.failed as string[]) ?? [];
+      const status = failed.length > 0 ? `⚠️ ${failed.length} failed` : `✅ ${succeeded.length} complete`;
+      _state = {
+        ..._state,
+        learnings: [..._state.learnings, `Wave ${waveIndex + 1} done: ${status} (${durationMs}ms)`],
+      };
+      break;
+    }
+
+    case 'skill_cache_hit': {
+      handleSkillCacheHit({
+        skill_name: (data.skill_name as string) ?? '',
+        cache_key: (data.cache_key as string) ?? '',
+        saved_ms: (data.saved_ms as number) ?? 0,
+      });
+      const skillName = (data.skill_name as string) ?? '';
+      const savedMs = (data.saved_ms as number) ?? 0;
+      _state = {
+        ..._state,
+        learnings: [..._state.learnings, `💨 Cache hit: ${skillName} (saved ~${savedMs}ms)`],
+      };
+      break;
+    }
+
+    case 'skill_execute_start': {
+      handleSkillExecuteStart({
+        skill_name: (data.skill_name as string) ?? '',
+        wave_index: (data.wave_index as number) ?? 0,
+        requires: (data.requires as string[]) ?? [],
+        context_keys_available: (data.context_keys_available as string[]) ?? [],
+      });
+      // Don't flood learnings with every skill start, just update store
+      break;
+    }
+
+    case 'skill_execute_complete': {
+      handleSkillExecuteComplete({
+        skill_name: (data.skill_name as string) ?? '',
+        duration_ms: (data.duration_ms as number) ?? 0,
+        produces: (data.produces as string[]) ?? [],
+        cached: (data.cached as boolean) ?? false,
+        success: (data.success as boolean) ?? true,
+        error: data.error as string | undefined,
+      });
+      const skillName = (data.skill_name as string) ?? '';
+      const durationMs = (data.duration_ms as number) ?? 0;
+      const success = (data.success as boolean) ?? true;
+      const error = data.error as string | undefined;
+      if (!success) {
+        _state = {
+          ..._state,
+          learnings: [..._state.learnings, `❌ Skill ${skillName}: ${error ?? 'failed'}`],
+        };
+      }
+      break;
+    }
+
+    // RFC-089: Security events
+    case 'security_approval_requested':
+    case 'security_approval_received':
+    case 'security_violation':
+    case 'security_scan_complete':
+    case 'audit_log_entry': {
+      const learning = handleSecurityEvent(type, data);
+      if (learning) {
+        _state = {
+          ..._state,
+          learnings: [..._state.learnings, learning],
+        };
+      }
       break;
     }
   }

@@ -4,7 +4,6 @@ Enables data-driven model selection by recording which models
 perform best for different types of tasks.
 """
 
-from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field

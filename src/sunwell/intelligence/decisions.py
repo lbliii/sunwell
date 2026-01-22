@@ -8,7 +8,6 @@ RFC-050 adds:
 - metadata field for provenance tracking
 """
 
-from __future__ import annotations
 
 import hashlib
 import json

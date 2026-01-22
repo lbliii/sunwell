@@ -7,7 +7,6 @@ Performance optimizations:
 - Adaptive worker count based on GIL state
 """
 
-from __future__ import annotations
 
 import asyncio
 import fnmatch

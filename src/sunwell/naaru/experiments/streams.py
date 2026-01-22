@@ -28,7 +28,6 @@ Examples:
 The stream reveals WHERE the complexity/danger lives, not just IF it exists.
 """
 
-from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass

@@ -25,12 +25,10 @@ Example:
     >>> print(result.uncertain_items)   # Where extractors disagreed
 """
 
-from __future__ import annotations
 
 import asyncio
 import re
-from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from difflib import SequenceMatcher
 from typing import TYPE_CHECKING
 

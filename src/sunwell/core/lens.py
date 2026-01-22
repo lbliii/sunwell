@@ -1,6 +1,5 @@
 """Lens data model - the core expertise container."""
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -213,6 +212,18 @@ class Lens:
     # Skills (RFC-011: Agent Skills integration)
     skills: tuple[Skill, ...] = ()
     skill_retry: SkillRetryPolicy | None = None
+
+    # RFC-087: Skill library sources for resolving REFERENCE skills
+    skill_sources: tuple[str, ...] = ()
+    """Skill libraries to search when resolving SkillType.REFERENCE skills.
+
+    Examples:
+        - "sunwell/common" → built-in skill library
+        - "./skills" → local project skills directory
+        - "fount://my-skills@^1.0" → versioned fount package
+
+    Resolution order: local skills first, then skill_sources in order.
+    """
 
     # Spellbook (RFC-021: Portable Workflow Incantations)
     spellbook: tuple[Spell, ...] = ()

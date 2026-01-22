@@ -3,7 +3,6 @@
 RFC-084: Includes HeuristicSummarizer for LLM-free summarization.
 """
 
-from __future__ import annotations
 
 import re
 from collections import Counter

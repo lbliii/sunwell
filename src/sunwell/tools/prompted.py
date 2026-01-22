@@ -12,7 +12,6 @@ Examples:
     [TOOL:list_expertise_areas()]
 """
 
-from __future__ import annotations
 
 import re
 from dataclasses import dataclass

@@ -3,7 +3,6 @@
 Implements the sandbox model from RFC-011 Section 7 (Security).
 """
 
-from __future__ import annotations
 
 import asyncio
 import tempfile

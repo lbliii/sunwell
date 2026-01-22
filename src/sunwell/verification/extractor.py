@@ -8,7 +8,6 @@ Extract what the code *should* do from available sources:
 5. LLM inference from function name/context
 """
 
-from __future__ import annotations
 
 import ast
 import json

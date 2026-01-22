@@ -7,7 +7,6 @@ RFC-023: Extends the existing fact extraction to also capture behavioral signals
 Uses a tiny LLM (gemma3:1b) for flexible extraction, falls back to regex.
 """
 
-from __future__ import annotations
 
 import re
 from typing import TYPE_CHECKING

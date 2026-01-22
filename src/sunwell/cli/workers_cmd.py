@@ -9,7 +9,6 @@ Provides:
 - sunwell workers resources: Show resource usage
 """
 
-from __future__ import annotations
 
 import asyncio
 import json

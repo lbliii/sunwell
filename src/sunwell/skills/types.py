@@ -1,15 +1,18 @@
 """Skill data models - types for Agent Skills integration.
 
 Implements the skill schema from RFC-011 Appendix A.
+RFC-087: Skill-Lens DAG extends this with dependency tracking.
 """
 
-from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
+
+if TYPE_CHECKING:
+    from sunwell.models.protocol import Tool
 
 
 class SkillType(Enum):
@@ -18,6 +21,49 @@ class SkillType(Enum):
     INLINE = "inline"  # Defined directly in lens file
     REFERENCE = "reference"  # External fount reference
     LOCAL = "local"  # Local folder with SKILL.md
+
+
+# =============================================================================
+# RFC-087: Skill Dependencies
+# =============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class SkillDependency:
+    """A dependency on another skill (RFC-087).
+
+    Uses the same source format as SkillType.REFERENCE for consistency.
+
+    Examples:
+        - "read-file" → local skill in same lens
+        - "sunwell/common:read-file" → skill from library
+        - "fount://audit-skills@^1.0:validate-code" → versioned fount reference
+    """
+
+    source: str
+    """Skill reference in format: [library:]skill_name or fount://..."""
+
+    @property
+    def is_local(self) -> bool:
+        """True if this references a skill in the same lens."""
+        return ":" not in self.source and "/" not in self.source
+
+    @property
+    def skill_name(self) -> str:
+        """Extract skill name from reference."""
+        if ":" in self.source:
+            return self.source.split(":")[-1]
+        return self.source
+
+    @property
+    def library(self) -> str | None:
+        """Extract library name if external reference."""
+        if ":" in self.source:
+            return self.source.rsplit(":", 1)[0]
+        return None
+
+    def __str__(self) -> str:
+        return self.source
 
 
 class TrustLevel(Enum):
@@ -131,12 +177,65 @@ class Skill:
 
     Skills define HOW to do something (instructions, scripts, templates)
     while lenses define HOW to judge the output (heuristics, validators).
+
+    RFC-087: Skills can now declare dependencies on other skills via depends_on,
+    forming a DAG for ordered execution with incremental caching.
+
+    RFC-089: Skills can declare permissions for security-first execution.
+    RFC-092: Skills can inherit permissions from presets via preset field.
     """
 
     # Required fields
     name: str  # Unique identifier within lens
     description: str  # Human-readable purpose for discovery
     skill_type: SkillType  # How skill is defined
+
+    # RFC-092: Permission preset inheritance
+    preset: str | None = None
+    """Name of permission preset to inherit.
+
+    Presets are defined in skills/permission-presets.yaml.
+    When set, the skill inherits all permissions and security
+    metadata from the preset.
+
+    The skill can override specific fields:
+
+        preset: read-only
+        permissions:
+          shell:
+            allow: ["git diff"]  # Override just shell
+
+    Overrides are merged, not replaced.
+    """
+
+    # RFC-087: Skill dependencies for DAG ordering
+    depends_on: tuple[SkillDependency, ...] = ()
+    """Skills that must execute before this one.
+
+    Dependencies form a DAG. Circular dependencies are detected at resolution time.
+    """
+
+    # RFC-087: Artifact flow for incremental execution
+    produces: tuple[str, ...] = ()
+    """Context keys this skill produces.
+
+    These are keys in the execution context dict, NOT file paths.
+    Example: ("code_analysis", "lint_results")
+
+    Used for:
+    1. Cache key computation (if produces change, invalidate)
+    2. Dependency validation (requires must be subset of upstream produces)
+    """
+
+    requires: tuple[str, ...] = ()
+    """Context keys this skill requires from upstream skills.
+
+    Example: ("file_content",) means this skill needs the output
+    from a skill that produces "file_content".
+
+    Validated at resolution time: all requires must be satisfied
+    by produces of skills in depends_on (transitively).
+    """
 
     # RFC-070: Trigger patterns for automatic discovery
     triggers: tuple[str, ...] = ()
@@ -146,6 +245,47 @@ class Skill:
     to suggest relevant skills alongside lens selection.
 
     Example: triggers: ("audit", "validate", "check", "verify")
+    """
+
+    # RFC-089: Security permissions for declarative permission graphs
+    permissions: dict | None = None
+    """Security permissions declaration (RFC-089).
+
+    Defines what resources this skill can access:
+    - filesystem: {read: [...], write: [...]} - glob patterns
+    - network: {allow: [...], deny: [...]} - host:port patterns
+    - shell: {allow: [...], deny: [...]} - command prefixes
+    - environment: {read: [...], write: [...]} - env var names
+
+    Example:
+        permissions:
+          filesystem:
+            read: ["/app/src/*", "/app/config/*.yaml"]
+            write: ["/tmp/build-*"]
+          network:
+            allow: ["registry.internal:5000"]
+            deny: ["*"]
+          shell:
+            allow: ["docker build", "docker push"]
+            deny: ["docker run"]
+
+    If None, skill inherits ambient permissions (legacy behavior).
+    """
+
+    # RFC-089: Security metadata
+    security: dict | None = None
+    """Security metadata for the skill (RFC-089).
+
+    Optional metadata for security policies:
+    - data_classification: "public" | "internal" | "confidential" | "secret"
+    - requires_approval: bool - always require human approval
+    - audit_level: "minimal" | "standard" | "verbose"
+
+    Example:
+        security:
+          data_classification: internal
+          requires_approval: false
+          audit_level: standard
     """
 
     # Agent Skills spec alignment
@@ -216,7 +356,7 @@ class Skill:
 
         return "\n".join(parts)
 
-    def to_tool(self) -> Tool:
+    def to_tool(self) -> "Tool":
         """Convert this skill to a callable tool (RFC-012).
 
         Returns:
@@ -279,6 +419,14 @@ class SkillOutput:
 
     # Metadata for validation
     metadata: SkillOutputMetadata | None = None
+
+    # RFC-087: Context values this skill produces (keyed by skill.produces)
+    context: dict[str, Any] = field(default_factory=dict)
+    """Values produced by this skill, available to downstream skills.
+
+    Keys should match the skill's produces declaration.
+    Example: {"code_analysis": {...}, "complexity_score": 7.5}
+    """
 
 
 @dataclass(frozen=True, slots=True)

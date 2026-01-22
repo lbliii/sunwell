@@ -11,13 +11,13 @@ Uses:
 - ty for type checking (not mypy)
 """
 
-from __future__ import annotations
 
-from dataclasses import dataclass, field
+import logging
+import os
+from dataclasses import dataclass
 from typing import Any, Protocol, TypedDict, runtime_checkable
 
 from sunwell.adaptive.events import AgentEvent, EventType
-
 
 # =============================================================================
 # Event Data Schemas (TypedDict for type safety)
@@ -53,6 +53,10 @@ class PlanWinnerData(TypedDict, total=False):
     refinement_rounds: int  # How many refinement rounds were run
     final_score_improvement: float  # Total score improvement from refinement
     score: float  # CANONICAL - top-level score (same as metrics.score)
+
+    # RFC-090: Plan transparency - detailed task/gate lists
+    task_list: list[dict[str, Any]]  # List of TaskSummary dicts
+    gate_list: list[dict[str, Any]]  # List of GateSummary dicts
 
 
 class TaskStartData(TypedDict, total=False):
@@ -465,6 +469,117 @@ class WireTaskGeneratedData(TypedDict, total=False):
 
 
 # =============================================================================
+# RFC-087: Skill Graph Event Schemas
+# =============================================================================
+
+
+class SkillGraphResolvedData(TypedDict, total=False):
+    """Data for skill_graph_resolved event."""
+    lens_name: str  # Required
+    skill_count: int  # Required
+    wave_count: int  # Required
+    content_hash: str  # Required
+
+
+class SkillWaveStartData(TypedDict, total=False):
+    """Data for skill_wave_start event."""
+    wave_index: int  # Required
+    total_waves: int  # Required
+    skills: list[str]  # Required - skill names in this wave
+    parallel: bool  # Whether skills execute in parallel
+
+
+class SkillWaveCompleteData(TypedDict, total=False):
+    """Data for skill_wave_complete event."""
+    wave_index: int  # Required
+    duration_ms: int  # Required
+    succeeded: list[str]  # Required - skills that succeeded
+    failed: list[str]  # Required - skills that failed
+
+
+class SkillCacheHitData(TypedDict, total=False):
+    """Data for skill_cache_hit event."""
+    skill_name: str  # Required
+    cache_key: str  # Required
+    saved_ms: int  # Required - estimated time saved
+
+
+class SkillExecuteStartData(TypedDict, total=False):
+    """Data for skill_execute_start event."""
+    skill_name: str  # Required
+    wave_index: int  # Required
+    requires: list[str]  # Required - context keys this skill needs
+    context_keys_available: list[str]  # Required - context keys currently available
+    # RFC-089: Security metadata
+    risk_level: str | None  # low/medium/high/critical (None = not assessed)
+    has_permissions: bool  # Whether skill declares explicit permissions
+
+
+class SkillExecuteCompleteData(TypedDict, total=False):
+    """Data for skill_execute_complete event."""
+    skill_name: str  # Required
+    duration_ms: int  # Required
+    produces: list[str]  # Required - context keys produced
+    cached: bool  # Required - whether result was from cache
+    success: bool  # Required - whether execution succeeded
+    error: str | None  # Error message if failed
+    # RFC-089: Security metadata
+    risk_level: str | None  # Evaluated risk level after execution
+    violations_detected: int  # Number of security violations during execution
+
+
+# =============================================================================
+# RFC-089: Security Event Schemas
+# =============================================================================
+
+
+class SecurityApprovalRequestedData(TypedDict, total=False):
+    """Data for security_approval_requested event."""
+    dag_id: str  # Required
+    dag_name: str  # Required
+    skill_count: int  # Required
+    risk_level: str  # Required: low/medium/high/critical
+    risk_score: float  # Required: 0.0-1.0
+    flags: list[str]  # Required - risk flags detected
+    permissions: dict[str, Any]  # Permission scope (filesystem, network, etc.)
+
+
+class SecurityApprovalReceivedData(TypedDict, total=False):
+    """Data for security_approval_received event."""
+    dag_id: str  # Required
+    approved: bool  # Required
+    modified: bool  # Whether permissions were modified
+    remembered: bool  # Whether remembered for session
+
+
+class SecurityViolationData(TypedDict, total=False):
+    """Data for security_violation event."""
+    skill_name: str  # Required
+    violation_type: str  # Required: credential_leak, path_traversal, etc.
+    evidence: str  # Required
+    detection_method: str  # Required: deterministic/llm
+    action_taken: str  # Required: logged/paused/aborted
+    position: int | None  # Position in output
+
+
+class SecurityScanCompleteData(TypedDict, total=False):
+    """Data for security_scan_complete event."""
+    output_length: int  # Required
+    violations_found: int  # Required
+    scan_duration_ms: int  # Required
+    method: str  # Required: deterministic/llm/both
+
+
+class AuditLogEntryData(TypedDict, total=False):
+    """Data for audit_log_entry event."""
+    skill_name: str  # Required
+    action: str  # Required: execute/violation/denied/error
+    risk_level: str  # Required: low/medium/high/critical
+    details: str | None  # Human-readable details
+    dag_id: str | None  # Associated DAG
+
+
+# =============================================================================
 # Event Schema Registry
 # =============================================================================
 
@@ -531,6 +646,19 @@ EVENT_SCHEMAS: dict[EventType, type[TypedDict]] = {
     EventType.STUB_DETECTED: StubDetectedData,
     EventType.ORPHAN_DETECTED: OrphanDetectedData,
     EventType.WIRE_TASK_GENERATED: WireTaskGeneratedData,
+    # Skill graph events (RFC-087)
+    EventType.SKILL_GRAPH_RESOLVED: SkillGraphResolvedData,
+    EventType.SKILL_WAVE_START: SkillWaveStartData,
+    EventType.SKILL_WAVE_COMPLETE: SkillWaveCompleteData,
+    EventType.SKILL_CACHE_HIT: SkillCacheHitData,
+    EventType.SKILL_EXECUTE_START: SkillExecuteStartData,
+    EventType.SKILL_EXECUTE_COMPLETE: SkillExecuteCompleteData,
+    # Security events (RFC-089)
+    EventType.SECURITY_APPROVAL_REQUESTED: SecurityApprovalRequestedData,
+    EventType.SECURITY_APPROVAL_RECEIVED: SecurityApprovalReceivedData,
+    EventType.SECURITY_VIOLATION: SecurityViolationData,
+    EventType.SECURITY_SCAN_COMPLETE: SecurityScanCompleteData,
+    EventType.AUDIT_LOG_ENTRY: AuditLogEntryData,
 }
 
 # Required fields per event type
@@ -579,21 +707,47 @@ REQUIRED_FIELDS: dict[EventType, set[str]] = {
     # Discovery progress (RFC-059)
     EventType.PLAN_DISCOVERY_PROGRESS: {"artifacts_discovered", "phase"},
     # Integration verification events (RFC-067)
-    EventType.INTEGRATION_CHECK_START: {"edge_id", "check_type", "source_artifact", "target_artifact"},
+    EventType.INTEGRATION_CHECK_START: {
+        "edge_id", "check_type", "source_artifact", "target_artifact"
+    },
     EventType.INTEGRATION_CHECK_PASS: {"edge_id", "check_type"},
     EventType.INTEGRATION_CHECK_FAIL: {"edge_id", "check_type", "expected", "actual"},
     EventType.STUB_DETECTED: {"artifact_id", "file_path", "stub_type", "location"},
     EventType.ORPHAN_DETECTED: {"artifact_id", "file_path"},
-    EventType.WIRE_TASK_GENERATED: {"task_id", "source_artifact", "target_artifact", "integration_type"},
+    EventType.WIRE_TASK_GENERATED: {
+        "task_id", "source_artifact", "target_artifact", "integration_type"
+    },
+    # Skill graph events (RFC-087)
+    EventType.SKILL_GRAPH_RESOLVED: {
+        "lens_name", "skill_count", "wave_count", "content_hash"
+    },
+    EventType.SKILL_WAVE_START: {"wave_index", "total_waves", "skills"},
+    EventType.SKILL_WAVE_COMPLETE: {"wave_index", "duration_ms", "succeeded", "failed"},
+    EventType.SKILL_CACHE_HIT: {"skill_name", "cache_key", "saved_ms"},
+    EventType.SKILL_EXECUTE_START: {
+        "skill_name", "wave_index", "requires", "context_keys_available"
+    },
+    EventType.SKILL_EXECUTE_COMPLETE: {
+        "skill_name", "duration_ms", "produces", "cached", "success"
+    },
+    # Security events (RFC-089)
+    EventType.SECURITY_APPROVAL_REQUESTED: {
+        "dag_id", "dag_name", "skill_count", "risk_level", "risk_score", "flags"
+    },
+    EventType.SECURITY_APPROVAL_RECEIVED: {"dag_id", "approved"},
+    EventType.SECURITY_VIOLATION: {
+        "skill_name", "violation_type", "evidence", "detection_method", "action_taken"
+    },
+    EventType.SECURITY_SCAN_COMPLETE: {
+        "output_length", "violations_found", "scan_duration_ms", "method"
+    },
+    EventType.AUDIT_LOG_ENTRY: {"skill_name", "action", "risk_level"},
 }
 
 
 # =============================================================================
 # Event Validation (RFC-060)
 # =============================================================================
-
-import logging
-import os
 
 # RFC-060: Validation mode control via environment variable
 # Values: "strict" (raise on error), "lenient" (log warning), "off" (no validation)
@@ -781,13 +935,13 @@ def validated_plan_winner_event(
 @runtime_checkable
 class EventEmitter(Protocol):
     """Protocol for event emitters.
-    
+
     All event-emitting code should implement this protocol.
     """
-    
+
     def emit(self, event: AgentEvent) -> None:
         """Emit an event.
-        
+
         Args:
             event: The event to emit
         """
@@ -797,13 +951,13 @@ class EventEmitter(Protocol):
 @dataclass(frozen=True, slots=True)
 class ValidatedEventEmitter:
     """Event emitter with validation.
-    
+
     Wraps an event emitter and validates events before emitting.
     """
-    
+
     inner: EventEmitter
     validate: bool = True
-    
+
     def emit(self, event: AgentEvent) -> None:
         """Emit a validated event."""
         if self.validate:
@@ -818,7 +972,7 @@ class ValidatedEventEmitter:
 
 def generate_typescript_types() -> str:
     """Generate TypeScript type definitions from Python schemas.
-    
+
     Returns:
         TypeScript type definitions as a string
     """
@@ -901,5 +1055,5 @@ def generate_typescript_types() -> str:
         "  | ErrorData",
         "  | Record<string, any>;  // Fallback for unknown events",
     ]
-    
+
     return "\n".join(lines)

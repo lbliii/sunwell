@@ -19,7 +19,6 @@ Each memory type has different:
 - Compression: How it's compressed when full
 """
 
-from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass, field

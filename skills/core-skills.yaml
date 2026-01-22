@@ -7,6 +7,8 @@
 # 3. Documentation - Generate docs
 # 4. Validation - Check quality
 # 5. Search - Find relevant content
+#
+# RFC-092: All skills declare permissions via presets
 
 skills:
   # ============================================================================
@@ -17,6 +19,7 @@ skills:
     description: Save generated content to a file in the workspace
     type: inline
     trust: sandboxed
+    preset: workspace-write
     instructions: |
       ## Goal
       Save content to a file at the specified path.
@@ -36,6 +39,7 @@ skills:
     description: Read and analyze source code files for documentation
     type: inline
     trust: sandboxed
+    preset: read-only
     instructions: |
       ## Goal
       Read source files to extract information for documentation.
@@ -57,6 +61,7 @@ skills:
     description: List files and directories in the workspace
     type: inline
     trust: sandboxed
+    preset: read-only
     instructions: |
       ## Goal
       List files matching a pattern to understand project structure.
@@ -80,6 +85,7 @@ skills:
     description: Extract public API from source code modules
     type: inline
     trust: sandboxed
+    preset: safe-shell
     compatibility: Python 3.10+ or Node.js 18+
     instructions: |
       ## Goal
@@ -159,6 +165,7 @@ skills:
     description: Analyze project dependencies and their relationships
     type: inline
     trust: sandboxed
+    preset: read-only
     instructions: |
       ## Goal
       Map out project dependencies from config files.
@@ -179,6 +186,7 @@ skills:
     description: Create a structural overview of the codebase
     type: inline
     trust: sandboxed
+    preset: read-only
     instructions: |
       ## Goal
       Generate a high-level map of the codebase architecture.
@@ -212,6 +220,7 @@ skills:
     description: Generate comprehensive API reference documentation
     type: inline
     trust: sandboxed
+    preset: workspace-write
     instructions: |
       ## Goal
       Create complete API reference documentation for a module.
@@ -280,6 +289,7 @@ skills:
     description: Generate a quickstart guide for new users
     type: inline
     trust: sandboxed
+    preset: workspace-write
     instructions: |
       ## Goal
       Create a quickstart that gets users productive in 5 minutes.
@@ -342,6 +352,7 @@ skills:
     description: Generate changelog entry from git commits or PR
     type: inline
     trust: sandboxed
+    preset: workspace-write
     instructions: |
       ## Goal
       Create a changelog entry following Keep a Changelog format.
@@ -375,6 +386,7 @@ skills:
     description: Generate architecture documentation from codebase analysis
     type: inline
     trust: sandboxed
+    preset: workspace-write
     instructions: |
       ## Goal
       Create architecture documentation (Diataxis: EXPLANATION).
@@ -412,6 +424,7 @@ skills:
     description: Check that code examples in documentation actually work
     type: inline
     trust: sandboxed
+    preset: safe-shell
     instructions: |
       ## Goal
       Verify all code examples in documentation are correct.
@@ -457,6 +470,7 @@ skills:
     description: Verify all links in documentation are valid
     type: inline
     trust: sandboxed
+    preset: read-only
     instructions: |
       ## Goal
       Find broken links in documentation.
@@ -486,6 +500,7 @@ skills:
     description: Comprehensive documentation quality audit
     type: inline
     trust: sandboxed
+    preset: read-only
     instructions: |
       ## Goal
       Audit documentation for accuracy and quality.
@@ -535,6 +550,7 @@ skills:
     description: Search codebase for relevant code and context
     type: inline
     trust: sandboxed
+    preset: search-only
     instructions: |
       ## Goal
       Find code relevant to a query or task.
@@ -567,6 +583,7 @@ skills:
     description: Find real usage examples of an API in the codebase
     type: inline
     trust: sandboxed
+    preset: search-only
     instructions: |
       ## Goal
       Find actual usage of a function/class in tests or application code.

@@ -7,7 +7,6 @@ Each primitive is a specific reasoning pattern:
 - Gradient: Decomposition with difficulty estimation
 """
 
-from __future__ import annotations
 
 import re
 from dataclasses import dataclass

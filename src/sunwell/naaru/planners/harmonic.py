@@ -13,7 +13,6 @@ Example:
     >>> print(f"Selected: depth={metrics.depth}, parallelism={metrics.parallelism_factor:.2f}")
 """
 
-from __future__ import annotations
 
 import asyncio
 import json

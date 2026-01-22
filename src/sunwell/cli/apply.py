@@ -1,6 +1,5 @@
 """Apply command - Apply a lens to a prompt."""
 
-from __future__ import annotations
 
 import asyncio
 import sys

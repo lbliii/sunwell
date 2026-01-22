@@ -8,7 +8,6 @@ It provides four strategies for selecting the best candidate:
 - judge: Full LLM evaluation (expensive, ~1000 tokens per candidate)
 """
 
-from __future__ import annotations
 
 import asyncio
 from collections import Counter

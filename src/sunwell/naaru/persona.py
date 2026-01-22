@@ -16,7 +16,6 @@ Configure in ~/.sunwell/config.yaml or .sunwell/config.yaml:
       alternate_titles: true
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 

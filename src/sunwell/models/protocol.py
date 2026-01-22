@@ -1,13 +1,87 @@
 """Model protocol - provider-agnostic LLM interface.
 
 Extended with tool calling support per RFC-012.
+Includes LLM output sanitization per RFC-091.
 """
 
-from __future__ import annotations
-
+import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Literal, Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    from sunwell.skills.types import Skill
+
+logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# LLM Output Sanitization (RFC-091)
+# =============================================================================
+
+
+def sanitize_llm_content(text: str | None) -> str | None:
+    """Remove control characters from LLM output.
+
+    Preserves newlines, carriage returns, and tabs which are valid
+    in JSON strings and needed for code formatting.
+
+    Applied once at the model layer, not on every read.
+
+    Args:
+        text: Raw LLM output text (may be None for tool-only responses)
+
+    Returns:
+        Sanitized text with control characters removed, or None if input was None
+    """
+    if text is None:
+        return None
+
+    sanitized = "".join(c for c in text if not (ord(c) < 32 and c not in "\n\r\t"))
+
+    # Log when sanitization actually removed characters (debug level)
+    if len(sanitized) != len(text):
+        logger.debug(
+            "Sanitized control chars from LLM output",
+            extra={
+                "original_len": len(text),
+                "sanitized_len": len(sanitized),
+                "chars_removed": len(text) - len(sanitized),
+            },
+        )
+
+    return sanitized
+
+
+def _sanitize_dict_values(d: dict) -> dict:
+    """Recursively sanitize string values in a dict.
+
+    Used for sanitizing tool call arguments which may contain control characters.
+
+    Args:
+        d: Dictionary with potentially unsanitized string values
+
+    Returns:
+        Dictionary with all string values sanitized
+    """
+    result = {}
+    for k, v in d.items():
+        if isinstance(v, str):
+            result[k] = sanitize_llm_content(v)
+        elif isinstance(v, dict):
+            result[k] = _sanitize_dict_values(v)
+        elif isinstance(v, list):
+            result[k] = [
+                _sanitize_dict_values(i)
+                if isinstance(i, dict)
+                else sanitize_llm_content(i)
+                if isinstance(i, str)
+                else i
+                for i in v
+            ]
+        else:
+            result[k] = v
+    return result
 
 # =============================================================================
 # Message Types (RFC-012)
@@ -49,7 +123,7 @@ class Tool:
     parameters: dict  # JSON Schema
 
     @classmethod
-    def from_skill(cls, skill: Skill) -> Tool:
+    def from_skill(cls, skill: "Skill") -> "Tool":
         """Convert a Sunwell skill to a tool definition.
 
         Args:

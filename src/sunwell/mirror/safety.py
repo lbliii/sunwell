@@ -9,7 +9,6 @@ Implements guardrails to prevent dangerous self-modifications:
 These safety constraints cannot be modified by the mirror system itself.
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta

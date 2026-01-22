@@ -10,7 +10,6 @@ Session-scoped benefits:
 - Avoids singleton global state problems
 """
 
-from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field

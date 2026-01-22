@@ -8,7 +8,6 @@ Replaces traditional RAG with a unified query across:
 - Temporal: "Recent conversation history"
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING

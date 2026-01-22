@@ -1,6 +1,5 @@
 """Session command group - Manage conversation sessions."""
 
-from __future__ import annotations
 
 from pathlib import Path
 

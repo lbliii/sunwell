@@ -10,7 +10,6 @@ Legacy Commands (still supported):
 - sunwell naaru illuminate: Self-improvement mode (RFC-019)
 """
 
-from __future__ import annotations
 
 import asyncio
 from pathlib import Path

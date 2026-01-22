@@ -28,6 +28,36 @@ sunwell "Build a REST API with auth"
 
 ---
 
+## What Sunwell Is (and Isn't)
+
+Sunwell occupies a specific niche in the AI tooling landscape. This table clarifies where it fits:
+
+| Category | Examples | Sunwell? | Why Not |
+|----------|----------|----------|---------|
+| **Evaluation Harness** | lm-eval-harness, HELM, BigBench | ❌ | Harnesses measure LLM accuracy on benchmarks. Sunwell *uses* models to build things. |
+| **AI Coding Assistant** | Cursor, Copilot, Aider | ⚠️ Partial | Assistants are reactive (wait for commands). Sunwell is proactive and autonomous. |
+| **Agent Framework** | LangChain, AutoGPT, CrewAI | ⚠️ Partial | Frameworks are libraries. Sunwell is a complete agent with memory and planning. |
+| **Prompt Orchestration** | DSPy, Guidance, LMQL | ❌ | Orchestrators optimize prompts. Sunwell orchestrates *work*, not prompts. |
+| **Local LLM Runtime** | Ollama, llama.cpp, vLLM | ❌ | Runtimes serve models. Sunwell *coordinates* models to accomplish goals. |
+
+### Sunwell IS:
+
+- ✅ An **autonomous development agent** — it plans, executes, and verifies work
+- ✅ A **coordinated intelligence system** — multiple small models working together (the Naaru)
+- ✅ A **memory-enabled assistant** — remembers decisions, patterns, and failures
+- ✅ A **local-first tool** — nothing leaves your machine
+- ✅ An **integration verifier** — detects orphans, stubs, and missing connections
+
+### Sunwell is NOT:
+
+- ❌ A benchmark harness for evaluating LLMs
+- ❌ A library you import into your code
+- ❌ A wrapper around a single model
+- ❌ A cloud service
+- ❌ A replacement for understanding your own code
+
+---
+
 ## Quick Start
 
 ```bash

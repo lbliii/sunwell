@@ -14,7 +14,6 @@ Thread Safety:
     free-threaded Python (3.14t).
 """
 
-from __future__ import annotations
 
 import os
 import threading
@@ -428,15 +427,19 @@ def resolve_naaru_model(
     config_value: str,
     model_list: list[str],
     check_availability: bool = True,
+    fallback_to_any: bool = True,
 ) -> str | None:
     """Resolve a naaru model setting to an actual model name.
 
     Handles "auto" by trying models from the list in order.
+    If no preferred model is available, can fallback to any available model.
 
     Args:
         config_value: The configured value ("auto" or a model name).
         model_list: List of models to try when config_value is "auto".
         check_availability: If True, verify model is available (Ollama only).
+        fallback_to_any: If True, return any available model when none from
+            model_list are available. This ensures something always works.
 
     Returns:
         Model name to use, or None if no model available.
@@ -463,9 +466,10 @@ def resolve_naaru_model(
             # Ollama not available, return first model (may fail later)
             return model_list[0] if model_list else None
 
-        available = {m["name"] for m in response.json().get("models", [])}
+        available_models = response.json().get("models", [])
+        available = {m["name"] for m in available_models}
 
-        # Find first available model
+        # Find first available model from preference list
         for model in model_list:
             # Check exact match and base name (e.g., "gemma3:1b" vs "gemma3")
             if model in available:
@@ -476,7 +480,16 @@ def resolve_naaru_model(
                 if avail.startswith(base):
                     return avail
 
-        # No model from list available
+        # No model from list available - try ANY available model
+        if fallback_to_any and available_models:
+            # Prefer smaller models for faster responses (sort by size if available)
+            sorted_models = sorted(
+                available_models,
+                key=lambda m: m.get("size", float("inf")),
+            )
+            return sorted_models[0]["name"]
+
+        # Nothing available
         return model_list[0] if model_list else None
 
     except Exception:

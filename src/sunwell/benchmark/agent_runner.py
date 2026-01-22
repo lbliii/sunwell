@@ -8,7 +8,6 @@ Extends the benchmark framework to test agent mode capabilities:
 - Error recovery
 """
 
-from __future__ import annotations
 
 import json
 import shutil

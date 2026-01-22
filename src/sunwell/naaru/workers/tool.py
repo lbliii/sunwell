@@ -1,6 +1,5 @@
 """Tool region worker - executes tools on behalf of other regions (RFC-032)."""
 
-from __future__ import annotations
 
 import asyncio
 import uuid

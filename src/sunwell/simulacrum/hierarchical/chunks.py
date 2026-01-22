@@ -1,6 +1,5 @@
 """Granularity levels and units for hierarchical conversation memory."""
 
-from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum

@@ -17,7 +17,6 @@ Why double-colon?
 | ::cmd  | Very low   | Almost never in natural English  |
 """
 
-from __future__ import annotations
 
 import re
 from collections.abc import Awaitable, Callable

@@ -1,6 +1,5 @@
 """Executive worker - coordination, prioritization, attention."""
 
-from __future__ import annotations
 
 import asyncio
 from collections import deque

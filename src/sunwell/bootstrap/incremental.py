@@ -3,7 +3,6 @@
 Update bootstrap intelligence after git changes.
 """
 
-from __future__ import annotations
 
 import asyncio
 import json

@@ -4,7 +4,6 @@ Like the brain's corpus callosum, this allows different specialized
 regions to communicate and coordinate.
 """
 
-from __future__ import annotations
 
 import asyncio
 from collections import deque

@@ -1,6 +1,5 @@
 """Opportunity discovery for RFC-016 Autonomous Mode."""
 
-from __future__ import annotations
 
 import re
 import uuid

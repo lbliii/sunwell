@@ -17,7 +17,6 @@ Learning categories:
 - dead_end: Approaches that didn't work
 """
 
-from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field

@@ -4,7 +4,6 @@ Like DORI's ::auto command, the IntentRouter analyzes user input
 and selects the appropriate workflow chain.
 """
 
-from __future__ import annotations
 
 import re
 from dataclasses import dataclass

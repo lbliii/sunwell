@@ -6,7 +6,6 @@ Three-tier evaluation system:
 3. Human evaluation protocol (not automated)
 """
 
-from __future__ import annotations
 
 import json
 import random

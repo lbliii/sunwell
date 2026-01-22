@@ -9,7 +9,6 @@ instantly and tell the system what to pre-load. This transforms cold starts
 into warm starts.
 """
 
-from __future__ import annotations
 
 import asyncio
 from pathlib import Path
@@ -139,7 +138,7 @@ async def _load_learnings(
         return ()
 
     try:
-        from sunwell.adaptive.learning import Learning, LearningStore
+        from sunwell.adaptive.learning import LearningStore
 
         store = LearningStore()
         store.load_from_disk(project_path)

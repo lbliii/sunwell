@@ -4,7 +4,6 @@ Allows users to import existing projects into the default Sunwell workspace,
 either by copying or symlinking.
 """
 
-from __future__ import annotations
 
 import shutil
 import sys

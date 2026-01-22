@@ -1,6 +1,5 @@
 """Simple embedding implementations that don't require external APIs."""
 
-from __future__ import annotations
 
 import hashlib
 from collections.abc import Sequence

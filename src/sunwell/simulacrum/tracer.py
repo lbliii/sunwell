@@ -24,7 +24,6 @@ Usage:
     report = TRACER.get_evolution_report()
 """
 
-from __future__ import annotations
 
 import json
 import threading

@@ -4,7 +4,6 @@ The briefing provides instant orientation at session start, acting as
 "Twitter for LLMs" where the character constraint enforces salience.
 """
 
-from __future__ import annotations
 
 import json
 from pathlib import Path
@@ -12,7 +11,6 @@ from pathlib import Path
 import click
 from rich.console import Console
 from rich.panel import Panel
-from rich.table import Table
 
 from sunwell.memory.briefing import Briefing, BriefingStatus
 

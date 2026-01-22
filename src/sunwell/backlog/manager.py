@@ -10,7 +10,6 @@ RFC-051 Extensions:
 - get_goal(goal_id) - Get a goal by ID
 """
 
-from __future__ import annotations
 
 import contextlib
 import fcntl
@@ -54,8 +53,6 @@ class Backlog:
         - Higher priority within each wave
         - Quick wins before complex tasks
         """
-        # Build dependency graph
-        goal_map = {g.id: g for g in self.goals.values()}
         completed_set = self.completed | set(self.blocked.keys())
 
         # Topological sort with priority ordering

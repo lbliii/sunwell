@@ -6,7 +6,6 @@ Integrates with:
 - RFC-048 (Autonomy Guardrails) for safe unsupervised operation
 """
 
-from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator

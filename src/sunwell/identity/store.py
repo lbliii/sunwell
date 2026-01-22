@@ -10,7 +10,6 @@ Supports:
 - Session carry-forward from global identity
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime

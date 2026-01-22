@@ -17,7 +17,6 @@ Example:
     >>> prompt = f"{base_prompt}\\n\\n{context.to_prompt_section()}"
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING

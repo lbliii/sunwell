@@ -1,6 +1,5 @@
 """Ask command - Simplified command using bindings."""
 
-from __future__ import annotations
 
 import asyncio
 import sys
@@ -109,7 +108,7 @@ def ask(
         lens_path=None,
         provider=provider,
         model=model,
-        headspace=None,
+        simulacrum=None,
     )
 
     if not binding:

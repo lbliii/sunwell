@@ -3,7 +3,6 @@
 Handles task graph execution, artifact creation, and incremental execution.
 """
 
-from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable

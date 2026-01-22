@@ -1,6 +1,5 @@
 """Memory worker - simulacrum operations, learning persistence."""
 
-from __future__ import annotations
 
 import asyncio
 from collections import deque

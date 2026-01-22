@@ -1,6 +1,5 @@
 """Core type definitions - enums, base classes, and shared types."""
 
-from __future__ import annotations
 
 import re
 from dataclasses import dataclass

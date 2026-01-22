@@ -12,7 +12,6 @@ Validation levels:
 Key insight: Run validation in parallel with execution to hide latency.
 """
 
-from __future__ import annotations
 
 import asyncio
 import importlib.util

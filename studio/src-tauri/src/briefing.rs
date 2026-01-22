@@ -4,6 +4,7 @@
 //! The briefing is a compressed "where are we now" that provides context
 //! at session start without requiring retrieval.
 
+use crate::util::parse_json_safe;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use thiserror::Error;
@@ -113,7 +114,8 @@ pub async fn get_briefing(path: String) -> Result<Option<Briefing>, BriefingErro
     }
 
     let content = std::fs::read_to_string(&briefing_path)?;
-    let briefing: Briefing = serde_json::from_str(&content)?;
+    // Parse with sanitization per RFC-091 (briefing may contain LLM summaries)
+    let briefing: Briefing = parse_json_safe(&content)?;
 
     Ok(Some(briefing))
 }

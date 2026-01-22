@@ -6,7 +6,6 @@ These types define the contract between all entry points (CLI, chat, Studio, API
 All other layers (Rust/Tauri, Svelte) should generate their types from these.
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime

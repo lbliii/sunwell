@@ -14,7 +14,6 @@ Key features:
 - Token-budgeted context window assembly
 """
 
-from __future__ import annotations
 
 import gzip
 import hashlib
@@ -24,7 +23,7 @@ import time
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sunwell.simulacrum.hierarchical.chunks import Chunk, ChunkSummary, ChunkType
 from sunwell.simulacrum.hierarchical.config import ChunkConfig

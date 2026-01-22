@@ -1,6 +1,5 @@
 """Routing worker - RFC-030 UnifiedRouter for all routing decisions."""
 
-from __future__ import annotations
 
 import asyncio
 from collections import deque
@@ -13,8 +12,7 @@ from sunwell.naaru.core.worker import RegionWorker
 class CognitiveRoutingWorker(RegionWorker):
     """Routing region - RFC-030 UnifiedRouter for all routing decisions.
 
-    RFC-030 MIGRATION: Now uses UnifiedRouter instead of CognitiveRouter.
-    The UnifiedRouter handles ALL routing decisions in a single inference:
+    RFC-030: Uses UnifiedRouter for ALL routing decisions in a single inference:
     - intent: What kind of task is this?
     - complexity: How complex is the task?
     - lens: Which lens should handle it?
@@ -22,11 +20,6 @@ class CognitiveRoutingWorker(RegionWorker):
     - mood: User's emotional state
     - expertise: User's skill level
     - confidence: How certain is the routing?
-
-    Backward Compatibility:
-        The output format is compatible with legacy consumers via
-        LegacyRoutingAdapter. Existing code using the routing dict
-        will continue to work.
     """
 
     def __init__(
@@ -34,14 +27,12 @@ class CognitiveRoutingWorker(RegionWorker):
         *args,
         router_model=None,
         available_lenses: list[str] | None = None,
-        use_unified_router: bool = True,  # RFC-030: Default to new router
         cache_size: int = 1000,
         **kwargs,
     ):
         super().__init__(NaaruRegion.ROUTING, *args, **kwargs)
         self.router_model = router_model
         self.available_lenses = available_lenses or []
-        self.use_unified_router = use_unified_router
         self.cache_size = cache_size
         self._router = None
         self._legacy_adapter = None
@@ -49,24 +40,16 @@ class CognitiveRoutingWorker(RegionWorker):
         self._routing_history: deque[dict] = deque(maxlen=5000)
 
     async def _ensure_router(self):
-        """Lazily initialize the router (UnifiedRouter or CognitiveRouter)."""
+        """Lazily initialize the UnifiedRouter."""
         if self._router is None and self.router_model is not None:
-            if self.use_unified_router:
-                # RFC-030: Use UnifiedRouter
-                from sunwell.routing import LegacyRoutingAdapter, UnifiedRouter
-                self._router = UnifiedRouter(
-                    model=self.router_model,
-                    cache_size=self.cache_size,
-                    available_lenses=self.available_lenses,
-                )
-                self._legacy_adapter = LegacyRoutingAdapter(self._router)
-            else:
-                # Legacy: Use CognitiveRouter (deprecated)
-                from sunwell.routing import CognitiveRouter
-                self._router = CognitiveRouter(
-                    router_model=self.router_model,
-                    available_lenses=self.available_lenses,
-                )
+            from sunwell.routing import LegacyRoutingAdapter, UnifiedRouter
+
+            self._router = UnifiedRouter(
+                model=self.router_model,
+                cache_size=self.cache_size,
+                available_lenses=self.available_lenses,
+            )
+            self._legacy_adapter = LegacyRoutingAdapter(self._router)
 
     async def process(self) -> None:
         """Process routing requests."""
@@ -97,7 +80,7 @@ class CognitiveRoutingWorker(RegionWorker):
     async def _route_task(self, task: str, context: dict | None = None) -> dict:
         """Route a task and return the routing decision.
 
-        RFC-030: Uses UnifiedRouter by default, falling back to heuristics.
+        RFC-030: Uses UnifiedRouter, falling back to heuristics if unavailable.
         Output format is backward-compatible with legacy consumers.
         """
         await self._ensure_router()
@@ -107,21 +90,14 @@ class CognitiveRoutingWorker(RegionWorker):
             return self._heuristic_route(task)
 
         try:
-            if self.use_unified_router and self._legacy_adapter:
-                # RFC-030: Use UnifiedRouter with legacy adapter
-                decision = await self._router.route(task, context)
-                # Include both unified and legacy format
-                result = decision.to_dict()
-                # Add legacy-compatible fields
-                legacy = await self._legacy_adapter.to_cognitive_router_decision(task, context)
-                result.update({
-                    "top_k": legacy["top_k"],
-                    "threshold": legacy["threshold"],
-                })
-            else:
-                # Legacy CognitiveRouter path
-                decision = await self._router.route(task, context)
-                result = decision.to_dict()
+            decision = await self._router.route(task, context)
+            result = decision.to_dict()
+            # Add legacy-compatible fields via adapter
+            legacy = await self._legacy_adapter.to_cognitive_router_decision(task, context)
+            result.update({
+                "top_k": legacy["top_k"],
+                "threshold": legacy["threshold"],
+            })
 
             self._routing_history.append({
                 "task": task[:100],

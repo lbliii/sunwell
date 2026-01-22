@@ -11,7 +11,6 @@ The architecture follows a funnel pattern:
 3. SYNTHESIS: Full expansion of the winning approach
 """
 
-from __future__ import annotations
 
 import time
 from dataclasses import dataclass

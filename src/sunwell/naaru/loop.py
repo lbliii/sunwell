@@ -1,6 +1,5 @@
 """Main control loop for the Naaru architecture."""
 
-from __future__ import annotations
 
 import asyncio
 import json

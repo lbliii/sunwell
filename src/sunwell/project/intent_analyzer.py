@@ -200,12 +200,17 @@ async def _classify_project(
     if signals.has_prose or signals.has_fountain:
         scores[ProjectType.CREATIVE] += 4
 
-    # If unclear or mixed, use LLM for semantic analysis
+    # If unclear or mixed, try LLM for semantic analysis
     max_score = max(scores.values())
     if max_score < 3 or list(scores.values()).count(max_score) > 1:
-        project_type, subtype, confidence = await classify_with_llm(signals, model)
-        return project_type, subtype, "llm", confidence
+        try:
+            project_type, subtype, confidence = await classify_with_llm(signals, model)
+            return project_type, subtype, "llm", confidence
+        except Exception:
+            # LLM failed (model unavailable, etc.) - fall back to best heuristic guess
+            pass
 
+    # Use heuristic classification
     primary_type = max(scores, key=lambda k: scores[k])
     subtype = _detect_subtype(primary_type, signals)
 
@@ -308,8 +313,21 @@ async def _load_or_infer_goals(
     if backlog_goals:
         return backlog_goals
 
-    # Infer goals from context
-    return await infer_goals_from_context(signals, project_type, model, subtype)
+    # Try to infer goals from context using LLM
+    try:
+        return await infer_goals_from_context(signals, project_type, model, subtype)
+    except Exception:
+        # LLM failed - return a single generic goal
+        return (
+            InferredGoal(
+                id="current",
+                title="Untitled",
+                description="",
+                priority="medium",
+                status="confirmed",
+                confidence=1.0,
+            ),
+        )
 
 
 def _load_backlog_goals(path: Path) -> tuple[InferredGoal, ...] | None:

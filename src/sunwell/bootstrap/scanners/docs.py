@@ -3,7 +3,6 @@
 Extract context from README and other documentation files.
 """
 
-from __future__ import annotations
 
 import re
 from dataclasses import dataclass

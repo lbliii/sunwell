@@ -8,7 +8,6 @@ The WorkflowEngine executes multi-step chains with:
 - Error recovery
 """
 
-from __future__ import annotations
 
 import asyncio
 import uuid

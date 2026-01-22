@@ -7,7 +7,6 @@ Provides:
 - sunwell guardrails rollback: Rollback session or goal
 """
 
-from __future__ import annotations
 
 import asyncio
 from pathlib import Path

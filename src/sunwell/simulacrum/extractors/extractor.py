@@ -18,7 +18,6 @@ Supports:
 - Any chain-of-thought output
 """
 
-from __future__ import annotations
 
 import contextlib
 import re

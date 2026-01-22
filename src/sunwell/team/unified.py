@@ -14,12 +14,11 @@ from typing import TYPE_CHECKING, Literal
 if TYPE_CHECKING:
     from sunwell.intelligence.codebase import CodebaseAnalyzer
     from sunwell.intelligence.decisions import Decision, DecisionMemory
-    from sunwell.intelligence.failures import FailedApproach, FailureMemory
+    from sunwell.intelligence.failures import FailureMemory
     from sunwell.team.store import TeamKnowledgeStore
 
 from sunwell.team.types import (
     TeamDecision,
-    TeamFailure,
     TeamPatterns,
 )
 

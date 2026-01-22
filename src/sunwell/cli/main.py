@@ -6,7 +6,6 @@ The primary interface is now simply:
 All other commands are progressive disclosure for power users.
 """
 
-from __future__ import annotations
 
 import asyncio
 from pathlib import Path
@@ -61,6 +60,8 @@ class GoalFirstGroup(click.Group):
 
 @click.group(cls=GoalFirstGroup, invoke_without_command=True)
 @click.option("--plan", is_flag=True, help="Show plan without executing")
+@click.option("--open", "open_studio", is_flag=True, help="Open plan in Studio (with --plan)")
+@click.option("--json", "json_output", is_flag=True, help="Output plan as JSON (with --plan)")
 @click.option("--model", "-m", help="Override model selection")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed output")
 @click.option("--time", "-t", default=300, help="Max execution time (seconds)")
@@ -74,6 +75,8 @@ class GoalFirstGroup(click.Group):
 def main(
     ctx,
     plan: bool,
+    open_studio: bool,
+    json_output: bool,
     model: str | None,
     verbose: bool,
     time: int,
@@ -137,6 +140,8 @@ def main(
             _run_goal,
             goal=goal,
             dry_run=plan,
+            open_studio=open_studio,
+            json_output=json_output,
             model=model,
             verbose=verbose,
             time=time,
@@ -148,6 +153,8 @@ def main(
 @main.command(name="_run", hidden=True)
 @click.argument("goal")
 @click.option("--dry-run", is_flag=True)
+@click.option("--open-studio", is_flag=True)
+@click.option("--json-output", is_flag=True)
 @click.option("--model", "-m", default=None)
 @click.option("--verbose", "-v", is_flag=True)
 @click.option("--time", "-t", default=300)
@@ -156,6 +163,8 @@ def main(
 def _run_goal(
     goal: str,
     dry_run: bool,
+    open_studio: bool,
+    json_output: bool,
     model: str | None,
     verbose: bool,
     time: int,
@@ -164,7 +173,10 @@ def _run_goal(
 ) -> None:
     """Internal command for goal execution."""
     workspace_path = Path(workspace) if workspace else None
-    asyncio.run(_run_agent(goal, time, trust, dry_run, verbose, model, workspace_path))
+    asyncio.run(_run_agent(
+        goal, time, trust, dry_run, verbose, model, workspace_path,
+        open_studio=open_studio, json_output=json_output,
+    ))
 
 
 async def _run_agent(
@@ -175,8 +187,11 @@ async def _run_agent(
     verbose: bool,
     model_override: str | None,
     workspace_path: Path | None = None,
+    *,
+    open_studio: bool = False,
+    json_output: bool = False,
 ) -> None:
-    """Execute goal with Adaptive Agent (RFC-042).
+    """Execute goal with Adaptive Agent (RFC-042, RFC-090).
 
     This is the unified entry point. The Adaptive Agent automatically:
     - Extracts signals to select techniques
@@ -184,6 +199,10 @@ async def _run_agent(
     - Validates at gates with fail-fast
     - Auto-fixes errors with Compound Eye
     - Persists learnings via Simulacrum
+
+    RFC-090 additions:
+    - open_studio: Launch Studio with plan after --plan
+    - json_output: Output plan as JSON for scripting
     """
     from sunwell.adaptive import AdaptiveAgent, AdaptiveBudget, EventType, create_renderer
     from sunwell.cli.workspace_prompt import resolve_workspace_interactive
@@ -246,39 +265,46 @@ async def _run_agent(
         budget=AdaptiveBudget(total_budget=50_000),
     )
 
-    # Dry run: just plan
+    # Dry run: just plan (RFC-090 enhanced)
     if dry_run:
-        console.print("[yellow]Planning only (--plan)[/yellow]\n")
+        plan_data = None
         async for event in agent.plan(goal):
-            if verbose or event.type in (EventType.PLAN_COMPLETE, EventType.ERROR):
-                _print_event(event, verbose)
+            if event.type == EventType.PLAN_WINNER:
+                plan_data = event.data
+            elif event.type == EventType.ERROR:
+                if not json_output:
+                    _print_event(event, verbose)
+
+        if plan_data:
+            # RFC-090: JSON output for scripting
+            if json_output:
+                import json
+                click.echo(json.dumps(plan_data, indent=2))
+                return
+
+            # Rich output
+            console.print("[yellow]Planning only (--plan)[/yellow]\n")
+            _print_plan_details(plan_data, verbose, goal)
+
+            # Open in Studio if requested
+            if open_studio:
+                _open_plan_in_studio(plan_data, goal, workspace)
+
         return
 
     # Create renderer based on verbosity
     from sunwell.adaptive import RendererConfig
     renderer_config = RendererConfig(
         mode="interactive",
-        show_signals=verbose,
-        show_gates=verbose,
-        show_learning=verbose,
+        show_learnings=verbose,
+        verbose=verbose,
     )
     renderer = create_renderer(renderer_config)
 
     # Full execution
     try:
-        async for event in agent.run(goal, context={"cwd": str(Path.cwd())}):
-            await renderer.render(event)
-
-            # Show key milestones even in non-verbose mode
-            if not verbose and event.type == EventType.COMPLETE:
-                data = event.data or {}
-                tasks = data.get("tasks_completed", 0)
-                gates = data.get("gates_passed", 0)
-                duration = data.get("duration_s", 0)
-                console.print(
-                    f"\n[green]✓ Complete[/green]: {tasks} tasks, "
-                    f"{gates} gates passed ({duration:.1f}s)"
-                )
+        # renderer.render() expects the full event stream, not individual events
+        await renderer.render(agent.run(goal, context={"cwd": str(Path.cwd())}))
 
     except KeyboardInterrupt:
         console.print("\n[yellow]Interrupted by user[/yellow]")
@@ -293,15 +319,109 @@ def _print_event(event, verbose: bool) -> None:
     """Print an agent event to console."""
     from sunwell.adaptive import EventType
 
-    if event.type == EventType.PLAN_COMPLETE:
+    if event.type == EventType.PLAN_WINNER:
         data = event.data or {}
-        console.print(f"\n[bold]Plan:[/bold] {data.get('task_count', 0)} tasks")
-        for task in data.get("tasks", [])[:10]:
-            console.print(f"  • {task.get('description', task.get('id', '?'))}")
+        tasks = data.get("tasks", 0)
+        gates = data.get("gates", 0)
+        technique = data.get("technique", "unknown")
+        console.print(f"\n[bold]Plan ready[/bold] ({technique})")
+        console.print(f"  • {tasks} tasks, {gates} validation gates")
     elif event.type == EventType.ERROR:
         console.print(f"[red]Error: {event.data}[/red]")
     elif verbose:
         console.print(f"[dim]{event.type.value}: {event.data}[/dim]")
+
+
+def _print_plan_details(data: dict, verbose: bool, goal: str) -> None:
+    """Print rich plan details with truncation (RFC-090)."""
+    technique = data.get("technique", "unknown")
+    tasks = data.get("tasks", 0)
+    gates = data.get("gates", 0)
+    task_list = data.get("task_list", [])
+    gate_list = data.get("gate_list", [])
+
+    # Header
+    console.print(f"[bold]Plan ready[/bold] ({technique})")
+    console.print(f"  • {tasks} tasks, {gates} validation gates\n")
+
+    # Task list with truncation
+    if task_list:
+        console.print("[bold]📋 Tasks[/bold]")
+        display_limit = len(task_list) if verbose else 10
+        for i, task in enumerate(task_list[:display_limit], 1):
+            deps = ""
+            if task.get("depends_on"):
+                if verbose:
+                    # Show IDs with --verbose
+                    deps = f" (←{','.join(task['depends_on'][:3])})"
+                else:
+                    # Show numbers by default
+                    dep_nums = [
+                        str(j + 1) for j, t in enumerate(task_list)
+                        if t["id"] in task["depends_on"]
+                    ]
+                    deps = f" (←{','.join(dep_nums)})" if dep_nums else ""
+
+            produces = ""
+            if task.get("produces"):
+                produces = f" → {task['produces'][0]}"
+
+            # Format: index. [id] description deps produces
+            task_id = task["id"][:12].ljust(12)
+            desc = task["description"][:35].ljust(35)
+            console.print(f"  {i:2}. [{task_id}] {desc}{deps}{produces}")
+
+        # Truncation notice
+        if not verbose and len(task_list) > 10:
+            remaining = len(task_list) - 10
+            console.print(f"  [dim]... and {remaining} more tasks (use --verbose to see all)[/dim]")
+        console.print()
+
+    # Gate list
+    if gate_list:
+        console.print("[bold]🔒 Validation Gates[/bold]")
+        for gate in gate_list:
+            after = ", ".join(gate.get("after_tasks", [])[:3])
+            gate_type = gate.get("type", "unknown").ljust(12)
+            console.print(f"  • [{gate['id']}] {gate_type} after: {after}")
+        console.print()
+
+    # Next steps
+    console.print("━" * 50)
+    console.print("[bold]💡 Next steps:[/bold]")
+    # Escape the goal for display (avoid rich markup issues)
+    safe_goal = goal.replace("[", "\\[").replace("]", "\\]")
+    console.print(f'  • sunwell "{safe_goal}" [dim]Run now[/dim]')
+    console.print(f'  • sunwell "{safe_goal}" --plan --open [dim]Open in Studio[/dim]')
+    console.print('  • sunwell plan "..." -o . [dim]Save plan[/dim]')
+
+
+def _open_plan_in_studio(plan_data: dict, goal: str, workspace: Path) -> None:
+    """Save plan and open in Studio (RFC-090)."""
+    import json
+    from datetime import datetime
+
+    from sunwell.cli.open_cmd import launch_studio
+
+    # Ensure .sunwell directory exists
+    plan_dir = workspace / ".sunwell"
+    plan_dir.mkdir(exist_ok=True)
+
+    # Save plan with goal context
+    plan_file = plan_dir / "current-plan.json"
+    plan_data["goal"] = goal
+    plan_data["created_at"] = datetime.now().isoformat()
+    plan_file.write_text(json.dumps(plan_data, indent=2))
+
+    console.print(f"\n[cyan]Opening plan in Studio...[/cyan]")
+
+    # Launch Studio in planning mode with plan file
+    launch_studio(
+        project=str(workspace),
+        lens="coder",
+        mode="planning",
+        plan_file=str(plan_file),
+    )
 
 
 def _extract_project_name(goal: str) -> str | None:
@@ -476,8 +596,9 @@ main.add_command(benchmark)
 from sunwell.cli import lens, runtime_cmd, skill
 
 main.add_command(runtime_cmd.runtime)
-main.add_command(skill.exec)
-main.add_command(skill.validate)
+main.add_command(skill.skill)  # RFC-087: Full skill command group
+main.add_command(skill.exec_legacy, name="exec")  # Legacy backward compat
+main.add_command(skill.validate_legacy, name="validate")  # Legacy backward compat
 main.add_command(lens.lens)
 
 # Plan command for DAG visualization (RFC-043 prep)
@@ -579,3 +700,8 @@ main.add_command(open_cmd.open_project, name="open")
 from sunwell.cli import workflow_cmd
 
 main.add_command(workflow_cmd.workflow)
+
+# Security-First Skill Execution (RFC-089)
+from sunwell.cli import security_cmd
+
+main.add_command(security_cmd.security)

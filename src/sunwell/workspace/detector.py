@@ -6,7 +6,6 @@ Extended for RFC-024 with:
 - Monorepo subproject detection
 """
 
-from __future__ import annotations
 
 import subprocess
 from dataclasses import dataclass

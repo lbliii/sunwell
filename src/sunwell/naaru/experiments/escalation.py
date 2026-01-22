@@ -18,7 +18,6 @@ Example:
     >>> refined = await escalate_hot_chunks(stream, big_model)
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING

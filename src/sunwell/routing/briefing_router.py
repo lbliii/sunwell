@@ -7,7 +7,6 @@ This enables the prefetch system to load the right context before the
 main agent starts.
 """
 
-from __future__ import annotations
 
 import re
 

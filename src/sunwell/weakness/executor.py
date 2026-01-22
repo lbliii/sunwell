@@ -10,7 +10,6 @@ Key components:
 - WaveResult: Result of executing a single wave
 """
 
-from __future__ import annotations
 
 import subprocess
 import time

@@ -3,7 +3,6 @@
 Extract patterns from configuration files: pyproject.toml, CI configs, etc.
 """
 
-from __future__ import annotations
 
 import re
 from pathlib import Path

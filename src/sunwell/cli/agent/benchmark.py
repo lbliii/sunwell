@@ -1,6 +1,5 @@
 """Benchmark command for agent CLI."""
 
-from __future__ import annotations
 
 import asyncio
 from pathlib import Path
@@ -71,7 +70,9 @@ async def _benchmark_async(
 
     # Load model
     try:
+        from sunwell.config import get_config
         from sunwell.models.ollama import OllamaModel
+
         config = get_config()
 
         if config and hasattr(config, "naaru"):
@@ -159,7 +160,6 @@ async def _extract_learnings_from_result(
         Number of learnings extracted
     """
     import json
-    import time
     import uuid
     from datetime import datetime
 

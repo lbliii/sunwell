@@ -6,7 +6,6 @@ AppContext holds all dependencies needed by CLI commands and core logic,
 enabling easy swapping for testing or alternative implementations.
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path

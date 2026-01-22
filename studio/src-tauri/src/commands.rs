@@ -1,7 +1,7 @@
 //! Tauri IPC commands — interface between frontend and Rust backend.
 
 use crate::agent::AgentBridge;
-use crate::util::sunwell_command;
+use crate::util::{parse_json_safe, sunwell_command};
 use crate::preview::PreviewManager;
 use crate::project::{Project, ProjectDetector, RecentProject};
 use crate::workspace::{
@@ -997,12 +997,12 @@ fn extract_project_learnings(path: &PathBuf) -> ProjectLearnings {
         }
     }
 
-    // Extract decisions from intelligence
+    // Extract decisions from intelligence (with sanitization per RFC-091)
     let decisions_path = sunwell_dir.join("intelligence").join("decisions.jsonl");
     if decisions_path.exists() {
         if let Ok(content) = std::fs::read_to_string(&decisions_path) {
             for line in content.lines() {
-                if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
+                if let Ok(json) = parse_json_safe::<serde_json::Value>(line) {
                     if let Some(decision) = json.get("decision").and_then(|d| d.as_str()) {
                         learnings.decisions.push(decision.to_string());
                     }
@@ -1011,12 +1011,12 @@ fn extract_project_learnings(path: &PathBuf) -> ProjectLearnings {
         }
     }
 
-    // Extract failures from intelligence
+    // Extract failures from intelligence (with sanitization per RFC-091)
     let failures_path = sunwell_dir.join("intelligence").join("failures.jsonl");
     if failures_path.exists() {
         if let Ok(content) = std::fs::read_to_string(&failures_path) {
             for line in content.lines() {
-                if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
+                if let Ok(json) = parse_json_safe::<serde_json::Value>(line) {
                     if let Some(approach) = json.get("approach").and_then(|a| a.as_str()) {
                         let reason = json.get("reason").and_then(|r| r.as_str()).unwrap_or("failed");
                         learnings.failures.push(format!("{} ({})", approach, reason));
@@ -1238,7 +1238,7 @@ async fn call_python_run_analyzer(path: &PathBuf) -> Result<RunAnalysis, String>
     }
     
     let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&stdout)
+    parse_json_safe(&stdout)
         .map_err(|e| format!("Failed to parse analyzer output: {}", e))
 }
 
@@ -1570,6 +1570,7 @@ pub struct MonorepoAnalysis {
 /// RFC-079: Analyze a project to understand its intent and state.
 /// 
 /// Calls `sunwell project analyze --json` to get universal project understanding.
+/// Includes automatic retry with sanitization if JSON parsing fails.
 #[tauri::command]
 pub async fn analyze_project(
     path: String,
@@ -1581,25 +1582,42 @@ pub async fn analyze_project(
         return Err(format!("Path does not exist: {}", path));
     }
     
-    let mut args = vec!["project", "analyze", "--json"];
-    if fresh.unwrap_or(false) {
-        args.push("--fresh");
+    // Try up to 2 times: first with cached, then fresh if parse fails
+    let max_attempts = if fresh.unwrap_or(false) { 1 } else { 2 };
+    let mut last_error = String::new();
+    
+    for attempt in 0..max_attempts {
+        let mut args = vec!["project", "analyze", "--json"];
+        // Use fresh on retry (attempt > 0) or if explicitly requested
+        if fresh.unwrap_or(false) || attempt > 0 {
+            args.push("--fresh");
+        }
+        
+        let output = sunwell_command()
+            .args(&args)
+            .current_dir(&project_path)
+            .output()
+            .map_err(|e| format!("Failed to run sunwell project analyze: {}", e))?;
+        
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            last_error = format!("Project analysis failed: {}", stderr);
+            continue;
+        }
+        
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        
+        // RFC-091: Use parse_json_safe for lazy sanitization
+        match parse_json_safe::<ProjectAnalysis>(&stdout) {
+            Ok(analysis) => return Ok(analysis),
+            Err(e) => {
+                last_error = format!("Failed to parse analysis result: {}", e);
+                // Continue to retry with --fresh
+            }
+        }
     }
     
-    let output = sunwell_command()
-        .args(&args)
-        .current_dir(&project_path)
-        .output()
-        .map_err(|e| format!("Failed to run sunwell project analyze: {}", e))?;
-    
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Project analysis failed: {}", stderr));
-    }
-    
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&stdout)
-        .map_err(|e| format!("Failed to parse analysis result: {} - {}", e, stdout))
+    Err(last_error)
 }
 
 /// RFC-079: Check if a path is a monorepo and get sub-projects.
@@ -1623,7 +1641,7 @@ pub async fn analyze_monorepo(path: String) -> Result<MonorepoAnalysis, String> 
     }
     
     let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&stdout)
+    parse_json_safe(&stdout)
         .map_err(|e| format!("Failed to parse monorepo result: {}", e))
 }
 
@@ -1648,6 +1666,6 @@ pub async fn get_project_signals(path: String) -> Result<serde_json::Value, Stri
     }
     
     let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&stdout)
+    parse_json_safe(&stdout)
         .map_err(|e| format!("Failed to parse signals result: {}", e))
 }

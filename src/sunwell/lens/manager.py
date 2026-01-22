@@ -3,7 +3,6 @@
 Provides CRUD operations, versioning, and library functionality for lenses.
 """
 
-from __future__ import annotations
 
 import hashlib
 import json

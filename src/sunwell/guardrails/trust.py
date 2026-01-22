@@ -3,7 +3,6 @@
 Evaluates paths against trust zones to determine risk overrides.
 """
 
-from __future__ import annotations
 
 from fnmatch import fnmatch
 from pathlib import Path

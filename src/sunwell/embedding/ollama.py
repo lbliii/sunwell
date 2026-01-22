@@ -9,16 +9,19 @@ Recommended models:
 - qwen3-embedding (1024 dims, high quality)
 """
 
-from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray
 
 from sunwell.core.errors import ErrorCode, SunwellError
 from sunwell.embedding.protocol import EmbeddingResult
+
+if TYPE_CHECKING:
+    import httpx
 
 # Known embedding model dimensions (fallback if not auto-detected)
 MODEL_DIMENSIONS: dict[str, int] = {

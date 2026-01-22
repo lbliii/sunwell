@@ -2,7 +2,7 @@
 //!
 //! Bridge between frontend and Python CLI for weakness operations.
 
-use crate::util::sunwell_command;
+use crate::util::{parse_json_safe, sunwell_command};
 use std::path::PathBuf;
 
 use tauri::Emitter;
@@ -124,7 +124,7 @@ pub async fn execute_cascade_fix(
     for line in reader.lines() {
         if let Ok(line) = line {
             last_line = line.clone();
-            if let Ok(event) = serde_json::from_str::<serde_json::Value>(&line) {
+            if let Ok(event) = parse_json_safe::<serde_json::Value>(&line) {
                 // Forward to frontend
                 let _ = app.emit("agent-event", &event);
             }
@@ -140,8 +140,8 @@ pub async fn execute_cascade_fix(
         return Err(format!("Cascade fix failed with exit code: {:?}", status.code()));
     }
 
-    // Parse final execution state from last JSON line
-    let execution: CascadeExecution = serde_json::from_str(&last_line)
+    // Parse final execution state from last JSON line (with sanitization per RFC-091)
+    let execution: CascadeExecution = parse_json_safe(&last_line)
         .map_err(|e| format!("Failed to parse execution result: {}", e))?;
 
     // Emit completion event

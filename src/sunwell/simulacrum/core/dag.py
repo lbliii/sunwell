@@ -13,7 +13,6 @@ This enables:
 - Provenance tracking (where did this insight come from?)
 """
 
-from __future__ import annotations
 
 import json
 from collections import defaultdict

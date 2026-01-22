@@ -15,7 +15,6 @@ Thread Safety:
     safe access in free-threaded Python (3.14t).
 """
 
-from __future__ import annotations
 
 import asyncio
 import hashlib

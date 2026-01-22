@@ -8,6 +8,8 @@ initializing team intelligence. It ensures proper separation:
 - .sunwell/sessions/ → ignored (conversations)
 """
 
+from pathlib import Path
+
 SUNWELL_GITIGNORE = """\
 # Sunwell Directory Structure
 # ==========================
@@ -40,14 +42,12 @@ __pycache__/
 """
 
 
-def create_sunwell_gitignore(sunwell_dir: "Path") -> None:
+def create_sunwell_gitignore(sunwell_dir: Path) -> None:
     """Create .gitignore in .sunwell directory.
 
     Args:
         sunwell_dir: Path to .sunwell directory
     """
-    from pathlib import Path
-
     gitignore_path = Path(sunwell_dir) / ".gitignore"
 
     # Don't overwrite if exists
@@ -57,7 +57,7 @@ def create_sunwell_gitignore(sunwell_dir: "Path") -> None:
     gitignore_path.write_text(SUNWELL_GITIGNORE)
 
 
-def ensure_sunwell_structure(project_root: "Path") -> "Path":
+def ensure_sunwell_structure(project_root: Path) -> Path:
     """Ensure .sunwell directory structure exists with proper gitignore.
 
     Creates:

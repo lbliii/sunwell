@@ -1,6 +1,5 @@
 """OpenAI model adapter with tool calling support (RFC-012)."""
 
-from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator
@@ -15,6 +14,8 @@ from sunwell.models.protocol import (
     TokenUsage,
     Tool,
     ToolCall,
+    _sanitize_dict_values,
+    sanitize_llm_content,
 )
 
 if TYPE_CHECKING:
@@ -182,17 +183,17 @@ class OpenAIModel:
             raise from_openai_error(e, self.model, "openai") from e
 
         message = response.choices[0].message
-        content = message.content
+        content = sanitize_llm_content(message.content)  # RFC-091: Sanitize at source
         usage = response.usage
 
-        # Parse tool calls if present
+        # Parse tool calls if present (with sanitized arguments)
         tool_calls: tuple[ToolCall, ...] = ()
         if message.tool_calls:
             tool_calls = tuple(
                 ToolCall(
                     id=tc.id,
                     name=tc.function.name,
-                    arguments=json.loads(tc.function.arguments),
+                    arguments=_sanitize_dict_values(json.loads(tc.function.arguments)),
                 )
                 for tc in message.tool_calls
             )
@@ -248,7 +249,7 @@ class OpenAIModel:
 
         async for chunk in stream:
             if chunk.choices and chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
+                yield sanitize_llm_content(chunk.choices[0].delta.content) or ""
 
     async def list_models(self) -> list[str]:
         """List available models via OpenAI API."""

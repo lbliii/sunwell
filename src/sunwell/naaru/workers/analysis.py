@@ -1,6 +1,5 @@
 """Analysis worker - reads code, finds patterns, introspection."""
 
-from __future__ import annotations
 
 import asyncio
 import json

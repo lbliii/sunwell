@@ -1,0 +1,226 @@
+# skills/permission-presets.yaml
+# RFC-092: Permission presets for security-first skill execution
+#
+# Presets define reusable permission scopes for common skill categories.
+# Skills reference presets via `preset: <name>` and can override specific fields.
+
+presets:
+  # ============================================================================
+  # READ-ONLY: Can read files, no writes, no network, no shell
+  # ============================================================================
+  read-only:
+    permissions:
+      filesystem:
+        read: ["**/*"]
+        write: []
+      network:
+        allow: []
+        deny: ["*"]
+      shell:
+        allow: []
+        deny: ["*"]
+      environment:
+        read: ["HOME", "USER", "PATH"]
+        write: []
+    security:
+      data_classification: internal
+      requires_approval: false
+      audit_level: minimal
+
+  # ============================================================================
+  # WORKSPACE-WRITE: Can read/write within workspace
+  # ============================================================================
+  workspace-write:
+    permissions:
+      filesystem:
+        read: ["**/*"]
+        write: ["**/*"]  # Workspace only (enforced by sandbox)
+      network:
+        allow: []
+        deny: ["*"]
+      shell:
+        allow: []
+        deny: ["*"]
+      environment:
+        read: ["HOME", "USER", "PATH"]
+        write: []
+    security:
+      data_classification: internal
+      requires_approval: false
+      audit_level: standard
+
+  # ============================================================================
+  # SAFE-SHELL: Common dev commands (lint, test, build)
+  # ============================================================================
+  safe-shell:
+    permissions:
+      filesystem:
+        read: ["**/*"]
+        write: ["**/*", "/tmp/*"]
+      network:
+        allow: []
+        deny: ["*"]
+      shell:
+        allow:
+          - "python"
+          - "python -m pytest"
+          - "python -m mypy"
+          - "ruff"
+          - "npm run"
+          - "npm test"
+          - "cargo"
+          - "make"
+          - "git status"
+          - "git diff"
+          - "git log"
+          - "cat"
+          - "head"
+          - "tail"
+          - "wc"
+          - "grep"
+          - "find"
+          - "ls"
+        deny:
+          - "rm -rf"
+          - "sudo"
+          - "chmod 777"
+          - "chown"
+          - "curl"
+          - "wget"
+          - "ssh"
+          - "scp"
+          - "rsync"
+          - "nc"
+          - "ncat"
+          - "eval"
+      environment:
+        read: ["HOME", "USER", "PATH", "PYTHONPATH", "NODE_PATH"]
+        write: []
+    security:
+      data_classification: internal
+      requires_approval: false
+      audit_level: standard
+
+  # ============================================================================
+  # GIT-READ: Git status, diff, log (no modifications)
+  # ============================================================================
+  git-read:
+    permissions:
+      filesystem:
+        read: ["**/*", "~/.gitconfig"]
+        write: []
+      network:
+        allow: []
+        deny: ["*"]
+      shell:
+        allow:
+          - "git status"
+          - "git diff"
+          - "git log"
+          - "git show"
+          - "git branch"
+          - "git remote -v"
+        deny:
+          - "git push"
+          - "git fetch"
+          - "git pull"
+          - "git clone"
+          - "git checkout"
+          - "git reset"
+          - "git rebase"
+          - "git merge"
+      environment:
+        read: ["HOME", "USER", "PATH"]
+        write: []
+    security:
+      data_classification: internal
+      requires_approval: false
+      audit_level: minimal
+
+  # ============================================================================
+  # GIT-WRITE: Full local git operations (no remote)
+  # ============================================================================
+  git-write:
+    permissions:
+      filesystem:
+        read: ["**/*", "~/.gitconfig"]
+        write: [".git/**", "**/*"]
+      network:
+        allow: []
+        deny: ["*"]  # No push/fetch
+      shell:
+        allow:
+          - "git status"
+          - "git diff"
+          - "git log"
+          - "git show"
+          - "git add"
+          - "git commit"
+          - "git branch"
+          - "git checkout"
+          - "git merge"
+          - "git rebase"
+          - "git stash"
+          - "git reset"
+        deny:
+          - "git push"
+          - "git fetch"
+          - "git pull"
+          - "git clone"
+      environment:
+        read: ["HOME", "USER", "PATH"]
+        write: []
+    security:
+      data_classification: internal
+      requires_approval: false
+      audit_level: standard
+
+  # ============================================================================
+  # SEARCH-ONLY: Grep, find, semantic search
+  # ============================================================================
+  search-only:
+    permissions:
+      filesystem:
+        read: ["**/*"]
+        write: []
+      network:
+        allow: []
+        deny: ["*"]
+      shell:
+        allow:
+          - "grep"
+          - "rg"
+          - "find"
+          - "fd"
+          - "ag"
+          - "ack"
+        deny: ["*"]
+      environment:
+        read: ["HOME", "USER", "PATH"]
+        write: []
+    security:
+      data_classification: internal
+      requires_approval: false
+      audit_level: minimal
+
+  # ============================================================================
+  # ELEVATED: Requires explicit approval (network, sensitive paths)
+  # ============================================================================
+  elevated:
+    permissions:
+      filesystem:
+        read: ["**/*"]
+        write: ["**/*"]
+      network:
+        allow: []  # Must be explicitly declared per-skill
+        deny: []   # No default deny — skill must specify
+      shell:
+        allow: []  # Must be explicitly declared per-skill
+        deny: []
+      environment:
+        read: ["HOME", "USER", "PATH"]
+        write: []
+    security:
+      data_classification: confidential
+      requires_approval: true
+      audit_level: verbose

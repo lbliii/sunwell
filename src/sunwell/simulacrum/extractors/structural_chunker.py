@@ -7,7 +7,6 @@ from identical text under "## Features". Structure carries meaning.
 Part of RFC-014: Multi-Topology Memory.
 """
 
-from __future__ import annotations
 
 import hashlib
 import re

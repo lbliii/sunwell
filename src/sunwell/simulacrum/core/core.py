@@ -22,7 +22,6 @@ Key properties:
 - Provenance tracking: Know where every insight came from
 """
 
-from __future__ import annotations
 
 import json
 import warnings

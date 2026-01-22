@@ -34,7 +34,6 @@ This makes Sunwell a portable DORI — all the intelligent routing of a
 Cursor-based orchestrator, but running anywhere.
 """
 
-from __future__ import annotations
 
 import json
 import re

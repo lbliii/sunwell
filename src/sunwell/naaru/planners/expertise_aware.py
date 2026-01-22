@@ -10,7 +10,6 @@ Example:
     >>> # Artifacts are informed by tech-writer heuristics (Diataxis, etc.)
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any

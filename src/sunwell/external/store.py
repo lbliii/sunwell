@@ -5,7 +5,6 @@ Persistent store for external events with write-ahead logging for crash recovery
 
 import json
 import logging
-from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 

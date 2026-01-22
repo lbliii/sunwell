@@ -17,6 +17,7 @@ mod naaru;
 mod preview;
 mod project;
 mod run_analysis;
+mod security;
 mod self_knowledge;
 mod surface;
 mod util;
@@ -46,14 +47,20 @@ struct CliArgs {
     /// Workspace mode: writer, code, or planning
     #[arg(short, long)]
     mode: Option<String>,
+
+    /// Path to plan JSON file to load on startup (RFC-090)
+    #[arg(long)]
+    plan: Option<String>,
 }
 
-/// Startup parameters passed via CLI (RFC-086).
+/// Startup parameters passed via CLI (RFC-086, RFC-090).
 #[derive(Debug, Clone, Serialize)]
 pub struct StartupParams {
     pub project: Option<String>,
     pub lens: Option<String>,
     pub mode: Option<String>,
+    /// RFC-090: Plan file to load on startup
+    pub plan: Option<String>,
 }
 
 fn main() {
@@ -63,14 +70,15 @@ fn main() {
         project: args.project,
         lens: args.lens,
         mode: args.mode,
+        plan: args.plan,  // RFC-090
     };
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(AppState::default())
         .setup(move |app| {
-            // Emit startup params to frontend if any were provided
-            if startup.project.is_some() || startup.lens.is_some() || startup.mode.is_some() {
+            // Emit startup params to frontend if any were provided (RFC-090: include plan)
+            if startup.project.is_some() || startup.lens.is_some() || startup.mode.is_some() || startup.plan.is_some() {
                 let handle = app.handle().clone();
                 let params = startup.clone();
                 // Emit after a short delay to ensure frontend is ready
@@ -122,10 +130,11 @@ fn main() {
             commands::archive_project,
             commands::iterate_project,
             commands::get_project_learnings,
-            // DAG / Pipeline view (RFC-056)
+            // DAG / Pipeline view (RFC-056, RFC-090)
             dag::get_project_dag,
             dag::execute_dag_node,
             dag::refresh_backlog,
+            dag::load_plan_file,  // RFC-090: Load plan from CLI
             // Incremental Execution (RFC-074)
             dag::get_incremental_plan,
             dag::get_cache_stats,
@@ -221,6 +230,17 @@ fn main() {
             writer::get_lens_skills,
             writer::execute_skill,
             writer::fix_all_issues,
+            // Skill Graph (RFC-087)
+            writer::get_skill_graph,
+            writer::get_skill_execution_plan,
+            writer::get_skill_cache_stats,
+            writer::clear_skill_cache,
+            // Security-First Execution (RFC-089)
+            security::analyze_dag_permissions,
+            security::submit_security_approval,
+            security::get_audit_log,
+            security::verify_audit_integrity,
+            security::scan_for_security_issues,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

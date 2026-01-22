@@ -6,6 +6,7 @@
 //! - View intelligence (decisions, failures)
 //! - RFC-084: Get ConceptGraph and ChunkHierarchy for visualization
 
+use crate::util::parse_json_safe;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -201,7 +202,7 @@ pub async fn get_memory_stats(path: String) -> Result<MemoryStats, String> {
     let dag_path = memory_path.join("dag.json");
     if dag_path.exists() {
         if let Ok(content) = std::fs::read_to_string(&dag_path) {
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+            if let Ok(json) = parse_json_safe::<serde_json::Value>(&content) {
                 if let Some(turns) = json.get("turn_count").and_then(|v| v.as_u64()) {
                     stats.total_turns = turns as u32;
                 }
@@ -233,7 +234,7 @@ pub async fn get_memory_stats(path: String) -> Result<MemoryStats, String> {
     
     if graph_path.exists() {
         if let Ok(content) = std::fs::read_to_string(&graph_path) {
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+            if let Ok(json) = parse_json_safe::<serde_json::Value>(&content) {
                 if let Some(edges) = json.get("edges").and_then(|e| e.as_array()) {
                     stats.concept_edges = edges.len() as u32;
                 }
@@ -270,7 +271,7 @@ pub async fn list_sessions(path: String) -> Result<Vec<Session>, String> {
                 let meta_path = path.join("metadata.json");
                 let (name, turns, created) = if meta_path.exists() {
                     if let Ok(content) = std::fs::read_to_string(&meta_path) {
-                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if let Ok(json) = parse_json_safe::<serde_json::Value>(&content) {
                             (
                                 json.get("name").and_then(|v| v.as_str()).map(String::from),
                                 json.get("turn_count").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
@@ -318,7 +319,7 @@ pub async fn get_concept_graph(path: String) -> Result<ConceptGraph, String> {
     let unified_graph_path = project_path.join(".sunwell/memory/unified/graph.json");
     if unified_graph_path.exists() {
         if let Ok(content) = std::fs::read_to_string(&unified_graph_path) {
-            if let Ok(graph) = serde_json::from_str::<ConceptGraph>(&content) {
+            if let Ok(graph) = parse_json_safe::<ConceptGraph>(&content) {
                 return Ok(graph);
             }
         }
@@ -328,11 +329,11 @@ pub async fn get_concept_graph(path: String) -> Result<ConceptGraph, String> {
     let graph_path = project_path.join(".sunwell/memory/graph.json");
     if graph_path.exists() {
         if let Ok(content) = std::fs::read_to_string(&graph_path) {
-            if let Ok(graph) = serde_json::from_str::<ConceptGraph>(&content) {
+            if let Ok(graph) = parse_json_safe::<ConceptGraph>(&content) {
                 return Ok(graph);
             }
             // Try parsing as nested structure
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+            if let Ok(json) = parse_json_safe::<serde_json::Value>(&content) {
                 if let Some(edges_arr) = json.get("edges").and_then(|e| e.as_array()) {
                     let edges: Vec<ConceptEdge> = edges_arr
                         .iter()
@@ -365,7 +366,7 @@ pub async fn get_chunk_hierarchy(path: String) -> Result<ChunkHierarchy, String>
                     let path = entry.path();
                     if path.extension().map_or(false, |e| e == "json") {
                         if let Ok(content) = std::fs::read_to_string(&path) {
-                            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                            if let Ok(json) = parse_json_safe::<serde_json::Value>(&content) {
                                 // Parse chunk from JSON
                                 let chunk = Chunk {
                                     id: json.get("id")
@@ -459,7 +460,7 @@ pub async fn get_intelligence(path: String) -> Result<IntelligenceData, String> 
                 if line.is_empty() {
                     continue;
                 }
-                if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
+                if let Ok(json) = parse_json_safe::<serde_json::Value>(line) {
                     data.decisions.push(Decision {
                         id: json.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
                         decision: json.get("decision").and_then(|v| v.as_str()).unwrap_or("").to_string(),
@@ -481,7 +482,7 @@ pub async fn get_intelligence(path: String) -> Result<IntelligenceData, String> 
                 if line.is_empty() {
                     continue;
                 }
-                if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
+                if let Ok(json) = parse_json_safe::<serde_json::Value>(line) {
                     data.failures.push(FailedApproach {
                         id: json.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
                         approach: json.get("approach").and_then(|v| v.as_str()).unwrap_or("").to_string(),
@@ -504,7 +505,7 @@ pub async fn get_intelligence(path: String) -> Result<IntelligenceData, String> 
                 if line.is_empty() {
                     continue;
                 }
-                if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
+                if let Ok(json) = parse_json_safe::<serde_json::Value>(line) {
                     data.learnings.push(Learning {
                         id: json.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
                         fact: json.get("fact").and_then(|v| v.as_str()).unwrap_or("").to_string(),
@@ -527,7 +528,7 @@ pub async fn get_intelligence(path: String) -> Result<IntelligenceData, String> 
                 if path.extension().map_or(false, |ext| ext == "json") {
                     if let Ok(content) = std::fs::read_to_string(&path) {
                         // Parse as JSON array of learning records
-                        if let Ok(json_array) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if let Ok(json_array) = parse_json_safe::<serde_json::Value>(&content) {
                             if let Some(arr) = json_array.as_array() {
                                 for json in arr {
                                     // Naaru format: type, goal, task_id, task_description, output, timestamp
@@ -578,7 +579,7 @@ pub async fn get_intelligence(path: String) -> Result<IntelligenceData, String> 
                 if line.is_empty() {
                     continue;
                 }
-                if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
+                if let Ok(json) = parse_json_safe::<serde_json::Value>(line) {
                     data.dead_ends.push(DeadEnd {
                         approach: json.get("approach").and_then(|v| v.as_str()).unwrap_or("").to_string(),
                         reason: json.get("reason").and_then(|v| v.as_str()).unwrap_or("").to_string(),

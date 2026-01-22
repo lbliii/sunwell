@@ -9,7 +9,6 @@ Key features:
 - Minimum confidence threshold for injection
 """
 
-from __future__ import annotations
 
 import re
 from typing import TYPE_CHECKING

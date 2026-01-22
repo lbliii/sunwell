@@ -6,3 +6,4 @@ export { default as PlanningPanel } from './PlanningPanel.svelte';
 export { default as PlanningProgress } from './PlanningProgress.svelte';
 export { default as CandidateComparison } from './CandidateComparison.svelte';
 export { default as RefinementTimeline } from './RefinementTimeline.svelte';
+export { default as SkillGraphView } from './SkillGraphView.svelte';

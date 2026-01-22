@@ -4,7 +4,6 @@ Classifies actions by risk level using pattern matching and trust zones.
 RFC-077 adds FastClassifier fallback for edge cases that patterns miss.
 """
 
-from __future__ import annotations
 
 from fnmatch import fnmatch
 from pathlib import Path

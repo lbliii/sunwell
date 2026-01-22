@@ -14,7 +14,6 @@ Benefits over vectors:
 - Editable (user can adjust focus manually)
 """
 
-from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field

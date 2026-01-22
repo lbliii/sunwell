@@ -1,6 +1,5 @@
 """Mock model for testing with tool calling support (RFC-012)."""
 
-from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
@@ -13,6 +12,7 @@ from sunwell.models.protocol import (
     ModelProtocol,
     TokenUsage,
     Tool,
+    sanitize_llm_content,
 )
 
 
@@ -67,8 +67,11 @@ class MockModel:
         else:
             response = f"Mock response to: {prompt_text[:50]}..."
 
+        # RFC-091: Sanitize for test parity with real models
+        sanitized_response = sanitize_llm_content(response)
+
         return GenerateResult(
-            content=response,
+            content=sanitized_response,
             model=self.model_id,
             tool_calls=(),
             usage=TokenUsage(

@@ -4,13 +4,25 @@ LLM-driven intent analysis with provider context.
 Analyzes user goals and determines the appropriate interaction type.
 
 Extended in RFC-079 to accept ProjectAnalysis context for project-aware routing.
+
+REFACTORED: Now supports two-step pipeline (IntentClassifier + ResponseGenerator)
+for consistent, hallucination-free routing. The legacy single-prompt approach
+is preserved for backward compatibility but deprecated.
+
+Usage (recommended):
+    >>> from sunwell.interface.pipeline import IntentPipeline
+    >>> pipeline = IntentPipeline.create(model)
+    >>> analysis = await pipeline.analyze("build a chat app")
+
+Legacy usage (deprecated):
+    >>> analyzer = IntentAnalyzer(model=model)
+    >>> analysis = await analyzer.analyze("build a chat app")
 """
 
-from __future__ import annotations
 
 import contextlib
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -33,6 +45,7 @@ from sunwell.providers.base import (
 from sunwell.surface.types import WorkspaceSpec
 
 if TYPE_CHECKING:
+    from sunwell.interface.pipeline import IntentPipeline
     from sunwell.project.intent_types import ProjectAnalysis
 
 # Prompt is split into parts for readability
@@ -152,7 +165,17 @@ _FALLBACK_RESPONSE = (
 
 @dataclass
 class IntentAnalyzer:
-    """LLM-driven intent analysis with provider context."""
+    """LLM-driven intent analysis with provider context.
+
+    RECOMMENDED: Use IntentPipeline instead for consistent, hallucination-free routing:
+
+        >>> from sunwell.interface.pipeline import IntentPipeline
+        >>> pipeline = IntentPipeline.create(model)
+        >>> analysis = await pipeline.analyze("build a chat app")
+
+    This class is preserved for backward compatibility. Set `use_pipeline=True`
+    to use the two-step approach within this interface.
+    """
 
     model: Any  # OllamaModel or similar
     calendar: CalendarProvider | None = None
@@ -164,6 +187,13 @@ class IntentAnalyzer:
     bookmarks: BookmarksProvider | None = None
     habits: HabitsProvider | None = None
     contacts: ContactsProvider | None = None
+
+    # Two-step pipeline support (recommended)
+    use_pipeline: bool = True
+    """Use two-step pipeline (classifier + responder) instead of legacy single-prompt."""
+
+    _pipeline: IntentPipeline | None = field(default=None, repr=False)
+    """Cached pipeline instance."""
 
     async def analyze(
         self,
@@ -185,6 +215,13 @@ class IntentAnalyzer:
         Returns:
             IntentAnalysis with interaction type and workspace/action specs.
         """
+        # Use two-step pipeline if enabled (recommended)
+        if self.use_pipeline:
+            return await self._analyze_with_pipeline(
+                goal, project_context, conversation_history
+            )
+
+        # Legacy single-prompt approach (deprecated)
         # Gather context about available data
         context = await self._gather_context()
 
@@ -401,4 +438,47 @@ class IntentAnalyzer:
             conversation_mode=data.get("conversation_mode"),
             auxiliary_panels=tuple(auxiliary_panels),
             suggested_tools=tuple(suggested_tools),
+        )
+
+    # =========================================================================
+    # TWO-STEP PIPELINE (RECOMMENDED)
+    # =========================================================================
+
+    async def _analyze_with_pipeline(
+        self,
+        goal: str,
+        project_context: ProjectAnalysis | None = None,
+        conversation_history: list[dict[str, str]] | None = None,
+    ) -> IntentAnalysis:
+        """Analyze using two-step pipeline (classifier + responder).
+
+        This approach ensures:
+        1. Routing decisions are deterministic
+        2. Response text cannot contradict routing
+        3. Better classification accuracy via heuristics + LLM
+        """
+        # Lazy-create pipeline
+        if self._pipeline is None:
+            from sunwell.interface.pipeline import IntentPipeline
+
+            self._pipeline = IntentPipeline.create(
+                classifier_model=self.model,
+                responder_model=self.model,
+                use_heuristics=True,
+                use_templates=True,
+            )
+
+        # Gather context for classification
+        context = await self._gather_context()
+
+        # Augment with project context if available
+        if project_context:
+            context["project_type"] = project_context.project_type.value
+            context["project_subtype"] = project_context.project_subtype
+
+        # Run through pipeline
+        return await self._pipeline.analyze(
+            goal=goal,
+            context=context,
+            history=conversation_history,
         )

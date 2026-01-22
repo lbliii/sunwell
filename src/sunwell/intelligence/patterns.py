@@ -8,7 +8,6 @@ RFC-050 adds:
 - Methods to handle bootstrap pattern overrides from user edits
 """
 
-from __future__ import annotations
 
 import ast
 import json

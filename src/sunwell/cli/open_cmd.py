@@ -14,7 +14,12 @@ from sunwell.surface.fallback import get_domain_for_project
 from sunwell.surface.lens_detection import get_lens_for_project, get_mode_for_domain
 
 
-def launch_studio(project: str, lens: str, mode: str) -> None:
+def launch_studio(
+    project: str,
+    lens: str,
+    mode: str,
+    plan_file: str | None = None,
+) -> None:
     """Launch Sunwell Studio (Tauri app).
 
     Looks for binary in this order:
@@ -27,9 +32,14 @@ def launch_studio(project: str, lens: str, mode: str) -> None:
         project: Absolute path to project directory
         lens: Lens filename to use
         mode: Workspace mode (writer, code, planning)
+        plan_file: Optional path to plan JSON file (RFC-090)
     """
     studio_dir = Path(__file__).parent.parent.parent.parent / "studio"
     args = ["--project", project, "--lens", lens, "--mode", mode]
+
+    # RFC-090: Pass plan file if provided
+    if plan_file:
+        args.extend(["--plan", plan_file])
 
     # Try debug build first (most common in dev)
     debug_binary = studio_dir / "src-tauri" / "target" / "debug" / "sunwell-studio"

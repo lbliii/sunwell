@@ -1,6 +1,5 @@
 """Harmonic synthesis worker - multi-persona generation with voting."""
 
-from __future__ import annotations
 
 import asyncio
 import json

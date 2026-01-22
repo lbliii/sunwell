@@ -8,7 +8,6 @@ It provides four strategies for generating diverse candidates:
 - harmonic: Multi-persona generation (maximum diversity)
 """
 
-from __future__ import annotations
 
 import asyncio
 from collections.abc import Sequence

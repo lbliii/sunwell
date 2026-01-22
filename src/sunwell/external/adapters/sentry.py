@@ -19,7 +19,7 @@ from sunwell.external.types import (
 )
 
 if TYPE_CHECKING:
-    import httpx
+    pass
 
 logger = logging.getLogger(__name__)
 

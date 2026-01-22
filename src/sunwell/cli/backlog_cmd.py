@@ -12,7 +12,6 @@ Provides:
 - sunwell backlog history: View completed goals
 """
 
-from __future__ import annotations
 
 import asyncio
 import json
@@ -658,7 +657,6 @@ async def _add_goal(goal: str) -> None:
 @click.pass_context
 def skip(ctx, goal_id: str) -> None:
     """Skip a goal."""
-    root = Path.cwd()
     manager = BacklogManager(root=Path.cwd())
     manager._load()
 
@@ -675,7 +673,6 @@ def skip(ctx, goal_id: str) -> None:
 @click.pass_context
 def block(ctx, goal_id: str, reason: str) -> None:
     """Block a goal with reason."""
-    root = Path.cwd()
     manager = BacklogManager(root=Path.cwd())
     manager._load()
 

@@ -7,7 +7,6 @@ Executes benchmark tasks across multiple conditions:
 - Competitor: Optional external baseline
 """
 
-from __future__ import annotations
 
 import asyncio
 import time
@@ -36,6 +35,7 @@ from sunwell.benchmark.types import (
 from sunwell.models.protocol import GenerateOptions, ModelProtocol
 
 if TYPE_CHECKING:
+    from sunwell.benchmark.types import PrefetchMetrics
     from sunwell.core.heuristic import Heuristic
     from sunwell.core.lens import Lens
     from sunwell.schema.loader import LensLoader

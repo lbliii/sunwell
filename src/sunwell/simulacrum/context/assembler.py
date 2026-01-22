@@ -12,7 +12,6 @@ This enables "infinite" conversations by keeping the active context
 within model limits while preserving access to full history.
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING

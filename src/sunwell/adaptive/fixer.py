@@ -13,7 +13,6 @@ Fix strategies:
 - ESCALATE: Too complex, ask user
 """
 
-from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field

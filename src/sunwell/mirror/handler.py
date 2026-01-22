@@ -7,7 +7,6 @@ RFC-085 Update: Now uses Self.get() for source introspection,
 ensuring correct resolution from any workspace.
 """
 
-from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field

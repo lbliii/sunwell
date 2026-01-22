@@ -11,7 +11,6 @@ Combines:
 Part of RFC-014: Multi-Topology Memory.
 """
 
-from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field

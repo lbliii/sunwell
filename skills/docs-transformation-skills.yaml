@@ -1,11 +1,13 @@
 # skills/docs-transformation-skills.yaml
 # RFC-070: Transformation and improvement skills
+# RFC-092: All skills declare permissions via presets
 
 skills:
   - name: polish-documentation
     description: Quick improvements for clarity, style, and structure
     type: inline
     triggers: ["polish", "improve", "clean up", "::p"]
+    preset: workspace-write
     allowed_tools: [read_file, search_replace]
     instructions: |
       ## Goal
@@ -35,6 +37,7 @@ skills:
     description: Break monolithic document into modular topics
     type: inline
     triggers: ["modularize", "split", "break up", "::m"]
+    preset: workspace-write
     allowed_tools: [read_file, write, list_dir]
     instructions: |
       ## Goal
@@ -65,6 +68,7 @@ skills:
     description: Generate consistent frontmatter for documentation files
     type: inline
     triggers: ["frontmatter", "metadata", "::fm"]
+    preset: workspace-write
     allowed_tools: [read_file, search_replace]
     instructions: |
       ## Frontmatter Schema
@@ -92,6 +96,7 @@ skills:
     description: Generate navigation indexes for documentation
     type: inline
     triggers: ["navigation", "index", "map", "toc", "::map"]
+    preset: workspace-write
     allowed_tools: [read_file, list_dir, write]
     instructions: |
       ## Goal
@@ -123,6 +128,7 @@ skills:
     description: Gap analysis for migrating to Fern documentation platform
     type: inline
     triggers: ["fern", "migration", "gap analysis"]
+    preset: read-only
     allowed_tools: [read_file, list_dir, grep]
     instructions: |
       ## Goal

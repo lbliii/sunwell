@@ -5,7 +5,6 @@ HTTP server for receiving webhooks from external services.
 
 import json
 import logging
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from sunwell.external.types import EventSource
@@ -44,7 +43,7 @@ class WebhookServer:
     def _setup_app(self) -> None:
         """Configure FastAPI application and routes."""
         try:
-            from fastapi import FastAPI, HTTPException, Request
+            from fastapi import FastAPI, Request
             from fastapi.responses import JSONResponse
         except ImportError as e:
             logger.warning(f"FastAPI not available: {e}")

@@ -3,7 +3,6 @@
 Extract intelligence from git history: commits, blame, authorship.
 """
 
-from __future__ import annotations
 
 import asyncio
 import re

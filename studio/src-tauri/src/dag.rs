@@ -4,7 +4,7 @@
 //! - Load the full DAG from `.sunwell/backlog/` and `.sunwell/plans/`
 //! - Execute a specific node from the DAG
 
-use crate::util::sunwell_command;
+use crate::util::{parse_json_safe, sunwell_command};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -292,6 +292,129 @@ pub async fn refresh_backlog(path: String) -> Result<DagGraph, String> {
 }
 
 // =============================================================================
+// RFC-090: Load Plan File
+// =============================================================================
+
+/// Plan file format from `sunwell --plan --json` (RFC-090)
+/// Used via serde deserialization in `load_plan_file`
+#[allow(dead_code)] // Constructed by serde, not directly
+#[derive(Debug, Clone, Deserialize)]
+struct CliPlanFile {
+    #[serde(default)]
+    goal: Option<String>,
+    #[serde(default)]
+    tasks: i64,
+    #[serde(default)]
+    gates: i64,
+    #[serde(default)]
+    technique: Option<String>,
+    #[serde(default)]
+    task_list: Vec<CliTaskSummary>,
+    #[serde(default)]
+    gate_list: Vec<CliGateSummary>,
+    #[serde(default)]
+    created_at: Option<String>,
+}
+
+/// Task summary from plan file (RFC-090)
+/// Used via serde deserialization in `load_plan_file`
+#[allow(dead_code)] // Constructed by serde, not directly
+#[derive(Debug, Clone, Deserialize)]
+struct CliTaskSummary {
+    #[serde(default)]
+    id: String,
+    #[serde(default)]
+    description: String,
+    #[serde(default)]
+    depends_on: Vec<String>,
+    #[serde(default)]
+    produces: Vec<String>,
+    #[serde(default)]
+    category: Option<String>,
+}
+
+/// Gate summary from plan file (RFC-090)
+/// Used via serde deserialization in `load_plan_file`
+#[allow(dead_code)] // Constructed by serde, not directly
+#[derive(Debug, Clone, Deserialize)]
+struct CliGateSummary {
+    #[serde(default)]
+    id: String,
+    #[serde(rename = "type", default)]
+    gate_type: String,
+    #[serde(default)]
+    after_tasks: Vec<String>,
+}
+
+/// Load a plan file and convert to DagGraph (RFC-090)
+/// 
+/// Used when Studio is launched with `--plan <path>` to display
+/// a pre-generated plan from `sunwell --plan --json`.
+#[tauri::command]
+pub async fn load_plan_file(plan_path: String) -> Result<DagGraph, String> {
+    let path = PathBuf::from(&plan_path);
+    
+    if !path.exists() {
+        return Err(format!("Plan file not found: {}", plan_path));
+    }
+    
+    let content = std::fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read plan file: {}", e))?;
+    
+    let plan: CliPlanFile = parse_json_safe(&content)
+        .map_err(|e| format!("Failed to parse plan file: {}", e))?;
+    
+    // Convert plan to DagGraph
+    let graph = cli_plan_to_dag_graph(plan)?;
+    Ok(graph)
+}
+
+/// Convert a CliPlanFile to DagGraph format (RFC-090)
+fn cli_plan_to_dag_graph(plan: CliPlanFile) -> Result<DagGraph, String> {
+    let mut nodes: Vec<DagNode> = Vec::new();
+    let mut edges: Vec<DagEdge> = Vec::new();
+    
+    // Convert tasks to nodes
+    for task in &plan.task_list {
+        nodes.push(DagNode {
+            id: task.id.clone(),
+            title: truncate_title(&task.description),
+            description: task.description.clone(),
+            status: "pending".to_string(),
+            source: "ai".to_string(),
+            progress: 0,
+            priority: 0.5,
+            effort: "medium".to_string(),
+            depends_on: task.depends_on.clone(),
+            category: task.category.clone(),
+            current_action: None,
+            task_type: "create".to_string(),
+            produces: task.produces.clone(),
+        });
+        
+        // Build edges from dependencies
+        for dep in &task.depends_on {
+            edges.push(DagEdge {
+                id: format!("{}->{}", dep, task.id),
+                source: dep.clone(),
+                target: task.id.clone(),
+                artifact: None,
+                edge_type: "dependency".to_string(),
+                verification_status: None,
+                integration_type: None,
+            });
+        }
+    }
+    
+    Ok(DagGraph {
+        nodes,
+        edges,
+        goal: plan.goal,
+        total_progress: 0,
+    })
+}
+
+// =============================================================================
 // RFC-074: Incremental Execution Commands
 // =============================================================================
 
@@ -347,7 +470,7 @@ pub async fn get_incremental_plan(path: String) -> Result<IncrementalPlan, Strin
     }
     
     let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&stdout)
+    parse_json_safe(&stdout)
         .map_err(|e| format!("Failed to parse plan output: {} (output: {})", e, stdout))
 }
 
@@ -370,7 +493,7 @@ pub async fn get_cache_stats(path: String) -> Result<CacheStats, String> {
     }
     
     let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&stdout)
+    parse_json_safe(&stdout)
         .map_err(|e| format!("Failed to parse cache stats: {} (output: {})", e, stdout))
 }
 
@@ -393,7 +516,7 @@ pub async fn get_artifact_impact(path: String, artifact_id: String) -> Result<Ve
     }
     
     let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&stdout)
+    parse_json_safe(&stdout)
         .map_err(|e| format!("Failed to parse impact output: {} (output: {})", e, stdout))
 }
 
@@ -432,7 +555,7 @@ fn read_backlog(path: &Path) -> Backlog {
     }
 
     match std::fs::read_to_string(path) {
-        Ok(content) => serde_json::from_str(&content).unwrap_or_default(),
+        Ok(content) => parse_json_safe(&content).unwrap_or_default(),
         Err(_) => Backlog::default(),
     }
 }
@@ -462,7 +585,7 @@ fn read_latest_execution(plans_dir: &Path) -> Option<SavedExecution> {
     if let Some(latest) = entries.last() {
         match std::fs::read_to_string(latest.path()) {
             Ok(content) => {
-                return serde_json::from_str(&content).ok();
+                return parse_json_safe(&content).ok();
             }
             Err(_) => return None,
         }

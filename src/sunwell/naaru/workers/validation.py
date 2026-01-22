@@ -1,6 +1,5 @@
 """Validation worker - tiered validation with FunctionGemma → Full LLM cascade."""
 
-from __future__ import annotations
 
 import asyncio
 import json

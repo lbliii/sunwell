@@ -303,3 +303,22 @@ export {
   type LensSkill,
   type SelectionContext,
 } from './writer.svelte';
+
+// Skill Graph state (RFC-087)
+export {
+  skillGraphState,
+  handleSkillGraphResolved,
+  handleSkillWaveStart,
+  handleSkillWaveComplete,
+  handleSkillCacheHit,
+  handleSkillExecuteStart,
+  handleSkillExecuteComplete,
+  resetSkillGraph,
+  getWavesWithSkills,
+  getStatusCounts,
+  getRiskCounts,
+  type RiskLevel,
+  type SkillNode,
+  type SkillWave,
+  type SkillGraphState,
+} from './skill-graph.svelte';

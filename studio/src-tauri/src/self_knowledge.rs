@@ -5,7 +5,7 @@
 //! - Analysis patterns
 //! - Proposal management
 
-use crate::util::sunwell_command;
+use crate::util::{parse_json_safe, sunwell_command};
 use serde::{Deserialize, Serialize};
 
 // =============================================================================
@@ -131,7 +131,7 @@ pub async fn self_find_symbol(module: String, symbol: String) -> Result<SymbolIn
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&stdout).map_err(|e| format!("Failed to parse symbol info: {}", e))
+    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse symbol info: {}", e))
 }
 
 /// List all Sunwell modules.
@@ -148,7 +148,7 @@ pub async fn self_list_modules() -> Result<Vec<String>, String> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&stdout).map_err(|e| format!("Failed to parse modules: {}", e))
+    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse modules: {}", e))
 }
 
 /// Semantic search in Sunwell's source code.
@@ -166,7 +166,7 @@ pub async fn self_search_source(query: String, limit: Option<u32>) -> Result<Vec
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&stdout).map_err(|e| format!("Failed to parse search results: {}", e))
+    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse search results: {}", e))
 }
 
 // =============================================================================
@@ -188,7 +188,7 @@ pub async fn self_get_patterns(scope: Option<String>) -> Result<PatternReport, S
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&stdout).map_err(|e| format!("Failed to parse patterns: {}", e))
+    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse patterns: {}", e))
 }
 
 /// Get recent failures and their categories.
@@ -206,7 +206,7 @@ pub async fn self_get_failures(limit: Option<u32>) -> Result<FailureReport, Stri
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&stdout).map_err(|e| format!("Failed to parse failures: {}", e))
+    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse failures: {}", e))
 }
 
 // =============================================================================
@@ -234,7 +234,7 @@ pub async fn self_list_proposals(status: Option<String>) -> Result<Vec<ProposalS
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&stdout).map_err(|e| format!("Failed to parse proposals: {}", e))
+    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse proposals: {}", e))
 }
 
 /// Get detailed info about a specific proposal.
@@ -251,7 +251,7 @@ pub async fn self_get_proposal(proposal_id: String) -> Result<ProposalDetail, St
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&stdout).map_err(|e| format!("Failed to parse proposal: {}", e))
+    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse proposal: {}", e))
 }
 
 /// Test a proposal in the sandbox.
@@ -268,7 +268,7 @@ pub async fn self_test_proposal(proposal_id: String) -> Result<TestResult, Strin
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&stdout).map_err(|e| format!("Failed to parse test result: {}", e))
+    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse test result: {}", e))
 }
 
 /// Approve a proposal for application.
@@ -348,5 +348,5 @@ pub async fn self_get_summary() -> Result<SelfKnowledgeSummary, String> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&stdout).map_err(|e| format!("Failed to parse summary: {}", e))
+    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse summary: {}", e))
 }

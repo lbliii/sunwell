@@ -3,7 +3,6 @@
 Analyze code patterns without execution: naming, types, docstrings.
 """
 
-from __future__ import annotations
 
 import ast
 import re

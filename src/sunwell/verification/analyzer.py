@@ -3,7 +3,6 @@
 Analyze code correctness from multiple perspectives.
 """
 
-from __future__ import annotations
 
 import ast
 import asyncio

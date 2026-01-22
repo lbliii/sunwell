@@ -3,7 +3,6 @@
 Track code ownership derived from git history.
 """
 
-from __future__ import annotations
 
 import json
 from collections import Counter

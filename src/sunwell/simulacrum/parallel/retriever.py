@@ -14,7 +14,6 @@ Worker count adapts based on GIL state:
 - Standard Python: Uses minimal workers (threads serialize anyway)
 """
 
-from __future__ import annotations
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor

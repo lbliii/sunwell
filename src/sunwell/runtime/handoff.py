@@ -13,7 +13,6 @@ This module captures:
 Then formats it as a "briefing" for the next model to pick up where you left off.
 """
 
-from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass, field

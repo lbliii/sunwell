@@ -1,11 +1,13 @@
 # skills/docs-utility-skills.yaml
 # RFC-070: Utility skills for documentation workflows
+# RFC-092: All skills declare permissions via presets
 
 skills:
   - name: apply-style-guide
     description: Apply NVIDIA style guide rules to documentation
     type: inline
     triggers: ["style guide", "style", "nvidia style", "::style"]
+    preset: workspace-write
     allowed_tools: [read_file, search_replace]
     instructions: |
       ## NVIDIA Style Guide Rules
@@ -34,6 +36,7 @@ skills:
     description: Fix common Markdown/MyST syntax issues
     type: inline
     triggers: ["markdown", "md syntax", "myst", "::md"]
+    preset: workspace-write
     allowed_tools: [read_file, search_replace]
     instructions: |
       ## Common Fixes
@@ -79,6 +82,7 @@ skills:
     description: Fix common reStructuredText syntax issues
     type: inline
     triggers: ["rst", "restructuredtext", "::rst"]
+    preset: workspace-write
     allowed_tools: [read_file, search_replace]
     instructions: |
       ## Common Fixes
@@ -108,6 +112,7 @@ skills:
     description: Bump version numbers in documentation
     type: inline
     triggers: ["version", "bump", "release", "::bv"]
+    preset: workspace-write
     allowed_tools: [read_file, search_replace, grep]
     instructions: |
       ## Process
@@ -127,6 +132,7 @@ skills:
     description: Format commit messages for documentation changes
     type: inline
     triggers: ["commit", "commit message"]
+    preset: read-only
     instructions: |
       ## Commit Format
 
@@ -158,6 +164,7 @@ skills:
     description: Bootstrap a complete Sphinx documentation site
     type: inline
     triggers: ["sphinx", "bootstrap", "init docs"]
+    preset: safe-shell
     allowed_tools: [write, run_terminal_cmd]
     instructions: |
       ## Creates
@@ -181,6 +188,7 @@ skills:
     description: Format directory index pages consistently
     type: inline
     triggers: ["index", "index page", "directory index"]
+    preset: workspace-write
     allowed_tools: [read_file, search_replace, list_dir]
     instructions: |
       ## Index Page Format
@@ -210,6 +218,7 @@ skills:
     description: Resolve merge conflicts in documentation files
     type: inline
     triggers: ["merge", "conflict", "merge conflict"]
+    preset: workspace-write
     allowed_tools: [read_file, search_replace]
     instructions: |
       ## Process
@@ -233,6 +242,7 @@ skills:
     description: Reflect on documentation task - what worked, what didn't
     type: inline
     triggers: ["retro", "retrospective", "reflect", "::retro"]
+    preset: read-only
     instructions: |
       ## Retrospective Template
 
@@ -273,6 +283,7 @@ skills:
     description: Manage and track documentation tasks
     type: inline
     triggers: ["tasks", "todo", "task list"]
+    preset: read-only
     instructions: |
       ## Task Management
 
@@ -310,6 +321,7 @@ skills:
     description: Show context-aware help and available commands
     type: inline
     triggers: ["help", "commands", "what can", "::?", "::h"]
+    preset: read-only
     instructions: |
       ## Goal
       Provide context-aware help showing available skills and commands.

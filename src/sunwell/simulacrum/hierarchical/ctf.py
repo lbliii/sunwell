@@ -16,7 +16,6 @@ micro_abc123	0-10	User introduced themselves	identity|capabilities
 micro_def456	10-20	Tested file limitations	tools|limitations
 """
 
-from __future__ import annotations
 
 import contextlib
 from typing import TYPE_CHECKING

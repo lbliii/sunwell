@@ -10,7 +10,6 @@ Example:
         content = await regenerate_with_larger_model(task, large_model)
 """
 
-from __future__ import annotations
 
 import re
 from dataclasses import dataclass

@@ -1,6 +1,5 @@
 """Runtime information command."""
 
-from __future__ import annotations
 
 import click
 from rich.console import Console

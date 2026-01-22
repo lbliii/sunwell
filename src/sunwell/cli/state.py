@@ -8,7 +8,6 @@ Thread Safety:
     race conditions in free-threaded Python (3.14t).
 """
 
-from __future__ import annotations
 
 import threading
 from pathlib import Path

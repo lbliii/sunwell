@@ -1,6 +1,5 @@
 """Client for interacting with Sunwell founts."""
 
-from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol, runtime_checkable

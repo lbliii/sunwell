@@ -13,7 +13,6 @@ Commands:
 - /identity export - Export identity data to JSON
 """
 
-from __future__ import annotations
 
 import json
 from datetime import datetime

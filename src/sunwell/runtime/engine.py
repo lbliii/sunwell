@@ -4,7 +4,6 @@ Extended with tool calling support per RFC-012.
 Extended with memory tools per RFC-014.
 """
 
-from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
@@ -33,7 +32,7 @@ from sunwell.runtime.retriever import ExpertiseRetriever
 if TYPE_CHECKING:
     from sunwell.core.spell import Grimoire, Spell
     from sunwell.fount.client import FountClient
-    from sunwell.routing.cognitive_router import CognitiveRouter
+    from sunwell.routing.cognitive_router import CognitiveRouter  # Legacy, deprecated
     from sunwell.runtime.model_router import ModelRouter
     from sunwell.simulacrum.core.store import SimulacrumStore
     from sunwell.tools.executor import ToolExecutor
@@ -136,7 +135,7 @@ class RuntimeEngine:
     fount_client: FountClient | None = None  # Phase 7
     model_router: ModelRouter | None = None  # RFC-015
     simulacrum_store: SimulacrumStore | None = None  # RFC-014
-    cognitive_router: CognitiveRouter | None = None  # RFC-020
+    cognitive_router: CognitiveRouter | None = None  # RFC-020 (deprecated, use Adaptive Agent)
     grimoire: Grimoire | None = None  # RFC-021
 
     # Sub-components (lazily initialized)

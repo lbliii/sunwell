@@ -1,6 +1,5 @@
 """Setup command - Initialize Sunwell with default bindings."""
 
-from __future__ import annotations
 
 import sys
 from pathlib import Path

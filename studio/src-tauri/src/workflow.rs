@@ -6,7 +6,7 @@
 //! - State persistence queries
 
 use serde::{Deserialize, Serialize};
-use crate::util::sunwell_command;
+use crate::util::{parse_json_safe, sunwell_command};
 
 // =============================================================================
 // TYPES
@@ -82,7 +82,7 @@ pub async fn route_workflow_intent(user_input: String) -> Result<Intent, String>
     }
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&json_str).map_err(|e| format!("Failed to parse intent: {}", e))
+    parse_json_safe(&json_str).map_err(|e| format!("Failed to parse intent: {}", e))
 }
 
 /// Start a workflow chain.
@@ -110,7 +110,7 @@ pub async fn start_workflow(
     }
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&json_str).map_err(|e| format!("Failed to parse execution: {}", e))
+    parse_json_safe(&json_str).map_err(|e| format!("Failed to parse execution: {}", e))
 }
 
 /// Stop a running workflow.
@@ -141,7 +141,7 @@ pub async fn resume_workflow(execution_id: String) -> Result<WorkflowExecution, 
     }
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&json_str).map_err(|e| format!("Failed to parse execution: {}", e))
+    parse_json_safe(&json_str).map_err(|e| format!("Failed to parse execution: {}", e))
 }
 
 /// Skip the current workflow step.
@@ -173,7 +173,7 @@ pub async fn list_workflow_chains() -> Result<Vec<WorkflowChain>, String> {
     }
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&json_str).unwrap_or_else(|_| default_chains())
+    parse_json_safe(&json_str).unwrap_or_else(|_| default_chains())
         .pipe(Ok)
 }
 
@@ -190,7 +190,7 @@ pub async fn list_active_workflows() -> Result<Vec<WorkflowExecution>, String> {
     }
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&json_str).unwrap_or_else(|_| vec![])
+    parse_json_safe(&json_str).unwrap_or_else(|_| vec![])
         .pipe(Ok)
 }
 

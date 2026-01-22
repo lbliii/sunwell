@@ -2,7 +2,7 @@
 //!
 //! The agent outputs NDJSON events that we parse and forward to the frontend.
 
-use crate::util::sunwell_command;
+use crate::util::{parse_json_safe, sunwell_command};
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader};
 use std::path::Path;
@@ -11,12 +11,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 
-/// Agent event types matching Python's EventType enum.
+/// Agent event types matching Python's EventType enum (sunwell.adaptive.events).
+///
+/// KEEP IN SYNC WITH: src/sunwell/adaptive/events.py
 #[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EventType {
-    // Memory events
+    // Memory events (Simulacrum integration)
     MemoryLoad,
     MemoryLoaded,
     MemoryNew,
@@ -24,47 +26,103 @@ pub enum EventType {
     MemoryDeadEnd,
     MemoryCheckpoint,
     MemorySaved,
-    // Signal events
+
+    // Signal events (adaptive routing)
     Signal,
     SignalRoute,
+
     // Planning events
     PlanStart,
     PlanCandidate,
     PlanWinner,
     PlanExpanded,
     PlanAssess,
+
+    // RFC-058: Planning visibility events
+    PlanCandidateStart,
+    PlanCandidateGenerated,
+    PlanCandidatesComplete,
+    PlanCandidateScored,
+    PlanScoringComplete,
+    PlanRefineStart,
+    PlanRefineAttempt,
+    PlanRefineComplete,
+    PlanRefineFinal,
+    PlanDiscoveryProgress,
+
     // Gate events
     GateStart,
     GateStep,
     GatePass,
     GateFail,
+
     // Execution events
     TaskStart,
     TaskProgress,
     TaskComplete,
     TaskFailed,
+
     // Validation events
     ValidateStart,
     ValidateLevel,
     ValidateError,
     ValidatePass,
+
     // Fix events
     FixStart,
     FixProgress,
     FixAttempt,
     FixComplete,
     FixFailed,
+
     // Completion events
     Complete,
     Error,
     Escalate,
-    // RFC-067: Integration verification events
+
+    // Lens events (RFC-064)
+    LensSelected,
+    LensChanged,
+
+    // Integration verification events (RFC-067)
     IntegrationCheckStart,
     IntegrationCheckPass,
     IntegrationCheckFail,
     StubDetected,
     OrphanDetected,
     WireTaskGenerated,
+
+    // Briefing events (RFC-071)
+    BriefingLoaded,
+    BriefingSaved,
+
+    // Prefetch events (RFC-071)
+    PrefetchStart,
+    PrefetchComplete,
+    PrefetchTimeout,
+    LensSuggested,
+
+    // Inference visibility events (RFC-081)
+    ModelStart,
+    ModelTokens,
+    ModelThinking,
+    ModelComplete,
+    ModelHeartbeat,
+
+    // Skill graph execution events (RFC-087)
+    SkillGraphResolved,
+    SkillWaveStart,
+    SkillWaveComplete,
+    SkillCacheHit,
+    SkillExecuteStart,
+    SkillExecuteComplete,
+
+    // Security events (RFC-089)
+    SecurityApprovalRequested,
+    SecurityApprovalReceived,
+    SecurityViolation,
+    SecurityScanComplete,
+    AuditLogEntry,
 }
 
 /// Agent event from the Python agent (NDJSON line).
@@ -175,7 +233,7 @@ impl AgentBridge {
                             continue;
                         }
 
-                        match serde_json::from_str::<AgentEvent>(&json_line) {
+                        match parse_json_safe::<AgentEvent>(&json_line) {
                             Ok(event) => {
                                 // Emit event to frontend
                                 let _ = app.emit("agent-event", &event);
@@ -262,7 +320,7 @@ impl AgentBridge {
                             continue;
                         }
 
-                        match serde_json::from_str::<AgentEvent>(&json_line) {
+                        match parse_json_safe::<AgentEvent>(&json_line) {
                             Ok(event) => {
                                 let _ = app.emit("agent-event", &event);
 
@@ -348,7 +406,7 @@ impl AgentBridge {
                             continue;
                         }
 
-                        match serde_json::from_str::<AgentEvent>(&json_line) {
+                        match parse_json_safe::<AgentEvent>(&json_line) {
                             Ok(event) => {
                                 // Emit event to frontend
                                 let _ = app.emit("agent-event", &event);

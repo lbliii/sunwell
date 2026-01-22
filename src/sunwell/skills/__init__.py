@@ -1,6 +1,7 @@
 """Skills module - Agent Skills integration for Sunwell Lenses.
 
 This module implements RFC-011: Arming Sunwell Lenses with Agent Skills.
+RFC-087: Skill-Lens DAG extends this with dependency tracking and caching.
 
 Skills provide action capabilities (instructions, scripts, templates)
 while lenses provide judgment (heuristics, validators, personas).
@@ -8,7 +9,22 @@ Together they create "Capable Lenses" that can both execute tasks AND
 evaluate their own output.
 """
 
-from sunwell.skills.executor import SkillExecutor
+from sunwell.skills.cache import SkillCache, SkillCacheEntry, SkillCacheKey
+from sunwell.skills.executor import (
+    ExecutionContext,
+    IncrementalSkillExecutor,
+    SkillExecutionError,
+    SkillExecutionPlan,
+    SkillExecutor,
+    WaveExecutionError,
+)
+from sunwell.skills.graph import (
+    CircularDependencyError,
+    MissingDependencyError,
+    SkillGraph,
+    SkillGraphError,
+    UnsatisfiedRequiresError,
+)
 from sunwell.skills.interop import (
     SkillExporter,
     SkillImporter,
@@ -21,6 +37,7 @@ from sunwell.skills.types import (
     Resource,
     Script,
     Skill,
+    SkillDependency,
     SkillError,
     SkillOutput,
     SkillOutputMetadata,
@@ -35,6 +52,7 @@ from sunwell.skills.types import (
 __all__ = [
     # Types
     "Skill",
+    "SkillDependency",
     "SkillType",
     "TrustLevel",
     "Script",
@@ -47,8 +65,23 @@ __all__ = [
     "Artifact",
     "SkillResult",
     "SkillError",
+    # RFC-087: Skill Graph
+    "SkillGraph",
+    "SkillGraphError",
+    "CircularDependencyError",
+    "MissingDependencyError",
+    "UnsatisfiedRequiresError",
+    # RFC-087: Skill Cache
+    "SkillCache",
+    "SkillCacheKey",
+    "SkillCacheEntry",
     # Execution
     "SkillExecutor",
+    "IncrementalSkillExecutor",
+    "ExecutionContext",
+    "SkillExecutionPlan",
+    "SkillExecutionError",
+    "WaveExecutionError",
     "ScriptSandbox",
     "ScriptResult",
     # Interop (Phase 4)

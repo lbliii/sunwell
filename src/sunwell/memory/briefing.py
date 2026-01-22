@@ -13,7 +13,6 @@ coordinates expensive operations. A tiny model reads the briefing and pre-loads 
 skills, and DAG context before the main agent starts.
 """
 
-from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field

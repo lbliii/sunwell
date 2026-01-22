@@ -7,9 +7,12 @@ import asyncio
 import json
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import click
+
+if TYPE_CHECKING:
+    from sunwell.naaru.artifacts import ArtifactGraph
 
 
 def get_project_root(ctx: click.Context) -> Path:
@@ -37,7 +40,6 @@ def scan(ctx: click.Context, min_severity: float, as_json: bool) -> None:
     project_root = get_project_root(ctx)
 
     async def _scan() -> dict[str, Any]:
-        from sunwell.naaru.artifacts import ArtifactGraph
         from sunwell.weakness.analyzer import WeaknessAnalyzer
 
         # Build artifact graph from project
@@ -105,7 +107,6 @@ def preview(ctx: click.Context, artifact_id: str, max_depth: int, as_json: bool)
     project_root = get_project_root(ctx)
 
     async def _preview() -> dict[str, Any]:
-        from sunwell.naaru.artifacts import ArtifactGraph
         from sunwell.weakness.analyzer import WeaknessAnalyzer
         from sunwell.weakness.cascade import CascadeEngine
 
@@ -183,7 +184,6 @@ def fix(
     project_root = get_project_root(ctx)
 
     async def _fix() -> dict[str, Any]:
-        from sunwell.naaru.artifacts import ArtifactGraph
         from sunwell.naaru.planners.artifact import ArtifactPlanner
         from sunwell.tools.executor import ToolExecutor
         from sunwell.weakness.analyzer import WeaknessAnalyzer
@@ -307,7 +307,6 @@ def extract_contract(ctx: click.Context, artifact_id: str, as_json: bool) -> Non
     project_root = get_project_root(ctx)
 
     async def _extract() -> dict[str, Any]:
-        from sunwell.naaru.artifacts import ArtifactGraph
         from sunwell.weakness.cascade import CascadeEngine
 
         graph = await _build_graph(project_root)
@@ -342,7 +341,7 @@ def extract_contract(ctx: click.Context, artifact_id: str, as_json: bool) -> Non
 # =============================================================================
 
 
-async def _build_graph(project_root: Path) -> "ArtifactGraph":
+async def _build_graph(project_root: Path) -> ArtifactGraph:
     """Build artifact graph from project files."""
     from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
 

@@ -3,7 +3,6 @@
 Main orchestrator that ties all guardrail components together.
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -30,7 +29,7 @@ from sunwell.guardrails.verification import VerificationGate, create_verificatio
 if TYPE_CHECKING:
     from sunwell.backlog.goals import Goal
     from sunwell.external.policy import ExternalGoalPolicy
-    from sunwell.external.types import EventSource, EventType, ExternalEvent
+    from sunwell.external.types import ExternalEvent
 
 
 @dataclass

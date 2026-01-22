@@ -9,12 +9,10 @@ Extract observable signals from codebase without LLM:
 - Stale dependencies
 """
 
-from __future__ import annotations
 
 import asyncio
 import re
 import subprocess
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal

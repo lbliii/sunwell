@@ -9,7 +9,7 @@ When a new developer runs 'sunwell init', they get:
 """
 
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:

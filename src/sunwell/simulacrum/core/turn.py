@@ -7,7 +7,6 @@ Each turn is content-addressable (hash-based identity) enabling:
 - Compression without loss
 """
 
-from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field

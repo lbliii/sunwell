@@ -4,7 +4,6 @@ Provides tools to examine Sunwell's own source code, lens configuration,
 simulacrum state, and execution history.
 """
 
-from __future__ import annotations
 
 import ast
 from dataclasses import dataclass

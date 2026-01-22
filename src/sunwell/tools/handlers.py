@@ -8,7 +8,6 @@ RFC-024 additions:
 - Environment variable handlers with allowlist/blocklist security
 """
 
-from __future__ import annotations
 
 import fnmatch
 import os

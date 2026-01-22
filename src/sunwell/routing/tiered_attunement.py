@@ -10,7 +10,6 @@ Extends RFC-020 CognitiveRouter with DORI-inspired techniques:
 This bridges the gap between Sunwell (portable) and DORI (intelligent).
 """
 
-from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field

@@ -19,7 +19,6 @@ Terminology:
 - Cast: Execute a spell
 """
 
-from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
@@ -30,7 +29,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from sunwell.core.lens import Lens
-    from sunwell.routing.cognitive_router import RoutingDecision
+    from sunwell.routing.unified import RoutingDecision
 
 
 class ReagentType(str, Enum):
@@ -136,31 +135,37 @@ class Spell:
         return (self.incantation,) + self.aliases
 
     def to_routing_decision(self) -> RoutingDecision:
-        """Convert to RoutingDecision for CognitiveRouter."""
-        from sunwell.routing.cognitive_router import Complexity, Intent, RoutingDecision
+        """Convert to RoutingDecision for UnifiedRouter."""
+        from sunwell.routing.unified import (
+            Complexity,
+            Intent,
+            RoutingDecision,
+            UserExpertise,
+            UserMood,
+        )
 
-        # Map intent string to Intent enum, defaulting to UNKNOWN
+        # Map intent string to Intent enum, defaulting to CODE
         try:
             intent_enum = Intent(self.intent)
         except ValueError:
-            intent_enum = Intent.UNKNOWN
+            intent_enum = Intent.CODE
 
         # Map complexity string to Complexity enum
         try:
             complexity_enum = Complexity(self.complexity)
         except ValueError:
-            complexity_enum = Complexity.MODERATE
+            complexity_enum = Complexity.STANDARD
 
         return RoutingDecision(
             intent=intent_enum,
-            lens="",  # Determined by active lens
-            secondary_lenses=[],
-            focus=list(self.focus),
             complexity=complexity_enum,
-            top_k=self.top_k or 5,
-            threshold=self.threshold or 0.3,
+            lens=None,  # Determined by active lens
+            tools=(),
+            mood=UserMood.NEUTRAL,
+            expertise=UserExpertise.INTERMEDIATE,
             confidence=1.0,  # Spells are deterministic
             reasoning=f"Spell: {self.incantation}",
+            focus=tuple(self.focus),
         )
 
     def to_system_context(self, template_vars: dict[str, str] | None = None) -> str:

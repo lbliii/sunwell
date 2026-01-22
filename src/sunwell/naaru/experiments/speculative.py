@@ -18,7 +18,6 @@ Example:
     >>> print(f"Winner returned in {artifacts.latency_ms}ms")
 """
 
-from __future__ import annotations
 
 import asyncio
 import time

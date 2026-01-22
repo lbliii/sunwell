@@ -10,7 +10,6 @@ Implements the 7 benchmark conditions (A-G):
 - G: NAARU_FULL_LENS - Full Naaru + lens context
 """
 
-from __future__ import annotations
 
 import asyncio
 from collections import Counter

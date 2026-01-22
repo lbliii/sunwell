@@ -3,7 +3,6 @@
 Semantic understanding of the codebase, not just file contents.
 """
 
-from __future__ import annotations
 
 import ast
 import pickle

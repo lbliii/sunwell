@@ -1,6 +1,5 @@
 """Anthropic (Claude) model adapter with tool calling support (RFC-012)."""
 
-from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
@@ -14,6 +13,8 @@ from sunwell.models.protocol import (
     TokenUsage,
     Tool,
     ToolCall,
+    _sanitize_dict_values,
+    sanitize_llm_content,
 )
 
 if TYPE_CHECKING:
@@ -191,18 +192,18 @@ class AnthropicModel:
         except Exception as e:
             raise from_anthropic_error(e, self.model) from e
 
-        # Parse response content blocks
+        # Parse response content blocks (with sanitization per RFC-091)
         content = None
         tool_calls = []
 
         for block in response.content:
             if block.type == "text":
-                content = block.text
+                content = sanitize_llm_content(block.text)
             elif block.type == "tool_use":
                 tool_calls.append(ToolCall(
                     id=block.id,
                     name=block.name,
-                    arguments=block.input,
+                    arguments=_sanitize_dict_values(block.input),
                 ))
 
         return GenerateResult(
@@ -255,7 +256,7 @@ class AnthropicModel:
         try:
             async with client.messages.stream(**kwargs) as stream:
                 async for text in stream.text_stream:
-                    yield text
+                    yield sanitize_llm_content(text) or ""
         except Exception as e:
             raise from_anthropic_error(e, self.model) from e
 

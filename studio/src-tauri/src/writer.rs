@@ -1,12 +1,14 @@
-//! Writer Commands — Universal Writing Environment (RFC-086)
+//! Writer Commands — Universal Writing Environment (RFC-086, RFC-087)
 //!
 //! Provides Tauri commands for:
 //! - Diataxis detection
 //! - Document validation
 //! - Skill execution
+//! - Skill graph management (RFC-087)
 
 use serde::{Deserialize, Serialize};
-use crate::util::sunwell_command;
+use std::collections::HashMap;
+use crate::util::{parse_json_safe, sunwell_command};
 
 // =============================================================================
 // TYPES
@@ -60,6 +62,68 @@ pub struct LensSkill {
     pub shortcut: String,
     pub description: String,
     pub category: String,
+    
+    // RFC-087: DAG fields (optional for backward compatibility)
+    #[serde(default, rename = "dependsOn")]
+    pub depends_on: Vec<SkillDependency>,
+    #[serde(default)]
+    pub produces: Vec<String>,
+    #[serde(default)]
+    pub requires: Vec<String>,
+}
+
+// =============================================================================
+// RFC-087: SKILL GRAPH TYPES
+// =============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillDependency {
+    pub source: String,
+    #[serde(rename = "skillName")]
+    pub skill_name: String,
+    #[serde(rename = "isLocal")]
+    pub is_local: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillWave {
+    #[serde(rename = "waveIndex")]
+    pub wave_index: u32,
+    pub skills: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "estimatedDurationMs")]
+    pub estimated_duration_ms: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillGraph {
+    #[serde(rename = "lensName")]
+    pub lens_name: String,
+    pub skills: HashMap<String, LensSkill>,
+    pub waves: Vec<SkillWave>,
+    #[serde(rename = "contentHash")]
+    pub content_hash: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillExecutionPlan {
+    pub graph: SkillGraph,
+    #[serde(rename = "toExecute")]
+    pub to_execute: Vec<String>,
+    #[serde(rename = "toSkip")]
+    pub to_skip: Vec<String>,
+    #[serde(rename = "skipPercentage")]
+    pub skip_percentage: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillCacheStats {
+    pub size: usize,
+    #[serde(rename = "maxSize")]
+    pub max_size: usize,
+    pub hits: u64,
+    pub misses: u64,
+    #[serde(rename = "hitRate")]
+    pub hit_rate: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -97,7 +161,7 @@ pub async fn detect_diataxis(
     match output {
         Ok(out) if out.status.success() => {
             let json_str = String::from_utf8_lossy(&out.stdout);
-            serde_json::from_str(&json_str)
+            parse_json_safe(&json_str)
                 .map_err(|e| format!("Failed to parse diataxis result: {}", e))
         }
         _ => {
@@ -124,7 +188,7 @@ pub async fn validate_document(
     match output {
         Ok(out) if out.status.success() => {
             let json_str = String::from_utf8_lossy(&out.stdout);
-            serde_json::from_str(&json_str)
+            parse_json_safe(&json_str)
                 .map_err(|e| format!("Failed to parse validation: {}", e))
         }
         _ => {
@@ -145,7 +209,7 @@ pub async fn get_lens_skills(lens_name: String) -> Result<Vec<LensSkill>, String
     match output {
         Ok(out) if out.status.success() => {
             let json_str = String::from_utf8_lossy(&out.stdout);
-            serde_json::from_str(&json_str)
+            parse_json_safe(&json_str)
                 .map_err(|e| format!("Failed to parse skills: {}", e))
         }
         _ => {
@@ -181,7 +245,7 @@ pub async fn execute_skill(
     }
     
     let json_str = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&json_str)
+    parse_json_safe(&json_str)
         .map_err(|e| format!("Failed to parse skill result: {}", e))
 }
 
@@ -212,8 +276,112 @@ pub async fn fix_all_issues(
     }
     
     let json_str = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&json_str)
+    parse_json_safe(&json_str)
         .map_err(|e| format!("Failed to parse fix result: {}", e))
+}
+
+// =============================================================================
+// RFC-087: SKILL GRAPH COMMANDS
+// =============================================================================
+
+/// Get the resolved skill graph for a lens.
+#[tauri::command]
+pub async fn get_skill_graph(lens_name: String) -> Result<SkillGraph, String> {
+    let output = sunwell_command()
+        .args(["lens", "skill-graph", &lens_name, "--json"])
+        .output()
+        .map_err(|e| format!("Failed to get skill graph: {}", e));
+    
+    match output {
+        Ok(out) if out.status.success() => {
+            let json_str = String::from_utf8_lossy(&out.stdout);
+            parse_json_safe(&json_str)
+                .map_err(|e| format!("Failed to parse skill graph: {}", e))
+        }
+        Ok(out) => Err(String::from_utf8_lossy(&out.stderr).to_string()),
+        Err(_e) => {
+            // Fallback to empty graph
+            Ok(SkillGraph {
+                lens_name,
+                skills: HashMap::new(),
+                waves: vec![],
+                content_hash: String::new(),
+            })
+        }
+    }
+}
+
+/// Get execution plan with cache predictions.
+#[tauri::command]
+pub async fn get_skill_execution_plan(
+    lens_name: String,
+    context_hash: Option<String>,
+) -> Result<SkillExecutionPlan, String> {
+    let mut args = vec!["lens", "skill-plan", &lens_name, "--json"];
+    
+    // Build context hash argument if provided
+    let hash_arg;
+    if let Some(ref hash) = context_hash {
+        hash_arg = format!("--context-hash={}", hash);
+        args.push(&hash_arg);
+    }
+    
+    let output = sunwell_command()
+        .args(&args)
+        .output()
+        .map_err(|e| format!("Failed to get execution plan: {}", e));
+    
+    match output {
+        Ok(out) if out.status.success() => {
+            let json_str = String::from_utf8_lossy(&out.stdout);
+            parse_json_safe(&json_str)
+                .map_err(|e| format!("Failed to parse execution plan: {}", e))
+        }
+        Ok(out) => Err(String::from_utf8_lossy(&out.stderr).to_string()),
+        Err(e) => Err(e),
+    }
+}
+
+/// Get skill cache statistics.
+#[tauri::command]
+pub async fn get_skill_cache_stats() -> Result<SkillCacheStats, String> {
+    let output = sunwell_command()
+        .args(["skill", "cache-stats", "--json"])
+        .output()
+        .map_err(|e| format!("Failed to get cache stats: {}", e));
+    
+    match output {
+        Ok(out) if out.status.success() => {
+            let json_str = String::from_utf8_lossy(&out.stdout);
+            parse_json_safe(&json_str)
+                .map_err(|e| format!("Failed to parse cache stats: {}", e))
+        }
+        _ => {
+            // Return default stats
+            Ok(SkillCacheStats {
+                size: 0,
+                max_size: 1000,
+                hits: 0,
+                misses: 0,
+                hit_rate: 0.0,
+            })
+        }
+    }
+}
+
+/// Clear skill cache.
+#[tauri::command]
+pub async fn clear_skill_cache() -> Result<(), String> {
+    let output = sunwell_command()
+        .args(["skill", "cache-clear"])
+        .output()
+        .map_err(|e| format!("Failed to clear cache: {}", e))?;
+    
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
 }
 
 // =============================================================================
@@ -335,6 +503,9 @@ fn default_skills() -> Vec<LensSkill> {
             shortcut: "::a".to_string(),
             description: "Validate document against source code".to_string(),
             category: "validation".to_string(),
+            depends_on: Vec::new(),
+            produces: Vec::new(),
+            requires: Vec::new(),
         },
         LensSkill {
             id: "polish".to_string(),
@@ -342,6 +513,9 @@ fn default_skills() -> Vec<LensSkill> {
             shortcut: "::p".to_string(),
             description: "Improve clarity and style".to_string(),
             category: "transformation".to_string(),
+            depends_on: Vec::new(),
+            produces: Vec::new(),
+            requires: Vec::new(),
         },
         LensSkill {
             id: "style-check".to_string(),
@@ -349,6 +523,9 @@ fn default_skills() -> Vec<LensSkill> {
             shortcut: "::s".to_string(),
             description: "Check style guide compliance".to_string(),
             category: "validation".to_string(),
+            depends_on: Vec::new(),
+            produces: Vec::new(),
+            requires: Vec::new(),
         },
         LensSkill {
             id: "simplify".to_string(),
@@ -356,6 +533,9 @@ fn default_skills() -> Vec<LensSkill> {
             shortcut: "::sim".to_string(),
             description: "Reduce complexity and word count".to_string(),
             category: "transformation".to_string(),
+            depends_on: Vec::new(),
+            produces: Vec::new(),
+            requires: Vec::new(),
         },
     ]
 }

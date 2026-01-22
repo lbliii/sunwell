@@ -8,7 +8,6 @@ ToolExecutor dispatches tool calls to appropriate handlers:
 - Learned tools → LearnedToolHandler (Phase 6 - future)
 """
 
-from __future__ import annotations
 
 import asyncio
 import json
@@ -30,6 +29,7 @@ from sunwell.tools.types import (
 
 if TYPE_CHECKING:
     from sunwell.mirror.handler import MirrorHandler
+    from sunwell.models.protocol import Tool
     from sunwell.simulacrum.manager import SimulacrumToolHandler
     from sunwell.simulacrum.memory_tools import MemoryToolHandler
     from sunwell.skills.executor import SkillExecutor
@@ -211,7 +211,7 @@ class ToolExecutor:
         """Get list of available tool names."""
         return list(self._handlers.keys())
 
-    def get_tool_definitions(self) -> tuple[Tool, ...]:
+    def get_tool_definitions(self) -> tuple["Tool", ...]:
         """Get full Tool definitions for available tools (for native tool calling).
 
         Returns Tool objects with name, description, and JSON Schema parameters.

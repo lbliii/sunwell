@@ -6,7 +6,7 @@ Infer reasonable goals from project context when no backlog exists.
 import json
 import re
 
-from sunwell.models.protocol import GenerateOptions, ModelProtocol
+from sunwell.models.protocol import GenerateOptions, ModelProtocol, sanitize_llm_content
 from sunwell.project.intent_types import InferredGoal, ProjectType
 from sunwell.project.signals import ProjectSignals, format_dir_tree, format_recent_commits
 
@@ -152,8 +152,8 @@ def _parse_goals_response(response: str, project_name: str) -> tuple[InferredGoa
             goals.append(
                 InferredGoal(
                     id=g.get("id", f"goal-{len(goals)+1}"),
-                    title=g["title"],
-                    description=g.get("description", ""),
+                    title=sanitize_llm_content(g["title"]) or "",
+                    description=sanitize_llm_content(g.get("description", "")) or "",
                     priority=g.get("priority", "medium"),
                     status="inferred",
                     confidence=g.get("confidence", 0.6),
@@ -212,7 +212,7 @@ async def classify_with_llm(
     try:
         data = _extract_json(result.text)
         project_type = ProjectType(data["project_type"])
-        subtype = data.get("subtype")
+        subtype = sanitize_llm_content(data["subtype"]) if data.get("subtype") else None
         confidence = data.get("confidence", 0.7)
         return project_type, subtype, confidence
     except (ValueError, KeyError, json.JSONDecodeError):

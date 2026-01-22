@@ -5,7 +5,6 @@ Strong signals can migrate across boundaries, enabling cross-pollination
 without homogenization.
 """
 
-from __future__ import annotations
 
 import random
 from collections import Counter

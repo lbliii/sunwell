@@ -7,7 +7,6 @@ Provides unified workspace resolution logic for both CLI and Desktop:
 - Confirmation prompts for ambiguous situations
 """
 
-from __future__ import annotations
 
 import os
 from dataclasses import dataclass

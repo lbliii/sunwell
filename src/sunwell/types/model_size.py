@@ -4,7 +4,6 @@ This module provides a simple enum for classifying models by parameter count,
 used for selecting appropriate configuration presets.
 """
 
-from __future__ import annotations
 
 from enum import Enum
 

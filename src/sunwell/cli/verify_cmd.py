@@ -7,7 +7,6 @@ Usage:
     sunwell verify src/models/user.py --save-tests
 """
 
-from __future__ import annotations
 
 import asyncio
 from pathlib import Path

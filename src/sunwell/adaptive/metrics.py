@@ -12,7 +12,7 @@ Supports disk persistence for cross-session model discovery.
 import json
 import platform
 from collections import defaultdict
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from pathlib import Path
 from statistics import mean, stdev
 from typing import Any, Literal

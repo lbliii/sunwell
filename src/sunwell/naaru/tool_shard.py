@@ -7,7 +7,6 @@ Small models don't need tool awareness - they just receive the relevant
 expertise baked into their prompt.
 """
 
-from __future__ import annotations
 
 import time
 from dataclasses import dataclass
