@@ -21,10 +21,13 @@ console = Console()
 
 # RFC-037: Custom group that supports goal-first interface
 class GoalFirstGroup(click.Group):
-    """Custom group that allows 'sunwell "goal"' syntax while preserving subcommands."""
+    """Custom group that allows 'sunwell "goal"' syntax while preserving subcommands.
+
+    Also supports RFC-086: `sunwell .` and `sunwell ~/path` patterns for project opening.
+    """
 
     def parse_args(self, ctx, args):
-        """Override to handle goal-first pattern."""
+        """Override to handle goal-first pattern and path shortcuts."""
         # If no args, proceed normally
         if not args:
             return super().parse_args(ctx, args)
@@ -32,8 +35,17 @@ class GoalFirstGroup(click.Group):
         # Get list of known command names
         command_names = set(self.list_commands(ctx))
 
-        # If first arg is NOT a command and NOT an option, treat it as a goal
         first_arg = args[0]
+
+        # RFC-086: Check if it's a path pattern (starts with . or / or ~)
+        # These should be treated as 'open' commands
+        if first_arg in (".", "..") or first_arg.startswith(("/", "~", "./")):
+            ctx.ensure_object(dict)
+            ctx.obj["_open_path"] = first_arg
+            args = args[1:]  # Remove path from args
+            return super().parse_args(ctx, args)
+
+        # If first arg is NOT a command and NOT an option, treat it as a goal
         if (
             first_arg not in command_names
             and not first_arg.startswith("-")
@@ -101,9 +113,23 @@ def main(
     load_dotenv()
     check_free_threading(quiet=quiet)
 
-    # Get goal from custom parsing (if any)
+    # Get goal or path from custom parsing
     ctx.ensure_object(dict)
     goal = ctx.obj.get("_goal")
+    open_path = ctx.obj.get("_open_path")
+
+    # RFC-086: If a path was provided (sunwell . or sunwell ~/path), open project
+    if open_path and ctx.invoked_subcommand is None:
+        from sunwell.cli import open_cmd
+
+        ctx.invoke(
+            open_cmd.open_project,
+            path=open_path,
+            lens=None,
+            mode="auto",
+            dry_run=False,
+        )
+        return
 
     # If a goal was provided and no subcommand invoked, run agent
     if goal and ctx.invoked_subcommand is None:
@@ -533,3 +559,23 @@ main.add_command(interface_cmd.interface)
 from sunwell.cli import reason
 
 main.add_command(reason.reason)
+
+# Project Analysis (RFC-079)
+from sunwell.cli import project_cmd
+
+main.add_command(project_cmd.project)
+
+# Self-Knowledge (RFC-085)
+from sunwell.cli import self_cmd
+
+main.add_command(self_cmd.self_cmd, name="self")
+
+# Universal Writing Environment (RFC-086)
+from sunwell.cli import open_cmd
+
+main.add_command(open_cmd.open_project, name="open")
+
+# Autonomous Workflow Execution (RFC-086)
+from sunwell.cli import workflow_cmd
+
+main.add_command(workflow_cmd.workflow)

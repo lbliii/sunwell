@@ -13,22 +13,73 @@ mod heuristic_detect;
 mod interface;
 mod lens;
 mod memory;
+mod naaru;
 mod preview;
 mod project;
 mod run_analysis;
+mod self_knowledge;
 mod surface;
+mod util;
 mod weakness;
 mod weakness_types;
+mod workflow;
 mod workspace;
+mod writer;
 
+use clap::Parser;
 use commands::AppState;
-use tauri::Manager;
+use serde::Serialize;
+use tauri::{Emitter, Manager};
+
+/// Sunwell Studio — AI-native writing environment (RFC-086).
+#[derive(Parser, Debug, Clone)]
+#[command(name = "sunwell-studio", about = "AI-native writing environment")]
+struct CliArgs {
+    /// Path to project directory to open
+    #[arg(short, long)]
+    project: Option<String>,
+
+    /// Lens to use (e.g., coder.lens, tech-writer.lens)
+    #[arg(short, long)]
+    lens: Option<String>,
+
+    /// Workspace mode: writer, code, or planning
+    #[arg(short, long)]
+    mode: Option<String>,
+}
+
+/// Startup parameters passed via CLI (RFC-086).
+#[derive(Debug, Clone, Serialize)]
+pub struct StartupParams {
+    pub project: Option<String>,
+    pub lens: Option<String>,
+    pub mode: Option<String>,
+}
 
 fn main() {
+    // RFC-086: Parse CLI args before Tauri starts
+    let args = CliArgs::parse();
+    let startup = StartupParams {
+        project: args.project,
+        lens: args.lens,
+        mode: args.mode,
+    };
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(AppState::default())
-        .setup(|app| {
+        .setup(move |app| {
+            // Emit startup params to frontend if any were provided
+            if startup.project.is_some() || startup.lens.is_some() || startup.mode.is_some() {
+                let handle = app.handle().clone();
+                let params = startup.clone();
+                // Emit after a short delay to ensure frontend is ready
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                    let _ = handle.emit("startup-params", params);
+                });
+            }
+
             #[cfg(debug_assertions)]
             {
                 let window = app.get_webview_window("main").unwrap();
@@ -80,10 +131,12 @@ fn main() {
             dag::get_cache_stats,
             dag::get_artifact_impact,
             dag::clear_cache,
-            // Memory / Simulacrum (RFC-013, RFC-014)
+            // Memory / Simulacrum (RFC-013, RFC-014, RFC-084)
             memory::get_memory_stats,
             memory::list_sessions,
             memory::get_intelligence,
+            memory::get_concept_graph,
+            memory::get_chunk_hierarchy,
             // Saved prompts
             commands::get_saved_prompts,
             commands::save_prompt,
@@ -114,6 +167,10 @@ fn main() {
             commands::run_project,
             commands::stop_project_run,
             commands::save_run_command,
+            // Project Intent Analysis (RFC-079)
+            commands::analyze_project,
+            commands::analyze_monorepo,
+            commands::get_project_signals,
             // Briefing System (RFC-071)
             briefing::get_briefing,
             briefing::has_briefing,
@@ -127,6 +184,43 @@ fn main() {
             interface::process_goal,
             interface::list_providers,
             interface::interface_demo,
+            // Block Actions (RFC-080)
+            interface::execute_block_action,
+            // Speculative UI Composition (RFC-082)
+            interface::predict_composition,
+            // Naaru Unified API (RFC-083)
+            naaru::naaru_process,
+            naaru::naaru_subscribe,
+            naaru::naaru_convergence,
+            naaru::naaru_cancel,
+            // Self-Knowledge (RFC-085)
+            self_knowledge::self_get_module_source,
+            self_knowledge::self_find_symbol,
+            self_knowledge::self_list_modules,
+            self_knowledge::self_search_source,
+            self_knowledge::self_get_patterns,
+            self_knowledge::self_get_failures,
+            self_knowledge::self_list_proposals,
+            self_knowledge::self_get_proposal,
+            self_knowledge::self_test_proposal,
+            self_knowledge::self_approve_proposal,
+            self_knowledge::self_apply_proposal,
+            self_knowledge::self_rollback_proposal,
+            self_knowledge::self_get_summary,
+            // Workflow Execution (RFC-086)
+            workflow::route_workflow_intent,
+            workflow::start_workflow,
+            workflow::stop_workflow,
+            workflow::resume_workflow,
+            workflow::skip_workflow_step,
+            workflow::list_workflow_chains,
+            workflow::list_active_workflows,
+            // Writer Environment (RFC-086)
+            writer::detect_diataxis,
+            writer::validate_document,
+            writer::get_lens_skills,
+            writer::execute_skill,
+            writer::fix_all_issues,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

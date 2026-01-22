@@ -1,7 +1,11 @@
-"""CLI commands for Naaru Agent Mode (RFC-032).
+"""CLI commands for Naaru Unified Orchestration (RFC-032, RFC-083).
 
-Provides:
-- sunwell naaru run "goal": Execute arbitrary tasks
+RFC-083 Unified Commands:
+- sunwell naaru process "content": THE unified entry point
+- sunwell naaru convergence: Read Convergence state
+
+Legacy Commands (still supported):
+- sunwell naaru run "goal": Execute arbitrary tasks (maps to process --mode agent)
 - sunwell naaru resume: Resume from checkpoint
 - sunwell naaru illuminate: Self-improvement mode (RFC-019)
 """
@@ -22,8 +26,254 @@ console = Console()
 
 @click.group()
 def naaru():
-    """Naaru coordinated intelligence commands (RFC-019, RFC-032)."""
+    """Naaru unified orchestration commands (RFC-019, RFC-032, RFC-083)."""
     pass
+
+
+# =============================================================================
+# RFC-083: UNIFIED PROCESS COMMAND
+# =============================================================================
+
+
+@naaru.command("process")
+@click.argument("content")
+@click.option(
+    "--mode", "-m",
+    type=click.Choice(["auto", "chat", "agent", "interface"]),
+    default="auto",
+    help="Processing mode (default: auto - Naaru decides)",
+)
+@click.option(
+    "--json", "json_output",
+    is_flag=True,
+    help="Output JSON (for programmatic use)",
+)
+@click.option(
+    "--stream",
+    is_flag=True,
+    default=True,
+    help="Stream events as they happen (default: True)",
+)
+@click.option(
+    "--timeout", "-t",
+    default=300.0,
+    help="Max execution time in seconds (default: 300)",
+)
+@click.option(
+    "--page-type",
+    type=click.Choice(["home", "project", "research", "planning", "conversation"]),
+    default="home",
+    help="Current UI page context",
+)
+@click.option(
+    "--verbose", "-v",
+    is_flag=True,
+    help="Show detailed output",
+)
+def process_cmd(
+    content: str,
+    mode: str,
+    json_output: bool,
+    stream: bool,
+    timeout: float,
+    page_type: str,
+    verbose: bool,
+):
+    """Process any input through unified Naaru (RFC-083).
+
+    THE single entry point for all Naaru interaction.
+
+    Examples:
+
+        sunwell naaru process "Hello, how are you?"
+
+        sunwell naaru process "Build a REST API" --mode agent
+
+        sunwell naaru process "plan my week" --mode chat
+
+        sunwell naaru process "what files are in src/" --mode interface --json
+    """
+    asyncio.run(_process_unified(content, mode, json_output, stream, timeout, page_type, verbose))
+
+
+async def _process_unified(
+    content: str,
+    mode: str,
+    json_output: bool,
+    stream: bool,
+    timeout: float,
+    page_type: str,
+    verbose: bool,
+):
+    """Execute unified process."""
+    import json as json_module
+
+    from sunwell.config import get_config
+    from sunwell.naaru import Naaru, NaaruEventType, ProcessInput, ProcessMode
+    from sunwell.types.config import NaaruConfig
+
+    config = get_config()
+
+    # Create model
+    synthesis_model = None
+    try:
+        from sunwell.models.ollama import OllamaModel
+
+        model_name = None
+        if config and hasattr(config, "naaru"):
+            model_name = getattr(config.naaru, "voice", "gemma3:1b")
+        if not model_name:
+            model_name = "gemma3:1b"
+
+        synthesis_model = OllamaModel(model=model_name)
+        if verbose and not json_output:
+            console.print(f"[dim]Using model: {model_name}[/dim]")
+    except Exception as e:
+        if not json_output:
+            console.print(f"[yellow]Warning: Could not load model: {e}[/yellow]")
+
+    # Create Naaru
+    naaru_config = NaaruConfig()
+    if config and hasattr(config, "naaru"):
+        naaru_config = config.naaru
+
+    naaru_instance = Naaru(
+        workspace=Path.cwd(),
+        synthesis_model=synthesis_model,
+        config=naaru_config,
+    )
+
+    # Create input
+    process_input = ProcessInput(
+        content=content,
+        mode=ProcessMode(mode),
+        page_type=page_type,
+        workspace=Path.cwd(),
+        stream=stream,
+        timeout=timeout,
+    )
+
+    if json_output:
+        # Collect all events and output as JSON
+        events = []
+        response = ""
+
+        async for event in naaru_instance.process(process_input):
+            event_dict = event.to_dict()
+            events.append(event_dict)
+
+            if stream:
+                # Stream each event as JSON line
+                print(json_module.dumps(event_dict))
+
+            if event.type == NaaruEventType.MODEL_TOKENS:
+                response += event.data.get("content", "")
+
+        if not stream:
+            # Output final summary
+            print(json_module.dumps({
+                "response": response,
+                "events": events,
+            }))
+    else:
+        # Human-readable output
+        response = ""
+        route_type = "unknown"
+
+        async for event in naaru_instance.process(process_input):
+            if event.type == NaaruEventType.PROCESS_START:
+                if verbose:
+                    console.print(f"[dim]Processing: {content[:50]}...[/dim]")
+
+            elif event.type == NaaruEventType.ROUTE_DECISION:
+                route_type = event.data.get("interaction_type", "unknown")
+                confidence = event.data.get("confidence", 0)
+                if verbose:
+                    console.print(f"[dim]Route: {route_type} (confidence: {confidence:.0%})[/dim]")
+
+            elif event.type == NaaruEventType.COMPOSITION_READY:
+                if verbose:
+                    panels = event.data.get("panels", [])
+                    if panels:
+                        panel_types = ", ".join(p.get("panel_type", "?") for p in panels)
+                        console.print(f"[dim]Panels: {panel_types}[/dim]")
+
+            elif event.type == NaaruEventType.MODEL_TOKENS:
+                token_content = event.data.get("content", "")
+                response += token_content
+                if stream:
+                    console.print(token_content, end="")
+
+            elif event.type == NaaruEventType.TASK_COMPLETE:
+                task_desc = event.data.get("description", "")[:50]
+                console.print(f"  [green]✓[/green] {task_desc}")
+
+            elif event.type == NaaruEventType.PROCESS_ERROR:
+                error_msg = event.data.get("error", "Unknown error")
+                console.print(f"[red]Error: {error_msg}[/red]")
+
+            elif event.type == NaaruEventType.PROCESS_COMPLETE:
+                duration = event.data.get("duration_s", 0)
+                if verbose:
+                    console.print(f"\n[dim]Completed in {duration:.1f}s[/dim]")
+
+        if not stream and response:
+            console.print(response)
+
+
+@naaru.command("convergence")
+@click.option(
+    "--slot", "-s",
+    help="Specific slot to read (e.g., 'routing:current')",
+)
+@click.option(
+    "--json", "json_output",
+    is_flag=True,
+    help="Output as JSON",
+)
+def convergence_cmd(slot: str | None, json_output: bool):
+    """Read Convergence state (RFC-083).
+
+    Convergence is the shared working memory with 7±2 slots.
+
+    Examples:
+
+        sunwell naaru convergence
+
+        sunwell naaru convergence --slot composition:current --json
+
+        sunwell naaru convergence --slot routing:current
+    """
+    asyncio.run(_convergence(slot, json_output))
+
+
+async def _convergence(slot: str | None, json_output: bool):
+    """Read convergence state."""
+    import json as json_module
+
+    from sunwell.naaru import CONVERGENCE_SLOTS
+
+    # For now, show slot definitions (actual convergence would need session)
+    if json_output:
+        if slot:
+            desc = CONVERGENCE_SLOTS.get(slot, "Unknown slot")
+            print(json_module.dumps({"slot": slot, "description": desc, "value": None}))
+        else:
+            print(json_module.dumps({"slots": CONVERGENCE_SLOTS}))
+    else:
+        if slot:
+            desc = CONVERGENCE_SLOTS.get(slot, "Unknown slot")
+            console.print(f"[bold]{slot}[/bold]: {desc}")
+            console.print("[dim]Note: Actual value requires active session[/dim]")
+        else:
+            console.print("[bold]Standard Convergence Slots (RFC-083)[/bold]\n")
+            for slot_id, desc in CONVERGENCE_SLOTS.items():
+                console.print(f"  [cyan]{slot_id}[/cyan]: {desc}")
+
+
+# =============================================================================
+# LEGACY COMMANDS (still supported, map to unified process)
+# =============================================================================
 
 
 @naaru.command()
@@ -180,7 +430,7 @@ async def _run_agent(
         naaru_config = config.naaru
 
     naaru = Naaru(
-        sunwell_root=Path.cwd(),
+        workspace=Path.cwd(),
         synthesis_model=synthesis_model,
         planner=planner,
         tool_executor=tool_executor,
@@ -416,7 +666,7 @@ async def _resume_agent(checkpoint_path: str | None):
         console.print("[yellow]Warning: Could not load model[/yellow]")
 
     naaru = Naaru(
-        sunwell_root=Path(cp.working_directory),
+        workspace=Path(cp.working_directory),
         synthesis_model=synthesis_model,
         tool_executor=tool_executor,
     )
@@ -504,7 +754,7 @@ async def _illuminate(goals: list[str], time: int, verbose: bool):
         naaru_config = config.naaru
 
     naaru = Naaru(
-        sunwell_root=Path.cwd(),
+        workspace=Path.cwd(),
         synthesis_model=synthesis_model,
         judge_model=judge_model,
         config=naaru_config,

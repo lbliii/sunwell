@@ -514,7 +514,7 @@ class ToolExecutor:
         execution_time_ms: int,
         error: str | None = None,
     ) -> None:
-        """Log tool execution for audit."""
+        """Log tool execution for audit and self-analysis (RFC-085)."""
         entry = ToolAuditEntry(
             timestamp=datetime.now(),
             tool_name=tool_call.name,
@@ -528,6 +528,22 @@ class ToolExecutor:
         # Write to file if audit path configured
         if self.audit_path:
             self._write_audit_entry(entry)
+
+        # RFC-085: Record execution event to Self.analysis for pattern detection
+        try:
+            from sunwell.self import Self
+            from sunwell.self.types import ExecutionEvent
+
+            Self.get().analysis.record_execution(ExecutionEvent(
+                tool_name=tool_call.name,
+                success=success,
+                latency_ms=execution_time_ms,
+                error=error,
+                timestamp=entry.timestamp,
+            ))
+        except Exception:
+            # Don't let analysis recording failures break tool execution
+            pass
 
     def _write_audit_entry(self, entry: ToolAuditEntry) -> None:
         """Write audit entry to file."""

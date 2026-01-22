@@ -1,13 +1,19 @@
-"""Naaru Architecture - Coordinated Intelligence for Local Models (RFC-019).
+"""Naaru Architecture - Unified Orchestration Layer (RFC-019, RFC-083).
 
-The Naaru is Sunwell's answer to maximizing quality and throughput from small local models.
-Instead of a simple worker pool, it implements coordinated intelligence with specialized
-components that work in harmony.
+The Naaru is Sunwell's unified orchestration layer. ALL entry points (CLI, chat,
+Studio, API) route through Naaru, which coordinates workers, shards, and
+convergence to execute tasks.
+
+RFC-083 Unification:
+- Single entry point: naaru.process()
+- All routing through RoutingWorker
+- All context through Convergence
+- All events through MessageBus
 
 Architecture:
 ```
               ┌─────────────────┐
-              │      NAARU      │  ← Coordinates everything
+              │      NAARU      │  ← Single entry: process()
               │   (The Light)   │
               └────────┬────────┘
                        │
@@ -25,7 +31,7 @@ Architecture:
 ```
 
 Components:
-- **Naaru**: The coordinator (facade)
+- **Naaru**: The unified coordinator
 - **ExecutionCoordinator**: Task/artifact execution
 - **LearningExtractor**: Learning persistence
 - **NaaruEventEmitter**: Event emission
@@ -37,7 +43,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -58,6 +64,16 @@ from sunwell.naaru.workers import (
     ValidationWorker,
 )
 from sunwell.types.config import NaaruConfig
+from sunwell.types.naaru_api import (
+    CompositionSpec,
+    NaaruError,
+    NaaruEvent,
+    NaaruEventType,
+    ProcessInput,
+    ProcessMode,
+    ProcessOutput,
+    RoutingDecision,
+)
 
 
 @dataclass
@@ -120,7 +136,7 @@ class Naaru:
         >>> result = await naaru.run("Build a React forum app")
     """
 
-    sunwell_root: Path
+    workspace: Path
     synthesis_model: Any = None
     judge_model: Any = None
     config: NaaruConfig = field(default_factory=NaaruConfig)
@@ -163,7 +179,7 @@ class Naaru:
         # RFC-076: Initialize composed components
         self._event_emitter = NaaruEventEmitter(self.config.event_callback)
         self._execution_coordinator = ExecutionCoordinator(
-            sunwell_root=self.sunwell_root,
+            workspace=self.workspace,
             synthesis_model=self.synthesis_model,
             judge_model=self.judge_model,
             tool_executor=self.tool_executor,
@@ -171,9 +187,452 @@ class Naaru:
             config=self.config,
         )
         self._learning_extractor = LearningExtractor(
-            sunwell_root=self.sunwell_root,
+            workspace=self.workspace,
             event_emitter=self._event_emitter,
         )
+
+    # =========================================================================
+    # process() - Unified Entry Point (RFC-083)
+    # =========================================================================
+
+    async def process(
+        self,
+        input: ProcessInput,
+    ) -> AsyncIterator[NaaruEvent]:
+        """THE unified entry point. All roads lead here. (RFC-083)
+
+        This is the single entry point for all Naaru processing:
+        - CLI goals
+        - Chat messages
+        - Studio interactions
+        - API calls
+
+        The flow:
+        1. Route (RoutingWorker) — What kind of request?
+        2. Compose (Compositor Shard) — What UI to show?
+        3. Prepare (Context Shards) — Gather context in parallel
+        4. Execute (Execute Region) — Run tasks/tools
+        5. Validate (Validation Worker) — Check quality
+        6. Learn (Consolidator Shard) — Persist learnings
+        7. Respond — Return result
+
+        Args:
+            input: ProcessInput with content, mode, and options
+
+        Yields:
+            NaaruEvent stream as processing happens
+
+        Example:
+            async for event in naaru.process(ProcessInput(content="Build API")):
+                print(event.type, event.data)
+        """
+        start_time = datetime.now()
+
+        # Emit process start
+        yield NaaruEvent(
+            type=NaaruEventType.PROCESS_START,
+            data={"content": input.content, "mode": input.mode.value},
+        )
+
+        try:
+            # Step 1: Route the request
+            routing = await self._route_input(input)
+            yield NaaruEvent(
+                type=NaaruEventType.ROUTE_DECISION,
+                data=routing.to_dict(),
+            )
+
+            # Store routing in Convergence
+            if self.convergence:
+                from sunwell.naaru.convergence import Slot, SlotSource
+
+                await self.convergence.add(Slot(
+                    id="routing:current",
+                    content=routing.to_dict(),
+                    relevance=1.0,
+                    source=SlotSource.NAARU,
+                    ttl=30,  # Routing is per-request
+                ))
+
+            # Step 2: Compose UI (parallel with context preparation)
+            composition = await self._compose_ui(input, routing)
+            if composition:
+                yield NaaruEvent(
+                    type=NaaruEventType.COMPOSITION_READY,
+                    data=composition.to_dict(),
+                )
+
+            # Step 3-6: Execute based on mode
+            is_agent_mode = input.mode == ProcessMode.AGENT
+            is_auto_action = (
+                input.mode == ProcessMode.AUTO
+                and routing.interaction_type in ("action", "workspace")
+            )
+            if is_agent_mode or is_auto_action:
+                # Agent mode: Full task execution
+                async for event in self._execute_agent_mode(input, routing):
+                    yield event
+            elif input.mode == ProcessMode.CHAT or (
+                input.mode == ProcessMode.AUTO and routing.interaction_type == "conversation"
+            ):
+                # Chat mode: Conversational response
+                async for event in self._execute_chat_mode(input, routing):
+                    yield event
+            elif input.mode == ProcessMode.INTERFACE:
+                # Interface mode: UI-focused routing
+                async for event in self._execute_interface_mode(input, routing):
+                    yield event
+            else:
+                # Auto mode with hybrid/view
+                async for event in self._execute_hybrid_mode(input, routing):
+                    yield event
+
+            # Step 7: Process complete
+            elapsed = (datetime.now() - start_time).total_seconds()
+            yield NaaruEvent(
+                type=NaaruEventType.PROCESS_COMPLETE,
+                data={
+                    "duration_s": elapsed,
+                    "route_type": routing.interaction_type,
+                    "confidence": routing.confidence,
+                },
+            )
+
+        except Exception as e:
+            yield NaaruEvent(
+                type=NaaruEventType.PROCESS_ERROR,
+                data={
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "recoverable": not isinstance(e, (KeyboardInterrupt, SystemExit)),
+                },
+            )
+            raise NaaruError(
+                code="PROCESS_ERROR",
+                message=str(e),
+                recoverable=True,
+                context={"input": input.content[:100]},
+            ) from e
+
+    async def process_sync(self, input: ProcessInput) -> ProcessOutput:
+        """Non-streaming process that returns final ProcessOutput.
+
+        Convenience method that collects all events and returns the final result.
+
+        Args:
+            input: ProcessInput with content, mode, and options
+
+        Returns:
+            ProcessOutput with response and metadata
+        """
+        events: list[NaaruEvent] = []
+        response = ""
+        route_type = "conversation"
+        confidence = 0.0
+        composition: CompositionSpec | None = None
+        routing: RoutingDecision | None = None
+        tasks_completed = 0
+        artifacts: list[str] = []
+
+        async for event in self.process(input):
+            events.append(event)
+
+            if event.type == NaaruEventType.ROUTE_DECISION:
+                route_type = event.data.get("interaction_type", "conversation")
+                confidence = event.data.get("confidence", 0.0)
+                routing = RoutingDecision(
+                    interaction_type=route_type,
+                    confidence=confidence,
+                    tier=event.data.get("tier", 1),
+                    lens=event.data.get("lens"),
+                    page_type=event.data.get("page_type", "home"),
+                    tools=event.data.get("tools", []),
+                    mood=event.data.get("mood"),
+                    reasoning=event.data.get("reasoning"),
+                )
+            elif event.type == NaaruEventType.COMPOSITION_READY:
+                composition = CompositionSpec(
+                    page_type=event.data.get("page_type", "home"),
+                    panels=event.data.get("panels", []),
+                    input_mode=event.data.get("input_mode", "hero"),
+                    suggested_tools=event.data.get("suggested_tools", []),
+                    confidence=event.data.get("confidence", 0.0),
+                    source=event.data.get("source", "regex"),
+                )
+            elif event.type == NaaruEventType.MODEL_TOKENS:
+                response += event.data.get("content", "")
+            elif event.type == NaaruEventType.TASK_COMPLETE:
+                tasks_completed += 1
+                if event.data.get("artifact"):
+                    artifacts.append(event.data["artifact"])
+
+        return ProcessOutput(
+            response=response or "I'm here to help.",
+            route_type=route_type,
+            confidence=confidence,
+            composition=composition,
+            tasks_completed=tasks_completed,
+            artifacts=artifacts,
+            events=events,
+            routing=routing,
+        )
+
+    async def _route_input(self, input: ProcessInput) -> RoutingDecision:
+        """Route the input using RoutingWorker or heuristics.
+
+        Args:
+            input: ProcessInput to route
+
+        Returns:
+            RoutingDecision with interaction type and metadata
+        """
+        # If mode is explicit, use it
+        if input.mode != ProcessMode.AUTO:
+            mode_to_type = {
+                ProcessMode.CHAT: "conversation",
+                ProcessMode.AGENT: "action",
+                ProcessMode.INTERFACE: "view",
+            }
+            return RoutingDecision(
+                interaction_type=mode_to_type.get(input.mode, "conversation"),
+                confidence=1.0,
+                tier=1,
+                page_type=input.page_type,
+            )
+
+        # Try to use routing worker if available
+        if self._routing_worker:
+            routing_dict = await self._routing_worker.route_sync(
+                input.content,
+                context=input.context,
+            )
+            return RoutingDecision(
+                interaction_type=routing_dict.get("intent", "conversation"),
+                confidence=routing_dict.get("confidence", 0.5),
+                tier=routing_dict.get("tier", 1),
+                lens=routing_dict.get("lens"),
+                page_type=input.page_type,
+                tools=routing_dict.get("tools", []),
+                mood=routing_dict.get("mood"),
+                reasoning=routing_dict.get("reasoning"),
+            )
+
+        # Fallback: heuristic routing
+        return self._heuristic_route(input.content)
+
+    def _heuristic_route(self, content: str) -> RoutingDecision:
+        """Fallback heuristic routing without LLM."""
+        content_lower = content.lower()
+
+        # Action patterns
+        action_kws = ["build", "create", "implement", "write code", "make a"]
+        if any(kw in content_lower for kw in action_kws):
+            return RoutingDecision(
+                interaction_type="action",
+                confidence=0.6,
+                tier=2,
+                page_type="project",
+            )
+
+        # View patterns
+        if any(kw in content_lower for kw in ["show", "display", "list", "what is", "find"]):
+            return RoutingDecision(
+                interaction_type="view",
+                confidence=0.5,
+                tier=1,
+                page_type="home",
+            )
+
+        # Default to conversation
+        return RoutingDecision(
+            interaction_type="conversation",
+            confidence=0.4,
+            tier=1,
+            page_type="conversation",
+        )
+
+    async def _compose_ui(
+        self,
+        input: ProcessInput,
+        routing: RoutingDecision,
+    ) -> CompositionSpec | None:
+        """Compose UI layout based on routing decision.
+
+        Args:
+            input: ProcessInput
+            routing: RoutingDecision from router
+
+        Returns:
+            CompositionSpec or None if no UI needed
+        """
+        # Simple composition based on routing
+        panels: list[dict[str, Any]] = []
+
+        if routing.interaction_type == "conversation":
+            # Check for auxiliary panel triggers
+            content_lower = input.content.lower()
+            if any(kw in content_lower for kw in ["plan", "schedule", "week", "day", "calendar"]):
+                panels.append({"panel_type": "calendar", "title": "Schedule"})
+            if any(kw in content_lower for kw in ["todo", "task", "remind"]):
+                panels.append({"panel_type": "tasks", "title": "Tasks"})
+
+        return CompositionSpec(
+            page_type=routing.page_type,
+            panels=panels,
+            input_mode="chat" if routing.interaction_type == "conversation" else "hero",
+            suggested_tools=[],
+            confidence=routing.confidence,
+            source="regex",
+        )
+
+    async def _execute_agent_mode(
+        self,
+        input: ProcessInput,
+        routing: RoutingDecision,
+    ) -> AsyncIterator[NaaruEvent]:
+        """Execute in agent mode (task execution).
+
+        Args:
+            input: ProcessInput
+            routing: RoutingDecision
+
+        Yields:
+            NaaruEvent stream
+        """
+        # Use existing run() implementation
+        result = await self.run(
+            goal=input.content,
+            context=input.context,
+            max_time_seconds=input.timeout,
+        )
+
+        # Convert to events
+        for i, task in enumerate(result.tasks):
+            if hasattr(task, "status") and task.status.value == "completed":
+                yield NaaruEvent(
+                    type=NaaruEventType.TASK_COMPLETE,
+                    data={
+                        "task_id": getattr(task, "id", str(i)),
+                        "description": getattr(task, "description", ""),
+                    },
+                )
+
+        # Final response
+        summary = f"Completed {result.completed_count}/{len(result.tasks)} tasks"
+        if result.artifacts:
+            summary += f". Created: {', '.join(str(a) for a in result.artifacts[:5])}"
+
+        yield NaaruEvent(
+            type=NaaruEventType.MODEL_TOKENS,
+            data={"content": summary},
+        )
+
+    async def _execute_chat_mode(
+        self,
+        input: ProcessInput,
+        routing: RoutingDecision,
+    ) -> AsyncIterator[NaaruEvent]:
+        """Execute in chat mode (conversational).
+
+        Args:
+            input: ProcessInput
+            routing: RoutingDecision
+
+        Yields:
+            NaaruEvent stream
+        """
+        yield NaaruEvent(
+            type=NaaruEventType.MODEL_START,
+            data={"mode": "chat"},
+        )
+
+        if self.synthesis_model is None:
+            no_model_msg = "I'm here to help! However, no model is configured."
+            yield NaaruEvent(
+                type=NaaruEventType.MODEL_TOKENS,
+                data={"content": no_model_msg},
+            )
+            yield NaaruEvent(type=NaaruEventType.MODEL_COMPLETE, data={})
+            return
+
+        # Build prompt with conversation history
+        messages = []
+        for msg in input.conversation_history:
+            messages.append({"role": msg.role, "content": msg.content})
+        messages.append({"role": "user", "content": input.content})
+
+        # Generate response
+        try:
+            from sunwell.models.protocol import GenerateOptions
+
+            prompt = self._build_chat_prompt(messages)
+            result = await self.synthesis_model.generate(
+                prompt,
+                options=GenerateOptions(temperature=0.7, max_tokens=1000),
+            )
+
+            yield NaaruEvent(
+                type=NaaruEventType.MODEL_TOKENS,
+                data={"content": result.content or ""},
+            )
+        except Exception as e:
+            yield NaaruEvent(
+                type=NaaruEventType.MODEL_TOKENS,
+                data={"content": f"I encountered an error: {e}"},
+            )
+
+        yield NaaruEvent(type=NaaruEventType.MODEL_COMPLETE, data={})
+
+    def _build_chat_prompt(self, messages: list[dict[str, str]]) -> str:
+        """Build chat prompt from message history."""
+        prompt_parts = ["You are a helpful assistant. Respond conversationally.\n"]
+
+        for msg in messages[-10:]:  # Last 10 messages
+            role = msg["role"].title()
+            content = msg["content"]
+            prompt_parts.append(f"{role}: {content}\n")
+
+        prompt_parts.append("Assistant: ")
+        return "".join(prompt_parts)
+
+    async def _execute_interface_mode(
+        self,
+        input: ProcessInput,
+        routing: RoutingDecision,
+    ) -> AsyncIterator[NaaruEvent]:
+        """Execute in interface mode (UI composition).
+
+        Args:
+            input: ProcessInput
+            routing: RoutingDecision
+
+        Yields:
+            NaaruEvent stream
+        """
+        # Interface mode focuses on UI composition
+        # The composition is already done, just acknowledge
+        yield NaaruEvent(
+            type=NaaruEventType.MODEL_TOKENS,
+            data={"content": "Here's what I found for you."},
+        )
+
+    async def _execute_hybrid_mode(
+        self,
+        input: ProcessInput,
+        routing: RoutingDecision,
+    ) -> AsyncIterator[NaaruEvent]:
+        """Execute in hybrid mode (action + view).
+
+        Args:
+            input: ProcessInput
+            routing: RoutingDecision
+
+        Yields:
+            NaaruEvent stream
+        """
+        # For hybrid, do both chat and return view data
+        async for event in self._execute_chat_mode(input, routing):
+            yield event
 
     def _get_integration_verifier(self) -> Any:
         """Get or create the IntegrationVerifier (lazy initialization)."""
@@ -184,7 +643,7 @@ class Naaru:
             from sunwell.integration import IntegrationVerifier
 
             self._integration_verifier = IntegrationVerifier(
-                project_root=self.sunwell_root,
+                project_root=self.workspace,
             )
         return self._integration_verifier
 
@@ -240,8 +699,8 @@ class Naaru:
         from sunwell.naaru.discovery import OpportunityDiscoverer
 
         discoverer = OpportunityDiscoverer(
-            mirror=MirrorHandler(self.sunwell_root, self.sunwell_root / ".sunwell" / "naaru"),
-            sunwell_root=self.sunwell_root,
+            mirror=MirrorHandler(self.workspace, self.workspace / ".sunwell" / "naaru"),
+            workspace=self.workspace,
         )
         opportunities = await discoverer.discover(goals)
         output(f"   Found {len(opportunities)} opportunities")
@@ -445,7 +904,7 @@ class Naaru:
 
         output("⚡ Executing (incremental)...")
 
-        cache_path = self.sunwell_root / ".sunwell" / "cache" / "execution.db"
+        cache_path = self.workspace / ".sunwell" / "cache" / "execution.db"
         cache = ExecutionCache(cache_path)
         goal_hash = hash_goal(goal)
 
@@ -454,7 +913,7 @@ class Naaru:
             cache=cache,
             event_callback=self.config.event_callback,
             integration_verifier=self._get_integration_verifier(),
-            project_root=self.sunwell_root,
+            project_root=self.workspace,
         )
 
         force_artifacts = set(graph) if force_rebuild else None
@@ -579,7 +1038,7 @@ class Naaru:
             else:
                 router_model = self.synthesis_model
 
-            lens_dir = self.sunwell_root / "lenses"
+            lens_dir = self.workspace / "lenses"
             available_lenses = []
             if lens_dir.exists():
                 available_lenses = [p.stem for p in lens_dir.glob("*.lens")]
@@ -588,7 +1047,7 @@ class Naaru:
 
             self._routing_worker = CognitiveRoutingWorker(
                 bus=self.bus,
-                sunwell_root=self.sunwell_root,
+                workspace=self.workspace,
                 router_model=router_model,
                 available_lenses=available_lenses,
                 use_unified_router=True,
@@ -599,7 +1058,7 @@ class Naaru:
         if self.tool_executor:
             self._tool_worker = ToolRegionWorker(
                 bus=self.bus,
-                sunwell_root=self.sunwell_root,
+                workspace=self.workspace,
                 tool_executor=self.tool_executor,
             )
             self.workers.append(self._tool_worker)
@@ -607,14 +1066,14 @@ class Naaru:
         for i in range(self.config.num_analysis_shards):
             self.workers.append(AnalysisWorker(
                 bus=self.bus,
-                sunwell_root=self.sunwell_root,
+                workspace=self.workspace,
                 worker_id=i,
             ))
 
         for i in range(self.config.num_synthesis_shards):
             worker = HarmonicSynthesisWorker(
                 bus=self.bus,
-                sunwell_root=self.sunwell_root,
+                workspace=self.workspace,
                 worker_id=i,
                 model=self.synthesis_model,
                 config=self.config,
@@ -627,7 +1086,7 @@ class Naaru:
 
         self._validation_worker = ValidationWorker(
             bus=self.bus,
-            sunwell_root=self.sunwell_root,
+            workspace=self.workspace,
             model=self.judge_model,
             config=self.config,
             resonance=self.resonance,
@@ -636,12 +1095,12 @@ class Naaru:
 
         self.workers.append(MemoryWorker(
             bus=self.bus,
-            sunwell_root=self.sunwell_root,
+            workspace=self.workspace,
         ))
 
         self.workers.append(ExecutiveWorker(
             bus=self.bus,
-            sunwell_root=self.sunwell_root,
+            workspace=self.workspace,
             on_output=on_output,
         ))
 

@@ -1,0 +1,38 @@
+{
+  "with_memory_correct": 5,
+  "without_memory_correct": 0,
+  "total": 5,
+  "improvement_pct": 100.0,
+  "results": [
+    {
+      "query": "What is my name?",
+      "expected": "Alex Chen",
+      "with_memory_correct": true,
+      "without_memory_correct": false
+    },
+    {
+      "query": "What database are we using?",
+      "expected": "PostgreSQL 15",
+      "with_memory_correct": true,
+      "without_memory_correct": false
+    },
+    {
+      "query": "What's our API rate limit?",
+      "expected": "1000",
+      "with_memory_correct": true,
+      "without_memory_correct": false
+    },
+    {
+      "query": "Where are we deploying?",
+      "expected": "Kubernetes",
+      "with_memory_correct": true,
+      "without_memory_correct": false
+    },
+    {
+      "query": "How long do our auth tokens last?",
+      "expected": "24",
+      "with_memory_correct": true,
+      "without_memory_correct": false
+    }
+  ]
+}

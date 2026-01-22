@@ -34,12 +34,12 @@ class AutonomousRunner:
 
     Example:
         >>> config = SessionConfig(goals=["improve error handling"])
-        >>> runner = AutonomousRunner(config, sunwell_root=Path("."))
+        >>> runner = AutonomousRunner(config, workspace=Path("."))
         >>> await runner.start()
     """
 
     config: SessionConfig
-    sunwell_root: Path
+    workspace: Path
     storage_path: Path = None
     on_event: Callable[[str, str], None] | None = None
 
@@ -53,7 +53,7 @@ class AutonomousRunner:
     def __post_init__(self):
         """Initialize components."""
         if self.storage_path is None:
-            self.storage_path = self.sunwell_root / ".sunwell" / "autonomous"
+            self.storage_path = self.workspace / ".sunwell" / "autonomous"
 
         self.storage_path.mkdir(parents=True, exist_ok=True)
 
@@ -73,14 +73,14 @@ class AutonomousRunner:
 
         # Initialize mirror handler
         self.mirror = MirrorHandler(
-            sunwell_root=self.sunwell_root,
+            workspace=self.workspace,
             storage_path=self.storage_path / "mirror",
         )
 
         # Initialize discoverer
         self.discoverer = OpportunityDiscoverer(
             mirror=self.mirror,
-            sunwell_root=self.sunwell_root,
+            workspace=self.workspace,
         )
 
         # Setup signal handling
@@ -386,13 +386,13 @@ class AutonomousRunner:
 
 async def resume_session(
     session_path: Path,
-    sunwell_root: Path,
+    workspace: Path,
 ) -> SessionState:
     """Resume a paused session.
 
     Args:
         session_path: Path to the session JSON file
-        sunwell_root: Sunwell root directory
+        workspace: User's workspace directory
 
     Returns:
         Final session state
@@ -406,7 +406,7 @@ async def resume_session(
     # Create runner with existing config
     runner = AutonomousRunner(
         config=state.config,
-        sunwell_root=sunwell_root,
+        workspace=workspace,
         storage_path=session_path.parent,
     )
 

@@ -287,7 +287,7 @@ class AgentBenchmarkRunner:
                 output("   ⚡ Executing...")
 
                 naaru = Naaru(
-                    sunwell_root=workspace,
+                    workspace=workspace,
                     synthesis_model=self.model,
                     planner=planner,
                     tool_executor=tool_executor,

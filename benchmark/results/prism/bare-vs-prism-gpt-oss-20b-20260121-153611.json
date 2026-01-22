@@ -1,0 +1,133 @@
+{
+  "model": "gpt-oss:20b",
+  "timestamp": "2026-01-21T15:36:11.530126",
+  "summary": {
+    "bare_score": 0.9090909090909091,
+    "prism_score": 0.9090909090909091,
+    "bare_latency_ms": 76466.48083324976,
+    "prism_latency_ms": 70628.52174975001,
+    "lift_pct": 0.0,
+    "latency_overhead_pct": -7.634664260580491
+  },
+  "results": [
+    {
+      "method": "bare",
+      "task_id": "code-retry",
+      "latency_ms": 95378.18870799948,
+      "keywords_found": [
+        "def retry",
+        "async",
+        "jitter",
+        "sleep",
+        "except",
+        "exponential"
+      ],
+      "keywords_missing": [],
+      "response_preview": "```python\n\"\"\"\nA versatile retry decorator that works with both synchronous and asynchronous\ncallables.  The decorator adds exponential\u2011backoff delays with jitter to\nprevent a thundering\u2011herd problem.\n\nTypical usage:\n\n>>> @retry()          # 3 attempts, 1\u202fs base delay, 60\u202fs max delay\n>>> def risky():\n...     # may raise\n...     pass\n\n>>> @retry(max_retries=5, base_delay=0.2, max_delay=10)\n>>> async def async_risky():\n...     # may raise\n...     pass\n\"\"\"\n\nfrom __future__ import annotations\n\nimport"
+    },
+    {
+      "method": "prism",
+      "task_id": "code-retry",
+      "latency_ms": 68147.79229099986,
+      "keywords_found": [
+        "def retry",
+        "async",
+        "jitter",
+        "sleep",
+        "except",
+        "exponential"
+      ],
+      "keywords_missing": [],
+      "response_preview": "```python\n\"\"\"\nA versatile retry decorator with exponential back\u2011off and jitter.\n\nThe decorator works seamlessly for both normal (sync) and coroutine (async) callables.\nIt accepts a small set of configuration parameters:\n\n* ``max_retries`` \u2013 how many times the wrapped call is retried after a failure  \n  (default: 3).  The wrapped function is therefore called at most\n  ``max_retries + 1`` times.\n* ``base_delay`` \u2013 the seed delay in seconds for the first retry\n  (default: 1.0\u202fs).\n* ``max_delay`` \u2013 "
+    },
+    {
+      "method": "bare",
+      "task_id": "reason-api",
+      "latency_ms": 91312.49483299963,
+      "keywords_found": [
+        "PUT",
+        "PATCH",
+        "idempotent",
+        "partial",
+        "update"
+      ],
+      "keywords_missing": [],
+      "response_preview": "## PUT vs. PATCH for \u201cpartial\u201d updates\n\n| Feature | **PUT** | **PATCH** |\n|---------|---------|-----------|\n| **Semantics** | \u201cReplace the entire resource with the supplied representation.\u201d | \u201cApply the supplied changes to the existing resource.\u201d |\n| **Idempotency** | Guaranteed (sending the same payload twice yields the same state). | Not guaranteed by the spec \u2013 can be idempotent *if* the patch is designed that way. |\n| **Typical use\u2011case** | Full replacement (e.g., a user profile update that "
+    },
+    {
+      "method": "prism",
+      "task_id": "reason-api",
+      "latency_ms": 91003.1710000003,
+      "keywords_found": [
+        "PUT",
+        "PATCH",
+        "idempotent",
+        "partial",
+        "update"
+      ],
+      "keywords_missing": [],
+      "response_preview": "### 1.  Think \u2013 What the HTTP Methods Actually Say  \n\n| Method | Semantics (RFC\u202f7231 + RFC\u202f5789) | Typical Use\u2011Case | Idempotence | Payload Size | Complexity |\n|--------|--------------------------------|------------------|-------------|--------------|------------|\n| **PUT** | *Replace the entire resource at the target URI.*  The representation you send is the new **complete** state. | \u201cUpdate the whole user profile\u201d \u2013 you send all fields, even the ones that didn\u2019t change. | **Yes** | Often large"
+    },
+    {
+      "method": "bare",
+      "task_id": "plan-auth",
+      "latency_ms": 91276.32458399967,
+      "keywords_found": [
+        "login",
+        "password",
+        "session",
+        "token",
+        "hash"
+      ],
+      "keywords_missing": [
+        "register"
+      ],
+      "response_preview": "## 1. Overview\n\nBelow is a **layer\u2011ed, component\u2011based design** for a production\u2011ready authentication system that supports:\n\n| Feature | What it does |\n|---------|--------------|\n| **Registration** | Create a new user account, validate input, send email\u2011verification |\n| **Login** | Verify credentials, issue session tokens, support MFA |\n| **Password reset** | Generate a time\u2011bound reset token, email it, allow secure reset |\n| **Session management** | Issue & validate access/refresh tokens, handl"
+    },
+    {
+      "method": "prism",
+      "task_id": "plan-auth",
+      "latency_ms": 84473.68304100019,
+      "keywords_found": [
+        "register",
+        "login",
+        "password",
+        "session",
+        "token",
+        "hash"
+      ],
+      "keywords_missing": [],
+      "response_preview": "**A modular, secure user\u2011authentication architecture for a web application**\n\n> *The following design is expressed through the required \u201cThought Rotation Protocol\u201d frames: <think>, <adversary>, <critic>, <expert>, and <synthesize>.  Each frame contributes a different lens; the final section pulls them together into a coherent, production\u2011ready blueprint.*\n\n---\n\n## <think> \u2013 High\u2011level building blocks\n\n| Component | Responsibility | Typical Tech Choices | Dependencies |\n|-----------|-------------"
+    },
+    {
+      "method": "bare",
+      "task_id": "creative-explain",
+      "latency_ms": 27898.91520800029,
+      "keywords_found": [
+        "book",
+        "find",
+        "organize",
+        "catalog"
+      ],
+      "keywords_missing": [
+        "faster"
+      ],
+      "response_preview": "Imagine your school library is a huge, magical book\u2011world.  \nEvery book has a special place on a shelf, but the books are not just sorted by alphabet.  \nSome shelves are for adventure stories, some for science books, some for fairy\u2011tales, and so on.\n\n---\n\n## The Library\u2019s Secret Map \u2013 The \u201cIndex\u201d\n\n### 1. The Problem  \nIf you want to find a book called \u201cThe Lost Treasure of the Moon,\u201d you could:\n\n1. **Look at every shelf** \u2013 slow and tiring.  \n2. **Ask the librarian** \u2013 they have to search the wh"
+    },
+    {
+      "method": "prism",
+      "task_id": "creative-explain",
+      "latency_ms": 38889.44066699969,
+      "keywords_found": [
+        "book",
+        "find",
+        "catalog"
+      ],
+      "keywords_missing": [
+        "faster",
+        "organize"
+      ],
+      "response_preview": "**Think (what we\u2019re talking about)**  \nA database is a giant digital library that holds thousands of \u201cbooks\u201d (records).  \nA database index is the library\u2019s quick\u2011look list \u2013 the card catalog or the\nindex at the back of a book \u2013 that tells you exactly where to find a book\nwithout having to flip through every single one.\n\n---\n\n### <user> \u2013 A story a 10\u2011year\u2011old can picture  \n\nImagine your school library has **10,000 books**.  \nYou want the book *\u201cThe Adventures of Tom Sawyer.\u201d*  \nIf you had to wal"
+    }
+  ]
+}

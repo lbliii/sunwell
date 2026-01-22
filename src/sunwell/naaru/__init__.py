@@ -55,7 +55,7 @@ Example:
     >>> from sunwell.models.ollama import OllamaModel
     >>>
     >>> naaru = Naaru(
-    ...     sunwell_root=Path("."),
+    ...     workspace=Path("."),
     ...     synthesis_model=OllamaModel("gemma3:1b"),
     ...     judge_model=OllamaModel("gemma3:4b"),
     ...     config=NaaruConfig(
@@ -243,25 +243,19 @@ from sunwell.naaru.resonance import (
     ResonanceResult,
     create_resonance_handler,
 )
-
-# Rotation - Thought Rotation / Prism (RFC-028)
-from sunwell.naaru.rotation import (
-    Frame,
-    FrameHeuristicMap,
-    FrameIsolation,
-    ModelSize,
-    RotationPlan,
-    RotationWindowProcessor,
-    SpectralComposition,
-    ThoughtLexer,
-    create_rotation_prompt,
-    generate_with_rotation,
-)
 from sunwell.naaru.selection import (
     select_heuristic,
     select_judge,
     select_passthrough,
     select_voting,
+)
+
+# RFC-083: Session Management
+from sunwell.naaru.session import (
+    NaaruSession,
+    NaaruSessionManager,
+    get_session,
+    get_session_manager,
 )
 
 # Shards - Parallel Helpers
@@ -308,6 +302,25 @@ from sunwell.naaru.workers import (
 
 # NaaruConfig moved to sunwell.types.config
 from sunwell.types.config import NaaruConfig
+
+# ModelSize moved to sunwell.types.model_size
+from sunwell.types.model_size import ModelSize
+
+# RFC-083: Unified API Types (re-exported from types)
+from sunwell.types.naaru_api import (
+    CONVERGENCE_SLOTS,
+    SLOT_TTL_SECONDS,
+    CompositionSpec,
+    ConversationMessage,
+    NaaruError,
+    NaaruEvent,
+    NaaruEventType,
+    ProcessInput,
+    ProcessMode,
+    ProcessOutput,
+    RoutingDecision,
+    get_slot_ttl,
+)
 
 __all__ = [
     # Core Types
@@ -432,17 +445,8 @@ __all__ = [
     "DiscernmentVerdict",
     "DiscernmentResult",
 
-    # Rotation / Prism (RFC-028)
-    "Frame",
-    "SpectralComposition",
-    "FrameIsolation",
+    # Model Size (moved from rotation.py to types/)
     "ModelSize",
-    "RotationPlan",
-    "ThoughtLexer",
-    "FrameHeuristicMap",
-    "RotationWindowProcessor",
-    "create_rotation_prompt",
-    "generate_with_rotation",
 
     # RFC-033: Unified Architecture - Diversity Layer
     "Candidate",
@@ -510,4 +514,24 @@ __all__ = [
     "NaaruEventEmitter",
     "ExecutionCoordinator",
     "LearningExtractor",
+
+    # RFC-083: Session Management
+    "NaaruSession",
+    "NaaruSessionManager",
+    "get_session",
+    "get_session_manager",
+
+    # RFC-083: Unified API Types
+    "ProcessInput",
+    "ProcessOutput",
+    "ProcessMode",
+    "NaaruEvent",
+    "NaaruEventType",
+    "NaaruError",
+    "CompositionSpec",
+    "RoutingDecision",
+    "ConversationMessage",
+    "CONVERGENCE_SLOTS",
+    "SLOT_TTL_SECONDS",
+    "get_slot_ttl",
 ]

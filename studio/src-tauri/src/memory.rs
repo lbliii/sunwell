@@ -1,9 +1,10 @@
-//! Memory Commands — Surface memory/simulacrum state to Studio (RFC-013, RFC-014)
+//! Memory Commands — Surface memory/simulacrum state to Studio (RFC-013, RFC-014, RFC-084)
 //!
 //! Provides commands to:
 //! - Get memory statistics for a project
 //! - List conversation sessions
 //! - View intelligence (decisions, failures)
+//! - RFC-084: Get ConceptGraph and ChunkHierarchy for visualization
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -25,6 +26,80 @@ pub struct MemoryStats {
     pub branches: u32,
     pub dead_ends: u32,
     pub learnings: u32,
+    // RFC-084: Concept graph stats
+    pub concept_edges: u32,
+}
+
+// =============================================================================
+// RFC-084: ConceptGraph Types
+// =============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RelationType {
+    Elaborates,
+    Summarizes,
+    Exemplifies,
+    Contradicts,
+    Supports,
+    Qualifies,
+    DependsOn,
+    Supersedes,
+    RelatesTo,
+    Follows,
+    Updates,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConceptEdge {
+    pub source_id: String,
+    pub target_id: String,
+    pub relation: RelationType,
+    pub confidence: f32,
+    pub evidence: Option<String>,
+    pub auto_extracted: bool,
+    pub timestamp: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConceptGraph {
+    pub edges: Vec<ConceptEdge>,
+}
+
+// =============================================================================
+// RFC-084: Chunk Types
+// =============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ChunkType {
+    Micro,
+    Mini,
+    Macro,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Chunk {
+    pub id: String,
+    pub chunk_type: ChunkType,
+    pub turn_range: (u32, u32),
+    pub summary: Option<String>,
+    pub themes: Vec<String>,
+    pub key_facts: Vec<String>,
+    pub token_count: u32,
+    pub timestamp_start: Option<String>,
+    pub timestamp_end: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChunkHierarchy {
+    pub hot: Vec<Chunk>,
+    pub warm: Vec<Chunk>,
+    pub cold: Vec<Chunk>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -148,6 +223,24 @@ pub async fn get_memory_stats(path: String) -> Result<MemoryStats, String> {
         }
     }
 
+    // RFC-084: Count concept graph edges
+    let unified_graph_path = project_path.join(".sunwell/memory/unified/graph.json");
+    let graph_path = if unified_graph_path.exists() {
+        unified_graph_path
+    } else {
+        project_path.join(".sunwell/memory/graph.json")
+    };
+    
+    if graph_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&graph_path) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(edges) = json.get("edges").and_then(|e| e.as_array()) {
+                    stats.concept_edges = edges.len() as u32;
+                }
+            }
+        }
+    }
+
     Ok(stats)
 }
 
@@ -210,6 +303,144 @@ pub async fn list_sessions(path: String) -> Result<Vec<Session>, String> {
     }
 
     Ok(sessions)
+}
+
+// =============================================================================
+// RFC-084: ConceptGraph and ChunkHierarchy Commands
+// =============================================================================
+
+/// Get ConceptGraph for visualization (RFC-084)
+#[tauri::command]
+pub async fn get_concept_graph(path: String) -> Result<ConceptGraph, String> {
+    let project_path = PathBuf::from(&path);
+    
+    // Try unified store first (RFC-014 format)
+    let unified_graph_path = project_path.join(".sunwell/memory/unified/graph.json");
+    if unified_graph_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&unified_graph_path) {
+            if let Ok(graph) = serde_json::from_str::<ConceptGraph>(&content) {
+                return Ok(graph);
+            }
+        }
+    }
+    
+    // Try legacy format
+    let graph_path = project_path.join(".sunwell/memory/graph.json");
+    if graph_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&graph_path) {
+            if let Ok(graph) = serde_json::from_str::<ConceptGraph>(&content) {
+                return Ok(graph);
+            }
+            // Try parsing as nested structure
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(edges_arr) = json.get("edges").and_then(|e| e.as_array()) {
+                    let edges: Vec<ConceptEdge> = edges_arr
+                        .iter()
+                        .filter_map(|v| serde_json::from_value(v.clone()).ok())
+                        .collect();
+                    return Ok(ConceptGraph { edges });
+                }
+            }
+        }
+    }
+    
+    // No graph found - return empty
+    Ok(ConceptGraph::default())
+}
+
+/// Get ChunkHierarchy for visualization (RFC-084)
+#[tauri::command]
+pub async fn get_chunk_hierarchy(path: String) -> Result<ChunkHierarchy, String> {
+    let project_path = PathBuf::from(&path);
+    let chunks_path = project_path.join(".sunwell/memory/chunks");
+    
+    let mut hierarchy = ChunkHierarchy::default();
+    
+    // Read each tier
+    for tier in ["hot", "warm", "cold"] {
+        let tier_path = chunks_path.join(tier);
+        if tier_path.exists() {
+            if let Ok(entries) = std::fs::read_dir(&tier_path) {
+                for entry in entries.filter_map(|e| e.ok()) {
+                    let path = entry.path();
+                    if path.extension().map_or(false, |e| e == "json") {
+                        if let Ok(content) = std::fs::read_to_string(&path) {
+                            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                                // Parse chunk from JSON
+                                let chunk = Chunk {
+                                    id: json.get("id")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    chunk_type: match json.get("chunk_type")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("micro") 
+                                    {
+                                        "mini" => ChunkType::Mini,
+                                        "macro" => ChunkType::Macro,
+                                        _ => ChunkType::Micro,
+                                    },
+                                    turn_range: {
+                                        let range = json.get("turn_range")
+                                            .and_then(|v| v.as_array());
+                                        if let Some(arr) = range {
+                                            let start = arr.get(0)
+                                                .and_then(|v| v.as_u64())
+                                                .unwrap_or(0) as u32;
+                                            let end = arr.get(1)
+                                                .and_then(|v| v.as_u64())
+                                                .unwrap_or(0) as u32;
+                                            (start, end)
+                                        } else {
+                                            (0, 0)
+                                        }
+                                    },
+                                    summary: json.get("summary")
+                                        .and_then(|v| v.as_str())
+                                        .map(String::from),
+                                    themes: json.get("themes")
+                                        .and_then(|v| v.as_array())
+                                        .map(|arr| arr.iter()
+                                            .filter_map(|v| v.as_str().map(String::from))
+                                            .collect())
+                                        .unwrap_or_default(),
+                                    key_facts: json.get("key_facts")
+                                        .and_then(|v| v.as_array())
+                                        .map(|arr| arr.iter()
+                                            .filter_map(|v| v.as_str().map(String::from))
+                                            .collect())
+                                        .unwrap_or_default(),
+                                    token_count: json.get("token_count")
+                                        .and_then(|v| v.as_u64())
+                                        .unwrap_or(0) as u32,
+                                    timestamp_start: json.get("timestamp_start")
+                                        .and_then(|v| v.as_str())
+                                        .map(String::from),
+                                    timestamp_end: json.get("timestamp_end")
+                                        .and_then(|v| v.as_str())
+                                        .map(String::from),
+                                };
+                                
+                                match tier {
+                                    "hot" => hierarchy.hot.push(chunk),
+                                    "warm" => hierarchy.warm.push(chunk),
+                                    "cold" => hierarchy.cold.push(chunk),
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Sort by turn range for consistent ordering
+    hierarchy.hot.sort_by_key(|c| c.turn_range.0);
+    hierarchy.warm.sort_by_key(|c| c.turn_range.0);
+    hierarchy.cold.sort_by_key(|c| c.turn_range.0);
+    
+    Ok(hierarchy)
 }
 
 /// Get intelligence data (decisions and failures)

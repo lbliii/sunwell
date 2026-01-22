@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
 
   type SparkleStyle = 'twinkle' | 'pulse' | 'star' | 'dots' | 'diamond';
 
@@ -11,11 +11,13 @@
 
   let { style = 'twinkle', speed = 150, dim = false }: Props = $props();
 
+  // Capture initial dim value for staggered sparkle effect (intentional one-time capture)
+  const startDim = untrack(() => dim);
+  
   // Sparkle frame sequences - designed for twinkling/pulsing effects
-  // Note: `dim` is captured at initialization - this is intentional for sparkle staggering
   const frames: Record<SparkleStyle, string[]> = {
     // Classic twinkle: dim → bright → dim → gone
-    twinkle: dim 
+    twinkle: startDim 
       ? ['·', '✧', '✦', '✧', '·', ' ']
       : ['✦', '✧', '·', ' ', '·', '✧'],
     

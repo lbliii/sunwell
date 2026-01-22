@@ -33,6 +33,7 @@
     "dependencies": {
         "@tauri-apps/api": "^2.0.0",
         "@types/dagre": "^0.7.53",
+        "@use-gesture/vanilla": "^10.3.1",
         "dagre": "^0.8.5"
     }
 }

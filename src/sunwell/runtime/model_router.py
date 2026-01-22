@@ -28,7 +28,21 @@ class ModelCapability:
 
 
 # Known model capabilities (for routing)
+# 2-Tier Architecture: classifier (1b) + worker (20b)
+# Middle-tier models (4b-12b) removed - quality gap not worth latency savings
 MODEL_REGISTRY: dict[str, ModelCapability] = {
+    # ==========================================================================
+    # PRIMARY: 2-Tier Local Stack (Recommended)
+    # ==========================================================================
+    # Tier 0: Classifier - routing, classification, trivial answers
+    "gemma3:1b": ModelCapability("gemma3:1b", Tier.FAST_PATH, tools=False, context_window=8192, cost_index=0),
+
+    # Tier 1+2: Worker - generation, judging, complex reasoning (merged)
+    "gpt-oss:20b": ModelCapability("gpt-oss:20b", Tier.DEEP_LENS, tools=False, context_window=128000, cost_index=0),
+
+    # ==========================================================================
+    # CLOUD: For burst capacity or when local unavailable
+    # ==========================================================================
     # OpenAI
     "gpt-4o": ModelCapability("gpt-4o", Tier.DEEP_LENS, tools=True, context_window=128000, cost_index=8),
     "gpt-4o-mini": ModelCapability("gpt-4o-mini", Tier.STANDARD, tools=True, context_window=128000, cost_index=2),
@@ -39,8 +53,9 @@ MODEL_REGISTRY: dict[str, ModelCapability] = {
     "claude-3-opus-20240229": ModelCapability("claude-3-opus", Tier.DEEP_LENS, tools=True, context_window=200000, cost_index=9),
     "claude-3-haiku-20240307": ModelCapability("claude-3-haiku", Tier.STANDARD, tools=True, context_window=200000, cost_index=1),
 
-    # Ollama (common ones)
-    "gemma3:1b": ModelCapability("gemma3:1b", Tier.FAST_PATH, tools=False, context_window=8192, cost_index=0),
+    # ==========================================================================
+    # LEGACY: Kept for backwards compatibility (not recommended for new setups)
+    # ==========================================================================
     "gemma3:4b": ModelCapability("gemma3:4b", Tier.STANDARD, tools=False, context_window=128000, cost_index=0),
     "gemma3:12b": ModelCapability("gemma3:12b", Tier.DEEP_LENS, tools=False, context_window=128000, cost_index=0),
     "gemma2:9b": ModelCapability("gemma2:9b", Tier.STANDARD, tools=False, context_window=8192, cost_index=0),

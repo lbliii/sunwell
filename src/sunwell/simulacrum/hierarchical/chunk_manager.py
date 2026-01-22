@@ -138,7 +138,9 @@ class ChunkManager:
         embedding = None
         if self.config.auto_embed and self.embedder:
             text_to_embed = summary or self._turns_to_text(turns)
-            embedding = tuple(await self.embedder.embed(text_to_embed))
+            result = await self.embedder.embed([text_to_embed])
+            if result.vectors is not None and len(result.vectors) > 0:
+                embedding = tuple(result.vectors[0].tolist())
 
         chunk = Chunk(
             id=self._generate_chunk_id("micro", start, end),
@@ -318,7 +320,11 @@ class ChunkManager:
         if not self.embedder:
             return list(self._chunks.values())[-limit:]
 
-        query_embedding = tuple(await self.embedder.embed(query))
+        result = await self.embedder.embed([query])
+        if result.vectors is None or len(result.vectors) == 0:
+            return list(self._chunks.values())[-limit:]
+        query_embedding = tuple(result.vectors[0].tolist())
+
         scored = []
         for chunk in self._chunks.values():
             if not include_hot and chunk.turns is not None:
@@ -331,26 +337,91 @@ class ChunkManager:
         return [c for _, c in scored[:limit]]
 
     def get_context_window(self, max_tokens: int, query: str | None = None) -> list[Chunk | ChunkSummary]:
-        """Build context window within token budget."""
-        context = []
+        """Build context window within token budget (sync version).
+
+        Note: For semantic retrieval, use get_context_window_async() instead.
+        """
+        context: list[Chunk | ChunkSummary] = []
         token_budget = max_tokens
 
+        # Include hot chunks (most recent with full turns)
         for chunk in self._get_hot_chunks():
             if chunk.token_count <= token_budget:
                 context.append(chunk)
                 token_budget -= chunk.token_count
 
+        # Include macro summaries for older content
         macro_chunks = [c for c in self._chunks.values() if c.chunk_type == ChunkType.MACRO]
         for chunk in macro_chunks:
+            if not chunk.summary:
+                continue
             summary_tokens = int(len(chunk.summary.split()) * 1.3)
             if summary_tokens <= token_budget:
                 context.append(ChunkSummary(
                     chunk_id=chunk.id, chunk_type=chunk.chunk_type, turn_range=chunk.turn_range,
                     summary=chunk.summary, themes=chunk.themes, token_count=summary_tokens,
-                    embedding=chunk.embedding
+                    embedding=chunk.embedding,
                 ))
                 token_budget -= summary_tokens
 
+        return context
+
+    async def get_context_window_async(
+        self,
+        max_tokens: int,
+        query: str | None = None,
+        semantic_limit: int = 5,
+    ) -> list[Chunk | ChunkSummary]:
+        """Build context window with semantic retrieval (async version).
+
+        Strategy:
+        1. Always include HOT chunks (most recent turns)
+        2. If query provided, use semantic search to find relevant warm chunks
+        3. Expand warm chunks from CTF to include their content
+        4. Fill remaining budget with macro summaries
+        """
+        context: list[Chunk | ChunkSummary] = []
+        seen_ids: set[str] = set()
+        token_budget = max_tokens
+
+        # 1. HOT chunks (most recent, full turns)
+        for chunk in self._get_hot_chunks():
+            if chunk.token_count <= token_budget:
+                context.append(chunk)
+                seen_ids.add(chunk.id)
+                token_budget -= chunk.token_count
+
+        # 2. Semantic retrieval for query
+        if query and self.embedder:
+            relevant = await self.get_relevant_chunks(query, limit=semantic_limit)
+            for chunk in relevant:
+                if chunk.id in seen_ids:
+                    continue
+
+                # Expand warm chunks to get content back
+                expanded = self.expand_chunk(chunk.id)
+                if expanded.token_count <= token_budget:
+                    context.append(expanded)
+                    seen_ids.add(chunk.id)
+                    token_budget -= expanded.token_count
+
+        # 3. Macro summaries for high-level context
+        macro_chunks = [c for c in self._chunks.values() if c.chunk_type == ChunkType.MACRO]
+        for chunk in macro_chunks:
+            if chunk.id in seen_ids or not chunk.summary:
+                continue
+            summary_tokens = int(len(chunk.summary.split()) * 1.3)
+            if summary_tokens <= token_budget:
+                context.append(ChunkSummary(
+                    chunk_id=chunk.id, chunk_type=chunk.chunk_type, turn_range=chunk.turn_range,
+                    summary=chunk.summary, themes=chunk.themes, token_count=summary_tokens,
+                    embedding=chunk.embedding,
+                ))
+                seen_ids.add(chunk.id)
+                token_budget -= summary_tokens
+
+        # Sort by turn range to maintain chronological order
+        context.sort(key=lambda c: c.turn_range[0] if hasattr(c, "turn_range") else 0)
         return context
 
     def expand_chunk(self, chunk_id: str) -> Chunk:

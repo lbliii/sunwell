@@ -149,10 +149,10 @@ async def diversity_rotation(
     prompt: str,
     options: GenerateOptions | None = None,
 ) -> list[Candidate]:
-    """Diversity Strategy: Rotation - Single generation with cognitive frames.
+    """Diversity Strategy: Rotation - Single generation (rotation removed).
 
-    Uses frame markers to guide the model through different perspectives
-    in a single generation. The frames are integrated into the output.
+    Note: Cognitive frame rotation was removed after benchmarking showed
+    no quality improvement for 20B+ models. This now behaves like diversity_none.
 
     Args:
         model: The model to use for generation
@@ -160,50 +160,10 @@ async def diversity_rotation(
         options: Optional generation options
 
     Returns:
-        List with a single candidate containing integrated perspectives
-
-    Cost: 1.2x (prompt overhead for frame instructions, ~200 tokens)
-    Use when: Structured reasoning needed, want integrated perspectives
+        List with a single candidate
     """
-    from sunwell.naaru.rotation import create_rotation_prompt
-
-    if options is None:
-        from sunwell.models.protocol import GenerateOptions
-        options = GenerateOptions()
-
-    # Build rotation system prompt
-    rotation_prompt = create_rotation_prompt(task_type="general")
-
-    # Merge with existing system prompt if present
-    if options.system_prompt:
-        system_prompt = f"{options.system_prompt}\n\n{rotation_prompt}"
-    else:
-        system_prompt = rotation_prompt
-
-    rotation_options = GenerateOptions(
-        temperature=options.temperature or 0.7,
-        max_tokens=options.max_tokens,
-        system_prompt=system_prompt,
-    )
-
-    result = await model.generate(prompt, options=rotation_options)
-    tokens = result.usage.total_tokens if result.usage else len(result.text) // 4
-
-    # Parse frames from output (simplified - full parsing in rotation.py)
-    frames = {}
-    text = result.text
-    if "<think>" in text or "<critic>" in text or "<synthesize>" in text:
-        # Basic frame detection (full parsing handled by ThoughtLexer)
-        frames = {"detected": "true"}
-
-    return [
-        Candidate(
-            text=result.text,
-            source="rotation",
-            frames=frames,
-            tokens=tokens,
-        )
-    ]
+    # Rotation removed - just do a single generation
+    return await diversity_none(model, prompt, options)
 
 
 async def diversity_harmonic(

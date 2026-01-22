@@ -10,8 +10,8 @@ from collections import Counter, deque
 from sunwell.mirror import MirrorHandler
 from sunwell.naaru.core.bus import MessageType, NaaruRegion
 from sunwell.naaru.core.worker import RegionWorker
-from sunwell.naaru.rotation import ModelSize, ThoughtLexer
 from sunwell.types.config import NaaruConfig
+from sunwell.types.model_size import ModelSize
 
 
 class HarmonicSynthesisWorker(RegionWorker):
@@ -57,47 +57,21 @@ class HarmonicSynthesisWorker(RegionWorker):
         self.shard_pool = shard_pool    # Parallel helpers
         self.routing_worker = routing_worker  # RFC-020: Attunement
         self.mirror = MirrorHandler(
-            sunwell_root=self.sunwell_root,
-            storage_path=self.sunwell_root / ".sunwell" / "naaru" / f"synthesis_{self.worker_id}",
+            workspace=self.workspace,
+            storage_path=self.workspace / ".sunwell" / "naaru" / f"synthesis_{self.worker_id}",
         )
         self._pending_work: list[dict] = []
         # Bounded deque to prevent memory leak (keeps last 1000 generated code entries)
         self.generated_code: deque[dict] = deque(maxlen=1000)
         self._prefetch_cache: dict = {}
-        # RFC-028: ThoughtLexer uses synthesis model (already tiny: gemma3:1b)
-        # Will be initialized lazily when model is available
-        self._thought_lexer: ThoughtLexer | None = None
 
     @property
     def model_size(self) -> ModelSize:
-        """Detect model size from the synthesis model name (RFC-028)."""
+        """Detect model size from the synthesis model name."""
         if not self.model:
             return ModelSize.SMALL
         model_name = getattr(self.model, "model_id", "") or getattr(self.model, "name", "")
         return ModelSize.from_model_name(model_name)
-
-    @property
-    def thought_lexer(self) -> ThoughtLexer:
-        """Get or create the ThoughtLexer (RFC-028).
-
-        Model priority for task classification:
-        1. config.lexer_model (explicit)
-        2. routing_worker.router_model (attunement model, typically qwen2.5:3b)
-        3. None (falls back to keyword classification)
-
-        Does NOT use synthesis model - it's too small for reliable JSON.
-        """
-        if self._thought_lexer is None:
-            # Priority: explicit lexer_model > router_model > keywords
-            lexer_model = self.config.lexer_model
-            if lexer_model is None and self.routing_worker:
-                lexer_model = getattr(self.routing_worker, 'router_model', None)
-
-            self._thought_lexer = ThoughtLexer(
-                tiny_model=lexer_model,
-                default_model_size=self.model_size,
-            )
-        return self._thought_lexer
 
     async def process(self) -> None:
         """Generate proposals using Harmonic Synthesis or Shard-assisted generation."""
@@ -205,25 +179,14 @@ class HarmonicSynthesisWorker(RegionWorker):
         from sunwell.models.protocol import GenerateOptions
 
         # Step 1: Generate with ALL lens personas IN PARALLEL
-        # RFC-028: Get rotation plan based on model size and config
-        rotation_prompt = ""
-        if self.config.rotation and self.config.rotation_intensity != "none":
-            # Use ThoughtLexer (with tiny model) for intelligent task classification
-            rotation_plan = await self.thought_lexer.lex(description, self.model_size)
-            rotation_prompt = rotation_plan.to_system_prompt()
-            self.stats["rotation_enabled"] = True
-            self.stats["rotation_intensity"] = self.config.rotation_intensity
-            self.stats["rotation_task_type"] = rotation_plan.task_type
-
         async def generate_with_lens(lens_id: str, lens: dict) -> dict | None:
             # RFC-020: Boost recommended lens with extra context
             boost = ""
             if recommended_lens and lens_id == recommended_lens:
                 boost = "\n[You are the RECOMMENDED expert for this task. Be thorough.]"
 
-            # Build prompt: Lens identity + optional rotation structure + task
+            # Build prompt: Lens identity + task
             prompt = f"""{lens['system']}{boost}
-{rotation_prompt}
 TASK: {description}{routing_context}
 Code only:"""
             try:
@@ -452,17 +415,11 @@ Code only:"""
             if focus:
                 routing_context = f"\nFOCUS: {', '.join(focus)}\n"
 
-        # RFC-028: Get rotation prompt (for single-gen, only for medium/light models)
-        rotation_section = ""
-        if self.config.rotation and self.config.rotation_intensity in ("light", "standard"):
-            rotation_plan = await self.thought_lexer.lex(description, self.model_size)
-            rotation_section = rotation_plan.to_system_prompt() + "\n\n"
-
         prompts = {
-            "error_handling": f"{rotation_section}Write Python error handling for: {description}{routing_context}\nCode only:",
-            "testing": f"{rotation_section}Write pytest test for: {description}{routing_context}\nCode only:",
-            "documentation": f"{rotation_section}Write docstring for: {description}{routing_context}\nDocstring only:",
-            "code_quality": f"{rotation_section}Improve this Python code: {description}{routing_context}\nCode only:",
+            "error_handling": f"Write Python error handling for: {description}{routing_context}\nCode only:",
+            "testing": f"Write pytest test for: {description}{routing_context}\nCode only:",
+            "documentation": f"Write docstring for: {description}{routing_context}\nDocstring only:",
+            "code_quality": f"Improve this Python code: {description}{routing_context}\nCode only:",
         }
 
         prompt = prompts.get(category, prompts["code_quality"])

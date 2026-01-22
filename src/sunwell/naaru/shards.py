@@ -70,6 +70,7 @@ class ShardType(Enum):
     LOOKAHEAD = "lookahead"
     CONSOLIDATOR = "consolidator"
     THOUGHT_LEXER = "thought_lexer"  # RFC-028: Analyzes task → rotation plan
+    COMPOSITOR = "compositor"  # RFC-082: UI composition prediction
 
 
 @dataclass
@@ -121,6 +122,8 @@ class Shard:
             return await self._lookahead(task, context)
         elif self.shard_type == ShardType.CONSOLIDATOR:
             return await self._consolidate(task, context)
+        elif self.shard_type == ShardType.COMPOSITOR:
+            return await self._compose_ui(task, context)
 
         return {}
 
@@ -345,6 +348,57 @@ class Shard:
             await self.convergence.add(slot)
 
         return {"learnings": learnings}
+
+    async def _compose_ui(self, task: dict, context: dict | None = None) -> dict:
+        """Predict UI composition for the task (RFC-082).
+
+        This shard runs in parallel with the main model to predict
+        what UI layout the response will need. Enables instant skeleton
+        rendering while content is still generating.
+
+        Strategy:
+        1. Tier 0: Regex pattern matching (~0ms)
+        2. Tier 1: Fast model if available (~50-100ms)
+
+        Stores result in Convergence slot 'composition:current'.
+        """
+        from sunwell.interface.compositor import CompositionContext, Compositor
+
+        user_input = task.get("description", "") or task.get("goal", "")
+        current_page = task.get("page", "home")
+
+        # Use existing compositor (Tier 0 regex + optional Tier 1 fast model)
+        compositor = Compositor(
+            fast_model=self.embedding_model,  # Reuse small model if available
+        )
+
+        comp_context = CompositionContext(
+            current_page=current_page,
+            recent_panels=context.get("recent_panels", []) if context else [],
+        )
+
+        spec = await compositor.predict(user_input, comp_context)
+
+        result = {
+            "page_type": spec.page_type,
+            "panels": [p.to_dict() for p in spec.panels],
+            "input_mode": spec.input_mode,
+            "suggested_tools": list(spec.suggested_tools),
+            "confidence": spec.confidence,
+            "source": spec.source,
+        }
+
+        # Store in convergence for frontend to fetch
+        slot = Slot(
+            id="composition:current",
+            content=result,
+            relevance=1.0,  # High priority - needed immediately
+            source=SlotSource.NAARU,
+            ttl=30.0,  # Short TTL - only relevant for current request
+        )
+        await self.convergence.add(slot)
+
+        return result
 
 
 class ShardPool:

@@ -561,6 +561,7 @@ class HarmonicPlanner:
 
         # RFC-058: Emit candidates complete event
         self._emit_event("plan_candidates_complete", {
+            "total_candidates": len(configs),
             "successful_candidates": len(candidates),
             "failed_candidates": len(configs) - len(candidates),
         })

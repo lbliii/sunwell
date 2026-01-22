@@ -44,9 +44,6 @@ def migrate_rfc019_to_rfc033(old_config: NaaruConfig) -> NaaruConfig:
     if old_config.harmonic_synthesis:
         diversity = "harmonic"
         selection = "voting"
-    elif old_config.rotation:
-        diversity = "rotation"
-        selection = "passthrough"
     else:
         diversity = "none"
         selection = "passthrough"
@@ -77,9 +74,6 @@ def migrate_rfc019_to_rfc033(old_config: NaaruConfig) -> NaaruConfig:
         router_cache_size=old_config.router_cache_size,
         num_analysis_shards=old_config.num_analysis_shards,
         num_synthesis_shards=old_config.num_synthesis_shards,
-        rotation_intensity=old_config.rotation_intensity,
-        rotation_frames=old_config.rotation_frames,
-        lexer_model=old_config.lexer_model,
         # New RFC-033 fields
         diversity=diversity,
         selection=selection,
@@ -90,7 +84,6 @@ def migrate_rfc019_to_rfc033(old_config: NaaruConfig) -> NaaruConfig:
         # Preserve old fields for backward compatibility
         harmonic_synthesis=old_config.harmonic_synthesis,
         resonance=old_config.resonance,
-        rotation=old_config.rotation,
         discernment=old_config.discernment,
         attunement=old_config.attunement,
         attunement_model=old_config.attunement_model,
@@ -118,19 +111,19 @@ def create_rfc019_equivalent_config() -> NaaruConfig:
 
 
 def create_rfc028_equivalent_config() -> NaaruConfig:
-    """Create a config equivalent to RFC-028 (Rotation) behavior.
+    """Create a minimal config (RFC-028 rotation was removed).
+
+    Note: Cognitive frame rotation was removed after benchmarking showed
+    no quality improvement for 20B+ models. This now creates a minimal config.
 
     Returns:
-        NaaruConfig that matches RFC-028 defaults:
-        - rotation=True
-        - No harmonic synthesis
-        - No refinement
+        NaaruConfig with minimal settings (no diversity, no refinement)
     """
     from sunwell.types.config import NaaruConfig
 
     return NaaruConfig(
-        diversity="rotation",
+        diversity="none",
         selection="passthrough",
         refinement="none",
-        cost_budget="normal",
+        cost_budget="minimal",
     )

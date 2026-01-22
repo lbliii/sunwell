@@ -4,6 +4,7 @@
   Primary code editing primitive with syntax highlighting.
 -->
 <script lang="ts">
+  import { untrack } from 'svelte';
   import type { CodePrimitiveProps } from './types';
   import { emitPrimitiveEvent } from '../../stores/surface.svelte';
   
@@ -11,7 +12,9 @@
   
   let { size, file, language, seed }: Props = $props();
   
-  let content = $state(seed?.content as string ?? '// Start coding...');
+  // Extract initial value (intentional one-time capture from seed prop)
+  const initialContent = untrack(() => seed?.content as string ?? '// Start coding...');
+  let content = $state(initialContent);
   
   function handleChange(e: Event) {
     const target = e.target as HTMLTextAreaElement;

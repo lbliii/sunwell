@@ -2,8 +2,8 @@
 //!
 //! Bridge between frontend and Python CLI for weakness operations.
 
+use crate::util::sunwell_command;
 use std::path::PathBuf;
-use std::process::Command;
 
 use tauri::Emitter;
 
@@ -18,7 +18,7 @@ use crate::weakness_types::{
 pub async fn scan_weaknesses(path: String) -> Result<WeaknessReport, String> {
     let project_path = PathBuf::from(&path);
 
-    let output = Command::new("sunwell")
+    let output = sunwell_command()
         .args(["weakness", "scan", "--json"])
         .current_dir(&project_path)
         .output()
@@ -40,7 +40,7 @@ pub async fn scan_weaknesses(path: String) -> Result<WeaknessReport, String> {
 pub async fn preview_cascade(path: String, artifact_id: String) -> Result<CascadePreview, String> {
     let project_path = PathBuf::from(&path);
 
-    let output = Command::new("sunwell")
+    let output = sunwell_command()
         .args(["weakness", "preview", &artifact_id, "--json"])
         .current_dir(&project_path)
         .output()
@@ -107,7 +107,7 @@ pub async fn execute_cascade_fix(
     }
 
     // Spawn process and stream events
-    let mut child = Command::new("sunwell")
+    let mut child = sunwell_command()
         .args(&args)
         .current_dir(&project_path)
         .stdout(Stdio::piped())
@@ -181,7 +181,7 @@ pub async fn start_cascade_execution(
         args.push("--yes".to_string());
     }
 
-    let output = Command::new("sunwell")
+    let output = sunwell_command()
         .args(&args)
         .current_dir(&project_path)
         .output()
@@ -216,7 +216,7 @@ pub async fn extract_contract(
 ) -> Result<ExtractedContract, String> {
     let project_path = PathBuf::from(&path);
 
-    let output = Command::new("sunwell")
+    let output = sunwell_command()
         .args(["weakness", "extract-contract", &artifact_id, "--json"])
         .current_dir(&project_path)
         .output()

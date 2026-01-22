@@ -95,10 +95,12 @@ class SafetyChecker:
     2. Blocked modification targets
     3. Dangerous pattern detection
     4. Rate limiting
+
+    RFC-085: Renamed sunwell_root to workspace to clarify semantics.
     """
 
     policy: SafetyPolicy = field(default_factory=SafetyPolicy)
-    sunwell_root: Path | None = None
+    workspace: Path | None = None  # User's workspace, not Sunwell source
 
     # Rate limiting state
     _proposal_times: list[datetime] = field(default_factory=list, init=False)

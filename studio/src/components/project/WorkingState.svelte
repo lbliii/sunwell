@@ -84,7 +84,6 @@
 <style>
   .working { display: flex; flex-direction: column; gap: var(--space-4); }
   .status-header { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-lg); }
-  .status-icon { font-size: var(--text-xl); }
   .status-text { font-weight: 500; }
   .working-footer { display: flex; justify-content: space-between; color: var(--text-tertiary); font-size: var(--text-sm); margin-top: var(--space-4); }
   .actions { margin-top: var(--space-4); display: flex; justify-content: center; gap: var(--space-4); }

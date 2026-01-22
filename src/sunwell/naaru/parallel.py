@@ -85,14 +85,14 @@ class ParallelAutonomousRunner:
         >>> config = SessionConfig(goals=["documentation", "testing"])
         >>> runner = ParallelAutonomousRunner(
         ...     config=config,
-        ...     sunwell_root=Path("."),
+        ...     workspace=Path("."),
         ...     num_workers=8,
         ... )
         >>> await runner.start()
     """
 
     config: SessionConfig
-    sunwell_root: Path
+    workspace: Path
     num_workers: int = 4
     storage_path: Path = None
     on_event: Callable[[str, str, int], None] | None = None
@@ -108,7 +108,7 @@ class ParallelAutonomousRunner:
 
     def __post_init__(self):
         if self.storage_path is None:
-            self.storage_path = self.sunwell_root / ".sunwell" / "autonomous"
+            self.storage_path = self.workspace / ".sunwell" / "autonomous"
         self.storage_path.mkdir(parents=True, exist_ok=True)
 
         self._work_queue = queue.Queue()
@@ -156,8 +156,8 @@ class ParallelAutonomousRunner:
         self._emit("phase", "🔍 Discovering opportunities...")
 
         discoverer = OpportunityDiscoverer(
-            mirror=MirrorHandler(self.sunwell_root, self.storage_path / "mirror"),
-            sunwell_root=self.sunwell_root,
+            mirror=MirrorHandler(self.workspace, self.storage_path / "mirror"),
+            workspace=self.workspace,
         )
         opportunities = await discoverer.discover(self.config.goals)
 
@@ -202,7 +202,7 @@ class ParallelAutonomousRunner:
         """Worker thread main loop."""
         # Each worker gets its own mirror handler
         mirror = MirrorHandler(
-            sunwell_root=self.sunwell_root,
+            workspace=self.workspace,
             storage_path=self.storage_path / f"mirror_w{worker_id}",
         )
 

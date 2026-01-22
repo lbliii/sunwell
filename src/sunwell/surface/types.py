@@ -9,7 +9,13 @@ from typing import Any, Literal
 # Type aliases for clarity
 PrimitiveSize = Literal["full", "split", "panel", "sidebar", "widget", "floating", "bottom"]
 PrimitiveCategory = Literal["code", "planning", "writing", "data", "universal"]
-SurfaceArrangement = Literal["standard", "focused", "split", "dashboard"]
+SurfaceArrangement = Literal["standard", "focused", "split", "dashboard", "writer"]
+
+# RFC-086: View modes for writer arrangement
+ViewMode = Literal["source", "preview"]
+
+# RFC-086: Diataxis content types
+DiataxisType = Literal["TUTORIAL", "HOW_TO", "EXPLANATION", "REFERENCE"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,3 +147,154 @@ class WorkspaceSpec:
 
     primary_props: dict[str, Any] | None = None
     """Props for primary primitive: {"file": "/path/to/file.py"}."""
+
+
+# =============================================================================
+# RFC-086: Writer-Specific Types
+# =============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class WriterLayout(SurfaceLayout):
+    """Layout configuration for writer arrangement (RFC-086).
+
+    Extends SurfaceLayout with writer-specific settings like view mode toggle.
+    """
+
+    view_mode: ViewMode = "source"
+    """Current view: "source" (editing) or "preview" (reviewing)."""
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        base = super().to_dict()
+        base["view_mode"] = self.view_mode
+        return base
+
+
+@dataclass(frozen=True, slots=True)
+class ValidationWarning:
+    """A validation warning from lens validators (RFC-086)."""
+
+    line: int
+    """Line number in the document."""
+
+    message: str
+    """Warning message."""
+
+    rule: str
+    """Validator rule name (e.g., "no_marketing_fluff")."""
+
+    severity: Literal["warning", "error", "info"] = "warning"
+    """Severity level."""
+
+    column: int | None = None
+    """Optional column number."""
+
+    suggestion: str | None = None
+    """Optional fix suggestion."""
+
+
+@dataclass(frozen=True, slots=True)
+class DiataxisSignal:
+    """A signal contributing to Diataxis type detection (RFC-086)."""
+
+    dtype: DiataxisType
+    """The Diataxis type this signal indicates."""
+
+    weight: float
+    """Signal weight (0.0-1.0)."""
+
+    reason: str
+    """Why this signal was detected."""
+
+
+@dataclass(frozen=True, slots=True)
+class DiataxisDetection:
+    """Result of Diataxis content type detection (RFC-086)."""
+
+    detected_type: DiataxisType | None
+    """Detected content type, or None if unclear."""
+
+    confidence: float
+    """Confidence score (0.0-1.0)."""
+
+    signals: tuple[DiataxisSignal, ...]
+    """Signals that contributed to detection."""
+
+    scores: dict[str, float] = field(default_factory=dict)
+    """Per-type scores for mixed content detection."""
+
+
+@dataclass(frozen=True, slots=True)
+class ValidationState:
+    """Current validation state for a document (RFC-086)."""
+
+    warnings: tuple[ValidationWarning, ...] = ()
+    """Current warnings."""
+
+    errors: tuple[ValidationWarning, ...] = ()
+    """Current errors."""
+
+    suggestions: tuple[ValidationWarning, ...] = ()
+    """Current suggestions (info level)."""
+
+    is_running: bool = False
+    """Whether validation is currently running."""
+
+    last_validated_at: str | None = None
+    """ISO timestamp of last validation."""
+
+
+@dataclass(frozen=True, slots=True)
+class SelectionContext:
+    """Context for text selection in source or preview (RFC-086).
+
+    Universal selection model — same actions work in both views.
+    """
+
+    text: str
+    """Selected text content."""
+
+    file: str
+    """File path."""
+
+    start: int
+    """Start character offset."""
+
+    end: int
+    """End character offset."""
+
+    view_mode: ViewMode
+    """Which view the selection was made in."""
+
+    line_start: int | None = None
+    """Start line number (1-indexed)."""
+
+    line_end: int | None = None
+    """End line number (1-indexed)."""
+
+    surrounding_context: str | None = None
+    """±5 lines around selection for AI context."""
+
+
+@dataclass(frozen=True, slots=True)
+class SelectionAction:
+    """An action that can be performed on selected text (RFC-086)."""
+
+    id: str
+    """Action identifier: "improve", "audit", "ask", "explain"."""
+
+    label: str
+    """Display label."""
+
+    shortcut: str | None = None
+    """Keyboard shortcut (e.g., "⌘I")."""
+
+
+# Default selection actions (RFC-086)
+DEFAULT_SELECTION_ACTIONS: tuple[SelectionAction, ...] = (
+    SelectionAction(id="improve", label="Improve", shortcut="⌘I"),
+    SelectionAction(id="audit", label="Audit", shortcut="⌘A"),
+    SelectionAction(id="ask", label="Ask...", shortcut="⌘K"),
+    SelectionAction(id="explain", label="Explain"),
+)

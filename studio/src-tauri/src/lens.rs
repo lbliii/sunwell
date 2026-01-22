@@ -2,9 +2,9 @@
 //!
 //! Provides lens discovery, selection, library management, and project configuration.
 
+use crate::util::sunwell_command;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use std::process::Command;
 
 /// Lens summary for UI display.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -162,7 +162,7 @@ impl ProjectLensConfig {
 /// List all available lenses by calling the Python CLI.
 #[tauri::command]
 pub async fn list_lenses() -> Result<Vec<LensSummary>, String> {
-    let output = Command::new("sunwell")
+    let output = sunwell_command()
         .args(["lens", "list", "--json"])
         .output()
         .map_err(|e| format!("Failed to list lenses: {}", e))?;
@@ -178,7 +178,7 @@ pub async fn list_lenses() -> Result<Vec<LensSummary>, String> {
 /// Get details of a specific lens.
 #[tauri::command]
 pub async fn get_lens_detail(name: String) -> Result<LensDetail, String> {
-    let output = Command::new("sunwell")
+    let output = sunwell_command()
         .args(["lens", "show", &name, "--json"])
         .output()
         .map_err(|e| format!("Failed to get lens: {}", e))?;
@@ -229,7 +229,7 @@ pub async fn get_lens_library(filter: Option<String>) -> Result<Vec<LensLibraryE
         args.push(&filter_owned);
     }
 
-    let output = Command::new("sunwell")
+    let output = sunwell_command()
         .args(&args)
         .output()
         .map_err(|e| format!("Failed to get lens library: {}", e))?;
@@ -257,7 +257,7 @@ pub async fn fork_lens(
         args.push(&msg_owned);
     }
 
-    let output = Command::new("sunwell")
+    let output = sunwell_command()
         .args(&args)
         .output()
         .map_err(|e| format!("Failed to fork lens: {}", e))?;
@@ -307,7 +307,7 @@ pub async fn save_lens(
         args.push(&bump_owned);
     }
 
-    let output = Command::new("sunwell")
+    let output = sunwell_command()
         .args(&args)
         .output()
         .map_err(|e| format!("Failed to save lens: {}", e))?;
@@ -341,7 +341,7 @@ pub async fn save_lens(
 /// Delete a user lens.
 #[tauri::command]
 pub async fn delete_lens(name: String) -> Result<(), String> {
-    let output = Command::new("sunwell")
+    let output = sunwell_command()
         .args(["lens", "delete", &name, "--yes"])
         .output()
         .map_err(|e| format!("Failed to delete lens: {}", e))?;
@@ -356,7 +356,7 @@ pub async fn delete_lens(name: String) -> Result<(), String> {
 /// Get version history for a lens.
 #[tauri::command]
 pub async fn get_lens_versions(name: String) -> Result<Vec<LensVersionInfo>, String> {
-    let output = Command::new("sunwell")
+    let output = sunwell_command()
         .args(["lens", "versions", &name, "--json"])
         .output()
         .map_err(|e| format!("Failed to get lens versions: {}", e))?;
@@ -372,7 +372,7 @@ pub async fn get_lens_versions(name: String) -> Result<Vec<LensVersionInfo>, Str
 /// Rollback a lens to a previous version.
 #[tauri::command]
 pub async fn rollback_lens(name: String, version: String) -> Result<(), String> {
-    let output = Command::new("sunwell")
+    let output = sunwell_command()
         .args(["lens", "rollback", &name, &version])
         .output()
         .map_err(|e| format!("Failed to rollback lens: {}", e))?;
@@ -393,7 +393,7 @@ pub async fn set_default_lens(name: Option<String>) -> Result<(), String> {
         vec!["lens", "set-default", "--clear"]
     };
 
-    let output = Command::new("sunwell")
+    let output = sunwell_command()
         .args(&args)
         .output()
         .map_err(|e| format!("Failed to set default lens: {}", e))?;

@@ -412,9 +412,9 @@ export function setFilter(filter: Partial<LensLibraryState['filter']>): void {
 }
 
 /**
- * Navigate back to library view.
+ * Navigate back to library list view.
  */
-export function goToLibrary(): void {
+export function backToList(): void {
   _state = {
     ..._state,
     view: 'library',

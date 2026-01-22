@@ -4,17 +4,23 @@
   Task board for planning work.
 -->
 <script lang="ts">
+  import { untrack } from 'svelte';
   import type { PlanningPrimitiveProps } from './types';
   
   interface Props extends PlanningPrimitiveProps {}
   
   let { size, seed }: Props = $props();
   
+  // Extract initial values (intentional one-time capture from seed prop)
+  const initialTodo = untrack(() => seed?.todo as string[] ?? ['Task 1', 'Task 2']);
+  const initialProgress = untrack(() => seed?.progress as string[] ?? []);
+  const initialDone = untrack(() => seed?.done as string[] ?? []);
+  
   // Sample columns - would be driven by data in real implementation
   let columns = $state([
-    { id: 'todo', title: 'To Do', items: seed?.todo as string[] ?? ['Task 1', 'Task 2'] },
-    { id: 'progress', title: 'In Progress', items: seed?.progress as string[] ?? [] },
-    { id: 'done', title: 'Done', items: seed?.done as string[] ?? [] },
+    { id: 'todo', title: 'To Do', items: initialTodo },
+    { id: 'progress', title: 'In Progress', items: initialProgress },
+    { id: 'done', title: 'Done', items: initialDone },
   ]);
 </script>
 

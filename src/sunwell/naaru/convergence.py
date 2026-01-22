@@ -64,6 +64,7 @@ class SlotSource(Enum):
     QUICK_CHECKER = "quick_checker"
     LOOKAHEAD = "lookahead"
     CONSOLIDATOR = "consolidator"
+    COMPOSITOR = "compositor"  # RFC-082: UI composition prediction
     USER = "user"
     NAARU = "naaru"
 

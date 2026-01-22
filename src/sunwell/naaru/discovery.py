@@ -27,7 +27,7 @@ class OpportunityDiscoverer:
     """
 
     mirror: MirrorHandler
-    sunwell_root: Path
+    workspace: Path
 
     async def discover(self, goals: list[str]) -> list[Opportunity]:
         """Discover opportunities matching the given goals.
@@ -123,7 +123,7 @@ class OpportunityDiscoverer:
         modules = self.mirror.list_available_modules()
 
         # Check which have corresponding test files
-        test_dir = self.sunwell_root / "tests"
+        test_dir = self.workspace / "tests"
 
         for module in modules:
             # Skip test modules themselves
@@ -184,7 +184,7 @@ class OpportunityDiscoverer:
         for module in modules:
             try:
                 from sunwell.mirror.introspection import SourceIntrospector
-                introspector = SourceIntrospector(self.sunwell_root)
+                introspector = SourceIntrospector(self.workspace)
                 structure = introspector.get_module_structure(module)
 
                 # Check classes without docstrings
@@ -224,7 +224,7 @@ class OpportunityDiscoverer:
         opportunities = []
 
         # Look for TODO/FIXME comments
-        src_dir = self.sunwell_root / "src" / "sunwell"
+        src_dir = self.workspace / "src" / "sunwell"
 
         for py_file in src_dir.rglob("*.py"):
             if "__pycache__" in str(py_file):

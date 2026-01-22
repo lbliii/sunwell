@@ -21,6 +21,15 @@ Example:
 from sunwell.adaptive.agent import AdaptiveAgent, TaskGraph, run_adaptive
 from sunwell.adaptive.budget import AdaptiveBudget, CostEstimate
 from sunwell.adaptive.events import AgentEvent, EventType
+from sunwell.adaptive.metrics import (
+    InferenceMetrics,
+    InferenceSample,
+    ModelPerformanceProfile,
+    load_profiles_from_disk,
+    recommend_model,
+    save_profiles_to_disk,
+)
+from sunwell.adaptive.thinking import ThinkingBlock, ThinkingDetector, ThinkingPhase
 from sunwell.adaptive.event_schema import (
     EventEmitter,
     ValidatedEventEmitter,
@@ -63,6 +72,16 @@ __all__ = [
     # Events
     "AgentEvent",
     "EventType",
+    # Inference Visibility (RFC-081)
+    "InferenceMetrics",
+    "InferenceSample",
+    "ModelPerformanceProfile",
+    "ThinkingBlock",
+    "ThinkingDetector",
+    "ThinkingPhase",
+    "load_profiles_from_disk",
+    "recommend_model",
+    "save_profiles_to_disk",
     # Event Schema (Type Safety)
     "EventEmitter",
     "ValidatedEventEmitter",

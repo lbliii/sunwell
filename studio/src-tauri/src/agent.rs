@@ -2,10 +2,11 @@
 //!
 //! The agent outputs NDJSON events that we parse and forward to the frontend.
 
+use crate::util::sunwell_command;
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader};
 use std::path::Path;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
@@ -128,7 +129,7 @@ impl AgentBridge {
         // Use harmonic planning for better high-level plans, then artifact-first for execution
         // HarmonicPlanner generates multiple candidates and selects best, then uses ArtifactPlanner
         // for execution (which supports automatic incremental builds)
-        let mut child = Command::new("sunwell")
+        let mut child = sunwell_command()
             .args(&args)
             .current_dir(project_path)
             .stdout(Stdio::piped())
@@ -215,7 +216,7 @@ impl AgentBridge {
         }
 
         // Start the Sunwell agent in resume mode with JSON output
-        let mut child = Command::new("sunwell")
+        let mut child = sunwell_command()
             .args(["agent", "resume", "--json"])
             .current_dir(project_path)
             .stdout(Stdio::piped())
@@ -301,7 +302,7 @@ impl AgentBridge {
         }
 
         // Start the Sunwell agent with backlog run command
-        let mut child = Command::new("sunwell")
+        let mut child = sunwell_command()
             .args(["backlog", "run", goal_id, "--json"])
             .current_dir(project_path)
             .stdout(Stdio::piped())

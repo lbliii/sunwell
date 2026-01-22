@@ -1,5 +1,10 @@
 """Memory types for Simulacrum.
 
+.. deprecated:: 0.5.0
+   This module is deprecated. Use SimulacrumStore from sunwell.simulacrum.core.store
+   which provides unified memory via the hierarchical tier system (HOT/WARM/COLD).
+   See RFC-084 for migration details.
+
 Human-inspired memory architecture:
 - Working Memory: Current context, recent turns, active focus
 - Long-term Memory: Learnings, facts, patterns that persist forever
@@ -16,12 +21,22 @@ Each memory type has different:
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Protocol
 
 from sunwell.simulacrum.core.turn import Learning, Turn, TurnType
+
+# RFC-084: Emit deprecation warning when this module is imported
+warnings.warn(
+    "sunwell.simulacrum.core.memory is deprecated. "
+    "Use SimulacrumStore from sunwell.simulacrum.core.store instead. "
+    "See RFC-084 for migration details.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 class MemoryType(Enum):

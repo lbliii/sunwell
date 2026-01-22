@@ -2,8 +2,7 @@
   RisingMotes — Signature radiant particle animation (Svelte 5)
   
   The most distinctive element from the Sunwell logo.
-  Uses RADIANT gold (bright) for magical effect — this is where
-  the bright gold belongs, not on UI elements.
+  Uses Unicode stars (✦ ✧ ⋆ ·) for magical effect.
   
   Usage:
     <RisingMotes /> - default 8 particles, normal intensity
@@ -11,6 +10,8 @@
     <RisingMotes count={5} intensity="subtle" /> - hover decorations
 -->
 <script lang="ts">
+  const STAR_CHARS = ['✦', '✧', '⋆', '·', '✦', '✧', '⋆'];
+  
   interface Props {
     count?: number;
     intensity?: 'subtle' | 'normal' | 'intense';
@@ -26,7 +27,8 @@
       delay: i * 0.4 + (Math.sin(i * 2) * 0.2),
       duration: 3 + (i % 4) * 0.5,
       isAlt: i % 3 !== 0,
-      size: 1 + (i % 3) * 0.3, // Vary sizes slightly
+      size: 1 + (i % 3) * 0.3,
+      char: STAR_CHARS[i % STAR_CHARS.length],
     }))
   );
 </script>
@@ -48,7 +50,7 @@
           animation-duration: {particle.duration}s;
           --size-mult: {particle.size};
         "
-      ></span>
+      >{particle.char}</span>
     {/each}
   </div>
 {/if}
@@ -57,54 +59,46 @@
   .motes-container {
     position: absolute;
     inset: 0;
-    overflow: hidden;
+    overflow: visible; /* Allow motes to float beyond container */
     pointer-events: none;
-    z-index: 1;
+    z-index: 10; /* Float above input elements */
   }
   
-  /* Motes use RADIANT gold - the bright magical light */
+  /* Motes use RADIANT gold stars */
   .mote {
     position: absolute;
     bottom: 0;
-    width: calc(5px * var(--size-mult, 1));
-    height: calc(5px * var(--size-mult, 1));
-    background: radial-gradient(
-      circle,
-      #fff9e6 0%,
-      #ffd700 40%,
-      rgba(255, 215, 0, 0.6) 70%,
-      transparent 100%
-    );
-    border-radius: 50%;
-    box-shadow: 
-      0 0 8px rgba(255, 215, 0, 0.8),
-      0 0 16px rgba(255, 215, 0, 0.5),
-      0 0 24px rgba(255, 215, 0, 0.2);
-    animation: riseMote 3.5s ease-out infinite;
+    font-size: calc(14px * var(--size-mult, 1));
+    line-height: 1;
+    color: #ffd700;
+    text-shadow: 
+      0 0 6px rgba(255, 215, 0, 0.9),
+      0 0 12px rgba(255, 215, 0, 0.6),
+      0 0 20px rgba(255, 215, 0, 0.3);
+    opacity: 0; /* Start invisible until animation begins */
+    animation: riseMote 3.5s ease-out infinite backwards;
     will-change: transform, opacity;
   }
   
   .mote.alt {
-    animation-name: riseMoteAlt;
+    animation: riseMoteAlt 3.5s ease-out infinite backwards;
   }
   
   /* Subtle intensity - smaller, gentler glow */
   .subtle .mote {
-    width: calc(3px * var(--size-mult, 1));
-    height: calc(3px * var(--size-mult, 1));
-    box-shadow: 
-      0 0 4px rgba(255, 215, 0, 0.6),
-      0 0 8px rgba(255, 215, 0, 0.3);
+    font-size: calc(10px * var(--size-mult, 1));
+    text-shadow: 
+      0 0 3px rgba(255, 215, 0, 0.7),
+      0 0 6px rgba(255, 215, 0, 0.4);
   }
   
   /* Intense intensity - larger, stronger glow */
   .intense .mote {
-    width: calc(7px * var(--size-mult, 1));
-    height: calc(7px * var(--size-mult, 1));
-    box-shadow: 
-      0 0 10px rgba(255, 215, 0, 1),
-      0 0 20px rgba(255, 215, 0, 0.6),
-      0 0 40px rgba(255, 215, 0, 0.3);
+    font-size: calc(18px * var(--size-mult, 1));
+    text-shadow: 
+      0 0 8px rgba(255, 215, 0, 1),
+      0 0 16px rgba(255, 215, 0, 0.7),
+      0 0 32px rgba(255, 215, 0, 0.4);
   }
   
   @keyframes riseMote {
@@ -119,7 +113,7 @@
       opacity: 0.7;
     }
     100% {
-      transform: translateY(-200px) scale(0.2);
+      transform: translateY(-200px) scale(0.4);
       opacity: 0;
     }
   }
@@ -133,7 +127,7 @@
       opacity: 0.9;
     }
     100% {
-      transform: translateY(-150px) translateX(15px) scale(0.3);
+      transform: translateY(-150px) translateX(15px) scale(0.5);
       opacity: 0;
     }
   }

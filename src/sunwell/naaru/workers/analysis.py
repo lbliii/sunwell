@@ -16,8 +16,8 @@ class AnalysisWorker(RegionWorker):
     def __init__(self, *args, **kwargs):
         super().__init__(NaaruRegion.ANALYSIS, *args, **kwargs)
         self.mirror = MirrorHandler(
-            sunwell_root=self.sunwell_root,
-            storage_path=self.sunwell_root / ".sunwell" / "naaru" / f"analysis_{self.worker_id}",
+            workspace=self.workspace,
+            storage_path=self.workspace / ".sunwell" / "naaru" / f"analysis_{self.worker_id}",
         )
 
     async def process(self) -> None:

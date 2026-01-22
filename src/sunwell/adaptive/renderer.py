@@ -159,6 +159,54 @@ class RichRenderer:
                             fact = event.data.get("fact", "")
                             self.console.print(f"   📚 [dim]Learned: {fact[:50]}...[/dim]")
 
+                    # RFC-081: Inference visibility events
+                    case EventType.MODEL_START:
+                        model = event.data.get("model", "model")
+                        task_id = progress.add_task(
+                            f"[cyan]🧠 {model}[/cyan]",
+                            total=None,  # Indeterminate
+                        )
+                        self._model_task_id = task_id
+                        self._model_start_time = event.timestamp
+
+                    case EventType.MODEL_TOKENS:
+                        if hasattr(self, "_model_task_id") and self._model_task_id is not None:
+                            token_count = event.data.get("token_count", 0)
+                            tps = event.data.get("tokens_per_second")
+                            tps_str = f" ({tps:.1f} tok/s)" if tps else ""
+                            progress.update(
+                                self._model_task_id,
+                                description=f"[cyan]🧠 {token_count} tokens{tps_str}[/cyan]",
+                            )
+
+                    case EventType.MODEL_THINKING:
+                        # Show thinking in dimmed panel
+                        content = event.data.get("content", "")
+                        phase = event.data.get("phase", "thinking")
+                        is_complete = event.data.get("is_complete", False)
+                        if content and is_complete:
+                            # Truncate for display
+                            display = content[:200] + "..." if len(content) > 200 else content
+                            self.console.print(
+                                f"   💭 [dim]{phase}: {display}[/dim]"
+                            )
+
+                    case EventType.MODEL_COMPLETE:
+                        if hasattr(self, "_model_task_id") and self._model_task_id is not None:
+                            progress.remove_task(self._model_task_id)
+                            self._model_task_id = None
+
+                        total = event.data.get("total_tokens", 0)
+                        duration = event.data.get("duration_s", 0)
+                        tps = event.data.get("tokens_per_second", 0)
+                        ttft = event.data.get("time_to_first_token_ms")
+
+                        ttft_str = f", TTFT: {ttft}ms" if ttft else ""
+                        self.console.print(
+                            f"   [green]✓[/green] Generated {total} tokens "
+                            f"in {duration:.1f}s ({tps:.1f} tok/s{ttft_str})"
+                        )
+
                     case EventType.ESCALATE:
                         self._render_escalate(event.data)
 
@@ -281,6 +329,20 @@ class RichRenderer:
                 print(f"Gate passed: {event.data.get('gate_id', 'gate')}")
             case EventType.GATE_FAIL:
                 print(f"Gate failed: {event.data.get('gate_id', 'gate')}")
+            # RFC-081: Inference visibility events
+            case EventType.MODEL_START:
+                model = event.data.get('model', 'model')
+                print(f"🧠 Generating with {model}...")
+            case EventType.MODEL_TOKENS:
+                tokens = event.data.get('token_count', 0)
+                tps = event.data.get('tokens_per_second')
+                tps_str = f" ({tps:.1f} tok/s)" if tps else ""
+                print(f"  {tokens} tokens{tps_str}", end='\r')
+            case EventType.MODEL_COMPLETE:
+                total = event.data.get('total_tokens', 0)
+                duration = event.data.get('duration_s', 0)
+                tps = event.data.get('tokens_per_second', 0)
+                print(f"  ✓ {total} tokens in {duration:.1f}s ({tps:.1f} tok/s)")
             case EventType.COMPLETE:
                 tasks = event.data.get('tasks_completed', 0)
                 dur = event.data.get('duration_s', 0)

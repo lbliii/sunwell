@@ -27,6 +27,21 @@ from sunwell.types.memory import (
     MemoryRetrievalResult,
     RetrievalResult,  # Alias for backward compatibility
 )
+from sunwell.types.model_size import ModelSize
+from sunwell.types.naaru_api import (
+    CONVERGENCE_SLOTS,
+    SLOT_TTL_SECONDS,
+    CompositionSpec,
+    ConversationMessage,
+    NaaruError,
+    NaaruEvent,
+    NaaruEventType,
+    ProcessInput,
+    ProcessMode,
+    ProcessOutput,
+    RoutingDecision,
+    get_slot_ttl,
+)
 from sunwell.types.protocol import (
     ChatSessionProtocol,
     ConsoleProtocol,
@@ -55,6 +70,7 @@ __all__ = [
     "NaaruConfig",
     "ModelConfig",
     "EmbeddingConfig",
+    "ModelSize",
     # Memory types
     "ContextBudget",
     "MemoryRetrievalResult",
@@ -67,4 +83,17 @@ __all__ = [
     "MemoryStoreProtocol",
     "ToolExecutorProtocol",
     "ParallelExecutorProtocol",
+    # Naaru API types (RFC-083)
+    "CompositionSpec",
+    "ConversationMessage",
+    "NaaruError",
+    "NaaruEvent",
+    "NaaruEventType",
+    "ProcessInput",
+    "ProcessMode",
+    "ProcessOutput",
+    "RoutingDecision",
+    "CONVERGENCE_SLOTS",
+    "SLOT_TTL_SECONDS",
+    "get_slot_ttl",
 ]

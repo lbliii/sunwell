@@ -2,6 +2,7 @@
   Project — Working screen (Svelte 5, RFC-062 decomposed)
   
   Main project route that orchestrates state-specific sub-components.
+  RFC-079: Integrated ProjectOverview for universal project understanding.
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
@@ -15,9 +16,9 @@
   import { MemoryView } from '../components';
   import { DagCanvas, DagControls, DagDetail } from '../components/dag';
   import { WeaknessPanel, WaveExecutionPanel } from '../components/weakness';
-  import { ProjectHeader, WorkingState, DoneState, ErrorState, IdleState } from '../components/project';
-  import { project } from '../stores/project.svelte';
-  import { agent } from '../stores/agent.svelte';
+  import { ProjectHeader, WorkingState, DoneState, ErrorState, IdleState, ProjectOverview } from '../components/project';
+  import { project, analyzeProject, clearAnalysis } from '../stores/project.svelte';
+  import { agent, runGoal } from '../stores/agent.svelte';
   import { dag, setGraph } from '../stores/dag.svelte';
   import { scanWeaknesses } from '../stores/weakness.svelte';
   
@@ -32,8 +33,8 @@
   let selectedFile = $state<{ path: string; name: string; content: string } | null>(null);
   let isLoadingPreview = $state(false);
   
-  // View tabs state
-  let activeTab = $state<ViewTab>(ViewTab.PROGRESS);
+  // View tabs state (RFC-079: default to overview)
+  let activeTab = $state<string>('overview');
   let isLoadingDag = $state(false);
   let dagError = $state<string | null>(null);
   
@@ -44,6 +45,7 @@
   let memoryError = $state<string | null>(null);
   
   const tabs = [
+    { id: 'overview', label: 'Overview' },
     { id: ViewTab.PROGRESS, label: 'Progress' },
     { id: ViewTab.PIPELINE, label: 'Pipeline' },
     { id: ViewTab.MEMORY, label: 'Memory' },
@@ -61,12 +63,26 @@
     }
   }
   
+  // RFC-079: Track analyzed path to avoid re-analysis
+  let analyzedForPath = $state<string | null>(null);
+  
   // Load project data when path changes
   $effect(() => {
     const path = project.current?.path;
     if (path && path !== filesLoadedForPath && !isLoadingFiles) {
       loadProjectStatus();
       loadProjectFiles();
+    }
+  });
+  
+  // RFC-079: Auto-analyze project when opened (if not already analyzed)
+  $effect(() => {
+    const path = project.current?.path;
+    if (path && path !== analyzedForPath && !project.isAnalyzing) {
+      untrack(() => {
+        analyzedForPath = path;
+        analyzeProject(path);
+      });
     }
   });
   
@@ -185,7 +201,38 @@
   }
   
   function handleTabChange(tabId: string) {
-    activeTab = tabId as ViewTab;
+    activeTab = tabId;
+  }
+  
+  // RFC-079: Handlers for ProjectOverview actions
+  async function handleWorkOnGoal(goalId: string) {
+    const goal = project.analysis?.goals.find(g => g.id === goalId);
+    if (goal && project.current?.path) {
+      await runGoal(goal.title, project.current.path);
+      activeTab = ViewTab.PROGRESS;
+    }
+  }
+  
+  async function handleStartServer(command: string) {
+    if (!project.current?.path) return;
+    try {
+      await invoke('run_project', { 
+        path: project.current.path, 
+        command,
+      });
+    } catch (e) {
+      console.error('Failed to start dev server:', e);
+    }
+  }
+  
+  function handleAddGoal() {
+    // Switch to progress tab where user can enter a new goal
+    activeTab = ViewTab.PROGRESS;
+  }
+  
+  function handleExplore() {
+    // Switch to pipeline tab to explore project structure
+    activeTab = ViewTab.PIPELINE;
   }
 </script>
 
@@ -203,7 +250,38 @@
   
   <Tabs {tabs} activeTab={activeTab} onchange={handleTabChange} label="Project views">
     {#snippet children(tabId)}
-      {#if tabId === ViewTab.PIPELINE}
+      {#if tabId === 'overview'}
+        <!-- RFC-079: Project Overview Tab -->
+        <div class="overview-view">
+          {#if project.isAnalyzing}
+            <div class="loading-state" role="status">
+              <Spinner style="dots" speed={80} />
+              <span>Analyzing project...</span>
+            </div>
+          {:else if project.analysisError}
+            <div class="error-state" role="alert">
+              <span class="error-icon">⊗</span>
+              <span>{project.analysisError}</span>
+              <Button variant="ghost" size="sm" onclick={() => project.current?.path && analyzeProject(project.current.path, true)}>
+                Retry
+              </Button>
+            </div>
+          {:else if project.analysis}
+            <ProjectOverview 
+              analysis={project.analysis}
+              onWorkOnGoal={handleWorkOnGoal}
+              onStartServer={handleStartServer}
+              onAddGoal={handleAddGoal}
+              onExplore={handleExplore}
+            />
+          {:else}
+            <div class="empty-state">
+              <p class="empty-title">No analysis yet</p>
+              <p class="empty-description">Open a project to see its overview</p>
+            </div>
+          {/if}
+        </div>
+      {:else if tabId === ViewTab.PIPELINE}
         <div class="pipeline-view">
           <DagControls onFitView={() => {}} onRefresh={loadDag} />
           
@@ -367,5 +445,14 @@
     gap: var(--space-4);
     padding: var(--space-4) 0;
     max-width: 600px;
+  }
+  
+  /* RFC-079: Overview tab */
+  .overview-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-4) 0;
+    max-width: 700px;
   }
 </style>

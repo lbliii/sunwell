@@ -403,7 +403,7 @@ async def _run_agent(
 
     # Create Naaru once with callback already configured
     naaru = Naaru(
-        sunwell_root=Path.cwd(),
+        workspace=Path.cwd(),
         synthesis_model=synthesis_model,
         planner=planner,
         tool_executor=tool_executor,

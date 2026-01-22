@@ -17,12 +17,12 @@ class RegionWorker(ABC):
         self,
         region: NaaruRegion,
         bus: MessageBus,
-        sunwell_root: Path,
+        workspace: Path,
         worker_id: int = 0,
     ):
         self.region = region
         self.bus = bus
-        self.sunwell_root = sunwell_root
+        self.workspace = workspace
         self.worker_id = worker_id
         self._stop_event = asyncio.Event()
         self.stats = {"tasks_completed": 0, "messages_sent": 0}

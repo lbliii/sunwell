@@ -3,7 +3,7 @@
  */
 
 // App state
-export { app, navigate, goHome, goToProject, goToPreview, goToPlanning, goToLibrary, goToInterface, setInitialized } from './app.svelte';
+export { app, navigate, goHome, goToProject, goToPreview, goToPlanning, goToLibrary, goToInterface, goToWriter, setInitialized } from './app.svelte';
 
 // Agent state
 export { agent, runGoal, stopAgent, resetAgent, handleAgentEvent } from './agent.svelte';
@@ -59,7 +59,7 @@ export {
   clearSelection as clearWeaknessSelection,
   clearError as clearWeaknessError,
   clearAll as clearAllWeakness,
-  updateExecution,
+  updateExecution as updateWeaknessExecution,
 } from './weakness.svelte';
 
 // Lens state (RFC-064)
@@ -100,7 +100,7 @@ export {
   deleteLens,
   setFilter,
   setDefaultLens,
-  goToLibrary,
+  backToList,
   loadVersions,
   rollbackLens,
   saveLens,
@@ -154,3 +154,152 @@ export {
   hasActiveWorkspace,
   getCurrentWorkspace,
 } from './interface.svelte';
+
+// Home state (RFC-080)
+export {
+  homeState,
+  routeInput,
+  executeBlockAction,
+  clearResponse,
+  clearConversationHistory,
+  setHomeDataDir,
+  resetHome,
+  isViewResponse,
+  isActionResponse,
+  isConversationResponse,
+  isWorkspaceResponse,
+  isHybridResponse,
+} from './home.svelte';
+
+// Naaru unified state (RFC-083)
+export {
+  naaruState,
+  process,
+  subscribeToEvents,
+  getConvergenceSlot,
+  cancel,
+  clearHistory as clearNaaruHistory,
+  resetNaaru,
+  getResponseText,
+  hasComposition,
+  getRouteType,
+  isConversationRoute,
+  isActionRoute,
+  isViewRoute,
+  isWorkspaceRoute,
+  isHybridRoute,
+  type ProcessMode,
+  type PageType,
+  type NaaruEventType,
+  type ProcessInput,
+  type ProcessOutput,
+  type CompositionSpec,
+  type RoutingDecision,
+  type NaaruEvent,
+  type ConvergenceSlot,
+} from './naaru.svelte';
+
+// Composition state (RFC-082)
+export {
+  compositionState,
+  predict,
+  setComposition,
+  clearComposition,
+  resetComposition,
+  hasHighConfidencePrediction,
+  getPanels,
+  getInputMode,
+  getSuggestedTools,
+  analyzePatterns,
+  type CompositionSpec as CompositionSpecType,
+  type PanelSpec,
+  type PageType as CompositionPageType,
+  type InputMode,
+  type CompositionSource,
+} from './composition.svelte';
+
+// Pattern state (RFC-082 Phase 6)
+export {
+  patternState,
+  trackActivity,
+  boostProjectAffinity,
+  setLayoutPreference,
+  predictActivity,
+  getTopProjects,
+  getRecommendedLayout,
+  predictNextActivity,
+  isCommonTransition,
+  resetPatterns,
+  getPatternStats,
+  type ActivityType,
+  type HourRange,
+  type LayoutConfig,
+  type StateTransition,
+  type UserPattern,
+} from './patterns.svelte';
+
+// Suggestion state (RFC-082 Phase 6)
+export {
+  suggestionState,
+  generateSuggestions,
+  dismissSuggestion,
+  dismissAll,
+  acceptSuggestion,
+  setSuggestionsEnabled,
+  clearDismissed,
+  getTopSuggestion,
+  type Suggestion,
+  type SuggestionType,
+  type SuggestionContext,
+} from './suggestions.svelte';
+
+// Workflow state (RFC-086)
+export {
+  workflowState,
+  routeIntent,
+  startWorkflow,
+  stopWorkflow,
+  resumeWorkflow,
+  skipStep,
+  loadChains,
+  listActiveWorkflows,
+  updateExecution,
+  clearWorkflow,
+  resetWorkflow,
+  type WorkflowTier,
+  type IntentCategory,
+  type StepStatus,
+  type WorkflowStatus,
+  type WorkflowStep,
+  type WorkflowChain,
+  type WorkflowExecution,
+  type Intent,
+} from './workflow.svelte';
+
+// Writer state (RFC-086)
+export {
+  writerState,
+  toggleView,
+  setViewMode as setWriterViewMode,
+  loadDocument,
+  updateContent,
+  saveDocument,
+  detectDiataxis,
+  validateDocument,
+  dismissWarning,
+  fixAllIssues,
+  setLens,
+  executeSkill,
+  setSelection,
+  hideActionMenu,
+  resetWriter,
+  clearError as clearWriterError,
+  type ViewMode,
+  type DiataxisType,
+  type DiataxisSignal,
+  type DiataxisDetection,
+  type DiataxisWarning,
+  type ValidationWarning,
+  type LensSkill,
+  type SelectionContext,
+} from './writer.svelte';

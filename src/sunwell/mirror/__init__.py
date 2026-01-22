@@ -14,7 +14,7 @@ when observing that action. This module gives Sunwell similar capabilities:
 
 Example:
     >>> from sunwell.mirror import MirrorHandler
-    >>> mirror = MirrorHandler(sunwell_root=Path("."))
+    >>> mirror = MirrorHandler(workspace=Path("."))
     >>> source = await mirror.introspect_source("sunwell.tools.executor")
     >>> patterns = await mirror.analyze_patterns(scope="session", focus="latency")
 

@@ -1,7 +1,10 @@
-"""Mirror tool handler for RFC-015.
+"""Mirror tool handler for RFC-015 and RFC-085.
 
 Routes mirror neuron tool calls to appropriate handlers,
 enforces safety checks, and manages the proposal workflow.
+
+RFC-085 Update: Now uses Self.get() for source introspection,
+ensuring correct resolution from any workspace.
 """
 
 from __future__ import annotations
@@ -16,12 +19,12 @@ from sunwell.mirror.introspection import (
     ExecutionIntrospector,
     LensIntrospector,
     SimulacrumIntrospector,
-    SourceIntrospector,
 )
 from sunwell.mirror.model_tracker import ModelPerformanceTracker
 from sunwell.mirror.proposals import ProposalManager, ProposalStatus
 from sunwell.mirror.router import ModelRouter
 from sunwell.mirror.safety import SafetyChecker
+from sunwell.self import Self
 
 if TYPE_CHECKING:
     from sunwell.tools.executor import ToolExecutor
@@ -34,15 +37,19 @@ class MirrorHandler:
     Routes tool calls to appropriate introspection, analysis,
     or proposal handlers. Enforces safety constraints.
 
+    RFC-085: Uses Self.get() for source introspection, which auto-resolves
+    the Sunwell source root regardless of the current workspace.
+
     Example:
         >>> handler = MirrorHandler(
-        ...     sunwell_root=Path("/path/to/sunwell"),
+        ...     workspace=Path("/path/to/user/project"),
         ...     storage_path=Path(".sunwell/mirror"),
         ... )
         >>> result = await handler.handle("introspect_source", {"module": "sunwell.tools"})
     """
 
-    sunwell_root: Path
+    # Renamed from sunwell_root to workspace (RFC-085 Phase 2)
+    workspace: Path
     storage_path: Path
     lens: Any = None
     simulacrum: Any = None
@@ -51,7 +58,6 @@ class MirrorHandler:
     session_model: str = "session"  # Default model for session
 
     # Internal components (initialized in __post_init__)
-    _source_introspector: SourceIntrospector = field(init=False)
     _lens_introspector: LensIntrospector = field(init=False)
     _simulacrum_introspector: SimulacrumIntrospector = field(init=False)
     _execution_introspector: ExecutionIntrospector = field(init=False)
@@ -63,15 +69,21 @@ class MirrorHandler:
     _model_router: ModelRouter = field(init=False)
 
     def __post_init__(self) -> None:
-        """Initialize internal components."""
-        self._source_introspector = SourceIntrospector(self.sunwell_root)
+        """Initialize internal components.
+
+        RFC-085: Source introspection now uses Self.get().source which
+        auto-resolves the Sunwell source root from package location.
+        """
+        # RFC-085: Use Self.get() for source introspection
+        # (accessed directly via Self.get().source in handlers)
+
         self._lens_introspector = LensIntrospector()
         self._simulacrum_introspector = SimulacrumIntrospector()
         self._execution_introspector = ExecutionIntrospector()
         self._pattern_analyzer = PatternAnalyzer()
         self._failure_analyzer = FailureAnalyzer()
         self._proposal_manager = ProposalManager(self.storage_path / "proposals")
-        self._safety_checker = SafetyChecker(sunwell_root=self.sunwell_root)
+        self._safety_checker = SafetyChecker(workspace=self.workspace)
 
         # Phase 5: Model routing components
         self._model_tracker = ModelPerformanceTracker(
@@ -130,19 +142,40 @@ class MirrorHandler:
     # === INTROSPECTION HANDLERS ===
 
     async def _handle_introspect_source(self, args: dict[str, Any]) -> dict[str, Any]:
-        """Handle introspect_source tool."""
+        """Handle introspect_source tool.
+
+        RFC-085: Uses Self.get().source for introspection, which auto-resolves
+        the Sunwell source root regardless of current workspace.
+        """
         module = args["module"]
         symbol = args.get("symbol")
 
+        # RFC-085: Use Self.get().source instead of passed path
+        source_knowledge = Self.get().source
+
         if symbol:
-            result = self._source_introspector.find_symbol(module, symbol)
-            return {"module": module, "symbol": symbol, **result}
-        else:
-            source = self._source_introspector.get_module_source(module)
-            structure = self._source_introspector.get_module_structure(module)
+            info = source_knowledge.find_symbol(module, symbol)
             return {
                 "module": module,
-                "structure": structure,
+                "symbol": symbol,
+                "type": info.type,
+                "source": info.source,
+                "start_line": info.start_line,
+                "end_line": info.end_line,
+                "docstring": info.docstring,
+                "methods": list(info.methods) if info.methods else [],
+                "is_async": info.is_async,
+            }
+        else:
+            source = source_knowledge.read_module(module)
+            structure = source_knowledge.get_module_structure(module)
+            return {
+                "module": module,
+                "structure": {
+                    "classes": list(structure.classes),
+                    "functions": list(structure.functions),
+                    "imports": list(structure.imports),
+                },
                 "source_preview": source[:2000] + "..." if len(source) > 2000 else source,
                 "full_source_lines": len(source.splitlines()),
             }
@@ -494,8 +527,11 @@ class MirrorHandler:
         return self._safety_checker.get_rate_limit_status()
 
     def list_available_modules(self) -> list[str]:
-        """List all Sunwell modules available for introspection."""
-        return self._source_introspector.list_modules()
+        """List all Sunwell modules available for introspection.
+
+        RFC-085: Uses Self.get().source for auto-resolved source root.
+        """
+        return Self.get().source.list_modules()
 
     def get_model_tracker(self) -> ModelPerformanceTracker:
         """Get the model performance tracker for external access."""

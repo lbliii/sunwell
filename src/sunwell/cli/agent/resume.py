@@ -124,7 +124,7 @@ async def _resume_agent(checkpoint_path: str | None, plan_id: str | None, verbos
         console.print("[yellow]Warning: Could not load model[/yellow]")
 
     naaru = Naaru(
-        sunwell_root=Path(cp.working_directory),
+        workspace=Path(cp.working_directory),
         synthesis_model=synthesis_model,
         tool_executor=tool_executor,
     )

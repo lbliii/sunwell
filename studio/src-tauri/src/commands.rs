@@ -1,6 +1,7 @@
 //! Tauri IPC commands — interface between frontend and Rust backend.
 
 use crate::agent::AgentBridge;
+use crate::util::sunwell_command;
 use crate::preview::PreviewManager;
 use crate::project::{Project, ProjectDetector, RecentProject};
 use crate::workspace::{
@@ -1455,4 +1456,198 @@ pub async fn save_run_command(
         .map_err(|e| format!("Command validation failed: {}", e))?;
     
     save_run_command_internal(&path, &command)
+}
+
+// =============================================================================
+// RFC-079: Project Intent Analysis
+// =============================================================================
+
+/// RFC-079: Suggested action type.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SuggestedActionType {
+    ExecuteGoal,
+    ContinueWork,
+    StartServer,
+    Review,
+    AddGoal,
+}
+
+/// RFC-079: Pipeline step status.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PipelineStepStatus {
+    Completed,
+    InProgress,
+    Pending,
+}
+
+/// RFC-079: Dev command prerequisite.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DevPrerequisite {
+    pub command: String,
+    pub description: String,
+    pub check_command: Option<String>,
+}
+
+/// RFC-079: Dev command for code projects.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DevCommand {
+    pub command: String,
+    pub description: String,
+    pub prerequisites: Vec<DevPrerequisite>,
+    pub expected_url: Option<String>,
+}
+
+/// RFC-079: Suggested next action.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SuggestedAction {
+    pub action_type: SuggestedActionType,
+    pub description: String,
+    pub goal_id: Option<String>,
+    pub command: Option<String>,
+    pub confidence: f64,
+}
+
+/// RFC-079: Pipeline step.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PipelineStep {
+    pub id: String,
+    pub title: String,
+    pub status: PipelineStepStatus,
+    pub description: String,
+}
+
+/// RFC-079: Inferred goal.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InferredGoal {
+    pub id: String,
+    pub title: String,
+    pub description: String,
+    pub priority: String,
+    pub status: String,
+    pub confidence: f64,
+}
+
+/// RFC-079: Sub-project in a monorepo.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubProject {
+    pub name: String,
+    pub path: String,
+    pub manifest: String,
+    pub project_type: String,
+    pub description: String,
+}
+
+/// RFC-079: Universal project understanding.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectAnalysis {
+    pub name: String,
+    pub path: String,
+    pub project_type: String,
+    pub project_subtype: Option<String>,
+    pub goals: Vec<InferredGoal>,
+    pub pipeline: Vec<PipelineStep>,
+    pub current_step: Option<String>,
+    pub completion_percent: f64,
+    pub suggested_action: Option<SuggestedAction>,
+    pub suggested_workspace_primary: String,
+    pub dev_command: Option<DevCommand>,
+    pub confidence: f64,
+    pub confidence_level: String,
+    pub detection_signals: Vec<String>,
+    pub analyzed_at: String,
+    pub classification_source: String,
+}
+
+/// RFC-079: Monorepo analysis result.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MonorepoAnalysis {
+    pub is_monorepo: bool,
+    pub sub_projects: Vec<SubProject>,
+}
+
+/// RFC-079: Analyze a project to understand its intent and state.
+/// 
+/// Calls `sunwell project analyze --json` to get universal project understanding.
+#[tauri::command]
+pub async fn analyze_project(
+    path: String,
+    fresh: Option<bool>,
+) -> Result<ProjectAnalysis, String> {
+    let project_path = PathBuf::from(&path);
+    
+    if !project_path.exists() {
+        return Err(format!("Path does not exist: {}", path));
+    }
+    
+    let mut args = vec!["project", "analyze", "--json"];
+    if fresh.unwrap_or(false) {
+        args.push("--fresh");
+    }
+    
+    let output = sunwell_command()
+        .args(&args)
+        .current_dir(&project_path)
+        .output()
+        .map_err(|e| format!("Failed to run sunwell project analyze: {}", e))?;
+    
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Project analysis failed: {}", stderr));
+    }
+    
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    serde_json::from_str(&stdout)
+        .map_err(|e| format!("Failed to parse analysis result: {} - {}", e, stdout))
+}
+
+/// RFC-079: Check if a path is a monorepo and get sub-projects.
+#[tauri::command]
+pub async fn analyze_monorepo(path: String) -> Result<MonorepoAnalysis, String> {
+    let project_path = PathBuf::from(&path);
+    
+    if !project_path.exists() {
+        return Err(format!("Path does not exist: {}", path));
+    }
+    
+    let output = sunwell_command()
+        .args(["project", "monorepo", "--json"])
+        .current_dir(&project_path)
+        .output()
+        .map_err(|e| format!("Failed to run sunwell project monorepo: {}", e))?;
+    
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Monorepo analysis failed: {}", stderr));
+    }
+    
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    serde_json::from_str(&stdout)
+        .map_err(|e| format!("Failed to parse monorepo result: {}", e))
+}
+
+/// RFC-079: Get raw project signals (for debugging).
+#[tauri::command]
+pub async fn get_project_signals(path: String) -> Result<serde_json::Value, String> {
+    let project_path = PathBuf::from(&path);
+    
+    if !project_path.exists() {
+        return Err(format!("Path does not exist: {}", path));
+    }
+    
+    let output = sunwell_command()
+        .args(["project", "signals", "--json"])
+        .current_dir(&project_path)
+        .output()
+        .map_err(|e| format!("Failed to run sunwell project signals: {}", e))?;
+    
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Signals analysis failed: {}", stderr));
+    }
+    
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    serde_json::from_str(&stdout)
+        .map_err(|e| format!("Failed to parse signals result: {}", e))
 }

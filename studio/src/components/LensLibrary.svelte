@@ -17,10 +17,10 @@
     openEditor,
     forkLens,
     deleteLens,
-    setFilter,
-    setDefaultLens,
-    goToLibrary,
-    loadVersions,
+  setFilter,
+  setDefaultLens,
+  backToList,
+  loadVersions,
     rollbackLens,
     saveLens,
     clearError,
@@ -273,7 +273,7 @@
   {:else if lensLibrary.view === 'detail'}
     <!-- Detail View -->
     <div class="detail-view">
-      <button class="back-button" onclick={goToLibrary}>← Back to Library</button>
+      <button class="back-button" onclick={backToList}>← Back to Library</button>
       
       {#if lensLibrary.isLoadingDetail}
         <div class="loading-state">Loading lens details...</div>
@@ -336,7 +336,7 @@
     <!-- Editor View -->
     <div class="editor-view">
       <div class="editor-header">
-        <button class="back-button" onclick={goToLibrary}>← Back to Library</button>
+        <button class="back-button" onclick={backToList}>← Back to Library</button>
         <h2>Editing: {lensLibrary.selectedLens?.name}</h2>
         <Button 
           variant="primary" 
@@ -362,7 +362,7 @@
   {:else if lensLibrary.view === 'versions'}
     <!-- Versions View -->
     <div class="versions-view">
-      <button class="back-button" onclick={goToLibrary}>← Back to Library</button>
+      <button class="back-button" onclick={backToList}>← Back to Library</button>
       <h2>Version History: {lensLibrary.selectedLens?.name}</h2>
       
       {#if lensLibrary.isLoadingVersions}

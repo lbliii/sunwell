@@ -15,17 +15,37 @@ if TYPE_CHECKING:
     from sunwell.tools.executor import ToolExecutor
 
 
+def _get_sunwell_source_root() -> Path:
+    """Get the root directory containing Sunwell's source code.
+
+    This auto-resolves to where `src/sunwell/` lives, regardless of
+    the current working directory. Works for both development installs
+    and installed packages.
+    """
+    import sunwell
+    # sunwell.__file__ = .../src/sunwell/__init__.py
+    # We need .../src/sunwell's parent's parent = ...
+    return Path(sunwell.__file__).parent.parent.parent
+
+
 @dataclass
 class SourceIntrospector:
     """Read and analyze Sunwell's own source code.
 
     Example:
-        >>> introspector = SourceIntrospector(Path("/path/to/sunwell"))
+        >>> introspector = SourceIntrospector()
         >>> source = introspector.get_module_source("sunwell.tools.executor")
         >>> symbol = introspector.find_symbol("sunwell.tools.executor", "ToolExecutor")
+
+    Note: The `sunwell_root` parameter is deprecated and ignored.
+    Source root is now auto-detected from the installed package location.
     """
 
-    sunwell_root: Path
+    sunwell_root: Path | None = None  # Deprecated, kept for API compatibility
+
+    def __post_init__(self) -> None:
+        """Auto-resolve the actual Sunwell source root."""
+        self._source_root = _get_sunwell_source_root()
 
     def get_module_source(self, module_path: str) -> str:
         """Get source code for a module.
@@ -41,7 +61,7 @@ class SourceIntrospector:
         """
         # Convert module path to file path
         parts = module_path.replace("sunwell.", "").split(".")
-        file_path = self.sunwell_root / "src" / "sunwell" / "/".join(parts)
+        file_path = self._source_root / "src" / "sunwell" / "/".join(parts)
 
         # Try .py extension
         if not file_path.suffix:
@@ -49,7 +69,7 @@ class SourceIntrospector:
 
         # Check for __init__.py in directory
         if not file_path.exists():
-            dir_path = self.sunwell_root / "src" / "sunwell" / "/".join(parts)
+            dir_path = self._source_root / "src" / "sunwell" / "/".join(parts)
             if dir_path.is_dir():
                 file_path = dir_path / "__init__.py"
 
@@ -151,7 +171,7 @@ class SourceIntrospector:
         Returns:
             List of dotted module paths
         """
-        sunwell_src = self.sunwell_root / "src" / "sunwell"
+        sunwell_src = self._source_root / "src" / "sunwell"
         modules = []
 
         for path in sunwell_src.rglob("*.py"):

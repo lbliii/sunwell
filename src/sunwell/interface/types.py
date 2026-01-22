@@ -11,6 +11,24 @@ if TYPE_CHECKING:
 
 InteractionType = Literal["workspace", "view", "action", "conversation", "hybrid"]
 
+# Auxiliary panel types for conversation layouts
+AuxiliaryPanelType = Literal[
+    "calendar",   # Calendar/scheduling view
+    "tasks",      # Task/todo list
+    "chart",      # Data visualization (line, bar, pie)
+    "image",      # Visual aid or preview
+    "upload",     # File upload prompt
+    "code",       # Code block with syntax highlighting
+    "map",        # Location/geographic reference
+    "editor",     # Editable text panel
+    "document",   # Document preview
+    "products",   # Product comparison list
+    "links",      # Related resources/references
+]
+
+# Suggested input tool types
+InputToolType = Literal["upload", "camera", "voice", "location", "draw"]
+
 
 @dataclass(frozen=True, slots=True)
 class ActionSpec:
@@ -97,6 +115,12 @@ class IntentAnalysis:
     conversation_mode: str | None = None
     """For conversation: "informational", "empathetic", "collaborative"."""
 
+    auxiliary_panels: tuple[dict[str, Any], ...] = ()
+    """Contextual panels to display alongside conversation (image, chart, etc.)."""
+
+    suggested_tools: tuple[str, ...] = ()
+    """Suggested input tools: "upload", "camera", "voice", "draw"."""
+
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary."""
 
@@ -106,6 +130,8 @@ class IntentAnalysis:
             "response": self.response,
             "reasoning": self.reasoning,
             "conversation_mode": self.conversation_mode,
+            "auxiliary_panels": list(self.auxiliary_panels),
+            "suggested_tools": list(self.suggested_tools),
         }
 
         if self.action:
@@ -156,6 +182,8 @@ class IntentAnalysis:
 
 __all__ = [
     "ActionSpec",
+    "AuxiliaryPanelType",
+    "InputToolType",
     "IntentAnalysis",
     "InteractionType",
     "ViewSpec",

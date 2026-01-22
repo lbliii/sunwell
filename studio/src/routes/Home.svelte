@@ -1,388 +1,569 @@
 <!--
-  Home — Holy Light styled launch screen (Svelte 5)
+  Home — Unified Home Surface (RFC-080)
   
-  The minimal, beautiful entry point approaching the Sunwell.
-  Features golden background aura and ambient rising motes.
+  One input, infinite possibilities. Type anything → AI understands intent → 
+  beautiful response materializes (block, workspace, action, or conversation).
 -->
 <script lang="ts">
-  import { untrack } from 'svelte';
-  import Logo from '../components/Logo.svelte';
-  import InputBar from '../components/InputBar.svelte';
-  import RecentProjects from '../components/RecentProjects.svelte';
-  import RisingMotes from '../components/RisingMotes.svelte';
-  import MouseMotes from '../components/MouseMotes.svelte';
-  import Modal from '../components/Modal.svelte';
-  import Button from '../components/Button.svelte';
-  import SavedPrompts from '../components/SavedPrompts.svelte';
-  import SparkleField from '../components/ui/SparkleField.svelte';
-  import LensPicker from '../components/LensPicker.svelte';
-  import LensBadge from '../components/LensBadge.svelte';
-  import { goToProject, goToInterface } from '../stores/app.svelte';
-  import { 
-    project,
-    scanProjects,
-    openProject,
-    resumeProject,
-    deleteProject,
-    archiveProject,
-    iterateProject,
-  } from '../stores/project.svelte';
-  import { runGoal } from '../stores/agent.svelte';
-  import { prompts, loadPrompts, removePrompt } from '../stores/prompts.svelte';
-  import { lens, loadLenses, selectLens } from '../stores/lens.svelte';
-  import type { ProjectStatus } from '$lib/types';
-  
-  let inputValue = $state('');
-  let inputBar: InputBar;
-  
-  // RFC-064: Lens picker state
-  let showLensPicker = $state(false);
-  let pendingGoal = $state<string | null>(null);
-  
-  // Confirmation modal state
-  let confirmModal = $state<{ 
-    show: boolean; 
-    title: string; 
-    message: string; 
-    action: 'delete' | 'archive'; 
-    project: ProjectStatus | null;
-    destructive: boolean;
-  }>({ show: false, title: '', message: '', action: 'delete', project: null, destructive: false });
-  
-  function showConfirm(action: 'delete' | 'archive', proj: ProjectStatus) {
-    if (action === 'delete') {
-      confirmModal = {
-        show: true,
-        title: 'Delete Project',
-        message: `Delete "${proj.name}" permanently? This cannot be undone.`,
-        action: 'delete',
-        project: proj,
-        destructive: true,
-      };
-    } else {
-      confirmModal = {
-        show: true,
-        title: 'Archive Project',
-        message: `Archive "${proj.name}"? This will move it to ~/Sunwell/archived/`,
-        action: 'archive',
-        project: proj,
-        destructive: false,
-      };
-    }
-  }
-  
-  async function handleConfirm() {
-    if (!confirmModal.project) return;
-    
-    const proj = confirmModal.project;
-    const action = confirmModal.action;
-    confirmModal = { ...confirmModal, show: false };
-    
-    if (action === 'delete') {
-      await deleteProject(proj.path);
-    } else {
-      await archiveProject(proj.path);
-    }
-  }
-  
-  function handleCancel() {
-    confirmModal = { ...confirmModal, show: false };
-  }
-  
-  // One-time initialization on mount
-  $effect(() => {
-    untrack(() => {
-      scanProjects();
-      loadPrompts();
-      loadLenses(); // RFC-064: Pre-load lenses
-      inputBar?.focus();
-    });
-  });
-  
-  // RFC-064: Show lens picker before starting goal
-  async function handleSubmit(goal: string) {
-    if (!goal) return;
-    pendingGoal = goal;
-    showLensPicker = true;
-  }
-  
-  // RFC-064: Handle lens selection and run goal
-  async function handleLensConfirm(lensName: string | null, autoSelect: boolean) {
-    if (!pendingGoal) return;
-    
-    selectLens(lensName, autoSelect);
-    
-    // Run goal with lens selection — pass lens info to backend
-    const workspacePath = await runGoal(pendingGoal, undefined, lensName, autoSelect);
-    if (workspacePath) {
-      await openProject(workspacePath);
-      goToProject();
-    }
-    
-    pendingGoal = null;
-  }
-  
-  function handleLensPickerClose() {
-    showLensPicker = false;
-    pendingGoal = null;
-  }
-  
-  async function handleSelectProject(proj: ProjectStatus) {
-    await openProject(proj.path);
-    goToProject();
-  }
-  
-  async function handleResumeProject(proj: ProjectStatus) {
-    await openProject(proj.path);
-    goToProject();
-    await resumeProject(proj.path);
-  }
-  
-  async function handleIterateProject(proj: ProjectStatus) {
-    const result = await iterateProject(proj.path);
-    if (result.success && result.new_path) {
-      await openProject(result.new_path);
-      goToProject();
-    }
-  }
-  
-  function handleArchiveProject(proj: ProjectStatus) {
-    showConfirm('archive', proj);
-  }
-  
-  function handleDeleteProject(proj: ProjectStatus) {
-    showConfirm('delete', proj);
-  }
-  
-  function handleSelectPrompt(text: string) {
-    inputValue = text;
-    inputBar?.focus();
-  }
-  
-  async function handleRemovePrompt(text: string) {
-    await removePrompt(text);
-  }
+	import { untrack } from 'svelte';
+	import Logo from '../components/Logo.svelte';
+	import InputBar from '../components/InputBar.svelte';
+	import RisingMotes from '../components/RisingMotes.svelte';
+	import MouseMotes from '../components/MouseMotes.svelte';
+	import Modal from '../components/Modal.svelte';
+	import Button from '../components/Button.svelte';
+	import SparkleField from '../components/ui/SparkleField.svelte';
+	import LensPicker from '../components/LensPicker.svelte';
+	import LensBadge from '../components/LensBadge.svelte';
+	import ChatHistory from '../components/ChatHistory.svelte';
+	import { BlockSurface, ActionToast, ConversationLayout, ProjectsBlock } from '../components';
+	import { goToProject } from '../stores/app.svelte';
+	import {
+		project,
+		scanProjects,
+		openProject,
+		resumeProject,
+		deleteProject,
+		archiveProject,
+		iterateProject,
+		analyzeProject,
+	} from '../stores/project.svelte';
+	import { runGoal } from '../stores/agent.svelte';
+	import { lens, loadLenses, selectLens } from '../stores/lens.svelte';
+	import {
+		homeState,
+		routeInput,
+		clearResponse,
+		executeBlockAction,
+		isViewResponse,
+		isActionResponse,
+		isConversationResponse,
+		isWorkspaceResponse,
+		isHybridResponse,
+	} from '../stores/home.svelte';
+	import type { ProjectStatus } from '$lib/types';
+
+	let inputValue = $state('');
+	let inputBar: InputBar | undefined = $state();
+
+	// Chat history sidebar state
+	let showChatHistory = $state(false);
+
+	// Lens picker state (for workspace intents)
+	let showLensPicker = $state(false);
+	let pendingGoal = $state<string | null>(null);
+	let pendingWorkspaceSpec = $state<Record<string, unknown> | null>(null);
+
+	// Action toast state
+	let actionToast = $state<{
+		show: boolean;
+		actionType: string;
+		success: boolean;
+		message: string;
+	} | null>(null);
+
+	// Confirmation modal state
+	let confirmModal = $state<{
+		show: boolean;
+		title: string;
+		message: string;
+		action: 'delete' | 'archive';
+		project: ProjectStatus | null;
+		destructive: boolean;
+	}>({
+		show: false,
+		title: '',
+		message: '',
+		action: 'delete',
+		project: null,
+		destructive: false,
+	});
+
+	function showConfirm(action: 'delete' | 'archive', proj: ProjectStatus) {
+		if (action === 'delete') {
+			confirmModal = {
+				show: true,
+				title: 'Delete Project',
+				message: `Delete "${proj.name}" permanently? This cannot be undone.`,
+				action: 'delete',
+				project: proj,
+				destructive: true,
+			};
+		} else {
+			confirmModal = {
+				show: true,
+				title: 'Archive Project',
+				message: `Archive "${proj.name}"? This will move it to ~/Sunwell/archived/`,
+				action: 'archive',
+				project: proj,
+				destructive: false,
+			};
+		}
+	}
+
+	async function handleConfirm() {
+		if (!confirmModal.project) return;
+
+		const proj = confirmModal.project;
+		const action = confirmModal.action;
+		confirmModal = { ...confirmModal, show: false };
+
+		if (action === 'delete') {
+			await deleteProject(proj.path);
+		} else {
+			await archiveProject(proj.path);
+		}
+	}
+
+	function handleCancel() {
+		confirmModal = { ...confirmModal, show: false };
+	}
+
+	// One-time initialization on mount
+	$effect(() => {
+		untrack(() => {
+			scanProjects();
+			loadLenses();
+			inputBar?.focus();
+		});
+	});
+
+	// Unified input handler — routes to workspace, view, action, or conversation
+	async function handleSubmit(goal: string) {
+		if (!goal || homeState.isProcessing) return;
+
+		inputValue = '';
+
+		// Route through InteractionRouter (RFC-075)
+		const response = await routeInput(goal);
+
+		if (isWorkspaceResponse(response)) {
+			// Show lens picker for workspace creation
+			pendingGoal = goal;
+			pendingWorkspaceSpec = response.workspace_spec || null;
+			showLensPicker = true;
+		} else if (isActionResponse(response)) {
+			// Show action toast
+			actionToast = {
+				show: true,
+				actionType: response.action_type,
+				success: response.success,
+				message: response.response,
+			};
+		}
+		// View, Conversation, and Hybrid responses are rendered via reactive state
+	}
+
+	// Handle lens selection and run goal
+	async function handleLensConfirm(lensName: string | null, autoSelect: boolean) {
+		if (!pendingGoal) return;
+
+		selectLens(lensName, autoSelect);
+
+		// Run goal with lens selection
+		const workspacePath = await runGoal(pendingGoal, undefined, lensName, autoSelect);
+		if (workspacePath) {
+			await openProject(workspacePath);
+			goToProject();
+		}
+
+		pendingGoal = null;
+		pendingWorkspaceSpec = null;
+		showLensPicker = false;
+	}
+
+	function handleLensPickerClose() {
+		showLensPicker = false;
+		pendingGoal = null;
+		pendingWorkspaceSpec = null;
+	}
+
+	function handleDismissBlock() {
+		clearResponse();
+	}
+
+	async function handleBlockAction(actionId: string, itemId?: string) {
+		// Handle follow-up: focus input to continue conversation
+		if (actionId === 'follow_up') {
+			inputBar?.focus();
+			return;
+		}
+
+		// Handle dismiss: clear the current response
+		if (actionId === 'dismiss') {
+			clearResponse();
+			return;
+		}
+
+		// Handle project-specific actions
+		if (actionId === 'open' && itemId) {
+			await openProject(itemId);
+			analyzeProject(itemId);
+			goToProject();
+			return;
+		}
+		if (actionId === 'resume' && itemId) {
+			await openProject(itemId);
+			analyzeProject(itemId);
+			goToProject();
+			await resumeProject(itemId);
+			return;
+		}
+		if (actionId === 'archive' && itemId) {
+			const proj = project.discovered.find((p) => p.path === itemId);
+			if (proj) showConfirm('archive', proj);
+			return;
+		}
+
+		// Execute other block actions through ActionExecutor
+		const result = await executeBlockAction(actionId, itemId);
+		if (result.success || result.message) {
+			actionToast = {
+				show: true,
+				actionType: actionId,
+				success: result.success,
+				message: result.message,
+			};
+		}
+	}
+
+	function handleDismissToast() {
+		actionToast = null;
+	}
+
+	async function handleSelectProject(proj: ProjectStatus) {
+		await openProject(proj.path);
+		analyzeProject(proj.path);
+		goToProject();
+	}
+
+	async function handleResumeProject(proj: ProjectStatus) {
+		await openProject(proj.path);
+		analyzeProject(proj.path);
+		goToProject();
+		await resumeProject(proj.path);
+	}
+
+	async function handleIterateProject(proj: ProjectStatus) {
+		const result = await iterateProject(proj.path);
+		if (result.success && result.new_path) {
+			await openProject(result.new_path);
+			goToProject();
+		}
+	}
+
+	function handleArchiveProject(proj: ProjectStatus) {
+		showConfirm('archive', proj);
+	}
+
+	function handleDeleteProject(proj: ProjectStatus) {
+		showConfirm('delete', proj);
+	}
 </script>
 
 <MouseMotes spawnRate={50} maxParticles={30}>
-  {#snippet children()}
-    <div class="home">
-      <!-- Background aura centered on logo area -->
-      <div class="background-aura"></div>
-      
-      <!-- Ambient rising motes (always visible, more prominent) -->
-      <div class="ambient-motes">
-        <RisingMotes count={12} intensity="normal" />
-      </div>
-      
-      <div class="hero">
-        <div class="logo-container">
-          <div class="logo-sparkles">
-            <SparkleField width={16} height={5} density={0.08} speed={250} />
-          </div>
-          <Logo size="lg" />
-        </div>
-        
-        <div class="input-section">
-          <InputBar
-            bind:this={inputBar}
-            bind:value={inputValue}
-            placeholder="What would you like to create?"
-            autofocus
-            showMotes={true}
-            onsubmit={handleSubmit}
-          />
-          <!-- RFC-064: Show selected lens badge -->
-          {#if lens.selection.lens || !lens.selection.autoSelect}
-            <div class="lens-indicator">
-              <LensBadge size="sm" showAuto={false} />
-            </div>
-          {/if}
-        </div>
-        
-        <SavedPrompts
-          prompts={prompts.list}
-          loading={prompts.isLoading}
-          onselect={handleSelectPrompt}
-          onremove={handleRemovePrompt}
-        />
-        
-        <RecentProjects 
-          projects={project.discovered}
-          loading={project.isScanning}
-          onselect={handleSelectProject}
-          onresume={handleResumeProject}
-          oniterate={handleIterateProject}
-          onarchive={handleArchiveProject}
-          ondelete={handleDeleteProject}
-        />
-      </div>
-      
-      <footer class="footer-nav">
-        <button class="chat-mode-btn" onclick={goToInterface}>
-          <span class="chat-icon">💬</span>
-          <span class="chat-label">Chat Mode</span>
-        </button>
-        <span class="version">v0.1.0</span>
-      </footer>
-    </div>
-  {/snippet}
+	{#snippet children()}
+		<div class="home">
+			<!-- Chat history toggle button (visible when there's history) -->
+			{#if homeState.conversationHistory.length > 0}
+				<button
+					class="history-toggle"
+					onclick={() => (showChatHistory = true)}
+					aria-label="View chat history"
+					title="Chat history ({homeState.conversationHistory.length} messages)"
+				>
+					💬 <span class="history-count">{homeState.conversationHistory.length}</span>
+				</button>
+			{/if}
+
+			<!-- Background aura centered on logo area -->
+			<div class="background-aura"></div>
+
+			<!-- Ambient rising motes (always visible, more prominent) -->
+			<div class="ambient-motes">
+				<RisingMotes count={12} intensity="normal" />
+			</div>
+
+			<div class="hero">
+				<div class="logo-container">
+					<div class="logo-sparkles">
+						<SparkleField width={16} height={5} density={0.08} speed={250} />
+					</div>
+					<Logo size="lg" />
+				</div>
+
+				<!-- Hero input (hidden when in conversation) -->
+				{#if !isConversationResponse(homeState.response)}
+					<div class="input-section">
+						<InputBar
+							bind:this={inputBar}
+							bind:value={inputValue}
+							placeholder="Build a pirate game, show my habits, remind me at 5pm..."
+							autofocus
+							showMotes={true}
+							onsubmit={handleSubmit}
+							loading={homeState.isProcessing}
+						/>
+						<!-- Show selected lens badge -->
+						{#if lens.selection.lens || !lens.selection.autoSelect}
+							<div class="lens-indicator">
+								<LensBadge size="sm" showAuto={false} />
+							</div>
+						{/if}
+					</div>
+				{/if}
+
+				<!-- Dynamic Block Surface (Tetris layout) -->
+				{#if homeState.response}
+					<div class="response-surface">
+						{#if isViewResponse(homeState.response)}
+							<BlockSurface
+								blockType={homeState.response.view_type}
+								blockData={homeState.response.view_data}
+								response={homeState.response.response}
+								onDismiss={handleDismissBlock}
+								onAction={handleBlockAction}
+							/>
+						{:else if isConversationResponse(homeState.response)}
+							<ConversationLayout
+								messages={homeState.conversationHistory.slice(0, -1).map(m => ({
+									role: m.role,
+									content: m.content
+								}))}
+								currentResponse={homeState.response.response}
+								mode={homeState.response.conversation_mode}
+								auxiliaryPanels={homeState.response.auxiliary_panels}
+								suggestedTools={homeState.response.suggested_tools}
+								loading={homeState.isProcessing}
+								onSubmit={handleSubmit}
+								onAction={handleBlockAction}
+								onDismiss={handleDismissBlock}
+							/>
+						{:else if isHybridResponse(homeState.response)}
+							<BlockSurface
+								blockType={homeState.response.view_type}
+								blockData={homeState.response.view_data}
+								onDismiss={handleDismissBlock}
+								onAction={handleBlockAction}
+							/>
+						{/if}
+					</div>
+				{/if}
+
+				<!-- Contextual Projects Block (always shown if projects exist) -->
+				{#if project.discovered.length > 0 && !homeState.response}
+					<section class="contextual-blocks">
+						<ProjectsBlock
+							data={{
+								projects: project.discovered,
+								project_count: project.discovered.length,
+							}}
+							onAction={handleBlockAction}
+						/>
+					</section>
+				{/if}
+			</div>
+
+			<footer class="version">v0.1.0</footer>
+		</div>
+	{/snippet}
 </MouseMotes>
 
-<!-- Confirmation Modal using accessible Modal component -->
-<Modal 
-  isOpen={confirmModal.show}
-  onClose={handleCancel}
-  title={confirmModal.title}
-  description={confirmModal.message}
+<!-- Action Toast -->
+{#if actionToast?.show}
+	<ActionToast
+		actionType={actionToast.actionType}
+		success={actionToast.success}
+		message={actionToast.message}
+		onDismiss={handleDismissToast}
+	/>
+{/if}
+
+<!-- Confirmation Modal -->
+<Modal
+	isOpen={confirmModal.show}
+	onClose={handleCancel}
+	title={confirmModal.title}
+	description={confirmModal.message}
 >
-  <div class="modal-actions">
-    <Button variant="ghost" onclick={handleCancel}>
-      Cancel
-    </Button>
-    <Button 
-      variant={confirmModal.destructive ? 'secondary' : 'primary'}
-      onclick={handleConfirm}
-    >
-      {confirmModal.action === 'delete' ? 'Delete' : 'Archive'}
-    </Button>
-  </div>
+	<div class="modal-actions">
+		<Button variant="ghost" onclick={handleCancel}>Cancel</Button>
+		<Button
+			variant={confirmModal.destructive ? 'secondary' : 'primary'}
+			onclick={handleConfirm}
+		>
+			{confirmModal.action === 'delete' ? 'Delete' : 'Archive'}
+		</Button>
+	</div>
 </Modal>
 
-<!-- RFC-064: Lens Picker Modal -->
+<!-- Lens Picker Modal -->
 <LensPicker
-  isOpen={showLensPicker}
-  onClose={handleLensPickerClose}
-  onConfirm={handleLensConfirm}
+	isOpen={showLensPicker}
+	onClose={handleLensPickerClose}
+	onConfirm={handleLensConfirm}
+/>
+
+<!-- Chat History Sidebar -->
+<ChatHistory
+	isOpen={showChatHistory}
+	onClose={() => (showChatHistory = false)}
+	onNewSession={() => inputBar?.focus()}
 />
 
 <style>
-  .home {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    padding: var(--space-8);
-    position: relative;
-    overflow: hidden;
-  }
-  
-  .background-aura {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 100%;
-    height: 60%;
-    background: 
-      radial-gradient(
-        ellipse 60% 50% at 50% 30%,
-        rgba(255, 215, 0, 0.06) 0%,
-        rgba(218, 165, 32, 0.03) 30%,
-        transparent 60%
-      );
-    pointer-events: none;
-    z-index: 0;
-  }
-  
-  .ambient-motes {
-    position: absolute;
-    top: 15%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 500px;
-    height: 300px;
-    pointer-events: none;
-    z-index: 1;
-  }
-  
-  .hero {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-8);
-    animation: fadeIn 0.3s ease;
-    position: relative;
-    z-index: 2;
-  }
-  
-  .logo-container {
-    position: relative;
-  }
-  
-  .logo-sparkles {
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    opacity: 0.6;
-    pointer-events: none;
-  }
-  
-  .input-section {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--space-2);
-    margin-top: var(--space-8);
-  }
-  
-  .lens-indicator {
-    animation: fadeIn 0.2s ease;
-  }
-  
-  .footer-nav {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    position: relative;
-    z-index: 2;
-  }
-  
-  .chat-mode-btn {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    color: var(--text-secondary);
-    cursor: pointer;
-    font-size: var(--text-sm);
-    transition: all 0.2s;
-  }
-  
-  .chat-mode-btn:hover {
-    background: var(--bg-tertiary);
-    border-color: var(--gold);
-    color: var(--text-primary);
-  }
-  
-  .chat-icon {
-    font-size: var(--text-lg);
-  }
-  
-  .chat-label {
-    font-weight: 500;
-  }
-  
-  .version {
-    color: var(--text-tertiary);
-    font-size: var(--text-xs);
-  }
-  
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  
-  .modal-actions {
-    display: flex;
-    gap: var(--space-3);
-    justify-content: flex-end;
-    margin-top: var(--space-4);
-  }
+	.home {
+		display: flex;
+		flex-direction: column;
+		min-height: 100vh;
+		padding: var(--space-8);
+		position: relative;
+		overflow: hidden;
+	}
+
+	.background-aura {
+		position: absolute;
+		top: 0;
+		left: 50%;
+		transform: translateX(-50%);
+		width: 100%;
+		height: 60%;
+		background: radial-gradient(
+			ellipse 60% 50% at 50% 30%,
+			rgba(255, 215, 0, 0.06) 0%,
+			rgba(218, 165, 32, 0.03) 30%,
+			transparent 60%
+		);
+		pointer-events: none;
+		z-index: 0;
+	}
+
+	.ambient-motes {
+		position: absolute;
+		top: 15%;
+		left: 50%;
+		transform: translateX(-50%);
+		width: 500px;
+		height: 300px;
+		pointer-events: none;
+		z-index: 1;
+	}
+
+	.hero {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: flex-start;
+		gap: var(--space-6);
+		padding-top: 12vh;
+		animation: fadeIn 0.3s ease;
+		position: relative;
+		z-index: 2;
+	}
+
+	.logo-container {
+		position: relative;
+	}
+
+	.logo-sparkles {
+		position: absolute;
+		bottom: 100%;
+		left: 50%;
+		transform: translateX(-50%);
+		opacity: 0.6;
+		pointer-events: none;
+	}
+
+	.input-section {
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--space-2);
+		margin-top: var(--space-6);
+	}
+
+	.lens-indicator {
+		animation: fadeIn 0.2s ease;
+	}
+
+	.response-surface {
+		width: 100%;
+		max-width: 1100px;
+		margin-top: var(--space-4);
+	}
+
+	.contextual-blocks {
+		width: 100%;
+		max-width: 600px;
+		margin-top: var(--space-6);
+		animation: fadeIn 0.3s ease;
+	}
+
+	.version {
+		position: fixed;
+		bottom: var(--space-4);
+		right: var(--space-4);
+		color: var(--text-tertiary);
+		font-size: var(--text-xs);
+		z-index: 2;
+	}
+
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+			transform: translateY(10px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	.modal-actions {
+		display: flex;
+		gap: var(--space-3);
+		justify-content: flex-end;
+		margin-top: var(--space-4);
+	}
+
+	.history-toggle {
+		position: fixed;
+		top: var(--space-4);
+		left: var(--space-4);
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+		padding: var(--space-2) var(--space-3);
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-md);
+		color: var(--text-secondary);
+		font-size: var(--text-sm);
+		cursor: pointer;
+		transition: all 0.15s ease;
+		z-index: 10;
+	}
+
+	.history-toggle:hover {
+		background: rgba(255, 215, 0, 0.1);
+		border-color: rgba(255, 215, 0, 0.3);
+		color: var(--text-gold);
+	}
+
+	.history-toggle:focus-visible {
+		outline: 2px solid var(--border-emphasis);
+		outline-offset: 2px;
+	}
+
+	.history-count {
+		background: rgba(255, 215, 0, 0.2);
+		color: var(--text-gold);
+		padding: 0 var(--space-1);
+		border-radius: var(--radius-sm);
+		font-size: var(--text-xs);
+		min-width: 1.2em;
+		text-align: center;
+	}
 </style>

@@ -3,23 +3,30 @@
   
   Shows the accumulated intelligence from the agent's work:
   - Memory stats (session, tiers, branches)
+  - Chunk hierarchy (hot/warm/cold tiers)
+  - Concept graph relationships
   - Decisions made
   - Failed approaches (what didn't work)
   - Learnings discovered
   - Dead ends to avoid
 -->
 <script lang="ts">
-  import type { MemoryStats, IntelligenceData, Decision, FailedApproach, Learning, DeadEnd } from '$lib/types';
+  import type { MemoryStats, IntelligenceData } from '$lib/types';
+  import ChunkViewer from './ChunkViewer.svelte';
+  import MemoryGraph from './MemoryGraph.svelte';
   
   interface Props {
     stats: MemoryStats | null;
     intelligence: IntelligenceData | null;
+    projectPath?: string;
   }
   
-  let { stats, intelligence }: Props = $props();
+  let { stats, intelligence, projectPath = '' }: Props = $props();
   
   // Collapsible section states
   let sectionsOpen = $state({
+    chunks: true,
+    graph: false,
     decisions: true,
     failures: true,
     learnings: true,
@@ -76,7 +83,53 @@
           <span class="stat-value">{stats.learnings}</span>
           <span class="stat-label">Learnings</span>
         </div>
+        <div class="stat-card stat-graph">
+          <span class="stat-value">{stats.conceptEdges ?? 0}</span>
+          <span class="stat-label">Relationships</span>
+        </div>
       </div>
+    </section>
+  {/if}
+  
+  <!-- RFC-084: Chunk Hierarchy Viewer -->
+  {#if projectPath}
+    <section class="intelligence-section">
+      <button 
+        class="section-header" 
+        onclick={() => toggleSection('chunks')}
+        aria-expanded={sectionsOpen.chunks}
+        type="button"
+      >
+        <span class="section-icon">[⧉]</span>
+        <span class="section-title">Memory Tiers</span>
+        <span class="section-toggle">{sectionsOpen.chunks ? '▾' : '▸'}</span>
+      </button>
+      
+      {#if sectionsOpen.chunks}
+        <div class="embedded-viewer">
+          <ChunkViewer {projectPath} />
+        </div>
+      {/if}
+    </section>
+    
+    <!-- RFC-084: Concept Graph Viewer -->
+    <section class="intelligence-section">
+      <button 
+        class="section-header" 
+        onclick={() => toggleSection('graph')}
+        aria-expanded={sectionsOpen.graph}
+        type="button"
+      >
+        <span class="section-icon">[⬡]</span>
+        <span class="section-title">Concept Graph</span>
+        <span class="section-toggle">{sectionsOpen.graph ? '▾' : '▸'}</span>
+      </button>
+      
+      {#if sectionsOpen.graph}
+        <div class="embedded-viewer graph-viewer">
+          <MemoryGraph {projectPath} />
+        </div>
+      {/if}
     </section>
   {/if}
   
@@ -285,6 +338,20 @@
   .stat-card.tier-cold .stat-value { color: var(--info); }
   .stat-card.stat-warning .stat-value { color: var(--error); }
   .stat-card.stat-success .stat-value { color: var(--success); }
+  .stat-card.stat-graph .stat-value { color: var(--accent); }
+  
+  /* Embedded Viewers (RFC-084) */
+  .embedded-viewer {
+    padding: var(--space-4);
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  
+  .graph-viewer {
+    min-height: 200px;
+  }
   
   /* Intelligence Sections */
   .intelligence-section {

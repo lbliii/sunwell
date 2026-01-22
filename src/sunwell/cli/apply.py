@@ -527,6 +527,22 @@ async def _apply_async(
         # Record user message in headspace
         await hs.add_user_message(prompt)
 
+    elif simulacrum_store:
+        # RFC-013: Get hierarchical context with semantic search
+        # Uses async method for embedding-based retrieval from warm storage
+        store_context = await simulacrum_store.get_context_for_prompt_async(prompt, max_tokens=4000)
+
+        if store_context:
+            full_prompt = f"## Conversation History\n\n{store_context}\n\n---\n\n## Current Task\n\n{prompt}"
+
+            if verbose:
+                stats = simulacrum_store.stats()
+                console.print("\n[cyan]Simulacrum Context (Hierarchical):[/cyan]")
+                console.print(f"  Hot turns: {stats.get('hot_turns', 0)}")
+                if stats.get('chunk_stats'):
+                    chunk_stats = stats['chunk_stats']
+                    console.print(f"  Chunks: {chunk_stats.get('total_chunks', 0)} ({chunk_stats.get('hot', 0)} hot, {chunk_stats.get('warm', 0)} warm, {chunk_stats.get('cold', 0)} cold)")
+
     if use_tools and tool_executor:
         # Tool-aware execution (RFC-012)
         if stream:

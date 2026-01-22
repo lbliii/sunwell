@@ -63,6 +63,25 @@ class StorageConfig:
     auto_cleanup: bool = True
     """Auto-move old turns to cold storage."""
 
+    # RFC-084: Auto-wiring configuration
+    auto_topology: bool = True
+    """Auto-extract topology relationships every N turns."""
+
+    topology_interval: int = 10
+    """Extract topology every N turns (when auto_topology=True)."""
+
+    auto_cold_demotion: bool = True
+    """Auto-demote warm chunks to cold tier based on age/count."""
+
+    warm_retention_days: int = 7
+    """Days to keep chunks in warm tier before demoting to cold."""
+
+    max_warm_chunks: int = 50
+    """Maximum warm chunks to keep (oldest demoted when exceeded)."""
+
+    auto_summarize: bool = True
+    """Auto-generate summaries for chunks (uses HeuristicSummarizer if no LLM)."""
+
 
 @dataclass
 class SimulacrumStore:
@@ -122,11 +141,22 @@ class SimulacrumStore:
     _intelligence_extractor: Any | None = field(default=None, init=False)
     """RFC-045: Intelligence extractor for project intelligence."""
 
+    # RFC-084: Auto-wiring state
+    _topology_extractor: Any | None = field(default=None, init=False)
+    """Topology extractor for relationship detection."""
+
+    _topology_extracted_chunks: set[str] = field(default_factory=set)
+    """Chunk IDs that have had topology extracted."""
+
+    _focus: Any | None = field(default=None, init=False)
+    """Focus mechanism for weighted topic tracking (RFC-084)."""
+
     def __post_init__(self):
         self.base_path = Path(self.base_path)
         self._ensure_dirs()
         self._init_chunk_manager()
         self._init_unified_store()
+        self._init_auto_wiring()  # RFC-084
 
     def _ensure_dirs(self) -> None:
         """Create storage directories."""
@@ -171,6 +201,26 @@ class SimulacrumStore:
             store=self._unified_store,
             embedder=self._embedder,
         )
+
+    def _init_auto_wiring(self) -> None:
+        """Initialize RFC-084 auto-wiring features."""
+        from sunwell.simulacrum.context.focus import Focus
+        from sunwell.simulacrum.extractors.topology_extractor import TopologyExtractor
+        from sunwell.simulacrum.hierarchical.summarizer import HeuristicSummarizer
+
+        # Initialize topology extractor (heuristic by default, no LLM needed)
+        if self.config.auto_topology:
+            self._topology_extractor = TopologyExtractor()
+
+        # Initialize focus mechanism
+        self._focus = Focus()
+
+        # Initialize default summarizer if auto_summarize is enabled and no summarizer set
+        if self.config.auto_summarize and self._summarizer is None:
+            heuristic_summarizer = HeuristicSummarizer()
+            # HeuristicSummarizer is used for chunk manager (duck-typed)
+            if self._chunk_manager:
+                self._chunk_manager.summarizer = heuristic_summarizer  # type: ignore[assignment]
 
     def set_summarizer(self, summarizer: Summarizer) -> None:
         """Set the summarizer for chunk processing.
@@ -364,6 +414,8 @@ class SimulacrumStore:
     async def add_turn_async(self, turn: Turn) -> str:
         """Add a turn asynchronously (preferred in async contexts).
 
+        RFC-084: Auto-wires topology extraction, cold demotion, and focus updates.
+
         Args:
             turn: Turn to add
 
@@ -376,6 +428,10 @@ class SimulacrumStore:
         if turn.token_count == 0:
             turn = self._estimate_token_count(turn)
 
+        # RFC-084: Update focus based on content
+        if self._focus:
+            self._focus.update_from_query(turn.content)
+
         # Feed to chunk manager for hierarchical processing (RFC-013)
         if self._chunk_manager:
             await self._chunk_manager.add_turns([turn])
@@ -387,6 +443,15 @@ class SimulacrumStore:
         # Check if we need to move old turns to warm
         if self.config.auto_cleanup:
             self._maybe_demote_to_warm()
+
+        # RFC-084: Auto-extract topology every N turns
+        turn_count = len(self._hot_dag.turns)
+        if self.config.auto_topology and turn_count % self.config.topology_interval == 0:
+            await self._extract_topology_batch()
+
+        # RFC-084: Auto-demote warm chunks to cold
+        if self.config.auto_cold_demotion:
+            self._maybe_demote_warm_to_cold()
 
         return turn_id
 
@@ -416,12 +481,60 @@ class SimulacrumStore:
         )
 
     def add_user(self, content: str, **kwargs) -> str:
-        """Convenience: add user message."""
-        return self._hot_dag.add_user_message(content, **kwargs)
+        """Convenience: add user message.
+
+        Creates a Turn and routes through add_turn() for ChunkManager integration.
+        """
+        from sunwell.simulacrum.core.turn import Turn, TurnType
+
+        turn = Turn(
+            content=content,
+            turn_type=TurnType.USER,
+            **kwargs,
+        )
+        return self.add_turn(turn)
 
     def add_assistant(self, content: str, **kwargs) -> str:
-        """Convenience: add assistant message."""
-        return self._hot_dag.add_assistant_message(content, **kwargs)
+        """Convenience: add assistant message.
+
+        Creates a Turn and routes through add_turn() for ChunkManager integration.
+        """
+        from sunwell.simulacrum.core.turn import Turn, TurnType
+
+        turn = Turn(
+            content=content,
+            turn_type=TurnType.ASSISTANT,
+            **kwargs,
+        )
+        return self.add_turn(turn)
+
+    def add_learning(
+        self,
+        fact: str,
+        category: str = "fact",
+        confidence: float = 1.0,
+        source_turns: tuple[str, ...] | None = None,
+    ) -> str:
+        """Add a learning to the conversation.
+
+        Args:
+            fact: The learning/insight text
+            category: Category (fact, preference, behavior, etc.)
+            confidence: Confidence score (0-1)
+            source_turns: Optional tuple of turn IDs this was derived from
+
+        Returns:
+            The learning's ID
+        """
+        from sunwell.simulacrum.core.turn import Learning
+
+        learning = Learning(
+            fact=fact,
+            category=category,
+            confidence=confidence,
+            source_turns=source_turns or (),
+        )
+        return self._hot_dag.add_learning(learning)
 
     def get_dag(self) -> ConversationDAG:
         """Get the current conversation DAG."""
@@ -470,6 +583,48 @@ class SimulacrumStore:
 
         return "\n\n".join(parts)
 
+    async def get_context_for_prompt_async(
+        self,
+        query: str,
+        max_tokens: int = 4000,
+    ) -> str:
+        """Get relevant context for a prompt with semantic retrieval.
+
+        Async version that uses embedding-based semantic search to find
+        relevant chunks from warm storage, not just recent turns.
+
+        Args:
+            query: The query/prompt to find relevant context for
+            max_tokens: Maximum tokens to include in context
+
+        Returns:
+            Formatted context string for inclusion in prompts
+        """
+        if not self._chunk_manager:
+            return self._simple_context(query, max_tokens)
+
+        # Use async method with semantic retrieval
+        context_items = await self._chunk_manager.get_context_window_async(
+            max_tokens=max_tokens,
+            query=query,
+            semantic_limit=5,
+        )
+
+        # Format for prompt
+        parts: list[str] = []
+        for item in context_items:
+            if isinstance(item, Chunk) and item.turns:
+                # Full turns from hot or expanded warm tier
+                for turn in item.turns:
+                    parts.append(f"{turn.turn_type.value}: {turn.content}")
+            elif isinstance(item, ChunkSummary):
+                # Summary from cold tier
+                parts.append(f"[Earlier context: {item.summary}]")
+            elif hasattr(item, "summary") and item.summary:
+                parts.append(f"[Context: {item.summary}]")
+
+        return "\n\n".join(parts)
+
     def _simple_context(self, query: str, max_tokens: int) -> str:
         """Simple context retrieval without ChunkManager.
 
@@ -507,6 +662,247 @@ class SimulacrumStore:
         if not self._chunk_manager:
             return []
         return self._chunk_manager.get_relevant_chunks(query, limit=limit)
+
+    def assemble_messages(
+        self,
+        query: str,
+        system_prompt: str = "",
+        max_tokens: int = 4000,
+    ) -> tuple[list[dict], dict]:
+        """Assemble messages for LLM using hierarchical context.
+
+        Uses progressive compression (hot/warm/cold tiers) to build
+        optimal context within token budget.
+
+        Args:
+            query: Current user query
+            system_prompt: System prompt to include
+            max_tokens: Token budget for context
+
+        Returns:
+            Tuple of (messages, stats) where:
+            - messages: List of message dicts for LLM
+            - stats: Dict with retrieval statistics
+        """
+        messages: list[dict] = []
+        stats = {
+            "retrieved_chunks": 0,
+            "hot_turns": 0,
+            "warm_summaries": 0,
+            "cold_summaries": 0,
+            "compression_applied": False,
+        }
+
+        # 1. System prompt with learnings
+        system_parts = [system_prompt] if system_prompt else []
+
+        # Add learnings from DAG
+        learnings = self._hot_dag.get_active_learnings()
+        if learnings:
+            system_parts.append("\n\n## Key Context (from conversation history)")
+            for learning in learnings:
+                system_parts.append(f"- [{learning.category}] {learning.fact}")
+
+        if system_parts:
+            messages.append({
+                "role": "system",
+                "content": "\n".join(system_parts),
+            })
+
+        # 2. Get context from hierarchical chunks
+        if self._chunk_manager:
+            context_items = self._chunk_manager.get_context_window(
+                max_tokens=max_tokens,
+                query=query,
+            )
+
+            stats["retrieved_chunks"] = len(context_items)
+
+            for item in context_items:
+                if isinstance(item, Chunk) and item.turns:
+                    # HOT tier: full turns as messages
+                    stats["hot_turns"] += len(item.turns)
+                    for turn in item.turns:
+                        messages.append(turn.to_message())
+                elif isinstance(item, ChunkSummary):
+                    # COLD tier: summary only
+                    stats["cold_summaries"] += 1
+                    stats["compression_applied"] = True
+                    messages.append({
+                        "role": "assistant",
+                        "content": f"[Earlier context: {item.summary}]",
+                    })
+                elif hasattr(item, 'summary') and item.summary:
+                    # WARM tier: has summary
+                    stats["warm_summaries"] += 1
+                    messages.append({
+                        "role": "assistant",
+                        "content": f"[Context: {item.summary}]",
+                    })
+        else:
+            # Fallback: recent turns from DAG
+            recent = self._hot_dag.get_recent_turns(10)
+            stats["hot_turns"] = len(recent)
+            for turn in recent:
+                messages.append(turn.to_message())
+
+        return messages, stats
+
+    # === RFC-084: Auto-Wiring Methods ===
+
+    async def _extract_topology_batch(self) -> None:
+        """Extract relationships from recent chunks (RFC-084 auto-topology)."""
+        if not self._chunk_manager or not self._topology_extractor:
+            return
+
+        recent_chunks = self._chunk_manager._get_recent_chunks(limit=5)
+        if len(recent_chunks) < 2:
+            return
+
+        for chunk in recent_chunks:
+            if chunk.id in self._topology_extracted_chunks:
+                continue
+
+            # Get text for this chunk
+            source_text = chunk.summary or self._turns_to_text(chunk)
+
+            # Get candidate chunks (excluding self)
+            candidates = [c for c in recent_chunks if c.id != chunk.id]
+            candidate_ids = [c.id for c in candidates]
+            candidate_texts = [c.summary or self._turns_to_text(c) for c in candidates]
+
+            if not candidate_ids:
+                continue
+
+            # Extract relationships using heuristics
+            edges = self._topology_extractor.extract_heuristic_relationships(
+                source_id=chunk.id,
+                source_text=source_text,
+                candidate_ids=candidate_ids,
+                candidate_texts=candidate_texts,
+            )
+
+            # Add edges to the concept graph
+            if self._unified_store and edges:
+                for edge in edges:
+                    self._unified_store._concept_graph.add_edge(edge)
+
+            self._topology_extracted_chunks.add(chunk.id)
+
+        # Persist the graph
+        if self._unified_store:
+            self._unified_store.save()
+
+    def _turns_to_text(self, chunk: Any) -> str:
+        """Convert chunk turns to text for topology extraction."""
+        if chunk.turns:
+            return "\n".join(f"{t.turn_type.value}: {t.content[:500]}" for t in chunk.turns)
+        return chunk.summary or ""
+
+    def _maybe_demote_warm_to_cold(self) -> None:
+        """Demote old warm chunks to cold tier (RFC-084 auto-cold-demotion)."""
+        if not self._chunk_manager:
+            return
+
+        import time
+
+        warm_chunks = self._chunk_manager._get_warm_chunks()
+        if not warm_chunks:
+            return
+
+        now = time.time()
+
+        # By age: older than config threshold
+        for chunk in warm_chunks:
+            if not chunk.timestamp_end:
+                continue
+            try:
+                # Parse ISO timestamp
+                from datetime import datetime
+                chunk_time = datetime.fromisoformat(chunk.timestamp_end).timestamp()
+                age_days = (now - chunk_time) / 86400
+                if age_days > self.config.warm_retention_days:
+                    self._chunk_manager.demote_to_cold(chunk.id)
+            except (ValueError, OSError):
+                continue
+
+        # By count: keep only max_warm_chunks
+        warm_chunks = self._chunk_manager._get_warm_chunks()  # Refresh after age-based demotion
+        warm_chunks.sort(key=lambda c: c.turn_range[0])  # Sort by turn range (oldest first)
+
+        while len(warm_chunks) > self.config.max_warm_chunks:
+            oldest = warm_chunks.pop(0)
+            self._chunk_manager.demote_to_cold(oldest.id)
+
+    @property
+    def focus(self) -> Any:
+        """Get the focus mechanism (RFC-084)."""
+        return self._focus
+
+    def get_context_for_prompt_weighted(
+        self,
+        query: str,
+        max_tokens: int = 4000,
+    ) -> str:
+        """Get context with focus-weighted retrieval (RFC-084).
+
+        Uses the focus mechanism to weight chunk relevance based on
+        topic tracking across the conversation.
+        """
+        if not self._chunk_manager:
+            return self._simple_context(query, max_tokens)
+
+        # Update focus from query
+        if self._focus:
+            self._focus.update_from_query(query)
+
+        # Get context items
+        context_items = self._chunk_manager.get_context_window(
+            max_tokens=max_tokens,
+            query=query,
+        )
+
+        # If we have focus, apply weighting
+        if self._focus and self._focus.topics:
+            from sunwell.simulacrum.context.focus import FocusFilter
+            focus_filter = FocusFilter(self._focus)
+
+            # Score and reorder by focus relevance
+            scored_items: list[tuple[float, Any]] = []
+            for item in context_items:
+                if hasattr(item, "turns") and item.turns:
+                    # Score based on turns content
+                    turns_scored = focus_filter.filter_turns(list(item.turns), min_relevance=0.0)
+                    if turns_scored:
+                        avg_score = sum(s for _, s in turns_scored) / len(turns_scored)
+                    else:
+                        avg_score = 0.5
+                    scored_items.append((avg_score, item))
+                elif hasattr(item, "summary") and item.summary:
+                    # Score based on summary
+                    tags = focus_filter._extract_tags(item.summary)
+                    score = self._focus.matches(tags)
+                    scored_items.append((score, item))
+                else:
+                    scored_items.append((0.5, item))
+
+            # Sort by score descending
+            scored_items.sort(key=lambda x: x[0], reverse=True)
+            context_items = [item for _, item in scored_items]
+
+        # Format for prompt
+        from sunwell.simulacrum.hierarchical.chunks import Chunk, ChunkSummary
+        parts: list[str] = []
+        for item in context_items:
+            if isinstance(item, Chunk) and item.turns:
+                for turn in item.turns:
+                    parts.append(f"{turn.turn_type.value}: {turn.content}")
+            elif isinstance(item, ChunkSummary):
+                parts.append(f"[Earlier context: {item.summary}]")
+            elif hasattr(item, "summary") and item.summary:
+                parts.append(f"[Context: {item.summary}]")
+
+        return "\n\n".join(parts)
 
     # === Tier Management ===
 
@@ -575,11 +971,13 @@ class SimulacrumStore:
                         with open(cold_dest.with_suffix(".jsonl.zst"), "wb") as dst:
                             dst.write(compressed)
                     except ImportError:
-                        # Fall back to gzip
-                        import gzip
-                        with open(shard_file, "rb") as src:
-                            with gzip.open(cold_dest.with_suffix(".jsonl.gz"), "wb") as dst:
-                                dst.write(src.read())
+                          # Fall back to gzip
+                          import gzip
+                          with (
+                              open(shard_file, "rb") as src,
+                              gzip.open(cold_dest.with_suffix(".jsonl.gz"), "wb") as dst,
+                          ):
+                              dst.write(src.read())
                 else:
                     shutil.move(shard_file, cold_dest)
 

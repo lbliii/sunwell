@@ -1,0 +1,67 @@
+{
+  "model": "gpt-oss:20b",
+  "model_size": "medium",
+  "timestamp": "2026-01-21T16:15:57.829707",
+  "summary": {
+    "bare_score": 34,
+    "old_prism_score": 34,
+    "vantage_score": 30,
+    "one_shot_score": 34,
+    "max_possible": 34,
+    "vantage_lift_pct": -11.76470588235294,
+    "one_shot_lift_pct": 0.0,
+    "old_prism_lift_pct": 0.0
+  },
+  "latency": {
+    "bare_avg_ms": 28921.394843499456,
+    "old_prism_avg_ms": 49860.60956224992,
+    "vantage_avg_ms": 79383.29915624991,
+    "one_shot_avg_ms": 47426.51164575
+  },
+  "tasks": [
+    {
+      "id": "parse_date",
+      "type": "code_generation",
+      "bare_score": 8,
+      "old_prism_score": 8,
+      "vantage_score": 8,
+      "one_shot_score": 8,
+      "vantage_was_refined": false,
+      "vantage_failure_modes": 0,
+      "vantage_constraints": "6/6"
+    },
+    {
+      "id": "rate_limiter",
+      "type": "code_generation",
+      "bare_score": 9,
+      "old_prism_score": 9,
+      "vantage_score": 5,
+      "one_shot_score": 9,
+      "vantage_was_refined": true,
+      "vantage_failure_modes": 0,
+      "vantage_constraints": "0/5"
+    },
+    {
+      "id": "validate_email",
+      "type": "code_generation",
+      "bare_score": 8,
+      "old_prism_score": 8,
+      "vantage_score": 8,
+      "one_shot_score": 8,
+      "vantage_was_refined": false,
+      "vantage_failure_modes": 0,
+      "vantage_constraints": "5/5"
+    },
+    {
+      "id": "retry_decorator",
+      "type": "code_generation",
+      "bare_score": 9,
+      "old_prism_score": 9,
+      "vantage_score": 9,
+      "one_shot_score": 9,
+      "vantage_was_refined": false,
+      "vantage_failure_modes": 0,
+      "vantage_constraints": "5/5"
+    }
+  ]
+}

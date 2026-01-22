@@ -4,14 +4,17 @@
   Long-form writing editor with distraction-free mode.
 -->
 <script lang="ts">
+  import { untrack } from 'svelte';
   import type { WritingPrimitiveProps } from './types';
   import { emitPrimitiveEvent } from '../../stores/surface.svelte';
   
   interface Props extends WritingPrimitiveProps {}
   
-  let { size, content: initialContent, title, seed }: Props = $props();
+  let { size, content: propContent, title, seed }: Props = $props();
   
-  let content = $state(initialContent ?? seed?.content as string ?? '');
+  // Extract initial value (intentional one-time capture from props)
+  const initialValue = untrack(() => propContent ?? seed?.content as string ?? '');
+  let content = $state(initialValue);
   let wordCount = $derived(content.split(/\s+/).filter(w => w.length > 0).length);
   
   function handleChange(e: Event) {

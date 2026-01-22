@@ -79,7 +79,7 @@ async def _illuminate(goals: list[str], time: int, verbose: bool) -> None:
         naaru_config = config.naaru
 
     naaru = Naaru(
-        sunwell_root=Path.cwd(),
+        workspace=Path.cwd(),
         synthesis_model=synthesis_model,
         judge_model=judge_model,
         config=naaru_config,

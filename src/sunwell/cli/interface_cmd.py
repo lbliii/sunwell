@@ -26,16 +26,27 @@ def interface() -> None:
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.option("--data-dir", "-d", default=None, help="Data directory path")
 @click.option("--model", "-m", default=None, help="Model to use for intent analysis")
+@click.option("--history", default=None, help="JSON array of prior conversation messages")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed output")
 def process(
     goal: str,
     json_output: bool,
     data_dir: str | None,
     model: str | None,
+    history: str | None,
     verbose: bool,
 ) -> None:
     """Process a goal through the generative interface."""
-    asyncio.run(_process(goal, json_output, data_dir, model, verbose))
+    # Parse history if provided
+    parsed_history = None
+    if history:
+        try:
+            parsed_history = json.loads(history)
+        except json.JSONDecodeError:
+            if not json_output:
+                console.print("[yellow]Warning: Could not parse history JSON, ignoring[/yellow]")
+
+    asyncio.run(_process(goal, json_output, data_dir, model, parsed_history, verbose))
 
 
 async def _process(
@@ -43,6 +54,7 @@ async def _process(
     json_output: bool,
     data_dir_str: str | None,
     model_name: str | None,
+    history: list[dict[str, str]] | None,
     verbose: bool,
 ) -> None:
     """Process a goal through the generative interface."""
@@ -83,11 +95,13 @@ async def _process(
         notes=providers.notes,
     )
 
-    # Analyze intent
+    # Analyze intent (with conversation history for context)
     if verbose and not json_output:
         console.print(f"[dim]Analyzing: {goal}[/dim]")
+        if history:
+            console.print(f"[dim]With {len(history)} prior messages[/dim]")
 
-    analysis = await analyzer.analyze(goal)
+    analysis = await analyzer.analyze(goal, conversation_history=history)
 
     if verbose and not json_output:
         confidence = f"{analysis.confidence:.0%}"
@@ -359,3 +373,111 @@ def list_providers(data_dir: str | None) -> None:
 
     console.print(table)
     console.print(f"\n[dim]Data directory: {data_dir_path}[/dim]")
+
+
+@interface.command("compose")
+@click.option("--input", "-i", "user_input", required=True, help="User input to analyze")
+@click.option("--page", "-p", default="home", help="Current page type")
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+def compose(user_input: str, page: str, json_output: bool) -> None:
+    """Predict UI composition (RFC-082 Tier 0/1).
+
+    Fast speculative composition prediction for skeleton rendering.
+    Uses regex pattern matching (Tier 0) and optionally fast model (Tier 1).
+
+    Examples:
+        sunwell interface compose -i "plan my week" --json
+        sunwell interface compose -i "help me write a story" -p conversation
+    """
+    asyncio.run(_compose(user_input, page, json_output))
+
+
+async def _compose(user_input: str, current_page: str, json_output: bool) -> None:
+    """Predict UI composition."""
+    from sunwell.interface.compositor import CompositionContext, Compositor
+
+    compositor = Compositor()
+
+    context = CompositionContext(
+        current_page=current_page,
+        recent_panels=[],
+    )
+
+    spec = await compositor.predict(user_input, context)
+
+    if json_output:
+        click.echo(json.dumps(spec.to_dict()))
+    else:
+        confidence_pct = f"{spec.confidence:.0%}"
+        console.print(f"[bold]Composition Prediction[/bold] ({spec.source})")
+        console.print(f"  Page: [cyan]{spec.page_type}[/cyan]")
+        console.print(f"  Input Mode: [green]{spec.input_mode}[/green]")
+        console.print(f"  Confidence: [yellow]{confidence_pct}[/yellow]")
+
+        if spec.panels:
+            panels = ", ".join(p.panel_type for p in spec.panels)
+            console.print(f"  Panels: [magenta]{panels}[/magenta]")
+
+        if spec.suggested_tools:
+            tools = ", ".join(spec.suggested_tools)
+            console.print(f"  Tools: [blue]{tools}[/blue]")
+
+
+@interface.command("action")
+@click.option("--action-id", "-a", required=True, help="Action ID to execute")
+@click.option("--item-id", "-i", default=None, help="Item ID for the action")
+@click.option("--data-dir", "-d", default=None, help="Data directory path")
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+def action(action_id: str, item_id: str | None, data_dir: str | None, json_output: bool) -> None:
+    """Execute a block action (RFC-080).
+
+    Actions are quick operations like completing a habit, checking a list item,
+    or opening a file. They are embedded in Home blocks.
+
+    Examples:
+        sunwell interface action -a complete -i habit_123
+        sunwell interface action -a check -i item_456
+        sunwell interface action -a add_event
+    """
+    asyncio.run(_execute_action(action_id, item_id, data_dir, json_output))
+
+
+async def _execute_action(
+    action_id: str,
+    item_id: str | None,
+    data_dir_str: str | None,
+    json_output: bool,
+) -> None:
+    """Execute a block action."""
+    from sunwell.interface.block_actions import BlockActionExecutor
+    from sunwell.providers.registry import ProviderRegistry
+
+    # Setup data directory
+    data_dir = Path(data_dir_str) if data_dir_str else Path.cwd() / ".sunwell"
+
+    # Initialize providers
+    providers = ProviderRegistry.create_default(data_dir)
+
+    # Build executor with all available providers
+    executor = BlockActionExecutor(
+        calendar=providers.calendar if providers.has_calendar() else None,
+        lists=providers.lists if providers.has_lists() else None,
+        notes=providers.notes if providers.has_notes() else None,
+        habits=providers.habits if providers.has_habits() else None,
+    )
+
+    # Execute action
+    result = await executor.execute(action_id, item_id)
+
+    # Output result
+    if json_output:
+        click.echo(json.dumps({
+            "success": result.success,
+            "message": result.message,
+            "data": result.data,
+        }))
+    else:
+        if result.success:
+            console.print(f"[green]✓ {result.message}[/green]")
+        else:
+            console.print(f"[red]✗ {result.message}[/red]")

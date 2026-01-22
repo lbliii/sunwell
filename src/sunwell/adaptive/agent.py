@@ -31,6 +31,10 @@ from sunwell.adaptive.events import (
     lens_selected_event,
     lens_suggested_event,
     memory_learning_event,
+    model_complete_event,
+    model_start_event,
+    model_thinking_event,
+    model_tokens_event,
     prefetch_complete_event,
     prefetch_start_event,
     prefetch_timeout_event,
@@ -38,6 +42,8 @@ from sunwell.adaptive.events import (
     task_complete_event,
     task_start_event,
 )
+from sunwell.adaptive.metrics import InferenceMetrics, load_profiles_from_disk, save_profiles_to_disk
+from sunwell.adaptive.thinking import ThinkingDetector
 from sunwell.adaptive.fixer import FixStage
 from sunwell.adaptive.gates import GateDetector, ValidationGate
 from sunwell.adaptive.learning import LearningExtractor, LearningStore
@@ -150,6 +156,13 @@ class AdaptiveAgent:
     prefetch_timeout: float = 2.0
     """Maximum time to wait for prefetch (seconds)."""
 
+    # RFC-081: Inference visibility configuration
+    stream_inference: bool = True
+    """Whether to use streaming for inference visibility."""
+
+    token_batch_size: int = 10
+    """Batch size for token events (reduce event spam)."""
+
     # Internal state
     _learning_store: LearningStore = field(default_factory=LearningStore, init=False)
     _learning_extractor: LearningExtractor = field(
@@ -158,6 +171,7 @@ class AdaptiveAgent:
     _validation_runner: ValidationRunner | None = field(default=None, init=False)
     _fix_stage: FixStage | None = field(default=None, init=False)
     _naaru: Any = field(default=None, init=False)  # Internal Naaru for task execution
+    _inference_metrics: InferenceMetrics = field(default_factory=InferenceMetrics, init=False)
 
     # RFC-071: Briefing state
     _briefing: "Briefing | None" = field(default=None, init=False)
@@ -176,6 +190,9 @@ class AdaptiveAgent:
         self._validation_runner = ValidationRunner(toolchain, self.cwd)
         self._fix_stage = FixStage(self.model, self.cwd, self.max_fix_attempts)
 
+        # RFC-081: Load inference metrics from disk for model discovery
+        self._inference_metrics.load_from_disk(self.cwd)
+
         # Initialize Naaru for task execution (if tool_executor provided)
         if self.tool_executor:
             self._init_naaru()
@@ -186,7 +203,7 @@ class AdaptiveAgent:
         from sunwell.types.config import NaaruConfig
 
         self._naaru = Naaru(
-            sunwell_root=self.cwd,
+            workspace=self.cwd,
             synthesis_model=self.model,
             tool_executor=self.tool_executor,
             config=NaaruConfig(
@@ -611,7 +628,7 @@ class AdaptiveAgent:
             )
 
     async def _execute_with_gates(self) -> AsyncIterator[AgentEvent]:
-        """Execute tasks with validation gates."""
+        """Execute tasks with validation gates and inference visibility (RFC-081)."""
         artifacts: dict[str, Artifact] = {}
         current_gate_idx = 0
 
@@ -630,7 +647,30 @@ class AdaptiveAgent:
                 yield task_start_event(task.id, task.description)
 
                 start = time()
-                artifact = await self._execute_task(task)
+
+                # Stream inference events for visibility (RFC-081)
+                if self.stream_inference:
+                    async for event in self._execute_task_streaming(task):
+                        yield event
+
+                    # Get result from streaming
+                    result_text = getattr(self, "_last_task_result", None)
+                    if result_text and task.target_path:
+                        path = self.cwd / task.target_path
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        path.write_text(result_text)
+
+                        artifact = Artifact(
+                            path=path,
+                            content=result_text,
+                            task_id=task.id,
+                        )
+                    else:
+                        artifact = None
+                else:
+                    # Non-streaming fallback
+                    artifact = await self._execute_task(task)
+
                 duration_ms = int((time() - start) * 1000)
 
                 if artifact:
@@ -682,7 +722,40 @@ class AdaptiveAgent:
                 current_gate_idx = self._task_graph.gates.index(gate) + 1
 
     async def _execute_task(self, task: Task) -> Artifact | None:
-        """Execute a single task."""
+        """Execute a single task (non-streaming fallback)."""
+        # Collect results from streaming execution
+        result_text: str | None = None
+
+        async for event in self._execute_task_streaming(task):
+            # The streaming method yields events, but we only care about the result
+            # The result is stored internally during streaming
+            pass
+
+        # Get the result from internal state (set by streaming method)
+        result_text = getattr(self, "_last_task_result", None)
+
+        if result_text and task.target_path:
+            path = self.cwd / task.target_path
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(result_text)
+
+            return Artifact(
+                path=path,
+                content=result_text,
+                task_id=task.id,
+            )
+
+        return None
+
+    async def _execute_task_streaming(self, task: Task) -> AsyncIterator[AgentEvent]:
+        """Execute a single task with inference visibility (RFC-081).
+
+        Streams tokens and emits MODEL_* events during generation,
+        providing real-time feedback to the user.
+
+        Yields:
+            AgentEvent for model start, tokens, thinking, and complete
+        """
         from sunwell.models.protocol import GenerateOptions
 
         # Build prompt with learnings
@@ -696,23 +769,98 @@ TASK: {task.description}
 
 Output ONLY the code (no explanation, no markdown fences):"""
 
-        result = await self.model.generate(
-            prompt,
-            options=GenerateOptions(temperature=0.3, max_tokens=4000),
+        # Estimate prompt tokens (rough: 1 token ~= 4 chars)
+        prompt_tokens = len(prompt) // 4
+
+        # Get estimated time from historical data
+        model_id = getattr(self.model, "model_id", "unknown")
+        estimated_time = self._inference_metrics.estimate_time(
+            model_id, prompt_tokens, expected_output=500
         )
 
-        if result.text and task.target_path:
-            path = self.cwd / task.target_path
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(result.text)
+        # Emit start event
+        yield model_start_event(
+            task_id=task.id,
+            model=model_id,
+            prompt_tokens=prompt_tokens,
+            estimated_time_s=estimated_time,
+        )
 
-            return Artifact(
-                path=path,
-                content=result.text,
-                task_id=task.id,
+        # Stream with visibility
+        start_time = time()
+        first_token_time: float | None = None
+        token_buffer: list[str] = []
+        token_count = 0
+        thinking_detector = ThinkingDetector()
+
+        try:
+            async for chunk in self.model.generate_stream(
+                prompt,
+                options=GenerateOptions(temperature=0.3, max_tokens=4000),
+            ):
+                # Track first token
+                if first_token_time is None:
+                    first_token_time = time()
+
+                token_buffer.append(chunk)
+                token_count += 1  # Approximate (1 chunk ~= 1 token)
+
+                # Detect thinking blocks
+                thinking_blocks = thinking_detector.feed(chunk)
+                for block in thinking_blocks:
+                    yield model_thinking_event(
+                        task_id=task.id,
+                        phase=block.phase,
+                        content=block.content,
+                        is_complete=block.is_complete,
+                    )
+
+                # Emit token batches
+                elapsed = time() - start_time
+                if token_count % self.token_batch_size == 0:
+                    tps = token_count / elapsed if elapsed > 0 else None
+                    yield model_tokens_event(
+                        task_id=task.id,
+                        tokens="".join(token_buffer[-self.token_batch_size :]),
+                        token_count=token_count,
+                        tokens_per_second=tps,
+                    )
+
+        except AttributeError:
+            # Model doesn't support streaming, fall back to blocking
+            result = await self.model.generate(
+                prompt,
+                options=GenerateOptions(temperature=0.3, max_tokens=4000),
             )
+            if result.text:
+                token_buffer = [result.text]
+                token_count = len(result.text) // 4  # Rough estimate
+                first_token_time = time()
 
-        return None
+        # Calculate final metrics
+        duration = time() - start_time
+        tps = token_count / duration if duration > 0 else 0
+        ttft_ms = int((first_token_time - start_time) * 1000) if first_token_time else None
+
+        # Record metrics for model discovery
+        self._inference_metrics.record(
+            model=model_id,
+            duration_s=duration,
+            tokens=token_count,
+            ttft_ms=ttft_ms,
+        )
+
+        # Emit complete event
+        yield model_complete_event(
+            task_id=task.id,
+            total_tokens=token_count,
+            duration_s=duration,
+            tokens_per_second=tps,
+            time_to_first_token_ms=ttft_ms,
+        )
+
+        # Store result for retrieval
+        self._last_task_result = "".join(token_buffer)
 
     async def _validate_gate(
         self,
@@ -761,6 +909,9 @@ Output ONLY the code (no explanation, no markdown fences):"""
             sim_synced = self._learning_store.sync_to_simulacrum(self.simulacrum)
             self.simulacrum.save_session()
 
+        # RFC-081: Save inference metrics for model discovery
+        metrics_saved = self._inference_metrics.save_to_disk(self.cwd)
+
         if disk_saved > 0 or sim_synced > 0:
             yield AgentEvent(
                 EventType.MEMORY_SAVED,
@@ -768,6 +919,7 @@ Output ONLY the code (no explanation, no markdown fences):"""
                     "learnings": len(self._learning_store.learnings),
                     "disk_saved": disk_saved,
                     "sim_synced": sim_synced,
+                    "metrics_models": metrics_saved,
                 },
             )
 

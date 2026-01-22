@@ -162,9 +162,9 @@ class WorkspaceDetector:
         start = start.resolve()
 
         # 1. Look for .sunwell/ config (explicit user configuration)
-        sunwell_root = self._find_sunwell_config(start)
-        if sunwell_root:
-            return self._load_sunwell_config(sunwell_root, start)
+        config_root = self._find_sunwell_config(start)
+        if config_root:
+            return self._load_sunwell_config(config_root, start)
 
         # 2. Look for git root
         git_root = self._find_git_root(start)

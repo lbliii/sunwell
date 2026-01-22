@@ -11,6 +11,7 @@ Key components:
 """
 
 from sunwell.interface.analyzer import IntentAnalyzer
+from sunwell.interface.block_actions import BlockActionExecutor, BlockActionResult
 from sunwell.interface.executor import ActionExecutor, ActionResult
 from sunwell.interface.router import (
     ActionOutput,
@@ -45,5 +46,7 @@ __all__ = [
     "IntentAnalyzer",
     "ActionExecutor",
     "ActionResult",
+    "BlockActionExecutor",
+    "BlockActionResult",
     "ViewRenderer",
 ]

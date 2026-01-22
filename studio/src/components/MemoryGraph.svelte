@@ -1,17 +1,32 @@
 <!--
-  MemoryGraph — Ambient visualization of agent's learned concepts (Svelte 5)
+  MemoryGraph — Visualization of ConceptGraph relationships (Svelte 5, RFC-084)
   
-  A small SVG graph that grows as the agent discovers concepts.
-  Max 8 visible nodes, older ones fade out.
+  Renders the actual ConceptGraph from Simulacrum memory as an SVG graph.
+  Shows concept relationships: ELABORATES, CONTRADICTS, DEPENDS_ON, etc.
 -->
 <script lang="ts">
-  import type { Concept } from '$lib/types';
+  import { invoke } from '@tauri-apps/api/core';
+  import type { ConceptEdge, RelationType } from '$lib/types';
   
-  interface Props {
-    concepts?: Concept[];
+  interface ConceptNode {
+    id: string;
+    x: number;
+    y: number;
+    label: string;
   }
   
-  let { concepts = [] }: Props = $props();
+  interface Props {
+    projectPath?: string;
+    concepts?: { id: string; label: string; category: string }[];
+  }
+  
+  let { projectPath = '', concepts = [] }: Props = $props();
+  
+  // State
+  let edges: ConceptEdge[] = $state([]);
+  let nodes: ConceptNode[] = $state([]);
+  let loading = $state(false);
+  let error = $state<string | null>(null);
   
   // Fixed positions for up to 8 nodes in an organic cluster
   const NODE_POSITIONS = [
@@ -25,109 +40,201 @@
     { x: 45, y: 50 },   // center
   ];
   
-  // Category colors - muted, cohesive palette
-  const CATEGORY_COLORS: Record<string, string> = {
-    framework: '#60a5fa',  // blue
-    database: '#34d399',   // green
-    testing: '#fbbf24',    // amber
-    pattern: '#a78bfa',    // purple
-    tool: '#f472b6',       // pink
-    language: '#fb923c',   // orange
+  // Color by relation type - muted, cohesive palette
+  const RELATION_COLORS: Record<RelationType, string> = {
+    elaborates: '#60a5fa',   // blue
+    summarizes: '#818cf8',   // indigo
+    exemplifies: '#a78bfa',  // purple
+    contradicts: '#ef4444',  // red
+    supports: '#34d399',     // green
+    qualifies: '#fbbf24',    // amber
+    depends_on: '#f472b6',   // pink
+    supersedes: '#fb923c',   // orange
+    relates_to: '#94a3b8',   // slate
+    follows: '#67e8f9',      // cyan
+    updates: '#a3e635',      // lime
   };
   
-  // Take the most recent 8 concepts
-  let visibleConcepts = $derived(concepts.slice(-8));
+  // Load graph when project path changes
+  $effect(() => {
+    if (projectPath) {
+      loadGraph();
+    }
+  });
   
-  // Map concepts to positioned nodes (with bounds check for safety)
-  let nodes = $derived(
-    visibleConcepts
-      .filter((c): c is Concept => c != null)
-      .slice(0, NODE_POSITIONS.length)
-      .map((c, i) => ({
-        ...c,
-        x: NODE_POSITIONS[i]!.x,
-        y: NODE_POSITIONS[i]!.y,
-        color: CATEGORY_COLORS[c.category] ?? 'var(--text-tertiary)',
-        delay: i * 100,
-      }))
+  async function loadGraph() {
+    loading = true;
+    error = null;
+    
+    try {
+      const result = await invoke<{ edges: ConceptEdge[] }>('get_concept_graph', { 
+        path: projectPath 
+      });
+      
+      edges = result.edges || [];
+      
+      // Extract unique nodes from edges
+      const nodeSet = new Set<string>();
+      for (const edge of edges) {
+        nodeSet.add(edge.sourceId);
+        nodeSet.add(edge.targetId);
+      }
+      
+      // Assign positions using force-directed-like layout
+      const nodeIds = Array.from(nodeSet).slice(0, 8);
+      nodes = nodeIds.map((id, i) => ({
+        id,
+        x: NODE_POSITIONS[i % NODE_POSITIONS.length].x,
+        y: NODE_POSITIONS[i % NODE_POSITIONS.length].y,
+        label: id.slice(0, 12),
+      }));
+    } catch (e) {
+      console.warn('Failed to load concept graph:', e);
+      error = String(e);
+      edges = [];
+      nodes = [];
+    } finally {
+      loading = false;
+    }
+  }
+  
+  // If no project path, fall back to legacy concept display
+  let legacyNodes = $derived(
+    !projectPath && concepts.length > 0
+      ? concepts.slice(-8).map((c, i) => ({
+          id: c.id,
+          x: NODE_POSITIONS[i % NODE_POSITIONS.length].x,
+          y: NODE_POSITIONS[i % NODE_POSITIONS.length].y,
+          label: c.label,
+          color: {
+            framework: '#60a5fa',
+            database: '#34d399',
+            testing: '#fbbf24',
+            pattern: '#a78bfa',
+            tool: '#f472b6',
+            language: '#fb923c',
+          }[c.category] ?? 'var(--text-tertiary)',
+        }))
+      : []
   );
   
-  // Create edges between sequential nodes
-  let edges = $derived(
-    nodes.slice(1).map((node, i) => ({
-      x1: nodes[i].x,
-      y1: nodes[i].y,
+  // Create edges from sequential legacy nodes
+  let legacyEdges = $derived(
+    legacyNodes.slice(1).map((node, i) => ({
+      x1: legacyNodes[i].x,
+      y1: legacyNodes[i].y,
       x2: node.x,
       y2: node.y,
-      key: `${nodes[i].id}-${node.id}`,
+      key: `${legacyNodes[i].id}-${node.id}`,
     }))
   );
+  
+  // Node lookup for edge rendering
+  let nodeMap = $derived(new Map(nodes.map(n => [n.id, n])));
 </script>
 
 <div class="memory-graph-container" aria-hidden="true">
   <svg viewBox="0 0 120 100" class="memory-graph">
-    <!-- Edges -->
-    {#each edges as edge (edge.key)}
-      <line
-        x1={edge.x1}
-        y1={edge.y1}
-        x2={edge.x2}
-        y2={edge.y2}
-        class="edge"
-      />
-    {/each}
-    
-    <!-- Cross-links for visual interest (connect some non-adjacent nodes) -->
-    {#if nodes.length >= 3}
-      <line
-        x1={nodes[0].x}
-        y1={nodes[0].y}
-        x2={nodes[nodes.length - 1].x}
-        y2={nodes[nodes.length - 1].y}
-        class="edge edge-faint"
-      />
-    {/if}
-    {#if nodes.length >= 5}
-      <line
-        x1={nodes[1].x}
-        y1={nodes[1].y}
-        x2={nodes[nodes.length - 2].x}
-        y2={nodes[nodes.length - 2].y}
-        class="edge edge-faint"
-      />
-    {/if}
-    
-    <!-- Nodes -->
-    {#each nodes as node (node.id)}
-      <g class="node-group" style="--delay: {node.delay}ms">
-        <!-- Glow effect -->
-        <circle
-          cx={node.x}
-          cy={node.y}
-          r="10"
-          fill={node.color}
-          class="node-glow"
+    {#if projectPath && edges.length > 0}
+      <!-- RFC-084: Render actual ConceptGraph edges -->
+      {#each edges as edge (`${edge.sourceId}-${edge.targetId}-${edge.relation}`)}
+        {@const source = nodeMap.get(edge.sourceId)}
+        {@const target = nodeMap.get(edge.targetId)}
+        {#if source && target}
+          <line
+            x1={source.x}
+            y1={source.y}
+            x2={target.x}
+            y2={target.y}
+            stroke={RELATION_COLORS[edge.relation] ?? 'var(--border-color)'}
+            stroke-width={Math.max(1, edge.confidence * 2)}
+            opacity={0.4 + edge.confidence * 0.4}
+            class="edge"
+          >
+            <title>{edge.sourceId} —{edge.relation}→ {edge.targetId}</title>
+          </line>
+        {/if}
+      {/each}
+      
+      <!-- Render nodes -->
+      {#each nodes as node, i (node.id)}
+        <g class="node-group" style="--delay: {i * 100}ms">
+          <!-- Glow effect -->
+          <circle
+            cx={node.x}
+            cy={node.y}
+            r="10"
+            fill="var(--accent)"
+            class="node-glow"
+          />
+          <!-- Main node -->
+          <circle
+            cx={node.x}
+            cy={node.y}
+            r="5"
+            fill="var(--accent)"
+            class="node"
+          />
+          <title>{node.label}</title>
+        </g>
+      {/each}
+    {:else if legacyNodes.length > 0}
+      <!-- Legacy: Sequential concept nodes -->
+      {#each legacyEdges as edge (edge.key)}
+        <line
+          x1={edge.x1}
+          y1={edge.y1}
+          x2={edge.x2}
+          y2={edge.y2}
+          class="edge"
         />
-        <!-- Main node -->
-        <circle
-          cx={node.x}
-          cy={node.y}
-          r="5"
-          fill={node.color}
-          class="node"
+      {/each}
+      
+      <!-- Cross-links for visual interest -->
+      {#if legacyNodes.length >= 3}
+        <line
+          x1={legacyNodes[0].x}
+          y1={legacyNodes[0].y}
+          x2={legacyNodes[legacyNodes.length - 1].x}
+          y2={legacyNodes[legacyNodes.length - 1].y}
+          class="edge edge-faint"
         />
-        <!-- Tooltip on hover -->
-        <title>{node.label}</title>
-      </g>
-    {/each}
-    
-    <!-- Empty state placeholder -->
-    {#if nodes.length === 0}
+      {/if}
+      
+      {#each legacyNodes as node (node.id)}
+        <g class="node-group" style="--delay: {legacyNodes.indexOf(node) * 100}ms">
+          <circle
+            cx={node.x}
+            cy={node.y}
+            r="10"
+            fill={node.color}
+            class="node-glow"
+          />
+          <circle
+            cx={node.x}
+            cy={node.y}
+            r="5"
+            fill={node.color}
+            class="node"
+          />
+          <title>{node.label}</title>
+        </g>
+      {/each}
+    {:else}
+      <!-- Empty state placeholder -->
       <circle cx="60" cy="50" r="4" class="node-placeholder" />
-      <text x="60" y="70" class="placeholder-text">...</text>
+      <text x="60" y="70" class="placeholder-text">
+        {#if loading}loading...{:else if error}error{:else}...{/if}
+      </text>
     {/if}
   </svg>
-  <span class="graph-label">memory</span>
+  <span class="graph-label">
+    {#if edges.length > 0}
+      {edges.length} relationships
+    {:else}
+      memory
+    {/if}
+  </span>
 </div>
 
 <style>
@@ -147,6 +254,11 @@
     stroke: var(--border-color);
     stroke-width: 1;
     opacity: 0.3;
+    transition: opacity 0.2s ease;
+  }
+  
+  .edge:hover {
+    opacity: 0.7;
   }
   
   .edge-faint {
@@ -167,6 +279,12 @@
   
   .node {
     opacity: 0.85;
+    cursor: pointer;
+    transition: r 0.2s ease;
+  }
+  
+  .node:hover {
+    r: 7;
   }
   
   .node-placeholder {

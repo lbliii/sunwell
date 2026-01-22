@@ -6,6 +6,7 @@ Supports:
 - Heuristic-based extraction (fast, lower accuracy)
 
 Part of RFC-014: Multi-Topology Memory.
+RFC-084: Enhanced with Jaccard similarity for RELATES_TO detection.
 """
 
 from __future__ import annotations
@@ -21,7 +22,13 @@ if TYPE_CHECKING:
 
 
 class TopologyExtractor:
-    """Extract concept relationships from content using LLM or heuristics."""
+    """Extract concept relationships from content using LLM or heuristics.
+
+    RFC-084: Enhanced with automatic Jaccard similarity for RELATES_TO edges.
+    """
+
+    # Minimum Jaccard similarity threshold for RELATES_TO relationships
+    RELATES_TO_THRESHOLD: float = 0.3
 
     def __init__(self, model: ModelProtocol | None = None):
         self.model = model
@@ -115,18 +122,38 @@ Relationships:"""
     ) -> list[ConceptEdge]:
         """Heuristic relationship detection without LLM.
 
+        RFC-084: Enhanced with Jaccard similarity for RELATES_TO.
+
         Detects:
-        - Explicit references ("as mentioned in", "see also", "cf.")
-        - Contradiction signals ("however", "but", "unlike", "in contrast")
-        - Dependency signals ("requires", "depends on", "building on")
+        - RELATES_TO: Jaccard similarity > threshold (default 0.3)
+        - CONTRADICTS: Contradiction signals + topic overlap
+        - DEPENDS_ON: Dependency signals + topic overlap
+        - ELABORATES: Elaboration signals + topic overlap
+        - SUMMARIZES: Summary signals + topic overlap
         """
-        edges = []
+        edges: list[ConceptEdge] = []
         timestamp = datetime.now().isoformat()
 
         source_lower = source_text.lower()
+        source_words = self._tokenize(source_text)
 
-        for cid, ctext in zip(candidate_ids, candidate_texts, strict=False):
-            # Check for explicit reference
+        for cid, ctext in zip(candidate_ids, candidate_texts, strict=True):
+            candidate_words = self._tokenize(ctext)
+
+            # RFC-084: Jaccard similarity for RELATES_TO
+            similarity = self._jaccard_similarity(source_words, candidate_words)
+            if similarity > self.RELATES_TO_THRESHOLD:
+                edges.append(ConceptEdge(
+                    source_id=source_id,
+                    target_id=cid,
+                    relation=RelationType.RELATES_TO,
+                    confidence=similarity,
+                    evidence=f"Jaccard similarity: {similarity:.2f}",
+                    auto_extracted=True,
+                    timestamp=timestamp,
+                ))
+
+            # Check for explicit reference (stronger signal)
             if cid.lower() in source_lower:
                 edges.append(ConceptEdge(
                     source_id=source_id,
@@ -138,104 +165,132 @@ Relationships:"""
                     timestamp=timestamp,
                 ))
 
-            # Check for contradiction signals near candidate mentions
-            contradiction_patterns = [
-                r'\bhowever\b',
-                r'\bbut\b',
-                r'\bunlike\b',
-                r'\bin contrast\b',
-                r'\bcontradicts?\b',
-            ]
-            for pattern in contradiction_patterns:
-                if re.search(pattern, source_lower):
-                    # Check if candidate topic is nearby
-                    candidate_keywords = set(ctext.lower().split()[:10])
-                    source_words = set(source_lower.split())
-                    overlap = len(candidate_keywords & source_words)
-                    if overlap > 3:  # Significant topic overlap
-                        edges.append(ConceptEdge(
-                            source_id=source_id,
-                            target_id=cid,
-                            relation=RelationType.CONTRADICTS,
-                            confidence=0.5,  # Low confidence, needs review
-                            evidence="Contradiction signal + topic overlap",
-                            auto_extracted=True,
-                            timestamp=timestamp,
-                        ))
-                        break
+            # Check for elaboration patterns (check first - more specific)
+            if self._is_elaboration(source_text, ctext):
+                edges.append(ConceptEdge(
+                    source_id=source_id,
+                    target_id=cid,
+                    relation=RelationType.ELABORATES,
+                    confidence=0.7,
+                    evidence="Elaboration pattern detected",
+                    auto_extracted=True,
+                    timestamp=timestamp,
+                ))
+
+            # Check for contradiction patterns
+            if self._is_contradiction(source_text, ctext):
+                edges.append(ConceptEdge(
+                    source_id=source_id,
+                    target_id=cid,
+                    relation=RelationType.CONTRADICTS,
+                    confidence=0.8,
+                    evidence="Contradiction pattern detected",
+                    auto_extracted=True,
+                    timestamp=timestamp,
+                ))
 
             # Check for dependency signals
-            dependency_patterns = [
-                r'\brequires?\b',
-                r'\bdepends? on\b',
-                r'\bbuilding on\b',
-                r'\bneeds?\b.*\bfirst\b',
-            ]
-            for pattern in dependency_patterns:
-                if re.search(pattern, source_lower):
-                    # Check if this relates to candidate
-                    candidate_keywords = set(ctext.lower().split()[:10])
-                    source_words = set(source_lower.split())
-                    overlap = len(candidate_keywords & source_words)
-                    if overlap > 2:
-                        edges.append(ConceptEdge(
-                            source_id=source_id,
-                            target_id=cid,
-                            relation=RelationType.DEPENDS_ON,
-                            confidence=0.6,
-                            evidence="Dependency signal + topic overlap",
-                            auto_extracted=True,
-                            timestamp=timestamp,
-                        ))
-                        break
-
-            # Check for elaboration signals
-            elaboration_patterns = [
-                r'\bspecifically\b',
-                r'\bin detail\b',
-                r'\bmore precisely\b',
-                r'\bto elaborate\b',
-                r'\bexpanding on\b',
-            ]
-            for pattern in elaboration_patterns:
-                if re.search(pattern, source_lower):
-                    candidate_keywords = set(ctext.lower().split()[:10])
-                    source_words = set(source_lower.split())
-                    overlap = len(candidate_keywords & source_words)
-                    if overlap > 2:
-                        edges.append(ConceptEdge(
-                            source_id=source_id,
-                            target_id=cid,
-                            relation=RelationType.ELABORATES,
-                            confidence=0.6,
-                            evidence="Elaboration signal + topic overlap",
-                            auto_extracted=True,
-                            timestamp=timestamp,
-                        ))
-                        break
+            if self._is_dependency(source_text, ctext):
+                edges.append(ConceptEdge(
+                    source_id=source_id,
+                    target_id=cid,
+                    relation=RelationType.DEPENDS_ON,
+                    confidence=0.6,
+                    evidence="Dependency pattern detected",
+                    auto_extracted=True,
+                    timestamp=timestamp,
+                ))
 
             # Check for summary signals
-            summary_patterns = [
-                r'\bin summary\b',
-                r'\bto summarize\b',
-                r'\bin short\b',
-                r'\boverall\b',
-            ]
-            for pattern in summary_patterns:
-                if re.search(pattern, source_lower):
-                    candidate_keywords = set(ctext.lower().split()[:10])
-                    source_words = set(source_lower.split())
-                    overlap = len(candidate_keywords & source_words)
-                    if overlap > 2:
-                        edges.append(ConceptEdge(
-                            source_id=source_id,
-                            target_id=cid,
-                            relation=RelationType.SUMMARIZES,
-                            confidence=0.6,
-                            evidence="Summary signal + topic overlap",
-                            auto_extracted=True,
-                            timestamp=timestamp,
-                        ))
-                        break
+            if self._is_summary(source_text, ctext):
+                edges.append(ConceptEdge(
+                    source_id=source_id,
+                    target_id=cid,
+                    relation=RelationType.SUMMARIZES,
+                    confidence=0.6,
+                    evidence="Summary pattern detected",
+                    auto_extracted=True,
+                    timestamp=timestamp,
+                ))
 
         return edges
+
+    def _tokenize(self, text: str) -> set[str]:
+        """Tokenize text into lowercased words, filtering short tokens."""
+        return {w.lower() for w in text.split() if len(w) > 2}
+
+    def _jaccard_similarity(self, set_a: set[str], set_b: set[str]) -> float:
+        """Calculate Jaccard similarity coefficient."""
+        if not set_a or not set_b:
+            return 0.0
+        intersection = len(set_a & set_b)
+        union = len(set_a | set_b)
+        return intersection / union if union > 0 else 0.0
+
+    def _is_elaboration(self, source: str, target: str) -> bool:
+        """Check if source elaborates on target."""
+        patterns = [
+            r"(?:specifically|in particular|for example)",
+            r"(?:this means|in other words|that is)",
+            r"(?:to clarify|more precisely)",
+            r"(?:expanding on|to elaborate|in detail)",
+        ]
+        source_lower = source.lower()
+        has_signal = any(re.search(p, source_lower) for p in patterns)
+        if not has_signal:
+            return False
+        # Check topic overlap
+        return self._jaccard_similarity(
+            self._tokenize(source), self._tokenize(target)
+        ) > 0.15
+
+    def _is_contradiction(self, source: str, target: str) -> bool:
+        """Check if source contradicts target."""
+        patterns = [
+            r"(?:actually|however|but|instead)",
+            r"(?:not|never|don't|doesn't|won't)",
+            r"(?:wrong|incorrect|false|mistake)",
+            r"(?:in contrast|unlike|contrary to)",
+        ]
+        source_lower = source.lower()
+        has_signal = any(re.search(p, source_lower) for p in patterns)
+        if not has_signal:
+            return False
+        # Check topic overlap
+        return self._jaccard_similarity(
+            self._tokenize(source), self._tokenize(target)
+        ) > 0.15
+
+    def _is_dependency(self, source: str, target: str) -> bool:
+        """Check if source depends on target."""
+        patterns = [
+            r"\brequires?\b",
+            r"\bdepends? on\b",
+            r"\bbuilding on\b",
+            r"\bneeds?\b.*\bfirst\b",
+            r"\bprerequisite\b",
+        ]
+        source_lower = source.lower()
+        has_signal = any(re.search(p, source_lower) for p in patterns)
+        if not has_signal:
+            return False
+        return self._jaccard_similarity(
+            self._tokenize(source), self._tokenize(target)
+        ) > 0.1
+
+    def _is_summary(self, source: str, target: str) -> bool:
+        """Check if source summarizes target."""
+        patterns = [
+            r"\bin summary\b",
+            r"\bto summarize\b",
+            r"\bin short\b",
+            r"\boverall\b",
+            r"\bin conclusion\b",
+        ]
+        source_lower = source.lower()
+        has_signal = any(re.search(p, source_lower) for p in patterns)
+        if not has_signal:
+            return False
+        return self._jaccard_similarity(
+            self._tokenize(source), self._tokenize(target)
+        ) > 0.1

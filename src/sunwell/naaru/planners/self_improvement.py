@@ -24,13 +24,13 @@ class SelfImprovementPlanner:
     It finds things Sunwell could improve about itself.
 
     Example:
-        >>> planner = SelfImprovementPlanner(sunwell_root=Path("."), mirror=mirror)
+        >>> planner = SelfImprovementPlanner(workspace=Path("."), mirror=mirror)
         >>> tasks = await planner.plan(["improve error handling"])
         >>> for task in tasks:
         ...     print(f"{task.mode}: {task.description}")
     """
 
-    sunwell_root: Path
+    workspace: Path
     mirror: MirrorHandler
 
     @property
@@ -57,7 +57,7 @@ class SelfImprovementPlanner:
         # Use existing discoverer
         discoverer = OpportunityDiscoverer(
             mirror=self.mirror,
-            sunwell_root=self.sunwell_root,
+            workspace=self.workspace,
         )
 
         # Discover opportunities

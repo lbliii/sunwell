@@ -26,7 +26,7 @@ class ExecutionCoordinator:
 
     def __init__(
         self,
-        sunwell_root: Path,
+        workspace: Path,
         synthesis_model: Any = None,
         judge_model: Any = None,
         tool_executor: Any = None,
@@ -36,14 +36,14 @@ class ExecutionCoordinator:
         """Initialize coordinator.
 
         Args:
-            sunwell_root: Root path for project
+            workspace: Root path for user's project
             synthesis_model: Model for code generation
             judge_model: Model for validation
             tool_executor: Tool executor for commands
             event_emitter: Event emitter for progress
             config: Naaru configuration
         """
-        self._root = sunwell_root
+        self._root = workspace
         self._synthesis_model = synthesis_model
         self._judge_model = judge_model
         self._tool_executor = tool_executor

@@ -1,8 +1,8 @@
 <!--
   MouseMotes — Tinkerbell-style mouse trail particles (Svelte 5)
   
-  Spawns gentle golden motes that follow cursor movement.
-  Kept subtle: small particles, limited spawn rate, short lifespan.
+  Spawns gentle golden star characters that follow cursor movement.
+  Uses Unicode stars (✦ ✧ ⋆ ·) instead of gradient bubbles.
   
   Usage:
     <MouseMotes /> - adds mouse trail to parent container
@@ -12,6 +12,8 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { onMount } from 'svelte';
+  
+  const STAR_CHARS = ['✦', '✧', '⋆', '·', '✦', '✧'];
   
   interface Props {
     spawnRate?: number;
@@ -31,6 +33,7 @@
     id: number;
     x: number;
     y: number;
+    char: string;
     size: number;
     duration: number;
     drift: number;
@@ -74,7 +77,8 @@
       id: idCounter++,
       x: x + (Math.random() - 0.5) * 10,
       y: y + (Math.random() - 0.5) * 10,
-      size: 3 + Math.random() * 3,
+      char: STAR_CHARS[Math.floor(Math.random() * STAR_CHARS.length)],
+      size: 10 + Math.random() * 6,
       duration: 1.2 + Math.random() * 0.6,
       drift: (Math.random() - 0.5) * 20,
     };
@@ -109,7 +113,7 @@
           --duration: {particle.duration}s;
           --drift: {particle.drift}px;
         "
-      ></span>
+      >{particle.char}</span>
     {/each}
   {/if}
 </div>
@@ -123,21 +127,14 @@
   
   .mouse-mote {
     position: absolute;
-    width: var(--size);
-    height: var(--size);
     pointer-events: none;
     z-index: 100;
-    background: radial-gradient(
-      circle,
-      #fffdf5 0%,
-      #ffd700 30%,
-      rgba(255, 215, 0, 0.4) 60%,
-      transparent 100%
-    );
-    border-radius: 50%;
-    box-shadow: 
-      0 0 4px rgba(255, 215, 0, 0.8),
-      0 0 8px rgba(255, 215, 0, 0.4);
+    font-size: var(--size);
+    line-height: 1;
+    color: #ffd700;
+    text-shadow: 
+      0 0 4px rgba(255, 215, 0, 0.9),
+      0 0 8px rgba(255, 215, 0, 0.5);
     animation: mouseMoteFade var(--duration) ease-out forwards;
     transform: translate(-50%, -50%);
   }
@@ -155,7 +152,7 @@
       transform: translate(
         calc(-50% + var(--drift)), 
         calc(-50% - 40px)
-      ) scale(0.3);
+      ) scale(0.5);
     }
   }
 </style>

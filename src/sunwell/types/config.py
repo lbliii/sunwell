@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from sunwell.adaptive.events import AgentEvent
-    from sunwell.naaru.rotation import ModelSize
+    from sunwell.types.model_size import ModelSize
 
 
 @dataclass
@@ -116,26 +116,32 @@ class NaaruConfig:
     use_native_ollama_api: bool = True
     """Use native /api/generate instead of /v1/chat for better identity enforcement."""
 
-    # Voice (synthesis model) - "auto" tries common small models
-    voice: str = "auto"
-    """Model for code generation. "auto" = try common small models."""
+    # ==========================================================================
+    # 2-Tier Model Architecture (RFC-081)
+    # Simplified: classifier (1b) + worker (20b)
+    # Middle-tier (4b-12b) removed - quality gap not worth latency savings
+    # ==========================================================================
 
-    # Prioritized list of small models to try for voice (first available wins)
+    # Voice: Fast classifier for routing + trivial answers (~1s responses)
+    voice: str = "gemma3:1b"
+    """Model for routing/classification. Fast, can answer trivial directly."""
+
+    # Fallback models if voice unavailable
     voice_models: list[str] = field(default_factory=lambda: [
-        "gemma3:4b", "gemma3:1b", "llama3.2:3b", "qwen2.5:1.5b", "phi3:mini"
+        "gemma3:1b", "llama3.2:3b", "qwen2.5:1.5b"
     ])
     """Models to try for voice (in order of preference)."""
 
     voice_temperature: float = 0.3
     """Temperature for voice generation (lower = more precise)."""
 
-    # Wisdom (judge model) - "auto" tries common capable models
-    wisdom: str = "auto"
-    """Model for quality judgment. "auto" = try common capable models."""
+    # Wisdom: The brain for generation, judging, complex reasoning (~15-20s)
+    wisdom: str = "gpt-oss:20b"
+    """Model for generation/judgment. High quality, consistent output."""
 
-    # Prioritized list of capable models to try for wisdom
+    # Fallback models if wisdom unavailable
     wisdom_models: list[str] = field(default_factory=lambda: [
-        "gemma3:4b", "gemma2:9b", "llama3.2:3b", "phi3:medium", "qwen2:7b"
+        "gpt-oss:20b", "gemma3:12b", "llama3:70b"
     ])
     """Models to try for wisdom (in order of preference)."""
 
@@ -274,30 +280,6 @@ class NaaruConfig:
     - "mixed": Combination of prompting and temperature
     """
 
-    # Thought Rotation (RFC-028)
-    rotation: bool = True
-    """Enable thought rotation for structured perspective shifting."""
-
-    rotation_intensity: str = "auto"
-    """Rotation intensity: "auto", "heavy", "standard", "light", "none".
-
-    - auto: Detect model size and adjust automatically
-    - heavy: Explicit XML frames, longer frame durations (for tiny models)
-    - standard: Explicit XML frames, normal durations (for small models)
-    - light: Soft markers, shorter durations (for medium models)
-    - none: No rotation (for large models or when disabled)
-    """
-
-    rotation_frames: list[str] | None = None
-    """Override default frames. None = auto-select based on task type."""
-
-    lexer_model: Any | None = None
-    """Model for ThoughtLexer task classification (RFC-028).
-
-    Needs a model capable of producing JSON (qwen2.5:3b recommended).
-    If None, falls back to attunement_model, then keyword classification.
-    """
-
     # RFC-033: Unified Architecture (composable layers)
     diversity: str = "auto"
     """Diversity strategy: "none", "sampling", "rotation", "harmonic", "auto".
@@ -368,8 +350,8 @@ class NaaruConfig:
     def for_model_size(cls, model_size: ModelSize, **overrides: Any) -> NaaruConfig:
         """Create config optimized for a specific model size.
 
-        Smaller models benefit from more scaffolding (rotation, harmonic synthesis).
-        Larger models perform better with less structure.
+        Smaller models benefit from harmonic synthesis (multi-persona generation).
+        Larger models perform well with simpler pipelines.
 
         Args:
             model_size: The target model size
@@ -378,30 +360,22 @@ class NaaruConfig:
         Returns:
             NaaruConfig tuned for the model size
         """
-        from sunwell.naaru.rotation import ModelSize
+        from sunwell.types.model_size import ModelSize
 
         presets: dict[ModelSize, dict[str, Any]] = {
             ModelSize.TINY: {
-                "rotation": True,
-                "rotation_intensity": "heavy",
                 "harmonic_synthesis": True,
                 "resonance": 3,
             },
             ModelSize.SMALL: {
-                "rotation": True,
-                "rotation_intensity": "standard",
                 "harmonic_synthesis": True,
                 "resonance": 2,
             },
             ModelSize.MEDIUM: {
-                "rotation": True,
-                "rotation_intensity": "light",
                 "harmonic_synthesis": False,
                 "resonance": 1,
             },
             ModelSize.LARGE: {
-                "rotation": False,
-                "rotation_intensity": "none",
                 "harmonic_synthesis": False,
                 "resonance": 0,
             },

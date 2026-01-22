@@ -4,6 +4,7 @@
 //! - Load the full DAG from `.sunwell/backlog/` and `.sunwell/plans/`
 //! - Execute a specific node from the DAG
 
+use crate::util::sunwell_command;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -272,7 +273,7 @@ pub async fn refresh_backlog(path: String) -> Result<DagGraph, String> {
     let project_path = PathBuf::from(&path);
     
     // Run sunwell backlog refresh to scan for signals and update backlog
-    let output = std::process::Command::new("sunwell")
+    let output = sunwell_command()
         .args(["backlog", "refresh"])
         .current_dir(&project_path)
         .output()
@@ -334,7 +335,7 @@ pub struct CacheStats {
 pub async fn get_incremental_plan(path: String) -> Result<IncrementalPlan, String> {
     let project_path = PathBuf::from(&path);
     
-    let output = std::process::Command::new("sunwell")
+    let output = sunwell_command()
         .args(["dag", "plan", "--json"])
         .current_dir(&project_path)
         .output()
@@ -357,7 +358,7 @@ pub async fn get_incremental_plan(path: String) -> Result<IncrementalPlan, Strin
 pub async fn get_cache_stats(path: String) -> Result<CacheStats, String> {
     let project_path = PathBuf::from(&path);
     
-    let output = std::process::Command::new("sunwell")
+    let output = sunwell_command()
         .args(["dag", "cache", "stats", "--json"])
         .current_dir(&project_path)
         .output()
@@ -380,7 +381,7 @@ pub async fn get_cache_stats(path: String) -> Result<CacheStats, String> {
 pub async fn get_artifact_impact(path: String, artifact_id: String) -> Result<Vec<String>, String> {
     let project_path = PathBuf::from(&path);
     
-    let output = std::process::Command::new("sunwell")
+    let output = sunwell_command()
         .args(["dag", "impact", &artifact_id, "--json"])
         .current_dir(&project_path)
         .output()
@@ -407,7 +408,7 @@ pub async fn clear_cache(path: String, artifact_id: Option<String>) -> Result<St
         args.push(id);
     }
     
-    let output = std::process::Command::new("sunwell")
+    let output = sunwell_command()
         .args(&args)
         .current_dir(&project_path)
         .output()

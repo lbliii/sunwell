@@ -1,0 +1,231 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sunwell.dev/schemas/simulacrum.schema.json",
+  "title": "Simulacrum Memory Schema",
+  "description": "RFC-084: Unified schema for Simulacrum memory that both Python and Rust validate against.",
+  "definitions": {
+    "ChunkType": {
+      "type": "string",
+      "enum": ["micro", "mini", "macro"],
+      "description": "Type of chunk in the hierarchy"
+    },
+    "Chunk": {
+      "type": "object",
+      "description": "A chunk of conversation turns with metadata",
+      "required": ["id", "chunk_type", "turn_range", "token_count"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique content-addressable ID"
+        },
+        "chunk_type": {
+          "$ref": "#/definitions/ChunkType"
+        },
+        "turn_range": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "Start and end turn indices [start, end]"
+        },
+        "summary": {
+          "type": "string",
+          "description": "Summary of the chunk content"
+        },
+        "themes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Extracted themes/topics"
+        },
+        "key_facts": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Key facts extracted from the chunk"
+        },
+        "token_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total tokens in the chunk"
+        },
+        "timestamp_start": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp of first turn"
+        },
+        "timestamp_end": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp of last turn"
+        },
+        "embedding": {
+          "type": "array",
+          "items": { "type": "number" },
+          "description": "Vector embedding for semantic search"
+        },
+        "parent_chunk_id": {
+          "type": "string",
+          "description": "ID of parent chunk (for hierarchy)"
+        },
+        "child_chunk_ids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "IDs of child chunks"
+        }
+      }
+    },
+    "RelationType": {
+      "type": "string",
+      "enum": [
+        "elaborates",
+        "summarizes",
+        "exemplifies",
+        "contradicts",
+        "supports",
+        "qualifies",
+        "depends_on",
+        "supersedes",
+        "relates_to",
+        "follows",
+        "updates"
+      ],
+      "description": "Type of relationship between concepts"
+    },
+    "ConceptEdge": {
+      "type": "object",
+      "description": "A typed, weighted edge between two memory nodes",
+      "required": ["source_id", "target_id", "relation"],
+      "properties": {
+        "source_id": {
+          "type": "string",
+          "description": "ID of the source memory node"
+        },
+        "target_id": {
+          "type": "string",
+          "description": "ID of the target memory node"
+        },
+        "relation": {
+          "$ref": "#/definitions/RelationType"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 1.0,
+          "description": "Confidence score (0.0-1.0)"
+        },
+        "evidence": {
+          "type": "string",
+          "description": "Explanation for this relationship"
+        },
+        "auto_extracted": {
+          "type": "boolean",
+          "default": false,
+          "description": "True if auto-detected, false if human-confirmed"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When this relationship was created"
+        }
+      }
+    },
+    "ConceptGraph": {
+      "type": "object",
+      "description": "Graph of concept relationships",
+      "required": ["edges"],
+      "properties": {
+        "edges": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ConceptEdge" },
+          "description": "All edges in the graph"
+        }
+      }
+    },
+    "ChunkHierarchy": {
+      "type": "object",
+      "description": "Three-tier chunk hierarchy for visualization",
+      "required": ["hot", "warm", "cold"],
+      "properties": {
+        "hot": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Chunk" },
+          "description": "Hot tier chunks (full content, most recent)"
+        },
+        "warm": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Chunk" },
+          "description": "Warm tier chunks (CTF-encoded, with summaries)"
+        },
+        "cold": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Chunk" },
+          "description": "Cold tier chunks (summary only, archived)"
+        }
+      }
+    },
+    "FocusTopic": {
+      "type": "object",
+      "description": "A weighted topic in the focus mechanism",
+      "required": ["topic", "weight"],
+      "properties": {
+        "topic": {
+          "type": "string",
+          "description": "Topic name"
+        },
+        "weight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Topic weight (0.0-1.0)"
+        },
+        "explicit": {
+          "type": "boolean",
+          "default": false,
+          "description": "True if explicitly set by user"
+        }
+      }
+    },
+    "SimulacrumMeta": {
+      "type": "object",
+      "description": "Metadata for a simulacrum instance",
+      "required": ["name", "created_at"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique identifier for this memory context"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When this simulacrum was created"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When this simulacrum was last updated"
+        },
+        "models_used": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Models that have been used with this simulacrum"
+        },
+        "focus_topics": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/FocusTopic" },
+          "description": "Current focus topics"
+        }
+      }
+    }
+  },
+  "type": "object",
+  "description": "Storage format for .sunwell/memory/{name}/",
+  "properties": {
+    "meta": { "$ref": "#/definitions/SimulacrumMeta" },
+    "dag": {
+      "type": "object",
+      "description": "Conversation DAG (see dag.json)"
+    },
+    "graph": { "$ref": "#/definitions/ConceptGraph" },
+    "hierarchy": { "$ref": "#/definitions/ChunkHierarchy" }
+  }
+}

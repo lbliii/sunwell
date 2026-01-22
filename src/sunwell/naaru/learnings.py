@@ -22,16 +22,16 @@ class LearningExtractor:
 
     def __init__(
         self,
-        sunwell_root: Path,
+        workspace: Path,
         event_emitter: EventEmitter | None = None,
     ) -> None:
         """Initialize extractor.
 
         Args:
-            sunwell_root: Root path for .sunwell directory
+            workspace: Root path for user's project (.sunwell directory)
             event_emitter: Optional event emitter for learning events
         """
-        self._root = sunwell_root
+        self._root = workspace
         self._emitter = event_emitter
 
     async def extract_from_tasks(

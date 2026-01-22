@@ -13,6 +13,7 @@
     disabled?: boolean;
     autofocus?: boolean;
     showMotes?: boolean;
+    loading?: boolean;
     onsubmit?: (value: string) => void;
   }
   
@@ -22,14 +23,18 @@
     disabled = false, 
     autofocus = false, 
     showMotes = false,
+    loading = false,
     onsubmit 
   }: Props = $props();
+  
+  // Effective disabled state considers loading
+  let isDisabled = $derived(disabled || loading);
   
   let inputEl: HTMLInputElement | undefined = $state();
   let focused = $state(false);
   
   function handleSubmit() {
-    if (value.trim() && !disabled) {
+    if (value.trim() && !isDisabled) {
       onsubmit?.(value.trim());
     }
   }
@@ -54,13 +59,13 @@
   }
 </script>
 
-<div class="input-bar" class:disabled class:focused>
+<div class="input-bar" class:disabled={isDisabled} class:focused class:loading>
   <!-- svelte-ignore a11y_autofocus -->
   <input
     bind:this={inputEl}
     bind:value
     {placeholder}
-    {disabled}
+    disabled={isDisabled}
     autofocus={autofocus}
     onkeydown={handleKeydown}
     onfocus={handleFocus}
@@ -73,11 +78,15 @@
   <button 
     class="submit-btn" 
     onclick={handleSubmit}
-    {disabled}
-    aria-label="Submit"
+    disabled={isDisabled}
+    aria-label={loading ? 'Processing...' : 'Submit'}
     type="button"
   >
-    ⏎
+    {#if loading}
+      <span class="loading-spinner" aria-hidden="true">⟳</span>
+    {:else}
+      ⏎
+    {/if}
   </button>
   
   {#if showMotes}
@@ -100,7 +109,7 @@
     width: 100%;
     max-width: 600px;
     position: relative;
-    overflow: hidden;
+    overflow: visible; /* Allow motes to float above */
   }
   
   .input-bar:focus-within,
@@ -168,5 +177,20 @@
   .submit-btn:focus-visible {
     outline: 2px solid var(--border-emphasis);
     outline-offset: 2px;
+  }
+  
+  .loading-spinner {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+    color: var(--text-gold);
+  }
+  
+  .input-bar.loading {
+    border-color: rgba(255, 215, 0, 0.3);
+  }
+  
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 </style>

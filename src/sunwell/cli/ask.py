@@ -263,20 +263,37 @@ async def _ask_with_binding(
         model_router=model_router,
     )
 
+    # RFC-013: Build prompt with hierarchical context from SimulacrumStore
+    full_prompt = prompt
+    if simulacrum_store:
+        # Get context with semantic search (async for embedding-based retrieval)
+        store_context = await simulacrum_store.get_context_for_prompt_async(prompt, max_tokens=4000)
+
+        if store_context:
+            full_prompt = f"## Conversation History\n\n{store_context}\n\n---\n\n## Current Task\n\n{prompt}"
+
+            if verbose:
+                stats = simulacrum_store.stats()
+                console.print("\n[cyan]Simulacrum Context (Hierarchical):[/cyan]")
+                console.print(f"  Hot turns: {stats.get('hot_turns', 0)}")
+                if stats.get('chunk_stats'):
+                    chunk_stats = stats['chunk_stats']
+                    console.print(f"  Chunks: {chunk_stats.get('total_chunks', 0)} (hot/warm/cold)")
+
     # Execute
     tier_enum = Tier(tier)
 
     if binding.stream:
         console.print()
         content_parts = []
-        async for chunk in engine.execute_stream(prompt):
+        async for chunk in engine.execute_stream(full_prompt):
             console.print(chunk, end="")
             content_parts.append(chunk)
         console.print()
         final_content = "".join(content_parts)
     else:
         with console.status("[bold green]Processing..."):
-            result = await engine.execute(prompt, force_tier=tier_enum if tier_enum else None)
+            result = await engine.execute(full_prompt, force_tier=tier_enum if tier_enum else None)
         console.print(Markdown(result.content))
         final_content = result.content
 

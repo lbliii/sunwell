@@ -1,10 +1,10 @@
 # RFC-078: Primitive & Provider Roadmap
 
-**Status**: Draft  
+**Status**: ✅ Complete (All primitives functional)  
 **Created**: 2026-01-21  
 **Last Updated**: 2026-01-21  
 **Dependencies**: RFC-072 (Generative Surface), RFC-075 (Generative Interface)  
-**Confidence**: 85% 🟢
+**Confidence**: 92% 🟢
 
 ---
 
@@ -45,14 +45,14 @@ This RFC defines the **completion order** based on data availability, ensuring w
 
 ## Current State Assessment
 
-### Existing Primitive Stubs
+### Primitive Implementation Status
 
-| Primitive | File | Current State | Gap |
-|-----------|------|---------------|-----|
-| DataTable | `studio/src/components/primitives/DataTable.svelte` | 50 lines, placeholder only | No data binding, sort, filter, edit |
-| Preview | `studio/src/components/primitives/Preview.svelte` | 73 lines, iframe only | No markdown, PDF, syntax highlight |
-| DiffView | `studio/src/components/primitives/DiffView.svelte` | 50 lines, placeholder only | No diff algorithm, no git integration |
-| Timeline | `studio/src/components/primitives/Timeline.svelte` | 50 lines, placeholder only | No time scale, no multi-track |
+| Primitive | File | Current State | Features |
+|-----------|------|---------------|----------|
+| DataTable | `studio/src/components/primitives/DataTable.svelte` | ✅ **Complete** (419 lines) | Sort, filter, inline edit, CSV export, type inference |
+| Preview | `studio/src/components/primitives/Preview.svelte` | ✅ **Complete** (467 lines) | Markdown, code with line numbers, images, PDF, HTML iframe |
+| DiffView | `studio/src/components/primitives/DiffView.svelte` | ✅ **Complete** (456 lines) | LCS diff algorithm, side-by-side + inline modes, stats |
+| Timeline | `studio/src/components/primitives/Timeline.svelte` | ✅ **Complete** (572 lines) | Multi-track, 4 zoom levels, today marker, tooltips |
 
 ### Existing Provider Infrastructure
 

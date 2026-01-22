@@ -1,5 +1,13 @@
 """Simulacrum - Your portable problem-solving context.
 
+.. deprecated:: 0.5.0
+   This module is deprecated. Use SimulacrumStore from sunwell.simulacrum.core.store
+   which provides the unified Simulacrum class with RFC-084 features:
+   - Hierarchical memory (HOT/WARM/COLD tiers)
+   - Automatic topology extraction
+   - Focus-weighted retrieval
+   - CTF encoding for warm tier
+
 A simulacrum is your complete cognitive context for solving a problem:
 - Working Memory: What you're actively thinking about
 - Long-term Memory: What you've learned (persists forever)
@@ -17,6 +25,7 @@ Key properties:
 from __future__ import annotations
 
 import json
+import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -37,6 +46,15 @@ from sunwell.types.memory import RetrievalResult
 
 if TYPE_CHECKING:
     from sunwell.core.lens import Lens
+
+# RFC-084: Emit deprecation warning when this module is imported
+warnings.warn(
+    "sunwell.simulacrum.core.core is deprecated. "
+    "Use Simulacrum from sunwell.simulacrum.core (which aliases SimulacrumStore). "
+    "See RFC-084 for migration details.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 @dataclass

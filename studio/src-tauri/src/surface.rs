@@ -3,9 +3,9 @@
 //! Provides Tauri commands for surface composition and primitive registry.
 //! Calls Python CLI for composition logic.
 
+use crate::util::sunwell_command;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::process::Command;
 
 // =============================================================================
 // TYPES
@@ -57,7 +57,7 @@ pub struct PrimitiveEvent {
 /// Get the primitive registry.
 #[tauri::command]
 pub fn get_primitive_registry() -> Result<Vec<PrimitiveDef>, String> {
-    let output = Command::new("sunwell")
+    let output = sunwell_command()
         .args(["surface", "registry", "--json"])
         .output()
         .map_err(|e| format!("Failed to get primitive registry: {}", e))?;
@@ -102,7 +102,7 @@ pub async fn compose_surface(
         args.push(arr.clone());
     }
 
-    let output = Command::new("sunwell")
+    let output = sunwell_command()
         .args(&args)
         .output()
         .map_err(|e| format!("Failed to compose surface: {}", e))?;
@@ -127,7 +127,7 @@ pub async fn record_layout_success(
     let layout_json = serde_json::to_string(&layout)
         .map_err(|e| format!("Failed to serialize layout: {}", e))?;
 
-    let output = Command::new("sunwell")
+    let output = sunwell_command()
         .args([
             "surface",
             "record",

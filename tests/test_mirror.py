@@ -299,7 +299,7 @@ class TestMirrorHandler:
     def handler(self, tmp_path):
         """Create a handler for testing."""
         return MirrorHandler(
-            sunwell_root=SUNWELL_ROOT,
+            workspace=SUNWELL_ROOT,  # RFC-085: renamed from sunwell_root
             storage_path=tmp_path,
         )
     

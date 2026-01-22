@@ -330,11 +330,18 @@ def load_config(path: str | Path | None = None) -> SunwellConfig:
             "titles": ["M'uru", "The Naaru"],
             "alternate_titles": True,
             "use_native_ollama_api": True,
-            "voice": "auto",
-            "voice_models": ["gemma3:4b", "gemma3:1b", "llama3.2:3b", "qwen2.5:1.5b", "phi3:mini"],
+            # =================================================================
+            # 2-Tier Model Architecture (RFC-081)
+            # Simplified: classifier (1b) + worker (20b)
+            # Middle-tier (4b-12b) removed - quality gap not worth latency
+            # =================================================================
+            # Voice: Fast classifier for routing + trivial answers
+            "voice": "gemma3:1b",
+            "voice_models": ["gemma3:1b", "llama3.2:3b", "qwen2.5:1.5b"],
             "voice_temperature": 0.3,
-            "wisdom": "auto",
-            "wisdom_models": ["gemma3:12b", "gemma3:4b", "qwen3:8b", "llama3.2:3b"],
+            # Wisdom: The brain - generation, judging, complex reasoning
+            "wisdom": "gpt-oss:20b",
+            "wisdom_models": ["gpt-oss:20b", "gemma3:12b", "llama3:70b"],
             "purity_threshold": 6.0,
             "harmonic_synthesis": True,
             "resonance": 2,
@@ -343,8 +350,8 @@ def load_config(path: str | Path | None = None) -> SunwellConfig:
             "attunement": True,
             "num_analysis_shards": 2,
             "num_synthesis_shards": 2,
-            # RFC-030: Unified Router
-            "router": "qwen2.5:1.5b",
+            # RFC-030: Unified Router (uses voice model)
+            "router": "gemma3:1b",
             "router_temperature": 0.1,
             "router_cache_size": 1000,
             # RFC-034: Parallel Task Execution
@@ -589,35 +596,34 @@ naaru:
   # See: https://docs.ollama.com/api/generate
   use_native_ollama_api: true
 
-  # Voice - The model that speaks/creates (synthesis)
-  # "auto" tries models from voice_models list in order
-  # Or specify a model directly: "gemma3:4b", "gpt-4o-mini", etc.
-  voice: "auto"
+  # ==========================================================================
+  # 2-Tier Model Architecture (RFC-081)
+  # Simplified: classifier (1b) + worker (20b)
+  # Middle-tier (4b-12b) removed - quality gap not worth latency savings
+  # ==========================================================================
 
-  # Models to try when voice is "auto" (first available wins)
-  # gemma3:4b is the workhorse - fast and capable for most tasks
+  # Voice - Fast classifier for routing + trivial answers (~1s responses)
+  # Uses gemma3:1b by default - can also answer simple questions directly
+  voice: "gemma3:1b"
+
+  # Fallback models if voice unavailable
   voice_models:
-    - "gemma3:4b"
     - "gemma3:1b"
     - "llama3.2:3b"
     - "qwen2.5:1.5b"
-    - "phi3:mini"
 
-  # Voice temperature (lower = more precise code generation)
+  # Voice temperature (lower = more precise classification)
   voice_temperature: 0.3
 
-  # Wisdom - The model that judges/evaluates
-  # "auto" tries models from wisdom_models list in order
-  # Or specify a model directly: "gemma3:12b", "gpt-4o", etc.
-  wisdom: "auto"
+  # Wisdom - The brain for generation, judging, complex reasoning (~15-20s)
+  # gpt-oss:20b provides consistent high quality across all tasks
+  wisdom: "gpt-oss:20b"
 
-  # Models to try when wisdom is "auto" (first available wins)
-  # gemma3:12b is the brain - used for complex planning, judgment, reasoning
+  # Fallback models if wisdom unavailable  
   wisdom_models:
+    - "gpt-oss:20b"
     - "gemma3:12b"
-    - "gemma3:4b"
-    - "qwen3:8b"
-    - "llama3.2:3b"
+    - "llama3:70b"
 
   # Purity threshold - Minimum quality score to approve (0-10)
   purity_threshold: 6.0

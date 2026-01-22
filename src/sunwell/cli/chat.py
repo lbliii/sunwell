@@ -20,7 +20,6 @@ from sunwell.fount.client import FountClient
 from sunwell.fount.resolver import LensResolver
 from sunwell.runtime.model_router import ModelRouter
 from sunwell.schema.loader import LensLoader
-from sunwell.simulacrum.context.assembler import ContextAssembler
 from sunwell.simulacrum.core.dag import ConversationDAG
 from sunwell.simulacrum.core.store import SimulacrumStore
 from sunwell.simulacrum.core.turn import Learning
@@ -222,12 +221,8 @@ def chat(
     llm = create_model(provider, model)
     embedder = create_embedder()
 
-    # Create context assembler
-    assembler = ContextAssembler(
-        dag=dag,
-        embedder=embedder,
-        summarizer=llm,
-    )
+    # Set embedder on store for semantic retrieval (RFC-013)
+    store.set_embedder(embedder)
 
     # Build system prompt from lens
     system_prompt = lens.to_context()
@@ -248,7 +243,6 @@ def chat(
     asyncio.run(_chat_loop(
         dag=dag,
         store=store,
-        assembler=assembler,
         initial_model=llm,
         initial_model_name=f"{provider}:{model}",
         system_prompt=system_prompt,
@@ -370,7 +364,6 @@ async def _generate_with_tools(
 async def _chat_loop(
     dag: ConversationDAG,
     store: SimulacrumStore,
-    assembler: ContextAssembler,
     initial_model,
     initial_model_name: str,
     system_prompt: str,
@@ -435,10 +428,9 @@ async def _chat_loop(
 
         # RFC-015: Set up mirror handler if enabled
         if mirror_enabled or model_routing_enabled:
-            # Find sunwell root (where src/sunwell lives)
-            import sunwell
+            # RFC-085: MirrorHandler now uses Self.get() for source introspection
+            # so we just pass the user's workspace (cwd), not Sunwell source root
             from sunwell.mirror import MirrorHandler
-            sunwell_root = Path(sunwell.__file__).parent.parent.parent
 
             # Get lens config for model routing
             lens_config = None
@@ -448,7 +440,7 @@ async def _chat_loop(
             mirror_storage = memory_path / "mirror" if memory_path else Path(".sunwell/mirror")
 
             mirror_handler = MirrorHandler(
-                sunwell_root=sunwell_root,
+                workspace=Path.cwd(),  # User's workspace
                 storage_path=mirror_storage,
                 lens=lens,
                 lens_config=lens_config,
@@ -551,7 +543,7 @@ async def _chat_loop(
         except ImportError:
             naaru_enabled = False  # Fall back if Naaru not available
 
-    await assembler.initialize()
+    # RFC-013: No explicit initialization needed - SimulacrumStore handles it
 
     while True:
         try:
@@ -564,7 +556,7 @@ async def _chat_loop(
             # Handle commands
             if user_input.startswith("/"):
                 cmd_result = await _handle_chat_command(
-                    user_input, dag, store, assembler, state,
+                    user_input, dag, store, state,
                     identity_store=identity_store,
                     tiny_model=tiny_model,
                     system_prompt=system_prompt,
@@ -583,20 +575,21 @@ async def _chat_loop(
                 system_prompt, user_identity, include_muru_identity=True
             )
 
-            # Assemble context BEFORE adding user turn (so it's not duplicated)
-            context = await assembler.assemble(
+            # RFC-013: Assemble context using hierarchical chunking (hot/warm/cold tiers)
+            # This enables infinite rolling history across model switches
+            messages, context_stats = store.assemble_messages(
                 query=user_input,
                 system_prompt=effective_system_prompt,
+                max_tokens=4000,
             )
 
             # Show retrieval info
-            if context.retrieved_turns:
-                console.print(f"[dim]Retrieved {len(context.retrieved_turns)} relevant turns from history[/dim]")
-            if context.compression_applied:
-                console.print("[dim]Compressed old context to fit window[/dim]")
+            if context_stats["retrieved_chunks"] > 0:
+                console.print(f"[dim]Retrieved {context_stats['hot_turns']} turns from {context_stats['retrieved_chunks']} chunks[/dim]")
+            if context_stats["compression_applied"]:
+                console.print(f"[dim]Compressed old context ({context_stats['warm_summaries']} warm, {context_stats['cold_summaries']} cold summaries)[/dim]")
 
-            # Build messages: context + current user input
-            messages = context.to_messages()
+            # Add current user input
             messages.append({"role": "user", "content": user_input})
 
             # Now add user turn to DAG for future history
@@ -763,7 +756,6 @@ async def _handle_chat_command(
     command: str,
     dag: ConversationDAG,
     store: SimulacrumStore,
-    assembler: ContextAssembler,
     state: ChatState,
     identity_store=None,  # RFC-023: Identity store
     tiny_model=None,  # RFC-023: For identity refresh

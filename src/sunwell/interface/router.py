@@ -74,11 +74,47 @@ class ActionOutput:
 
 
 @dataclass(frozen=True, slots=True)
+class AuxiliaryPanel:
+    """Contextual panel to display alongside conversation."""
+
+    panel_type: str
+    """Panel type: "image", "chart", "upload", "table", "preview", "web"."""
+
+    title: str | None = None
+    """Optional panel title."""
+
+    data: dict[str, Any] | None = None
+    """Panel-specific data (e.g., {"url": "...", "alt": "..."} for images)."""
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to dictionary."""
+        return {
+            "panel_type": self.panel_type,
+            "title": self.title,
+            "data": self.data,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> AuxiliaryPanel:
+        """Deserialize from dictionary."""
+        return cls(
+            panel_type=data["panel_type"],
+            title=data.get("title"),
+            data=data.get("data"),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class ConversationOutput:
-    """Conversation response."""
+    """Conversation response with optional contextual panels."""
 
     response: str
     mode: str | None
+    auxiliary_panels: tuple[AuxiliaryPanel, ...] = ()
+    """Contextual panels to display alongside the conversation."""
+
+    suggested_tools: tuple[str, ...] = ()
+    """Suggested input tools: "upload", "camera", "voice", "draw"."""
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary."""
@@ -86,6 +122,8 @@ class ConversationOutput:
             "type": "conversation",
             "response": self.response,
             "mode": self.mode,
+            "auxiliary_panels": [p.to_dict() for p in self.auxiliary_panels],
+            "suggested_tools": list(self.suggested_tools),
         }
 
 
@@ -211,10 +249,22 @@ class InteractionRouter:
         )
 
     async def _handle_conversation(self, analysis: IntentAnalysis) -> ConversationOutput:
-        """Return a conversation response."""
+        """Return a conversation response with contextual panels."""
+        # Convert panel dicts to AuxiliaryPanel objects
+        panels = tuple(
+            AuxiliaryPanel(
+                panel_type=p.get("panel_type", "unknown"),
+                title=p.get("title"),
+                data=p.get("data"),
+            )
+            for p in analysis.auxiliary_panels
+        )
+
         return ConversationOutput(
             response=analysis.response or "I'm here to help.",
             mode=analysis.conversation_mode,
+            auxiliary_panels=panels,
+            suggested_tools=analysis.suggested_tools,
         )
 
     async def _handle_hybrid(self, analysis: IntentAnalysis) -> HybridOutput:

@@ -38,6 +38,7 @@
   import DAGView from './primitives/DAGView.svelte';
   import BriefingCard from './primitives/BriefingCard.svelte';
   import FileTree from './FileTree.svelte';
+  import { WriterSurface } from './writer';
   
   // Component registry for dynamic rendering
   const components: Record<string, any> = {
@@ -65,6 +66,7 @@
     MemoryPane,
     DAGView,
     BriefingCard,
+    WriterSurface,
   };
   
   interface Props {
@@ -100,6 +102,7 @@
     focused: 'grid-focused',
     split: 'grid-split',
     dashboard: 'grid-dashboard',
+    writer: 'grid-writer',
   };
 </script>
 
@@ -118,15 +121,15 @@
   {/if}
   
   {#if surface.layout}
+    {@const PrimaryComponent = getComponent(surface.layout.primary.id)}
     <div 
       class="surface-grid {arrangementClasses[surface.layout.arrangement]}"
       in:fade={{ duration: 200, delay: 100 }}
     >
       <!-- Primary primitive (always present) -->
       <div class="primary-slot" data-size={surface.layout.primary.size}>
-        {#if getComponent(surface.layout.primary.id)}
-          <svelte:component 
-            this={getComponent(surface.layout.primary.id)}
+        {#if PrimaryComponent}
+          <PrimaryComponent
             {...surface.layout.primary.props}
             size={surface.layout.primary.size}
           />
@@ -141,14 +144,14 @@
       {#if surface.layout.secondary.length > 0}
         <div class="secondary-slots">
           {#each surface.layout.secondary as prim (prim.id)}
+            {@const SecondaryComponent = getComponent(prim.id)}
             <div 
               class="secondary-slot"
               data-size={prim.size}
               in:fly={{ x: prim.size === 'sidebar' ? -20 : 0, y: prim.size === 'bottom' ? 20 : 0, duration: 200 }}
             >
-              {#if getComponent(prim.id)}
-                <svelte:component 
-                  this={getComponent(prim.id)}
+              {#if SecondaryComponent}
+                <SecondaryComponent
                   {...prim.props}
                   size={prim.size}
                 />
@@ -166,14 +169,14 @@
       {#if surface.layout.contextual.length > 0}
         <div class="contextual-slots">
           {#each surface.layout.contextual as prim (prim.id)}
+            {@const ContextualComponent = getComponent(prim.id)}
             <div 
               class="contextual-slot"
               data-size={prim.size}
               in:fly={{ y: -10, duration: 200 }}
             >
-              {#if getComponent(prim.id)}
-                <svelte:component 
-                  this={getComponent(prim.id)}
+              {#if ContextualComponent}
+                <ContextualComponent
                   {...prim.props}
                   size={prim.size}
                 />
@@ -273,6 +276,15 @@
     grid-template-areas:
       "primary secondary"
       "tertiary contextual";
+  }
+  
+  /* Writer: Full-screen writing environment (RFC-086) */
+  .grid-writer {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    grid-template-areas: "primary";
+    padding: 0;
+    gap: 0;
   }
   
   .primary-slot {
