@@ -1,32 +1,66 @@
-"""Main CLI entry point - Goal-first interface (RFC-037).
+"""Main CLI entry point - Goal-first interface (RFC-037, RFC-109).
 
 The primary interface is now simply:
     sunwell "Build a REST API with auth"
+    sunwell -s a-2 docs/api.md
 
-All other commands are progressive disclosure for power users.
+RFC-109: CLI simplified to 5 primary commands.
+All other commands are progressive disclosure or hidden for Studio.
 """
 
 
 import asyncio
+import sys
 from pathlib import Path
 
 import click
 from rich.console import Console
 
 from sunwell.cli.helpers import check_free_threading, load_dotenv
+from sunwell.cli.shortcuts import complete_shortcut, complete_target
 
 console = Console()
 
 
-# RFC-037: Custom group that supports goal-first interface
-class GoalFirstGroup(click.Group):
-    """Custom group that allows 'sunwell "goal"' syntax while preserving subcommands.
+def cli_entrypoint() -> None:
+    """Wrapped entrypoint with global error handling.
 
-    Also supports RFC-086: `sunwell .` and `sunwell ~/path` patterns for project opening.
+    This catches SunwellError and displays it nicely instead of ugly tracebacks.
+    Called from pyproject.toml [project.scripts].
+    """
+    try:
+        main(standalone_mode=False)
+    except click.ClickException as e:
+        # Let Click handle its own exceptions
+        e.show()
+        sys.exit(e.exit_code)
+    except click.Abort:
+        # User cancelled (Ctrl+C)
+        console.print("\n[dim]Aborted.[/dim]")
+        sys.exit(130)
+    except Exception as e:
+        # Handle SunwellError with nice formatting
+        from sunwell.core.errors import SunwellError
+        from sunwell.cli.error_handler import handle_error
+
+        if isinstance(e, SunwellError):
+            handle_error(e, json_output=False)
+        else:
+            # Wrap unknown errors
+            handle_error(e, json_output=False)
+
+
+# RFC-037, RFC-109: Custom group that supports goal-first and shortcut interfaces
+class GoalFirstGroup(click.Group):
+    """Custom group that allows multiple entry patterns:
+
+    - `sunwell "goal"` - Goal-first (RFC-037)
+    - `sunwell -s a-2 file.md` - Shortcut execution (RFC-109)
+    - `sunwell .` or `sunwell ~/path` - Project opening (RFC-086)
     """
 
     def parse_args(self, ctx, args):
-        """Override to handle goal-first pattern and path shortcuts."""
+        """Override to handle goal-first, shortcut, and path patterns."""
         # If no args, proceed normally
         if not args:
             return super().parse_args(ctx, args)
@@ -37,12 +71,45 @@ class GoalFirstGroup(click.Group):
         first_arg = args[0]
 
         # RFC-086: Check if it's a path pattern (starts with . or / or ~)
-        # These should be treated as 'open' commands
         if first_arg in (".", "..") or first_arg.startswith(("/", "~", "./")):
             ctx.ensure_object(dict)
             ctx.obj["_open_path"] = first_arg
-            args = args[1:]  # Remove path from args
+            args = args[1:]
             return super().parse_args(ctx, args)
+
+        # RFC-109: Check for shortcut pattern with positional target
+        # sunwell -s a-2 file.md "context string"
+        # We need to capture positional args after the options are parsed
+        ctx.ensure_object(dict)
+
+        # Find -s/--skill in args and capture what comes after
+        skill_idx = None
+        for i, arg in enumerate(args):
+            if arg in ("-s", "--skill"):
+                skill_idx = i
+                break
+
+        if skill_idx is not None and len(args) > skill_idx + 2:
+            # There's something after "-s shortcut"
+            # Check if there are positional args (not options)
+            remaining_args = args[skill_idx + 2:]
+            positional_args = []
+            for arg in remaining_args:
+                if arg.startswith("-"):
+                    break
+                positional_args.append(arg)
+
+            if positional_args:
+                # First positional is target, rest is context
+                ctx.obj["_positional_target"] = positional_args[0]
+                if len(positional_args) > 1:
+                    ctx.obj["_context_str"] = " ".join(positional_args[1:])
+                # Remove positional args from args list
+                for pa in positional_args:
+                    if pa in args:
+                        args = list(args)
+                        args.remove(pa)
+                        args = tuple(args)
 
         # If first arg is NOT a command and NOT an option, treat it as a goal
         if (
@@ -50,32 +117,84 @@ class GoalFirstGroup(click.Group):
             and not first_arg.startswith("-")
             and not first_arg.startswith("--")
         ):
-            # Store the goal in context for later retrieval
-            ctx.ensure_object(dict)
             ctx.obj["_goal"] = first_arg
-            args = args[1:]  # Remove goal from args
+            args = args[1:]
 
         return super().parse_args(ctx, args)
 
 
+def _show_all_commands(ctx: click.Context) -> None:
+    """Show all commands including hidden ones (RFC-109)."""
+    from rich.table import Table
+
+    table = Table(title="All Sunwell Commands", show_header=True)
+    table.add_column("Command", style="cyan")
+    table.add_column("Tier", style="magenta")
+    table.add_column("Description")
+
+    # Tier definitions
+    tier_1_2 = {"config", "project", "session", "lens", "setup"}  # Visible in --help
+    tier_3 = {"benchmark", "chat", "demo", "eval", "index", "runtime"}  # Hidden, developer
+    tier_4 = {
+        "backlog", "dag", "interface", "naaru", "scan", "security", "self",
+        "skill", "surface", "weakness", "workers", "workflow", "workspace",
+    }  # Internal, Studio only
+
+    # Get all commands
+    for name in sorted(main.list_commands(ctx)):
+        cmd = main.get_command(ctx, name)
+        if cmd is None:
+            continue
+
+        # Determine tier
+        if name in tier_1_2:
+            tier = "1-2 (Visible)"
+        elif name in tier_3:
+            tier = "3 (Hidden)"
+        elif name in tier_4:
+            tier = "4 (Internal)"
+        else:
+            tier = "?" if cmd.hidden else "1-2"
+
+        # Get description
+        desc = cmd.get_short_help_str(limit=50) if cmd.help else "-"
+
+        table.add_row(name, tier, desc)
+
+    console.print(table)
+    console.print("\n[dim]Tier 1-2: Shown in --help (user-facing)[/dim]")
+    console.print("[dim]Tier 3: Hidden but accessible (developer tools)[/dim]")
+    console.print("[dim]Tier 4: Internal only (Studio integration)[/dim]")
+
+
 @click.group(cls=GoalFirstGroup, invoke_without_command=True)
+@click.option("-s", "--skill", "skill_shortcut", shell_complete=complete_shortcut,
+              help="Run skill shortcut (a-2, p, health, etc.)")
+@click.option("-t", "--target", "skill_target", shell_complete=complete_target,
+              help="Target file/directory for skill")
+@click.option("-l", "--lens", default="tech-writer", help="Lens to use")
 @click.option("--plan", is_flag=True, help="Show plan without executing")
 @click.option("--open", "open_studio", is_flag=True, help="Open plan in Studio (with --plan)")
-@click.option("--json", "json_output", is_flag=True, help="Output plan as JSON (with --plan)")
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.option("--provider", "-p", type=click.Choice(["openai", "anthropic", "ollama"]),
               default=None, help="Model provider (default: from config)")
 @click.option("--model", "-m", help="Override model selection")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed output")
-@click.option("--time", "-t", default=300, help="Max execution time (seconds)")
+@click.option("--time", default=300, help="Max execution time (seconds)")
 @click.option("--trust", type=click.Choice(["read_only", "workspace", "shell"]),
               default=None, help="Override tool trust level")
 @click.option("--workspace", "-w", type=click.Path(exists=False),
-              help="Project directory (default: auto-detect or ~/Sunwell/projects/)")
+              help="Project directory (default: auto-detect)")
 @click.option("--quiet", "-q", is_flag=True, help="Suppress warnings")
-@click.version_option(version="0.1.0")
+@click.option("--all-commands", is_flag=True, hidden=True,
+              help="Show all commands including hidden")
+@click.version_option(version="0.2.0")
 @click.pass_context
 def main(
     ctx,
+    skill_shortcut: str | None,
+    skill_target: str | None,
+    lens: str,
     plan: bool,
     open_studio: bool,
     json_output: bool,
@@ -86,25 +205,32 @@ def main(
     trust: str | None,
     workspace: str | None,
     quiet: bool,
+    all_commands: bool,
 ) -> None:
     """Sunwell — AI agent for software tasks.
 
     \b
-    Just tell it what you want:
+    USAGE:
+        sunwell [OPTIONS] [GOAL]
+        sunwell -s <SHORTCUT> [TARGET]
+        sunwell <COMMAND>
 
+    \b
+    EXAMPLES:
         sunwell "Build a REST API with auth"
-        sunwell "Write docs for the CLI module"
-        sunwell "Refactor auth.py to use async"
+        sunwell -s a-2 docs/api.md
+        sunwell -s a-2 docs/api.md "focus on the migration section"
+        sunwell -s p docs/cli.md
+        sunwell config model
+        sunwell project ~/myapp
 
     \b
-    For planning without execution:
-
-        sunwell "Build an app" --plan
-
-    \b
-    For a specific project directory:
-
-        sunwell "Add tests" --workspace ~/projects/myapp
+    SHORTCUTS (use with -s):
+        a, a-2      Audit (quick, deep)
+        p           Polish
+        health      Health check
+        drift       Drift detection
+        pipeline    Full docs pipeline
 
     \b
     For interactive mode:
@@ -112,17 +238,46 @@ def main(
         sunwell chat
 
     \b
-    For power users - see all commands:
+    For all commands (including hidden):
 
-        sunwell --help
+        sunwell --all-commands
     """
     load_dotenv()
     check_free_threading(quiet=quiet)
+
+    # RFC-109: Show all commands if requested
+    if all_commands:
+        _show_all_commands(ctx)
+        return
 
     # Get goal or path from custom parsing
     ctx.ensure_object(dict)
     goal = ctx.obj.get("_goal")
     open_path = ctx.obj.get("_open_path")
+
+    # RFC-109: Handle -s/--skill shortcut execution
+    if skill_shortcut and ctx.invoked_subcommand is None:
+        from sunwell.cli.shortcuts import run_shortcut
+
+        # Get positional target from context (after the shortcut)
+        positional_target = ctx.obj.get("_positional_target")
+        target = skill_target or positional_target
+        context_str = ctx.obj.get("_context_str")
+
+        asyncio.run(
+            run_shortcut(
+                shortcut=skill_shortcut,
+                target=target,
+                context_str=context_str,
+                lens_name=lens,
+                provider=provider,
+                model=model,
+                plan_only=plan,
+                json_output=json_output,
+                verbose=verbose,
+            )
+        )
+        return
 
     # RFC-086: If a path was provided (sunwell . or sunwell ~/path), open project
     if open_path and ctx.invoked_subcommand is None:
@@ -272,9 +427,8 @@ async def _run_agent(
         async for event in agent.plan(goal):
             if event.type == EventType.PLAN_WINNER:
                 plan_data = event.data
-            elif event.type == EventType.ERROR:
-                if not json_output:
-                    _print_event(event, verbose)
+            elif event.type == EventType.ERROR and not json_output:
+                _print_event(event, verbose)
 
         if plan_data:
             # RFC-090: JSON output for scripting
@@ -414,7 +568,7 @@ def _open_plan_in_studio(plan_data: dict, goal: str, workspace: Path) -> None:
     plan_data["created_at"] = datetime.now().isoformat()
     plan_file.write_text(json.dumps(plan_data, indent=2))
 
-    console.print(f"\n[cyan]Opening plan in Studio...[/cyan]")
+    console.print("\n[cyan]Opening plan in Studio...[/cyan]")
 
     # Launch Studio in planning mode with plan file
     launch_studio(
@@ -479,8 +633,10 @@ async def _artifact_dry_run(goal: str, planner, verbose: bool) -> None:
         if summary.get("loaded"):
             console.print(f"[cyan]Expertise:[/cyan] {summary.get('domain', 'unknown')} domain")
             if verbose:
-                console.print(f"[dim]  Heuristics: {', '.join(summary.get('heuristics', []))}[/dim]")
-                console.print(f"[dim]  Sources: {', '.join(summary.get('source_lenses', []))}[/dim]")
+                heuristics = ", ".join(summary.get("heuristics", []))
+                sources = ", ".join(summary.get("source_lenses", []))
+                console.print(f"[dim]  Heuristics: {heuristics}[/dim]")
+                console.print(f"[dim]  Sources: {sources}[/dim]")
             console.print()
 
     console.print(f"[bold]Plan for:[/bold] {goal}\n")
@@ -529,56 +685,123 @@ async def _artifact_dry_run(goal: str, planner, verbose: bool) -> None:
 
 
 # =============================================================================
-# TIER 1: The 90% Path (visible in --help)
+# RFC-109: COMMAND REGISTRATION (Tiered Visibility)
+# =============================================================================
+#
+# Tier 1-2 (Visible): config, project, session, lens, setup
+# Tier 3 (Hidden):    benchmark, chat, demo, eval, index, runtime
+# Tier 4 (Internal):  backlog, dag, interface, naaru, scan, security, self,
+#                     skill, surface, weakness, workers, workflow, workspace
 # =============================================================================
 
-# Import and register chat command (interactive mode)
-from sunwell.cli import chat
 
-main.add_command(chat.chat)
+# -----------------------------------------------------------------------------
+# TIER 1-2: Primary User Interface (shown in --help)
+# These are the 5 primary commands users interact with
+# -----------------------------------------------------------------------------
 
-# Import and register setup command (first-time setup)
-from sunwell.cli import setup
-
-main.add_command(setup.setup)
-
-# Demo command - proves the Prism Principle (RFC-095)
-from sunwell.cli import demo_cmd
-
-main.add_command(demo_cmd.demo)
-
-# Evaluation command - rigorous quality measurement (RFC-098)
-from sunwell.cli import eval_cmd
-
-main.add_command(eval_cmd.eval_cmd, name="eval")
-
-
-# =============================================================================
-# TIER 2: Power User (visible in --help, grouped)
-# =============================================================================
-
-# Manage saved configurations
-from sunwell.cli import bind
-
-main.add_command(bind.bind)
-
-# Global settings
+# Configuration management (absorbs bind, env)
 from sunwell.cli import config_cmd
-
 main.add_command(config_cmd.config)
 
+# Project operations (absorbs workspace, scan, import)
+from sunwell.cli import project_cmd
+main.add_command(project_cmd.project)
 
-# =============================================================================
-# TIER 3: Advanced (shown in --help, but organized as subgroups)
-# =============================================================================
+# Session management (absorbs team)
+from sunwell.cli import session
+main.add_command(session.sessions)
 
-# Agent commands (renamed from 'naaru' for clarity - RFC-037)
+# Lens management
+from sunwell.cli import lens
+main.add_command(lens.lens)
+
+# First-time setup wizard
+from sunwell.cli import setup
+main.add_command(setup.setup)
+
+
+# -----------------------------------------------------------------------------
+# TIER 3: Hidden Commands (developer/power user)
+# Accessible via full command name, but not shown in --help
+# Use `sunwell --all-commands` to see these
+# -----------------------------------------------------------------------------
+
+# Interactive REPL mode
+from sunwell.cli import chat
+main.add_command(click.Command(
+    name="chat",
+    callback=chat.chat.callback,
+    params=chat.chat.params,
+    help=chat.chat.help,
+    hidden=True,  # RFC-109: Deprioritized but retained
+))
+
+# Benchmark suite
+from sunwell.benchmark.cli import benchmark
+main.add_command(click.Command(
+    name="benchmark",
+    callback=benchmark.callback if hasattr(benchmark, 'callback') else benchmark,
+    help="Run benchmark suite",
+    hidden=True,
+))
+
+# Demo command - Prism Principle demonstrations
+from sunwell.cli import demo_cmd
+main.add_command(click.Command(
+    name="demo",
+    callback=demo_cmd.demo.callback,
+    params=demo_cmd.demo.params,
+    help=demo_cmd.demo.help,
+    hidden=True,
+))
+
+# Evaluation suite
+from sunwell.cli import eval_cmd
+main.add_command(click.Command(
+    name="eval",
+    callback=eval_cmd.eval_cmd.callback,
+    params=eval_cmd.eval_cmd.params,
+    help=eval_cmd.eval_cmd.help,
+    hidden=True,
+))
+
+# Runtime management
+from sunwell.cli import runtime_cmd
+main.add_command(click.Command(
+    name="runtime",
+    callback=runtime_cmd.runtime.callback if hasattr(runtime_cmd.runtime, 'callback') else None,
+    help="Runtime management",
+    hidden=True,
+))
+
+
+# -----------------------------------------------------------------------------
+# TIER 4: Internal Commands (Studio integration only)
+# These are called by Studio via subprocess - MUST remain stable
+# Hidden from all help, but fully functional
+# -----------------------------------------------------------------------------
+
+# Autonomous Backlog (RFC-046) - Studio: backlog refresh/run
+from sunwell.cli import backlog_cmd
+backlog_cmd.backlog.hidden = True
+main.add_command(backlog_cmd.backlog)
+
+# DAG and Incremental Execution (RFC-074) - Studio: dag plan/cache/impact
+from sunwell.cli import dag_cmd
+dag_cmd.dag.hidden = True
+main.add_command(dag_cmd.dag)
+
+# Generative Interface (RFC-075) - Studio: interface demo
+from sunwell.cli import interface_cmd
+interface_cmd.interface.hidden = True
+main.add_command(interface_cmd.interface)
+
+# Naaru coordination - Studio: naaru process/convergence
 from sunwell.cli.agent import agent
-
+agent.hidden = True
 main.add_command(agent)
-
 # Keep 'naaru' as hidden alias for backward compatibility
-# We create a copy of the agent group with hidden=True
 naaru_alias = click.Group(
     name="naaru",
     commands=agent.commands,
@@ -587,132 +810,148 @@ naaru_alias = click.Group(
 )
 main.add_command(naaru_alias)
 
-# Legacy commands (with deprecation warnings)
-from sunwell.cli import apply, ask
+# State DAG Scanning (RFC-100) - Studio: scan <path>
+from sunwell.cli import scan_cmd
+scan_cmd.scan.hidden = True
+main.add_command(scan_cmd.scan)
 
+# Security-First Skill Execution (RFC-089) - Studio: security analyze/approve/audit/scan
+from sunwell.cli import security_cmd
+security_cmd.security.hidden = True
+main.add_command(security_cmd.security)
+
+# Self-Knowledge (RFC-085) - Studio: self source/analysis/proposals/summary
+from sunwell.cli import self_cmd
+self_cmd.self_cmd.hidden = True
+main.add_command(self_cmd.self_cmd, name="self")
+
+# Skill management - Studio: skill cache-stats/cache-clear
+from sunwell.cli import skill
+skill.skill.hidden = True
+main.add_command(skill.skill)
+
+# Surface Primitives & Layout (RFC-072) - Studio: surface registry
+from sunwell.cli import surface
+surface.surface.hidden = True
+main.add_command(surface.surface)
+
+# Weakness Cascade (RFC-063) - Studio: weakness scan/preview/extract-contract
+from sunwell.cli import weakness_cmd
+weakness_cmd.weakness.hidden = True
+main.add_command(weakness_cmd.weakness)
+
+# Multi-Instance Coordination (RFC-051) - Studio: workers ui-state/pause/resume/start
+from sunwell.cli import workers_cmd
+workers_cmd.workers.hidden = True
+main.add_command(workers_cmd.workers)
+
+# Autonomous Workflow Execution (RFC-086) - Studio: workflow auto/run/stop/resume/skip/chains/list
+from sunwell.cli import workflow_cmd
+workflow_cmd.workflow.hidden = True
+main.add_command(workflow_cmd.workflow)
+
+# Workspace-Aware Scanning (RFC-103) - Studio: workspace detect/show/link/unlink/list
+from sunwell.cli import workspace_cmd
+workspace_cmd.workspace.hidden = True
+main.add_command(workspace_cmd.workspace)
+
+# Continuous Codebase Indexing (RFC-108) - Studio: index build/query/metrics
+from sunwell.cli import index_cmd
+index_cmd.index.hidden = True
+main.add_command(index_cmd.index)
+
+
+# -----------------------------------------------------------------------------
+# TIER 4 CONTINUED: Additional internal commands
+# -----------------------------------------------------------------------------
+
+# Project Intelligence commands (RFC-045) - hidden
+from sunwell.cli import intel_cmd
+intel_cmd.intel.hidden = True
+main.add_command(intel_cmd.intel)
+
+# Plan command for DAG visualization - hidden
+from sunwell.cli import plan_cmd
+plan_cmd.plan.hidden = True
+main.add_command(plan_cmd.plan)
+
+# Deep Verification (RFC-047) - hidden
+from sunwell.cli import verify_cmd
+verify_cmd.verify.hidden = True
+main.add_command(verify_cmd.verify)
+
+# Autonomy Guardrails (RFC-048) - hidden
+from sunwell.cli import guardrails_cmd
+guardrails_cmd.guardrails.hidden = True
+main.add_command(guardrails_cmd.guardrails)
+
+# External Integration (RFC-049) - hidden
+from sunwell.cli import external_cmd
+external_cmd.external.hidden = True
+main.add_command(external_cmd.external)
+
+# Fast Bootstrap (RFC-050) - hidden
+from sunwell.cli import bootstrap_cmd
+bootstrap_cmd.bootstrap.hidden = True
+main.add_command(bootstrap_cmd.bootstrap)
+
+# Team Intelligence (RFC-052) - hidden
+from sunwell.cli import team_cmd
+team_cmd.team.hidden = True
+main.add_command(team_cmd.team)
+
+# Project Import (RFC-043 addendum) - hidden
+from sunwell.cli import import_cmd
+import_cmd.import_project.hidden = True
+main.add_command(import_cmd.import_project, name="import")
+
+# Briefing System (RFC-071) - hidden
+from sunwell.cli import briefing_cmd
+briefing_cmd.briefing.hidden = True
+main.add_command(briefing_cmd.briefing)
+
+# Reasoned Decisions (RFC-073) - hidden
+from sunwell.cli import reason
+reason.reason.hidden = True
+main.add_command(reason.reason)
+
+# Universal Writing Environment (RFC-086) - hidden
+from sunwell.cli import open_cmd
+open_cmd.open_project.hidden = True
+main.add_command(open_cmd.open_project, name="open")
+
+# User Environment Model (RFC-104) - hidden
+from sunwell.cli import env_cmd
+env_cmd.env.hidden = True
+main.add_command(env_cmd.env)
+
+# Configuration binding - hidden (absorbed into config)
+from sunwell.cli import bind
+bind.bind.hidden = True
+main.add_command(bind.bind)
+
+# Shortcut Execution (RFC-107) - hidden (absorbed into -s flag)
+from sunwell.cli import do_cmd
+do_cmd.do_cmd.hidden = True
+main.add_command(do_cmd.do_cmd, name="do")
+
+# Legacy commands (with deprecation warnings) - hidden
+from sunwell.cli import apply, ask
+apply.apply.hidden = True
+ask.ask.hidden = True
 main.add_command(apply.apply)
 main.add_command(ask.ask)
 
-# Session management
-from sunwell.cli import session
+# Legacy skill commands - hidden
+skill.exec_legacy.hidden = True
+skill.validate_legacy.hidden = True
+main.add_command(skill.exec_legacy, name="exec")
+main.add_command(skill.validate_legacy, name="validate")
 
-main.add_command(session.sessions)
 
-# Benchmark suite
-from sunwell.benchmark.cli import benchmark
+# -----------------------------------------------------------------------------
+# RFC-109: Register deprecated command aliases
+# -----------------------------------------------------------------------------
 
-main.add_command(benchmark)
-
-# Development tools
-from sunwell.cli import lens, runtime_cmd, skill
-
-main.add_command(runtime_cmd.runtime)
-main.add_command(skill.skill)  # RFC-087: Full skill command group
-main.add_command(skill.exec_legacy, name="exec")  # Legacy backward compat
-main.add_command(skill.validate_legacy, name="validate")  # Legacy backward compat
-main.add_command(lens.lens)
-
-# Plan command for DAG visualization (RFC-043 prep)
-
-# Autonomous Backlog (RFC-046)
-from sunwell.cli import backlog_cmd
-
-main.add_command(backlog_cmd.backlog)
-
-# Project Intelligence commands (RFC-045)
-from sunwell.cli import intel_cmd
-
-main.add_command(intel_cmd.intel)
-from sunwell.cli import plan_cmd
-
-main.add_command(plan_cmd.plan)
-
-# Deep Verification (RFC-047)
-from sunwell.cli import verify_cmd
-
-main.add_command(verify_cmd.verify)
-
-# Autonomy Guardrails (RFC-048)
-from sunwell.cli import guardrails_cmd
-
-main.add_command(guardrails_cmd.guardrails)
-
-# External Integration (RFC-049)
-from sunwell.cli import external_cmd
-
-main.add_command(external_cmd.external)
-
-# Fast Bootstrap (RFC-050)
-from sunwell.cli import bootstrap_cmd
-
-main.add_command(bootstrap_cmd.bootstrap)
-
-# Multi-Instance Coordination (RFC-051)
-from sunwell.cli import workers_cmd
-
-main.add_command(workers_cmd.workers)
-
-# Team Intelligence (RFC-052)
-from sunwell.cli import team_cmd
-
-main.add_command(team_cmd.team)
-
-# Project Import (RFC-043 addendum)
-from sunwell.cli import import_cmd
-
-main.add_command(import_cmd.import_project, name="import")
-
-# Weakness Cascade (RFC-063)
-from sunwell.cli import weakness_cmd
-
-main.add_command(weakness_cmd.weakness)
-
-# Briefing System (RFC-071)
-from sunwell.cli import briefing_cmd
-
-main.add_command(briefing_cmd.briefing)
-
-# DAG and Incremental Execution (RFC-074)
-from sunwell.cli import dag_cmd
-
-main.add_command(dag_cmd.dag)
-
-# Surface Primitives & Layout (RFC-072)
-from sunwell.cli import surface
-
-main.add_command(surface.surface)
-
-# Generative Interface (RFC-075)
-from sunwell.cli import interface_cmd
-
-main.add_command(interface_cmd.interface)
-
-# Reasoned Decisions (RFC-073)
-from sunwell.cli import reason
-
-main.add_command(reason.reason)
-
-# Project Analysis (RFC-079)
-from sunwell.cli import project_cmd
-
-main.add_command(project_cmd.project)
-
-# Self-Knowledge (RFC-085)
-from sunwell.cli import self_cmd
-
-main.add_command(self_cmd.self_cmd, name="self")
-
-# Universal Writing Environment (RFC-086)
-from sunwell.cli import open_cmd
-
-main.add_command(open_cmd.open_project, name="open")
-
-# Autonomous Workflow Execution (RFC-086)
-from sunwell.cli import workflow_cmd
-
-main.add_command(workflow_cmd.workflow)
-
-# Security-First Skill Execution (RFC-089)
-from sunwell.cli import security_cmd
-
-main.add_command(security_cmd.security)
+from sunwell.cli.deprecated import register_deprecated_commands
+register_deprecated_commands(main)
