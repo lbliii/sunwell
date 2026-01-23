@@ -2,12 +2,12 @@
   Project — Working screen (Svelte 5, RFC-062 decomposed)
   
   Main project route that orchestrates state-specific sub-components.
-  RFC-079: Integrated ProjectOverview for universal project understanding.
+  RFC-106: Unified Project Surface - Overview and Progress tabs merged into single Project tab.
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
-  import type { ProjectStatus, FileEntry, DagGraph, MemoryStats, IntelligenceData } from '$lib/types';
+  import type { ProjectStatus, DagGraph, MemoryStats, IntelligenceData, GoalSummary } from '$lib/types';
   import { ViewTab } from '$lib/constants';
   import Button from '../components/Button.svelte';
   import Modal from '../components/Modal.svelte';
@@ -16,25 +16,24 @@
   import { MemoryView } from '../components';
   import { DagCanvas, DagControls, DagDetail } from '../components/dag';
   import { WeaknessPanel, WaveExecutionPanel } from '../components/weakness';
-  import { ProjectHeader, WorkingState, DoneState, ErrorState, IdleState, ProjectOverview } from '../components/project';
-  import { project, analyzeProject, clearAnalysis } from '../stores/project.svelte';
+  import { ProjectHeader, WorkingState, DoneState, ErrorState, IdleState } from '../components/project';
+  import { ATCView, StateDagView } from '../components/coordinator';
+  import { project } from '../stores/project.svelte';
   import { agent, runGoal } from '../stores/agent.svelte';
-  import { dag, setGraph, setProjectPath } from '../stores/dag.svelte';
+  import { dag, setGraph, setProjectPath, loadProjectDagIndex, getSortedGoals, expandGoal } from '../stores/dag.svelte';
+  import { files, setFilesProjectPath } from '../stores/files.svelte';
   import { scanWeaknesses } from '../stores/weakness.svelte';
   
   // Project status for showing last run info
   let projectStatus = $state<ProjectStatus | null>(null);
   let isLoadingStatus = $state(false);
   
-  // File tree state
-  let projectFiles = $state<FileEntry[]>([]);
-  let isLoadingFiles = $state(false);
-  let filesLoadedForPath = $state<string | null>(null);
+  // File preview state (files tree now managed by store)
   let selectedFile = $state<{ path: string; name: string; content: string } | null>(null);
   let isLoadingPreview = $state(false);
   
-  // View tabs state: default to progress (where agent work happens)
-  let activeTab = $state<string>(ViewTab.PROGRESS);
+  // View tabs state: default to project (unified landing surface, RFC-106)
+  let activeTab = $state<string>(ViewTab.PROJECT);
   let isLoadingDag = $state(false);
   let dagError = $state<string | null>(null);
   
@@ -44,12 +43,14 @@
   let isLoadingMemory = $state(false);
   let memoryError = $state<string | null>(null);
   
+  // RFC-106: Consolidated tabs (Overview merged into Project)
   const tabs = [
-    { id: 'overview', label: 'Overview' },
-    { id: ViewTab.PROGRESS, label: 'Progress' },
+    { id: ViewTab.PROJECT, label: 'Project' },  // RFC-106: Unified project surface
     { id: ViewTab.PIPELINE, label: 'Pipeline' },
     { id: ViewTab.MEMORY, label: 'Memory' },
     { id: 'health', label: 'Health' },
+    { id: ViewTab.STATE_DAG, label: 'State' },  // RFC-100: Project health
+    { id: ViewTab.WORKERS, label: 'Workers' },  // RFC-100: Multi-agent
   ];
   
   // Keyboard shortcut for weakness scan (Ctrl+Shift+W)
@@ -69,9 +70,9 @@
   // Load project data when path changes
   $effect(() => {
     const path = project.current?.path;
-    if (path && path !== filesLoadedForPath && !isLoadingFiles) {
+    if (path) {
       loadProjectStatus();
-      loadProjectFiles();
+      setFilesProjectPath(path); // Files store handles loading and event-driven refresh
     }
   });
   
@@ -112,18 +113,8 @@
     }
   });
   
-  // RFC-094: Refresh files when agent completes (DAG is handled via events now)
-  let prevAgentDone = $state(false);
-  $effect(() => {
-    const isDone = agent.isDone;
-    const path = project.current?.path;
-    // Detect transition from not-done to done - files only, DAG via events
-    if (isDone && !prevAgentDone && path) {
-      filesLoadedForPath = null;
-      loadProjectFiles();
-    }
-    prevAgentDone = isDone;
-  });
+  // RFC-094: Files refresh is now handled by files.svelte store via agent events
+  // See: agent.svelte.ts calls reloadFiles() on task_complete, complete, backlog_goal_completed
   
   async function loadProjectStatus() {
     if (!project.current?.path) return;
@@ -140,6 +131,8 @@
     isLoadingDag = true;
     dagError = null;
     try {
+      // RFC-105: Load both index (fast) and full graph
+      await loadProjectDagIndex(project.current.path);
       const graph = await invoke<DagGraph>('get_project_dag', { path: project.current.path });
       setGraph(graph);
     } catch (e) {
@@ -147,6 +140,14 @@
       dagError = e instanceof Error ? e.message : String(e);
     } finally {
       isLoadingDag = false;
+    }
+  }
+  
+  // RFC-105: Handle goal click in Pipeline view
+  async function handleGoalClick(goalId: string) {
+    const details = await expandGoal(goalId);
+    if (details) {
+      console.log('Goal expanded:', details);
     }
   }
   
@@ -169,20 +170,7 @@
     }
   }
   
-  async function loadProjectFiles() {
-    const path = project.current?.path;
-    if (!path) return;
-    isLoadingFiles = true;
-    try {
-      projectFiles = await invoke<FileEntry[]>('list_project_files', { path, maxDepth: 4 });
-      filesLoadedForPath = path;
-    } catch (e) {
-      console.error('Failed to load project files:', e);
-      projectFiles = [];
-      filesLoadedForPath = null;
-    }
-    isLoadingFiles = false;
-  }
+  // loadProjectFiles removed — now handled by files.svelte store
   
   async function handleFileSelect(event: { path: string; name: string; isDir: boolean }) {
     const { path, name, isDir } = event;
@@ -206,36 +194,7 @@
     activeTab = tabId;
   }
   
-  // RFC-079: Handlers for ProjectOverview actions
-  async function handleWorkOnGoal(goalId: string) {
-    const goal = project.analysis?.goals.find(g => g.id === goalId);
-    if (goal && project.current?.path) {
-      await runGoal(goal.title, project.current.path);
-      activeTab = ViewTab.PROGRESS;
-    }
-  }
-  
-  async function handleStartServer(command: string) {
-    if (!project.current?.path) return;
-    try {
-      await invoke('run_project', { 
-        path: project.current.path, 
-        command,
-      });
-    } catch (e) {
-      console.error('Failed to start dev server:', e);
-    }
-  }
-  
-  function handleAddGoal() {
-    // Switch to progress tab where user can enter a new goal
-    activeTab = ViewTab.PROGRESS;
-  }
-  
-  function handleExplore() {
-    // Switch to pipeline tab to explore project structure
-    activeTab = ViewTab.PIPELINE;
-  }
+  // RFC-106: Overview handlers moved to IdleState.svelte
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -252,38 +211,7 @@
   
   <Tabs {tabs} activeTab={activeTab} onchange={handleTabChange} label="Project views">
     {#snippet children(tabId)}
-      {#if tabId === 'overview'}
-        <!-- RFC-079: Project Overview Tab -->
-        <div class="overview-view">
-          {#if project.isAnalyzing}
-            <div class="loading-state" role="status">
-              <Spinner style="dots" speed={80} />
-              <span>Analyzing project...</span>
-            </div>
-          {:else if project.analysisError}
-            <div class="error-state" role="alert">
-              <span class="error-icon">⊗</span>
-              <span>{project.analysisError}</span>
-              <Button variant="ghost" size="sm" onclick={() => project.current?.path && analyzeProject(project.current.path, true)}>
-                Retry
-              </Button>
-            </div>
-          {:else if project.analysis}
-            <ProjectOverview 
-              analysis={project.analysis}
-              onWorkOnGoal={handleWorkOnGoal}
-              onStartServer={handleStartServer}
-              onAddGoal={handleAddGoal}
-              onExplore={handleExplore}
-            />
-          {:else}
-            <div class="empty-state">
-              <p class="empty-title">No analysis yet</p>
-              <p class="empty-description">Open a project to see its overview</p>
-            </div>
-          {/if}
-        </div>
-      {:else if tabId === ViewTab.PIPELINE}
+      {#if tabId === ViewTab.PIPELINE}
         <div class="pipeline-view">
           <DagControls onFitView={() => {}} onRefresh={loadDag} />
           
@@ -298,14 +226,44 @@
               <span>{dagError}</span>
               <Button variant="ghost" size="sm" onclick={loadDag}>Retry</Button>
             </div>
-          {:else if dag.nodes.length === 0}
+          {:else if dag.nodes.length === 0 && (!dag.projectIndex || dag.projectIndex.goals.length === 0)}
             <div class="empty-state">
               <p class="empty-title">No pipeline yet</p>
               <p class="empty-description">Run a goal to see your task pipeline</p>
             </div>
           {:else}
             <div class="pipeline-content">
-              <DagCanvas />
+              <!-- RFC-105: Goals sidebar -->
+              {#if dag.projectIndex && dag.projectIndex.goals.length > 0}
+                <aside class="goals-sidebar">
+                  <h3 class="sidebar-title">
+                    Goals ({dag.projectIndex.summary.completedGoals}/{dag.projectIndex.summary.totalGoals})
+                  </h3>
+                  <ul class="goals-list">
+                    {#each getSortedGoals() as goal}
+                      <li class="goal-item" class:complete={goal.status === 'complete'}>
+                        <button class="goal-btn" onclick={() => handleGoalClick(goal.id)}>
+                          <span class="goal-status">
+                            {#if goal.status === 'complete'}✓
+                            {:else if goal.status === 'running' || goal.status === 'in_progress'}◐
+                            {:else if goal.status === 'failed'}✗
+                            {:else}○{/if}
+                          </span>
+                          <span class="goal-title">{goal.title}</span>
+                          {#if goal.taskCount > 0}
+                            <span class="goal-tasks">{goal.taskCount}</span>
+                          {/if}
+                        </button>
+                      </li>
+                    {/each}
+                  </ul>
+                </aside>
+              {/if}
+              
+              <div class="dag-canvas-wrapper">
+                <DagCanvas />
+              </div>
+              
               {#if dag.selectedNode}
                 <DagDetail />
               {/if}
@@ -336,16 +294,41 @@
           <WeaknessPanel />
           <WaveExecutionPanel />
         </div>
-      {:else}
+      {:else if tabId === ViewTab.STATE_DAG}
+        <!-- RFC-100: Project State DAG visualization -->
+        <div class="state-dag-view">
+          {#if project.current?.path}
+            <StateDagView projectPath={project.current.path} />
+          {:else}
+            <div class="empty-state">
+              <p class="empty-title">No project selected</p>
+              <p class="empty-description">Open a project to see its health status</p>
+            </div>
+          {/if}
+        </div>
+      {:else if tabId === ViewTab.WORKERS}
+        <!-- RFC-100: Multi-agent orchestration view -->
+        <div class="workers-view">
+          {#if project.current?.path}
+            <ATCView projectPath={project.current.path} />
+          {:else}
+            <div class="empty-state">
+              <p class="empty-title">No project selected</p>
+              <p class="empty-description">Open a project to manage workers</p>
+            </div>
+          {/if}
+        </div>
+      {:else if tabId === ViewTab.PROJECT}
+        <!-- RFC-106: Unified Project Surface -->
         <main class="content">
           {#if agent.isRunning}
             <WorkingState />
           {:else if agent.isDone}
-            <DoneState {projectFiles} {isLoadingFiles} onFileSelect={handleFileSelect} />
+            <DoneState projectFiles={files.entries} isLoadingFiles={files.isLoading} onFileSelect={handleFileSelect} />
           {:else if agent.hasError}
             <ErrorState />
           {:else}
-            <IdleState {projectStatus} {isLoadingStatus} {projectFiles} {isLoadingFiles} onFileSelect={handleFileSelect} />
+            <IdleState {projectStatus} {isLoadingStatus} projectFiles={files.entries} isLoadingFiles={files.isLoading} onFileSelect={handleFileSelect} />
           {/if}
         </main>
       {/if}
@@ -401,6 +384,73 @@
     /* Removed overflow:hidden - clips menus; border-radius still works */
   }
   
+  /* RFC-105: DAG canvas wrapper */
+  .dag-canvas-wrapper { flex: 1; position: relative; }
+  
+  /* RFC-105: Goals sidebar for pipeline view */
+  .goals-sidebar { 
+    width: 220px; 
+    border-right: 1px solid var(--border-color); 
+    display: flex; 
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .sidebar-title { 
+    padding: 10px 12px; 
+    margin: 0; 
+    font-family: var(--font-mono); 
+    font-size: var(--text-xs); 
+    font-weight: 600; 
+    color: var(--text-tertiary); 
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+  }
+  .goals-list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; flex: 1; }
+  .goal-item { margin-bottom: 2px; }
+  .goal-btn { 
+    width: 100%; 
+    display: flex; 
+    align-items: center; 
+    gap: 6px; 
+    padding: 8px 10px; 
+    border-radius: var(--radius-sm); 
+    text-align: left;
+    transition: background var(--transition-fast);
+  }
+  .goal-btn:hover { background: var(--bg-tertiary); }
+  .goal-status { 
+    flex-shrink: 0; 
+    width: 16px; 
+    height: 16px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    font-size: var(--text-xs); 
+    color: var(--text-tertiary);
+  }
+  .goal-item.complete .goal-status { color: var(--success); }
+  .goal-title { 
+    flex: 1; 
+    font-family: var(--font-mono); 
+    font-size: var(--text-xs); 
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .goal-tasks { 
+    flex-shrink: 0;
+    padding: 1px 5px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono); 
+    font-size: 10px; 
+    color: var(--text-tertiary);
+  }
+  
   .memory-view {
     flex: 1;
     display: flex;
@@ -449,12 +499,21 @@
     max-width: 600px;
   }
   
-  /* RFC-079: Overview tab */
-  .overview-view {
+  /* RFC-100: State DAG view */
+  .state-dag-view {
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding: var(--space-4) 0;
-    max-width: 700px;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* RFC-100: Workers/ATC view */
+  .workers-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
   }
 </style>

@@ -1,5 +1,9 @@
 <!--
-  IdleState — Project landing/idle state UI (Svelte 5)
+  IdleState — RFC-106 Unified Project Surface
+  
+  Combined project landing view that merges Overview and Progress tabs.
+  Shows project analysis, pipeline, suggested action, last run status,
+  and goal input in a single unified view.
 -->
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
@@ -11,11 +15,19 @@
   import RunButton from '../RunButton.svelte';
   import BriefingPanel from '../BriefingPanel.svelte';
   import ProviderSelector from '../ProviderSelector.svelte';
-  import { project, resumeProject } from '../../stores/project.svelte';
+  import { project, resumeProject, analyzeProject } from '../../stores/project.svelte';
   import { runGoal } from '../../stores/agent.svelte';
-  import { briefing, loadBriefing, hasBriefing } from '../../stores/briefing.svelte';
-  import { formatRelativeTime } from '$lib/format';
+  import { briefing, loadBriefing } from '../../stores/briefing.svelte';
   import { getRunProvider } from '../../stores/settings.svelte';
+  
+  // RFC-106: New unified components
+  import AnalysisSkeleton from './AnalysisSkeleton.svelte';
+  import EmptyPipelineState from './EmptyPipelineState.svelte';
+  import ProjectIdentity from './ProjectIdentity.svelte';
+  import PipelineSection from './PipelineSection.svelte';
+  import SuggestedAction from './SuggestedAction.svelte';
+  import LastRunStatus from './LastRunStatus.svelte';
+  import CollapsibleSection from './CollapsibleSection.svelte';
   
   interface Props {
     projectStatus?: ProjectStatus | null;
@@ -37,13 +49,13 @@
     }
   });
   
-  let lastGoal = $derived(projectStatus?.last_goal);
-  let taskProgress = $derived(
-    projectStatus?.tasks_completed !== undefined && projectStatus?.tasks_total !== undefined
-      ? `${projectStatus.tasks_completed}/${projectStatus.tasks_total} tasks`
-      : null
-  );
+  // Derived states
+  const hasAnalysis = $derived(project.analysis !== null);
+  const hasPipeline = $derived(project.analysis?.pipeline && project.analysis.pipeline.length > 0);
+  const hasSuggestedAction = $derived(project.analysis?.suggested_action !== null);
+  const hasLastRun = $derived(projectStatus && projectStatus.status !== 'none');
   
+  // Quick action handlers
   async function handleOpenFiles() {
     if (!project.current?.path) return;
     try { await invoke('open_in_finder', { path: project.current.path }); } catch (e) { console.error('Failed:', e); }
@@ -59,6 +71,7 @@
     try { await invoke('open_in_editor', { path: project.current.path }); } catch (e) { console.error('Failed:', e); }
   }
   
+  // Goal handlers
   async function handleNewGoal(goal: string) {
     if (!project.current?.path) return;
     const provider = getRunProvider();
@@ -70,54 +83,115 @@
     await resumeProject(project.current.path);
   }
   
+  // RFC-106: Handlers for analysis actions (moved from Project.svelte)
+  async function handleWorkOnGoal(goalId: string) {
+    const goal = project.analysis?.goals.find(g => g.id === goalId);
+    if (goal && project.current?.path) {
+      const provider = getRunProvider();
+      await runGoal(goal.title, project.current.path, null, true, provider);
+    }
+  }
+  
+  async function handleStartServer(command: string) {
+    if (!project.current?.path) return;
+    try {
+      await invoke('run_project', { 
+        path: project.current.path, 
+        command,
+      });
+    } catch (e) {
+      console.error('Failed to start dev server:', e);
+    }
+  }
+  
+  function handleAddGoal() {
+    // Focus the input bar - the goal input is already visible below
+    const input = document.querySelector<HTMLInputElement>('.goal-input-section input');
+    input?.focus();
+  }
+  
   function handleFileSelectInternal(detail: { path: string; name: string; isDir: boolean }) {
     onFileSelect?.(detail);
+  }
+  
+  async function handleRetryAnalysis() {
+    if (project.current?.path) {
+      await analyzeProject(project.current.path, true);
+    }
   }
 </script>
 
 <div class="idle animate-fadeIn">
-  <section class="project-info">
-    <h2 class="project-title">{project.current?.name ?? 'Project'}</h2>
-    {#if project.current?.id}
-      <p class="project-id">ID: <code>{project.current.id}</code></p>
-    {/if}
-    {#if project.current?.description}
-      <p class="project-description">{project.current.description}</p>
-    {:else if project.current}
-      <p class="project-description empty">No description</p>
-    {/if}
-    <p class="project-path">{project.current?.path}</p>
-  </section>
+  <!-- Section 1: Project Identity / Analysis -->
+  {#if project.isAnalyzing}
+    <AnalysisSkeleton />
+  {:else if project.analysisError}
+    <div class="analysis-error" role="alert">
+      <span class="error-icon">⚠️</span>
+      <span>Analysis unavailable</span>
+      <Button variant="ghost" size="sm" onclick={handleRetryAnalysis}>Retry</Button>
+    </div>
+  {:else if hasAnalysis && project.analysis}
+    <ProjectIdentity analysis={project.analysis} />
+  {/if}
   
-  {#if hasBriefing()}
+  <!-- Section 2: Pipeline -->
+  {#if !project.isAnalyzing && hasAnalysis && project.analysis}
+    {#if hasPipeline && project.analysis.pipeline}
+      <PipelineSection 
+        pipeline={project.analysis.pipeline}
+        currentStep={project.analysis.current_step}
+        completionPercent={project.analysis.completion_percent}
+      />
+    {:else}
+      <EmptyPipelineState projectType={project.analysis.project_type} />
+    {/if}
+  {/if}
+  
+  <!-- Section 3: Suggested Action -->
+  {#if !project.isAnalyzing && hasAnalysis && hasSuggestedAction && project.analysis?.suggested_action}
+    <SuggestedAction 
+      action={project.analysis.suggested_action}
+      devCommand={project.analysis.dev_command}
+      onWorkOnGoal={handleWorkOnGoal}
+      onStartServer={handleStartServer}
+      onAddGoal={handleAddGoal}
+    />
+  {/if}
+  
+  <!-- Section 4: Last Run Status -->
+  {#if !isLoadingStatus && hasLastRun && projectStatus}
+    <LastRunStatus status={projectStatus} onResume={handleResume} />
+  {/if}
+  
+  <!-- Section 5: Briefing Panel -->
+  {#if briefing.hasBriefing}
     <BriefingPanel />
   {/if}
   
-  {#if !isLoadingStatus && projectStatus && projectStatus.status !== 'none'}
-    <section class="last-run" aria-label="Last run status">
-      {#if projectStatus.status === 'interrupted'}
-        <div class="status-badge interrupted">
-          <span class="badge-icon" aria-hidden="true">◐</span><span>Interrupted</span>
-        </div>
-        {#if lastGoal}<p class="last-goal">"{lastGoal}"</p>{/if}
-        {#if taskProgress}<p class="last-progress">{taskProgress} completed</p>{/if}
-        <Button variant="primary" onclick={handleResume}>Resume</Button>
-      {:else if projectStatus.status === 'complete'}
-        <div class="status-badge complete">
-          <span class="badge-icon" aria-hidden="true">◆</span><span>Last run complete</span>
-        </div>
-        {#if lastGoal}<p class="last-goal">"{lastGoal}"</p>{/if}
-      {:else if projectStatus.status === 'failed'}
-        <div class="status-badge failed">
-          <span class="badge-icon" aria-hidden="true">⊗</span><span>Last run failed</span>
-        </div>
-      {/if}
-      {#if projectStatus.last_activity}
-        <p class="last-activity">{formatRelativeTime(new Date(projectStatus.last_activity))}</p>
-      {/if}
-    </section>
-  {/if}
+  <!-- Section 6: Goal Input (always visible) -->
+  <section class="goal-input-section">
+    <div class="input-header">
+      <p class="input-label">// What would you like to build?</p>
+      <ProviderSelector />
+    </div>
+    <InputBar placeholder="describe your goal..." onsubmit={handleNewGoal} />
+  </section>
   
+  <!-- Section 7: Project Files (collapsed) -->
+  <CollapsibleSection title="Project Files" count={projectFiles.length}>
+    {#if isLoadingFiles}
+      <p class="loading-text" role="status">Loading files...</p>
+    {:else if projectFiles.length === 0}
+      <p class="empty-text">No files yet</p>
+    {:else}
+      <div class="file-tree-container">
+        <FileTree files={projectFiles} onselect={handleFileSelectInternal} />
+      </div>
+    {/if}
+  </CollapsibleSection>
+  
+  <!-- Section 8: Quick Actions -->
   <div class="quick-actions">
     <button class="action-btn" onclick={handleOpenFiles} aria-label="Open in Finder">
       <span class="action-icon" aria-hidden="true">▤</span><span>Finder</span>
@@ -132,57 +206,104 @@
       <RunButton projectPath={project.current.path} />
     {/if}
   </div>
-  
-  <section class="file-tree-section">
-    <h3 class="section-title">// Project Files</h3>
-    {#if isLoadingFiles}
-      <p class="loading-text" role="status">Loading files...</p>
-    {:else if projectFiles.length === 0}
-      <p class="empty-text">No files yet</p>
-    {:else}
-      <div class="file-tree-container">
-        <FileTree files={projectFiles} onselect={handleFileSelectInternal} />
-      </div>
-    {/if}
-  </section>
-  
-  <section class="goal-input-section">
-    <div class="input-header">
-      <p class="input-label">What would you like to build?</p>
-      <ProviderSelector />
-    </div>
-    <InputBar placeholder="describe your goal..." onsubmit={handleNewGoal} />
-  </section>
 </div>
 
 <style>
-  .idle { flex: 1; display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-4) 0; }
-  .project-info { display: flex; flex-direction: column; gap: var(--space-2); }
-  .project-title { font-size: var(--text-2xl); font-weight: 600; color: var(--text-primary); margin: 0; }
-  .project-description { color: var(--text-secondary); font-size: var(--text-base); margin: 0; }
-  .project-description.empty { color: var(--text-tertiary); font-style: italic; }
-  .project-id { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-tertiary); margin: 0; }
-  .project-id code { background: var(--bg-tertiary); padding: 2px 6px; border-radius: var(--radius-sm); color: var(--text-secondary); }
-  .project-path { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-tertiary); margin: 0; }
-  .last-run { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); background: var(--bg-secondary); border-radius: var(--radius-lg); border: 1px solid var(--border-color); max-width: 600px; }
-  .status-badge { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); font-weight: 500; }
-  .status-badge.interrupted { color: var(--warning, #f59e0b); }
-  .status-badge.complete { color: var(--success); }
-  .status-badge.failed { color: var(--error); }
-  .badge-icon { font-size: var(--text-base); }
-  .last-goal { font-family: var(--font-mono); color: var(--text-primary); font-size: var(--text-sm); margin: 0; }
-  .last-progress { font-size: var(--text-xs); color: var(--text-tertiary); margin: 0; }
-  .last-activity { font-size: var(--text-xs); color: var(--text-tertiary); margin: 0; }
-  .quick-actions { display: flex; gap: var(--space-3); }
-  .action-btn { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-3) var(--space-4); background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--text-secondary); font-size: var(--text-xs); cursor: pointer; transition: all var(--transition-fast); min-width: 70px; }
-  .action-btn:hover, .action-btn:focus { background: var(--bg-tertiary); border-color: var(--text-tertiary); color: var(--text-primary); }
-  .action-btn:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .action-icon { font-size: var(--text-lg); }
-  .file-tree-section { display: flex; flex-direction: column; gap: var(--space-2); }
-  .section-title { font-size: var(--text-sm); font-weight: 500; color: var(--text-secondary); margin: 0; }
-  .file-tree-container { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: var(--space-2); max-height: 300px; overflow-y: auto; }
-  .loading-text, .empty-text { font-size: var(--text-sm); color: var(--text-tertiary); padding: var(--space-4); text-align: center; margin: 0; }
-  .goal-input-section { display: flex; flex-direction: column; gap: var(--space-3); margin-top: auto; padding-top: var(--space-8); }
-  .input-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
-  .input-label { font-size: var(--text-sm); color: var(--text-tertiary); margin: 0; }
+  .idle {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-4) 0;
+    max-width: 700px;
+  }
+  
+  .analysis-error {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--warning);
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+  }
+  
+  .error-icon {
+    font-size: var(--text-base);
+  }
+  
+  .goal-input-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--border-color);
+  }
+  
+  .input-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+  
+  .input-label {
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+    margin: 0;
+    font-family: var(--font-mono);
+  }
+  
+  .file-tree-container {
+    max-height: 250px;
+    overflow-y: auto;
+  }
+  
+  .loading-text, .empty-text {
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+    padding: var(--space-4);
+    text-align: center;
+    margin: 0;
+  }
+  
+  .quick-actions {
+    display: flex;
+    gap: var(--space-3);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--border-color);
+  }
+  
+  .action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-3) var(--space-4);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    min-width: 70px;
+  }
+  
+  .action-btn:hover, .action-btn:focus {
+    background: var(--bg-tertiary);
+    border-color: var(--text-tertiary);
+    color: var(--text-primary);
+  }
+  
+  .action-btn:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  
+  .action-icon {
+    font-size: var(--text-lg);
+  }
 </style>
