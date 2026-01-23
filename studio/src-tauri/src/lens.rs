@@ -2,6 +2,8 @@
 //!
 //! Provides lens discovery, selection, library management, and project configuration.
 
+use crate::error::{ErrorCode, SunwellError};
+use crate::sunwell_err;
 use crate::util::{parse_json_safe, sunwell_command};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -165,14 +167,20 @@ pub async fn list_lenses() -> Result<Vec<LensSummary>, String> {
     let output = sunwell_command()
         .args(["lens", "list", "--json"])
         .output()
-        .map_err(|e| format!("Failed to list lenses: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(sunwell_err!(LensNotFound, "Failed to list lenses: {}", stderr).to_json());
     }
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    parse_json_safe(&json_str).map_err(|e| format!("Failed to parse lens list: {}", e))
+    parse_json_safe(&json_str)
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse lens list: {}", e).to_json())
 }
 
 /// Get details of a specific lens.
@@ -181,14 +189,22 @@ pub async fn get_lens_detail(name: String) -> Result<LensDetail, String> {
     let output = sunwell_command()
         .args(["lens", "show", &name, "--json"])
         .output()
-        .map_err(|e| format!("Failed to get lens: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(sunwell_err!(LensNotFound, "Lens '{}' not found: {}", name, stderr)
+            .with_hints(vec!["Run 'sunwell lens list' to see available lenses"])
+            .to_json());
     }
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    parse_json_safe(&json_str).map_err(|e| format!("Failed to parse lens detail: {}", e))
+    parse_json_safe(&json_str)
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse lens detail: {}", e).to_json())
 }
 
 /// Get project lens configuration.
@@ -232,14 +248,20 @@ pub async fn get_lens_library(filter: Option<String>) -> Result<Vec<LensLibraryE
     let output = sunwell_command()
         .args(&args)
         .output()
-        .map_err(|e| format!("Failed to get lens library: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(sunwell_err!(LensNotFound, "Failed to get lens library: {}", stderr).to_json());
     }
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    parse_json_safe(&json_str).map_err(|e| format!("Failed to parse lens library: {}", e))
+    parse_json_safe(&json_str)
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse lens library: {}", e).to_json())
 }
 
 /// Fork a lens to create an editable copy.
@@ -260,7 +282,11 @@ pub async fn fork_lens(
     let output = sunwell_command()
         .args(&args)
         .output()
-        .map_err(|e| format!("Failed to fork lens: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     let success = output.status.success();
     let out_message = if success {
@@ -289,7 +315,11 @@ pub async fn save_lens(
 ) -> Result<SaveResult, String> {
     // Write content to temp file
     let temp_path = std::env::temp_dir().join(format!("{}-edit.lens", name));
-    std::fs::write(&temp_path, &content).map_err(|e| format!("Failed to write temp file: {}", e))?;
+    std::fs::write(&temp_path, &content).map_err(|e| {
+        SunwellError::from_error(ErrorCode::FileWriteFailed, e)
+            .with_hints(vec!["Check disk space and permissions"])
+            .to_json()
+    })?;
 
     // Call Python CLI with the content
     let temp_str = temp_path.to_string_lossy().to_string();
@@ -310,7 +340,11 @@ pub async fn save_lens(
     let output = sunwell_command()
         .args(&args)
         .output()
-        .map_err(|e| format!("Failed to save lens: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     // Clean up temp file
     let _ = std::fs::remove_file(&temp_path);
@@ -344,10 +378,17 @@ pub async fn delete_lens(name: String) -> Result<(), String> {
     let output = sunwell_command()
         .args(["lens", "delete", &name, "--yes"])
         .output()
-        .map_err(|e| format!("Failed to delete lens: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(sunwell_err!(LensNotFound, "Failed to delete lens '{}': {}", name, stderr)
+            .with_hints(vec!["Check if the lens exists", "Builtin lenses cannot be deleted"])
+            .to_json());
     }
 
     Ok(())
@@ -359,14 +400,20 @@ pub async fn get_lens_versions(name: String) -> Result<Vec<LensVersionInfo>, Str
     let output = sunwell_command()
         .args(["lens", "versions", &name, "--json"])
         .output()
-        .map_err(|e| format!("Failed to get lens versions: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(sunwell_err!(LensNotFound, "Failed to get versions for '{}': {}", name, stderr).to_json());
     }
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    parse_json_safe(&json_str).map_err(|e| format!("Failed to parse lens versions: {}", e))
+    parse_json_safe(&json_str)
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse lens versions: {}", e).to_json())
 }
 
 /// Rollback a lens to a previous version.
@@ -375,10 +422,17 @@ pub async fn rollback_lens(name: String, version: String) -> Result<(), String> 
     let output = sunwell_command()
         .args(["lens", "rollback", &name, &version])
         .output()
-        .map_err(|e| format!("Failed to rollback lens: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(sunwell_err!(LensVersionConflict, "Failed to rollback '{}' to {}: {}", name, version, stderr)
+            .with_hints(vec!["Check if the version exists"])
+            .to_json());
     }
 
     Ok(())
@@ -396,10 +450,17 @@ pub async fn set_default_lens(name: Option<String>) -> Result<(), String> {
     let output = sunwell_command()
         .args(&args)
         .output()
-        .map_err(|e| format!("Failed to set default lens: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(sunwell_err!(LensNotFound, "Failed to set default lens: {}", stderr)
+            .with_hints(vec!["Check if the lens exists"])
+            .to_json());
     }
 
     Ok(())
@@ -410,26 +471,34 @@ pub async fn set_default_lens(name: Option<String>) -> Result<(), String> {
 pub async fn get_lens_content(name: String) -> Result<String, String> {
     // Find lens path - check user lenses first
     let user_path = dirs::home_dir()
-        .ok_or("Could not find home directory")?
+        .ok_or_else(|| sunwell_err!(ConfigMissing, "Could not find home directory").to_json())?
         .join(".sunwell")
         .join("lenses")
         .join(format!("{}.lens", name));
 
     if user_path.exists() {
-        return std::fs::read_to_string(&user_path)
-            .map_err(|e| format!("Failed to read lens: {}", e));
+        return std::fs::read_to_string(&user_path).map_err(|e| {
+            SunwellError::from_error(ErrorCode::FileNotFound, e)
+                .with_hints(vec!["Check file permissions"])
+                .to_json()
+        });
     }
 
     // Try builtin path (cwd/lenses)
     let builtin_path = std::env::current_dir()
-        .map_err(|e| e.to_string())?
+        .map_err(|e| sunwell_err!(RuntimeStateInvalid, "Failed to get current dir: {}", e).to_json())?
         .join("lenses")
         .join(format!("{}.lens", name));
 
     if builtin_path.exists() {
-        return std::fs::read_to_string(&builtin_path)
-            .map_err(|e| format!("Failed to read lens: {}", e));
+        return std::fs::read_to_string(&builtin_path).map_err(|e| {
+            SunwellError::from_error(ErrorCode::FileNotFound, e)
+                .with_hints(vec!["Check file permissions"])
+                .to_json()
+        });
     }
 
-    Err(format!("Lens not found: {}", name))
+    Err(sunwell_err!(LensNotFound, "Lens not found: {}", name)
+        .with_hints(vec!["Run 'sunwell lens list' to see available lenses"])
+        .to_json())
 }

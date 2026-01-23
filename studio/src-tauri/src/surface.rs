@@ -3,6 +3,8 @@
 //! Provides Tauri commands for surface composition and primitive registry.
 //! Calls Python CLI for composition logic.
 
+use crate::error::{ErrorCode, SunwellError};
+use crate::sunwell_err;
 use crate::util::sunwell_command;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -60,15 +62,19 @@ pub fn get_primitive_registry() -> Result<Vec<PrimitiveDef>, String> {
     let output = sunwell_command()
         .args(["surface", "registry", "--json"])
         .output()
-        .map_err(|e| format!("Failed to get primitive registry: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Command failed: {}", stderr));
+        return Err(sunwell_err!(RuntimeProcessFailed, "Command failed: {}", stderr).to_json());
     }
 
     serde_json::from_slice(&output.stdout)
-        .map_err(|e| format!("Failed to parse registry: {}", e))
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse registry: {}", e).to_json())
 }
 
 /// Compose a surface layout for the given goal.
@@ -105,15 +111,19 @@ pub async fn compose_surface(
     let output = sunwell_command()
         .args(&args)
         .output()
-        .map_err(|e| format!("Failed to compose surface: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Composition failed: {}", stderr));
+        return Err(sunwell_err!(SkillExecutionFailed, "Composition failed: {}", stderr).to_json());
     }
 
     serde_json::from_slice(&output.stdout)
-        .map_err(|e| format!("Failed to parse surface layout: {}", e))
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse surface layout: {}", e).to_json())
 }
 
 /// Save a layout as successful for future reference.
@@ -125,7 +135,7 @@ pub async fn record_layout_success(
     completed: bool,
 ) -> Result<(), String> {
     let layout_json = serde_json::to_string(&layout)
-        .map_err(|e| format!("Failed to serialize layout: {}", e))?;
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to serialize layout: {}", e).to_json())?;
 
     let output = sunwell_command()
         .args([
@@ -141,11 +151,15 @@ pub async fn record_layout_success(
             &completed.to_string(),
         ])
         .output()
-        .map_err(|e| format!("Failed to record layout: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Recording failed: {}", stderr));
+        return Err(sunwell_err!(SkillExecutionFailed, "Recording failed: {}", stderr).to_json());
     }
 
     Ok(())

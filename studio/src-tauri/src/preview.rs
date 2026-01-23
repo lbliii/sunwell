@@ -6,6 +6,7 @@
 //! - Prose: Formatted reader view
 //! - Dialogues: Interactive dialogue player
 
+use crate::error::{ErrorCode, SunwellError};
 use crate::project::{Project, ProjectType};
 use serde::{Deserialize, Serialize};
 use std::net::TcpListener;
@@ -91,7 +92,11 @@ impl PreviewManager {
     /// Stop the current preview.
     pub fn stop(&mut self) -> Result<(), String> {
         if let Some(mut process) = self.server_process.take() {
-            process.kill().map_err(|e| format!("Failed to stop server: {}", e))?;
+            process.kill().map_err(|e| {
+                SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                    .with_hints(vec!["Process may have already exited"])
+                    .to_json()
+            })?;
         }
         self.current_session = None;
         Ok(())
@@ -103,44 +108,52 @@ impl PreviewManager {
         let port = find_free_port()?;
 
         let process = match framework {
-            Framework::Flask => {
-                Command::new("python")
-                    .args(["-m", "flask", "run", "--port", &port.to_string()])
-                    .current_dir(&project.path)
-                    .env("FLASK_APP", "app.py")
-                    .stdout(Stdio::piped())
-                    .stderr(Stdio::piped())
-                    .spawn()
-                    .map_err(|e| format!("Failed to start Flask: {}", e))?
-            }
-            Framework::FastAPI => {
-                Command::new("uvicorn")
-                    .args(["main:app", "--port", &port.to_string()])
-                    .current_dir(&project.path)
-                    .stdout(Stdio::piped())
-                    .stderr(Stdio::piped())
-                    .spawn()
-                    .map_err(|e| format!("Failed to start FastAPI: {}", e))?
-            }
-            Framework::Django => {
-                Command::new("python")
-                    .args(["manage.py", "runserver", &format!("127.0.0.1:{}", port)])
-                    .current_dir(&project.path)
-                    .stdout(Stdio::piped())
-                    .stderr(Stdio::piped())
-                    .spawn()
-                    .map_err(|e| format!("Failed to start Django: {}", e))?
-            }
-            Framework::Express => {
-                Command::new("npm")
-                    .args(["start"])
-                    .current_dir(&project.path)
-                    .env("PORT", port.to_string())
-                    .stdout(Stdio::piped())
-                    .stderr(Stdio::piped())
-                    .spawn()
-                    .map_err(|e| format!("Failed to start Express: {}", e))?
-            }
+            Framework::Flask => Command::new("python")
+                .args(["-m", "flask", "run", "--port", &port.to_string()])
+                .current_dir(&project.path)
+                .env("FLASK_APP", "app.py")
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .map_err(|e| {
+                    SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                        .with_hints(vec!["Check if Flask is installed", "Run 'pip install flask'"])
+                        .to_json()
+                })?,
+            Framework::FastAPI => Command::new("uvicorn")
+                .args(["main:app", "--port", &port.to_string()])
+                .current_dir(&project.path)
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .map_err(|e| {
+                    SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                        .with_hints(vec!["Check if uvicorn is installed", "Run 'pip install uvicorn'"])
+                        .to_json()
+                })?,
+            Framework::Django => Command::new("python")
+                .args(["manage.py", "runserver", &format!("127.0.0.1:{}", port)])
+                .current_dir(&project.path)
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .map_err(|e| {
+                    SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                        .with_hints(vec!["Check if Django is configured", "Run 'python manage.py check'"])
+                        .to_json()
+                })?,
+            Framework::Express => Command::new("npm")
+                .args(["start"])
+                .current_dir(&project.path)
+                .env("PORT", port.to_string())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .map_err(|e| {
+                    SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                        .with_hints(vec!["Check if npm is installed", "Run 'npm install' first"])
+                        .to_json()
+                })?,
             Framework::Unknown => {
                 // Try generic Python approach
                 Command::new("python")
@@ -149,7 +162,11 @@ impl PreviewManager {
                     .stdout(Stdio::piped())
                     .stderr(Stdio::piped())
                     .spawn()
-                    .map_err(|e| format!("Failed to start app: {}", e))?
+                    .map_err(|e| {
+                        SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                            .with_hints(vec!["Check if app.py exists", "Check Python is installed"])
+                            .to_json()
+                    })?
             }
         };
 
@@ -321,10 +338,15 @@ impl Default for PreviewManager {
 
 /// Find a free TCP port.
 fn find_free_port() -> Result<u16, String> {
-    let listener = TcpListener::bind("127.0.0.1:0")
-        .map_err(|e| format!("Failed to find free port: {}", e))?;
-    let port = listener.local_addr()
-        .map_err(|e| format!("Failed to get port: {}", e))?
-        .port();
+    let listener = TcpListener::bind("127.0.0.1:0").map_err(|e| {
+        SunwellError::from_error(ErrorCode::NetworkUnreachable, e)
+            .with_hints(vec!["Check if the port range is available"])
+            .to_json()
+    })?;
+    let port = listener.local_addr().map_err(|e| {
+        SunwellError::from_error(ErrorCode::NetworkUnreachable, e)
+            .with_hints(vec!["Network configuration issue"])
+            .to_json()
+    })?.port();
     Ok(port)
 }

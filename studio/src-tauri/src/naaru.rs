@@ -7,6 +7,8 @@
 //! - commands.rs → naaru_process()
 //! - dag.rs → naaru_convergence()
 
+use crate::error::{ErrorCode, SunwellError};
+use crate::sunwell_err;
 use crate::util::parse_json_safe;
 use serde::{Deserialize, Serialize};
 use std::process::Stdio;
@@ -158,11 +160,17 @@ pub async fn naaru_process(input: ProcessInput) -> Result<ProcessOutput, String>
         ])
         .output()
         .await
-        .map_err(|e| format!("Failed to execute sunwell command: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Naaru process failed: {}", stderr));
+        return Err(sunwell_err!(SkillExecutionFailed, "Naaru process failed: {}", stderr)
+            .with_hints(vec!["Check the input content", "Verify model availability"])
+            .to_json());
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -245,9 +253,16 @@ pub async fn naaru_subscribe(window: Window) -> Result<(), String> {
         .args(["naaru", "process", "--stream", "--json", ""])
         .stdout(Stdio::piped())
         .spawn()
-        .map_err(|e| format!("Failed to start event stream: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
-    let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| sunwell_err!(RuntimeProcessFailed, "Failed to capture stdout").to_json())?;
     let reader = BufReader::new(stdout);
     let mut lines = reader.lines();
 
@@ -276,14 +291,19 @@ pub async fn naaru_convergence(slot: String) -> Result<Option<ConvergenceSlot>, 
         .args(["naaru", "convergence", "--slot", &slot, "--json"])
         .output()
         .await
-        .map_err(|e| format!("Failed to read convergence: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         return Ok(None);
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse convergence: {}", e))
+    parse_json_safe(&stdout)
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse convergence: {}", e).to_json())
 }
 
 /// Cancel current processing.

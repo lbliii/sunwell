@@ -3,9 +3,10 @@
 //! Rust types and Tauri commands for security-first execution in Studio.
 //! These types mirror the Python dataclasses in src/sunwell/security/.
 
-use serde::{Deserialize, Serialize};
-
+use crate::error::{ErrorCode, SunwellError};
+use crate::sunwell_err;
 use crate::util::sunwell_command;
+use serde::{Deserialize, Serialize};
 
 // =============================================================================
 // PERMISSION TYPES
@@ -233,19 +234,29 @@ pub struct AuditIntegrityStatus {
 
 /// Analyze DAG permissions before execution.
 #[tauri::command]
-pub async fn analyze_dag_permissions(
-    dag_id: String,
-) -> Result<SecurityApprovalDetailed, String> {
+pub async fn analyze_dag_permissions(dag_id: String) -> Result<SecurityApprovalDetailed, String> {
     let output = sunwell_command()
         .args(["security", "analyze", &dag_id, "--json", "--detailed"])
         .output()
-        .map_err(|e| format!("Failed to analyze permissions: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::ToolPermissionDenied, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if output.status.success() {
-        serde_json::from_slice(&output.stdout)
-            .map_err(|e| format!("Failed to parse analysis: {}", e))
+        serde_json::from_slice(&output.stdout).map_err(|e| {
+            sunwell_err!(ConfigInvalid, "Failed to parse security analysis: {}", e).to_json()
+        })
     } else {
-        Err(String::from_utf8_lossy(&output.stderr).to_string())
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Err(sunwell_err!(
+            ToolPermissionDenied,
+            "Security analysis failed: {}",
+            stderr
+        )
+        .with_hints(vec!["Check if the DAG ID is valid"])
+        .to_json())
     }
 }
 
@@ -253,7 +264,7 @@ pub async fn analyze_dag_permissions(
 #[tauri::command]
 pub async fn submit_security_approval(response: SecurityApprovalResponse) -> Result<bool, String> {
     let json = serde_json::to_string(&response)
-        .map_err(|e| format!("Failed to serialize response: {}", e))?;
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to serialize response: {}", e).to_json())?;
 
     let mut cmd = sunwell_command();
     cmd.args(["security", "approve", "--json"]);
@@ -264,18 +275,26 @@ pub async fn submit_security_approval(response: SecurityApprovalResponse) -> Res
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()
-        .map_err(|e| format!("Failed to spawn command: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if let Some(stdin) = child.stdin.as_mut() {
         use std::io::Write;
-        stdin
-            .write_all(json.as_bytes())
-            .map_err(|e| format!("Failed to write to stdin: {}", e))?;
+        stdin.write_all(json.as_bytes()).map_err(|e| {
+            SunwellError::from_error(ErrorCode::FileWriteFailed, e)
+                .with_hints(vec!["Check process stdin is available"])
+                .to_json()
+        })?;
     }
 
-    let output = child
-        .wait_with_output()
-        .map_err(|e| format!("Failed to wait for command: {}", e))?;
+    let output = child.wait_with_output().map_err(|e| {
+        SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+            .with_hints(vec!["Process may have been interrupted"])
+            .to_json()
+    })?;
 
     Ok(output.status.success())
 }
@@ -296,15 +315,20 @@ pub async fn get_audit_log(
         cmd.args(["--limit", &l.to_string()]);
     }
 
-    let output = cmd
-        .output()
-        .map_err(|e| format!("Failed to get audit log: {}", e))?;
+    let output = cmd.output().map_err(|e| {
+        SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+            .with_hints(vec!["Check if sunwell CLI is installed"])
+            .to_json()
+    })?;
 
     if output.status.success() {
         serde_json::from_slice(&output.stdout)
-            .map_err(|e| format!("Failed to parse audit log: {}", e))
+            .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse audit log: {}", e).to_json())
     } else {
-        Err(String::from_utf8_lossy(&output.stderr).to_string())
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Err(sunwell_err!(RuntimeProcessFailed, "Audit log read failed: {}", stderr)
+            .with_hints(vec!["Check if audit log exists"])
+            .to_json())
     }
 }
 
@@ -314,13 +338,17 @@ pub async fn verify_audit_integrity() -> Result<AuditIntegrityStatus, String> {
     let output = sunwell_command()
         .args(["security", "audit", "--verify", "--json"])
         .output()
-        .map_err(|e| format!("Failed to verify audit: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if output.status.success() {
         serde_json::from_slice(&output.stdout)
-            .map_err(|e| format!("Failed to parse result: {}", e))
+            .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse result: {}", e).to_json())
     } else {
-        // Return error as status
+        // Return error as status (not an error case - just indicates invalid audit)
         Ok(AuditIntegrityStatus {
             valid: false,
             message: String::from_utf8_lossy(&output.stderr).to_string(),
@@ -340,24 +368,32 @@ pub async fn scan_for_security_issues(content: String) -> Result<Vec<SecurityVio
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()
-        .map_err(|e| format!("Failed to spawn command: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if let Some(stdin) = child.stdin.as_mut() {
         use std::io::Write;
-        stdin
-            .write_all(content.as_bytes())
-            .map_err(|e| format!("Failed to write to stdin: {}", e))?;
+        stdin.write_all(content.as_bytes()).map_err(|e| {
+            SunwellError::from_error(ErrorCode::FileWriteFailed, e)
+                .with_hints(vec!["Check process stdin is available"])
+                .to_json()
+        })?;
     }
 
-    let output = child
-        .wait_with_output()
-        .map_err(|e| format!("Failed to wait for command: {}", e))?;
+    let output = child.wait_with_output().map_err(|e| {
+        SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+            .with_hints(vec!["Process may have been interrupted"])
+            .to_json()
+    })?;
 
     if output.status.success() {
         serde_json::from_slice(&output.stdout)
-            .map_err(|e| format!("Failed to parse violations: {}", e))
+            .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse violations: {}", e).to_json())
     } else {
-        // No violations if command fails
+        // No violations if command fails (graceful degradation)
         Ok(vec![])
     }
 }

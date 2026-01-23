@@ -2,9 +2,10 @@
 //!
 //! Bridge between frontend and Python CLI for weakness operations.
 
+use crate::error::{ErrorCode, SunwellError};
+use crate::sunwell_err;
 use crate::util::{parse_json_safe, sunwell_command};
 use std::path::PathBuf;
-
 use tauri::Emitter;
 
 use crate::weakness_types::{
@@ -22,15 +23,21 @@ pub async fn scan_weaknesses(path: String) -> Result<WeaknessReport, String> {
         .args(["weakness", "scan", "--json"])
         .current_dir(&project_path)
         .output()
-        .map_err(|e| format!("Failed to run weakness scan: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Weakness scan failed: {}", stderr));
+        return Err(sunwell_err!(SkillExecutionFailed, "Weakness scan failed: {}", stderr)
+            .with_hints(vec!["Check the project path is valid"])
+            .to_json());
     }
 
     let report: WeaknessReport = serde_json::from_slice(&output.stdout)
-        .map_err(|e| format!("Failed to parse weakness report: {}", e))?;
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse weakness report: {}", e).to_json())?;
 
     Ok(report)
 }
@@ -44,15 +51,21 @@ pub async fn preview_cascade(path: String, artifact_id: String) -> Result<Cascad
         .args(["weakness", "preview", &artifact_id, "--json"])
         .current_dir(&project_path)
         .output()
-        .map_err(|e| format!("Failed to preview cascade: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Cascade preview failed: {}", stderr));
+        return Err(sunwell_err!(SkillExecutionFailed, "Cascade preview failed: {}", stderr)
+            .with_hints(vec!["Check the artifact ID is valid"])
+            .to_json());
     }
 
     let preview: CascadePreview = serde_json::from_slice(&output.stdout)
-        .map_err(|e| format!("Failed to parse cascade preview: {}", e))?;
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse cascade preview: {}", e).to_json())?;
 
     Ok(preview)
 }
@@ -91,7 +104,7 @@ pub async fn execute_cascade_fix(
             "total_impacted": preview.total_impacted,
         }),
     )
-    .map_err(|e| format!("Failed to emit event: {}", e))?;
+    .map_err(|e| sunwell_err!(RuntimeProcessFailed, "Failed to emit event: {}", e).to_json())?;
 
     // Build args based on options
     let mut args = vec![
@@ -113,7 +126,11 @@ pub async fn execute_cascade_fix(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| format!("Failed to start cascade: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     let stdout = child.stdout.take().ok_or("No stdout")?;
     let reader = BufReader::new(stdout);
@@ -132,17 +149,25 @@ pub async fn execute_cascade_fix(
     }
 
     // Wait for completion
-    let status = child
-        .wait()
-        .map_err(|e| format!("Failed to wait for cascade: {}", e))?;
+    let status = child.wait().map_err(|e| {
+        SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+            .with_hints(vec!["Process may have been interrupted"])
+            .to_json()
+    })?;
 
     if !status.success() {
-        return Err(format!("Cascade fix failed with exit code: {:?}", status.code()));
+        return Err(sunwell_err!(
+            SkillExecutionFailed,
+            "Cascade fix failed with exit code: {:?}",
+            status.code()
+        )
+        .with_hints(vec!["Check the error output for details"])
+        .to_json());
     }
 
     // Parse final execution state from last JSON line (with sanitization per RFC-091)
     let execution: CascadeExecution = parse_json_safe(&last_line)
-        .map_err(|e| format!("Failed to parse execution result: {}", e))?;
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse execution result: {}", e).to_json())?;
 
     // Emit completion event
     app.emit(
@@ -153,7 +178,7 @@ pub async fn execute_cascade_fix(
             "overall_confidence": execution.overall_confidence,
         }),
     )
-    .map_err(|e| format!("Failed to emit completion event: {}", e))?;
+    .map_err(|e| sunwell_err!(RuntimeProcessFailed, "Failed to emit completion event: {}", e).to_json())?;
 
     Ok(execution)
 }
@@ -185,10 +210,14 @@ pub async fn start_cascade_execution(
         .args(&args)
         .current_dir(&project_path)
         .output()
-        .map_err(|e| format!("Failed to start cascade: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     let execution: CascadeExecution = serde_json::from_slice(&output.stdout)
-        .map_err(|e| format!("Failed to parse execution state: {}", e))?;
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse execution state: {}", e).to_json())?;
 
     Ok(execution)
 }
@@ -220,15 +249,21 @@ pub async fn extract_contract(
         .args(["weakness", "extract-contract", &artifact_id, "--json"])
         .current_dir(&project_path)
         .output()
-        .map_err(|e| format!("Failed to extract contract: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Contract extraction failed: {}", stderr));
+        return Err(sunwell_err!(SkillExecutionFailed, "Contract extraction failed: {}", stderr)
+            .with_hints(vec!["Check the artifact ID is valid"])
+            .to_json());
     }
 
     let contract: ExtractedContract = serde_json::from_slice(&output.stdout)
-        .map_err(|e| format!("Failed to parse contract: {}", e))?;
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse contract: {}", e).to_json())?;
 
     Ok(contract)
 }

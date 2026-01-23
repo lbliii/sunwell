@@ -6,9 +6,11 @@
 //! - Skill execution
 //! - Skill graph management (RFC-087)
 
+use crate::error::{ErrorCode, SunwellError};
+use crate::sunwell_err;
+use crate::util::{parse_json_safe, sunwell_command};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::util::{parse_json_safe, sunwell_command};
 
 // =============================================================================
 // TYPES
@@ -152,17 +154,24 @@ pub async fn detect_diataxis(
 ) -> Result<DiataxisResult, String> {
     // Try calling Python backend
     let file_arg = file_path.as_deref().unwrap_or("-");
-    
+
     let output = sunwell_command()
-        .args(["surface", "diataxis", "--json", "--content", &content, "--file", file_arg])
+        .args([
+            "surface", "diataxis", "--json", "--content", &content, "--file", file_arg,
+        ])
         .output()
-        .map_err(|e| format!("Failed to detect diataxis: {}", e));
-    
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::SkillExecutionFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        });
+
     match output {
         Ok(out) if out.status.success() => {
             let json_str = String::from_utf8_lossy(&out.stdout);
-            parse_json_safe(&json_str)
-                .map_err(|e| format!("Failed to parse diataxis result: {}", e))
+            parse_json_safe(&json_str).map_err(|e| {
+                sunwell_err!(ConfigInvalid, "Failed to parse diataxis result: {}", e).to_json()
+            })
         }
         _ => {
             // Fallback to local detection
@@ -179,17 +188,24 @@ pub async fn validate_document(
     lens_name: String,
 ) -> Result<Vec<ValidationWarning>, String> {
     let file_arg = file_path.as_deref().unwrap_or("-");
-    
+
     let output = sunwell_command()
-        .args(["lens", "validate", &lens_name, "--json", "--content", &content, "--file", file_arg])
+        .args([
+            "lens", "validate", &lens_name, "--json", "--content", &content, "--file", file_arg,
+        ])
         .output()
-        .map_err(|e| format!("Failed to validate: {}", e));
-    
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::SkillExecutionFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        });
+
     match output {
         Ok(out) if out.status.success() => {
             let json_str = String::from_utf8_lossy(&out.stdout);
-            parse_json_safe(&json_str)
-                .map_err(|e| format!("Failed to parse validation: {}", e))
+            parse_json_safe(&json_str).map_err(|e| {
+                sunwell_err!(ConfigInvalid, "Failed to parse validation: {}", e).to_json()
+            })
         }
         _ => {
             // Return empty for now
@@ -204,13 +220,20 @@ pub async fn get_lens_skills(lens_name: String) -> Result<Vec<LensSkill>, String
     let output = sunwell_command()
         .args(["lens", "skills", &lens_name, "--json"])
         .output()
-        .map_err(|e| format!("Failed to get skills: {}", e));
-    
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::LensNotFound, e)
+                .with_hints(vec![
+                    "Check if the lens exists",
+                    "Run 'sunwell lens list' to see available lenses",
+                ])
+                .to_json()
+        });
+
     match output {
         Ok(out) if out.status.success() => {
             let json_str = String::from_utf8_lossy(&out.stdout);
             parse_json_safe(&json_str)
-                .map_err(|e| format!("Failed to parse skills: {}", e))
+                .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse skills: {}", e).to_json())
         }
         _ => {
             // Return default skills
@@ -228,25 +251,45 @@ pub async fn execute_skill(
     lens_name: String,
 ) -> Result<SkillResult, String> {
     let file_arg = file_path.as_deref().unwrap_or("-");
-    
+
     let output = sunwell_command()
         .args([
-            "skill", "exec", &skill_id,
-            "--lens", &lens_name,
+            "skill",
+            "exec",
+            &skill_id,
+            "--lens",
+            &lens_name,
             "--json",
-            "--content", &content,
-            "--file", file_arg,
+            "--content",
+            &content,
+            "--file",
+            file_arg,
         ])
         .output()
-        .map_err(|e| format!("Failed to execute skill: {}", e))?;
-    
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::SkillExecutionFailed, e)
+                .with_hints(vec![
+                    "Check if the skill exists in the lens",
+                    "Verify the content is valid",
+                ])
+                .to_json()
+        })?;
+
     if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(sunwell_err!(
+            SkillExecutionFailed,
+            "Skill '{}' failed: {}",
+            skill_id,
+            stderr
+        )
+        .with_hints(vec!["Check the error output for details"])
+        .to_json());
     }
-    
+
     let json_str = String::from_utf8_lossy(&output.stdout);
     parse_json_safe(&json_str)
-        .map_err(|e| format!("Failed to parse skill result: {}", e))
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse skill result: {}", e).to_json())
 }
 
 /// Fix all issues in document.
@@ -258,26 +301,36 @@ pub async fn fix_all_issues(
 ) -> Result<FixResult, String> {
     // Serialize warnings to pass to the command
     let warnings_json = serde_json::to_string(&warnings)
-        .map_err(|e| format!("Failed to serialize warnings: {}", e))?;
-    
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to serialize warnings: {}", e).to_json())?;
+
     let output = sunwell_command()
         .args([
-            "lens", "fix-all",
+            "lens",
+            "fix-all",
             &lens_name,
             "--json",
-            "--content", &content,
-            "--warnings", &warnings_json,
+            "--content",
+            &content,
+            "--warnings",
+            &warnings_json,
         ])
         .output()
-        .map_err(|e| format!("Failed to fix issues: {}", e))?;
-    
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::SkillExecutionFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
+
     if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(sunwell_err!(SkillExecutionFailed, "Fix failed: {}", stderr)
+            .with_hints(vec!["Review the warnings and try fixing individually"])
+            .to_json());
     }
-    
+
     let json_str = String::from_utf8_lossy(&output.stdout);
     parse_json_safe(&json_str)
-        .map_err(|e| format!("Failed to parse fix result: {}", e))
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse fix result: {}", e).to_json())
 }
 
 // =============================================================================
@@ -290,15 +343,28 @@ pub async fn get_skill_graph(lens_name: String) -> Result<SkillGraph, String> {
     let output = sunwell_command()
         .args(["lens", "skill-graph", &lens_name, "--json"])
         .output()
-        .map_err(|e| format!("Failed to get skill graph: {}", e));
-    
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::LensNotFound, e)
+                .with_hints(vec!["Check if the lens exists"])
+                .to_json()
+        });
+
     match output {
         Ok(out) if out.status.success() => {
             let json_str = String::from_utf8_lossy(&out.stdout);
-            parse_json_safe(&json_str)
-                .map_err(|e| format!("Failed to parse skill graph: {}", e))
+            parse_json_safe(&json_str).map_err(|e| {
+                sunwell_err!(ConfigInvalid, "Failed to parse skill graph: {}", e).to_json()
+            })
         }
-        Ok(out) => Err(String::from_utf8_lossy(&out.stderr).to_string()),
+        Ok(out) => {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            Err(sunwell_err!(LensNotFound, "Skill graph unavailable: {}", stderr)
+                .with_hints(vec![
+                    "Check if the lens has skills defined",
+                    "Run 'sunwell lens skills <name>' to verify",
+                ])
+                .to_json())
+        }
         Err(_e) => {
             // Fallback to empty graph
             Ok(SkillGraph {
@@ -318,26 +384,34 @@ pub async fn get_skill_execution_plan(
     context_hash: Option<String>,
 ) -> Result<SkillExecutionPlan, String> {
     let mut args = vec!["lens", "skill-plan", &lens_name, "--json"];
-    
+
     // Build context hash argument if provided
     let hash_arg;
     if let Some(ref hash) = context_hash {
         hash_arg = format!("--context-hash={}", hash);
         args.push(&hash_arg);
     }
-    
+
     let output = sunwell_command()
         .args(&args)
         .output()
-        .map_err(|e| format!("Failed to get execution plan: {}", e));
-    
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::SkillExecutionFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        });
+
     match output {
         Ok(out) if out.status.success() => {
             let json_str = String::from_utf8_lossy(&out.stdout);
-            parse_json_safe(&json_str)
-                .map_err(|e| format!("Failed to parse execution plan: {}", e))
+            parse_json_safe(&json_str).map_err(|e| {
+                sunwell_err!(ConfigInvalid, "Failed to parse execution plan: {}", e).to_json()
+            })
         }
-        Ok(out) => Err(String::from_utf8_lossy(&out.stderr).to_string()),
+        Ok(out) => {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            Err(sunwell_err!(SkillExecutionFailed, "Execution plan failed: {}", stderr).to_json())
+        }
         Err(e) => Err(e),
     }
 }
@@ -348,13 +422,18 @@ pub async fn get_skill_cache_stats() -> Result<SkillCacheStats, String> {
     let output = sunwell_command()
         .args(["skill", "cache-stats", "--json"])
         .output()
-        .map_err(|e| format!("Failed to get cache stats: {}", e));
-    
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        });
+
     match output {
         Ok(out) if out.status.success() => {
             let json_str = String::from_utf8_lossy(&out.stdout);
-            parse_json_safe(&json_str)
-                .map_err(|e| format!("Failed to parse cache stats: {}", e))
+            parse_json_safe(&json_str).map_err(|e| {
+                sunwell_err!(ConfigInvalid, "Failed to parse cache stats: {}", e).to_json()
+            })
         }
         _ => {
             // Return default stats
@@ -375,12 +454,17 @@ pub async fn clear_skill_cache() -> Result<(), String> {
     let output = sunwell_command()
         .args(["skill", "cache-clear"])
         .output()
-        .map_err(|e| format!("Failed to clear cache: {}", e))?;
-    
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
+
     if output.status.success() {
         Ok(())
     } else {
-        Err(String::from_utf8_lossy(&output.stderr).to_string())
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Err(sunwell_err!(RuntimeProcessFailed, "Cache clear failed: {}", stderr).to_json())
     }
 }
 

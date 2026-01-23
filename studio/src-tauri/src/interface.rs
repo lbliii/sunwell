@@ -2,6 +2,8 @@
 //!
 //! Provides Tauri commands for the LLM-driven interaction routing system.
 
+use crate::error::{ErrorCode, SunwellError};
+use crate::sunwell_err;
 use crate::util::{parse_json_safe, sunwell_command};
 use serde::{Deserialize, Serialize};
 
@@ -59,7 +61,7 @@ pub async fn process_goal(
     if let Some(hist) = history {
         if !hist.is_empty() {
             let history_json = serde_json::to_string(&hist)
-                .map_err(|e| format!("Failed to serialize history: {}", e))?;
+                .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to serialize history: {}", e).to_json())?;
             args.push("--history".to_string());
             args.push(history_json);
         }
@@ -68,16 +70,23 @@ pub async fn process_goal(
     let output = sunwell_command()
         .args(&args)
         .output()
-        .map_err(|e| format!("Failed to execute sunwell: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Processing failed: {}", stderr));
+        return Err(sunwell_err!(SkillExecutionFailed, "Processing failed: {}", stderr)
+            .with_hints(vec!["Check the input goal", "Verify model availability"])
+            .to_json());
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse output: {} - raw: {}", e, stdout))
+    parse_json_safe(&stdout)
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse output: {}", e).to_json())
 }
 
 /// List configured providers.
@@ -124,11 +133,15 @@ pub async fn interface_demo(data_dir: Option<String>) -> Result<String, String> 
     let output = sunwell_command()
         .args(&args)
         .output()
-        .map_err(|e| format!("Failed to execute sunwell: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Demo failed: {}", stderr));
+        return Err(sunwell_err!(SkillExecutionFailed, "Demo failed: {}", stderr).to_json());
     }
 
     Ok("Demo data created successfully".to_string())
@@ -190,7 +203,11 @@ pub async fn predict_composition(
     let output = sunwell_command()
         .args(&args)
         .output()
-        .map_err(|e| format!("Failed to execute sunwell: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         // Non-fatal for composition - return None and let full pipeline handle it
@@ -200,7 +217,7 @@ pub async fn predict_composition(
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     parse_json_safe(&stdout)
-        .map_err(|e| format!("Failed to parse composition: {} - raw: {}", e, stdout))
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse composition: {}", e).to_json())
 }
 
 /// Execute a block action (RFC-080).
@@ -217,7 +234,7 @@ pub async fn execute_block_action(
         "interface".to_string(),
         "action".to_string(),
         "-a".to_string(),
-        action_id,
+        action_id.clone(),
         "--json".to_string(),
     ];
 
@@ -234,15 +251,21 @@ pub async fn execute_block_action(
     let output = sunwell_command()
         .args(&args)
         .output()
-        .map_err(|e| format!("Failed to execute sunwell: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Action failed: {}", stderr));
+        return Err(sunwell_err!(SkillExecutionFailed, "Action '{}' failed: {}", action_id, stderr)
+            .with_hints(vec!["Check the action parameters"])
+            .to_json());
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     parse_json_safe(&stdout)
-        .map_err(|e| format!("Failed to parse action result: {} - raw: {}", e, stdout))
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse action result: {}", e).to_json())
 }

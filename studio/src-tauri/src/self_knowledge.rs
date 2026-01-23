@@ -5,6 +5,8 @@
 //! - Analysis patterns
 //! - Proposal management
 
+use crate::error::{ErrorCode, SunwellError};
+use crate::sunwell_err;
 use crate::util::{parse_json_safe, sunwell_command};
 use serde::{Deserialize, Serialize};
 
@@ -106,11 +108,15 @@ pub async fn self_get_module_source(module: String) -> Result<String, String> {
     let output = sunwell_command()
         .args(["self", "source", "read", &module, "--json"])
         .output()
-        .map_err(|e| format!("Failed to run self source read: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Failed to read module: {}", stderr));
+        return Err(sunwell_err!(FileNotFound, "Module '{}' not found: {}", module, stderr).to_json());
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -123,15 +129,20 @@ pub async fn self_find_symbol(module: String, symbol: String) -> Result<SymbolIn
     let output = sunwell_command()
         .args(["self", "source", "find", &module, &symbol, "--json"])
         .output()
-        .map_err(|e| format!("Failed to run self source find: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Symbol not found: {}", stderr));
+        return Err(sunwell_err!(ToolNotFound, "Symbol '{}' not found in {}: {}", symbol, module, stderr).to_json());
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse symbol info: {}", e))
+    parse_json_safe(&stdout)
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse symbol info: {}", e).to_json())
 }
 
 /// List all Sunwell modules.
@@ -140,15 +151,20 @@ pub async fn self_list_modules() -> Result<Vec<String>, String> {
     let output = sunwell_command()
         .args(["self", "source", "list", "--json"])
         .output()
-        .map_err(|e| format!("Failed to run self source list: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Failed to list modules: {}", stderr));
+        return Err(sunwell_err!(RuntimeProcessFailed, "Failed to list modules: {}", stderr).to_json());
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse modules: {}", e))
+    parse_json_safe(&stdout)
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse modules: {}", e).to_json())
 }
 
 /// Semantic search in Sunwell's source code.
@@ -158,15 +174,20 @@ pub async fn self_search_source(query: String, limit: Option<u32>) -> Result<Vec
     let output = sunwell_command()
         .args(["self", "source", "search", &query, "--limit", &limit_str, "--json"])
         .output()
-        .map_err(|e| format!("Failed to run self source search: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Search failed: {}", stderr));
+        return Err(sunwell_err!(SkillExecutionFailed, "Search failed: {}", stderr).to_json());
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse search results: {}", e))
+    parse_json_safe(&stdout)
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse search results: {}", e).to_json())
 }
 
 // =============================================================================
@@ -180,15 +201,20 @@ pub async fn self_get_patterns(scope: Option<String>) -> Result<PatternReport, S
     let output = sunwell_command()
         .args(["self", "analysis", "patterns", "--scope", &scope, "--json"])
         .output()
-        .map_err(|e| format!("Failed to run self analysis patterns: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Pattern analysis failed: {}", stderr));
+        return Err(sunwell_err!(SkillExecutionFailed, "Pattern analysis failed: {}", stderr).to_json());
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse patterns: {}", e))
+    parse_json_safe(&stdout)
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse patterns: {}", e).to_json())
 }
 
 /// Get recent failures and their categories.
@@ -198,15 +224,20 @@ pub async fn self_get_failures(limit: Option<u32>) -> Result<FailureReport, Stri
     let output = sunwell_command()
         .args(["self", "analysis", "failures", "--limit", &limit_str, "--json"])
         .output()
-        .map_err(|e| format!("Failed to run self analysis failures: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Failure analysis failed: {}", stderr));
+        return Err(sunwell_err!(SkillExecutionFailed, "Failure analysis failed: {}", stderr).to_json());
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse failures: {}", e))
+    parse_json_safe(&stdout)
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse failures: {}", e).to_json())
 }
 
 // =============================================================================
@@ -226,15 +257,20 @@ pub async fn self_list_proposals(status: Option<String>) -> Result<Vec<ProposalS
     let output = sunwell_command()
         .args(&args)
         .output()
-        .map_err(|e| format!("Failed to run self proposals list: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Failed to list proposals: {}", stderr));
+        return Err(sunwell_err!(RuntimeProcessFailed, "Failed to list proposals: {}", stderr).to_json());
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse proposals: {}", e))
+    parse_json_safe(&stdout)
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse proposals: {}", e).to_json())
 }
 
 /// Get detailed info about a specific proposal.
@@ -243,15 +279,20 @@ pub async fn self_get_proposal(proposal_id: String) -> Result<ProposalDetail, St
     let output = sunwell_command()
         .args(["self", "proposals", "show", &proposal_id, "--json"])
         .output()
-        .map_err(|e| format!("Failed to run self proposals show: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Proposal not found: {}", stderr));
+        return Err(sunwell_err!(ToolNotFound, "Proposal '{}' not found: {}", proposal_id, stderr).to_json());
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse proposal: {}", e))
+    parse_json_safe(&stdout)
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse proposal: {}", e).to_json())
 }
 
 /// Test a proposal in the sandbox.
@@ -260,15 +301,20 @@ pub async fn self_test_proposal(proposal_id: String) -> Result<TestResult, Strin
     let output = sunwell_command()
         .args(["self", "proposals", "test", &proposal_id, "--json"])
         .output()
-        .map_err(|e| format!("Failed to run self proposals test: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Test failed: {}", stderr));
+        return Err(sunwell_err!(ValidationScriptFailed, "Test failed: {}", stderr).to_json());
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse test result: {}", e))
+    parse_json_safe(&stdout)
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse test result: {}", e).to_json())
 }
 
 /// Approve a proposal for application.
@@ -277,11 +323,15 @@ pub async fn self_approve_proposal(proposal_id: String) -> Result<(), String> {
     let output = sunwell_command()
         .args(["self", "proposals", "approve", &proposal_id])
         .output()
-        .map_err(|e| format!("Failed to run self proposals approve: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Approval failed: {}", stderr));
+        return Err(sunwell_err!(ToolPermissionDenied, "Approval failed: {}", stderr).to_json());
     }
 
     Ok(())
@@ -293,11 +343,15 @@ pub async fn self_apply_proposal(proposal_id: String) -> Result<String, String> 
     let output = sunwell_command()
         .args(["self", "proposals", "apply", &proposal_id, "--json"])
         .output()
-        .map_err(|e| format!("Failed to run self proposals apply: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Apply failed: {}", stderr));
+        return Err(sunwell_err!(SkillExecutionFailed, "Apply failed: {}", stderr).to_json());
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -310,11 +364,15 @@ pub async fn self_rollback_proposal(proposal_id: String) -> Result<(), String> {
     let output = sunwell_command()
         .args(["self", "proposals", "rollback", &proposal_id])
         .output()
-        .map_err(|e| format!("Failed to run self proposals rollback: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Rollback failed: {}", stderr));
+        return Err(sunwell_err!(SkillExecutionFailed, "Rollback failed: {}", stderr).to_json());
     }
 
     Ok(())
@@ -340,13 +398,18 @@ pub async fn self_get_summary() -> Result<SelfKnowledgeSummary, String> {
     let output = sunwell_command()
         .args(["self", "summary", "--json"])
         .output()
-        .map_err(|e| format!("Failed to run self summary: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Summary failed: {}", stderr));
+        return Err(sunwell_err!(RuntimeProcessFailed, "Summary failed: {}", stderr).to_json());
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    parse_json_safe(&stdout).map_err(|e| format!("Failed to parse summary: {}", e))
+    parse_json_safe(&stdout)
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse summary: {}", e).to_json())
 }

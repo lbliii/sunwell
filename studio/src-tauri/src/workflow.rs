@@ -5,8 +5,10 @@
 //! - Workflow execution (start, stop, resume, skip)
 //! - State persistence queries
 
-use serde::{Deserialize, Serialize};
+use crate::error::{ErrorCode, SunwellError};
+use crate::sunwell_err;
 use crate::util::{parse_json_safe, sunwell_command};
+use serde::{Deserialize, Serialize};
 
 // =============================================================================
 // TYPES
@@ -74,7 +76,11 @@ pub async fn route_workflow_intent(user_input: String) -> Result<Intent, String>
     let output = sunwell_command()
         .args(["workflow", "auto", "--json", &user_input])
         .output()
-        .map_err(|e| format!("Failed to route intent: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         // Fallback to simple classification
@@ -82,7 +88,8 @@ pub async fn route_workflow_intent(user_input: String) -> Result<Intent, String>
     }
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    parse_json_safe(&json_str).map_err(|e| format!("Failed to parse intent: {}", e))
+    parse_json_safe(&json_str)
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse intent: {}", e).to_json())
 }
 
 /// Start a workflow chain.
@@ -103,14 +110,22 @@ pub async fn start_workflow(
     let output = sunwell_command()
         .args(&args)
         .output()
-        .map_err(|e| format!("Failed to start workflow: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(sunwell_err!(SkillExecutionFailed, "Workflow '{}' failed: {}", chain_name, stderr)
+            .with_hints(vec!["Check the workflow configuration"])
+            .to_json());
     }
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    parse_json_safe(&json_str).map_err(|e| format!("Failed to parse execution: {}", e))
+    parse_json_safe(&json_str)
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse execution: {}", e).to_json())
 }
 
 /// Stop a running workflow.
@@ -119,10 +134,15 @@ pub async fn stop_workflow(execution_id: String) -> Result<(), String> {
     let output = sunwell_command()
         .args(["workflow", "stop", &execution_id])
         .output()
-        .map_err(|e| format!("Failed to stop workflow: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(sunwell_err!(SkillExecutionFailed, "Failed to stop workflow: {}", stderr).to_json());
     }
 
     Ok(())
@@ -134,14 +154,20 @@ pub async fn resume_workflow(execution_id: String) -> Result<WorkflowExecution, 
     let output = sunwell_command()
         .args(["workflow", "resume", "--id", &execution_id, "--json"])
         .output()
-        .map_err(|e| format!("Failed to resume workflow: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(sunwell_err!(SkillExecutionFailed, "Failed to resume workflow: {}", stderr).to_json());
     }
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    parse_json_safe(&json_str).map_err(|e| format!("Failed to parse execution: {}", e))
+    parse_json_safe(&json_str)
+        .map_err(|e| sunwell_err!(ConfigInvalid, "Failed to parse execution: {}", e).to_json())
 }
 
 /// Skip the current workflow step.
@@ -150,10 +176,15 @@ pub async fn skip_workflow_step(execution_id: String) -> Result<(), String> {
     let output = sunwell_command()
         .args(["workflow", "skip", &execution_id])
         .output()
-        .map_err(|e| format!("Failed to skip step: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(sunwell_err!(SkillExecutionFailed, "Failed to skip step: {}", stderr).to_json());
     }
 
     Ok(())
@@ -165,7 +196,11 @@ pub async fn list_workflow_chains() -> Result<Vec<WorkflowChain>, String> {
     let output = sunwell_command()
         .args(["workflow", "chains", "--json"])
         .output()
-        .map_err(|e| format!("Failed to list chains: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         // Return default chains
@@ -173,7 +208,8 @@ pub async fn list_workflow_chains() -> Result<Vec<WorkflowChain>, String> {
     }
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    parse_json_safe(&json_str).unwrap_or_else(|_| default_chains())
+    parse_json_safe(&json_str)
+        .unwrap_or_else(|_| default_chains())
         .pipe(Ok)
 }
 
@@ -183,14 +219,19 @@ pub async fn list_active_workflows() -> Result<Vec<WorkflowExecution>, String> {
     let output = sunwell_command()
         .args(["workflow", "list", "--json"])
         .output()
-        .map_err(|e| format!("Failed to list workflows: {}", e))?;
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
 
     if !output.status.success() {
         return Ok(vec![]);
     }
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    parse_json_safe(&json_str).unwrap_or_else(|_| vec![])
+    parse_json_safe(&json_str)
+        .unwrap_or_else(|_| vec![])
         .pipe(Ok)
 }
 

@@ -56,6 +56,41 @@ sunwell "Build a REST API with auth"
 
 ---
 
+## See It Work
+
+Same model. Same prompt. Different architecture.
+
+**Single-shot (llama3.2:3b) — Score: 1.0/10**
+
+```python
+def add(a, b): return a + b
+```
+
+**Sunwell + Resonance (same 3B model) — Score: 8.5/10**
+
+```python
+def add(a: int | float, b: int | float) -> int | float:
+    """Returns the sum of two numbers.
+
+    Args:
+        a: The first number.
+        b: The second number.
+
+    Returns:
+        The sum of a and b.
+
+    Raises:
+        TypeError: If inputs aren't numeric.
+    """
+    if not isinstance(a, (int, float)) or not isinstance(b, (int, float)):
+        raise TypeError("Both inputs must be integers or floats.")
+    return a + b
+```
+
+The 3B model *knows* how to write production code. Single-shot prompting doesn't access it. **Sunwell's cognitive architecture reveals what's already there.**
+
+---
+
 ## Verified Results
 
 | Technique | Small Model (3B) | Large Model (20B) | What It Does |
@@ -64,9 +99,7 @@ sunwell "Build a REST API with auth"
 | **Resonance** | +650% quality (1→8.5/10) | +850% quality (1→9.5/10) | Feedback loops reveal hidden capability |
 | **Lenses** | +17% quality, -58% tokens | +5% quality, -58% tokens | Domain-specific expertise injection |
 
-A 3B model that produces `def add(a, b): return a + b` will produce production-quality code when given structured feedback through Resonance. **The capability is already there** — Sunwell's architecture reveals it.
-
-See [THESIS-VERIFICATION.md](docs/THESIS-VERIFICATION.md) for full benchmark data.
+See [THESIS-VERIFICATION.md](docs/THESIS-VERIFICATION.md) for full benchmark data and methodology.
 
 ---
 
