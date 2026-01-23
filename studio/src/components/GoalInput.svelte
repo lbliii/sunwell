@@ -1,8 +1,13 @@
 <script lang="ts">
 	import { processInput, interfaceState } from '../stores/interface.svelte';
+	import { parseError, getCategoryIcon } from '$lib/error';
+	import ErrorDisplay from './ui/ErrorDisplay.svelte';
 
 	let inputValue = $state('');
 	let inputEl: HTMLInputElement | undefined = $state();
+
+	// Parse error into structured format
+	const parsedError = $derived(interfaceState.error ? parseError(interfaceState.error) : null);
 
 	async function handleSubmit() {
 		const goal = inputValue.trim();
@@ -60,9 +65,9 @@
 		</button>
 	</div>
 
-	{#if interfaceState.error}
-		<div class="error-message">
-			{interfaceState.error}
+	{#if parsedError}
+		<div class="error-container">
+			<ErrorDisplay error={parsedError} compact />
 		</div>
 	{/if}
 </div>
@@ -154,13 +159,7 @@
 		}
 	}
 
-	.error-message {
+	.error-container {
 		margin-top: var(--spacing-sm, 8px);
-		padding: var(--spacing-sm, 8px) var(--spacing-md, 12px);
-		background: rgba(239, 68, 68, 0.1);
-		border: 1px solid rgba(239, 68, 68, 0.3);
-		border-radius: var(--radius-md, 8px);
-		color: var(--error, #ef4444);
-		font-size: var(--font-size-sm, 14px);
 	}
 </style>

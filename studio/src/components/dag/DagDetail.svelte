@@ -6,6 +6,8 @@
   import { dag, selectNode, completeNode, updateNode } from '../../stores/dag.svelte';
   import { project } from '../../stores/project.svelte';
   import { agent } from '../../stores/agent.svelte';
+  import { parseError, type SunwellError } from '$lib/error';
+  import ErrorDisplay from '../ui/ErrorDisplay.svelte';
   import Button from '../Button.svelte';
   
   let node = $derived(dag.selectedNode);
@@ -13,7 +15,7 @@
   let dependentNodes = $derived(node ? dag.layouted.nodes.filter(n => n.dependsOn.includes(node.id)) : []);
   
   let isExecuting = $state(false);
-  let executeError = $state<string | null>(null);
+  let executeError = $state<SunwellError | null>(null);
   
   function handleClose() { selectNode(null); }
   
@@ -22,8 +24,14 @@
     const projectPath = project.current?.path;
     if (!currentNode || !projectPath) return;
     
-    if (agent.isRunning) { executeError = 'Agent is already running. Stop it first.'; return; }
-    if (currentNode.status !== 'ready' && currentNode.status !== 'pending') { executeError = 'Node is not ready to execute'; return; }
+    if (agent.isRunning) {
+      executeError = parseError('Agent is already running. Stop it first.');
+      return;
+    }
+    if (currentNode.status !== 'ready' && currentNode.status !== 'pending') {
+      executeError = parseError('Node is not ready to execute');
+      return;
+    }
     
     isExecuting = true;
     executeError = null;
@@ -33,7 +41,7 @@
       await invoke('execute_dag_node', { path: projectPath, nodeId: currentNode.id });
     } catch (e) {
       console.error('Failed to execute:', e);
-      executeError = e instanceof Error ? e.message : String(e);
+      executeError = parseError(e);
       updateNode(currentNode.id, { status: 'ready', currentAction: undefined });
     } finally {
       isExecuting = false;
@@ -122,7 +130,11 @@
     {/if}
     
     <footer class="detail-actions">
-      {#if executeError}<p class="execute-error" role="alert">{executeError}</p>{/if}
+      {#if executeError}
+        <div class="execute-error-container">
+          <ErrorDisplay error={executeError} compact onDismiss={() => executeError = null} />
+        </div>
+      {/if}
       {#if node.status === 'ready' || node.status === 'pending'}
         <Button variant="primary" size="sm" icon={isExecuting ? '...' : '▶'} onclick={handleExecute} disabled={isExecuting || agent.isRunning}>
           {isExecuting ? 'Starting...' : agent.isRunning ? 'Agent busy' : 'Execute'}
@@ -176,5 +188,5 @@
   .node-status-icon { font-size: 10px; }
   .node-list-item.complete .node-status-icon { color: var(--success); }
   .detail-actions { padding: 16px; margin-top: auto; display: flex; flex-wrap: wrap; gap: 8px; }
-  .execute-error { width: 100%; font-size: 11px; color: var(--error); margin: 0 0 8px 0; }
+  .execute-error-container { width: 100%; margin-bottom: 8px; }
 </style>

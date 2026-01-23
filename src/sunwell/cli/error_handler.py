@@ -56,7 +56,6 @@ def _print_human_error(error: SunwellError) -> None:
     """Print error in human-readable format using rich if available."""
     try:
         from rich.console import Console
-        from rich.panel import Panel
         from rich.text import Text
 
         console = Console(stderr=True)

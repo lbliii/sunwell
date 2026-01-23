@@ -17,6 +17,8 @@
     type WorkflowStep,
     type WorkflowExecution,
   } from '../../stores';
+  import { parseError } from '$lib/error';
+  import ErrorDisplay from '../ui/ErrorDisplay.svelte';
 
   interface Props {
     /** Override workflow (optional - uses store by default) */
@@ -71,6 +73,13 @@
   const isPaused = $derived(workflow?.status === 'paused');
   const isComplete = $derived(workflow?.status === 'completed');
   const hasError = $derived(workflow?.status === 'error');
+
+  // Parse step error into structured format
+  const stepError = $derived(() => {
+    if (!hasError || !workflow) return null;
+    const errorStep = workflow.steps.find((s) => s.error);
+    return errorStep?.error ? parseError(errorStep.error) : null;
+  });
 
   function getStepIcon(status: string): string {
     switch (status) {
@@ -147,9 +156,9 @@
           {/each}
         </div>
 
-        {#if hasError && workflow.steps.find((s) => s.error)}
-          <div class="error-message">
-            {workflow.steps.find((s) => s.error)?.error}
+        {#if hasError && stepError()}
+          <div class="error-container">
+            <ErrorDisplay error={stepError()} compact onRetry={handleResume} />
           </div>
         {/if}
 
@@ -334,14 +343,8 @@
     font-size: 10px;
   }
 
-  .error-message {
-    background: rgba(255, 107, 107, 0.1);
-    border: 1px solid var(--error, #ff6b6b);
-    border-radius: 4px;
-    padding: 8px;
+  .error-container {
     margin-bottom: 12px;
-    color: var(--error, #ff6b6b);
-    font-size: 11px;
   }
 
   .controls {

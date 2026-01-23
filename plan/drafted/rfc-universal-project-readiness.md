@@ -1,11 +1,19 @@
 # RFC: Universal Project Readiness & Preview
 
-**Status**: Draft  
+**Status**: Phase 1 Complete  
 **Created**: 2026-01-22  
 **Author**: AI Assistant  
 **Confidence**: 85% 🟢  
 **Extends**: RFC-079 (Project Intent Analyzer)  
 **Related**: RFC-066 (Intelligent Run Button), rfc-backlog-driven-execution
+
+> **Implementation Note**: Phase 1 (Type Extensions) completed 2026-01-22.
+> - Added `PreviewType` enum to `intent_types.py`
+> - Extended `ProjectAnalysis` with `preview_type`, `preview_url`, `preview_file`
+> - Extended `Prerequisite` with `satisfied`, `required` fields
+> - Added `_detect_preview_type()` to `intent_analyzer.py`
+> - Created `prereq_check.py` with `can_preview()`, `check_prerequisites()`, etc.
+> - 34 tests passing
 
 ---
 

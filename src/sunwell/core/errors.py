@@ -296,8 +296,11 @@ class SunwellError(Exception):
         return f"SunwellError(code={self.code!r}, context={self.context!r})"
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize to dict for logging/API responses."""
-        return {
+        """Serialize to dict for logging/API responses.
+
+        Matches schemas/error.schema.json for cross-language compatibility.
+        """
+        result = {
             "error_id": self.error_id,
             "code": self.code.value,
             "category": self.category,
@@ -306,6 +309,10 @@ class SunwellError(Exception):
             "recovery_hints": self.recovery_hints,
             "context": self.context,
         }
+        # Include cause if present (for debugging)
+        if self.cause:
+            result["cause"] = str(self.cause)
+        return result
 
     def for_llm(self) -> str:
         """Format error for LLM consumption (self-healing).

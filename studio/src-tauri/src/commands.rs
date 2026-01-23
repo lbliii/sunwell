@@ -1,8 +1,10 @@
 //! Tauri IPC commands — interface between frontend and Rust backend.
 
 use crate::agent::AgentBridge;
-use crate::util::{parse_json_safe, sunwell_command};
+use crate::error::{ErrorCode, SunwellError};
 use crate::preview::PreviewManager;
+use crate::sunwell_err;
+use crate::util::{parse_json_safe, sunwell_command};
 use crate::project::{Project, ProjectDetector, RecentProject};
 use crate::workspace::{
     create_recent_project, default_workspace_root, ensure_workspace_exists,
@@ -175,7 +177,8 @@ pub async fn run_goal(
     drop(prompts_store);
 
     // Start agent with lens and provider selection (RFC-064, RFC-Cloud-Model-Parity)
-    let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
+    let mut agent = state.agent.lock()
+        .map_err(|e| sunwell_err!(RuntimeStateInvalid, "Failed to acquire agent lock: {}", e).to_json())?;
     agent.run_goal(
         app,
         &goal,
@@ -183,7 +186,7 @@ pub async fn run_goal(
         lens.as_deref(),
         auto_lens.unwrap_or(true),
         provider.as_deref(),
-    )?;
+    ).map_err(|e| e.to_json())?;
 
     // Update recent projects
     if let Ok(project) = state.detector.detect(&workspace_path) {
@@ -209,8 +212,9 @@ pub async fn run_goal(
 /// Stop the running agent.
 #[tauri::command]
 pub async fn stop_agent(state: State<'_, AppState>) -> Result<(), String> {
-    let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
-    agent.stop()
+    let mut agent = state.agent.lock()
+        .map_err(|e| sunwell_err!(RuntimeStateInvalid, "Failed to acquire agent lock: {}", e).to_json())?;
+    agent.stop().map_err(|e| e.to_json())
 }
 
 /// Get list of recent projects.
@@ -596,18 +600,22 @@ pub async fn resume_project(
     let project_path = PathBuf::from(&path);
 
     if !project_path.exists() {
-        return Err(format!("Project path does not exist: {}", path));
+        return Err(sunwell_err!(FileNotFound, "Project path does not exist: {}", path).to_json());
     }
 
     // Check if there's something to resume
     let status = get_project_status_internal(&project_path)?;
     if status.status != ExecutionStatus::Interrupted {
-        return Err("No interrupted execution to resume".to_string());
+        return Err(sunwell_err!(RuntimeStateInvalid, "No interrupted execution to resume")
+            .with_hints(vec!["The project has no interrupted tasks", "Start a new goal instead"])
+            .to_json());
     }
 
     // Start agent in resume mode with optional provider (RFC-Cloud-Model-Parity)
-    let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
-    agent.resume_goal(app, &project_path, provider.as_deref())?;
+    let mut agent = state.agent.lock()
+        .map_err(|e| sunwell_err!(RuntimeStateInvalid, "Failed to acquire agent lock: {}", e).to_json())?;
+    agent.resume_goal(app, &project_path, provider.as_deref())
+        .map_err(|e| e.to_json())?;
 
     Ok(RunGoalResult {
         success: true,
@@ -1046,7 +1054,7 @@ pub async fn iterate_project(
     let path = PathBuf::from(&path);
     
     if !path.exists() {
-        return Err(format!("Project does not exist: {}", path.display()));
+        return Err(sunwell_err!(FileNotFound, "Project does not exist: {}", path.display()).to_json());
     }
 
     let name = path.file_name()
@@ -1061,16 +1069,20 @@ pub async fn iterate_project(
     let new_name = generate_iteration_name(&name);
     let new_path = path.parent()
         .map(|p| p.join(&new_name))
-        .ok_or("Failed to determine new project path")?;
+        .ok_or_else(|| sunwell_err!(FileNotFound, "Failed to determine new project path").to_json())?;
 
     // Create new project directory
     ensure_workspace_exists(&new_path)
-        .map_err(|e| format!("Failed to create iteration directory: {}", e))?;
+        .map_err(|e| SunwellError::from_error(ErrorCode::FileWriteFailed, e)
+            .with_hints(vec!["Check write permissions", "Ensure disk space is available"])
+            .to_json())?;
 
     // Create .sunwell directory with inherited learnings
     let new_sunwell = new_path.join(".sunwell");
     std::fs::create_dir_all(&new_sunwell)
-        .map_err(|e| format!("Failed to create .sunwell directory: {}", e))?;
+        .map_err(|e| SunwellError::from_error(ErrorCode::FileWriteFailed, e)
+            .with_hints(vec!["Check write permissions"])
+            .to_json())?;
 
     // Write learnings context for the agent to consume
     let context_path = new_sunwell.join("iteration_context.json");
@@ -1083,7 +1095,9 @@ pub async fn iterate_project(
         "pending_from_previous": learnings.pending_tasks,
     });
     std::fs::write(&context_path, serde_json::to_string_pretty(&context_json).unwrap_or_default())
-        .map_err(|e| format!("Failed to write iteration context: {}", e))?;
+        .map_err(|e| SunwellError::from_error(ErrorCode::FileWriteFailed, e)
+            .with_hints(vec!["Check write permissions"])
+            .to_json())?;
 
     // Formulate the iteration goal
     let iteration_goal = if let Some(goal) = new_goal {
@@ -1099,8 +1113,10 @@ pub async fn iterate_project(
     };
 
     // Start agent with the new goal (auto-lens for iterations, no provider override)
-    let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
-    agent.run_goal(app, &iteration_goal, &new_path, None, true, None)?;
+    let mut agent = state.agent.lock()
+        .map_err(|e| sunwell_err!(RuntimeStateInvalid, "Failed to acquire agent lock: {}", e).to_json())?;
+    agent.run_goal(app, &iteration_goal, &new_path, None, true, None)
+        .map_err(|e| e.to_json())?;
 
     Ok(ProjectManageResult {
         success: true,

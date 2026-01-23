@@ -30,8 +30,8 @@ def benchmark() -> None:
 @benchmark.command()
 @click.option(
     "--model",
-    default="hhao/qwen2.5-coder-tools:14b",
-    help="Model to benchmark",
+    default=None,
+    help="Model to benchmark (default: from config)",
 )
 @click.option(
     "--category",
@@ -93,7 +93,7 @@ def benchmark() -> None:
     help="Naaru coordination mode (harmonic=3x tokens, resonance=1.5x, full=4x)",
 )
 def run(
-    model: str,
+    model: str | None,
     category: str | None,
     task_id: str | None,
     tasks_dir: Path,
@@ -143,6 +143,14 @@ def run(
         - resonance: Feedback loop (1.5x tokens)
         - full: Both (4x tokens, best quality)
     """
+    from sunwell.config import get_config
+
+    cfg = get_config()
+
+    # Resolve model from config if not specified
+    if model is None:
+        model = cfg.model.default_model if cfg else "gemma3:4b"
+
     asyncio.run(_run_benchmark(
         model=model,
         category=category,
@@ -556,13 +564,13 @@ def _generate_simple_markdown(stats: dict) -> str:
 @benchmark.command()
 @click.option(
     "--model",
-    default="gemma3:1b",
-    help="Synthesis model (default: gemma3:1b)",
+    default=None,
+    help="Synthesis model (default: from config)",
 )
 @click.option(
     "--judge-model",
-    default="gemma3:4b",
-    help="Judge model for evaluation (default: gemma3:4b)",
+    default=None,
+    help="Judge model for evaluation (default: from config or naaru.wisdom)",
 )
 @click.option(
     "--conditions",
@@ -612,8 +620,8 @@ def _generate_simple_markdown(stats: dict) -> str:
     help="Verbose output",
 )
 def naaru(
-    model: str,
-    judge_model: str,
+    model: str | None,
+    judge_model: str | None,
     conditions: str | None,
     category: str | None,
     tasks_dir: Path,
@@ -653,6 +661,18 @@ def naaru(
         # Full statistical run (all tasks, all conditions)
         sunwell benchmark naaru --full
     """
+    from sunwell.config import get_config
+
+    cfg = get_config()
+
+    # Resolve model from config if not specified
+    if model is None:
+        model = cfg.naaru.voice if cfg else "gemma3:1b"
+
+    # Resolve judge model from config if not specified
+    if judge_model is None:
+        judge_model = cfg.naaru.wisdom if cfg else "gemma3:4b"
+
     asyncio.run(_run_naaru_benchmark(
         model=model,
         judge_model=judge_model,

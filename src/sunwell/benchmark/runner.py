@@ -1210,13 +1210,17 @@ async def create_runner(
 ) -> BenchmarkRunner:
     """Create a BenchmarkRunner with default configuration.
 
-    If model is not provided, uses Ollama with default model.
+    If model is not provided, uses config defaults.
     If lens_loader is not provided, creates one with default paths.
     If router_model is provided, enables the ROUTED condition (RFC-020).
     """
     if model is None:
+        from sunwell.config import get_config
         from sunwell.models.ollama import OllamaModel
-        model = OllamaModel(model="hhao/qwen2.5-coder-tools:14b")
+
+        cfg = get_config()
+        model_name = cfg.model.default_model if cfg else "gemma3:4b"
+        model = OllamaModel(model=model_name)
 
     if lens_loader is None:
         from sunwell.schema.loader import LensLoader

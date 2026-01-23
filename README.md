@@ -3,9 +3,11 @@
 [![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://pypi.org/project/sunwell/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-**Local-first AI agent that learns your codebase and works while you sleep.**
+**Cognitive architecture for autonomous agents.**
 
-*Powered by the Naaru — coordinated intelligence for small local models.*
+Other tools structure your *tasks*. Sunwell structures the *thinking*.
+
+> *"The prism doesn't add light. It reveals what was already there."*
 
 ```bash
 sunwell "Build a REST API with auth"
@@ -13,48 +15,58 @@ sunwell "Build a REST API with auth"
 
 ---
 
-## Why Sunwell?
+## The Problem
 
-| Feature | Claude/Cursor | Sunwell |
-|---------|---------------|---------|
-| **Memory** | Stateless (forgets you) | Persistent (remembers decisions, learns patterns) |
-| **Mode** | Reactive (waits for commands) | Proactive (finds issues, proposes work) |
-| **Cost** | Per-request ($$$) | Local models ($0 forever) |
-| **Privacy** | Cloud-based | Nothing leaves your machine |
-| **Autonomy** | Human-in-loop | Can work unsupervised (with guardrails) |
-| **Integration** | Creates files | Creates AND wires artifacts together |
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    THE AGENT LANDSCAPE                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   PROMPT FLOW / WORKFLOW ENGINES                                │
+│   ──────────────────────────────                                │
+│   "Structure the SEQUENCE, trust the black box"                 │
+│                                                                 │
+│   ┌─────┐    ┌─────┐    ┌─────┐                                │
+│   │  A  │ -> │  B  │ -> │  C  │   Agent = opaque oracle        │
+│   └─────┘    └─────┘    └─────┘                                │
+│                                                                 │
+│   ✓ Good for: Scripts, releases, simple automations            │
+│   ✗ Limits: Quality ceiling = model quality                    │
+│                                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   SUNWELL                                                       │
+│   ───────                                                       │
+│   "Structure the COGNITION, reveal what's already there"        │
+│                                                                 │
+│               ╱╲                                                │
+│              ╱  ╲                                               │
+│   ━━━━━━━━━╱ 🔮 ╲━━━ critic                                    │
+│   MODEL   ╱      ╲━━━ expert     Prism = explicit reasoning    │
+│   ━━━━━━╱ PRISM   ╲━━ user                                     │
+│        ╱           ╲━━ synthesize                               │
+│                                                                 │
+│   ✓ Good for: Complex tasks, quality extraction, autonomy      │
+│   ✓ Advantage: Quality > model size (verified +650% on 3B)     │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-**The bet**: Memory + Privacy + Autonomy > Raw model quality for most development work.
+**The insight**: Small models contain multitudes — critics, experts, users, adversaries — all superposed in their weights. Single-shot prompting collapses to one perspective. Sunwell refracts that beam into explicit wavelengths, directs each at the relevant part of the problem, then recombines them into output that exceeds what any single perspective could produce.
 
 ---
 
-## What Sunwell Is (and Isn't)
+## Verified Results
 
-Sunwell occupies a specific niche in the AI tooling landscape. This table clarifies where it fits:
+| Technique | Small Model (3B) | Large Model (20B) | What It Does |
+|-----------|------------------|-------------------|--------------|
+| **Harmonic Planning** | +30% score | +150% score, +127% parallelism | Multiple personas plan in parallel, select best |
+| **Resonance** | +650% quality (1→8.5/10) | +850% quality (1→9.5/10) | Feedback loops reveal hidden capability |
+| **Lenses** | +17% quality, -58% tokens | +5% quality, -58% tokens | Domain-specific expertise injection |
 
-| Category | Examples | Sunwell? | Why Not |
-|----------|----------|----------|---------|
-| **Evaluation Harness** | lm-eval-harness, HELM, BigBench | ❌ | Harnesses measure LLM accuracy on benchmarks. Sunwell *uses* models to build things. |
-| **AI Coding Assistant** | Cursor, Copilot, Aider | ⚠️ Partial | Assistants are reactive (wait for commands). Sunwell is proactive and autonomous. |
-| **Agent Framework** | LangChain, AutoGPT, CrewAI | ⚠️ Partial | Frameworks are libraries. Sunwell is a complete agent with memory and planning. |
-| **Prompt Orchestration** | DSPy, Guidance, LMQL | ❌ | Orchestrators optimize prompts. Sunwell orchestrates *work*, not prompts. |
-| **Local LLM Runtime** | Ollama, llama.cpp, vLLM | ❌ | Runtimes serve models. Sunwell *coordinates* models to accomplish goals. |
+A 3B model that produces `def add(a, b): return a + b` will produce production-quality code when given structured feedback through Resonance. **The capability is already there** — Sunwell's architecture reveals it.
 
-### Sunwell IS:
-
-- ✅ An **autonomous development agent** — it plans, executes, and verifies work
-- ✅ A **coordinated intelligence system** — multiple small models working together (the Naaru)
-- ✅ A **memory-enabled assistant** — remembers decisions, patterns, and failures
-- ✅ A **local-first tool** — nothing leaves your machine
-- ✅ An **integration verifier** — detects orphans, stubs, and missing connections
-
-### Sunwell is NOT:
-
-- ❌ A benchmark harness for evaluating LLMs
-- ❌ A library you import into your code
-- ❌ A wrapper around a single model
-- ❌ A cloud service
-- ❌ A replacement for understanding your own code
+See [THESIS-VERIFICATION.md](docs/THESIS-VERIFICATION.md) for full benchmark data.
 
 ---
 
@@ -78,21 +90,53 @@ Requires Python 3.14+ and [Ollama](https://ollama.ai) for local models.
 
 ---
 
-## What It Does
+## The Prism Principle
 
-### 1. Executes Goals Intelligently
+```
+                          ╱╲
+                         ╱  ╲
+                        ╱    ╲ 
+    ━━━━━━━━━━━━━━━━━━╱      ╲━━━━━━ critic
+    SMALL MODEL       ╱   🔮   ╲━━━━━━ expert
+    (coherent beam)  ╱ SUNWELL  ╲━━━━━ user
+    ━━━━━━━━━━━━━━━━╱  (prism)   ╲━━━━ adversary
+                   ╱              ╲━━━ simplify
+                  ╱                ╲━━ synthesize
+                 ╱__________________╲
+                 
+    Raw capability     →    Structured intelligence
+    Single perspective →    Spectral perspectives
+    Latent potential   →    Realized expertise
+```
+
+When you prompt a model directly, you get a single "wavelength" — whatever mode it collapses into. Sunwell refracts that beam into component perspectives, directs each at the relevant part of the problem, then recombines them into coherent output.
+
+### How It Manifests
+
+| Component | What It Does | The Prism Metaphor |
+|-----------|--------------|-------------------|
+| **Lenses** | Domain expertise containers | Color filters selecting wavelengths |
+| **Harmonic Synthesis** | Multiple personas generate in parallel | Multiple wavelengths simultaneously |
+| **Resonance** | Feedback loops refine output | Iterative wavelength tuning |
+| **Artifact-First Planning** | Discovers what must exist, derives order | Structural decomposition of light |
+| **Convergence** | Recombines perspectives into final output | Where the Naaru emerges |
+
+---
+
+## What Sunwell Does
+
+### 1. Executes Goals with Coordinated Intelligence
 
 ```bash
 sunwell "Build a forum app with users and posts"
 ```
 
-The agent:
-- Discovers what artifacts need to exist (models, routes, tests)
-- Plans execution order from dependencies
-- **Runs independent work in parallel** (artifact-first planning)
-- **Generates wire tasks** to connect components together
-- **Verifies integrations** before marking complete
-- Learns from success/failure for next time
+The Naaru coordinates:
+- **Artifact-First Planning** — Discovers what must exist, derives execution order from dependencies
+- **Harmonic Synthesis** — Multiple perspectives generate in parallel, then vote on the best
+- **Resonance** — Rejected outputs get structured feedback and refinement
+- **Parallel Execution** — Independent artifacts build simultaneously
+- **Integration Verification** — Detects orphans, stubs, and missing connections
 
 ### 2. Remembers Everything
 
@@ -122,38 +166,142 @@ sunwell backlog show
 
 Sunwell scans your codebase and proposes work you haven't asked for yet.
 
-### 4. Works Autonomously (With Guardrails)
+### 4. Uses Lenses for Domain Expertise
 
-```bash
-# View proposed work
-sunwell backlog show
+Lenses are expertise containers with heuristics, personas, and validators:
 
-# Let it work while you sleep
-sunwell backlog execute
+```yaml
+# lenses/tech-writer.lens
+name: tech-writer
+description: Technical documentation expert
+
+heuristics:
+  - name: BLUF
+    rule: Put the conclusion first
+    always: [lead with key takeaway]
+    never: [bury the lede]
+
+personas:
+  - name: confused-junior
+    background: New to programming
+    attack_vectors:
+      - "Is this explained simply enough?"
+      - "Would I understand this term?"
+
+validators:
+  - name: readability
+    script: "flesch-kincaid --target 8"
 ```
 
-Guardrails ensure safety:
-- File scope limits (can't touch `secrets.py`)
-- Time/cost budgets per goal
-- Mandatory verification before commits
-- Auto-approvable only for safe categories (tests, docs)
-- Skip or block goals you don't want: `sunwell backlog skip <id>`
-
-### 5. Verifies Integrations (Not Just Creates Files)
-
 ```bash
-sunwell verify src/
+sunwell "Document the auth module" --lens tech-writer
 ```
 
-AI assistants often create files without wiring them. Sunwell detects:
-- **Orphaned artifacts** — Files that exist but nothing imports them
-- **Missing imports** — Components that need each other but aren't connected
-- **Stub implementations** — `pass`, `TODO`, `raise NotImplementedError`
-- **Broken routes** — Handlers that aren't registered
+### 5. Has Skills for Structured Actions
+
+Skills define what the AI can do with explicit permissions:
+
+```yaml
+skills:
+  - name: extract-api-surface
+    description: Extract public API from source code
+    preset: safe-shell
+    instructions: |
+      Parse source files, identify exports, extract signatures...
+```
+
+```bash
+sunwell skills list
+sunwell "Extract the API surface" --skill extract-api-surface
+```
+
+---
+
+## Why Sunwell Wins
+
+| Feature | Claude/Cursor | Sunwell |
+|---------|---------------|---------|
+| **Intelligence** | Black box | Structured cognition (Prism Principle) |
+| **Memory** | Stateless (forgets you) | Persistent (remembers decisions, learns patterns) |
+| **Mode** | Reactive (waits for commands) | Proactive (finds issues, proposes work) |
+| **Cost** | Per-request ($$$) | Local models ($0 forever) |
+| **Privacy** | Cloud-based | Nothing leaves your machine |
+| **Autonomy** | Human-in-loop | Can work unsupervised (with guardrails) |
+| **Quality** | Limited by model size | Exceeds model size via multi-perspective synthesis |
+
+**The bet**: Structured cognition + Memory + Privacy + Autonomy > Raw model quality for most work.
+
+---
+
+## Architecture
+
+### The Naaru — Coordinated Intelligence
+
+The Naaru emerges when refracted wavelengths recombine. It's not a component you can point to — it's the meta-cognition that arises from structured perspective integration.
+
+```
+              ┌─────────────────┐
+              │      NAARU      │  ← What emerges from coordination
+              │   (The Light)   │
+              └────────┬────────┘
+                       │
+        ╔══════════════╧══════════════╗
+        ║    CONVERGENCE (7 slots)    ║  ← Shared working memory
+        ╚══════════════╤══════════════╝
+                       │
+     ┌─────────────────┼─────────────────┐
+     │                 │                 │
+     ▼                 ▼                 ▼
+┌────────┐       ┌────────┐       ┌────────┐
+│ VOICE  │       │ WISDOM │       │ SHARDS │  ← Parallel workers
+│ (gen)  │       │ (judge)│       │ (help) │
+└────────┘       └────────┘       └────────┘
+```
+
+| Component | Role | Implementation |
+|-----------|------|----------------|
+| **Voice** | Creates, synthesizes, generates | Fast model (gemma3:4b) |
+| **Wisdom** | Judges, evaluates, validates | Reasoning model (gemma3:12b) |
+| **Convergence** | Working memory (7±2 slots) | Shared context |
+| **Harmonic** | Multiple personas in parallel | Voice × 3-5, then voting |
+| **Resonance** | Feedback loop refinement | Voice + Wisdom iteration |
+| **Discernment** | Fast checks before deep judgment | Tiered cascade |
+| **Simulacrum** | Persona simulation, conversation DAG | 40+ components |
+
+### Full Stack
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                       SUNWELL STACK                                 │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │                    AUTONOMY LAYER                             │  │
+│  │  Guardrails │ External Integration │ Multi-Instance Workers   │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │                   INTELLIGENCE LAYER                          │  │
+│  │  Project Intel │ Autonomous Backlog │ Deep Verification       │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │                    INTEGRATION LAYER                          │  │
+│  │  Wire Tasks │ Orphan Detection │ Stub Detection │ AST Analysis│  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │                    NAARU (Coordination)                       │  │
+│  │  Harmonic │ Resonance │ Lenses │ Skills │ Simulacrum          │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │                    MODEL LAYER                                │  │
+│  │  Ollama │ OpenAI │ Anthropic │ Voice │ Wisdom │ Router        │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## Commands
+
+### Core Commands
 
 | Command | Description |
 |---------|-------------|
@@ -182,6 +330,15 @@ AI assistants often create files without wiring them. Sunwell detects:
 | `sunwell backlog add "goal"` | Add an explicit goal |
 | `sunwell backlog skip <id>` | Skip a goal |
 
+### Lenses & Skills
+
+| Command | Description |
+|---------|-------------|
+| `sunwell lens list` | List available lenses |
+| `sunwell lens show <name>` | Show lens details |
+| `sunwell skills list` | List available skills |
+| `sunwell skills run <name>` | Execute a specific skill |
+
 ### Verification & Safety
 
 | Command | Description |
@@ -189,121 +346,20 @@ AI assistants often create files without wiring them. Sunwell detects:
 | `sunwell verify <file>` | Deep verification beyond syntax |
 | `sunwell weakness scan` | Find code weaknesses and integration gaps |
 | `sunwell guardrails show` | Show current safety configuration |
-| `sunwell guardrails check` | Validate goals against guardrails |
-| `sunwell guardrails history` | View session history |
-
-### External Integration
-
-| Command | Description |
-|---------|-------------|
-| `sunwell external start` | Start webhook server for CI/Git events |
-| `sunwell external status` | Show integration status |
-
----
-
-## Architecture
-
-### The Naaru — Coordinated Intelligence
-
-At the heart of Sunwell is **the Naaru** — a coordinated intelligence layer that maximizes quality from small local models.
-
-> *In World of Warcraft lore, the Naaru are beings of pure Light that coordinate and guide. The Sunwell was restored by a Naaru named M'uru. The metaphor fits: local models are weak alone, but coordinated by the Naaru, they become powerful.*
-
-```
-              ┌─────────────────┐
-              │      NAARU      │  ← Coordinates everything
-              │   (The Light)   │
-              └────────┬────────┘
-                       │
-        ╔══════════════╧══════════════╗
-        ║    CONVERGENCE (7 slots)    ║  ← Shared working memory
-        ╚══════════════╤══════════════╝
-                       │
-     ┌─────────────────┼─────────────────┐
-     │                 │                 │
-     ▼                 ▼                 ▼
- ┌────────┐       ┌────────┐       ┌────────┐
- │ VOICE  │       │ WISDOM │       │ SHARDS │  ← Parallel workers
- │ (gen)  │       │ (judge)│       │ (help) │
- └────────┘       └────────┘       └────────┘
-```
-
-**Naaru Components**:
-
-| Component | Role | Model |
-|-----------|------|-------|
-| **Voice** | Creates, synthesizes, generates code | `gemma3:4b` (fast) |
-| **Wisdom** | Judges, evaluates, validates quality | `gemma3:12b` (reasoning) |
-| **Convergence** | Shared working memory (7±2 slots) | — |
-| **Shards** | Parallel CPU helpers while GPU generates | — |
-| **Harmonic** | Multiple personas generating in parallel, then voting | Voice × 3 |
-| **Resonance** | Feedback loop: rejected → refine → retry | Voice + Wisdom |
-| **Discernment** | Fast insight before deep judgment | Tiered cascade |
-| **Attunement** | Intent-aware routing to the right lens | Router model |
-
-### Full Stack
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                       SUNWELL STACK                                 │
-├─────────────────────────────────────────────────────────────────────┤
-│  ┌───────────────────────────────────────────────────────────────┐  │
-│  │                    AUTONOMY LAYER                             │  │
-│  │  Guardrails │ External Integration │ Multi-Instance Workers   │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────────────────────┐  │
-│  │                   INTELLIGENCE LAYER                          │  │
-│  │  Project Intelligence │ Autonomous Backlog │ Deep Verification │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────────────────────┐  │
-│  │                    INTEGRATION LAYER                          │  │
-│  │  Wire Tasks │ Orphan Detection │ Stub Detection │ AST Analysis │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────────────────────┐  │
-│  │                    NAARU (Planning + Execution)               │  │
-│  │  Harmonic Synthesis │ Resonance │ Artifact-First Planning     │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────────────────────┐  │
-│  │                    MODEL LAYER                                │  │
-│  │  Ollama │ Voice (gemma3:4b) │ Wisdom (gemma3:12b) │ Router    │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### Key Techniques
-
-- **Artifact-First Planning**: Discovers what must exist, derives execution order from dependencies
-- **Contract-Aware Planning**: Tasks track `produces`/`requires` artifacts for proper ordering
-- **Wire Tasks**: Explicit tasks that connect artifacts together (can't be skipped)
-- **Integration Verification**: AST-based detection of imports, calls, routes, orphans, and stubs
-- **Harmonic Synthesis**: Voice generates with multiple personas (pragmatist, quality engineer, security expert), then they vote on the best
-- **Resonance**: When Wisdom rejects code, Voice refines it with feedback and retries (up to N attempts)
-- **Discernment**: Fast structural checks first, escalate to full Wisdom only when uncertain
-- **Project Intelligence**: Persistent memory that survives sessions — decisions, patterns, failures
-- **Autonomous Backlog**: Self-directed goal generation from codebase analysis
-- **Lens System**: Domain-specific expertise containers with heuristics and validators
 
 ---
 
 ## Configuration
 
-Sunwell uses a tiered model system optimized for local development:
-
 ```yaml
 # .sunwell/config.yaml
 naaru:
-  # Name your Naaru! (used when someone asks "what's your name?")
-  name: "M'uru"
-  title: "The Naaru"
-  
-  # Voice = fast generation, Wisdom = careful judgment
-  voice: "gemma3:4b"           # 80% of tasks (fast)
-  wisdom: "gemma3:12b"         # Planning, validation (quality)
-  
-  # Coordinated intelligence techniques
-  harmonic_synthesis: true     # Multi-persona generation
-  resonance: 2                 # Max refinement attempts
-  discernment: true            # Fast checks before full validation
+  name: "M'uru"                      # Name your Naaru
+  voice: "gemma3:4b"                 # Fast generation (80% of tasks)
+  wisdom: "gemma3:12b"               # Planning, validation (quality)
+  harmonic_synthesis: true           # Multi-persona generation
+  resonance: 2                       # Max refinement attempts
+  discernment: true                  # Fast checks before full validation
 
 model:
   default_provider: "ollama"
@@ -314,29 +370,17 @@ guardrails:
   forbidden_paths: ["secrets.py", ".env"]
   auto_approve: ["tests/*", "docs/*"]
 
-# Integration verification (RFC-067)
 integration:
-  verify_on_complete: true     # Run integration checks after tasks
-  detect_stubs: true           # Find pass/TODO/NotImplementedError
-  detect_orphans: true         # Find unused files
-```
-
-### Environment Variables
-
-```bash
-# For cloud model fallback (optional)
-export OPENAI_API_KEY=...
-export ANTHROPIC_API_KEY=...
-
-# Ollama configuration
-export OLLAMA_HOST=http://localhost:11434
+  verify_on_complete: true           # Run integration checks after tasks
+  detect_stubs: true                 # Find pass/TODO/NotImplementedError
+  detect_orphans: true               # Find unused files
 ```
 
 ---
 
 ## Sunwell Studio (Optional)
 
-A minimal GUI built with Tauri + Svelte:
+A minimal desktop GUI built with Tauri + Svelte:
 
 ```bash
 cd studio
@@ -346,9 +390,9 @@ npm run tauri dev
 
 Features:
 - One input, focused output (Ollama-inspired simplicity)
-- Adaptive layouts for code, prose, and creative work
-- **Live DAG visualization** of planning and execution
-- **Integration status** on DAG edges (verified ✓, missing ⚠️)
+- Adaptive layouts for each mode (code, writing, planning, etc.)
+- Live DAG visualization of planning and execution
+- Integration status on DAG edges
 - Project intelligence dashboard
 - Lens picker and browser
 - Weakness cascade panel
@@ -413,24 +457,43 @@ ruff check src/
 ```
 sunwell/
 ├── src/sunwell/
-│   ├── naaru/          # Coordinated intelligence (planning, execution, synthesis)
-│   ├── integration/    # Wire tasks, orphan/stub detection, AST verification
+│   ├── naaru/          # Coordinated intelligence (61 files)
+│   │   ├── planners/   # Artifact-first, harmonic, agent planning
+│   │   ├── resonance/  # Feedback loop refinement
+│   │   └── convergence/# Result synthesis
+│   ├── simulacrum/     # Persona simulation (40 files)
+│   ├── mirror/         # Self-improvement system (9 files)
 │   ├── adaptive/       # Adaptive agent with learning
 │   ├── backlog/        # Autonomous goal generation
 │   ├── guardrails/     # Safety and policy enforcement
 │   ├── intelligence/   # Codebase analysis and project memory
 │   ├── verification/   # Deep verification beyond syntax
-│   ├── simulacrum/     # Persona simulation and conversation DAG
-│   ├── weakness/       # Weakness detection and analysis
+│   ├── skills/         # Skill system and execution
+│   ├── lens/           # Lens loading and resolution
+│   ├── team/           # Team coordination features
 │   ├── tools/          # Tool executor and implementations
-│   ├── models/         # LLM provider adapters (Ollama, OpenAI, Anthropic)
-│   ├── core/           # Core types, lens system, heuristics
-│   └── cli/            # Command-line interface
+│   ├── models/         # LLM provider adapters
+│   ├── core/           # Core types, heuristics, errors
+│   └── cli/            # Command-line interface (46 files)
 ├── studio/             # Tauri + Svelte desktop GUI
 ├── lenses/             # Example expertise lenses
+├── skills/             # Skill definition libraries
 ├── benchmark/          # Benchmark tasks and results
-└── docs/               # RFCs and design documents
+└── docs/               # RFCs and design documents (80+ docs)
 ```
+
+---
+
+## Lineage
+
+Sunwell evolved from **DORI** (Documentation-Oriented Rule Intelligence), a cognitive architecture for technical writing developed in the [prompt-library](https://github.com/lbliii/prompt-library) project. DORI pioneered:
+
+- Multi-perspective synthesis via personas
+- Confidence scoring and evidence-based validation
+- Tiered execution with quality gates
+- Domain expertise injection via rules/lenses
+
+Sunwell generalizes these concepts from documentation to all creative work, adds persistent memory, and implements true autonomous execution.
 
 ---
 
@@ -462,6 +525,15 @@ Sleep lost: None
 ```
 
 *The Naaru's light reveals the best path forward.*
+
+---
+
+## Further Reading
+
+- [TECHNICAL-VISION.md](TECHNICAL-VISION.md) — Deep dive into architecture and implementation
+- [THESIS-VERIFICATION.md](docs/THESIS-VERIFICATION.md) — Verified benchmark results
+- [VISION-universal-creative-platform.md](docs/VISION-universal-creative-platform.md) — The complete platform vision
+- [docs/](docs/) — 80+ RFCs and design documents
 
 ---
 

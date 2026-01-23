@@ -6,6 +6,16 @@
 
 ---
 
+## What Sunwell Is
+
+**Sunwell is a cognitive architecture for autonomous agents.**
+
+Most agent frameworks structure *tasks* — they sequence calls, manage state, handle retries. The LLM remains a black box.
+
+Sunwell structures *cognition* — it explicitly engineers how the model thinks through multi-perspective synthesis, structured feedback loops, and emergent meta-cognition.
+
+---
+
 ## Core Thesis
 
 > Given a goal, Sunwell can synthesize an optimal skill DAG, execute it with quality gates, and produce output better than single-shot prompting — through multi-perspective synthesis.

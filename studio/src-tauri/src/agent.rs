@@ -2,6 +2,8 @@
 //!
 //! The agent outputs NDJSON events that we parse and forward to the frontend.
 
+use crate::error::{ErrorCode, SunwellError};
+use crate::sunwell_err;
 use crate::util::{parse_json_safe, sunwell_command};
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader};
@@ -170,9 +172,10 @@ impl AgentBridge {
         lens: Option<&str>,
         auto_lens: bool,
         provider: Option<&str>,
-    ) -> Result<(), String> {
+    ) -> Result<(), SunwellError> {
         if self.running.load(Ordering::SeqCst) {
-            return Err("Agent already running".to_string());
+            return Err(sunwell_err!(RuntimeConcurrentLimit, "Agent already running")
+                .with_hints(vec!["Wait for the current operation to complete", "Or stop the agent first"]));
         }
 
         // Build args with optional lens parameters (RFC-064)
@@ -211,9 +214,15 @@ impl AgentBridge {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|e| format!("Failed to start agent: {}", e))?;
+            .map_err(|e| SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec![
+                    "Check if sunwell CLI is installed",
+                    "Try running 'sunwell --help' to verify",
+                    "Check your PATH includes sunwell",
+                ]))?;
 
-        let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
+        let stdout = child.stdout.take().ok_or_else(|| 
+            sunwell_err!(RuntimeProcessFailed, "Failed to capture agent stdout"))?;
         let stderr = child.stderr.take();
         self.process = Some(child);
         self.running.store(true, Ordering::SeqCst);
@@ -289,9 +298,10 @@ impl AgentBridge {
         app: AppHandle,
         project_path: &Path,
         provider: Option<&str>,
-    ) -> Result<(), String> {
+    ) -> Result<(), SunwellError> {
         if self.running.load(Ordering::SeqCst) {
-            return Err("Agent already running".to_string());
+            return Err(sunwell_err!(RuntimeConcurrentLimit, "Agent already running")
+                .with_hints(vec!["Wait for the current operation to complete", "Or stop the agent first"]));
         }
 
         // Build args with optional provider (RFC-Cloud-Model-Parity)
@@ -310,9 +320,14 @@ impl AgentBridge {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|e| format!("Failed to start agent: {}", e))?;
+            .map_err(|e| SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec![
+                    "Check if sunwell CLI is installed",
+                    "Try running 'sunwell --help' to verify",
+                ]))?;
 
-        let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
+        let stdout = child.stdout.take().ok_or_else(|| 
+            sunwell_err!(RuntimeProcessFailed, "Failed to capture agent stdout"))?;
         let stderr = child.stderr.take();
         self.process = Some(child);
         self.running.store(true, Ordering::SeqCst);
@@ -387,9 +402,10 @@ impl AgentBridge {
         goal_id: &str,
         project_path: &Path,
         provider: Option<&str>,
-    ) -> Result<(), String> {
+    ) -> Result<(), SunwellError> {
         if self.running.load(Ordering::SeqCst) {
-            return Err("Agent already running".to_string());
+            return Err(sunwell_err!(RuntimeConcurrentLimit, "Agent already running")
+                .with_hints(vec!["Wait for the current operation to complete", "Or stop the agent first"]));
         }
 
         // Build args with optional provider (RFC-Cloud-Model-Parity)
@@ -408,9 +424,14 @@ impl AgentBridge {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|e| format!("Failed to start agent: {}", e))?;
+            .map_err(|e| SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec![
+                    "Check if sunwell CLI is installed",
+                    "Try running 'sunwell --help' to verify",
+                ]))?;
 
-        let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
+        let stdout = child.stdout.take().ok_or_else(|| 
+            sunwell_err!(RuntimeProcessFailed, "Failed to capture agent stdout"))?;
         let stderr = child.stderr.take();
         self.process = Some(child);
         self.running.store(true, Ordering::SeqCst);
@@ -479,11 +500,12 @@ impl AgentBridge {
     }
 
     /// Stop the running agent.
-    pub fn stop(&mut self) -> Result<(), String> {
+    pub fn stop(&mut self) -> Result<(), SunwellError> {
         self.running.store(false, Ordering::SeqCst);
 
         if let Some(mut process) = self.process.take() {
-            process.kill().map_err(|e| format!("Failed to kill agent: {}", e))?;
+            process.kill().map_err(|e| SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["The agent process may have already terminated"]))?;
         }
 
         Ok(())

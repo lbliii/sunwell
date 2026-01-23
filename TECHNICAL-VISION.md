@@ -2,7 +2,46 @@
 
 ## Overview
 
+**Sunwell is a cognitive architecture for autonomous agents.**
+
 This document maps out the technical implementation of Sunwell, including package structure, data classes, protocols, modules, and integration patterns.
+
+### What "Cognitive Architecture" Means
+
+Most agent frameworks structure *tasks* — they sequence calls to an LLM, manage state, handle retries. The LLM itself remains a black box.
+
+Sunwell structures *cognition* — it explicitly engineers how the model thinks, not just what tasks it performs.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│   WORKFLOW ENGINES / PROMPT FLOW                                │
+│   ─────────────────────────────                                 │
+│   Structure: Task sequencing                                    │
+│   Model: Black box oracle                                       │
+│   Quality: Limited by model size                                │
+│                                                                 │
+│   ┌─────┐    ┌─────┐    ┌─────┐                                │
+│   │  A  │ -> │  B  │ -> │  C  │  "Do A, then B, then C"        │
+│   └─────┘    └─────┘    └─────┘                                │
+├─────────────────────────────────────────────────────────────────┤
+│   SUNWELL (Cognitive Architecture)                              │
+│   ────────────────────────────────                              │
+│   Structure: Reasoning process itself                           │
+│   Model: Decomposed into explicit phases                        │
+│   Quality: Exceeds model size via multi-perspective synthesis   │
+│                                                                 │
+│   ┌────────┐  ┌────────┐  ┌────────┐                           │
+│   │ critic │  │ expert │  │  user  │  → CONVERGENCE → Output   │
+│   └────────┘  └────────┘  └────────┘                           │
+│        ↑          ↑          ↑                                  │
+│        └──────────┴──────────┘                                  │
+│              Same model, different perspectives                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Lineage
+
+Sunwell evolved from **DORI** (Documentation-Oriented Rule Intelligence), a cognitive architecture for technical writing. DORI pioneered multi-perspective synthesis, confidence scoring, and tiered execution with quality gates. Sunwell generalizes these concepts to all creative work, adds persistent memory, and implements true autonomous execution.
 
 ---
 

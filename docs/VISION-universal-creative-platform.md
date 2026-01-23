@@ -6,7 +6,21 @@
 
 ---
 
-## The Big Idea
+## Core Identity
+
+**Sunwell is a cognitive architecture for autonomous agents.**
+
+Other tools structure your *tasks*. Sunwell structures the *thinking*.
+
+This matters because:
+- **Workflow engines** treat the LLM as a black box — you sequence calls, the model does... something
+- **Sunwell** explicitly engineers cognition — multi-perspective synthesis, structured feedback loops, emergent meta-cognition
+
+The result: A 3B model produces 8.5/10 quality output instead of 1.0/10. The capability is already there — Sunwell's architecture reveals it.
+
+---
+
+## The Platform Vision
 
 **Sunwell replaces all creative/productivity tools with a single AI-native interface.**
 

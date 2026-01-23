@@ -4,6 +4,7 @@
 //! - Load the full DAG from `.sunwell/backlog/` and `.sunwell/plans/`
 //! - Execute a specific node from the DAG
 
+use crate::sunwell_err;
 use crate::util::{parse_json_safe, sunwell_command};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -245,8 +246,10 @@ pub async fn execute_dag_node(
 
     if is_backlog_goal {
         // Use backlog run command for backlog goals
-        let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
-        agent.run_backlog_goal(app, &node_id, &project_path, None)?;
+        let mut agent = state.agent.lock()
+            .map_err(|e| sunwell_err!(RuntimeStateInvalid, "Failed to acquire agent lock: {}", e).to_json())?;
+        agent.run_backlog_goal(app, &node_id, &project_path, None)
+            .map_err(|e| e.to_json())?;
         
         Ok(crate::commands::RunGoalResult {
             success: true,

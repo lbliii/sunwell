@@ -465,12 +465,20 @@ async def create_naaru_runner(
         Configured NaaruBenchmarkRunner
     """
     if model is None:
+        from sunwell.config import get_config
         from sunwell.models.ollama import OllamaModel
-        model = OllamaModel(model="gemma3:1b")
+
+        cfg = get_config()
+        model_name = cfg.naaru.voice if cfg else "gemma3:1b"
+        model = OllamaModel(model=model_name)
 
     if judge_model is None:
+        from sunwell.config import get_config
         from sunwell.models.ollama import OllamaModel
-        judge_model = OllamaModel(model="gemma3:4b")
+
+        cfg = get_config()
+        judge_name = cfg.naaru.wisdom if cfg else "gemma3:4b"
+        judge_model = OllamaModel(model=judge_name)
 
     if lens_loader is None:
         from sunwell.schema.loader import LensLoader
