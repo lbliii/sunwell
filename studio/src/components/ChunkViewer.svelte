@@ -353,7 +353,7 @@
   }
   
   .chunk-card.selected {
-    background: rgba(201, 162, 39, 0.1);
+    background: var(--ui-gold-10);
     border-color: var(--accent);
   }
   

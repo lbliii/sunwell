@@ -27,12 +27,15 @@
 
 <svelte:window onclick={onClose} onkeydown={(e) => e.key === 'Escape' && onClose()} />
 
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<!-- svelte-ignore a11y_interactive_supports_focus -->
 <div 
   class="context-menu"
   style="top: {y}px; left: {x}px"
   in:fly={{ y: -8, duration: 100 }}
   role="menu"
-  onclick|stopPropagation
+  onclick={(e) => e.stopPropagation()}
+  onkeydown={(e) => e.key === 'Escape' && onClose()}
 >
   <button class="menu-item" onclick={() => handleAction(onView)} role="menuitem">
     <span class="menu-icon">👁</span>

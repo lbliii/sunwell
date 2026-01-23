@@ -130,7 +130,7 @@
 	.habits-view {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-4, 16px);
+		gap: var(--space-4);
 	}
 
 	.habits-header {
@@ -141,58 +141,58 @@
 
 	.habits-title {
 		margin: 0;
-		font-size: var(--text-lg, 18px);
+		font-size: var(--text-lg);
 		font-weight: 600;
-		color: var(--text-primary, #fff);
+		color: var(--text-primary);
 	}
 
 	.habits-summary {
 		display: flex;
 		align-items: baseline;
-		gap: var(--space-1, 4px);
-		font-size: var(--text-sm, 14px);
+		gap: var(--space-1);
+		font-size: var(--text-sm);
 	}
 
 	.complete-count {
-		color: var(--gold, #ffd700);
+		color: var(--gold);
 		font-weight: 700;
-		font-size: var(--text-xl, 20px);
+		font-size: var(--text-xl);
 	}
 
 	.separator {
-		color: var(--text-tertiary, #666);
+		color: var(--text-tertiary);
 	}
 
 	.total-count {
-		color: var(--text-secondary, #999);
+		color: var(--text-secondary);
 		font-weight: 500;
 	}
 
 	.label {
-		color: var(--text-tertiary, #666);
-		margin-left: var(--space-1, 4px);
+		color: var(--text-tertiary);
+		margin-left: var(--space-1);
 	}
 
 	.habits-grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-		gap: var(--space-3, 12px);
+		gap: var(--space-3);
 	}
 
 	.habit-card {
 		display: flex;
 		align-items: center;
-		gap: var(--space-3, 12px);
-		padding: var(--space-3, 12px);
+		gap: var(--space-3);
+		padding: var(--space-3);
 		background: rgba(255, 255, 255, 0.02);
-		border: 1px solid rgba(255, 215, 0, 0.1);
-		border-radius: var(--radius-lg, 12px);
+		border: 1px solid var(--radiant-gold-10);
+		border-radius: var(--radius-lg);
 		transition: all 0.2s ease;
 	}
 
 	.habit-card:hover {
-		background: rgba(255, 215, 0, 0.05);
-		border-color: rgba(255, 215, 0, 0.2);
+		background: var(--radiant-gold-5);
+		border-color: var(--radiant-gold-20);
 		transform: translateY(-2px);
 	}
 
@@ -215,13 +215,13 @@
 
 	.circle-bg {
 		fill: none;
-		stroke: rgba(255, 215, 0, 0.1);
+		stroke: var(--radiant-gold-10);
 		stroke-width: 3;
 	}
 
 	.circle {
 		fill: none;
-		stroke: var(--gold, #ffd700);
+		stroke: var(--gold);
 		stroke-width: 3;
 		stroke-linecap: round;
 		transition: stroke-dasharray 0.6s ease;
@@ -232,19 +232,19 @@
 		top: 50%;
 		left: 50%;
 		transform: translate(-50%, -50%);
-		font-size: var(--text-lg, 18px);
+		font-size: var(--text-lg);
 	}
 
 	.habit-info {
 		flex: 1;
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-1, 4px);
+		gap: var(--space-1);
 		min-width: 0;
 	}
 
 	.habit-name {
-		color: var(--text-primary, #fff);
+		color: var(--text-primary);
 		font-weight: 500;
 		white-space: nowrap;
 		overflow: hidden;
@@ -254,46 +254,46 @@
 	.habit-progress {
 		display: flex;
 		align-items: center;
-		gap: var(--space-2, 8px);
-		color: var(--text-tertiary, #666);
-		font-size: var(--text-sm, 14px);
+		gap: var(--space-2);
+		color: var(--text-tertiary);
+		font-size: var(--text-sm);
 	}
 
 	.streak {
-		color: var(--gold, #ffd700);
+		color: var(--gold);
 		font-weight: 500;
 	}
 
 	.quick-complete {
-		padding: var(--space-2, 8px) var(--space-3, 12px);
-		background: rgba(255, 215, 0, 0.1);
-		border: 1px solid rgba(255, 215, 0, 0.3);
-		border-radius: var(--radius-md, 8px);
-		color: var(--gold, #ffd700);
+		padding: var(--space-2) var(--space-3);
+		background: var(--radiant-gold-10);
+		border: 1px solid var(--radiant-gold-30);
+		border-radius: var(--radius-md);
+		color: var(--gold);
 		font-weight: 600;
 		cursor: pointer;
 		transition: all 0.15s ease;
 	}
 
 	.quick-complete:hover {
-		background: rgba(255, 215, 0, 0.2);
+		background: var(--radiant-gold-20);
 		transform: scale(1.05);
 	}
 
 	.quick-complete:focus-visible {
-		outline: 2px solid var(--gold, #ffd700);
+		outline: 2px solid var(--gold);
 		outline-offset: 2px;
 	}
 
 	.check-mark {
-		color: var(--success, #22c55e);
-		font-size: var(--text-xl, 20px);
+		color: var(--success);
+		font-size: var(--text-xl);
 		font-weight: bold;
 	}
 
 	.empty-state {
 		text-align: center;
-		padding: var(--space-6, 24px);
-		color: var(--text-tertiary, #666);
+		padding: var(--space-6);
+		color: var(--text-tertiary);
 	}
 </style>

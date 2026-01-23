@@ -2,10 +2,13 @@
 
 Single entry point for all goal execution (CLI, Studio, autonomous).
 Uses IncrementalExecutor for hash-based change detection and caching.
+
+RFC-105: Enhanced with hierarchical DAG context for skip decisions.
 """
 
 from dataclasses import dataclass
 from datetime import datetime
+import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -32,6 +35,22 @@ class ExecutionResult:
     error: str | None = None
     duration_ms: int = 0
     learnings_count: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class DagContext:
+    """RFC-105: Context from hierarchical DAG for planning.
+    
+    Provides information about previous goals and artifacts
+    to inform skip decisions and reuse existing work.
+    """
+    
+    total_goals: int = 0
+    completed_goals: int = 0
+    total_artifacts: int = 0
+    previous_goals: tuple[str, ...] = ()
+    previous_artifacts: frozenset[str] = frozenset()
+    learnings: tuple[str, ...] = ()
 
 
 class EventEmitter(Protocol):
@@ -124,12 +143,25 @@ class ExecutionManager:
         try:
             # 3. Build backlog context for planner
             backlog_context = await self._build_context()
+            
+            # RFC-105: Load hierarchical DAG context
+            dag_context = self._load_dag_context()
 
             # 4. Discover artifact graph
             self._emit(EventType.PLAN_START, {"goal": goal})
 
             plan_context = context or {}
             plan_context["cwd"] = str(self.root)
+            
+            # RFC-105: Add DAG context to planning context
+            plan_context["dag"] = {
+                "total_goals": dag_context.total_goals,
+                "completed_goals": dag_context.completed_goals,
+                "total_artifacts": dag_context.total_artifacts,
+                "previous_goals": dag_context.previous_goals,
+                "previous_artifacts": list(dag_context.previous_artifacts),
+                "learnings": dag_context.learnings,
+            }
 
             graph = await self._discover_graph(planner, goal, plan_context, backlog_context)
 
@@ -237,6 +269,54 @@ class ExecutionManager:
             completed_artifacts=frozenset(completed_artifacts),
             in_progress=self.backlog.backlog.in_progress,
         )
+
+    def _load_dag_context(self) -> DagContext:
+        """RFC-105: Load DAG context from hierarchical index.
+        
+        Reads .sunwell/dag/index.json for fast access to previous
+        goals and artifacts for skip decisions.
+        """
+        index_path = self.root / ".sunwell" / "dag" / "index.json"
+        
+        if not index_path.exists():
+            return DagContext()
+        
+        try:
+            data = json.loads(index_path.read_text())
+            
+            # Extract goal titles for context
+            goals = data.get("goals", [])
+            previous_goals = tuple(g.get("title", "") for g in goals if g.get("status") == "complete")
+            
+            # Extract artifact IDs
+            artifacts = data.get("recentArtifacts", [])
+            previous_artifacts = frozenset(a.get("id", "") for a in artifacts)
+            
+            # Extract learnings from goal files
+            learnings: list[str] = []
+            goals_dir = self.root / ".sunwell" / "dag" / "goals"
+            if goals_dir.exists():
+                for goal_file in goals_dir.glob("*.json"):
+                    try:
+                        goal_data = json.loads(goal_file.read_text())
+                        learnings.extend(goal_data.get("learnings", []))
+                    except (json.JSONDecodeError, OSError):
+                        continue
+            
+            summary = data.get("summary", {})
+            return DagContext(
+                total_goals=summary.get("totalGoals", 0),
+                completed_goals=summary.get("completedGoals", 0),
+                total_artifacts=summary.get("totalArtifacts", 0),
+                previous_goals=previous_goals,
+                previous_artifacts=previous_artifacts,
+                learnings=tuple(learnings[:20]),  # Limit to recent learnings
+            )
+        except (json.JSONDecodeError, OSError) as e:
+            # Log but don't fail - DAG context is optional
+            import logging
+            logging.debug("RFC-105: Could not load DAG index: %s", e)
+            return DagContext()
 
     async def _ensure_goal(self, goal: str, goal_id: str | None) -> Goal:
         """Create goal in backlog if not exists."""

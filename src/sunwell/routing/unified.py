@@ -563,7 +563,14 @@ class UnifiedRouter:
         if any(kw in lower for kw in ["refactor", "redesign", "migrate", "entire", "all"]):
             complexity = Complexity.COMPLEX
         elif len(request) < 50:
-            complexity = Complexity.TRIVIAL
+            # Don't mark as TRIVIAL if:
+            # 1. Intent is EXPLAIN (questions need full answers)
+            # 2. Contains question indicators (how to, what, create, build, write)
+            # 3. Looks like a documentation/educational task
+            is_question = any(kw in lower for kw in ["how to", "how do", "what ", "create ", "build ", "write ", "make "])
+            is_explanation_needed = intent == Intent.EXPLAIN or is_question
+            if not is_explanation_needed:
+                complexity = Complexity.TRIVIAL
 
         # Mood detection
         mood = UserMood.NEUTRAL

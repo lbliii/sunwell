@@ -66,63 +66,63 @@
 	.generic-block {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-3, 12px);
+		gap: var(--space-3);
 	}
 
 	.block-header {
 		display: flex;
 		align-items: center;
-		gap: var(--space-2, 8px);
+		gap: var(--space-2);
 	}
 
 	.block-type {
-		color: var(--text-primary, #fff);
+		color: var(--text-primary);
 		font-weight: 600;
-		font-size: var(--text-base, 16px);
+		font-size: var(--text-base);
 		text-transform: capitalize;
 	}
 
 	.block-badge {
 		padding: 2px 6px;
-		background: rgba(255, 215, 0, 0.1);
-		border: 1px solid rgba(255, 215, 0, 0.2);
-		border-radius: var(--radius-sm, 4px);
-		color: var(--gold, #ffd700);
-		font-size: var(--text-xs, 12px);
+		background: var(--radiant-gold-10);
+		border: 1px solid var(--radiant-gold-20);
+		border-radius: var(--radius-sm);
+		color: var(--gold);
+		font-size: var(--text-xs);
 	}
 
 	.data-grid {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-2, 8px);
+		gap: var(--space-2);
 	}
 
 	.data-row {
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-start;
-		gap: var(--space-3, 12px);
-		padding: var(--space-2, 8px);
-		background: var(--bg-primary, #0a0a0a);
-		border-radius: var(--radius-sm, 4px);
+		gap: var(--space-3);
+		padding: var(--space-2);
+		background: var(--bg-primary);
+		border-radius: var(--radius-sm);
 	}
 
 	.data-key {
-		color: var(--text-secondary, #999);
-		font-size: var(--text-sm, 14px);
+		color: var(--text-secondary);
+		font-size: var(--text-sm);
 		flex-shrink: 0;
 	}
 
 	.data-value {
-		color: var(--text-primary, #fff);
-		font-size: var(--text-sm, 14px);
+		color: var(--text-primary);
+		font-size: var(--text-sm);
 		text-align: right;
 		word-break: break-word;
 	}
 
 	.empty-state {
 		text-align: center;
-		padding: var(--space-4, 16px);
-		color: var(--text-tertiary, #666);
+		padding: var(--space-4);
+		color: var(--text-tertiary);
 	}
 </style>

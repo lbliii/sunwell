@@ -63,10 +63,12 @@
     return grouped;
   });
   
-  function handleSelect(name: string) {
-    selectedLens = name;
+  function handleSelect(lens: { name: string; path: string }) {
+    selectedLens = lens.name;
     autoSelect = false;
-    loadLensDetail(name);
+    // Extract slug from path (e.g., "tech-writer" from "/path/to/tech-writer.lens")
+    const slug = lens.path.split('/').pop()?.replace('.lens', '') ?? lens.name;
+    loadLensDetail(slug);
   }
   
   function handleAutoSelect() {
@@ -138,7 +140,7 @@
               <button
                 class="lens-option"
                 class:selected={selectedLens === l.name}
-                onclick={() => handleSelect(l.name)}
+                onclick={() => handleSelect(l)}
                 type="button"
               >
                 <div class="lens-icon">{getDomainIcon(l.domain)}</div>
@@ -239,7 +241,7 @@
   .search-input:focus {
     outline: none;
     border-color: var(--gold-dim);
-    box-shadow: 0 0 0 2px rgba(201, 162, 39, 0.15);
+    box-shadow: 0 0 0 2px var(--ui-gold-15);
   }
   
   .lens-list {
@@ -282,7 +284,7 @@
   }
   
   .lens-option:hover {
-    background: rgba(201, 162, 39, 0.06);
+    background: var(--accent-hover);
     border-color: var(--border-emphasis);
   }
   

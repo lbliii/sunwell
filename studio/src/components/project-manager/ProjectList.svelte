@@ -141,20 +141,20 @@
   .project-list {
     display: flex;
     flex-direction: column;
-    gap: var(--space-2, 8px);
+    gap: var(--space-2);
     outline: none;
   }
   
   .project-list:focus-visible {
-    outline: 2px solid var(--gold, #ffd700);
+    outline: 2px solid var(--gold);
     outline-offset: 4px;
-    border-radius: var(--radius-md, 8px);
+    border-radius: var(--radius-md);
   }
   
   .empty-state {
     text-align: center;
-    padding: var(--space-8, 32px) var(--space-4, 16px);
-    color: var(--text-tertiary, #666);
+    padding: var(--space-8) var(--space-4);
+    color: var(--text-tertiary);
   }
   
   .empty-state p {
@@ -162,7 +162,7 @@
   }
   
   .empty-state .hint {
-    margin-top: var(--space-2, 8px);
-    font-size: var(--text-xs, 12px);
+    margin-top: var(--space-2);
+    font-size: var(--text-xs);
   }
 </style>

@@ -104,12 +104,11 @@ class GoalFirstGroup(click.Group):
                 ctx.obj["_positional_target"] = positional_args[0]
                 if len(positional_args) > 1:
                     ctx.obj["_context_str"] = " ".join(positional_args[1:])
-                # Remove positional args from args list
+                # Remove positional args from args list (keep as list for Click parser)
+                args = list(args)
                 for pa in positional_args:
                     if pa in args:
-                        args = list(args)
                         args.remove(pa)
-                        args = tuple(args)
 
         # If first arg is NOT a command and NOT an option, treat it as a goal
         if (

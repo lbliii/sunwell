@@ -158,13 +158,13 @@
 	.suggestion-text {
 		font-size: 0.875rem;
 		font-weight: 500;
-		color: var(--text-primary, hsl(0 0% 95%));
+		color: var(--text-primary);
 		line-height: 1.4;
 	}
 
 	.suggestion-subtext {
 		font-size: 0.75rem;
-		color: var(--text-secondary, hsl(0 0% 60%));
+		color: var(--text-secondary);
 		line-height: 1.4;
 	}
 
@@ -201,13 +201,13 @@
 
 	.action-dismiss {
 		background: transparent;
-		color: var(--text-secondary, hsl(0 0% 60%));
+		color: var(--text-secondary);
 		border: 1px solid var(--border-subtle, hsl(220 15% 25%)) !important;
 	}
 
 	.action-dismiss:hover {
 		background: var(--surface-hover, hsl(220 20% 18%));
-		color: var(--text-primary, hsl(0 0% 90%));
+		color: var(--text-primary);
 	}
 
 	.confidence-bar {
@@ -232,7 +232,7 @@
 		align-self: flex-end;
 		padding: 0.25rem 0.5rem;
 		font-size: 0.7rem;
-		color: var(--text-tertiary, hsl(0 0% 45%));
+		color: var(--text-tertiary);
 		background: transparent;
 		border: none;
 		cursor: pointer;
@@ -242,7 +242,7 @@
 
 	.dismiss-all:hover {
 		opacity: 1;
-		color: var(--text-secondary, hsl(0 0% 60%));
+		color: var(--text-secondary);
 	}
 
 	/* Responsive */

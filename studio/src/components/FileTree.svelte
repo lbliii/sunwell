@@ -271,7 +271,7 @@
   }
   
   .file-node:focus-visible {
-    outline: 2px solid rgba(201, 162, 39, 0.4);
+    outline: 2px solid var(--border-emphasis);
     outline-offset: -2px;
   }
   

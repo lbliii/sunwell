@@ -734,3 +734,61 @@ lens:
     abort_on:
       - security_violation
       - script_crash
+
+  # ==========================================================================
+  # SCANNER — State DAG Configuration (RFC-100)
+  # ==========================================================================
+
+  scanner:
+    type: documentation
+    description: "Scan documentation projects to build State DAG"
+
+    # Auto-detect markers for this scanner
+    detect_markers:
+      - conf.py           # Sphinx
+      - mkdocs.yml        # MkDocs
+      - docusaurus.config.js  # Docusaurus
+      - book.toml         # mdBook
+      - _quarto.yml       # Quarto
+
+    # State DAG node configuration
+    state_dag:
+      # What files to include as nodes
+      node_source:
+        - "**/*.md"
+        - "**/*.rst"
+        - "**/*.mdx"
+
+      # How to extract edges between nodes
+      edge_extraction:
+        - toctree          # Sphinx/MyST toctree directives
+        - cross_references # {ref}, :ref:, :doc: references
+        - internal_links   # Markdown [text](path) links
+
+      # Health probes to run on each node
+      health_probes:
+        - name: orphan_check
+          description: "Check if file is included in any toctree"
+          severity: warning
+
+        - name: freshness
+          description: "Check how recently the file was updated"
+          thresholds:
+            healthy: 30      # days
+            warning: 90      # days
+            critical: 180    # days
+
+        - name: size_check
+          description: "Check if file length is appropriate"
+          thresholds:
+            min_lines: 50
+            max_lines: 1000
+            critical_lines: 2000
+
+        - name: broken_links
+          description: "Check for broken internal links"
+          severity: error
+
+        - name: readability
+          description: "Basic readability metrics"
+          enabled: false  # Optional probe

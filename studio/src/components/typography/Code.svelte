@@ -78,7 +78,7 @@
   
   .gold {
     color: var(--text-gold);
-    background: rgba(201, 162, 39, 0.1);
+    background: var(--ui-gold-10);
   }
   
   .success {
@@ -106,7 +106,7 @@
   
   .copy-btn:hover {
     color: var(--text-gold);
-    background: rgba(201, 162, 39, 0.1);
+    background: var(--ui-gold-10);
   }
   
   .copy-btn:focus-visible {

@@ -69,32 +69,32 @@
 </div>
 
 <style>
-	.contacts-view { display: flex; flex-direction: column; gap: var(--space-4, 16px); }
+	.contacts-view { display: flex; flex-direction: column; gap: var(--space-4); }
 	.contacts-header { display: flex; justify-content: space-between; align-items: center; }
-	.contacts-title { margin: 0; font-size: var(--text-lg, 18px); font-weight: 600; color: var(--text-primary, #fff); }
-	.contacts-count { color: var(--text-tertiary, #666); font-size: var(--text-sm, 14px); }
-	.contact-list { display: flex; flex-direction: column; gap: var(--space-2, 8px); }
+	.contacts-title { margin: 0; font-size: var(--text-lg); font-weight: 600; color: var(--text-primary); }
+	.contacts-count { color: var(--text-tertiary); font-size: var(--text-sm); }
+	.contact-list { display: flex; flex-direction: column; gap: var(--space-2); }
 	.contact-card {
-		display: flex; align-items: center; gap: var(--space-3, 12px);
-		padding: var(--space-3, 12px); background: var(--bg-primary, #0a0a0a);
-		border-radius: var(--radius-md, 8px); transition: all 0.2s ease;
+		display: flex; align-items: center; gap: var(--space-3);
+		padding: var(--space-3); background: var(--bg-primary);
+		border-radius: var(--radius-md); transition: all 0.2s ease;
 	}
-	.contact-card:hover { background: rgba(255, 215, 0, 0.05); }
+	.contact-card:hover { background: var(--radiant-gold-5); }
 	.avatar {
 		width: 40px; height: 40px; border-radius: 50%;
-		background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 215, 0, 0.1));
-		color: var(--gold, #ffd700); display: flex; align-items: center; justify-content: center;
-		font-weight: 600; font-size: var(--text-sm, 14px); flex-shrink: 0;
+		background: linear-gradient(135deg, var(--radiant-gold-20), var(--radiant-gold-10));
+		color: var(--gold); display: flex; align-items: center; justify-content: center;
+		font-weight: 600; font-size: var(--text-sm); flex-shrink: 0;
 	}
 	.contact-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-	.contact-name { color: var(--text-primary, #fff); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-	.contact-email { color: var(--text-tertiary, #666); font-size: var(--text-xs, 12px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-	.contact-actions { display: flex; gap: var(--space-1, 4px); }
+	.contact-name { color: var(--text-primary); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.contact-email { color: var(--text-tertiary); font-size: var(--text-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.contact-actions { display: flex; gap: var(--space-1); }
 	.action-icon {
-		background: none; border: none; cursor: pointer; padding: var(--space-1, 4px);
-		border-radius: var(--radius-sm, 4px); transition: all 0.15s ease; font-size: var(--text-base, 16px);
+		background: none; border: none; cursor: pointer; padding: var(--space-1);
+		border-radius: var(--radius-sm); transition: all 0.15s ease; font-size: var(--text-base);
 	}
-	.action-icon:hover { background: rgba(255, 215, 0, 0.1); }
-	.action-icon:focus-visible { outline: 2px solid var(--gold, #ffd700); outline-offset: 2px; }
-	.empty-state { text-align: center; padding: var(--space-6, 24px); color: var(--text-tertiary, #666); }
+	.action-icon:hover { background: var(--radiant-gold-10); }
+	.action-icon:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+	.empty-state { text-align: center; padding: var(--space-6); color: var(--text-tertiary); }
 </style>

@@ -13,7 +13,7 @@
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { fly, fade } from 'svelte/transition';
+  import { fly } from 'svelte/transition';
   import Button from './Button.svelte';
   import Modal from './Modal.svelte';
   import { 
@@ -42,8 +42,10 @@
     rollbackLens,
     saveLens,
     clearError,
+    exportLens,
+    recordLensUsage,
   } from '../stores/lensLibrary.svelte';
-  import type { LensLibraryEntry, HeuristicSummary } from '$lib/types';
+  import type { LensLibraryEntry } from '$lib/types';
   
   interface Props {
     onSelect?: (lensName: string) => void;
@@ -58,7 +60,7 @@
   
   // Keyboard navigation
   let focusIndex = $state(-1);
-  let searchInputRef: HTMLInputElement;
+  let searchInputRef = $state<HTMLInputElement | null>(null);
   
   // Hover preview
   let previewLens = $state<LensLibraryEntry | null>(null);
@@ -92,8 +94,8 @@
   let saveBump = $state<'major' | 'minor' | 'patch'>('patch');
   let editedContent = $state('');
   
-  // Motes refs
-  let moteRefs = $state<Map<string, { spawnMotes: (e: MouseEvent) => void }>>(new Map());
+  // Motes ref - single component for current hover
+  let activeMoteComponent: LensCardMotes | null = $state(null);
   
   onMount(() => {
     if (lensLibrary.entries.length === 0) {
@@ -104,7 +106,8 @@
   // Computed: Filtered entries
   const filteredEntries = $derived(getFilteredEntries());
   const availableDomains = $derived(getAvailableDomains());
-  const defaultLens = $derived(getDefaultLens());
+  // defaultLens available for future features
+  void getDefaultLens;
   
   // Computed: Featured lenses (default + top by heuristics)
   const featuredLenses = $derived.by(() => {
@@ -192,7 +195,7 @@
         break;
       case 'Enter':
         if (focusIndex >= 0 && entries[focusIndex]) {
-          selectLens(entries[focusIndex]);
+          handleSelectLens(entries[focusIndex]);
         }
         break;
       case 'Escape':
@@ -311,9 +314,23 @@
     focusIndex = -1;
   }
   
+  async function handleExportLens(lens: LensLibraryEntry) {
+    const result = await exportLens(lens.name);
+    if (result?.success) {
+      // Could show a toast notification here
+      console.log(`Exported lens to: ${result.path}`);
+    }
+  }
+  
+  async function handleSelectLens(entry: LensLibraryEntry) {
+    // Record usage for sparklines (RFC-100)
+    recordLensUsage(entry.name);
+    selectLens(entry);
+  }
+  
   function handleCardMouseEnter(e: MouseEvent, entry: LensLibraryEntry) {
     schedulePreview(entry);
-    moteRefs.get(entry.name)?.spawnMotes(e);
+    activeMoteComponent?.spawnMotes(e);
   }
 </script>
 
@@ -370,7 +387,7 @@
             {#each searchSuggestions as suggestion}
               <button 
                 class="suggestion"
-                onmousedown|preventDefault={() => setFilter({ search: suggestion })}
+                onmousedown={(e) => { e.preventDefault(); setFilter({ search: suggestion }); }}
               >
                 🔍 {suggestion}
               </button>
@@ -432,7 +449,7 @@
               <LensHeroCard 
                 {lens} 
                 index={i}
-                onclick={() => selectLens(lens)}
+                onclick={() => handleSelectLens(lens)}
               />
             {/each}
           </div>
@@ -471,7 +488,7 @@
               oncontextmenu={(e) => showContextMenuHandler(e, entry)}
               in:fly={{ y: 12, duration: 300, delay: Math.min(i * 50, 300) }}
             >
-              <LensCardMotes bind:this={moteRefs.get(entry.name)} />
+              <LensCardMotes bind:this={activeMoteComponent} />
               
               <div class="card-header">
                 <span class="lens-icon">{getDomainIcon(entry.domain)}</span>
@@ -512,13 +529,13 @@
               {/if}
               
               <div class="card-actions">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onclick={() => selectLens(entry)}
-                >
-                  View
-                </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onclick={() => handleSelectLens(entry)}
+              >
+                View
+              </Button>
                 
                 {#if showSelectButton && onSelect}
                   <Button 
@@ -559,7 +576,8 @@
               {#if previewLens?.name === entry.name}
                 <LensHoverPreview 
                   lens={entry}
-                  onView={() => selectLens(entry)}
+                  topHeuristics={entry.top_heuristics}
+                  onView={() => handleSelectLens(entry)}
                 />
               {/if}
             </div>
@@ -650,7 +668,7 @@
               {#each lensLibrary.entries.filter(e => e.name !== lensLibrary.detail?.name && e.domain === lensLibrary.detail?.domain).slice(0, 4) as similar}
                 <button 
                   class="mini-lens-card"
-                  onclick={() => selectLens(similar)}
+                  onclick={() => handleSelectLens(similar)}
                 >
                   <span class="mini-icon">{getDomainIcon(similar.domain)}</span>
                   <span class="mini-name">{similar.name}</span>
@@ -739,10 +757,11 @@
     lens={contextMenu.lens}
     x={contextMenu.x}
     y={contextMenu.y}
-    onView={() => selectLens(contextMenu.lens!)}
+    onView={() => handleSelectLens(contextMenu.lens!)}
     onFork={() => handleForkClick(contextMenu.lens!.name)}
     onEdit={contextMenu.lens.is_editable ? () => handleEditClick(contextMenu.lens!) : undefined}
     onSetDefault={!contextMenu.lens.is_default ? () => setDefaultLens(contextMenu.lens!.name) : undefined}
+    onExport={() => handleExportLens(contextMenu.lens!)}
     onClose={hideContextMenu}
   />
 {/if}
@@ -1117,7 +1136,7 @@
     border-color: var(--ui-gold);
     background: linear-gradient(
       135deg,
-      rgba(201, 162, 39, 0.06) 0%,
+      var(--accent-hover) 0%,
       var(--bg-secondary) 100%
     );
   }

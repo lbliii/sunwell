@@ -1,0 +1,222 @@
+# RFC-107: Docs Assistant Lens — DORI-Compatible Shortcuts
+#
+# This lens bundles validation skills with DORI-compatible shortcuts.
+# It's the default lens for the `sunwell do` command.
+#
+# Usage:
+#   sunwell do ::a-2 docs/api.md  # Deep audit
+#   sunwell do ::p docs/README.md  # Polish
+
+lens:
+  metadata:
+    name: "Docs Assistant"
+    domain: "documentation"
+    version: "1.0.0"
+    description: "DORI-compatible documentation assistant with shortcuts"
+    author: "Sunwell Team"
+    license: "MIT"
+    use_cases:
+      - "Documentation validation"
+      - "Documentation auditing"
+      - "Content polishing"
+      - "Health monitoring"
+    tags:
+      - "documentation"
+      - "dori"
+      - "shortcuts"
+      - "validation"
+
+  # ==========================================================================
+  # SKILLS — Include validation skills library
+  # ==========================================================================
+
+  skills:
+    - include: ../skills/docs-validation-skills.yaml
+
+  # ==========================================================================
+  # ROUTER — DORI-Compatible Shortcuts
+  # ==========================================================================
+
+  router:
+    # RFC-107: Command shortcuts for skill invocation
+    shortcuts:
+      # Audit & Validation
+      "::a": "audit-documentation"
+      "::a-2": "audit-documentation-deep"
+      "::score": "score-confidence"
+      "::drift": "detect-drift"
+      "::health": "check-health"
+      "::readability": "check-readability"
+      "::lint": "lint-structure"
+      "::vdr": "assess-vdr"
+      "::examples": "audit-code-examples"
+
+      # Transformation
+      "::p": "polish-documentation"
+      "::m": "modularize-content"
+      "::md": "fix-markdown-syntax"
+      "::rst": "fix-rst-syntax"
+      "::style": "apply-style-guide"
+
+      # Creation
+      "::fm": "generate-frontmatter"
+      "::overview": "create-overview-page"
+      "::architecture": "create-architecture-page"
+      "::features": "create-features-page"
+      "::ecosystem": "create-ecosystem-page"
+      "::map": "generate-navigation-map"
+
+      # Utilities
+      "::retro": "run-retrospective"
+      "::?": "show-help"
+      "::h": "show-help"
+
+    # Intent routing tiers
+    tiers:
+      - level: 0
+        name: "Fast Path"
+        triggers:
+          - "typo"
+          - "indent"
+          - "format"
+          - "spacing"
+          - "fix syntax"
+        retrieval: false
+        validation: false
+
+      - level: 1
+        name: "Standard"
+        triggers: []
+        retrieval: true
+        validation: true
+
+      - level: 2
+        name: "Deep Analysis"
+        triggers:
+          - "audit"
+          - "comprehensive"
+          - "review"
+          - "deep"
+          - "validate all"
+          - "triangulate"
+        retrieval: true
+        validation: true
+        personas:
+          - "skeptic"
+          - "expert"
+        require_confirmation: true
+
+    # Natural language intent categories
+    intent_categories:
+      VALIDATION:
+        - "audit"
+        - "check"
+        - "verify"
+        - "validate"
+        - "lint"
+        - "review"
+      CREATION:
+        - "draft"
+        - "create"
+        - "write"
+        - "generate"
+        - "new"
+      TRANSFORMATION:
+        - "polish"
+        - "improve"
+        - "modularize"
+        - "split"
+        - "refactor"
+      INFORMATION:
+        - "help"
+        - "what"
+        - "how"
+        - "explain"
+        - "show"
+
+  # ==========================================================================
+  # HEURISTICS — Documentation Quality Standards
+  # ==========================================================================
+
+  heuristics:
+    principles:
+      - name: "Signal over Noise"
+        rule: "Every sentence must earn its place"
+        test: "Would the user lose information if this was removed?"
+        always:
+          - "Front-load the most important information"
+          - "Use concrete examples with real code"
+          - "Provide file:line references for claims"
+        never:
+          - "Marketing language (powerful, flexible, easy)"
+          - "Vague qualifiers (many, various)"
+          - "Theoretical advice without evidence"
+        priority: 10
+
+      - name: "Evidence Standards"
+        rule: "Claims must be verifiable with file:line references"
+        always:
+          - "Include file path relative to workspace root"
+          - "Include line numbers (single: :45, range: :45-52)"
+          - "Use backticks for code formatting"
+        never:
+          - "Cite without line numbers"
+          - "Make claims without source"
+        priority: 9
+
+      - name: "Diataxis Purity"
+        rule: "Every page fits one Diataxis quadrant"
+        test: "Does this page have a single clear purpose?"
+        always:
+          - "Identify content type before writing"
+          - "Match structure to type"
+          - "Cross-link to related content types"
+        never:
+          - "Mix tutorial steps with API reference tables"
+          - "Explain concepts in how-to guides"
+        priority: 8
+
+  # ==========================================================================
+  # VALIDATORS — Quality Gates
+  # ==========================================================================
+
+  validators:
+    deterministic:
+      - name: "no_marketing_fluff"
+        script: "grep -E '\\b(powerful|flexible|easy|robust|seamless|cutting-edge)\\b'"
+        severity: "warning"
+        description: "Marketing language reduces signal and trust"
+
+    heuristic:
+      - name: "signal_to_noise"
+        check: "Every sentence adds value"
+        method: "checklist"
+        confidence_threshold: 0.7
+        severity: "warning"
+
+      - name: "evidence_required"
+        check: "Technical claims have file:line references"
+        method: "pattern_match"
+        confidence_threshold: 0.8
+        severity: "warning"
+
+  # ==========================================================================
+  # QUALITY POLICY
+  # ==========================================================================
+
+  quality_policy:
+    min_confidence: 0.7
+    required_validators:
+      - no_marketing_fluff
+    persona_agreement: 0.5
+    retry_limit: 2
+
+  skill_retry:
+    max_attempts: 3
+    backoff_ms: [100, 500, 2000]
+    retry_on:
+      - timeout
+      - validation_failure
+    abort_on:
+      - security_violation
+      - script_crash

@@ -12,6 +12,7 @@ Provides:
 
 import asyncio
 import json
+from datetime import datetime
 from pathlib import Path
 
 import click
@@ -446,3 +447,76 @@ def logs(ctx, worker_id: int) -> None:
         console.print(json.dumps(data, indent=2, default=str))
     except (json.JSONDecodeError, ValueError) as e:
         console.print(f"[red]Error reading status: {e}[/red]")
+
+
+@workers.command()
+@click.option("--project", "-p", type=click.Path(exists=True), default=".", help="Project path")
+@click.pass_context
+def ui_state(ctx, project: str) -> None:
+    """Get coordinator state for UI consumption (RFC-100).
+
+    Returns JSON suitable for the ATC view in Studio.
+
+    Example:
+        sunwell workers ui-state --json
+        sunwell workers ui-state --project ~/my-project
+    """
+    asyncio.run(_get_ui_state(Path(project)))
+
+
+async def _get_ui_state(project: Path) -> None:
+    """Get UI state for coordinator."""
+    from sunwell.parallel import Coordinator, MultiInstanceConfig
+
+    root = project.resolve()
+    config = MultiInstanceConfig()
+    coordinator = Coordinator(root=root, config=config)
+
+    try:
+        ui_state = await coordinator.get_ui_state()
+        console.print(json.dumps(ui_state.to_dict(), indent=2))
+    except Exception:
+        # Return empty state on error
+        from sunwell.parallel.types import CoordinatorUIState
+        empty_state = CoordinatorUIState()
+        console.print(json.dumps(empty_state.to_dict(), indent=2))
+
+
+@workers.command()
+@click.argument("worker_id", type=int)
+@click.pass_context
+def pause(ctx, worker_id: int) -> None:
+    """Pause a specific worker (RFC-100).
+
+    The worker will finish its current goal and then wait.
+
+    Example:
+        sunwell workers pause 1
+    """
+    root = Path.cwd()
+    pause_file = root / ".sunwell" / "workers" / f"pause-{worker_id}.flag"
+
+    pause_file.parent.mkdir(parents=True, exist_ok=True)
+    pause_file.write_text(f"paused at {datetime.now().isoformat()}")
+
+    console.print(f"⏸️  Worker {worker_id} will pause after current goal")
+
+
+@workers.command()
+@click.argument("worker_id", type=int)
+@click.pass_context
+def resume(ctx, worker_id: int) -> None:
+    """Resume a paused worker (RFC-100).
+
+    Example:
+        sunwell workers resume 1
+    """
+
+    root = Path.cwd()
+    pause_file = root / ".sunwell" / "workers" / f"pause-{worker_id}.flag"
+
+    if pause_file.exists():
+        pause_file.unlink()
+        console.print(f"▶️  Worker {worker_id} resumed")
+    else:
+        console.print(f"Worker {worker_id} is not paused")

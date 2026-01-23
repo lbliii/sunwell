@@ -135,7 +135,7 @@
   .primary {
     background: var(--gradient-ui-gold);
     color: var(--bg-primary);
-    border: 1px solid rgba(201, 162, 39, 0.3);
+    border: 1px solid var(--border-emphasis);
   }
   
   .primary:hover:not(:disabled) {
@@ -156,7 +156,7 @@
   }
   
   .primary:focus-visible {
-    outline: 2px solid rgba(201, 162, 39, 0.5);
+    outline: 2px solid var(--ui-gold-soft);
     outline-offset: 2px;
     box-shadow: var(--glow-gold-subtle);
   }
@@ -171,12 +171,12 @@
   }
   
   .secondary:hover:not(:disabled) {
-    background: rgba(201, 162, 39, 0.08);
+    background: var(--accent-hover);
     border-color: var(--border-emphasis);
   }
   
   .secondary:focus-visible {
-    outline: 2px solid rgba(201, 162, 39, 0.4);
+    outline: 2px solid var(--border-emphasis);
     outline-offset: 2px;
   }
   
@@ -190,12 +190,12 @@
   }
   
   .ghost:hover:not(:disabled) {
-    background: rgba(201, 162, 39, 0.06);
+    background: var(--accent-hover);
     color: var(--text-gold);
   }
   
   .ghost:focus-visible {
-    outline: 2px solid rgba(201, 162, 39, 0.3);
+    outline: 2px solid var(--border-emphasis);
     outline-offset: 2px;
   }
   

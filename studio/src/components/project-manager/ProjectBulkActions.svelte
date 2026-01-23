@@ -46,11 +46,11 @@
   .bulk-actions {
     display: flex;
     align-items: center;
-    gap: var(--space-3, 12px);
-    padding: var(--space-2, 8px) var(--space-3, 12px);
-    background: rgba(255, 215, 0, 0.1);
-    border: 1px solid rgba(255, 215, 0, 0.2);
-    border-radius: var(--radius-md, 8px);
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    background: var(--radiant-gold-10);
+    border: 1px solid var(--radiant-gold-20);
+    border-radius: var(--radius-md);
     animation: slideIn 0.15s ease;
   }
   
@@ -66,50 +66,50 @@
   }
   
   .selection-count {
-    font-size: var(--text-xs, 12px);
-    color: var(--text-gold, #ffd700);
+    font-size: var(--text-xs);
+    color: var(--text-gold);
     font-weight: 500;
   }
   
   .actions {
     display: flex;
     align-items: center;
-    gap: var(--space-1, 4px);
+    gap: var(--space-1);
   }
   
   .action-btn {
-    padding: var(--space-1, 4px) var(--space-2, 8px);
-    background: var(--bg-secondary, #1e1e1e);
-    border: 1px solid var(--border-subtle, #333);
-    border-radius: var(--radius-sm, 4px);
-    color: var(--text-secondary, #999);
-    font-size: var(--text-xs, 12px);
+    padding: var(--space-1) var(--space-2);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
     cursor: pointer;
     transition: all 0.15s ease;
   }
   
   .action-btn:hover {
-    background: var(--bg-tertiary, #2a2a2a);
-    color: var(--text-primary, #fff);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
   }
   
   .action-btn:focus {
-    outline: 2px solid var(--gold, #ffd700);
+    outline: 2px solid var(--gold);
     outline-offset: 2px;
   }
   
   .action-btn.archive:hover {
-    border-color: var(--warning, #f59e0b);
-    color: var(--warning, #f59e0b);
+    border-color: var(--warning);
+    color: var(--warning);
   }
   
   .action-btn.delete:hover {
-    border-color: var(--error, #ef4444);
-    color: var(--error, #ef4444);
+    border-color: var(--error);
+    color: var(--error);
   }
   
   .action-btn.clear {
-    padding: var(--space-1, 4px);
+    padding: var(--space-1);
     min-width: 24px;
   }
 </style>

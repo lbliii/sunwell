@@ -227,51 +227,51 @@
 		display: flex;
 		flex-direction: column;
 		min-height: 100vh;
-		background: var(--bg-base, #0a0a0a);
-		color: var(--text-primary, #fff);
+		background: var(--bg-primary);
+		color: var(--text-primary);
 	}
 
 	.demo-header {
-		padding: var(--space-4, 16px);
-		border-bottom: 1px solid rgba(255, 215, 0, 0.1);
+		padding: var(--space-4);
+		border-bottom: 1px solid var(--radiant-gold-10);
 	}
 
 	.demo-header h1 {
-		margin: 0 0 var(--space-3, 12px);
-		font-size: var(--text-xl, 20px);
+		margin: 0 0 var(--space-3);
+		font-size: var(--text-xl);
 		font-weight: 500;
 	}
 
 	.demo-nav {
 		display: flex;
-		gap: var(--space-2, 8px);
+		gap: var(--space-2);
 	}
 
 	.demo-nav button {
-		padding: var(--space-2, 8px) var(--space-4, 16px);
+		padding: var(--space-2) var(--space-4);
 		background: rgba(255, 255, 255, 0.03);
-		border: 1px solid var(--border-subtle, #333);
-		border-radius: var(--radius-md, 8px);
-		color: var(--text-secondary, #999);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-md);
+		color: var(--text-secondary);
 		cursor: pointer;
 		transition: all 0.15s ease;
 	}
 
 	.demo-nav button:hover {
-		background: rgba(255, 215, 0, 0.05);
-		border-color: rgba(255, 215, 0, 0.3);
-		color: var(--text-primary, #fff);
+		background: var(--radiant-gold-5);
+		border-color: var(--radiant-gold-30);
+		color: var(--text-primary);
 	}
 
 	.demo-nav button.active {
-		background: rgba(255, 215, 0, 0.1);
-		border-color: rgba(255, 215, 0, 0.4);
-		color: var(--text-gold, #ffd700);
+		background: var(--radiant-gold-10);
+		border-color: var(--radiant-gold-40);
+		color: var(--text-gold);
 	}
 
 	.demo-main {
 		flex: 1;
-		padding: var(--space-6, 24px);
+		padding: var(--space-6);
 	}
 
 	.demo-section {
@@ -280,69 +280,69 @@
 	}
 
 	.demo-section h2 {
-		margin: 0 0 var(--space-2, 8px);
-		font-size: var(--text-lg, 18px);
+		margin: 0 0 var(--space-2);
+		font-size: var(--text-lg);
 		font-weight: 500;
 	}
 
 	.demo-description {
-		color: var(--text-secondary, #999);
-		margin: 0 0 var(--space-4, 16px);
+		color: var(--text-secondary);
+		margin: 0 0 var(--space-4);
 	}
 
 	.demo-controls {
 		display: flex;
-		gap: var(--space-3, 12px);
+		gap: var(--space-3);
 		align-items: center;
-		margin-top: var(--space-4, 16px);
+		margin-top: var(--space-4);
 	}
 
 	.demo-controls button {
-		padding: var(--space-2, 8px) var(--space-4, 16px);
-		background: rgba(255, 215, 0, 0.1);
-		border: 1px solid rgba(255, 215, 0, 0.3);
-		border-radius: var(--radius-md, 8px);
-		color: var(--text-gold, #ffd700);
+		padding: var(--space-2) var(--space-4);
+		background: var(--radiant-gold-10);
+		border: 1px solid var(--radiant-gold-30);
+		border-radius: var(--radius-md);
+		color: var(--text-gold);
 		cursor: pointer;
 		transition: all 0.15s ease;
 	}
 
 	.demo-controls button:hover {
-		background: rgba(255, 215, 0, 0.2);
+		background: var(--radiant-gold-20);
 	}
 
 	.mode-badge, .count-badge {
-		padding: var(--space-1, 4px) var(--space-3, 12px);
+		padding: var(--space-1) var(--space-3);
 		background: rgba(255, 255, 255, 0.05);
-		border-radius: var(--radius-full, 9999px);
-		font-size: var(--text-sm, 14px);
-		color: var(--text-tertiary, #666);
+		border-radius: var(--radius-full);
+		font-size: var(--text-sm);
+		color: var(--text-tertiary);
 	}
 
 	/* Input demo */
 	.input-demo {
 		display: flex;
 		justify-content: center;
-		padding: var(--space-6, 24px);
+		padding: var(--space-6);
 		background: rgba(255, 255, 255, 0.02);
-		border-radius: var(--radius-lg, 12px);
+		border-radius: var(--radius-lg);
 		min-height: 150px;
 		align-items: center;
 	}
 
 	/* Spatial demo */
 	.spatial-demo {
-		padding: var(--space-4, 16px);
+		padding: var(--space-4);
 		background: rgba(255, 255, 255, 0.02);
-		border-radius: var(--radius-lg, 12px);
+		border-radius: var(--radius-lg);
 		min-height: 300px;
 	}
 
 	.demo-panel {
 		width: 300px;
 		background: rgba(10, 10, 10, 0.9);
-		border: 1px solid rgba(255, 215, 0, 0.2);
-		border-radius: var(--radius-md, 8px);
+		border: 1px solid var(--radiant-gold-20);
+		border-radius: var(--radius-md);
 		overflow: hidden;
 	}
 
@@ -350,37 +350,37 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		padding: var(--space-2, 8px) var(--space-3, 12px);
+		padding: var(--space-2) var(--space-3);
 		background: rgba(255, 255, 255, 0.03);
-		border-bottom: 1px solid rgba(255, 215, 0, 0.1);
+		border-bottom: 1px solid var(--radiant-gold-10);
 	}
 
 	.demo-panel .panel-header button {
 		background: none;
 		border: none;
-		color: var(--text-tertiary, #666);
+		color: var(--text-tertiary);
 		cursor: pointer;
-		padding: var(--space-1, 4px);
+		padding: var(--space-1);
 	}
 
 	.demo-panel .panel-header button:hover {
-		color: var(--text-gold, #ffd700);
+		color: var(--text-gold);
 	}
 
 	.demo-panel .panel-content {
-		padding: var(--space-4, 16px);
-		color: var(--text-secondary, #999);
+		padding: var(--space-4);
+		color: var(--text-secondary);
 	}
 
 	.demo-panel .panel-content p {
-		margin: 0 0 var(--space-2, 8px);
+		margin: 0 0 var(--space-2);
 	}
 
 	/* Skeleton demo */
 	.skeleton-demo {
-		padding: var(--space-4, 16px);
+		padding: var(--space-4);
 		background: rgba(255, 255, 255, 0.02);
-		border-radius: var(--radius-lg, 12px);
+		border-radius: var(--radius-lg);
 	}
 
 	/* Canvas demo */
@@ -390,25 +390,25 @@
 
 	.canvas-demo {
 		height: 500px;
-		border-radius: var(--radius-lg, 12px);
+		border-radius: var(--radius-lg);
 		overflow: hidden;
-		border: 1px solid var(--border-subtle, #333);
+		border: 1px solid var(--border-subtle);
 	}
 
 	.canvas-area-content {
 		background: rgba(255, 255, 255, 0.02);
-		border: 1px dashed rgba(255, 215, 0, 0.2);
-		border-radius: var(--radius-md, 8px);
-		padding: var(--space-4, 16px);
+		border: 1px dashed var(--radiant-gold-20);
+		border-radius: var(--radius-md);
+		padding: var(--space-4);
 	}
 
 	.canvas-area-content h3 {
-		margin: 0 0 var(--space-2, 8px);
-		color: var(--text-gold, #ffd700);
+		margin: 0 0 var(--space-2);
+		color: var(--text-gold);
 	}
 
 	.canvas-area-content p {
 		margin: 0;
-		color: var(--text-secondary, #999);
+		color: var(--text-secondary);
 	}
 </style>

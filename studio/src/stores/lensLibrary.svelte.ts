@@ -182,8 +182,10 @@ export async function selectLens(entry: LensLibraryEntry): Promise<void> {
   };
   
   try {
+    // Extract slug from path (e.g., "tech-writer" from "/path/to/tech-writer.lens")
+    const slug = entry.path.split('/').pop()?.replace('.lens', '') ?? entry.name;
     const detail = await invoke<LensDetail>('get_lens_detail', { 
-      name: entry.name 
+      name: slug 
     });
     _state = { ..._state, detail, isLoadingDetail: false };
   } catch (e) {
@@ -437,4 +439,52 @@ export function clearError(): void {
  */
 export function resetLibrary(): void {
   _state = createInitialState();
+}
+
+// =============================================================================
+// RFC-100: Export and Usage Tracking
+// =============================================================================
+
+interface ExportResult {
+  success: boolean;
+  path: string;
+  message: string;
+}
+
+/**
+ * Export a lens to a file.
+ */
+export async function exportLens(
+  name: string,
+  outputPath?: string,
+  format: 'yaml' | 'json' = 'yaml',
+): Promise<ExportResult | null> {
+  try {
+    const result = await invoke<ExportResult>('export_lens', {
+      name,
+      outputPath: outputPath ?? null,
+      format,
+    });
+    return result;
+  } catch (e) {
+    _state = {
+      ..._state,
+      error: e instanceof Error ? e.message : String(e),
+    };
+    console.error('Failed to export lens:', e);
+    return null;
+  }
+}
+
+/**
+ * Record lens activation for usage tracking.
+ * Called when a lens is selected or activated.
+ */
+export async function recordLensUsage(name: string): Promise<void> {
+  try {
+    await invoke('record_lens_usage', { name });
+  } catch (e) {
+    // Non-critical - don't fail if usage tracking fails
+    console.warn('Failed to record lens usage:', e);
+  }
 }

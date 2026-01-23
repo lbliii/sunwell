@@ -41,6 +41,17 @@ pub struct LensLibraryEntry {
     pub skills_count: usize,
     pub use_cases: Vec<String>,
     pub tags: Vec<String>,
+    
+    // RFC-100: Discovery features
+    /// Top 3 heuristics for hover preview (pre-computed)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_heuristics: Option<Vec<HeuristicSummary>>,
+    /// Last time this lens was activated (ISO 8601)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_used: Option<String>,
+    /// Usage counts for last 7 days (for sparkline)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub usage_history: Option<Vec<u32>>,
 }
 
 /// Version info for a lens.
@@ -501,4 +512,82 @@ pub async fn get_lens_content(name: String) -> Result<String, String> {
     Err(sunwell_err!(LensNotFound, "Lens not found: {}", name)
         .with_hints(vec!["Run 'sunwell lens list' to see available lenses"])
         .to_json())
+}
+
+/// Export a lens to a file (RFC-100).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExportResult {
+    pub success: bool,
+    pub path: String,
+    pub message: String,
+}
+
+#[tauri::command]
+pub async fn export_lens(
+    name: String,
+    output_path: Option<String>,
+    format: Option<String>,
+) -> Result<ExportResult, String> {
+    let fmt = format.unwrap_or_else(|| "yaml".to_string());
+    
+    let mut args = vec!["lens", "export", &name];
+    
+    let output_owned: String;
+    if let Some(ref path) = output_path {
+        output_owned = format!("-o={}", path);
+        args.push(&output_owned);
+    }
+    
+    let fmt_owned = format!("--format={}", fmt);
+    args.push(&fmt_owned);
+    
+    let output = sunwell_command()
+        .args(&args)
+        .output()
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
+    
+    let success = output.status.success();
+    let message = if success {
+        String::from_utf8_lossy(&output.stdout).to_string()
+    } else {
+        String::from_utf8_lossy(&output.stderr).to_string()
+    };
+    
+    // Determine the actual output path
+    let actual_path = if let Some(p) = output_path {
+        p
+    } else {
+        format!("{}.lens", name.to_lowercase().replace(' ', "-"))
+    };
+    
+    Ok(ExportResult {
+        success,
+        path: actual_path,
+        message,
+    })
+}
+
+/// Record lens activation for usage tracking (RFC-100).
+#[tauri::command]
+pub async fn record_lens_usage(name: String) -> Result<(), String> {
+    let output = sunwell_command()
+        .args(["lens", "record-usage", &name])
+        .output()
+        .map_err(|e| {
+            SunwellError::from_error(ErrorCode::RuntimeProcessFailed, e)
+                .with_hints(vec!["Check if sunwell CLI is installed"])
+                .to_json()
+        })?;
+    
+    // Non-critical - don't fail if usage tracking fails
+    if !output.status.success() {
+        eprintln!("Warning: Failed to record lens usage: {}", 
+            String::from_utf8_lossy(&output.stderr));
+    }
+    
+    Ok(())
 }

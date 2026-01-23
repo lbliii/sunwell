@@ -158,14 +158,14 @@
     align-items: center;
     justify-content: center;
     min-height: 200px;
-    color: var(--color-text-muted, #888);
+    color: var(--text-secondary);
   }
 
   .loading-spinner {
     width: 24px;
     height: 24px;
-    border: 2px solid var(--color-border, #333);
-    border-top-color: var(--color-accent, #00aaff);
+    border: 2px solid var(--border-subtle);
+    border-top-color: var(--accent);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
@@ -179,14 +179,14 @@
     align-items: center;
     justify-content: space-between;
     padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--color-border, #333);
+    border-bottom: 1px solid var(--border-subtle);
   }
 
   .briefing-header h2 {
     margin: 0;
     font-size: 1rem;
     font-weight: 600;
-    color: var(--color-text, #fff);
+    color: var(--text-primary);
   }
 
   .status-badge {
@@ -211,14 +211,14 @@
     margin: 0 0 0.25rem;
     font-size: 0.75rem;
     font-weight: 500;
-    color: var(--color-text-muted, #888);
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
 
   section p {
     margin: 0;
-    color: var(--color-text, #fff);
+    color: var(--text-primary);
     line-height: 1.4;
   }
 
@@ -231,7 +231,7 @@
     flex-direction: column;
     gap: 0.5rem;
     padding: 0.75rem;
-    background: var(--color-bg-tertiary, #222);
+    background: var(--bg-tertiary);
     border-radius: 6px;
   }
 
@@ -243,39 +243,39 @@
   .action .label {
     font-size: 0.75rem;
     font-weight: 500;
-    color: var(--color-text-muted, #888);
+    color: var(--text-secondary);
     min-width: 3rem;
   }
 
   .action .value {
-    color: var(--color-text, #fff);
+    color: var(--text-primary);
   }
 
   .action.next .value {
-    color: var(--color-accent, #00aaff);
+    color: var(--accent);
     font-weight: 500;
   }
 
   .hazards {
     padding: 0.75rem;
-    background: color-mix(in srgb, var(--color-warning, #ffaa00) 10%, transparent);
-    border: 1px solid color-mix(in srgb, var(--color-warning, #ffaa00) 30%, transparent);
+    background: color-mix(in srgb, var(--warning) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
     border-radius: 6px;
     transition: background 0.2s ease;
   }
 
   .hazards.pulse {
-    background: color-mix(in srgb, var(--color-warning, #ffaa00) 20%, transparent);
+    background: color-mix(in srgb, var(--warning) 20%, transparent);
   }
 
   .hazards h3 {
-    color: var(--color-warning, #ffaa00);
+    color: var(--warning);
   }
 
   .hazards ul {
     margin: 0;
     padding-left: 1rem;
-    color: var(--color-text, #fff);
+    color: var(--text-primary);
   }
 
   .hazards li {
@@ -284,19 +284,19 @@
 
   .blockers {
     padding: 0.75rem;
-    background: color-mix(in srgb, var(--color-error, #ff4444) 10%, transparent);
-    border: 1px solid color-mix(in srgb, var(--color-error, #ff4444) 30%, transparent);
+    background: color-mix(in srgb, var(--error) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--error) 30%, transparent);
     border-radius: 6px;
   }
 
   .blockers h3 {
-    color: var(--color-error, #ff4444);
+    color: var(--error);
   }
 
   .blockers ul {
     margin: 0;
     padding-left: 1rem;
-    color: var(--color-text, #fff);
+    color: var(--text-primary);
   }
 
   .blockers li {
@@ -311,22 +311,22 @@
 
   .file {
     padding: 0.125rem 0.375rem;
-    background: var(--color-bg-tertiary, #222);
+    background: var(--bg-tertiary);
     border-radius: 3px;
-    font-family: var(--font-mono, monospace);
+    font-family: var(--font-mono);
     font-size: 0.75rem;
-    color: var(--color-text-secondary, #aaa);
+    color: var(--text-secondary);
   }
 
   .dispatch-hints {
     padding: 0.75rem;
-    background: color-mix(in srgb, var(--color-accent, #00aaff) 5%, transparent);
-    border: 1px solid color-mix(in srgb, var(--color-accent, #00aaff) 20%, transparent);
+    background: color-mix(in srgb, var(--accent) 5%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
     border-radius: 6px;
   }
 
   .dispatch-hints h3 {
-    color: var(--color-accent, #00aaff);
+    color: var(--accent);
   }
 
   .hint {
@@ -337,30 +337,30 @@
 
   .hint-label {
     font-weight: 500;
-    color: var(--color-text-muted, #888);
+    color: var(--text-secondary);
   }
 
   .hint-value {
-    color: var(--color-text, #fff);
+    color: var(--text-primary);
   }
 
   .briefing-footer {
     padding-top: 0.5rem;
-    border-top: 1px solid var(--color-border, #333);
+    border-top: 1px solid var(--border-subtle);
   }
 
   .updated {
     font-size: 0.75rem;
-    color: var(--color-text-muted, #888);
+    color: var(--text-secondary);
   }
 
   .no-briefing {
     font-weight: 500;
-    color: var(--color-text-secondary, #aaa);
+    color: var(--text-secondary);
   }
 
   .empty .hint {
     font-size: 0.75rem;
-    color: var(--color-text-muted, #888);
+    color: var(--text-secondary);
   }
 </style>

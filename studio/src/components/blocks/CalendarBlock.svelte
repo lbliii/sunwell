@@ -108,7 +108,7 @@
 	.calendar-view {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-4, 16px);
+		gap: var(--space-4);
 	}
 
 	.calendar-header {
@@ -119,58 +119,58 @@
 
 	.calendar-title {
 		margin: 0;
-		font-size: var(--text-lg, 18px);
+		font-size: var(--text-lg);
 		font-weight: 600;
-		color: var(--text-primary, #fff);
+		color: var(--text-primary);
 	}
 
 	.add-event-btn {
 		display: flex;
 		align-items: center;
-		gap: var(--space-1, 4px);
-		padding: var(--space-1, 4px) var(--space-2, 8px);
-		background: rgba(255, 215, 0, 0.1);
-		border: 1px solid rgba(255, 215, 0, 0.2);
-		border-radius: var(--radius-sm, 4px);
-		color: var(--gold, #ffd700);
-		font-size: var(--text-sm, 14px);
+		gap: var(--space-1);
+		padding: var(--space-1) var(--space-2);
+		background: var(--radiant-gold-10);
+		border: 1px solid var(--radiant-gold-20);
+		border-radius: var(--radius-sm);
+		color: var(--gold);
+		font-size: var(--text-sm);
 		cursor: pointer;
 		transition: all 0.15s ease;
 	}
 
 	.add-event-btn:hover {
-		background: rgba(255, 215, 0, 0.2);
+		background: var(--radiant-gold-20);
 	}
 
 	.add-event-btn:focus-visible {
-		outline: 2px solid var(--gold, #ffd700);
+		outline: 2px solid var(--gold);
 		outline-offset: 2px;
 	}
 
 	.event-list {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-2, 8px);
+		gap: var(--space-2);
 	}
 
 	.event-item {
 		display: grid;
 		grid-template-columns: auto 1fr auto;
-		gap: var(--space-3, 12px);
+		gap: var(--space-3);
 		align-items: center;
-		padding: var(--space-3, 12px);
-		background: var(--bg-primary, #0a0a0a);
-		border-radius: var(--radius-md, 8px);
+		padding: var(--space-3);
+		background: var(--bg-primary);
+		border-radius: var(--radius-md);
 		border-left: 3px solid transparent;
 		transition: all 0.2s ease;
 	}
 
 	.event-item:hover {
-		background: rgba(255, 215, 0, 0.05);
+		background: var(--radiant-gold-5);
 	}
 
 	.event-item.today {
-		border-left-color: var(--gold, #ffd700);
+		border-left-color: var(--gold);
 	}
 
 	.event-time-block {
@@ -181,29 +181,29 @@
 	}
 
 	.event-time {
-		color: var(--gold, #ffd700);
-		font-size: var(--text-sm, 14px);
+		color: var(--gold);
+		font-size: var(--text-sm);
 		font-weight: 600;
 	}
 
 	.event-time.all-day {
-		font-size: var(--text-xs, 12px);
+		font-size: var(--text-xs);
 	}
 
 	.event-date {
-		color: var(--text-tertiary, #666);
-		font-size: var(--text-xs, 12px);
+		color: var(--text-tertiary);
+		font-size: var(--text-xs);
 	}
 
 	.event-details {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-1, 4px);
+		gap: var(--space-1);
 		min-width: 0;
 	}
 
 	.event-title {
-		color: var(--text-primary, #fff);
+		color: var(--text-primary);
 		font-weight: 500;
 		white-space: nowrap;
 		overflow: hidden;
@@ -211,8 +211,8 @@
 	}
 
 	.event-location {
-		color: var(--text-tertiary, #666);
-		font-size: var(--text-xs, 12px);
+		color: var(--text-tertiary);
+		font-size: var(--text-xs);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -222,19 +222,19 @@
 		width: 8px;
 		height: 8px;
 		border-radius: 50%;
-		background: var(--text-tertiary, #666);
+		background: var(--text-tertiary);
 		opacity: 0.5;
 	}
 
 	.event-indicator.today {
-		background: var(--gold, #ffd700);
+		background: var(--gold);
 		opacity: 1;
-		box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+		box-shadow: 0 0 8px rgba(var(--radiant-gold-rgb), 0.5);
 	}
 
 	.empty-state {
 		text-align: center;
-		padding: var(--space-6, 24px);
-		color: var(--text-tertiary, #666);
+		padding: var(--space-6);
+		color: var(--text-tertiary);
 	}
 </style>

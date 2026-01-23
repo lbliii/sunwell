@@ -70,30 +70,30 @@
 <style>
   .error-display {
     background: var(--surface-error, hsl(0 20% 12%));
-    border: 1px solid var(--error, #e53935);
-    border-radius: var(--radius-md, 8px);
-    padding: var(--space-4, 16px);
+    border: 1px solid var(--error);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
     max-width: 480px;
     font-family: var(--font-sans, system-ui);
   }
   
   .error-display.compact {
-    padding: var(--space-2, 8px) var(--space-3, 12px);
+    padding: var(--space-2) var(--space-3);
     display: flex;
     align-items: center;
-    gap: var(--space-2, 8px);
+    gap: var(--space-2);
     flex-wrap: wrap;
   }
   
   .error-display.recoverable {
-    border-color: var(--warning, #ff9800);
+    border-color: var(--warning);
   }
   
   .error-header {
     display: flex;
     align-items: center;
-    gap: var(--space-2, 8px);
-    margin-bottom: var(--space-2, 8px);
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
   }
   
   .compact .error-header {
@@ -112,93 +112,93 @@
   
   .error-id {
     font-family: var(--font-mono, ui-monospace, monospace);
-    font-size: var(--text-sm, 0.875rem);
-    color: var(--error, #e53935);
+    font-size: var(--text-sm);
+    color: var(--error);
     font-weight: 600;
   }
   
   .recoverable .error-id {
-    color: var(--warning, #ff9800);
+    color: var(--warning);
   }
   
   .dismiss {
     margin-left: auto;
     background: none;
     border: none;
-    color: var(--text-secondary, hsl(0 0% 60%));
+    color: var(--text-secondary);
     cursor: pointer;
-    padding: var(--space-1, 4px);
-    border-radius: var(--radius-sm, 4px);
-    font-size: var(--text-sm, 0.875rem);
+    padding: var(--space-1);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm);
     line-height: 1;
     transition: background 0.15s, color 0.15s;
   }
   
   .dismiss:hover {
     background: var(--surface-2, hsl(0 0% 20%));
-    color: var(--text-primary, hsl(0 0% 90%));
+    color: var(--text-primary);
   }
   
   .error-message {
-    color: var(--text-primary, hsl(0 0% 90%));
-    margin: 0 0 var(--space-3, 12px);
+    color: var(--text-primary);
+    margin: 0 0 var(--space-3);
     line-height: 1.5;
-    font-size: var(--text-base, 1rem);
+    font-size: var(--text-base);
   }
   
   .error-message-inline {
-    color: var(--text-primary, hsl(0 0% 90%));
+    color: var(--text-primary);
     margin: 0;
     line-height: 1.4;
-    font-size: var(--text-sm, 0.875rem);
+    font-size: var(--text-sm);
     flex: 1;
   }
   
   .recovery-hints {
     background: var(--surface-1, hsl(0 0% 15%));
-    border-radius: var(--radius-sm, 4px);
-    padding: var(--space-3, 12px);
-    font-size: var(--text-sm, 0.875rem);
-    margin-bottom: var(--space-3, 12px);
+    border-radius: var(--radius-sm);
+    padding: var(--space-3);
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-3);
   }
   
   .recovery-hints strong {
-    color: var(--text-primary, hsl(0 0% 90%));
+    color: var(--text-primary);
     display: block;
-    margin-bottom: var(--space-2, 8px);
+    margin-bottom: var(--space-2);
   }
   
   .recovery-hints ol {
     margin: 0;
-    padding-left: var(--space-4, 16px);
+    padding-left: var(--space-4);
   }
   
   .recovery-hints li {
-    margin: var(--space-1, 4px) 0;
-    color: var(--text-secondary, hsl(0 0% 60%));
+    margin: var(--space-1) 0;
+    color: var(--text-secondary);
     line-height: 1.4;
   }
   
   .error-actions {
     display: flex;
-    gap: var(--space-2, 8px);
+    gap: var(--space-2);
     justify-content: flex-end;
   }
   
   .retry {
-    background: var(--error, #e53935);
+    background: var(--error);
     color: white;
     border: none;
-    padding: var(--space-2, 8px) var(--space-4, 16px);
-    border-radius: var(--radius-sm, 4px);
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-sm);
     cursor: pointer;
     font-weight: 500;
-    font-size: var(--text-sm, 0.875rem);
+    font-size: var(--text-sm);
     transition: opacity 0.15s, transform 0.1s;
   }
   
   .recoverable .retry {
-    background: var(--warning, #ff9800);
+    background: var(--warning);
     color: var(--surface-1, hsl(0 0% 15%));
   }
   

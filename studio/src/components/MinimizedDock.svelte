@@ -120,13 +120,13 @@
 
 	.dock-container {
 		display: flex;
-		gap: var(--space-2, 8px);
+		gap: var(--space-2);
 		pointer-events: auto;
 	}
 
 	/* Position variants */
 	.dock-left {
-		left: var(--space-3, 12px);
+		left: var(--space-3);
 		top: 50%;
 		transform: translateY(-50%);
 	}
@@ -136,7 +136,7 @@
 	}
 
 	.dock-right {
-		right: var(--space-3, 12px);
+		right: var(--space-3);
 		top: 50%;
 		transform: translateY(-50%);
 	}
@@ -146,7 +146,7 @@
 	}
 
 	.dock-bottom {
-		bottom: var(--space-3, 12px);
+		bottom: var(--space-3);
 		left: 50%;
 		transform: translateX(-50%);
 	}
@@ -164,8 +164,8 @@
 		align-items: center;
 		justify-content: center;
 		background: rgba(10, 10, 10, 0.9);
-		border: 1px solid rgba(255, 215, 0, 0.2);
-		border-radius: var(--radius-md, 8px);
+		border: 1px solid var(--radiant-gold-20);
+		border-radius: var(--radius-md);
 		cursor: pointer;
 		transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 		backdrop-filter: blur(12px);
@@ -173,11 +173,11 @@
 
 	.dock-item:hover {
 		background: rgba(20, 20, 20, 0.95);
-		border-color: rgba(255, 215, 0, 0.4);
+		border-color: var(--radiant-gold-40);
 		transform: scale(1.1);
 		box-shadow:
 			0 4px 20px rgba(0, 0, 0, 0.4),
-			0 0 20px rgba(255, 215, 0, 0.1);
+			0 0 20px var(--radiant-gold-10);
 	}
 
 	.dock-item:active {
@@ -197,9 +197,9 @@
 	.peek-preview {
 		position: absolute;
 		background: rgba(10, 10, 10, 0.95);
-		border: 1px solid rgba(255, 215, 0, 0.3);
-		border-radius: var(--radius-sm, 4px);
-		padding: var(--space-2, 8px) var(--space-3, 12px);
+		border: 1px solid var(--radiant-gold-30);
+		border-radius: var(--radius-sm);
+		padding: var(--space-2) var(--space-3);
 		white-space: nowrap;
 		backdrop-filter: blur(12px);
 		transform-origin: center;
@@ -226,16 +226,16 @@
 
 	.peek-title {
 		display: block;
-		color: var(--text-primary, #fff);
-		font-size: var(--text-sm, 14px);
+		color: var(--text-primary);
+		font-size: var(--text-sm);
 		font-weight: 500;
 		text-transform: capitalize;
 	}
 
 	.peek-hint {
 		display: block;
-		color: var(--text-tertiary, #666);
-		font-size: var(--text-xs, 12px);
+		color: var(--text-tertiary);
+		font-size: var(--text-xs);
 		margin-top: 2px;
 	}
 
@@ -245,7 +245,7 @@
 		inset: -20px;
 		background: radial-gradient(
 			ellipse at center,
-			rgba(255, 215, 0, 0.05) 0%,
+			var(--radiant-gold-5) 0%,
 			transparent 70%
 		);
 		pointer-events: none;
@@ -278,7 +278,7 @@
 
 	/* Keyboard focus */
 	.dock-item:focus-visible {
-		outline: 2px solid var(--gold, #ffd700);
+		outline: 2px solid var(--gold);
 		outline-offset: 2px;
 	}
 </style>

@@ -68,15 +68,15 @@
 <style>
 	.action-toast {
 		position: fixed;
-		top: var(--space-4, 16px);
-		right: var(--space-4, 16px);
+		top: var(--space-4);
+		right: var(--space-4);
 		display: flex;
 		align-items: center;
-		gap: var(--space-3, 12px);
-		padding: var(--space-3, 12px) var(--space-4, 16px);
-		background: var(--bg-secondary, #1e1e1e);
-		border-radius: var(--radius-lg, 12px);
-		border: 1px solid var(--border-subtle, #333);
+		gap: var(--space-3);
+		padding: var(--space-3) var(--space-4);
+		background: var(--bg-secondary);
+		border-radius: var(--radius-lg);
+		border: 1px solid var(--border-subtle);
 		box-shadow:
 			0 4px 24px rgba(0, 0, 0, 0.4),
 			0 0 40px rgba(0, 0, 0, 0.2);
@@ -107,12 +107,12 @@
 
 	.success .toast-icon {
 		background: rgba(34, 197, 94, 0.15);
-		color: var(--success, #22c55e);
+		color: var(--success);
 	}
 
 	.error .toast-icon {
 		background: rgba(239, 68, 68, 0.15);
-		color: var(--error, #ef4444);
+		color: var(--error);
 	}
 
 	.toast-content {
@@ -124,14 +124,14 @@
 	}
 
 	.toast-action {
-		color: var(--text-tertiary, #666);
-		font-size: var(--text-xs, 12px);
+		color: var(--text-tertiary);
+		font-size: var(--text-xs);
 		text-transform: capitalize;
 	}
 
 	.toast-message {
-		color: var(--text-primary, #fff);
-		font-size: var(--text-sm, 14px);
+		color: var(--text-primary);
+		font-size: var(--text-sm);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -140,21 +140,21 @@
 	.dismiss-btn {
 		background: none;
 		border: none;
-		color: var(--text-tertiary, #666);
+		color: var(--text-tertiary);
 		cursor: pointer;
-		padding: var(--space-1, 4px);
-		border-radius: var(--radius-sm, 4px);
+		padding: var(--space-1);
+		border-radius: var(--radius-sm);
 		transition: all 0.15s ease;
 		flex-shrink: 0;
 	}
 
 	.dismiss-btn:hover {
-		color: var(--text-primary, #fff);
+		color: var(--text-primary);
 		background: rgba(255, 255, 255, 0.05);
 	}
 
 	.dismiss-btn:focus-visible {
-		outline: 2px solid var(--gold, #ffd700);
+		outline: 2px solid var(--gold);
 		outline-offset: 2px;
 	}
 
@@ -174,11 +174,11 @@
 	}
 
 	.success .progress-fill {
-		background: var(--success, #22c55e);
+		background: var(--success);
 	}
 
 	.error .progress-fill {
-		background: var(--error, #ef4444);
+		background: var(--error);
 	}
 
 	@keyframes shrink {

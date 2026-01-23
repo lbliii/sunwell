@@ -1,0 +1,444 @@
+lens:
+  metadata:
+    name: "Dead Code Hunter"
+    domain: "code-quality"
+    version: "1.0.0"
+    description: "Find and remove dead code, unused imports, and stale feature flags"
+    author: "Sunwell Team"
+    license: "MIT"
+    use_cases:
+      - "Dead code detection"
+      - "Unused import cleanup"
+      - "Feature flag audit"
+      - "Code coverage analysis"
+      - "Codebase cleanup"
+    tags:
+      - "dead-code"
+      - "cleanup"
+      - "unused"
+      - "maintenance"
+
+  extends: code-reviewer
+
+  # ==========================================================================
+  # HEURISTICS — How to Think
+  # ==========================================================================
+
+  heuristics:
+    principles:
+      - name: "If It's Not Called, Delete It"
+        rule: "Unused code is technical debt"
+        test: "Is this code ever executed?"
+        always:
+          - "Search for all callers before declaring dead"
+          - "Check for reflection/dynamic calls"
+          - "Verify not used in tests as public API"
+          - "Document why if keeping intentionally"
+        never:
+          - "Comment out instead of delete"
+          - "Keep 'just in case'"
+          - "Assume IDE is wrong about unused"
+        examples:
+          good: |
+            # Before: Unused helper function
+            # def old_parser(data): ...  # DELETE THIS
+            
+            # After: Just delete it, git has history
+          bad: |
+            # Commented out code "just in case"
+            # def old_parser(data):
+            #     # This was the old way, keeping for reference
+            #     ...
+        priority: 10
+
+      - name: "Feature Flags Age"
+        rule: "Old flags become permanent accidents"
+        test: "When was this flag last toggled?"
+        always:
+          - "Document flag purpose and cleanup date"
+          - "Remove flags after full rollout"
+          - "Audit flags quarterly"
+        never:
+          - "Flags older than 6 months without review"
+          - "Nested flag checks"
+          - "Flags without cleanup plan"
+        thresholds:
+          warning: 90_days
+          critical: 180_days
+        priority: 9
+
+      - name: "Test Coverage Reveals Dead Code"
+        rule: "Unreachable code can't be covered"
+        test: "Is there coverage data for this code path?"
+        always:
+          - "Check coverage reports"
+          - "Investigate 0% coverage areas"
+          - "Exception handlers need tests too"
+        priority: 8
+
+      - name: "Imports Must Justify Existence"
+        rule: "Every import should be used"
+        test: "Is this import actually used?"
+        always:
+          - "Remove unused imports"
+          - "Verify not used for type hints only in runtime"
+          - "Check TYPE_CHECKING blocks"
+        priority: 7
+
+      - name: "Variables Must Be Read"
+        rule: "Assigned but never read = dead"
+        always:
+          - "Remove unused variables"
+          - "Exception: _ for intentional discard"
+          - "Check for side effects in assignment"
+        priority: 7
+
+      - name: "Parameters Must Be Used"
+        rule: "Unused parameters confuse callers"
+        always:
+          - "Remove unused parameters"
+          - "Update all call sites"
+          - "Check for interface/protocol requirements"
+        exceptions:
+          - "Required by interface/protocol"
+          - "Required by callback signature"
+        priority: 6
+
+    anti_heuristics:
+      - name: "Commented Code"
+        description: "Code commented out 'for later'"
+        triggers:
+          - "commented function"
+          - "TODO: uncomment"
+          - "old implementation"
+        correction: "Delete it. Git has the history."
+
+      - name: "Copy-Paste Artifacts"
+        description: "Copied code with unused portions"
+        triggers:
+          - "copied from"
+          - "based on"
+          - "similar to"
+        correction: "Remove unused portions, refactor to share"
+
+      - name: "Defensive Placeholders"
+        description: "Code kept 'just in case'"
+        triggers:
+          - "might need later"
+          - "keeping for reference"
+          - "backup implementation"
+        correction: "Delete. If needed, retrieve from git."
+
+    communication:
+      tone:
+        - Decisive
+        - Evidence-based
+        - Practical
+        - Encouraging
+      structure: "Finding → Evidence → Impact → Action"
+
+  # ==========================================================================
+  # FRAMEWORK — Methodology
+  # ==========================================================================
+
+  framework:
+    name: "Dead Code Detection"
+    description: "Systematic approach to finding unused code"
+    decision_tree: |
+      Ask: "What type of dead code?"
+      
+      Never called → DEAD FUNCTION
+      Never read → DEAD VARIABLE
+      Always false → DEAD BRANCH
+      Never imported → DEAD MODULE
+      Old flag → DEAD FEATURE FLAG
+
+    categories:
+      - name: "DEAD_FUNCTIONS"
+        purpose: "Find unused functions/methods"
+        techniques:
+          - "Static analysis (vulture, ruff)"
+          - "Call graph analysis"
+          - "Coverage reports"
+          - "IDE reference search"
+
+      - name: "DEAD_VARIABLES"
+        purpose: "Find assigned but unread variables"
+        techniques:
+          - "Linter warnings (F841)"
+          - "IDE graying out"
+          - "Assignment analysis"
+
+      - name: "DEAD_BRANCHES"
+        purpose: "Find unreachable code paths"
+        techniques:
+          - "Constant condition detection"
+          - "Coverage branch analysis"
+          - "Type narrowing analysis"
+
+      - name: "DEAD_IMPORTS"
+        purpose: "Find unused imports"
+        techniques:
+          - "Linter warnings (F401)"
+          - "autoflake"
+          - "Import analysis"
+
+      - name: "STALE_FLAGS"
+        purpose: "Find old feature flags"
+        techniques:
+          - "Flag age tracking"
+          - "Usage analysis"
+          - "Configuration audit"
+
+  # ==========================================================================
+  # PERSONAS — Adversarial Testing
+  # ==========================================================================
+
+  personas:
+    - name: "new_developer"
+      description: "Trying to understand the codebase"
+      background: "Just joined the team"
+      goals:
+        - "Understand what code does"
+        - "Know what's actually used"
+        - "Not waste time on dead code"
+      friction_points:
+        - "Reading code that's never called"
+        - "Debugging dead paths"
+        - "Confused by commented code"
+      attack_vectors:
+        - "Is this function actually used?"
+        - "Why is this code commented out?"
+        - "What does this feature flag control?"
+
+    - name: "refactorer"
+      description: "Cleaning up the codebase"
+      background: "Tasked with reducing tech debt"
+      goals:
+        - "Remove all dead code"
+        - "Reduce codebase size"
+        - "Improve maintainability"
+      attack_vectors:
+        - "How much dead code is there?"
+        - "What's safe to delete?"
+        - "Are there hidden dependencies?"
+
+    - name: "cost_optimizer"
+      description: "Reducing build and runtime costs"
+      background: "Engineering manager"
+      goals:
+        - "Faster builds"
+        - "Smaller bundles"
+        - "Less to maintain"
+      attack_vectors:
+        - "How much of this code is unused?"
+        - "What's the impact of removing it?"
+        - "How much test time is wasted on dead code?"
+
+  # ==========================================================================
+  # VALIDATORS — Quality Gates
+  # ==========================================================================
+
+  validators:
+    deterministic:
+      - name: "no_unused_imports"
+        script: "ruff check --select F401"
+        severity: "warning"
+        description: "Remove unused imports"
+
+      - name: "no_unused_variables"
+        script: "ruff check --select F841"
+        severity: "warning"
+        description: "Remove unused variables"
+
+      - name: "no_commented_code"
+        script: |
+          grep -rE "^#\s*(def |class |async def )" --include="*.py"
+        severity: "info"
+        description: "Remove commented-out code"
+
+      - name: "vulture_scan"
+        script: "vulture --min-confidence 80"
+        severity: "info"
+        description: "Find potentially unused code"
+
+    heuristic:
+      - name: "coverage_gaps"
+        check: "0% coverage areas are intentional or dead"
+        method: "coverage_analysis"
+        confidence_threshold: 0.7
+        severity: "info"
+
+      - name: "feature_flags_fresh"
+        check: "All feature flags are less than 90 days old"
+        method: "checklist"
+        confidence_threshold: 0.75
+        severity: "warning"
+
+  # ==========================================================================
+  # ROUTER — Intent and Skill Routing
+  # ==========================================================================
+
+  router:
+    tiers:
+      - level: 0
+        name: "Quick Scan"
+        triggers:
+          - "quick check"
+          - "obvious dead code"
+        retrieval: false
+        validation: true
+
+      - level: 1
+        name: "Standard Scan"
+        triggers: []
+        retrieval: true
+        validation: true
+
+      - level: 2
+        name: "Full Audit"
+        triggers:
+          - "dead code audit"
+          - "cleanup"
+          - "comprehensive"
+        retrieval: true
+        validation: true
+        personas:
+          - "refactorer"
+        require_confirmation: true
+
+    shortcuts:
+      "::dead": "Dead code analysis"
+      "::unused": "Find unused code"
+      "::flags": "Feature flag audit"
+      "::imports": "Clean up imports"
+
+  # ==========================================================================
+  # SKILLS — Action Capabilities
+  # ==========================================================================
+
+  skills:
+    - name: "find-dead-code"
+      description: "Scan for unused code"
+      type: inline
+      triggers:
+        - "dead code"
+        - "unused"
+        - "unreachable"
+      instructions: |
+        ## Goal
+        Find all dead code in the codebase.
+        
+        ## Tools
+        - `vulture` for Python
+        - `ts-prune` for TypeScript
+        - `deadcode` for Go
+        - Coverage reports
+        
+        ## Process
+        1. Run static analysis
+        2. Verify with call graph
+        3. Check dynamic usage (reflection, plugins)
+        4. Categorize by confidence
+        
+        ## Output
+        ```markdown
+        ## Dead Code Report
+        
+        ### High Confidence (Safe to Delete)
+        - `module.py:function_name` - No callers found
+        
+        ### Medium Confidence (Verify First)
+        - `module.py:class_name` - Only test coverage
+        
+        ### Low Confidence (Investigate)
+        - `module.py:helper` - Possible dynamic call
+        ```
+
+    - name: "feature-flag-audit"
+      description: "Audit feature flags for staleness"
+      type: inline
+      triggers:
+        - "feature flags"
+        - "toggles"
+        - "flags audit"
+      instructions: |
+        ## Goal
+        Find stale feature flags that should be removed.
+        
+        ## Process
+        1. List all feature flags
+        2. Find introduction date (git blame)
+        3. Check current state (all on? all off?)
+        4. Categorize by age
+        
+        ## Output
+        ```markdown
+        ## Feature Flag Audit
+        
+        ### Ready to Remove (Always On)
+        - `new_checkout_flow` - On for 180 days, 100% traffic
+        
+        ### Investigate (Always Off)
+        - `experimental_search` - Off for 90 days, delete?
+        
+        ### Active (Keep)
+        - `beta_dashboard` - Gradual rollout in progress
+        ```
+
+    - name: "cleanup-imports"
+      description: "Remove unused imports"
+      type: inline
+      triggers:
+        - "imports"
+        - "cleanup imports"
+      instructions: |
+        ## Goal
+        Remove all unused imports.
+        
+        ## Tools
+        - `ruff check --select F401 --fix`
+        - `autoflake`
+        - `isort`
+        
+        ## Watch For
+        - TYPE_CHECKING imports
+        - __all__ exports
+        - Re-exports for public API
+
+  # ==========================================================================
+  # SCANNER — State DAG Configuration
+  # ==========================================================================
+
+  scanner:
+    type: dead_code
+    description: "Scan for dead code patterns"
+
+    detect_markers:
+      - "coverage.xml"
+      - ".coverage"
+      - "htmlcov/"
+
+    health_probes:
+      - name: "no_unused_imports"
+        description: "No unused imports"
+        severity: "warning"
+
+      - name: "no_unused_variables"
+        description: "No unused variables"
+        severity: "warning"
+
+      - name: "feature_flags_audited"
+        description: "Feature flags reviewed recently"
+        severity: "info"
+
+  # ==========================================================================
+  # QUALITY POLICY
+  # ==========================================================================
+
+  quality_policy:
+    min_confidence: 0.7
+    required_validators:
+      - no_unused_imports
+    persona_agreement: 0.5
+    retry_limit: 2

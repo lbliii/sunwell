@@ -167,7 +167,7 @@
   
   .submit-btn:hover:not(:disabled) {
     color: var(--text-gold);
-    background: rgba(201, 162, 39, 0.1);
+    background: var(--ui-gold-10);
   }
   
   .submit-btn:disabled {
@@ -186,7 +186,7 @@
   }
   
   .input-bar.loading {
-    border-color: rgba(255, 215, 0, 0.3);
+    border-color: var(--radiant-gold-30);
   }
   
   @keyframes spin {

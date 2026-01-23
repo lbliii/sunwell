@@ -44,6 +44,17 @@ export {
   resetView,
   loadDemoGraph,
   clearGraph,
+  // RFC-105: Hierarchical DAG
+  setViewLevel,
+  loadProjectDagIndex,
+  expandGoal,
+  collapseGoal,
+  loadWorkspaceDag,
+  refreshWorkspaceIndex,
+  loadEnvironmentDag,
+  clearHierarchicalState,
+  getGoalSummary,
+  getSortedGoals,
 } from './dag.svelte';
 
 // Prompts state
@@ -385,3 +396,22 @@ export {
   type EvaluationRun,
   type FullStackScore,
 } from './evaluation.svelte';
+
+// Workspace state (RFC-103)
+export {
+  workspaceStore,
+  initWorkspace,
+  toggleLinkSelection,
+  selectAllLinks,
+  deselectAllLinks,
+  linkSelected,
+  unlinkSource,
+  dismissToast,
+  skipLinking,
+  resetWorkspace,
+  redetect,
+  getStateDagWithDrift,
+  type WorkspaceLink,
+  type Workspace,
+  type ToastState,
+} from './workspace.svelte';

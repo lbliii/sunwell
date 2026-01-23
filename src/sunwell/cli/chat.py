@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING
 
 import click
 from rich.console import Console
+from rich.live import Live
+from rich.markdown import Markdown
 from rich.panel import Panel
 
 from sunwell.binding import BindingManager
@@ -30,6 +32,726 @@ if TYPE_CHECKING:
 console = Console()
 
 
+# =============================================================================
+# Project Detection & Smart Context
+# =============================================================================
+
+# Project type detection patterns
+_PROJECT_MARKERS: dict[str, tuple[str, ...]] = {
+    "python": ("pyproject.toml", "setup.py", "requirements.txt", "Pipfile"),
+    "node": ("package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml"),
+    "rust": ("Cargo.toml",),
+    "go": ("go.mod",),
+    "java": ("pom.xml", "build.gradle", "build.gradle.kts"),
+    "ruby": ("Gemfile",),
+    "php": ("composer.json",),
+    "dotnet": ("*.csproj", "*.sln"),
+    "svelte": ("svelte.config.js", "svelte.config.ts"),
+    "react": ("next.config.js", "next.config.ts", "vite.config.ts"),
+    "tauri": ("tauri.conf.json",),
+}
+
+# Key files to always include in context (if they exist)
+_KEY_FILES = (
+    "README.md", "README.rst", "README.txt", "README",
+    "pyproject.toml", "package.json", "Cargo.toml", "go.mod",
+    "Makefile", "justfile",
+    ".env.example",
+)
+
+# Entry point patterns by project type
+_ENTRY_POINTS: dict[str, tuple[str, ...]] = {
+    "python": ("src/*/cli.py", "src/*/__main__.py", "main.py", "app.py", "cli.py"),
+    "node": ("src/index.ts", "src/index.js", "index.ts", "index.js", "src/main.ts"),
+    "rust": ("src/main.rs", "src/lib.rs"),
+    "go": ("main.go", "cmd/*/main.go"),
+}
+
+
+def _detect_project_type(cwd: Path) -> tuple[str, str | None]:
+    """Detect project type from marker files.
+
+    Returns:
+        Tuple of (project_type, framework) e.g. ("python", "FastAPI")
+    """
+    for ptype, markers in _PROJECT_MARKERS.items():
+        for marker in markers:
+            if "*" in marker:
+                if list(cwd.glob(marker)):
+                    return ptype, None
+            elif (cwd / marker).exists():
+                # Try to detect framework
+                framework = _detect_framework(cwd, ptype)
+                return ptype, framework
+    return "unknown", None
+
+
+def _detect_framework(cwd: Path, ptype: str) -> str | None:
+    """Detect framework from config files."""
+    if ptype == "python":
+        pyproject = cwd / "pyproject.toml"
+        if pyproject.exists():
+            content = pyproject.read_text()
+            if "fastapi" in content.lower():
+                return "FastAPI"
+            if "django" in content.lower():
+                return "Django"
+            if "flask" in content.lower():
+                return "Flask"
+            if "click" in content.lower():
+                return "CLI (Click)"
+    elif ptype == "node":
+        pkg = cwd / "package.json"
+        if pkg.exists():
+            import json
+            try:
+                data = json.loads(pkg.read_text())
+                deps = {**data.get("dependencies", {}), **data.get("devDependencies", {})}
+                if "next" in deps:
+                    return "Next.js"
+                if "svelte" in deps or "@sveltejs/kit" in deps:
+                    return "SvelteKit"
+                if "react" in deps:
+                    return "React"
+                if "vue" in deps:
+                    return "Vue"
+            except json.JSONDecodeError:
+                pass
+    return None
+
+
+def _is_project_directory(cwd: Path) -> bool:
+    """Check if cwd looks like a project directory."""
+    # Has any project marker
+    for markers in _PROJECT_MARKERS.values():
+        for marker in markers:
+            if "*" in marker:
+                if list(cwd.glob(marker)):
+                    return True
+            elif (cwd / marker).exists():
+                return True
+
+    # Has .git directory
+    if (cwd / ".git").is_dir():
+        return True
+
+    # Has common project files
+    if (cwd / "README.md").exists() or (cwd / "Makefile").exists():
+        return True
+
+    return False
+
+
+def _find_key_files(cwd: Path) -> list[tuple[str, str]]:
+    """Find key files and return (path, first_lines) tuples."""
+    found = []
+    for name in _KEY_FILES:
+        path = cwd / name
+        if path.exists() and path.is_file():
+            try:
+                content = path.read_text()
+                # Get first meaningful lines (skip empty)
+                lines = [l for l in content.split("\n") if l.strip()][:5]
+                preview = "\n".join(lines)
+                if len(preview) > 300:
+                    preview = preview[:300] + "..."
+                found.append((name, preview))
+            except (OSError, UnicodeDecodeError):
+                found.append((name, "(binary or unreadable)"))
+    return found
+
+
+def _find_entry_points(cwd: Path, ptype: str) -> list[str]:
+    """Find likely entry point files."""
+    patterns = _ENTRY_POINTS.get(ptype, ())
+    found = []
+    for pattern in patterns:
+        matches = list(cwd.glob(pattern))
+        found.extend(str(m.relative_to(cwd)) for m in matches[:3])
+    return found[:5]  # Limit to 5 entry points
+
+
+def _build_directory_tree(cwd: Path, max_files: int = 40, max_depth: int = 3) -> str:
+    """Build a compact directory tree."""
+    ignore_patterns = {
+        ".git", "__pycache__", "node_modules", ".venv", "venv",
+        ".mypy_cache", ".pytest_cache", ".ruff_cache", "dist", "build",
+        ".egg-info", ".tox", ".coverage", "htmlcov", ".next", ".svelte-kit",
+        "target", ".cargo",
+    }
+
+    lines = []
+    file_count = 0
+
+    for root, dirs, files in cwd.walk():
+        dirs[:] = [d for d in sorted(dirs)
+                   if d not in ignore_patterns and not d.startswith(".")]
+
+        rel_root = root.relative_to(cwd)
+        depth = len(rel_root.parts)
+
+        if depth > max_depth:
+            continue
+
+        indent = "  " * depth
+        if depth > 0:
+            lines.append(f"{indent}{rel_root.name}/")
+
+        for f in sorted(files)[:15]:
+            if f.startswith(".") and f not in {".env.example", ".gitignore"}:
+                continue
+            lines.append(f"{indent}  {f}")
+            file_count += 1
+            if file_count >= max_files:
+                lines.append(f"{indent}  ...")
+                return "\n".join(lines)
+
+    return "\n".join(lines)
+
+
+def _load_cached_context(cache_path: Path) -> dict | None:
+    """Load cached context if fresh (< 1 hour old)."""
+    import json
+    import time
+
+    if not cache_path.exists():
+        return None
+
+    try:
+        stat = cache_path.stat()
+        age_hours = (time.time() - stat.st_mtime) / 3600
+        if age_hours > 1:  # Stale after 1 hour
+            return None
+
+        return json.loads(cache_path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def _save_context_cache(cache_path: Path, context: dict) -> None:
+    """Save context to cache."""
+    import json
+
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    cache_path.write_text(json.dumps(context, indent=2))
+
+
+def _build_smart_workspace_context(use_cache: bool = True) -> tuple[str, dict]:
+    """Build intelligent workspace context with project detection.
+
+    Returns:
+        Tuple of (formatted_context, context_dict)
+    """
+    cwd = Path.cwd()
+    cache_path = cwd / ".sunwell" / "context.json"
+
+    # Try cache first
+    if use_cache:
+        cached = _load_cached_context(cache_path)
+        if cached:
+            return _format_context(cached), cached
+
+    # Detect project
+    ptype, framework = _detect_project_type(cwd)
+    key_files = _find_key_files(cwd)
+    entry_points = _find_entry_points(cwd, ptype) if ptype != "unknown" else []
+    tree = _build_directory_tree(cwd)
+
+    context = {
+        "path": str(cwd),
+        "name": cwd.name,
+        "type": ptype,
+        "framework": framework,
+        "key_files": [(k, v) for k, v in key_files],
+        "entry_points": entry_points,
+        "tree": tree,
+    }
+
+    # Cache for next time
+    try:
+        _save_context_cache(cache_path, context)
+    except OSError:
+        pass  # Non-fatal
+
+    return _format_context(context), context
+
+
+def _format_context(ctx: dict) -> str:
+    """Format context dict into markdown for system prompt."""
+    lines = [
+        "## Workspace Context",
+        "",
+        f"**Project**: `{ctx['name']}` ({ctx['path']})",
+    ]
+
+    # Project type badge
+    ptype = ctx.get("type", "unknown")
+    framework = ctx.get("framework")
+    if ptype != "unknown":
+        type_line = f"**Type**: {ptype.title()}"
+        if framework:
+            type_line += f" ({framework})"
+        lines.append(type_line)
+
+    lines.append("")
+
+    # Key files with preview
+    key_files = ctx.get("key_files", [])
+    if key_files:
+        lines.append("### Key Files")
+        for name, preview in key_files[:3]:  # Limit to 3 for prompt size
+            lines.append(f"\n**{name}**:")
+            lines.append("```")
+            lines.append(preview)
+            lines.append("```")
+        lines.append("")
+
+    # Entry points
+    entry_points = ctx.get("entry_points", [])
+    if entry_points:
+        lines.append(f"**Entry points**: {', '.join(f'`{e}`' for e in entry_points)}")
+        lines.append("")
+
+    # Directory tree
+    tree = ctx.get("tree", "")
+    if tree:
+        lines.append("### Structure")
+        lines.append("```")
+        lines.append(tree)
+        lines.append("```")
+
+    lines.append("")
+    lines.append("You can reference files by their relative paths.")
+
+    return "\n".join(lines)
+
+
+def _build_workspace_context(max_files: int = 50) -> str:
+    """Build workspace context (simple fallback version)."""
+    context, _ = _build_smart_workspace_context(use_cache=True)
+    return context
+
+
+# =============================================================================
+# RFC-103: Workspace & SourceContext Integration
+# =============================================================================
+
+
+async def _load_workspace_context(cwd: Path) -> tuple[str | None, dict | None]:
+    """Load RFC-103 workspace and source context if available.
+
+    Returns:
+        Tuple of (formatted_context, workspace_data) or (None, None) if not configured.
+    """
+    try:
+        from sunwell.analysis.workspace import WorkspaceConfig
+    except ImportError:
+        return None, None
+
+    config = WorkspaceConfig(cwd)
+    workspace = config.load()
+
+    if not workspace:
+        return None, None
+
+    # Build context from workspace
+    lines = [
+        "## Linked Source Code (RFC-103)",
+        "",
+    ]
+
+    workspace_data = {
+        "topology": workspace.topology,
+        "links": [],
+        "symbols": [],
+    }
+
+    for link in workspace.confirmed_links:
+        link_info = {
+            "path": str(link.target),
+            "language": link.language,
+            "relationship": link.relationship,
+            "confidence": link.confidence,
+        }
+        workspace_data["links"].append(link_info)
+
+        lines.append(f"**{link.target.name}** (`{link.target}`)")
+        lines.append(f"- Language: {link.language or 'unknown'}")
+        lines.append(f"- Relationship: {link.relationship}")
+        lines.append("")
+
+    # Try to load source context for symbol awareness
+    try:
+        from sunwell.analysis.source_context import SourceContext
+
+        for link in workspace.confirmed_links:
+            if link.relationship == "source_code":
+                # Check for cached source context
+                ctx_cache = cwd / ".sunwell" / "source_context" / f"{link.target.name}.json"
+                ctx = None
+
+                if ctx_cache.exists():
+                    # Load from cache (fast path)
+                    import json
+                    import time
+
+                    stat = ctx_cache.stat()
+                    age_hours = (time.time() - stat.st_mtime) / 3600
+                    if age_hours < 24:  # 24-hour cache
+                        try:
+                            data = json.loads(ctx_cache.read_text())
+                            workspace_data["symbols"].extend(data.get("symbols", [])[:50])
+                        except (json.JSONDecodeError, OSError):
+                            pass
+
+                if not workspace_data["symbols"]:
+                    # Build fresh (slower, only on first load)
+                    try:
+                        ctx = await SourceContext.build(link.target)
+                        # Cache key symbols
+                        key_symbols = []
+                        for name, sym in list(ctx.symbols.items())[:100]:
+                            key_symbols.append({
+                                "name": name,
+                                "kind": sym.kind,
+                                "signature": sym.signature,
+                                "deprecated": sym.deprecated,
+                            })
+                        workspace_data["symbols"].extend(key_symbols[:50])
+
+                        # Save to cache
+                        ctx_cache.parent.mkdir(parents=True, exist_ok=True)
+                        import json
+                        ctx_cache.write_text(json.dumps({
+                            "symbols": key_symbols,
+                            "indexed_at": ctx.indexed_at.isoformat(),
+                        }))
+                    except Exception:
+                        pass  # Non-fatal
+
+        # Add symbols to context
+        if workspace_data["symbols"]:
+            lines.append("### Key Symbols")
+            lines.append("")
+            for sym in workspace_data["symbols"][:20]:  # Limit for prompt size
+                sig = f"({sym.get('signature', '')})" if sym.get("signature") else ""
+                deprecated = " ⚠️ DEPRECATED" if sym.get("deprecated") else ""
+                lines.append(f"- `{sym['name']}`{sig} — {sym['kind']}{deprecated}")
+            if len(workspace_data["symbols"]) > 20:
+                lines.append(f"- ... and {len(workspace_data['symbols']) - 20} more")
+            lines.append("")
+
+    except ImportError:
+        pass  # SourceContext not available
+
+    return "\n".join(lines), workspace_data
+
+
+# =============================================================================
+# Phase 3/RFC-108: Semantic RAG - Continuous Codebase Indexing
+# =============================================================================
+
+
+async def _build_codebase_index(
+    cwd: Path,
+    embedder,
+    force_rebuild: bool = False,
+) -> tuple[object | None, dict]:
+    """Build or load cached codebase embedding index using RFC-108 IndexingService.
+
+    Returns:
+        Tuple of (SmartContext, stats_dict) or (None, {}) if indexing fails.
+
+    RFC-108: This now uses the new IndexingService with:
+    - Content-aware chunking (AST for code, paragraphs for prose)
+    - Priority indexing (hot files first)
+    - Graceful degradation (falls back to grep if embedding fails)
+    """
+    try:
+        from sunwell.indexing import IndexingService, SmartContext
+    except ImportError:
+        # Fall back to legacy indexer if new module not available
+        return await _build_codebase_index_legacy(cwd, embedder, force_rebuild)
+
+    stats = {
+        "indexed": False,
+        "file_count": 0,
+        "chunk_count": 0,
+        "from_cache": False,
+        "project_type": "unknown",
+        "fallback_reason": None,
+    }
+
+    try:
+        # Create indexing service (RFC-108)
+        service = IndexingService(
+            workspace_root=cwd,
+            embedder=embedder,
+        )
+
+        # Start indexing (background with priority files first)
+        await service.start()
+
+        # Wait for priority files to be indexed (fast startup)
+        # The service continues indexing in background
+        status = service.get_status()
+
+        stats["indexed"] = status.state.value in ("ready", "updating")
+        stats["file_count"] = status.file_count or 0
+        stats["chunk_count"] = status.chunk_count or 0
+        stats["from_cache"] = status.priority_complete or False
+        stats["project_type"] = status.project_type or "unknown"
+
+        if status.fallback_reason:
+            stats["fallback_reason"] = status.fallback_reason
+
+        # Return SmartContext for graceful fallback during queries
+        smart_ctx = SmartContext(
+            workspace_root=cwd,
+            index=service._index,  # May be None if degraded
+        )
+
+        return smart_ctx, stats
+
+    except Exception as e:
+        stats["fallback_reason"] = str(e)
+        # Return SmartContext without index - will use grep fallback
+        try:
+            smart_ctx = SmartContext(workspace_root=cwd, index=None)
+            return smart_ctx, stats
+        except Exception:
+            return None, stats
+
+
+async def _build_codebase_index_legacy(
+    cwd: Path,
+    embedder,
+    force_rebuild: bool = False,
+) -> tuple[object | None, dict]:
+    """Legacy codebase indexer (pre-RFC-108 fallback)."""
+    try:
+        from sunwell.workspace.detector import Workspace
+        from sunwell.workspace.indexer import CodebaseIndexer
+    except ImportError:
+        return None, {}
+
+    cache_dir = cwd / ".sunwell" / "index"
+    cache_file = cache_dir / "codebase_index.json"
+
+    stats = {
+        "indexed": False,
+        "file_count": 0,
+        "chunk_count": 0,
+        "from_cache": False,
+    }
+
+    # Check cache (24-hour lifetime)
+    if not force_rebuild and cache_file.exists():
+        import json
+        import time
+
+        try:
+            stat = cache_file.stat()
+            age_hours = (time.time() - stat.st_mtime) / 3600
+            if age_hours < 24:
+                data = json.loads(cache_file.read_text())
+                stats["indexed"] = True
+                stats["file_count"] = data.get("file_count", 0)
+                stats["chunk_count"] = data.get("chunk_count", 0)
+                stats["from_cache"] = True
+
+                # Rebuild indexer from cached embeddings
+                from sunwell.workspace.indexer import CodebaseIndex, CodeChunk
+
+                chunks = [
+                    CodeChunk(
+                        file_path=Path(c["file_path"]),
+                        start_line=c["start_line"],
+                        end_line=c["end_line"],
+                        content=c["content"],
+                        chunk_type=c["chunk_type"],
+                        name=c.get("name"),
+                    )
+                    for c in data.get("chunks", [])
+                ]
+
+                indexer = CodebaseIndexer(embedder)
+                indexer._index = CodebaseIndex(
+                    chunks=chunks,
+                    embeddings=data.get("embeddings", {}),
+                    file_count=stats["file_count"],
+                    total_lines=data.get("total_lines", 0),
+                )
+                return indexer, stats
+        except (json.JSONDecodeError, OSError, KeyError):
+            pass  # Cache invalid, rebuild
+
+    # Detect ignore patterns
+    ignore_patterns = (
+        "__pycache__", "node_modules", ".venv", "venv", ".git",
+        ".mypy_cache", ".pytest_cache", ".ruff_cache", "dist", "build",
+        ".egg-info", ".tox", "htmlcov", ".next", ".svelte-kit", "target",
+    )
+
+    workspace = Workspace(
+        root=cwd,
+        is_git=(cwd / ".git").is_dir(),
+        name=cwd.name,
+        ignore_patterns=ignore_patterns,
+    )
+
+    indexer = CodebaseIndexer(embedder)
+
+    try:
+        index = await indexer.index_workspace(workspace)
+        stats["indexed"] = True
+        stats["file_count"] = index.file_count
+        stats["chunk_count"] = len(index.chunks)
+
+        # Cache the index
+        import json
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        cache_data = {
+            "file_count": index.file_count,
+            "chunk_count": len(index.chunks),
+            "total_lines": index.total_lines,
+            "chunks": [
+                {
+                    "file_path": str(c.file_path),
+                    "start_line": c.start_line,
+                    "end_line": c.end_line,
+                    "content": c.content,
+                    "chunk_type": c.chunk_type,
+                    "name": c.name,
+                }
+                for c in index.chunks
+            ],
+            "embeddings": index.embeddings,
+        }
+        cache_file.write_text(json.dumps(cache_data))
+
+        return indexer, stats
+    except Exception:
+        return None, stats
+
+
+@dataclass
+class RAGResult:
+    """Result of RAG retrieval with transparency info."""
+    context: str
+    """Formatted context string for prompt injection."""
+    references: list[tuple[str, float]]
+    """List of (reference_string, relevance_score) tuples."""
+    fallback_used: bool = False
+    """RFC-108: Whether fallback (grep) was used instead of semantic search."""
+
+    @property
+    def found_code(self) -> bool:
+        """Whether any relevant code was found."""
+        return bool(self.references)
+
+
+async def _retrieve_relevant_code(
+    context_provider,
+    query: str,
+    top_k: int = 3,
+) -> RAGResult:
+    """Retrieve relevant code chunks for a query.
+
+    RFC-108: Now supports SmartContext with graceful fallback.
+
+    Args:
+        context_provider: Either SmartContext (RFC-108) or legacy CodebaseIndexer
+        query: The search query
+        top_k: Maximum number of results
+
+    Returns:
+        RAGResult with context and transparency info.
+    """
+    if not context_provider:
+        return RAGResult(context="", references=[])
+
+    # RFC-108: Check if this is the new SmartContext
+    try:
+        from sunwell.indexing import SmartContext
+        if isinstance(context_provider, SmartContext):
+            result = await context_provider.get_context(query, top_k=top_k)
+            references = [
+                (f"{c.file_path}:{c.start_line}-{c.end_line}", c.score)
+                for c in result.chunks
+            ] if hasattr(result, 'chunks') and result.chunks else []
+
+            return RAGResult(
+                context=result.context,
+                references=references,
+                fallback_used=result.fallback_used,
+            )
+    except ImportError:
+        pass  # SmartContext not available, try legacy
+
+    # Legacy CodebaseIndexer path
+    try:
+        retrieval = await context_provider.retrieve(query, top_k=top_k, threshold=0.3)
+        if retrieval.chunks:
+            # Build references list for transparency
+            references = [
+                (chunk.reference, retrieval.relevance_scores.get(chunk.id, 0.0))
+                for chunk in retrieval.chunks
+            ]
+            return RAGResult(
+                context=retrieval.to_prompt_context(max_chunks=top_k),
+                references=references,
+            )
+    except Exception:
+        pass
+
+    return RAGResult(context="", references=[])
+
+
+def _format_context_summary(ctx_data: dict, workspace_data: dict | None = None) -> str:
+    """Format context summary for /context command."""
+    lines = [
+        "## Current Context",
+        "",
+        f"**Project**: {ctx_data.get('name', 'unknown')}",
+        f"**Path**: {ctx_data.get('path', 'unknown')}",
+        f"**Type**: {ctx_data.get('type', 'unknown')}",
+    ]
+
+    if ctx_data.get("framework"):
+        lines.append(f"**Framework**: {ctx_data['framework']}")
+
+    # Key files
+    key_files = ctx_data.get("key_files", [])
+    if key_files:
+        lines.append(f"**Key files**: {', '.join(k[0] for k in key_files)}")
+
+    # Entry points
+    entry_points = ctx_data.get("entry_points", [])
+    if entry_points:
+        lines.append(f"**Entry points**: {', '.join(entry_points)}")
+
+    # Workspace info
+    if workspace_data:
+        lines.append("")
+        lines.append("### Linked Sources (RFC-103)")
+        for link in workspace_data.get("links", []):
+            lines.append(f"- {Path(link['path']).name}: {link['language']} ({link['relationship']})")
+
+        symbols = workspace_data.get("symbols", [])
+        if symbols:
+            lines.append(f"**Symbols indexed**: {len(symbols)}")
+
+    # Cache info
+    cache_path = Path(ctx_data.get("path", ".")) / ".sunwell" / "context.json"
+    if cache_path.exists():
+        import time
+        age_mins = int((time.time() - cache_path.stat().st_mtime) / 60)
+        lines.append(f"**Cache age**: {age_mins} minutes")
+
+    return "\n".join(lines)
+
+
 @dataclass
 class ChatState:
     """Mutable state for chat loop - enables model switching."""
@@ -41,12 +763,38 @@ class ChatState:
     models_used: list[str] = field(default_factory=list)
     last_response: str = ""
     tool_executor: object = None
+    pending_observations: list[str] = field(default_factory=list)
+    """Queue for M'uru observations to display after streaming completes."""
+
+    # Project context (for /context command)
+    project_context: dict = field(default_factory=dict)
+    """Cached project context data."""
+    workspace_context: dict | None = None
+    """RFC-103 workspace context (linked sources, symbols)."""
+
+    # Semantic RAG (Phase 3)
+    codebase_indexer: object | None = None
+    """Codebase indexer for semantic retrieval."""
+    rag_enabled: bool = False
+    """Whether semantic RAG is enabled for this session."""
+    rag_stats: dict = field(default_factory=dict)
+    """Stats about the codebase index (file_count, chunk_count, etc.)."""
 
     def switch_model(self, new_model: object, new_name: str) -> None:
         """Switch to a new model, tracking history."""
         self.models_used.append(self.model_name)
         self.model = new_model
         self.model_name = new_name
+
+    def queue_observation(self, message: str) -> None:
+        """Queue an observation message to display after streaming."""
+        self.pending_observations.append(message)
+
+    def flush_observations(self, console) -> None:
+        """Display and clear all queued observation messages."""
+        for msg in self.pending_observations:
+            console.print(msg)
+        self.pending_observations.clear()
 
     @property
     def mode(self) -> str:
@@ -70,6 +818,10 @@ class ChatState:
 @click.option("--tools/--no-tools", default=None, help="Override tool calling (Agent mode)")
 @click.option("--trust", type=click.Choice(["discovery", "read_only", "workspace", "shell"]),
               default=None, help="Override tool trust level")
+@click.option("--workspace/--no-workspace", default=None,
+              help="Inject workspace context (auto-detected if omitted)")
+@click.option("--rag/--no-rag", default=None,
+              help="Enable semantic code retrieval (auto if workspace detected)")
 @click.option("--smart", is_flag=True, help="Enable RFC-015 Adaptive Model Selection")
 @click.option("--mirror", is_flag=True, help="Enable RFC-015 Mirror Neurons (self-introspection)")
 @click.option("--model-routing", is_flag=True, help="Enable RFC-015 Model-Aware Task Routing")
@@ -83,6 +835,8 @@ def chat(
     memory_path: str,
     tools: bool | None,
     trust: str | None,
+    workspace: bool | None,
+    rag: bool | None,
     smart: bool,
     mirror: bool,
     model_routing: bool,
@@ -230,14 +984,85 @@ def chat(
     # Build system prompt from lens
     system_prompt = lens.to_context()
 
+    # Inject workspace context (auto-detect if not specified)
+    inject_workspace = workspace
+    if inject_workspace is None:
+        # Auto-detect: enable if in a project directory
+        inject_workspace = _is_project_directory(Path.cwd())
+
+    # Store context data for /context command
+    ctx_data: dict = {}
+    workspace_data: dict | None = None
+
+    if inject_workspace:
+        workspace_context, ctx_data = _build_smart_workspace_context(use_cache=True)
+        system_prompt = f"{system_prompt}\n\n{workspace_context}"
+
+        # Show what was detected
+        ptype = ctx_data.get("type", "unknown")
+        framework = ctx_data.get("framework")
+        if ptype != "unknown":
+            type_info = ptype.title()
+            if framework:
+                type_info += f" ({framework})"
+            console.print(f"[cyan]Project:[/cyan] {type_info} detected")
+        else:
+            console.print("[cyan]Workspace:[/cyan] Context injected")
+
+        # RFC-103: Load linked source context if available
+        try:
+            linked_context, workspace_data = asyncio.get_event_loop().run_until_complete(
+                _load_workspace_context(Path.cwd())
+            )
+            if linked_context:
+                system_prompt = f"{system_prompt}\n\n{linked_context}"
+                link_count = len(workspace_data.get("links", [])) if workspace_data else 0
+                symbol_count = len(workspace_data.get("symbols", [])) if workspace_data else 0
+                if link_count > 0:
+                    console.print(
+                        f"[cyan]Workspace:[/cyan] {link_count} linked project(s), "
+                        f"{symbol_count} symbols indexed"
+                    )
+        except Exception:
+            pass  # Non-fatal - workspace context is optional
+
+    # RFC-108: Continuous codebase indexing (enabled by default)
+    codebase_indexer = None
+    rag_stats: dict = {}
+    enable_rag = rag if rag is not None else inject_workspace  # Auto-enable if workspace detected
+
+    if enable_rag:
+        try:
+            console.print("[dim]Building codebase index...[/dim]", end="")
+            codebase_indexer, rag_stats = asyncio.get_event_loop().run_until_complete(
+                _build_codebase_index(Path.cwd(), embedder)
+            )
+            if rag_stats.get("indexed"):
+                cache_note = " (cached)" if rag_stats.get("from_cache") else ""
+                project_type = rag_stats.get("project_type", "")
+                type_note = f" [{project_type}]" if project_type and project_type != "unknown" else ""
+                console.print(
+                    f"\r[cyan]RAG:[/cyan] {rag_stats.get('chunk_count', 0)} chunks from "
+                    f"{rag_stats.get('file_count', 0)} files{cache_note}{type_note}   "
+                )
+            elif rag_stats.get("fallback_reason"):
+                # RFC-108: Show graceful degradation
+                console.print(f"\r[yellow]RAG:[/yellow] grep fallback ({rag_stats.get('fallback_reason', 'no embedder')})   ")
+            else:
+                console.print("\r[dim]RAG: indexing skipped[/dim]         ")
+        except Exception as e:
+            console.print(f"\r[dim]RAG: disabled ({e})[/dim]         ")
+
     # Determine mode label
     mode_label = "Agent" if tools_enabled else "Chat"
     mode_color = "green" if tools_enabled else "blue"
     trust_display = f" ({trust_level or 'workspace'})" if tools_enabled else ""
 
+    rag_status = " | RAG" if enable_rag and codebase_indexer else ""
     console.print(Panel(
-        f"[bold]{lens.metadata.name}[/bold] ({provider}:{model}): [{mode_color}]{mode_label}{trust_display}[/{mode_color}]\n"
-        f"Commands: /switch, /branch, /learn, /stats, /quit" + (" | /tools on/off" if not tools_enabled else ""),
+        f"[bold]{lens.metadata.name}[/bold] ({provider}:{model}): [{mode_color}]{mode_label}{trust_display}[/{mode_color}]{rag_status}\n"
+        f"Commands: /switch, /search, /context, /index, /rag, /quit"
+        + (" | /tools on/off" if not tools_enabled else ""),
         title=f"Session: {session}",
         border_style=mode_color,
     ))
@@ -258,6 +1083,11 @@ def chat(
         memory_path=Path(memory_path),
         naaru_enabled=naaru,  # RFC-019: Naaru-powered chat
         identity_enabled=naaru,  # RFC-023: Adaptive identity (follows naaru flag)
+        project_context=ctx_data,  # For /context command
+        workspace_context=workspace_data,  # RFC-103 linked sources
+        codebase_indexer=codebase_indexer,  # Phase 3: Semantic RAG
+        rag_enabled=enable_rag and codebase_indexer is not None,
+        rag_stats=rag_stats,
     ))
 
 
@@ -322,7 +1152,8 @@ async def _generate_with_tools(
         # If no tool calls, we're done
         if not result.has_tool_calls:
             response_text = result.text
-            console.print(response_text, end="")
+            # Render with markdown formatting
+            console.print(Markdown(response_text))
             break
 
         # Add assistant message with tool calls to conversation
@@ -379,6 +1210,11 @@ async def _chat_loop(
     memory_path: Path | None = None,
     naaru_enabled: bool = True,  # RFC-019: Naaru-powered chat
     identity_enabled: bool = True,  # RFC-023: Adaptive identity
+    project_context: dict | None = None,  # For /context command
+    workspace_context: dict | None = None,  # RFC-103 linked sources
+    codebase_indexer: object | None = None,  # Phase 3: Semantic RAG
+    rag_enabled: bool = False,
+    rag_stats: dict | None = None,
 ) -> None:
     """Main interactive chat loop with model-switching support.
 
@@ -483,6 +1319,11 @@ async def _chat_loop(
         tools_enabled=tools_enabled,
         trust_level=trust_level,
         tool_executor=tool_executor,
+        project_context=project_context or {},
+        workspace_context=workspace_context,
+        codebase_indexer=codebase_indexer,
+        rag_enabled=rag_enabled,
+        rag_stats=rag_stats or {},
     )
 
     # Set up model router if requested (RFC-015)
@@ -592,8 +1433,32 @@ async def _chat_loop(
             if context_stats["compression_applied"]:
                 console.print(f"[dim]Compressed old context ({context_stats['warm_summaries']} warm, {context_stats['cold_summaries']} cold summaries)[/dim]")
 
-            # Add current user input
-            messages.append({"role": "user", "content": user_input})
+            # RFC-108: Semantic RAG with graceful fallback
+            # Show what was retrieved with transparency
+            rag_result = RAGResult(context="", references=[])
+            if state.rag_enabled and state.codebase_indexer:
+                try:
+                    rag_result = await _retrieve_relevant_code(
+                        state.codebase_indexer, user_input, top_k=3
+                    )
+                    if rag_result.found_code:
+                        # Show transparent references with fallback indicator
+                        mode = "[yellow]grep[/yellow]" if rag_result.fallback_used else "[cyan]semantic[/cyan]"
+                        refs_display = ", ".join(
+                            f"{ref.split(':')[0]} ({score:.0%})"
+                            for ref, score in rag_result.references[:3]
+                        )
+                        console.print(f"[dim]RAG ({mode}) → {refs_display}[/dim]")
+                except Exception:
+                    pass  # Non-fatal
+
+            # Add current user input (with RAG context if available)
+            if rag_result.found_code:
+                # Inject retrieved code context before user's question
+                augmented_input = f"{rag_result.context}\n\n---\n\n**User Question**: {user_input}"
+                messages.append({"role": "user", "content": augmented_input})
+            else:
+                messages.append({"role": "user", "content": user_input})
 
             # Now add user turn to DAG for future history
             dag.add_user_message(user_input)
@@ -601,13 +1466,14 @@ async def _chat_loop(
             # Extract facts from user message (name, preferences, context)
             # RFC-019: Use Naaru Consolidator Shard if available
             # RFC-023: Also extract behaviors for identity
+            # Messages are queued to state.pending_observations to avoid interleaving with streaming
             if shard_pool and naaru_enabled:
                 # Fire-and-forget: Shard extracts in background with tiny LLM
                 asyncio.create_task(_naaru_extract_user_facts_and_behaviors(
-                    shard_pool, dag, user_input, console, tiny_model, identity_store
+                    shard_pool, dag, user_input, state, tiny_model, identity_store
                 ))
             else:
-                # Inline extraction (fallback)
+                # Inline extraction (fallback) - queue to state to avoid interleaving
                 try:
                     from sunwell.simulacrum.extractors.extractor import extract_user_facts
                     user_facts = extract_user_facts(user_input)
@@ -619,7 +1485,7 @@ async def _chat_loop(
                             category=category,
                         )
                         dag.add_learning(learning)
-                        console.print(f"[dim]+ Noted: {fact_text}[/dim]")
+                        state.queue_observation(f"[dim]+ Noted: {fact_text}[/dim]")
                 except ImportError:
                     pass
 
@@ -631,7 +1497,7 @@ async def _chat_loop(
                         from sunwell.naaru.persona import MURU
                         for behavior_text, confidence in behaviors:
                             identity_store.add_observation(behavior_text, confidence)
-                            console.print(MURU.msg_observed(behavior_text))
+                            state.queue_observation(MURU.msg_observed(behavior_text))
                     except ImportError:
                         pass
 
@@ -675,12 +1541,18 @@ async def _chat_loop(
                 )
 
                 response_parts = []
-                async for chunk in state.model.generate_stream(structured_messages):
-                    console.print(chunk, end="")
-                    response_parts.append(chunk)
+                # Use Live display for streaming markdown rendering
+                with Live(Markdown(""), console=console, refresh_per_second=8, transient=False) as live:
+                    async for chunk in state.model.generate_stream(structured_messages):
+                        response_parts.append(chunk)
+                        # Re-render markdown with accumulated text
+                        live.update(Markdown("".join(response_parts)))
                 response = "".join(response_parts)
 
-            console.print()
+            console.print()  # Ensure newline after Live display
+
+            # Display any queued observations from background tasks (after streaming)
+            state.flush_observations(console)
 
             # Track last response for /write command
             state.last_response = response
@@ -690,10 +1562,11 @@ async def _chat_loop(
 
             # Auto-extract learnings from response
             # RFC-019: Use Naaru Consolidator Shard if available
+            # Note: These learnings appear after the next user input (fire-and-forget)
             if shard_pool and naaru_enabled:
                 # Fire-and-forget: Shard consolidates learnings in background
                 asyncio.create_task(_naaru_consolidate_learnings(
-                    shard_pool, dag, response, user_input, console
+                    shard_pool, dag, response, user_input, state
                 ))
             else:
                 # Inline extraction (fallback)
@@ -714,7 +1587,7 @@ async def _chat_loop(
             # RFC-023: Check if identity digest needed
             if identity_store and identity_store.needs_digest(len(dag.turns)):
                 asyncio.create_task(_digest_identity_background(
-                    identity_store, tiny_model, len(dag.turns), console
+                    identity_store, tiny_model, len(dag.turns), state
                 ))
 
         except KeyboardInterrupt:
@@ -833,6 +1706,130 @@ async def _handle_chat_command(
         else:
             console.print(f"[red]Unknown: /tools {arg}[/red]")
             console.print("  Usage: /tools on|off")
+
+    elif cmd == "/context":
+        # Show current workspace context
+        if state.project_context:
+            summary = _format_context_summary(state.project_context, state.workspace_context)
+            console.print(summary)
+
+            # Show RAG stats
+            if state.rag_enabled and state.rag_stats:
+                console.print("")
+                console.print("### Semantic RAG (Phase 3)")
+                console.print("**Status**: Enabled")
+                console.print(f"**Files indexed**: {state.rag_stats.get('file_count', 0)}")
+                console.print(f"**Code chunks**: {state.rag_stats.get('chunk_count', 0)}")
+                console.print(f"**From cache**: {state.rag_stats.get('from_cache', False)}")
+            elif state.rag_enabled:
+                console.print("")
+                console.print("### Semantic RAG")
+                console.print("**Status**: Enabled but no index loaded")
+        else:
+            console.print("[dim]No workspace context loaded.[/dim]")
+            console.print("[dim]Run with --workspace flag or from a project directory.[/dim]")
+
+    elif cmd == "/refresh":
+        # Rebuild workspace context
+        console.print("[dim]Refreshing context...[/dim]")
+        try:
+            # Clear cache
+            cache_path = Path.cwd() / ".sunwell" / "context.json"
+            if cache_path.exists():
+                cache_path.unlink()
+
+            # Rebuild
+            _, new_ctx = _build_smart_workspace_context(use_cache=False)
+            state.project_context = new_ctx
+
+            # Also refresh workspace context
+            new_ws_ctx, new_ws_data = await _load_workspace_context(Path.cwd())
+            if new_ws_data:
+                state.workspace_context = new_ws_data
+
+            ptype = new_ctx.get("type", "unknown")
+            framework = new_ctx.get("framework")
+            type_info = ptype.title()
+            if framework:
+                type_info += f" ({framework})"
+
+            console.print(f"[green]✓ Context refreshed:[/green] {type_info}")
+            if state.workspace_context:
+                links = len(state.workspace_context.get("links", []))
+                symbols = len(state.workspace_context.get("symbols", []))
+                console.print(f"[dim]  {links} linked sources, {symbols} symbols[/dim]")
+        except Exception as e:
+            console.print(f"[red]Failed to refresh: {e}[/red]")
+
+    elif cmd == "/index":
+        # Rebuild codebase index for RAG
+        console.print("[dim]Rebuilding codebase index...[/dim]")
+        try:
+            # Clear cache
+            cache_path = Path.cwd() / ".sunwell" / "index" / "codebase_index.json"
+            if cache_path.exists():
+                cache_path.unlink()
+
+            # Need embedder - get it from the store or create new
+            from sunwell.embedding import create_embedder
+            embedder = create_embedder()
+
+            # Rebuild index
+            new_indexer, new_stats = await _build_codebase_index(
+                Path.cwd(), embedder, force_rebuild=True
+            )
+
+            if new_indexer and new_stats.get("indexed"):
+                state.codebase_indexer = new_indexer
+                state.rag_stats = new_stats
+                state.rag_enabled = True
+                console.print(
+                    f"[green]✓ Index rebuilt:[/green] {new_stats.get('chunk_count', 0)} chunks "
+                    f"from {new_stats.get('file_count', 0)} files"
+                )
+            else:
+                console.print("[yellow]No code files found to index[/yellow]")
+        except Exception as e:
+            console.print(f"[red]Failed to rebuild index: {e}[/red]")
+
+    elif cmd == "/search":
+        # Manual code search (Phase 4: Visible RAG)
+        if not arg:
+            console.print("[yellow]Usage: /search <query>[/yellow]")
+            console.print("[dim]Example: /search authentication handler[/dim]")
+        elif not state.codebase_indexer:
+            console.print("[yellow]No codebase index. Run /index first.[/yellow]")
+        else:
+            try:
+                result = await _retrieve_relevant_code(state.codebase_indexer, arg, top_k=5)
+                if result.found_code:
+                    console.print(f"\n[bold]Search results for:[/bold] {arg}\n")
+                    for ref, score in result.references:
+                        # Parse reference for nicer display
+                        console.print(f"  [cyan]{score:.0%}[/cyan] {ref}")
+                    console.print("")
+                    console.print("[dim]Tip: These chunks will be used as context if you ask about this topic.[/dim]")
+                else:
+                    console.print(f"[dim]No relevant code found for: {arg}[/dim]")
+            except Exception as e:
+                console.print(f"[red]Search failed: {e}[/red]")
+
+    elif cmd == "/rag":
+        # Toggle RAG (Phase 4)
+        if arg.lower() == "on":
+            if state.codebase_indexer:
+                state.rag_enabled = True
+                console.print("[green]✓ RAG enabled[/green]")
+            else:
+                console.print("[yellow]No codebase index. Run /index first.[/yellow]")
+        elif arg.lower() == "off":
+            state.rag_enabled = False
+            console.print("[green]✓ RAG disabled[/green]")
+        else:
+            status = "[green]enabled[/green]" if state.rag_enabled else "[dim]disabled[/dim]"
+            chunks = state.rag_stats.get("chunk_count", 0) if state.rag_stats else 0
+            console.print(f"RAG: {status} ({chunks} chunks indexed)")
+            console.print("[dim]Usage: /rag on|off[/dim]")
 
     elif cmd == "/save":
         store.save_session()
@@ -1043,8 +2040,18 @@ async def _handle_chat_command(
   /trace clear      Clear trace history
   /trace json       Export traces as JSON
 
+[bold]Workspace Context:[/bold]
+  /context          Show detected project, key files, RAG stats
+  /refresh          Rebuild workspace context cache
+  /index            Rebuild codebase RAG index
+
+[bold]Semantic Code Search (RAG):[/bold]
+  /search <query>   Search codebase for relevant code
+  /rag on|off       Toggle per-query code retrieval
+
 [bold]Tip:[/bold] Your headspace persists when you /switch models!
 [bold]Tip:[/bold] Use /tools on to enable Agent mode with file read/write!
+[bold]Tip:[/bold] RAG auto-retrieves relevant code for each question!
 """)
 
     elif cmd == "/trace":
@@ -1078,7 +2085,7 @@ async def _naaru_extract_user_facts(
     shard_pool: ShardPool,
     dag: ConversationDAG,
     user_input: str,
-    console,
+    state: ChatState,
     tiny_model=None,  # Optional tiny LLM for fact extraction
 ) -> None:
     """Use Naaru Consolidator Shard to extract facts from user input.
@@ -1090,6 +2097,7 @@ async def _naaru_extract_user_facts(
     Falls back to regex patterns if no tiny model available.
 
     Runs in background while model generates response.
+    Queues messages to state.pending_observations for display after streaming.
     """
     try:
         # Prefer LLM-based extraction (more flexible)
@@ -1110,11 +2118,11 @@ async def _naaru_extract_user_facts(
             )
             dag.add_learning(learning)
             from sunwell.naaru.persona import MURU
-            console.print(MURU.msg_noted(fact_text, category))
+            state.queue_observation(MURU.msg_noted(fact_text, category))
     except Exception as e:
         # Log but don't crash - this is background task
         from sunwell.naaru.persona import MURU
-        console.print(MURU.msg_error("fact extraction", str(e)))
+        state.queue_observation(MURU.msg_error("fact extraction", str(e)))
 
 
 async def _naaru_consolidate_learnings(
@@ -1122,12 +2130,12 @@ async def _naaru_consolidate_learnings(
     dag: ConversationDAG,
     response: str,
     user_input: str,
-    console=None,  # For visibility into what Naaru did
+    state: ChatState | None = None,  # For queueing visibility messages
 ) -> None:
     """Use Naaru Consolidator Shard to extract learnings from response.
 
     Runs in background after response is shown to user.
-    Shows what was learned so user knows what Naaru did.
+    Queues messages about what was learned for display after streaming.
     """
 
     try:
@@ -1151,18 +2159,18 @@ async def _naaru_consolidate_learnings(
             )
             dag.add_learning(learning)
             added_count += 1
-            # Show what M'uru learned
-            if console:
+            # Queue what M'uru learned for display after streaming
+            if state:
                 from sunwell.naaru.persona import MURU
-                console.print(MURU.msg_learned(learning_text))
+                state.queue_observation(MURU.msg_learned(learning_text))
 
         # Summary if learnings were added
-        if added_count > 0 and console:
-            console.print(f"[dim]📚 Total learnings in session: {len(dag.learnings)}[/dim]")
+        if added_count > 0 and state:
+            state.queue_observation(f"[dim]📚 Total learnings in session: {len(dag.learnings)}[/dim]")
     except Exception as e:
-        if console:
+        if state:
             from sunwell.naaru.persona import MURU
-            console.print(MURU.msg_error("consolidation", str(e)))
+            state.queue_observation(MURU.msg_error("consolidation", str(e)))
 
 
 # RFC-023: Identity extraction and digest helper functions
@@ -1171,7 +2179,7 @@ async def _naaru_extract_user_facts_and_behaviors(
     shard_pool: ShardPool,
     dag: ConversationDAG,
     user_input: str,
-    console,
+    state: ChatState,
     tiny_model=None,
     identity_store=None,
 ) -> None:
@@ -1181,6 +2189,7 @@ async def _naaru_extract_user_facts_and_behaviors(
     behavioral observations for the identity system.
 
     Includes turn-by-turn tracing for evolution analysis.
+    Queues messages to state.pending_observations for display after streaming.
     """
     # Import tracer for turn evolution tracking
     from sunwell.simulacrum.tracer import TRACER
@@ -1217,7 +2226,7 @@ async def _naaru_extract_user_facts_and_behaviors(
                     category=category,
                 )
                 dag.add_learning(learning)
-                console.print(MURU.msg_noted(fact_text, category))
+                state.queue_observation(MURU.msg_noted(fact_text, category))
 
                 # Trace the extraction
                 TRACER.log_extraction("fact", fact_text, confidence, category)
@@ -1230,7 +2239,7 @@ async def _naaru_extract_user_facts_and_behaviors(
                         confidence,
                         turn_id=dag.active_head
                     )
-                    console.print(MURU.msg_observed(behavior_text))
+                    state.queue_observation(MURU.msg_observed(behavior_text))
 
                     # Trace the extraction
                     TRACER.log_extraction("behavior", behavior_text, confidence)
@@ -1249,7 +2258,7 @@ async def _naaru_extract_user_facts_and_behaviors(
                     category=category,
                 )
                 dag.add_learning(learning)
-                console.print(MURU.msg_noted(fact_text, category))
+                state.queue_observation(MURU.msg_noted(fact_text, category))
 
                 # Trace the extraction
                 TRACER.log_extraction("fact", fact_text, confidence, category)
@@ -1260,7 +2269,7 @@ async def _naaru_extract_user_facts_and_behaviors(
                 behaviors = extract_behaviors_regex(user_input)
                 for behavior_text, confidence in behaviors:
                     identity_store.add_observation(behavior_text, confidence)
-                    console.print(MURU.msg_observed(behavior_text))
+                    state.queue_observation(MURU.msg_observed(behavior_text))
 
                     # Trace the extraction
                     TRACER.log_extraction("behavior", behavior_text, confidence)
@@ -1278,7 +2287,7 @@ async def _naaru_extract_user_facts_and_behaviors(
 
     except Exception as e:
         from sunwell.naaru.persona import MURU
-        console.print(MURU.msg_error("extraction", str(e)))
+        state.queue_observation(MURU.msg_error("extraction", str(e)))
     finally:
         # End the turn trace (without assistant response - that's added later)
         TRACER.end_turn()
@@ -1288,11 +2297,12 @@ async def _digest_identity_background(
     identity_store,
     tiny_model,
     turn_count: int,
-    console,
+    state: ChatState,
 ) -> None:
     """Background task to digest identity from observations.
 
     RFC-023: Synthesizes behavioral observations into identity prompt.
+    Queues messages to state.pending_observations for display after streaming.
     """
     try:
         from sunwell.identity.digest import digest_identity, quick_digest
@@ -1327,7 +2337,7 @@ async def _digest_identity_background(
                 values=new_identity.values,
             )
             from sunwell.naaru.persona import MURU
-            console.print(MURU.msg_identity_updated(new_identity.confidence))
+            state.queue_observation(MURU.msg_identity_updated(new_identity.confidence))
     except Exception as e:
         from sunwell.naaru.persona import MURU
-        console.print(MURU.msg_error("identity digest", str(e)))
+        state.queue_observation(MURU.msg_error("identity digest", str(e)))

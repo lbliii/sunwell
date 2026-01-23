@@ -642,7 +642,7 @@
     margin: 0 0 var(--space-8);
     padding: var(--space-4) var(--space-6);
     border-left: 3px solid var(--ui-gold);
-    background: rgba(201, 162, 39, 0.05);
+    background: var(--ui-gold-5);
     border-radius: 0 var(--radius-md) var(--radius-md) 0;
     position: relative;
     z-index: 1;
@@ -810,7 +810,7 @@
   .phase-badge {
     margin-left: auto;
     padding: var(--space-1) var(--space-2);
-    background: rgba(201, 162, 39, 0.15);
+    background: var(--ui-gold-15);
     border-radius: var(--radius-sm);
     font-size: var(--text-xs);
     color: var(--text-gold);
@@ -875,7 +875,7 @@
   
   .progress-bar-container {
     height: 4px;
-    background: rgba(201, 162, 39, 0.15);
+    background: var(--ui-gold-15);
     border-radius: 2px;
     overflow: hidden;
   }
@@ -978,7 +978,7 @@
   
   .toggle-btn.active {
     color: var(--text-gold);
-    background: rgba(201, 162, 39, 0.1);
+    background: var(--ui-gold-10);
     border-color: var(--ui-gold);
   }
   
@@ -1322,7 +1322,7 @@
   }
   
   .card-status.active {
-    background: rgba(201, 162, 39, 0.15);
+    background: var(--ui-gold-15);
     color: var(--text-gold);
   }
   

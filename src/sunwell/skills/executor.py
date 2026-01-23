@@ -10,6 +10,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from sunwell.skills.sandbox import ScriptSandbox, expand_template_variables
@@ -135,6 +136,11 @@ class SkillExecutor:
         *,
         validate: bool = True,
         dry_run: bool = False,
+        agentic: bool = True,
+        max_tool_iterations: int = 20,
+        tool_executor: Any | None = None,
+        on_tool_call: Callable[[str, dict], None] | None = None,
+        on_tool_result: Callable[[str, bool, str], None] | None = None,
     ) -> SkillResult:
         """Execute skill and optionally validate with lens.
 
@@ -142,6 +148,11 @@ class SkillExecutor:
             context: Variables for template expansion (e.g., {"name": "auth"})
             validate: Whether to run lens validators on output
             dry_run: If True, don't write any files
+            agentic: Use tool-calling loop for multi-step reasoning (default: True)
+            max_tool_iterations: Max tool calls when agentic (default: 20)
+            tool_executor: Tool executor for agentic mode
+            on_tool_call: Callback when a tool is called (tool_name, arguments)
+            on_tool_result: Callback when a tool returns (tool_name, success, output)
 
         Returns:
             SkillResult with content, validation status, and artifacts
@@ -156,9 +167,18 @@ class SkillExecutor:
         # 1. Build prompt from skill instructions
         prompt = self._build_skill_prompt(context)
 
-        # 2. Execute with model
-        result = await self.model.generate(prompt)
-        content = result.content
+        # 2. Execute with model (agentic or single-shot)
+        if agentic and tool_executor is not None:
+            content = await self._execute_agentic(
+                prompt,
+                tool_executor,
+                max_tool_iterations,
+                on_tool_call=on_tool_call,
+                on_tool_result=on_tool_result,
+            )
+        else:
+            result = await self.model.generate(prompt)
+            content = result.content
 
         # 3. Run any scripts (if trust level allows)
         if self.skill.scripts and self._sandbox.can_execute():
@@ -218,6 +238,103 @@ class SkillExecutor:
             write_paths=write_paths,
             timeout_seconds=self.skill.timeout,
         )
+
+    async def _execute_agentic(
+        self,
+        prompt: str,
+        tool_executor: Any,
+        max_iterations: int,
+        on_tool_call: Callable[[str, dict], None] | None = None,
+        on_tool_result: Callable[[str, bool, str], None] | None = None,
+    ) -> str:
+        """Execute with tool-calling loop for multi-step reasoning.
+
+        This enables the model to naturally decompose complex tasks:
+        - Read files to understand context
+        - Search for evidence
+        - Iterate until the task is complete
+
+        Similar to Cursor's approach: give the model tools and let it work.
+
+        Args:
+            prompt: The skill prompt
+            tool_executor: ToolExecutor for running tools
+            max_iterations: Max tool call iterations
+            on_tool_call: Callback(tool_name, arguments) when tool is called
+            on_tool_result: Callback(tool_name, success, output_preview) with result
+        """
+        from sunwell.models.protocol import Message
+        from sunwell.tools.builtins import CORE_TOOLS
+
+        # Get tools available at current trust level
+        available_tools = tool_executor.get_available_tools()
+        tool_list = [CORE_TOOLS[name] for name in available_tools if name in CORE_TOOLS]
+        tools = tuple(tool_list)
+
+        # Build initial conversation
+        conversation: list[Message] = [Message(role="user", content=prompt)]
+
+        response_text = ""
+        tool_count = 0
+
+        for _iteration in range(max_iterations):
+            # Generate with tools
+            result = await self.model.generate(
+                tuple(conversation),
+                tools=tools,
+                tool_choice="auto",
+            )
+
+            # If no tool calls, we're done - model has finished reasoning
+            if not result.has_tool_calls:
+                response_text = result.content
+                break
+
+            # Add assistant message with tool calls to conversation
+            conversation.append(
+                Message(
+                    role="assistant",
+                    content=result.content,
+                    tool_calls=result.tool_calls,
+                )
+            )
+
+            # Execute each tool call
+            for tool_call in result.tool_calls:
+                tool_count += 1
+
+                # Notify: tool being called
+                if on_tool_call:
+                    on_tool_call(tool_call.name, dict(tool_call.arguments))
+
+                tool_result = await tool_executor.execute(tool_call)
+
+                # Notify: tool result
+                if on_tool_result:
+                    preview = (
+                        tool_result.output[:200] + "..."
+                        if len(tool_result.output) > 200
+                        else tool_result.output
+                    )
+                    on_tool_result(tool_call.name, tool_result.success, preview)
+
+                # Add tool result to conversation
+                conversation.append(
+                    Message(
+                        role="tool",
+                        content=(
+                            tool_result.output
+                            if tool_result.success
+                            else f"Error: {tool_result.error}"
+                        ),
+                        tool_call_id=tool_call.id,
+                    )
+                )
+        else:
+            # Max iterations reached - use last response
+            response_text = result.content if result else ""
+
+        return response_text
 
     def _build_skill_prompt(self, context: dict[str, str]) -> str:
         """Build prompt from skill instructions and lens context."""

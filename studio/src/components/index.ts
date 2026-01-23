@@ -66,3 +66,9 @@ export * from './writer';
 
 // Demo (RFC-095) — The Prism Principle demonstration
 export * from './demo';
+
+// Coordinator (RFC-100) — Multi-agent orchestration & State DAG
+export * from './coordinator';
+
+// Workspace (RFC-103) — Workspace-aware scanning & drift detection
+export * from './workspace';

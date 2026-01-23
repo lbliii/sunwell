@@ -133,7 +133,7 @@
   
   .checkbox-input:focus-visible + .checkbox-box {
     border-color: var(--border-emphasis);
-    box-shadow: 0 0 0 2px rgba(201, 162, 39, 0.3);
+    box-shadow: 0 0 0 2px var(--border-emphasis);
   }
   
   .checkbox-input:checked + .checkbox-box {
@@ -142,7 +142,7 @@
   }
   
   .checkbox-input:checked:focus-visible + .checkbox-box {
-    box-shadow: 0 0 0 2px rgba(201, 162, 39, 0.4);
+    box-shadow: 0 0 0 2px var(--border-emphasis);
   }
   
   /* ═══════════════════════════════════════════════════════════════

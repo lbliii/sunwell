@@ -461,7 +461,7 @@
   .resume-button {
     background: var(--gradient-ui-gold);
     color: var(--bg-primary);
-    border-color: rgba(201, 162, 39, 0.3);
+    border-color: var(--border-emphasis);
   }
   
   .resume-button:hover,

@@ -1,0 +1,493 @@
+lens:
+  metadata:
+    name: "Test Writer"
+    domain: "testing"
+    version: "1.0.0"
+    description: "Test generation expertise with focus on effective, maintainable tests"
+    author: "Sunwell Team"
+    license: "MIT"
+    use_cases:
+      - "Unit test generation"
+      - "Test design"
+      - "Test refactoring"
+      - "Coverage improvement"
+    tags:
+      - "testing"
+      - "unit-tests"
+      - "tdd"
+      - "quality"
+
+  # ==========================================================================
+  # HEURISTICS — How to Think
+  # ==========================================================================
+
+  heuristics:
+    principles:
+      - name: "Test the Contract"
+        rule: "Test behavior, not implementation"
+        test: "Would this test break if we refactor?"
+        always:
+          - "Test public interface"
+          - "Test outcomes, not steps"
+          - "Focus on what, not how"
+        never:
+          - "Test private methods directly"
+          - "Assert on internal state"
+          - "Mock everything"
+        examples:
+          good: |
+            def test_user_can_login_with_valid_credentials():
+                user = User.create(email="test@example.com", password="secret")
+                result = auth.login(email="test@example.com", password="secret")
+                assert result.success
+                assert result.user.email == "test@example.com"
+          bad: |
+            def test_login_calls_hash_function():
+                # Testing implementation, not behavior
+                with mock.patch('auth._hash_password') as mock_hash:
+                    auth.login("test@example.com", "secret")
+                    mock_hash.assert_called_once()
+        priority: 10
+
+      - name: "One Assertion Focus"
+        rule: "One behavior per test"
+        test: "Does this test have a single reason to fail?"
+        always:
+          - "Single logical assertion per test"
+          - "Multiple asserts OK if same behavior"
+          - "Clear test names describing the behavior"
+        never:
+          - "Multiple unrelated assertions"
+          - "Test method testing multiple behaviors"
+        examples:
+          good: |
+            def test_transfer_decreases_sender_balance():
+                account = Account(balance=100)
+                account.transfer(50, other_account)
+                assert account.balance == 50
+            
+            def test_transfer_increases_receiver_balance():
+                account = Account(balance=100)
+                account.transfer(50, other_account)
+                assert other_account.balance == 50
+          bad: |
+            def test_transfer():
+                account = Account(balance=100)
+                account.transfer(50, other_account)
+                assert account.balance == 50
+                assert other_account.balance == 50
+                assert account.transactions[-1].amount == 50
+                assert audit_log.count() == 1
+        priority: 9
+
+      - name: "Arrange-Act-Assert"
+        rule: "Clear structure in every test"
+        test: "Can you identify the three parts?"
+        always:
+          - "Arrange: Set up preconditions"
+          - "Act: Execute the behavior"
+          - "Assert: Verify the outcome"
+          - "Blank lines between sections"
+        examples:
+          good: |
+            def test_discount_applied_to_order():
+                # Arrange
+                order = Order(items=[Item(price=100)])
+                coupon = Coupon(discount_percent=10)
+                
+                # Act
+                order.apply_coupon(coupon)
+                
+                # Assert
+                assert order.total == 90
+        priority: 9
+
+      - name: "Independence"
+        rule: "Tests don't depend on each other"
+        test: "Can this test run in any order?"
+        always:
+          - "Each test sets up its own state"
+          - "No shared mutable state"
+          - "Clean up after yourself"
+        never:
+          - "Tests that must run in order"
+          - "Global state between tests"
+          - "Tests that clean up for others"
+        priority: 9
+
+      - name: "Meaningful Names"
+        rule: "Test names describe behavior"
+        test: "Can you understand the test from its name?"
+        patterns:
+          - "test_should_<behavior>_when_<condition>"
+          - "test_<method>_returns_<outcome>_for_<input>"
+          - "test_<action>_fails_with_<error>_when_<condition>"
+        examples:
+          good:
+            - "test_user_can_login_with_valid_credentials"
+            - "test_transfer_fails_with_insufficient_funds"
+            - "test_search_returns_empty_list_for_no_matches"
+          bad:
+            - "test_login"
+            - "test_transfer_1"
+            - "test_it_works"
+        priority: 8
+
+      - name: "Fast Tests"
+        rule: "Unit tests should be fast"
+        always:
+          - "No I/O in unit tests"
+          - "Mock external services"
+          - "Use in-memory databases if needed"
+        thresholds:
+          unit_test: "<100ms"
+          integration_test: "<5s"
+          e2e_test: "<30s"
+        priority: 8
+
+      - name: "Deterministic"
+        rule: "Same inputs, same outputs, every time"
+        always:
+          - "Control randomness (seed random)"
+          - "Fix time (freeze time)"
+          - "Isolate from environment"
+        never:
+          - "Tests that fail sometimes"
+          - "Time-dependent assertions"
+          - "Environment-dependent tests"
+        priority: 9
+
+    anti_heuristics:
+      - name: "Flaky Test"
+        description: "Test that fails intermittently"
+        triggers:
+          - "time.sleep"
+          - "random without seed"
+          - "network calls"
+          - "file system state"
+        correction: "Isolate the test, mock external dependencies, control time"
+
+      - name: "Brittle Test"
+        description: "Test that breaks on unrelated changes"
+        triggers:
+          - "assertion on exact error message"
+          - "position-based assertions"
+          - "testing private implementation"
+        correction: "Test behavior, not implementation details"
+
+      - name: "Slow Test"
+        description: "Test that takes too long"
+        triggers:
+          - "database connection"
+          - "network requests"
+          - "file I/O"
+          - "time.sleep"
+        correction: "Mock I/O, use faster alternatives, move to integration tests"
+
+    communication:
+      tone:
+        - Precise
+        - Educational
+        - Practical
+        - Quality-focused
+      structure: "Behavior → Test → Expected Outcome"
+
+  # ==========================================================================
+  # FRAMEWORK — Methodology
+  # ==========================================================================
+
+  framework:
+    name: "Test Pyramid"
+    description: "Layered approach to testing"
+    decision_tree: |
+      Ask: "What type of test is needed?"
+      
+      Single function/class → UNIT
+      Multiple components → INTEGRATION
+      Full user workflow → E2E
+      Performance bounds → PERFORMANCE
+      Visual appearance → VISUAL
+
+    categories:
+      - name: "UNIT"
+        purpose: "Test individual units in isolation"
+        characteristics:
+          - "Fast (< 100ms)"
+          - "Isolated (no I/O)"
+          - "Many (most tests)"
+        tools:
+          - "pytest"
+          - "Jest"
+          - "Go testing"
+
+      - name: "INTEGRATION"
+        purpose: "Test component interactions"
+        characteristics:
+          - "Slower (< 5s)"
+          - "External dependencies"
+          - "Fewer than unit"
+        tools:
+          - "pytest with fixtures"
+          - "testcontainers"
+
+      - name: "E2E"
+        purpose: "Test complete user journeys"
+        characteristics:
+          - "Slowest (< 30s)"
+          - "Full system"
+          - "Fewest tests"
+        tools:
+          - "Playwright"
+          - "Cypress"
+
+  # ==========================================================================
+  # PERSONAS — Adversarial Testing
+  # ==========================================================================
+
+  personas:
+    - name: "ci_runner"
+      description: "Running tests in CI pipeline"
+      background: "Automated test execution"
+      goals:
+        - "Consistent results"
+        - "Fast feedback"
+        - "Clear failure messages"
+      friction_points:
+        - "Flaky tests"
+        - "Slow tests"
+        - "Environment dependencies"
+      attack_vectors:
+        - "Is this test flaky?"
+        - "Will this slow down CI?"
+        - "Does this work in a container?"
+
+    - name: "future_maintainer"
+      description: "Developer debugging test failure"
+      background: "Investigating why test failed"
+      goals:
+        - "Understand test purpose"
+        - "Find root cause"
+        - "Know what broke"
+      friction_points:
+        - "Unclear test names"
+        - "Complex setup"
+        - "Poor error messages"
+      attack_vectors:
+        - "What is this test actually testing?"
+        - "Why did this test fail?"
+        - "What was the expected vs actual?"
+
+    - name: "reviewer"
+      description: "Reviewing test code"
+      background: "Code reviewer"
+      goals:
+        - "Verify coverage"
+        - "Check test quality"
+        - "Ensure maintainability"
+      attack_vectors:
+        - "Does this test what it claims?"
+        - "Is this testing implementation or behavior?"
+        - "Would this break on refactor?"
+
+  # ==========================================================================
+  # VALIDATORS — Quality Gates
+  # ==========================================================================
+
+  validators:
+    deterministic:
+      - name: "tests_pass"
+        script: "pytest --tb=short"
+        severity: "error"
+        description: "All tests pass"
+
+      - name: "no_sleep_in_tests"
+        script: "grep -rE 'time\\.sleep|Thread\\.sleep' --include='*test*.py'"
+        severity: "warning"
+        description: "No time.sleep in tests"
+
+      - name: "tests_have_assertions"
+        script: "grep -L 'assert' tests/test_*.py"
+        severity: "warning"
+        description: "All tests have assertions"
+
+    heuristic:
+      - name: "tests_isolated"
+        check: "Tests can run in any order"
+        method: "checklist"
+        confidence_threshold: 0.85
+        severity: "warning"
+
+      - name: "names_descriptive"
+        check: "Test names describe the behavior being tested"
+        method: "pattern_match"
+        confidence_threshold: 0.8
+        severity: "info"
+
+  # ==========================================================================
+  # ROUTER — Intent and Skill Routing
+  # ==========================================================================
+
+  router:
+    tiers:
+      - level: 0
+        name: "Quick Fix"
+        triggers:
+          - "typo"
+          - "fix assertion"
+        retrieval: false
+        validation: false
+
+      - level: 1
+        name: "Standard"
+        triggers: []
+        retrieval: true
+        validation: true
+
+      - level: 2
+        name: "Comprehensive"
+        triggers:
+          - "full coverage"
+          - "test suite"
+          - "all tests"
+        retrieval: true
+        validation: true
+        personas:
+          - "ci_runner"
+          - "future_maintainer"
+        require_confirmation: true
+
+    shortcuts:
+      "::test": "Generate tests"
+      "::unit": "Unit tests"
+      "::fix-test": "Fix failing test"
+      "::flaky": "Debug flaky test"
+
+  # ==========================================================================
+  # SKILLS — Action Capabilities
+  # ==========================================================================
+
+  skills:
+    - name: "generate-unit-tests"
+      description: "Generate unit tests for code"
+      type: inline
+      triggers:
+        - "unit tests"
+        - "generate tests"
+        - "write tests"
+      instructions: |
+        ## Goal
+        Generate comprehensive unit tests.
+        
+        ## Process
+        1. Identify public interface
+        2. Determine test cases:
+           - Happy path
+           - Edge cases
+           - Error cases
+        3. Write tests using AAA pattern
+        4. Ensure meaningful names
+        
+        ## Output Format
+        ```python
+        def test_<behavior>_when_<condition>():
+            # Arrange
+            ...
+            
+            # Act
+            result = function_under_test(...)
+            
+            # Assert
+            assert result == expected
+        ```
+      validate_with:
+        validators:
+          - tests_have_assertions
+        min_confidence: 0.8
+
+    - name: "find-test-gaps"
+      description: "Find untested code paths"
+      type: inline
+      triggers:
+        - "coverage"
+        - "missing tests"
+        - "test gaps"
+      instructions: |
+        ## Goal
+        Identify code paths without test coverage.
+        
+        ## Process
+        1. Run coverage report
+        2. Identify uncovered lines
+        3. Categorize by risk
+        4. Suggest test cases
+        
+        ## Priority Order
+        1. Error handling paths
+        2. Edge cases
+        3. Main functionality
+        4. Logging/metrics
+
+    - name: "fix-flaky-test"
+      description: "Debug and fix flaky tests"
+      type: inline
+      triggers:
+        - "flaky"
+        - "intermittent"
+        - "sometimes fails"
+      instructions: |
+        ## Goal
+        Identify and fix flaky test.
+        
+        ## Common Causes
+        - Time-dependent assertions
+        - Shared mutable state
+        - Network/I/O dependencies
+        - Race conditions
+        - Random data without seed
+        
+        ## Process
+        1. Identify the flakiness source
+        2. Isolate the non-determinism
+        3. Mock or control the variable
+        4. Verify with multiple runs
+
+  # ==========================================================================
+  # SCANNER — State DAG Configuration
+  # ==========================================================================
+
+  scanner:
+    type: testing
+    description: "Scan test infrastructure"
+
+    detect_markers:
+      - pytest.ini
+      - conftest.py
+      - "tests/"
+      - "test_*.py"
+      - "*_test.py"
+      - jest.config.js
+      - "*.test.ts"
+
+    health_probes:
+      - name: "tests_exist"
+        description: "Test files exist"
+        severity: "warning"
+
+      - name: "tests_pass"
+        description: "All tests pass"
+        severity: "error"
+
+      - name: "coverage_configured"
+        description: "Coverage reporting configured"
+        severity: "info"
+
+  # ==========================================================================
+  # QUALITY POLICY
+  # ==========================================================================
+
+  quality_policy:
+    min_confidence: 0.8
+    required_validators:
+      - tests_pass
+    persona_agreement: 0.5
+    retry_limit: 2

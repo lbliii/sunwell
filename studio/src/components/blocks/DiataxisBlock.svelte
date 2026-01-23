@@ -66,8 +66,8 @@
   const confidencePct = $derived(Math.round(confidence * 100));
 
   const confidenceColor = $derived(() => {
-    if (confidence >= 0.8) return 'var(--success, #6bff6b)';
-    if (confidence >= 0.5) return 'var(--warning, #ffd93d)';
+    if (confidence >= 0.8) return 'var(--success)';
+    if (confidence >= 0.5) return 'var(--warning)';
     return 'var(--error, #ff6b6b)';
   });
 </script>

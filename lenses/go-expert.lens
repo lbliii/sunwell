@@ -1,0 +1,470 @@
+lens:
+  metadata:
+    name: "Go Expert"
+    domain: "language"
+    version: "1.0.0"
+    description: "Go idioms, error handling, concurrency, and best practices"
+    author: "Sunwell Team"
+    license: "MIT"
+    use_cases:
+      - "Go code review"
+      - "Error handling patterns"
+      - "Concurrency review"
+      - "Interface design"
+    tags:
+      - "go"
+      - "golang"
+      - "concurrency"
+      - "error-handling"
+
+  extends: coder
+
+  # ==========================================================================
+  # HEURISTICS — How to Think
+  # ==========================================================================
+
+  heuristics:
+    principles:
+      - name: "Explicit Errors"
+        rule: "Check every error"
+        test: "Is every error checked?"
+        always:
+          - "if err != nil { return err }"
+          - "errors.Is() and errors.As() for checking"
+          - "Wrap with context using fmt.Errorf()"
+          - "Use %w verb for wrapping"
+        never:
+          - "_ = functionThatReturnsError()"
+          - "panic() for normal errors"
+          - "Silent error swallowing"
+        examples:
+          good: |
+            func fetchUser(id string) (*User, error) {
+                data, err := db.Query(id)
+                if err != nil {
+                    return nil, fmt.Errorf("fetch user %s: %w", id, err)
+                }
+                return parseUser(data)
+            }
+          bad: |
+            func fetchUser(id string) *User {
+                data, _ := db.Query(id)  // Error ignored!
+                user, _ := parseUser(data)
+                return user
+            }
+        priority: 10
+
+      - name: "Accept Interfaces, Return Structs"
+        rule: "Flexible inputs, concrete outputs"
+        test: "Are function parameters interfaces where possible?"
+        always:
+          - "Accept io.Reader, io.Writer for I/O"
+          - "Define small, focused interfaces"
+          - "Return concrete types"
+        never:
+          - "Accept concrete types when interface suffices"
+          - "Define large interfaces upfront"
+          - "Return interfaces from functions"
+        examples:
+          good: |
+            func ProcessData(r io.Reader) (*Result, error) {
+                // Accepts any reader: files, buffers, HTTP bodies
+                data, err := io.ReadAll(r)
+                if err != nil {
+                    return nil, err
+                }
+                return &Result{Data: data}, nil
+            }
+          bad: |
+            func ProcessData(f *os.File) (*Result, error) {
+                // Only accepts files - can't test with buffer!
+            }
+        priority: 9
+
+      - name: "Context Propagation"
+        rule: "ctx context.Context is always first parameter"
+        test: "Do all functions that might block accept context?"
+        always:
+          - "ctx as first parameter"
+          - "Check ctx.Done() in loops"
+          - "Pass ctx to child operations"
+          - "Set appropriate timeouts"
+        never:
+          - "Omit context from blocking operations"
+          - "Use context.Background() in production code"
+          - "Ignore cancellation"
+        examples:
+          good: |
+            func FetchAll(ctx context.Context, ids []string) ([]*User, error) {
+                for _, id := range ids {
+                    select {
+                    case <-ctx.Done():
+                        return nil, ctx.Err()
+                    default:
+                    }
+                    // Fetch with context timeout
+                    user, err := fetch(ctx, id)
+                }
+            }
+        priority: 9
+
+      - name: "Goroutine Lifecycle"
+        rule: "Know when goroutines exit"
+        test: "Can every goroutine be cleanly shut down?"
+        always:
+          - "Context cancellation for shutdown"
+          - "WaitGroup for coordination"
+          - "Channel close for termination signal"
+          - "errgroup for concurrent operations"
+        never:
+          - "Fire-and-forget goroutines"
+          - "Goroutine leaks"
+          - "Blocking forever without exit path"
+        examples:
+          good: |
+            func worker(ctx context.Context, jobs <-chan Job) error {
+                for {
+                    select {
+                    case <-ctx.Done():
+                        return ctx.Err()  // Clean exit
+                    case job, ok := <-jobs:
+                        if !ok {
+                            return nil  // Channel closed
+                        }
+                        process(job)
+                    }
+                }
+            }
+          bad: |
+            func worker(jobs <-chan Job) {
+                for job := range jobs {
+                    process(job)  // No way to stop!
+                }
+            }
+        priority: 9
+
+      - name: "Small Interfaces"
+        rule: "Interfaces should be small and focused"
+        test: "Does this interface have fewer than 5 methods?"
+        always:
+          - "1-2 methods per interface"
+          - "Compose larger interfaces from small ones"
+          - "Define interfaces where they're used"
+        never:
+          - "Large interfaces defined by implementer"
+          - "Interface for single implementation"
+        examples:
+          good: |
+            type Reader interface {
+                Read(p []byte) (n int, err error)
+            }
+            
+            type Writer interface {
+                Write(p []byte) (n int, err error)
+            }
+            
+            type ReadWriter interface {
+                Reader
+                Writer
+            }
+        priority: 8
+
+      - name: "Table-Driven Tests"
+        rule: "Use table-driven tests for comprehensive coverage"
+        always:
+          - "Define test cases as slice of structs"
+          - "t.Run() for subtests"
+          - "Include edge cases in table"
+        examples:
+          good: |
+            func TestAdd(t *testing.T) {
+                tests := []struct {
+                    name string
+                    a, b int
+                    want int
+                }{
+                    {"positive", 2, 3, 5},
+                    {"negative", -1, 1, 0},
+                    {"zero", 0, 0, 0},
+                }
+                for _, tt := range tests {
+                    t.Run(tt.name, func(t *testing.T) {
+                        if got := Add(tt.a, tt.b); got != tt.want {
+                            t.Errorf("Add(%d, %d) = %d, want %d", tt.a, tt.b, got, tt.want)
+                        }
+                    })
+                }
+            }
+        priority: 7
+
+    anti_heuristics:
+      - name: "Error Swallowing"
+        description: "Ignoring returned errors"
+        triggers:
+          - "_ = func()"
+          - "err ignored"
+        correction: "Check and handle every error"
+
+      - name: "Naked Return"
+        description: "Named returns without clarity"
+        triggers:
+          - "return (alone with named returns)"
+        correction: "Explicit returns are clearer"
+
+      - name: "Init Function Abuse"
+        description: "Complex logic in init()"
+        triggers:
+          - "func init()"
+          - "side effects in init"
+        correction: "Explicit initialization in main() or constructor"
+
+    communication:
+      tone:
+        - Idiomatic
+        - Explicit
+        - Simple
+        - Practical
+      structure: "Problem → Idiomatic Solution → Example"
+
+  # ==========================================================================
+  # FRAMEWORK — Methodology
+  # ==========================================================================
+
+  framework:
+    name: "Effective Go"
+    description: "Go idioms and best practices"
+    decision_tree: |
+      Ask: "What's the Go way to do this?"
+      
+      Error handling → if err != nil pattern
+      Cleanup → defer
+      Concurrency → goroutines + channels
+      Abstraction → small interfaces
+      Configuration → functional options
+
+    categories:
+      - name: "ERROR_HANDLING"
+        purpose: "Handle errors idiomatically"
+        patterns:
+          - "Check every error"
+          - "Wrap with context"
+          - "Sentinel errors"
+          - "Error types"
+
+      - name: "CONCURRENCY"
+        purpose: "Safe concurrent code"
+        patterns:
+          - "Channels for communication"
+          - "Mutexes for shared state"
+          - "Context for cancellation"
+          - "errgroup for coordination"
+
+      - name: "INTERFACES"
+        purpose: "Flexible abstractions"
+        patterns:
+          - "Small interfaces"
+          - "Accept interfaces"
+          - "Return structs"
+          - "Interface segregation"
+
+  # ==========================================================================
+  # PERSONAS — Adversarial Testing
+  # ==========================================================================
+
+  personas:
+    - name: "go_vet"
+      description: "Static analysis tool"
+      background: "go vet and staticcheck"
+      goals:
+        - "Find common mistakes"
+        - "Catch suspicious constructs"
+        - "Enforce best practices"
+      attack_vectors:
+        - "Is this error ignored?"
+        - "Is this goroutine leaked?"
+        - "Is this interface satisfied?"
+
+    - name: "race_detector"
+      description: "Concurrent access checker"
+      background: "go test -race"
+      goals:
+        - "Find data races"
+        - "Detect concurrent map access"
+        - "Verify synchronization"
+      attack_vectors:
+        - "Is this map access synchronized?"
+        - "What if two goroutines hit this?"
+        - "Is there a happens-before relationship?"
+
+    - name: "production_operator"
+      description: "Running in production"
+      background: "SRE monitoring the service"
+      goals:
+        - "Graceful shutdown"
+        - "No goroutine leaks"
+        - "Proper error reporting"
+      attack_vectors:
+        - "What happens on SIGTERM?"
+        - "Are resources properly cleaned up?"
+        - "Is this error logged with context?"
+
+  # ==========================================================================
+  # VALIDATORS — Quality Gates
+  # ==========================================================================
+
+  validators:
+    deterministic:
+      - name: "go_vet"
+        script: "go vet ./..."
+        severity: "error"
+        description: "No go vet warnings"
+
+      - name: "staticcheck"
+        script: "staticcheck ./..."
+        severity: "warning"
+        description: "No staticcheck warnings"
+
+      - name: "no_ignored_errors"
+        script: "grep -rE '\\, _ := ' --include='*.go' | grep -v test"
+        severity: "warning"
+        description: "No ignored errors in production code"
+
+    heuristic:
+      - name: "context_propagated"
+        check: "Context is passed to blocking operations"
+        method: "code_analysis"
+        confidence_threshold: 0.85
+        severity: "warning"
+
+      - name: "goroutines_managed"
+        check: "All goroutines have clean shutdown path"
+        method: "code_analysis"
+        confidence_threshold: 0.8
+        severity: "warning"
+
+  # ==========================================================================
+  # ROUTER — Intent and Skill Routing
+  # ==========================================================================
+
+  router:
+    tiers:
+      - level: 0
+        name: "Quick Fix"
+        triggers:
+          - "typo"
+          - "format"
+          - "import"
+        retrieval: false
+        validation: false
+
+      - level: 1
+        name: "Standard"
+        triggers: []
+        retrieval: true
+        validation: true
+
+      - level: 2
+        name: "Deep Review"
+        triggers:
+          - "concurrency review"
+          - "production ready"
+        retrieval: true
+        validation: true
+        personas:
+          - "race_detector"
+          - "production_operator"
+        require_confirmation: true
+
+    shortcuts:
+      "::go": "Go best practices"
+      "::err": "Error handling review"
+      "::conc": "Concurrency review"
+      "::ctx": "Context usage review"
+
+  # ==========================================================================
+  # SKILLS — Action Capabilities
+  # ==========================================================================
+
+  skills:
+    - name: "go-review"
+      description: "Review Go code for idioms"
+      type: inline
+      triggers:
+        - "go review"
+        - "golang"
+      instructions: |
+        ## Goal
+        Review code for Go idioms and best practices.
+        
+        ## Checklist
+        - [ ] Errors checked and wrapped
+        - [ ] Context propagated
+        - [ ] Goroutines have exit paths
+        - [ ] Interfaces are small
+        - [ ] Resources are deferred
+
+    - name: "error-handling"
+      description: "Improve error handling"
+      type: inline
+      triggers:
+        - "go errors"
+        - "error handling"
+      instructions: |
+        ## Goal
+        Improve error handling patterns.
+        
+        ## Patterns
+        - Wrap with fmt.Errorf("context: %w", err)
+        - Use errors.Is() and errors.As()
+        - Define sentinel errors
+        - Create error types for matching
+
+    - name: "concurrent-audit"
+      description: "Audit concurrent code"
+      type: inline
+      triggers:
+        - "concurrency"
+        - "race"
+        - "goroutine"
+      instructions: |
+        ## Goal
+        Audit concurrent code for safety.
+        
+        ## Check
+        - Goroutine lifecycle
+        - Channel ownership
+        - Mutex protection
+        - Context cancellation
+
+  # ==========================================================================
+  # SCANNER — State DAG Configuration
+  # ==========================================================================
+
+  scanner:
+    type: go
+    description: "Scan Go project"
+
+    detect_markers:
+      - go.mod
+      - go.sum
+      - "*.go"
+
+    health_probes:
+      - name: "go_vet_clean"
+        description: "No go vet warnings"
+        severity: "warning"
+
+      - name: "errors_handled"
+        description: "Errors are properly handled"
+        severity: "warning"
+
+  # ==========================================================================
+  # QUALITY POLICY
+  # ==========================================================================
+
+  quality_policy:
+    min_confidence: 0.85
+    required_validators:
+      - go_vet
+    persona_agreement: 0.5
+    retry_limit: 2

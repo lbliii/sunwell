@@ -115,14 +115,14 @@
 <style>
 	.block-surface {
 		position: relative;
-		margin-top: var(--space-6, 24px);
+		margin-top: var(--space-6);
 		background: linear-gradient(
 			180deg,
-			rgba(255, 215, 0, 0.03) 0%,
+			var(--radiant-gold-3) 0%,
 			rgba(10, 10, 10, 0.95) 100%
 		);
-		border: 1px solid rgba(255, 215, 0, 0.15);
-		border-radius: var(--radius-xl, 16px);
+		border: 1px solid var(--radiant-gold-15);
+		border-radius: var(--radius-xl);
 		overflow: hidden;
 		backdrop-filter: blur(20px);
 		width: 100%;
@@ -131,22 +131,22 @@
 		/* Golden glow */
 		box-shadow:
 			0 4px 24px rgba(0, 0, 0, 0.4),
-			0 0 60px rgba(255, 215, 0, 0.08),
-			inset 0 1px 0 rgba(255, 215, 0, 0.1);
+			0 0 60px rgba(var(--radiant-gold-rgb), 0.08),
+			inset 0 1px 0 var(--radiant-gold-10);
 	}
 
 	.response-header {
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-start;
-		padding: var(--space-4, 16px);
-		border-bottom: 1px solid rgba(255, 215, 0, 0.1);
-		gap: var(--space-3, 12px);
+		padding: var(--space-4);
+		border-bottom: 1px solid var(--radiant-gold-10);
+		gap: var(--space-3);
 	}
 
 	.response-text {
-		color: var(--text-secondary, #999);
-		font-size: var(--text-sm, 14px);
+		color: var(--text-secondary);
+		font-size: var(--text-sm);
 		margin: 0;
 		flex: 1;
 		line-height: 1.5;
@@ -155,26 +155,26 @@
 	.dismiss-btn {
 		background: none;
 		border: none;
-		color: var(--text-tertiary, #666);
+		color: var(--text-tertiary);
 		cursor: pointer;
-		padding: var(--space-1, 4px);
-		border-radius: var(--radius-sm, 4px);
+		padding: var(--space-1);
+		border-radius: var(--radius-sm);
 		transition: all 0.15s ease;
 		flex-shrink: 0;
 	}
 
 	.dismiss-btn:hover {
-		color: var(--gold, #ffd700);
-		background: rgba(255, 215, 0, 0.1);
+		color: var(--gold);
+		background: var(--radiant-gold-10);
 	}
 
 	.dismiss-btn:focus-visible {
-		outline: 2px solid var(--gold, #ffd700);
+		outline: 2px solid var(--gold);
 		outline-offset: 2px;
 	}
 
 	.block-content {
-		padding: var(--space-4, 16px);
+		padding: var(--space-4);
 		overflow-y: auto;
 		max-height: calc(100% - 60px);
 	}
@@ -189,11 +189,11 @@
 	}
 
 	.block-content::-webkit-scrollbar-thumb {
-		background: rgba(255, 215, 0, 0.2);
+		background: var(--radiant-gold-20);
 		border-radius: 3px;
 	}
 
 	.block-content::-webkit-scrollbar-thumb:hover {
-		background: rgba(255, 215, 0, 0.3);
+		background: var(--radiant-gold-30);
 	}
 </style>

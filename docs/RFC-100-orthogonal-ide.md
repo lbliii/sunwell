@@ -1,4 +1,4 @@
-# RFC-100: Orthogonal IDE — Mental Model-First Control Plane
+# RFC-100: The ACP — Agent Control Plane (Orthogonal to IDE)
 
 **Status**: Evaluated (Landscape + Codebase Validated)  
 **Author**: Lawrence Lane  
@@ -56,13 +56,16 @@ This RFC touches **all three stacks**. Implementation requires coordinated chang
 
 ## Summary
 
-Sunwell should evolve as an **orthogonal axis** to traditional IDEs—not better code editing, but a **mental model-first control plane** for directing autonomous agents.
+Sunwell should evolve as an **orthogonal axis** to traditional IDEs—not better code editing, but a **mental model-first control plane** for directing autonomous agents. We call this paradigm an **ACP (Agent Control Plane)**.
+
+> **IDE** = Integrated Development Environment (human writes code)  
+> **ACP** = Agent Control Plane (human directs agents that write code)
 
 **Core insight**: Developers don't want to troll through files, terminals, and bug reports. They want a mental model of their project they can reason about and a futuristic control panel where their AI assistant handles the details.
 
 **The shift**:
-- **Traditional IDE axis**: Human → Code (optimize keystrokes, autocomplete, refactoring)
-- **Sunwell axis**: Human → Agent → Code (optimize goal articulation, supervision, review)
+- **IDE axis**: Human → Code (optimize keystrokes, autocomplete, refactoring)
+- **ACP axis**: Human → Agent → Code (optimize goal articulation, supervision, review)
 
 **Two-DAG Architecture**:
 - **State DAG**: Scan existing project → show "what exists and its health" → click to give intent

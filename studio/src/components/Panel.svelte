@@ -138,7 +138,7 @@
   }
   
   .panel-header:focus-visible {
-    outline: 2px solid rgba(201, 162, 39, 0.5);
+    outline: 2px solid var(--ui-gold-soft);
     outline-offset: -2px;
   }
   

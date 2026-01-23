@@ -4,7 +4,10 @@
 
 import { AgentStatus, TaskStatus, PlanningPhase } from '$lib/constants';
 import type { AgentState, AgentEvent, Task, Concept, ConceptCategory, PlanCandidate } from '$lib/types';
-import { updateNode, completeNode, reloadDag } from './dag.svelte';
+import { updateNode, completeNode, reloadDag, loadProjectDagIndex } from './dag.svelte';
+import { reloadFiles } from './files.svelte';
+import { invoke } from '@tauri-apps/api/core';
+import type { GoalNode, TaskNodeDetail } from '$lib/types';
 import { setActiveLens } from './lens.svelte';
 import {
   handleSkillGraphResolved,
@@ -42,6 +45,9 @@ const initialState: AgentState = {
 let _state = $state<AgentState>({ ...initialState });
 let eventUnlisten: (() => void) | null = null;
 let stopUnlisten: (() => void) | null = null;
+
+// RFC-105: Track current project path for DAG updates
+let _currentProjectPath: string | null = null;
 
 // ═══════════════════════════════════════════════════════════════
 // CONCEPT EXTRACTION
@@ -172,6 +178,10 @@ export async function runGoal(
     
     if (!result.success) { _state = { ..._state, status: AgentStatus.ERROR, error: result.message }; return null; }
     _state = { ..._state, status: AgentStatus.PLANNING };
+    
+    // RFC-105: Track project path for DAG updates
+    _currentProjectPath = result.workspace_path;
+    
     return result.workspace_path;
   } catch (e) {
     _state = { ..._state, status: AgentStatus.ERROR, error: e instanceof Error ? e.message : String(e) };
@@ -203,6 +213,62 @@ async function runDemoGoal(goal: string): Promise<boolean> {
 }
 
 function sleep(ms: number): Promise<void> { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+// RFC-105: Helper to append completed goal to hierarchical DAG
+async function appendCompletedGoalToDag(
+  goalId: string,
+  goalTitle: string,
+  _artifacts: string[], // Available for future use
+  _failed: string[],    // Available for future use  
+  partial: boolean
+): Promise<void> {
+  if (!_currentProjectPath) return;
+  
+  try {
+    // Build task nodes from current agent state
+    const tasks: TaskNodeDetail[] = _state.tasks.map(t => ({
+      id: t.id,
+      description: t.description,
+      status: t.status === 'complete' ? 'complete' : t.status === 'failed' ? 'failed' : 'pending',
+      produces: [], // TODO: Extract from task data when available
+      requires: [],
+      dependsOn: [],
+      contentHash: undefined,
+    }));
+    
+    // Construct the GoalNode
+    const now = new Date().toISOString();
+    const goalNode: GoalNode = {
+      id: goalId || `goal-${Date.now()}`,
+      title: goalTitle,
+      description: _state.goal ?? goalTitle,
+      status: partial ? 'partial' : 'complete',
+      createdAt: _state.startTime ? new Date(_state.startTime).toISOString() : now,
+      completedAt: now,
+      tasks,
+      learnings: _state.learnings.filter(l => !l.startsWith('🚀') && !l.startsWith('✅') && !l.startsWith('❌') && !l.startsWith('⚠️')),
+      metrics: {
+        durationSeconds: _state.startTime ? Math.round((Date.now() - _state.startTime) / 1000) : undefined,
+        tasksCompleted: _state.tasks.filter(t => t.status === 'complete').length,
+        tasksSkipped: Math.max(0, _state.totalTasks - _state.tasks.length),
+      },
+    };
+    
+    // Call the backend to append to DAG
+    await invoke('append_goal_to_dag', {
+      path: _currentProjectPath,
+      goal: goalNode,
+    });
+    
+    // Reload the project DAG index to reflect changes
+    await loadProjectDagIndex(_currentProjectPath);
+    
+    console.log(`RFC-105: Goal ${goalId} appended to DAG`);
+  } catch (e) {
+    console.error('RFC-105: Failed to append goal to DAG:', e);
+    // Don't fail the goal completion, just log the error
+  }
+}
 
 export async function stopAgent(): Promise<void> {
   if (DEMO_MODE) { cleanup(); _state = { ..._state, status: AgentStatus.IDLE, endTime: Date.now() }; return; }
@@ -468,6 +534,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const tasks = _state.tasks.map(t => t.id === taskId ? { ...t, status: TaskStatus.COMPLETE, progress: 100, duration_ms: durationMs } : t);
       _state = { ..._state, tasks };
       completeNode(taskId);
+      reloadFiles(); // Refresh file tree when task completes
       break;
     }
 
@@ -505,6 +572,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       } else {
         _state = { ..._state, status: AgentStatus.DONE, endTime: Date.now() };
       }
+      reloadFiles(); // Refresh file tree on completion
       cleanup();
       break;
     }
@@ -752,17 +820,25 @@ export function handleAgentEvent(event: AgentEvent): void {
 
     case 'backlog_goal_completed': {
       const goalId = (data.goal_id as string) ?? '';
+      const goalTitle = (data.title as string) ?? _state.goal ?? 'Unknown goal';
       const artifacts = (data.artifacts as string[]) ?? [];
       const failed = (data.failed as string[]) ?? [];
       const partial = (data.partial as boolean) ?? false;
-      const status = partial 
+      const statusMsg = partial 
         ? `⚠️ Goal completed (partial): ${artifacts.length} created, ${failed.length} failed`
         : `✅ Goal completed: ${artifacts.length} artifacts created`;
       _state = {
         ..._state,
-        learnings: [..._state.learnings, status],
+        learnings: [..._state.learnings, statusMsg],
       };
+      
+      // RFC-105: Append completed goal to hierarchical DAG
+      if (_currentProjectPath) {
+        appendCompletedGoalToDag(goalId, goalTitle, artifacts, failed, partial);
+      }
+      
       reloadDag();
+      reloadFiles(); // Refresh file tree when goal completes
       break;
     }
 

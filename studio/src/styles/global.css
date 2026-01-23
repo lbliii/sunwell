@@ -199,6 +199,120 @@ a:hover {
 .invisible { visibility: hidden; }
 
 /* ═══════════════════════════════════════════════════════════════
+   COMPONENT BASES — Common patterns extracted from components
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Card/Panel base */
+.card-base {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.card-base:hover {
+  border-color: var(--border-default);
+}
+
+.card-elevated {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+/* Interactive surface with gold accent */
+.surface-interactive {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  transition: 
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.surface-interactive:hover {
+  border-color: var(--border-default);
+}
+
+.surface-interactive:focus-within,
+.surface-interactive.active {
+  border-color: var(--border-emphasis);
+  box-shadow: var(--glow-gold-subtle);
+}
+
+/* Gold glow variants */
+.glow-subtle { box-shadow: var(--glow-gold-subtle); }
+.glow-default { box-shadow: var(--glow-gold); }
+.glow-strong { box-shadow: var(--glow-gold-strong); }
+
+/* Gold backgrounds at various opacities */
+.bg-gold-3 { background: var(--radiant-gold-3); }
+.bg-gold-5 { background: var(--radiant-gold-5); }
+.bg-gold-10 { background: var(--radiant-gold-10); }
+.bg-gold-15 { background: var(--radiant-gold-15); }
+.bg-gold-20 { background: var(--radiant-gold-20); }
+
+/* Gold borders at various opacities */
+.border-gold-10 { border-color: var(--radiant-gold-10); }
+.border-gold-15 { border-color: var(--radiant-gold-15); }
+.border-gold-20 { border-color: var(--radiant-gold-20); }
+.border-gold-30 { border-color: var(--radiant-gold-30); }
+
+/* Input base */
+.input-base {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  transition: border-color var(--transition-fast);
+}
+
+.input-base:focus {
+  outline: none;
+  border-color: var(--ui-gold);
+}
+
+.input-base::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* Badge base */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.badge-gold {
+  background: var(--radiant-gold-10);
+  color: var(--text-gold);
+  border: 1px solid var(--radiant-gold-20);
+}
+
+.badge-success {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.badge-error {
+  background: var(--error-bg);
+  color: var(--error);
+}
+
+.badge-warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+/* ═══════════════════════════════════════════════════════════════
    ANIMATIONS
    ═══════════════════════════════════════════════════════════════ */
 

@@ -306,8 +306,29 @@ async def _library(json_output: bool, filter_by: str | None) -> None:
             entries = [e for e in entries if e.lens.metadata.domain == filter_by]
 
     if json_output:
-        data = [
-            {
+        from sunwell.lens.usage import get_lens_usage
+
+        data = []
+        for e in entries:
+            # RFC-100: Get top 3 heuristics by priority for hover preview
+            sorted_heuristics = sorted(
+                e.lens.heuristics,
+                key=lambda h: h.priority,
+                reverse=True,
+            )[:3]
+            top_heuristics = [
+                {
+                    "name": h.name,
+                    "rule": h.rule,
+                    "priority": h.priority / 10.0,  # Normalize to 0-1
+                }
+                for h in sorted_heuristics
+            ]
+
+            # RFC-100: Get usage data
+            usage = get_lens_usage(e.lens.metadata.name)
+
+            data.append({
                 "name": e.lens.metadata.name,
                 "domain": e.lens.metadata.domain,
                 "version": str(e.lens.metadata.version),
@@ -322,9 +343,11 @@ async def _library(json_output: bool, filter_by: str | None) -> None:
                 "use_cases": list(e.lens.metadata.use_cases),
                 "tags": list(e.lens.metadata.tags),
                 "last_modified": e.last_modified,
-            }
-            for e in entries
-        ]
+                # RFC-100: Discovery features
+                "top_heuristics": top_heuristics,
+                "last_used": usage.get("last_used"),
+                "usage_history": usage.get("history", []),
+            })
         print(json_module.dumps(data, indent=2))
         return
 
@@ -569,6 +592,106 @@ def set_default(name: str | None, clear: bool) -> None:
             console.print("No default lens set (auto-select enabled)")
 
 
+@lens.command("record-usage")
+@click.argument("name")
+def record_usage(name: str) -> None:
+    """Record lens activation for usage tracking (RFC-100).
+
+    Internal command used by Studio to track lens usage.
+    """
+    from sunwell.lens.usage import record_lens_activation
+    record_lens_activation(name)
+
+
+@lens.command("export")
+@click.argument("name")
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    help="Output file path (defaults to <name>.lens)",
+)
+@click.option("--format", "fmt", type=click.Choice(["yaml", "json"]), default="yaml")
+def export_lens(name: str, output: str | None, fmt: str) -> None:
+    """Export a lens to a standalone file (RFC-100).
+
+    Exports a lens with all its content to a file that can be
+    shared, backed up, or imported into another Sunwell installation.
+
+    Examples:
+
+        sunwell lens export coder
+
+        sunwell lens export tech-writer -o my-backup.lens
+
+        sunwell lens export coder --format json
+    """
+    asyncio.run(_export_lens(name, output, fmt))
+
+
+async def _export_lens(name: str, output: str | None, fmt: str) -> None:
+    """Export a lens to a file."""
+    from sunwell.adaptive.lens_resolver import _load_lens
+    from sunwell.naaru.expertise.discovery import LensDiscovery
+
+    discovery = LensDiscovery()
+    lens_obj = await _load_lens(name, discovery)
+
+    if not lens_obj:
+        console.print(f"[red]Lens not found: {name}[/red]")
+        return
+
+    # Determine output path
+    if output is None:
+        output = f"{name}.lens" if fmt == "yaml" else f"{name}.lens.json"
+
+    output_path = Path(output)
+
+    # Build export data
+    export_data = {
+        "lens": {
+            "metadata": {
+                "name": lens_obj.metadata.name,
+                "version": str(lens_obj.metadata.version),
+                "domain": lens_obj.metadata.domain,
+                "description": lens_obj.metadata.description,
+                "author": lens_obj.metadata.author,
+                "use_cases": list(lens_obj.metadata.use_cases),
+                "tags": list(lens_obj.metadata.tags),
+            },
+            "heuristics": [
+                {
+                    "name": h.name,
+                    "rule": h.rule,
+                    "test": h.test,
+                    "always": list(h.always) if h.always else [],
+                    "never": list(h.never) if h.never else [],
+                    "priority": h.priority,
+                }
+                for h in lens_obj.heuristics
+            ],
+            "skills": list(lens_obj.skills),
+        }
+    }
+
+    # Add communication style if present
+    if lens_obj.communication:
+        export_data["lens"]["communication"] = {
+            "style": lens_obj.communication.style,
+            "tone": lens_obj.communication.tone,
+            "formatting": lens_obj.communication.formatting,
+        }
+
+    # Write to file
+    if fmt == "json":
+        output_path.write_text(json_module.dumps(export_data, indent=2))
+    else:
+        import yaml
+        output_path.write_text(yaml.dump(export_data, default_flow_style=False, sort_keys=False))
+
+    console.print(f"[green]✓[/green] Exported to: {output_path}")
+
+
 # =============================================================================
 # RFC-087: Skill Graph Commands
 # =============================================================================
@@ -774,7 +897,7 @@ async def _skill_plan(lens_name: str, context_hash: str | None, json_output: boo
 
     console.print(f"[bold]Execution Plan: {lens_name}[/bold]")
     console.print(f"To Execute: {len(all_skills)} skills")
-    console.print(f"To Skip: 0 skills (0%)")
+    console.print("To Skip: 0 skills (0%)")
     console.print()
     console.print("[dim]Note: Cache predictions require runtime context.[/dim]")
 

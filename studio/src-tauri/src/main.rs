@@ -8,11 +8,13 @@
 mod agent;
 mod briefing;
 mod commands;
+mod coordinator;
 mod dag;
 mod demo;
 mod error;
 mod eval;
 mod heuristic_detect;
+mod indexing;
 mod interface;
 mod lens;
 mod memory;
@@ -79,6 +81,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(AppState::default())
+        .manage(indexing::IndexingState::default())
         .setup(move |app| {
             // Emit startup params to frontend if any were provided (RFC-090: include plan)
             if startup.project.is_some() || startup.lens.is_some() || startup.mode.is_some() || startup.plan.is_some() {
@@ -138,6 +141,13 @@ fn main() {
             dag::execute_dag_node,
             dag::refresh_backlog,
             dag::load_plan_file,  // RFC-090: Load plan from CLI
+            // Hierarchical DAG (RFC-105)
+            dag::get_project_dag_index,
+            dag::get_goal_details,
+            dag::append_goal_to_dag,
+            dag::get_workspace_dag,
+            dag::refresh_workspace_index,
+            dag::get_environment_dag,
             // Incremental Execution (RFC-074)
             dag::get_incremental_plan,
             dag::get_cache_stats,
@@ -174,6 +184,8 @@ fn main() {
             lens::rollback_lens,
             lens::set_default_lens,
             lens::get_lens_content,
+            lens::export_lens,
+            lens::record_lens_usage,
             // Run Analysis (RFC-066)
             commands::analyze_project_for_run,
             commands::run_project,
@@ -254,6 +266,27 @@ fn main() {
             eval::list_eval_tasks,
             eval::get_eval_history,
             eval::get_eval_stats,
+            // Multi-Agent Orchestration (RFC-100 Phase 4)
+            // ATC view for parallel agent coordination
+            coordinator::get_coordinator_state,
+            coordinator::pause_worker,
+            coordinator::resume_worker,
+            coordinator::start_workers,
+            coordinator::get_state_dag,
+            // Workspace-Aware Scanning (RFC-103)
+            workspace::detect_workspace_links,
+            workspace::get_workspace,
+            workspace::link_workspace,
+            workspace::unlink_workspace,
+            workspace::get_state_dag_with_sources,
+            // Continuous Codebase Indexing (RFC-108)
+            indexing::start_indexing_service,
+            indexing::stop_indexing_service,
+            indexing::query_index,
+            indexing::get_index_status,
+            indexing::rebuild_index,
+            indexing::set_index_settings,
+            indexing::get_index_metrics,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -332,6 +332,111 @@ Last response: {len(session.last_response):,} bytes"""
 
 
 # =============================================================================
+# RFC-107: Shortcut Commands
+# =============================================================================
+
+
+@commands.register("a", "Quick audit (alias for audit-documentation skill)")
+async def cmd_audit(args: str, session: ChatSession) -> str:
+    """Execute audit-documentation skill."""
+    return await _execute_skill_shortcut("::a", args, session)
+
+
+@commands.register("a-2", "Deep audit with triangulation")
+async def cmd_audit_deep(args: str, session: ChatSession) -> str:
+    """Execute audit-documentation-deep skill."""
+    return await _execute_skill_shortcut("::a-2", args, session)
+
+
+@commands.register("p", "Polish documentation")
+async def cmd_polish(args: str, session: ChatSession) -> str:
+    """Execute polish-documentation skill."""
+    return await _execute_skill_shortcut("::p", args, session)
+
+
+@commands.register("health", "Documentation health check")
+async def cmd_health(args: str, session: ChatSession) -> str:
+    """Execute check-health skill."""
+    return await _execute_skill_shortcut("::health", args, session)
+
+
+@commands.register("score", "Calculate confidence scores")
+async def cmd_score(args: str, session: ChatSession) -> str:
+    """Execute score-confidence skill."""
+    return await _execute_skill_shortcut("::score", args, session)
+
+
+@commands.register("drift", "Find stale documentation")
+async def cmd_drift(args: str, session: ChatSession) -> str:
+    """Execute detect-drift skill."""
+    return await _execute_skill_shortcut("::drift", args, session)
+
+
+@commands.register("lint", "Validate document structure")
+async def cmd_lint(args: str, session: ChatSession) -> str:
+    """Execute lint-structure skill."""
+    return await _execute_skill_shortcut("::lint", args, session)
+
+
+@commands.register("vdr", "VDR/VPR checklist assessment")
+async def cmd_vdr(args: str, session: ChatSession) -> str:
+    """Execute assess-vdr skill."""
+    return await _execute_skill_shortcut("::vdr", args, session)
+
+
+async def _execute_skill_shortcut(shortcut: str, args: str, session: ChatSession) -> str:
+    """Execute a skill via shortcut.
+
+    RFC-107: Implements chat-mode shortcut execution.
+    """
+    if not session.lens:
+        return "No lens loaded. Use --lens when starting chat."
+
+    if not session.lens.router or not session.lens.router.shortcuts:
+        return "Current lens has no shortcuts defined."
+
+    skill_name = session.lens.router.shortcuts.get(shortcut)
+    if not skill_name:
+        return f"Shortcut {shortcut} not defined in current lens."
+
+    skill = session.lens.get_skill(skill_name)
+    if not skill:
+        return f"Skill {skill_name} not found in lens."
+
+    # Build context from args
+    context: dict[str, str] = {}
+    if args:
+        context["task"] = args
+
+        # If args looks like a file path, read it
+        target_path = Path(args).expanduser()
+        if target_path.exists():
+            context["target_file"] = str(target_path)
+            import contextlib
+
+            with contextlib.suppress(Exception):
+                context["file_content"] = target_path.read_text()
+
+    # Return info about what would run (full execution requires model integration)
+    tools = ", ".join(skill.allowed_tools) if skill.allowed_tools else "none"
+    task = context.get("task", "none")
+    target = context.get("target_file", "none")
+    cmd_hint = f"sunwell do {shortcut} {args or '<target>'}"
+    skill_info = f"""**Skill**: {skill_name}
+**Description**: {skill.description}
+**Trust Level**: {skill.trust.value}
+**Allowed Tools**: {tools}
+
+**Context**:
+- Task: {task}
+- Target file: {target}
+
+[Note: Full skill execution requires running `{cmd_hint}` from CLI]"""
+
+    return skill_info
+
+
+# =============================================================================
 # Integration Helper
 # =============================================================================
 

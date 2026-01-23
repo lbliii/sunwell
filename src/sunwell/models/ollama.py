@@ -221,19 +221,19 @@ class OllamaModel:
         # Merge tools from parameter and options
         effective_tools = tools or opts.tools
 
-        # Pre-check tool support to fail fast with helpful error
+        # Check if model supports native tools - if not, use emulation
         if effective_tools:
-            from sunwell.runtime.model_router import get_model_capability, get_tools_fallback
+            from sunwell.runtime.model_router import get_model_capability
+
             cap = get_model_capability(self.model)
             if cap and not cap.tools:
-                fallback = get_tools_fallback(self.model)
-                raise SunwellError(
-                    code=ErrorCode.MODEL_TOOLS_NOT_SUPPORTED,
-                    context={
-                        "model": self.model,
-                        "provider": "ollama",
-                        "fallback_model": fallback,
-                    },
+                # Use JSON emulation for tool calling
+                from sunwell.models.tool_emulator import ToolEmulatorModel
+
+                emulator = ToolEmulatorModel(inner_model=self)
+                # Delegate to emulator (but don't pass tools to avoid recursion)
+                return await emulator.generate(
+                    prompt, tools=effective_tools, tool_choice=tool_choice, options=opts
                 )
 
         messages = self._convert_messages(prompt, opts.system_prompt)

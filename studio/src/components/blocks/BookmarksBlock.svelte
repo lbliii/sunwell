@@ -49,20 +49,20 @@
 </div>
 
 <style>
-	.bookmarks-view { display: flex; flex-direction: column; gap: var(--space-4, 16px); }
+	.bookmarks-view { display: flex; flex-direction: column; gap: var(--space-4); }
 	.bookmarks-header { display: flex; justify-content: space-between; align-items: center; }
-	.bookmarks-title { margin: 0; font-size: var(--text-lg, 18px); font-weight: 600; color: var(--text-primary, #fff); }
-	.bookmarks-count { color: var(--text-tertiary, #666); font-size: var(--text-sm, 14px); }
-	.bookmark-list { display: flex; flex-direction: column; gap: var(--space-1, 4px); }
-	.bookmark-item { display: flex; align-items: center; background: var(--bg-primary, #0a0a0a); border-radius: var(--radius-sm, 4px); transition: all 0.15s ease; }
-	.bookmark-item:hover { background: rgba(255, 215, 0, 0.05); }
-	.bookmark-main { flex: 1; display: flex; align-items: center; gap: var(--space-2, 8px); padding: var(--space-2, 8px); background: none; border: none; cursor: pointer; text-align: left; }
-	.bookmark-icon { font-size: var(--text-base, 16px); }
+	.bookmarks-title { margin: 0; font-size: var(--text-lg); font-weight: 600; color: var(--text-primary); }
+	.bookmarks-count { color: var(--text-tertiary); font-size: var(--text-sm); }
+	.bookmark-list { display: flex; flex-direction: column; gap: var(--space-1); }
+	.bookmark-item { display: flex; align-items: center; background: var(--bg-primary); border-radius: var(--radius-sm); transition: all 0.15s ease; }
+	.bookmark-item:hover { background: var(--radiant-gold-5); }
+	.bookmark-main { flex: 1; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2); background: none; border: none; cursor: pointer; text-align: left; }
+	.bookmark-icon { font-size: var(--text-base); }
 	.bookmark-info { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-	.bookmark-title { color: var(--text-primary, #fff); font-size: var(--text-sm, 14px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-	.bookmark-domain { color: var(--text-tertiary, #666); font-size: var(--text-xs, 12px); }
-	.delete-btn { background: none; border: none; color: var(--text-tertiary, #666); cursor: pointer; padding: var(--space-2, 8px); opacity: 0; transition: all 0.15s ease; }
+	.bookmark-title { color: var(--text-primary); font-size: var(--text-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.bookmark-domain { color: var(--text-tertiary); font-size: var(--text-xs); }
+	.delete-btn { background: none; border: none; color: var(--text-tertiary); cursor: pointer; padding: var(--space-2); opacity: 0; transition: all 0.15s ease; }
 	.bookmark-item:hover .delete-btn { opacity: 1; }
-	.delete-btn:hover { color: var(--error, #ef4444); }
-	.empty-state { text-align: center; padding: var(--space-4, 16px); color: var(--text-tertiary, #666); }
+	.delete-btn:hover { color: var(--error); }
+	.empty-state { text-align: center; padding: var(--space-4); color: var(--text-tertiary); }
 </style>

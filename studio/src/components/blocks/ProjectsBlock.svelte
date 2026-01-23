@@ -138,7 +138,7 @@
 	.projects-view {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-4, 16px);
+		gap: var(--space-4);
 	}
 
 	.projects-header {
@@ -149,43 +149,43 @@
 
 	.projects-title {
 		margin: 0;
-		font-size: var(--text-lg, 18px);
+		font-size: var(--text-lg);
 		font-weight: 600;
-		color: var(--text-primary, #fff);
+		color: var(--text-primary);
 	}
 
 	.projects-count {
-		color: var(--text-tertiary, #666);
-		font-size: var(--text-sm, 14px);
+		color: var(--text-tertiary);
+		font-size: var(--text-sm);
 	}
 
 	.project-list {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-2, 8px);
+		gap: var(--space-2);
 	}
 
 	.project-card {
 		display: flex;
 		align-items: center;
-		gap: var(--space-2, 8px);
-		background: var(--bg-secondary, #1e1e1e);
-		border: 1px solid var(--border-subtle, #333);
-		border-radius: var(--radius-md, 8px);
+		gap: var(--space-2);
+		background: var(--bg-secondary);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-md);
 		transition: all 0.2s ease;
 	}
 
 	.project-card:hover {
-		background: var(--bg-tertiary, #2a2a2a);
-		border-color: var(--border-default, #444);
+		background: var(--bg-tertiary);
+		border-color: var(--border-default);
 	}
 
 	.project-main {
 		flex: 1;
 		display: flex;
 		align-items: center;
-		gap: var(--space-3, 12px);
-		padding: var(--space-3, 12px);
+		gap: var(--space-3);
+		padding: var(--space-3);
 		background: none;
 		border: none;
 		color: inherit;
@@ -197,24 +197,24 @@
 	.project-icon {
 		width: 24px;
 		text-align: center;
-		font-size: var(--text-base, 16px);
+		font-size: var(--text-base);
 		flex-shrink: 0;
 	}
 
 	.project-icon.status-interrupted {
-		color: var(--warning, #f59e0b);
+		color: var(--warning);
 	}
 
 	.project-icon.status-complete {
-		color: var(--success, #22c55e);
+		color: var(--success);
 	}
 
 	.project-icon.status-failed {
-		color: var(--error, #ef4444);
+		color: var(--error);
 	}
 
 	.project-icon.status-none {
-		color: var(--text-tertiary, #666);
+		color: var(--text-tertiary);
 	}
 
 	.project-info {
@@ -226,22 +226,22 @@
 	}
 
 	.project-name {
-		color: var(--text-primary, #fff);
+		color: var(--text-primary);
 		font-weight: 500;
-		font-family: var(--font-mono, monospace);
-		font-size: var(--text-sm, 14px);
+		font-family: var(--font-mono);
+		font-size: var(--text-sm);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
 
 	.project-card:hover .project-name {
-		color: var(--gold, #ffd700);
+		color: var(--gold);
 	}
 
 	.project-goal {
-		color: var(--text-tertiary, #666);
-		font-size: var(--text-xs, 12px);
+		color: var(--text-tertiary);
+		font-size: var(--text-xs);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -256,20 +256,20 @@
 	}
 
 	.project-progress {
-		color: var(--text-secondary, #999);
-		font-size: var(--text-xs, 12px);
+		color: var(--text-secondary);
+		font-size: var(--text-xs);
 	}
 
 	.project-time {
-		color: var(--text-tertiary, #666);
-		font-size: var(--text-xs, 12px);
+		color: var(--text-tertiary);
+		font-size: var(--text-xs);
 	}
 
 	.action-btn {
-		padding: var(--space-1, 4px) var(--space-3, 12px);
-		margin-right: var(--space-2, 8px);
-		border-radius: var(--radius-sm, 4px);
-		font-size: var(--text-xs, 12px);
+		padding: var(--space-1) var(--space-3);
+		margin-right: var(--space-2);
+		border-radius: var(--radius-sm);
+		font-size: var(--text-xs);
 		font-weight: 500;
 		cursor: pointer;
 		transition: all 0.15s ease;
@@ -277,27 +277,27 @@
 
 	.action-btn.resume {
 		background: var(--gradient-ui-gold, linear-gradient(135deg, #d4b046, #c9a227));
-		color: var(--bg-primary, #0a0a0a);
-		border: 1px solid rgba(201, 162, 39, 0.3);
+		color: var(--bg-primary);
+		border: 1px solid var(--border-emphasis);
 	}
 
 	.action-btn.resume:hover {
-		box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
+		box-shadow: 0 0 12px var(--radiant-gold-30);
 	}
 
 	.action-btn:focus-visible {
-		outline: 2px solid var(--gold, #ffd700);
+		outline: 2px solid var(--gold);
 		outline-offset: 2px;
 	}
 
 	.empty-state {
 		text-align: center;
-		padding: var(--space-6, 24px);
-		color: var(--text-tertiary, #666);
+		padding: var(--space-6);
+		color: var(--text-tertiary);
 	}
 
 	.empty-state .hint {
-		margin-top: var(--space-2, 8px);
-		font-size: var(--text-xs, 12px);
+		margin-top: var(--space-2);
+		font-size: var(--text-xs);
 	}
 </style>

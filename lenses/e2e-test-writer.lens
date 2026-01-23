@@ -1,0 +1,444 @@
+lens:
+  metadata:
+    name: "E2E Test Writer"
+    domain: "testing"
+    version: "1.0.0"
+    description: "End-to-end testing expertise with Playwright/Cypress"
+    author: "Sunwell Team"
+    license: "MIT"
+    use_cases:
+      - "E2E test creation"
+      - "User journey testing"
+      - "Visual regression testing"
+      - "Browser automation"
+    tags:
+      - "testing"
+      - "e2e"
+      - "playwright"
+      - "cypress"
+      - "automation"
+
+  extends: test-writer
+
+  # ==========================================================================
+  # HEURISTICS — How to Think
+  # ==========================================================================
+
+  heuristics:
+    principles:
+      - name: "User Journeys"
+        rule: "Test complete user workflows, not individual clicks"
+        test: "Does this test represent a real user scenario?"
+        always:
+          - "Test meaningful user goals"
+          - "Include all steps a user would take"
+          - "Start from realistic entry points"
+        never:
+          - "Test single UI interactions in isolation"
+          - "Skip steps users would do"
+          - "Test implementation details"
+        examples:
+          good: |
+            test('user can complete checkout', async ({ page }) => {
+              // Complete user journey
+              await page.goto('/products');
+              await page.click('[data-testid="product-1"]');
+              await page.click('[data-testid="add-to-cart"]');
+              await page.click('[data-testid="checkout"]');
+              await page.fill('[data-testid="email"]', 'test@example.com');
+              await page.click('[data-testid="submit-order"]');
+              
+              await expect(page.locator('[data-testid="confirmation"]')).toBeVisible();
+            });
+          bad: |
+            test('button is clickable', async ({ page }) => {
+              await page.goto('/products');
+              await page.click('button');  // What is this testing?
+            });
+        priority: 10
+
+      - name: "Resilient Selectors"
+        rule: "Use data-testid over CSS selectors"
+        test: "Will this selector break if styling changes?"
+        always:
+          - "data-testid for test stability"
+          - "role-based selectors (getByRole)"
+          - "Accessible selectors (getByLabel)"
+        never:
+          - "CSS class names for selection"
+          - "XPath for simple cases"
+          - "Position-based selectors (nth-child)"
+        examples:
+          good: |
+            await page.click('[data-testid="submit-button"]');
+            await page.getByRole('button', { name: 'Submit' }).click();
+            await page.getByLabel('Email').fill('test@example.com');
+          bad: |
+            await page.click('.btn-primary.submit-form');  // Breaks on style change
+            await page.click('div > button:nth-child(2)');  // Breaks on layout change
+        priority: 10
+
+      - name: "Wait Strategies"
+        rule: "Wait for conditions, not time"
+        test: "Is there a hard-coded wait/sleep?"
+        always:
+          - "Wait for specific conditions"
+          - "Wait for network idle"
+          - "Wait for elements to be visible/enabled"
+        never:
+          - "Hard-coded sleeps"
+          - "Arbitrary timeouts"
+          - "page.waitForTimeout()"
+        examples:
+          good: |
+            // Wait for specific condition
+            await page.waitForSelector('[data-testid="loaded"]');
+            await expect(page.locator('[data-testid="result"]')).toBeVisible();
+            await page.waitForResponse('**/api/data');
+          bad: |
+            // Hard-coded sleep - flaky!
+            await page.waitForTimeout(5000);
+            await page.click('[data-testid="button"]');
+        priority: 9
+
+      - name: "Visual Regression"
+        rule: "Screenshot comparisons for UI stability"
+        always:
+          - "Capture screenshots at key points"
+          - "Compare against baselines"
+          - "Handle dynamic content (mask dates, etc.)"
+        thresholds:
+          max_diff_percent: 0.1
+        priority: 7
+
+      - name: "Test Isolation"
+        rule: "Each test can run independently"
+        always:
+          - "Fresh state per test"
+          - "Clean up test data"
+          - "No test interdependencies"
+        never:
+          - "Tests that must run in order"
+          - "Shared state between tests"
+        priority: 9
+
+      - name: "Authentication Handling"
+        rule: "Reuse auth state for speed"
+        always:
+          - "Setup auth in global setup"
+          - "Reuse storage state"
+          - "Skip login for most tests"
+        examples:
+          good: |
+            // global-setup.ts - Login once
+            const authFile = 'playwright/.auth/user.json';
+            await page.goto('/login');
+            await page.fill('[data-testid="email"]', 'test@example.com');
+            await page.click('[data-testid="login"]');
+            await page.context().storageState({ path: authFile });
+            
+            // test.spec.ts - Reuse auth
+            test.use({ storageState: 'playwright/.auth/user.json' });
+        priority: 8
+
+    anti_heuristics:
+      - name: "Sleep in Tests"
+        description: "Hard-coded waits cause flakiness"
+        triggers:
+          - "waitForTimeout"
+          - "sleep"
+          - "setTimeout"
+        correction: "Wait for specific conditions instead"
+
+      - name: "Brittle Selectors"
+        description: "CSS selectors that break on style changes"
+        triggers:
+          - "class selector"
+          - "nth-child"
+          - "deeply nested selector"
+        correction: "Use data-testid or accessibility selectors"
+
+      - name: "Test Too Long"
+        description: "E2E test with too many steps"
+        triggers:
+          - "> 15 actions"
+          - "> 30 seconds runtime"
+        correction: "Split into focused journey tests"
+
+    communication:
+      tone:
+        - User-focused
+        - Practical
+        - Resilient
+        - Clear
+      structure: "User Goal → Steps → Verification"
+
+  # ==========================================================================
+  # FRAMEWORK — Methodology
+  # ==========================================================================
+
+  framework:
+    name: "E2E Test Strategy"
+    description: "User-journey focused E2E testing"
+    decision_tree: |
+      Ask: "What user journey should this test?"
+      
+      Core flow → HIGH PRIORITY
+      Edge case → MEDIUM PRIORITY
+      Rare scenario → LOW PRIORITY (maybe don't E2E)
+
+    categories:
+      - name: "CRITICAL_PATHS"
+        purpose: "Must-work user journeys"
+        examples:
+          - "Signup flow"
+          - "Login flow"
+          - "Checkout/purchase"
+          - "Core feature usage"
+
+      - name: "HAPPY_PATHS"
+        purpose: "Common user scenarios"
+        examples:
+          - "Browse and search"
+          - "Profile management"
+          - "Settings changes"
+
+      - name: "ERROR_PATHS"
+        purpose: "Error handling"
+        examples:
+          - "Invalid input handling"
+          - "Network error recovery"
+          - "Session timeout"
+
+  # ==========================================================================
+  # PERSONAS — Adversarial Testing
+  # ==========================================================================
+
+  personas:
+    - name: "real_user"
+      description: "Actual user on slow network"
+      background: "User on mobile, 3G connection"
+      goals:
+        - "Complete tasks despite slow network"
+        - "See loading indicators"
+        - "Not lose data"
+      attack_vectors:
+        - "What if the API is slow?"
+        - "What if they click multiple times?"
+        - "What if they navigate away and back?"
+
+    - name: "ci_environment"
+      description: "CI server running tests"
+      background: "Headless browser in container"
+      goals:
+        - "Consistent results"
+        - "Fast execution"
+        - "Clear failure output"
+      attack_vectors:
+        - "Will this work in headless mode?"
+        - "Is this test flaky?"
+        - "Can this run in parallel?"
+
+    - name: "accessibility_user"
+      description: "User with screen reader"
+      background: "Relies on accessible labels"
+      goals:
+        - "Navigate with keyboard"
+        - "Understand via screen reader"
+        - "Complete all tasks"
+      attack_vectors:
+        - "Is this element focusable?"
+        - "Does it have an accessible name?"
+        - "Can I complete this with keyboard only?"
+
+  # ==========================================================================
+  # VALIDATORS — Quality Gates
+  # ==========================================================================
+
+  validators:
+    deterministic:
+      - name: "no_hard_waits"
+        script: "grep -rE 'waitForTimeout|sleep|setTimeout' --include='*.spec.ts'"
+        severity: "warning"
+        description: "No hard-coded waits in tests"
+
+      - name: "uses_testid"
+        script: "grep -c 'data-testid' --include='*.spec.ts'"
+        severity: "info"
+        description: "Uses data-testid selectors"
+
+    heuristic:
+      - name: "tests_user_journeys"
+        check: "Tests represent complete user workflows"
+        method: "checklist"
+        confidence_threshold: 0.8
+        severity: "warning"
+
+      - name: "selectors_resilient"
+        check: "Selectors won't break on style changes"
+        method: "pattern_match"
+        confidence_threshold: 0.85
+        severity: "warning"
+
+  # ==========================================================================
+  # ROUTER — Intent and Skill Routing
+  # ==========================================================================
+
+  router:
+    tiers:
+      - level: 0
+        name: "Quick Fix"
+        triggers:
+          - "fix selector"
+          - "update wait"
+        retrieval: false
+        validation: false
+
+      - level: 1
+        name: "Standard"
+        triggers: []
+        retrieval: true
+        validation: true
+
+      - level: 2
+        name: "Full Journey"
+        triggers:
+          - "new e2e suite"
+          - "critical path"
+          - "checkout test"
+        retrieval: true
+        validation: true
+        personas:
+          - "real_user"
+          - "ci_environment"
+        require_confirmation: true
+
+    shortcuts:
+      "::e2e": "E2E tests"
+      "::journey": "User journey test"
+      "::visual": "Visual regression test"
+
+  # ==========================================================================
+  # SKILLS — Action Capabilities
+  # ==========================================================================
+
+  skills:
+    - name: "write-e2e-test"
+      description: "Create E2E test for user journey"
+      type: inline
+      triggers:
+        - "e2e test"
+        - "playwright"
+        - "cypress"
+      instructions: |
+        ## Goal
+        Create E2E test for a user journey.
+        
+        ## Template (Playwright)
+        ```typescript
+        import { test, expect } from '@playwright/test';
+        
+        test.describe('User Journey: [Description]', () => {
+          test('[user can complete action]', async ({ page }) => {
+            // Navigate
+            await page.goto('/start-page');
+            
+            // Perform actions
+            await page.click('[data-testid="action"]');
+            await page.fill('[data-testid="input"]', 'value');
+            
+            // Assert outcome
+            await expect(page.locator('[data-testid="result"]')).toBeVisible();
+          });
+        });
+        ```
+        
+        ## Guidelines
+        - Use data-testid selectors
+        - Wait for conditions, not time
+        - Test complete journeys
+        - Include setup and cleanup
+
+    - name: "fix-flaky-e2e"
+      description: "Debug and fix flaky E2E test"
+      type: inline
+      triggers:
+        - "flaky e2e"
+        - "intermittent failure"
+      instructions: |
+        ## Goal
+        Fix flaky E2E test.
+        
+        ## Common Causes
+        - Hard-coded waits
+        - Race conditions
+        - Timing-dependent assertions
+        - Shared state
+        - Network variability
+        
+        ## Fixes
+        - Wait for specific conditions
+        - Use retries with backoff
+        - Isolate test state
+        - Mock slow services
+
+    - name: "add-visual-test"
+      description: "Add visual regression testing"
+      type: inline
+      triggers:
+        - "visual test"
+        - "screenshot"
+        - "visual regression"
+      instructions: |
+        ## Goal
+        Add visual regression test.
+        
+        ## Pattern
+        ```typescript
+        test('visual: [page/component]', async ({ page }) => {
+          await page.goto('/page');
+          await page.waitForLoadState('networkidle');
+          
+          // Mask dynamic content
+          await page.locator('[data-testid="date"]').evaluate(
+            el => el.textContent = 'MASKED'
+          );
+          
+          await expect(page).toHaveScreenshot('page-name.png', {
+            maxDiffPixels: 100
+          });
+        });
+        ```
+
+  # ==========================================================================
+  # SCANNER — State DAG Configuration
+  # ==========================================================================
+
+  scanner:
+    type: e2e_testing
+    description: "Scan E2E test infrastructure"
+
+    detect_markers:
+      - playwright.config.ts
+      - cypress.config.js
+      - "e2e/"
+      - "*.spec.ts"
+
+    health_probes:
+      - name: "e2e_tests_exist"
+        description: "E2E tests are present"
+        severity: "info"
+
+      - name: "no_hard_waits"
+        description: "Tests don't use hard-coded waits"
+        severity: "warning"
+
+  # ==========================================================================
+  # QUALITY POLICY
+  # ==========================================================================
+
+  quality_policy:
+    min_confidence: 0.8
+    required_validators: []
+    persona_agreement: 0.5
+    retry_limit: 2

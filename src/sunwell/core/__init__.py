@@ -12,6 +12,14 @@ from sunwell.core.freethreading import (
     runtime_info,
 )
 from sunwell.core.heuristic import AntiHeuristic, CommunicationStyle, Heuristic
+from sunwell.core.identity import (
+    ResourceIdentity,
+    SunwellURI,
+    URIParseError,
+    parse_legacy_name,
+    slugify,
+    validate_slug,
+)
 from sunwell.core.lens import Lens, LensMetadata
 from sunwell.core.persona import Persona
 from sunwell.core.spell import (
@@ -87,4 +95,11 @@ __all__ = [
     "validate_spell_output",
     # Context (RFC-025)
     "AppContext",
+    # Identity (RFC-101)
+    "SunwellURI",
+    "ResourceIdentity",
+    "URIParseError",
+    "parse_legacy_name",
+    "slugify",
+    "validate_slug",
 ]

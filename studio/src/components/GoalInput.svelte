@@ -80,17 +80,17 @@
 
 	.input-wrapper {
 		display: flex;
-		gap: var(--spacing-sm, 8px);
-		padding: var(--spacing-md, 12px);
-		background: var(--bg-secondary, #1e1e1e);
-		border-radius: var(--radius-lg, 12px);
-		border: 1px solid var(--border-subtle, #333);
+		gap: var(--spacing-sm);
+		padding: var(--spacing-md);
+		background: var(--bg-secondary);
+		border-radius: var(--radius-lg);
+		border: 1px solid var(--border-subtle);
 		transition: border-color 0.2s, box-shadow 0.2s;
 	}
 
 	.input-wrapper:focus-within {
-		border-color: var(--gold, #ffd700);
-		box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.1);
+		border-color: var(--gold);
+		box-shadow: 0 0 0 2px var(--radiant-gold-10);
 	}
 
 	.goal-input.analyzing .input-wrapper {
@@ -101,14 +101,14 @@
 		flex: 1;
 		background: transparent;
 		border: none;
-		color: var(--text-primary, #fff);
+		color: var(--text-primary);
 		font-size: var(--font-size-md, 16px);
 		outline: none;
 		font-family: inherit;
 	}
 
 	input::placeholder {
-		color: var(--text-tertiary, #666);
+		color: var(--text-tertiary);
 	}
 
 	input:disabled {
@@ -119,11 +119,11 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		padding: var(--spacing-sm, 8px) var(--spacing-md, 12px);
-		background: var(--gold, #ffd700);
-		color: var(--bg-primary, #0a0a0a);
+		padding: var(--spacing-sm) var(--spacing-md);
+		background: var(--gold);
+		color: var(--bg-primary);
 		border: none;
-		border-radius: var(--radius-md, 8px);
+		border-radius: var(--radius-md);
 		font-weight: 600;
 		cursor: pointer;
 		transition: opacity 0.2s, transform 0.1s;
@@ -147,7 +147,7 @@
 		display: inline-block;
 		width: 16px;
 		height: 16px;
-		border: 2px solid var(--bg-primary, #0a0a0a);
+		border: 2px solid var(--bg-primary);
 		border-top-color: transparent;
 		border-radius: 50%;
 		animation: spin 0.8s linear infinite;
@@ -160,6 +160,6 @@
 	}
 
 	.error-container {
-		margin-top: var(--spacing-sm, 8px);
+		margin-top: var(--spacing-sm);
 	}
 </style>

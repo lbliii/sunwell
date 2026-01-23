@@ -632,6 +632,14 @@ def _output_human(
     if expertise.get("loaded"):
         console.print(f"\n[cyan]Expertise:[/cyan] {expertise.get('domain', 'unknown')} domain")
 
+    # Warn if plan looks trivial (single artifact echoing the goal)
+    artifacts = plan_data.get("artifacts", [])
+    if len(artifacts) == 1 and artifacts[0].get("id") == "main":
+        console.print(
+            "\n[yellow]⚠️  Minimal plan generated.[/yellow] "
+            "[dim]Try providing more specific details or a longer description.[/dim]"
+        )
+
     # Artifact table
     table = Table(title="\nArtifacts", show_header=True, header_style="bold")
     table.add_column("Wave", style="cyan", width=5)

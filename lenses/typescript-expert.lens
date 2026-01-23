@@ -1,0 +1,457 @@
+lens:
+  metadata:
+    name: "TypeScript Expert"
+    domain: "language"
+    version: "1.0.0"
+    description: "TypeScript idioms, strict type safety, and modern patterns"
+    author: "Sunwell Team"
+    license: "MIT"
+    use_cases:
+      - "TypeScript code review"
+      - "Type safety improvement"
+      - "Strict mode migration"
+      - "Runtime validation"
+    tags:
+      - "typescript"
+      - "type-safety"
+      - "strict"
+      - "zod"
+
+  extends: coder
+
+  # ==========================================================================
+  # HEURISTICS — How to Think
+  # ==========================================================================
+
+  heuristics:
+    principles:
+      - name: "Strict Mode Always"
+        rule: "Enable all strict flags in tsconfig"
+        test: "Are all strict options enabled?"
+        always:
+          - "strict: true"
+          - "strictNullChecks: true"
+          - "noImplicitAny: true"
+          - "noUncheckedIndexedAccess: true"
+          - "exactOptionalPropertyTypes: true"
+        never:
+          - "Disable strict to fix errors"
+          - "Use loose config in production"
+        examples:
+          good: |
+            // tsconfig.json
+            {
+              "compilerOptions": {
+                "strict": true,
+                "noUncheckedIndexedAccess": true,
+                "exactOptionalPropertyTypes": true
+              }
+            }
+          bad: |
+            {
+              "compilerOptions": {
+                "strict": false,  // "We'll fix this later"
+              }
+            }
+        priority: 10
+
+      - name: "Unknown Over Any"
+        rule: "any defeats the purpose of TypeScript"
+        test: "Are we using unknown instead of any at boundaries?"
+        always:
+          - "unknown at API boundaries"
+          - "Type narrowing after receiving unknown"
+          - "Type guards for runtime checks"
+          - "as const for literal types"
+        never:
+          - "any to silence errors"
+          - "// @ts-ignore without explanation"
+          - "Type assertions without validation"
+        examples:
+          good: |
+            async function fetchUser(id: string): Promise<User> {
+              const response: unknown = await api.get(`/users/${id}`);
+              return UserSchema.parse(response);  // Zod validation
+            }
+          bad: |
+            async function fetchUser(id: string): Promise<any> {
+              return await api.get(`/users/${id}`);  // any leaks!
+            }
+        priority: 10
+
+      - name: "Discriminated Unions"
+        rule: "Model state machines with discriminated unions"
+        test: "Does this union have a discriminant property?"
+        always:
+          - "type: 'literal' discriminant property"
+          - "Exhaustive switch statements"
+          - "satisfies for type checking"
+        examples:
+          good: |
+            type Result<T> =
+              | { success: true; data: T }
+              | { success: false; error: Error };
+            
+            function handle(result: Result<User>) {
+              switch (result.success) {
+                case true:
+                  return result.data;  // TS knows it's T
+                case false:
+                  throw result.error;  // TS knows it's Error
+              }
+            }
+          bad: |
+            type Result<T> = {
+              success: boolean;
+              data?: T;
+              error?: Error;
+            };
+            // data and error are always optional - unsafe!
+        priority: 9
+
+      - name: "Zod at Boundaries"
+        rule: "Runtime validation + type inference at data boundaries"
+        test: "Is external data validated at runtime?"
+        always:
+          - "z.infer<typeof schema> for types"
+          - "Validate API responses"
+          - "Validate user input"
+          - "Validate environment variables"
+        never:
+          - "Trust external data shapes"
+          - "Cast without validation"
+        examples:
+          good: |
+            import { z } from 'zod';
+            
+            const UserSchema = z.object({
+              id: z.string().uuid(),
+              email: z.string().email(),
+              role: z.enum(['admin', 'user']),
+            });
+            
+            type User = z.infer<typeof UserSchema>;
+            
+            function parseUser(data: unknown): User {
+              return UserSchema.parse(data);  // Throws if invalid
+            }
+        priority: 9
+
+      - name: "Const Assertions"
+        rule: "Use as const for literal types"
+        always:
+          - "as const for fixed arrays"
+          - "satisfies for type checking + inference"
+          - "Object literals as types"
+        examples:
+          good: |
+            const ROLES = ['admin', 'user', 'guest'] as const;
+            type Role = typeof ROLES[number];  // 'admin' | 'user' | 'guest'
+            
+            const config = {
+              port: 3000,
+              host: 'localhost',
+            } as const satisfies { port: number; host: string };
+        priority: 7
+
+      - name: "Branded Types"
+        rule: "Use branded types for type-safe IDs"
+        always:
+          - "Brand IDs to prevent mixing"
+          - "Use template literal types"
+        examples:
+          good: |
+            type UserId = string & { __brand: 'UserId' };
+            type OrderId = string & { __brand: 'OrderId' };
+            
+            function getUser(id: UserId): User { ... }
+            
+            const userId = 'abc' as UserId;
+            const orderId = 'xyz' as OrderId;
+            
+            getUser(userId);   // ✅ OK
+            getUser(orderId);  // ❌ Type error!
+        priority: 6
+
+    anti_heuristics:
+      - name: "Any Escape Hatch"
+        description: "Using any to bypass type checking"
+        triggers:
+          - ": any"
+          - "as any"
+          - "<any>"
+        correction: "Use unknown + type narrowing, or fix the actual type"
+
+      - name: "Non-Null Assertion Abuse"
+        description: "Using ! without certainty"
+        triggers:
+          - "value!"
+          - "property!."
+        correction: "Use proper null checks or optional chaining"
+
+      - name: "Unsafe Type Assertions"
+        description: "Casting without validation"
+        triggers:
+          - "as Type"
+          - "<Type>"
+        correction: "Use type guards or runtime validation"
+
+    communication:
+      tone:
+        - Precise
+        - Type-safe
+        - Modern
+        - Practical
+      structure: "Type Issue → Safe Pattern → Example"
+
+  # ==========================================================================
+  # FRAMEWORK — Methodology
+  # ==========================================================================
+
+  framework:
+    name: "TypeScript Type Safety"
+    description: "Layered approach to type safety"
+    decision_tree: |
+      Ask: "How do I make this type-safe?"
+      
+      External data → Zod validation
+      State variants → Discriminated unions
+      Type narrowing → Type guards
+      Literal values → as const
+      ID confusion → Branded types
+
+    categories:
+      - name: "STRICT_CONFIG"
+        purpose: "Compiler strictness"
+        settings:
+          - strict
+          - noUncheckedIndexedAccess
+          - exactOptionalPropertyTypes
+          - noImplicitReturns
+
+      - name: "RUNTIME_VALIDATION"
+        purpose: "Type safety at boundaries"
+        tools:
+          - Zod
+          - io-ts
+          - superstruct
+          - yup
+
+      - name: "TYPE_PATTERNS"
+        purpose: "Common type patterns"
+        patterns:
+          - Discriminated unions
+          - Type guards
+          - Branded types
+          - Utility types
+
+  # ==========================================================================
+  # PERSONAS — Adversarial Testing
+  # ==========================================================================
+
+  personas:
+    - name: "strict_compiler"
+      description: "tsc in strict mode"
+      background: "TypeScript compiler with all strict flags"
+      goals:
+        - "Catch all type errors"
+        - "Ensure null safety"
+        - "Verify exhaustiveness"
+      attack_vectors:
+        - "What if this is undefined?"
+        - "Did you handle all union cases?"
+        - "Is this array access safe?"
+
+    - name: "runtime_gremlin"
+      description: "Bad data at runtime"
+      background: "API returning unexpected shapes"
+      goals:
+        - "Break assumptions"
+        - "Send malformed data"
+        - "Test error handling"
+      attack_vectors:
+        - "What if the API returns null instead of object?"
+        - "What if this field is missing?"
+        - "What if the array is empty?"
+
+    - name: "future_maintainer"
+      description: "Developer extending the code"
+      background: "New team member adding features"
+      goals:
+        - "Understand types"
+        - "Safely modify"
+        - "Not break existing code"
+      attack_vectors:
+        - "Is it safe to add a new union member?"
+        - "What types does this function accept?"
+        - "Will I get a compile error if I break something?"
+
+  # ==========================================================================
+  # VALIDATORS — Quality Gates
+  # ==========================================================================
+
+  validators:
+    deterministic:
+      - name: "tsc_strict"
+        script: "tsc --noEmit --strict"
+        severity: "error"
+        description: "Code compiles with strict mode"
+
+      - name: "no_any"
+        script: "grep -rE ': any[^a-zA-Z]|as any' --include='*.ts' --include='*.tsx'"
+        severity: "warning"
+        description: "No explicit any types"
+
+      - name: "eslint_check"
+        script: "eslint --max-warnings 0"
+        severity: "warning"
+        description: "ESLint passes with no warnings"
+
+    heuristic:
+      - name: "boundaries_validated"
+        check: "External data boundaries use runtime validation"
+        method: "code_analysis"
+        confidence_threshold: 0.85
+        severity: "warning"
+
+      - name: "unions_discriminated"
+        check: "Union types have discriminant properties"
+        method: "code_analysis"
+        confidence_threshold: 0.8
+        severity: "info"
+
+  # ==========================================================================
+  # ROUTER — Intent and Skill Routing
+  # ==========================================================================
+
+  router:
+    tiers:
+      - level: 0
+        name: "Quick Fix"
+        triggers:
+          - "typo"
+          - "import"
+          - "format"
+        retrieval: false
+        validation: false
+
+      - level: 1
+        name: "Standard"
+        triggers: []
+        retrieval: true
+        validation: true
+
+      - level: 2
+        name: "Deep Review"
+        triggers:
+          - "type audit"
+          - "strict migration"
+          - "security"
+        retrieval: true
+        validation: true
+        personas:
+          - "strict_compiler"
+          - "runtime_gremlin"
+        require_confirmation: true
+
+    shortcuts:
+      "::ts": "TypeScript best practices"
+      "::strict": "Strict mode migration"
+      "::zod": "Add Zod validation"
+      "::types": "Improve type safety"
+
+  # ==========================================================================
+  # SKILLS — Action Capabilities
+  # ==========================================================================
+
+  skills:
+    - name: "add-ts-types"
+      description: "Add TypeScript types"
+      type: inline
+      triggers:
+        - "typescript types"
+        - "add types"
+      instructions: |
+        ## Goal
+        Add comprehensive TypeScript types.
+        
+        ## Guidelines
+        - Prefer interfaces for object shapes
+        - Use type for unions and intersections
+        - Avoid any - use unknown + type guards
+        - Export types for public APIs
+
+    - name: "strict-migration"
+      description: "Migrate to strict mode"
+      type: inline
+      triggers:
+        - "strict mode"
+        - "enable strict"
+      instructions: |
+        ## Goal
+        Enable strict mode incrementally.
+        
+        ## Process
+        1. Enable noImplicitAny
+        2. Fix implicit any errors
+        3. Enable strictNullChecks
+        4. Fix null/undefined errors
+        5. Enable remaining strict flags
+        6. Enable noUncheckedIndexedAccess
+
+    - name: "zod-schema"
+      description: "Create Zod validation schemas"
+      type: inline
+      triggers:
+        - "zod"
+        - "validation schema"
+      instructions: |
+        ## Goal
+        Add Zod validation at data boundaries.
+        
+        ## Pattern
+        ```typescript
+        const Schema = z.object({
+          field: z.string(),
+        });
+        
+        type Type = z.infer<typeof Schema>;
+        
+        function validate(data: unknown): Type {
+          return Schema.parse(data);
+        }
+        ```
+
+  # ==========================================================================
+  # SCANNER — State DAG Configuration
+  # ==========================================================================
+
+  scanner:
+    type: typescript
+    description: "Scan TypeScript project"
+
+    detect_markers:
+      - tsconfig.json
+      - "*.ts"
+      - "*.tsx"
+      - package.json
+
+    health_probes:
+      - name: "strict_enabled"
+        description: "Strict mode is enabled"
+        severity: "warning"
+
+      - name: "no_any_usage"
+        description: "No explicit any types"
+        severity: "info"
+
+  # ==========================================================================
+  # QUALITY POLICY
+  # ==========================================================================
+
+  quality_policy:
+    min_confidence: 0.85
+    required_validators:
+      - tsc_strict
+    persona_agreement: 0.5
+    retry_limit: 2

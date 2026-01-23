@@ -2,12 +2,14 @@
  * Project Store — manages current project state (Svelte 5 runes)
  * 
  * Extended in RFC-079 with universal project analysis support.
+ * Extended in RFC-108 with automatic codebase indexing.
  */
 
 import type { 
   Project, RecentProject, ProjectType, ProjectStatus, ProjectManageResult, ProjectLearnings,
   ProjectAnalysis, MonorepoAnalysis, AnalysisProjectType,
 } from '$lib/types';
+import { initIndexing, stopIndexing } from './indexing.svelte';
 
 const DEMO_MODE = false;
 
@@ -153,6 +155,10 @@ export async function openProject(path: string): Promise<Project | null> {
     const { invoke } = await import('@tauri-apps/api/core');
     const proj = await invoke<Project>('open_project', { path });
     _current = proj;
+    
+    // RFC-108: Start background codebase indexing
+    initIndexing(path);
+    
     return proj;
   } catch (e) {
     _error = e instanceof Error ? e.message : String(e);
@@ -175,6 +181,8 @@ export function setCurrentProject(proj: Project | null): void {
 
 export function closeProject(): void {
   _current = null;
+  // RFC-108: Stop codebase indexing when project is closed
+  stopIndexing();
 }
 
 export async function deleteProject(path: string): Promise<ProjectManageResult> {

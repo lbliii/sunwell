@@ -16,6 +16,11 @@ RFC-014: Multi-Topology Memory Extension:
 - Structural: Understand document hierarchy
 - Faceted: Tag by persona, Diataxis type, verification state
 
+RFC-101: Session Identity System:
+- URI-based identification (sunwell:session/project/slug)
+- Project-scoped storage prevents collisions
+- Global session index for O(1) listing
+
 Key features:
 - Progressive compression: 10 → 25 → 100 turn consolidation
 - Semantic retrieval via embeddings
@@ -118,6 +123,13 @@ class SimulacrumStore:
 
     _session_id: str = field(default_factory=lambda: datetime.now().strftime("%Y%m%d_%H%M%S"))
     """Current session identifier."""
+
+    # RFC-101: Project context for session scoping
+    _project: str = field(default="default")
+    """Project slug for session scoping."""
+
+    _session_uri: str | None = field(default=None, init=False)
+    """Full session URI (e.g., sunwell:session/myproject/debug)."""
 
     # RFC-013: ChunkManager integration
     _chunk_manager: ChunkManager | None = field(default=None, init=False)
@@ -297,51 +309,138 @@ class SimulacrumStore:
 
     # === Session Management ===
 
-    def new_session(self, name: str | None = None) -> str:
-        """Start a new conversation session."""
+    def new_session(
+        self,
+        name: str | None = None,
+        project: str | None = None,
+    ) -> str:
+        """Start a new conversation session.
+
+        RFC-101: Sessions are now project-scoped to prevent collisions.
+
+        Args:
+            name: Optional session name (defaults to timestamp)
+            project: Optional project slug (defaults to current project)
+
+        Returns:
+            Session ID (slug)
+        """
         self._session_id = name or datetime.now().strftime("%Y%m%d_%H%M%S")
+        if project:
+            self._project = project
+        self._session_uri = f"sunwell:session/{self._project}/{self._session_id}"
         self._hot_dag = ConversationDAG()
         return self._session_id
 
-    def list_sessions(self) -> list[dict]:
-        """List all saved sessions."""
+    @property
+    def session_uri(self) -> str:
+        """Get the full session URI (RFC-101)."""
+        if not self._session_uri:
+            self._session_uri = f"sunwell:session/{self._project}/{self._session_id}"
+        return self._session_uri
+
+    @property
+    def project(self) -> str:
+        """Get the current project slug."""
+        return self._project
+
+    def set_project(self, project: str) -> None:
+        """Set the project context for session scoping.
+
+        Args:
+            project: Project slug
+        """
+        self._project = project
+        # Update URI if session exists
+        if self._session_id:
+            self._session_uri = f"sunwell:session/{self._project}/{self._session_id}"
+
+    def list_sessions(self, project: str | None = None) -> list[dict]:
+        """List all saved sessions.
+
+        RFC-101: Can filter by project.
+
+        Args:
+            project: Optional project filter (None = all projects)
+
+        Returns:
+            List of session metadata dicts
+        """
         sessions = []
 
-        # Only look at metadata files, not DAG files
-        for path in (self.base_path / "sessions").glob("*.json"):
-            if path.stem.endswith("_dag"):
-                continue  # Skip DAG files
-            try:
-                with open(path) as f:
-                    meta = json.load(f)
-                sessions.append({
-                    "id": path.stem,
-                    "name": meta.get("name", path.stem),
-                    "created": meta.get("created"),
-                    "turns": meta.get("turn_count", 0),
-                    "path": str(path),
-                })
-            except (json.JSONDecodeError, OSError):
-                continue
+        # RFC-101: Check project-scoped sessions first
+        projects_dir = self.base_path / "projects"
+        if projects_dir.exists():
+            for project_dir in projects_dir.iterdir():
+                if project_dir.is_dir():
+                    if project and project_dir.name != project:
+                        continue
+                    for path in project_dir.glob("*.json"):
+                        if path.stem.endswith("_dag"):
+                            continue
+                        try:
+                            with open(path) as f:
+                                meta = json.load(f)
+                            sessions.append({
+                                "id": path.stem,
+                                "uri": f"sunwell:session/{project_dir.name}/{path.stem}",
+                                "project": project_dir.name,
+                                "name": meta.get("name", path.stem),
+                                "created": meta.get("created"),
+                                "turns": meta.get("turn_count", 0),
+                                "path": str(path),
+                            })
+                        except (json.JSONDecodeError, OSError):
+                            continue
+
+        # Legacy: Check flat sessions directory
+        legacy_sessions_dir = self.base_path / "sessions"
+        if legacy_sessions_dir.exists() and not project:
+            for path in legacy_sessions_dir.glob("*.json"):
+                if path.stem.endswith("_dag"):
+                    continue
+                try:
+                    with open(path) as f:
+                        meta = json.load(f)
+                    sessions.append({
+                        "id": path.stem,
+                        "uri": f"sunwell:session/default/{path.stem}",
+                        "project": "default",
+                        "name": meta.get("name", path.stem),
+                        "created": meta.get("created"),
+                        "turns": meta.get("turn_count", 0),
+                        "path": str(path),
+                    })
+                except (json.JSONDecodeError, OSError):
+                    continue
 
         return sorted(sessions, key=lambda s: s.get("created") or "", reverse=True)
 
     def save_session(self, name: str | None = None) -> Path:
-        """Save current session to disk."""
+        """Save current session to disk.
+
+        RFC-101: Saves to project-scoped directory.
+        """
         session_name = name or self._session_id
 
+        # RFC-101: Use project-scoped storage
+        session_dir = self.base_path / "projects" / self._project
+        session_dir.mkdir(parents=True, exist_ok=True)
+
         # Save DAG
-        dag_path = self.base_path / "sessions" / f"{session_name}_dag.json"
+        dag_path = session_dir / f"{session_name}_dag.json"
         self._hot_dag.save(dag_path)
 
         # Save unified store (RFC-014)
         if self._unified_store:
             self._unified_store.save()
 
-        # Save metadata
-        meta_path = self.base_path / "sessions" / f"{session_name}.json"
+        # Save metadata with identity info (RFC-101)
+        meta_path = session_dir / f"{session_name}.json"
         meta = {
             "name": session_name,
+            "uri": f"sunwell:session/{self._project}/{session_name}",
+            "project": self._project,
             "created": datetime.now().isoformat(),
             "turn_count": len(self._hot_dag.turns),
             "stats": self._hot_dag.stats,
@@ -350,21 +449,59 @@ class SimulacrumStore:
         with open(meta_path, "w") as f:
             json.dump(meta, f, indent=2)
 
+        # Also save to legacy location for backwards compat
+        legacy_dir = self.base_path / "sessions"
+        legacy_dir.mkdir(parents=True, exist_ok=True)
+        legacy_dag_path = legacy_dir / f"{session_name}_dag.json"
+        self._hot_dag.save(legacy_dag_path)
+        legacy_meta_path = legacy_dir / f"{session_name}.json"
+        with open(legacy_meta_path, "w") as f:
+            json.dump(meta, f, indent=2)
+
         return meta_path
 
-    def load_session(self, session_id: str) -> ConversationDAG:
+    def load_session(
+        self,
+        session_id: str,
+        project: str | None = None,
+    ) -> ConversationDAG:
         """Load a saved session.
 
-        Applies tiered storage compression if session has many turns,
-        moving old turns to warm storage and marking them as compressed.
+        RFC-101: Supports loading by URI or slug with project context.
+
+        Args:
+            session_id: Session slug or full URI
+            project: Optional project context (for slug resolution)
+
+        Returns:
+            Loaded ConversationDAG
+
+        Raises:
+            FileNotFoundError: If session not found
         """
-        dag_path = self.base_path / "sessions" / f"{session_id}_dag.json"
+        # Parse URI if provided
+        if session_id.startswith("sunwell:session/"):
+            parts = session_id[17:].split("/", 1)  # Remove "sunwell:session/"
+            if len(parts) == 2:
+                project = parts[0]
+                session_id = parts[1]
+
+        # Set project context
+        if project:
+            self._project = project
+
+        # Try project-scoped path first (RFC-101)
+        dag_path = self.base_path / "projects" / self._project / f"{session_id}_dag.json"
+        if not dag_path.exists():
+            # Fall back to legacy path
+            dag_path = self.base_path / "sessions" / f"{session_id}_dag.json"
 
         if not dag_path.exists():
             raise FileNotFoundError(f"Session not found: {session_id}")
 
         self._hot_dag = ConversationDAG.load(dag_path)
         self._session_id = session_id
+        self._session_uri = f"sunwell:session/{self._project}/{self._session_id}"
 
         # Apply tiered compression if session has many turns
         if self.config.auto_cleanup:

@@ -221,23 +221,26 @@
     {:else}
       <ul class="validation-errors">
         {#each validationErrors as error}
-          <li 
-            class="validation-error {error.severity}"
-            onclick={() => {
-              // Jump to line
-              const lines = value.split('\n');
-              let pos = 0;
-              for (let i = 0; i < error.line - 1; i++) {
-                pos += lines[i].length + 1;
-              }
-              textareaRef?.focus();
-              textareaRef.selectionStart = pos;
-              textareaRef.selectionEnd = pos + (lines[error.line - 1]?.length ?? 0);
-            }}
-          >
-            <span class="error-indicator">{error.severity === 'error' ? '✕' : '⚠'}</span>
-            <span class="error-line">:{error.line}</span>
-            <span class="error-message">{error.message}</span>
+          <li class="validation-error {error.severity}">
+            <button
+              type="button"
+              class="error-button"
+              onclick={() => {
+                // Jump to line
+                const lines = value.split('\n');
+                let pos = 0;
+                for (let i = 0; i < error.line - 1; i++) {
+                  pos += lines[i].length + 1;
+                }
+                textareaRef?.focus();
+                textareaRef.selectionStart = pos;
+                textareaRef.selectionEnd = pos + (lines[error.line - 1]?.length ?? 0);
+              }}
+            >
+              <span class="error-indicator">{error.severity === 'error' ? '✕' : '⚠'}</span>
+              <span class="error-line">:{error.line}</span>
+              <span class="error-message">{error.message}</span>
+            </button>
           </li>
         {/each}
       </ul>
@@ -354,7 +357,7 @@
   }
   
   .editor-input::selection {
-    background: rgba(201, 162, 39, 0.3);
+    background: var(--border-emphasis);
   }
   
   .editor-input:focus {
@@ -429,25 +432,33 @@
   }
   
   .validation-error {
+    list-style: none;
+  }
+  
+  .error-button {
     display: flex;
     align-items: flex-start;
     gap: var(--space-2);
+    width: 100%;
     padding: var(--space-2);
+    background: transparent;
+    border: none;
     border-radius: var(--radius-sm);
     font-size: var(--text-sm);
     cursor: pointer;
     transition: background var(--transition-fast);
+    text-align: left;
   }
   
-  .validation-error:hover {
+  .error-button:hover {
     background: var(--bg-tertiary);
   }
   
-  .validation-error.error {
+  .validation-error.error .error-button {
     color: var(--error);
   }
   
-  .validation-error.warning {
+  .validation-error.warning .error-button {
     color: var(--warning);
   }
   

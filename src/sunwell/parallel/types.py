@@ -85,3 +85,116 @@ class MergeResult:
 
     conflicts: list[str] = field(default_factory=list)
     """Branches with merge conflicts (need human review)."""
+
+
+# RFC-100: UI-focused types for ATC view
+@dataclass
+class FileConflict:
+    """A file conflict between workers for UI display."""
+
+    path: str
+    """Path to the conflicting file."""
+
+    worker_a: int
+    """ID of first worker involved in conflict."""
+
+    worker_b: int
+    """ID of second worker involved in conflict."""
+
+    conflict_type: str = "concurrent_modification"
+    """Type of conflict: 'concurrent_modification', 'lock_contention'."""
+
+    resolution: str | None = None
+    """Resolution if available: 'auto_merged', 'manual_required', 'paused'."""
+
+    detected_at: datetime = field(default_factory=datetime.now)
+    """When the conflict was detected."""
+
+
+@dataclass
+class CoordinatorUIState:
+    """State snapshot for UI consumption (RFC-100 Phase 4).
+
+    This is the data structure passed to the Studio frontend
+    for the ATC (Air Traffic Control) view.
+    """
+
+    workers: list[WorkerStatus] = field(default_factory=list)
+    """Current status of all workers."""
+
+    conflicts: list[FileConflict] = field(default_factory=list)
+    """Active file conflicts requiring attention."""
+
+    total_progress: float = 0.0
+    """Overall progress (0.0-1.0) across all workers."""
+
+    merged_branches: list[str] = field(default_factory=list)
+    """Branches that have been successfully merged."""
+
+    pending_merges: list[str] = field(default_factory=list)
+    """Branches waiting to be merged."""
+
+    is_running: bool = False
+    """Whether the coordinator is currently running."""
+
+    started_at: datetime | None = None
+    """When the coordinator started."""
+
+    last_update: datetime = field(default_factory=datetime.now)
+    """When this state was last updated."""
+
+    def to_dict(self) -> dict:
+        """Serialize to dictionary for JSON/Tauri."""
+        return {
+            "workers": [
+                {
+                    "id": w.worker_id,
+                    "goal": w.current_goal_id or "",
+                    "status": w.state.value,
+                    "progress": self._calculate_worker_progress(w),
+                    "current_file": None,  # Could be added to WorkerStatus
+                    "branch": w.branch,
+                    "goals_completed": w.goals_completed,
+                    "goals_failed": w.goals_failed,
+                    "last_heartbeat": w.last_heartbeat.isoformat(),
+                }
+                for w in self.workers
+            ],
+            "conflicts": [
+                {
+                    "path": c.path,
+                    "worker_a": c.worker_a,
+                    "worker_b": c.worker_b,
+                    "conflict_type": c.conflict_type,
+                    "resolution": c.resolution,
+                    "detected_at": c.detected_at.isoformat(),
+                }
+                for c in self.conflicts
+            ],
+            "total_progress": self.total_progress,
+            "merged_branches": self.merged_branches,
+            "pending_merges": self.pending_merges,
+            "is_running": self.is_running,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "last_update": self.last_update.isoformat(),
+        }
+
+    def _calculate_worker_progress(self, worker: WorkerStatus) -> float:
+        """Calculate progress percentage for a worker."""
+        if worker.state == WorkerState.STOPPED:
+            return 1.0
+        if worker.state == WorkerState.FAILED:
+            return 0.0
+        if worker.state == WorkerState.STARTING:
+            return 0.0
+        if worker.state == WorkerState.IDLE:
+            return 0.0
+
+        # Estimate based on state
+        state_progress = {
+            WorkerState.CLAIMING: 0.1,
+            WorkerState.EXECUTING: 0.5,
+            WorkerState.COMMITTING: 0.8,
+            WorkerState.MERGING: 0.9,
+        }
+        return state_progress.get(worker.state, 0.5)

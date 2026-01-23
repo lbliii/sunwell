@@ -26,6 +26,11 @@ Multi-Topology Memory (RFC-014):
 - Multi-Faceted: Cross-dimensional filtering (diataxis, persona)
 - Unified Store: Hybrid queries across all dimensions
 
+Session Identity (RFC-101):
+- URI-based identification (sunwell:session/project/slug)
+- Project-scoped storage prevents collisions
+- Global session index for O(1) listing
+
 Key innovations:
 - Model-agnostic: same simulacrum works with any LLM
 - Content-addressable: hash-based deduplication
@@ -46,6 +51,7 @@ from sunwell.simulacrum.hierarchical import ChunkManager, Chunk
 from sunwell.simulacrum.context import ContextAssembler, Focus
 from sunwell.simulacrum.extractors import SpatialExtractor
 from sunwell.simulacrum.parallel import ParallelRetriever
+from sunwell.simulacrum.identity import SessionIndex, SessionIndexManager
 ```
 
 **Subpackages:**
@@ -56,6 +62,7 @@ from sunwell.simulacrum.parallel import ParallelRetriever
 - `context/` - Context assembly and focus management
 - `parallel/` - Parallel retrieval across multiple memory stores
 - `manager/` - Multi-simulacrum management (spawning, lifecycle, archiving)
+- `identity/` - RFC-101 session identity (SessionIndex, SessionManifest)
 """
 
 # Only export the most commonly used items for convenience
@@ -69,6 +76,15 @@ from sunwell.simulacrum.core import (
     StorageConfig,
     Turn,
     TurnType,
+)
+from sunwell.simulacrum.identity import (
+    SessionIndex,
+    SessionIndexEntry,
+    SessionIndexManager,
+    SessionManifest,
+    create_session_identity,
+    create_session_manifest,
+    create_session_uri,
 )
 from sunwell.simulacrum.manager import (
     SimulacrumManager,
@@ -84,8 +100,15 @@ __all__ = [
     "TurnType",
     "Learning",
     "ConversationDAG",
-
     # Multi-simulacrum management (commonly used)
     "SimulacrumManager",
     "SimulacrumMetadata",
+    # Session identity (RFC-101)
+    "SessionIndex",
+    "SessionIndexEntry",
+    "SessionIndexManager",
+    "SessionManifest",
+    "create_session_identity",
+    "create_session_manifest",
+    "create_session_uri",
 ]

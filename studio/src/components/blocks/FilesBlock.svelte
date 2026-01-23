@@ -73,21 +73,21 @@
 </div>
 
 <style>
-	.files-view { display: flex; flex-direction: column; gap: var(--space-4, 16px); }
+	.files-view { display: flex; flex-direction: column; gap: var(--space-4); }
 	.files-header { display: flex; justify-content: space-between; align-items: center; }
-	.files-title { margin: 0; font-size: var(--text-lg, 18px); font-weight: 600; color: var(--text-primary, #fff); }
-	.files-path { color: var(--text-tertiary, #666); font-size: var(--text-xs, 12px); font-family: var(--font-mono, monospace); }
-	.file-list { display: flex; flex-direction: column; gap: var(--space-1, 4px); }
+	.files-title { margin: 0; font-size: var(--text-lg); font-weight: 600; color: var(--text-primary); }
+	.files-path { color: var(--text-tertiary); font-size: var(--text-xs); font-family: var(--font-mono); }
+	.file-list { display: flex; flex-direction: column; gap: var(--space-1); }
 	.file-item {
-		display: flex; align-items: center; gap: var(--space-2, 8px);
-		padding: var(--space-2, 8px); background: var(--bg-primary, #0a0a0a);
-		border: none; border-radius: var(--radius-sm, 4px);
+		display: flex; align-items: center; gap: var(--space-2);
+		padding: var(--space-2); background: var(--bg-primary);
+		border: none; border-radius: var(--radius-sm);
 		cursor: pointer; transition: all 0.15s ease; text-align: left; width: 100%;
 	}
-	.file-item:hover { background: rgba(255, 215, 0, 0.05); }
-	.file-item:focus-visible { outline: 2px solid var(--gold, #ffd700); outline-offset: 2px; }
-	.file-icon { font-size: var(--text-base, 16px); }
-	.file-name { flex: 1; color: var(--text-primary, #fff); font-family: var(--font-mono, monospace); font-size: var(--text-sm, 14px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-	.file-size { color: var(--text-tertiary, #666); font-size: var(--text-xs, 12px); }
-	.empty-state { text-align: center; padding: var(--space-4, 16px); color: var(--text-tertiary, #666); }
+	.file-item:hover { background: var(--radiant-gold-5); }
+	.file-item:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+	.file-icon { font-size: var(--text-base); }
+	.file-name { flex: 1; color: var(--text-primary); font-family: var(--font-mono); font-size: var(--text-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.file-size { color: var(--text-tertiary); font-size: var(--text-xs); }
+	.empty-state { text-align: center; padding: var(--space-4); color: var(--text-tertiary); }
 </style>

@@ -21,16 +21,16 @@
   .project-stats {
     display: flex;
     align-items: center;
-    gap: var(--space-2, 8px);
-    font-size: var(--text-xs, 12px);
-    color: var(--text-tertiary, #666);
+    gap: var(--space-2);
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
   }
   
   .stat.active {
-    color: var(--success, #22c55e);
+    color: var(--success);
   }
   
   .stat.interrupted {
-    color: var(--warning, #f59e0b);
+    color: var(--warning);
   }
 </style>

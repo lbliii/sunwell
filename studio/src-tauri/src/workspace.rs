@@ -1,13 +1,15 @@
-//! Workspace resolution with sensible defaults (RFC-043 addendum).
+//! Workspace resolution with sensible defaults (RFC-043 addendum, RFC-103).
 //!
 //! Provides unified workspace resolution logic for the Desktop app:
 //! - Sensible defaults (~/.sunwell/projects/)
 //! - Explicit path override
 //! - Detection from cwd
 //! - Project name derivation from goals
+//! - RFC-103: Workspace-aware scanning and source linking
 
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// How the workspace was resolved.
@@ -478,6 +480,156 @@ impl SavedPromptsStore {
     pub fn remove(&mut self, prompt: &str) {
         self.prompts.retain(|p| p.text != prompt);
     }
+}
+
+// =============================================================================
+// RFC-103: Workspace-Aware Scanning Commands
+// =============================================================================
+
+/// A detected workspace link (RFC-103).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkspaceLink {
+    pub source: String,
+    pub target: String,
+    pub relationship: String,
+    pub confidence: f64,
+    pub evidence: String,
+    pub language: Option<String>,
+    pub confirmed: bool,
+}
+
+/// Workspace configuration (RFC-103).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Workspace {
+    pub id: String,
+    pub primary: String,
+    pub topology: String,
+    pub links: Vec<WorkspaceLink>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Detect related projects for workspace linking (RFC-103).
+///
+/// Calls `sunwell workspace detect <path> --json` and parses the output.
+#[tauri::command]
+pub async fn detect_workspace_links(project_path: String) -> Result<Vec<WorkspaceLink>, String> {
+    let output = Command::new("sunwell")
+        .args(["workspace", "detect", &project_path, "--json"])
+        .output()
+        .map_err(|e| format!("Failed to run sunwell: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Detection failed: {}", stderr));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Parse JSON output
+    #[derive(Deserialize)]
+    struct DetectOutput {
+        links: Vec<WorkspaceLink>,
+    }
+
+    let result: DetectOutput =
+        serde_json::from_str(&stdout).map_err(|e| format!("Failed to parse JSON: {}", e))?;
+
+    Ok(result.links)
+}
+
+/// Get current workspace configuration (RFC-103).
+#[tauri::command]
+pub async fn get_workspace(project_path: String) -> Result<Option<Workspace>, String> {
+    let output = Command::new("sunwell")
+        .args(["workspace", "show", &project_path, "--json"])
+        .output()
+        .map_err(|e| format!("Failed to run sunwell: {}", e))?;
+
+    if !output.status.success() {
+        // No workspace config is not an error
+        return Ok(None);
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Check for error response
+    if stdout.contains("\"error\"") {
+        return Ok(None);
+    }
+
+    let workspace: Workspace =
+        serde_json::from_str(&stdout).map_err(|e| format!("Failed to parse JSON: {}", e))?;
+
+    Ok(Some(workspace))
+}
+
+/// Link a source code project to workspace (RFC-103).
+#[tauri::command]
+pub async fn link_workspace(project_path: String, target_path: String) -> Result<(), String> {
+    let output = Command::new("sunwell")
+        .args(["workspace", "link", &project_path, "--target", &target_path])
+        .output()
+        .map_err(|e| format!("Failed to run sunwell: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Link failed: {}", stderr));
+    }
+
+    Ok(())
+}
+
+/// Unlink a source code project from workspace (RFC-103).
+#[tauri::command]
+pub async fn unlink_workspace(project_path: String, target_path: String) -> Result<(), String> {
+    let output = Command::new("sunwell")
+        .args([
+            "workspace",
+            "unlink",
+            &project_path,
+            "--target",
+            &target_path,
+        ])
+        .output()
+        .map_err(|e| format!("Failed to run sunwell: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Unlink failed: {}", stderr));
+    }
+
+    Ok(())
+}
+
+/// Get State DAG with workspace-aware drift detection (RFC-103).
+///
+/// If link_paths is provided, enables drift detection against those sources.
+#[tauri::command]
+pub async fn get_state_dag_with_sources(
+    project_path: String,
+    link_paths: Vec<String>,
+) -> Result<serde_json::Value, String> {
+    let mut args = vec!["scan".to_string(), project_path, "--json".to_string()];
+
+    // Add link paths for drift detection
+    for link in link_paths {
+        args.push("--link".to_string());
+        args.push(link);
+    }
+
+    let output = Command::new("sunwell")
+        .args(&args)
+        .output()
+        .map_err(|e| format!("Failed to run sunwell: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Scan failed: {}", stderr));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    serde_json::from_str(&stdout).map_err(|e| format!("Failed to parse JSON: {}", e))
 }
 
 #[cfg(test)]

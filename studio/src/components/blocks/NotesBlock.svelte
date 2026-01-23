@@ -50,18 +50,18 @@
 </div>
 
 <style>
-	.notes-view { display: flex; flex-direction: column; gap: var(--space-4, 16px); }
+	.notes-view { display: flex; flex-direction: column; gap: var(--space-4); }
 	.notes-header { display: flex; justify-content: space-between; align-items: center; }
-	.notes-title { margin: 0; font-size: var(--text-lg, 18px); font-weight: 600; color: var(--text-primary, #fff); }
-	.create-btn { padding: var(--space-1, 4px) var(--space-2, 8px); background: rgba(255, 215, 0, 0.1); border: 1px solid rgba(255, 215, 0, 0.2); border-radius: var(--radius-sm, 4px); color: var(--gold, #ffd700); font-size: var(--text-sm, 14px); cursor: pointer; transition: all 0.15s ease; }
-	.create-btn:hover { background: rgba(255, 215, 0, 0.2); }
-	.note-list { display: flex; flex-direction: column; gap: var(--space-2, 8px); }
-	.note-card { display: flex; flex-direction: column; gap: var(--space-1, 4px); padding: var(--space-3, 12px); background: var(--bg-primary, #0a0a0a); border: none; border-radius: var(--radius-md, 8px); cursor: pointer; text-align: left; transition: all 0.2s ease; }
-	.note-card:hover { background: rgba(255, 215, 0, 0.05); }
-	.note-card:focus-visible { outline: 2px solid var(--gold, #ffd700); outline-offset: 2px; }
-	.note-title { color: var(--text-primary, #fff); font-weight: 600; font-size: var(--text-base, 16px); }
-	.note-preview { color: var(--text-secondary, #999); font-size: var(--text-sm, 14px); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-	.note-tags { display: flex; gap: var(--space-1, 4px); margin-top: var(--space-1, 4px); }
-	.tag { padding: 2px 6px; background: var(--bg-secondary, #1e1e1e); color: var(--text-tertiary, #666); font-size: var(--text-xs, 12px); border-radius: var(--radius-sm, 4px); }
-	.empty-state { text-align: center; padding: var(--space-4, 16px); color: var(--text-tertiary, #666); }
+	.notes-title { margin: 0; font-size: var(--text-lg); font-weight: 600; color: var(--text-primary); }
+	.create-btn { padding: var(--space-1) var(--space-2); background: var(--radiant-gold-10); border: 1px solid var(--radiant-gold-20); border-radius: var(--radius-sm); color: var(--gold); font-size: var(--text-sm); cursor: pointer; transition: all 0.15s ease; }
+	.create-btn:hover { background: var(--radiant-gold-20); }
+	.note-list { display: flex; flex-direction: column; gap: var(--space-2); }
+	.note-card { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3); background: var(--bg-primary); border: none; border-radius: var(--radius-md); cursor: pointer; text-align: left; transition: all 0.2s ease; }
+	.note-card:hover { background: var(--radiant-gold-5); }
+	.note-card:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+	.note-title { color: var(--text-primary); font-weight: 600; font-size: var(--text-base); }
+	.note-preview { color: var(--text-secondary); font-size: var(--text-sm); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+	.note-tags { display: flex; gap: var(--space-1); margin-top: var(--space-1); }
+	.tag { padding: 2px 6px; background: var(--bg-secondary); color: var(--text-tertiary); font-size: var(--text-xs); border-radius: var(--radius-sm); }
+	.empty-state { text-align: center; padding: var(--space-4); color: var(--text-tertiary); }
 </style>

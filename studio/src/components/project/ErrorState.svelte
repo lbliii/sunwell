@@ -48,15 +48,15 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: var(--space-4, 16px);
+    gap: var(--space-4);
     flex: 1;
-    padding: var(--space-8, 32px);
+    padding: var(--space-8);
   }
   
   .actions {
-    margin-top: var(--space-4, 16px);
+    margin-top: var(--space-4);
     display: flex;
     justify-content: center;
-    gap: var(--space-4, 16px);
+    gap: var(--space-4);
   }
 </style>

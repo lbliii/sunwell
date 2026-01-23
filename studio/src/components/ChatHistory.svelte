@@ -106,7 +106,7 @@
 		width: 320px;
 		max-width: 90vw;
 		background: var(--bg-surface, #111);
-		border-right: 1px solid var(--border-subtle, #333);
+		border-right: 1px solid var(--border-subtle);
 		display: flex;
 		flex-direction: column;
 		z-index: 100;
@@ -116,36 +116,36 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		padding: var(--space-4, 16px);
-		border-bottom: 1px solid var(--border-subtle, #333);
+		padding: var(--space-4);
+		border-bottom: 1px solid var(--border-subtle);
 	}
 
 	.title {
 		margin: 0;
-		font-size: var(--text-lg, 18px);
+		font-size: var(--text-lg);
 		font-weight: 600;
-		color: var(--text-primary, #fff);
+		color: var(--text-primary);
 	}
 
 	.close-btn {
 		background: none;
 		border: none;
-		color: var(--text-tertiary, #666);
+		color: var(--text-tertiary);
 		cursor: pointer;
-		padding: var(--space-2, 8px);
-		border-radius: var(--radius-sm, 4px);
+		padding: var(--space-2);
+		border-radius: var(--radius-sm);
 		transition: all 0.15s ease;
 	}
 
 	.close-btn:hover {
-		color: var(--text-primary, #fff);
+		color: var(--text-primary);
 		background: rgba(255, 255, 255, 0.05);
 	}
 
 	.content {
 		flex: 1;
 		overflow-y: auto;
-		padding: var(--space-3, 12px);
+		padding: var(--space-3);
 	}
 
 	.empty-state {
@@ -154,7 +154,7 @@
 		align-items: center;
 		justify-content: center;
 		height: 100%;
-		gap: var(--space-2, 8px);
+		gap: var(--space-2);
 		text-align: center;
 	}
 
@@ -164,26 +164,26 @@
 	}
 
 	.empty-text {
-		color: var(--text-secondary, #999);
-		font-size: var(--text-base, 16px);
+		color: var(--text-secondary);
+		font-size: var(--text-base);
 		margin: 0;
 	}
 
 	.empty-hint {
-		color: var(--text-tertiary, #666);
-		font-size: var(--text-sm, 14px);
+		color: var(--text-tertiary);
+		font-size: var(--text-sm);
 		margin: 0;
 	}
 
 	.messages {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-3, 12px);
+		gap: var(--space-3);
 	}
 
 	.message {
-		padding: var(--space-3, 12px);
-		border-radius: var(--radius-md, 8px);
+		padding: var(--space-3);
+		border-radius: var(--radius-md);
 		background: rgba(255, 255, 255, 0.03);
 		border: 1px solid transparent;
 	}
@@ -193,10 +193,10 @@
 	}
 
 	.message-assistant {
-		border-color: rgba(255, 215, 0, 0.15);
+		border-color: var(--radiant-gold-15);
 		background: linear-gradient(
 			135deg,
-			rgba(255, 215, 0, 0.03) 0%,
+			var(--radiant-gold-3) 0%,
 			rgba(255, 255, 255, 0.02) 100%
 		);
 	}
@@ -204,22 +204,22 @@
 	.message-meta {
 		display: flex;
 		align-items: center;
-		gap: var(--space-2, 8px);
-		margin-bottom: var(--space-1, 4px);
+		gap: var(--space-2);
+		margin-bottom: var(--space-1);
 	}
 
 	.message-role {
-		font-size: var(--text-sm, 14px);
+		font-size: var(--text-sm);
 	}
 
 	.message-time {
-		color: var(--text-tertiary, #666);
-		font-size: var(--text-xs, 12px);
+		color: var(--text-tertiary);
+		font-size: var(--text-xs);
 	}
 
 	.message-content {
-		color: var(--text-primary, #fff);
-		font-size: var(--text-sm, 14px);
+		color: var(--text-primary);
+		font-size: var(--text-sm);
 		line-height: 1.5;
 		margin: 0;
 		white-space: pre-wrap;
@@ -228,8 +228,8 @@
 
 	.footer {
 		display: flex;
-		gap: var(--space-2, 8px);
-		padding: var(--space-3, 12px);
-		border-top: 1px solid var(--border-subtle, #333);
+		gap: var(--space-2);
+		padding: var(--space-3);
+		border-top: 1px solid var(--border-subtle);
 	}
 </style>

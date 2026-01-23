@@ -3,11 +3,15 @@
 [![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://pypi.org/project/sunwell/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-**Cognitive architecture for autonomous agents.**
+**The Agent Control Plane.**
 
-Other tools structure your *tasks*. Sunwell structures the *thinking*.
+Other tools let agents write. Sunwell lets you **direct** them.
 
-> *"The prism doesn't add light. It reveals what was already there."*
+> *IDE = human writes*  
+> *Agent = AI writes*  
+> *ACP = human directs agents*
+
+Works for code, documentation, configuration — any text-based project.
 
 ```bash
 sunwell "Build a REST API with auth"
@@ -15,44 +19,51 @@ sunwell "Build a REST API with auth"
 
 ---
 
-## The Problem
+## The Shift
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    THE AGENT LANDSCAPE                          │
+│                    WHERE SUNWELL FITS                           │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│   PROMPT FLOW / WORKFLOW ENGINES                                │
-│   ──────────────────────────────                                │
-│   "Structure the SEQUENCE, trust the black box"                 │
+│   IDE (VS Code, Cursor)          AGENTS (Claude, Copilot)       │
+│   ─────────────────────          ────────────────────────       │
+│   Human writes code              AI writes code                 │
+│   File-centric view              File-centric view              │
+│   No project model               No project model               │
 │                                                                 │
-│   ┌─────┐    ┌─────┐    ┌─────┐                                │
-│   │  A  │ -> │  B  │ -> │  C  │   Agent = opaque oracle        │
-│   └─────┘    └─────┘    └─────┘                                │
+│                         SUNWELL (ACP)                           │
+│                         ─────────────                           │
+│                    Human directs agents                         │
 │                                                                 │
-│   ✓ Good for: Scripts, releases, simple automations            │
-│   ✗ Limits: Quality ceiling = model quality                    │
-│                                                                 │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│   SUNWELL                                                       │
-│   ───────                                                       │
-│   "Structure the COGNITION, reveal what's already there"        │
-│                                                                 │
-│               ╱╲                                                │
-│              ╱  ╲                                               │
-│   ━━━━━━━━━╱ 🔮 ╲━━━ critic                                    │
-│   MODEL   ╱      ╲━━━ expert     Prism = explicit reasoning    │
-│   ━━━━━━╱ PRISM   ╲━━ user                                     │
-│        ╱           ╲━━ synthesize                               │
-│                                                                 │
-│   ✓ Good for: Complex tasks, quality extraction, autonomy      │
-│   ✓ Advantage: Quality > model size (verified +650% on 3B)     │
+│                    ┌─────────────────────┐                      │
+│                    │    STATE DAG        │                      │
+│                    │  (Project Health)   │                      │
+│                    └─────────────────────┘                      │
+│                              │                                  │
+│                    ┌─────────┴─────────┐                        │
+│                    │   TRUST LAYER     │                        │
+│                    │ (Confidence 🟢🟡🔴)│                        │
+│                    └───────────────────┘                        │
+│                              │                                  │
+│                    ┌─────────┴─────────┐                        │
+│                    │  ORCHESTRATION    │                        │
+│                    │ (Multi-Perspective)│                        │
+│                    └───────────────────┘                        │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**The insight**: Small models contain multitudes — critics, experts, users, adversaries — all superposed in their weights. Single-shot prompting collapses to one perspective. Sunwell refracts that beam into explicit wavelengths, directs each at the relevant part of the problem, then recombines them into output that exceeds what any single perspective could produce.
+**What's different**:
+
+| Capability | IDE / Cursor | Sunwell |
+|------------|--------------|---------|
+| **Project model** | Files and folders | Semantic State DAG |
+| **Trust** | Implicit ("does it compile?") | Explicit (confidence + provenance) |
+| **Quality source** | Model size | Structured cognition |
+| **Mode** | Reactive | Proactive (finds issues, proposes work) |
+| **Memory** | Stateless | Persistent (remembers decisions) |
+| **Cost** | Per-request | Local models ($0) |
 
 ---
 
@@ -91,7 +102,7 @@ def add(a: int | float, b: int | float) -> int | float:
     return a + b
 ```
 
-The 3B model *knows* how to write production code. Single-shot prompting doesn't access it. **Sunwell's cognitive architecture reveals what's already there.**
+The 3B model *knows* how to write production code. Single-shot prompting doesn't access it. **Structured cognition reveals what's already there.**
 
 ---
 
@@ -119,7 +130,7 @@ sunwell setup
 # See the difference in 2 minutes
 sunwell demo
 
-# Just tell it what you want
+# Direct the agent
 sunwell "Build a REST API with auth"
 
 # Or let it propose work
@@ -150,8 +161,6 @@ Requires Python 3.14+ and [Ollama](https://ollama.ai) for local models.
 ```
 
 When you prompt a model directly, you get a single "wavelength" — whatever mode it collapses into. Sunwell refracts that beam into component perspectives, directs each at the relevant part of the problem, then recombines them into coherent output.
-
-### How It Manifests
 
 | Component | What It Does | The Prism Metaphor |
 |-----------|--------------|-------------------|
@@ -254,22 +263,6 @@ skills:
 sunwell skills list
 sunwell "Extract the API surface" --skill extract-api-surface
 ```
-
----
-
-## Why Sunwell Wins
-
-| Feature | Claude/Cursor | Sunwell |
-|---------|---------------|---------|
-| **Intelligence** | Black box | Structured cognition (Prism Principle) |
-| **Memory** | Stateless (forgets you) | Persistent (remembers decisions, learns patterns) |
-| **Mode** | Reactive (waits for commands) | Proactive (finds issues, proposes work) |
-| **Cost** | Per-request ($$$) | Local models ($0 forever) |
-| **Privacy** | Cloud-based | Nothing leaves your machine |
-| **Autonomy** | Human-in-loop | Can work unsupervised (with guardrails) |
-| **Quality** | Limited by model size | Exceeds model size via multi-perspective synthesis |
-
-**The bet**: Structured cognition + Memory + Privacy + Autonomy > Raw model quality for most work.
 
 ---
 
@@ -522,19 +515,6 @@ sunwell/
 ├── benchmark/          # Benchmark tasks and results
 └── docs/               # RFCs and design documents (80+ docs)
 ```
-
----
-
-## Lineage
-
-Sunwell evolved from **DORI** (Documentation-Oriented Rule Intelligence), a cognitive architecture for technical writing developed in the [prompt-library](https://github.com/lbliii/prompt-library) project. DORI pioneered:
-
-- Multi-perspective synthesis via personas
-- Confidence scoring and evidence-based validation
-- Tiered execution with quality gates
-- Domain expertise injection via rules/lenses
-
-Sunwell generalizes these concepts from documentation to all creative work, adds persistent memory, and implements true autonomous execution.
 
 ---
 

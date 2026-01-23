@@ -189,3 +189,57 @@ lens:
     min_confidence: 0.8
     retry_limit: 2
     require_persona_approval: false
+
+  # ==========================================================================
+  # SCANNER — State DAG Configuration (RFC-100)
+  # ==========================================================================
+
+  scanner:
+    type: software
+    description: "Scan software projects to build State DAG"
+
+    # Auto-detect markers for this scanner
+    detect_markers:
+      - pyproject.toml    # Python
+      - setup.py          # Python (legacy)
+      - package.json      # JavaScript/TypeScript
+      - Cargo.toml        # Rust
+      - go.mod            # Go
+
+    # State DAG node configuration
+    state_dag:
+      # What to use as nodes
+      node_source: modules/packages
+
+      # How to extract edges between nodes
+      edge_extraction:
+        - imports          # Python/JS/Rust imports
+        - dependencies     # Package dependencies
+
+      # Health probes to run on each node
+      health_probes:
+        - name: has_tests
+          description: "Check if module has corresponding tests"
+          severity: warning
+
+        - name: lint_clean
+          description: "Check for linter issues (ruff/ESLint)"
+          tool: auto  # Auto-detect: ruff, eslint, clippy
+          severity: warning
+
+        - name: freshness
+          description: "Check how recently the file was updated"
+          thresholds:
+            healthy: 30      # days
+            warning: 90      # days
+            critical: 180    # days
+
+        - name: size_check
+          description: "Check if file complexity is appropriate"
+          thresholds:
+            max_lines: 500
+            critical_lines: 1000
+
+        - name: type_coverage
+          description: "Check type annotation coverage"
+          enabled: false  # Optional probe

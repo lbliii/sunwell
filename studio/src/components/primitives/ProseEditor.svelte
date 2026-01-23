@@ -50,7 +50,7 @@
   }
   
   .document-title {
-    font-family: var(--font-serif, Georgia, serif);
+    font-family: var(--font-serif);
     font-size: 2rem;
     font-weight: 400;
     color: var(--text-primary);
@@ -65,7 +65,7 @@
     border: none;
     outline: none;
     resize: none;
-    font-family: var(--font-serif, Georgia, serif);
+    font-family: var(--font-serif);
     font-size: 1.125rem;
     line-height: 1.8;
     color: var(--text-primary);

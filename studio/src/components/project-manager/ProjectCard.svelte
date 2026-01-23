@@ -199,26 +199,26 @@
     position: relative;
     display: flex;
     align-items: center;
-    gap: var(--space-2, 8px);
-    background: var(--bg-secondary, #1e1e1e);
-    border: 1px solid var(--border-subtle, #333);
-    border-radius: var(--radius-md, 8px);
+    gap: var(--space-2);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
     transition: all 0.15s ease;
   }
   
   .project-card:hover {
-    background: var(--bg-tertiary, #2a2a2a);
-    border-color: var(--border-default, #444);
+    background: var(--bg-tertiary);
+    border-color: var(--border-default);
   }
   
   .project-card.focused {
-    border-color: var(--gold, #ffd700);
-    box-shadow: 0 0 0 1px var(--gold, #ffd700);
+    border-color: var(--gold);
+    box-shadow: 0 0 0 1px var(--gold);
   }
   
   .project-card.selected {
-    background: rgba(255, 215, 0, 0.05);
-    border-color: rgba(255, 215, 0, 0.3);
+    background: var(--radiant-gold-5);
+    border-color: var(--radiant-gold-30);
   }
   
   .project-card.menu-open {
@@ -234,16 +234,16 @@
     justify-content: center;
     background: transparent;
     border: none;
-    color: var(--text-tertiary, #666);
-    font-size: var(--text-base, 16px);
+    color: var(--text-tertiary);
+    font-size: var(--text-base);
     cursor: pointer;
     transition: color 0.15s ease;
-    padding-left: var(--space-2, 8px);
+    padding-left: var(--space-2);
   }
   
   .checkbox:hover,
   .checkbox.checked {
-    color: var(--gold, #ffd700);
+    color: var(--gold);
   }
   
   .checkbox:focus {
@@ -254,8 +254,8 @@
     flex: 1;
     display: flex;
     align-items: center;
-    gap: var(--space-3, 12px);
-    padding: var(--space-3, 12px) 0;
+    gap: var(--space-3);
+    padding: var(--space-3) 0;
     background: transparent;
     border: none;
     color: inherit;
@@ -267,14 +267,14 @@
   .status-icon {
     width: 24px;
     text-align: center;
-    font-size: var(--text-sm, 14px);
+    font-size: var(--text-sm);
     flex-shrink: 0;
   }
   
-  .status-icon.status-interrupted { color: var(--warning, #f59e0b); }
-  .status-icon.status-complete { color: var(--success, #22c55e); }
-  .status-icon.status-failed { color: var(--error, #ef4444); }
-  .status-icon.status-active { color: var(--text-tertiary, #666); }
+  .status-icon.status-interrupted { color: var(--warning); }
+  .status-icon.status-complete { color: var(--success); }
+  .status-icon.status-failed { color: var(--error); }
+  .status-icon.status-active { color: var(--text-tertiary); }
   
   .project-info {
     flex: 1;
@@ -285,10 +285,10 @@
   }
   
   .project-name {
-    color: var(--text-primary, #fff);
+    color: var(--text-primary);
     font-weight: 500;
-    font-family: var(--font-mono, monospace);
-    font-size: var(--text-sm, 14px);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -296,12 +296,12 @@
   }
   
   .project-card:hover .project-name {
-    color: var(--gold, #ffd700);
+    color: var(--gold);
   }
   
   .project-goal {
-    color: var(--text-tertiary, #666);
-    font-size: var(--text-xs, 12px);
+    color: var(--text-tertiary);
+    font-size: var(--text-xs);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -310,40 +310,40 @@
   .project-meta {
     display: flex;
     align-items: center;
-    gap: var(--space-2, 8px);
+    gap: var(--space-2);
     flex-shrink: 0;
-    padding-right: var(--space-2, 8px);
+    padding-right: var(--space-2);
   }
   
   .status-label {
-    font-size: var(--text-xs, 12px);
+    font-size: var(--text-xs);
     padding: 2px 6px;
-    border-radius: var(--radius-sm, 4px);
+    border-radius: var(--radius-sm);
   }
   
   .status-label.status-interrupted {
     background: rgba(245, 158, 11, 0.15);
-    color: var(--warning, #f59e0b);
+    color: var(--warning);
   }
   
   .status-label.status-complete {
     background: rgba(34, 197, 94, 0.15);
-    color: var(--success, #22c55e);
+    color: var(--success);
   }
   
   .status-label.status-failed {
     background: rgba(239, 68, 68, 0.15);
-    color: var(--error, #ef4444);
+    color: var(--error);
   }
   
   .progress {
-    color: var(--text-secondary, #999);
-    font-size: var(--text-xs, 12px);
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
   }
   
   .time {
-    color: var(--text-tertiary, #666);
-    font-size: var(--text-xs, 12px);
+    color: var(--text-tertiary);
+    font-size: var(--text-xs);
     min-width: 50px;
     text-align: right;
   }
@@ -352,8 +352,8 @@
     position: relative;
     display: flex;
     align-items: center;
-    gap: var(--space-1, 4px);
-    padding-right: var(--space-2, 8px);
+    gap: var(--space-1);
+    padding-right: var(--space-2);
     opacity: 0;
     transition: opacity 0.15s ease;
   }
@@ -365,35 +365,35 @@
   }
   
   .action-btn {
-    padding: var(--space-1, 4px) var(--space-2, 8px);
-    background: var(--bg-tertiary, #2a2a2a);
-    border: 1px solid var(--border-default, #444);
-    border-radius: var(--radius-sm, 4px);
-    color: var(--text-secondary, #999);
-    font-size: var(--text-xs, 12px);
+    padding: var(--space-1) var(--space-2);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
     font-weight: 500;
     cursor: pointer;
     transition: all 0.15s ease;
   }
   
   .action-btn:hover {
-    background: var(--bg-secondary, #1e1e1e);
-    color: var(--text-primary, #fff);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
   }
   
   .action-btn:focus {
-    outline: 2px solid var(--gold, #ffd700);
+    outline: 2px solid var(--gold);
     outline-offset: 2px;
   }
   
   .action-btn.resume {
     background: var(--gradient-ui-gold, linear-gradient(135deg, #d4b046, #c9a227));
-    color: var(--bg-primary, #0a0a0a);
-    border-color: rgba(201, 162, 39, 0.3);
+    color: var(--bg-primary);
+    border-color: var(--border-emphasis);
   }
   
   .action-btn.resume:hover {
-    box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
+    box-shadow: 0 0 12px var(--radiant-gold-30);
   }
   
   .action-btn.menu-trigger {
@@ -404,14 +404,14 @@
   
   .action-menu {
     position: absolute;
-    top: calc(100% + var(--space-1, 4px));
+    top: calc(100% + var(--space-1));
     right: 0;
     display: flex;
     flex-direction: column;
     gap: 1px;
-    background: var(--border-subtle, #333);
-    border: 1px solid var(--border-default, #444);
-    border-radius: var(--radius-md, 8px);
+    background: var(--border-subtle);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
     overflow: hidden;
     animation: menuSlide 0.12s ease;
@@ -432,30 +432,30 @@
   .menu-item {
     display: flex;
     align-items: center;
-    gap: var(--space-2, 8px);
-    padding: var(--space-2, 8px) var(--space-3, 12px);
-    background: var(--bg-primary, #0a0a0a);
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-primary);
     border: none;
-    color: var(--text-secondary, #999);
-    font-size: var(--text-xs, 12px);
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
     cursor: pointer;
     transition: all 0.15s ease;
     white-space: nowrap;
   }
   
   .menu-item:hover {
-    background: var(--bg-secondary, #1e1e1e);
-    color: var(--text-primary, #fff);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
   }
   
   .menu-item:focus {
-    outline: 2px solid var(--gold, #ffd700);
+    outline: 2px solid var(--gold);
     outline-offset: -2px;
   }
   
   .menu-item.delete:hover {
     background: rgba(239, 68, 68, 0.1);
-    color: var(--error, #ef4444);
+    color: var(--error);
   }
   
   .menu-icon {

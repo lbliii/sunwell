@@ -401,13 +401,13 @@
 		width: 100%;
 		height: 100%;
 		overflow: hidden;
-		background: var(--bg-base, #0a0a0a);
+		background: var(--bg-primary);
 		cursor: default;
 		outline: none;
 	}
 
 	.canvas-container:focus-visible {
-		box-shadow: inset 0 0 0 2px var(--gold, #ffd700);
+		box-shadow: inset 0 0 0 2px var(--gold);
 	}
 
 	.canvas-container.panning {
@@ -416,8 +416,8 @@
 
 	.canvas-container.overview {
 		background:
-			radial-gradient(circle at center, rgba(255, 215, 0, 0.02) 0%, transparent 70%),
-			var(--bg-base, #0a0a0a);
+			radial-gradient(circle at center, rgba(var(--radiant-gold-rgb), 0.02) 0%, transparent 70%),
+			var(--bg-primary);
 	}
 
 	.canvas-content {
@@ -430,20 +430,20 @@
 	.area-marker {
 		position: absolute;
 		background: rgba(255, 255, 255, 0.02);
-		border: 1px solid rgba(255, 215, 0, 0.2);
-		border-radius: var(--radius-md, 8px);
+		border: 1px solid var(--radiant-gold-20);
+		border-radius: var(--radius-md);
 		cursor: pointer;
 		transition: all 0.2s ease;
 	}
 
 	.area-marker:hover {
-		background: rgba(255, 215, 0, 0.05);
-		border-color: rgba(255, 215, 0, 0.4);
+		background: var(--radiant-gold-5);
+		border-color: var(--radiant-gold-40);
 	}
 
 	.area-marker.active {
-		border-color: rgba(255, 215, 0, 0.6);
-		box-shadow: 0 0 20px rgba(255, 215, 0, 0.1);
+		border-color: rgba(var(--radiant-gold-rgb), 0.6);
+		box-shadow: 0 0 20px var(--radiant-gold-10);
 	}
 
 	.area-name {
@@ -451,26 +451,26 @@
 		bottom: 100%;
 		left: 50%;
 		transform: translateX(-50%);
-		padding: var(--space-1, 4px) var(--space-2, 8px);
+		padding: var(--space-1) var(--space-2);
 		background: rgba(10, 10, 10, 0.9);
-		border: 1px solid rgba(255, 215, 0, 0.2);
-		border-radius: var(--radius-sm, 4px);
-		color: var(--text-secondary, #999);
-		font-size: var(--text-xs, 12px);
+		border: 1px solid var(--radiant-gold-20);
+		border-radius: var(--radius-sm);
+		color: var(--text-secondary);
+		font-size: var(--text-xs);
 		white-space: nowrap;
-		margin-bottom: var(--space-1, 4px);
+		margin-bottom: var(--space-1);
 	}
 
 	/* Minimap */
 	.minimap {
 		position: absolute;
-		bottom: var(--space-4, 16px);
-		right: var(--space-4, 16px);
+		bottom: var(--space-4);
+		right: var(--space-4);
 		width: 150px;
 		height: 100px;
 		background: rgba(10, 10, 10, 0.8);
-		border: 1px solid rgba(255, 215, 0, 0.2);
-		border-radius: var(--radius-sm, 4px);
+		border: 1px solid var(--radiant-gold-20);
+		border-radius: var(--radius-sm);
 		overflow: hidden;
 		backdrop-filter: blur(8px);
 	}
@@ -483,7 +483,7 @@
 
 	.minimap-area {
 		position: absolute;
-		background: rgba(255, 215, 0, 0.3);
+		background: var(--radiant-gold-30);
 		border: none;
 		border-radius: 1px;
 		cursor: pointer;
@@ -491,11 +491,11 @@
 	}
 
 	.minimap-area:hover {
-		background: rgba(255, 215, 0, 0.5);
+		background: rgba(var(--radiant-gold-rgb), 0.5);
 	}
 
 	.minimap-area.active {
-		background: rgba(255, 215, 0, 0.7);
+		background: rgba(var(--radiant-gold-rgb), 0.7);
 	}
 
 	.minimap-viewport {
@@ -508,15 +508,15 @@
 	/* Zoom controls */
 	.canvas-controls {
 		position: absolute;
-		bottom: var(--space-4, 16px);
-		left: var(--space-4, 16px);
+		bottom: var(--space-4);
+		left: var(--space-4);
 		display: flex;
 		align-items: center;
-		gap: var(--space-2, 8px);
+		gap: var(--space-2);
 		background: rgba(10, 10, 10, 0.8);
-		border: 1px solid rgba(255, 215, 0, 0.2);
-		border-radius: var(--radius-md, 8px);
-		padding: var(--space-1, 4px);
+		border: 1px solid var(--radiant-gold-20);
+		border-radius: var(--radius-md);
+		padding: var(--space-1);
 		backdrop-filter: blur(8px);
 	}
 
@@ -528,26 +528,26 @@
 		justify-content: center;
 		background: transparent;
 		border: none;
-		border-radius: var(--radius-sm, 4px);
-		color: var(--text-secondary, #999);
-		font-size: var(--text-lg, 18px);
+		border-radius: var(--radius-sm);
+		color: var(--text-secondary);
+		font-size: var(--text-lg);
 		cursor: pointer;
 		transition: all 0.15s ease;
 	}
 
 	.control-btn:hover {
-		background: rgba(255, 215, 0, 0.1);
-		color: var(--text-gold, #ffd700);
+		background: var(--radiant-gold-10);
+		color: var(--text-gold);
 	}
 
 	.control-btn:focus-visible {
-		outline: 2px solid var(--gold, #ffd700);
+		outline: 2px solid var(--gold);
 		outline-offset: 2px;
 	}
 
 	.zoom-level {
-		color: var(--text-tertiary, #666);
-		font-size: var(--text-xs, 12px);
+		color: var(--text-tertiary);
+		font-size: var(--text-xs);
 		min-width: 40px;
 		text-align: center;
 		font-variant-numeric: tabular-nums;

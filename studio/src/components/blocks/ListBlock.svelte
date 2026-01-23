@@ -42,22 +42,22 @@
 </div>
 
 <style>
-	.list-view { display: flex; flex-direction: column; gap: var(--space-4, 16px); }
+	.list-view { display: flex; flex-direction: column; gap: var(--space-4); }
 	.list-header { display: flex; justify-content: space-between; align-items: center; }
-	.list-title { margin: 0; font-size: var(--text-lg, 18px); font-weight: 600; color: var(--gold, #ffd700); text-transform: capitalize; }
-	.add-btn { padding: var(--space-1, 4px) var(--space-2, 8px); background: rgba(255, 215, 0, 0.1); border: 1px solid rgba(255, 215, 0, 0.2); border-radius: var(--radius-sm, 4px); color: var(--gold, #ffd700); font-size: var(--text-sm, 14px); cursor: pointer; transition: all 0.15s ease; }
-	.add-btn:hover { background: rgba(255, 215, 0, 0.2); }
-	.item-list { display: flex; flex-direction: column; gap: var(--space-1, 4px); }
-	.list-item { display: flex; align-items: center; gap: var(--space-2, 8px); padding: var(--space-2, 8px); background: var(--bg-primary, #0a0a0a); border-radius: var(--radius-sm, 4px); transition: all 0.15s ease; }
-	.list-item:hover { background: rgba(255, 215, 0, 0.05); }
+	.list-title { margin: 0; font-size: var(--text-lg); font-weight: 600; color: var(--gold); text-transform: capitalize; }
+	.add-btn { padding: var(--space-1) var(--space-2); background: var(--radiant-gold-10); border: 1px solid var(--radiant-gold-20); border-radius: var(--radius-sm); color: var(--gold); font-size: var(--text-sm); cursor: pointer; transition: all 0.15s ease; }
+	.add-btn:hover { background: var(--radiant-gold-20); }
+	.item-list { display: flex; flex-direction: column; gap: var(--space-1); }
+	.list-item { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2); background: var(--bg-primary); border-radius: var(--radius-sm); transition: all 0.15s ease; }
+	.list-item:hover { background: var(--radiant-gold-5); }
 	.list-item.completed { opacity: 0.6; }
 	.check-btn { background: none; border: none; cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; }
-	.check-icon { font-size: var(--text-lg, 18px); color: var(--text-tertiary, #666); transition: color 0.15s ease; }
-	.list-item.completed .check-icon { color: var(--success, #22c55e); }
-	.item-text { flex: 1; color: var(--text-primary, #fff); font-size: var(--text-sm, 14px); }
-	.list-item.completed .item-text { text-decoration: line-through; color: var(--text-tertiary, #666); }
-	.delete-btn { background: none; border: none; color: var(--text-tertiary, #666); cursor: pointer; padding: var(--space-1, 4px); opacity: 0; transition: all 0.15s ease; }
+	.check-icon { font-size: var(--text-lg); color: var(--text-tertiary); transition: color 0.15s ease; }
+	.list-item.completed .check-icon { color: var(--success); }
+	.item-text { flex: 1; color: var(--text-primary); font-size: var(--text-sm); }
+	.list-item.completed .item-text { text-decoration: line-through; color: var(--text-tertiary); }
+	.delete-btn { background: none; border: none; color: var(--text-tertiary); cursor: pointer; padding: var(--space-1); opacity: 0; transition: all 0.15s ease; }
 	.list-item:hover .delete-btn { opacity: 1; }
-	.delete-btn:hover { color: var(--error, #ef4444); }
-	.empty-state { text-align: center; padding: var(--space-4, 16px); color: var(--text-tertiary, #666); }
+	.delete-btn:hover { color: var(--error); }
+	.empty-state { text-align: center; padding: var(--space-4); color: var(--text-tertiary); }
 </style>

@@ -85,7 +85,7 @@
     position: absolute;
     font-size: 48px;
     animation: orbFloat 3s ease-in-out infinite;
-    filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.3));
+    filter: drop-shadow(0 0 20px var(--radiant-gold-30));
   }
   
   @keyframes orbFloat {

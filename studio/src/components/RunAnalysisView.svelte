@@ -242,7 +242,7 @@
   
   .source-notice.saved {
     color: var(--accent);
-    background: rgba(201, 162, 39, 0.1);
+    background: var(--ui-gold-10);
   }
   
   .source-icon {
@@ -264,7 +264,7 @@
   
   .refresh-btn:hover {
     color: var(--accent);
-    background: rgba(201, 162, 39, 0.1);
+    background: var(--ui-gold-10);
   }
   
   .command-section {

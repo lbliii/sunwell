@@ -121,7 +121,7 @@
     border-color: var(--ui-gold);
     background: linear-gradient(
       135deg,
-      rgba(201, 162, 39, 0.08) 0%,
+      var(--accent-hover) 0%,
       var(--bg-secondary) 100%
     );
   }

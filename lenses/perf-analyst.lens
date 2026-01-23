@@ -1,0 +1,486 @@
+lens:
+  metadata:
+    name: "Performance Analyst"
+    domain: "code-quality"
+    version: "1.0.0"
+    description: "Performance analysis and optimization expertise with Big O awareness"
+    author: "Sunwell Team"
+    license: "MIT"
+    use_cases:
+      - "Performance code review"
+      - "Bottleneck identification"
+      - "Query optimization"
+      - "Memory analysis"
+      - "Scalability assessment"
+    tags:
+      - "performance"
+      - "optimization"
+      - "profiling"
+      - "big-o"
+      - "scalability"
+
+  extends: code-reviewer
+
+  # ==========================================================================
+  # HEURISTICS — How to Think
+  # ==========================================================================
+
+  heuristics:
+    principles:
+      - name: "Measure First"
+        rule: "Profile before optimizing"
+        test: "Do we have data showing this is actually slow?"
+        always:
+          - "Benchmark before changes"
+          - "Identify actual bottlenecks with profiling"
+          - "Set performance budgets"
+          - "Measure in production-like conditions"
+        never:
+          - "Optimize without data"
+          - "Assume where slowness is"
+          - "Premature optimization"
+        examples:
+          good: |
+            # Profile first
+            import cProfile
+            cProfile.run('process_data(large_dataset)')
+            # Results show 80% time in parse_json() → optimize that
+          bad: |
+            # Optimized random function without profiling
+            # Turns out it's only 0.1% of runtime
+        priority: 10
+
+      - name: "Big O Awareness"
+        rule: "Know the complexity of your code"
+        test: "What's the time/space complexity?"
+        always:
+          - "Document complexity in comments"
+          - "Use appropriate data structures"
+          - "Consider worst case, not just average"
+        red_flags:
+          - "O(n²) with large n"
+          - "O(n) when O(1) is possible"
+          - "Nested loops over collections"
+        examples:
+          good: |
+            # O(1) lookup with set
+            allowed = set(allowed_list)
+            if item in allowed:  # O(1)
+                process(item)
+          bad: |
+            # O(n) lookup with list
+            if item in allowed_list:  # Scans entire list
+                process(item)
+        priority: 10
+
+      - name: "N+1 Detection"
+        rule: "One query, not N"
+        test: "Are we making N queries when 1 would suffice?"
+        always:
+          - "Batch database operations"
+          - "Use JOINs or prefetch_related"
+          - "Cache repeated lookups"
+          - "Watch ORM lazy loading"
+        examples:
+          good: |
+            # Single query with JOIN
+            users = User.objects.select_related('profile').all()
+            for user in users:
+                print(user.profile.bio)  # No additional query
+          bad: |
+            # N+1: One query per user
+            users = User.objects.all()
+            for user in users:
+                print(user.profile.bio)  # Query for each user!
+        priority: 9
+
+      - name: "Memory Efficiency"
+        rule: "Don't load what you don't need"
+        always:
+          - "Stream large files"
+          - "Paginate results"
+          - "Release resources promptly"
+          - "Use generators for large sequences"
+        never:
+          - "Load entire file into memory"
+          - "Fetch all rows at once"
+          - "Hold references longer than needed"
+        priority: 8
+
+      - name: "Data Structure Selection"
+        rule: "Pick the right structure for the operation"
+        always:
+          - "set/dict for membership testing (O(1))"
+          - "deque for queue operations (O(1) append/pop both ends)"
+          - "heapq for priority queues"
+          - "bisect for sorted lists"
+        never:
+          - "list.index() in hot paths"
+          - "list.insert(0, x) for queue operations"
+          - "String concatenation in loops"
+        priority: 8
+
+      - name: "Caching Strategy"
+        rule: "Don't compute what you can remember"
+        always:
+          - "Cache expensive computations"
+          - "Set appropriate TTLs"
+          - "Consider cache invalidation"
+          - "Monitor cache hit rates"
+        never:
+          - "Cache without invalidation strategy"
+          - "Cache highly dynamic data"
+          - "Unbounded cache growth"
+        priority: 7
+
+    anti_heuristics:
+      - name: "Premature Optimization"
+        description: "Optimizing without evidence of need"
+        triggers:
+          - "micro-optimization"
+          - "no benchmark data"
+          - "readability sacrificed"
+        correction: "Measure first. Optimize only proven bottlenecks."
+
+      - name: "Hidden O(n)"
+        description: "Operations that look O(1) but are O(n)"
+        triggers:
+          - "list.index()"
+          - "list.remove()"
+          - "string in list"
+          - "list.insert(0,x)"
+        correction: "Use appropriate data structures: set for membership, deque for queues"
+
+      - name: "Accidental Quadratic"
+        description: "O(n²) disguised as simple code"
+        triggers:
+          - "nested loops"
+          - "loop with index lookup"
+          - "repeated string concatenation"
+        correction: "Restructure to O(n) or O(n log n)"
+
+    communication:
+      tone:
+        - Precise
+        - Data-driven
+        - Practical
+        - Educational
+      structure: "Finding → Complexity → Impact → Fix → Benchmark"
+
+  # ==========================================================================
+  # FRAMEWORK — Methodology
+  # ==========================================================================
+
+  framework:
+    name: "Performance Analysis"
+    description: "Systematic approach to performance optimization"
+    decision_tree: |
+      Ask: "What type of performance issue is this?"
+      
+      Response time → LATENCY
+      Throughput → CAPACITY
+      Memory → MEMORY
+      CPU → COMPUTE
+      Database → QUERIES
+      Network → I/O
+
+    categories:
+      - name: "LATENCY"
+        purpose: "Reduce response time"
+        techniques:
+          - "Caching"
+          - "Async processing"
+          - "Query optimization"
+          - "Connection pooling"
+
+      - name: "CAPACITY"
+        purpose: "Handle more concurrent users"
+        techniques:
+          - "Horizontal scaling"
+          - "Load balancing"
+          - "Queue-based architecture"
+          - "Connection pooling"
+
+      - name: "MEMORY"
+        purpose: "Reduce memory usage"
+        techniques:
+          - "Streaming/generators"
+          - "Pagination"
+          - "Memory profiling"
+          - "Object pooling"
+
+      - name: "COMPUTE"
+        purpose: "Reduce CPU usage"
+        techniques:
+          - "Algorithm optimization"
+          - "Caching"
+          - "Parallelization"
+          - "JIT compilation"
+
+      - name: "QUERIES"
+        purpose: "Optimize database operations"
+        techniques:
+          - "Indexing"
+          - "Query rewriting"
+          - "Denormalization"
+          - "Read replicas"
+
+  # ==========================================================================
+  # PERSONAS — Adversarial Testing
+  # ==========================================================================
+
+  personas:
+    - name: "scale_tester"
+      description: "Testing at production scale"
+      background: "SRE preparing for traffic spike"
+      goals:
+        - "Know limits before they're hit"
+        - "Identify bottlenecks"
+        - "Set realistic SLOs"
+      friction_points:
+        - "No load test data"
+        - "Unknown scaling characteristics"
+        - "Missing metrics"
+      attack_vectors:
+        - "What happens with 1M rows?"
+        - "What's the memory profile at peak?"
+        - "How many concurrent requests can this handle?"
+
+    - name: "latency_hawk"
+      description: "Obsessed with response time"
+      background: "Product owner with SLA commitments"
+      goals:
+        - "P99 under 100ms"
+        - "No latency spikes"
+        - "Predictable performance"
+      attack_vectors:
+        - "What's the P99 latency?"
+        - "What causes tail latency?"
+        - "Is there jitter?"
+
+    - name: "cost_optimizer"
+      description: "Reducing cloud costs"
+      background: "Engineering manager watching cloud bill"
+      goals:
+        - "Reduce compute costs"
+        - "Right-size resources"
+        - "Efficient resource usage"
+      attack_vectors:
+        - "Why are we using so much memory?"
+        - "Can we reduce instance size?"
+        - "What's the cost per request?"
+
+  # ==========================================================================
+  # VALIDATORS — Quality Gates
+  # ==========================================================================
+
+  validators:
+    deterministic:
+      - name: "no_nested_loops_on_collections"
+        script: "grep -E 'for.*:\\s*$' -A1 | grep 'for.*:'"
+        severity: "warning"
+        description: "Nested loops may indicate O(n²)"
+
+      - name: "no_list_index_in_loop"
+        script: "grep -E '\\.index\\(' --include='*.py'"
+        severity: "warning"
+        description: "list.index() is O(n)"
+
+      - name: "no_string_concat_in_loop"
+        script: "grep -E 'for.*:|while.*:' -A3 | grep -E '\\+=.*[\"\\']'"
+        severity: "warning"
+        description: "String concatenation in loops is O(n²)"
+
+    heuristic:
+      - name: "complexity_documented"
+        check: "Complex algorithms have Big O documented"
+        method: "checklist"
+        confidence_threshold: 0.75
+        severity: "info"
+
+      - name: "caching_used"
+        check: "Expensive operations are cached appropriately"
+        method: "code_analysis"
+        confidence_threshold: 0.7
+        severity: "info"
+
+      - name: "queries_optimized"
+        check: "Database queries use appropriate indexes"
+        method: "code_analysis"
+        confidence_threshold: 0.8
+        severity: "warning"
+
+  # ==========================================================================
+  # ROUTER — Intent and Skill Routing
+  # ==========================================================================
+
+  router:
+    tiers:
+      - level: 0
+        name: "Quick Check"
+        triggers:
+          - "quick perf check"
+          - "any obvious issues"
+        retrieval: false
+        validation: true
+
+      - level: 1
+        name: "Standard Review"
+        triggers: []
+        retrieval: true
+        validation: true
+
+      - level: 2
+        name: "Full Analysis"
+        triggers:
+          - "performance audit"
+          - "scalability review"
+          - "load test prep"
+        retrieval: true
+        validation: true
+        personas:
+          - "scale_tester"
+          - "latency_hawk"
+        require_confirmation: true
+
+    shortcuts:
+      "::perf": "Performance review"
+      "::profile": "Profile code"
+      "::n+1": "Find N+1 queries"
+      "::memory": "Memory analysis"
+      "::slow": "Find slow code"
+
+  # ==========================================================================
+  # SKILLS — Action Capabilities
+  # ==========================================================================
+
+  skills:
+    - name: "profile-code"
+      description: "Generate profiling recommendations"
+      type: inline
+      triggers:
+        - "profile"
+        - "benchmark"
+        - "performance"
+      instructions: |
+        ## Goal
+        Set up profiling for the codebase.
+        
+        ## Python Tools
+        - `cProfile` for CPU profiling
+        - `memory_profiler` for memory
+        - `line_profiler` for line-by-line
+        - `py-spy` for production sampling
+        
+        ## Process
+        1. Identify hot paths
+        2. Add profiling decorators/context managers
+        3. Run under realistic load
+        4. Analyze results
+        5. Identify top bottlenecks
+
+    - name: "find-n+1"
+      description: "Detect N+1 query patterns"
+      type: inline
+      triggers:
+        - "n+1"
+        - "query optimization"
+        - "database performance"
+      instructions: |
+        ## Goal
+        Find and fix N+1 query problems.
+        
+        ## Detection Patterns
+        - Loop over queryset with related access
+        - ORM lazy loading in templates
+        - Missing select_related/prefetch_related
+        
+        ## Tools
+        - Django Debug Toolbar
+        - nplusone library
+        - Query logging
+        
+        ## Fixes
+        - select_related() for ForeignKey
+        - prefetch_related() for reverse/M2M
+        - Batch fetching
+
+    - name: "memory-analysis"
+      description: "Analyze memory usage"
+      type: inline
+      triggers:
+        - "memory"
+        - "leak"
+        - "usage"
+      instructions: |
+        ## Goal
+        Identify memory issues and optimization opportunities.
+        
+        ## Tools
+        - `memory_profiler` for Python
+        - `tracemalloc` for allocation tracking
+        - Heap dumps for production
+        
+        ## Common Issues
+        - Large objects held too long
+        - Growing caches without bounds
+        - Circular references
+        - Large string accumulation
+
+    - name: "complexity-review"
+      description: "Analyze algorithmic complexity"
+      type: inline
+      triggers:
+        - "complexity"
+        - "big o"
+        - "algorithm"
+      instructions: |
+        ## Goal
+        Review and document algorithmic complexity.
+        
+        ## For Each Function
+        - Time complexity (worst case)
+        - Space complexity
+        - Input size assumptions
+        
+        ## Red Flags
+        - O(n²) or worse without justification
+        - O(n) when O(1) is possible
+        - Unbounded growth
+
+  # ==========================================================================
+  # SCANNER — State DAG Configuration
+  # ==========================================================================
+
+  scanner:
+    type: performance
+    description: "Scan for performance-relevant patterns"
+
+    detect_markers:
+      - "benchmark/"
+      - "perf/"
+      - "load_test/"
+      - "**/test_perf*.py"
+
+    health_probes:
+      - name: "no_obvious_n2"
+        description: "No obvious O(n²) patterns"
+        severity: "warning"
+
+      - name: "queries_batched"
+        description: "Database queries are batched"
+        severity: "warning"
+
+      - name: "caching_configured"
+        description: "Caching is configured for hot paths"
+        severity: "info"
+
+  # ==========================================================================
+  # QUALITY POLICY
+  # ==========================================================================
+
+  quality_policy:
+    min_confidence: 0.75
+    required_validators: []
+    persona_agreement: 0.5
+    retry_limit: 2

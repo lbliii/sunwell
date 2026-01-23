@@ -289,7 +289,7 @@
   .project-manager {
     display: flex;
     flex-direction: column;
-    gap: var(--space-4, 16px);
+    gap: var(--space-4);
     width: 100%;
     max-width: 700px;
   }
@@ -303,7 +303,7 @@
   .project-manager.page-mode {
     max-width: 900px;
     margin: 0 auto;
-    padding: var(--space-6, 24px);
+    padding: var(--space-6);
   }
   
   .sr-only {
@@ -322,32 +322,32 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: var(--space-3, 12px);
+    gap: var(--space-3);
   }
   
   .header-left {
     display: flex;
     align-items: center;
-    gap: var(--space-3, 12px);
+    gap: var(--space-3);
   }
   
   .manager-title {
     margin: 0;
-    font-size: var(--text-lg, 18px);
+    font-size: var(--text-lg);
     font-weight: 600;
-    color: var(--text-primary, #fff);
+    color: var(--text-primary);
   }
   
   .header-right {
     display: flex;
     align-items: center;
-    gap: var(--space-2, 8px);
+    gap: var(--space-2);
   }
   
   .manager-toolbar {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3, 12px);
+    gap: var(--space-3);
   }
   
   .manager-content {
@@ -357,34 +357,34 @@
   
   .modal-actions {
     display: flex;
-    gap: var(--space-3, 12px);
+    gap: var(--space-3);
     justify-content: flex-end;
-    margin-top: var(--space-4, 16px);
+    margin-top: var(--space-4);
   }
   
   .view-all-link {
     display: block;
     width: 100%;
-    padding: var(--space-3, 12px);
-    margin-top: var(--space-2, 8px);
+    padding: var(--space-3);
+    margin-top: var(--space-2);
     background: transparent;
-    border: 1px dashed var(--border-subtle, #333);
-    border-radius: var(--radius-md, 8px);
-    color: var(--text-secondary, #999);
-    font-size: var(--text-sm, 14px);
+    border: 1px dashed var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
     text-align: center;
     cursor: pointer;
     transition: all 0.15s ease;
   }
   
   .view-all-link:hover {
-    background: rgba(255, 215, 0, 0.05);
-    border-color: rgba(255, 215, 0, 0.3);
-    color: var(--gold, #ffd700);
+    background: var(--radiant-gold-5);
+    border-color: var(--radiant-gold-30);
+    color: var(--gold);
   }
   
   .view-all-link:focus {
-    outline: 2px solid var(--gold, #ffd700);
+    outline: 2px solid var(--gold);
     outline-offset: 2px;
   }
 </style>

@@ -27,7 +27,14 @@ from sunwell.parallel.git import (
     merge_ff_only,
     rebase_branch,
 )
-from sunwell.parallel.types import MergeResult, WorkerResult
+from sunwell.parallel.types import (
+    CoordinatorUIState,
+    FileConflict,
+    MergeResult,
+    WorkerResult,
+    WorkerState,
+    WorkerStatus,
+)
 from sunwell.parallel.worker import worker_entry
 
 logger = logging.getLogger(__name__)
@@ -386,3 +393,96 @@ class Coordinator:
             True if at least one worker is alive
         """
         return any(p.is_alive() for p in self._workers.values())
+
+    async def get_ui_state(self) -> CoordinatorUIState:
+        """Get current coordinator state for UI consumption (RFC-100).
+
+        Returns:
+            CoordinatorUIState suitable for the ATC view in Studio.
+        """
+        # Get worker statuses
+        status_dicts = await self.get_worker_statuses()
+        workers: list[WorkerStatus] = []
+
+        for sd in status_dicts:
+            try:
+                workers.append(
+                    WorkerStatus(
+                        worker_id=sd.get("worker_id", 0),
+                        pid=sd.get("pid", 0),
+                        state=WorkerState(sd.get("state", "idle")),
+                        branch=sd.get("branch", ""),
+                        current_goal_id=sd.get("current_goal_id"),
+                        goals_completed=sd.get("goals_completed", 0),
+                        goals_failed=sd.get("goals_failed", 0),
+                        last_heartbeat=datetime.fromisoformat(sd["last_heartbeat"])
+                        if "last_heartbeat" in sd
+                        else datetime.now(),
+                    )
+                )
+            except (KeyError, ValueError):
+                continue
+
+        # Detect conflicts from lock files
+        conflicts = await self._detect_conflicts()
+
+        # Calculate total progress
+        if workers:
+            completed = sum(w.goals_completed for w in workers)
+            failed = sum(w.goals_failed for w in workers)
+            total = completed + failed + len([w for w in workers if w.current_goal_id])
+            total_progress = completed / total if total > 0 else 0.0
+        else:
+            total_progress = 0.0
+
+        return CoordinatorUIState(
+            workers=workers,
+            conflicts=conflicts,
+            total_progress=total_progress,
+            is_running=self.is_running(),
+        )
+
+    async def _detect_conflicts(self) -> list[FileConflict]:
+        """Detect file conflicts between workers.
+
+        Returns:
+            List of detected file conflicts.
+        """
+        conflicts: list[FileConflict] = []
+        locks_dir = self.root / ".sunwell" / "locks"
+
+        if not locks_dir.exists():
+            return conflicts
+
+        # Track which files are locked by which workers
+        file_locks: dict[str, list[int]] = {}
+
+        for lock_file in locks_dir.glob("*.lock"):
+            try:
+                # Lock file name format: path_hash.lock
+                # Content might contain worker_id
+                content = lock_file.read_text()
+                data = json.loads(content)
+                file_path = data.get("path", "")
+                worker_id = data.get("worker_id", 0)
+
+                if file_path:
+                    if file_path not in file_locks:
+                        file_locks[file_path] = []
+                    file_locks[file_path].append(worker_id)
+            except (json.JSONDecodeError, KeyError):
+                continue
+
+        # Find conflicts (multiple workers on same file)
+        for path, workers in file_locks.items():
+            if len(workers) > 1:
+                conflicts.append(
+                    FileConflict(
+                        path=path,
+                        worker_a=workers[0],
+                        worker_b=workers[1],
+                        conflict_type="lock_contention",
+                    )
+                )
+
+        return conflicts
