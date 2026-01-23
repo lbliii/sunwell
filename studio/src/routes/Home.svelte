@@ -16,8 +16,8 @@
 	import LensPicker from '../components/LensPicker.svelte';
 	import LensBadge from '../components/LensBadge.svelte';
 	import ChatHistory from '../components/ChatHistory.svelte';
-	import { BlockSurface, ActionToast, ConversationLayout, ProjectsBlock } from '../components';
-	import { goToProject } from '../stores/app.svelte';
+	import { BlockSurface, ActionToast, ConversationLayout, ProjectManager } from '../components';
+	import { goToProject, goToDemo } from '../stores/app.svelte';
 	import {
 		project,
 		scanProjects,
@@ -122,6 +122,8 @@
 	// One-time initialization on mount
 	$effect(() => {
 		untrack(() => {
+			// Clear stale response when returning to Home (projects hidden otherwise)
+			clearResponse();
 			scanProjects();
 			loadLenses();
 			inputBar?.focus();
@@ -350,19 +352,24 @@
 					</div>
 				{/if}
 
-				<!-- Contextual Projects Block (always shown if projects exist) -->
+				<!-- Contextual Projects (always shown if projects exist) -->
 				{#if project.discovered.length > 0 && !homeState.response}
 					<section class="contextual-blocks">
-						<ProjectsBlock
-							data={{
-								projects: project.discovered,
-								project_count: project.discovered.length,
+						<ProjectManager 
+							mode="inline"
+							onOpenProject={async (path) => {
+								await openProject(path);
+								analyzeProject(path);
+								goToProject();
 							}}
-							onAction={handleBlockAction}
 						/>
 					</section>
 				{/if}
 			</div>
+
+			<button class="demo-trigger" onclick={goToDemo} title="See the Prism Principle in action">
+				🔮 Try Demo
+			</button>
 
 			<footer class="version">v0.1.0</footer>
 		</div>
@@ -418,7 +425,7 @@
 		min-height: 100vh;
 		padding: var(--space-8);
 		position: relative;
-		overflow: hidden;
+		/* Note: Removed overflow:hidden - it clips dropdown menus and tooltips */
 	}
 
 	.background-aura {
@@ -508,6 +515,38 @@
 		color: var(--text-tertiary);
 		font-size: var(--text-xs);
 		z-index: 2;
+	}
+
+	.demo-trigger {
+		position: fixed;
+		bottom: var(--space-4);
+		left: var(--space-4);
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-4);
+		font-family: var(--font-mono);
+		font-size: var(--text-sm);
+		font-weight: 500;
+		color: var(--text-secondary);
+		background: rgba(201, 162, 39, 0.08);
+		border: 1px solid rgba(201, 162, 39, 0.2);
+		border-radius: var(--radius-md);
+		cursor: pointer;
+		transition: all var(--transition-fast);
+		z-index: 10;
+	}
+
+	.demo-trigger:hover {
+		color: var(--text-gold);
+		background: rgba(201, 162, 39, 0.15);
+		border-color: rgba(201, 162, 39, 0.4);
+		box-shadow: var(--glow-gold-subtle);
+	}
+
+	.demo-trigger:focus-visible {
+		outline: 2px solid var(--border-emphasis);
+		outline-offset: 2px;
 	}
 
 	@keyframes fadeIn {

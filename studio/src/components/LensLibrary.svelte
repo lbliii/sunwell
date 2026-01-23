@@ -1,12 +1,30 @@
 <!--
-  LensLibrary — Full lens library browser (RFC-070)
+  LensLibrary — Full lens library browser (RFC-070, RFC-100)
   
-  Browse, filter, and manage lenses with detail views and editing.
+  S-Tier lens library with:
+  - Featured section for recommended lenses
+  - Staggered card animations
+  - Keyboard navigation (j/k/Enter/Escape)
+  - Hover previews with heuristics
+  - Context menus
+  - Loading skeletons
+  - Power indicators
+  - View mode toggle (grid/list)
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { fly, fade } from 'svelte/transition';
   import Button from './Button.svelte';
   import Modal from './Modal.svelte';
+  import { 
+    LensCardSkeleton,
+    LensCardMotes,
+    LensHoverPreview,
+    LensContextMenu,
+    LensEmptyState,
+    LensHeroCard,
+    LensEditor,
+  } from './lens';
   import { 
     lensLibrary, 
     getFilteredEntries,
@@ -17,15 +35,15 @@
     openEditor,
     forkLens,
     deleteLens,
-  setFilter,
-  setDefaultLens,
-  backToList,
-  loadVersions,
+    setFilter,
+    setDefaultLens,
+    backToList,
+    loadVersions,
     rollbackLens,
     saveLens,
     clearError,
   } from '../stores/lensLibrary.svelte';
-  import type { LensLibraryEntry } from '$lib/types';
+  import type { LensLibraryEntry, HeuristicSummary } from '$lib/types';
   
   interface Props {
     onSelect?: (lensName: string) => void;
@@ -33,6 +51,29 @@
   }
   
   let { onSelect, showSelectButton = false }: Props = $props();
+  
+  // View mode
+  type ViewMode = 'grid' | 'list';
+  let viewMode = $state<ViewMode>('grid');
+  
+  // Keyboard navigation
+  let focusIndex = $state(-1);
+  let searchInputRef: HTMLInputElement;
+  
+  // Hover preview
+  let previewLens = $state<LensLibraryEntry | null>(null);
+  let previewTimeout: ReturnType<typeof setTimeout>;
+  
+  // Context menu
+  let contextMenu = $state<{ visible: boolean; x: number; y: number; lens: LensLibraryEntry | null }>({
+    visible: false,
+    x: 0,
+    y: 0,
+    lens: null,
+  });
+  
+  // Search suggestions
+  let showSuggestions = $state(false);
   
   // Fork modal state
   let showForkModal = $state(false);
@@ -51,11 +92,160 @@
   let saveBump = $state<'major' | 'minor' | 'patch'>('patch');
   let editedContent = $state('');
   
+  // Motes refs
+  let moteRefs = $state<Map<string, { spawnMotes: (e: MouseEvent) => void }>>(new Map());
+  
   onMount(() => {
     if (lensLibrary.entries.length === 0) {
       loadLibrary();
     }
   });
+  
+  // Computed: Filtered entries
+  const filteredEntries = $derived(getFilteredEntries());
+  const availableDomains = $derived(getAvailableDomains());
+  const defaultLens = $derived(getDefaultLens());
+  
+  // Computed: Featured lenses (default + top by heuristics)
+  const featuredLenses = $derived.by(() => {
+    const featured: LensLibraryEntry[] = [];
+    
+    // Always include default
+    const defLens = lensLibrary.entries.find(e => e.is_default);
+    if (defLens) featured.push(defLens);
+    
+    // Add top by heuristics count (proxy for "power")
+    const byPower = [...lensLibrary.entries]
+      .filter(e => !e.is_default)
+      .sort((a, b) => b.heuristics_count - a.heuristics_count)
+      .slice(0, 2);
+    
+    return [...featured, ...byPower];
+  });
+  
+  // Computed: Search suggestions
+  const searchSuggestions = $derived.by(() => {
+    if (!lensLibrary.filter.search || lensLibrary.filter.search.length < 2) return [];
+    
+    const q = lensLibrary.filter.search.toLowerCase();
+    const suggestions = new Set<string>();
+    
+    for (const entry of lensLibrary.entries) {
+      if (entry.name.toLowerCase().includes(q)) {
+        suggestions.add(entry.name);
+      }
+      if (entry.domain?.toLowerCase().includes(q)) {
+        suggestions.add(`domain:${entry.domain}`);
+      }
+      for (const tag of entry.tags) {
+        if (tag.toLowerCase().includes(q)) {
+          suggestions.add(`tag:${tag}`);
+        }
+      }
+    }
+    
+    return Array.from(suggestions).slice(0, 5);
+  });
+  
+  // Computed: Power level for card
+  function getPowerLevel(entry: LensLibraryEntry): 'high' | 'medium' | 'low' {
+    if (entry.heuristics_count >= 8) return 'high';
+    if (entry.heuristics_count >= 4) return 'medium';
+    return 'low';
+  }
+  
+  // Check if showing featured section
+  const showFeatured = $derived(
+    !lensLibrary.filter.search && 
+    lensLibrary.filter.source === 'all' && 
+    !lensLibrary.filter.domain &&
+    featuredLenses.length > 0
+  );
+  
+  // Keyboard navigation handler
+  function handleKeydown(e: KeyboardEvent) {
+    if (lensLibrary.view !== 'library') return;
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      if (e.key === 'Escape') {
+        (e.target as HTMLElement).blur();
+        focusIndex = -1;
+      }
+      return;
+    }
+    
+    const entries = filteredEntries;
+    
+    switch (e.key) {
+      case 'j':
+      case 'ArrowDown':
+        e.preventDefault();
+        focusIndex = Math.min(focusIndex + 1, entries.length - 1);
+        break;
+      case 'k':
+      case 'ArrowUp':
+        e.preventDefault();
+        focusIndex = Math.max(focusIndex - 1, 0);
+        break;
+      case '/':
+        e.preventDefault();
+        searchInputRef?.focus();
+        break;
+      case 'Enter':
+        if (focusIndex >= 0 && entries[focusIndex]) {
+          selectLens(entries[focusIndex]);
+        }
+        break;
+      case 'Escape':
+        focusIndex = -1;
+        contextMenu = { ...contextMenu, visible: false };
+        break;
+      case 'f':
+        if (focusIndex >= 0 && entries[focusIndex]) {
+          e.preventDefault();
+          handleForkClick(entries[focusIndex].name);
+        }
+        break;
+      case 'e':
+        if (focusIndex >= 0 && entries[focusIndex]?.is_editable) {
+          e.preventDefault();
+          handleEditClick(entries[focusIndex]);
+        }
+        break;
+      case 'd':
+        if (focusIndex >= 0 && entries[focusIndex] && !entries[focusIndex].is_default) {
+          e.preventDefault();
+          setDefaultLens(entries[focusIndex].name);
+        }
+        break;
+    }
+  }
+  
+  // Hover preview handlers
+  function schedulePreview(lens: LensLibraryEntry) {
+    previewTimeout = setTimeout(() => {
+      previewLens = lens;
+    }, 300);
+  }
+  
+  function cancelPreview() {
+    clearTimeout(previewTimeout);
+    previewLens = null;
+  }
+  
+  // Context menu handler
+  function showContextMenuHandler(e: MouseEvent, lens: LensLibraryEntry) {
+    e.preventDefault();
+    contextMenu = {
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      lens,
+    };
+  }
+  
+  function hideContextMenu() {
+    contextMenu = { ...contextMenu, visible: false };
+  }
   
   function handleForkClick(sourceName: string) {
     forkSourceName = sourceName;
@@ -116,30 +306,78 @@
     return icons[domain || 'general'] || '🔮';
   }
   
-  // Reactive derived state
-  const filteredEntries = $derived(getFilteredEntries());
-  const availableDomains = $derived(getAvailableDomains());
-  // Note: defaultLens is available for future features like showing "★ Current default" status
-  void getDefaultLens;
+  function handleClearFilters() {
+    setFilter({ search: '', source: 'all', domain: null });
+    focusIndex = -1;
+  }
+  
+  function handleCardMouseEnter(e: MouseEvent, entry: LensLibraryEntry) {
+    schedulePreview(entry);
+    moteRefs.get(entry.name)?.spawnMotes(e);
+  }
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <div class="lens-library">
   {#if lensLibrary.view === 'library'}
     <!-- Library Browser -->
     <header class="library-header">
-      <h2>Lens Library</h2>
-      <p class="subtitle">Browse and manage your expertise containers</p>
+      <div class="header-content">
+        <h2>Lens Library</h2>
+        <p class="subtitle">Browse and manage your expertise containers</p>
+      </div>
+      
+      <!-- View mode toggle -->
+      <div class="view-toggle">
+        <button 
+          class="toggle-btn"
+          class:active={viewMode === 'grid'}
+          onclick={() => viewMode = 'grid'}
+          title="Grid view"
+          aria-label="Grid view"
+        >
+          ⊞
+        </button>
+        <button 
+          class="toggle-btn"
+          class:active={viewMode === 'list'}
+          onclick={() => viewMode = 'list'}
+          title="List view"
+          aria-label="List view"
+        >
+          ≡
+        </button>
+      </div>
     </header>
     
     <!-- Filters -->
     <div class="filters">
-      <input
-        type="text"
-        placeholder="Search lenses..."
-        class="search-input"
-        value={lensLibrary.filter.search}
-        oninput={(e) => setFilter({ search: e.currentTarget.value })}
-      />
+      <div class="search-wrapper">
+        <input
+          type="text"
+          placeholder="Search lenses... (press /)"
+          class="search-input"
+          bind:this={searchInputRef}
+          value={lensLibrary.filter.search}
+          oninput={(e) => setFilter({ search: e.currentTarget.value })}
+          onfocus={() => showSuggestions = true}
+          onblur={() => setTimeout(() => showSuggestions = false, 200)}
+        />
+        
+        {#if showSuggestions && searchSuggestions.length > 0}
+          <div class="search-suggestions" in:fly={{ y: -8, duration: 100 }}>
+            {#each searchSuggestions as suggestion}
+              <button 
+                class="suggestion"
+                onmousedown|preventDefault={() => setFilter({ search: suggestion })}
+              >
+                🔍 {suggestion}
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
       
       <select 
         class="filter-select"
@@ -165,114 +403,182 @@
     
     <!-- Error display -->
     {#if lensLibrary.error}
-      <div class="error-banner">
+      <div class="error-banner" in:fly={{ y: -10, duration: 150 }}>
         <span>{lensLibrary.error}</span>
         <button onclick={clearError}>×</button>
       </div>
     {/if}
     
-    <!-- Lens Grid -->
+    <!-- Loading skeleton -->
     {#if lensLibrary.isLoading}
-      <div class="loading-state">Loading lenses...</div>
+      <LensCardSkeleton count={6} />
     {:else if filteredEntries.length === 0}
-      <div class="empty-state">No lenses found</div>
+      <!-- Empty state -->
+      <LensEmptyState 
+        hasFilters={!!lensLibrary.filter.search || lensLibrary.filter.source !== 'all' || !!lensLibrary.filter.domain}
+        searchQuery={lensLibrary.filter.search}
+        onClearFilters={handleClearFilters}
+      />
     {:else}
-      <div class="lens-grid">
-        {#each filteredEntries as entry (entry.path)}
-          <div 
-            class="lens-card"
-            class:is-default={entry.is_default}
-            class:is-user={entry.source === 'user'}
-          >
-            <div class="card-header">
-              <span class="lens-icon">{getDomainIcon(entry.domain)}</span>
-              <div class="lens-title">
-                <h3>{entry.name}</h3>
-                <span class="lens-version">v{entry.version}</span>
-              </div>
-              {#if entry.is_default}
-                <span class="default-badge">Default</span>
-              {/if}
-            </div>
-            
-            <p class="lens-description">
-              {entry.description || 'No description'}
-            </p>
-            
-            <div class="lens-meta">
-              <span class="meta-item" title="Heuristics">
-                📋 {entry.heuristics_count}
-              </span>
-              <span class="meta-item" title="Skills">
-                ⚡ {entry.skills_count}
-              </span>
-              {#if entry.version_count > 0}
-                <span class="meta-item" title="Versions">
-                  📚 {entry.version_count}
-                </span>
-              {/if}
-              <span class="meta-source">{entry.source}</span>
-            </div>
-            
-            {#if entry.tags.length > 0}
-              <div class="lens-tags">
-                {#each entry.tags.slice(0, 3) as tag}
-                  <span class="tag">{tag}</span>
-                {/each}
-              </div>
-            {/if}
-            
-            <div class="card-actions">
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onclick={() => selectLens(entry)}
-              >
-                View
-              </Button>
-              
-              {#if showSelectButton && onSelect}
-                <Button 
-                  variant="primary" 
-                  size="sm"
-                  onclick={() => onSelect(entry.name)}
-                >
-                  Select
-                </Button>
-              {/if}
-              
-              <div class="action-menu">
-                <Button variant="ghost" size="sm" onclick={() => handleForkClick(entry.name)}>
-                  Fork
-                </Button>
-                
-                {#if entry.is_editable}
-                  <Button variant="ghost" size="sm" onclick={() => handleEditClick(entry)}>
-                    Edit
-                  </Button>
-                  <Button variant="ghost" size="sm" onclick={() => loadVersions(entry.name)}>
-                    History
-                  </Button>
-                  <Button variant="ghost" size="sm" onclick={() => handleDeleteClick(entry.name)}>
-                    Delete
-                  </Button>
-                {/if}
-                
-                {#if !entry.is_default}
-                  <Button variant="ghost" size="sm" onclick={() => setDefaultLens(entry.name)}>
-                    Set Default
-                  </Button>
-                {/if}
-              </div>
-            </div>
+      <!-- Featured section -->
+      {#if showFeatured}
+        <section class="featured-section" in:fly={{ y: -20, duration: 300 }}>
+          <h3 class="section-title">
+            <span class="section-icon">✨</span>
+            Recommended
+          </h3>
+          <div class="featured-grid">
+            {#each featuredLenses as lens, i (lens.path)}
+              <LensHeroCard 
+                {lens} 
+                index={i}
+                onclick={() => selectLens(lens)}
+              />
+            {/each}
           </div>
-        {/each}
-      </div>
+        </section>
+      {/if}
+      
+      <!-- All lenses section -->
+      <section class="all-lenses-section">
+        {#if showFeatured}
+          <h3 class="section-title">
+            <span class="section-icon">📚</span>
+            All Lenses
+          </h3>
+        {/if}
+        
+        <!-- Lens Grid/List -->
+        <div 
+          class="lens-grid"
+          class:list-view={viewMode === 'list'}
+          role="listbox" 
+          aria-label="Lens library"
+        >
+          {#each filteredEntries as entry, i (entry.path)}
+            <div 
+              class="lens-card"
+              class:is-default={entry.is_default}
+              class:is-user={entry.source === 'user'}
+              class:keyboard-focus={focusIndex === i}
+              data-power={getPowerLevel(entry)}
+              style="--index: {i}; --heuristics-count: {entry.heuristics_count}"
+              role="option"
+              aria-selected={focusIndex === i}
+              tabindex={focusIndex === i ? 0 : -1}
+              onmouseenter={(e) => handleCardMouseEnter(e, entry)}
+              onmouseleave={cancelPreview}
+              oncontextmenu={(e) => showContextMenuHandler(e, entry)}
+              in:fly={{ y: 12, duration: 300, delay: Math.min(i * 50, 300) }}
+            >
+              <LensCardMotes bind:this={moteRefs.get(entry.name)} />
+              
+              <div class="card-header">
+                <span class="lens-icon">{getDomainIcon(entry.domain)}</span>
+                <div class="lens-title">
+                  <h3>{entry.name}</h3>
+                  <span class="lens-version">v{entry.version}</span>
+                </div>
+                {#if entry.is_default}
+                  <span class="default-badge">Default</span>
+                {/if}
+              </div>
+              
+              <p class="lens-description">
+                {entry.description || 'No description'}
+              </p>
+              
+              <div class="lens-meta">
+                <span class="meta-item" title="Heuristics">
+                  📋 {entry.heuristics_count}
+                </span>
+                <span class="meta-item" title="Skills">
+                  ⚡ {entry.skills_count}
+                </span>
+                {#if entry.version_count > 0}
+                  <span class="meta-item" title="Versions">
+                    📚 {entry.version_count}
+                  </span>
+                {/if}
+                <span class="meta-source">{entry.source}</span>
+              </div>
+              
+              {#if entry.tags.length > 0}
+                <div class="lens-tags">
+                  {#each entry.tags.slice(0, 3) as tag}
+                    <span class="tag">{tag}</span>
+                  {/each}
+                </div>
+              {/if}
+              
+              <div class="card-actions">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onclick={() => selectLens(entry)}
+                >
+                  View
+                </Button>
+                
+                {#if showSelectButton && onSelect}
+                  <Button 
+                    variant="primary" 
+                    size="sm"
+                    onclick={() => onSelect(entry.name)}
+                  >
+                    Select
+                  </Button>
+                {/if}
+                
+                <div class="action-menu">
+                  <Button variant="ghost" size="sm" onclick={() => handleForkClick(entry.name)}>
+                    Fork
+                  </Button>
+                  
+                  {#if entry.is_editable}
+                    <Button variant="ghost" size="sm" onclick={() => handleEditClick(entry)}>
+                      Edit
+                    </Button>
+                    <Button variant="ghost" size="sm" onclick={() => loadVersions(entry.name)}>
+                      History
+                    </Button>
+                    <Button variant="ghost" size="sm" onclick={() => handleDeleteClick(entry.name)}>
+                      Delete
+                    </Button>
+                  {/if}
+                  
+                  {#if !entry.is_default}
+                    <Button variant="ghost" size="sm" onclick={() => setDefaultLens(entry.name)}>
+                      Set Default
+                    </Button>
+                  {/if}
+                </div>
+              </div>
+              
+              <!-- Hover preview -->
+              {#if previewLens?.name === entry.name}
+                <LensHoverPreview 
+                  lens={entry}
+                  onView={() => selectLens(entry)}
+                />
+              {/if}
+            </div>
+          {/each}
+        </div>
+      </section>
     {/if}
+    
+    <!-- Keyboard hints -->
+    <div class="keyboard-hints">
+      <span class="hint"><kbd>j</kbd>/<kbd>k</kbd> navigate</span>
+      <span class="hint"><kbd>Enter</kbd> view</span>
+      <span class="hint"><kbd>/</kbd> search</span>
+      <span class="hint"><kbd>f</kbd> fork</span>
+    </div>
     
   {:else if lensLibrary.view === 'detail'}
     <!-- Detail View -->
-    <div class="detail-view">
+    <div class="detail-view" in:fly={{ x: 20, duration: 200 }}>
       <button class="back-button" onclick={backToList}>← Back to Library</button>
       
       {#if lensLibrary.isLoadingDetail}
@@ -302,9 +608,15 @@
           <section class="detail-section">
             <h3>Heuristics ({lensLibrary.detail.heuristics.length})</h3>
             <ul class="heuristic-list">
-              {#each lensLibrary.detail.heuristics as h}
-                <li>
-                  <strong>{h.name}</strong>
+              {#each lensLibrary.detail.heuristics as h, i}
+                <li in:fly={{ y: 8, delay: i * 30 }}>
+                  <div class="heuristic-header">
+                    <span 
+                      class="priority-indicator" 
+                      style="--priority: {h.priority}"
+                    ></span>
+                    <strong>{h.name}</strong>
+                  </div>
                   <p>{h.rule}</p>
                 </li>
               {/each}
@@ -329,12 +641,31 @@
             <p>{lensLibrary.detail.communication_style}</p>
           </section>
         {/if}
+        
+        <!-- Similar lenses -->
+        {#if lensLibrary.entries.filter(e => e.name !== lensLibrary.detail?.name && (e.domain === lensLibrary.detail?.domain || e.tags.some(t => lensLibrary.detail?.heuristics.some(h => h.name.toLowerCase().includes(t.toLowerCase()))))).length > 0}
+          <section class="detail-section similar-section">
+            <h3>Similar Expertise</h3>
+            <div class="similar-grid">
+              {#each lensLibrary.entries.filter(e => e.name !== lensLibrary.detail?.name && e.domain === lensLibrary.detail?.domain).slice(0, 4) as similar}
+                <button 
+                  class="mini-lens-card"
+                  onclick={() => selectLens(similar)}
+                >
+                  <span class="mini-icon">{getDomainIcon(similar.domain)}</span>
+                  <span class="mini-name">{similar.name}</span>
+                  <span class="mini-count">{similar.heuristics_count} heuristics</span>
+                </button>
+              {/each}
+            </div>
+          </section>
+        {/if}
       {/if}
     </div>
     
   {:else if lensLibrary.view === 'editor'}
     <!-- Editor View -->
-    <div class="editor-view">
+    <div class="editor-view" in:fly={{ x: 20, duration: 200 }}>
       <div class="editor-header">
         <button class="back-button" onclick={backToList}>← Back to Library</button>
         <h2>Editing: {lensLibrary.selectedLens?.name}</h2>
@@ -350,18 +681,16 @@
       {#if lensLibrary.isLoadingDetail}
         <div class="loading-state">Loading lens content...</div>
       {:else}
-        <textarea
-          class="lens-editor"
-          bind:value={editedContent}
-          placeholder="Lens YAML content..."
-          spellcheck="false"
-        ></textarea>
+        <LensEditor 
+          value={editedContent}
+          onchange={(v) => editedContent = v}
+        />
       {/if}
     </div>
     
   {:else if lensLibrary.view === 'versions'}
     <!-- Versions View -->
-    <div class="versions-view">
+    <div class="versions-view" in:fly={{ x: 20, duration: 200 }}>
       <button class="back-button" onclick={backToList}>← Back to Library</button>
       <h2>Version History: {lensLibrary.selectedLens?.name}</h2>
       
@@ -372,7 +701,11 @@
       {:else}
         <div class="version-list">
           {#each [...lensLibrary.versions].reverse() as v, i}
-            <div class="version-item" class:is-current={i === 0}>
+            <div 
+              class="version-item" 
+              class:is-current={i === 0}
+              in:fly={{ y: 8, delay: i * 50 }}
+            >
               <div class="version-header">
                 <span class="version-number">v{v.version}</span>
                 <span class="version-date">{v.created_at.slice(0, 10)}</span>
@@ -399,6 +732,20 @@
     </div>
   {/if}
 </div>
+
+<!-- Context Menu -->
+{#if contextMenu.visible && contextMenu.lens}
+  <LensContextMenu 
+    lens={contextMenu.lens}
+    x={contextMenu.x}
+    y={contextMenu.y}
+    onView={() => selectLens(contextMenu.lens!)}
+    onFork={() => handleForkClick(contextMenu.lens!.name)}
+    onEdit={contextMenu.lens.is_editable ? () => handleEditClick(contextMenu.lens!) : undefined}
+    onSetDefault={!contextMenu.lens.is_default ? () => setDefaultLens(contextMenu.lens!.name) : undefined}
+    onClose={hideContextMenu}
+  />
+{/if}
 
 <!-- Fork Modal -->
 <Modal 
@@ -504,68 +851,142 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    padding: var(--spacing-lg);
+    padding: var(--space-4);
     overflow-y: auto;
   }
   
+  /* Header */
   .library-header {
-    margin-bottom: var(--spacing-lg);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: var(--space-4);
   }
   
-  .library-header h2 {
-    font-size: var(--font-xl);
-    margin: 0 0 var(--spacing-xs);
+  .header-content h2 {
+    font-size: var(--text-xl);
+    margin: 0 0 var(--space-1);
     color: var(--text-primary);
   }
   
   .subtitle {
     color: var(--text-secondary);
     margin: 0;
+    font-size: var(--text-sm);
   }
   
+  .view-toggle {
+    display: flex;
+    gap: 2px;
+    background: var(--bg-secondary);
+    padding: 2px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+  }
+  
+  .toggle-btn {
+    padding: var(--space-2);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-tertiary);
+    cursor: pointer;
+    font-size: var(--text-base);
+    line-height: 1;
+    transition: all var(--transition-fast);
+  }
+  
+  .toggle-btn:hover {
+    color: var(--text-secondary);
+  }
+  
+  .toggle-btn.active {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+  
+  /* Filters */
   .filters {
     display: flex;
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-lg);
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
     flex-wrap: wrap;
   }
   
-  .search-input {
+  .search-wrapper {
+    position: relative;
     flex: 1;
     min-width: 200px;
-    padding: var(--spacing-sm) var(--spacing-md);
+  }
+  
+  .search-input {
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
     background: var(--bg-secondary);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     color: var(--text-primary);
-    font-size: var(--font-sm);
+    font-size: var(--text-sm);
   }
   
   .search-input:focus {
     outline: none;
-    border-color: var(--gold);
+    border-color: var(--ui-gold);
+    box-shadow: var(--glow-gold-subtle);
+  }
+  
+  .search-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    z-index: var(--z-dropdown);
+    margin-top: var(--space-1);
+    overflow: hidden;
+  }
+  
+  .suggestion {
+    display: block;
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    text-align: left;
+    cursor: pointer;
+  }
+  
+  .suggestion:hover {
+    background: var(--accent-hover);
+    color: var(--text-primary);
   }
   
   .filter-select {
-    padding: var(--spacing-sm) var(--spacing-md);
+    padding: var(--space-2) var(--space-3);
     background: var(--bg-secondary);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     color: var(--text-primary);
     cursor: pointer;
-    font-size: var(--font-sm);
+    font-size: var(--text-sm);
   }
   
   .error-banner {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--spacing-sm) var(--spacing-md);
-    background: var(--error-surface);
+    padding: var(--space-2) var(--space-3);
+    background: var(--error-bg);
     border: 1px solid var(--error);
     border-radius: var(--radius-md);
-    margin-bottom: var(--spacing-md);
+    margin-bottom: var(--space-3);
     color: var(--error);
+    font-size: var(--text-sm);
   }
   
   .error-banner button {
@@ -573,45 +994,142 @@
     border: none;
     color: var(--error);
     cursor: pointer;
-    font-size: var(--font-lg);
+    font-size: var(--text-lg);
+    line-height: 1;
+  }
+  
+  /* Featured section */
+  .featured-section {
+    margin-bottom: var(--space-6);
+  }
+  
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 var(--space-3);
+  }
+  
+  .section-icon {
+    font-size: var(--text-base);
+  }
+  
+  .featured-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-4);
+  }
+  
+  /* All lenses */
+  .all-lenses-section {
+    flex: 1;
   }
   
   .lens-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: var(--spacing-md);
+    gap: var(--space-3);
   }
   
+  .lens-grid.list-view {
+    grid-template-columns: 1fr;
+  }
+  
+  .lens-grid.list-view .lens-card {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-4);
+  }
+  
+  .lens-grid.list-view .card-header {
+    flex-shrink: 0;
+    width: 180px;
+  }
+  
+  .lens-grid.list-view .lens-description {
+    flex: 1;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
+  
+  .lens-grid.list-view .lens-meta,
+  .lens-grid.list-view .lens-tags {
+    flex-shrink: 0;
+  }
+  
+  /* Lens card */
   .lens-card {
+    position: relative;
     background: var(--bg-secondary);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-lg);
-    padding: var(--spacing-md);
+    padding: var(--space-3);
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-sm);
-    transition: all 0.15s ease;
+    gap: var(--space-2);
+    transition: all var(--transition-normal);
+    animation: cardReveal 0.4s ease-out backwards;
+    animation-delay: calc(var(--index) * var(--card-stagger));
+    
+    /* Power indicator via border */
+    border-left: 3px solid;
+    border-left-color: var(--lens-power-low);
+  }
+  
+  .lens-card[data-power="medium"] {
+    border-left-color: var(--lens-power-medium);
+  }
+  
+  .lens-card[data-power="high"] {
+    border-left-color: var(--lens-power-high);
+    box-shadow: var(--glow-gold-subtle);
+  }
+  
+  @keyframes cardReveal {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
   }
   
   .lens-card:hover {
     border-color: var(--border-default);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-md);
+  }
+  
+  .lens-card.keyboard-focus {
+    outline: 2px solid var(--ui-gold);
+    outline-offset: 2px;
+    box-shadow: var(--glow-gold);
   }
   
   .lens-card.is-default {
-    border-color: var(--gold);
-    background: var(--gold-surface);
+    border-color: var(--ui-gold);
+    background: linear-gradient(
+      135deg,
+      rgba(201, 162, 39, 0.06) 0%,
+      var(--bg-secondary) 100%
+    );
   }
   
   .lens-card.is-user {
-    border-left: 3px solid var(--accent-green);
+    border-left-color: var(--success);
   }
   
   .card-header {
     display: flex;
     align-items: flex-start;
-    gap: var(--spacing-sm);
+    gap: var(--space-2);
   }
   
   .lens-icon {
@@ -630,29 +1148,29 @@
   
   .lens-title h3 {
     margin: 0;
-    font-size: var(--font-md);
+    font-size: var(--text-sm);
     font-weight: 600;
     color: var(--text-primary);
   }
   
   .lens-version {
-    font-size: var(--font-xs);
+    font-size: var(--text-xs);
     color: var(--text-tertiary);
   }
   
   .default-badge {
-    font-size: var(--font-xs);
+    font-size: var(--text-xs);
     padding: 2px 6px;
-    background: var(--gold);
+    background: var(--ui-gold);
     color: var(--bg-primary);
     border-radius: var(--radius-sm);
     font-weight: 500;
   }
   
   .current-badge {
-    font-size: var(--font-xs);
+    font-size: var(--text-xs);
     padding: 2px 6px;
-    background: var(--accent-green);
+    background: var(--success);
     color: var(--bg-primary);
     border-radius: var(--radius-sm);
     font-weight: 500;
@@ -660,7 +1178,7 @@
   
   .lens-description {
     color: var(--text-secondary);
-    font-size: var(--font-sm);
+    font-size: var(--text-sm);
     margin: 0;
     line-height: 1.4;
     overflow: hidden;
@@ -672,8 +1190,8 @@
   
   .lens-meta {
     display: flex;
-    gap: var(--spacing-md);
-    font-size: var(--font-xs);
+    gap: var(--space-3);
+    font-size: var(--text-xs);
     color: var(--text-tertiary);
   }
   
@@ -685,12 +1203,12 @@
   
   .lens-tags {
     display: flex;
-    gap: var(--spacing-xs);
+    gap: var(--space-1);
     flex-wrap: wrap;
   }
   
   .tag {
-    font-size: var(--font-xs);
+    font-size: var(--text-xs);
     padding: 2px 6px;
     background: var(--bg-tertiary);
     border-radius: var(--radius-sm);
@@ -699,25 +1217,52 @@
   
   .card-actions {
     display: flex;
-    gap: var(--spacing-xs);
+    gap: var(--space-1);
     margin-top: auto;
-    padding-top: var(--spacing-sm);
+    padding-top: var(--space-2);
     border-top: 1px solid var(--border-subtle);
     flex-wrap: wrap;
   }
   
   .action-menu {
     display: flex;
-    gap: var(--spacing-xs);
+    gap: var(--space-1);
     margin-left: auto;
     flex-wrap: wrap;
   }
   
   .loading-state,
   .empty-state {
-    padding: var(--spacing-xl);
+    padding: var(--space-8);
     text-align: center;
     color: var(--text-secondary);
+  }
+  
+  /* Keyboard hints */
+  .keyboard-hints {
+    display: flex;
+    gap: var(--space-4);
+    padding: var(--space-3);
+    margin-top: var(--space-4);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    justify-content: center;
+  }
+  
+  .hint {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+  }
+  
+  .hint kbd {
+    display: inline-block;
+    padding: 2px 6px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    margin: 0 2px;
   }
   
   /* Detail View */
@@ -726,7 +1271,7 @@
   .versions-view {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-md);
+    gap: var(--space-3);
   }
   
   .back-button {
@@ -734,9 +1279,10 @@
     border: none;
     color: var(--text-secondary);
     cursor: pointer;
-    font-size: var(--font-sm);
+    font-size: var(--text-sm);
     padding: 0;
     align-self: flex-start;
+    transition: color var(--transition-fast);
   }
   
   .back-button:hover {
@@ -746,7 +1292,7 @@
   .detail-header {
     display: flex;
     align-items: center;
-    gap: var(--spacing-md);
+    gap: var(--space-3);
   }
   
   .detail-header h2 {
@@ -756,7 +1302,7 @@
   
   .detail-meta {
     color: var(--text-secondary);
-    font-size: var(--font-sm);
+    font-size: var(--text-sm);
     margin: 0;
   }
   
@@ -766,12 +1312,12 @@
   }
   
   .detail-section {
-    margin-top: var(--spacing-md);
+    margin-top: var(--space-3);
   }
   
   .detail-section h3 {
-    font-size: var(--font-md);
-    margin: 0 0 var(--spacing-sm);
+    font-size: var(--text-base);
+    margin: 0 0 var(--space-2);
     color: var(--text-primary);
   }
   
@@ -782,13 +1328,30 @@
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-sm);
+    gap: var(--space-2);
   }
   
   .heuristic-list li {
-    padding: var(--spacing-sm);
+    padding: var(--space-2);
     background: var(--bg-secondary);
     border-radius: var(--radius-md);
+  }
+  
+  .heuristic-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  
+  .priority-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: color-mix(
+      in oklch,
+      var(--ui-gold-pale) calc(100% - var(--priority, 0.5) * 100%),
+      var(--radiant-gold) calc(var(--priority, 0.5) * 100%)
+    );
   }
   
   .heuristic-list li strong {
@@ -796,23 +1359,68 @@
   }
   
   .heuristic-list li p {
-    margin: var(--spacing-xs) 0 0;
+    margin: var(--space-1) 0 0;
     color: var(--text-secondary);
-    font-size: var(--font-sm);
+    font-size: var(--text-sm);
   }
   
   .skill-list li {
-    padding: var(--spacing-xs) var(--spacing-sm);
+    padding: var(--space-1) var(--space-2);
     background: var(--bg-secondary);
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
+    font-size: var(--text-sm);
+  }
+  
+  /* Similar lenses */
+  .similar-section {
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--border-subtle);
+  }
+  
+  .similar-grid {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+  
+  .mini-lens-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+  
+  .mini-lens-card:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--border-default);
+  }
+  
+  .mini-icon {
+    font-size: var(--text-base);
+  }
+  
+  .mini-name {
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+  
+  .mini-count {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
   }
   
   /* Editor View */
   .editor-header {
     display: flex;
     align-items: center;
-    gap: var(--spacing-md);
+    gap: var(--space-3);
   }
   
   .editor-header h2 {
@@ -821,46 +1429,28 @@
     color: var(--text-primary);
   }
   
-  .lens-editor {
-    flex: 1;
-    min-height: 400px;
-    padding: var(--spacing-md);
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    color: var(--text-primary);
-    font-family: var(--font-mono);
-    font-size: var(--font-sm);
-    resize: vertical;
-  }
-  
-  .lens-editor:focus {
-    outline: none;
-    border-color: var(--gold);
-  }
-  
   /* Versions View */
   .version-list {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-sm);
+    gap: var(--space-2);
   }
   
   .version-item {
-    padding: var(--spacing-md);
+    padding: var(--space-3);
     background: var(--bg-secondary);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
   }
   
   .version-item.is-current {
-    border-color: var(--gold);
+    border-color: var(--ui-gold);
   }
   
   .version-header {
     display: flex;
     align-items: center;
-    gap: var(--spacing-md);
+    gap: var(--space-3);
   }
   
   .version-number {
@@ -870,69 +1460,70 @@
   
   .version-date {
     color: var(--text-tertiary);
-    font-size: var(--font-sm);
+    font-size: var(--text-sm);
   }
   
   .version-message {
-    margin: var(--spacing-xs) 0 0;
+    margin: var(--space-1) 0 0;
     color: var(--text-secondary);
+    font-size: var(--text-sm);
   }
   
   .version-checksum {
-    margin: var(--spacing-xs) 0 0;
+    margin: var(--space-1) 0 0;
     color: var(--text-tertiary);
     font-family: var(--font-mono);
-    font-size: var(--font-xs);
+    font-size: var(--text-xs);
   }
   
   /* Modal styles */
   .modal-content {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-md);
+    gap: var(--space-3);
     min-width: 350px;
   }
   
   .field {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-xs);
+    gap: var(--space-1);
   }
   
   .field span {
-    font-size: var(--font-sm);
+    font-size: var(--text-sm);
     color: var(--text-secondary);
   }
   
   .field input,
   .field select {
-    padding: var(--spacing-sm) var(--spacing-md);
+    padding: var(--space-2) var(--space-3);
     background: var(--bg-secondary);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     color: var(--text-primary);
-    font-size: var(--font-sm);
+    font-size: var(--text-sm);
   }
   
   .field input:focus,
   .field select:focus {
     outline: none;
-    border-color: var(--gold);
+    border-color: var(--ui-gold);
   }
   
   .warning {
     color: var(--warning);
-    font-size: var(--font-sm);
+    font-size: var(--text-sm);
   }
   
   .delete-button {
-    padding: var(--spacing-sm) var(--spacing-md);
+    padding: var(--space-2) var(--space-3);
     background: var(--error);
     color: white;
     border: none;
     border-radius: var(--radius-md);
     cursor: pointer;
-    font-size: var(--font-sm);
+    font-size: var(--text-sm);
     font-weight: 500;
   }
   
@@ -943,7 +1534,13 @@
   .modal-actions {
     display: flex;
     justify-content: flex-end;
-    gap: var(--spacing-sm);
-    padding-top: var(--spacing-md);
+    gap: var(--space-2);
+    padding-top: var(--space-3);
+  }
+  
+  @media (prefers-reduced-motion: reduce) {
+    .lens-card {
+      animation: none;
+    }
   }
 </style>

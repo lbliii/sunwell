@@ -221,14 +221,14 @@
   }
   
   .run-btn.running {
-    background: rgba(239, 68, 68, 0.1);
+    background: var(--error-bg);
     border-color: rgba(239, 68, 68, 0.3);
-    color: #ef4444;
+    color: var(--error);
   }
   
   .run-btn.running:hover {
     background: rgba(239, 68, 68, 0.2);
-    border-color: #ef4444;
+    border-color: var(--error);
   }
   
   .run-btn.compact {
@@ -249,7 +249,7 @@
   }
   
   .run-icon.stop {
-    color: #ef4444;
+    color: var(--error);
     font-size: var(--text-base);
   }
   
@@ -258,13 +258,13 @@
   }
   
   .run-btn.starting {
-    background: rgba(234, 179, 8, 0.1);
+    background: var(--warning-bg);
     border-color: rgba(234, 179, 8, 0.3);
-    color: #eab308;
+    color: var(--warning);
   }
   
   .run-icon.starting {
-    color: #eab308;
+    color: var(--warning);
     animation: spin 1s linear infinite;
   }
   

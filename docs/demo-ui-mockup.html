@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Demo UI Mockup — The Prism Principle</title>
+  <style>
+    /**
+     * Sunwell Studio — Holy Light Design System (from variables.css)
+     * Plus syntax highlighting tokens that fit the aesthetic
+     */
+    :root {
+      /* ═══════════════════════════════════════════════════════════════
+         RADIANT GOLDS — Reserved for magical effects (motes, glows)
+         ═══════════════════════════════════════════════════════════════ */
+      --radiant-gold: #ffd700;
+      --radiant-gold-light: #ffe566;
+      --radiant-gold-rgb: 255, 215, 0;
+      
+      /* ═══════════════════════════════════════════════════════════════
+         PALLID GOLDS — For UI elements (soft, understated)
+         ═══════════════════════════════════════════════════════════════ */
+      --ui-gold: #c9a227;
+      --ui-gold-soft: #a8892a;
+      --ui-gold-pale: #8a7235;
+      --ui-gold-rgb: 201, 162, 39;
+      
+      /* ═══════════════════════════════════════════════════════════════
+         BACKGROUNDS (the void)
+         ═══════════════════════════════════════════════════════════════ */
+      --bg-primary: #0d0d0d;
+      --bg-secondary: #1a1a1a;
+      --bg-tertiary: #262626;
+      --bg-elevated: #2a2a2a;
+      
+      /* ═══════════════════════════════════════════════════════════════
+         TEXT
+         ═══════════════════════════════════════════════════════════════ */
+      --text-primary: #e5e5e5;
+      --text-secondary: #a8a8a8;
+      --text-tertiary: #525252;
+      --text-gold: #d4b046;
+      
+      /* ═══════════════════════════════════════════════════════════════
+         GLOWS
+         ═══════════════════════════════════════════════════════════════ */
+      --glow-gold-subtle: 0 0 8px rgba(255, 215, 0, 0.08);
+      --glow-gold: 0 0 16px rgba(255, 215, 0, 0.15);
+      --glow-gold-strong: 0 0 24px rgba(255, 215, 0, 0.25);
+      
+      /* ═══════════════════════════════════════════════════════════════
+         GRADIENTS
+         ═══════════════════════════════════════════════════════════════ */
+      --gradient-ui-gold: linear-gradient(135deg, rgba(201, 162, 39, 0.9), rgba(180, 145, 35, 0.95));
+      --gradient-progress: linear-gradient(90deg, rgba(168, 137, 42, 0.8), rgba(201, 162, 39, 0.9));
+      --gradient-aura: radial-gradient(ellipse at center, rgba(201, 162, 39, 0.04) 0%, rgba(168, 137, 42, 0.02) 40%, transparent 70%);
+      
+      /* ═══════════════════════════════════════════════════════════════
+         BORDERS
+         ═══════════════════════════════════════════════════════════════ */
+      --border-subtle: rgba(201, 162, 39, 0.12);
+      --border-default: rgba(201, 162, 39, 0.25);
+      --border-emphasis: rgba(201, 162, 39, 0.4);
+      
+      /* ═══════════════════════════════════════════════════════════════
+         SEMANTIC COLORS
+         ═══════════════════════════════════════════════════════════════ */
+      --success: #22c55e;
+      --success-rgb: 34, 197, 94;
+      --error: #ef4444;
+      --error-rgb: 239, 68, 68;
+      
+      /* ═══════════════════════════════════════════════════════════════
+         TYPOGRAPHY
+         ═══════════════════════════════════════════════════════════════ */
+      --font-mono: 'Berkeley Mono', 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-serif: 'Newsreader', 'Georgia', 'Times New Roman', serif;
+      
+      --text-xs: 0.6875rem;
+      --text-sm: 0.8125rem;
+      --text-base: 0.9375rem;
+      --text-lg: 1.0625rem;
+      --text-xl: 1.3125rem;
+      --text-2xl: 1.75rem;
+      --text-3xl: 2.25rem;
+      
+      /* ═══════════════════════════════════════════════════════════════
+         SPACING
+         ═══════════════════════════════════════════════════════════════ */
+      --space-1: 0.25rem;
+      --space-2: 0.5rem;
+      --space-3: 0.75rem;
+      --space-4: 1rem;
+      --space-6: 1.5rem;
+      --space-8: 2rem;
+      
+      /* ═══════════════════════════════════════════════════════════════
+         RADII & TRANSITIONS
+         ═══════════════════════════════════════════════════════════════ */
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --transition-fast: 100ms ease;
+      --transition-normal: 150ms ease;
+      
+      /* ═══════════════════════════════════════════════════════════════
+         SYNTAX HIGHLIGHTING — Holy Light Theme
+         
+         Philosophy: Warm golds for structure, cool accents for values
+         The code emerges from the void like light from darkness
+         ═══════════════════════════════════════════════════════════════ */
+      --syntax-keyword: #c9a227;           /* Gold — control flow, structure */
+      --syntax-function: #e8c84a;          /* Bright gold — callable names */
+      --syntax-string: #a8d4a0;            /* Soft green — string literals */
+      --syntax-number: #f0b866;            /* Warm amber — numeric values */
+      --syntax-comment: #525252;           /* Tertiary — faded, unobtrusive */
+      --syntax-type: #d4b046;              /* Gold text — type annotations */
+      --syntax-operator: #a8a8a8;          /* Secondary — punctuation, ops */
+      --syntax-variable: #e5e5e5;          /* Primary — identifiers */
+      --syntax-property: #c9a227;          /* Gold — object properties */
+      --syntax-builtin: #7eb8da;           /* Cool blue — builtins, contrast */
+      --syntax-decorator: #b8a0d4;         /* Soft purple — decorators */
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    /* Navigation */
+    .nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      gap: var(--space-2);
+      padding: var(--space-4);
+      background: rgba(13, 13, 13, 0.9);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border-subtle);
+      z-index: 100;
+    }
+
+    .nav button {
+      padding: var(--space-2) var(--space-4);
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .nav button:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .nav button.active {
+      background: var(--gradient-ui-gold);
+      border-color: var(--ui-gold);
+      color: var(--bg-primary);
+    }
+
+    /* Container */
+    .demo-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 80px var(--space-8) var(--space-8);
+    }
+
+    .state {
+      display: none;
+      width: 100%;
+      max-width: 1000px;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .state.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       STATE 1: READY (Hero)
+       ═══════════════════════════════════════════════════════════ */
+
+    .demo-hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      padding: 60px 0;
+    }
+
+    .prism-glow {
+      position: absolute;
+      top: -50px;
+      width: 500px;
+      height: 500px;
+      background: var(--gradient-aura);
+      pointer-events: none;
+      animation: pulseGlow 4s ease-in-out infinite;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.6; }
+    }
+
+    .demo-hero h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: var(--space-8);
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+      position: relative;
+      z-index: 1;
+    }
+
+    .prism-icon {
+      font-size: 1.3em;
+    }
+
+    .task-prompt {
+      font-family: var(--font-serif);
+      font-size: var(--text-xl);
+      font-style: italic;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-8);
+      padding: var(--space-4) var(--space-6);
+      border-left: 3px solid var(--ui-gold);
+      background: rgba(201, 162, 39, 0.06);
+      border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+      max-width: 500px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .run-cta {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-4) var(--space-8);
+      font-size: var(--text-lg);
+      font-weight: 600;
+      font-family: var(--font-mono);
+      color: var(--bg-primary);
+      background: var(--gradient-ui-gold);
+      border: none;
+      border-radius: var(--radius-lg);
+      cursor: pointer;
+      box-shadow: var(--glow-gold), 0 4px 20px rgba(0, 0, 0, 0.3);
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+      position: relative;
+      z-index: 1;
+    }
+
+    .run-cta:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--glow-gold-strong), 0 8px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .sparkle {
+      display: inline-block;
+      animation: twinkle 1.5s ease-in-out infinite;
+      color: var(--radiant-gold);
+    }
+
+    @keyframes twinkle {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.9); }
+    }
+
+    .context-meta {
+      margin-top: var(--space-8);
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--text-tertiary);
+      display: flex;
+      gap: var(--space-4);
+      position: relative;
+      z-index: 1;
+    }
+
+    .dot { opacity: 0.4; }
+
+    /* ═══════════════════════════════════════════════════════════
+       STATE 2: GENERATING (Race)
+       ═══════════════════════════════════════════════════════════ */
+
+    .task-prompt-compact {
+      font-family: var(--font-serif);
+      font-size: var(--text-base);
+      font-style: italic;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-bottom: var(--space-6);
+    }
+
+    .race-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
+      margin-bottom: var(--space-6);
+    }
+
+    .code-pane {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      border: 1px solid var(--border-default);
+      transition: opacity var(--transition-normal), border-color var(--transition-normal);
+    }
+
+    .code-pane.baseline.dimmed {
+      opacity: 0.5;
+    }
+
+    .code-pane.prism {
+      border-color: var(--border-emphasis);
+      box-shadow: var(--glow-gold-subtle);
+    }
+
+    .pane-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border-subtle);
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+    }
+
+    .pane-title {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .phase-badge {
+      margin-left: auto;
+      padding: var(--space-1) var(--space-3);
+      background: rgba(201, 162, 39, 0.15);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-xs);
+      color: var(--text-gold);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    .code-content {
+      padding: var(--space-4);
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      line-height: 1.7;
+      min-height: 220px;
+      color: var(--text-secondary);
+      white-space: pre-wrap;
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 18px;
+      background: var(--ui-gold);
+      animation: blink 1s step-end infinite;
+      vertical-align: text-bottom;
+      margin-left: 2px;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    .progress-track {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+    }
+
+    .progress-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      margin-bottom: var(--space-3);
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+    }
+
+    .progress-bar-container {
+      height: 4px;
+      background: rgba(201, 162, 39, 0.15);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: var(--gradient-progress);
+      border-radius: 2px;
+      position: relative;
+      box-shadow: var(--glow-gold-subtle);
+      transition: width 0.3s ease;
+    }
+
+    .progress-shimmer {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      animation: shimmer 1.5s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       STATE 3: REVEALED (Payoff)
+       ═══════════════════════════════════════════════════════════ */
+
+    .completion-badge {
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: var(--text-lg);
+      font-weight: 500;
+      color: var(--success);
+      margin-bottom: var(--space-4);
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
+      margin-bottom: var(--space-8);
+    }
+
+    .result-pane {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      border: 1px solid var(--border-default);
+    }
+
+    .result-pane.prism {
+      border-color: var(--border-emphasis);
+      box-shadow: var(--glow-gold);
+    }
+
+    .score {
+      margin-left: auto;
+      font-weight: 600;
+      padding: var(--space-1) var(--space-3);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-sm);
+    }
+
+    .score.bad {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--error);
+    }
+
+    .score.good {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--success);
+    }
+
+    .feature-list {
+      padding: var(--space-3) var(--space-4);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+    }
+
+    .feature {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      padding: var(--space-1) var(--space-3);
+      border-radius: var(--radius-sm);
+    }
+
+    .feature.missing {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--error);
+    }
+
+    .feature.present {
+      background: rgba(34, 197, 94, 0.1);
+      color: var(--success);
+    }
+
+    .improvement-reveal {
+      text-align: center;
+      padding: var(--space-8) 0;
+      border-top: 1px solid var(--border-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: var(--space-6);
+    }
+
+    .improvement-number {
+      font-family: var(--font-serif);
+      font-size: 4.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--ui-gold) 0%, var(--radiant-gold) 50%, var(--ui-gold) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: var(--space-4);
+      text-shadow: 0 0 60px rgba(201, 162, 39, 0.3);
+    }
+
+    .tagline {
+      font-family: var(--font-mono);
+      font-size: var(--text-lg);
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: var(--space-2);
+    }
+
+    .subtagline {
+      font-family: var(--font-serif);
+      font-size: var(--text-base);
+      font-style: italic;
+      color: var(--text-tertiary);
+    }
+
+    .action-buttons {
+      display: flex;
+      justify-content: center;
+      gap: var(--space-4);
+    }
+
+    .action-primary {
+      padding: var(--space-3) var(--space-6);
+      font-family: var(--font-mono);
+      font-size: var(--text-base);
+      font-weight: 600;
+      color: var(--bg-primary);
+      background: var(--gradient-ui-gold);
+      border: none;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      box-shadow: var(--glow-gold-subtle);
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    }
+
+    .action-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--glow-gold);
+    }
+
+    .action-secondary {
+      padding: var(--space-3) var(--space-6);
+      font-family: var(--font-mono);
+      font-size: var(--text-base);
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    .action-secondary:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       SYNTAX HIGHLIGHTING — Holy Light Theme
+       ═══════════════════════════════════════════════════════════ */
+    .keyword { color: var(--syntax-keyword); }
+    .function { color: var(--syntax-function); }
+    .string { color: var(--syntax-string); }
+    .number { color: var(--syntax-number); }
+    .comment { color: var(--syntax-comment); font-style: italic; }
+    .type { color: var(--syntax-type); }
+    .operator { color: var(--syntax-operator); }
+    .variable { color: var(--syntax-variable); }
+    .builtin { color: var(--syntax-builtin); }
+    .decorator { color: var(--syntax-decorator); }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <button class="active" onclick="showState('ready')">1. Ready</button>
+    <button onclick="showState('generating')">2. Generating</button>
+    <button onclick="showState('revealed')">3. Revealed</button>
+  </nav>
+
+  <div class="demo-panel">
+    <!-- STATE 1: READY -->
+    <div class="state active" id="state-ready">
+      <div class="demo-hero">
+        <div class="prism-glow"></div>
+        
+        <h1>
+          <span class="prism-icon">🔮</span>
+          The Prism Principle
+        </h1>
+        
+        <p class="task-prompt">
+          "Write a Python function to divide two numbers"
+        </p>
+        
+        <button class="run-cta" onclick="showState('generating')">
+          <span class="sparkle">✦</span>
+          <span>Run Demo</span>
+        </button>
+        
+        <div class="context-meta">
+          <span>Using: llama3.2:3b (local)</span>
+          <span class="dot">•</span>
+          <span>Task: divide</span>
+          <span class="dot">•</span>
+          <span>~15s</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATE 2: GENERATING -->
+    <div class="state" id="state-generating">
+      <p class="task-prompt-compact">"Write a Python function to divide two numbers"</p>
+      
+      <div class="race-grid">
+        <div class="code-pane baseline dimmed">
+          <div class="pane-header">
+            <span>⚫</span>
+            <span class="pane-title">Single-shot</span>
+          </div>
+          <div class="code-content"><span class="keyword">def</span> <span class="function">divide</span>(a, b):
+    <span class="keyword">return</span> a <span class="operator">/</span> b</div>
+        </div>
+        
+        <div class="code-pane prism">
+          <div class="pane-header">
+            <span>🔮</span>
+            <span class="pane-title">Sunwell + Resonance</span>
+            <span class="phase-badge">Refining...</span>
+          </div>
+          <div class="code-content"><span class="keyword">def</span> <span class="function">divide</span>(a: <span class="type">float</span>, b: <span class="type">float</span>) <span class="operator">-></span> <span class="type">float</span>:
+    <span class="string">"""Divide two numbers.
+    
+    Args:
+        a: The dividend.
+        b: The divisor.
+    
+    Returns:
+        The quotient of a divided by b.
+    """</span>
+    <span class="keyword">if</span> b <span class="operator">==</span> <span class="number">0</span>:
+        <span class="keyword">raise</span> <span class="builtin">ZeroDivisionError</span>(<span class="string">"Cannot divide by zero"</span>)<span class="cursor"></span></div>
+        </div>
+      </div>
+      
+      <div class="progress-track">
+        <div class="progress-header">
+          <span class="sparkle">✦</span>
+          <span>Refining with feedback...</span>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar" style="width: 75%">
+            <div class="progress-shimmer"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATE 3: REVEALED -->
+    <div class="state" id="state-revealed">
+      <div class="completion-badge">✅ Demo Complete</div>
+      
+      <p class="task-prompt-compact">"Write a Python function to divide two numbers"</p>
+      
+      <div class="comparison-grid">
+        <div class="result-pane baseline">
+          <div class="pane-header">
+            <span>⚫</span>
+            <span class="pane-title">Single-shot</span>
+            <span class="score bad">1.5/10</span>
+          </div>
+          <div class="code-content"><span class="keyword">def</span> <span class="function">divide</span>(a, b):
+    <span class="keyword">return</span> a <span class="operator">/</span> b</div>
+          <div class="feature-list">
+            <span class="feature missing">❌ No types</span>
+            <span class="feature missing">❌ No docstring</span>
+            <span class="feature missing">❌ No error handling</span>
+            <span class="feature missing">❌ Crashes on zero</span>
+          </div>
+        </div>
+        
+        <div class="result-pane prism">
+          <div class="pane-header">
+            <span>🔮</span>
+            <span class="pane-title">Sunwell + Resonance</span>
+            <span class="score good">8.5/10</span>
+          </div>
+          <div class="code-content"><span class="keyword">def</span> <span class="function">divide</span>(a: <span class="type">float</span>, b: <span class="type">float</span>) <span class="operator">-></span> <span class="type">float</span>:
+    <span class="string">"""Divide two numbers.
+    
+    Args:
+        a: The dividend.
+        b: The divisor.
+    
+    Returns:
+        The quotient of a divided by b.
+    
+    Raises:
+        ZeroDivisionError: If b is zero.
+        TypeError: If inputs aren't numeric.
+    """</span>
+    <span class="keyword">if not</span> <span class="builtin">isinstance</span>(a, (<span class="type">int</span>, <span class="type">float</span>)):
+        <span class="keyword">raise</span> <span class="builtin">TypeError</span>(<span class="string">"..."</span>)
+    <span class="keyword">if</span> b <span class="operator">==</span> <span class="number">0</span>:
+        <span class="keyword">raise</span> <span class="builtin">ZeroDivisionError</span>(<span class="string">"..."</span>)
+    <span class="keyword">return</span> a <span class="operator">/</span> b</div>
+          <div class="feature-list">
+            <span class="feature present">✅ Types</span>
+            <span class="feature present">✅ Docstring</span>
+            <span class="feature present">✅ Error handling</span>
+            <span class="feature present">✅ Production-ready</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="improvement-reveal">
+        <div class="improvement-number">🔮 +467%</div>
+        <p class="tagline">Same model. Same prompt. Different architecture.</p>
+        <p class="subtagline">The capability was already there. Sunwell revealed it.</p>
+      </div>
+      
+      <div class="action-buttons">
+        <button class="action-primary">Run Your Own Task →</button>
+        <button class="action-secondary" onclick="showState('ready')">Run Again ↻</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showState(state) {
+      document.querySelectorAll('.state').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav button').forEach(el => el.classList.remove('active'));
+      
+      document.getElementById('state-' + state).classList.add('active');
+      document.querySelector(`.nav button[onclick="showState('${state}')"]`).classList.add('active');
+    }
+  </script>
+</body>
+</html>

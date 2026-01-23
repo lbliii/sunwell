@@ -9,7 +9,9 @@ mod agent;
 mod briefing;
 mod commands;
 mod dag;
+mod demo;
 mod error;
+mod eval;
 mod heuristic_detect;
 mod interface;
 mod lens;
@@ -242,6 +244,16 @@ fn main() {
             security::get_audit_log,
             security::verify_audit_integrity,
             security::scan_for_security_issues,
+            // Demo — Prism Principle (RFC-095)
+            // Uses parallel streaming: both methods run concurrently with real-time output
+            demo::run_demo_streaming,
+            demo::list_demo_tasks,
+            // Evaluation Framework (RFC-098)
+            // Full-stack evaluation: single-shot vs Sunwell comparison
+            eval::run_eval_streaming,
+            eval::list_eval_tasks,
+            eval::get_eval_history,
+            eval::get_eval_stats,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

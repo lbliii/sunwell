@@ -1,0 +1,354 @@
+/**
+ * Demo Store — Real backend integration for Prism Principle demo (RFC-095)
+ *
+ * Manages demo state and communicates with the Rust backend which calls
+ * the Python `sunwell demo --stream` command for PARALLEL LLM execution
+ * with real-time streaming to both code panes.
+ */
+
+import { invoke } from '@tauri-apps/api/core';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+
+// ═══════════════════════════════════════════════════════════════
+// TYPES — Match Python `sunwell demo --json` output exactly
+// ═══════════════════════════════════════════════════════════════
+
+export interface DemoTask {
+  name: string;
+  prompt: string;
+  /** Only present when listing tasks, not in comparison result */
+  expected_features?: string[];
+}
+
+/** Token usage statistics */
+export interface TokenUsage {
+  prompt: number;
+  completion: number;
+  total: number;
+}
+
+/** Python flattens score + result into one object */
+export interface DemoMethodOutput {
+  score: number;
+  lines: number;
+  time_ms: number;
+  features: Record<string, boolean>;
+  iterations?: number;
+  /** Code only present in verbose mode */
+  code?: string;
+  /** Token usage statistics */
+  tokens?: TokenUsage;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BREAKDOWN TYPES — Show what each Sunwell component contributed
+// ═══════════════════════════════════════════════════════════════
+
+export interface LensBreakdown {
+  name: string;
+  detected: boolean;
+  heuristics_applied: string[];
+}
+
+export interface PromptBreakdown {
+  type: string;
+  requirements_added: string[];
+}
+
+export interface JudgeBreakdown {
+  score: number;
+  issues: string[];
+  passed: boolean;
+}
+
+export interface ResonanceBreakdown {
+  triggered: boolean;
+  /** Did refinement actually improve the code? */
+  succeeded: boolean;
+  iterations: number;
+  improvements: string[];
+}
+
+export interface ResultBreakdown {
+  final_score: number;
+  features_achieved: string[];
+  features_missing: string[];
+}
+
+/** Complete component breakdown — shows what each Sunwell feature contributed */
+export interface ComponentBreakdown {
+  lens: LensBreakdown;
+  prompt: PromptBreakdown;
+  judge: JudgeBreakdown;
+  resonance: ResonanceBreakdown;
+  result: ResultBreakdown;
+}
+
+export interface DemoComparison {
+  model: string;
+  task: DemoTask;
+  single_shot: DemoMethodOutput;
+  sunwell: DemoMethodOutput;
+  improvement_percent: number;
+  /** Component breakdown showing what each Sunwell feature contributed */
+  breakdown?: ComponentBreakdown;
+}
+
+export interface DemoProgress {
+  phase: string;
+  message: string;
+  progress: number;
+}
+
+export interface DemoInput {
+  task?: string;
+  model?: string;
+  provider?: string;
+}
+
+export type DemoPhase = 'ready' | 'generating' | 'judging' | 'refining' | 'revealed' | 'error';
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+
+let _phase = $state<DemoPhase>('ready');
+let _progress = $state(0);
+let _message = $state('');
+let _error = $state<string | null>(null);
+let _comparison = $state<DemoComparison | null>(null);
+let _availableTasks = $state<DemoTask[]>([]);
+
+// Streaming code buffers (updated in real-time)
+let _singleShotCodeStream = $state('');
+let _sunwellCodeStream = $state('');
+let _sunwellPhase = $state<'generating' | 'judging' | 'refining'>('generating');
+
+// Default task if none loaded
+const DEFAULT_TASK: DemoTask = {
+  name: 'divide',
+  prompt: 'Write a Python function to divide two numbers',
+  expected_features: ['type_hints', 'docstring', 'zero_division_handling', 'type_validation'],
+};
+
+let _currentTask = $state<DemoTask>(DEFAULT_TASK);
+let _currentModel = $state('ollama:llama3.2:3b');
+
+// ═══════════════════════════════════════════════════════════════
+// EXPORTS
+// ═══════════════════════════════════════════════════════════════
+
+export const demo = {
+  // State getters
+  get phase() { return _phase; },
+  get progress() { return _progress; },
+  get message() { return _message; },
+  get error() { return _error; },
+  get comparison() { return _comparison; },
+  get availableTasks() { return _availableTasks; },
+  get currentTask() { return _currentTask; },
+  get currentModel() { return _currentModel; },
+
+  // Streaming state
+  get sunwellPhase() { return _sunwellPhase; },
+  
+  // Computed
+  get isRunning() { return _phase !== 'ready' && _phase !== 'revealed' && _phase !== 'error'; },
+  /** The actual model used (from backend response) */
+  get actualModel() { return _comparison?.model ?? _currentModel; },
+  
+  /** 
+   * Code for display — uses streaming buffer during generation,
+   * final code from comparison after completion.
+   */
+  get singleShotCode() { 
+    if (_phase === 'revealed' && _comparison?.single_shot.code) {
+      return _comparison.single_shot.code;
+    }
+    return _singleShotCodeStream || '';
+  },
+  get sunwellCode() { 
+    if (_phase === 'revealed' && _comparison?.sunwell.code) {
+      return _comparison.sunwell.code;
+    }
+    return _sunwellCodeStream || '';
+  },
+  
+  /** Score is embedded in the method output (flattened structure) */
+  get singleShotScore() { return _comparison?.single_shot ?? null; },
+  get sunwellScore() { return _comparison?.sunwell ?? null; },
+  get improvementPercent() { return _comparison?.improvement_percent ?? 0; },
+  
+  /** Component breakdown — what each Sunwell feature contributed */
+  get breakdown() { return _comparison?.breakdown ?? null; },
+};
+
+// ═══════════════════════════════════════════════════════════════
+// ACTIONS
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Load available demo tasks from backend.
+ */
+export async function loadTasks(): Promise<void> {
+  try {
+    const tasks = await invoke<DemoTask[]>('list_demo_tasks');
+    _availableTasks = tasks;
+    if (tasks.length > 0 && !_currentTask) {
+      _currentTask = tasks[0];
+    }
+  } catch (e) {
+    console.error('Failed to load demo tasks:', e);
+    // Use default task
+    _availableTasks = [DEFAULT_TASK];
+  }
+}
+
+/**
+ * Set the current demo task.
+ */
+export function setTask(task: DemoTask): void {
+  _currentTask = task;
+}
+
+/**
+ * Set the current model.
+ */
+export function setModel(model: string): void {
+  _currentModel = model;
+}
+
+/**
+ * Run the demo — PARALLEL execution with real-time streaming.
+ * 
+ * Uses `run_demo_streaming` which calls `sunwell demo --stream` for:
+ * - Parallel execution of single-shot and Sunwell (2x faster)
+ * - Real-time code streaming to both panes
+ * - Phase updates as Sunwell progresses through judge/refine
+ */
+export async function runDemo(): Promise<void> {
+  _phase = 'generating';
+  _progress = 0;
+  _message = 'Starting parallel demo...';
+  _error = null;
+  _comparison = null;
+  _singleShotCodeStream = '';
+  _sunwellCodeStream = '';
+  _sunwellPhase = 'generating';
+
+  const unlisteners: UnlistenFn[] = [];
+
+  try {
+    // Set up streaming event listeners
+    
+    // Start event
+    unlisteners.push(await listen<{ model: string; task: DemoTask }>('demo-start', (event) => {
+      _message = `Running on ${event.payload.model}...`;
+      _progress = 5;
+    }));
+    
+    // Chunk events (real-time code streaming!)
+    unlisteners.push(await listen<{ method: string; content: string }>('demo-chunk', (event) => {
+      const { method, content } = event.payload;
+      if (method === 'single_shot') {
+        _singleShotCodeStream += content;
+      } else if (method === 'sunwell') {
+        _sunwellCodeStream += content;
+      }
+      // Update progress based on content length
+      const totalChars = _singleShotCodeStream.length + _sunwellCodeStream.length;
+      _progress = Math.min(80, 10 + totalChars / 20);
+    }));
+    
+    // Phase events (sunwell progression)
+    unlisteners.push(await listen<{ method: string; phase: string }>('demo-phase', (event) => {
+      const { phase } = event.payload;
+      if (phase === 'generating') {
+        _sunwellPhase = 'generating';
+        _message = 'Generating initial code...';
+      } else if (phase === 'judging') {
+        _sunwellPhase = 'judging';
+        _phase = 'judging';
+        _message = 'Judge evaluating quality...';
+        _progress = 60;
+      } else if (phase === 'refining') {
+        _sunwellPhase = 'refining';
+        _phase = 'refining';
+        _message = 'Resonance refining...';
+        _progress = 75;
+      }
+    }));
+    
+    // Complete event
+    unlisteners.push(await listen<DemoComparison>('demo-complete', (event) => {
+      _comparison = event.payload;
+      _phase = 'revealed';
+      _progress = 100;
+      _message = 'Demo complete!';
+    }));
+    
+    // Error event
+    unlisteners.push(await listen<{ message: string }>('demo-error', (event) => {
+      _error = event.payload.message;
+      _phase = 'error';
+      _message = 'Demo failed';
+    }));
+    
+    // Progress fallback
+    unlisteners.push(await listen<DemoProgress>('demo-progress', (event) => {
+      const { message } = event.payload;
+      if (message) _message = message;
+    }));
+
+    // Parse model string (e.g., "ollama:llama3.2:3b" -> provider: "ollama", model: "llama3.2:3b")
+    const [provider, ...modelParts] = _currentModel.split(':');
+    const model = modelParts.join(':');
+
+    const input: DemoInput = {
+      task: _currentTask.name,
+      model: model || undefined,
+      provider: provider || undefined,
+    };
+
+    // Call streaming endpoint (parallel execution!)
+    const result = await invoke<DemoComparison>('run_demo_streaming', { input });
+    
+    // Final state update (in case events didn't fire)
+    _comparison = result;
+    _phase = 'revealed';
+    _progress = 100;
+    _message = 'Demo complete!';
+
+  } catch (e) {
+    _phase = 'error';
+    _error = e instanceof Error ? e.message : String(e);
+    _message = 'Demo failed';
+    console.error('Demo failed:', e);
+  } finally {
+    // Clean up all listeners
+    for (const unlisten of unlisteners) {
+      unlisten();
+    }
+  }
+}
+
+/**
+ * Reset the demo to ready state.
+ */
+export function reset(): void {
+  _phase = 'ready';
+  _progress = 0;
+  _message = '';
+  _error = null;
+  _comparison = null;
+  _singleShotCodeStream = '';
+  _sunwellCodeStream = '';
+  _sunwellPhase = 'generating';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INITIALIZATION
+// ═══════════════════════════════════════════════════════════════
+
+// Load tasks on import
+loadTasks();

@@ -185,7 +185,7 @@
     background: rgba(245, 158, 11, 0.1);
     border: 1px solid rgba(245, 158, 11, 0.3);
     border-radius: var(--radius-md);
-    color: #f59e0b;
+    color: var(--warning);
     font-size: var(--text-sm);
   }
   
@@ -222,7 +222,7 @@
   }
   
   .confidence.high { color: var(--success); }
-  .confidence.medium { color: #f59e0b; }
+  .confidence.medium { color: var(--warning); }
   .confidence.low { color: var(--error); }
   
   .dots {

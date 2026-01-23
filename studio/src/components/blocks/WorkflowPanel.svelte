@@ -190,49 +190,50 @@
 
 <style>
   .workflow-panel {
-    background: var(--surface-2, #1a1a2e);
-    border-radius: 8px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
     overflow: hidden;
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
-    font-size: 12px;
-    border: 1px solid var(--border, #333);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    border: 1px solid var(--border-default);
   }
 
   .workflow-panel.running {
-    border-color: var(--accent, #6366f1);
+    border-color: var(--ui-gold);
   }
 
   .workflow-panel.paused {
-    border-color: var(--warning, #ffd93d);
+    border-color: var(--warning);
   }
 
   .workflow-panel.complete {
-    border-color: var(--success, #6bff6b);
+    border-color: var(--success);
   }
 
   .workflow-panel.error {
-    border-color: var(--error, #ff6b6b);
+    border-color: var(--error);
   }
 
   .header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: var(--surface-3, #252547);
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-tertiary);
     cursor: pointer;
     border: none;
     width: 100%;
     text-align: left;
     color: inherit;
+    transition: background var(--transition-fast);
   }
 
   .header:hover {
-    background: var(--surface-4, #2d2d5a);
+    background: var(--accent-hover);
   }
 
   .status-icon {
-    font-size: 14px;
+    font-size: var(--text-sm);
   }
 
   .spinner {
@@ -241,19 +242,15 @@
   }
 
   @keyframes spin {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 
   .title {
     flex: 1;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
   }
 
   .chain-name {
@@ -261,63 +258,63 @@
   }
 
   .step-count {
-    color: var(--text-muted, #888);
-    font-size: 10px;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
   }
 
   .toggle {
-    color: var(--text-muted, #888);
-    font-size: 10px;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
   }
 
   .progress-bar {
     height: 3px;
-    background: var(--surface-1, #0f0f1a);
+    background: var(--bg-primary);
   }
 
   .progress-fill {
     height: 100%;
-    background: var(--accent, #6366f1);
-    transition: width 0.3s ease;
+    background: var(--ui-gold);
+    transition: width var(--transition-normal);
   }
 
   .workflow-panel.complete .progress-fill {
-    background: var(--success, #6bff6b);
+    background: var(--success);
   }
 
   .workflow-panel.error .progress-fill {
-    background: var(--error, #ff6b6b);
+    background: var(--error);
   }
 
   .content {
-    padding: 12px;
+    padding: var(--space-3);
   }
 
   .description {
-    color: var(--text-muted, #888);
-    font-size: 11px;
-    margin-bottom: 12px;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    margin-bottom: var(--space-3);
   }
 
   .steps {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    margin-bottom: 12px;
+    gap: var(--space-1);
+    margin-bottom: var(--space-3);
   }
 
   .step {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 4px 8px;
-    border-radius: 4px;
-    background: var(--surface-1, #0f0f1a);
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
   }
 
   .step.current {
-    background: var(--accent-bg, rgba(99, 102, 241, 0.2));
-    border-left: 2px solid var(--accent, #6366f1);
+    background: var(--accent-hover);
+    border-left: 2px solid var(--ui-gold);
   }
 
   .step-icon {
@@ -331,50 +328,51 @@
 
   .step-purpose {
     flex: 1;
-    color: var(--text-muted, #888);
-    font-size: 11px;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .step-duration {
-    color: var(--text-muted, #666);
-    font-size: 10px;
+    color: var(--text-tertiary);
+    font-size: var(--text-xs);
   }
 
   .error-container {
-    margin-bottom: 12px;
+    margin-bottom: var(--space-3);
   }
 
   .controls {
     display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
   }
 
   .control-btn {
     border: none;
-    border-radius: 4px;
-    padding: 6px 12px;
-    font-size: 11px;
+    border-radius: var(--radius-sm);
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--text-xs);
     cursor: pointer;
     font-family: inherit;
+    transition: opacity var(--transition-fast);
   }
 
   .control-btn.stop {
-    background: var(--error, #ff6b6b);
+    background: var(--error);
     color: white;
   }
 
   .control-btn.skip {
-    background: var(--surface-3, #252547);
-    color: var(--text, #fff);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
   }
 
   .control-btn.resume {
-    background: var(--accent, #6366f1);
-    color: white;
+    background: var(--ui-gold);
+    color: var(--bg-primary);
   }
 
   .control-btn:hover {
@@ -382,16 +380,16 @@
   }
 
   .complete-message {
-    color: var(--success, #6bff6b);
-    font-size: 11px;
+    color: var(--success);
+    font-size: var(--text-xs);
   }
 
   .footer {
     display: flex;
     justify-content: space-between;
-    padding-top: 8px;
-    border-top: 1px solid var(--border, #333);
-    color: var(--text-muted, #666);
-    font-size: 10px;
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--border-subtle);
+    color: var(--text-tertiary);
+    font-size: var(--text-xs);
   }
 </style>

@@ -2,6 +2,7 @@
 
 import asyncio
 import json as json_module
+import sys
 from pathlib import Path
 
 import click
@@ -157,7 +158,7 @@ async def _show_lens(lens_name: str, json_output: bool) -> None:
             print(json_module.dumps({"error": f"Lens not found: {lens_name}"}))
         else:
             console.print(f"[red]Lens not found: {lens_name}[/red]")
-        return
+        sys.exit(1)
 
     # Build detail dict
     detail = {
@@ -608,7 +609,7 @@ async def _skill_graph(lens_name: str, json_output: bool, mermaid: bool) -> None
             print(json_module.dumps({"error": f"Lens not found: {lens_name}"}))
         else:
             console.print(f"[red]Lens not found: {lens_name}[/red]")
-        return
+        sys.exit(1)
 
     if not lens_obj.skills:
         if json_output:
@@ -710,7 +711,7 @@ async def _skill_plan(lens_name: str, context_hash: str | None, json_output: boo
             print(json_module.dumps({"error": f"Lens not found: {lens_name}"}))
         else:
             console.print(f"[red]Lens not found: {lens_name}[/red]")
-        return
+        sys.exit(1)
 
     if not lens_obj.skills:
         if json_output:
@@ -806,10 +807,10 @@ async def _lens_skills(lens_name: str, json_output: bool) -> None:
 
     if not lens_obj:
         if json_output:
-            print(json_module.dumps([]))
+            print(json_module.dumps({"error": f"Lens not found: {lens_name}"}))
         else:
             console.print(f"[red]Lens not found: {lens_name}[/red]")
-        return
+        sys.exit(1)
 
     if not lens_obj.skills:
         if json_output:

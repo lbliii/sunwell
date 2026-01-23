@@ -319,9 +319,9 @@
     border-radius: 10px;
   }
   
-  .tier-hot .tier-header { border-left: 3px solid #ef4444; }
-  .tier-warm .tier-header { border-left: 3px solid #fbbf24; }
-  .tier-cold .tier-header { border-left: 3px solid #60a5fa; }
+  .tier-hot .tier-header { border-left: 3px solid var(--error); }
+  .tier-warm .tier-header { border-left: 3px solid var(--warning); }
+  .tier-cold .tier-header { border-left: 3px solid var(--info); }
   
   .chunk-list {
     display: flex;
@@ -461,9 +461,9 @@
     font-weight: 600;
   }
   
-  .badge-micro { background: #ef444420; color: #ef4444; }
-  .badge-mini { background: #fbbf2420; color: #fbbf24; }
-  .badge-macro { background: #60a5fa20; color: #60a5fa; }
+  .badge-micro { background: var(--error-bg); color: var(--error); }
+  .badge-mini { background: var(--warning-bg); color: var(--warning); }
+  .badge-macro { background: var(--info-bg); color: var(--info); }
   
   .summary-full {
     line-height: 1.5;

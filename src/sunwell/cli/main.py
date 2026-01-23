@@ -542,6 +542,16 @@ from sunwell.cli import setup
 
 main.add_command(setup.setup)
 
+# Demo command - proves the Prism Principle (RFC-095)
+from sunwell.cli import demo_cmd
+
+main.add_command(demo_cmd.demo)
+
+# Evaluation command - rigorous quality measurement (RFC-098)
+from sunwell.cli import eval_cmd
+
+main.add_command(eval_cmd.eval_cmd, name="eval")
+
 
 # =============================================================================
 # TIER 2: Power User (visible in --help, grouped)

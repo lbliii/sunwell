@@ -5,6 +5,7 @@
  */
 
 // Code primitives
+export { default as CodeBlock } from './CodeBlock.svelte';  // RFC-097
 export { default as CodeEditor } from './CodeEditor.svelte';
 export { default as Terminal } from './Terminal.svelte';
 export { default as TestRunner } from './TestRunner.svelte';
@@ -43,6 +44,7 @@ export type { PrimitiveProps, CodePrimitiveProps, WritingPrimitiveProps, Plannin
 // Component map for dynamic rendering
 export const componentMap: Record<string, any> = {
   // Code
+  CodeBlock: () => import('./CodeBlock.svelte'),  // RFC-097
   CodeEditor: () => import('./CodeEditor.svelte'),
   FileTree: () => import('../FileTree.svelte'),
   Terminal: () => import('./Terminal.svelte'),

@@ -7,17 +7,14 @@
 
 import dagre from 'dagre';
 import { invoke } from '@tauri-apps/api/core';
-import { get } from 'svelte/store';
 import { DagNodeStatus, DagViewMode } from '$lib/constants';
+import type { DagNodeStatus as DagNodeStatusType, DagViewMode as DagViewModeType } from '$lib/constants';
 import { debounce } from '$lib/debounce';
 import type { 
   DagGraph, 
   DagNode, 
   DagViewState, 
-  DagNodeStatus as DagNodeStatusType, 
-  DagViewMode as DagViewModeType,
   IncrementalPlan,
-  CacheStats,
   IncrementalStatus 
 } from '$lib/types';
 

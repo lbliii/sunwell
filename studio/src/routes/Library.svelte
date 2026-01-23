@@ -46,6 +46,6 @@
   
   .page-content {
     flex: 1;
-    overflow: hidden;
+    min-height: 0; /* Removed overflow:hidden - clips menus */
   }
 </style>

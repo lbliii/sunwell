@@ -1,0 +1,190 @@
+# RFC-098: Evaluation Framework CI Workflow
+#
+# Runs full-stack evaluations on PRs to track Sunwell's performance vs single-shot.
+# Results are posted as PR comments and stored for historical tracking.
+#
+# Usage:
+#   - Automatically runs on PRs touching core cognitive components
+#   - Can be manually triggered for comprehensive evaluation
+#   - Results help catch regressions in generation quality
+
+name: Evaluation
+
+on:
+  pull_request:
+    paths:
+      - 'src/sunwell/naaru/**'
+      - 'src/sunwell/demo/**'
+      - 'src/sunwell/surface/**'
+      - 'src/sunwell/eval/**'
+      - 'lenses/**'
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'Task to evaluate (forum_app, cli_tool, rest_api, or all)'
+        required: false
+        default: 'forum_app'
+      runs:
+        description: 'Number of evaluation runs'
+        required: false
+        default: '3'
+
+env:
+  SUNWELL_EVAL_CI: 'true'
+
+jobs:
+  evaluate:
+    name: Run Evaluation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras
+
+      # Use a local model for CI (no API keys needed)
+      - name: Set up Ollama
+        uses: ai-action/ollama-install@v1
+        with:
+          models: llama3.2:3b
+
+      - name: Run evaluation (PR trigger)
+        if: github.event_name == 'pull_request'
+        id: eval_pr
+        run: |
+          # Run fixture_minimal for fast CI feedback
+          uv run sunwell eval \
+            --task fixture_minimal \
+            --provider ollama \
+            --model llama3.2:3b \
+            --runs 1 \
+            --ci \
+            --export results.json
+
+          # Parse results for PR comment
+          echo "results<<EOF" >> $GITHUB_OUTPUT
+          cat results.json >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Run evaluation (manual trigger)
+        if: github.event_name == 'workflow_dispatch'
+        id: eval_manual
+        run: |
+          TASK="${{ github.event.inputs.task }}"
+          RUNS="${{ github.event.inputs.runs }}"
+          
+          uv run sunwell eval \
+            --task "${TASK}" \
+            --provider ollama \
+            --model llama3.2:3b \
+            --runs "${RUNS}" \
+            --ci \
+            --export results.json
+
+          echo "results<<EOF" >> $GITHUB_OUTPUT
+          cat results.json >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Post PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const results = JSON.parse(`${{ steps.eval_pr.outputs.results }}`);
+            
+            // Format results as markdown
+            let body = `## 📊 Evaluation Results\n\n`;
+            
+            if (results.error) {
+              body += `⚠️ **Evaluation failed**: ${results.error}\n`;
+            } else {
+              const ss = results.single_shot_score?.total ?? 'N/A';
+              const sw = results.sunwell_score?.total ?? 'N/A';
+              const imp = results.improvement_percent ?? 0;
+              
+              body += `| Method | Score |\n`;
+              body += `|--------|-------|\n`;
+              body += `| Single-Shot | ${ss} |\n`;
+              body += `| Sunwell | ${sw} |\n`;
+              body += `| **Improvement** | ${imp > 0 ? '+' : ''}${imp.toFixed(1)}% |\n\n`;
+              
+              if (imp < 0) {
+                body += `⚠️ **Warning**: Sunwell scored lower than single-shot. This may indicate a regression.\n`;
+              } else if (imp > 50) {
+                body += `✅ **Great**: Sunwell shows significant improvement over single-shot.\n`;
+              }
+              
+              // Add breakdown if available
+              if (results.sunwell_score) {
+                const s = results.sunwell_score;
+                body += `\n### Sunwell Score Breakdown\n`;
+                body += `- Structure: ${(s.structure * 100).toFixed(0)}%\n`;
+                body += `- Runnable: ${(s.runnable * 100).toFixed(0)}%\n`;
+                body += `- Features: ${(s.features * 100).toFixed(0)}%\n`;
+                body += `- Quality: ${(s.quality * 100).toFixed(0)}%\n`;
+              }
+            }
+            
+            body += `\n---\n*Evaluated with \`sunwell eval\` (RFC-098)*`;
+            
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(c => 
+              c.user.type === 'Bot' && 
+              c.body.includes('Evaluation Results')
+            );
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Upload results artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-results
+          path: results.json
+          retention-days: 30
+
+      - name: Check for regression
+        if: github.event_name == 'pull_request'
+        run: |
+          # Fail the job if Sunwell scored significantly worse
+          IMPROVEMENT=$(jq -r '.improvement_percent // 0' results.json)
+          
+          if (( $(echo "$IMPROVEMENT < -20" | bc -l) )); then
+            echo "❌ Evaluation shows significant regression (${IMPROVEMENT}%)"
+            exit 1
+          fi
+          
+          echo "✅ Evaluation passed (improvement: ${IMPROVEMENT}%)"

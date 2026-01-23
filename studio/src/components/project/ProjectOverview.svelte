@@ -187,49 +187,49 @@
   .project-overview {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    padding: 1rem;
-    background: var(--bg-secondary, #1a1a2e);
-    border-radius: 8px;
-    color: var(--text-primary, #eee);
+    gap: var(--space-4);
+    padding: var(--space-4);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
   }
 
   .overview-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--border, #333);
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--border-default);
   }
 
   .type-badge {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--space-2);
   }
 
   .type-emoji {
-    font-size: 1.25rem;
+    font-size: var(--text-xl);
   }
 
   .type-name {
     font-weight: 600;
-    font-size: 1.1rem;
+    font-size: var(--text-lg);
   }
 
   .subtype {
-    color: var(--text-secondary, #888);
-    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
   }
 
   .confidence {
-    font-size: 0.85rem;
+    font-size: var(--text-sm);
     font-weight: 500;
   }
 
   .signals {
-    font-size: 0.8rem;
-    color: var(--text-secondary, #888);
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
   }
 
   .signals summary {
@@ -239,16 +239,16 @@
   .signal-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.25rem;
-    margin-top: 0.5rem;
+    gap: var(--space-1);
+    margin-top: var(--space-2);
   }
 
   .signal {
-    background: var(--bg-tertiary, #252545);
-    padding: 0.125rem 0.375rem;
-    border-radius: 4px;
-    font-family: monospace;
-    font-size: 0.75rem;
+    background: var(--bg-tertiary);
+    padding: var(--space-px) var(--space-1);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
   }
 
   .pipeline-section h3,
@@ -256,32 +256,32 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin: 0 0 0.5rem 0;
-    font-size: 0.9rem;
+    margin: 0 0 var(--space-2) 0;
+    font-size: var(--text-sm);
     font-weight: 600;
   }
 
   .completion {
     font-weight: 400;
-    color: var(--text-secondary, #888);
-    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
   }
 
   .pipeline {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
-    padding: 0.5rem;
-    background: var(--bg-tertiary, #252545);
-    border-radius: 6px;
+    gap: var(--space-1);
+    padding: var(--space-2);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
   }
 
   .step {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.25rem 0;
-    font-size: 0.85rem;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    font-size: var(--text-sm);
   }
 
   .step.completed {
@@ -301,59 +301,60 @@
   }
 
   .current-marker {
-    color: var(--text-secondary, #888);
-    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
     font-style: italic;
   }
 
   .empty-state {
     text-align: center;
-    padding: 1.5rem;
-    background: var(--bg-tertiary, #252545);
-    border-radius: 6px;
+    padding: var(--space-6);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
   }
 
   .empty-title {
-    margin: 0 0 0.5rem 0;
-    font-size: 1rem;
+    margin: 0 0 var(--space-2) 0;
+    font-size: var(--text-base);
   }
 
   .empty-hint {
     margin: 0;
-    color: var(--text-secondary, #888);
-    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
   }
 
   .suggested-action {
-    background: var(--bg-tertiary, #252545);
-    padding: 0.75rem;
-    border-radius: 6px;
-    border-left: 3px solid var(--green, #4ade80);
+    background: var(--bg-tertiary);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    border-left: 3px solid var(--success);
   }
 
   .action-description {
     margin: 0;
-    font-size: 0.9rem;
+    font-size: var(--text-sm);
   }
 
   .action-command {
     display: block;
-    margin-top: 0.5rem;
-    padding: 0.25rem 0.5rem;
-    background: var(--bg-primary, #0f0f23);
-    border-radius: 4px;
-    font-size: 0.8rem;
+    margin-top: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    background: var(--bg-primary);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm);
+    font-family: var(--font-mono);
   }
 
   .actions {
     display: flex;
-    gap: 0.5rem;
+    gap: var(--space-2);
     flex-wrap: wrap;
   }
 
   .dev-details {
-    font-size: 0.85rem;
-    color: var(--text-secondary, #888);
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
   }
 
   .dev-details summary {
@@ -361,30 +362,31 @@
   }
 
   .dev-info {
-    margin-top: 0.5rem;
-    padding-left: 1rem;
+    margin-top: var(--space-2);
+    padding-left: var(--space-4);
   }
 
   .dev-info p {
-    margin: 0.25rem 0;
+    margin: var(--space-1) 0;
   }
 
   .dev-info ul {
-    margin: 0.25rem 0;
-    padding-left: 1.25rem;
+    margin: var(--space-1) 0;
+    padding-left: var(--space-5);
   }
 
   .dev-info code {
-    background: var(--bg-tertiary, #252545);
-    padding: 0.125rem 0.25rem;
-    border-radius: 3px;
-    font-size: 0.8rem;
+    background: var(--bg-tertiary);
+    padding: var(--space-px) var(--space-1);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm);
+    font-family: var(--font-mono);
   }
 
   .workspace-hint {
     margin: 0;
-    font-size: 0.75rem;
-    color: var(--text-secondary, #888);
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
     text-align: right;
   }
 </style>

@@ -168,19 +168,19 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px 12px;
-    background: var(--surface-2, #1a1a2e);
-    border-top: 1px solid var(--border, #333);
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
-    font-size: 11px;
-    color: var(--text-muted, #888);
+    padding: var(--space-1) var(--space-3);
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-subtle);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
     user-select: none;
   }
 
   .section {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-3);
   }
 
   .section.left {
@@ -198,27 +198,28 @@
   }
 
   .word-count {
-    color: var(--text, #fff);
+    color: var(--text-primary);
     font-weight: 500;
   }
 
   .dirty-indicator {
-    color: var(--warning, #ffd93d);
+    color: var(--warning);
     font-size: 8px;
   }
 
   .diataxis-badge {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
+    gap: var(--space-1);
+    padding: var(--space-px) var(--space-2);
     background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--badge-color, #888);
-    border-radius: 12px;
+    border: 1px solid var(--badge-color);
+    border-radius: var(--radius-full);
     cursor: pointer;
     font-family: inherit;
     font-size: inherit;
-    color: var(--badge-color, #888);
+    color: var(--badge-color);
+    transition: background var(--transition-fast);
   }
 
   .diataxis-badge:hover {
@@ -226,7 +227,7 @@
   }
 
   .badge-icon {
-    font-size: 12px;
+    font-size: var(--text-xs);
   }
 
   .badge-label {
@@ -235,7 +236,7 @@
 
   .badge-confidence {
     opacity: 0.7;
-    font-size: 10px;
+    font-size: var(--text-xs);
   }
 
   .diataxis-unknown {
@@ -245,16 +246,11 @@
   .validation-summary {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
   }
 
-  .error-count {
-    color: var(--error, #ff6b6b);
-  }
-
-  .warning-count {
-    color: var(--warning, #ffd93d);
-  }
+  .error-count { color: var(--error); }
+  .warning-count { color: var(--warning); }
 
   .all-good {
     opacity: 0.7;
@@ -263,24 +259,25 @@
   .lens-button {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
+    gap: var(--space-1);
+    padding: var(--space-px) var(--space-2);
     background: transparent;
-    border: 1px solid var(--border, #333);
-    border-radius: 4px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
     cursor: pointer;
     font-family: inherit;
     font-size: inherit;
-    color: var(--text-muted, #888);
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
   }
 
   .lens-button:hover {
-    background: var(--surface-3, #252547);
-    color: var(--text, #fff);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
   }
 
   .lens-icon {
-    font-size: 12px;
+    font-size: var(--text-xs);
   }
 
   .lens-name {
@@ -292,8 +289,8 @@
 
   .view-toggle {
     display: flex;
-    background: var(--surface-1, #0f0f1a);
-    border-radius: 4px;
+    background: var(--bg-primary);
+    border-radius: var(--radius-sm);
     overflow: hidden;
   }
 
@@ -306,20 +303,20 @@
     background: transparent;
     border: none;
     cursor: pointer;
-    color: var(--text-muted, #888);
-    transition: all 0.15s ease;
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
   }
 
   .toggle-btn:hover {
-    background: var(--surface-3, #252547);
+    background: var(--bg-tertiary);
   }
 
   .toggle-btn.active {
-    background: var(--accent, #6366f1);
-    color: white;
+    background: var(--ui-gold);
+    color: var(--bg-primary);
   }
 
   .toggle-btn .icon {
-    font-size: 12px;
+    font-size: var(--text-xs);
   }
 </style>

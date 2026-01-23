@@ -47,6 +47,26 @@ class LensLibraryEntry:
     last_modified: str | None
 
 
+def _find_builtin_lenses_dir() -> Path:
+    """Find built-in lenses directory using fallback chain.
+
+    Checks:
+    1. Current working directory (developer use case)
+    2. Relative to package (installed or editable install)
+    3. Falls back to cwd if nothing found (will return empty list)
+    """
+    candidates = [
+        Path.cwd() / "lenses",
+        # Relative to this file: manager.py -> lens/ -> sunwell/ -> src/ -> project/lenses
+        Path(__file__).parent.parent.parent.parent / "lenses",
+    ]
+    for c in candidates:
+        if c.exists() and list(c.glob("*.lens")):
+            return c
+    # Fallback (will be empty but won't crash)
+    return Path.cwd() / "lenses"
+
+
 @dataclass
 class LensManager:
     """Manages lens library operations.
@@ -58,7 +78,7 @@ class LensManager:
     user_lens_dir: Path = field(
         default_factory=lambda: Path.home() / ".sunwell" / "lenses"
     )
-    builtin_lens_dir: Path = field(default_factory=lambda: Path.cwd() / "lenses")
+    builtin_lens_dir: Path = field(default_factory=_find_builtin_lenses_dir)
     config_path: Path = field(
         default_factory=lambda: Path.home() / ".sunwell" / "config.yaml"
     )

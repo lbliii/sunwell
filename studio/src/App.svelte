@@ -8,11 +8,15 @@
   import { listen } from '@tauri-apps/api/event';
   import Home from './routes/Home.svelte';
   import Project from './routes/Project.svelte';
+  import Projects from './routes/Projects.svelte';
   import Preview from './routes/Preview.svelte';
   import Planning from './routes/Planning.svelte';
   import Library from './routes/Library.svelte';
   import Interface from './routes/Interface.svelte';
   import Writer from './routes/Writer.svelte';
+  import Demo from './routes/Demo.svelte';
+  import Gallery from './routes/Gallery.svelte';  // RFC-097
+  import Evaluation from './routes/Evaluation.svelte';  // RFC-098
   import { app, setInitialized, navigate, goToWriter } from './stores/app.svelte';
   import { Route } from '$lib/constants';
   import { setupInferenceListeners } from '$lib/inference';
@@ -78,6 +82,8 @@
     <Home />
   {:else if app.route === Route.PROJECT}
     <Project />
+  {:else if app.route === Route.PROJECTS}
+    <Projects />
   {:else if app.route === Route.PREVIEW}
     <Preview />
   {:else if app.route === Route.PLANNING}
@@ -88,6 +94,12 @@
     <Interface />
   {:else if app.route === Route.WRITER}
     <Writer />
+  {:else if app.route === Route.DEMO}
+    <Demo />
+  {:else if app.route === Route.GALLERY}
+    <Gallery />
+  {:else if app.route === Route.EVALUATION}
+    <Evaluation />
   {/if}
 </div>
 

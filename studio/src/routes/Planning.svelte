@@ -91,6 +91,6 @@
   .goal-text.muted { color: var(--text-tertiary); }
   .header-right { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-tertiary); }
   .node-count { padding: 4px 8px; background: var(--bg-tertiary); border-radius: var(--radius-sm); }
-  .content { flex: 1; display: flex; overflow: hidden; }
+  .content { flex: 1; display: flex; min-height: 0; /* Removed overflow:hidden - clips menus */ }
   .canvas-container { flex: 1; position: relative; }
 </style>

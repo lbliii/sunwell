@@ -49,5 +49,5 @@
   .sidebar-close { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); font-size: var(--text-lg); border-radius: var(--radius-sm); transition: color var(--transition-fast), background var(--transition-fast); }
   .sidebar-close:hover { color: var(--text-primary); background: var(--bg-tertiary); }
   .sidebar-content { flex: 1; overflow-y: auto; }
-  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .main { flex: 1; display: flex; flex-direction: column; min-height: 0; /* Allow flex shrinking without overflow:hidden clipping menus */ }
 </style>

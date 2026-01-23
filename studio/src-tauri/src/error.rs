@@ -227,12 +227,6 @@ impl SunwellError {
         self
     }
 
-    /// Add context for debugging.
-    pub fn with_context(mut self, context: serde_json::Value) -> Self {
-        self.context = context;
-        self
-    }
-
     /// Add cause (original error message) for debugging.
     pub fn with_cause(mut self, cause: impl Into<String>) -> Self {
         self.cause = Some(cause.into());
@@ -245,11 +239,13 @@ impl SunwellError {
     }
 
     /// Parse from CLI JSON output (for errors from Python subprocess).
+    #[allow(dead_code)] // Tested; used when parsing CLI output
     pub fn from_cli_json(json_str: &str) -> Option<Self> {
         serde_json::from_str(json_str).ok()
     }
 
     /// Create an unknown error (fallback for unstructured errors).
+    #[allow(dead_code)] // Tested; fallback for parse_error_string
     pub fn unknown(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::Unknown, message)
     }
@@ -306,6 +302,7 @@ impl From<serde_json::Error> for SunwellError {
 ///
 /// This is useful for parsing errors from Python CLI subprocess output,
 /// which may be structured JSON or raw error text.
+#[allow(dead_code)] // Tested; for future CLI parsing integration
 pub fn parse_error_string(s: &str) -> SunwellError {
     // Try to parse as JSON first
     if let Some(err) = SunwellError::from_cli_json(s) {

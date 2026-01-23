@@ -60,6 +60,10 @@ sunwell "Build a REST API with auth"
 
 Same model. Same prompt. Different architecture.
 
+```bash
+sunwell demo  # Run this yourself in < 2 minutes
+```
+
 **Single-shot (llama3.2:3b) — Score: 1.0/10**
 
 ```python
@@ -111,6 +115,9 @@ pip install sunwell
 
 # First-time setup (pulls local models via Ollama)
 sunwell setup
+
+# See the difference in 2 minutes
+sunwell demo
 
 # Just tell it what you want
 sunwell "Build a REST API with auth"
@@ -341,6 +348,7 @@ The Naaru emerges when refracted wavelengths recombine. It's not a component you
 | `sunwell "goal"` | Execute a goal with the AI agent |
 | `sunwell "goal" --plan` | Show the plan without executing |
 | `sunwell "goal" --lens coder` | Execute with specific expertise lens |
+| `sunwell demo` | See the Prism Principle in action (< 2 min) |
 | `sunwell chat` | Interactive conversation mode |
 | `sunwell setup` | First-time configuration |
 

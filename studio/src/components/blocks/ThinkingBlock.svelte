@@ -1,5 +1,5 @@
 <!--
-  ThinkingBlock.svelte — Inference Visibility (RFC-081)
+  ThinkingBlock.svelte — Inference Visibility (RFC-081, RFC-097)
   
   Shows real-time feedback during model generation:
   - Token counter with animated progress
@@ -8,6 +8,8 @@
   - Completion indicator
   
   Auto-appears when model is generating, providing "beep boop bop" visibility.
+  
+  RFC-097: Updated to use Holy Light design tokens (no hardcoded colors).
 -->
 <script lang="ts">
   import { spring } from 'svelte/motion';
@@ -104,35 +106,37 @@
 
 <style>
   .thinking-block {
-    background: var(--surface-2, #1a1a2e);
-    border-radius: 12px;
-    padding: 16px;
-    border: 1px solid var(--border, #2d2d44);
-    transition: border-color 0.2s, box-shadow 0.2s;
-    font-family: var(--font-sans, system-ui, sans-serif);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    border: 1px solid var(--border-default);
+    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+    font-family: var(--font-sans);
   }
   
   .thinking-block:not(.complete) {
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
+    box-shadow: var(--glow-gold-subtle);
+    animation: goldPulse 2s ease-in-out infinite;
   }
   
   .thinking-block.complete {
-    border-color: var(--success, #10b981);
+    border-color: var(--success);
+    box-shadow: 0 0 12px rgba(var(--success-rgb), 0.15);
   }
   
   .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
+    margin-bottom: var(--space-3);
   }
   
   .model-indicator {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     font-weight: 600;
-    color: var(--text, #e2e8f0);
+    color: var(--text-primary);
   }
   
   .brain {
@@ -156,32 +160,44 @@
   }
   
   .model-name {
-    font-size: 0.9em;
-    color: var(--text-muted, #94a3b8);
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
   }
   
   .elapsed {
     font-variant-numeric: tabular-nums;
-    font-size: 0.85em;
-    color: var(--text-muted, #94a3b8);
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
   }
   
   .progress-bar {
-    height: 28px;
-    background: var(--surface-3, #252538);
-    border-radius: 8px;
+    height: var(--space-6);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
     overflow: hidden;
     position: relative;
   }
   
   .fill {
     height: 100%;
-    background: linear-gradient(90deg, 
-      var(--primary, #6366f1), 
-      var(--accent, #8b5cf6)
-    );
+    background: var(--gradient-progress);
     transition: width 0.3s ease-out;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
+    position: relative;
+  }
+  
+  /* Shimmer effect on progress bar */
+  .fill::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.1),
+      transparent
+    );
+    animation: shimmer 2s infinite;
   }
   
   .stats {
@@ -190,51 +206,51 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 12px;
-    font-size: 0.85em;
+    padding: 0 var(--space-3);
+    font-size: var(--text-sm);
     font-variant-numeric: tabular-nums;
-    color: var(--text, #e2e8f0);
+    color: var(--text-primary);
     font-weight: 500;
   }
   
   .tps {
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-secondary);
   }
   
   .thinking-preview {
-    margin-top: 12px;
-    padding: 12px;
-    background: var(--surface-1, #0f0f1a);
-    border-radius: 8px;
-    border: 1px solid var(--border, #2d2d44);
+    margin-top: var(--space-3);
+    padding: var(--space-3);
+    background: var(--bg-primary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
   }
   
   .phase-label {
-    font-size: 0.75em;
+    font-size: var(--text-xs);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--text-muted, #94a3b8);
-    margin-bottom: 6px;
+    color: var(--text-tertiary);
+    margin-bottom: var(--space-2);
     font-weight: 600;
   }
   
   .content {
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
-    font-size: 0.85em;
-    color: var(--text-muted, #94a3b8);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
     white-space: pre-wrap;
     word-break: break-word;
-    line-height: 1.5;
+    line-height: var(--leading-relaxed);
     max-height: 80px;
     overflow: hidden;
   }
   
   .complete-indicator {
-    margin-top: 12px;
+    margin-top: var(--space-3);
     display: flex;
     align-items: center;
-    gap: 8px;
-    color: var(--success, #10b981);
+    gap: var(--space-2);
+    color: var(--success);
     font-weight: 600;
   }
   
@@ -247,8 +263,8 @@
   }
   
   .ttft {
-    font-size: 0.8em;
-    color: var(--text-muted, #94a3b8);
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
     font-weight: normal;
     font-variant-numeric: tabular-nums;
   }

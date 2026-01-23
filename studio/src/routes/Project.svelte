@@ -33,8 +33,8 @@
   let selectedFile = $state<{ path: string; name: string; content: string } | null>(null);
   let isLoadingPreview = $state(false);
   
-  // View tabs state (RFC-079: default to overview)
-  let activeTab = $state<string>('overview');
+  // View tabs state: default to progress (where agent work happens)
+  let activeTab = $state<string>(ViewTab.PROGRESS);
   let isLoadingDag = $state(false);
   let dagError = $state<string | null>(null);
   
@@ -369,7 +369,7 @@
     flex-direction: column;
     height: 100vh;
     padding: var(--space-6);
-    overflow: hidden;
+    /* Removed overflow:hidden - clips dropdown menus */
   }
   
   .goal-section {
@@ -398,7 +398,7 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
-    overflow: hidden;
+    /* Removed overflow:hidden - clips menus; border-radius still works */
   }
   
   .memory-view {

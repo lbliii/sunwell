@@ -10,13 +10,88 @@ Event categories:
 - Execution: Task progress, completion
 - Validation: Gate checks, errors
 - Fix: Auto-repair progress
+
+RFC-097: Events now support optional UI hints for richer frontend rendering.
 """
 
 
 from dataclasses import dataclass, field
 from enum import Enum
 from time import time
-from typing import Any, TypedDict
+from typing import Any, Literal, TypedDict
+
+# =============================================================================
+# RFC-097: Event UI Hints
+# =============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class EventUIHints:
+    """UI rendering hints for frontend (RFC-097).
+
+    Optional hints that help the frontend render events more richly.
+    These are suggestions — the frontend may ignore them.
+
+    Example:
+        >>> hints = EventUIHints(icon="⚡", severity="info", progress=0.5)
+        >>> hints.to_dict()
+        {'icon': '⚡', 'severity': 'info', 'progress': 0.5, ...}
+    """
+
+    icon: str | None = None
+    """Suggested icon (emoji or icon name)."""
+
+    severity: Literal["info", "warning", "error", "success"] = "info"
+    """Visual severity for styling."""
+
+    progress: float | None = None
+    """Progress indicator (0.0-1.0) if known."""
+
+    dismissible: bool = True
+    """Whether user can dismiss this notification."""
+
+    highlight_code: bool = False
+    """Whether code in data should be syntax highlighted."""
+
+    animation: str | None = None
+    """Suggested animation: 'pulse', 'fade-in', 'shake', 'shimmer'."""
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to JSON-serializable dict, omitting None values."""
+        result: dict[str, Any] = {"severity": self.severity, "dismissible": self.dismissible}
+        if self.icon is not None:
+            result["icon"] = self.icon
+        if self.progress is not None:
+            result["progress"] = self.progress
+        if self.highlight_code:
+            result["highlight_code"] = True
+        if self.animation is not None:
+            result["animation"] = self.animation
+        return result
+
+
+# Default UI hints for common event types
+_DEFAULT_UI_HINTS: dict[str, EventUIHints] = {
+    "task_start": EventUIHints(icon="⚡", severity="info", animation="pulse"),
+    "task_complete": EventUIHints(icon="✓", severity="success", animation="fade-in"),
+    "task_failed": EventUIHints(icon="✗", severity="error", animation="shake"),
+    "error": EventUIHints(icon="✗", severity="error", dismissible=False, animation="shake"),
+    "complete": EventUIHints(icon="✨", severity="success", animation="fade-in"),
+    "model_start": EventUIHints(icon="🧠", severity="info", animation="pulse"),
+    "model_tokens": EventUIHints(icon="🧠", severity="info"),
+    "model_thinking": EventUIHints(icon="💭", severity="info", animation="pulse"),
+    "model_complete": EventUIHints(icon="✓", severity="success"),
+    "gate_pass": EventUIHints(icon="✓", severity="success"),
+    "gate_fail": EventUIHints(icon="✗", severity="error"),
+    "fix_start": EventUIHints(icon="🔧", severity="warning", animation="pulse"),
+    "fix_complete": EventUIHints(icon="✓", severity="success"),
+    "security_violation": EventUIHints(
+        icon="🛡️", severity="error", dismissible=False, animation="shake"
+    ),
+    "security_approval_requested": EventUIHints(
+        icon="🔐", severity="warning", dismissible=False
+    ),
+}
 
 # =============================================================================
 # RFC-090: Plan Transparency Types
@@ -306,6 +381,8 @@ class AgentEvent:
     Events are yielded as the agent works, enabling real-time progress
     display. Each event has a type, associated data, and timestamp.
 
+    RFC-097: Events now support optional UI hints for richer frontend rendering.
+
     Example:
         >>> event = AgentEvent(EventType.TASK_START, {"task_id": "UserModel"})
         >>> print(f"{event.type.value}: {event.data}")
@@ -321,21 +398,50 @@ class AgentEvent:
     timestamp: float = field(default_factory=time)
     """Unix timestamp when event was created."""
 
+    ui_hints: EventUIHints | None = None
+    """Optional UI rendering hints (RFC-097)."""
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
-        return {
+        result = {
             "type": self.type.value,
             "data": self.data,
             "timestamp": self.timestamp,
         }
+        # RFC-097: Include UI hints if present, or use defaults
+        hints = self.ui_hints or _DEFAULT_UI_HINTS.get(self.type.value)
+        if hints:
+            result["ui_hints"] = hints.to_dict()
+        return result
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> AgentEvent:
         """Create from dict."""
+        ui_hints = None
+        if "ui_hints" in data:
+            hints_data = data["ui_hints"]
+            ui_hints = EventUIHints(
+                icon=hints_data.get("icon"),
+                severity=hints_data.get("severity", "info"),
+                progress=hints_data.get("progress"),
+                dismissible=hints_data.get("dismissible", True),
+                highlight_code=hints_data.get("highlight_code", False),
+                animation=hints_data.get("animation"),
+            )
         return cls(
             type=EventType(data["type"]),
             data=data.get("data", {}),
             timestamp=data.get("timestamp", time()),
+            ui_hints=ui_hints,
+        )
+
+    def with_ui_hints(self, hints: EventUIHints) -> AgentEvent:
+        """Return a new event with the given UI hints."""
+        return AgentEvent(
+            type=self.type,
+            data=self.data,
+            timestamp=self.timestamp,
+            ui_hints=hints,
         )
 
     def __str__(self) -> str:

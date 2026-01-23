@@ -34,6 +34,13 @@
         "@tauri-apps/api": "^2.0.0",
         "@types/dagre": "^0.7.53",
         "@use-gesture/vanilla": "^10.3.1",
-        "dagre": "^0.8.5"
+        "dagre": "^0.8.5",
+        "shiki": "^1.0.0"
+    },
+    "optionalDependencies": {
+        "@codemirror/lang-yaml": "^6.0.0",
+        "@codemirror/state": "^6.0.0",
+        "@codemirror/view": "^6.0.0",
+        "codemirror": "^6.0.0"
     }
 }

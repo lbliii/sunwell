@@ -53,7 +53,7 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: #1a1a1a;
+    background: var(--bg-primary);
     border-radius: var(--radius-md);
     overflow: hidden;
     font-family: var(--font-mono);
@@ -63,12 +63,13 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--spacing-xs) var(--spacing-sm);
-    background: #2a2a2a;
+    padding: var(--space-1) var(--space-2);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-subtle);
   }
   
   .terminal-title {
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: var(--text-secondary);
   }
   
@@ -81,15 +82,15 @@
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background: #444;
+    background: var(--bg-tertiary);
   }
   
   .terminal-output {
     flex: 1;
-    padding: var(--spacing-sm);
+    padding: var(--space-2);
     overflow-y: auto;
-    font-size: 0.875rem;
-    color: #0f0;
+    font-size: var(--text-sm);
+    color: var(--success); /* Terminal green */
   }
   
   .output-line {
@@ -100,22 +101,26 @@
   .terminal-input {
     display: flex;
     align-items: center;
-    gap: var(--spacing-xs);
-    padding: var(--spacing-sm);
-    border-top: 1px solid #333;
+    gap: var(--space-1);
+    padding: var(--space-2);
+    border-top: 1px solid var(--border-subtle);
   }
   
   .prompt {
-    color: #0f0;
+    color: var(--success); /* Terminal green */
   }
   
   .terminal-input input {
     flex: 1;
     background: transparent;
     border: none;
-    color: #0f0;
+    color: var(--success); /* Terminal green */
     font-family: inherit;
-    font-size: 0.875rem;
+    font-size: var(--text-sm);
     outline: none;
+  }
+  
+  .terminal-input input::placeholder {
+    color: var(--text-tertiary);
   }
 </style>

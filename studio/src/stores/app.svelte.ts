@@ -29,6 +29,9 @@ export const app = {
   get isLibrary() { return _route === Route.LIBRARY; },
   get isInterface() { return _route === Route.INTERFACE; },
   get isWriter() { return _route === Route.WRITER; },
+  get isDemo() { return _route === Route.DEMO; },
+  get isProjects() { return _route === Route.PROJECTS; },
+  get isEvaluation() { return _route === Route.EVALUATION; },
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -67,6 +70,18 @@ export function goToInterface(): void {
 export function goToWriter(filePath?: string, lens?: string): void {
   _route = Route.WRITER;
   _params = { filePath, lens };
+}
+
+export function goToDemo(): void {
+  _route = Route.DEMO;
+}
+
+export function goToProjects(): void {
+  _route = Route.PROJECTS;
+}
+
+export function goToEvaluation(): void {
+  _route = Route.EVALUATION;
 }
 
 export function setInitialized(value = true): void {

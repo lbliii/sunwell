@@ -151,24 +151,24 @@
   }
 
   .menu-content {
-    background: var(--surface-2, #1a1a2e);
-    border: 1px solid var(--border, #333);
-    border-radius: 8px;
-    padding: 8px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
-    font-size: 11px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: var(--space-2);
+    box-shadow: var(--shadow-lg);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
     min-width: 200px;
     max-width: 300px;
   }
 
   .selection-preview {
-    padding: 6px 8px;
-    background: var(--surface-1, #0f0f1a);
-    border-radius: 4px;
-    color: var(--text-muted, #888);
-    font-size: 10px;
-    margin-bottom: 8px;
+    padding: var(--space-1) var(--space-2);
+    background: var(--bg-primary);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    margin-bottom: var(--space-2);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -177,41 +177,42 @@
   .actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
-    margin-bottom: 8px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--border, #333);
+    gap: var(--space-1);
+    margin-bottom: var(--space-2);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border-subtle);
   }
 
   .action-btn {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 8px;
-    background: var(--surface-3, #252547);
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    background: var(--bg-tertiary);
     border: none;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
     font-family: inherit;
     font-size: inherit;
-    color: var(--text, #fff);
-    transition: all 0.15s ease;
+    color: var(--text-primary);
+    transition: all var(--transition-fast);
   }
 
   .action-btn:hover {
-    background: var(--accent, #6366f1);
+    background: var(--accent-hover);
   }
 
   .action-btn:first-child {
-    background: var(--accent, #6366f1);
+    background: var(--ui-gold);
+    color: var(--bg-primary);
   }
 
   .action-btn:first-child:hover {
-    background: var(--accent-hover, #4f46e5);
+    background: var(--ui-gold-soft);
   }
 
   .action-icon {
-    font-size: 12px;
+    font-size: var(--text-xs);
   }
 
   .action-label {
@@ -220,7 +221,7 @@
 
   .secondary-actions {
     display: flex;
-    gap: 4px;
+    gap: var(--space-1);
   }
 
   .secondary-btn {
@@ -228,21 +229,21 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
-    padding: 4px 8px;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
     background: transparent;
-    border: 1px solid var(--border, #333);
-    border-radius: 4px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
     cursor: pointer;
     font-family: inherit;
-    font-size: 10px;
-    color: var(--text-muted, #888);
-    transition: all 0.15s ease;
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
   }
 
   .secondary-btn:hover {
-    background: var(--surface-3, #252547);
-    color: var(--text, #fff);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
   }
 
   .arrow {
@@ -254,6 +255,6 @@
     height: 0;
     border-left: 6px solid transparent;
     border-right: 6px solid transparent;
-    border-top: 6px solid var(--surface-2, #1a1a2e);
+    border-top: 6px solid var(--bg-secondary);
   }
 </style>

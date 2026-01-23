@@ -245,34 +245,33 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: var(--bg-primary, #0d0d0d);
-    font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
+    background: var(--bg-primary);
+    font-family: var(--font-sans);
   }
 
   .main-area {
     flex: 1;
     display: flex;
-    overflow: hidden;
+    min-height: 0; /* Removed overflow:hidden - clips selection menus */
   }
 
   .sidebar {
     width: 280px;
-    background: var(--surface-1, #0f0f1a);
-    border-color: var(--border, #333);
+    background: var(--bg-primary);
     overflow-y: auto;
     flex-shrink: 0;
   }
 
   .sidebar.left {
-    border-right: 1px solid var(--border, #333);
+    border-right: 1px solid var(--border-subtle);
   }
 
   .sidebar.right {
-    border-left: 1px solid var(--border, #333);
+    border-left: 1px solid var(--border-subtle);
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 8px;
+    gap: var(--space-2);
+    padding: var(--space-2);
   }
 
   .sidebar-section {
@@ -280,44 +279,45 @@
   }
 
   .sidebar-title {
-    font-size: 10px;
+    font-size: var(--text-xs);
     font-weight: 600;
-    color: var(--text-muted, #888);
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    padding: 12px 12px 8px;
+    padding: var(--space-3) var(--space-3) var(--space-2);
     margin: 0;
   }
 
   .outline-content {
-    padding: 0 4px 12px;
+    padding: 0 var(--space-1) var(--space-3);
   }
 
   .outline-item {
     display: block;
     width: 100%;
-    padding: 4px 8px;
+    padding: var(--space-1) var(--space-2);
     background: transparent;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     text-align: left;
     font-family: inherit;
-    font-size: 12px;
-    color: var(--text, #fff);
+    font-size: var(--text-xs);
+    color: var(--text-primary);
     cursor: pointer;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    transition: background var(--transition-fast);
   }
 
   .outline-item:hover {
-    background: var(--surface-3, #252547);
+    background: var(--bg-tertiary);
   }
 
   .outline-empty {
-    padding: 12px;
-    color: var(--text-muted, #666);
-    font-size: 12px;
+    padding: var(--space-3);
+    color: var(--text-tertiary);
+    font-size: var(--text-xs);
     font-style: italic;
   }
 
@@ -326,60 +326,60 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background: var(--bg-primary, #0d0d0d);
+    background: var(--bg-primary);
   }
 
   .prose-editor {
     flex: 1;
     width: 100%;
-    padding: 32px 64px;
+    padding: var(--space-8) var(--space-16);
     background: transparent;
     border: none;
     outline: none;
     resize: none;
-    font-family: var(--font-serif, Georgia, 'Times New Roman', serif);
-    font-size: 18px;
-    line-height: 1.8;
-    color: var(--text, #fff);
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    line-height: var(--leading-relaxed);
+    color: var(--text-primary);
   }
 
   .prose-editor::placeholder {
-    color: var(--text-muted, #666);
+    color: var(--text-tertiary);
   }
 
   .preview-area {
     flex: 1;
-    padding: 32px 64px;
+    padding: var(--space-8) var(--space-16);
     overflow-y: auto;
-    font-family: var(--font-serif, Georgia, 'Times New Roman', serif);
-    font-size: 18px;
-    line-height: 1.8;
-    color: var(--text, #fff);
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    line-height: var(--leading-relaxed);
+    color: var(--text-primary);
   }
 
   .preview-area :global(h1) {
     font-size: 2em;
     margin: 0.5em 0;
-    color: var(--text, #fff);
+    color: var(--text-primary);
   }
 
   .preview-area :global(h2) {
     font-size: 1.5em;
     margin: 0.5em 0;
-    color: var(--text, #fff);
+    color: var(--text-primary);
   }
 
   .preview-area :global(h3) {
     font-size: 1.25em;
     margin: 0.5em 0;
-    color: var(--text, #fff);
+    color: var(--text-primary);
   }
 
   .preview-area :global(code) {
-    background: var(--surface-2, #1a1a2e);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    background: var(--bg-secondary);
+    padding: var(--space-px) var(--space-1);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
     font-size: 0.9em;
   }
 

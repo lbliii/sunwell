@@ -216,11 +216,30 @@ pub async fn get_memory_stats(path: String) -> Result<MemoryStats, String> {
         }
     }
 
-    // Count learnings from intelligence
-    let decisions_path = project_path.join(".sunwell/intelligence/decisions.jsonl");
-    if decisions_path.exists() {
-        if let Ok(content) = std::fs::read_to_string(&decisions_path) {
-            stats.learnings = content.lines().filter(|l| !l.is_empty()).count() as u32;
+    // Count learnings from intelligence (both sources)
+    // Source 1: JSONL format
+    let learnings_jsonl_path = project_path.join(".sunwell/intelligence/learnings.jsonl");
+    if learnings_jsonl_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&learnings_jsonl_path) {
+            stats.learnings += content.lines().filter(|l| !l.is_empty()).count() as u32;
+        }
+    }
+    // Source 2: Naaru format (.sunwell/learnings/*.json)
+    let naaru_learnings_dir = project_path.join(".sunwell/learnings");
+    if naaru_learnings_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&naaru_learnings_dir) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let path = entry.path();
+                if path.extension().map_or(false, |ext| ext == "json") {
+                    if let Ok(content) = std::fs::read_to_string(&path) {
+                        if let Ok(json_array) = parse_json_safe::<serde_json::Value>(&content) {
+                            if let Some(arr) = json_array.as_array() {
+                                stats.learnings += arr.len() as u32;
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 

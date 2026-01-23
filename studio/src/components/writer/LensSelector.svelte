@@ -201,58 +201,59 @@
   }
 
   .lens-selector {
-    background: var(--surface-2, #1a1a2e);
-    border: 1px solid var(--border, #333);
-    border-radius: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
     width: 400px;
     max-height: 500px;
     overflow: hidden;
-    box-shadow: 0 16px 64px rgba(0, 0, 0, 0.5);
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    box-shadow: var(--shadow-lg);
+    font-family: var(--font-mono);
   }
 
   .header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border, #333);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border-subtle);
   }
 
   .title {
     font-weight: 600;
-    font-size: 14px;
-    color: var(--text, #fff);
+    font-size: var(--text-sm);
+    color: var(--text-primary);
   }
 
   .current {
-    font-size: 11px;
-    color: var(--text-muted, #888);
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
   }
 
   .search-container {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border, #333);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border-subtle);
   }
 
   .search-input {
     width: 100%;
-    padding: 8px 12px;
-    background: var(--surface-1, #0f0f1a);
-    border: 1px solid var(--border, #333);
-    border-radius: 6px;
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
     font-family: inherit;
-    font-size: 13px;
-    color: var(--text, #fff);
+    font-size: var(--text-sm);
+    color: var(--text-primary);
     outline: none;
+    transition: border-color var(--transition-fast);
   }
 
   .search-input:focus {
-    border-color: var(--accent, #6366f1);
+    border-color: var(--ui-gold);
   }
 
   .search-input::placeholder {
-    color: var(--text-muted, #666);
+    color: var(--text-tertiary);
   }
 
   .lens-list {
@@ -263,29 +264,29 @@
   .lens-item {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-3);
     width: 100%;
-    padding: 10px 16px;
+    padding: var(--space-2) var(--space-4);
     background: transparent;
     border: none;
     cursor: pointer;
     text-align: left;
     font-family: inherit;
-    color: var(--text, #fff);
-    transition: background 0.1s ease;
+    color: var(--text-primary);
+    transition: background var(--transition-fast);
   }
 
   .lens-item:hover,
   .lens-item.selected {
-    background: var(--surface-3, #252547);
+    background: var(--bg-tertiary);
   }
 
   .lens-item.active {
-    background: rgba(99, 102, 241, 0.2);
+    background: var(--accent-hover);
   }
 
   .lens-icon {
-    font-size: 20px;
+    font-size: var(--text-xl);
     flex-shrink: 0;
   }
 
@@ -297,50 +298,50 @@
   .lens-name {
     display: block;
     font-weight: 500;
-    font-size: 13px;
+    font-size: var(--text-sm);
   }
 
   .lens-description {
     display: block;
-    font-size: 11px;
-    color: var(--text-muted, #888);
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .lens-domain {
-    font-size: 10px;
-    color: var(--text-muted, #666);
-    background: var(--surface-1, #0f0f1a);
-    padding: 2px 6px;
-    border-radius: 4px;
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    background: var(--bg-primary);
+    padding: var(--space-px) var(--space-1);
+    border-radius: var(--radius-sm);
     flex-shrink: 0;
   }
 
   .active-indicator {
-    color: var(--accent, #6366f1);
+    color: var(--text-gold);
     font-weight: bold;
     flex-shrink: 0;
   }
 
   .empty-state {
-    padding: 24px;
+    padding: var(--space-6);
     text-align: center;
-    color: var(--text-muted, #888);
-    font-size: 13px;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
   }
 
   .footer {
     display: flex;
-    gap: 16px;
-    padding: 8px 16px;
-    border-top: 1px solid var(--border, #333);
-    background: var(--surface-1, #0f0f1a);
+    gap: var(--space-4);
+    padding: var(--space-2) var(--space-4);
+    border-top: 1px solid var(--border-subtle);
+    background: var(--bg-primary);
   }
 
   .hint {
-    font-size: 10px;
-    color: var(--text-muted, #666);
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
   }
 </style>

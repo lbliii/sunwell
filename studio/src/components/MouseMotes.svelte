@@ -131,10 +131,8 @@
     z-index: 100;
     font-size: var(--size);
     line-height: 1;
-    color: #ffd700;
-    text-shadow: 
-      0 0 4px rgba(255, 215, 0, 0.9),
-      0 0 8px rgba(255, 215, 0, 0.5);
+    color: var(--ui-gold);
+    text-shadow: var(--glow-gold-intense);
     animation: mouseMoteFade var(--duration) ease-out forwards;
     transform: translate(-50%, -50%);
   }

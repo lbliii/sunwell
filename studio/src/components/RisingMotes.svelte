@@ -70,11 +70,8 @@
     bottom: 0;
     font-size: calc(14px * var(--size-mult, 1));
     line-height: 1;
-    color: #ffd700;
-    text-shadow: 
-      0 0 6px rgba(255, 215, 0, 0.9),
-      0 0 12px rgba(255, 215, 0, 0.6),
-      0 0 20px rgba(255, 215, 0, 0.3);
+    color: var(--ui-gold);
+    text-shadow: var(--glow-gold-intense);
     opacity: 0; /* Start invisible until animation begins */
     animation: riseMote 3.5s ease-out infinite backwards;
     will-change: transform, opacity;
@@ -87,18 +84,13 @@
   /* Subtle intensity - smaller, gentler glow */
   .subtle .mote {
     font-size: calc(10px * var(--size-mult, 1));
-    text-shadow: 
-      0 0 3px rgba(255, 215, 0, 0.7),
-      0 0 6px rgba(255, 215, 0, 0.4);
+    text-shadow: var(--glow-gold-subtle);
   }
   
   /* Intense intensity - larger, stronger glow */
   .intense .mote {
     font-size: calc(18px * var(--size-mult, 1));
-    text-shadow: 
-      0 0 8px rgba(255, 215, 0, 1),
-      0 0 16px rgba(255, 215, 0, 0.7),
-      0 0 32px rgba(255, 215, 0, 0.4);
+    text-shadow: var(--glow-gold-intense);
   }
   
   @keyframes riseMote {

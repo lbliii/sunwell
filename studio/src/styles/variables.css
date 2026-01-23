@@ -121,15 +121,27 @@
   --success: #22c55e;
   --success-muted: #166534;
   --success-rgb: 34, 197, 94;
+  --success-bg: rgba(34, 197, 94, 0.1);
   --warning: #eab308;
   --warning-muted: #854d0e;
   --warning-rgb: 234, 179, 8;
+  --warning-bg: rgba(234, 179, 8, 0.1);
   --error: #ef4444;
   --error-muted: #991b1b;
   --error-rgb: 239, 68, 68;
+  --error-bg: rgba(239, 68, 68, 0.1);
   --info: #3b82f6;
   --info-muted: #1e40af;
   --info-rgb: 59, 130, 246;
+  --info-bg: rgba(59, 130, 246, 0.1);
+  
+  /* Extended accent colors for categories/tags */
+  --accent-pink: #f472b6;
+  --accent-pink-bg: rgba(244, 114, 182, 0.2);
+  --accent-purple: #a78bfa;
+  --accent-purple-bg: rgba(167, 139, 250, 0.2);
+  --accent-orange: #fb923c;
+  --accent-orange-bg: rgba(251, 146, 60, 0.2);
   
   /* ═══════════════════════════════════════════════════════════════
      TYPOGRAPHY
@@ -224,6 +236,38 @@
   
   --panel-padding: var(--space-4);
   --panel-gap: var(--space-4);
+  
+  /* ═══════════════════════════════════════════════════════════════
+     LENS-SPECIFIC TOKENS (RFC-100)
+     ═══════════════════════════════════════════════════════════════ */
+  --lens-power-low: var(--ui-gold-pale);
+  --lens-power-medium: var(--ui-gold-soft);
+  --lens-power-high: var(--ui-gold);
+  
+  /* Animation timing */
+  --card-stagger: 50ms;
+  --preview-delay: 300ms;
+  --mote-duration: 800ms;
+  
+  /* Skeleton */
+  --skeleton-base: var(--bg-tertiary);
+  --skeleton-highlight: var(--bg-secondary);
+  
+  /* ═══════════════════════════════════════════════════════════════
+     SYNTAX HIGHLIGHTING (Holy Light theme) — RFC-097
+     ═══════════════════════════════════════════════════════════════ */
+  --syntax-keyword: #c9a227;      /* Gold — control flow (if, def, return) */
+  --syntax-function: #e8c84a;     /* Bright gold — callable names */
+  --syntax-string: #a8d4a0;       /* Soft green — string literals */
+  --syntax-number: #f0b866;       /* Warm amber — numeric literals */
+  --syntax-comment: #525252;      /* Tertiary — faded comments */
+  --syntax-type: #d4b046;         /* Gold text — type annotations */
+  --syntax-builtin: #7eb8da;      /* Cool blue — builtins (contrast accent) */
+  --syntax-decorator: #b8a0d4;    /* Soft purple — decorators */
+  --syntax-variable: #e5e5e5;     /* Primary text — variables */
+  --syntax-punctuation: #a8a8a8;  /* Secondary — brackets, commas */
+  --syntax-operator: #c9a227;     /* Gold — operators */
+  --syntax-property: #e5e5e5;     /* Primary text — object properties */
 }
 
 /* ═══════════════════════════════════════════════════════════════

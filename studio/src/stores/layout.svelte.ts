@@ -3,7 +3,8 @@
  */
 
 import { LayoutType } from '$lib/constants';
-import type { LayoutType as LayoutTypeValue, ProjectType } from '$lib/types';
+import type { LayoutType as LayoutTypeValue } from '$lib/constants';
+import type { ProjectType } from '$lib/types';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES

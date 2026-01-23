@@ -3,7 +3,7 @@
  */
 
 // App state
-export { app, navigate, goHome, goToProject, goToPreview, goToPlanning, goToLibrary, goToInterface, goToWriter, setInitialized } from './app.svelte';
+export { app, navigate, goHome, goToProject, goToProjects, goToPreview, goToPlanning, goToLibrary, goToInterface, goToWriter, goToEvaluation, setInitialized } from './app.svelte';
 
 // Agent state
 export { agent, runGoal, stopAgent, resetAgent, handleAgentEvent } from './agent.svelte';
@@ -332,3 +332,56 @@ export {
   type ModelProvider,
   type Settings,
 } from './settings.svelte';
+
+// Project Manager state (RFC-096)
+export {
+  projectManager,
+  getFilteredProjects,
+  getProjectStats,
+  isSelected,
+  loadProjects,
+  selectProject,
+  toggleSelection,
+  selectAll,
+  clearSelection,
+  openProjectAction,
+  resumeProjectAction,
+  iterateProjectAction,
+  archiveProject as archiveProjectFromManager,
+  deleteProject as deleteProjectFromManager,
+  archiveSelected,
+  deleteSelected,
+  setFilter as setProjectFilter,
+  setSort as setProjectSort,
+  toggleSortDirection as toggleProjectSortDirection,
+  setSearch as setProjectSearch,
+  setSearchImmediate as setProjectSearchImmediate,
+  showDetail,
+  backToList as backToProjectList,
+  setFocusedIndex,
+  focusUp,
+  focusDown,
+  clearError as clearProjectManagerError,
+  resetManager,
+  type ProjectView,
+  type ProjectSort,
+  type ProjectFilter,
+} from './projectManager.svelte';
+
+// Evaluation state (RFC-098)
+export {
+  evaluation,
+  loadTasks as loadEvalTasks,
+  loadHistory as loadEvalHistory,
+  loadStats as loadEvalStats,
+  setTask as setEvalTask,
+  setModel as setEvalModel,
+  setLens as setEvalLens,
+  runEvaluation,
+  reset as resetEvaluation,
+  type EvalTask,
+  type EvalPhase,
+  type EvalStats,
+  type EvaluationRun,
+  type FullStackScore,
+} from './evaluation.svelte';

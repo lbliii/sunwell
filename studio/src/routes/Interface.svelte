@@ -162,7 +162,7 @@
 		flex-direction: column;
 		min-height: 100vh;
 		position: relative;
-		overflow: hidden;
+		/* Removed overflow:hidden - clips dropdown menus */
 	}
 
 	.background-aura {

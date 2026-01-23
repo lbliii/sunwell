@@ -141,6 +141,156 @@ pub struct AgentEvent {
     pub event_type: String,
     pub data: serde_json::Value,
     pub timestamp: f64,
+    /// RFC-097: Optional UI hints from Python
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ui_hints: Option<serde_json::Value>,
+}
+
+/// RFC-097: UI rendering hints for frontend.
+///
+/// These hints help the frontend render events more richly with
+/// appropriate icons, colors, and animations.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UIHints {
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub icon: Option<String>,
+    #[serde(default = "default_severity")]
+    pub severity: String,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub animation: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub progress: Option<f64>,
+}
+
+fn default_severity() -> String {
+    "info".into()
+}
+
+impl UIHints {
+    /// Create UI hints based on event type.
+    ///
+    /// If the Python event already includes ui_hints, those are used.
+    /// Otherwise, Rust provides sensible defaults based on event_type.
+    pub fn from_event(event: &AgentEvent) -> Self {
+        // If Python already provided hints, use them
+        if let Some(hints) = &event.ui_hints {
+            if let Ok(parsed) = serde_json::from_value::<UIHints>(hints.clone()) {
+                return parsed;
+            }
+        }
+
+        // Otherwise, provide Rust-side defaults
+        match event.event_type.as_str() {
+            "task_start" => UIHints {
+                icon: Some("⚡".into()),
+                severity: "info".into(),
+                animation: Some("pulse".into()),
+                progress: None,
+            },
+            "task_complete" => UIHints {
+                icon: Some("✓".into()),
+                severity: "success".into(),
+                animation: Some("fade-in".into()),
+                progress: Some(1.0),
+            },
+            "task_failed" | "error" => UIHints {
+                icon: Some("✗".into()),
+                severity: "error".into(),
+                animation: Some("shake".into()),
+                progress: None,
+            },
+            "model_start" | "model_tokens" | "model_thinking" | "model_heartbeat" => UIHints {
+                icon: Some("🧠".into()),
+                severity: "info".into(),
+                animation: Some("pulse".into()),
+                progress: None,
+            },
+            "model_complete" => UIHints {
+                icon: Some("🧠".into()),
+                severity: "success".into(),
+                animation: Some("fade-in".into()),
+                progress: Some(1.0),
+            },
+            "gate_pass" | "validate_pass" => UIHints {
+                icon: Some("✓".into()),
+                severity: "success".into(),
+                animation: None,
+                progress: None,
+            },
+            "gate_fail" | "validate_error" => UIHints {
+                icon: Some("✗".into()),
+                severity: "error".into(),
+                animation: Some("shake".into()),
+                progress: None,
+            },
+            "fix_start" => UIHints {
+                icon: Some("🔧".into()),
+                severity: "warning".into(),
+                animation: Some("pulse".into()),
+                progress: None,
+            },
+            "fix_complete" => UIHints {
+                icon: Some("✓".into()),
+                severity: "success".into(),
+                animation: Some("fade-in".into()),
+                progress: None,
+            },
+            "complete" => UIHints {
+                icon: Some("✨".into()),
+                severity: "success".into(),
+                animation: Some("fade-in".into()),
+                progress: Some(1.0),
+            },
+            "security_violation" => UIHints {
+                icon: Some("🛡️".into()),
+                severity: "error".into(),
+                animation: Some("shake".into()),
+                progress: None,
+            },
+            "security_approval_requested" => UIHints {
+                icon: Some("🔐".into()),
+                severity: "warning".into(),
+                animation: None,
+                progress: None,
+            },
+            "plan_winner" | "plan_expanded" => UIHints {
+                icon: Some("📋".into()),
+                severity: "info".into(),
+                animation: Some("fade-in".into()),
+                progress: None,
+            },
+            "memory_learning" => UIHints {
+                icon: Some("💡".into()),
+                severity: "info".into(),
+                animation: Some("pulse".into()),
+                progress: None,
+            },
+            _ => UIHints::default(),
+        }
+    }
+}
+
+impl Default for UIHints {
+    fn default() -> Self {
+        Self {
+            icon: None,
+            severity: default_severity(),
+            animation: None,
+            progress: None,
+        }
+    }
+}
+
+/// RFC-097: UI-enriched event for frontend.
+///
+/// Wraps the raw AgentEvent with computed UI hints for richer rendering.
+#[derive(Debug, Clone, Serialize)]
+pub struct UIEvent {
+    /// The original event data
+    #[serde(flatten)]
+    pub event: AgentEvent,
+    /// Computed UI hints (from Python or Rust defaults)
+    pub ui: UIHints,
 }
 
 /// Manages the agent subprocess.
@@ -262,8 +412,13 @@ impl AgentBridge {
 
                         match parse_json_safe::<AgentEvent>(&json_line) {
                             Ok(event) => {
-                                // Emit event to frontend
-                                let _ = app.emit("agent-event", &event);
+                                // RFC-097: Wrap event with UI hints for richer frontend rendering
+                                let ui_event = UIEvent {
+                                    ui: UIHints::from_event(&event),
+                                    event: event.clone(),
+                                };
+                                // Emit enriched event to frontend
+                                let _ = app.emit("agent-event", &ui_event);
 
                                 // Check if this is a terminal event
                                 if event.event_type == "complete" || event.event_type == "error" {
@@ -367,7 +522,12 @@ impl AgentBridge {
 
                         match parse_json_safe::<AgentEvent>(&json_line) {
                             Ok(event) => {
-                                let _ = app.emit("agent-event", &event);
+                                // RFC-097: Wrap event with UI hints
+                                let ui_event = UIEvent {
+                                    ui: UIHints::from_event(&event),
+                                    event: event.clone(),
+                                };
+                                let _ = app.emit("agent-event", &ui_event);
 
                                 if event.event_type == "complete" || event.event_type == "error" {
                                     running.store(false, Ordering::SeqCst);
@@ -471,8 +631,13 @@ impl AgentBridge {
 
                         match parse_json_safe::<AgentEvent>(&json_line) {
                             Ok(event) => {
-                                // Emit event to frontend
-                                let _ = app.emit("agent-event", &event);
+                                // RFC-097: Wrap event with UI hints
+                                let ui_event = UIEvent {
+                                    ui: UIHints::from_event(&event),
+                                    event: event.clone(),
+                                };
+                                // Emit enriched event to frontend
+                                let _ = app.emit("agent-event", &ui_event);
 
                                 // Check if this is a terminal event
                                 if event.event_type == "complete" || event.event_type == "error" {

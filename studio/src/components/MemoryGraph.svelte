@@ -40,19 +40,19 @@
     { x: 45, y: 50 },   // center
   ];
   
-  // Color by relation type - muted, cohesive palette
+  // Color by relation type - Holy Light palette
   const RELATION_COLORS: Record<RelationType, string> = {
-    elaborates: '#60a5fa',   // blue
-    summarizes: '#818cf8',   // indigo
-    exemplifies: '#a78bfa',  // purple
-    contradicts: '#ef4444',  // red
-    supports: '#34d399',     // green
-    qualifies: '#fbbf24',    // amber
-    depends_on: '#f472b6',   // pink
-    supersedes: '#fb923c',   // orange
-    relates_to: '#94a3b8',   // slate
-    follows: '#67e8f9',      // cyan
-    updates: '#a3e635',      // lime
+    elaborates: 'var(--ui-gold)',       // gold (primary)
+    summarizes: 'var(--ui-gold-soft)',  // soft gold
+    exemplifies: 'var(--text-gold)',    // bright gold
+    contradicts: 'var(--error)',        // error red
+    supports: 'var(--success)',         // success green
+    qualifies: 'var(--warning)',        // warning amber
+    depends_on: 'var(--info)',          // info blue
+    supersedes: 'var(--warning)',       // amber
+    relates_to: 'var(--text-secondary)', // muted
+    follows: 'var(--info)',             // info
+    updates: 'var(--success)',          // success
   };
   
   // Load graph when project path changes

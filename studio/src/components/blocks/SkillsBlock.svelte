@@ -130,28 +130,29 @@
 
 <style>
   .skills-block {
-    background: var(--surface-2, #1a1a2e);
-    border-radius: 8px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
     overflow: hidden;
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
-    font-size: 12px;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
   }
 
   .header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: var(--surface-3, #252547);
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-tertiary);
     cursor: pointer;
     border: none;
     width: 100%;
     text-align: left;
     color: inherit;
+    transition: background var(--transition-fast);
   }
 
   .header:hover {
-    background: var(--surface-4, #2d2d5a);
+    background: var(--accent-hover);
   }
 
   .title {
@@ -160,76 +161,77 @@
 
   .lens-name {
     flex: 1;
-    color: var(--text-muted, #888);
-    font-size: 10px;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
   }
 
   .count {
-    background: var(--surface-1, #0f0f1a);
-    padding: 2px 6px;
-    border-radius: 10px;
-    font-size: 10px;
-    color: var(--text-muted, #888);
+    background: var(--bg-primary);
+    padding: var(--space-px) var(--space-1);
+    border-radius: var(--radius-full);
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
   }
 
   .toggle {
-    color: var(--text-muted, #888);
-    font-size: 10px;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
   }
 
   .content {
-    padding: 8px;
+    padding: var(--space-2);
   }
 
   .recent-section {
-    padding-bottom: 8px;
-    margin-bottom: 8px;
-    border-bottom: 1px solid var(--border, #333);
+    padding-bottom: var(--space-2);
+    margin-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border-subtle);
   }
 
   .label {
-    color: var(--text-muted, #888);
-    font-size: 10px;
-    margin-bottom: 4px;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    margin-bottom: var(--space-1);
     display: block;
   }
 
   .recent-skills {
     display: flex;
-    gap: 4px;
+    gap: var(--space-1);
     flex-wrap: wrap;
   }
 
   .skill-chip {
-    background: var(--accent, #6366f1);
-    color: white;
+    background: var(--ui-gold);
+    color: var(--bg-primary);
     border: none;
-    border-radius: 12px;
-    padding: 4px 10px;
-    font-size: 11px;
+    border-radius: var(--radius-full);
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--text-xs);
     cursor: pointer;
     font-family: inherit;
+    transition: background var(--transition-fast);
   }
 
   .skill-chip:hover {
-    background: var(--accent-hover, #4f46e5);
+    background: var(--ui-gold-soft);
   }
 
   .categories {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--space-3);
   }
 
   .category {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--space-1);
   }
 
   .category-name {
-    font-size: 10px;
-    color: var(--text-muted, #888);
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
@@ -237,41 +239,42 @@
   .category-skills {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--space-px);
   }
 
   .skill-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 4px 8px;
-    border-radius: 4px;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
     cursor: pointer;
     border: none;
     background: transparent;
     text-align: left;
     color: inherit;
     width: 100%;
+    transition: background var(--transition-fast);
   }
 
   .skill-row:hover {
-    background: var(--surface-3, #252547);
+    background: var(--bg-tertiary);
   }
 
   .shortcut {
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
-    color: var(--accent, #6366f1);
+    font-family: var(--font-mono);
+    color: var(--text-gold);
     min-width: 48px;
-    font-size: 11px;
+    font-size: var(--text-xs);
   }
 
   .name {
-    color: var(--text, #fff);
+    color: var(--text-primary);
   }
 
   .empty {
-    padding: 16px;
+    padding: var(--space-4);
     text-align: center;
-    color: var(--text-muted, #888);
+    color: var(--text-secondary);
   }
 </style>

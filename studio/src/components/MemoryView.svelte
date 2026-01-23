@@ -167,7 +167,10 @@
           {/each}
         </ul>
       {:else if sectionsOpen.decisions}
-        <p class="empty-message">No decisions recorded yet</p>
+        <div class="empty-hint-box">
+          <p class="empty-message">No decisions yet</p>
+          <p class="empty-context">Records design tradeoffs and architectural choices when the agent weighs multiple options</p>
+        </div>
       {/if}
     </section>
     
@@ -200,7 +203,10 @@
           {/each}
         </ul>
       {:else if sectionsOpen.failures}
-        <p class="empty-message">No failed approaches recorded</p>
+        <div class="empty-hint-box">
+          <p class="empty-message">No failed approaches</p>
+          <p class="empty-context">Appears during debugging when the agent tries approaches that don't work</p>
+        </div>
       {/if}
     </section>
     
@@ -238,7 +244,10 @@
           {/each}
         </ul>
       {:else if sectionsOpen.learnings}
-        <p class="empty-message">No learnings recorded yet</p>
+        <div class="empty-hint-box">
+          <p class="empty-message">No learnings yet</p>
+          <p class="empty-context">Captures completed tasks and patterns discovered during runs</p>
+        </div>
       {/if}
     </section>
     
@@ -269,7 +278,10 @@
           {/each}
         </ul>
       {:else if sectionsOpen.deadEnds}
-        <p class="empty-message">No dead ends recorded</p>
+        <div class="empty-hint-box">
+          <p class="empty-message">No dead ends</p>
+          <p class="empty-context">Tracks abandoned branches when the agent backtracks during exploration</p>
+        </div>
       {/if}
     </section>
   {:else if !stats}
@@ -480,22 +492,34 @@
   }
   
   /* Category colors */
-  .category-framework { background: rgba(96, 165, 250, 0.2); color: #60a5fa; }
-  .category-database { background: rgba(52, 211, 153, 0.2); color: #34d399; }
-  .category-testing { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
-  .category-pattern { background: rgba(167, 139, 250, 0.2); color: #a78bfa; }
-  .category-tool { background: rgba(244, 114, 182, 0.2); color: #f472b6; }
-  .category-language { background: rgba(251, 146, 60, 0.2); color: #fb923c; }
+  .category-framework { background: var(--info-bg); color: var(--info); }
+  .category-database { background: var(--success-bg); color: var(--success); }
+  .category-testing { background: var(--warning-bg); color: var(--warning); }
+  .category-pattern { background: var(--accent-purple-bg); color: var(--accent-purple); }
+  .category-tool { background: var(--accent-pink-bg); color: var(--accent-pink); }
+  .category-language { background: var(--accent-orange-bg); color: var(--accent-orange); }
+  .category-task_completion { background: var(--success-bg); color: var(--success); }
+  .category-code { background: var(--info-bg); color: var(--info); }
   
   /* Empty States */
-  .empty-message {
+  .empty-hint-box {
     padding: var(--space-4);
     text-align: center;
-    color: var(--text-tertiary);
-    font-size: var(--text-sm);
-    font-style: italic;
   }
   
+  .empty-message {
+    color: var(--text-tertiary);
+    font-size: var(--text-sm);
+    margin: 0;
+  }
+  
+  .empty-context {
+    color: var(--text-tertiary);
+    font-size: var(--text-xs);
+    margin: var(--space-1) 0 0 0;
+    opacity: 0.7;
+  }
+
   .empty-state {
     display: flex;
     flex-direction: column;

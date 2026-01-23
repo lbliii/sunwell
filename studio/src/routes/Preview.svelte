@@ -190,7 +190,7 @@
   .footer-nav { display: flex; justify-content: center; gap: var(--space-2); color: var(--text-tertiary); font-size: var(--text-sm); }
   .nav-link { color: var(--text-secondary); transition: color var(--transition-fast); }
   .nav-link:hover { color: var(--text-primary); }
-  .nav-link.stop { color: #ef4444; }
-  .nav-link.stop:hover { color: #f87171; }
+  .nav-link.stop { color: var(--error); }
+  .nav-link.stop:hover { color: var(--error-muted); }
   .nav-sep { color: var(--text-tertiary); }
 </style>

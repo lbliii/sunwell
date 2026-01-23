@@ -2,6 +2,19 @@
  * Component exports — Holy Light Design System
  */
 
+// ═══════════════════════════════════════════════════════════════
+// FORM COMPONENTS — Standardized inputs with Holy Light styling
+// ═══════════════════════════════════════════════════════════════
+export * from './form';
+
+// ═══════════════════════════════════════════════════════════════
+// TYPOGRAPHY — Consistent text components
+// ═══════════════════════════════════════════════════════════════
+export * from './typography';
+
+// ═══════════════════════════════════════════════════════════════
+// CORE COMPONENTS
+// ═══════════════════════════════════════════════════════════════
 export { default as BriefingPanel } from './BriefingPanel.svelte';
 export { default as Button } from './Button.svelte';
 export { default as FileTree } from './FileTree.svelte';
@@ -9,6 +22,9 @@ export { default as FluidInput } from './FluidInput.svelte';
 export { default as InputBar } from './InputBar.svelte';
 export { default as LensLibrary } from './LensLibrary.svelte';
 export { default as Logo } from './Logo.svelte';
+export { default as Modal } from './Modal.svelte';
+export { default as ProjectManager } from './ProjectManager.svelte';
+export * from './project-manager';
 export { default as MemoryView } from './MemoryView.svelte';
 export { default as MemoryGraph } from './MemoryGraph.svelte';
 export { default as ChunkViewer } from './ChunkViewer.svelte';
@@ -20,6 +36,7 @@ export { default as MouseMotes } from './MouseMotes.svelte';
 export { default as ProviderSelector } from './ProviderSelector.svelte';
 export { default as RunButton } from './RunButton.svelte';
 export { default as RunAnalysisView } from './RunAnalysisView.svelte';
+export { default as Tabs } from './Tabs.svelte';
 
 // Surface (RFC-072)
 export { default as Surface } from './Surface.svelte';
@@ -46,3 +63,6 @@ export * from './primitives';
 
 // Writer Environment (RFC-086) — Universal writing surface
 export * from './writer';
+
+// Demo (RFC-095) — The Prism Principle demonstration
+export * from './demo';
