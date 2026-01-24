@@ -147,7 +147,7 @@ class IntelligenceExtractor:
 
             decisions.append({
                 "category": self._infer_category(choice),
-                "question": f"Which option to use?",
+                "question": "Which option to use?",
                 "choice": choice,
                 "rejected": [(rejected_option, rationale)],
                 "rationale": rationale,

@@ -94,7 +94,7 @@ class ExtractedContract:
     # Checksum for quick equality check
     interface_hash: str
 
-    def is_compatible_with(self, other: "ExtractedContract") -> bool:
+    def is_compatible_with(self, other: ExtractedContract) -> bool:
         """Check if another contract is backward-compatible.
 
         All functions in self must exist in other (additions OK).
@@ -131,7 +131,7 @@ class WaveConfidence:
         type_result: bool,
         lint_result: bool,
         contract_result: bool,
-    ) -> "WaveConfidence":
+    ) -> WaveConfidence:
         """Compute confidence from verification results."""
         deductions: list[str] = []
         score = 1.0

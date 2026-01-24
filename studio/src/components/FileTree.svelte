@@ -49,11 +49,9 @@
     try {
       isLoading = true;
       _error = null;
-      const { invoke } = await import('@tauri-apps/api/core');
-      files = await invoke<FileEntry[]>('list_project_files', { 
-        path,
-        maxDepth: 2
-      });
+      const { listProjectFiles } = await import('$lib/socket');
+      const result = await listProjectFiles(path, 2);
+      files = result.files as FileEntry[];
     } catch (e) {
       _error = e instanceof Error ? e.message : String(e);
       files = getDemoFiles();
@@ -101,11 +99,9 @@
     
     try {
       isLoadingFile = true;
-      const { invoke } = await import('@tauri-apps/api/core');
-      fileContent = await invoke<string>('read_file_contents', { 
-        path: file.path,
-        maxSize: 50000
-      });
+      const { apiGet } = await import('$lib/socket');
+      const result = await apiGet<{ content: string }>(`/api/project/file?path=${encodeURIComponent(file.path)}&max_size=50000`);
+      fileContent = result.content;
     } catch (e) {
       fileContent = `// Preview unavailable\n// ${e}`;
     } finally {

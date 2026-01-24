@@ -28,7 +28,6 @@ from sunwell.self.types import (
     SourceLocation,
 )
 
-
 # Known failure patterns with root cause mapping
 KNOWN_FAILURE_PATTERNS: dict[str, dict[str, str]] = {
     "Permission denied": {
@@ -176,7 +175,7 @@ class AnalysisKnowledge:
 
         hotspots = [
             Hotspot(
-                module=f"sunwell.tools.handlers",
+                module="sunwell.tools.handlers",
                 method=tool,
                 errors=count,
                 last_error=datetime.now(),  # Would need actual timestamps

@@ -12,8 +12,8 @@ from typing import Any
 
 import pytest
 
-from sunwell.adaptive.events import AgentEvent, EventType
-from sunwell.adaptive.event_schema import (
+from sunwell.agent.events import AgentEvent, EventType
+from sunwell.agent.event_schema import (
     EVENT_SCHEMAS,
     REQUIRED_FIELDS,
     PlanWinnerData,

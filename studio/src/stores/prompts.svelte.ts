@@ -1,8 +1,11 @@
 /**
  * Saved Prompts Store (Svelte 5 runes)
+ *
+ * RFC-113: Migrated from Tauri invoke to HTTP API.
  */
 
 import type { SavedPrompt } from '$lib/types';
+import { apiGet, apiPost } from '$lib/socket';
 
 // ═══════════════════════════════════════════════════════════════
 // STATE
@@ -30,8 +33,8 @@ export async function loadPrompts(): Promise<void> {
   
   _isLoading = true;
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    _list = await invoke<SavedPrompt[]>('get_saved_prompts');
+    const result = await apiGet<{ prompts: SavedPrompt[] }>('/api/prompts');
+    _list = result.prompts || [];
   } catch (e) {
     console.error('Failed to load saved prompts:', e);
     _list = [];
@@ -42,8 +45,7 @@ export async function loadPrompts(): Promise<void> {
 
 export async function savePrompt(prompt: string): Promise<void> {
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('save_prompt', { prompt });
+    await apiPost('/api/prompts', { prompt });
     await loadPrompts();
   } catch (e) {
     console.error('Failed to save prompt:', e);
@@ -52,8 +54,7 @@ export async function savePrompt(prompt: string): Promise<void> {
 
 export async function removePrompt(prompt: string): Promise<void> {
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('remove_saved_prompt', { prompt });
+    await apiPost('/api/prompts/remove', { prompt });
     await loadPrompts();
   } catch (e) {
     console.error('Failed to remove prompt:', e);

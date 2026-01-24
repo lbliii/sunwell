@@ -2,8 +2,8 @@
 
 Implements the skill schema from RFC-011 Appendix A.
 RFC-087: Skill-Lens DAG extends this with dependency tracking.
+RFC-111: Adds SkillMetadata for progressive disclosure.
 """
-
 
 import re
 from dataclasses import dataclass, field
@@ -64,6 +64,103 @@ class SkillDependency:
 
     def __str__(self) -> str:
         return self.source
+
+
+# =============================================================================
+# RFC-111: Skill Metadata for Progressive Disclosure
+# =============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class SkillMetadata:
+    """Lightweight skill info for routing and DAG construction (RFC-111).
+
+    This is the ONLY thing loaded initially for progressive disclosure.
+    Full instructions are loaded lazily when the skill executes.
+
+    The metadata contains enough information to:
+    1. Build the dependency graph (depends_on, produces, requires)
+    2. Match skills to user intent (name, description, triggers)
+    3. Determine execution order
+
+    Full skill content (instructions, scripts, templates) is loaded
+    only when needed — often never, if results are cached.
+    """
+
+    name: str
+    """Unique skill name."""
+
+    description: str
+    """Human-readable purpose for discovery."""
+
+    skill_type: SkillType
+    """How the skill is defined (inline, reference, local)."""
+
+    # DAG fields (needed for graph construction)
+    depends_on: tuple[SkillDependency, ...] = ()
+    """Skills that must execute before this one."""
+
+    produces: tuple[str, ...] = ()
+    """Context keys this skill produces."""
+
+    requires: tuple[str, ...] = ()
+    """Context keys this skill requires from upstream."""
+
+    triggers: tuple[str, ...] = ()
+    """Keywords/patterns that suggest this skill."""
+
+    # Reference to full skill (lazy loaded)
+    source_path: Path | None = None
+    """Path to load full skill content from."""
+
+    def matches_intent(self, query: str) -> float:
+        """Score how well this skill matches a user intent.
+
+        Returns a score from 0.0 to 1.0 based on:
+        - Name match (0.5)
+        - Trigger match (0.3 per trigger)
+        - Description keyword overlap (0.1 per word)
+        """
+        query_lower = query.lower()
+        score = 0.0
+
+        # Name match
+        if self.name in query_lower:
+            score += 0.5
+
+        # Trigger match
+        for trigger in self.triggers:
+            if trigger.lower() in query_lower:
+                score += 0.3
+
+        # Description keyword match
+        desc_words = set(self.description.lower().split())
+        query_words = set(query_lower.split())
+        overlap = len(desc_words & query_words)
+        score += overlap * 0.1
+
+        return min(score, 1.0)
+
+    @classmethod
+    def from_skill(cls, skill: "Skill") -> "SkillMetadata":
+        """Create metadata from a full Skill object.
+
+        Args:
+            skill: The skill to extract metadata from
+
+        Returns:
+            SkillMetadata with DAG and routing fields
+        """
+        return cls(
+            name=skill.name,
+            description=skill.description,
+            skill_type=skill.skill_type,
+            depends_on=skill.depends_on,
+            produces=skill.produces,
+            requires=skill.requires,
+            triggers=skill.triggers,
+            source_path=Path(skill.path) if skill.path else None,
+        )
 
 
 class TrustLevel(Enum):
@@ -356,7 +453,7 @@ class Skill:
 
         return "\n".join(parts)
 
-    def to_tool(self) -> "Tool":
+    def to_tool(self) -> Tool:
         """Convert this skill to a callable tool (RFC-012).
 
         Returns:

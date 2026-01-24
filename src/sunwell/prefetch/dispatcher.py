@@ -14,10 +14,10 @@ import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.memory.briefing import Briefing, PrefetchPlan, PrefetchedContext
+from sunwell.memory.briefing import Briefing, PrefetchedContext, PrefetchPlan
 
 if TYPE_CHECKING:
-    from sunwell.adaptive.learning import Learning
+    from sunwell.agent.learning import Learning
 
 # Default prefetch timeout (seconds)
 PREFETCH_TIMEOUT = 2.0
@@ -113,7 +113,7 @@ async def execute_prefetch(
 
     try:
         return await asyncio.wait_for(_do_prefetch(), timeout=timeout)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return None
 
 
@@ -138,7 +138,7 @@ async def _load_learnings(
         return ()
 
     try:
-        from sunwell.adaptive.learning import LearningStore
+        from sunwell.agent.learning import LearningStore
 
         store = LearningStore()
         store.load_from_disk(project_path)

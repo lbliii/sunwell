@@ -1,6 +1,8 @@
 /**
  * Briefing Store — manages rolling handoff notes state (RFC-071)
  *
+ * RFC-113: Migrated from Tauri invoke to HTTP API.
+ *
  * The briefing provides instant orientation at session start:
  * - What we're trying to accomplish (mission)
  * - Where we are (status, progress)
@@ -10,6 +12,7 @@
  */
 
 import type { Briefing, BriefingStatus } from '$lib/types';
+import { apiGet, apiPost } from '$lib/socket';
 
 // ═══════════════════════════════════════════════════════════════
 // STATE
@@ -51,8 +54,8 @@ export async function loadBriefing(projectPath: string): Promise<Briefing | null
   try {
     _isLoading = true;
     _error = null;
-    const { invoke } = await import('@tauri-apps/api/core');
-    _briefing = await invoke<Briefing | null>('get_briefing', { path: projectPath });
+    const result = await apiGet<{ briefing: Briefing | null }>(`/api/briefing?path=${encodeURIComponent(projectPath)}`);
+    _briefing = result.briefing;
     return _briefing;
   } catch (e) {
     _error = e instanceof Error ? e.message : String(e);
@@ -65,8 +68,8 @@ export async function loadBriefing(projectPath: string): Promise<Briefing | null
 
 export async function hasBriefing(projectPath: string): Promise<boolean> {
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    return await invoke<boolean>('has_briefing', { path: projectPath });
+    const result = await apiGet<{ exists: boolean }>(`/api/briefing/exists?path=${encodeURIComponent(projectPath)}`);
+    return result.exists;
   } catch {
     return false;
   }
@@ -74,12 +77,11 @@ export async function hasBriefing(projectPath: string): Promise<boolean> {
 
 export async function clearBriefing(projectPath: string): Promise<boolean> {
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    const result = await invoke<boolean>('clear_briefing', { path: projectPath });
-    if (result) {
+    const result = await apiPost<{ success: boolean }>('/api/briefing/clear', { path: projectPath });
+    if (result.success) {
       _briefing = null;
     }
-    return result;
+    return result.success;
   } catch (e) {
     _error = e instanceof Error ? e.message : String(e);
     return false;

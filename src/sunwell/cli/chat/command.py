@@ -8,6 +8,8 @@ from pathlib import Path
 import click
 from rich.console import Console
 from rich.panel import Panel
+from sunwell.spectrum.simulacrum.context.assembler import ContextAssembler
+from sunwell.spectrum.simulacrum.core.store import SimulacrumStore
 
 from sunwell.binding import BindingManager
 from sunwell.cli.helpers import create_model
@@ -17,8 +19,6 @@ from sunwell.embedding import create_embedder
 from sunwell.fount.client import FountClient
 from sunwell.fount.resolver import LensResolver
 from sunwell.schema.loader import LensLoader
-from sunwell.spectrum.simulacrum.context.assembler import ContextAssembler
-from sunwell.spectrum.simulacrum.core.store import SimulacrumStore
 
 console = Console()
 

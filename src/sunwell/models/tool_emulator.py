@@ -19,7 +19,6 @@ from sunwell.models.protocol import (
     ToolCall,
 )
 
-
 # System prompt that teaches the model to use tools via JSON
 # Note: Double braces {{ }} are escaped for .format() - they become single braces
 TOOL_EMULATION_PROMPT = """You have access to tools. When you need to use a tool, output a JSON block:

@@ -14,8 +14,9 @@ import re
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
     from sunwell.spectrum.identity.store import Identity
+
+    from sunwell.models.protocol import ModelProtocol
 
 
 # Constants
@@ -106,8 +107,9 @@ async def digest_identity(
     Returns:
         Updated Identity with synthesized prompt and confidence
     """
-    from sunwell.models.protocol import Message
     from sunwell.spectrum.identity.store import Identity
+
+    from sunwell.models.protocol import Message
 
     if not observations:
         return current_identity or Identity()

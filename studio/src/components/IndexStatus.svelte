@@ -30,7 +30,8 @@
   }
 </script>
 
-<div 
+<button 
+  type="button"
   class="index-status"
   class:ready={indexingStore.isReady}
   class:building={indexingStore.isBuilding}
@@ -39,7 +40,6 @@
   onmouseenter={handleMouseEnter}
   onmouseleave={handleMouseLeave}
   onclick={handleClick}
-  role="status"
   aria-label={indexingStore.statusLabel}
 >
   <span class="icon" class:spinning={indexingStore.isBuilding}>
@@ -55,7 +55,7 @@
       ></div>
     </div>
   {/if}
-</div>
+</button>
 
 {#if showPopover}
   <div class="popover" transition:fade={{ duration: 150 }}>
@@ -134,7 +134,9 @@
     align-items: center;
     gap: 6px;
     padding: 4px 10px;
+    border: none;
     border-radius: 6px;
+    font-family: inherit;
     font-size: 12px;
     font-weight: 500;
     background: var(--bg-tertiary);

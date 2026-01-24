@@ -20,6 +20,7 @@ from sunwell.core.types import LensReference
 from sunwell.embedding import create_embedder
 from sunwell.fount.client import FountClient
 from sunwell.fount.resolver import LensResolver
+from sunwell.runtime.commands import ChatSession, handle_command
 from sunwell.runtime.model_router import ModelRouter
 from sunwell.schema.loader import LensLoader
 from sunwell.simulacrum.core.dag import ConversationDAG
@@ -1397,7 +1398,7 @@ async def _chat_loop(
             if not user_input:
                 continue
 
-            # Handle commands
+            # Handle / commands (built-in chat commands)
             if user_input.startswith("/"):
                 cmd_result = await _handle_chat_command(
                     user_input, dag, store, state,
@@ -1407,6 +1408,24 @@ async def _chat_loop(
                 )
                 if cmd_result == "quit":
                     break
+                continue
+
+            # RFC-107 Phase 3: Handle :: skill shortcuts with full execution
+            if user_input.startswith("::"):
+                # Create ChatSession with model, workspace, and tools
+                skill_session = ChatSession(
+                    lens=lens,
+                    model=state.model,
+                    workspace_root=Path.cwd(),
+                    tool_executor=tool_executor if tools_enabled else None,
+                )
+                is_command, result = await handle_command(user_input, skill_session)
+                if is_command and result:
+                    console.print()
+                    console.print(Markdown(result))
+                    # Add to conversation history for context
+                    dag.add_user_message(user_input)
+                    dag.add_assistant_message(result, model=state.model_name)
                 continue
 
             # RFC-023: Inject identity into system prompt

@@ -37,7 +37,7 @@ class SmartContext:
     3. File listing (quality=0.3) - Minimal, just shows structure
     """
 
-    indexer: "IndexingService | None"
+    indexer: IndexingService | None
     workspace_root: Path
 
     async def get_context(self, query: str, max_chunks: int = 5) -> ContextResult:

@@ -16,13 +16,13 @@ Each entry includes:
 import hashlib
 import hmac
 import json
+from collections.abc import Iterator
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Iterator, Literal, Protocol
+from typing import Any, Literal, Protocol
 
 from sunwell.security.analyzer import PermissionScope
-
 
 # =============================================================================
 # AUDIT ENTRY

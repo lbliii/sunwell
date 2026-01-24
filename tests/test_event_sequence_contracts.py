@@ -21,7 +21,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from sunwell.adaptive.events import AgentEvent, EventType
+from sunwell.agent.events import AgentEvent, EventType
 from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
 from sunwell.naaru.planners.harmonic import CandidateResult, HarmonicPlanner, PlanMetrics
 
@@ -240,35 +240,35 @@ class TestTaskIdRequired:
 
     def test_task_start_requires_task_id(self) -> None:
         """task_start must have task_id field."""
-        from sunwell.adaptive.event_schema import REQUIRED_FIELDS
+        from sunwell.agent.event_schema import REQUIRED_FIELDS
 
         assert EventType.TASK_START in REQUIRED_FIELDS
         assert "task_id" in REQUIRED_FIELDS[EventType.TASK_START]
 
     def test_task_complete_requires_task_id(self) -> None:
         """task_complete must have task_id field."""
-        from sunwell.adaptive.event_schema import REQUIRED_FIELDS
+        from sunwell.agent.event_schema import REQUIRED_FIELDS
 
         assert EventType.TASK_COMPLETE in REQUIRED_FIELDS
         assert "task_id" in REQUIRED_FIELDS[EventType.TASK_COMPLETE]
 
     def test_task_failed_requires_task_id(self) -> None:
         """task_failed must have task_id field."""
-        from sunwell.adaptive.event_schema import REQUIRED_FIELDS
+        from sunwell.agent.event_schema import REQUIRED_FIELDS
 
         assert EventType.TASK_FAILED in REQUIRED_FIELDS
         assert "task_id" in REQUIRED_FIELDS[EventType.TASK_FAILED]
 
     def test_task_progress_requires_task_id(self) -> None:
         """task_progress must have task_id field."""
-        from sunwell.adaptive.event_schema import REQUIRED_FIELDS
+        from sunwell.agent.event_schema import REQUIRED_FIELDS
 
         assert EventType.TASK_PROGRESS in REQUIRED_FIELDS
         assert "task_id" in REQUIRED_FIELDS[EventType.TASK_PROGRESS]
 
     def test_task_events_always_include_task_id(self) -> None:
         """All task events must include task_id in their schema."""
-        from sunwell.adaptive.event_schema import EVENT_SCHEMAS
+        from sunwell.agent.event_schema import EVENT_SCHEMAS
 
         task_events = [
             EventType.TASK_START,

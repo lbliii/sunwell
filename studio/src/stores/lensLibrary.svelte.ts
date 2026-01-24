@@ -5,7 +5,7 @@
  * editing, versioning, and management features.
  */
 
-import { invoke } from '@tauri-apps/api/core';
+import { apiGet, apiPost, apiDelete } from '$lib/socket';
 import type { 
   LensLibraryEntry, 
   LensDetail, 
@@ -156,9 +156,7 @@ export async function loadLibrary(): Promise<void> {
   _state = { ..._state, isLoading: true, error: null };
   
   try {
-    const entries = await invoke<LensLibraryEntry[]>('get_lens_library', {
-      filter: null,
-    });
+    const entries = await apiGet<LensLibraryEntry[]>('/api/lenses/library') ?? [];
     _state = { ..._state, entries, isLoading: false };
   } catch (e) {
     _state = {
@@ -184,10 +182,8 @@ export async function selectLens(entry: LensLibraryEntry): Promise<void> {
   try {
     // Extract slug from path (e.g., "tech-writer" from "/path/to/tech-writer.lens")
     const slug = entry.path.split('/').pop()?.replace('.lens', '') ?? entry.name;
-    const detail = await invoke<LensDetail>('get_lens_detail', { 
-      name: slug 
-    });
-    _state = { ..._state, detail, isLoadingDetail: false };
+    const detail = await apiGet<LensDetail>(`/api/lenses/${encodeURIComponent(slug)}`);
+    _state = { ..._state, detail: detail ?? null, isLoadingDetail: false };
   } catch (e) {
     console.error('Failed to load lens detail:', e);
     _state = { ..._state, detail: null, isLoadingDetail: false };
@@ -210,8 +206,8 @@ export async function openEditor(entry: LensLibraryEntry): Promise<void> {
   try {
     // Get the slug name from path
     const slug = entry.path.split('/').pop()?.replace('.lens', '') ?? entry.name;
-    const content = await invoke<string>('get_lens_content', { name: slug });
-    _state = { ..._state, editorContent: content, isLoadingDetail: false };
+    const content = await apiGet<string>(`/api/lenses/${encodeURIComponent(slug)}/content`);
+    _state = { ..._state, editorContent: content ?? null, isLoadingDetail: false };
   } catch (e) {
     console.error('Failed to load lens content:', e);
     _state = {
@@ -240,7 +236,7 @@ export async function saveLens(
     const slug = selectedLens.path
       .split('/').pop()?.replace('.lens', '') ?? selectedLens.name;
     
-    const result = await invoke<SaveResult>('save_lens', {
+    const result = await apiPost<SaveResult>('/api/lenses/save', {
       name: slug,
       content,
       message: message ?? null,
@@ -278,7 +274,7 @@ export async function forkLens(
   _state = { ..._state, isSaving: true, error: null };
   
   try {
-    const result = await invoke<ForkResult>('fork_lens', {
+    const result = await apiPost<ForkResult>('/api/lenses/fork', {
       sourceName,
       newName,
       message: message ?? null,
@@ -310,7 +306,7 @@ export async function forkLens(
 export async function deleteLens(name: string): Promise<boolean> {
   try {
     const slug = name.toLowerCase().replace(/\s+/g, '-');
-    await invoke('delete_lens', { name: slug });
+    await apiDelete(`/api/lenses/${encodeURIComponent(slug)}`);
     
     // Refresh library
     await loadLibrary();
@@ -343,9 +339,7 @@ export async function loadVersions(name: string): Promise<void> {
   
   try {
     const slug = name.toLowerCase().replace(/\s+/g, '-');
-    const versions = await invoke<LensVersionInfo[]>('get_lens_versions', { 
-      name: slug 
-    });
+    const versions = await apiGet<LensVersionInfo[]>(`/api/lenses/${encodeURIComponent(slug)}/versions`) ?? [];
     _state = { ..._state, versions, view: 'versions', isLoadingVersions: false };
   } catch (e) {
     console.error('Failed to load versions:', e);
@@ -359,7 +353,7 @@ export async function loadVersions(name: string): Promise<void> {
 export async function rollbackLens(name: string, version: string): Promise<boolean> {
   try {
     const slug = name.toLowerCase().replace(/\s+/g, '-');
-    await invoke('rollback_lens', { name: slug, version });
+    await apiPost('/api/lenses/rollback', { name: slug, version });
     
     // Refresh data
     await loadLibrary();
@@ -381,7 +375,7 @@ export async function rollbackLens(name: string, version: string): Promise<boole
  */
 export async function setDefaultLens(name: string | null): Promise<boolean> {
   try {
-    await invoke('set_default_lens', { name });
+    await apiPost('/api/lenses/set-default', { name });
     
     // Update local state
     _state = {
@@ -460,7 +454,7 @@ export async function exportLens(
   format: 'yaml' | 'json' = 'yaml',
 ): Promise<ExportResult | null> {
   try {
-    const result = await invoke<ExportResult>('export_lens', {
+    const result = await apiPost<ExportResult>('/api/lenses/export', {
       name,
       outputPath: outputPath ?? null,
       format,
@@ -482,7 +476,7 @@ export async function exportLens(
  */
 export async function recordLensUsage(name: string): Promise<void> {
   try {
-    await invoke('record_lens_usage', { name });
+    await apiPost('/api/lenses/usage', { name });
   } catch (e) {
     // Non-critical - don't fail if usage tracking fails
     console.warn('Failed to record lens usage:', e);

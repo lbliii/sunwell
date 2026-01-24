@@ -94,7 +94,7 @@ class TestCommandRegistration:
         "config",
         "chat",
         "setup",
-        "skill",
+        # RFC-110: "skill" removed - execution moved to Agent
         "lens",
         "runtime",
         "plan",

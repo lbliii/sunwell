@@ -869,7 +869,7 @@ def diff(ctx, old_lens: str, new_lens: str, json_output: bool) -> None:
         return
 
     # Human-readable output
-    console.print(f"\n🔄 [bold]Permission Diff[/bold]")
+    console.print("\n🔄 [bold]Permission Diff[/bold]")
     console.print(f"   Old: {old_lens}")
     console.print(f"   New: {new_lens}\n")
 

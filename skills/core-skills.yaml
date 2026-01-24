@@ -1,67 +1,69 @@
-# Sunwell Core Skills Library
+# Sunwell Core Skills Library (RFC-111: Skill DAG Activation)
 # These skills can be referenced in any lens via: skills: - include: core-skills
 #
-# Organized by capability:
-# 1. File Operations - Read/write files
-# 2. Code Analysis - Understand codebases
-# 3. Documentation - Generate docs
-# 4. Validation - Check quality
-# 5. Search - Find relevant content
+# Organized by capability layer (DAG structure):
+# Layer 0: Foundation (no dependencies) - read-file, list-workspace
+# Layer 1: Analysis (depends on Layer 0) - extract-api-surface, search-codebase
+# Layer 2: Synthesis (depends on Layer 1) - audit-documentation, create-api-reference
+# Layer 3: Refinement (depends on Layer 2) - fix-documentation-issues
 #
 # RFC-092: All skills declare permissions via presets
+# RFC-087: Skills declare data flow contracts (depends_on, produces, requires)
 
 skills:
   # ============================================================================
-  # FILE OPERATIONS
+  # LAYER 0: FOUNDATION (No Dependencies)
+  # These skills have no dependencies and can run in parallel as Wave 1
   # ============================================================================
   
-  - name: save-document
-    description: Save generated content to a file in the workspace
-    type: inline
-    trust: sandboxed
-    preset: workspace-write
-    instructions: |
-      ## Goal
-      Save content to a file at the specified path.
-      
-      ## Process
-      1. Determine the appropriate file path from context
-      2. Create parent directories if needed
-      3. Write the content with appropriate formatting
-      4. Confirm the file was saved
-      
-      ## Output
-      Confirm with: "Saved to: {path}"
-    validate_with:
-      min_confidence: 0.9
-
-  - name: read-source
-    description: Read and analyze source code files for documentation
+  - name: read-file
+    description: Read a file from the workspace
     type: inline
     trust: sandboxed
     preset: read-only
+    triggers:
+      - read
+      - open
+      - view
+      - file content
+    produces:
+      - file_content
+      - file_path
+      - file_type
+      - file_metadata
     instructions: |
       ## Goal
-      Read source files to extract information for documentation.
+      Read the specified file and return its contents with metadata.
       
       ## Process
-      1. Read the specified file(s)
-      2. Identify key components (functions, classes, types)
-      3. Extract docstrings and comments
-      4. Note file structure and relationships
+      1. Read the file at the specified path
+      2. Detect file type (python, markdown, yaml, etc.)
+      3. Extract metadata (size, line count)
+      4. Return structured output
       
-      ## Output Format
-      Provide structured summary:
-      - File: {path}
-      - Purpose: {description}
-      - Key exports: {list}
-      - Dependencies: {list}
+      ## Output Contract
+      Set the following context keys:
+      - file_content: The raw file contents as string
+      - file_path: Absolute path to the file
+      - file_type: Detected file type (e.g., "python", "markdown")
+      - file_metadata: Dict with {size_bytes, line_count, encoding}
+    validate_with:
+      min_confidence: 0.95
 
   - name: list-workspace
     description: List files and directories in the workspace
     type: inline
     trust: sandboxed
     preset: read-only
+    triggers:
+      - list
+      - files
+      - directory
+      - project structure
+    produces:
+      - file_list
+      - workspace_structure
+      - file_patterns
     instructions: |
       ## Goal
       List files matching a pattern to understand project structure.
@@ -70,6 +72,13 @@ skills:
       1. List files matching the given pattern
       2. Group by directory or type
       3. Identify key files (README, config, entry points)
+      4. Build workspace structure representation
+      
+      ## Output Contract
+      Set the following context keys:
+      - file_list: List of matching file paths (absolute)
+      - workspace_structure: Tree representation as string
+      - file_patterns: Dict mapping patterns to file counts
       
       ## Common Patterns
       - Source: `src/**/*.py`, `lib/**/*.ts`
@@ -77,19 +86,111 @@ skills:
       - Tests: `tests/**/*.py`, `**/*.test.ts`
       - Config: `*.yaml`, `*.json`, `*.toml`
 
+  - name: save-document
+    description: Save generated content to a file in the workspace
+    type: inline
+    trust: sandboxed
+    preset: workspace-write
+    triggers:
+      - save
+      - write
+      - create file
+    requires:
+      - content_to_save
+      - output_path
+    produces:
+      - saved_path
+      - save_result
+    instructions: |
+      ## Goal
+      Save content to a file at the specified path.
+      
+      ## Input Contract
+      Requires from upstream skills:
+      - content_to_save: The content to write
+      - output_path: Where to save the file
+      
+      ## Process
+      1. Validate the output path
+      2. Create parent directories if needed
+      3. Write the content with appropriate formatting
+      4. Confirm the file was saved
+      
+      ## Output Contract
+      Set the following context keys:
+      - saved_path: Absolute path where file was saved
+      - save_result: "success" or error message
+    validate_with:
+      min_confidence: 0.9
+
   # ============================================================================
-  # CODE ANALYSIS
+  # LAYER 1: ANALYSIS (Depends on Layer 0)
+  # These skills depend on foundation skills and can run in Wave 2
   # ============================================================================
   
+  - name: read-source
+    description: Read and analyze source code files for documentation
+    type: inline
+    trust: sandboxed
+    preset: read-only
+    depends_on:
+      - source: read-file
+    requires:
+      - file_content
+      - file_type
+    produces:
+      - source_analysis
+      - exports_list
+      - dependencies_list
+    instructions: |
+      ## Goal
+      Read source files to extract information for documentation.
+      
+      ## Input Contract
+      Requires from upstream:
+      - file_content: Source code content
+      - file_type: Language type for parsing
+      
+      ## Process
+      1. Parse the source code based on file_type
+      2. Identify key components (functions, classes, types)
+      3. Extract docstrings and comments
+      4. Note file structure and relationships
+      
+      ## Output Contract
+      Set the following context keys:
+      - source_analysis: Structured analysis with components
+      - exports_list: Public exports from the module
+      - dependencies_list: External dependencies imported
+
   - name: extract-api-surface
     description: Extract public API from source code modules
     type: inline
     trust: sandboxed
     preset: safe-shell
     compatibility: Python 3.10+ or Node.js 18+
+    triggers:
+      - api
+      - extract
+      - public interface
+    depends_on:
+      - source: read-file
+    requires:
+      - file_content
+      - file_type
+    produces:
+      - api_surface
+      - exports
+      - imports
+      - type_definitions
     instructions: |
       ## Goal
       Extract all public functions, classes, and types from a module.
+      
+      ## Input Contract
+      Requires from upstream:
+      - file_content: Source code to analyze
+      - file_type: Language for parsing (python, typescript, etc.)
       
       ## Process
       1. Parse the source file(s)
@@ -97,6 +198,13 @@ skills:
       3. Extract signatures with type hints
       4. Collect docstrings
       5. Note dependencies and imports
+      
+      ## Output Contract
+      Set the following context keys:
+      - api_surface: Structured API {functions, classes, types}
+      - exports: List of public export names
+      - imports: Dependencies used by the module
+      - type_definitions: Type aliases and interfaces
       
       ## Output Format
       ```yaml
@@ -166,9 +274,26 @@ skills:
     type: inline
     trust: sandboxed
     preset: read-only
+    triggers:
+      - dependencies
+      - packages
+      - requirements
+    depends_on:
+      - source: list-workspace
+    requires:
+      - file_list
+    produces:
+      - dependency_map
+      - runtime_deps
+      - dev_deps
+      - outdated_packages
     instructions: |
       ## Goal
       Map out project dependencies from config files.
+      
+      ## Input Contract
+      Requires from upstream:
+      - file_list: List of project files to search
       
       ## Process
       1. Find dependency files (package.json, pyproject.toml, requirements.txt)
@@ -176,20 +301,84 @@ skills:
       3. Categorize: runtime, dev, optional
       4. Note any security concerns or outdated packages
       
-      ## Output
-      List dependencies with:
-      - Name, version constraint
-      - Category (runtime/dev/optional)
-      - Purpose (if known)
+      ## Output Contract
+      Set the following context keys:
+      - dependency_map: Complete dependency tree
+      - runtime_deps: Production dependencies
+      - dev_deps: Development dependencies
+      - outdated_packages: Packages needing updates
+
+  - name: search-codebase
+    description: Semantic search across the codebase
+    type: inline
+    trust: sandboxed
+    preset: search-only
+    triggers:
+      - search
+      - find
+      - look for
+      - where is
+    depends_on:
+      - source: list-workspace
+    requires:
+      - file_list
+    produces:
+      - search_results
+      - relevant_files
+      - match_snippets
+    instructions: |
+      ## Goal
+      Find code relevant to a query or task.
+      
+      ## Input Contract
+      Requires from upstream:
+      - file_list: Files to search within
+      
+      ## Search Types
+      - **Symbol**: Find function/class by name
+      - **Content**: Find code containing text
+      - **Semantic**: Find code by meaning/purpose
+      
+      ## Process
+      1. Parse the search query
+      2. Search appropriate index
+      3. Rank results by relevance
+      4. Return with context (surrounding code)
+      
+      ## Output Contract
+      Set the following context keys:
+      - search_results: Ranked list of matches with scores
+      - relevant_files: Most relevant file paths
+      - match_snippets: Code snippets with context
 
   - name: map-codebase-structure
     description: Create a structural overview of the codebase
     type: inline
     trust: sandboxed
     preset: read-only
+    triggers:
+      - architecture
+      - structure
+      - overview
+      - map
+    depends_on:
+      - source: list-workspace
+    requires:
+      - file_list
+      - workspace_structure
+    produces:
+      - architecture_map
+      - entry_points
+      - module_hierarchy
+      - design_patterns
     instructions: |
       ## Goal
       Generate a high-level map of the codebase architecture.
+      
+      ## Input Contract
+      Requires from upstream:
+      - file_list: All project files
+      - workspace_structure: Directory tree
       
       ## Process
       1. Identify entry points (main, cli, index)
@@ -197,44 +386,140 @@ skills:
       3. Identify core vs utility code
       4. Note architectural patterns (MVC, layers, etc.)
       
-      ## Output Format
-      ```
-      project/
-      ├── src/           # Core source code
-      │   ├── core/      # {description}
-      │   ├── api/       # {description}
-      │   └── utils/     # {description}
-      ├── tests/         # Test suite
-      └── docs/          # Documentation
-      
-      Architecture: {pattern}
-      Entry points: {list}
-      Key abstractions: {list}
-      ```
+      ## Output Contract
+      Set the following context keys:
+      - architecture_map: Component relationships
+      - entry_points: Application entry points
+      - module_hierarchy: Package/module tree
+      - design_patterns: Identified patterns
 
   # ============================================================================
-  # DOCUMENTATION GENERATION
+  # LAYER 2: SYNTHESIS (Depends on Layer 1)
+  # These skills combine Layer 1 outputs and run in Wave 3
   # ============================================================================
   
+  - name: audit-documentation
+    description: Comprehensive documentation quality audit
+    type: inline
+    trust: sandboxed
+    preset: read-only
+    triggers:
+      - audit
+      - validate
+      - check
+      - verify
+    depends_on:
+      - source: extract-api-surface
+      - source: search-codebase
+    requires:
+      - api_surface
+      - search_results
+      - relevant_files
+    produces:
+      - audit_report
+      - issues_found
+      - confidence_scores
+      - accuracy_metrics
+    instructions: |
+      ## Goal
+      Audit documentation for accuracy and quality.
+      
+      ## Input Contract
+      Requires from upstream:
+      - api_surface: Extracted API for verification
+      - search_results: Evidence from codebase searches
+      - relevant_files: Files containing related code
+      
+      ## Checks
+      1. **Accuracy** - Claims match source code
+      2. **Completeness** - All public API documented
+      3. **Currency** - No outdated information
+      4. **Consistency** - Terminology, style, structure
+      5. **Links** - All references valid
+      
+      ## Process
+      1. Run validate-code-examples
+      2. Run check-documentation-links
+      3. Compare API docs against source
+      4. Check for TODO/FIXME markers
+      5. Verify examples use current API
+      
+      ## Output Contract
+      Set the following context keys:
+      - audit_report: Full audit with all findings
+      - issues_found: List of issues with severity
+      - confidence_scores: Per-claim confidence
+      - accuracy_metrics: {verified, unverified, disputed}
+      
+      ## Output Format
+      ```
+      ## Documentation Audit Report
+      
+      **Overall Score:** 85% 🟡
+      
+      ### Accuracy (90% 🟢)
+      - 18/20 claims verified
+      - 2 need updates (see below)
+      
+      ### Completeness (80% 🟡)
+      - 24/30 public functions documented
+      - Missing: function_a, function_b, ...
+      
+      ### Issues Found
+      1. **api.md:45** - Outdated parameter name
+      2. **tutorial.md:78** - Example uses deprecated API
+      ```
+    validate_with:
+      validators:
+        - evidence_required
+      min_confidence: 0.85
+
   - name: create-api-reference
     description: Generate comprehensive API reference documentation
     type: inline
     trust: sandboxed
     preset: workspace-write
+    triggers:
+      - api reference
+      - documentation
+      - generate docs
+    depends_on:
+      - source: extract-api-surface
+    requires:
+      - api_surface
+      - exports
+      - type_definitions
+    produces:
+      - api_reference_doc
+      - doc_path
+      - content_to_save
+      - output_path
     instructions: |
       ## Goal
       Create complete API reference documentation for a module.
       
+      ## Input Contract
+      Requires from upstream:
+      - api_surface: Extracted API data
+      - exports: Public exports to document
+      - type_definitions: Types to reference
+      
       ## Process
-      1. Use extract-api-surface to get API data
-      2. Organize by category (classes, functions, types)
-      3. Generate markdown with:
+      1. Organize by category (classes, functions, types)
+      2. Generate markdown with:
          - Signature with types
          - Description from docstring
          - Parameters table
          - Return value
          - Example usage
          - Source link (file:line)
+      
+      ## Output Contract
+      Set the following context keys:
+      - api_reference_doc: Markdown documentation content
+      - doc_path: Recommended output path
+      - content_to_save: Same as api_reference_doc (for save-document)
+      - output_path: Same as doc_path (for save-document)
       
       ## Template
       ```markdown
@@ -290,9 +575,27 @@ skills:
     type: inline
     trust: sandboxed
     preset: workspace-write
+    triggers:
+      - quickstart
+      - getting started
+      - tutorial
+    depends_on:
+      - source: map-codebase-structure
+    requires:
+      - entry_points
+      - architecture_map
+    produces:
+      - quickstart_doc
+      - content_to_save
+      - output_path
     instructions: |
       ## Goal
       Create a quickstart that gets users productive in 5 minutes.
+      
+      ## Input Contract
+      Requires from upstream:
+      - entry_points: How to start the application
+      - architecture_map: Key components to understand
       
       ## Structure (Diataxis: TUTORIAL)
       1. **What you'll build** - One sentence outcome
@@ -300,6 +603,12 @@ skills:
       3. **Install** - Copy-paste command
       4. **First use** - Simplest possible example
       5. **Next steps** - Links to more
+      
+      ## Output Contract
+      Set the following context keys:
+      - quickstart_doc: Markdown tutorial content
+      - content_to_save: Same as quickstart_doc
+      - output_path: "docs/quickstart.md" (or appropriate)
       
       ## Guidelines
       - Maximum 1 page
@@ -348,48 +657,38 @@ skills:
         - pragmatist
       min_confidence: 0.7
 
-  - name: create-changelog-entry
-    description: Generate changelog entry from git commits or PR
-    type: inline
-    trust: sandboxed
-    preset: workspace-write
-    instructions: |
-      ## Goal
-      Create a changelog entry following Keep a Changelog format.
-      
-      ## Categories
-      - **Added** - New features
-      - **Changed** - Changes in existing functionality
-      - **Deprecated** - Soon-to-be removed features
-      - **Removed** - Removed features
-      - **Fixed** - Bug fixes
-      - **Security** - Vulnerability fixes
-      
-      ## Process
-      1. Analyze the changes (commits, diff, PR description)
-      2. Categorize each change
-      3. Write user-focused descriptions (not implementation details)
-      4. Link to issues/PRs where relevant
-      
-      ## Template
-      ```markdown
-      ## [${version}] - ${date}
-      
-      ### Added
-      - Feature description ([#123](link))
-      
-      ### Fixed
-      - Bug description ([#124](link))
-      ```
-
   - name: create-architecture-doc
     description: Generate architecture documentation from codebase analysis
     type: inline
     trust: sandboxed
     preset: workspace-write
+    triggers:
+      - architecture doc
+      - system design
+      - technical overview
+    depends_on:
+      - source: map-codebase-structure
+      - source: analyze-dependencies
+    requires:
+      - architecture_map
+      - module_hierarchy
+      - dependency_map
+      - design_patterns
+    produces:
+      - architecture_doc
+      - mermaid_diagrams
+      - content_to_save
+      - output_path
     instructions: |
       ## Goal
       Create architecture documentation (Diataxis: EXPLANATION).
+      
+      ## Input Contract
+      Requires from upstream:
+      - architecture_map: Component relationships
+      - module_hierarchy: Package structure
+      - dependency_map: External dependencies
+      - design_patterns: Identified patterns
       
       ## Structure
       1. **Overview** - What the system does, key components
@@ -398,11 +697,12 @@ skills:
       4. **Key Decisions** - Why it's built this way
       5. **Diagrams** - Visual representations
       
-      ## Process
-      1. Use map-codebase-structure to understand layout
-      2. Identify core abstractions and patterns
-      3. Trace key workflows
-      4. Document integration points
+      ## Output Contract
+      Set the following context keys:
+      - architecture_doc: Markdown explanation content
+      - mermaid_diagrams: Diagram definitions
+      - content_to_save: Same as architecture_doc
+      - output_path: "docs/architecture.md"
       
       ## Diagram Format (Mermaid)
       ```mermaid
@@ -417,7 +717,59 @@ skills:
       min_confidence: 0.75
 
   # ============================================================================
-  # VALIDATION & QUALITY
+  # LAYER 3: REFINEMENT (Depends on Layer 2)
+  # These skills refine Layer 2 outputs and run in Wave 4
+  # ============================================================================
+
+  - name: fix-documentation-issues
+    description: Auto-fix issues found by audit
+    type: inline
+    trust: sandboxed
+    preset: workspace-write
+    triggers:
+      - fix
+      - update
+      - correct
+    depends_on:
+      - source: audit-documentation
+    requires:
+      - audit_report
+      - issues_found
+      - relevant_files
+    produces:
+      - fixes_applied
+      - updated_docs
+      - fix_summary
+    instructions: |
+      ## Goal
+      Fix documentation issues found by audit.
+      
+      ## Input Contract
+      Requires from upstream:
+      - audit_report: Full audit results
+      - issues_found: Specific issues to fix
+      - relevant_files: Files that need updates
+      
+      ## Process
+      1. Categorize issues by fixability
+      2. Apply automatic fixes for:
+         - Outdated parameter names
+         - Incorrect type annotations
+         - Broken internal links
+         - Missing exports
+      3. Flag for manual review:
+         - Conceptual errors
+         - Missing documentation
+         - External link issues
+      
+      ## Output Contract
+      Set the following context keys:
+      - fixes_applied: List of changes made
+      - updated_docs: New documentation content
+      - fix_summary: Summary with stats
+
+  # ============================================================================
+  # VALIDATION & QUALITY (Can run in parallel with other layers)
   # ============================================================================
   
   - name: validate-code-examples
@@ -425,9 +777,27 @@ skills:
     type: inline
     trust: sandboxed
     preset: safe-shell
+    triggers:
+      - validate examples
+      - check code
+      - test snippets
+    depends_on:
+      - source: read-file
+    requires:
+      - file_content
+      - file_type
+    produces:
+      - validation_results
+      - syntax_errors
+      - import_errors
     instructions: |
       ## Goal
       Verify all code examples in documentation are correct.
+      
+      ## Input Contract
+      Requires from upstream:
+      - file_content: Documentation content to check
+      - file_type: Document type (markdown, rst)
       
       ## Process
       1. Extract code blocks from markdown
@@ -436,12 +806,11 @@ skills:
       4. Verify imports exist
       5. Run if possible (sandboxed)
       
-      ## Output
-      ```
-      ✅ example.md:15 - Python syntax valid
-      ⚠️ example.md:42 - Import 'foo' not found in codebase
-      ❌ example.md:78 - Syntax error on line 3
-      ```
+      ## Output Contract
+      Set the following context keys:
+      - validation_results: Per-example results
+      - syntax_errors: List of syntax issues
+      - import_errors: Missing imports found
     scripts:
       - name: check_python_syntax.py
         language: python
@@ -471,9 +840,28 @@ skills:
     type: inline
     trust: sandboxed
     preset: read-only
+    triggers:
+      - check links
+      - broken links
+      - link validation
+    depends_on:
+      - source: read-file
+      - source: list-workspace
+    requires:
+      - file_content
+      - file_list
+    produces:
+      - link_report
+      - broken_links
+      - valid_links
     instructions: |
       ## Goal
       Find broken links in documentation.
+      
+      ## Input Contract
+      Requires from upstream:
+      - file_content: Documentation to check
+      - file_list: Workspace files for internal link validation
       
       ## Link Types
       - Internal: `./path/to/file.md`, `#heading`
@@ -487,106 +875,38 @@ skills:
       4. Check code references are valid
       5. (Optional) Verify external links respond
       
-      ## Output
-      ```
-      Checked: 45 links in 12 files
-      ✅ Valid: 42
-      ⚠️ External (unchecked): 2
-      ❌ Broken: 1
-        - docs/api.md:15 → ./missing.md (file not found)
-      ```
-
-  - name: audit-documentation
-    description: Comprehensive documentation quality audit
-    type: inline
-    trust: sandboxed
-    preset: read-only
-    instructions: |
-      ## Goal
-      Audit documentation for accuracy and quality.
-      
-      ## Checks
-      1. **Accuracy** - Claims match source code
-      2. **Completeness** - All public API documented
-      3. **Currency** - No outdated information
-      4. **Consistency** - Terminology, style, structure
-      5. **Links** - All references valid
-      
-      ## Process
-      1. Run validate-code-examples
-      2. Run check-documentation-links
-      3. Compare API docs against source
-      4. Check for TODO/FIXME markers
-      5. Verify examples use current API
-      
-      ## Output Format
-      ```
-      ## Documentation Audit Report
-      
-      **Overall Score:** 85% 🟡
-      
-      ### Accuracy (90% 🟢)
-      - 18/20 claims verified
-      - 2 need updates (see below)
-      
-      ### Completeness (80% 🟡)
-      - 24/30 public functions documented
-      - Missing: function_a, function_b, ...
-      
-      ### Issues Found
-      1. **api.md:45** - Outdated parameter name
-      2. **tutorial.md:78** - Example uses deprecated API
-      ```
-    validate_with:
-      validators:
-        - evidence_required
-      min_confidence: 0.85
-
-  # ============================================================================
-  # SEARCH & RETRIEVAL
-  # ============================================================================
-  
-  - name: search-codebase
-    description: Search codebase for relevant code and context
-    type: inline
-    trust: sandboxed
-    preset: search-only
-    instructions: |
-      ## Goal
-      Find code relevant to a query or task.
-      
-      ## Search Types
-      - **Symbol**: Find function/class by name
-      - **Content**: Find code containing text
-      - **Semantic**: Find code by meaning/purpose
-      
-      ## Process
-      1. Parse the search query
-      2. Search appropriate index
-      3. Rank results by relevance
-      4. Return with context (surrounding code)
-      
-      ## Output
-      ```
-      Found 5 matches for "authentication":
-      
-      1. src/auth/login.py:42 (95% match)
-         def authenticate_user(credentials):
-             ...
-      
-      2. src/middleware/auth.py:15 (82% match)
-         class AuthMiddleware:
-             ...
-      ```
+      ## Output Contract
+      Set the following context keys:
+      - link_report: Full link analysis
+      - broken_links: List of broken links with locations
+      - valid_links: Count of valid links
 
   - name: find-usage-examples
     description: Find real usage examples of an API in the codebase
     type: inline
     trust: sandboxed
     preset: search-only
+    triggers:
+      - usage
+      - examples
+      - how to use
+    depends_on:
+      - source: search-codebase
+    requires:
+      - search_results
+      - relevant_files
+    produces:
+      - usage_examples
+      - test_examples
+      - application_examples
     instructions: |
       ## Goal
       Find actual usage of a function/class in tests or application code.
+      
+      ## Input Contract
+      Requires from upstream:
+      - search_results: Search results to extract from
+      - relevant_files: Files containing usage
       
       ## Process
       1. Search for imports of the target
@@ -594,23 +914,56 @@ skills:
       3. Prioritize: tests > examples > application code
       4. Extract minimal working snippets
       
-      ## Output
-      ```
-      ## Usage Examples for `authenticate_user()`
+      ## Output Contract
+      Set the following context keys:
+      - usage_examples: All found examples
+      - test_examples: Examples from tests (most reliable)
+      - application_examples: Examples from application code
+
+  - name: create-changelog-entry
+    description: Generate changelog entry from git commits or PR
+    type: inline
+    trust: sandboxed
+    preset: workspace-write
+    triggers:
+      - changelog
+      - release notes
+      - what's new
+    produces:
+      - changelog_entry
+      - content_to_save
+      - output_path
+    instructions: |
+      ## Goal
+      Create a changelog entry following Keep a Changelog format.
       
-      ### From tests (recommended)
-      ```python
-      # tests/test_auth.py:25
-      def test_valid_login():
-          result = authenticate_user({"username": "test", "password": "pass"})
-          assert result.success
-      ```
+      ## Categories
+      - **Added** - New features
+      - **Changed** - Changes in existing functionality
+      - **Deprecated** - Soon-to-be removed features
+      - **Removed** - Removed features
+      - **Fixed** - Bug fixes
+      - **Security** - Vulnerability fixes
       
-      ### From application
-      ```python
-      # src/api/routes.py:78
-      user = authenticate_user(request.credentials)
-      if not user:
-          raise HTTPException(401)
-      ```
+      ## Process
+      1. Analyze the changes (commits, diff, PR description)
+      2. Categorize each change
+      3. Write user-focused descriptions (not implementation details)
+      4. Link to issues/PRs where relevant
+      
+      ## Output Contract
+      Set the following context keys:
+      - changelog_entry: Formatted changelog text
+      - content_to_save: Same as changelog_entry
+      - output_path: "CHANGELOG.md" section to update
+      
+      ## Template
+      ```markdown
+      ## [${version}] - ${date}
+      
+      ### Added
+      - Feature description ([#123](link))
+      
+      ### Fixed
+      - Bug description ([#124](link))
       ```

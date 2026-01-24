@@ -367,7 +367,7 @@ def proposals_apply(proposal_id: str, as_json: bool) -> None:
         }))
     else:
         if result.success:
-            click.echo(f"✅ Applied successfully")
+            click.echo("✅ Applied successfully")
             if result.commit_hash:
                 click.echo(f"   Commit: {result.commit_hash}")
         else:
@@ -389,7 +389,7 @@ def proposals_rollback(proposal_id: str) -> None:
     result = Self.get().proposals.rollback(proposal)
 
     if result.success:
-        click.echo(f"↩️ Rolled back successfully")
+        click.echo("↩️ Rolled back successfully")
         if result.commit_hash:
             click.echo(f"   Commit: {result.commit_hash}")
     else:

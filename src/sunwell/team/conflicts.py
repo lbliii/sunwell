@@ -51,7 +51,7 @@ class ConflictResolver:
     4. Escalate true conflicts for human resolution
     """
 
-    def __init__(self, store: "TeamKnowledgeStore"):
+    def __init__(self, store: TeamKnowledgeStore):
         """Initialize conflict resolver.
 
         Args:

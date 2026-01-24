@@ -159,7 +159,7 @@ class PermissionDiff:
         if self.old_risk and self.new_risk:
             lines.append("### Risk Comparison")
             lines.append("")
-            lines.append(f"| Metric | Before | After |")
+            lines.append("| Metric | Before | After |")
             lines.append("|--------|--------|-------|")
             lines.append(f"| Level | {self.old_risk.level} | {self.new_risk.level} |")
             lines.append(f"| Score | {self.old_risk.score:.0%} | {self.new_risk.score:.0%} |")

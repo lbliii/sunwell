@@ -2,9 +2,11 @@
  * Surface Store — Generative surface composition (RFC-072)
  * 
  * Manages dynamic surface layouts that adapt to goals and context.
+ *
+ * RFC-113: Uses HTTP API instead of Tauri for all communication.
  */
 
-import { invoke } from '@tauri-apps/api/core';
+import { apiGet, apiPost } from '$lib/socket';
 import type { 
   PrimitiveDef, 
   SurfacePrimitive, 
@@ -93,14 +95,15 @@ export const surface = {
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * Load the primitive registry from Rust/Python.
+ * Load the primitive registry from Python.
+ * RFC-113: Uses HTTP API instead of Tauri invoke.
  */
 export async function loadRegistry(): Promise<void> {
   if (_state.registryLoaded) return;
   
   try {
-    const registry = await invoke<PrimitiveDef[]>('get_primitive_registry');
-    _state = { ..._state, registry, registryLoaded: true };
+    const registry = await apiGet<PrimitiveDef[]>('/api/surface/registry');
+    _state = { ..._state, registry: registry || [], registryLoaded: true };
   } catch (e) {
     console.error('Failed to load primitive registry:', e);
     _state = { 
@@ -112,6 +115,7 @@ export async function loadRegistry(): Promise<void> {
 
 /**
  * Compose a surface layout for the given goal.
+ * RFC-113: Uses HTTP API instead of Tauri invoke.
  */
 export async function composeSurface(
   goal: string,
@@ -128,7 +132,7 @@ export async function composeSurface(
   _state = { ..._state, isComposing: true, error: null };
   
   try {
-    const layout = await invoke<SurfaceLayout>('compose_surface', {
+    const layout = await apiPost<SurfaceLayout>('/api/surface/compose', {
       goal,
       projectPath: projectPath ?? null,
       lens: lens ?? null,
@@ -165,6 +169,7 @@ export async function composeSurface(
 
 /**
  * Record layout success metrics.
+ * RFC-113: Uses HTTP API instead of Tauri invoke.
  */
 async function recordSuccess(
   layout: SurfaceLayout,
@@ -173,7 +178,7 @@ async function recordSuccess(
   completed: boolean,
 ): Promise<void> {
   try {
-    await invoke('record_layout_success', {
+    await apiPost('/api/surface/success', {
       layout,
       goal,
       durationSeconds,
@@ -196,6 +201,7 @@ export async function markGoalCompleted(): Promise<void> {
 
 /**
  * Emit an event from a primitive component.
+ * RFC-113: Uses HTTP API instead of Tauri invoke.
  */
 export async function emitPrimitiveEvent(
   primitiveId: string,
@@ -203,12 +209,10 @@ export async function emitPrimitiveEvent(
   data: Record<string, unknown>,
 ): Promise<void> {
   try {
-    await invoke('emit_primitive_event', {
-      event: {
-        primitive_id: primitiveId,
-        event_type: eventType,
-        data,
-      },
+    await apiPost('/api/surface/event', {
+      primitive_id: primitiveId,
+      event_type: eventType,
+      data,
     });
   } catch (e) {
     console.error('Failed to emit primitive event:', e);

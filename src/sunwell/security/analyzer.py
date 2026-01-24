@@ -361,7 +361,7 @@ class PermissionAnalyzer:
             highest_risk_skill=highest_risk[0],
         )
 
-    def analyze_skills_detailed(self, skills: list["Skill"]) -> DetailedSecurityAnalysis:
+    def analyze_skills_detailed(self, skills: list[Skill]) -> DetailedSecurityAnalysis:
         """Compute permissions and per-skill breakdown for ordered skills."""
         total_scope = PermissionScope()
         all_flags: list[str] = []

@@ -114,7 +114,7 @@ class TeamDecision:
         return result
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "TeamDecision":
+    def from_dict(cls, data: dict[str, Any]) -> TeamDecision:
         """Deserialize from dictionary."""
         applies_until = None
         if data.get("applies_until"):
@@ -209,7 +209,7 @@ class TeamFailure:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "TeamFailure":
+    def from_dict(cls, data: dict[str, Any]) -> TeamFailure:
         """Deserialize from dictionary."""
         return cls(
             id=data["id"],
@@ -276,7 +276,7 @@ class TeamPatterns:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "TeamPatterns":
+    def from_dict(cls, data: dict[str, Any]) -> TeamPatterns:
         """Deserialize from dictionary."""
         return cls(
             naming_conventions=data.get("naming_conventions", {}),
@@ -314,7 +314,7 @@ class TeamOwnership:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "TeamOwnership":
+    def from_dict(cls, data: dict[str, Any]) -> TeamOwnership:
         """Deserialize from dictionary."""
         return cls(
             owners=data.get("owners", {}),

@@ -138,7 +138,7 @@ class TeamConfig:
     enforcement: TeamEnforcementConfig = field(default_factory=TeamEnforcementConfig)
 
     @classmethod
-    def from_dict(cls, data: dict) -> "TeamConfig":
+    def from_dict(cls, data: dict) -> TeamConfig:
         """Create TeamConfig from dictionary (e.g., from YAML).
 
         Args:

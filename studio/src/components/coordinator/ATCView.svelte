@@ -152,7 +152,7 @@
   <!-- Start Workers Dialog -->
   {#if showStartDialog}
     <div class="dialog-overlay" role="presentation" onclick={() => showStartDialog = false} onkeydown={(e) => e.key === 'Escape' && (showStartDialog = false)}>
-      <div class="dialog" role="dialog" aria-modal="true" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+      <div class="dialog" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
         <h3>Start Parallel Execution</h3>
         
         <div class="form-group">

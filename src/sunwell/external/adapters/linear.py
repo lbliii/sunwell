@@ -49,10 +49,10 @@ class LinearAdapter(EventAdapter):
         self.webhook_secret = webhook_secret
         self.team_id = team_id
 
-        self._client: "httpx.AsyncClient | None" = None
+        self._client: httpx.AsyncClient | None = None
         self._callback: EventCallback | None = None
 
-    async def _get_client(self) -> "httpx.AsyncClient":
+    async def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client."""
         if self._client is None:
             import httpx

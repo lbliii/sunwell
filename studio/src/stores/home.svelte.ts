@@ -5,7 +5,7 @@
  * Routes through existing InteractionRouter (RFC-075) and renders blocks.
  */
 
-import { invoke } from '@tauri-apps/api/core';
+import { apiPost } from '$lib/socket';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -156,7 +156,7 @@ export let homeState = $state<HomeState>(createInitialState());
 export async function getSpeculativeComposition(input: string): Promise<CompositionSpec | null> {
 	homeState.isCompositing = true;
 	try {
-		const result = await invoke<CompositionSpec | null>('predict_composition', {
+		const result = await apiPost<CompositionSpec | null>('/api/home/predict-composition', {
 			input,
 			currentPage: homeState.speculativeComposition?.page_type || 'home',
 		});
@@ -209,7 +209,7 @@ export async function routeInput(input: string): Promise<HomeResponse> {
 	// - Fast composition (Tier 0/1): ~100-200ms
 	// - Full content (Tier 2): ~2-5s
 	const compositionPromise = getSpeculativeComposition(input);
-	const contentPromise = invoke<Record<string, unknown>>('process_goal', {
+	const contentPromise = apiPost<Record<string, unknown>>('/api/home/process-goal', {
 		goal: input,
 		dataDir: homeState.dataDir,
 		history: history.length > 1 ? history.slice(0, -1) : undefined,
@@ -345,12 +345,12 @@ export async function executeBlockAction(
 	itemId?: string
 ): Promise<{ success: boolean; message: string }> {
 	try {
-		const result = await invoke<{ success: boolean; message: string }>('execute_block_action', {
+		const result = await apiPost<{ success: boolean; message: string }>('/api/home/execute-block-action', {
 			actionId,
 			itemId,
 			dataDir: homeState.dataDir,
 		});
-		return result;
+		return result ?? { success: false, message: 'No response' };
 	} catch (e) {
 		const errorMessage = e instanceof Error ? e.message : String(e);
 		console.error('Block action failed:', e);

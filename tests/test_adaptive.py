@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from sunwell.adaptive import (
+from sunwell.agent import (
     AdaptiveBudget,
     AdaptiveSignals,
     ErrorSignals,
@@ -236,8 +236,8 @@ class TestEventType:
 @pytest.mark.asyncio
 async def test_imports_successful():
     """All public exports should be importable."""
-    from sunwell.adaptive import (
-        AdaptiveAgent,
+    from sunwell.agent import (
+        Agent,
         AgentEvent,
         GateDetector,
         GateResult,
@@ -252,7 +252,7 @@ async def test_imports_successful():
 
     # Verify all imports work by checking they're not None
     assert all([
-        AdaptiveAgent, AgentEvent, GateDetector, GateResult,
+        Agent, AgentEvent, GateDetector, GateResult,
         LearningExtractor, RendererConfig, RichRenderer,
         TaskGraph, create_renderer, extract_signals, run_adaptive,
     ])
@@ -267,7 +267,7 @@ class TestRendererConfig:
 
     def test_renderer_config_defaults(self) -> None:
         """RendererConfig has sensible defaults."""
-        from sunwell.adaptive import RendererConfig
+        from sunwell.agent import RendererConfig
 
         config = RendererConfig()
 
@@ -278,7 +278,7 @@ class TestRendererConfig:
 
     def test_renderer_config_custom_values(self) -> None:
         """RendererConfig accepts custom values."""
-        from sunwell.adaptive import RendererConfig
+        from sunwell.agent import RendererConfig
 
         config = RendererConfig(
             mode="quiet",
@@ -294,7 +294,7 @@ class TestRendererConfig:
 
     def test_renderer_config_valid_modes(self) -> None:
         """RendererConfig accepts expected mode values."""
-        from sunwell.adaptive import RendererConfig
+        from sunwell.agent import RendererConfig
 
         # These should not raise
         RendererConfig(mode="interactive")
@@ -308,7 +308,7 @@ class TestRendererConfig:
         If this test fails, update both this test AND the CLI.
         """
         import inspect
-        from sunwell.adaptive import RendererConfig
+        from sunwell.agent import RendererConfig
 
         # Get actual fields from the dataclass
         sig = inspect.signature(RendererConfig)
@@ -330,7 +330,7 @@ class TestRendererConfig:
 
     def test_create_renderer_with_config(self) -> None:
         """create_renderer accepts RendererConfig."""
-        from sunwell.adaptive import RendererConfig, create_renderer
+        from sunwell.agent import RendererConfig, create_renderer
 
         config = RendererConfig(mode="interactive", verbose=True)
         renderer = create_renderer(config)

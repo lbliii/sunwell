@@ -4,8 +4,6 @@ import pytest
 
 from sunwell.skills import (
     CircularDependencyError,
-    ExecutionContext,
-    IncrementalSkillExecutor,
     MissingDependencyError,
     Skill,
     SkillCache,
@@ -16,6 +14,8 @@ from sunwell.skills import (
     SkillType,
     UnsatisfiedRequiresError,
 )
+
+# RFC-110: ExecutionContext and IncrementalSkillExecutor moved to Agent
 
 
 # =============================================================================
@@ -421,100 +421,8 @@ class TestSkillCacheKey:
         assert key1 == key2
 
 
-# =============================================================================
-# ExecutionContext Tests
-# =============================================================================
-
-
-class TestExecutionContext:
-    """Tests for ExecutionContext."""
-
-    def test_get_set(self):
-        """Basic get/set operations."""
-        ctx = ExecutionContext()
-        ctx.set("key", "value")
-        assert ctx.get("key") == "value"
-
-    def test_get_missing_returns_none(self):
-        """Missing key returns None."""
-        ctx = ExecutionContext()
-        assert ctx.get("missing") is None
-
-    def test_update_multiple(self):
-        """Update with multiple values."""
-        ctx = ExecutionContext()
-        ctx.update({"a": 1, "b": 2})
-        assert ctx.get("a") == 1
-        assert ctx.get("b") == 2
-
-    def test_initial_data(self):
-        """Initialize with data."""
-        ctx = ExecutionContext(data={"initial": "value"})
-        assert ctx.get("initial") == "value"
-
-    def test_lens_version(self):
-        """Lens version tracking."""
-        ctx = ExecutionContext(lens_version="1.2.3")
-        assert ctx.lens_version == "1.2.3"
-
-
-# =============================================================================
-# IncrementalSkillExecutor Tests
-# =============================================================================
-
-
-class TestIncrementalSkillExecutor:
-    """Tests for IncrementalSkillExecutor.
-
-    Note: Full execution tests require mocked lens and model.
-    These tests focus on the planning API which doesn't require execution.
-    """
-
-    def _make_skill(
-        self,
-        name: str,
-        depends_on: list[str] | None = None,
-        produces: list[str] | None = None,
-        requires: list[str] | None = None,
-    ) -> Skill:
-        """Helper to create skills."""
-        return Skill(
-            name=name,
-            description=f"Skill {name}",
-            skill_type=SkillType.INLINE,
-            instructions=f"Do {name}",
-            depends_on=tuple(SkillDependency(source=d) for d in (depends_on or [])),
-            produces=tuple(produces or []),
-            requires=tuple(requires or []),
-        )
-
-    def test_execution_plan_empty_graph(self):
-        """Empty graph produces empty execution plan."""
-        from sunwell.skills.executor import SkillExecutionPlan
-
-        plan = SkillExecutionPlan(
-            to_execute=[],
-            to_skip=[],
-            waves=[],
-        )
-        assert plan.to_execute == []
-        assert plan.to_skip == []
-        assert plan.skip_percentage == 0.0  # Property, not field
-
-    def test_execution_plan_with_skills(self):
-        """Execution plan tracks skills to execute and skip."""
-        from sunwell.skills.executor import SkillExecutionPlan
-
-        plan = SkillExecutionPlan(
-            to_execute=["skill-a", "skill-c"],
-            to_skip=["skill-b"],
-            waves=[["skill-a"], ["skill-b", "skill-c"]],
-        )
-        assert len(plan.to_execute) == 2
-        assert len(plan.to_skip) == 1
-        assert len(plan.waves) == 2
-        # skip_percentage is a property: 1 out of 3 = 33.33%
-        assert plan.skip_percentage == pytest.approx(33.33, rel=0.01)
+# RFC-110: ExecutionContext and IncrementalSkillExecutor tests removed
+# (execution moved to Agent)
 
 
 # =============================================================================

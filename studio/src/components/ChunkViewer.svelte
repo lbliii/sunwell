@@ -7,7 +7,7 @@
   - COLD: Archive chunks with summaries only
 -->
 <script lang="ts">
-  import { invoke } from '@tauri-apps/api/core';
+  import { apiGet, apiPost } from '$lib/socket';
   import type { ChunkHierarchy, Chunk } from '$lib/types';
   
   interface Props {
@@ -34,9 +34,9 @@
     error = null;
     
     try {
-      hierarchy = await invoke<ChunkHierarchy>('get_chunk_hierarchy', { 
-        path: projectPath 
-      });
+      // RFC-113: Uses HTTP API instead of Tauri invoke
+      const result = await apiGet<ChunkHierarchy>(`/api/memory/chunks?path=${encodeURIComponent(projectPath)}`);
+      hierarchy = result || { hot: [], warm: [], cold: [] };
     } catch (e) {
       console.warn('Failed to load chunks:', e);
       error = String(e);

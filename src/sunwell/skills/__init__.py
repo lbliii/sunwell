@@ -2,6 +2,9 @@
 
 This module implements RFC-011: Arming Sunwell Lenses with Agent Skills.
 RFC-087: Skill-Lens DAG extends this with dependency tracking and caching.
+RFC-110: Skill execution moved to Agent. This module provides skill definitions.
+RFC-111: Skill DAG Activation — SkillCompiler bridges skills to tasks.
+RFC-111 Phase 5: SkillLearner and SkillLibrary for self-learning skills.
 
 Skills provide action capabilities (instructions, scripts, templates)
 while lenses provide judgment (heuristics, validators, personas).
@@ -10,13 +13,12 @@ evaluate their own output.
 """
 
 from sunwell.skills.cache import SkillCache, SkillCacheEntry, SkillCacheKey
-from sunwell.skills.executor import (
-    ExecutionContext,
-    IncrementalSkillExecutor,
-    SkillExecutionError,
-    SkillExecutionPlan,
-    SkillExecutor,
-    WaveExecutionError,
+from sunwell.skills.compiler import (
+    CompiledTaskGraph,
+    SkillCompilationCache,
+    SkillCompilationError,
+    SkillCompiler,
+    has_dag_metadata,
 )
 from sunwell.skills.graph import (
     CircularDependencyError,
@@ -31,6 +33,13 @@ from sunwell.skills.interop import (
     SkillValidationResult,
     SkillValidator,
 )
+from sunwell.skills.learner import (
+    ExecutionPattern,
+    LearnedSkillMetadata,
+    SkillLearner,
+    SkillLearningResult,
+)
+from sunwell.skills.library import SkillLibrary, SkillProvenance
 from sunwell.skills.sandbox import ScriptResult, ScriptSandbox
 from sunwell.skills.types import (
     Artifact,
@@ -39,6 +48,7 @@ from sunwell.skills.types import (
     Skill,
     SkillDependency,
     SkillError,
+    SkillMetadata,
     SkillOutput,
     SkillOutputMetadata,
     SkillResult,
@@ -53,6 +63,7 @@ __all__ = [
     # Types
     "Skill",
     "SkillDependency",
+    "SkillMetadata",
     "SkillType",
     "TrustLevel",
     "Script",
@@ -75,13 +86,20 @@ __all__ = [
     "SkillCache",
     "SkillCacheKey",
     "SkillCacheEntry",
-    # Execution
-    "SkillExecutor",
-    "IncrementalSkillExecutor",
-    "ExecutionContext",
-    "SkillExecutionPlan",
-    "SkillExecutionError",
-    "WaveExecutionError",
+    # RFC-111: Skill Compiler
+    "SkillCompiler",
+    "SkillCompilationCache",
+    "SkillCompilationError",
+    "CompiledTaskGraph",
+    "has_dag_metadata",
+    # RFC-111 Phase 5: Self-Learning
+    "SkillLearner",
+    "SkillLearningResult",
+    "ExecutionPattern",
+    "LearnedSkillMetadata",
+    "SkillLibrary",
+    "SkillProvenance",
+    # Sandbox
     "ScriptSandbox",
     "ScriptResult",
     # Interop (Phase 4)

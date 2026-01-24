@@ -41,7 +41,7 @@ class EventProcessor:
     def __init__(
         self,
         root: Path,
-        backlog_manager: "BacklogManager",
+        backlog_manager: BacklogManager,
         goal_policy: ExternalGoalPolicy | None = None,
         feedback_enabled: bool = True,
     ):
@@ -58,11 +58,11 @@ class EventProcessor:
         self.goal_policy = goal_policy or ExternalGoalPolicy()
         self.feedback_enabled = feedback_enabled
 
-        self._adapters: dict[EventSource, "EventAdapter"] = {}
+        self._adapters: dict[EventSource, EventAdapter] = {}
         self._rate_limiter = RateLimiter(self.goal_policy)
         self._store = ExternalEventStore(root)
 
-    def register_adapter(self, adapter: "EventAdapter") -> None:
+    def register_adapter(self, adapter: EventAdapter) -> None:
         """Register an event adapter.
 
         Args:

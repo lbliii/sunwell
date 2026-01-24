@@ -1,14 +1,12 @@
-"""Runtime engine for lens execution."""
+"""Runtime utilities.
 
-from sunwell.runtime.classifier import ClassificationResult, IntentClassifier
-from sunwell.runtime.engine import ExecutionResult, RuntimeEngine
-from sunwell.runtime.retriever import ExpertiseRetriever, RetrievalResult
+RFC-110: Most runtime functionality moved to Agent.
+Remaining components:
+- model_router: Model selection and routing
+- parallel: Parallel execution utilities
+- episode: Execution episode management
+- handoff: Model handoff handling
+"""
 
-__all__ = [
-    "RuntimeEngine",
-    "ExecutionResult",
-    "ExpertiseRetriever",
-    "RetrievalResult",
-    "IntentClassifier",
-    "ClassificationResult",
-]
+# Minimal exports - most functionality now in Agent
+__all__: list[str] = []

@@ -1,8 +1,13 @@
 /**
  * Workflow Store — Autonomous workflow execution state (RFC-086)
  *
+ * RFC-113: Migrated from Tauri invoke to HTTP API.
+ *
  * Manages workflow chains, execution state, and progress updates.
  */
+
+import { apiGet, apiPost } from '$lib/socket';
+import { onEvent } from '$lib/socket';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -151,9 +156,7 @@ export async function routeIntent(userInput: string): Promise<Intent | null> {
   _state = { ..._state, isRouting: true, error: null };
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    const intent = await invoke<Intent>('route_workflow_intent', { userInput });
-
+    const intent = await apiPost<Intent>('/api/workflow/route', { user_input: userInput });
     _state = { ..._state, lastIntent: intent, isRouting: false };
     return intent;
   } catch (e) {
@@ -176,10 +179,9 @@ export async function startWorkflow(
   _state = { ..._state, isLoading: true, error: null, status: 'running' };
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    const execution = await invoke<WorkflowExecution>('start_workflow', {
-      chainName,
-      targetFile,
+    const execution = await apiPost<WorkflowExecution>('/api/workflow/start', {
+      chain_name: chainName,
+      target_file: targetFile,
     });
 
     _state = {
@@ -190,7 +192,7 @@ export async function startWorkflow(
     };
 
     // Set up event listeners for progress updates
-    await setupWorkflowListeners();
+    setupWorkflowListeners();
 
     return execution;
   } catch (e) {
@@ -211,9 +213,7 @@ export async function stopWorkflow(): Promise<void> {
   if (!_state.execution) return;
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('stop_workflow', { executionId: _state.execution.id });
-
+    await apiPost('/api/workflow/stop', { execution_id: _state.execution.id });
     _state = { ..._state, status: 'paused' };
   } catch (e) {
     _state = {
@@ -233,13 +233,12 @@ export async function resumeWorkflow(executionId?: string): Promise<void> {
   _state = { ..._state, isLoading: true, status: 'running' };
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    const execution = await invoke<WorkflowExecution>('resume_workflow', {
-      executionId: id,
+    const execution = await apiPost<WorkflowExecution>('/api/workflow/resume', {
+      execution_id: id,
     });
 
     _state = { ..._state, execution, isLoading: false };
-    await setupWorkflowListeners();
+    setupWorkflowListeners();
   } catch (e) {
     _state = {
       ..._state,
@@ -257,8 +256,7 @@ export async function skipStep(): Promise<void> {
   if (!_state.execution) return;
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('skip_workflow_step', { executionId: _state.execution.id });
+    await apiPost('/api/workflow/skip-step', { execution_id: _state.execution.id });
   } catch (e) {
     _state = {
       ..._state,
@@ -272,10 +270,9 @@ export async function skipStep(): Promise<void> {
  */
 export async function loadChains(): Promise<void> {
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    const chains = await invoke<WorkflowChain[]>('list_workflow_chains');
-    _state = { ..._state, chains };
-  } catch (e) {
+    const result = await apiGet<{ chains: WorkflowChain[] }>('/api/workflow/chains');
+    _state = { ..._state, chains: result.chains || [] };
+  } catch {
     // Fallback to hardcoded chains
     _state = {
       ..._state,
@@ -289,8 +286,8 @@ export async function loadChains(): Promise<void> {
  */
 export async function listActiveWorkflows(): Promise<WorkflowExecution[]> {
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    return await invoke<WorkflowExecution[]>('list_active_workflows');
+    const result = await apiGet<{ workflows: WorkflowExecution[] }>('/api/workflow/active');
+    return result.workflows || [];
   } catch {
     return [];
   }
@@ -329,28 +326,29 @@ export function resetWorkflow(): void {
 
 let unlistenFn: (() => void) | null = null;
 
-async function setupWorkflowListeners(): Promise<void> {
+function setupWorkflowListeners(): void {
   // Clean up existing listeners
   if (unlistenFn) {
     unlistenFn();
     unlistenFn = null;
   }
 
-  try {
-    const { listen } = await import('@tauri-apps/api/event');
-
-    const unlisten = await listen<WorkflowEvent>('workflow-event', (event) => {
-      handleWorkflowEvent(event.payload);
-    });
-
-    unlistenFn = unlisten;
-  } catch {
-    // Event system not available
-  }
+  // Use HTTP API event system
+  unlistenFn = onEvent((event) => {
+    if (event.type.startsWith('workflow_')) {
+      handleWorkflowEvent({
+        type: event.type as WorkflowEvent['type'],
+        execution_id: event.data?.execution_id as string,
+        step_index: event.data?.step_index as number | undefined,
+        step_result: event.data?.step_result as WorkflowStep | undefined,
+        error: event.data?.error as string | undefined,
+      });
+    }
+  });
 }
 
 interface WorkflowEvent {
-  type: 'step_started' | 'step_completed' | 'step_error' | 'workflow_paused' | 'workflow_completed';
+  type: 'workflow_step_started' | 'workflow_step_completed' | 'workflow_step_error' | 'workflow_paused' | 'workflow_completed';
   execution_id: string;
   step_index?: number;
   step_result?: WorkflowStep;
@@ -361,7 +359,7 @@ function handleWorkflowEvent(event: WorkflowEvent): void {
   if (!_state.execution || _state.execution.id !== event.execution_id) return;
 
   switch (event.type) {
-    case 'step_started':
+    case 'workflow_step_started':
       if (event.step_index !== undefined) {
         const steps = [..._state.execution.steps];
         if (steps[event.step_index]) {
@@ -374,7 +372,7 @@ function handleWorkflowEvent(event: WorkflowEvent): void {
       }
       break;
 
-    case 'step_completed':
+    case 'workflow_step_completed':
       if (event.step_index !== undefined && event.step_result) {
         const steps = [..._state.execution.steps];
         steps[event.step_index] = event.step_result;
@@ -389,7 +387,7 @@ function handleWorkflowEvent(event: WorkflowEvent): void {
       }
       break;
 
-    case 'step_error':
+    case 'workflow_step_error':
       _state = {
         ..._state,
         status: 'error',

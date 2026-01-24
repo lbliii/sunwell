@@ -327,8 +327,8 @@ class IncrementalExecutor:
             return
 
         try:
-            from sunwell.adaptive.event_schema import create_validated_event
-            from sunwell.adaptive.events import EventType
+            from sunwell.agent.event_schema import create_validated_event
+            from sunwell.agent.events import EventType
 
             event = create_validated_event(EventType(event_type), data)
             self.event_callback(event)

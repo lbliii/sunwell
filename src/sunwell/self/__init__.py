@@ -49,21 +49,21 @@ class Self:
     # === Components (lazy-initialized) ===
 
     @cached_property
-    def source(self) -> "SourceKnowledge":
+    def source(self) -> SourceKnowledge:
         """Read and understand Sunwell's source code."""
         from sunwell.self.source import SourceKnowledge
 
         return SourceKnowledge(self._source_root)
 
     @cached_property
-    def analysis(self) -> "AnalysisKnowledge":
+    def analysis(self) -> AnalysisKnowledge:
         """Analyze Sunwell's behavior and performance."""
         from sunwell.self.analysis import AnalysisKnowledge
 
         return AnalysisKnowledge(self._storage_root / "analysis")
 
     @cached_property
-    def proposals(self) -> "ProposalManager":
+    def proposals(self) -> ProposalManager:
         """Create and manage self-improvement proposals."""
         from sunwell.self.proposals import ProposalManager
 
@@ -74,11 +74,11 @@ class Self:
 
     # === Thread-Safe Singleton Access (3.14t compatible) ===
 
-    _instance: "Self | None" = None
+    _instance: Self | None = None
     _lock: threading.Lock = threading.Lock()
 
     @classmethod
-    def get(cls) -> "Self":
+    def get(cls) -> Self:
         """Get the global Self instance (thread-safe).
 
         Uses double-checked locking for performance:
@@ -95,7 +95,7 @@ class Self:
             return cls._instance
 
     @classmethod
-    def _create_default(cls) -> "Self":
+    def _create_default(cls) -> Self:
         """Create Self with auto-resolved paths."""
         import sunwell
 
@@ -121,7 +121,7 @@ class Self:
             cls._instance = None
 
     @classmethod
-    def _create_for_testing(cls, source_root: Path, storage_root: Path) -> "Self":
+    def _create_for_testing(cls, source_root: Path, storage_root: Path) -> Self:
         """Create Self with explicit paths (for testing only).
 
         This does NOT set the singleton instance — use for isolated tests.

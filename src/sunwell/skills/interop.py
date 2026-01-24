@@ -1,36 +1,41 @@
 """RFC-011 Phase 4: Skill Import/Export for ecosystem interoperability.
+RFC-111 Phase 6: Anthropic Agent Skills format support.
 
 This module provides:
-- Export: Convert lens skills to standalone SKILL.md format
+- Export: Convert skills to standalone SKILL.md or SKILL.yaml format
 - Import: Import external skill folders into a lens
-- Validate: Check skill folders against lens validators
+- Validate: Check skill folders against lens quality standards
+- Anthropic format: Export/import Anthropic Agent Skills format
 
-SKILL.md Format (for ecosystem compatibility):
+SKILL.md Format (Anthropic-compatible):
 ```markdown
-# Skill Name
+---
+name: skill-name
+description: Brief description
+---
 
-## Description
-Brief description of what the skill does.
+Instructions for the agent...
+```
 
-## Instructions
-Detailed instructions for the agent.
-
-## Scripts
-Embedded scripts (optional).
-
-## Templates
-File templates (optional).
-
-## Verification
-Validation checklist (optional).
+Sunwell Extended Format (SKILL.yaml):
+```yaml
+name: skill-name
+description: Brief description
+type: inline
+depends_on: [...]
+produces: [...]
+requires: [...]
+instructions: |
+  ...
 ```
 """
 
 
 import re
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import yaml
 
@@ -38,13 +43,255 @@ if TYPE_CHECKING:
     from sunwell.core.lens import Lens
     from sunwell.skills.types import Skill
 
+# Export format types
+ExportFormat = Literal["anthropic", "sunwell", "skill-md", "yaml"]
+
 
 @dataclass
 class SkillExporter:
-    """Export lens skills to standalone formats."""
+    """Export skills to standalone formats.
 
-    def export_skill_md(self, skill: Skill, lens: Lens | None = None) -> str:
-        """Export a single skill to SKILL.md format.
+    Supports multiple formats:
+    - anthropic: Anthropic Agent Skills format (SKILL.md with frontmatter)
+    - sunwell: Full Sunwell format with DAG metadata (SKILL.yaml)
+    - skill-md: Legacy Sunwell markdown format
+    - yaml: Simple YAML format
+    """
+
+    def export_anthropic(
+        self,
+        skill: "Skill",
+        output_dir: Path,
+        include_scripts: bool = True,
+    ) -> Path:
+        """Export skill to Anthropic Agent Skills format.
+
+        Creates a directory structure compatible with Claude Code/Claude.ai:
+        ```
+        skill-name/
+        ├── SKILL.md          # Main skill definition
+        ├── script.py         # Scripts as separate files
+        └── template.tsx      # Templates as separate files
+        ```
+
+        Note: DAG features (depends_on, produces, requires) are preserved
+        in frontmatter comments but not used by Anthropic tools.
+
+        Args:
+            skill: The skill to export
+            output_dir: Base output directory
+            include_scripts: Whether to export scripts as files
+
+        Returns:
+            Path to created skill directory
+        """
+        skill_dir = Path(output_dir) / skill.name
+        skill_dir.mkdir(parents=True, exist_ok=True)
+
+        # Build SKILL.md with frontmatter
+        frontmatter = {
+            "name": skill.name,
+            "description": skill.description,
+        }
+
+        # Add optional fields
+        if skill.compatibility:
+            frontmatter["compatibility"] = skill.compatibility
+        if skill.allowed_tools:
+            frontmatter["allowed_tools"] = list(skill.allowed_tools)
+        if skill.triggers:
+            frontmatter["triggers"] = list(skill.triggers)
+
+        # Build content
+        content_parts = [
+            "---",
+            yaml.dump(frontmatter, default_flow_style=False, sort_keys=False).strip(),
+            "---",
+            "",
+        ]
+
+        # Add DAG metadata as comment (preserved for round-trip)
+        if skill.depends_on or skill.produces or skill.requires:
+            content_parts.append("<!-- Sunwell DAG Metadata (not used by Anthropic)")
+            if skill.depends_on:
+                content_parts.append(f"depends_on: {[d.source for d in skill.depends_on]}")
+            if skill.produces:
+                content_parts.append(f"produces: {list(skill.produces)}")
+            if skill.requires:
+                content_parts.append(f"requires: {list(skill.requires)}")
+            content_parts.append("-->")
+            content_parts.append("")
+
+        # Add instructions
+        if skill.instructions:
+            content_parts.append(skill.instructions)
+
+        # Write SKILL.md
+        skill_md = skill_dir / "SKILL.md"
+        skill_md.write_text("\n".join(content_parts))
+
+        # Export scripts as separate files
+        if include_scripts and skill.scripts:
+            for script in skill.scripts:
+                script_path = skill_dir / script.name
+                script_path.write_text(script.content)
+
+        # Export templates as separate files
+        if skill.templates:
+            for template in skill.templates:
+                template_path = skill_dir / template.name
+                template_path.write_text(template.content)
+
+        # Export resources list (as resources.yaml)
+        if skill.resources:
+            resources_data = []
+            for r in skill.resources:
+                res = {"name": r.name}
+                if r.url:
+                    res["url"] = r.url
+                if r.path:
+                    res["path"] = r.path
+                resources_data.append(res)
+            resources_path = skill_dir / "resources.yaml"
+            resources_path.write_text(yaml.dump(resources_data, default_flow_style=False))
+
+        return skill_dir
+
+    def export_sunwell(
+        self,
+        skill: "Skill",
+        output_dir: Path,
+    ) -> Path:
+        """Export skill to full Sunwell format with DAG metadata.
+
+        Creates:
+        ```
+        skill-name/
+        ├── SKILL.yaml        # Full skill definition with DAG
+        ├── scripts/          # Scripts directory
+        │   └── extract.py
+        └── templates/        # Templates directory
+            └── component.tsx
+        ```
+
+        Args:
+            skill: The skill to export
+            output_dir: Base output directory
+
+        Returns:
+            Path to created skill directory
+        """
+        skill_dir = Path(output_dir) / skill.name
+        skill_dir.mkdir(parents=True, exist_ok=True)
+
+        # Build full SKILL.yaml
+        skill_data: dict = {
+            "name": skill.name,
+            "description": skill.description,
+            "type": skill.skill_type.value,
+        }
+
+        # Add optional fields
+        if skill.preset:
+            skill_data["preset"] = skill.preset
+        if skill.compatibility:
+            skill_data["compatibility"] = skill.compatibility
+        if skill.allowed_tools:
+            skill_data["allowed_tools"] = list(skill.allowed_tools)
+        if skill.triggers:
+            skill_data["triggers"] = list(skill.triggers)
+
+        # DAG metadata
+        if skill.depends_on:
+            skill_data["depends_on"] = [{"source": d.source} for d in skill.depends_on]
+        if skill.produces:
+            skill_data["produces"] = list(skill.produces)
+        if skill.requires:
+            skill_data["requires"] = list(skill.requires)
+
+        # Permissions (RFC-089)
+        if skill.permissions:
+            skill_data["permissions"] = skill.permissions
+        if skill.security:
+            skill_data["security"] = skill.security
+
+        # Instructions
+        if skill.instructions:
+            skill_data["instructions"] = skill.instructions
+
+        # Trust level
+        skill_data["trust"] = skill.trust.value
+        skill_data["timeout"] = skill.timeout
+
+        # Validation
+        if skill.validate_with.validators:
+            skill_data["validate_with"] = {
+                "validators": list(skill.validate_with.validators),
+                "min_confidence": skill.validate_with.min_confidence,
+            }
+
+        # Write SKILL.yaml
+        skill_yaml = skill_dir / "SKILL.yaml"
+        skill_yaml.write_text(yaml.dump(skill_data, default_flow_style=False, sort_keys=False))
+
+        # Export scripts to scripts/ directory
+        if skill.scripts:
+            scripts_dir = skill_dir / "scripts"
+            scripts_dir.mkdir(exist_ok=True)
+            for script in skill.scripts:
+                script_path = scripts_dir / script.name
+                script_path.write_text(script.content)
+
+        # Export templates to templates/ directory
+        if skill.templates:
+            templates_dir = skill_dir / "templates"
+            templates_dir.mkdir(exist_ok=True)
+            for template in skill.templates:
+                template_path = templates_dir / template.name
+                template_path.write_text(template.content)
+
+        return skill_dir
+
+    def export(
+        self,
+        skill: "Skill",
+        output_dir: Path,
+        format: ExportFormat = "anthropic",
+    ) -> Path:
+        """Export a skill to the specified format.
+
+        Args:
+            skill: The skill to export
+            output_dir: Base output directory
+            format: Export format (anthropic, sunwell, skill-md, yaml)
+
+        Returns:
+            Path to created file/directory
+        """
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        if format == "anthropic":
+            return self.export_anthropic(skill, output_dir)
+        elif format == "sunwell":
+            return self.export_sunwell(skill, output_dir)
+        elif format == "skill-md":
+            # Legacy format
+            content = self.export_skill_md(skill)
+            file_path = output_dir / skill.name / "SKILL.md"
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            file_path.write_text(content)
+            return file_path.parent
+        elif format == "yaml":
+            content = self._skill_to_yaml(skill)
+            file_path = output_dir / f"{skill.name}.yaml"
+            file_path.write_text(content)
+            return file_path
+        else:
+            raise ValueError(f"Unknown format: {format}")
+
+    def export_skill_md(self, skill: "Skill", lens: "Lens | None" = None) -> str:
+        """Export a single skill to SKILL.md format (legacy Sunwell format).
 
         Args:
             skill: The skill to export
@@ -221,10 +468,122 @@ class SkillExporter:
 
 @dataclass
 class SkillImporter:
-    """Import external skills into lenses."""
+    """Import external skills from various formats.
+
+    Supports:
+    - Anthropic Agent Skills format (SKILL.md with frontmatter)
+    - Sunwell format (SKILL.yaml with DAG metadata)
+    - Legacy Sunwell markdown format
+    """
+
+    def import_anthropic(self, skill_path: Path) -> dict:
+        """Import from Anthropic Agent Skills format.
+
+        Handles:
+        - SKILL.md with YAML frontmatter
+        - Separate script files in the directory
+        - resources.yaml for resources
+
+        Args:
+            skill_path: Path to skill directory or SKILL.md file
+
+        Returns:
+            Dictionary of skill data
+        """
+        skill_dir = skill_path if skill_path.is_dir() else skill_path.parent
+        skill_file = skill_dir / "SKILL.md"
+
+        if not skill_file.exists():
+            raise FileNotFoundError(f"SKILL.md not found in {skill_dir}")
+
+        content = skill_file.read_text()
+        skill_data = self._parse_anthropic_skill_md(content, skill_dir.name)
+
+        # Import scripts from directory
+        scripts = []
+        for ext in ["*.py", "*.js", "*.ts", "*.sh", "*.bash"]:
+            for script_file in skill_dir.glob(ext):
+                if script_file.name != "SKILL.md":
+                    lang = {
+                        ".py": "python",
+                        ".js": "javascript",
+                        ".ts": "typescript",
+                        ".sh": "bash",
+                        ".bash": "bash",
+                    }.get(script_file.suffix, "python")
+                    scripts.append({
+                        "name": script_file.name,
+                        "language": lang,
+                        "content": script_file.read_text(),
+                    })
+        if scripts:
+            skill_data["scripts"] = scripts
+
+        # Import resources.yaml if present
+        resources_file = skill_dir / "resources.yaml"
+        if resources_file.exists():
+            resources_data = yaml.safe_load(resources_file.read_text())
+            if resources_data:
+                skill_data["resources"] = resources_data
+
+        return skill_data
+
+    def _parse_anthropic_skill_md(
+        self,
+        content: str,
+        default_name: str = "imported-skill",
+    ) -> dict:
+        """Parse Anthropic SKILL.md format with YAML frontmatter."""
+        skill_data = {
+            "name": default_name,
+            "description": "",
+            "type": "inline",
+            "trust": "sandboxed",
+        }
+
+        # Extract YAML frontmatter
+        frontmatter_match = re.match(r'^---\n(.*?)\n---\n?', content, re.DOTALL)
+        if frontmatter_match:
+            try:
+                frontmatter = yaml.safe_load(frontmatter_match.group(1))
+                if frontmatter:
+                    skill_data.update(frontmatter)
+                content = content[frontmatter_match.end():]
+            except yaml.YAMLError:
+                pass
+
+        # Extract DAG metadata from HTML comments
+        dag_match = re.search(
+            r'<!-- Sunwell DAG Metadata.*?depends_on:\s*(\[.*?\]).*?produces:\s*(\[.*?\]).*?requires:\s*(\[.*?\]).*?-->',
+            content,
+            re.DOTALL,
+        )
+        if dag_match:
+            try:
+                # Parse the list literals
+                import ast
+                skill_data["depends_on"] = [
+                    {"source": s} for s in ast.literal_eval(dag_match.group(1))
+                ]
+                skill_data["produces"] = ast.literal_eval(dag_match.group(2))
+                skill_data["requires"] = ast.literal_eval(dag_match.group(3))
+            except (ValueError, SyntaxError):
+                pass
+
+            # Remove the comment from content
+            content = content[:dag_match.start()] + content[dag_match.end():]
+
+        # Everything else is instructions
+        instructions = content.strip()
+        if instructions:
+            skill_data["instructions"] = instructions
+
+        return skill_data
 
     def import_skill_md(self, skill_path: Path) -> dict:
         """Parse a SKILL.md file into skill data.
+
+        Auto-detects format (Anthropic with frontmatter vs legacy).
 
         Args:
             skill_path: Path to SKILL.md file or directory containing it
@@ -239,6 +598,11 @@ class SkillImporter:
             raise FileNotFoundError(f"Skill file not found: {skill_file}")
 
         content = skill_file.read_text()
+
+        # Check if it's Anthropic format (has YAML frontmatter)
+        if content.startswith("---\n"):
+            return self._parse_anthropic_skill_md(content, skill_file.parent.name)
+
         return self._parse_skill_md(content, skill_file.parent.name)
 
     def _parse_skill_md(self, content: str, default_name: str = "imported-skill") -> dict:

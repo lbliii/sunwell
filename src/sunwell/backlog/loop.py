@@ -18,7 +18,7 @@ from sunwell.backlog.goals import Goal, GoalResult
 from sunwell.backlog.manager import BacklogManager
 
 if TYPE_CHECKING:
-    from sunwell.adaptive.agent import AdaptiveAgent
+    from sunwell.agent.agent import Agent
     from sunwell.guardrails import GuardrailSystem
     from sunwell.models.protocol import ModelProtocol
     from sunwell.naaru.planners.artifact import ArtifactPlanner
@@ -68,7 +68,7 @@ class AutonomousLoop:
         self,
         backlog_manager: BacklogManager,
         planner: ArtifactPlanner,
-        agent: AdaptiveAgent,
+        agent: Agent,
         model: ModelProtocol | None = None,
         guardrails: GuardrailSystem | None = None,
     ):

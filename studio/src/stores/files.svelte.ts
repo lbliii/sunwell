@@ -15,7 +15,7 @@
  *   {#each files.entries as file}...{/each}
  */
 
-import { invoke } from '@tauri-apps/api/core';
+import { listProjectFiles } from '$lib/socket';
 import { debounce } from '$lib/debounce';
 import type { FileEntry } from '$lib/types';
 
@@ -113,12 +113,9 @@ async function reloadFilesInternal(): Promise<void> {
   _error = null;
   
   try {
-    const result = await invoke<FileEntry[]>('list_project_files', {
-      path: _projectPath,
-      maxDepth: 4,
-    });
+    const result = await listProjectFiles(_projectPath, 4);
     
-    _entries = result;
+    _entries = result?.files ?? [];
     _lastLoadTime = Date.now();
   } catch (e) {
     console.error('Failed to load project files:', e);

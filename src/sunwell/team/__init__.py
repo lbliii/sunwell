@@ -20,6 +20,16 @@ Components:
 See: RFC-052-team-intelligence.md
 """
 
+from sunwell.team.config import TeamConfig
+from sunwell.team.conflicts import ConflictResolver, KnowledgeConflict
+from sunwell.team.gitignore_template import (
+    SUNWELL_GITIGNORE,
+    create_sunwell_gitignore,
+    ensure_sunwell_structure,
+)
+from sunwell.team.onboarding import OnboardingSummary, TeamOnboarding
+from sunwell.team.propagation import KnowledgePropagator
+from sunwell.team.store import SyncResult, TeamKnowledgeStore
 from sunwell.team.types import (
     KnowledgeScope,
     RejectedOption,
@@ -30,17 +40,7 @@ from sunwell.team.types import (
     TeamOwnership,
     TeamPatterns,
 )
-from sunwell.team.store import TeamKnowledgeStore, SyncResult
-from sunwell.team.conflicts import ConflictResolver, KnowledgeConflict
-from sunwell.team.propagation import KnowledgePropagator
-from sunwell.team.unified import UnifiedIntelligence, ApproachCheck, ApproachWarning, FileContext
-from sunwell.team.onboarding import TeamOnboarding, OnboardingSummary
-from sunwell.team.config import TeamConfig
-from sunwell.team.gitignore_template import (
-    SUNWELL_GITIGNORE,
-    create_sunwell_gitignore,
-    ensure_sunwell_structure,
-)
+from sunwell.team.unified import ApproachCheck, ApproachWarning, FileContext, UnifiedIntelligence
 
 __all__ = [
     # Types

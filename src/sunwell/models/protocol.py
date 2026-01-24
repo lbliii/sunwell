@@ -123,7 +123,7 @@ class Tool:
     parameters: dict  # JSON Schema
 
     @classmethod
-    def from_skill(cls, skill: "Skill") -> "Tool":
+    def from_skill(cls, skill: Skill) -> Tool:
         """Convert a Sunwell skill to a tool definition.
 
         Args:

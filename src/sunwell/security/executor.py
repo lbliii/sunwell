@@ -14,10 +14,11 @@ Execution flow:
 
 import os
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from sunwell.security.analyzer import PermissionAnalyzer, PermissionScope, RiskAssessment
 from sunwell.security.audit import AuditLogManager, LocalAuditLog

@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sunwell.adaptive.learning import Learning
+    from sunwell.agent.learning import Learning
 
 
 class BriefingStatus(Enum):
@@ -459,7 +459,7 @@ def briefing_to_learning(briefing: Briefing) -> Learning | None:
     if briefing.status != BriefingStatus.COMPLETE:
         return None
 
-    from sunwell.adaptive.learning import Learning
+    from sunwell.agent.learning import Learning
 
     return Learning(
         fact=f"Completed: {briefing.mission}. {briefing.progress}",

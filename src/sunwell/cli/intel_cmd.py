@@ -9,8 +9,8 @@ from pathlib import Path
 
 import click
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 
 from sunwell.intelligence import ProjectIntelligence
 
@@ -239,7 +239,7 @@ def patterns(project_root: str) -> None:
             console.print(f"\n[bold cyan]Docstring Style:[/bold cyan] {patterns.docstring_style} ({confidence:.0%} confidence)")
 
         # Communication preferences
-        console.print(f"\n[bold cyan]Communication:[/bold cyan]")
+        console.print("\n[bold cyan]Communication:[/bold cyan]")
         console.print(f"  • Explanation verbosity: {patterns.explanation_verbosity:.0%}")
         console.print(f"  • Code comment level: {patterns.code_comment_level:.0%}")
         console.print(f"  • Prefers questions: {patterns.prefers_questions}")
@@ -272,7 +272,7 @@ def scan(project_root: str, force: bool) -> None:
         # Save graph
         graph.save(base_path=context.decisions.base_path)
 
-        console.print(f"[green]✓[/green] Scan complete!")
+        console.print("[green]✓[/green] Scan complete!")
         console.print(f"  • Functions: {len(graph.call_graph)}")
         console.print(f"  • Modules: {len(graph.import_graph)}")
         console.print(f"  • Classes: {len(graph.class_hierarchy)}")

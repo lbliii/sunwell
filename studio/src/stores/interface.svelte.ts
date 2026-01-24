@@ -4,7 +4,7 @@
  * Manages the state for the LLM-driven interaction routing system.
  */
 
-import { invoke } from '@tauri-apps/api/core';
+import { apiGet, apiPost } from '$lib/socket';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -118,10 +118,11 @@ export async function processInput(input: string): Promise<InterfaceOutput | nul
 	];
 
 	try {
-		// Call Python via Tauri
-		const result = await invoke<InterfaceOutput>('process_goal', {
+		// RFC-113: Call Python via HTTP API
+		const { apiPost } = await import('$lib/socket');
+		const result = await apiPost<InterfaceOutput>('/api/interface/process', {
 			goal: input,
-			dataDir: interfaceState.dataDir,
+			data_dir: interfaceState.dataDir,
 		});
 
 		interfaceState.current = result;

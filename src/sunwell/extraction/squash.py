@@ -318,7 +318,7 @@ async def squash_extract(
 def _find_section(document: str, section_keywords: list[str], max_chars: int = 3000) -> str | None:
     """Find a specific section in a document by keywords."""
     doc_lower = document.lower()
-    
+
     for keyword in section_keywords:
         # Look for ## Section Header pattern
         pattern = rf"##\s*[^#\n]*{re.escape(keyword)}[^#\n]*\n(.*?)(?=\n##|\Z)"
@@ -328,7 +328,7 @@ def _find_section(document: str, section_keywords: list[str], max_chars: int = 3
             start = match.start()
             section = document[start:start + max_chars]
             return section
-    
+
     return None
 
 
@@ -345,14 +345,14 @@ async def section_aware_extract(
     3. Avoids whole-doc inference that leads to hallucination
     """
     from sunwell.models.protocol import GenerateOptions
-    
+
     confident_facts: list[ExtractedFact] = []
     uncertain_facts: list[ExtractedFact] = []
     total_extractions = 0
-    
+
     for key, config in SECTION_QUESTIONS.items():
         section = _find_section(document, config["sections"])
-        
+
         if not section:
             # Section not found - mark as uncertain
             uncertain_facts.append(ExtractedFact(
@@ -363,7 +363,7 @@ async def section_aware_extract(
                 quotes=(),
             ))
             continue
-        
+
         # Extract from this specific section
         extractions = await _extract_multiple(
             section,  # Use section, not whole doc!
@@ -372,9 +372,9 @@ async def section_aware_extract(
             n_extractions,
         )
         total_extractions += len(extractions)
-        
+
         consensus, agreement, quotes = _measure_agreement(extractions)
-        
+
         fact = ExtractedFact(
             content=consensus,
             source_question=config["question"],
@@ -382,16 +382,16 @@ async def section_aware_extract(
             confidence=agreement,
             quotes=tuple(quotes[:2]),
         )
-        
+
         if agreement >= 0.5 and "NOT SPECIFIED" not in consensus.upper():
             confident_facts.append(fact)
         else:
             uncertain_facts.append(fact)
-    
+
     # Calculate overall agreement
     all_agreements = [f.confidence for f in confident_facts + uncertain_facts if f.confidence > 0]
     overall_agreement = sum(all_agreements) / len(all_agreements) if all_agreements else 0.0
-    
+
     # Synthesize from confident facts
     if confident_facts:
         facts_str = "\n".join(
@@ -405,7 +405,7 @@ async def section_aware_extract(
         synthesized = synth_result.text.strip()
     else:
         synthesized = "Insufficient confident facts to synthesize goal."
-    
+
     return SquashResult(
         document_preview=document[:200] + "..." if len(document) > 200 else document,
         questions=tuple(config["question"] for config in SECTION_QUESTIONS.values()),

@@ -206,7 +206,7 @@ class WorkerProcess:
             )
 
             try:
-                # Execute via AdaptiveAgent
+                # Execute via Agent
                 await self._run_agent(goal)
 
                 # Commit changes
@@ -236,7 +236,7 @@ class WorkerProcess:
             goal: The goal to execute
         """
         # Import here to avoid circular imports and allow worker to run in subprocess
-        from sunwell.adaptive import AdaptiveAgent
+        from sunwell.agent import Agent
         from sunwell.models.ollama import OllamaModel
 
         # Create model (each worker gets its own model instance)
@@ -247,7 +247,7 @@ class WorkerProcess:
             # In production, this would fail or use alternative model
             return
 
-        agent = AdaptiveAgent(
+        agent = Agent(
             model=model,
             cwd=self.root,
         )

@@ -6,13 +6,13 @@ Uses IncrementalExecutor for hash-based change detection and caching.
 RFC-105: Enhanced with hierarchical DAG context for skip decisions.
 """
 
+import json
 from dataclasses import dataclass
 from datetime import datetime
-import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
-from sunwell.adaptive.events import AgentEvent, EventType
+from sunwell.agent.events import AgentEvent, EventType
 from sunwell.backlog.goals import Goal, GoalResult, GoalScope
 from sunwell.backlog.manager import BacklogManager
 from sunwell.execution.context import BacklogContext
@@ -44,7 +44,7 @@ class DagContext:
     Provides information about previous goals and artifacts
     to inform skip decisions and reuse existing work.
     """
-    
+
     total_goals: int = 0
     completed_goals: int = 0
     total_artifacts: int = 0
@@ -143,7 +143,7 @@ class ExecutionManager:
         try:
             # 3. Build backlog context for planner
             backlog_context = await self._build_context()
-            
+
             # RFC-105: Load hierarchical DAG context
             dag_context = self._load_dag_context()
 
@@ -152,7 +152,7 @@ class ExecutionManager:
 
             plan_context = context or {}
             plan_context["cwd"] = str(self.root)
-            
+
             # RFC-105: Add DAG context to planning context
             plan_context["dag"] = {
                 "total_goals": dag_context.total_goals,
@@ -277,21 +277,21 @@ class ExecutionManager:
         goals and artifacts for skip decisions.
         """
         index_path = self.root / ".sunwell" / "dag" / "index.json"
-        
+
         if not index_path.exists():
             return DagContext()
-        
+
         try:
             data = json.loads(index_path.read_text())
-            
+
             # Extract goal titles for context
             goals = data.get("goals", [])
             previous_goals = tuple(g.get("title", "") for g in goals if g.get("status") == "complete")
-            
+
             # Extract artifact IDs
             artifacts = data.get("recentArtifacts", [])
             previous_artifacts = frozenset(a.get("id", "") for a in artifacts)
-            
+
             # Extract learnings from goal files
             learnings: list[str] = []
             goals_dir = self.root / ".sunwell" / "dag" / "goals"
@@ -302,7 +302,7 @@ class ExecutionManager:
                         learnings.extend(goal_data.get("learnings", []))
                     except (json.JSONDecodeError, OSError):
                         continue
-            
+
             summary = data.get("summary", {})
             return DagContext(
                 total_goals=summary.get("totalGoals", 0),
@@ -353,7 +353,7 @@ class ExecutionManager:
         goal: str,
         context: dict[str, Any],
         backlog: BacklogContext,
-    ) -> "ArtifactGraph":
+    ) -> ArtifactGraph:
         """Discover artifact graph from planner."""
         # Artifact-first planner (preferred)
         if hasattr(planner, "discover_graph"):
@@ -372,7 +372,7 @@ class ExecutionManager:
 
     async def _execute_incremental(
         self,
-        graph: "ArtifactGraph",
+        graph: ArtifactGraph,
         planner: Any,
         tool_executor: Any,
         force: bool,
@@ -409,7 +409,7 @@ class ExecutionManager:
                 )
 
         # Create artifact function
-        async def create_artifact(spec: "ArtifactSpec") -> str:
+        async def create_artifact(spec: ArtifactSpec) -> str:
             return await self._create_artifact(spec, planner, tool_executor)
 
         # Execute
@@ -421,7 +421,7 @@ class ExecutionManager:
 
     async def _create_artifact(
         self,
-        spec: "ArtifactSpec",
+        spec: ArtifactSpec,
         planner: Any,
         tool_executor: Any,
     ) -> str:
@@ -474,7 +474,7 @@ class ExecutionManager:
     async def _extract_learnings(
         self,
         result: IncrementalResult,
-        graph: "ArtifactGraph",
+        graph: ArtifactGraph,
     ) -> int:
         """Extract learnings from execution result."""
         try:

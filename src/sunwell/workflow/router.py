@@ -9,13 +9,12 @@ import re
 from dataclasses import dataclass
 
 from sunwell.workflow.types import (
+    WORKFLOW_CHAINS,
     Intent,
     IntentCategory,
     WorkflowChain,
     WorkflowTier,
-    WORKFLOW_CHAINS,
 )
-
 
 # =============================================================================
 # INTENT SIGNALS
@@ -263,21 +262,21 @@ class IntentRouter:
         intent, workflow = self.classify_and_select(user_input)
 
         lines = [
-            f"🎯 Intent Analysis",
-            f"",
+            "🎯 Intent Analysis",
+            "",
             f"Category: {intent.category.value.upper()}",
             f"Confidence: {intent.confidence:.0%}",
             f"Signals: {', '.join(intent.signals) if intent.signals else 'none detected'}",
             f"Tier: {intent.tier.value}",
-            f"",
+            "",
         ]
 
         if workflow:
             lines.extend([
                 f"📋 Selected Workflow: {workflow.name}",
                 f"Description: {workflow.description}",
-                f"",
-                f"Steps:",
+                "",
+                "Steps:",
             ])
             for i, step in enumerate(workflow.steps, 1):
                 checkpoint = " [checkpoint]" if i - 1 in workflow.checkpoint_after else ""

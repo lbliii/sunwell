@@ -111,7 +111,7 @@ class BlockRegistry:
         return [b for b in self._blocks.values() if b.provider == provider]
 
     @classmethod
-    def default(cls) -> "BlockRegistry":
+    def default(cls) -> BlockRegistry:
         """Create registry with all default blocks."""
         return cls(DEFAULT_BLOCKS)
 

@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
-    from sunwell.adaptive.events import AgentEvent
+    from sunwell.agent.events import AgentEvent
     from sunwell.types.model_size import ModelSize
 
 

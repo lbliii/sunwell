@@ -5,8 +5,12 @@
   Shows the project's task graph with interactive navigation.
 -->
 <script lang="ts">
+  /**
+   * Planning — DAG-based task visualization (Svelte 5)
+   * RFC-113: Uses HTTP API instead of Tauri for all communication.
+   */
   import { untrack } from 'svelte';
-  import { invoke } from '@tauri-apps/api/core';
+  import { apiGet } from '$lib/socket';
   import { DagCanvas, DagControls, DagDetail } from '../components/dag';
   import { 
     dag, 
@@ -48,9 +52,11 @@
         // RFC-105: Load both index (fast) and full graph (for canvas)
         await loadProjectDagIndex(project.current.path);
         
-        // Also load full graph for canvas visualization
-        const graph = await invoke<DagGraph>('get_project_dag', { path: project.current.path });
-        setGraph(graph);
+        // Also load full graph for canvas visualization (RFC-113: HTTP API)
+        const graph = await apiGet<DagGraph>(`/api/dag?path=${encodeURIComponent(project.current.path)}`);
+        if (graph) {
+          setGraph(graph);
+        }
       } catch (e) {
         console.error('Failed to load DAG:', e);
         // Don't fallback to demo - show empty state instead

@@ -140,7 +140,7 @@ class TeamOnboarding:
     4. Ownership map
     """
 
-    def __init__(self, store: "TeamKnowledgeStore"):
+    def __init__(self, store: TeamKnowledgeStore):
         """Initialize team onboarding.
 
         Args:

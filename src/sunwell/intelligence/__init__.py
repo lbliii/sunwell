@@ -14,19 +14,6 @@ Components:
 See: RFC-045-project-intelligence.md
 """
 
-from sunwell.intelligence.decisions import (
-    Decision,
-    DecisionMemory,
-    RejectedOption,
-)
-from sunwell.intelligence.failures import (
-    FailedApproach,
-    FailureMemory,
-)
-from sunwell.intelligence.patterns import (
-    PatternLearner,
-    PatternProfile,
-)
 from sunwell.intelligence.codebase import (
     CodebaseAnalyzer,
     CodebaseGraph,
@@ -37,7 +24,20 @@ from sunwell.intelligence.context import (
     ProjectContext,
     ProjectIntelligence,
 )
+from sunwell.intelligence.decisions import (
+    Decision,
+    DecisionMemory,
+    RejectedOption,
+)
 from sunwell.intelligence.extractor import IntelligenceExtractor
+from sunwell.intelligence.failures import (
+    FailedApproach,
+    FailureMemory,
+)
+from sunwell.intelligence.patterns import (
+    PatternLearner,
+    PatternProfile,
+)
 
 __all__ = [
     # Decision Memory

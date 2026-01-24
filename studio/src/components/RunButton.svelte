@@ -6,8 +6,11 @@
   Auto-opens Preview when server is ready!
 -->
 <script lang="ts">
-  import { invoke } from '@tauri-apps/api/core';
-  import { listen } from '@tauri-apps/api/event';
+  /**
+   * RunButton — Intelligent project run button (RFC-066)
+   * RFC-113: Uses HTTP API for all communication.
+   */
+  import { apiPost, onEvent } from '$lib/socket';
   import { onMount } from 'svelte';
   import type { RunAnalysis, RunSession } from '$lib/types';
   import Modal from './Modal.svelte';
@@ -42,25 +45,25 @@
     }
   });
   
-  // Listen for session events
+  // Listen for session events via WebSocket
   onMount(() => {
-    const unlistenStart = listen<RunSession>('run-session-started', (e) => {
-      if (e.payload.projectPath === projectPath) {
-        // Store session with expected URL from analysis
-        setActiveSession(e.payload, analysis?.expectedUrl ?? undefined);
-        showModal = false;
-      }
-    });
-    
-    const unlistenStop = listen<string>('run-session-stopped', (e) => {
-      if (activeSession?.id === e.payload) {
-        clearActiveSession();
+    const unsubscribe = onEvent((event) => {
+      if (event.type === 'run_session_started') {
+        const payload = event.data as RunSession;
+        if (payload.projectPath === projectPath) {
+          setActiveSession(payload, analysis?.expectedUrl ?? undefined);
+          showModal = false;
+        }
+      } else if (event.type === 'run_session_stopped') {
+        const sessionId = event.data as string;
+        if (activeSession?.id === sessionId) {
+          clearActiveSession();
+        }
       }
     });
     
     return () => {
-      unlistenStart.then(f => f());
-      unlistenStop.then(f => f());
+      unsubscribe();
     };
   });
   
@@ -68,7 +71,7 @@
     if (activeSession) {
       // Stop running session
       try {
-        await invoke('stop_project_run', { sessionId: activeSession.id });
+        await apiPost('/api/run/stop', { session_id: activeSession.id });
         clearActiveSession();
       } catch (e) {
         error = e instanceof Error ? e.message : String(e);
@@ -82,11 +85,13 @@
     showModal = true;
     
     try {
-      analysis = await invoke<RunAnalysis>('analyze_project_for_run', { 
+      analysis = await apiPost<RunAnalysis>('/api/project/analyze-for-run', { 
         path: projectPath,
-        forceRefresh: false,
+        force_refresh: false,
       });
-      editedCommand = analysis.command;
+      if (analysis) {
+        editedCommand = analysis.command;
+      }
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
@@ -100,11 +105,11 @@
     error = null;
     
     try {
-      await invoke('run_project', {
+      await apiPost('/api/project/run', {
         path: projectPath,
         command: editedCommand,
-        installFirst,
-        saveCommand: remember,
+        install_first: installFirst,
+        save_command: remember,
       });
       // Modal will close via event listener when session starts
     } catch (e) {
@@ -118,11 +123,13 @@
     error = null;
     
     try {
-      analysis = await invoke<RunAnalysis>('analyze_project_for_run', { 
+      analysis = await apiPost<RunAnalysis>('/api/project/analyze-for-run', { 
         path: projectPath,
-        forceRefresh: true,
+        force_refresh: true,
       });
-      editedCommand = analysis.command;
+      if (analysis) {
+        editedCommand = analysis.command;
+      }
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {

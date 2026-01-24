@@ -8,7 +8,7 @@ import sys
 
 from rich.console import Console
 
-from sunwell.adaptive.events import AgentEvent, EventType
+from sunwell.agent.events import AgentEvent, EventType
 
 
 class StdoutEmitter:

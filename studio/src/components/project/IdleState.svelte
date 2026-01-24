@@ -6,7 +6,7 @@
   and goal input in a single unified view.
 -->
 <script lang="ts">
-  import { invoke } from '@tauri-apps/api/core';
+  import { openFinder, openTerminal, openEditor, apiPost } from '$lib/socket';
   import { untrack } from 'svelte';
   import type { FileEntry, ProjectStatus } from '$lib/types';
   import Button from '../Button.svelte';
@@ -58,17 +58,17 @@
   // Quick action handlers
   async function handleOpenFiles() {
     if (!project.current?.path) return;
-    try { await invoke('open_in_finder', { path: project.current.path }); } catch (e) { console.error('Failed:', e); }
+    try { await openFinder(project.current.path); } catch (e) { console.error('Failed:', e); }
   }
   
   async function handleOpenTerminal() {
     if (!project.current?.path) return;
-    try { await invoke('open_terminal', { path: project.current.path }); } catch (e) { console.error('Failed:', e); }
+    try { await openTerminal(project.current.path); } catch (e) { console.error('Failed:', e); }
   }
   
   async function handleOpenEditor() {
     if (!project.current?.path) return;
-    try { await invoke('open_in_editor', { path: project.current.path }); } catch (e) { console.error('Failed:', e); }
+    try { await openEditor(project.current.path); } catch (e) { console.error('Failed:', e); }
   }
   
   // Goal handlers
@@ -95,7 +95,7 @@
   async function handleStartServer(command: string) {
     if (!project.current?.path) return;
     try {
-      await invoke('run_project', { 
+      await apiPost('/api/project/run', { 
         path: project.current.path, 
         command,
       });

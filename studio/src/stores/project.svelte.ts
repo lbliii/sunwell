@@ -3,15 +3,15 @@
  * 
  * Extended in RFC-079 with universal project analysis support.
  * Extended in RFC-108 with automatic codebase indexing.
+ * RFC-113: Migrated from Tauri invoke to HTTP API.
  */
 
 import type { 
   Project, RecentProject, ProjectType, ProjectStatus, ProjectManageResult, ProjectLearnings,
   ProjectAnalysis, MonorepoAnalysis, AnalysisProjectType,
 } from '$lib/types';
+import { apiGet, apiPost } from '$lib/socket';
 import { initIndexing, stopIndexing } from './indexing.svelte';
-
-const DEMO_MODE = false;
 
 // ═══════════════════════════════════════════════════════════════
 // STATE
@@ -63,20 +63,12 @@ export const project = {
 export async function loadRecentProjects(): Promise<void> {
   // Prevent concurrent loads
   if (_isLoading) return;
-  
-  if (DEMO_MODE) {
-    _recent = [
-      { path: '/demo/flask-api', name: 'flask-api', last_opened: Date.now() - 3600000, project_type: 'code_python', description: '' },
-      { path: '/demo/react-app', name: 'react-app', last_opened: Date.now() - 86400000, project_type: 'code_web', description: '' },
-    ];
-    return;
-  }
 
   try {
     _isLoading = true;
     _error = null;
-    const { invoke } = await import('@tauri-apps/api/core');
-    _recent = await invoke<RecentProject[]>('get_recent_projects');
+    const result = await apiGet<{ recent: RecentProject[] }>('/api/project/recent');
+    _recent = result.recent || [];
   } catch (e) {
     _error = e instanceof Error ? e.message : String(e);
   } finally {
@@ -87,30 +79,12 @@ export async function loadRecentProjects(): Promise<void> {
 export async function scanProjects(): Promise<void> {
   // Prevent concurrent scans
   if (_isScanning) return;
-  
-  if (DEMO_MODE) {
-    _discovered = [
-      { 
-        id: 'demo-forum-app', path: '/demo/forum-app', display_path: '~/Sunwell/projects/forum-app',
-        name: 'forum-app', status: 'interrupted', last_goal: 'create a forum app',
-        tasks_completed: 4, tasks_total: 7, tasks: null,
-        last_activity: new Date(Date.now() - 300000).toISOString(),
-      },
-      { 
-        id: 'demo-blog-api', path: '/demo/blog-api', display_path: '~/Sunwell/projects/blog-api',
-        name: 'blog-api', status: 'complete', last_goal: 'build a blog API',
-        tasks_completed: 5, tasks_total: 5, tasks: null,
-        last_activity: new Date(Date.now() - 3600000).toISOString(),
-      },
-    ];
-    return;
-  }
 
   try {
     _isScanning = true;
     _error = null;
-    const { invoke } = await import('@tauri-apps/api/core');
-    _discovered = await invoke<ProjectStatus[]>('scan_projects');
+    const result = await apiGet<{ projects: ProjectStatus[] }>('/api/project/scan');
+    _discovered = result.projects || [];
   } catch (e) {
     _error = e instanceof Error ? e.message : String(e);
   } finally {
@@ -119,13 +93,10 @@ export async function scanProjects(): Promise<void> {
 }
 
 export async function resumeProject(path: string): Promise<boolean> {
-  if (DEMO_MODE) return true;
-
   try {
     _isLoading = true;
     _error = null;
-    const { invoke } = await import('@tauri-apps/api/core');
-    const result = await invoke<{ success: boolean; message: string }>('resume_project', { path });
+    const result = await apiPost<{ success: boolean; message: string }>('/api/project/resume', { path });
     return result.success;
   } catch (e) {
     _error = e instanceof Error ? e.message : String(e);
@@ -136,24 +107,10 @@ export async function resumeProject(path: string): Promise<boolean> {
 }
 
 export async function openProject(path: string): Promise<Project | null> {
-  if (DEMO_MODE) {
-    const proj: Project = {
-      id: `demo-${path.replace(/\//g, '-')}`,
-      path,
-      name: path.split('/').pop() || 'project',
-      project_type: 'code_python',
-      description: 'Demo project',
-      files_count: 42,
-    };
-    _current = proj;
-    return proj;
-  }
-
   try {
     _isLoading = true;
     _error = null;
-    const { invoke } = await import('@tauri-apps/api/core');
-    const proj = await invoke<Project>('open_project', { path });
+    const proj = await apiPost<Project>('/api/project/open', { path });
     _current = proj;
     
     // RFC-108: Start background codebase indexing
@@ -186,16 +143,10 @@ export function closeProject(): void {
 }
 
 export async function deleteProject(path: string): Promise<ProjectManageResult> {
-  if (DEMO_MODE) {
-    _discovered = _discovered.filter(p => p.path !== path);
-    return { success: true, message: 'Deleted project', new_path: null };
-  }
-
   try {
     _isLoading = true;
     _error = null;
-    const { invoke } = await import('@tauri-apps/api/core');
-    const result = await invoke<ProjectManageResult>('delete_project', { path });
+    const result = await apiPost<ProjectManageResult>('/api/project/delete', { path });
     if (result.success) await scanProjects();
     return result;
   } catch (e) {
@@ -208,16 +159,10 @@ export async function deleteProject(path: string): Promise<ProjectManageResult> 
 }
 
 export async function archiveProject(path: string): Promise<ProjectManageResult> {
-  if (DEMO_MODE) {
-    _discovered = _discovered.filter(p => p.path !== path);
-    return { success: true, message: 'Archived project', new_path: '~/Sunwell/archived/demo' };
-  }
-
   try {
     _isLoading = true;
     _error = null;
-    const { invoke } = await import('@tauri-apps/api/core');
-    const result = await invoke<ProjectManageResult>('archive_project', { path });
+    const result = await apiPost<ProjectManageResult>('/api/project/archive', { path });
     if (result.success) await scanProjects();
     return result;
   } catch (e) {
@@ -230,16 +175,10 @@ export async function archiveProject(path: string): Promise<ProjectManageResult>
 }
 
 export async function iterateProject(path: string, newGoal?: string): Promise<ProjectManageResult> {
-  if (DEMO_MODE) {
-    const baseName = path.split('/').pop() || 'project';
-    return { success: true, message: `Created ${baseName}-v2`, new_path: `/demo/${baseName}-v2` };
-  }
-
   try {
     _isLoading = true;
     _error = null;
-    const { invoke } = await import('@tauri-apps/api/core');
-    const result = await invoke<ProjectManageResult>('iterate_project', { path, newGoal: newGoal ?? null });
+    const result = await apiPost<ProjectManageResult>('/api/project/iterate', { path, new_goal: newGoal ?? null });
     if (result.success) await scanProjects();
     return result;
   } catch (e) {
@@ -252,19 +191,8 @@ export async function iterateProject(path: string, newGoal?: string): Promise<Pr
 }
 
 export async function getProjectLearnings(path: string): Promise<ProjectLearnings | null> {
-  if (DEMO_MODE) {
-    return {
-      original_goal: 'create a forum app',
-      decisions: ['Used Flask', 'SQLite for dev'],
-      failures: ['Redis was overkill'],
-      completed_tasks: ['Set up Flask', 'Create models'],
-      pending_tasks: ['User auth', 'Tests'],
-    };
-  }
-
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    return await invoke<ProjectLearnings>('get_project_learnings', { path });
+    return await apiGet<ProjectLearnings>(`/api/project/learnings?path=${encodeURIComponent(path)}`);
   } catch (e) {
     _error = e instanceof Error ? e.message : String(e);
     return null;
@@ -305,39 +233,10 @@ export function getProjectTypeName(type: ProjectType): string {
 export async function analyzeProject(path: string, fresh = false): Promise<ProjectAnalysis | null> {
   if (_isAnalyzing) return _analysis;
 
-  if (DEMO_MODE) {
-    _analysis = {
-      name: path.split('/').pop() || 'project',
-      path,
-      project_type: 'code',
-      project_subtype: 'svelte-app',
-      goals: [
-        { id: 'goal-1', title: 'Implement core features', description: '', priority: 'high', status: 'inferred', confidence: 0.8 },
-        { id: 'goal-2', title: 'Add tests', description: '', priority: 'medium', status: 'inferred', confidence: 0.7 },
-      ],
-      pipeline: [
-        { id: 'goal-1', title: 'Implement core features', status: 'in_progress', description: '' },
-        { id: 'goal-2', title: 'Add tests', status: 'pending', description: '' },
-      ],
-      current_step: 'goal-1',
-      completion_percent: 0.3,
-      suggested_action: { action_type: 'continue_work', description: 'Continue: Implement core features', goal_id: 'goal-1', command: null, confidence: 0.85 },
-      suggested_workspace_primary: 'CodeEditor',
-      dev_command: { command: 'npm run dev', description: 'Start Vite dev server', prerequisites: [], expected_url: 'http://localhost:5173' },
-      confidence: 0.85,
-      confidence_level: 'high',
-      detection_signals: ['has_package_json', 'svelte_dependency'],
-      analyzed_at: new Date().toISOString(),
-      classification_source: 'heuristic',
-    };
-    return _analysis;
-  }
-
   try {
     _isAnalyzing = true;
     _analysisError = null;
-    const { invoke } = await import('@tauri-apps/api/core');
-    _analysis = await invoke<ProjectAnalysis>('analyze_project', { path, fresh });
+    _analysis = await apiPost<ProjectAnalysis>('/api/project/analyze', { path, fresh });
     return _analysis;
   } catch (e) {
     _analysisError = e instanceof Error ? e.message : String(e);
@@ -351,13 +250,8 @@ export async function analyzeProject(path: string, fresh = false): Promise<Proje
  * Check if a path is a monorepo and get sub-projects (RFC-079).
  */
 export async function checkMonorepo(path: string): Promise<MonorepoAnalysis | null> {
-  if (DEMO_MODE) {
-    return { is_monorepo: false, sub_projects: [] };
-  }
-
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    return await invoke<MonorepoAnalysis>('analyze_monorepo', { path });
+    return await apiPost<MonorepoAnalysis>('/api/project/monorepo', { path });
   } catch (e) {
     _analysisError = e instanceof Error ? e.message : String(e);
     return null;

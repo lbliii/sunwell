@@ -258,7 +258,7 @@ async def _show_patterns() -> None:
     console.print(Panel("[bold]📝 Team Code Patterns[/bold]", expand=False))
 
     console.print(f"\n[bold]Enforcement Level:[/bold] {patterns.enforcement_level}")
-    console.print(f"\n[bold]Naming Conventions:[/bold]")
+    console.print("\n[bold]Naming Conventions:[/bold]")
     if patterns.naming_conventions:
         for k, v in patterns.naming_conventions.items():
             console.print(f"   - {k}: {v}")
@@ -695,7 +695,7 @@ async def _init_team() -> None:
     failures = await store.get_failures()
 
     if decisions or failures:
-        console.print(f"\n[bold]Existing team knowledge found:[/bold]")
+        console.print("\n[bold]Existing team knowledge found:[/bold]")
         console.print(f"  - {len(decisions)} decisions")
         console.print(f"  - {len(failures)} failure patterns")
 

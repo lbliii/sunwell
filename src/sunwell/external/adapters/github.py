@@ -55,12 +55,12 @@ class GitHubAdapter(EventAdapter):
         self.repo = repo
         self.polling_interval = polling_interval
 
-        self._client: "httpx.AsyncClient | None" = None
+        self._client: httpx.AsyncClient | None = None
         self._polling_task: asyncio.Task | None = None
         self._webhook_callback: EventCallback | None = None
         self._running = False
 
-    async def _get_client(self) -> "httpx.AsyncClient":
+    async def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client."""
         if self._client is None:
             import httpx

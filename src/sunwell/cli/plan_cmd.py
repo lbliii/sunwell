@@ -76,7 +76,7 @@ console = Console()
 )
 @click.option(
     "--compound",
-    is_flag=True, 
+    is_flag=True,
     help="Use Compound Eye to extract requirements from multiple perspectives",
 )
 @click.option(
@@ -131,7 +131,7 @@ def plan(
         final_goal = asyncio.run(_compound_extract(input_file, provider, model, verbose))
     else:
         final_goal = _resolve_goal(goal, input_file, extract_goal)
-    
+
     if not final_goal:
         console.print("[red]Error: Provide a goal or use --file[/red]")
         raise SystemExit(1)
@@ -175,7 +175,7 @@ def _resolve_goal(
     # For full file, extract key sections intelligently
     # Don't truncate - use structured extraction
     key_sections = _extract_key_sections(content)
-    
+
     return f"Implement the following specification:\n\n{key_sections}"
 
 
@@ -190,11 +190,11 @@ def _extract_key_sections(content: str) -> str:
     - Requirements (from headers)
     """
     sections = []
-    
+
     # Priority sections to extract (in order)
     priority_headers = [
         r"##?\s*summary",
-        r"##?\s*overview", 
+        r"##?\s*overview",
         r"##?\s*goals",
         r"##?\s*non-goals",
         r"##?\s*requirements",
@@ -203,7 +203,7 @@ def _extract_key_sections(content: str) -> str:
         r"##?\s*implementation\s*plan",
         r"##?\s*phase\s*1",
     ]
-    
+
     for pattern in priority_headers:
         match = re.search(
             rf"({pattern})\s*\n+(.*?)(?=\n##|\n---|\Z)",
@@ -217,18 +217,18 @@ def _extract_key_sections(content: str) -> str:
             if len(body) > 500:
                 body = body[:500] + "..."
             sections.append(f"{header}\n{body}")
-    
+
     if sections:
         return "\n\n".join(sections)
-    
+
     # Fallback: title + first 1000 chars
     title_match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
     title = title_match.group(1) if title_match else "Specification"
-    
+
     preview = content[:1000]
     if len(content) > 1000:
         preview += f"\n\n[...{len(content) - 1000} more characters...]"
-    
+
     return f"# {title}\n\n{preview}"
 
 
@@ -267,13 +267,13 @@ async def _squash_extract(
     Much more reliable than single-shot extraction.
     """
     from sunwell.cli.helpers import resolve_model
-    
+
     path = Path(input_file)
     content = path.read_text()
-    
+
     if verbose:
         console.print(f"[dim]Squash extracting from {len(content):,} chars (3x per question)...[/dim]")
-    
+
     # Load model using resolve_model()
     model = None
     try:
@@ -281,36 +281,36 @@ async def _squash_extract(
     except Exception as e:
         console.print(f"[yellow]Warning: Could not load model for squash: {e}[/yellow]")
         return f"Implement the following specification:\n\n{_extract_key_sections(content)}"
-    
+
     # Run section-aware squash extraction (finds relevant sections first)
     from sunwell.extraction.squash import section_aware_extract
-    
+
     result = await section_aware_extract(
         document=content,
         model=model,
         n_extractions=2,  # 2x per section is enough with targeted extraction
     )
-    
+
     if verbose:
-        console.print(f"\n[cyan]Squash Extraction Results:[/cyan]")
+        console.print("\n[cyan]Squash Extraction Results:[/cyan]")
         console.print(f"  Agreement rate: {result.agreement_rate:.0%}")
         console.print(f"  Confident facts: {len(result.confident_facts)}")
         console.print(f"  Uncertain facts: {len(result.uncertain_facts)}")
-        
+
         if result.confident_facts:
-            console.print(f"\n[green]✓ Confident (agreement >= 60%):[/green]")
+            console.print("\n[green]✓ Confident (agreement >= 60%):[/green]")
             for fact in result.confident_facts:
                 console.print(f"  • {fact.source_question}")
                 console.print(f"    → {fact.content[:100]}...")
-        
+
         if result.uncertain_facts:
-            console.print(f"\n[yellow]? Uncertain (low agreement):[/yellow]")
+            console.print("\n[yellow]? Uncertain (low agreement):[/yellow]")
             for fact in result.uncertain_facts:
                 console.print(f"  • {fact.source_question}: {fact.confidence:.0%} agreement")
-    
+
     if verbose:
         console.print(f"\n[cyan]Synthesized goal ({len(result.synthesized_goal)} chars)[/cyan]")
-    
+
     return f"Implement the following specification:\n\n{result.synthesized_goal}"
 
 
@@ -331,16 +331,16 @@ async def _digest_document(
     No truncation - the full document is available via semantic retrieval.
     """
     from sunwell.simulacrum.core.store import SimulacrumStore
-    
+
     path = Path(input_file)
     content = path.read_text()
-    
+
     if verbose:
         console.print(f"[dim]Digesting {len(content):,} characters via Simulacrum...[/dim]")
-    
+
     # Create a temporary simulacrum for this document
     store = SimulacrumStore(base_path=Path(".sunwell/plan_digest"))
-    
+
     # Ingest the full document
     await store.ingest_document(
         file_path=str(path),
@@ -348,7 +348,7 @@ async def _digest_document(
         extract_facets=True,
         extract_topology=True,
     )
-    
+
     # Query for planning-relevant information
     queries = [
         "What is the main goal and purpose?",
@@ -356,16 +356,16 @@ async def _digest_document(
         "What are the key constraints and non-goals?",
         "What is the implementation plan or phases?",
     ]
-    
+
     extracted_parts = []
     for query in queries:
         results = await store.semantic_search(query, limit=3)
         if results:
             extracted_parts.append(f"### {query}\n" + "\n".join(r.content for r in results))
-    
+
     if extracted_parts:
         return "Implement the following specification:\n\n" + "\n\n".join(extracted_parts)
-    
+
     # Fallback if semantic search not available
     return f"Implement the following specification:\n\n{_extract_key_sections(content)}"
 
@@ -387,13 +387,13 @@ async def _compound_extract(
     Synthesizes into a comprehensive goal.
     """
     from sunwell.cli.helpers import resolve_model
-    
+
     path = Path(input_file)
     content = path.read_text()
-    
+
     if verbose:
         console.print(f"[dim]Analyzing {len(content):,} chars via Compound Eye...[/dim]")
-    
+
     # Load model using resolve_model()
     model = None
     try:
@@ -401,7 +401,7 @@ async def _compound_extract(
     except Exception as e:
         console.print(f"[yellow]Warning: Could not load model for Compound Eye: {e}[/yellow]")
         return f"Implement the following specification:\n\n{_extract_key_sections(content)}"
-    
+
     # Define perspectives for extraction
     perspectives = [
         ("product", "What product/feature is being built? Summarize in 2-3 sentences."),
@@ -410,10 +410,10 @@ async def _compound_extract(
         ("constraints", "What are the constraints, non-goals, or things explicitly excluded?"),
         ("phases", "What implementation phases or milestones are defined?"),
     ]
-    
+
     # Run document through each perspective
     from sunwell.models.protocol import GenerateOptions
-    
+
     extracted = {}
     for name, question in perspectives:
         prompt = f"""Given this specification document, {question}
@@ -422,7 +422,7 @@ Document:
 {content[:8000]}  # Use more context per perspective
 
 Answer concisely:"""
-        
+
         try:
             result = await model.generate(
                 prompt,
@@ -434,34 +434,34 @@ Answer concisely:"""
         except Exception as e:
             if verbose:
                 console.print(f"[dim]  ✗ {name}: {e}[/dim]")
-    
+
     # Synthesize into goal
     goal_parts = []
-    
+
     if extracted.get("product"):
         goal_parts.append(f"**Goal**: {extracted['product']}")
-    
+
     if extracted.get("tech_stack"):
         goal_parts.append(f"**Tech Stack**: {extracted['tech_stack']}")
-    
+
     if extracted.get("ux_requirements"):
         goal_parts.append(f"**UX Requirements**:\n{extracted['ux_requirements']}")
-    
+
     if extracted.get("phases"):
         goal_parts.append(f"**Implementation Phases**:\n{extracted['phases']}")
-    
+
     if extracted.get("constraints"):
         goal_parts.append(f"**Constraints**: {extracted['constraints']}")
-    
+
     synthesized = "\n\n".join(goal_parts)
-    
+
     # Keep synthesis manageable for the planner (max ~4000 chars)
     # This is still 2x what we had before, but digestible
     if len(synthesized) > 4000:
         # Prioritize: Goal > Tech Stack > Phases > UX > Constraints
         priority_parts = []
         remaining = 4000
-        
+
         for key in ["product", "tech_stack", "phases", "ux_requirements", "constraints"]:
             if extracted.get(key) and remaining > 0:
                 part = extracted[key][:remaining]
@@ -471,12 +471,12 @@ Answer concisely:"""
                 else:
                     priority_parts.append(f"**{label}**: {part}")
                 remaining -= len(part) + 50  # Account for formatting
-        
+
         synthesized = "\n\n".join(priority_parts)
-    
+
     if verbose:
         console.print(f"\n[cyan]Synthesized goal ({len(synthesized)} chars)[/cyan]")
-    
+
     return f"Implement the following specification:\n\n{synthesized}"
 
 

@@ -15,7 +15,6 @@ from pathlib import Path
 
 from sunwell.indexing.project_type import ProjectType
 
-
 # Files to always index first (glob patterns) by project type
 PRIORITY_PATTERNS: dict[ProjectType, list[str]] = {
     ProjectType.CODE: [

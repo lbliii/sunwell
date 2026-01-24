@@ -9,7 +9,7 @@
   - Learnings & concepts summary
 -->
 <script lang="ts">
-  import { invoke } from '@tauri-apps/api/core';
+  import { openFinder, openTerminal, openEditor, apiGet } from '$lib/socket';
   import { fly, fade, scale } from 'svelte/transition';
   import type { FileEntry } from '$lib/types';
   import Button from '../Button.svelte';
@@ -147,14 +147,11 @@
     
     isLoadingHero = true;
     try {
-      const content = await invoke<string>('read_file_contents', {
-        path: suggestedHeroFile.path,
-        maxSize: 10000
-      });
+      const result = await apiGet<{ content: string }>(`/api/project/file?path=${encodeURIComponent(suggestedHeroFile.path)}&max_size=10000`);
       heroFile = {
         path: suggestedHeroFile.path,
         name: suggestedHeroFile.name,
-        content
+        content: result.content
       };
     } catch (e) {
       console.error('Failed to load hero file:', e);
@@ -195,7 +192,7 @@
       return;
     }
     try {
-      await invoke('open_in_finder', { path: project.current.path });
+      await openFinder(project.current.path);
     } catch (e) {
       console.error('Failed to open files:', e);
     }
@@ -204,7 +201,7 @@
   async function handleOpenTerminal() {
     if (!project.current?.path) return;
     try {
-      await invoke('open_terminal', { path: project.current.path });
+      await openTerminal(project.current.path);
     } catch (e) {
       console.error('Failed to open terminal:', e);
     }
@@ -213,7 +210,7 @@
   async function handleOpenEditor() {
     if (!project.current?.path) return;
     try {
-      await invoke('open_in_editor', { path: project.current.path });
+      await openEditor(project.current.path);
     } catch (e) {
       console.error('Failed to open editor:', e);
     }

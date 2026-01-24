@@ -6,6 +6,7 @@ Commands for analyzing and fixing code weaknesses using DAG cascade.
 import asyncio
 import json
 import sys
+from datetime import UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -365,9 +366,9 @@ async def _build_graph(project_root: Path) -> ArtifactGraph:
 
 def _timestamp() -> str:
     """Get ISO timestamp."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _print_scan_report(report: dict[str, Any]) -> None:

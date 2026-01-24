@@ -34,7 +34,7 @@ class ExternalContext:
     error_message: str | None = None
     """Error message if this is an alert-triggered goal."""
 
-    def with_ci_logs(self, logs: str) -> "ExternalContext":
+    def with_ci_logs(self, logs: str) -> ExternalContext:
         """Return a new context with CI logs added.
 
         Args:
@@ -52,7 +52,7 @@ class ExternalContext:
             error_message=self.error_message,
         )
 
-    def with_issue_body(self, body: str) -> "ExternalContext":
+    def with_issue_body(self, body: str) -> ExternalContext:
         """Return a new context with issue body added.
 
         Args:
@@ -71,7 +71,7 @@ class ExternalContext:
         )
 
     @classmethod
-    def from_event(cls, source: EventSource, priority: float) -> "ExternalContext":
+    def from_event(cls, source: EventSource, priority: float) -> ExternalContext:
         """Create context from an external event.
 
         Args:

@@ -4,7 +4,7 @@
  * RFC-063: Weakness Cascade
  */
 
-import { invoke } from '@tauri-apps/api/core';
+import { apiGet, apiPost } from '$lib/socket';
 import type {
   WeaknessReport,
   WeaknessScore,
@@ -135,7 +135,8 @@ export async function scanWeaknesses(projectPath: string): Promise<void> {
   _error = null;
 
   try {
-    const report = await invoke<WeaknessReport>('scan_weaknesses', {
+    // RFC-113: Uses HTTP API instead of Tauri invoke
+    const report = await apiPost<WeaknessReport>('/api/weakness/scan', {
       path: projectPath,
     });
     _report = report;
@@ -157,9 +158,10 @@ export async function selectWeakness(
   if (weakness) {
     _isPreviewing = true;
     try {
-      const preview = await invoke<CascadePreview>('preview_cascade', {
+      // RFC-113: Uses HTTP API instead of Tauri invoke
+      const preview = await apiPost<CascadePreview>('/api/weakness/preview', {
         path: projectPath,
-        artifactId: weakness.artifact_id,
+        artifact_id: weakness.artifact_id,
       });
       _cascadePreview = preview;
     } catch (e) {
@@ -181,11 +183,12 @@ export async function startExecution(
   _error = null;
 
   try {
-    const execution = await invoke<CascadeExecution>('start_cascade_execution', {
+    // RFC-113: Uses HTTP API instead of Tauri invoke
+    const execution = await apiPost<CascadeExecution>('/api/weakness/execute', {
       path: projectPath,
-      artifactId,
-      autoApprove,
-      confidenceThreshold,
+      artifact_id: artifactId,
+      auto_approve: autoApprove,
+      confidence_threshold: confidenceThreshold,
     });
     _execution = execution;
   } catch (e) {
@@ -206,12 +209,13 @@ export async function executeQuickFix(
   _error = null;
 
   try {
-    // Start execution - events will stream via agent-event listener
-    const execution = await invoke<CascadeExecution>('execute_cascade_fix', {
+    // RFC-113: Uses HTTP API instead of Tauri invoke
+    // Start execution - events will stream via WebSocket
+    const execution = await apiPost<CascadeExecution>('/api/weakness/fix', {
       path: projectPath,
-      artifactId,
-      autoApprove,
-      confidenceThreshold,
+      artifact_id: artifactId,
+      auto_approve: autoApprove,
+      confidence_threshold: confidenceThreshold,
     });
 
     _execution = execution;

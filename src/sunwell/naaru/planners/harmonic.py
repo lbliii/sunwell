@@ -271,8 +271,8 @@ class HarmonicPlanner:
             return
 
         try:
-            from sunwell.adaptive.event_schema import create_validated_event
-            from sunwell.adaptive.events import EventType
+            from sunwell.agent.event_schema import create_validated_event
+            from sunwell.agent.events import EventType
 
             # RFC-060: Validate event data against schema
             event = create_validated_event(EventType(event_type), data)

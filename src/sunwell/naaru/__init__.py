@@ -250,13 +250,7 @@ from sunwell.naaru.selection import (
     select_voting,
 )
 
-# RFC-083: Session Management
-from sunwell.naaru.session import (
-    NaaruSession,
-    NaaruSessionManager,
-    get_session,
-    get_session_manager,
-)
+# RFC-110: Session management moved to Agent level
 
 # Shards - Parallel Helpers
 from sunwell.naaru.shards import (
@@ -515,13 +509,9 @@ __all__ = [
     "ExecutionCoordinator",
     "LearningExtractor",
 
-    # RFC-083: Session Management
-    "NaaruSession",
-    "NaaruSessionManager",
-    "get_session",
-    "get_session_manager",
+    # RFC-110: Session management moved to Agent level
 
-    # RFC-083: Unified API Types
+    # RFC-083: Unified API Types (kept for backwards compatibility)
     "ProcessInput",
     "ProcessOutput",
     "ProcessMode",

@@ -247,7 +247,7 @@
   <!-- Intent Dialog -->
   {#if showIntentDialog && selectedNode}
     <div class="dialog-overlay" role="presentation" onclick={() => showIntentDialog = false} onkeydown={(e) => e.key === 'Escape' && (showIntentDialog = false)}>
-      <div class="dialog" role="dialog" aria-modal="true" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+      <div class="dialog" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
         <h3>Give Intent for {selectedNode.title}</h3>
         <p class="dialog-hint">What would you like to do with this file?</p>
         

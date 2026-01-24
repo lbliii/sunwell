@@ -12,12 +12,10 @@
         "test": "vitest",
         "test:ui": "vitest --ui",
         "test:coverage": "vitest --coverage",
-        "test:watch": "vitest --watch",
-        "tauri": "tauri"
+        "test:watch": "vitest --watch"
     },
     "devDependencies": {
         "@sveltejs/vite-plugin-svelte": "^4.0.0",
-        "@tauri-apps/cli": "^2.0.0",
         "@testing-library/jest-dom": "^6.1.5",
         "@testing-library/svelte": "^4.0.3",
         "@tsconfig/svelte": "^5.0.0",
@@ -31,7 +29,6 @@
         "vitest": "^1.0.4"
     },
     "dependencies": {
-        "@tauri-apps/api": "^2.0.0",
         "@types/dagre": "^0.7.53",
         "@use-gesture/vanilla": "^10.3.1",
         "dagre": "^0.8.5",

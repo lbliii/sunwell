@@ -5,7 +5,6 @@
 -->
 <script lang="ts">
   import { untrack, onMount } from 'svelte';
-  import { listen } from '@tauri-apps/api/event';
   import Home from './routes/Home.svelte';
   import Project from './routes/Project.svelte';
   import Projects from './routes/Projects.svelte';
@@ -21,8 +20,9 @@
   import { Route } from '$lib/constants';
   import { setupInferenceListeners } from '$lib/inference';
   import { openProject } from './stores/project.svelte';
+  import { onEvent } from '$lib/socket';
   
-  // RFC-086: Startup params from CLI
+  // RFC-086: Startup params from CLI (via WebSocket event)
   interface StartupParams {
     project: string | null;
     lens: string | null;
@@ -54,15 +54,13 @@
   
   onMount(() => {
     // Set up inference event listeners for real-time model feedback
-    setupInferenceListeners().then(cleanup => {
-      inferenceCleanup = cleanup;
-    });
+    inferenceCleanup = setupInferenceListeners();
     
-    // RFC-086: Listen for CLI startup params
-    listen<StartupParams>('startup-params', (event) => {
-      handleStartupParams(event.payload);
-    }).then(unlisten => {
-      startupCleanup = unlisten;
+    // RFC-086: Listen for startup params via WebSocket
+    startupCleanup = onEvent((event) => {
+      if (event.type === 'startup_params') {
+        handleStartupParams(event.data as StartupParams);
+      }
     });
     
     return () => {

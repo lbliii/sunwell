@@ -25,8 +25,8 @@ from sunwell.self.types import (
     ApplyResult,
     FileChange,
     ProposalStatus,
-    ProposalType,
     ProposalTestCase,
+    ProposalType,
     PullRequest,
     TestResult,
     is_path_blocked,
@@ -83,7 +83,7 @@ class Proposal:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Proposal":
+    def from_dict(cls, data: dict[str, Any]) -> Proposal:
         """Create from dict."""
         test_result = None
         if data.get("test_result"):
@@ -335,11 +335,7 @@ class ProposalManager:
                     if "PASSED" in line:
                         tests_run += 1
                         tests_passed += 1
-                    elif "FAILED" in line:
-                        tests_run += 1
-                        tests_failed += 1
-                        failures.append(line)
-                    elif "ERROR" in line:
+                    elif "FAILED" in line or "ERROR" in line:
                         tests_run += 1
                         tests_failed += 1
                         failures.append(line)

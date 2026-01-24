@@ -1,0 +1,376 @@
+# Sunwell Meta-Skills Library (RFC-111 Phase 4: Skill Auto-Composition)
+# Meta-skills are skills that generate or orchestrate other skills.
+#
+# These skills enable dynamic capability expansion:
+# - analyze-and-plan: Decompose complex goals into skill graphs
+# - compose-skills: Combine existing skills into workflows
+# - generate-skill: Create new skills on-the-fly
+#
+# Meta-skills are higher-order: they operate on skills, not on content.
+
+skills:
+  # ============================================================================
+  # ANALYSIS & PLANNING
+  # ============================================================================
+  
+  - name: analyze-and-plan
+    description: Analyze a goal and generate a skill graph to accomplish it
+    type: inline
+    trust: sandboxed
+    preset: read-only
+    triggers:
+      - plan
+      - decompose
+      - break down
+      - analyze goal
+    produces:
+      - execution_plan
+      - skill_graph
+      - generated_skills
+      - wave_structure
+    instructions: |
+      ## Goal
+      Given a complex task, decompose it into an executable skill graph.
+      
+      ## Process
+      1. **Analyze** the goal to identify required capabilities
+      2. **Match** capabilities to existing skills where possible
+      3. **Generate** inline skill definitions for capability gaps
+      4. **Order** skills based on data dependencies (produces/requires)
+      5. **Validate** the resulting DAG has no cycles or missing deps
+      
+      ## Available Skills
+      Reference existing skills from the skill library. Each skill has:
+      - name: unique identifier
+      - produces: context keys it outputs
+      - requires: context keys it needs
+      
+      ## Output Contract
+      Set the following context keys:
+      - execution_plan: Human-readable execution plan
+      - skill_graph: Structured skill DAG
+      - generated_skills: Any new skills created (YAML format)
+      - wave_structure: Skills grouped by parallel execution wave
+      
+      ## Output Format
+      ```yaml
+      plan:
+        goal: "Original goal description"
+        waves:
+          - wave: 1
+            skills: [skill-a, skill-b]  # Can run in parallel
+            rationale: "Foundation layer"
+          - wave: 2
+            skills: [skill-c]
+            rationale: "Depends on wave 1 outputs"
+      
+      generated_skills:
+        - name: new-skill-name
+          description: What it does
+          requires: [input_key]
+          produces: [output_key]
+          instructions: |
+            Steps to accomplish...
+      ```
+    validate_with:
+      min_confidence: 0.8
+
+  - name: compose-skills
+    description: Compose multiple skills into a reusable workflow
+    type: inline
+    trust: sandboxed
+    preset: workspace-write
+    triggers:
+      - compose
+      - combine
+      - merge skills
+      - create workflow
+    requires:
+      - skill_names
+      - composition_type
+    produces:
+      - composed_skill
+      - skill_definition
+      - skill_path
+    instructions: |
+      ## Goal
+      Take a list of existing skills and compose them into a new reusable skill.
+      
+      ## Input Contract
+      Requires from upstream:
+      - skill_names: List of skill names to compose
+      - composition_type: How to compose them
+      
+      ## Composition Types
+      
+      ### SEQUENCE
+      Execute skills in order with data flow between them.
+      Each skill's outputs become available to subsequent skills.
+      
+      ```yaml
+      composition_type: sequence
+      skills: [read-file, analyze-code, generate-report]
+      # read-file → analyze-code → generate-report
+      ```
+      
+      ### PARALLEL
+      Execute skills independently and merge results.
+      All skills run at the same time; outputs are combined.
+      
+      ```yaml
+      composition_type: parallel
+      skills: [lint-code, type-check, run-tests]
+      # All three run simultaneously
+      ```
+      
+      ### CONDITIONAL
+      Execute skills based on context values.
+      
+      ```yaml
+      composition_type: conditional
+      skills:
+        - skill: format-python
+          condition: "file_type == 'python'"
+        - skill: format-typescript
+          condition: "file_type == 'typescript'"
+      ```
+      
+      ### FALLBACK
+      Try skills in order, stop on first success.
+      
+      ```yaml
+      composition_type: fallback
+      skills: [quick-fix, deep-fix, manual-review]
+      # Try each until one works
+      ```
+      
+      ## Output Contract
+      Set the following context keys:
+      - composed_skill: The new Skill object
+      - skill_definition: YAML definition of the skill
+      - skill_path: Where to save (e.g., skills/composed-name.yaml)
+    validate_with:
+      min_confidence: 0.85
+
+  - name: generate-skill
+    description: Generate a new skill for a specific capability
+    type: inline
+    trust: sandboxed
+    preset: workspace-write
+    triggers:
+      - generate skill
+      - create skill
+      - new skill
+    requires:
+      - capability_description
+    produces:
+      - generated_skill
+      - skill_definition
+      - skill_path
+    instructions: |
+      ## Goal
+      Generate a new skill definition for a specified capability.
+      
+      ## Input Contract
+      Requires:
+      - capability_description: What the skill should accomplish
+      
+      ## Process
+      1. Analyze what inputs the capability needs (requires)
+      2. Determine what outputs it produces (produces)
+      3. Identify any dependencies on other skills
+      4. Write clear, actionable instructions
+      5. Validate the skill follows naming conventions
+      
+      ## Skill Naming Rules
+      - Lowercase letters, numbers, hyphens only
+      - Must start with a letter
+      - Max 64 characters
+      - No consecutive hyphens
+      
+      ## Output Contract
+      - generated_skill: The Skill object
+      - skill_definition: Complete YAML definition
+      - skill_path: Suggested save location
+      
+      ## Template
+      ```yaml
+      name: capability-name
+      description: One-line description
+      type: inline
+      preset: read-only  # or workspace-write, safe-shell
+      
+      triggers:
+        - keyword1
+        - keyword2
+      
+      depends_on:
+        - source: prerequisite-skill
+      
+      requires:
+        - input_key_1
+        - input_key_2
+      
+      produces:
+        - output_key_1
+        - output_key_2
+      
+      instructions: |
+        ## Goal
+        Clear statement of what this skill accomplishes.
+        
+        ## Process
+        1. Step one
+        2. Step two
+        3. Step three
+        
+        ## Output
+        Description of expected output.
+      ```
+    validate_with:
+      min_confidence: 0.75
+
+  # ============================================================================
+  # SKILL DISCOVERY & OPTIMIZATION
+  # ============================================================================
+  
+  - name: suggest-skills
+    description: Suggest relevant skills for a given task
+    type: inline
+    trust: sandboxed
+    preset: read-only
+    triggers:
+      - suggest
+      - recommend
+      - which skills
+      - what skills
+    requires:
+      - task_description
+    produces:
+      - suggested_skills
+      - relevance_scores
+      - skill_graph_suggestion
+    instructions: |
+      ## Goal
+      Given a task description, suggest the most relevant skills.
+      
+      ## Process
+      1. Analyze the task for key capabilities needed
+      2. Match against available skills by:
+         - Trigger keywords
+         - Description similarity
+         - Produces/requires alignment
+      3. Score relevance (0.0-1.0)
+      4. Suggest optimal execution order
+      
+      ## Output Contract
+      - suggested_skills: List of skill names, sorted by relevance
+      - relevance_scores: Dict of skill_name → score
+      - skill_graph_suggestion: Recommended DAG structure
+
+  - name: optimize-skill-graph
+    description: Optimize a skill graph for parallel execution
+    type: inline
+    trust: sandboxed
+    preset: read-only
+    triggers:
+      - optimize
+      - parallelize
+      - speed up
+    requires:
+      - skill_graph
+    produces:
+      - optimized_graph
+      - parallelism_improvement
+      - wave_comparison
+    instructions: |
+      ## Goal
+      Take an existing skill graph and optimize for maximum parallelism.
+      
+      ## Process
+      1. Analyze current wave structure
+      2. Identify skills that could run in parallel
+      3. Check for false dependencies (deps that aren't needed)
+      4. Reorganize waves to maximize concurrency
+      5. Report improvement metrics
+      
+      ## Optimization Strategies
+      - Remove unnecessary sequential dependencies
+      - Split large skills into parallel subtasks
+      - Merge small sequential skills
+      - Identify cache opportunities
+      
+      ## Output Contract
+      - optimized_graph: Restructured skill graph
+      - parallelism_improvement: "2.3x" speedup estimate
+      - wave_comparison: Before/after wave structure
+
+  # ============================================================================
+  # SKILL VALIDATION & TESTING
+  # ============================================================================
+  
+  - name: validate-skill
+    description: Validate a skill definition for correctness
+    type: inline
+    trust: sandboxed
+    preset: read-only
+    triggers:
+      - validate skill
+      - check skill
+      - skill lint
+    requires:
+      - skill_definition
+    produces:
+      - validation_result
+      - errors
+      - warnings
+      - suggestions
+    instructions: |
+      ## Goal
+      Validate a skill definition for correctness and best practices.
+      
+      ## Checks
+      1. **Name**: Follows naming conventions
+      2. **Description**: Clear and concise
+      3. **Type**: Valid skill type
+      4. **Dependencies**: All referenced skills exist
+      5. **Contracts**: Produces/requires are consistent
+      6. **Instructions**: Actionable and clear
+      
+      ## Output Contract
+      - validation_result: "valid" | "invalid" | "warnings"
+      - errors: List of blocking issues
+      - warnings: List of non-blocking issues
+      - suggestions: Improvement recommendations
+
+  - name: test-skill-graph
+    description: Test a skill graph with mock inputs
+    type: inline
+    trust: sandboxed
+    preset: safe-shell
+    triggers:
+      - test graph
+      - dry run
+      - simulate
+    requires:
+      - skill_graph
+      - mock_inputs
+    produces:
+      - test_results
+      - execution_trace
+      - coverage_report
+    instructions: |
+      ## Goal
+      Test a skill graph execution without side effects.
+      
+      ## Process
+      1. Load skill graph
+      2. Inject mock inputs for leaf skills
+      3. Simulate wave-by-wave execution
+      4. Track data flow through produces/requires
+      5. Verify all outputs are produced
+      
+      ## Output Contract
+      - test_results: Pass/fail for each skill
+      - execution_trace: Order of execution with timings
+      - coverage_report: Which skills were exercised

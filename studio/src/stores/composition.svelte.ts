@@ -11,7 +11,7 @@
  * 4. Content streams in, replacing skeleton
  */
 
-import { invoke } from '@tauri-apps/api/core';
+import { apiGet, apiPost } from '$lib/socket';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES

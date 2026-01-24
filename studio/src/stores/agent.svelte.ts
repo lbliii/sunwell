@@ -6,7 +6,7 @@ import { AgentStatus, TaskStatus, PlanningPhase } from '$lib/constants';
 import type { AgentState, AgentEvent, Task, Concept, ConceptCategory, PlanCandidate } from '$lib/types';
 import { updateNode, completeNode, reloadDag, loadProjectDagIndex } from './dag.svelte';
 import { reloadFiles } from './files.svelte';
-import { invoke } from '@tauri-apps/api/core';
+import { runGoal as apiRunGoal, stopAgent as apiStopAgent, onAgentEvent } from '$lib/api';
 import type { GoalNode, TaskNodeDetail } from '$lib/types';
 import { setActiveLens } from './lens.svelte';
 import {
@@ -160,21 +160,17 @@ export async function runGoal(
   }
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
     _state = { ...initialState, status: AgentStatus.STARTING, goal, startTime: Date.now() };
     await setupEventListeners();
     
-    // RFC-064, RFC-Cloud-Model-Parity: Pass lens and provider selection to backend
-    const result = await invoke<{ success: boolean; message: string; workspace_path: string }>(
-      'run_goal',
-      {
-        goal,
-        projectPath,
-        lens: lens ?? null,
-        autoLens: autoLens ?? true,
-        provider: provider ?? null,
-      },
-    );
+    // RFC-113: Use unified API layer (works with both Tauri and HTTP)
+    const result = await apiRunGoal({
+      goal,
+      projectPath,
+      lens: lens ?? null,
+      autoLens: autoLens ?? true,
+      provider: provider ?? null,
+    });
     
     if (!result.success) { _state = { ..._state, status: AgentStatus.ERROR, error: result.message }; return null; }
     _state = { ..._state, status: AgentStatus.PLANNING };
@@ -254,8 +250,9 @@ async function appendCompletedGoalToDag(
       },
     };
     
-    // Call the backend to append to DAG
-    await invoke('append_goal_to_dag', {
+    // RFC-113: Use HTTP API
+    const { apiPost } = await import('$lib/socket');
+    await apiPost('/api/dag/append', {
       path: _currentProjectPath,
       goal: goalNode,
     });
@@ -273,8 +270,8 @@ async function appendCompletedGoalToDag(
 export async function stopAgent(): Promise<void> {
   if (DEMO_MODE) { cleanup(); _state = { ..._state, status: AgentStatus.IDLE, endTime: Date.now() }; return; }
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('stop_agent');
+    // RFC-113: Use unified API layer
+    await apiStopAgent();
     cleanup();
     _state = { ..._state, status: AgentStatus.IDLE, endTime: Date.now() };
   } catch (e) { console.error('Failed to stop agent:', e); }
@@ -293,9 +290,9 @@ async function setupEventListeners(): Promise<void> {
   if (DEMO_MODE) return;
   cleanup();
   try {
-    const { listen } = await import('@tauri-apps/api/event');
-    eventUnlisten = await listen<AgentEvent>('agent-event', (event) => { handleAgentEvent(event.payload); });
-    stopUnlisten = await listen('agent-stopped', () => { if (_state.status !== AgentStatus.ERROR) { _state = { ..._state, status: AgentStatus.DONE, endTime: Date.now() }; } });
+    // RFC-113: Use unified API layer for events (works with both Tauri and HTTP)
+    eventUnlisten = onAgentEvent((event) => { handleAgentEvent(event); });
+    // Note: 'agent-stopped' event is now sent as a 'complete' event type
   } catch (e) { console.error('Failed to setup event listeners:', e); }
 }
 
@@ -587,7 +584,20 @@ export function handleAgentEvent(event: AgentEvent): void {
     case 'escalate': {
       const reason = (data.reason as string) ?? 'Unknown';
       const message = (data.message as string) ?? '';
-      _state = { ..._state, status: AgentStatus.ERROR, error: `Escalated: ${reason}${message ? ` - ${message}` : ''}` };
+      const fixed = (data.fixed as number) ?? 0;
+      const remaining = (data.remaining as number) ?? 0;
+      const errors = (data.errors as string[]) ?? [];
+      
+      // Build a user-friendly error with context
+      let errorMsg = message || `Escalated: ${reason}`;
+      if (errors.length > 0) {
+        errorMsg += `\n\nErrors:\n${errors.map(e => `• ${e}`).join('\n')}`;
+      }
+      if (fixed > 0) {
+        errorMsg += `\n\n(${fixed} errors were auto-fixed)`;
+      }
+      
+      _state = { ..._state, status: AgentStatus.ERROR, error: errorMsg };
       break;
     }
 
@@ -860,6 +870,161 @@ export function handleAgentEvent(event: AgentEvent): void {
       };
       reloadDag();
       break;
+    }
+
+    // Gate validation events
+    case 'gate_start': {
+      const gateId = (data.gate_id as string) ?? '';
+      const gateType = (data.gate_type as string) ?? '';
+      _state = { ..._state, learnings: [..._state.learnings, `🔒 Gate ${gateId}: ${gateType} starting`] };
+      break;
+    }
+    case 'gate_step': {
+      const step = (data.step as string) ?? '';
+      const passed = (data.passed as boolean) ?? false;
+      _state = { ..._state, learnings: [..._state.learnings, `  ${passed ? '✓' : '✗'} ${step}`] };
+      break;
+    }
+    case 'gate_pass': {
+      const gateId = (data.gate_id as string) ?? '';
+      _state = { ..._state, learnings: [..._state.learnings, `✅ Gate ${gateId} passed`] };
+      break;
+    }
+    case 'gate_fail': {
+      const gateId = (data.gate_id as string) ?? '';
+      _state = { ..._state, learnings: [..._state.learnings, `❌ Gate ${gateId} failed`] };
+      break;
+    }
+
+    // Fix/auto-repair events
+    case 'fix_start': {
+      _state = { ..._state, learnings: [..._state.learnings, '🔧 Auto-fix starting...'] };
+      break;
+    }
+    case 'fix_attempt': {
+      const errorType = (data.error_type as string) ?? '';
+      _state = { ..._state, learnings: [..._state.learnings, `  Attempting fix: ${errorType}`] };
+      break;
+    }
+    case 'fix_complete': {
+      const totalFixed = (data.total_fixed as number) ?? 0;
+      _state = { ..._state, learnings: [..._state.learnings, `✅ Auto-fix complete: ${totalFixed} fixed`] };
+      break;
+    }
+    case 'fix_failed':
+    case 'fix_progress': {
+      // Absorb silently - fix_complete/escalate will provide summary
+      break;
+    }
+
+    // Validation cascade events
+    case 'validate_start': {
+      _state = { ..._state, learnings: [..._state.learnings, '🔍 Validating...'] };
+      break;
+    }
+    case 'validate_error': {
+      const file = (data.file as string) ?? '';
+      const message = (data.message as string) ?? '';
+      _state = { ..._state, learnings: [..._state.learnings, `  ⚠️ ${file}: ${message}`] };
+      break;
+    }
+    case 'validate_pass': {
+      _state = { ..._state, learnings: [..._state.learnings, '✅ Validation passed'] };
+      break;
+    }
+    case 'validate_level': {
+      // Absorb - too granular for user display
+      break;
+    }
+
+    // Model/inference events
+    case 'model_start': {
+      _state = { ..._state, learnings: [..._state.learnings, '🤖 Model thinking...'] };
+      break;
+    }
+    case 'model_complete': {
+      const tokensUsed = (data.tokens_used as number) ?? 0;
+      if (tokensUsed > 0) {
+        _state = { ..._state, learnings: [..._state.learnings, `  ${tokensUsed} tokens`] };
+      }
+      break;
+    }
+    case 'model_tokens':
+    case 'model_thinking':
+    case 'model_heartbeat': {
+      // Absorb - too frequent for learnings
+      break;
+    }
+
+    // Memory lifecycle events
+    case 'memory_load':
+    case 'memory_loaded':
+    case 'memory_new': {
+      // Absorb - session start events
+      break;
+    }
+    case 'memory_dead_end': {
+      const approach = (data.approach as string) ?? '';
+      _state = { ..._state, learnings: [..._state.learnings, `⛔ Dead end: ${approach}`] };
+      break;
+    }
+    case 'memory_checkpoint': {
+      _state = { ..._state, learnings: [..._state.learnings, '💾 Memory checkpoint saved'] };
+      break;
+    }
+    case 'memory_saved': {
+      _state = { ..._state, learnings: [..._state.learnings, '💾 Memory saved'] };
+      break;
+    }
+
+    // Signal events
+    case 'signal': {
+      const status = (data.status as string) ?? '';
+      if (status === 'complete' && data.signals) {
+        const signals = data.signals as Record<string, unknown>;
+        const route = (signals.planning_route as string) ?? '';
+        _state = { ..._state, learnings: [..._state.learnings, `📡 Route: ${route}`] };
+      }
+      break;
+    }
+    case 'signal_route': {
+      const route = (data.route as string) ?? '';
+      _state = { ..._state, learnings: [..._state.learnings, `📡 Routed to: ${route}`] };
+      break;
+    }
+
+    // Integration verification events
+    case 'integration_check_start':
+    case 'integration_check_pass':
+    case 'integration_check_fail':
+    case 'stub_detected':
+    case 'orphan_detected':
+    case 'wire_task_generated': {
+      // Absorb - internal planning events
+      break;
+    }
+
+    // Planning progress events
+    case 'plan_candidate':
+    case 'plan_assess':
+    case 'plan_expanded':
+    case 'plan_discovery_progress': {
+      // Absorb - covered by RFC-058 events
+      break;
+    }
+
+    // Skill compilation events
+    case 'skill_compile_start':
+    case 'skill_compile_complete':
+    case 'skill_compile_cache_hit':
+    case 'skill_subgraph_extracted': {
+      // Absorb - internal skill system events
+      break;
+    }
+
+    default: {
+      // Log unhandled events so we catch future drift
+      console.warn(`[Sunwell] Unhandled event type: ${type}`, data);
     }
   }
 }

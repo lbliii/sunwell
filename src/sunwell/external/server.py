@@ -23,7 +23,7 @@ class WebhookServer:
 
     def __init__(
         self,
-        processor: "EventProcessor",
+        processor: EventProcessor,
         host: str = "0.0.0.0",
         port: int = 8080,
     ):
@@ -85,7 +85,7 @@ class WebhookServer:
                 "rate_limits": self.processor.get_rate_limit_stats(),
             }
 
-    async def _handle_github(self, request) -> "JSONResponse":
+    async def _handle_github(self, request) -> JSONResponse:
         """Handle GitHub webhook.
 
         Verification sequence:
@@ -131,7 +131,7 @@ class WebhookServer:
 
         return JSONResponse({"status": "ok"})
 
-    async def _handle_gitlab(self, request) -> "JSONResponse":
+    async def _handle_gitlab(self, request) -> JSONResponse:
         """Handle GitLab webhook."""
         from fastapi import HTTPException
         from fastapi.responses import JSONResponse
@@ -158,7 +158,7 @@ class WebhookServer:
 
         return JSONResponse({"status": "ok"})
 
-    async def _handle_linear(self, request) -> "JSONResponse":
+    async def _handle_linear(self, request) -> JSONResponse:
         """Handle Linear webhook."""
         from fastapi import HTTPException
         from fastapi.responses import JSONResponse
@@ -184,7 +184,7 @@ class WebhookServer:
 
         return JSONResponse({"status": "ok"})
 
-    async def _handle_sentry(self, request) -> "JSONResponse":
+    async def _handle_sentry(self, request) -> JSONResponse:
         """Handle Sentry webhook."""
         from fastapi import HTTPException
         from fastapi.responses import JSONResponse

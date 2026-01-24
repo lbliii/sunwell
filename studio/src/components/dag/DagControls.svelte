@@ -4,7 +4,7 @@
   RFC-074: Extended with incremental execution plan controls.
 -->
 <script lang="ts">
-  import { invoke } from '@tauri-apps/api/core';
+  import { apiGet, apiPost } from '$lib/socket';
   import { dag, setZoom, resetView, toggleShowCompleted, setIncrementalPlan, setPlanLoading, setPlanError, clearIncrementalPlan } from '../../stores/dag.svelte';
   import { project } from '../../stores/project.svelte';
   import type { IncrementalPlan } from '$lib/types';
@@ -28,6 +28,7 @@
   function handleRefresh() { onRefresh(); }
   
   // RFC-074: Load incremental execution plan
+  // RFC-113: Uses HTTP API instead of Tauri invoke
   async function handlePlan() {
     const projectPath = project.current?.path;
     if (!projectPath) {
@@ -38,8 +39,10 @@
     setPlanLoading(true);
     
     try {
-      const plan = await invoke<IncrementalPlan>('get_incremental_plan', { path: projectPath });
-      setIncrementalPlan(plan);
+      const plan = await apiGet<IncrementalPlan>(`/api/dag/plan?path=${encodeURIComponent(projectPath)}`);
+      if (plan) {
+        setIncrementalPlan(plan);
+      }
     } catch (e) {
       console.error('Failed to get plan:', e);
       setPlanError(e instanceof Error ? e.message : String(e));

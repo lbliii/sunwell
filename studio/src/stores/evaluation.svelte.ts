@@ -1,13 +1,11 @@
 /**
  * Evaluation Store — Full-Stack Metrics (RFC-098)
  *
- * Manages evaluation state and communicates with the Rust backend which calls
- * the Python `sunwell eval --stream` command for comparing single-shot
- * generation against the full Sunwell cognitive architecture.
+ * Manages evaluation state and communicates with the Python backend via HTTP REST
+ * for comparing single-shot generation against the full Sunwell cognitive architecture.
  */
 
-import { invoke } from '@tauri-apps/api/core';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { apiGet, apiPost, onEvent } from '$lib/socket';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES — Match Python `sunwell eval` output
@@ -162,7 +160,7 @@ export const evaluation = {
  */
 export async function loadTasks(): Promise<void> {
   try {
-    const tasks = await invoke<EvalTask[]>('list_eval_tasks');
+    const tasks = await apiGet<EvalTask[]>('/api/eval/tasks');
     _availableTasks = tasks;
     if (tasks.length > 0 && !_currentTask) {
       _currentTask = tasks[0];
@@ -178,7 +176,7 @@ export async function loadTasks(): Promise<void> {
  */
 export async function loadHistory(limit = 20): Promise<void> {
   try {
-    const history = await invoke<EvaluationRun[]>('get_eval_history', { limit });
+    const history = await apiGet<EvaluationRun[]>(`/api/eval/history?limit=${limit}`);
     _history = history;
   } catch (e) {
     console.error('Failed to load eval history:', e);
@@ -191,7 +189,7 @@ export async function loadHistory(limit = 20): Promise<void> {
  */
 export async function loadStats(): Promise<void> {
   try {
-    const stats = await invoke<EvalStats>('get_eval_stats');
+    const stats = await apiGet<EvalStats>('/api/eval/stats');
     _stats = stats;
   } catch (e) {
     console.error('Failed to load eval stats:', e);
@@ -241,111 +239,79 @@ export async function runEvaluation(): Promise<void> {
   _singleShotFiles = [];
   _sunwellFiles = [];
 
-  const unlisteners: UnlistenFn[] = [];
+  // Parse model string (e.g., "ollama:llama3.2:3b" -> provider: "ollama", model: "llama3.2:3b")
+  const [provider, ...modelParts] = _currentModel.split(':');
+  const model = modelParts.join(':');
+
+  const input: EvalInput = {
+    task: _currentTask.id,
+    model: model || undefined,
+    provider: provider || undefined,
+    lens: _currentLens ?? undefined,
+  };
 
   try {
-    // Set up streaming event listeners
-
-    // Start event
-    unlisteners.push(
-      await listen<{ model: string; task: EvalTask }>('eval-start', (event) => {
-        _message = `Evaluating on ${event.payload.model}...`;
+    // Subscribe to eval events via WebSocket
+    const unsubscribe = onEvent((event) => {
+      if (event.type === 'eval_start') {
+        _message = `Evaluating on ${event.data?.model ?? 'model'}...`;
         _progress = 5;
-      })
-    );
-
-    // Phase events
-    unlisteners.push(
-      await listen<{ method: string; phase: string; message: string }>(
-        'eval-phase',
-        (event) => {
-          const { method, phase, message } = event.payload;
-
-          if (method === 'single_shot') {
-            _phase = 'running_single';
-            _progress = 10 + Math.min(30, _singleShotFiles.length * 5);
-          } else if (method === 'sunwell') {
-            _phase = 'running_sunwell';
-            _progress = 50 + Math.min(30, _sunwellFiles.length * 5);
-          }
-
-          if (phase === 'scoring') {
-            _phase = 'scoring';
-            _progress = 90;
-          }
-
-          _message = message;
+      } else if (event.type === 'eval_phase') {
+        const { method, phase, message } = event.data as {
+          method: string;
+          phase: string;
+          message: string;
+        };
+        if (method === 'single_shot') {
+          _phase = 'running_single';
+          _progress = 10 + Math.min(30, _singleShotFiles.length * 5);
+        } else if (method === 'sunwell') {
+          _phase = 'running_sunwell';
+          _progress = 50 + Math.min(30, _sunwellFiles.length * 5);
         }
-      )
-    );
-
-    // File creation events
-    unlisteners.push(
-      await listen<{ method: string; path: string }>(
-        'eval-file-created',
-        (event) => {
-          const { method, path } = event.payload;
-          if (method === 'single_shot') {
-            _singleShotFiles = [..._singleShotFiles, path];
-          } else if (method === 'sunwell') {
-            _sunwellFiles = [..._sunwellFiles, path];
-          }
+        if (phase === 'scoring') {
+          _phase = 'scoring';
+          _progress = 90;
         }
-      )
-    );
-
-    // Complete event
-    unlisteners.push(
-      await listen<EvaluationRun>('eval-complete', (event) => {
-        _currentRun = event.payload;
+        _message = message;
+      } else if (event.type === 'eval_file_created') {
+        const { method, path } = event.data as { method: string; path: string };
+        if (method === 'single_shot') {
+          _singleShotFiles = [..._singleShotFiles, path];
+        } else if (method === 'sunwell') {
+          _sunwellFiles = [..._sunwellFiles, path];
+        }
+      } else if (event.type === 'eval_complete') {
+        _currentRun = event.data as EvaluationRun;
         _phase = 'complete';
         _progress = 100;
         _message = 'Evaluation complete!';
-
-        // Refresh history and stats
         loadHistory();
         loadStats();
-      })
-    );
-
-    // Error event
-    unlisteners.push(
-      await listen<{ message: string }>('eval-error', (event) => {
-        _error = event.payload.message;
+        unsubscribe();
+      } else if (event.type === 'eval_error') {
+        _error = (event.data as { message: string }).message;
         _phase = 'error';
         _message = 'Evaluation failed';
-      })
-    );
+        unsubscribe();
+      }
+    });
 
-    // Parse model string (e.g., "ollama:llama3.2:3b" -> provider: "ollama", model: "llama3.2:3b")
-    const [provider, ...modelParts] = _currentModel.split(':');
-    const model = modelParts.join(':');
-
-    const input: EvalInput = {
-      task: _currentTask.id,
-      model: model || undefined,
-      provider: provider || undefined,
-      lens: _currentLens ?? undefined,
-    };
-
-    // Call streaming endpoint
-    const result = await invoke<EvaluationRun>('run_eval_streaming', { input });
+    // Start evaluation via REST API
+    const result = await apiPost<EvaluationRun>('/api/eval/run', input);
 
     // Final state update (in case events didn't fire)
-    _currentRun = result;
-    _phase = 'complete';
-    _progress = 100;
-    _message = 'Evaluation complete!';
+    if (_phase !== 'complete' && _phase !== 'error') {
+      _currentRun = result;
+      _phase = 'complete';
+      _progress = 100;
+      _message = 'Evaluation complete!';
+    }
   } catch (e) {
     _phase = 'error';
     _error = e instanceof Error ? e.message : String(e);
     _message = 'Evaluation failed';
     console.error('Evaluation failed:', e);
-  } finally {
-    // Clean up all listeners
-    for (const unlisten of unlisteners) {
-      unlisten();
-    }
   }
 }
 

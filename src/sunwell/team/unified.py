@@ -92,10 +92,10 @@ class UnifiedIntelligence:
 
     def __init__(
         self,
-        team_store: "TeamKnowledgeStore",
-        personal_store: "DecisionMemory | None" = None,
-        failure_store: "FailureMemory | None" = None,
-        project_analyzer: "CodebaseAnalyzer | None" = None,
+        team_store: TeamKnowledgeStore,
+        personal_store: DecisionMemory | None = None,
+        failure_store: FailureMemory | None = None,
+        project_analyzer: CodebaseAnalyzer | None = None,
     ):
         """Initialize unified intelligence.
 
@@ -113,7 +113,7 @@ class UnifiedIntelligence:
     async def find_relevant_decision(
         self,
         query: str,
-    ) -> "Decision | TeamDecision | None":
+    ) -> Decision | TeamDecision | None:
         """Find most relevant decision for a query.
 
         Checks team knowledge first, then personal.
@@ -141,7 +141,7 @@ class UnifiedIntelligence:
         self,
         query: str,
         top_k: int = 5,
-    ) -> list["Decision | TeamDecision"]:
+    ) -> list[Decision | TeamDecision]:
         """Find all relevant decisions from both team and personal.
 
         Team decisions come first, then personal.

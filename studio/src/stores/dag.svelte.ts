@@ -7,7 +7,7 @@
  */
 
 import dagre from 'dagre';
-import { invoke } from '@tauri-apps/api/core';
+import { apiGet, apiPost } from '$lib/socket';
 import { DagNodeStatus, DagViewMode } from '$lib/constants';
 import type { DagNodeStatus as DagNodeStatusType, DagViewMode as DagViewModeType } from '$lib/constants';
 import { debounce } from '$lib/debounce';
@@ -367,8 +367,8 @@ async function reloadDagInternal(): Promise<void> {
   _loadError = null;
   
   try {
-    const graph = await invoke<DagGraph>('get_project_dag', { path: _currentProjectPath });
-    setGraph(graph);
+    const graph = await apiGet<DagGraph>(`/api/dag?path=${encodeURIComponent(_currentProjectPath)}`);
+    if (graph) setGraph(graph);
   } catch (e) {
     console.error('Failed to reload DAG:', e);
     _loadError = e instanceof Error ? e.message : String(e);
@@ -440,8 +440,8 @@ export async function loadProjectDagIndex(path: string): Promise<void> {
   _projectIndexError = null;
   
   try {
-    const index = await invoke<DagIndex>('get_project_dag_index', { path });
-    _projectIndex = index;
+    const index = await apiGet<DagIndex>(`/api/dag/index?path=${encodeURIComponent(path)}`);
+    if (index) _projectIndex = index;
   } catch (e) {
     console.error('Failed to load project DAG index:', e);
     _projectIndexError = e instanceof Error ? e.message : String(e);
@@ -463,10 +463,8 @@ export async function expandGoal(goalId: string): Promise<GoalNode | null> {
   if (existing) return existing;
   
   try {
-    const goal = await invoke<GoalNode>('get_goal_details', { 
-      path: _projectPath, 
-      goalId 
-    });
+    const goal = await apiGet<GoalNode>(`/api/dag/goal/${goalId}?path=${encodeURIComponent(_projectPath)}`);
+    if (!goal) return null;
     
     // Update expanded goals map
     _expandedGoals = new Map(_expandedGoals).set(goalId, goal);
@@ -499,8 +497,8 @@ export async function loadWorkspaceDag(path: string): Promise<void> {
   _workspaceError = null;
   
   try {
-    const index = await invoke<WorkspaceDagIndex>('get_workspace_dag', { path });
-    _workspaceIndex = index;
+    const index = await apiGet<WorkspaceDagIndex>(`/api/dag/workspace?path=${encodeURIComponent(path)}`);
+    if (index) _workspaceIndex = index;
   } catch (e) {
     console.error('Failed to load workspace DAG:', e);
     _workspaceError = e instanceof Error ? e.message : String(e);
@@ -519,10 +517,8 @@ export async function refreshWorkspaceIndex(): Promise<void> {
   _workspaceError = null;
   
   try {
-    const index = await invoke<WorkspaceDagIndex>('refresh_workspace_index', { 
-      path: _workspacePath 
-    });
-    _workspaceIndex = index;
+    const index = await apiPost<WorkspaceDagIndex>('/api/dag/workspace/refresh', { path: _workspacePath });
+    if (index) _workspaceIndex = index;
   } catch (e) {
     console.error('Failed to refresh workspace index:', e);
     _workspaceError = e instanceof Error ? e.message : String(e);
@@ -541,8 +537,8 @@ export async function loadEnvironmentDag(): Promise<void> {
   _environmentError = null;
   
   try {
-    const env = await invoke<EnvironmentDag>('get_environment_dag');
-    _environmentDag = env;
+    const env = await apiGet<EnvironmentDag>('/api/dag/environment');
+    if (env) _environmentDag = env;
   } catch (e) {
     console.error('Failed to load environment DAG:', e);
     _environmentError = e instanceof Error ? e.message : String(e);

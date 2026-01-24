@@ -8,21 +8,21 @@ Tests for:
 
 import pytest
 
-from sunwell.adaptive.events import (
+from sunwell.agent.events import (
     EventType,
     model_complete_event,
     model_start_event,
     model_thinking_event,
     model_tokens_event,
 )
-from sunwell.adaptive.metrics import (
+from sunwell.agent.metrics import (
     InferenceMetrics,
     ModelPerformanceProfile,
     load_profiles_from_disk,
     recommend_model,
     save_profiles_to_disk,
 )
-from sunwell.adaptive.thinking import ThinkingDetector
+from sunwell.agent.thinking import ThinkingDetector
 
 
 # =============================================================================

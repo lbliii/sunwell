@@ -10,7 +10,7 @@
   import { goToProject } from '../stores/app.svelte';
   import { project } from '../stores/project.svelte';
   import { runStore, clearActiveSession } from '../stores/run.svelte';
-  import { invoke } from '@tauri-apps/api/core';
+  import { apiPost } from '$lib/socket';
   import type { PreviewSession } from '$lib/types';
   
   let session = $state<PreviewSession | null>(null);
@@ -51,7 +51,8 @@
     try {
       loading = true;
       error = null;
-      session = await invoke<PreviewSession>('launch_preview');
+      // RFC-113: Uses HTTP API instead of Tauri invoke
+      session = await apiPost<PreviewSession>('/api/preview/launch');
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
@@ -60,13 +61,13 @@
   }
   
   async function stopPreview() {
-    try { await invoke('stop_preview'); } catch (e) { console.error('Failed to stop preview:', e); }
+    try { await apiPost('/api/preview/stop'); } catch (e) { console.error('Failed to stop preview:', e); }
   }
   
   async function handleStopRun() {
     if (runStore.activeSession) {
       try {
-        await invoke('stop_project_run', { sessionId: runStore.activeSession.id });
+        await apiPost('/api/run/stop', { session_id: runStore.activeSession.id });
         clearActiveSession();
       } catch (e) {
         console.error('Failed to stop run:', e);

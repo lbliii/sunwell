@@ -8,7 +8,7 @@
  * - Pause/resume controls
  */
 
-import { invoke } from '@tauri-apps/api/core';
+import { apiGet, apiPost } from '$lib/socket';
 import { debounce } from '$lib/debounce';
 
 // ═══════════════════════════════════════════════════════════════
@@ -251,10 +251,8 @@ export async function loadCoordinatorState(): Promise<void> {
   _error = null;
 
   try {
-    const state = await invoke<CoordinatorState>('get_coordinator_state', {
-      projectPath: _projectPath,
-    });
-    _state = state;
+    const state = await apiGet<CoordinatorState>(`/api/coordinator/state?path=${encodeURIComponent(_projectPath)}`);
+    if (state) _state = state;
   } catch (e) {
     _error = e instanceof Error ? e.message : String(e);
     console.error('Failed to load coordinator state:', e);
@@ -303,7 +301,7 @@ export async function pauseWorker(workerId: number): Promise<void> {
   }
 
   try {
-    await invoke('pause_worker', {
+    await apiPost('/api/coordinator/pause-worker', {
       projectPath: _projectPath,
       workerId,
     });
@@ -324,7 +322,7 @@ export async function resumeWorker(workerId: number): Promise<void> {
   }
 
   try {
-    await invoke('resume_worker', {
+    await apiPost('/api/coordinator/resume-worker', {
       projectPath: _projectPath,
       workerId,
     });
@@ -347,7 +345,7 @@ export async function startWorkers(
   }
 
   try {
-    await invoke('start_workers', {
+    await apiPost('/api/coordinator/start-workers', {
       projectPath: _projectPath,
       numWorkers,
       dryRun,
@@ -387,10 +385,8 @@ export async function loadStateDag(projectPath?: string): Promise<void> {
   _stateDagError = null;
 
   try {
-    const dag = await invoke<StateDag>('get_state_dag', {
-      projectPath: path,
-    });
-    _stateDag = dag;
+    const dag = await apiGet<StateDag>(`/api/coordinator/state-dag?path=${encodeURIComponent(path)}`);
+    if (dag) _stateDag = dag;
     _projectPath = path;
   } catch (e) {
     _stateDagError = e instanceof Error ? e.message : String(e);

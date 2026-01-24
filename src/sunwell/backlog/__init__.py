@@ -8,15 +8,15 @@ Components:
 - SignalExtractor: Extract observable signals from code (tests, TODOs, type errors)
 - GoalGenerator: Convert signals to prioritized goals
 - BacklogManager: Maintain goal DAG with dependencies
-- AutonomousLoop: Execute goals using ArtifactPlanner and AdaptiveAgent
+- AutonomousLoop: Execute goals using ArtifactPlanner and Agent
 
 See: RFC-046-autonomous-backlog.md
 """
 
 from sunwell.backlog.goals import Goal, GoalGenerator, GoalPolicy, GoalResult, GoalScope
+from sunwell.backlog.loop import AutonomousLoop
 from sunwell.backlog.manager import Backlog, BacklogManager
 from sunwell.backlog.signals import ObservableSignal, SignalExtractor
-from sunwell.backlog.loop import AutonomousLoop
 
 __all__ = [
     # Signals

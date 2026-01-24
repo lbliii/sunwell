@@ -96,7 +96,7 @@ def import_project(
     if target_path.exists():
         if target_path.is_symlink():
             console.print(
-                f"[yellow]⚠️  Target already exists as symlink[/yellow]"
+                "[yellow]⚠️  Target already exists as symlink[/yellow]"
             )
             if not yes:
                 if not Confirm.ask("Replace existing symlink?", default=False):
@@ -105,7 +105,7 @@ def import_project(
             target_path.unlink()
         elif target_path.is_dir():
             console.print(
-                f"[yellow]⚠️  Target directory already exists[/yellow]"
+                "[yellow]⚠️  Target directory already exists[/yellow]"
             )
             if not yes:
                 choice = Prompt.ask(
@@ -159,7 +159,7 @@ def import_project(
         console.print()
         console.print("You can now work on this project with:")
         console.print(f"  [cyan]cd {_shorten_path(target_path)}[/cyan]")
-        console.print(f"  [cyan]sunwell chat[/cyan]")
+        console.print("  [cyan]sunwell chat[/cyan]")
 
     except PermissionError as e:
         console.print(f"[red]Permission denied: {e}[/red]")

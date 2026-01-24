@@ -4,8 +4,9 @@ Cron-based scheduler for periodic events like nightly backlog runs.
 """
 
 import logging
+from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from sunwell.external.types import EventSource, EventType, ExternalEvent
 
@@ -21,7 +22,7 @@ class ExternalScheduler:
     Uses APScheduler for cron-based scheduling.
     """
 
-    def __init__(self, processor: "EventProcessor"):
+    def __init__(self, processor: EventProcessor):
         """Initialize scheduler.
 
         Args:

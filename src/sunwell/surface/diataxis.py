@@ -208,7 +208,7 @@ def detect_diataxis(content: str, file_path: Path | None = None) -> DiataxisDete
             detected_type=None,
             confidence=0.0,
             signals=tuple(signals),
-            scores={k: 0.0 for k in scores},
+            scores=dict.fromkeys(scores, 0.0),
         )
 
     best_type = max(scores, key=lambda t: scores[t])

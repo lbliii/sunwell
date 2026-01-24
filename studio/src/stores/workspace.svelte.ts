@@ -8,7 +8,7 @@
  * - Toast notification state
  */
 
-import { invoke } from '@tauri-apps/api/core';
+import { apiGet, apiPost, apiDelete } from '$lib/socket';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -143,9 +143,7 @@ export async function initWorkspace(projectPath: string): Promise<void> {
 
   try {
     // Check for existing workspace config
-    const workspace = await invoke<Workspace | null>('get_workspace', {
-      projectPath,
-    });
+    const workspace = await apiGet<Workspace | null>(`/api/workspace?path=${encodeURIComponent(projectPath)}`);
 
     if (workspace && workspace.links.length > 0) {
       _workspace = workspace;
@@ -154,9 +152,7 @@ export async function initWorkspace(projectPath: string): Promise<void> {
     }
 
     // No existing config, run detection
-    const links = await invoke<WorkspaceLink[]>('detect_workspace_links', {
-      projectPath,
-    });
+    const links = await apiGet<WorkspaceLink[]>(`/api/workspace/detect?path=${encodeURIComponent(projectPath)}`) ?? [];
 
     _detectedLinks = links;
 
@@ -225,16 +221,14 @@ export async function linkSelected(): Promise<void> {
   try {
     // Link each selected project
     for (const target of _selectedLinks) {
-      await invoke('link_workspace', {
+      await apiPost('/api/workspace/link', {
         projectPath: _projectPath,
         targetPath: target,
       });
     }
 
     // Reload workspace config
-    const workspace = await invoke<Workspace | null>('get_workspace', {
-      projectPath: _projectPath,
-    });
+    const workspace = await apiGet<Workspace | null>(`/api/workspace?path=${encodeURIComponent(_projectPath)}`);
     _workspace = workspace;
 
     _toastState = 'hidden';
@@ -256,15 +250,13 @@ export async function unlinkSource(target: string): Promise<void> {
   }
 
   try {
-    await invoke('unlink_workspace', {
+    await apiPost('/api/workspace/unlink', {
       projectPath: _projectPath,
       targetPath: target,
     });
 
     // Reload workspace config
-    const workspace = await invoke<Workspace | null>('get_workspace', {
-      projectPath: _projectPath,
-    });
+    const workspace = await apiGet<Workspace | null>(`/api/workspace?path=${encodeURIComponent(_projectPath)}`);
     _workspace = workspace;
   } catch (e) {
     _error = e instanceof Error ? e.message : String(e);
@@ -318,9 +310,7 @@ export async function redetect(): Promise<void> {
   _error = null;
 
   try {
-    const links = await invoke<WorkspaceLink[]>('detect_workspace_links', {
-      projectPath: _projectPath,
-    });
+    const links = await apiGet<WorkspaceLink[]>(`/api/workspace/detect?path=${encodeURIComponent(_projectPath)}`) ?? [];
     _detectedLinks = links;
 
     if (links.length > 0) {
@@ -344,7 +334,7 @@ export async function getStateDagWithDrift(): Promise<unknown> {
 
   const sourceRoots = getSourceRoots();
 
-  return invoke('get_state_dag_with_sources', {
+  return apiPost('/api/workspace/state-dag', {
     projectPath: _projectPath,
     linkPaths: sourceRoots,
   });

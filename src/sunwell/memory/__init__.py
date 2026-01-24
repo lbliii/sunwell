@@ -7,8 +7,8 @@ from sunwell.memory.briefing import (
     Briefing,
     BriefingStatus,
     ExecutionSummary,
-    PrefetchPlan,
     PrefetchedContext,
+    PrefetchPlan,
     briefing_to_learning,
     compress_briefing,
 )

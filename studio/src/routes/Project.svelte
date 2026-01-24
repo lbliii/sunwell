@@ -6,7 +6,7 @@
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { invoke } from '@tauri-apps/api/core';
+  import { apiGet, apiPost } from '$lib/socket';
   import type { ProjectStatus, DagGraph, MemoryStats, IntelligenceData, GoalSummary } from '$lib/types';
   import { ViewTab } from '$lib/constants';
   import Button from '../components/Button.svelte';
@@ -119,7 +119,7 @@
   async function loadProjectStatus() {
     if (!project.current?.path) return;
     try {
-      projectStatus = await invoke<ProjectStatus>('get_project_status', { path: project.current.path });
+      projectStatus = await apiGet<ProjectStatus>(`/api/project/status?path=${encodeURIComponent(project.current.path)}`);
     } catch (e) {
       console.error('Failed to get project status:', e);
     }
@@ -133,7 +133,7 @@
     try {
       // RFC-105: Load both index (fast) and full graph
       await loadProjectDagIndex(project.current.path);
-      const graph = await invoke<DagGraph>('get_project_dag', { path: project.current.path });
+      const graph = await apiGet<DagGraph>(`/api/project/dag?path=${encodeURIComponent(project.current.path)}`);
       setGraph(graph);
     } catch (e) {
       console.error('Failed to load DAG:', e);
@@ -156,9 +156,10 @@
     isLoadingMemory = true;
     memoryError = null;
     try {
+      const encodedPath = encodeURIComponent(project.current.path);
       const [stats, intel] = await Promise.all([
-        invoke<MemoryStats>('get_memory_stats', { path: project.current.path }),
-        invoke<IntelligenceData>('get_intelligence', { path: project.current.path })
+        apiGet<MemoryStats>(`/api/project/memory/stats?path=${encodedPath}`),
+        apiGet<IntelligenceData>(`/api/project/intelligence?path=${encodedPath}`)
       ]);
       memoryStats = stats;
       intelligenceData = intel;
@@ -177,8 +178,8 @@
     if (isDir) return;
     isLoadingPreview = true;
     try {
-      const content = await invoke<string>('read_file_contents', { path, maxSize: 50000 });
-      selectedFile = { path, name, content };
+      const result = await apiGet<{ content: string }>(`/api/project/file?path=${encodeURIComponent(path)}&max_size=50000`);
+      selectedFile = { path, name, content: result.content };
     } catch (e) {
       console.error('Failed to read file:', e);
       selectedFile = { path, name, content: `Error: ${e}` };

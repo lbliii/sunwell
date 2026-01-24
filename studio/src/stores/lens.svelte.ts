@@ -4,7 +4,7 @@
  * Manages lens state: available lenses, selection, and project defaults.
  */
 
-import { invoke } from '@tauri-apps/api/core';
+import { listLenses, getLens, apiGet, apiPost } from '$lib/socket';
 import type { LensSummary, LensDetail, ProjectLensConfig, LensSelection } from '$lib/types';
 
 // ═══════════════════════════════════════════════════════════════
@@ -78,8 +78,8 @@ export async function loadLenses(): Promise<void> {
   _state = { ..._state, isLoading: true, error: null };
   
   try {
-    const lenses = await invoke<LensSummary[]>('list_lenses');
-    _state = { ..._state, available: lenses, isLoading: false };
+    const lenses = await listLenses();
+    _state = { ..._state, available: lenses as LensSummary[], isLoading: false };
   } catch (e) {
     _state = { 
       ..._state, 
@@ -100,8 +100,8 @@ export async function loadLensDetail(name: string): Promise<void> {
   _state = { ..._state, isLoadingDetail: true };
   
   try {
-    const detail = await invoke<LensDetail>('get_lens_detail', { name });
-    _state = { ..._state, previewLens: detail, isLoadingDetail: false };
+    const detail = await getLens(name);
+    _state = { ..._state, previewLens: detail as LensDetail, isLoadingDetail: false };
   } catch (e) {
     console.error('Failed to load lens detail:', e);
     _state = { ..._state, previewLens: null, isLoadingDetail: false };
@@ -140,7 +140,8 @@ export function setActiveLens(name: string | null): void {
  */
 export async function loadProjectLensConfig(projectPath: string): Promise<ProjectLensConfig> {
   try {
-    return await invoke<ProjectLensConfig>('get_project_lens_config', { path: projectPath });
+    const result = await apiGet<ProjectLensConfig>(`/api/lenses/config?path=${encodeURIComponent(projectPath)}`);
+    return result ?? { default_lens: null, auto_select: true };
   } catch (e) {
     console.error('Failed to load project lens config:', e);
     return { default_lens: null, auto_select: true };
@@ -156,7 +157,7 @@ export async function saveProjectLensConfig(
   autoSelect: boolean,
 ): Promise<void> {
   try {
-    await invoke('set_project_lens', {
+    await apiPost('/api/lenses/config', {
       path: projectPath,
       lensName,
       autoSelect,

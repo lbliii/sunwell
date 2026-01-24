@@ -41,8 +41,8 @@ class KnowledgePropagator:
 
     def __init__(
         self,
-        team_store: "TeamKnowledgeStore",
-        personal_store: "DecisionMemory | None" = None,
+        team_store: TeamKnowledgeStore,
+        personal_store: DecisionMemory | None = None,
     ):
         """Initialize knowledge propagator.
 
@@ -55,7 +55,7 @@ class KnowledgePropagator:
 
     async def promote_to_team(
         self,
-        decision: "Decision",
+        decision: Decision,
         author: str | None = None,
     ) -> TeamDecision:
         """Promote a personal decision to team knowledge.
@@ -212,7 +212,7 @@ class KnowledgePropagator:
 
     async def should_promote(
         self,
-        decision: "Decision",
+        decision: Decision,
     ) -> bool:
         """Heuristic to suggest if a decision should be promoted to team.
 
@@ -244,7 +244,7 @@ class KnowledgePropagator:
 
     def format_promotion_prompt(
         self,
-        decision: "Decision",
+        decision: Decision,
     ) -> str:
         """Format a prompt asking user if they want to promote a decision.
 
@@ -273,7 +273,7 @@ class KnowledgePropagator:
             f"Reply 'yes' to share, or 'no' to keep it personal."
         )
 
-    async def get_pending_promotions(self) -> list["Decision"]:
+    async def get_pending_promotions(self) -> list[Decision]:
         """Get personal decisions that haven't been promoted yet.
 
         Finds decisions from RFC-045 that:

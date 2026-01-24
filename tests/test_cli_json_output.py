@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.adaptive.events import AgentEvent, EventType
+from sunwell.agent.events import AgentEvent, EventType
 
 
 def test_cli_json_structure() -> None:
@@ -87,8 +87,8 @@ def test_event_validation_in_cli() -> None:
     # This is more of an integration test - we verify that
     # the CLI code paths use validation
     
-    from sunwell.adaptive.event_schema import REQUIRED_FIELDS, validate_event_data
-    from sunwell.adaptive.events import AgentEvent, EventType
+    from sunwell.agent.event_schema import REQUIRED_FIELDS, validate_event_data
+    from sunwell.agent.events import AgentEvent, EventType
 
     # Test that validation works for key event types
     test_cases = [

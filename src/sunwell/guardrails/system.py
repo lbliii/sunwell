@@ -340,9 +340,9 @@ class GuardrailSystem:
 
     async def can_auto_approve_external(
         self,
-        goal: "Goal",
-        event: "ExternalEvent",
-        external_policy: "ExternalGoalPolicy | None" = None,
+        goal: Goal,
+        event: ExternalEvent,
+        external_policy: ExternalGoalPolicy | None = None,
     ) -> bool:
         """Check if external-triggered goal can be auto-approved (RFC-049).
 

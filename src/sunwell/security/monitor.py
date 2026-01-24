@@ -11,9 +11,10 @@ deterministic checks pass but paranoid_mode is enabled.
 
 
 import re
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, AsyncIterator, Callable
+from typing import TYPE_CHECKING
 
 from sunwell.security.analyzer import PermissionAnalyzer, PermissionScope
 

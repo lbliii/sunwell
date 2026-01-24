@@ -11,13 +11,13 @@ Storage format:
 - ownership.yaml: File/module ownership map (YAML)
 """
 
+import hashlib
+import json
+import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime
 from fnmatch import fnmatch
-import hashlib
-import json
 from pathlib import Path
-import subprocess
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -64,7 +64,7 @@ class TeamKnowledgeStore:
     def __init__(
         self,
         root: Path,
-        embedder: "EmbeddingProtocol | None" = None,
+        embedder: EmbeddingProtocol | None = None,
     ):
         """Initialize team knowledge store.
 

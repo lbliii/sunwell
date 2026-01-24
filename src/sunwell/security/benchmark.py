@@ -26,7 +26,6 @@ from sunwell.security.monitor import SecurityMonitor
 from sunwell.security.sandbox import PermissionAwareSandboxConfig, SecureSandbox
 from sunwell.skills.types import TrustLevel
 
-
 # =============================================================================
 # BENCHMARK RESULTS
 # =============================================================================

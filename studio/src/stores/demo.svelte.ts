@@ -1,13 +1,11 @@
 /**
  * Demo Store — Real backend integration for Prism Principle demo (RFC-095)
  *
- * Manages demo state and communicates with the Rust backend which calls
- * the Python `sunwell demo --stream` command for PARALLEL LLM execution
- * with real-time streaming to both code panes.
+ * Manages demo state and communicates with the Python backend via HTTP REST + WebSocket
+ * for PARALLEL LLM execution with real-time streaming to both code panes.
  */
 
-import { invoke } from '@tauri-apps/api/core';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { apiGet, apiPost, onEvent } from '$lib/socket';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES — Match Python `sunwell demo --json` output exactly
@@ -192,10 +190,10 @@ export const demo = {
  */
 export async function loadTasks(): Promise<void> {
   try {
-    const tasks = await invoke<DemoTask[]>('list_demo_tasks');
+    const tasks = await apiGet<DemoTask[]>('/api/demo/tasks');
     _availableTasks = tasks;
-    if (tasks.length > 0 && !_currentTask) {
-      _currentTask = tasks[0];
+    if (_availableTasks.length > 0 && !_currentTask) {
+      _currentTask = _availableTasks[0];
     }
   } catch (e) {
     console.error('Failed to load demo tasks:', e);
@@ -220,8 +218,8 @@ export function setModel(model: string): void {
 
 /**
  * Run the demo — PARALLEL execution with real-time streaming.
- * 
- * Uses `run_demo_streaming` which calls `sunwell demo --stream` for:
+ *
+ * Uses the Python backend for:
  * - Parallel execution of single-shot and Sunwell (2x faster)
  * - Real-time code streaming to both panes
  * - Phase updates as Sunwell progresses through judge/refine
@@ -236,99 +234,76 @@ export async function runDemo(): Promise<void> {
   _sunwellCodeStream = '';
   _sunwellPhase = 'generating';
 
-  const unlisteners: UnlistenFn[] = [];
+  // Parse model string (e.g., "ollama:llama3.2:3b" -> provider: "ollama", model: "llama3.2:3b")
+  const [provider, ...modelParts] = _currentModel.split(':');
+  const model = modelParts.join(':');
+
+  const input: DemoInput = {
+    task: _currentTask.name,
+    model: model || undefined,
+    provider: provider || undefined,
+  };
 
   try {
-    // Set up streaming event listeners
-    
-    // Start event
-    unlisteners.push(await listen<{ model: string; task: DemoTask }>('demo-start', (event) => {
-      _message = `Running on ${event.payload.model}...`;
-      _progress = 5;
-    }));
-    
-    // Chunk events (real-time code streaming!)
-    unlisteners.push(await listen<{ method: string; content: string }>('demo-chunk', (event) => {
-      const { method, content } = event.payload;
-      if (method === 'single_shot') {
-        _singleShotCodeStream += content;
-      } else if (method === 'sunwell') {
-        _sunwellCodeStream += content;
+    // Subscribe to demo events via WebSocket
+    const unsubscribe = onEvent((event) => {
+      if (event.type === 'demo_start') {
+        _message = `Running on ${event.data?.model ?? 'model'}...`;
+        _progress = 5;
+      } else if (event.type === 'demo_chunk') {
+        const { method, content } = event.data as { method: string; content: string };
+        if (method === 'single_shot') {
+          _singleShotCodeStream += content;
+        } else if (method === 'sunwell') {
+          _sunwellCodeStream += content;
+        }
+        const totalChars = _singleShotCodeStream.length + _sunwellCodeStream.length;
+        _progress = Math.min(80, 10 + totalChars / 20);
+      } else if (event.type === 'demo_phase') {
+        const { phase } = event.data as { phase: string };
+        if (phase === 'generating') {
+          _sunwellPhase = 'generating';
+          _message = 'Generating initial code...';
+        } else if (phase === 'judging') {
+          _sunwellPhase = 'judging';
+          _phase = 'judging';
+          _message = 'Judge evaluating quality...';
+          _progress = 60;
+        } else if (phase === 'refining') {
+          _sunwellPhase = 'refining';
+          _phase = 'refining';
+          _message = 'Resonance refining...';
+          _progress = 75;
+        }
+      } else if (event.type === 'demo_complete') {
+        _comparison = event.data as DemoComparison;
+        _phase = 'revealed';
+        _progress = 100;
+        _message = 'Demo complete!';
+        unsubscribe();
+      } else if (event.type === 'demo_error') {
+        _error = (event.data as { message: string }).message;
+        _phase = 'error';
+        _message = 'Demo failed';
+        unsubscribe();
       }
-      // Update progress based on content length
-      const totalChars = _singleShotCodeStream.length + _sunwellCodeStream.length;
-      _progress = Math.min(80, 10 + totalChars / 20);
-    }));
+    });
+
+    // Start demo via REST API
+    const result = await apiPost<DemoComparison>('/api/demo/run', input);
     
-    // Phase events (sunwell progression)
-    unlisteners.push(await listen<{ method: string; phase: string }>('demo-phase', (event) => {
-      const { phase } = event.payload;
-      if (phase === 'generating') {
-        _sunwellPhase = 'generating';
-        _message = 'Generating initial code...';
-      } else if (phase === 'judging') {
-        _sunwellPhase = 'judging';
-        _phase = 'judging';
-        _message = 'Judge evaluating quality...';
-        _progress = 60;
-      } else if (phase === 'refining') {
-        _sunwellPhase = 'refining';
-        _phase = 'refining';
-        _message = 'Resonance refining...';
-        _progress = 75;
-      }
-    }));
-    
-    // Complete event
-    unlisteners.push(await listen<DemoComparison>('demo-complete', (event) => {
-      _comparison = event.payload;
+    // Final state update (in case events didn't fire)
+    if (_phase !== 'revealed' && _phase !== 'error') {
+      _comparison = result;
       _phase = 'revealed';
       _progress = 100;
       _message = 'Demo complete!';
-    }));
-    
-    // Error event
-    unlisteners.push(await listen<{ message: string }>('demo-error', (event) => {
-      _error = event.payload.message;
-      _phase = 'error';
-      _message = 'Demo failed';
-    }));
-    
-    // Progress fallback
-    unlisteners.push(await listen<DemoProgress>('demo-progress', (event) => {
-      const { message } = event.payload;
-      if (message) _message = message;
-    }));
-
-    // Parse model string (e.g., "ollama:llama3.2:3b" -> provider: "ollama", model: "llama3.2:3b")
-    const [provider, ...modelParts] = _currentModel.split(':');
-    const model = modelParts.join(':');
-
-    const input: DemoInput = {
-      task: _currentTask.name,
-      model: model || undefined,
-      provider: provider || undefined,
-    };
-
-    // Call streaming endpoint (parallel execution!)
-    const result = await invoke<DemoComparison>('run_demo_streaming', { input });
-    
-    // Final state update (in case events didn't fire)
-    _comparison = result;
-    _phase = 'revealed';
-    _progress = 100;
-    _message = 'Demo complete!';
-
+    }
   } catch (e) {
     _phase = 'error';
     _error = e instanceof Error ? e.message : String(e);
     _message = 'Demo failed';
     console.error('Demo failed:', e);
-  } finally {
-    // Clean up all listeners
-    for (const unlisten of unlisteners) {
-      unlisten();
-    }
   }
 }
 

@@ -5,7 +5,7 @@
   Shows concept relationships: ELABORATES, CONTRADICTS, DEPENDS_ON, etc.
 -->
 <script lang="ts">
-  import { invoke } from '@tauri-apps/api/core';
+  import { apiGet, apiPost } from '$lib/socket';
   import type { ConceptEdge, RelationType } from '$lib/types';
   
   interface ConceptNode {
@@ -67,11 +67,10 @@
     error = null;
     
     try {
-      const result = await invoke<{ edges: ConceptEdge[] }>('get_concept_graph', { 
-        path: projectPath 
-      });
+      // RFC-113: Uses HTTP API instead of Tauri invoke
+      const result = await apiGet<{ edges: ConceptEdge[] }>(`/api/memory/graph?path=${encodeURIComponent(projectPath)}`);
       
-      edges = result.edges || [];
+      edges = result?.edges || [];
       
       // Extract unique nodes from edges
       const nodeSet = new Set<string>();

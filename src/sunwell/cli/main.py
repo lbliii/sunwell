@@ -40,8 +40,8 @@ def cli_entrypoint() -> None:
         sys.exit(130)
     except Exception as e:
         # Handle SunwellError with nice formatting
-        from sunwell.core.errors import SunwellError
         from sunwell.cli.error_handler import handle_error
+        from sunwell.core.errors import SunwellError
 
         if isinstance(e, SunwellError):
             handle_error(e, json_output=False)
@@ -352,20 +352,29 @@ async def _run_agent(
     open_studio: bool = False,
     json_output: bool = False,
 ) -> None:
-    """Execute goal with Adaptive Agent (RFC-042, RFC-090).
+    """Execute goal with Agent (RFC-110).
 
-    This is the unified entry point. The Adaptive Agent automatically:
+    This is THE unified entry point. The Agent automatically:
     - Extracts signals to select techniques
     - Uses Harmonic planning for complex goals
     - Validates at gates with fail-fast
     - Auto-fixes errors with Compound Eye
     - Persists learnings via Simulacrum
 
+    RFC-110: Agent renamed to Agent and moved to agent/ module.
+
     RFC-090 additions:
     - open_studio: Launch Studio with plan after --plan
     - json_output: Output plan as JSON for scripting
     """
-    from sunwell.adaptive import AdaptiveAgent, AdaptiveBudget, EventType, create_renderer
+    from sunwell.agent import (
+        AdaptiveBudget,
+        Agent,
+        EventType,
+        RunOptions,
+        RunRequest,
+        create_renderer,
+    )
     from sunwell.cli.helpers import resolve_model
     from sunwell.cli.workspace_prompt import resolve_workspace_interactive
     from sunwell.config import get_config
@@ -388,16 +397,20 @@ async def _run_agent(
     synthesis_model = None
     try:
         synthesis_model = resolve_model(provider_override, model_override)
-        if verbose:
+        if verbose and not json_output:
             provider = provider_override or config.model.default_provider if config else "ollama"
             model_name = model_override or config.model.default_model if config else "gemma3:4b"
             console.print(f"[dim]Using model: {provider}:{model_name}[/dim]")
 
     except Exception as e:
-        console.print(f"[yellow]Warning: Could not load model: {e}[/yellow]")
+        if not json_output:
+            console.print(f"[yellow]Warning: Could not load model: {e}[/yellow]")
 
     if not synthesis_model:
-        console.print("[red]No model available[/red]")
+        if json_output:
+            print('{"type": "error", "data": {"message": "No model available"}}')
+        else:
+            console.print("[red]No model available[/red]")
         return
 
     # Setup tool executor with resolved workspace
@@ -407,23 +420,34 @@ async def _run_agent(
         policy=ToolPolicy(trust_level=trust_level),
     )
 
-    if verbose:
+    if verbose and not json_output:
         console.print(f"[dim]Trust level: {trust}[/dim]")
         available_tools = frozenset(tool_executor.get_available_tools())
         console.print(f"[dim]Available tools: {', '.join(sorted(available_tools))}[/dim]")
 
-    # Create Adaptive Agent with resolved workspace
-    agent = AdaptiveAgent(
+    # Create Agent with resolved workspace (RFC-110)
+    agent = Agent(
         model=synthesis_model,
         tool_executor=tool_executor,
         cwd=workspace,
         budget=AdaptiveBudget(total_budget=50_000),
     )
 
+    # Build RunRequest
+    request = RunRequest(
+        goal=goal,
+        context={"cwd": str(Path.cwd())},
+        cwd=workspace,
+        options=RunOptions(
+            trust=trust,
+            timeout_seconds=time,
+        ),
+    )
+
     # Dry run: just plan (RFC-090 enhanced)
     if dry_run:
         plan_data = None
-        async for event in agent.plan(goal):
+        async for event in agent.plan(request):
             if event.type == EventType.PLAN_WINNER:
                 plan_data = event.data
             elif event.type == EventType.ERROR and not json_output:
@@ -446,32 +470,33 @@ async def _run_agent(
 
         return
 
-    # Create renderer based on verbosity
-    from sunwell.adaptive import RendererConfig
-    renderer_config = RendererConfig(
-        mode="interactive",
-        show_learnings=verbose,
-        verbose=verbose,
-    )
-    renderer = create_renderer(renderer_config)
+    # Create renderer based on output mode (RFC-110: import from agent/)
+    renderer_mode = "json" if json_output else "interactive"
+    renderer = create_renderer(mode=renderer_mode, verbose=verbose)
 
-    # Full execution
+    # Full execution (RFC-110: Agent.run() takes RunRequest)
     try:
-        # renderer.render() expects the full event stream, not individual events
-        await renderer.render(agent.run(goal, context={"cwd": str(Path.cwd())}))
+        await renderer.render(agent.run(request))
 
     except KeyboardInterrupt:
-        console.print("\n[yellow]Interrupted by user[/yellow]")
+        if json_output:
+            print('{"type": "error", "data": {"message": "Interrupted by user"}}')
+        else:
+            console.print("\n[yellow]Interrupted by user[/yellow]")
     except Exception as e:
-        console.print(f"\n[red]Error: {e}[/red]")
-        if verbose:
-            import traceback
-            console.print(traceback.format_exc())
+        if json_output:
+            import json as json_module
+            print(json_module.dumps({"type": "error", "data": {"message": str(e)}}))
+        else:
+            console.print(f"\n[red]Error: {e}[/red]")
+            if verbose:
+                import traceback
+                console.print(traceback.format_exc())
 
 
 def _print_event(event, verbose: bool) -> None:
     """Print an agent event to console."""
-    from sunwell.adaptive import EventType
+    from sunwell.agent import EventType
 
     if event.type == EventType.PLAN_WINNER:
         data = event.data or {}
@@ -701,23 +726,33 @@ async def _artifact_dry_run(goal: str, planner, verbose: bool) -> None:
 
 # Configuration management (absorbs bind, env)
 from sunwell.cli import config_cmd
+
 main.add_command(config_cmd.config)
 
 # Project operations (absorbs workspace, scan, import)
 from sunwell.cli import project_cmd
+
 main.add_command(project_cmd.project)
 
 # Session management (absorbs team)
 from sunwell.cli import session
+
 main.add_command(session.sessions)
 
 # Lens management
 from sunwell.cli import lens
+
 main.add_command(lens.lens)
 
 # First-time setup wizard
 from sunwell.cli import setup
+
 main.add_command(setup.setup)
+
+# HTTP server for Studio UI (RFC-113)
+from sunwell.cli import serve_cmd
+
+main.add_command(serve_cmd.serve)
 
 
 # -----------------------------------------------------------------------------
@@ -728,6 +763,7 @@ main.add_command(setup.setup)
 
 # Interactive REPL mode
 from sunwell.cli import chat
+
 main.add_command(click.Command(
     name="chat",
     callback=chat.chat.callback,
@@ -738,6 +774,7 @@ main.add_command(click.Command(
 
 # Benchmark suite
 from sunwell.benchmark.cli import benchmark
+
 main.add_command(click.Command(
     name="benchmark",
     callback=benchmark.callback if hasattr(benchmark, 'callback') else benchmark,
@@ -747,6 +784,7 @@ main.add_command(click.Command(
 
 # Demo command - Prism Principle demonstrations
 from sunwell.cli import demo_cmd
+
 main.add_command(click.Command(
     name="demo",
     callback=demo_cmd.demo.callback,
@@ -757,6 +795,7 @@ main.add_command(click.Command(
 
 # Evaluation suite
 from sunwell.cli import eval_cmd
+
 main.add_command(click.Command(
     name="eval",
     callback=eval_cmd.eval_cmd.callback,
@@ -767,6 +806,7 @@ main.add_command(click.Command(
 
 # Runtime management
 from sunwell.cli import runtime_cmd
+
 main.add_command(click.Command(
     name="runtime",
     callback=runtime_cmd.runtime.callback if hasattr(runtime_cmd.runtime, 'callback') else None,
@@ -783,21 +823,25 @@ main.add_command(click.Command(
 
 # Autonomous Backlog (RFC-046) - Studio: backlog refresh/run
 from sunwell.cli import backlog_cmd
+
 backlog_cmd.backlog.hidden = True
 main.add_command(backlog_cmd.backlog)
 
 # DAG and Incremental Execution (RFC-074) - Studio: dag plan/cache/impact
 from sunwell.cli import dag_cmd
+
 dag_cmd.dag.hidden = True
 main.add_command(dag_cmd.dag)
 
 # Generative Interface (RFC-075) - Studio: interface demo
 from sunwell.cli import interface_cmd
+
 interface_cmd.interface.hidden = True
 main.add_command(interface_cmd.interface)
 
 # Naaru coordination - Studio: naaru process/convergence
 from sunwell.cli.agent import agent
+
 agent.hidden = True
 main.add_command(agent)
 # Keep 'naaru' as hidden alias for backward compatibility
@@ -811,51 +855,57 @@ main.add_command(naaru_alias)
 
 # State DAG Scanning (RFC-100) - Studio: scan <path>
 from sunwell.cli import scan_cmd
+
 scan_cmd.scan.hidden = True
 main.add_command(scan_cmd.scan)
 
 # Security-First Skill Execution (RFC-089) - Studio: security analyze/approve/audit/scan
 from sunwell.cli import security_cmd
+
 security_cmd.security.hidden = True
 main.add_command(security_cmd.security)
 
 # Self-Knowledge (RFC-085) - Studio: self source/analysis/proposals/summary
 from sunwell.cli import self_cmd
+
 self_cmd.self_cmd.hidden = True
 main.add_command(self_cmd.self_cmd, name="self")
 
-# Skill management - Studio: skill cache-stats/cache-clear
-from sunwell.cli import skill
-skill.skill.hidden = True
-main.add_command(skill.skill)
+# RFC-110: skill CLI deprecated - skill execution moved to Agent
 
 # Surface Primitives & Layout (RFC-072) - Studio: surface registry
 from sunwell.cli import surface
+
 surface.surface.hidden = True
 main.add_command(surface.surface)
 
 # Weakness Cascade (RFC-063) - Studio: weakness scan/preview/extract-contract
 from sunwell.cli import weakness_cmd
+
 weakness_cmd.weakness.hidden = True
 main.add_command(weakness_cmd.weakness)
 
 # Multi-Instance Coordination (RFC-051) - Studio: workers ui-state/pause/resume/start
 from sunwell.cli import workers_cmd
+
 workers_cmd.workers.hidden = True
 main.add_command(workers_cmd.workers)
 
 # Autonomous Workflow Execution (RFC-086) - Studio: workflow auto/run/stop/resume/skip/chains/list
 from sunwell.cli import workflow_cmd
+
 workflow_cmd.workflow.hidden = True
 main.add_command(workflow_cmd.workflow)
 
 # Workspace-Aware Scanning (RFC-103) - Studio: workspace detect/show/link/unlink/list
 from sunwell.cli import workspace_cmd
+
 workspace_cmd.workspace.hidden = True
 main.add_command(workspace_cmd.workspace)
 
 # Continuous Codebase Indexing (RFC-108) - Studio: index build/query/metrics
 from sunwell.cli import index_cmd
+
 index_cmd.index.hidden = True
 main.add_command(index_cmd.index)
 
@@ -866,91 +916,100 @@ main.add_command(index_cmd.index)
 
 # Project Intelligence commands (RFC-045) - hidden
 from sunwell.cli import intel_cmd
+
 intel_cmd.intel.hidden = True
 main.add_command(intel_cmd.intel)
 
 # Plan command for DAG visualization - hidden
 from sunwell.cli import plan_cmd
+
 plan_cmd.plan.hidden = True
 main.add_command(plan_cmd.plan)
 
 # Deep Verification (RFC-047) - hidden
 from sunwell.cli import verify_cmd
+
 verify_cmd.verify.hidden = True
 main.add_command(verify_cmd.verify)
 
 # Autonomy Guardrails (RFC-048) - hidden
 from sunwell.cli import guardrails_cmd
+
 guardrails_cmd.guardrails.hidden = True
 main.add_command(guardrails_cmd.guardrails)
 
 # External Integration (RFC-049) - hidden
 from sunwell.cli import external_cmd
+
 external_cmd.external.hidden = True
 main.add_command(external_cmd.external)
 
 # Fast Bootstrap (RFC-050) - hidden
 from sunwell.cli import bootstrap_cmd
+
 bootstrap_cmd.bootstrap.hidden = True
 main.add_command(bootstrap_cmd.bootstrap)
 
 # Team Intelligence (RFC-052) - hidden
 from sunwell.cli import team_cmd
+
 team_cmd.team.hidden = True
 main.add_command(team_cmd.team)
 
 # Project Import (RFC-043 addendum) - hidden
 from sunwell.cli import import_cmd
+
 import_cmd.import_project.hidden = True
 main.add_command(import_cmd.import_project, name="import")
 
 # Briefing System (RFC-071) - hidden
 from sunwell.cli import briefing_cmd
+
 briefing_cmd.briefing.hidden = True
 main.add_command(briefing_cmd.briefing)
 
 # Reasoned Decisions (RFC-073) - hidden
 from sunwell.cli import reason
+
 reason.reason.hidden = True
 main.add_command(reason.reason)
 
 # Universal Writing Environment (RFC-086) - hidden
 from sunwell.cli import open_cmd
+
 open_cmd.open_project.hidden = True
 main.add_command(open_cmd.open_project, name="open")
 
 # User Environment Model (RFC-104) - hidden
 from sunwell.cli import env_cmd
+
 env_cmd.env.hidden = True
 main.add_command(env_cmd.env)
 
 # Configuration binding - hidden (absorbed into config)
 from sunwell.cli import bind
+
 bind.bind.hidden = True
 main.add_command(bind.bind)
 
-# Shortcut Execution (RFC-107) - hidden (absorbed into -s flag)
-from sunwell.cli import do_cmd
-do_cmd.do_cmd.hidden = True
-main.add_command(do_cmd.do_cmd, name="do")
+# RFC-110: Legacy commands deleted (ask, apply, do_cmd, naaru_cmd)
+# These entry points are consolidated into Agent.run()
+# - sunwell ask -> sunwell "goal"
+# - sunwell apply -> sunwell -s shortcut
+# - sunwell do -> sunwell -s shortcut
+# - sunwell naaru process -> sunwell "goal"
 
-# Legacy commands (with deprecation warnings) - hidden
-from sunwell.cli import apply, ask
-apply.apply.hidden = True
-ask.ask.hidden = True
-main.add_command(apply.apply)
-main.add_command(ask.ask)
+# RFC-110: Legacy skill commands removed - skill execution moved to Agent
 
-# Legacy skill commands - hidden
-skill.exec_legacy.hidden = True
-skill.validate_legacy.hidden = True
-main.add_command(skill.exec_legacy, name="exec")
-main.add_command(skill.validate_legacy, name="validate")
+# RFC-111: Skill library management (learn, list, import)
+from sunwell.cli import skills_cmd
 
+main.add_command(skills_cmd.skills_group)
 
 # -----------------------------------------------------------------------------
 # RFC-109: Register deprecated command aliases
 # -----------------------------------------------------------------------------
 
 from sunwell.cli.deprecated import register_deprecated_commands
+
 register_deprecated_commands(main)

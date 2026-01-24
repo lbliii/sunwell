@@ -2,7 +2,7 @@
   DagDetail — Expanded detail panel for selected node (Svelte 5)
 -->
 <script lang="ts">
-  import { invoke } from '@tauri-apps/api/core';
+  import { apiPost } from '$lib/socket';
   import { dag, selectNode, completeNode, updateNode } from '../../stores/dag.svelte';
   import { project } from '../../stores/project.svelte';
   import { agent } from '../../stores/agent.svelte';
@@ -38,7 +38,7 @@
     
     try {
       updateNode(currentNode.id, { status: 'running', currentAction: 'Starting...' });
-      await invoke('execute_dag_node', { path: projectPath, nodeId: currentNode.id });
+      await apiPost('/api/dag/execute', { path: projectPath, node_id: currentNode.id });
     } catch (e) {
       console.error('Failed to execute:', e);
       executeError = parseError(e);

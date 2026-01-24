@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from time import time
 from typing import Any
 
-from sunwell.adaptive.events import AgentEvent, EventType
+from sunwell.agent.events import AgentEvent, EventType
 
 # =============================================================================
 # Event Data Classes

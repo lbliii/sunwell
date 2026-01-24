@@ -7,11 +7,11 @@ import asyncio
 import hashlib
 import json
 import pickle
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Callable
 
 from sunwell.indexing.chunkers import ChunkerRegistry
 from sunwell.indexing.metrics import IndexMetrics
@@ -219,7 +219,7 @@ class IndexingService:
         try:
             await asyncio.wait_for(self._ready.wait(), timeout)
             return True
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return False
 
     async def query(

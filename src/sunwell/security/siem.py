@@ -13,8 +13,9 @@ Supports multiple SIEM and log aggregation formats:
 
 import json
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sunwell.security.audit import AuditEntry
@@ -95,7 +96,7 @@ class CEFFormatter(SIEMFormatter):
             f"dvc={escape(entry.skill_name)}",
             f"duser={escape(entry.user_id)}",
             f"cs1={escape(entry.dag_id)}",
-            f"cs1Label=DAG_ID",
+            "cs1Label=DAG_ID",
             f"msg={escape(entry.details[:200])}",
             f"rt={int(entry.timestamp.timestamp() * 1000)}",
             f"src_hash={escape(entry.inputs_hash[:16])}",
@@ -150,7 +151,7 @@ class LEEFFormatter(SIEMFormatter):
         # Key-value pairs
         kv_pairs = [
             f"devTime={entry.timestamp.strftime('%b %d %Y %H:%M:%S')}",
-            f"devTimeFormat=MMM dd yyyy HH:mm:ss",
+            "devTimeFormat=MMM dd yyyy HH:mm:ss",
             f"usrName={entry.user_id}",
             f"src={entry.skill_name}",
             f"cat={entry.action}",

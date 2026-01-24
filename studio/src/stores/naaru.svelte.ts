@@ -7,10 +7,12 @@
  * - home.svelte.ts → naaruStore.process()
  * - interface.svelte.ts → naaruStore.process()
  * - Various ad-hoc stores → consolidated here
+ *
+ * RFC-113: Uses HTTP API instead of Tauri for all communication.
  */
 
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+import { apiGet, apiPost, onEvent, startRun, cancelRun } from '$lib/socket';
+import type { AgentEvent } from '$lib/types';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TYPES (match Python exactly - RFC-083)
@@ -170,6 +172,8 @@ export let naaruState = $state<NaaruState>(createInitialState());
 /**
  * THE function. All UI interaction goes through here.
  *
+ * Uses HTTP API (RFC-113) for all communication with Python backend.
+ *
  * @param input - ProcessInput with content and options
  * @returns ProcessOutput with response and metadata
  */
@@ -190,15 +194,68 @@ export async function process(input: ProcessInput): Promise<ProcessOutput> {
 	];
 
 	try {
-		// Call unified Naaru endpoint
-		const result = await invoke<ProcessOutput>('naaru_process', {
-			input: {
-				...input,
-				conversation_history: naaruState.conversationHistory.map((m) => ({
-					role: m.role,
-					content: m.content,
-				})),
-			},
+		// Start agent run via HTTP API (RFC-113)
+		const { run_id } = await startRun({
+			goal: input.content,
+			workspace: input.workspace,
+			provider: input.provider,
+			model: input.model,
+		});
+
+		// Wait for completion by collecting events
+		const result = await new Promise<ProcessOutput>((resolve, reject) => {
+			let response = '';
+			let tasksCompleted = 0;
+			const artifacts: string[] = [];
+			const events: NaaruEvent[] = [];
+
+			const unsubscribe = onEvent((event: AgentEvent) => {
+				// Convert to NaaruEvent format
+				const naaruEvent: NaaruEvent = {
+					type: event.type as NaaruEventType,
+					timestamp: new Date().toISOString(),
+					data: event.data || {},
+				};
+				events.push(naaruEvent);
+				naaruState.events = [...naaruState.events, naaruEvent];
+
+				// Handle specific event types
+				if (event.type === 'model_tokens' && event.data?.content) {
+					naaruState.streamedContent += event.data.content as string;
+					response += event.data.content as string;
+				}
+				if (event.type === 'task_complete') {
+					tasksCompleted++;
+				}
+				if (event.type === 'file_written' && event.data?.path) {
+					artifacts.push(event.data.path as string);
+				}
+
+				// Resolve on completion
+				if (event.type === 'complete' || event.type === 'error' || event.type === 'cancelled') {
+					unsubscribe();
+					if (event.type === 'error') {
+						reject(new Error((event.data?.message as string) || 'Agent execution failed'));
+					} else {
+						resolve({
+							response: response || (event.data?.response as string) || '',
+							route_type: 'workspace',
+							confidence: 0.9,
+							composition: null,
+							tasks_completed: tasksCompleted,
+							artifacts,
+							events,
+							routing: null,
+						});
+					}
+				}
+			});
+
+			// Timeout after configured time
+			setTimeout(() => {
+				unsubscribe();
+				reject(new Error('Request timeout'));
+			}, (input.timeout || 300) * 1000);
 		});
 
 		naaruState.response = result;
@@ -260,49 +317,64 @@ export async function process(input: ProcessInput): Promise<ProcessOutput> {
 /**
  * Subscribe to real-time Naaru events.
  * Call once on app init.
+ *
+ * RFC-113: Uses WebSocket events instead of Tauri event listener.
  */
-export async function subscribeToEvents(): Promise<() => void> {
-	await invoke('naaru_subscribe');
-
-	const unlisten = await listen<NaaruEvent>('naaru_event', (event) => {
-		const naaruEvent = event.payload;
+export function subscribeToEvents(): () => void {
+	const unsubscribe = onEvent((event: AgentEvent) => {
+		// Convert to NaaruEvent format
+		const naaruEvent: NaaruEvent = {
+			type: event.type as NaaruEventType,
+			timestamp: new Date().toISOString(),
+			data: event.data || {},
+		};
 		naaruState.events = [...naaruState.events, naaruEvent];
 
 		// Update state based on event type
-		switch (naaruEvent.type) {
+		switch (event.type) {
 			case 'composition_ready':
-				naaruState.convergence.composition = naaruEvent.data as unknown as CompositionSpec;
+				naaruState.convergence.composition = event.data as unknown as CompositionSpec;
 				break;
 			case 'route_decision':
-				naaruState.convergence.routing = naaruEvent.data as unknown as RoutingDecision;
+				naaruState.convergence.routing = event.data as unknown as RoutingDecision;
 				break;
 			case 'model_tokens':
-				naaruState.streamedContent += (naaruEvent.data.content as string) || '';
+				naaruState.streamedContent += (event.data?.content as string) || '';
 				break;
-			case 'process_error':
-				naaruState.error = (naaruEvent.data.error as string) || 'Unknown error';
+			case 'error':
+				naaruState.error = (event.data?.message as string) || 'Unknown error';
 				break;
 		}
 	});
 
-	return unlisten;
+	return unsubscribe;
 }
 
 /**
  * Read a specific Convergence slot.
  *
+ * RFC-113: Uses HTTP API endpoint instead of Tauri invoke.
+ *
  * @param slot - Slot ID like "routing:current" or "composition:current"
  * @returns ConvergenceSlot or null if not found
  */
 export async function getConvergenceSlot(slot: string): Promise<ConvergenceSlot | null> {
-	return invoke<ConvergenceSlot | null>('naaru_convergence', { slot });
+	try {
+		const result = await apiGet<ConvergenceSlot | null>(`/api/convergence/${encodeURIComponent(slot)}`);
+		return result;
+	} catch {
+		return null;
+	}
 }
 
 /**
  * Cancel current processing.
+ *
+ * RFC-113: Uses disconnect from socket module.
  */
 export async function cancel(): Promise<void> {
-	await invoke('naaru_cancel');
+	const { disconnect } = await import('$lib/socket');
+	disconnect();
 	naaruState.isProcessing = false;
 }
 

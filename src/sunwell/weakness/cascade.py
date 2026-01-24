@@ -161,7 +161,7 @@ class CascadeExecution:
 class CascadeEngine:
     """Computes and executes cascade regenerations."""
 
-    graph: "ArtifactGraph"
+    graph: ArtifactGraph
     project_root: Path
     max_cascade_depth: int = 5
     max_cascade_size: int = 50

@@ -8,7 +8,7 @@
  * - Audit log entries
  */
 
-import { invoke } from '@tauri-apps/api/core';
+import { apiGet, apiPost } from '$lib/socket';
 import type {
   SecurityApprovalDetailed,
   SecurityApprovalResponse,

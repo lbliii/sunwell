@@ -35,7 +35,7 @@ from sunwell.naaru.artifacts import (
 from sunwell.naaru.types import Task, TaskMode
 
 if TYPE_CHECKING:
-    from sunwell.adaptive.events import AgentEvent
+    from sunwell.agent.events import AgentEvent
     from sunwell.models.protocol import ModelProtocol
     from sunwell.project.schema import ProjectSchema
 
@@ -104,8 +104,8 @@ class ArtifactPlanner:
             return
 
         try:
-            from sunwell.adaptive.events import EventType
-            from sunwell.adaptive.event_schema import create_validated_event
+            from sunwell.agent.event_schema import create_validated_event
+            from sunwell.agent.events import EventType
 
             # RFC-060: Validate event data against schema
             event = create_validated_event(EventType(event_type), data)

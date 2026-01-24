@@ -1,12 +1,16 @@
 /**
  * Writer Store — Universal Writing Environment state (RFC-086)
  *
+ * RFC-113: Migrated from Tauri invoke to HTTP API.
+ *
  * Manages the writer workspace including:
  * - View mode (source/preview)
  * - Active document and validation state
  * - Diataxis detection
  * - Selection and actions
  */
+
+import { apiGet, apiPost } from '$lib/socket';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -233,14 +237,13 @@ export async function loadDocument(filePath: string): Promise<void> {
   _state = { ..._state, isLoading: true, error: null };
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    const content = await invoke<string>('read_file_contents', { path: filePath });
+    const result = await apiGet<{ content: string }>(`/api/files/read?path=${encodeURIComponent(filePath)}`);
 
     _state = {
       ..._state,
       filePath,
-      content,
-      wordCount: countWords(content),
+      content: result.content,
+      wordCount: countWords(result.content),
       isDirty: false,
       isLoading: false,
     };
@@ -277,8 +280,7 @@ export async function saveDocument(): Promise<boolean> {
   if (!_state.filePath || !_state.isDirty) return true;
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('write_file_contents', {
+    await apiPost('/api/files/write', {
       path: _state.filePath,
       content: _state.content,
     });
@@ -305,13 +307,12 @@ export async function detectDiataxis(): Promise<void> {
   if (!_state.content) return;
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    const result = await invoke<{
+    const result = await apiPost<{
       detection: DiataxisDetection;
       warnings: DiataxisWarning[];
-    }>('detect_diataxis', {
+    }>('/api/writer/diataxis', {
       content: _state.content,
-      filePath: _state.filePath,
+      file_path: _state.filePath,
     });
 
     _state = {
@@ -343,16 +344,15 @@ export async function validateDocument(): Promise<void> {
   _state = { ..._state, isValidating: true };
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    const warnings = await invoke<ValidationWarning[]>('validate_document', {
+    const result = await apiPost<{ warnings: ValidationWarning[] }>('/api/writer/validate', {
       content: _state.content,
-      filePath: _state.filePath,
-      lensName: _state.lensName,
+      file_path: _state.filePath,
+      lens_name: _state.lensName,
     });
 
     _state = {
       ..._state,
-      validationWarnings: warnings,
+      validationWarnings: result.warnings || [],
       isValidating: false,
     };
   } catch {
@@ -387,11 +387,10 @@ export async function fixAllIssues(): Promise<void> {
   if (fixableCount === 0) return;
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    const result = await invoke<{ content: string; fixed: number }>('fix_all_issues', {
+    const result = await apiPost<{ content: string; fixed: number }>('/api/writer/fix-all', {
       content: _state.content,
       warnings: _state.validationWarnings,
-      lensName: _state.lensName,
+      lens_name: _state.lensName,
     });
 
     if (result.fixed > 0) {
@@ -421,12 +420,11 @@ export async function setLens(lensName: string): Promise<void> {
   _state = { ..._state, lensName, isLoading: true };
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    const skills = await invoke<LensSkill[]>('get_lens_skills', { lensName });
+    const result = await apiGet<{ skills: LensSkill[] }>(`/api/lenses/${encodeURIComponent(lensName)}/skills`);
 
     _state = {
       ..._state,
-      lensSkills: skills,
+      lensSkills: result.skills || [],
       isLoading: false,
     };
 
@@ -446,12 +444,11 @@ export async function setLens(lensName: string): Promise<void> {
  */
 export async function executeSkill(skillId: string): Promise<void> {
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    const result = await invoke<{ content?: string; message?: string }>('execute_skill', {
-      skillId,
+    const result = await apiPost<{ content?: string; message?: string }>('/api/writer/execute-skill', {
+      skill_id: skillId,
       content: _state.content,
-      filePath: _state.filePath,
-      lensName: _state.lensName,
+      file_path: _state.filePath,
+      lens_name: _state.lensName,
     });
 
     // Track as recent

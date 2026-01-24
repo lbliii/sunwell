@@ -3,7 +3,7 @@
   RFC-064: Shows active lens during execution
 -->
 <script lang="ts">
-  import { invoke } from '@tauri-apps/api/core';
+  import { openFinder, openTerminal, openEditor } from '$lib/socket';
   import Progress from '../Progress.svelte';
   import Button from '../Button.svelte';
   import LearningsPanel from '../LearningsPanel.svelte';
@@ -21,17 +21,17 @@
   
   async function handleOpenFiles() {
     if (!project.current?.path) return;
-    try { await invoke('open_in_finder', { path: project.current.path }); } catch (e) { console.error('Failed to open files:', e); }
+    try { await openFinder(project.current.path); } catch (e) { console.error('Failed to open files:', e); }
   }
   
   async function handleOpenTerminal() {
     if (!project.current?.path) return;
-    try { await invoke('open_terminal', { path: project.current.path }); } catch (e) { console.error('Failed to open terminal:', e); }
+    try { await openTerminal(project.current.path); } catch (e) { console.error('Failed to open terminal:', e); }
   }
   
   async function handleOpenEditor() {
     if (!project.current?.path) return;
-    try { await invoke('open_in_editor', { path: project.current.path }); } catch (e) { console.error('Failed to open editor:', e); }
+    try { await openEditor(project.current.path); } catch (e) { console.error('Failed to open editor:', e); }
   }
 </script>
 

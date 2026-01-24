@@ -17,7 +17,7 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
-from sunwell.core.errors import ErrorCode, SunwellError, from_openai_error
+from sunwell.core.errors import from_openai_error
 from sunwell.models.protocol import (
     GenerateOptions,
     GenerateResult,

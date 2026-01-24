@@ -245,7 +245,7 @@ async def _run_agent(
             import json
             import sys
 
-            from sunwell.adaptive.events import AgentEvent, EventType
+            from sunwell.agent.events import AgentEvent, EventType
 
             msg = "No model available for planning"
             error_event = AgentEvent(EventType.ERROR, {"message": msg})
@@ -273,7 +273,7 @@ async def _run_agent(
     resolved_lens = None
     lens_context = ""
     if lens_name or auto_lens:
-        from sunwell.adaptive.lens_resolver import resolve_lens_for_goal
+        from sunwell.agent.lens_resolver import resolve_lens_for_goal
 
         lens_resolution = await resolve_lens_for_goal(
             goal=goal,
@@ -290,7 +290,7 @@ async def _run_agent(
                 import json
                 import sys
 
-                from sunwell.adaptive.events import AgentEvent, EventType
+                from sunwell.agent.events import AgentEvent, EventType
 
                 lens_event = AgentEvent(
                     EventType.LENS_SELECTED,
@@ -372,8 +372,8 @@ async def _run_agent(
         import json
         import sys
 
-        from sunwell.adaptive.event_schema import ValidatedEventEmitter
-        from sunwell.adaptive.events import AgentEvent
+        from sunwell.agent.event_schema import ValidatedEventEmitter
+        from sunwell.agent.events import AgentEvent
 
         def emit_json(event: AgentEvent) -> None:
             """Emit event as NDJSON to stdout for Studio consumption."""
@@ -423,11 +423,11 @@ async def _run_agent(
             )
             # Note: complete event is emitted by Naaru.run() via callback
         except KeyboardInterrupt:
-            from sunwell.adaptive.events import AgentEvent, EventType
+            from sunwell.agent.events import AgentEvent, EventType
             error_event = AgentEvent(EventType.ERROR, {"message": "Interrupted by user"})
             naaru_config.event_callback(error_event)
         except Exception as e:
-            from sunwell.adaptive.events import AgentEvent, EventType
+            from sunwell.agent.events import AgentEvent, EventType
             error_event = AgentEvent(EventType.ERROR, {"message": str(e)})
             naaru_config.event_callback(error_event)
         return

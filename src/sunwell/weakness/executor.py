@@ -23,7 +23,7 @@ from sunwell.weakness.cascade import CascadeEngine, CascadeExecution, CascadePre
 from sunwell.weakness.types import ExtractedContract, WaveConfidence
 
 if TYPE_CHECKING:
-    from sunwell.adaptive.events import AgentEvent
+    from sunwell.agent.events import AgentEvent
     from sunwell.naaru.planners.artifact import ArtifactPlanner
     from sunwell.tools.executor import ToolExecutor
 
@@ -464,7 +464,7 @@ class CascadeExecutor:
     def _emit_event(self, event_type: str, data: dict[str, Any]) -> None:
         """Emit agent event if callback registered."""
         if self.on_event:
-            from sunwell.adaptive.events import AgentEvent, EventType
+            from sunwell.agent.events import AgentEvent, EventType
 
             try:
                 event = AgentEvent(EventType(event_type), data)

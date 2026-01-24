@@ -35,10 +35,10 @@ Usage:
 """
 
 from sunwell.surface.blocks import (
+    DEFAULT_BLOCKS,
     BlockAction,
     BlockDef,
     BlockRegistry,
-    DEFAULT_BLOCKS,
 )
 from sunwell.surface.composer import (
     CompositionResult,
@@ -46,15 +46,6 @@ from sunwell.surface.composer import (
     compose_surface,
     compose_surface_with_reasoning,
 )
-from sunwell.surface.fallback import (
-    DEFAULT_LAYOUT,
-    DOMAIN_DEFAULTS,
-    render_with_fallback,
-)
-from sunwell.surface.intent import IntentSignals, extract_intent
-from sunwell.surface.registry import PrimitiveRegistry
-from sunwell.surface.renderer import SurfaceRenderer
-from sunwell.surface.scoring import ScoredPrimitive, ScoringContext, ScoringResult
 from sunwell.surface.diataxis import (
     DiataxisDetection,
     DiataxisSignal,
@@ -62,11 +53,20 @@ from sunwell.surface.diataxis import (
     detect_diataxis,
     suggest_diataxis_type,
 )
+from sunwell.surface.fallback import (
+    DEFAULT_LAYOUT,
+    DOMAIN_DEFAULTS,
+    render_with_fallback,
+)
+from sunwell.surface.intent import IntentSignals, extract_intent
 from sunwell.surface.lens_detection import (
     detect_project_context,
     get_lens_for_project,
     get_mode_for_domain,
 )
+from sunwell.surface.registry import PrimitiveRegistry
+from sunwell.surface.renderer import SurfaceRenderer
+from sunwell.surface.scoring import ScoredPrimitive, ScoringContext, ScoringResult
 from sunwell.surface.types import (
     DEFAULT_SELECTION_ACTIONS,
     DiataxisType,

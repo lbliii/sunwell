@@ -13,6 +13,8 @@ Simulacrum = SimulacrumStore
 
 # Legacy imports - deprecated, will be removed in future version
 # These are kept for backward compatibility during migration
+# Legacy Simulacrum class - deprecated
+from sunwell.simulacrum.core.core import Simulacrum as LegacySimulacrum
 from sunwell.simulacrum.core.memory import (
     Episode,
     EpisodicMemory,
@@ -22,9 +24,6 @@ from sunwell.simulacrum.core.memory import (
     SemanticMemory,
     WorkingMemory,
 )
-
-# Legacy Simulacrum class - deprecated
-from sunwell.simulacrum.core.core import Simulacrum as LegacySimulacrum
 
 __all__ = [
     # RFC-084: Primary exports
