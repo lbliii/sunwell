@@ -7,7 +7,7 @@
   - COLD: Archive chunks with summaries only
 -->
 <script lang="ts">
-  import { apiGet, apiPost } from '$lib/socket';
+  import { apiGet } from '$lib/socket';
   import type { ChunkHierarchy, Chunk } from '$lib/types';
   
   interface Props {

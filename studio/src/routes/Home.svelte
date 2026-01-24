@@ -184,7 +184,10 @@
 		clearResponse();
 	}
 
-	async function handleBlockAction(actionId: string, itemId?: string) {
+	async function handleBlockAction(actionId: string, data?: unknown) {
+		// Extract itemId if data is a string, otherwise keep as structured data
+		const itemId = typeof data === 'string' ? data : undefined;
+
 		// Handle follow-up: focus input to continue conversation
 		if (actionId === 'follow_up') {
 			inputBar?.focus();
@@ -194,6 +197,20 @@
 		// Handle dismiss: clear the current response
 		if (actionId === 'dismiss') {
 			clearResponse();
+			return;
+		}
+
+		// Handle use_tool: insert tool reference into input (client-side only)
+		if (actionId === 'use_tool' && data && typeof data === 'object' && 'tool' in data) {
+			// TODO: Insert tool into input when that feature is implemented
+			console.log('Tool selected:', (data as { tool: string }).tool);
+			return;
+		}
+
+		// Handle panel_action: client-side panel interactions
+		if (actionId === 'panel_action' && data && typeof data === 'object') {
+			// TODO: Handle panel actions when that feature is implemented
+			console.log('Panel action:', data);
 			return;
 		}
 

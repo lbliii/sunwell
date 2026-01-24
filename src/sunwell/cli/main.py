@@ -1006,6 +1006,11 @@ from sunwell.cli import skills_cmd
 
 main.add_command(skills_cmd.skills_group)
 
+# RFC-115: Hierarchical Goal Decomposition (epic commands)
+from sunwell.cli import epic_cmd
+
+main.add_command(epic_cmd.epic)
+
 # -----------------------------------------------------------------------------
 # RFC-109: Register deprecated command aliases
 # -----------------------------------------------------------------------------

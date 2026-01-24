@@ -78,17 +78,23 @@ def _find_static_dir() -> Path | None:
     """Find the Svelte build directory.
 
     Checks several possible locations:
-    1. ./studio/build (development)
-    2. ~/.sunwell/studio (installed)
-    3. Package resources (pip installed)
+    1. ./studio/dist (Vite default)
+    2. ./studio/build (legacy)
+    3. ~/.sunwell/studio (installed)
+    4. Package resources (pip installed)
     """
-    # Development: relative to cwd
-    dev_path = Path.cwd() / "studio" / "build"
+    # Development: relative to cwd (Vite outputs to dist/)
+    dev_path = Path.cwd() / "studio" / "dist"
     if dev_path.exists() and (dev_path / "index.html").exists():
         return dev_path
 
+    # Legacy: build folder
+    build_path = Path.cwd() / "studio" / "build"
+    if build_path.exists() and (build_path / "index.html").exists():
+        return build_path
+
     # Check relative to this file (source tree)
-    src_path = Path(__file__).parent.parent.parent.parent.parent / "studio" / "build"
+    src_path = Path(__file__).parent.parent.parent.parent.parent / "studio" / "dist"
     if src_path.exists() and (src_path / "index.html").exists():
         return src_path
 

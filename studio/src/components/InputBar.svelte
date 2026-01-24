@@ -5,6 +5,7 @@
   The glow is subtle warmth, not jarring brightness.
 -->
 <script lang="ts">
+  import { onMount } from 'svelte';
   import RisingMotes from './RisingMotes.svelte';
   
   interface Props {
@@ -33,6 +34,13 @@
   let inputEl: HTMLInputElement | undefined = $state();
   let focused = $state(false);
   
+  // Programmatic autofocus to avoid browser conflicts
+  onMount(() => {
+    if (autofocus && inputEl) {
+      inputEl.focus();
+    }
+  });
+  
   function handleSubmit() {
     if (value.trim() && !isDisabled) {
       onsubmit?.(value.trim());
@@ -60,13 +68,11 @@
 </script>
 
 <div class="input-bar" class:disabled={isDisabled} class:focused class:loading>
-  <!-- svelte-ignore a11y_autofocus -->
   <input
     bind:this={inputEl}
     bind:value
     {placeholder}
     disabled={isDisabled}
-    autofocus={autofocus}
     onkeydown={handleKeydown}
     onfocus={handleFocus}
     onblur={handleBlur}

@@ -45,6 +45,13 @@ class Backlog:
     blocked: dict[str, str]
     """Goal ID → reason blocked."""
 
+    # RFC-115: Hierarchical Goal Decomposition fields
+    active_epic: str | None = None
+    """Currently executing epic."""
+
+    active_milestone: str | None = None
+    """Currently executing milestone within active epic."""
+
     def execution_order(self) -> list[Goal]:
         """Return goals in optimal execution order.
 
@@ -116,6 +123,59 @@ class Backlog:
 
         return "\n".join(lines)
 
+    # =========================================================================
+    # RFC-115: Hierarchy Methods
+    # =========================================================================
+
+    def get_epic(self, epic_id: str) -> Goal | None:
+        """Get epic by ID (RFC-115)."""
+        goal = self.goals.get(epic_id)
+        if goal and goal.goal_type == "epic":
+            return goal
+        return None
+
+    def get_milestones(self, epic_id: str) -> list[Goal]:
+        """Get all milestones for an epic, sorted by milestone_index (RFC-115)."""
+        milestones = [
+            g for g in self.goals.values()
+            if g.goal_type == "milestone" and g.parent_goal_id == epic_id
+        ]
+        return sorted(milestones, key=lambda g: g.milestone_index or 0)
+
+    def get_tasks_for_milestone(self, milestone_id: str) -> list[Goal]:
+        """Get all tasks for a milestone (RFC-115)."""
+        return [
+            g for g in self.goals.values()
+            if g.goal_type == "task" and g.parent_goal_id == milestone_id
+        ]
+
+    def get_current_milestone(self) -> Goal | None:
+        """Get the milestone currently being executed (RFC-115)."""
+        if self.active_milestone:
+            return self.goals.get(self.active_milestone)
+        return None
+
+    def get_milestone_progress(self, milestone_id: str) -> tuple[int, int]:
+        """Get (completed_tasks, total_tasks) for a milestone (RFC-115)."""
+        tasks = self.get_tasks_for_milestone(milestone_id)
+        total = len(tasks)
+        completed = sum(1 for t in tasks if t.id in self.completed)
+        return completed, total
+
+    def get_epic_progress(self, epic_id: str) -> tuple[int, int]:
+        """Get (completed_milestones, total_milestones) for an epic (RFC-115)."""
+        milestones = self.get_milestones(epic_id)
+        total = len(milestones)
+        completed = sum(1 for m in milestones if m.id in self.completed)
+        return completed, total
+
+    def get_next_milestone(self, epic_id: str) -> Goal | None:
+        """Get next uncompleted milestone for an epic (RFC-115)."""
+        for milestone in self.get_milestones(epic_id):
+            if milestone.id not in self.completed and milestone.id not in self.blocked:
+                return milestone
+        return None
+
 
 class BacklogManager:
     """Manages the autonomous backlog lifecycle."""
@@ -155,6 +215,8 @@ class BacklogManager:
             completed=set(),
             in_progress=None,
             blocked={},
+            active_epic=None,
+            active_milestone=None,
         )
 
         # External ref index for deduplication (RFC-049)
@@ -220,6 +282,8 @@ class BacklogManager:
             completed=existing.completed.copy(),
             in_progress=existing.in_progress,
             blocked=existing.blocked.copy(),
+            active_epic=existing.active_epic,
+            active_milestone=existing.active_milestone,
         )
 
     async def complete_goal(self, goal_id: str, result: GoalResult) -> None:
@@ -436,6 +500,193 @@ class BacklogManager:
                 claims[goal.id] = goal.claimed_by
         return claims
 
+    # =========================================================================
+    # RFC-115: Hierarchical Goal Decomposition Methods
+    # =========================================================================
+
+    async def add_epic(self, epic: Goal) -> None:
+        """Add an epic to the backlog (RFC-115).
+
+        Args:
+            epic: The epic goal (must have goal_type="epic")
+        """
+        if epic.goal_type != "epic":
+            msg = f"Expected epic, got {epic.goal_type}"
+            raise ValueError(msg)
+
+        self.backlog.goals[epic.id] = epic
+        self._save()
+
+    async def add_milestones(self, milestones: list[Goal]) -> None:
+        """Add milestones for an epic (RFC-115).
+
+        Args:
+            milestones: List of milestone goals (must have goal_type="milestone")
+        """
+        for milestone in milestones:
+            if milestone.goal_type != "milestone":
+                msg = f"Expected milestone, got {milestone.goal_type}"
+                raise ValueError(msg)
+            self.backlog.goals[milestone.id] = milestone
+        self._save()
+
+    async def activate_epic(self, epic_id: str) -> bool:
+        """Activate an epic for execution (RFC-115).
+
+        Sets active_epic and activates the first milestone.
+
+        Args:
+            epic_id: ID of the epic to activate
+
+        Returns:
+            True if activated, False if epic not found
+        """
+        epic = self.backlog.get_epic(epic_id)
+        if epic is None:
+            return False
+
+        self.backlog.active_epic = epic_id
+
+        # Activate first milestone
+        first_milestone = self.backlog.get_next_milestone(epic_id)
+        if first_milestone:
+            self.backlog.active_milestone = first_milestone.id
+
+        self._save()
+        return True
+
+    async def advance_milestone(self) -> Goal | None:
+        """Mark current milestone complete and advance to next (RFC-115).
+
+        Returns:
+            The next milestone, or None if epic is complete
+        """
+        if not self.backlog.active_epic or not self.backlog.active_milestone:
+            return None
+
+        # Mark current milestone complete
+        self.backlog.completed.add(self.backlog.active_milestone)
+
+        # Find next milestone
+        next_milestone = self.backlog.get_next_milestone(self.backlog.active_epic)
+
+        if next_milestone:
+            self.backlog.active_milestone = next_milestone.id
+        else:
+            # Epic complete
+            self.backlog.completed.add(self.backlog.active_epic)
+            self.backlog.active_epic = None
+            self.backlog.active_milestone = None
+
+        self._save()
+        return next_milestone
+
+    async def skip_milestone(self) -> Goal | None:
+        """Skip current milestone without completing (RFC-115).
+
+        Returns:
+            The next milestone, or None if epic has no more milestones
+        """
+        if not self.backlog.active_epic or not self.backlog.active_milestone:
+            return None
+
+        # Block current milestone as skipped
+        self.backlog.blocked[self.backlog.active_milestone] = "Skipped by user"
+
+        # Find next milestone
+        next_milestone = self.backlog.get_next_milestone(self.backlog.active_epic)
+
+        if next_milestone:
+            self.backlog.active_milestone = next_milestone.id
+        else:
+            # No more milestones
+            self.backlog.active_epic = None
+            self.backlog.active_milestone = None
+
+        self._save()
+        return next_milestone
+
+    async def add_tasks_for_milestone(
+        self,
+        milestone_id: str,
+        tasks: list[Goal],
+    ) -> None:
+        """Add tasks for a milestone (RFC-115).
+
+        Called when HarmonicPlanner generates tasks for the active milestone.
+
+        Args:
+            milestone_id: ID of the milestone
+            tasks: List of task goals (will have parent_goal_id set)
+        """
+        for task in tasks:
+            # Ensure task has correct parent
+            if task.parent_goal_id != milestone_id:
+                # Create new task with correct parent
+                task = Goal(
+                    id=task.id,
+                    title=task.title,
+                    description=task.description,
+                    source_signals=task.source_signals,
+                    priority=task.priority,
+                    estimated_complexity=task.estimated_complexity,
+                    requires=task.requires,
+                    category=task.category,
+                    auto_approvable=task.auto_approvable,
+                    scope=task.scope,
+                    external_ref=task.external_ref,
+                    claimed_by=task.claimed_by,
+                    claimed_at=task.claimed_at,
+                    produces=task.produces,
+                    integrations=task.integrations,
+                    verification_checks=task.verification_checks,
+                    task_type=task.task_type,
+                    goal_type="task",
+                    parent_goal_id=milestone_id,
+                    milestone_produces=(),
+                    milestone_index=None,
+                )
+            self.backlog.goals[task.id] = task
+
+        self._save()
+
+    def get_epic_status(self, epic_id: str) -> dict:
+        """Get comprehensive status for an epic (RFC-115).
+
+        Returns dict with:
+        - epic: Goal
+        - milestones: list[Goal]
+        - completed_milestones: int
+        - total_milestones: int
+        - current_milestone: Goal | None
+        - current_milestone_tasks: int
+        - current_milestone_completed_tasks: int
+        """
+        epic = self.backlog.get_epic(epic_id)
+        if not epic:
+            return {}
+
+        milestones = self.backlog.get_milestones(epic_id)
+        completed, total = self.backlog.get_epic_progress(epic_id)
+        current = self.backlog.get_current_milestone()
+
+        current_tasks = 0
+        current_completed = 0
+        if current and current.parent_goal_id == epic_id:
+            current_completed, current_tasks = self.backlog.get_milestone_progress(
+                current.id
+            )
+
+        return {
+            "epic": epic,
+            "milestones": milestones,
+            "completed_milestones": completed,
+            "total_milestones": total,
+            "current_milestone": current,
+            "current_milestone_tasks": current_tasks,
+            "current_milestone_completed_tasks": current_completed,
+        }
+
     async def _record_completion(self, goal_id: str, result: GoalResult) -> None:
         """Record goal completion in history."""
         history_path = self.backlog_path / "completed.jsonl"
@@ -602,6 +853,11 @@ class BacklogManager:
                     external_ref=goal_data.get("external_ref"),  # RFC-049
                     claimed_by=goal_data.get("claimed_by"),  # RFC-051
                     claimed_at=claimed_at,  # RFC-051
+                    # RFC-115: Hierarchy fields
+                    goal_type=goal_data.get("goal_type", "task"),
+                    parent_goal_id=goal_data.get("parent_goal_id"),
+                    milestone_produces=tuple(goal_data.get("milestone_produces", [])),
+                    milestone_index=goal_data.get("milestone_index"),
                 )
 
             self.backlog = Backlog(
@@ -609,6 +865,8 @@ class BacklogManager:
                 completed=set(data.get("completed", [])),
                 in_progress=data.get("in_progress"),
                 blocked=data.get("blocked", {}),
+                active_epic=data.get("active_epic"),  # RFC-115
+                active_milestone=data.get("active_milestone"),  # RFC-115
             )
 
             # Load or rebuild external refs index (RFC-049)
@@ -629,7 +887,7 @@ class BacklogManager:
         current_path.parent.mkdir(parents=True, exist_ok=True)
 
         data = {
-            "schema_version": 3,  # RFC-051: Added claimed_by/claimed_at
+            "schema_version": 4,  # RFC-115: Added hierarchy fields
             "goals": {
                 gid: {
                     "id": goal.id,
@@ -650,6 +908,11 @@ class BacklogManager:
                     "claimed_at": (
                         goal.claimed_at.isoformat() if goal.claimed_at else None
                     ),  # RFC-051
+                    # RFC-115: Hierarchy fields
+                    "goal_type": goal.goal_type,
+                    "parent_goal_id": goal.parent_goal_id,
+                    "milestone_produces": list(goal.milestone_produces),
+                    "milestone_index": goal.milestone_index,
                 }
                 for gid, goal in self.backlog.goals.items()
             },
@@ -657,6 +920,8 @@ class BacklogManager:
             "in_progress": self.backlog.in_progress,
             "blocked": self.backlog.blocked,
             "external_refs": self._external_refs,  # RFC-049
+            "active_epic": self.backlog.active_epic,  # RFC-115
+            "active_milestone": self.backlog.active_milestone,  # RFC-115
         }
 
         # Use file locking for process safety (RFC-049/051)

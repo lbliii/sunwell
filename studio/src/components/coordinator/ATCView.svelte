@@ -1,7 +1,8 @@
 <!--
   ATCView — Air Traffic Control view for multi-agent orchestration (RFC-100 Phase 4)
   
-  Unified control plane showing:
+  Unified Execution Control showing:
+  - Backlog (goal queue) — RFC-114
   - All worker statuses
   - Progress tracking
   - Conflict detection and resolution
@@ -16,8 +17,10 @@
     stopPolling,
     startWorkers
   } from '../../stores/coordinator.svelte';
+  import { backlogStore } from '../../stores/backlog.svelte';
   import WorkerCard from './WorkerCard.svelte';
   import ConflictPanel from './ConflictPanel.svelte';
+  import { BacklogPanel, EpicProgress } from '../backlog';
   import Chart from '../primitives/Chart.svelte';
   
   interface Props {
@@ -60,7 +63,7 @@
 <div class="atc-view">
   <header class="atc-header">
     <div class="header-left">
-      <h1>🛫 ATC Control</h1>
+      <h1>🛫 Execution Control</h1>
       <span class="project-badge">{projectPath.split('/').pop()}</span>
     </div>
     
@@ -119,6 +122,21 @@
     </div>
   </section>
   
+  <!-- Epic Progress (RFC-115) -->
+  {#if backlogStore.hasActiveEpic}
+    <section class="epic-section">
+      <EpicProgress />
+    </section>
+  {/if}
+  
+  <!-- Backlog (RFC-114) -->
+  <section class="backlog-section">
+    <BacklogPanel 
+      {projectPath}
+      onRunGoal={(goal) => console.log('Run goal:', goal.id)}
+    />
+  </section>
+  
   <!-- Conflicts -->
   {#if coordinatorStore.hasConflicts}
     <section class="conflicts-section">
@@ -131,13 +149,14 @@
   
   <!-- Workers Grid -->
   <section class="workers-section">
-    <h2>Workers</h2>
+    <h2>Workers ({coordinatorStore.workers.length})</h2>
     
     {#if coordinatorStore.workers.length === 0}
       <div class="empty-state">
         <p>No workers running.</p>
-        <button class="start-btn" onclick={() => showStartDialog = true}>
-          Start Parallel Execution
+        <p class="hint">Workers will claim goals from the backlog above.</p>
+        <button class="start-btn" onclick={() => showStartDialog = true} disabled={backlogStore.pendingCount === 0}>
+          {backlogStore.pendingCount > 0 ? `▶ Start ${numWorkersInput} Workers` : 'Add goals first'}
         </button>
       </div>
     {:else}
@@ -361,6 +380,13 @@
     margin-top: 4px;
   }
   
+  .backlog-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+  }
+
   .conflicts-section {
     margin-bottom: 8px;
   }
@@ -388,6 +414,11 @@
   
   .empty-state p {
     color: var(--text-tertiary);
+    margin-bottom: 8px;
+  }
+
+  .empty-state p.hint {
+    font-size: 12px;
     margin-bottom: 16px;
   }
   

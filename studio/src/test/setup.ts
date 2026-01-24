@@ -38,4 +38,4 @@ vi.mock('$lib/socket', () => ({
 }));
 
 // Global test utilities
-global.expect = expect;
+(globalThis as { expect?: typeof expect }).expect = expect;

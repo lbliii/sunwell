@@ -44,6 +44,17 @@ class AdaptiveSignals:
     is_dangerous: Literal["YES", "NO"] = "NO"
     """Could this cause data loss, security issues, etc?"""
 
+    # RFC-115: Epic detection for hierarchical decomposition
+    is_epic: Literal["YES", "NO", "MAYBE"] = "NO"
+    """Is this an ambitious, multi-phase goal requiring hierarchical decomposition?
+
+    Epic indicators:
+    - Multiple distinct systems/components
+    - Would require 50+ tasks
+    - Words like "full", "complete", "entire", "build a"
+    - Examples: "build an RTS game", "write a novel", "create a SaaS"
+    """
+
     # Confidence (computed or extracted)
     confidence: float = 0.5
     """Overall confidence in understanding the goal (0.0-1.0)."""
@@ -69,20 +80,27 @@ class AdaptiveSignals:
         """Determine planning route based on signals.
 
         Returns one of:
-        - SINGLE_SHOT: Simple task, high confidence
-        - HARMONIC: Complex task, needs plan candidates
+        - SINGLE_SHOT: Trivial task (complexity=NO, high confidence)
+        - HARMONIC: Default for any non-trivial task (multi-candidate planning)
+        - HIERARCHICAL: Ambitious epic needing milestone decomposition (RFC-115)
         - DIALECTIC: Ambiguous, needs clarification first
         - STOP: Dangerous, ask user
+
+        HARMONIC is now the default. SINGLE_SHOT only for truly trivial tasks
+        where complexity=NO and we're highly confident.
         """
         if self.is_dangerous == "YES":
             return "STOP"
         if self.is_ambiguous == "YES":
             return "DIALECTIC"
-        if self.complexity == "YES":
-            return "HARMONIC"
-        if self.complexity == "MAYBE" and self.confidence < 0.7:
-            return "HARMONIC"
-        return "SINGLE_SHOT"
+        # RFC-115: Route epics to hierarchical decomposition
+        if self.is_epic == "YES":
+            return "HIERARCHICAL"
+        # Only use SINGLE_SHOT for trivial tasks (explicit NO + high confidence)
+        if self.complexity == "NO" and self.confidence >= 0.8:
+            return "SINGLE_SHOT"
+        # Default to HARMONIC (multi-candidate planning) for everything else
+        return "HARMONIC"
 
     @property
     def execution_route(self) -> str:
@@ -115,6 +133,7 @@ class AdaptiveSignals:
             needs_tools=self.needs_tools,
             is_ambiguous=self.is_ambiguous,
             is_dangerous=self.is_dangerous,
+            is_epic=self.is_epic,  # RFC-115
             confidence=self.confidence,
             domain=self.domain,
             components=self.components,
@@ -128,6 +147,7 @@ class AdaptiveSignals:
             "needs_tools": self.needs_tools,
             "is_ambiguous": self.is_ambiguous,
             "is_dangerous": self.is_dangerous,
+            "is_epic": self.is_epic,  # RFC-115
             "confidence": self.confidence,
             "effective_confidence": self.effective_confidence,
             "domain": self.domain,
@@ -151,6 +171,7 @@ COMPLEXITY: YES|NO|MAYBE
 NEEDS_TOOLS: YES|NO
 IS_AMBIGUOUS: YES|NO|MAYBE
 IS_DANGEROUS: YES|NO
+IS_EPIC: YES|NO|MAYBE
 CONFIDENCE: 0.0-1.0
 DOMAIN: web|cli|data|ml|api|general
 COMPONENTS: comma-separated list
@@ -160,6 +181,8 @@ Rules:
 - NEEDS_TOOLS=YES if requires file operations, commands, or external tools
 - IS_AMBIGUOUS=YES if goal is unclear or could mean multiple things
 - IS_DANGEROUS=YES if could cause data loss, security issues, or system changes
+- IS_EPIC=YES if ambitious multi-phase goal (50+ tasks, multiple systems, "build a game/app/novel")
+- IS_EPIC=NO for single features, fixes, or bounded scope tasks
 - CONFIDENCE: your confidence in understanding what's needed (0.0-1.0)
 - DOMAIN: primary domain category
 - COMPONENTS: list major artifacts/modules needed (e.g., "UserModel, PostModel, Routes")"""
@@ -183,6 +206,7 @@ def parse_signals(text: str) -> AdaptiveSignals:
     needs_tools_raw = extract(r"NEEDS_TOOLS:\s*(YES|NO)", "NO")
     is_ambiguous_raw = extract(r"IS_AMBIGUOUS:\s*(YES|NO|MAYBE)", "NO")
     is_dangerous_raw = extract(r"IS_DANGEROUS:\s*(YES|NO)", "NO")
+    is_epic_raw = extract(r"IS_EPIC:\s*(YES|NO|MAYBE)", "NO")  # RFC-115
 
     # Parse confidence
     conf_match = re.search(r"CONFIDENCE:\s*([\d.]+)", text, re.IGNORECASE)
@@ -200,6 +224,7 @@ def parse_signals(text: str) -> AdaptiveSignals:
         needs_tools=needs_tools_raw.upper(),  # type: ignore
         is_ambiguous=is_ambiguous_raw.upper(),  # type: ignore
         is_dangerous=is_dangerous_raw.upper(),  # type: ignore
+        is_epic=is_epic_raw.upper(),  # type: ignore  # RFC-115
         confidence=confidence,
         domain=domain.lower(),
         components=components,
@@ -565,6 +590,17 @@ class FastSignalChecker:
         classifier = await self._get_classifier()
         return await classifier.severity(signal_type, content, file_path)
 
+    async def is_epic_goal(self, goal: str) -> bool:
+        """Check if goal is an ambitious epic requiring hierarchical decomposition.
+
+        RFC-115: Use for routing to HIERARCHICAL planning.
+        """
+        classifier = await self._get_classifier()
+        return await classifier.yes_no(
+            f"Is this an ambitious multi-phase goal that would need 50+ tasks: '{goal}'",
+            context="Examples: 'build an RTS game', 'write a novel', 'create a SaaS platform'",
+        )
+
     async def quick_signals(self, goal: str) -> AdaptiveSignals:
         """Extract signals using FastClassifier (parallel calls).
 
@@ -575,12 +611,13 @@ class FastSignalChecker:
 
         classifier = await self._get_classifier()
 
-        # Run checks in parallel
-        dangerous, complex_check, ambiguous, tools = await asyncio.gather(
+        # Run checks in parallel (including epic check for RFC-115)
+        dangerous, complex_check, ambiguous, tools, epic = await asyncio.gather(
             self.is_dangerous(goal),
             classifier.complexity(goal),
             self.needs_clarification(goal),
             self.needs_tools(goal),
+            self.is_epic_goal(goal),
         )
 
         # Map to AdaptiveSignals format
@@ -593,5 +630,6 @@ class FastSignalChecker:
             needs_tools="YES" if tools else "NO",  # type: ignore
             is_ambiguous="YES" if ambiguous else "NO",  # type: ignore
             is_dangerous="YES" if dangerous else "NO",  # type: ignore
+            is_epic="YES" if epic else "NO",  # type: ignore  # RFC-115
             confidence=0.7,  # FastClassifier provides moderate confidence
         )

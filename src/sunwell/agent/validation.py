@@ -211,15 +211,14 @@ class ValidationRunner:
                 {"gate_id": gate.id, "duration_ms": duration},
             )
         else:
+            failed_result = next((s for s in step_results if not s.passed), None)
             yield AgentEvent(
                 EventType.GATE_FAIL,
                 {
                     "gate_id": gate.id,
                     "duration_ms": duration,
-                    "failed_step": next(
-                        (s.step for s in step_results if not s.passed),
-                        "unknown",
-                    ),
+                    "failed_step": failed_result.step if failed_result else "unknown",
+                    "error_message": failed_result.message if failed_result else "Unknown error",
                 },
             )
 

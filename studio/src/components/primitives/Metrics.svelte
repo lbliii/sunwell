@@ -43,7 +43,7 @@
   let animatedState: Record<string, number> = $state({});
   
   // Spring stores (created once, updated reactively)
-  const springs = new Map<string, ReturnType<typeof spring>>();
+  const springs = new Map<string, ReturnType<typeof spring<number>>>();
   
   // Update springs when metrics change
   $effect(() => {

@@ -276,7 +276,7 @@ export async function runDemo(): Promise<void> {
           _progress = 75;
         }
       } else if (event.type === 'demo_complete') {
-        _comparison = event.data as DemoComparison;
+        _comparison = event.data as unknown as DemoComparison;
         _phase = 'revealed';
         _progress = 100;
         _message = 'Demo complete!';
@@ -293,7 +293,8 @@ export async function runDemo(): Promise<void> {
     const result = await apiPost<DemoComparison>('/api/demo/run', input);
     
     // Final state update (in case events didn't fire)
-    if (_phase !== 'revealed' && _phase !== 'error') {
+    const phase = _phase as DemoPhase; // Re-read phase after async
+    if (phase !== 'revealed' && phase !== 'error') {
       _comparison = result;
       _phase = 'revealed';
       _progress = 100;

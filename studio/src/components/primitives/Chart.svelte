@@ -11,8 +11,7 @@
   - Responsive SVG rendering
 -->
 <script lang="ts">
-  import { spring } from 'svelte/motion';
-  import { fade, fly } from 'svelte/transition';
+  import { fade } from 'svelte/transition';
   import type { DataPrimitiveProps } from './types';
   
   interface DataPoint {
@@ -166,7 +165,7 @@
         
         <g transform="translate({padding.left}, {padding.top})">
           <!-- Y-axis grid lines -->
-          {#each yTicks() as tick, i}
+          {#each yTicks() as tick}
             <line 
               x1="0" 
               y1={scaleY(tick)} 

@@ -49,13 +49,13 @@
   onMount(() => {
     const unsubscribe = onEvent((event) => {
       if (event.type === 'run_session_started') {
-        const payload = event.data as RunSession;
+        const payload = event.data as unknown as RunSession;
         if (payload.projectPath === projectPath) {
           setActiveSession(payload, analysis?.expectedUrl ?? undefined);
           showModal = false;
         }
       } else if (event.type === 'run_session_stopped') {
-        const sessionId = event.data as string;
+        const sessionId = (event.data as { sessionId: string }).sessionId || (event.data as unknown as string);
         if (activeSession?.id === sessionId) {
           clearActiveSession();
         }

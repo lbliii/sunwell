@@ -3,7 +3,7 @@
 **Status**: Draft  
 **Created**: 2026-01-23  
 **Author**: @llane  
-**Depends on**: RFC-100 (Workers/ATC), RFC-046 (Autonomous Backlog)  
+**Depends on**: RFC-100 (Workers/ATC), RFC-113 (Native HTTP Bridge)  
 **Priority**: P1 — Completes the parallel execution story
 
 ---
@@ -214,34 +214,69 @@ src/
 
 ### Data Contracts
 
+Aligned with backend `src/sunwell/backlog/goals.py:60-103`:
+
 ```typescript
 // stores/backlog.svelte.ts
 
+/**
+ * Goal category — matches backend Goal.category
+ * See: src/sunwell/backlog/goals.py:78-87
+ */
+export type GoalCategory =
+  | 'fix'         // Something broken
+  | 'improve'     // Something suboptimal
+  | 'add'         // Something missing
+  | 'refactor'    // Structural improvement
+  | 'document'    // Documentation gap
+  | 'test'        // Test coverage
+  | 'security'    // Security-related
+  | 'performance'; // Performance-related
+
+/**
+ * Complexity levels — matches backend Goal.estimated_complexity
+ * See: src/sunwell/backlog/goals.py:73
+ */
+export type GoalComplexity = 'trivial' | 'simple' | 'moderate' | 'complex';
+
+/**
+ * Goal status — UI-specific, derived from Backlog state
+ * Backend tracks status via Backlog.in_progress, Backlog.completed, Backlog.blocked
+ */
+export type GoalStatus = 
+  | 'pending'      // Waiting to be claimed
+  | 'blocked'      // Has unsatisfied dependencies (Backlog.blocked)
+  | 'claimed'      // Worker has claimed it (Backlog.in_progress)
+  | 'executing'    // Currently being worked on
+  | 'completed'    // Successfully finished (Backlog.completed)
+  | 'failed'       // Execution failed
+  | 'skipped';     // User skipped (Backlog.blocked with "User skipped")
+
+/**
+ * Goal interface — matches backend Goal dataclass
+ * See: src/sunwell/backlog/goals.py:60-103
+ */
 export interface Goal {
   id: string;
   title: string;
   description: string;
-  priority: number;           // 1-10, higher = more urgent
-  category: string;           // "feature", "bugfix", "refactor", "docs"
-  status: GoalStatus;
-  estimated_complexity: string; // "trivial", "small", "medium", "large"
+  priority: number;           // 0-1 float (backend), UI displays as percentage or 1-10 scale
+  category: GoalCategory;
+  estimated_complexity: GoalComplexity;
   auto_approvable: boolean;
-  requires: string[];         // IDs of blocking goals
+  requires: string[];         // IDs of blocking goals (backend: frozenset[str])
+  
+  // UI-derived fields (not on backend Goal)
+  status: GoalStatus;         // Computed from Backlog state
   created_at: string;
   claimed_by?: number;        // Worker ID if claimed
 }
 
-export type GoalStatus = 
-  | 'pending'      // Waiting to be claimed
-  | 'blocked'      // Has unsatisfied dependencies
-  | 'claimed'      // Worker has claimed it
-  | 'executing'    // Currently being worked on
-  | 'completed'    // Successfully finished
-  | 'failed'       // Execution failed
-  | 'skipped';     // User skipped
-
 export interface BacklogState {
   goals: Goal[];
+  in_progress: string | null;  // Currently executing goal ID
+  completed: string[];         // Completed goal IDs
+  blocked: Record<string, string>; // goal_id → reason
   is_loading: boolean;
   error: string | null;
   last_refresh: string | null;
@@ -250,38 +285,71 @@ export interface BacklogState {
 
 ### API Integration
 
-Following RFC-113 (Native HTTP Bridge) pattern:
+Following RFC-113 (Native HTTP Bridge) pattern, using `apiGet`/`apiPost` from `$lib/socket` (same pattern as `coordinator.svelte.ts`):
 
 ```typescript
 // stores/backlog.svelte.ts
 
+import { apiGet, apiPost } from '$lib/socket';
+
+let _state = $state<BacklogState>({ /* ... */ });
+let _projectPath = $state<string | null>(null);
+
+export function setProjectPath(path: string): void {
+  _projectPath = path;
+}
+
 export async function loadBacklog(): Promise<void> {
-  const response = await fetch('/api/backlog');
-  const data = await response.json();
-  _state.goals = data.goals;
+  if (!_projectPath) return;
+  
+  const data = await apiGet<BacklogState>(
+    `/api/backlog?path=${encodeURIComponent(_projectPath)}`
+  );
+  if (data) {
+    _state = { ..._state, ...data, is_loading: false };
+  }
 }
 
 export async function addGoal(title: string, description?: string): Promise<void> {
-  await fetch('/api/backlog/goals', {
-    method: 'POST',
-    body: JSON.stringify({ title, description }),
+  await apiPost('/api/backlog/goals', {
+    path: _projectPath,
+    title,
+    description,
   });
   await loadBacklog();
 }
 
 export async function removeGoal(id: string): Promise<void> {
-  await fetch(`/api/backlog/goals/${id}`, { method: 'DELETE' });
+  await apiPost(`/api/backlog/goals/${id}/remove`, { path: _projectPath });
   await loadBacklog();
 }
 
 export async function reorderGoals(ids: string[]): Promise<void> {
-  await fetch('/api/backlog/reorder', {
-    method: 'POST',
-    body: JSON.stringify({ order: ids }),
+  await apiPost('/api/backlog/reorder', {
+    path: _projectPath,
+    order: ids,
   });
   await loadBacklog();
 }
+
+export async function runGoal(id: string): Promise<void> {
+  await apiPost('/api/backlog/goals/${id}/run', { path: _projectPath });
+  // Events will update state via WebSocket
+}
 ```
+
+### Backend-to-UI Transformations
+
+The backend `Backlog` model stores state differently than the UI displays it:
+
+| Backend | UI | Transformation |
+|---------|-----|----------------|
+| `Backlog.goals: dict[str, Goal]` | `goals: Goal[]` with `status` | Merge with `in_progress`, `completed`, `blocked` |
+| `Backlog.in_progress: str \| None` | `goal.status = 'executing'` | Goal ID match |
+| `Backlog.completed: set[str]` | `goal.status = 'completed'` | Goal ID in set |
+| `Backlog.blocked: dict[str, str]` | `goal.status = 'blocked'` | Goal ID in dict |
+| `Goal.priority: float` (0-1) | Display as percentage or slider | `Math.round(priority * 100)%` |
+| `Goal.requires: frozenset[str]` | `requires: string[]` | Spread to array |
 
 ---
 
@@ -300,20 +368,20 @@ export async function reorderGoals(ids: string[]): Promise<void> {
 │  ┌──────────────────────────────────────────────────────────┐ │
 │  │ ≡  1. Implement user authentication          ⬤ High      │ │
 │  │     "Add OAuth2 login flow with Google/GitHub"           │ │
-│  │     📦 feature │ 🔵 medium │ ⚡ auto-approve             │ │
+│  │     📦 add │ 🔵 moderate │ ⚡ auto-approve               │ │
 │  │                                              [▶] [✕]     │ │
 │  └──────────────────────────────────────────────────────────┘ │
 │                                                                │
 │  ┌──────────────────────────────────────────────────────────┐ │
 │  │ ≡  2. Create API endpoints                   ⬤ High      │ │
 │  │     └── Blocked by: #1 (user auth)                       │ │
-│  │     📦 feature │ 🔵 medium │ ⚡ auto-approve             │ │
+│  │     📦 add │ 🔵 moderate │ ⚡ auto-approve               │ │
 │  │                                              [▶] [✕]     │ │
 │  └──────────────────────────────────────────────────────────┘ │
 │                                                                │
 │  ┌──────────────────────────────────────────────────────────┐ │
 │  │ ≡  3. Write unit tests                       ○ Medium    │ │
-│  │     📦 test │ 🟢 small │ ⚡ auto-approve                 │ │
+│  │     📦 test │ 🟢 simple │ ⚡ auto-approve                │ │
 │  │                                              [▶] [✕]     │ │
 │  └──────────────────────────────────────────────────────────┘ │
 │                                                                │
@@ -347,7 +415,7 @@ LEGEND:
 PENDING (ready to claim)
 ┌──────────────────────────────────────────────────────────┐
 │ ≡  Implement user authentication              ⬤ High     │
-│    📦 feature │ 🔵 medium │ ⚡ auto-approve              │
+│    📦 add │ 🔵 moderate │ ⚡ auto-approve                │
 │                                            [▶] [✕]      │
 └──────────────────────────────────────────────────────────┘
 
@@ -355,7 +423,7 @@ BLOCKED (waiting on dependency)
 ┌──────────────────────────────────────────────────────────┐
 │ ≡  Create API endpoints                       ⬤ High     │
 │    └── ⏳ Blocked by: #1 (user auth)                     │
-│    📦 feature │ 🔵 medium                               │
+│    📦 add │ 🔵 moderate                                 │
 │                                                 [✕]      │
 └──────────────────────────────────────────────────────────┘
 
@@ -363,14 +431,14 @@ EXECUTING (worker is on it)
 ┌──────────────────────────────────────────────────────────┐
 │    Implement user authentication    🔄 Worker 2 (45%)    │
 │    ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░                       │
-│    📦 feature │ 🔵 medium                               │
+│    📦 add │ 🔵 moderate                                 │
 └──────────────────────────────────────────────────────────┘
 
 COMPLETED (done)
 ┌──────────────────────────────────────────────────────────┐
 │ ✓  Implement user authentication              ✓ Done     │
 │    Completed by Worker 2 in 3m 24s                       │
-│    📦 feature │ 🔵 medium                               │
+│    📦 add │ 🔵 moderate                                 │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -395,12 +463,16 @@ COMPLETED (done)
 │                                                            │
 │  ┌─────────────────┐  ┌─────────────────┐                 │
 │  │ Category        │  │ Complexity      │                 │
-│  │ [feature    ▼]  │  │ [medium     ▼]  │                 │
+│  │ [add        ▼]  │  │ [moderate   ▼]  │                 │
 │  └─────────────────┘  └─────────────────┘                 │
 │                                                            │
-│  Priority                                                  │
+│  Categories: fix, improve, add, refactor, document,        │
+│              test, security, performance                   │
+│  Complexity: trivial, simple, moderate, complex            │
+│                                                            │
+│  Priority (0.0 - 1.0)                                      │
 │  Low ────────────●──────────── High                        │
-│                  7                                         │
+│                0.7                                         │
 │                                                            │
 │  ☑ Auto-approve if tests pass                              │
 │                                                            │
@@ -469,7 +541,7 @@ Following RFC-113 Native HTTP pattern:
 
 ## Event Integration
 
-Backlog events already exist (RFC-094). The UI subscribes:
+Backlog lifecycle events exist in `src/sunwell/agent/events.py:379-391`. The UI subscribes via `studio/src/stores/agent.svelte.ts:808-869`:
 
 | Event | UI Effect |
 |-------|-----------|
@@ -478,6 +550,8 @@ Backlog events already exist (RFC-094). The UI subscribes:
 | `backlog_goal_completed` | Show success, move to history |
 | `backlog_goal_failed` | Show error state |
 | `backlog_refreshed` | Reload entire list |
+
+> **Note**: Event handlers already exist in `agent.svelte.ts` and trigger DAG reloads. This RFC adds visual representation of these events in the unified Execution view.
 
 ---
 
@@ -534,8 +608,18 @@ Show backlog as pending nodes in the existing Pipeline DAG.
 
 ## References
 
-- RFC-046: Autonomous Backlog (CLI implementation)
-- RFC-100: Workers/ATC (existing Workers UI)
-- RFC-094: Event-driven file refresh (backlog events)
-- RFC-113: Native HTTP Bridge (API pattern)
-- `src/sunwell/cli/backlog_cmd.py` (CLI reference implementation)
+### RFCs
+
+- RFC-100: Orthogonal IDE — Workers/ATC UI (`docs/RFC-100-orthogonal-ide.md`)
+- RFC-113: Native HTTP Bridge — API pattern (`docs/RFC-113-native-http-bridge.md`)
+
+### Source Code
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| CLI reference | `src/sunwell/cli/backlog_cmd.py` | Full CLI implementation (688 lines) |
+| Goal dataclass | `src/sunwell/backlog/goals.py:60-103` | Backend Goal model |
+| Backlog events | `src/sunwell/agent/events.py:379-391` | Event type definitions |
+| Event handlers | `studio/src/stores/agent.svelte.ts:808-869` | UI event handling |
+| Workers UI | `studio/src/components/coordinator/ATCView.svelte` | Existing ATC view |
+| Coordinator store | `studio/src/stores/coordinator.svelte.ts` | Worker state management |

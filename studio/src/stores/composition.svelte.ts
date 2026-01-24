@@ -11,7 +11,7 @@
  * 4. Content streams in, replacing skeleton
  */
 
-import { apiGet, apiPost } from '$lib/socket';
+// Dynamic import used in predict() for code splitting
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -98,10 +98,11 @@ export async function predict(
 	const startTime = performance.now();
 
 	try {
-		// Call Rust/Python via Tauri
-		const result = await invoke<CompositionSpec | null>('predict_composition', {
+		// RFC-113: Call Python via HTTP API
+		const { apiPost } = await import('$lib/socket');
+		const result = await apiPost<CompositionSpec | null>('/api/composition/predict', {
 			input,
-			currentPage,
+			current_page: currentPage,
 		});
 
 		compositionState.lastPredictionTime = performance.now() - startTime;

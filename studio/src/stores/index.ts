@@ -415,3 +415,31 @@ export {
   type Workspace,
   type ToastState,
 } from './workspace.svelte';
+
+// Backlog state (RFC-114)
+export {
+  backlogStore,
+  setBacklogProjectPath,
+  loadBacklog,
+  addGoal,
+  removeGoal,
+  skipGoal,
+  reorderGoals,
+  refreshBacklog,
+  startBacklogPolling,
+  stopBacklogPolling,
+  clearBacklogState,
+  updateGoalPriority,
+  handleBacklogEvent,
+  subscribeToBacklogEvents,
+  getCategoryInfo,
+  getComplexityInfo,
+  getStatusInfo,
+  formatPriority,
+  getPriorityLevel,
+  type Goal,
+  type GoalCategory,
+  type GoalComplexity,
+  type GoalStatus,
+  type BacklogState,
+} from './backlog.svelte';

@@ -11,7 +11,7 @@
  * RFC-113: Uses HTTP API instead of Tauri for all communication.
  */
 
-import { apiGet, apiPost, onEvent, startRun, cancelRun } from '$lib/socket';
+import { apiGet, onEvent, startRun } from '$lib/socket';
 import type { AgentEvent } from '$lib/types';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -195,7 +195,7 @@ export async function process(input: ProcessInput): Promise<ProcessOutput> {
 
 	try {
 		// Start agent run via HTTP API (RFC-113)
-		const { run_id } = await startRun({
+		await startRun({
 			goal: input.content,
 			workspace: input.workspace,
 			provider: input.provider,

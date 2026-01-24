@@ -83,6 +83,13 @@ console = Console()
     default=1,
     help="Refinement rounds for harmonic planning (default: 1, 0 to disable)",
 )
+# RFC-116: Harmonic Scoring v2
+@click.option(
+    "--scoring",
+    type=click.Choice(["v1", "v2", "auto"]),
+    default="v2",
+    help="Harmonic scoring version: v1=original, v2=domain-aware (default), auto=adaptive",
+)
 # RFC-040: Plan Persistence options
 @click.option(
     "--incremental", "-i",
@@ -130,6 +137,7 @@ def run(
     harmonic: bool,
     candidates: int,
     refine: int,
+    scoring: str,
     incremental: bool,
     force: bool,
     show_plan: bool,
@@ -181,8 +189,8 @@ def run(
 
     asyncio.run(_run_agent(
         goal, time, trust, strategy, lens, auto_lens, dry_run, verbose, provider, model,
-        show_graph, candidates, refine, incremental, force, show_plan, diff_plan, plan_id,
-        json_output,
+        show_graph, candidates, refine, scoring, incremental, force, show_plan, diff_plan,
+        plan_id, json_output,
     ))
 
 
@@ -200,6 +208,7 @@ async def _run_agent(
     show_graph: bool,
     candidates: int = 5,
     refine: int = 1,
+    scoring: str = "v2",
     incremental: bool = False,
     force: bool = False,
     show_plan: bool = False,
@@ -215,6 +224,7 @@ async def _run_agent(
         ArtifactPlanner,
         HarmonicPlanner,
         PlanningStrategy,
+        ScoringVersion,
         VarianceStrategy,
     )
     from sunwell.tools.executor import ToolExecutor
@@ -311,16 +321,22 @@ async def _run_agent(
     if planning_strategy == PlanningStrategy.HARMONIC:
         # RFC-038: Harmonic planning (multi-candidate optimization)
         # RFC-058: Setup event callback early for planning visibility
+        # RFC-116: Scoring version selection
+        scoring_version = ScoringVersion(scoring)
         planner = HarmonicPlanner(
             model=synthesis_model,
             candidates=candidates,
             refinement_rounds=refine,
             variance=VarianceStrategy.PROMPTING,
             event_callback=None,  # Will be set up later for all planners
+            scoring_version=scoring_version,
         )
 
         if verbose:
-            console.print(f"[dim]Harmonic: {candidates} candidates, {refine} refinement rounds[/dim]")
+            console.print(
+                f"[dim]Harmonic: {candidates} candidates, {refine} refinement rounds, "
+                f"scoring={scoring}[/dim]"
+            )
 
         if dry_run and not show_plan:
             await _harmonic_dry_run(goal, planner, show_graph, verbose)

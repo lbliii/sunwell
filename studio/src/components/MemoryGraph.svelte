@@ -5,7 +5,7 @@
   Shows concept relationships: ELABORATES, CONTRADICTS, DEPENDS_ON, etc.
 -->
 <script lang="ts">
-  import { apiGet, apiPost } from '$lib/socket';
+  import { apiGet } from '$lib/socket';
   import type { ConceptEdge, RelationType } from '$lib/types';
   
   interface ConceptNode {

@@ -1,4 +1,4 @@
-"""Task planners for RFC-032, RFC-034, RFC-036, RFC-038, RFC-039, RFC-067.
+"""Task planners for RFC-032, RFC-034, RFC-036, RFC-038, RFC-039, RFC-067, RFC-116.
 
 Planners decompose goals into executable Task objects.
 
@@ -20,6 +20,10 @@ RFC-067 Integration-Aware Planning:
 - decompose_with_wiring: Add explicit wire tasks for cross-artifact integrations
 - enhance_plan_with_wiring: Post-process any plan to add wiring
 - analyze_artifact_flow: Analyze dependencies between tasks
+
+RFC-116 Harmonic Scoring v2:
+- ScoringVersion: V1 (original), V2 (domain-aware), AUTO (adaptive)
+- PlanMetricsV2: Extended metrics with wave analysis and semantic signals
 """
 
 # RFC-067: Integration-Aware Planning (canonical: sunwell.integration)
@@ -35,6 +39,8 @@ from sunwell.naaru.planners.expertise_aware import (
 from sunwell.naaru.planners.harmonic import (
     HarmonicPlanner,
     PlanMetrics,
+    PlanMetricsV2,
+    ScoringVersion,
     VarianceStrategy,
 )
 from sunwell.naaru.planners.protocol import PlanningError, PlanningStrategy, TaskPlanner
@@ -56,4 +62,7 @@ __all__ = [
     "create_expertise_aware_planner",
     # RFC-067: Integration-Aware Planning
     "decompose_with_wiring",
+    # RFC-116: Harmonic Scoring v2
+    "PlanMetricsV2",
+    "ScoringVersion",
 ]

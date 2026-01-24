@@ -5,17 +5,19 @@
 import { render, type RenderOptions } from '@testing-library/svelte/svelte5';
 import { writable } from 'svelte/store';
 import { vi } from 'vitest';
-import type { ComponentProps, ComponentType } from 'svelte';
+import type { Component } from 'svelte';
+import type { AgentEventType, AgentEvent } from '$lib/agent-events';
 
 /**
  * Render a component with default props and optional overrides
  */
-export function renderComponent<T extends ComponentType>(
-  component: T,
-  props: Partial<ComponentProps<T>> = {},
+export function renderComponent<Props extends Record<string, unknown>>(
+  component: Component<Props>,
+  props: Partial<Props> = {},
   options?: RenderOptions
 ) {
-  return render(component, props as ComponentProps<T>, options);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return render(component as any, { props: props as Props, ...options });
 }
 
 /**
@@ -24,9 +26,11 @@ export function renderComponent<T extends ComponentType>(
 export function mockStore<T>(initialValue: T) {
   const store = writable(initialValue);
   return {
-    ...store,
-    set: vi.fn(store.set.bind(store)),
-    update: vi.fn(store.update.bind(store)),
+    subscribe: store.subscribe,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    set: vi.fn((value: T) => store.set(value)) as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    update: vi.fn((updater: (value: T) => T) => store.update(updater)) as any,
   };
 }
 
@@ -46,4 +50,18 @@ export function createSparseArray<T>(length: number, values: Record<number, T>):
     arr[Number(index)] = value;
   }
   return arr;
+}
+
+/**
+ * Create a test agent event with automatic timestamp
+ */
+export function createTestEvent(
+  type: AgentEventType,
+  data: Record<string, unknown> = {}
+): AgentEvent {
+  return {
+    type,
+    data,
+    timestamp: Date.now(),
+  };
 }

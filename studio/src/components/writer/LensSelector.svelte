@@ -65,6 +65,7 @@
 
   let searchQuery = $state('');
   let selectedIndex = $state(0);
+  let searchInput: HTMLInputElement | undefined = $state();
 
   const filteredLenses = $derived(
     lensOptions.filter(
@@ -76,6 +77,13 @@
   );
 
   const currentLens = $derived(writerState.lensName);
+
+  // Programmatic autofocus when visible
+  $effect(() => {
+    if (visible && searchInput) {
+      searchInput.focus();
+    }
+  });
 
   function handleSelect(lensName: string) {
     if (onSelect) {
@@ -141,13 +149,12 @@
       </div>
 
       <div class="search-container">
-        <!-- svelte-ignore a11y_autofocus -->
         <input
+          bind:this={searchInput}
           type="text"
           class="search-input"
           placeholder="Search lenses..."
           bind:value={searchQuery}
-          autofocus
         />
       </div>
 

@@ -65,6 +65,7 @@ class ErrorCode(IntEnum):
     VALIDATION_TIMEOUT = 4002
     VALIDATION_INVALID_OUTPUT = 4003
     VALIDATION_CONFIDENCE_LOW = 4004
+    VALIDATION_GATE_FAILED = 4005
 
     # 5xxx - Configuration Errors
     CONFIG_MISSING = 5001
@@ -150,6 +151,7 @@ ERROR_MESSAGES: dict[ErrorCode, str] = {
     ErrorCode.VALIDATION_TIMEOUT: "Validation timed out after {timeout}s.",
     ErrorCode.VALIDATION_INVALID_OUTPUT: "Validator '{validator}' returned invalid output: {detail}",
     ErrorCode.VALIDATION_CONFIDENCE_LOW: "Confidence score {score} below threshold {threshold}.",
+    ErrorCode.VALIDATION_GATE_FAILED: "Gate '{gate}' failed at step '{step}': {detail}",
 
     # Config errors
     ErrorCode.CONFIG_MISSING: "Required configuration '{key}' not found.",

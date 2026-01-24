@@ -54,33 +54,33 @@
       <h3 class="section-title">Memory Overview</h3>
       <div class="stats-grid">
         <div class="stat-card">
-          <span class="stat-value">{stats.totalTurns}</span>
+          <span class="stat-value">{stats.totalTurns ?? 0}</span>
           <span class="stat-label">Total Turns</span>
         </div>
         <div class="stat-card">
-          <span class="stat-value">{stats.hotTurns}</span>
+          <span class="stat-value">{stats.hotTurns ?? 0}</span>
           <span class="stat-label">Hot Memory</span>
         </div>
         <div class="stat-card tier-warm">
-          <span class="stat-value">{stats.warmFiles}</span>
+          <span class="stat-value">{stats.warmFiles ?? 0}</span>
           <span class="stat-label">Warm Files</span>
-          <span class="stat-detail">{stats.warmSizeMb.toFixed(1)} MB</span>
+          <span class="stat-detail">{(stats.warmSizeMb ?? 0).toFixed(1)} MB</span>
         </div>
         <div class="stat-card tier-cold">
-          <span class="stat-value">{stats.coldFiles}</span>
+          <span class="stat-value">{stats.coldFiles ?? 0}</span>
           <span class="stat-label">Cold Files</span>
-          <span class="stat-detail">{stats.coldSizeMb.toFixed(1)} MB</span>
+          <span class="stat-detail">{(stats.coldSizeMb ?? 0).toFixed(1)} MB</span>
         </div>
         <div class="stat-card">
-          <span class="stat-value">{stats.branches}</span>
+          <span class="stat-value">{stats.branches ?? 0}</span>
           <span class="stat-label">Branches</span>
         </div>
         <div class="stat-card stat-warning">
-          <span class="stat-value">{stats.deadEnds}</span>
+          <span class="stat-value">{stats.deadEnds ?? 0}</span>
           <span class="stat-label">Dead Ends</span>
         </div>
         <div class="stat-card stat-success">
-          <span class="stat-value">{stats.learnings}</span>
+          <span class="stat-value">{stats.learnings ?? 0}</span>
           <span class="stat-label">Learnings</span>
         </div>
         <div class="stat-card stat-graph">

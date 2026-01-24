@@ -112,15 +112,16 @@ it('handles out-of-order events', () => {
 });
 ```
 
-### Mocking Tauri API
+### Mocking HTTP API
 
-Tauri APIs are automatically mocked in `src/test/setup.ts`. To customize:
+HTTP APIs are automatically mocked in `src/test/setup.ts`. To customize:
 
 ```typescript
 import { vi } from 'vitest';
-import { invoke } from '@tauri-apps/api/core';
+import { apiGet, apiPost } from '$lib/socket';
 
-vi.mocked(invoke).mockResolvedValue({ data: 'test' });
+vi.mocked(apiGet).mockResolvedValue({ data: 'test' });
+vi.mocked(apiPost).mockResolvedValue({ status: 'ok' });
 ```
 
 ## Test Organization
@@ -148,7 +149,7 @@ src/
 
 1. **Test behavior, not implementation** - Test what users see, not internal state
 2. **Test edge cases** - Empty arrays, null values, sparse arrays, out-of-order events
-3. **Keep tests fast** - Use mocks for slow operations (Tauri IPC, network)
+3. **Keep tests fast** - Use mocks for slow operations (HTTP API, network)
 4. **Write tests first** - For bug fixes, write a failing test, then fix
 5. **Test in isolation** - Each test should be independent
 
@@ -182,7 +183,7 @@ npm test -- --run
 
 ## Future Improvements
 
-- [ ] E2E tests with Playwright (for full Tauri app testing)
+- [ ] E2E tests with Playwright
 - [ ] Visual regression testing
 - [ ] Performance testing (render time, memory leaks)
 - [ ] Accessibility testing (a11y)

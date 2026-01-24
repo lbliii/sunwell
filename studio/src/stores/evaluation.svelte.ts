@@ -282,7 +282,7 @@ export async function runEvaluation(): Promise<void> {
           _sunwellFiles = [..._sunwellFiles, path];
         }
       } else if (event.type === 'eval_complete') {
-        _currentRun = event.data as EvaluationRun;
+        _currentRun = event.data as unknown as EvaluationRun;
         _phase = 'complete';
         _progress = 100;
         _message = 'Evaluation complete!';
@@ -301,7 +301,8 @@ export async function runEvaluation(): Promise<void> {
     const result = await apiPost<EvaluationRun>('/api/eval/run', input);
 
     // Final state update (in case events didn't fire)
-    if (_phase !== 'complete' && _phase !== 'error') {
+    const phase = _phase as EvalPhase; // Re-read phase after async
+    if (phase !== 'complete' && phase !== 'error') {
       _currentRun = result;
       _phase = 'complete';
       _progress = 100;

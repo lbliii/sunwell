@@ -585,7 +585,6 @@ export function handleAgentEvent(event: AgentEvent): void {
       const reason = (data.reason as string) ?? 'Unknown';
       const message = (data.message as string) ?? '';
       const fixed = (data.fixed as number) ?? 0;
-      const remaining = (data.remaining as number) ?? 0;
       const errors = (data.errors as string[]) ?? [];
       
       // Build a user-friendly error with context
@@ -777,7 +776,6 @@ export function handleAgentEvent(event: AgentEvent): void {
         error: data.error as string | undefined,
       });
       const skillName = (data.skill_name as string) ?? '';
-      const durationMs = (data.duration_ms as number) ?? 0;
       const success = (data.success as boolean) ?? true;
       const error = data.error as string | undefined;
       if (!success) {
@@ -853,7 +851,6 @@ export function handleAgentEvent(event: AgentEvent): void {
     }
 
     case 'backlog_goal_failed': {
-      const goalId = (data.goal_id as string) ?? '';
       const error = (data.error as string) ?? 'Unknown error';
       _state = {
         ..._state,

@@ -4,7 +4,7 @@
  * RFC-063: Weakness Cascade
  */
 
-import { apiGet, apiPost } from '$lib/socket';
+import { apiPost } from '$lib/socket';
 import type {
   WeaknessReport,
   WeaknessScore,

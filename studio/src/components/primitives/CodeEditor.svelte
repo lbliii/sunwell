@@ -11,7 +11,7 @@
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { fade, fly } from 'svelte/transition';
+  import { fade } from 'svelte/transition';
   import type { CodePrimitiveProps } from './types';
   import { emitPrimitiveEvent } from '../../stores/surface.svelte';
   import CodeBlock from './CodeBlock.svelte';

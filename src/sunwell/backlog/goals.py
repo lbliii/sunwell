@@ -139,6 +139,28 @@ class Goal:
     - refactor: Restructure without changing behavior
     """
 
+    # RFC-115: Hierarchical Goal Decomposition fields
+    goal_type: Literal["epic", "milestone", "task"] = "task"
+    """What level of the hierarchy this goal represents.
+
+    - epic: Ambitious multi-phase goal (e.g., "build an RTS game")
+    - milestone: A coherent phase within an epic
+    - task: Concrete work item (default, HarmonicPlanner output)
+    """
+
+    parent_goal_id: str | None = None
+    """Epic or milestone this belongs to (None for top-level epics/tasks)."""
+
+    milestone_produces: tuple[str, ...] = ()
+    """High-level artifacts this milestone will create.
+
+    Used for dependency inference between milestones before detailed planning.
+    E.g., ("Window", "Renderer", "Input", "GameState")
+    """
+
+    milestone_index: int | None = None
+    """Order within parent epic (0-indexed). None for epics and tasks."""
+
     def is_wire_task(self) -> bool:
         """Check if this is a wiring task (RFC-067)."""
         return self.task_type == "wire"
@@ -146,6 +168,18 @@ class Goal:
     def is_verify_task(self) -> bool:
         """Check if this is a verification task (RFC-067)."""
         return self.task_type == "verify"
+
+    def is_epic(self) -> bool:
+        """Check if this is an epic (RFC-115)."""
+        return self.goal_type == "epic"
+
+    def is_milestone(self) -> bool:
+        """Check if this is a milestone (RFC-115)."""
+        return self.goal_type == "milestone"
+
+    def is_task(self) -> bool:
+        """Check if this is a regular task (RFC-115)."""
+        return self.goal_type == "task"
 
 
 @dataclass

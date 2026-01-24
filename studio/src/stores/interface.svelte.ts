@@ -4,7 +4,7 @@
  * Manages the state for the LLM-driven interaction routing system.
  */
 
-import { apiGet, apiPost } from '$lib/socket';
+// Dynamic import used in analyzeIntent() for code splitting
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES

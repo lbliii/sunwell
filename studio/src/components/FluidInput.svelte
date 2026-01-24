@@ -10,6 +10,7 @@
   Uses spring physics for smooth mode transitions (RFC-082).
 -->
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { scale } from 'svelte/transition';
 	import { spring } from 'svelte/motion';
 	import RisingMotes from './RisingMotes.svelte';
@@ -120,6 +121,13 @@
 		}
 	}
 
+	// Programmatic autofocus to avoid browser conflicts
+	onMount(() => {
+		if (mode === 'hero' && inputEl) {
+			inputEl.focus();
+		}
+	});
+
 	export function focus() {
 		inputEl?.focus();
 	}
@@ -150,13 +158,11 @@
 				<span class="search-icon" aria-hidden="true">🔍</span>
 			{/if}
 
-			<!-- svelte-ignore a11y_autofocus -->
 			<input
 				bind:this={inputEl}
 				bind:value
 				placeholder={effectivePlaceholder}
 				disabled={isDisabled}
-				autofocus={mode === 'hero'}
 				onkeydown={handleKeydown}
 				onfocus={() => (focused = true)}
 				onblur={() => (focused = false)}

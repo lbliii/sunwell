@@ -17,6 +17,8 @@
   
   let files = $state<FileEntry[]>([]);
   let isLoading = $state(true);
+  // Error state kept for debugging but not displayed (falls back to demo files)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let _error = $state<string | null>(null);
   let expandedDirs = $state(new Set<string>());
   let selectedFile = $state<string | null>(null);

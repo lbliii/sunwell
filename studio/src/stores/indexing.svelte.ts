@@ -99,7 +99,7 @@ export async function initIndexing(workspacePath: string): Promise<void> {
   // Subscribe to indexing status events via WebSocket
   _unsubscribe = onEvent((event) => {
     if (event.type === 'index_status') {
-      _status = event.data as IndexStatus;
+      _status = event.data as unknown as IndexStatus;
     }
   });
 
@@ -126,7 +126,7 @@ export async function queryIndex(text: string, topK: number = 10): Promise<Index
     return result;
   } catch (e) {
     console.error('[indexing] Query failed:', e);
-    return { chunks: [], query: text, totalChunks: 0 };
+    return { chunks: [], totalChunksSearched: 0, fallbackUsed: true, queryTimeMs: 0 };
   }
 }
 

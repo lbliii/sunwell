@@ -360,14 +360,8 @@ a:hover {
 .animate-spin { animation: spin 1s linear infinite; }
 
 /* ═══════════════════════════════════════════════════════════════
-   TAURI SPECIFIC
+   WINDOW SPECIFIC
    ═══════════════════════════════════════════════════════════════ */
-
-/* Prevent text selection during drag */
-[data-tauri-drag-region] {
-  user-select: none;
-  -webkit-user-select: none;
-}
 
 /* Titlebar area */
 .titlebar {

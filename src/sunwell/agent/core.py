@@ -746,7 +746,11 @@ class Agent:
                         yield event
 
                         if event.type == EventType.GATE_FAIL and options.auto_fix:
-                            async for fix_event in self._attempt_fix(gate, gate_artifacts):
+                            error_msg = event.data.get("error_message", "Unknown error")
+                            failed_step = event.data.get("failed_step", "unknown")
+                            async for fix_event in self._attempt_fix(
+                                gate, gate_artifacts, error_msg, failed_step
+                            ):
                                 yield fix_event
 
                                 if fix_event.type == EventType.ESCALATE:
@@ -884,6 +888,8 @@ Output ONLY the code (no explanation, no markdown fences):"""
         self,
         gate: ValidationGate,
         artifacts: list[Artifact],
+        error_message: str = "Unknown error",
+        failed_step: str = "unknown",
     ) -> AsyncIterator[AgentEvent]:
         """Attempt to fix errors at a gate."""
         from sunwell.agent.validation import ValidationError
@@ -891,8 +897,8 @@ Output ONLY the code (no explanation, no markdown fences):"""
         errors: list[ValidationError] = []
         errors.append(
             ValidationError(
-                error_type="gate_failure",
-                message=f"Gate {gate.id} failed",
+                error_type=failed_step,
+                message=f"Gate {gate.id} failed at {failed_step}: {error_message}",
             )
         )
 

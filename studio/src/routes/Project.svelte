@@ -18,7 +18,7 @@
   import { WeaknessPanel, WaveExecutionPanel } from '../components/weakness';
   import { ProjectHeader, WorkingState, DoneState, ErrorState, IdleState } from '../components/project';
   import { ATCView, StateDagView } from '../components/coordinator';
-  import { project } from '../stores/project.svelte';
+  import { project, analyzeProject } from '../stores/project.svelte';
   import { agent, runGoal } from '../stores/agent.svelte';
   import { dag, setGraph, setProjectPath, loadProjectDagIndex, getSortedGoals, expandGoal } from '../stores/dag.svelte';
   import { files, setFilesProjectPath } from '../stores/files.svelte';

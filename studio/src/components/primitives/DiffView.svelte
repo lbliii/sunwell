@@ -21,7 +21,7 @@
     rightContent = '',
     leftLabel = 'Original',
     rightLabel = 'Modified',
-    language = 'text',
+    language: _language = 'text',
     mode = 'side-by-side',
   }: Props = $props();
   

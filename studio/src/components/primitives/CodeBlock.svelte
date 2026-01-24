@@ -66,8 +66,9 @@
     }
   }
 
-  // Add line numbers to highlighted code
-  function addLineNumbers(html: string): string {
+  // Add line numbers to highlighted code (reserved for future use)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  function _addLineNumbers(html: string): string {
     if (!showLineNumbers) return html;
 
     const lines = code.split('\n');

@@ -78,8 +78,22 @@ export async function loadLenses(): Promise<void> {
   _state = { ..._state, isLoading: true, error: null };
   
   try {
-    const lenses = await listLenses();
-    _state = { ..._state, available: lenses as LensSummary[], isLoading: false };
+    const rawLenses = await listLenses();
+    // Map API response to LensSummary with defaults for missing fields
+    const lenses: LensSummary[] = rawLenses.map(l => {
+      const partial = l as unknown as Partial<LensSummary>;
+      return {
+        name: l.name,
+        description: l.description || null,
+        // Default values for fields not returned by simple API
+        domain: partial.domain ?? null,
+        version: partial.version ?? '1.0.0',
+        path: partial.path ?? l.id,
+        heuristics_count: partial.heuristics_count ?? 0,
+        skills_count: partial.skills_count ?? 0,
+      };
+    });
+    _state = { ..._state, available: lenses, isLoading: false };
   } catch (e) {
     _state = { 
       ..._state, 
@@ -100,8 +114,21 @@ export async function loadLensDetail(name: string): Promise<void> {
   _state = { ..._state, isLoadingDetail: true };
   
   try {
-    const detail = await getLens(name);
-    _state = { ..._state, previewLens: detail as LensDetail, isLoadingDetail: false };
+    const rawDetail = await getLens(name);
+    const partial = rawDetail as unknown as Partial<LensDetail>;
+    // Map API response to LensDetail with defaults for missing fields
+    const detail: LensDetail = {
+      name: rawDetail.name,
+      skills: rawDetail.skills || [],
+      // Default values for fields not returned by simple API
+      domain: partial.domain ?? null,
+      version: partial.version ?? '1.0.0',
+      description: partial.description ?? null,
+      author: partial.author ?? null,
+      heuristics: partial.heuristics ?? [],
+      communication_style: partial.communication_style ?? null,
+    };
+    _state = { ..._state, previewLens: detail, isLoadingDetail: false };
   } catch (e) {
     console.error('Failed to load lens detail:', e);
     _state = { ..._state, previewLens: null, isLoadingDetail: false };

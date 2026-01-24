@@ -115,7 +115,7 @@ async function reloadFilesInternal(): Promise<void> {
   try {
     const result = await listProjectFiles(_projectPath, 4);
     
-    _entries = result?.files ?? [];
+    _entries = (result?.files ?? []) as FileEntry[];
     _lastLoadTime = Date.now();
   } catch (e) {
     console.error('Failed to load project files:', e);
@@ -143,7 +143,7 @@ export const reloadFilesImmediate = reloadFilesInternal;
  */
 export async function forceReloadFiles(): Promise<void> {
   // Cancel any pending debounced calls
-  reloadFiles.cancel?.();
+  reloadFiles.cancel();
   
   // Wait briefly for any in-flight request
   if (_isLoading) {

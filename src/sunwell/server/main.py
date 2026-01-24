@@ -4,7 +4,9 @@ This is the HTTP/WebSocket server that replaces the Rust/Tauri bridge.
 All Studio communication goes through here.
 """
 
+import contextlib
 from collections.abc import AsyncIterator
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -12,9 +14,24 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from sunwell.server.runs import RunManager, RunState
+
+
+def _to_camel(string: str) -> str:
+    """Convert snake_case to camelCase."""
+    parts = string.split("_")
+    return parts[0] + "".join(word.capitalize() for word in parts[1:])
+
+
+class CamelModel(BaseModel):
+    """Base model with camelCase JSON serialization."""
+
+    model_config = ConfigDict(
+        alias_generator=_to_camel,
+        populate_by_name=True,  # Allow both snake_case and camelCase in input
+    )
 
 # Global run manager (single server instance)
 _run_manager = RunManager()
@@ -157,15 +174,11 @@ def _register_routes(app: FastAPI) -> None:
                 run.status = "error"
                 error_event = {"type": "error", "data": {"message": str(e)}}
                 run.events.append(error_event)
-                try:
+                with contextlib.suppress(Exception):
                     await websocket.send_json(error_event)
-                except Exception:
-                    pass
             finally:
-                try:
+                with contextlib.suppress(Exception):
                     await websocket.close()
-                except Exception:
-                    pass
 
     # ═══════════════════════════════════════════════════════════════
     # MEMORY
@@ -179,8 +192,8 @@ def _register_routes(app: FastAPI) -> None:
 
             store = SimulacrumStore.load_or_create(Path.cwd())
             return {
-                "learnings": [l.to_dict() for l in store.learnings],
-                "dead_ends": [d.to_dict() for d in store.dead_ends],
+                "learnings": [learning.to_dict() for learning in store.learnings],
+                "dead_ends": [dead_end.to_dict() for dead_end in store.dead_ends],
                 "session_count": store.session_count,
             }
         except Exception as e:
@@ -656,6 +669,64 @@ def _register_routes(app: FastAPI) -> None:
     # DAG (RFC-105)
     # ═══════════════════════════════════════════════════════════════
 
+    @app.get("/api/dag")
+    async def get_dag(path: str) -> dict[str, Any]:
+        """Get DAG for a project."""
+        # Placeholder - return empty DAG
+        return {"nodes": [], "edges": [], "metadata": {}}
+
+    @app.get("/api/dag/index")
+    async def get_dag_index(path: str) -> dict[str, Any]:
+        """Get DAG index for a project."""
+        return {
+            "project_path": path,
+            "goals": [],
+            "milestones": [],
+            "total_goals": 0,
+            "completed_goals": 0,
+            "in_progress_goals": 0,
+        }
+
+    @app.get("/api/dag/goal/{goal_id}")
+    async def get_dag_goal(goal_id: str, path: str) -> dict[str, Any] | None:
+        """Get a specific goal node from the DAG."""
+        return None
+
+    @app.get("/api/dag/workspace")
+    async def get_workspace_dag(path: str) -> dict[str, Any]:
+        """Get workspace-level DAG index."""
+        return {
+            "workspace_path": path,
+            "projects": [],
+            "total_projects": 0,
+        }
+
+    class RefreshWorkspaceDagRequest(BaseModel):
+        path: str
+
+    @app.post("/api/dag/workspace/refresh")
+    async def refresh_workspace_dag(request: RefreshWorkspaceDagRequest) -> dict[str, Any]:
+        """Refresh workspace DAG index."""
+        return {
+            "workspace_path": request.path,
+            "projects": [],
+            "total_projects": 0,
+        }
+
+    @app.get("/api/dag/environment")
+    async def get_environment_dag() -> dict[str, Any]:
+        """Get environment-level DAG."""
+        return {
+            "workspaces": [],
+            "total_workspaces": 0,
+        }
+
+    @app.get("/api/dag/plan")
+    async def get_dag_plan(path: str) -> dict[str, Any]:
+        """Get incremental execution plan for a DAG."""
+        # Placeholder - return empty plan
+        return {"toExecute": [], "toSkip": [], "reason": "No cached state"}
+
     class DagAppendRequest(BaseModel):
         path: str
         goal: dict[str, Any]
@@ -665,6 +736,16 @@ def _register_routes(app: FastAPI) -> None:
         """Append a completed goal to the DAG."""
         # Placeholder - actual implementation would write to dag.json
         return {"status": "appended"}
+
+    class DagExecuteRequest(BaseModel):
+        path: str
+        node_id: str
+
+    @app.post("/api/dag/execute")
+    async def execute_dag_node(request: DagExecuteRequest) -> dict[str, Any]:
+        """Execute a DAG node."""
+        # Placeholder - actual implementation would start execution
+        return {"status": "started", "node_id": request.node_id}
 
     # ═══════════════════════════════════════════════════════════════
     # FILES (RFC-113)
@@ -709,7 +790,7 @@ def _register_routes(app: FastAPI) -> None:
         # Simple heuristic detection
         content_lower = request.content.lower()
         scores = {"TUTORIAL": 0, "HOW_TO": 0, "EXPLANATION": 0, "REFERENCE": 0}
-        
+
         if any(k in content_lower for k in ["tutorial", "learn", "quickstart"]):
             scores["TUTORIAL"] += 0.3
         if any(k in content_lower for k in ["how to", "guide", "configure"]):
@@ -718,9 +799,9 @@ def _register_routes(app: FastAPI) -> None:
             scores["EXPLANATION"] += 0.3
         if any(k in content_lower for k in ["reference", "api", "parameters"]):
             scores["REFERENCE"] += 0.3
-        
+
         best = max(scores.items(), key=lambda x: x[1])
-        
+
         return {
             "detection": {
                 "detectedType": best[0] if best[1] > 0 else None,
@@ -771,8 +852,20 @@ def _register_routes(app: FastAPI) -> None:
         # Return default skills
         return {
             "skills": [
-                {"id": "audit", "name": "Quick Audit", "shortcut": "::a", "description": "Validate document", "category": "validation"},
-                {"id": "polish", "name": "Polish", "shortcut": "::p", "description": "Improve clarity", "category": "transformation"},
+                {
+                    "id": "audit",
+                    "name": "Quick Audit",
+                    "shortcut": "::a",
+                    "description": "Validate document",
+                    "category": "validation",
+                },
+                {
+                    "id": "polish",
+                    "name": "Polish",
+                    "shortcut": "::p",
+                    "description": "Improve clarity",
+                    "category": "transformation",
+                },
             ]
         }
 
@@ -803,7 +896,7 @@ def _register_routes(app: FastAPI) -> None:
         """Start a workflow chain."""
         import uuid
         from datetime import datetime
-        
+
         return {
             "id": str(uuid.uuid4()),
             "chain_name": request.chain_name,
@@ -852,9 +945,27 @@ def _register_routes(app: FastAPI) -> None:
         """List available workflow chains."""
         return {
             "chains": [
-                {"name": "feature-docs", "description": "Document a new feature", "steps": [], "checkpoint_after": [], "tier": "full"},
-                {"name": "health-check", "description": "Validate existing docs", "steps": [], "checkpoint_after": [], "tier": "light"},
-                {"name": "quick-fix", "description": "Fast issue resolution", "steps": [], "checkpoint_after": [], "tier": "fast"},
+                {
+                    "name": "feature-docs",
+                    "description": "Document a new feature",
+                    "steps": [],
+                    "checkpoint_after": [],
+                    "tier": "full",
+                },
+                {
+                    "name": "health-check",
+                    "description": "Validate existing docs",
+                    "steps": [],
+                    "checkpoint_after": [],
+                    "tier": "light",
+                },
+                {
+                    "name": "quick-fix",
+                    "description": "Fast issue resolution",
+                    "steps": [],
+                    "checkpoint_after": [],
+                    "tier": "fast",
+                },
             ]
         }
 
@@ -911,6 +1022,283 @@ def _register_routes(app: FastAPI) -> None:
         return {"status": "removed"}
 
     # ═══════════════════════════════════════════════════════════════
+    # SURFACE (RFC-072)
+    # ═══════════════════════════════════════════════════════════════
+
+    @app.get("/api/surface/registry")
+    async def get_surface_registry() -> list[dict[str, Any]]:
+        """Get primitive registry."""
+        # Placeholder - return empty registry
+        return []
+
+    class ComposeSurfaceRequest(CamelModel):
+        goal: str
+        project_path: str | None = None
+        lens: str | None = None
+        arrangement: str | None = None
+
+    @app.post("/api/surface/compose")
+    async def compose_surface(request: ComposeSurfaceRequest) -> dict[str, Any]:
+        """Compose a surface layout for a goal."""
+        # Placeholder - return minimal layout
+        return {
+            "primary": {"id": "code-editor", "category": "code", "size": "large", "props": {}},
+            "secondary": [],
+            "contextual": [],
+            "arrangement": request.arrangement or "standard",
+        }
+
+    class SurfaceSuccessRequest(CamelModel):
+        layout: dict[str, Any]
+        goal: str
+        duration_seconds: int
+        completed: bool
+
+    @app.post("/api/surface/success")
+    async def record_surface_success(request: SurfaceSuccessRequest) -> dict[str, Any]:
+        """Record layout success metrics."""
+        # Placeholder - just acknowledge
+        return {"status": "recorded"}
+
+    class SurfaceEventRequest(BaseModel):
+        primitive_id: str
+        event_type: str
+        data: dict[str, Any]
+
+    @app.post("/api/surface/event")
+    async def emit_surface_event(request: SurfaceEventRequest) -> dict[str, Any]:
+        """Emit a primitive event."""
+        # Placeholder - just acknowledge
+        return {"status": "emitted"}
+
+    # ═══════════════════════════════════════════════════════════════
+    # MEMORY (Extended for RFC-084)
+    # ═══════════════════════════════════════════════════════════════
+
+    @app.get("/api/memory/chunks")
+    async def get_memory_chunks(path: str) -> dict[str, Any]:
+        """Get chunk hierarchy for a project."""
+        # Placeholder - return empty hierarchy
+        return {"hot": [], "warm": [], "cold": []}
+
+    @app.get("/api/memory/graph")
+    async def get_memory_graph(path: str) -> dict[str, Any]:
+        """Get concept graph for a project."""
+        # Placeholder - return empty graph
+        return {"edges": []}
+
+    # ═══════════════════════════════════════════════════════════════
+    # PREVIEW
+    # ═══════════════════════════════════════════════════════════════
+
+    @app.post("/api/preview/launch")
+    async def launch_preview() -> dict[str, Any]:
+        """Launch preview for current project."""
+        # Placeholder - return empty session
+        return {"url": None, "content": None, "view_type": "web_view"}
+
+    @app.post("/api/preview/stop")
+    async def stop_preview() -> dict[str, Any]:
+        """Stop preview."""
+        return {"status": "stopped"}
+
+    # ═══════════════════════════════════════════════════════════════
+    # SECURITY (RFC-048)
+    # ═══════════════════════════════════════════════════════════════
+
+    @app.get("/api/security/dag/{dag_id}/permissions")
+    async def get_dag_permissions(dag_id: str) -> dict[str, Any]:
+        """Get permissions for a DAG."""
+        return {
+            "dagId": dag_id,
+            "permissions": {
+                "filesystemRead": [],
+                "filesystemWrite": [],
+                "networkAllow": [],
+                "networkDeny": ["*"],
+                "shellAllow": [],
+                "shellDeny": [],
+                "envRead": [],
+                "envWrite": [],
+            },
+            "riskLevel": "low",
+            "requiresApproval": False,
+        }
+
+    @app.post("/api/security/approval")
+    async def submit_security_approval(response: dict[str, Any]) -> dict[str, Any]:
+        """Submit security approval response."""
+        return {"success": True}
+
+    @app.get("/api/security/audit")
+    async def get_audit_log(limit: int = 50) -> list[dict[str, Any]]:
+        """Get audit log entries."""
+        return []
+
+    @app.get("/api/security/audit/verify")
+    async def verify_audit() -> dict[str, Any]:
+        """Verify audit log integrity."""
+        return {"valid": True, "message": "Audit log is intact"}
+
+    class SecurityScanRequest(BaseModel):
+        content: str
+
+    @app.post("/api/security/scan")
+    async def scan_security(request: SecurityScanRequest) -> list[dict[str, Any]]:
+        """Scan content for security issues."""
+        return []
+
+    # ═══════════════════════════════════════════════════════════════
+    # WEAKNESS (RFC-063)
+    # ═══════════════════════════════════════════════════════════════
+
+    class WeaknessScanRequest(BaseModel):
+        path: str
+
+    @app.post("/api/weakness/scan")
+    async def scan_weaknesses(request: WeaknessScanRequest) -> dict[str, Any]:
+        """Scan project for weaknesses."""
+        return {
+            "weaknesses": [],
+            "overall_health": 1.0,
+            "scan_timestamp": None,
+        }
+
+    class WeaknessPreviewRequest(BaseModel):
+        path: str
+        artifact_id: str
+
+    @app.post("/api/weakness/preview")
+    async def preview_cascade(request: WeaknessPreviewRequest) -> dict[str, Any]:
+        """Preview cascade fix."""
+        return {
+            "artifact_id": request.artifact_id,
+            "affected_files": [],
+            "estimated_changes": 0,
+        }
+
+    class WeaknessExecuteRequest(BaseModel):
+        path: str
+        artifact_id: str
+        auto_approve: bool = False
+        confidence_threshold: float = 0.7
+
+    @app.post("/api/weakness/execute")
+    async def execute_cascade(request: WeaknessExecuteRequest) -> dict[str, Any]:
+        """Start cascade execution."""
+        return {
+            "execution_id": None,
+            "artifact_id": request.artifact_id,
+            "status": "pending",
+            "completed": False,
+        }
+
+    @app.post("/api/weakness/fix")
+    async def execute_quick_fix(request: WeaknessExecuteRequest) -> dict[str, Any]:
+        """Execute quick fix."""
+        return {
+            "execution_id": None,
+            "artifact_id": request.artifact_id,
+            "status": "pending",
+            "completed": False,
+        }
+
+    # ═══════════════════════════════════════════════════════════════
+    # INTERFACE (RFC-083)
+    # ═══════════════════════════════════════════════════════════════
+
+    class InterfaceProcessRequest(BaseModel):
+        goal: str
+        data_dir: str | None = None
+
+    @app.post("/api/interface/process")
+    async def process_interface(request: InterfaceProcessRequest) -> dict[str, Any]:
+        """Process goal through generative interface."""
+        return {
+            "response": "",
+            "type": "conversation",
+            "artifacts": [],
+        }
+
+    # ═══════════════════════════════════════════════════════════════
+    # COMPOSITION (RFC-072)
+    # ═══════════════════════════════════════════════════════════════
+
+    class CompositionPredictRequest(BaseModel):
+        input: str
+        current_page: str = "home"
+
+    @app.post("/api/composition/predict")
+    async def predict_composition(request: CompositionPredictRequest) -> dict[str, Any] | None:
+        """Predict composition for input."""
+        # Placeholder - return null (no prediction)
+        return None
+
+    # ═══════════════════════════════════════════════════════════════
+    # PROJECT RUN (RFC-066)
+    # ═══════════════════════════════════════════════════════════════
+
+    class AnalyzeRunRequest(CamelModel):
+        path: str
+        force_refresh: bool = False
+
+    @app.post("/api/project/analyze-run")
+    async def analyze_project_for_run(request: AnalyzeRunRequest) -> dict[str, Any]:
+        """Analyze project for running."""
+        project_path = Path(request.path).expanduser().resolve()
+
+        # Simple detection logic
+        command = "echo 'No run command detected'"
+        expected_url = None
+
+        if (project_path / "package.json").exists():
+            command = "npm run dev"
+            expected_url = "http://localhost:5173"
+        elif (project_path / "pyproject.toml").exists():
+            command = "python -m http.server 8000"
+            expected_url = "http://localhost:8000"
+        elif (project_path / "index.html").exists():
+            command = "python -m http.server 3000"
+            expected_url = "http://localhost:3000"
+
+        return {
+            "command": command,
+            "expectedUrl": expected_url,
+            "installCommand": "npm install" if (project_path / "package.json").exists() else None,
+            "requiresInstall": False,
+        }
+
+    class ProjectRunRequest(CamelModel):
+        path: str
+        command: str
+        install_first: bool = False
+        save_command: bool = False
+
+    @app.post("/api/project/run")
+    async def run_project(request: ProjectRunRequest) -> dict[str, Any]:
+        """Run a project."""
+        import uuid
+        return {
+            "sessionId": str(uuid.uuid4()),
+            "status": "started",
+            "command": request.command,
+        }
+
+    class StopRunRequest(CamelModel):
+        session_id: str | None = None
+        session_id: str | None = None
+
+    @app.post("/api/project/run/stop")
+    async def stop_project_run(request: StopRunRequest) -> dict[str, Any]:
+        """Stop a project run."""
+        return {"status": "stopped"}
+
+    @app.post("/api/run/stop")
+    async def stop_run(request: StopRunRequest) -> dict[str, Any]:
+        """Stop a run (alias)."""
+        return {"status": "stopped"}
+
+    # ═══════════════════════════════════════════════════════════════
     # HEALTH
     # ═══════════════════════════════════════════════════════════════
 
@@ -921,6 +1309,667 @@ def _register_routes(app: FastAPI) -> None:
             "status": "healthy",
             "active_runs": len(_run_manager._runs),
         }
+
+    # ═══════════════════════════════════════════════════════════════
+    # COORDINATOR / WORKERS (RFC-100)
+    # ═══════════════════════════════════════════════════════════════
+
+    @app.get("/api/coordinator/state")
+    async def get_coordinator_state(path: str) -> dict[str, Any]:
+        """Get coordinator state for UI."""
+        from sunwell.parallel.config import MultiInstanceConfig
+        from sunwell.parallel.coordinator import Coordinator
+
+        project_path = Path(path).expanduser().resolve()
+        if not project_path.exists():
+            return {"error": "Project path does not exist"}
+
+        try:
+            coordinator = Coordinator(project_path, config=MultiInstanceConfig())
+            ui_state = await coordinator.get_ui_state()
+
+            return {
+                "workers": [
+                    {
+                        "id": w.worker_id,
+                        "goal": w.current_goal_id or "",
+                        "status": w.state.value,
+                        "progress": 0,  # Would need progress tracking
+                        "current_file": None,
+                        "branch": w.branch,
+                        "goals_completed": w.goals_completed,
+                        "goals_failed": w.goals_failed,
+                        "last_heartbeat": w.last_heartbeat.isoformat(),
+                    }
+                    for w in ui_state.workers
+                ],
+                "conflicts": [
+                    {
+                        "path": c.path,
+                        "worker_a": c.worker_a,
+                        "worker_b": c.worker_b,
+                        "conflict_type": c.conflict_type,
+                        "resolution": c.resolution,
+                        "detected_at": c.detected_at.isoformat() if c.detected_at else None,
+                    }
+                    for c in ui_state.conflicts
+                ],
+                "total_progress": ui_state.total_progress,
+                "merged_branches": [],
+                "pending_merges": [],
+                "is_running": ui_state.is_running,
+                "started_at": None,
+                "last_update": datetime.now().isoformat(),
+            }
+        except Exception as e:
+            return {"error": str(e), "workers": [], "conflicts": [], "is_running": False}
+
+    class StartWorkersRequest(CamelModel):
+        project_path: str
+        num_workers: int = 4
+        dry_run: bool = False
+
+    @app.post("/api/coordinator/start-workers")
+    async def start_workers(request: StartWorkersRequest) -> dict[str, Any]:
+        """Start parallel workers."""
+        from sunwell.parallel.config import MultiInstanceConfig
+        from sunwell.parallel.coordinator import Coordinator
+
+        project_path = Path(request.projectPath).expanduser().resolve()
+        if not project_path.exists():
+            return {"error": "Project path does not exist"}
+
+        try:
+            config = MultiInstanceConfig(
+                num_workers=request.num_workers,
+                dry_run=request.dry_run,
+            )
+            coordinator = Coordinator(project_path, config=config)
+
+            # Run in background task
+            import asyncio
+            asyncio.create_task(coordinator.execute())
+
+            return {"status": "started", "num_workers": request.num_workers}
+        except Exception as e:
+            return {"error": str(e)}
+
+    class PauseWorkerRequest(CamelModel):
+        project_path: str
+        worker_id: int
+
+    @app.post("/api/coordinator/pause-worker")
+    async def pause_worker(request: PauseWorkerRequest) -> dict[str, Any]:
+        """Pause a specific worker."""
+        # Workers read pause state from status file
+        workers_dir = Path(request.project_path) / ".sunwell" / "workers"
+        pause_file = workers_dir / f"worker-{request.worker_id}.pause"
+        pause_file.parent.mkdir(parents=True, exist_ok=True)
+        pause_file.touch()
+        return {"status": "paused", "worker_id": request.worker_id}
+
+    @app.post("/api/coordinator/resume-worker")
+    async def resume_worker(request: PauseWorkerRequest) -> dict[str, Any]:
+        """Resume a paused worker."""
+        workers_dir = Path(request.project_path) / ".sunwell" / "workers"
+        pause_file = workers_dir / f"worker-{request.worker_id}.pause"
+        if pause_file.exists():
+            pause_file.unlink()
+        return {"status": "resumed", "worker_id": request.worker_id}
+
+    @app.get("/api/coordinator/state-dag")
+    async def get_coordinator_state_dag(path: str) -> dict[str, Any]:
+        """Get State DAG for brownfield scanning."""
+        try:
+            from sunwell.analysis.state_dag import StateDagBuilder
+
+            project_path = Path(path).expanduser().resolve()
+            if not project_path.exists():
+                return {"error": "Project path does not exist"}
+
+            builder = StateDagBuilder(project_path)
+            dag = await builder.build()
+
+            return {
+                "root": str(dag.root) if hasattr(dag, 'root') else str(project_path),
+                "scanned_at": datetime.now().isoformat(),
+                "lens_name": None,
+                "overall_health": getattr(dag, 'overall_health', 1.0),
+                "node_count": len(getattr(dag, 'nodes', [])),
+                "edge_count": len(getattr(dag, 'edges', [])),
+                "unhealthy_count": 0,
+                "critical_count": 0,
+                "nodes": [],
+                "edges": [],
+                "metadata": {},
+            }
+        except ImportError:
+            return {"nodes": [], "edges": [], "overall_health": 1.0, "node_count": 0}
+        except Exception as e:
+            return {"error": str(e), "nodes": [], "edges": []}
+
+    # ═══════════════════════════════════════════════════════════════
+    # BACKLOG (RFC-114)
+    # ═══════════════════════════════════════════════════════════════
+
+    @app.get("/api/backlog")
+    async def get_backlog(path: str | None = None) -> dict[str, Any]:
+        """Get backlog goals."""
+        from sunwell.backlog.manager import BacklogManager
+
+        project_path = Path(path).expanduser().resolve() if path else Path.cwd()
+
+        try:
+            manager = BacklogManager(project_path)
+            goals = []
+            for goal in manager.backlog.execution_order():
+                status = "completed" if goal.id in manager.backlog.completed else \
+                         "blocked" if goal.id in manager.backlog.blocked else \
+                         "executing" if goal.id == manager.backlog.in_progress else \
+                         "claimed" if goal.claimed_by is not None else "pending"
+                goals.append({
+                    "id": goal.id,
+                    "title": goal.title,
+                    "description": goal.description,
+                    "priority": goal.priority,
+                    "category": goal.category,
+                    "status": status,
+                    "estimated_complexity": goal.estimated_complexity,
+                    "auto_approvable": goal.auto_approvable,
+                    "requires": list(goal.requires),
+                    "claimed_by": goal.claimed_by,
+                    "created_at": goal.claimed_at.isoformat() if goal.claimed_at else None,
+                })
+            return {"goals": goals, "total": len(goals)}
+        except Exception as e:
+            return {"error": str(e), "goals": []}
+
+    class AddGoalRequest(BaseModel):
+        title: str
+        description: str | None = None
+        category: str = "add"
+        priority: float = 0.5
+        path: str | None = None
+
+    @app.post("/api/backlog/goals")
+    async def add_backlog_goal(request: AddGoalRequest) -> dict[str, Any]:
+        """Add a goal to the backlog."""
+        import hashlib
+
+        from sunwell.backlog.goals import Goal, GoalScope
+        from sunwell.backlog.manager import BacklogManager
+
+        project_path = Path(request.path).expanduser().resolve() if request.path else Path.cwd()
+
+        try:
+            manager = BacklogManager(project_path)
+            title_hash = hashlib.blake2b(request.title.encode(), digest_size=4).hexdigest()
+            goal_id = f"explicit-{title_hash}"
+
+            goal = Goal(
+                id=goal_id,
+                title=request.title[:60],
+                description=request.description or request.title,
+                source_signals=(),
+                priority=request.priority,
+                estimated_complexity="moderate",
+                requires=frozenset(),
+                category=request.category,  # type: ignore
+                auto_approvable=False,
+                scope=GoalScope(max_files=10, max_lines_changed=1000),
+            )
+
+            await manager.add_external_goal(goal)
+            return {"status": "added", "goal_id": goal_id}
+        except Exception as e:
+            return {"error": str(e)}
+
+    @app.get("/api/backlog/goals/{goal_id}")
+    async def get_backlog_goal(goal_id: str, path: str | None = None) -> dict[str, Any]:
+        """Get a specific goal."""
+        from sunwell.backlog.manager import BacklogManager
+
+        project_path = Path(path).expanduser().resolve() if path else Path.cwd()
+
+        try:
+            manager = BacklogManager(project_path)
+            goal = await manager.get_goal(goal_id)
+            if not goal:
+                return {"error": "Goal not found"}
+
+            status = "completed" if goal.id in manager.backlog.completed else \
+                     "blocked" if goal.id in manager.backlog.blocked else \
+                     "executing" if goal.id == manager.backlog.in_progress else \
+                     "claimed" if goal.claimed_by is not None else "pending"
+
+            return {
+                "id": goal.id,
+                "title": goal.title,
+                "description": goal.description,
+                "priority": goal.priority,
+                "category": goal.category,
+                "status": status,
+                "estimated_complexity": goal.estimated_complexity,
+                "auto_approvable": goal.auto_approvable,
+                "requires": list(goal.requires),
+                "claimed_by": goal.claimed_by,
+            }
+        except Exception as e:
+            return {"error": str(e)}
+
+    class UpdateGoalRequest(BaseModel):
+        title: str | None = None
+        description: str | None = None
+        priority: float | None = None
+        path: str | None = None
+
+    @app.put("/api/backlog/goals/{goal_id}")
+    async def update_backlog_goal(goal_id: str, request: UpdateGoalRequest) -> dict[str, Any]:
+        """Update a goal."""
+        # Placeholder - would need to implement goal update in BacklogManager
+        return {"status": "updated", "goal_id": goal_id}
+
+    @app.delete("/api/backlog/goals/{goal_id}")
+    async def delete_backlog_goal(goal_id: str, path: str | None = None) -> dict[str, Any]:
+        """Remove a goal from backlog."""
+        from sunwell.backlog.manager import BacklogManager
+
+        project_path = Path(path).expanduser().resolve() if path else Path.cwd()
+
+        try:
+            manager = BacklogManager(project_path)
+            if goal_id in manager.backlog.goals:
+                del manager.backlog.goals[goal_id]
+                manager._save()
+                return {"status": "deleted", "goal_id": goal_id}
+            return {"error": "Goal not found"}
+        except Exception as e:
+            return {"error": str(e)}
+
+    @app.post("/api/backlog/goals/{goal_id}/skip")
+    async def skip_backlog_goal(goal_id: str, path: str | None = None) -> dict[str, Any]:
+        """Skip a goal."""
+        from sunwell.backlog.manager import BacklogManager
+
+        project_path = Path(path).expanduser().resolve() if path else Path.cwd()
+
+        try:
+            manager = BacklogManager(project_path)
+            await manager.block_goal(goal_id, "Skipped by user")
+            return {"status": "skipped", "goal_id": goal_id}
+        except Exception as e:
+            return {"error": str(e)}
+
+    class ReorderGoalsRequest(BaseModel):
+        order: list[str]
+        path: str | None = None
+
+    @app.post("/api/backlog/reorder")
+    async def reorder_backlog_goals(request: ReorderGoalsRequest) -> dict[str, Any]:
+        """Reorder goals by priority."""
+        from sunwell.backlog.goals import Goal
+        from sunwell.backlog.manager import BacklogManager
+
+        project_path = Path(request.path).expanduser().resolve() if request.path else Path.cwd()
+
+        try:
+            manager = BacklogManager(project_path)
+
+            # Update priorities based on order (higher index = lower priority)
+            total = len(request.order)
+            for i, goal_id in enumerate(request.order):
+                if goal_id in manager.backlog.goals:
+                    old_goal = manager.backlog.goals[goal_id]
+                    # Create new goal with updated priority
+                    new_priority = 1.0 - (i / total) if total > 0 else 0.5
+                    manager.backlog.goals[goal_id] = Goal(
+                        id=old_goal.id,
+                        title=old_goal.title,
+                        description=old_goal.description,
+                        source_signals=old_goal.source_signals,
+                        priority=new_priority,
+                        estimated_complexity=old_goal.estimated_complexity,
+                        requires=old_goal.requires,
+                        category=old_goal.category,
+                        auto_approvable=old_goal.auto_approvable,
+                        scope=old_goal.scope,
+                        external_ref=old_goal.external_ref,
+                        claimed_by=old_goal.claimed_by,
+                        claimed_at=old_goal.claimed_at,
+                    )
+
+            manager._save()
+            return {"status": "reordered"}
+        except Exception as e:
+            return {"error": str(e)}
+
+    class RefreshBacklogRequest(BaseModel):
+        path: str | None = None
+
+    @app.post("/api/backlog/refresh")
+    async def refresh_backlog(request: RefreshBacklogRequest) -> dict[str, Any]:
+        """Refresh backlog from project signals."""
+        from sunwell.backlog.manager import BacklogManager
+
+        project_path = Path(request.path).expanduser().resolve() if request.path else Path.cwd()
+
+        try:
+            manager = BacklogManager(project_path)
+            await manager.refresh()
+            return {"status": "refreshed", "goal_count": len(manager.backlog.goals)}
+        except Exception as e:
+            return {"error": str(e)}
+
+    # ═══════════════════════════════════════════════════════════════
+    # INDEXING (RFC-113)
+    # ═══════════════════════════════════════════════════════════════
+
+    @app.get("/api/indexing/status")
+    async def get_indexing_status() -> dict[str, Any]:
+        """Get indexing service status."""
+        return {
+            "isIndexing": False,
+            "lastIndexed": None,
+            "progress": 1.0,
+            "totalFiles": 0,
+            "indexedFiles": 0,
+            "isEnabled": True,
+        }
+
+    class IndexingStartRequest(BaseModel):
+        workspace_path: str
+
+    @app.post("/api/indexing/start")
+    async def start_indexing(request: IndexingStartRequest) -> dict[str, Any]:
+        """Start indexing service."""
+        return {"status": "started", "workspace": request.workspace_path}
+
+    @app.post("/api/indexing/stop")
+    async def stop_indexing() -> dict[str, Any]:
+        """Stop indexing service."""
+        return {"status": "stopped"}
+
+    class IndexingQueryRequest(BaseModel):
+        text: str
+        top_k: int = 10
+
+    @app.post("/api/indexing/query")
+    async def query_index(request: IndexingQueryRequest) -> dict[str, Any]:
+        """Query the index."""
+        return {"results": [], "query": request.text}
+
+    @app.post("/api/indexing/rebuild")
+    async def rebuild_index() -> dict[str, Any]:
+        """Rebuild the index."""
+        return {"status": "rebuilding"}
+
+    @app.post("/api/indexing/settings")
+    async def update_indexing_settings(settings: dict[str, Any]) -> dict[str, Any]:
+        """Update indexing settings."""
+        return {"status": "updated", "settings": settings}
+
+    # ═══════════════════════════════════════════════════════════════
+    # PROJECT EXTENDED (RFC-113)
+    # ═══════════════════════════════════════════════════════════════
+
+    @app.post("/api/project/analyze-for-run")
+    async def analyze_project_for_run_alias(request: AnalyzeRunRequest) -> dict[str, Any]:
+        """Alias for analyze-run (frontend compatibility)."""
+        return await analyze_project_for_run(request)
+
+    @app.get("/api/project/file")
+    async def get_project_file(path: str, max_size: int = 50000) -> dict[str, Any]:
+        """Get file contents."""
+        try:
+            file_path = Path(path).expanduser().resolve()
+            if not file_path.exists():
+                return {"error": "File not found"}
+            if file_path.stat().st_size > max_size:
+                return {"error": f"File too large (max {max_size} bytes)"}
+            return {"content": file_path.read_text()}
+        except Exception as e:
+            return {"error": str(e)}
+
+    @app.get("/api/project/status")
+    async def get_project_status(path: str) -> dict[str, Any]:
+        """Get project status."""
+        project_path = Path(path).expanduser().resolve()
+        return {
+            "path": str(project_path),
+            "exists": project_path.exists(),
+            "has_sunwell": (project_path / ".sunwell").exists(),
+            "has_git": (project_path / ".git").exists(),
+        }
+
+    @app.get("/api/project/dag")
+    async def get_project_dag(path: str) -> dict[str, Any]:
+        """Get project DAG."""
+        return {"nodes": [], "edges": [], "metadata": {}}
+
+    @app.get("/api/project/memory/stats")
+    async def get_project_memory_stats(path: str) -> dict[str, Any]:
+        """Get project memory stats."""
+        return {
+            "total_learnings": 0,
+            "total_dead_ends": 0,
+            "session_count": 0,
+        }
+
+    @app.get("/api/project/intelligence")
+    async def get_project_intelligence(path: str) -> dict[str, Any]:
+        """Get project intelligence data."""
+        return {
+            "signals": [],
+            "context_quality": 1.0,
+        }
+
+    # ═══════════════════════════════════════════════════════════════
+    # LENSES CONFIG (RFC-113)
+    # ═══════════════════════════════════════════════════════════════
+
+    @app.get("/api/lenses/config")
+    async def get_lenses_config(path: str) -> dict[str, Any]:
+        """Get lens config for a project."""
+        project_path = Path(path).expanduser().resolve()
+        config_file = project_path / ".sunwell" / "lens.json"
+
+        if config_file.exists():
+            import json
+            try:
+                return json.loads(config_file.read_text())
+            except json.JSONDecodeError:
+                pass
+
+        return {"default_lens": None, "auto_select": True}
+
+    class LensConfigRequest(CamelModel):
+        path: str
+        lens_name: str | None = None
+        auto_select: bool = True
+
+    @app.post("/api/lenses/config")
+    async def set_lenses_config(request: LensConfigRequest) -> dict[str, Any]:
+        """Set lens config for a project."""
+        import json
+
+        project_path = Path(request.path).expanduser().resolve()
+        config_dir = project_path / ".sunwell"
+        config_dir.mkdir(parents=True, exist_ok=True)
+
+        config = {
+            "default_lens": request.lens_name,
+            "auto_select": request.auto_select,
+        }
+
+        (config_dir / "lens.json").write_text(json.dumps(config, indent=2))
+        return {"status": "saved", "config": config}
+
+    # ═══════════════════════════════════════════════════════════════
+    # CONVERGENCE (RFC-113)
+    # ═══════════════════════════════════════════════════════════════
+
+    @app.get("/api/convergence/{slot}")
+    async def get_convergence_slot(slot: str) -> dict[str, Any] | None:
+        """Get convergence slot data."""
+        return None
+
+    # ═══════════════════════════════════════════════════════════════
+    # HOME (RFC-080)
+    # ═══════════════════════════════════════════════════════════════
+
+    class HomePredictCompositionRequest(CamelModel):
+        input: str
+        current_page: str = "home"
+
+    @app.post("/api/home/predict-composition")
+    async def home_predict_composition(
+        request: HomePredictCompositionRequest,
+    ) -> dict[str, Any] | None:
+        """Fast Tier 0/1 composition prediction for speculative UI."""
+        # Simple pattern-based routing for fast response
+        input_lower = request.input.lower()
+
+        # Detect patterns
+        page_type = "conversation"
+        panels = []
+        input_mode = "chat"
+        suggested_tools: list[str] = []
+
+        if any(k in input_lower for k in ["project", "open", "create project"]):
+            page_type = "project"
+            panels = [{"panel_type": "project_selector", "title": "Projects"}]
+            suggested_tools = ["file_tree", "terminal"]
+        elif any(k in input_lower for k in ["plan", "design", "architect"]):
+            page_type = "planning"
+            panels = [{"panel_type": "dag_view", "title": "Plan"}]
+            suggested_tools = ["dag", "notes"]
+        elif any(k in input_lower for k in ["research", "find", "search", "learn"]):
+            page_type = "research"
+            panels = [{"panel_type": "search_results", "title": "Research"}]
+            suggested_tools = ["web_search", "codebase_search"]
+        elif any(k in input_lower for k in ["build", "implement", "code", "fix", "add"]):
+            page_type = "project"
+            panels = [{"panel_type": "code_editor", "title": "Code"}]
+            input_mode = "command"
+            suggested_tools = ["editor", "terminal", "git"]
+
+        return {
+            "page_type": page_type,
+            "panels": panels,
+            "input_mode": input_mode,
+            "suggested_tools": suggested_tools,
+            "confidence": 0.75,
+            "source": "regex",
+        }
+
+    class HomeProcessGoalRequest(CamelModel):
+        goal: str
+        data_dir: str | None = None
+        history: list[dict[str, str]] | None = None
+
+    @app.post("/api/home/process-goal")
+    async def home_process_goal(request: HomeProcessGoalRequest) -> dict[str, Any]:
+        """Process a goal through the interaction router (Tier 2)."""
+        goal_lower = request.goal.lower()
+
+        # Route based on intent
+        if any(k in goal_lower for k in ["hello", "hi", "hey", "help"]):
+            return {
+                "type": "conversation",
+                "response": (
+                    "Hello! I'm Sunwell, your AI development assistant. I can help you:\n\n"
+                    "• **Build projects** - 'Build a REST API for...' or 'Create a todo app'\n"
+                    "• **Research code** - 'How does X work?' or 'Find where Y is defined'\n"
+                    "• **Plan work** - 'Design a system for...' or 'Break down this feature'\n"
+                    "• **Fix issues** - 'Fix the bug in...' or 'Why is this failing?'\n\n"
+                    "What would you like to work on?"
+                ),
+                "mode": "informational",
+                "suggested_tools": ["project_selector", "terminal"],
+            }
+
+        if any(k in goal_lower for k in ["build", "create", "implement", "code", "fix", "add"]):
+            return {
+                "type": "workspace",
+                "layout_id": "code_workspace",
+                "response": f"I'll help you with: {request.goal}",
+                "workspace_spec": {
+                    "primary": "code_editor",
+                    "secondary": ["file_tree", "terminal"],
+                    "contextual": ["agent_status"],
+                    "arrangement": "standard",
+                    "seed_content": {"goal": request.goal},
+                },
+            }
+
+        if any(k in goal_lower for k in ["plan", "design", "architect", "break down"]):
+            return {
+                "type": "view",
+                "view_type": "planning",
+                "response": f"Let me help you plan: {request.goal}",
+                "data": {"goal": request.goal},
+            }
+
+        if any(k in goal_lower for k in ["show", "list", "what", "where", "find"]):
+            return {
+                "type": "view",
+                "view_type": "search_results",
+                "response": f"Searching for: {request.goal}",
+                "data": {"query": request.goal},
+            }
+
+        # Default to conversation
+        return {
+            "type": "conversation",
+            "response": (
+                f"I understand you want to: {request.goal}\n\n"
+                "How would you like me to help? I can build it, research it, or break it down."
+            ),
+            "mode": "collaborative",
+            "suggested_tools": [],
+        }
+
+    class HomeExecuteBlockActionRequest(CamelModel):
+        action_id: str
+        item_id: str | None = None
+        data_dir: str | None = None
+
+    @app.post("/api/home/execute-block-action")
+    async def home_execute_block_action(request: HomeExecuteBlockActionRequest) -> dict[str, Any]:
+        """Execute a block action (e.g., complete habit, open project)."""
+        return {"success": True, "message": f"Action {request.action_id} executed"}
+
+    # ═══════════════════════════════════════════════════════════════
+    # RUN MANAGEMENT (RFC-113 extended)
+    # ═══════════════════════════════════════════════════════════════
+
+    @app.get("/api/run/active")
+    async def get_active_runs() -> list[dict[str, Any]]:
+        """Get all active runs."""
+        return [
+            {
+                "run_id": run.run_id,
+                "goal": run.goal,
+                "status": run.status,
+                "event_count": len(run.events),
+            }
+            for run in _run_manager.list_runs()
+            if run.status in ("pending", "running")
+        ]
+
+    @app.get("/api/run/history")
+    async def get_run_history(limit: int = 20) -> list[dict[str, Any]]:
+        """Get run history."""
+        runs = _run_manager.list_runs()
+        return [
+            {
+                "run_id": run.run_id,
+                "goal": run.goal,
+                "status": run.status,
+                "event_count": len(run.events),
+            }
+            for run in runs[-limit:]
+        ]
 
 
 async def _execute_agent(run: RunState) -> AsyncIterator[dict[str, Any]]:

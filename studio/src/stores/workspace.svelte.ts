@@ -8,7 +8,7 @@
  * - Toast notification state
  */
 
-import { apiGet, apiPost, apiDelete } from '$lib/socket';
+import { apiGet, apiPost } from '$lib/socket';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES

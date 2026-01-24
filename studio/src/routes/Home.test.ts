@@ -5,8 +5,8 @@
  * otherwise projects are hidden when navigating back to Home.
  */
 
-import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/svelte/svelte5';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, waitFor } from '@testing-library/svelte/svelte5';
 import { tick } from 'svelte';
 import Home from './Home.svelte';
 import { homeState, resetHome } from '../stores/home.svelte';
@@ -19,7 +19,7 @@ const mockDiscovered: ProjectStatus[] = [
     path: '/test/project-1',
     display_path: '~/projects/project-1',
     name: 'project-1',
-    status: 'active',
+    status: 'none', // Valid ExecutionStatus value
     last_goal: 'Build something cool',
     tasks_completed: 2,
     tasks_total: 5,

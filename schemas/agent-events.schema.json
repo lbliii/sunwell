@@ -1618,6 +1618,306 @@
         "data",
         "timestamp"
       ]
+    },
+    {
+      "type": "object",
+      "description": "RFC-115: Epic decomposed into milestones",
+      "properties": {
+        "type": {
+          "const": "epic_decomposed",
+          "description": "Event type: epic_decomposed"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "epic_id": {
+              "type": "string"
+            },
+            "epic_title": {
+              "type": "string"
+            },
+            "milestones": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": { "type": "string" },
+                  "title": { "type": "string" },
+                  "produces": { "type": "array", "items": { "type": "string" } },
+                  "index": { "type": "integer" }
+                }
+              }
+            },
+            "total_milestones": {
+              "type": "integer"
+            },
+            "domain": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "epic_id",
+            "epic_title",
+            "total_milestones"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "description": "RFC-115: Milestone started execution",
+      "properties": {
+        "type": {
+          "const": "milestone_started",
+          "description": "Event type: milestone_started"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "epic_id": {
+              "type": "string"
+            },
+            "milestone_id": {
+              "type": "string"
+            },
+            "milestone_title": {
+              "type": "string"
+            },
+            "milestone_index": {
+              "type": "integer"
+            },
+            "total_milestones": {
+              "type": "integer"
+            },
+            "produces": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          },
+          "required": [
+            "epic_id",
+            "milestone_id",
+            "milestone_title",
+            "milestone_index",
+            "total_milestones"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "description": "RFC-115: Milestone task progress update",
+      "properties": {
+        "type": {
+          "const": "milestone_progress",
+          "description": "Event type: milestone_progress"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "epic_id": {
+              "type": "string"
+            },
+            "milestone_id": {
+              "type": "string"
+            },
+            "tasks_completed": {
+              "type": "integer"
+            },
+            "tasks_total": {
+              "type": "integer"
+            },
+            "current_task": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "milestone_id",
+            "tasks_completed",
+            "tasks_total"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "description": "RFC-115: Milestone completed successfully",
+      "properties": {
+        "type": {
+          "const": "milestone_completed",
+          "description": "Event type: milestone_completed"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "epic_id": {
+              "type": "string"
+            },
+            "milestone_id": {
+              "type": "string"
+            },
+            "milestone_title": {
+              "type": "string"
+            },
+            "artifacts_produced": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "learnings_extracted": {
+              "type": "integer"
+            },
+            "next_milestone_id": {
+              "type": ["string", "null"]
+            },
+            "next_milestone_title": {
+              "type": ["string", "null"]
+            },
+            "milestones_remaining": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "epic_id",
+            "milestone_id"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "description": "RFC-115: Milestone was skipped",
+      "properties": {
+        "type": {
+          "const": "milestone_skipped",
+          "description": "Event type: milestone_skipped"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "epic_id": {
+              "type": "string"
+            },
+            "milestone_id": {
+              "type": "string"
+            },
+            "milestone_title": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "next_milestone_id": {
+              "type": ["string", "null"]
+            }
+          },
+          "required": [
+            "epic_id",
+            "milestone_id"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "description": "RFC-115: Epic completed all milestones",
+      "properties": {
+        "type": {
+          "const": "epic_completed",
+          "description": "Event type: epic_completed"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "epic_id": {
+              "type": "string"
+            },
+            "epic_title": {
+              "type": "string"
+            },
+            "milestones_completed": {
+              "type": "integer"
+            },
+            "milestones_skipped": {
+              "type": "integer"
+            },
+            "total_tasks_completed": {
+              "type": "integer"
+            },
+            "total_artifacts_produced": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "duration_s": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "epic_id",
+            "epic_title",
+            "milestones_completed"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
     }
   ]
 }

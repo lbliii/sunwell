@@ -217,7 +217,7 @@ export function resetSecurityState(): void {
 }
 
 // =============================================================================
-// TAURI INTEGRATION
+// HTTP API INTEGRATION (RFC-113)
 // =============================================================================
 
 /**
@@ -227,7 +227,7 @@ export async function analyzeDagPermissions(dagId: string): Promise<SecurityAppr
   _state = { ..._state, isLoading: true };
 
   try {
-    const approval = await invoke<SecurityApprovalDetailed>('analyze_dag_permissions', { dagId });
+    const approval = await apiGet<SecurityApprovalDetailed>(`/api/security/dag/${encodeURIComponent(dagId)}/permissions`);
     setPendingApproval(approval);
     return approval;
   } finally {
@@ -242,7 +242,8 @@ export async function submitApproval(response: SecurityApprovalResponse): Promis
   _state = { ..._state, isLoading: true };
 
   try {
-    const success = await invoke<boolean>('submit_security_approval', { response });
+    const result = await apiPost<{ success: boolean }>('/api/security/approval', response);
+    const success = result?.success ?? false;
 
     if (success && response.approved && response.rememberForSession) {
       rememberApprovalForSession(
@@ -275,8 +276,8 @@ export async function loadAuditLog(limit: number = 50): Promise<void> {
   _state = { ..._state, isLoadingAudit: true };
 
   try {
-    const entries = await invoke<AuditEntryDisplay[]>('get_audit_log', { limit });
-    setAuditEntries(entries);
+    const entries = await apiGet<AuditEntryDisplay[]>(`/api/security/audit?limit=${limit}`);
+    setAuditEntries(entries || []);
   } catch (error) {
     console.error('Failed to load audit log:', error);
     setAuditEntries([]);
@@ -292,13 +293,13 @@ export async function verifyAuditIntegrity(): Promise<{ valid: boolean; message:
   _state = { ..._state, isLoadingAudit: true };
 
   try {
-    const result = await invoke<{ valid: boolean; message: string }>('verify_audit_integrity');
+    const result = await apiGet<{ valid: boolean; message: string }>('/api/security/audit/verify');
     _state = {
       ..._state,
-      auditVerified: result.valid,
-      auditVerificationMessage: result.message,
+      auditVerified: result?.valid ?? false,
+      auditVerificationMessage: result?.message ?? 'Verification failed',
     };
-    return result;
+    return result || { valid: false, message: 'Verification failed' };
   } catch (error) {
     const message = `Verification failed: ${error}`;
     _state = {
@@ -317,14 +318,14 @@ export async function verifyAuditIntegrity(): Promise<{ valid: boolean; message:
  */
 export async function scanForSecurityIssues(content: string): Promise<SecurityViolation[]> {
   try {
-    const violations = await invoke<SecurityViolation[]>('scan_for_security_issues', { content });
+    const violations = await apiPost<SecurityViolation[]>('/api/security/scan', { content });
 
     // Add to state
-    for (const violation of violations) {
+    for (const violation of violations || []) {
       addSecurityViolation(violation);
     }
 
-    return violations;
+    return violations || [];
   } catch (error) {
     console.error('Failed to scan for security issues:', error);
     return [];

@@ -7,6 +7,11 @@ The key insight: Just as Harmonic Synthesis uses structured variance (personas)
 to improve output quality, Harmonic Planning uses structured variance
 (temperature, prompting strategies) to improve plan quality.
 
+RFC-116: Harmonic Scoring v2 adds domain-aware metrics that recognize:
+- Irreducible depth (some goals require sequential phases)
+- Mid-graph parallelism (fat waves in the middle matter)
+- Semantic coherence (plans should cover the goal)
+
 Example:
     >>> planner = HarmonicPlanner(model=my_model, candidates=5)
     >>> graph, metrics = await planner.plan_with_metrics("Build REST API")
@@ -16,7 +21,9 @@ Example:
 
 import asyncio
 import json
+import logging
 import re
+import statistics
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -39,13 +46,53 @@ if TYPE_CHECKING:
 
 
 # =============================================================================
+# Scoring Version (RFC-116)
+# =============================================================================
+
+
+class ScoringVersion(Enum):
+    """Harmonic scoring formula version.
+
+    RFC-116: Scoring v2 replaces parallelism-biased scoring with
+    domain-aware metrics that recognize irreducible depth and mid-graph parallelism.
+    """
+
+    V1 = "v1"
+    """Original scoring: parallelism_factor * 40 + balance * 30 + 1/depth * 20 + conflicts * 10."""
+
+    V2 = "v2"
+    """RFC-116: Wave analysis + semantic coherence + depth utilization."""
+
+    AUTO = "auto"
+    """Use V2 with V1 fallback if V2 score is suspiciously low."""
+
+
+# Stopwords for keyword extraction (fast, no LLM)
+_STOPWORDS: frozenset[str] = frozenset({
+    "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for", "of",
+    "with", "by", "from", "as", "is", "was", "are", "were", "been", "be", "have",
+    "has", "had", "do", "does", "did", "will", "would", "could", "should", "may",
+    "might", "must", "shall", "can", "need", "dare", "ought", "used", "it", "its",
+    "this", "that", "these", "those", "i", "you", "he", "she", "we", "they", "me",
+    "him", "her", "us", "them", "my", "your", "his", "our", "their", "what", "which",
+    "who", "whom", "where", "when", "why", "how", "all", "each", "every", "both",
+    "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only",
+    "same", "so", "than", "too", "very", "just", "also", "now", "here", "there",
+    "then", "once", "into", "onto", "upon", "after", "before", "above", "below",
+    "between", "under", "over", "through", "during", "without", "within", "along",
+    "following", "across", "behind", "beyond", "plus", "except", "about", "like",
+    "create", "build", "make", "add", "implement", "write", "using", "use",
+})
+
+
+# =============================================================================
 # Plan Quality Metrics
 # =============================================================================
 
 
 @dataclass(frozen=True, slots=True)
 class PlanMetrics:
-    """Quantitative measures of plan quality.
+    """Quantitative measures of plan quality (V1 formula).
 
     These metrics enable comparison and selection of plan candidates.
     Higher composite score = better plan for parallel execution.
@@ -87,7 +134,7 @@ class PlanMetrics:
 
     @property
     def score(self) -> float:
-        """Composite score (higher is better).
+        """V1 composite score (higher is better).
 
         Formula balances parallelism against complexity:
         - Reward: high parallelism_factor, high balance_factor
@@ -98,6 +145,82 @@ class PlanMetrics:
             + self.balance_factor * 30
             + (1 / max(self.depth, 1)) * 20
             + (1 / (1 + self.file_conflicts)) * 10
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class PlanMetricsV2(PlanMetrics):
+    """Extended metrics for Harmonic Scoring v2 (RFC-116).
+
+    Adds domain-aware metrics that recognize:
+    - Irreducible depth (some goals legitimately require sequential phases)
+    - Mid-graph parallelism (fat waves in the middle matter, not just leaves)
+    - Semantic coherence (plans should actually cover the goal)
+
+    New Attributes:
+        wave_sizes: Size of each execution wave
+        avg_wave_width: artifact_count / estimated_waves
+        parallel_work_ratio: Work per wave transition
+        wave_variance: Standard deviation of wave sizes
+        keyword_coverage: Fraction of goal keywords in artifact descriptions
+        has_convergence: True if graph has a single root
+        depth_utilization: avg_wave_width / depth
+    """
+
+    # Wave analysis (new in V2)
+    wave_sizes: tuple[int, ...]
+    """Size of each execution wave, e.g., (5, 4, 3, 2, 1)."""
+
+    avg_wave_width: float
+    """artifact_count / estimated_waves — measures "fatness" of waves."""
+
+    parallel_work_ratio: float
+    """(artifacts - 1) / max(estimated_waves - 1, 1) — work per transition."""
+
+    wave_variance: float
+    """Standard deviation of wave sizes — lower = more balanced."""
+
+    # Semantic signals (new in V2)
+    keyword_coverage: float
+    """Fraction of goal keywords found in artifact descriptions (0.0-1.0)."""
+
+    has_convergence: bool
+    """True if graph has a single root (proper convergence point)."""
+
+    # Depth context (new in V2)
+    depth_utilization: float
+    """avg_wave_width / depth — how well we use the depth we have."""
+
+    @property
+    def score_v2(self) -> float:
+        """RFC-116 v2 composite score — rewards appropriate structure.
+
+        Philosophy:
+        - Don't penalize depth; penalize UNUSED depth
+        - Reward parallel work at ALL levels, not just leaves
+        - Add lightweight semantic sanity check
+
+        Weight allocation:
+        - Parallelism (reworked): 35%
+        - Structure quality: 30%
+        - Semantic coherence: 20%
+        - Conflict avoidance: 15%
+        """
+        return (
+            # Parallelism (reworked) — 35%
+            self.parallel_work_ratio * 20        # Work per wave transition
+            + self.avg_wave_width * 15           # Fat waves = good
+
+            # Structure quality — 30%
+            + self.depth_utilization * 20        # Using depth well
+            + (1 / (1 + self.wave_variance)) * 10  # Balanced waves
+
+            # Semantic coherence — 20%
+            + self.keyword_coverage * 15         # Covers the goal
+            + (5 if self.has_convergence else 0)  # Proper DAG structure
+
+            # Conflict avoidance — 15%
+            + (1 / (1 + self.file_conflicts)) * 15
         )
 
 
@@ -209,11 +332,14 @@ class HarmonicPlanner:
     Implements Harmonic Planning: structured variance in plan generation
     followed by quantitative evaluation and selection.
 
+    RFC-116: Supports v2 scoring with domain-aware metrics.
+
     Example:
         >>> planner = HarmonicPlanner(
         ...     model=my_model,
         ...     candidates=5,
         ...     variance=VarianceStrategy.PROMPTING,
+        ...     scoring_version=ScoringVersion.V2,
         ... )
         >>> graph, metrics = await planner.plan_with_metrics("Build REST API")
         >>> print(f"Selected: depth={metrics.depth}, score={metrics.score:.1f}")
@@ -249,8 +375,20 @@ class HarmonicPlanner:
     event_callback: Callable[[Any], None] | None = None
     """Optional callback for emitting planning visibility events (RFC-058)."""
 
+    # RFC-116: Harmonic Scoring v2
+    scoring_version: ScoringVersion = ScoringVersion.V2
+    """Scoring formula version (V1=original, V2=domain-aware, AUTO=adaptive)."""
+
+    log_scoring_disagreements: bool = True
+    """Log when V1 and V2 would select different candidates (for A/B analysis)."""
+
     # Internal state
     _base_planner: Any = field(default=None, init=False)
+    _logger: logging.Logger = field(default=None, init=False)
+
+    def __post_init__(self) -> None:
+        """Initialize logger for RFC-116 scoring disagreement logging."""
+        object.__setattr__(self, "_logger", logging.getLogger(__name__))
 
     @property
     def mode(self) -> TaskMode:
@@ -314,14 +452,16 @@ class HarmonicPlanner:
         self,
         goal: str,
         context: dict[str, Any] | None = None,
-    ) -> tuple[ArtifactGraph, PlanMetrics]:
+    ) -> tuple[ArtifactGraph, PlanMetrics | PlanMetricsV2]:
         """Plan with harmonic optimization, return graph and metrics.
 
         This is the main entry point that:
         1. Generates N candidate plans in parallel
-        2. Scores each plan
+        2. Scores each plan (V1 or V2 based on scoring_version)
         3. Selects the best
         4. Optionally refines
+
+        RFC-116: Returns PlanMetricsV2 when scoring_version is V2 or AUTO.
 
         Args:
             goal: The goal to achieve
@@ -343,14 +483,15 @@ class HarmonicPlanner:
                 project_schema=self.project_schema,
             )
             graph = await fallback.discover_graph(goal, context)
-            return graph, self._score_plan(graph)
+            return graph, self._score_plan(graph, goal)
 
         # Score each candidate (parallel if free-threading enabled)
+        # RFC-116: Pass goal for V2 keyword coverage
         graphs = [c.graph for c in candidates]
         if self.use_free_threading and len(graphs) > 1:
-            scores = await self._score_plans_parallel(graphs)
+            scores = await self._score_plans_parallel(graphs, goal)
         else:
-            scores = [self._score_plan(g) for g in graphs]
+            scores = [self._score_plan(g, goal) for g in graphs]
 
         # Create scored candidates (immutable, so create new with score)
         scored_candidates = [
@@ -363,36 +504,36 @@ class HarmonicPlanner:
             for i, c in enumerate(candidates)
         ]
 
+        # RFC-116: Log V1/V2 disagreements for A/B analysis
+        if self.log_scoring_disagreements and self.scoring_version != ScoringVersion.V1:
+            self._log_scoring_disagreement(scored_candidates, goal)
+
         # Emit scored events (use candidate_id for reliable matching)
         for i, candidate in enumerate(scored_candidates):
+            effective_score = self._get_effective_score(candidate.score)
             self._emit_event("plan_candidate_scored", {
                 "candidate_id": candidate.id,
-                "score": candidate.score.score,
+                "score": effective_score,
+                "scoring_version": self.scoring_version.value,
                 "progress": i + 1,
                 "total_candidates": len(candidates),
-                "metrics": {
-                    "depth": candidate.score.depth,
-                    "width": candidate.score.width,
-                    "leaf_count": candidate.score.leaf_count,
-                    "artifact_count": candidate.score.artifact_count,
-                    "parallelism_factor": candidate.score.parallelism_factor,
-                    "balance_factor": candidate.score.balance_factor,
-                    "file_conflicts": candidate.score.file_conflicts,
-                    "estimated_waves": candidate.score.estimated_waves,
-                },
+                "metrics": self._metrics_to_dict(candidate.score),
             })
 
         # Emit scoring complete event
         self._emit_event("plan_scoring_complete", {
             "total_scored": len(scores),
+            "scoring_version": self.scoring_version.value,
         })
 
-        # Sort by score (descending) and select best
-        scored_candidates.sort(key=lambda c: c.score.score, reverse=True)
+        # Sort by effective score (V1 or V2) and select best
+        scored_candidates.sort(
+            key=lambda c: self._get_effective_score(c.score), reverse=True
+        )
         best = scored_candidates[0]
 
         # Track refinement state
-        initial_score = best.score.score
+        initial_score = self._get_effective_score(best.score)
         refinement_rounds_applied = 0
         best_graph = best.graph
         best_metrics = best.score
@@ -406,22 +547,15 @@ class HarmonicPlanner:
 
         # Emit winner event with candidate_id (reliable matching)
         self._plan_winner_emitted = True
+        final_score = self._get_effective_score(best_metrics)
         self._emit_event("plan_winner", {
             "tasks": len(best_graph),
             "artifact_count": len(best_graph),
             "selected_candidate_id": best.id,
             "total_candidates": len(candidates),
-            "score": best_metrics.score,
-            "metrics": {
-                "score": best_metrics.score,
-                "depth": best_metrics.depth,
-                "width": best_metrics.width,
-                "leaf_count": best_metrics.leaf_count,
-                "parallelism_factor": best_metrics.parallelism_factor,
-                "balance_factor": best_metrics.balance_factor,
-                "file_conflicts": best_metrics.file_conflicts,
-                "estimated_waves": best_metrics.estimated_waves,
-            },
+            "score": final_score,
+            "scoring_version": self.scoring_version.value,
+            "metrics": self._metrics_to_dict(best_metrics),
             "selection_reason": self._format_selection_reason(
                 best_metrics, scored_candidates
             ),
@@ -429,13 +563,93 @@ class HarmonicPlanner:
             "variance_config": best.variance_config,
             "refinement_rounds": refinement_rounds_applied,
             "final_score_improvement": (
-                best_metrics.score - initial_score
+                final_score - initial_score
                 if refinement_rounds_applied > 0
                 else 0.0
             ),
         })
 
         return best_graph, best_metrics
+
+    def _metrics_to_dict(self, metrics: PlanMetrics | PlanMetricsV2) -> dict[str, Any]:
+        """Convert metrics to dict for event emission."""
+        base = {
+            "depth": metrics.depth,
+            "width": metrics.width,
+            "leaf_count": metrics.leaf_count,
+            "artifact_count": metrics.artifact_count,
+            "parallelism_factor": metrics.parallelism_factor,
+            "balance_factor": metrics.balance_factor,
+            "file_conflicts": metrics.file_conflicts,
+            "estimated_waves": metrics.estimated_waves,
+            "score_v1": metrics.score,
+        }
+        if isinstance(metrics, PlanMetricsV2):
+            base.update({
+                "score_v2": metrics.score_v2,
+                "wave_sizes": list(metrics.wave_sizes),
+                "avg_wave_width": metrics.avg_wave_width,
+                "parallel_work_ratio": metrics.parallel_work_ratio,
+                "wave_variance": metrics.wave_variance,
+                "keyword_coverage": metrics.keyword_coverage,
+                "has_convergence": metrics.has_convergence,
+                "depth_utilization": metrics.depth_utilization,
+            })
+        return base
+
+    def _log_scoring_disagreement(
+        self,
+        candidates: list[CandidateResult],
+        goal: str,
+    ) -> None:
+        """Log when V1 and V2 would select different candidates (RFC-116).
+
+        This helps with A/B analysis during migration.
+        """
+        if len(candidates) < 2:
+            return
+
+        # Sort by V1 score
+        v1_sorted = sorted(candidates, key=lambda c: c.score.score, reverse=True)
+        v1_winner = v1_sorted[0]
+
+        # Sort by V2 score (if available)
+        v2_sorted = sorted(
+            candidates,
+            key=lambda c: (
+                c.score.score_v2 if isinstance(c.score, PlanMetricsV2) else c.score.score
+            ),
+            reverse=True,
+        )
+        v2_winner = v2_sorted[0]
+
+        # Check for disagreement
+        if v1_winner.id != v2_winner.id:
+            v1_score = v1_winner.score.score
+            v2_score_v1_winner = (
+                v1_winner.score.score_v2
+                if isinstance(v1_winner.score, PlanMetricsV2)
+                else v1_winner.score.score
+            )
+            v2_score_v2_winner = (
+                v2_winner.score.score_v2
+                if isinstance(v2_winner.score, PlanMetricsV2)
+                else v2_winner.score.score
+            )
+            v1_score_v2_winner = v2_winner.score.score
+
+            self._logger.info(
+                "RFC-116 scoring disagreement: "
+                "V1 selects %s (v1=%.1f, v2=%.1f), "
+                "V2 selects %s (v1=%.1f, v2=%.1f) | goal='%s'",
+                v1_winner.id,
+                v1_score,
+                v2_score_v1_winner,
+                v2_winner.id,
+                v1_score_v2_winner,
+                v2_score_v2_winner,
+                goal[:50],
+            )
 
     async def discover_graph(
         self,
@@ -653,11 +867,21 @@ class HarmonicPlanner:
             )
 
     # =========================================================================
-    # Plan Scoring
+    # Plan Scoring (RFC-116: V1 and V2 support)
     # =========================================================================
 
-    def _score_plan(self, graph: ArtifactGraph) -> PlanMetrics:
-        """Compute metrics for a plan."""
+    def _score_plan(self, graph: ArtifactGraph, goal: str = "") -> PlanMetrics | PlanMetricsV2:
+        """Compute metrics for a plan.
+
+        RFC-116: Returns PlanMetricsV2 when scoring_version is V2 or AUTO,
+        otherwise returns PlanMetrics (V1).
+        """
+        if self.scoring_version in (ScoringVersion.V2, ScoringVersion.AUTO):
+            return self._compute_metrics_v2(graph, goal)
+        return self._compute_metrics_v1(graph)
+
+    def _compute_metrics_v1(self, graph: ArtifactGraph) -> PlanMetrics:
+        """Compute V1 metrics for a plan."""
         depth = graph.max_depth()
         leaves = graph.leaves()
         artifacts = list(graph.artifacts.values())
@@ -690,20 +914,120 @@ class HarmonicPlanner:
             estimated_waves=len(waves),
         )
 
+    def _compute_metrics_v2(self, graph: ArtifactGraph, goal: str) -> PlanMetricsV2:
+        """Compute V2 metrics for a plan (RFC-116).
+
+        V2 adds:
+        - Wave analysis (avg_wave_width, parallel_work_ratio, wave_variance)
+        - Semantic signals (keyword_coverage, has_convergence)
+        - Depth utilization (using depth productively)
+        """
+        # Base metrics (same as V1)
+        depth = graph.max_depth()
+        leaves = graph.leaves()
+        artifacts = list(graph.artifacts.values())
+        waves = graph.execution_waves()
+
+        # Compute width (max artifacts in any wave)
+        width = max(len(w) for w in waves) if waves else 1
+
+        # Count file conflicts
+        file_artifacts: dict[str, list[str]] = {}
+        for a in artifacts:
+            if a.produces_file:
+                file_artifacts.setdefault(a.produces_file, []).append(a.id)
+        conflicts = sum(
+            len(ids) * (len(ids) - 1) // 2  # Combinations
+            for ids in file_artifacts.values()
+            if len(ids) > 1
+        )
+
+        artifact_count = len(artifacts)
+        num_waves = len(waves)
+
+        # V2: Wave analysis
+        wave_sizes = tuple(len(w) for w in waves)
+        avg_wave_width = artifact_count / max(num_waves, 1)
+        parallel_work_ratio = (artifact_count - 1) / max(num_waves - 1, 1)
+        wave_variance = statistics.stdev(wave_sizes) if len(wave_sizes) > 1 else 0.0
+
+        # V2: Depth utilization — high value = doing parallel work relative to depth
+        depth_utilization = avg_wave_width / max(depth, 1)
+
+        # V2: Lightweight semantic check — keyword coverage
+        goal_keywords = set(self._extract_keywords(goal))
+        artifact_keywords: set[str] = set()
+        for artifact in artifacts:
+            artifact_keywords.update(self._extract_keywords(artifact.description))
+            artifact_keywords.update(self._extract_keywords(artifact.id))
+
+        if goal_keywords:
+            keyword_coverage = len(goal_keywords & artifact_keywords) / len(goal_keywords)
+        else:
+            keyword_coverage = 1.0  # No keywords = assume full coverage
+
+        # V2: Convergence check — single root is proper DAG structure
+        roots = graph.roots()
+        has_convergence = len(roots) == 1
+
+        return PlanMetricsV2(
+            # Base metrics (V1)
+            depth=depth,
+            width=width,
+            leaf_count=len(leaves),
+            artifact_count=artifact_count,
+            parallelism_factor=len(leaves) / max(artifact_count, 1),
+            balance_factor=width / max(depth, 1),
+            file_conflicts=conflicts,
+            estimated_waves=num_waves,
+            # V2 extensions
+            wave_sizes=wave_sizes,
+            avg_wave_width=avg_wave_width,
+            parallel_work_ratio=parallel_work_ratio,
+            wave_variance=wave_variance,
+            keyword_coverage=keyword_coverage,
+            has_convergence=has_convergence,
+            depth_utilization=depth_utilization,
+        )
+
+    def _extract_keywords(self, text: str) -> list[str]:
+        """Extract significant keywords from text (fast, no LLM).
+
+        RFC-116: Used for lightweight semantic checking.
+        Filters stopwords and short words, returns lowercase keywords.
+        """
+        if not text:
+            return []
+        # Split on non-alphanumeric, lowercase, filter
+        words = re.split(r"[^a-zA-Z0-9]+", text.lower())
+        return [w for w in words if len(w) > 3 and w not in _STOPWORDS]
+
+    def _get_effective_score(self, metrics: PlanMetrics | PlanMetricsV2) -> float:
+        """Get the effective score based on scoring version.
+
+        RFC-116: V2 metrics use score_v2, V1 metrics use score.
+        """
+        if isinstance(metrics, PlanMetricsV2):
+            return metrics.score_v2
+        return metrics.score
+
     async def _score_plans_parallel(
         self,
         candidates: list[ArtifactGraph],
-    ) -> list[PlanMetrics]:
+        goal: str,
+    ) -> list[PlanMetrics | PlanMetricsV2]:
         """Score all candidates in parallel threads.
 
         With free-threading (Python 3.14t):
         - Each thread computes metrics for one candidate
         - No GIL contention — true parallelism
         - CPU-bound work (graph traversal, metric computation)
+
+        RFC-116: Pass goal for V2 keyword coverage computation.
         """
 
-        def score_one(graph: ArtifactGraph) -> PlanMetrics:
-            return self._score_plan(graph)
+        def score_one(graph: ArtifactGraph) -> PlanMetrics | PlanMetricsV2:
+            return self._score_plan(graph, goal)
 
         # Use thread pool for parallel scoring
         loop = asyncio.get_event_loop()
@@ -719,13 +1043,16 @@ class HarmonicPlanner:
         self,
         goal: str,
         graph: ArtifactGraph,
-        metrics: PlanMetrics,
+        metrics: PlanMetrics | PlanMetricsV2,
         context: dict[str, Any] | None,
-    ) -> tuple[ArtifactGraph, PlanMetrics]:
-        """Iteratively refine the best plan."""
+    ) -> tuple[ArtifactGraph, PlanMetrics | PlanMetricsV2]:
+        """Iteratively refine the best plan.
+
+        RFC-116: Uses effective score (V1 or V2 based on scoring_version).
+        """
         current_graph = graph
         current_metrics = metrics
-        initial_score = metrics.score
+        initial_score = self._get_effective_score(metrics)
 
         for round_num in range(self.refinement_rounds):
             # Identify improvement opportunities
@@ -735,10 +1062,11 @@ class HarmonicPlanner:
                 break  # No improvements identified
 
             # RFC-058: Emit refine start event
+            current_score = self._get_effective_score(current_metrics)
             self._emit_event("plan_refine_start", {
                 "round": round_num + 1,
                 "total_rounds": self.refinement_rounds,
-                "current_score": current_metrics.score,
+                "current_score": current_score,
                 "improvements_identified": feedback,
             })
 
@@ -750,7 +1078,8 @@ class HarmonicPlanner:
             if refined is None:
                 break  # Refinement failed
 
-            refined_metrics = self._score_plan(refined)
+            # RFC-116: Re-score with goal for V2
+            refined_metrics = self._score_plan(refined, goal)
 
             # RFC-058: Emit refine attempt event
             self._emit_event("plan_refine_attempt", {
@@ -758,9 +1087,10 @@ class HarmonicPlanner:
                 "improvements_applied": self._extract_applied_improvements(refined, current_graph),
             })
 
-            # Only accept if improved
-            if refined_metrics.score > current_metrics.score:
-                old_score = current_metrics.score
+            # Only accept if improved (use effective score)
+            new_score = self._get_effective_score(refined_metrics)
+            old_score = self._get_effective_score(current_metrics)
+            if new_score > old_score:
                 current_graph = refined
                 current_metrics = refined_metrics
 
@@ -769,8 +1099,8 @@ class HarmonicPlanner:
                     "round": round_num + 1,
                     "improved": True,
                     "old_score": old_score,
-                    "new_score": refined_metrics.score,
-                    "improvement": refined_metrics.score - old_score,
+                    "new_score": new_score,
+                    "improvement": new_score - old_score,
                 })
             else:
                 # RFC-058: Emit refine complete event (no improvement)
@@ -782,11 +1112,12 @@ class HarmonicPlanner:
                 break  # No improvement, stop
 
         # RFC-058: Emit refine final event
+        final_score = self._get_effective_score(current_metrics)
         self._emit_event("plan_refine_final", {
             "total_rounds": round_num + 1 if round_num < self.refinement_rounds else self.refinement_rounds,
             "initial_score": initial_score,
-            "final_score": current_metrics.score,
-            "total_improvement": current_metrics.score - initial_score,
+            "final_score": final_score,
+            "total_improvement": final_score - initial_score,
         })
 
         return current_graph, current_metrics
@@ -805,10 +1136,14 @@ class HarmonicPlanner:
         else:
             return "Restructured dependencies"
 
-    def _identify_improvements(self, metrics: PlanMetrics) -> str | None:
-        """Identify what could be improved in the plan."""
+    def _identify_improvements(self, metrics: PlanMetrics | PlanMetricsV2) -> str | None:
+        """Identify what could be improved in the plan.
+
+        RFC-116: V2 metrics add wave analysis and semantic checks.
+        """
         suggestions = []
 
+        # V1-compatible checks
         if metrics.depth > 3:
             suggestions.append(
                 f"Critical path is {metrics.depth} steps. "
@@ -832,6 +1167,32 @@ class HarmonicPlanner:
                 "Graph is unbalanced (deep and narrow). "
                 "Can the structure be flattened?"
             )
+
+        # V2-specific checks (RFC-116)
+        if isinstance(metrics, PlanMetricsV2):
+            if metrics.wave_variance > 5.0:
+                suggestions.append(
+                    f"Wave sizes are unbalanced (variance={metrics.wave_variance:.1f}). "
+                    "Can work be distributed more evenly across waves?"
+                )
+
+            if metrics.keyword_coverage < 0.5:
+                suggestions.append(
+                    f"Low keyword coverage ({metrics.keyword_coverage:.0%}). "
+                    "Are all aspects of the goal addressed by artifacts?"
+                )
+
+            if not metrics.has_convergence:
+                suggestions.append(
+                    "Graph has multiple roots (no single convergence point). "
+                    "Should there be a final integration artifact?"
+                )
+
+            if metrics.depth_utilization < 1.0 and metrics.depth > 2:
+                suggestions.append(
+                    f"Depth utilization is low ({metrics.depth_utilization:.1f}). "
+                    "Depth is not being used productively for parallelism."
+                )
 
         return " ".join(suggestions) if suggestions else None
 
@@ -956,31 +1317,53 @@ Output the COMPLETE revised artifact list as JSON array:
 
     def _format_selection_reason(
         self,
-        best_metrics: PlanMetrics,
+        best_metrics: PlanMetrics | PlanMetricsV2,
         candidates: list[CandidateResult],
     ) -> str:
-        """Format selection reason for winner event."""
+        """Format selection reason for winner event.
+
+        RFC-116: Different descriptions for V1 vs V2 scoring.
+        """
         if len(candidates) == 1:
             return "Only candidate generated"
-        return "Highest composite score (parallelism + balance - depth penalty)"
+
+        if isinstance(best_metrics, PlanMetricsV2):
+            return (
+                "Highest V2 score (parallel_work_ratio + depth_utilization "
+                "+ keyword_coverage + wave_balance - conflicts)"
+            )
+        return "Highest V1 score (parallelism + balance - depth penalty)"
 
     def get_candidate_summary(
         self,
         candidates: list[ArtifactGraph],
-        scores: list[PlanMetrics],
+        scores: list[PlanMetrics | PlanMetricsV2],
     ) -> list[dict]:
-        """Get summary info for each candidate (for verbose CLI output)."""
+        """Get summary info for each candidate (for verbose CLI output).
+
+        RFC-116: Includes V2 metrics when available.
+        """
         summaries = []
         for i, (_graph, metrics) in enumerate(zip(candidates, scores, strict=True)):
-            summaries.append(
-                {
-                    "index": i,
-                    "depth": metrics.depth,
-                    "leaves": metrics.leaf_count,
-                    "artifacts": metrics.artifact_count,
-                    "score": metrics.score,
-                    "parallelism_factor": metrics.parallelism_factor,
-                    "balance_factor": metrics.balance_factor,
-                }
-            )
+            summary = {
+                "index": i,
+                "depth": metrics.depth,
+                "leaves": metrics.leaf_count,
+                "artifacts": metrics.artifact_count,
+                "score_v1": metrics.score,
+                "parallelism_factor": metrics.parallelism_factor,
+                "balance_factor": metrics.balance_factor,
+            }
+            # Add V2 metrics if available
+            if isinstance(metrics, PlanMetricsV2):
+                summary.update({
+                    "score_v2": metrics.score_v2,
+                    "avg_wave_width": metrics.avg_wave_width,
+                    "parallel_work_ratio": metrics.parallel_work_ratio,
+                    "wave_variance": metrics.wave_variance,
+                    "keyword_coverage": metrics.keyword_coverage,
+                    "has_convergence": metrics.has_convergence,
+                    "depth_utilization": metrics.depth_utilization,
+                })
+            summaries.append(summary)
         return summaries
