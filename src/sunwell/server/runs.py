@@ -19,6 +19,7 @@ class RunState:
     run_id: str
     goal: str
     workspace: str | None = None
+    project_id: str | None = None  # RFC-117: Explicit project binding
     lens: str | None = None
     provider: str | None = None
     model: str | None = None
@@ -64,6 +65,7 @@ class RunManager:
         goal: str,
         *,
         workspace: str | None = None,
+        project_id: str | None = None,
         lens: str | None = None,
         provider: str | None = None,
         model: str | None = None,
@@ -75,6 +77,7 @@ class RunManager:
         Args:
             goal: The goal to execute.
             workspace: Optional workspace path.
+            project_id: Optional project ID from registry (RFC-117).
             lens: Optional lens name.
             provider: Optional model provider.
             model: Optional model name.
@@ -89,6 +92,7 @@ class RunManager:
             run_id=run_id,
             goal=goal,
             workspace=workspace,
+            project_id=project_id,
             lens=lens,
             provider=provider,
             model=model,

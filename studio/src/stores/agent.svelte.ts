@@ -137,6 +137,7 @@ export const agent = {
  * 
  * @param goal - The goal to execute
  * @param projectPath - Optional project path
+ * @param projectId - Optional project ID from registry (RFC-117)
  * @param lens - Optional explicit lens name (e.g., "coder", "tech-writer")
  * @param autoLens - Whether to auto-detect lens based on goal (default: true)
  * @param provider - Optional model provider (e.g., "openai", "anthropic", "ollama")
@@ -144,6 +145,7 @@ export const agent = {
 export async function runGoal(
   goal: string,
   projectPath?: string,
+  projectId?: string,
   lens?: string | null,
   autoLens?: boolean,
   provider?: string | null,
@@ -164,9 +166,11 @@ export async function runGoal(
     await setupEventListeners();
     
     // RFC-113: Use unified API layer (works with both Tauri and HTTP)
+    // RFC-117: Pass project_id if provided
     const result = await apiRunGoal({
       goal,
       projectPath,
+      projectId,
       lens: lens ?? null,
       autoLens: autoLens ?? true,
       provider: provider ?? null,

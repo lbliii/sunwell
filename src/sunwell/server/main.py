@@ -89,6 +89,7 @@ def _register_routes(app: FastAPI) -> None:
     class RunRequest(BaseModel):
         goal: str
         workspace: str | None = None
+        project_id: str | None = None  # RFC-117: Explicit project binding
         lens: str | None = None
         provider: str | None = None
         model: str | None = None
@@ -101,6 +102,7 @@ def _register_routes(app: FastAPI) -> None:
         run = _run_manager.create_run(
             goal=request.goal,
             workspace=request.workspace,
+            project_id=request.project_id,
             lens=request.lens,
             provider=request.provider,
             model=request.model,
@@ -1986,14 +1988,18 @@ async def _execute_agent(run: RunState) -> AsyncIterator[dict[str, Any]]:
     # RFC-117: Resolve workspace with project context
     from sunwell.project import ProjectResolutionError, resolve_project
 
-    workspace_path = Path(run.workspace).expanduser().resolve() if run.workspace else Path.cwd()
+    workspace_path = Path(run.workspace).expanduser().resolve() if run.workspace else None
 
     project = None
     try:
-        project = resolve_project(project_root=workspace_path)
+        # Prefer project_id if provided, otherwise use workspace path
+        project = resolve_project(
+            project_id=run.project_id,
+            project_root=workspace_path,
+        )
         workspace = project.root
     except ProjectResolutionError:
-        workspace = workspace_path
+        workspace = workspace_path or Path.cwd()
 
     # Load config and model
     config = get_config()

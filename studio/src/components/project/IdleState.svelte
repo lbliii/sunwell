@@ -75,7 +75,8 @@
   async function handleNewGoal(goal: string) {
     if (!project.current?.path) return;
     const provider = getRunProvider();
-    await runGoal(goal, project.current.path, null, true, provider);
+    // RFC-117: Pass project ID for workspace isolation
+    await runGoal(goal, project.current.path, project.currentId ?? undefined, null, true, provider);
   }
   
   async function handleResume() {
@@ -88,7 +89,8 @@
     const goal = project.analysis?.goals.find(g => g.id === goalId);
     if (goal && project.current?.path) {
       const provider = getRunProvider();
-      await runGoal(goal.title, project.current.path, null, true, provider);
+      // RFC-117: Pass project ID for workspace isolation
+      await runGoal(goal.title, project.current.path, project.currentId ?? undefined, null, true, provider);
     }
   }
   

@@ -42,6 +42,8 @@ export const project = {
   get error() { return _error; },
   // Computed
   get hasProject() { return _current !== null; },
+  get currentId() { return _current?.id ?? null; }, // RFC-117: Project ID for agent runs
+  get currentPath() { return _current?.path ?? null; }, // RFC-117: Project path for agent runs
   get projectType(): ProjectType { return _current?.project_type ?? 'general'; },
   get isCodeProject() { return (_current?.project_type ?? '').startsWith('code_'); },
   get isCreativeProject() { return ['novel', 'screenplay', 'game_dialogue'].includes(_current?.project_type ?? ''); },

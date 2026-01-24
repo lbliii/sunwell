@@ -9,6 +9,7 @@
   import ErrorDisplay from '../ui/ErrorDisplay.svelte';
   import { goHome } from '../../stores/app.svelte';
   import { agent, resetAgent, runGoal } from '../../stores/agent.svelte';
+  import { project } from '../../stores/project.svelte'; // RFC-117
   import { parseError } from '$lib/error';
   
   // Parse the raw error into structured format
@@ -27,7 +28,8 @@
     
     const goal = agent.goal;
     resetAgent();
-    await runGoal(goal);
+    // RFC-117: Pass project context for workspace isolation
+    await runGoal(goal, project.currentPath ?? undefined, project.currentId ?? undefined);
   }
 </script>
 

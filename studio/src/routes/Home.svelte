@@ -163,7 +163,8 @@
 		selectLens(lensName, autoSelect);
 
 		// Run goal with lens selection
-		const workspacePath = await runGoal(pendingGoal, undefined, lensName, autoSelect);
+		// RFC-117: New parameter order - projectId comes before lens
+		const workspacePath = await runGoal(pendingGoal, undefined, undefined, lensName, autoSelect);
 		if (workspacePath) {
 			await openProject(workspacePath);
 			goToProject();

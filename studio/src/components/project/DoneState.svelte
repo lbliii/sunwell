@@ -221,7 +221,8 @@
     if (!goal || !project.current?.path) return;
     resetAgent();
     const provider = getRunProvider();
-    await runGoal(goal, project.current.path, null, true, provider);
+    // RFC-117: Pass project ID for workspace isolation
+    await runGoal(goal, project.current.path, project.currentId ?? undefined, null, true, provider);
   }
   
   function handleFileClick(file: FileEntry) {
