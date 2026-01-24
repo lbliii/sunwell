@@ -418,6 +418,240 @@ class EscalateData(TypedDict, total=False):
 
 
 # =============================================================================
+# Lens Events (RFC-064, RFC-071)
+# =============================================================================
+
+
+class LensSelectedData(TypedDict, total=False):
+    """Data for lens_selected event."""
+    name: str  # Required
+    version: str | None
+    source: str | None
+
+
+class LensChangedData(TypedDict, total=False):
+    """Data for lens_changed event."""
+    old_lens: str | None
+    new_lens: str  # Required
+    reason: str | None
+
+
+class LensSuggestedData(TypedDict, total=False):
+    """Data for lens_suggested event."""
+    suggested: str  # Required
+    reason: str  # Required
+
+
+# =============================================================================
+# Briefing & Prefetch Events
+# =============================================================================
+
+
+class BriefingLoadedData(TypedDict, total=False):
+    """Data for briefing_loaded event."""
+    path: str  # Required
+
+
+class BriefingSavedData(TypedDict, total=False):
+    """Data for briefing_saved event."""
+    path: str  # Required
+
+
+class PrefetchStartData(TypedDict, total=False):
+    """Data for prefetch_start event."""
+    sources: list[str]  # Required
+
+
+class PrefetchCompleteData(TypedDict, total=False):
+    """Data for prefetch_complete event."""
+    duration_ms: int  # Required
+    sources_loaded: int  # Required
+
+
+class PrefetchTimeoutData(TypedDict, total=False):
+    """Data for prefetch_timeout event."""
+    timeout_ms: int  # Required
+
+
+# =============================================================================
+# Model Events
+# =============================================================================
+
+
+class ModelStartData(TypedDict, total=False):
+    """Data for model_start event."""
+    provider: str  # Required
+    model: str  # Required
+
+
+class ModelTokensData(TypedDict, total=False):
+    """Data for model_tokens event."""
+    tokens: int  # Required
+    cumulative: bool
+
+
+class ModelThinkingData(TypedDict, total=False):
+    """Data for model_thinking event."""
+    content: str  # Required
+
+
+class ModelCompleteData(TypedDict, total=False):
+    """Data for model_complete event."""
+    duration_ms: int  # Required
+    input_tokens: int | None
+    output_tokens: int | None
+
+
+class ModelHeartbeatData(TypedDict, total=False):
+    """Data for model_heartbeat event."""
+    elapsed_ms: int  # Required
+
+
+# =============================================================================
+# Skill Compilation Events
+# =============================================================================
+
+
+class SkillCompileStartData(TypedDict, total=False):
+    """Data for skill_compile_start event."""
+    lens_name: str  # Required
+
+
+class SkillCompileCompleteData(TypedDict, total=False):
+    """Data for skill_compile_complete event."""
+    lens_name: str  # Required
+    skill_count: int  # Required
+    duration_ms: int  # Required
+
+
+class SkillCompileCacheHitData(TypedDict, total=False):
+    """Data for skill_compile_cache_hit event."""
+    lens_name: str  # Required
+
+
+class SkillSubgraphExtractedData(TypedDict, total=False):
+    """Data for skill_subgraph_extracted event."""
+    skill_name: str  # Required
+    subgraph_size: int  # Required
+
+
+# =============================================================================
+# Backlog Events
+# =============================================================================
+
+
+class BacklogGoalAddedData(TypedDict, total=False):
+    """Data for backlog_goal_added event."""
+    goal_id: str  # Required
+    title: str  # Required
+
+
+class BacklogGoalStartedData(TypedDict, total=False):
+    """Data for backlog_goal_started event."""
+    goal_id: str  # Required
+
+
+class BacklogGoalCompletedData(TypedDict, total=False):
+    """Data for backlog_goal_completed event."""
+    goal_id: str  # Required
+
+
+class BacklogGoalFailedData(TypedDict, total=False):
+    """Data for backlog_goal_failed event."""
+    goal_id: str  # Required
+    error: str  # Required
+
+
+class BacklogRefreshedData(TypedDict, total=False):
+    """Data for backlog_refreshed event."""
+    goal_count: int  # Required
+
+
+# =============================================================================
+# Convergence Events
+# =============================================================================
+
+
+class ConvergenceStartData(TypedDict, total=False):
+    """Data for convergence_start event."""
+    max_iterations: int  # Required
+
+
+class ConvergenceIterationStartData(TypedDict, total=False):
+    """Data for convergence_iteration_start event."""
+    iteration: int  # Required
+
+
+class ConvergenceIterationCompleteData(TypedDict, total=False):
+    """Data for convergence_iteration_complete event."""
+    iteration: int  # Required
+    errors_found: int  # Required
+
+
+class ConvergenceFixingData(TypedDict, total=False):
+    """Data for convergence_fixing event."""
+    iteration: int  # Required
+    errors_to_fix: int  # Required
+
+
+class ConvergenceStableData(TypedDict, total=False):
+    """Data for convergence_stable event."""
+    iterations: int  # Required
+
+
+class ConvergenceTimeoutData(TypedDict, total=False):
+    """Data for convergence_timeout event."""
+    elapsed_ms: int  # Required
+
+
+class ConvergenceStuckData(TypedDict, total=False):
+    """Data for convergence_stuck event."""
+    iterations: int  # Required
+    persistent_errors: int  # Required
+
+
+class ConvergenceMaxIterationsData(TypedDict, total=False):
+    """Data for convergence_max_iterations event."""
+    max_iterations: int  # Required
+
+
+class ConvergenceBudgetExceededData(TypedDict, total=False):
+    """Data for convergence_budget_exceeded event."""
+    budget_ms: int  # Required
+    elapsed_ms: int  # Required
+
+
+# =============================================================================
+# Recovery Events (RFC-125)
+# =============================================================================
+
+
+class RecoverySavedData(TypedDict, total=False):
+    """Data for recovery_saved event."""
+    recovery_id: str  # Required
+    artifact_ids: list[str]  # Required - artifacts in recovery
+    reason: str  # Why recovery was triggered
+
+
+class RecoveryLoadedData(TypedDict, total=False):
+    """Data for recovery_loaded event."""
+    recovery_id: str  # Required
+    artifact_ids: list[str]  # Required
+
+
+class RecoveryResolvedData(TypedDict, total=False):
+    """Data for recovery_resolved event."""
+    recovery_id: str  # Required
+    artifacts_passed: int  # Required
+
+
+class RecoveryAbortedData(TypedDict, total=False):
+    """Data for recovery_aborted event."""
+    recovery_id: str  # Required
+    reason: str  # Required
+
+
+# =============================================================================
 # Integration Verification Events (RFC-067)
 # =============================================================================
 
@@ -637,6 +871,48 @@ EVENT_SCHEMAS: dict[EventType, type[TypedDict]] = {
     EventType.COMPLETE: CompleteData,
     EventType.ERROR: ErrorData,
     EventType.ESCALATE: EscalateData,
+    # Recovery events (RFC-125)
+    EventType.RECOVERY_SAVED: RecoverySavedData,
+    EventType.RECOVERY_LOADED: RecoveryLoadedData,
+    EventType.RECOVERY_RESOLVED: RecoveryResolvedData,
+    EventType.RECOVERY_ABORTED: RecoveryAbortedData,
+    # Lens events (RFC-064, RFC-071)
+    EventType.LENS_SELECTED: LensSelectedData,
+    EventType.LENS_CHANGED: LensChangedData,
+    EventType.LENS_SUGGESTED: LensSuggestedData,
+    # Briefing & Prefetch events
+    EventType.BRIEFING_LOADED: BriefingLoadedData,
+    EventType.BRIEFING_SAVED: BriefingSavedData,
+    EventType.PREFETCH_START: PrefetchStartData,
+    EventType.PREFETCH_COMPLETE: PrefetchCompleteData,
+    EventType.PREFETCH_TIMEOUT: PrefetchTimeoutData,
+    # Model events
+    EventType.MODEL_START: ModelStartData,
+    EventType.MODEL_TOKENS: ModelTokensData,
+    EventType.MODEL_THINKING: ModelThinkingData,
+    EventType.MODEL_COMPLETE: ModelCompleteData,
+    EventType.MODEL_HEARTBEAT: ModelHeartbeatData,
+    # Skill compilation events
+    EventType.SKILL_COMPILE_START: SkillCompileStartData,
+    EventType.SKILL_COMPILE_COMPLETE: SkillCompileCompleteData,
+    EventType.SKILL_COMPILE_CACHE_HIT: SkillCompileCacheHitData,
+    EventType.SKILL_SUBGRAPH_EXTRACTED: SkillSubgraphExtractedData,
+    # Backlog events
+    EventType.BACKLOG_GOAL_ADDED: BacklogGoalAddedData,
+    EventType.BACKLOG_GOAL_STARTED: BacklogGoalStartedData,
+    EventType.BACKLOG_GOAL_COMPLETED: BacklogGoalCompletedData,
+    EventType.BACKLOG_GOAL_FAILED: BacklogGoalFailedData,
+    EventType.BACKLOG_REFRESHED: BacklogRefreshedData,
+    # Convergence events
+    EventType.CONVERGENCE_START: ConvergenceStartData,
+    EventType.CONVERGENCE_ITERATION_START: ConvergenceIterationStartData,
+    EventType.CONVERGENCE_ITERATION_COMPLETE: ConvergenceIterationCompleteData,
+    EventType.CONVERGENCE_FIXING: ConvergenceFixingData,
+    EventType.CONVERGENCE_STABLE: ConvergenceStableData,
+    EventType.CONVERGENCE_TIMEOUT: ConvergenceTimeoutData,
+    EventType.CONVERGENCE_STUCK: ConvergenceStuckData,
+    EventType.CONVERGENCE_MAX_ITERATIONS: ConvergenceMaxIterationsData,
+    EventType.CONVERGENCE_BUDGET_EXCEEDED: ConvergenceBudgetExceededData,
     # Discovery progress (RFC-059)
     EventType.PLAN_DISCOVERY_PROGRESS: PlanDiscoveryProgressData,
     # Integration verification events (RFC-067)
@@ -704,6 +980,48 @@ REQUIRED_FIELDS: dict[EventType, set[str]] = {
     EventType.COMPLETE: {"tasks_completed"},
     EventType.ERROR: {"message"},
     EventType.ESCALATE: {"reason"},
+    # Recovery events (RFC-125)
+    EventType.RECOVERY_SAVED: {"recovery_id", "artifact_ids"},
+    EventType.RECOVERY_LOADED: {"recovery_id", "artifact_ids"},
+    EventType.RECOVERY_RESOLVED: {"recovery_id", "artifacts_passed"},
+    EventType.RECOVERY_ABORTED: {"recovery_id", "reason"},
+    # Lens events (RFC-064, RFC-071)
+    EventType.LENS_SELECTED: {"name"},
+    EventType.LENS_CHANGED: {"new_lens"},
+    EventType.LENS_SUGGESTED: {"suggested", "reason"},
+    # Briefing & Prefetch events
+    EventType.BRIEFING_LOADED: {"path"},
+    EventType.BRIEFING_SAVED: {"path"},
+    EventType.PREFETCH_START: {"sources"},
+    EventType.PREFETCH_COMPLETE: {"duration_ms", "sources_loaded"},
+    EventType.PREFETCH_TIMEOUT: {"timeout_ms"},
+    # Model events
+    EventType.MODEL_START: {"provider", "model"},
+    EventType.MODEL_TOKENS: {"tokens"},
+    EventType.MODEL_THINKING: {"content"},
+    EventType.MODEL_COMPLETE: {"duration_ms"},
+    EventType.MODEL_HEARTBEAT: {"elapsed_ms"},
+    # Skill compilation events
+    EventType.SKILL_COMPILE_START: {"lens_name"},
+    EventType.SKILL_COMPILE_COMPLETE: {"lens_name", "skill_count", "duration_ms"},
+    EventType.SKILL_COMPILE_CACHE_HIT: {"lens_name"},
+    EventType.SKILL_SUBGRAPH_EXTRACTED: {"skill_name", "subgraph_size"},
+    # Backlog events
+    EventType.BACKLOG_GOAL_ADDED: {"goal_id", "title"},
+    EventType.BACKLOG_GOAL_STARTED: {"goal_id"},
+    EventType.BACKLOG_GOAL_COMPLETED: {"goal_id"},
+    EventType.BACKLOG_GOAL_FAILED: {"goal_id", "error"},
+    EventType.BACKLOG_REFRESHED: {"goal_count"},
+    # Convergence events
+    EventType.CONVERGENCE_START: {"max_iterations"},
+    EventType.CONVERGENCE_ITERATION_START: {"iteration"},
+    EventType.CONVERGENCE_ITERATION_COMPLETE: {"iteration", "errors_found"},
+    EventType.CONVERGENCE_FIXING: {"iteration", "errors_to_fix"},
+    EventType.CONVERGENCE_STABLE: {"iterations"},
+    EventType.CONVERGENCE_TIMEOUT: {"elapsed_ms"},
+    EventType.CONVERGENCE_STUCK: {"iterations", "persistent_errors"},
+    EventType.CONVERGENCE_MAX_ITERATIONS: {"max_iterations"},
+    EventType.CONVERGENCE_BUDGET_EXCEEDED: {"budget_ms", "elapsed_ms"},
     # Discovery progress (RFC-059)
     EventType.PLAN_DISCOVERY_PROGRESS: {"artifacts_discovered", "phase"},
     # Integration verification events (RFC-067)

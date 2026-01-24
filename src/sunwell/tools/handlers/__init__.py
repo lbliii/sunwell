@@ -63,9 +63,8 @@ class CoreToolHandlers(FileHandlers, GitHandlers, ShellHandlers, EnvHandlers):
             sandbox: ScriptSandbox for run_command
             blocked_patterns: Glob patterns to block access to
         """
-        # Initialize base handler (shared by File, Git, Shell)
-        BaseHandler.__init__(self, workspace, blocked_patterns)
-        self.sandbox = sandbox
+        # Initialize via MRO to ensure all parent __init__ methods are called
+        super().__init__(workspace, sandbox=sandbox, blocked_patterns=blocked_patterns)
 
 
 __all__ = [

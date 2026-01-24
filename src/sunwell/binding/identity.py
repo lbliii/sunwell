@@ -168,7 +168,7 @@ class BindingIndexManager:
     )
 
     _index: BindingIndex | None = field(default=None, init=False)
-    _lock: threading.Lock = field(default_factory=threading.Lock, init=False)
+    _lock: threading.RLock = field(default_factory=threading.RLock, init=False)
 
     def __post_init__(self) -> None:
         """Ensure directories exist."""

@@ -15,11 +15,27 @@ Example:
     >>> project = resolve_project(project_root="/path/to/project")
 """
 
+from sunwell.project.intent_types import (
+    WORKSPACE_PRIMARIES,
+    DevCommand,
+    InferredGoal,
+    PipelineStep,
+    Prerequisite,
+    PreviewType,
+    ProjectAnalysis,
+    ProjectType,
+    SuggestedAction,
+)
 from sunwell.project.manifest import (
     ManifestError,
     create_manifest,
     load_manifest,
     save_manifest,
+)
+from sunwell.project.monorepo import (
+    SubProject,
+    detect_sub_projects,
+    is_monorepo,
 )
 from sunwell.project.registry import (
     ProjectRegistry,
@@ -30,6 +46,11 @@ from sunwell.project.resolver import (
     ProjectResolutionError,
     ProjectResolver,
     resolve_project,
+)
+from sunwell.project.signals import (
+    GitStatus,
+    ProjectSignals,
+    gather_project_signals,
 )
 from sunwell.project.types import (
     AgentConfig,
@@ -44,16 +65,32 @@ from sunwell.project.validation import (
 )
 
 __all__ = [
-    # Types
+    # Types (RFC-117)
     "AgentConfig",
     "Project",
     "ProjectManifest",
     "WorkspaceType",
+    # Intent Types (RFC-079)
+    "DevCommand",
+    "GitStatus",
+    "InferredGoal",
+    "PipelineStep",
+    "Prerequisite",
+    "PreviewType",
+    "ProjectAnalysis",
+    "ProjectSignals",
+    "ProjectType",
+    "SuggestedAction",
+    "WORKSPACE_PRIMARIES",
     # Manifest
     "ManifestError",
     "create_manifest",
     "load_manifest",
     "save_manifest",
+    # Monorepo (RFC-079)
+    "SubProject",
+    "detect_sub_projects",
+    "is_monorepo",
     # Registry
     "ProjectRegistry",
     "RegistryError",
@@ -62,6 +99,8 @@ __all__ = [
     "ProjectResolutionError",
     "ProjectResolver",
     "resolve_project",
+    # Signals (RFC-079)
+    "gather_project_signals",
     # Validation
     "ProjectValidationError",
     "validate_not_sunwell_repo",

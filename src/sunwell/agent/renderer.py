@@ -132,6 +132,13 @@ class RichRenderer:
                             progress.update(task_id, completed=100)
                         self._tasks_completed += 1
 
+                    case EventType.TASK_OUTPUT:
+                        # Display output for conversational tasks (no target file)
+                        content = event.data.get("content", "")
+                        if content:
+                            self.console.print()
+                            self.console.print(content)
+
                     case EventType.GATE_START:
                         gate_id = event.data.get("gate_id", "gate")
                         self._render_gate_header(gate_id)
@@ -162,11 +169,12 @@ class RichRenderer:
                     # RFC-081: Inference visibility events
                     case EventType.MODEL_START:
                         model = event.data.get("model", "model")
-                        task_id = progress.add_task(
+                        # Store model task ID separately - don't overwrite task_id
+                        # which is used for TASK_START/TASK_COMPLETE tracking
+                        self._model_task_id = progress.add_task(
                             f"[cyan]🧠 {model}[/cyan]",
                             total=None,  # Indeterminate
                         )
-                        self._model_task_id = task_id
                         self._model_start_time = event.timestamp
 
                     case EventType.MODEL_TOKENS:

@@ -233,6 +233,9 @@ class EventType(Enum):
     TASK_COMPLETE = "task_complete"
     """Task completed successfully."""
 
+    TASK_OUTPUT = "task_output"
+    """Task produced output that should be displayed (no target file)."""
+
     TASK_FAILED = "task_failed"
     """Task execution failed."""
 
@@ -545,6 +548,14 @@ def task_complete_event(task_id: str, duration_ms: int, **kwargs: Any) -> AgentE
     return AgentEvent(
         EventType.TASK_COMPLETE,
         {"task_id": task_id, "duration_ms": duration_ms, **kwargs},
+    )
+
+
+def task_output_event(task_id: str, content: str, **kwargs: Any) -> AgentEvent:
+    """Create a task output event for displaying results (no target file)."""
+    return AgentEvent(
+        EventType.TASK_OUTPUT,
+        {"task_id": task_id, "content": content, **kwargs},
     )
 
 

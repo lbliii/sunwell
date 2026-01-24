@@ -12,7 +12,12 @@ Features:
 - File watching (incremental updates)
 """
 
-from sunwell.indexing.fallback import ContextResult, SmartContext
+from sunwell.indexing.auto_config import (
+    AutoFeatures,
+    detect_auto_features,
+    estimate_goal_complexity,
+)
+from sunwell.indexing.fallback import ContextResult, SmartContext, create_smart_context
 from sunwell.indexing.metrics import IndexMetrics
 from sunwell.indexing.priority import get_priority_files
 from sunwell.indexing.project_type import (
@@ -38,6 +43,11 @@ __all__ = [
     # Fallback
     "SmartContext",
     "ContextResult",
+    "create_smart_context",
+    # Auto-configuration
+    "AutoFeatures",
+    "detect_auto_features",
+    "estimate_goal_complexity",
     # Observability
     "IndexMetrics",
 ]

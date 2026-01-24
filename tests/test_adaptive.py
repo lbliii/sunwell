@@ -247,14 +247,13 @@ async def test_imports_successful():
         TaskGraph,
         create_renderer,
         extract_signals,
-        run_adaptive,
     )
 
     # Verify all imports work by checking they're not None
     assert all([
         Agent, AgentEvent, GateDetector, GateResult,
         LearningExtractor, RendererConfig, RichRenderer,
-        TaskGraph, create_renderer, extract_signals, run_adaptive,
+        TaskGraph, create_renderer, extract_signals,
     ])
 
 

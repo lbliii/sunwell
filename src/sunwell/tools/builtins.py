@@ -718,4 +718,6 @@ def get_all_tools() -> dict[str, Tool]:
     Returns:
         Dict of all tool definitions
     """
-    return {**CORE_TOOLS, **GIT_TOOLS, **ENV_TOOLS, **EXPERTISE_TOOLS}
+    from sunwell.tools.sunwell_tools import SUNWELL_TOOLS
+
+    return {**CORE_TOOLS, **GIT_TOOLS, **ENV_TOOLS, **EXPERTISE_TOOLS, **SUNWELL_TOOLS}

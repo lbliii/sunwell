@@ -467,9 +467,11 @@ async def _build_codebase_index(
     - Content-aware chunking (AST for code, paragraphs for prose)
     - Priority indexing (hot files first)
     - Graceful degradation (falls back to grep if embedding fails)
+
+    RFC-124: Also loads ToC navigation for structural queries.
     """
     try:
-        from sunwell.indexing import IndexingService, SmartContext
+        from sunwell.indexing import IndexingService, create_smart_context
     except ImportError:
         # Fall back to legacy indexer if new module not available
         return await _build_codebase_index_legacy(cwd, embedder, force_rebuild)
@@ -481,6 +483,7 @@ async def _build_codebase_index(
         "from_cache": False,
         "project_type": "unknown",
         "fallback_reason": None,
+        "toc_loaded": False,
     }
 
     try:
@@ -506,19 +509,32 @@ async def _build_codebase_index(
         if status.fallback_reason:
             stats["fallback_reason"] = status.fallback_reason
 
-        # Return SmartContext for graceful fallback during queries
-        smart_ctx = SmartContext(
+        # Return SmartContext with ToC navigation (RFC-124) and codebase graph (RFC-045)
+        smart_ctx = create_smart_context(
             workspace_root=cwd,
-            index=service._index,  # May be None if degraded
+            indexer=service,
+            model=None,  # Uses keyword fallback for ToC navigation
+            auto_load_toc=True,
+            auto_load_graph=True,
         )
+        stats["toc_loaded"] = smart_ctx.navigator is not None
+        stats["graph_loaded"] = smart_ctx.codebase_graph is not None
 
         return smart_ctx, stats
 
     except Exception as e:
         stats["fallback_reason"] = str(e)
-        # Return SmartContext without index - will use grep fallback
+        # Return SmartContext without index - will use grep/ToC/graph fallback
         try:
-            smart_ctx = SmartContext(workspace_root=cwd, index=None)
+            smart_ctx = create_smart_context(
+                workspace_root=cwd,
+                indexer=None,
+                model=None,
+                auto_load_toc=True,
+                auto_load_graph=True,
+            )
+            stats["toc_loaded"] = smart_ctx.navigator is not None
+            stats["graph_loaded"] = smart_ctx.codebase_graph is not None
             return smart_ctx, stats
         except Exception:
             return None, stats
@@ -1053,6 +1069,33 @@ def chat(
                 console.print("\r[dim]RAG: indexing skipped[/dim]         ")
         except Exception as e:
             console.print(f"\r[dim]RAG: disabled ({e})[/dim]         ")
+
+    # Auto-detect advanced features (RFC-015, RFC-020)
+    # User flags override auto-detection
+    try:
+        from sunwell.indexing import detect_auto_features
+
+        auto_features = detect_auto_features(
+            workspace_root=Path.cwd(),
+            session_length=len(dag.nodes) if hasattr(dag, "nodes") else 0,
+            goal_complexity="medium",  # Default, could analyze lens
+            explicit_mirror=mirror if mirror else None,
+            explicit_routing=model_routing if model_routing else None,
+            explicit_smart=smart if smart else None,
+        )
+
+        # Apply auto-detected features (only if user didn't explicitly set)
+        if not mirror and auto_features.mirror_enabled:
+            mirror = True
+            console.print("[dim]Auto-enabled: Mirror Neurons (complex session)[/dim]")
+        if not model_routing and auto_features.model_routing_enabled:
+            model_routing = True
+            console.print("[dim]Auto-enabled: Model Routing (multiple models)[/dim]")
+        if not smart and auto_features.smart_enabled:
+            smart = True
+            console.print("[dim]Auto-enabled: Smart Mode (cost optimization)[/dim]")
+    except ImportError:
+        pass  # Auto-config not available
 
     # Determine mode label
     mode_label = "Agent" if tools_enabled else "Chat"

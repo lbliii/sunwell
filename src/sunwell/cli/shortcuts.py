@@ -423,12 +423,12 @@ async def _build_skill_context(
 async def _get_semantic_context(target_path: Path, workspace_root: Path) -> str | None:
     """Get semantic code context using SmartContext."""
     try:
-        from sunwell.indexing import SmartContext
+        from sunwell.indexing import create_smart_context
     except ImportError:
         return None
 
     try:
-        smart_ctx = SmartContext(workspace_root=workspace_root, index=None)
+        smart_ctx = create_smart_context(workspace_root=workspace_root)
         file_content = target_path.read_text()
 
         query_parts = []
@@ -445,10 +445,10 @@ async def _get_semantic_context(target_path: Path, workspace_root: Path) -> str 
             return None
 
         query = " ".join(query_parts[:10])
-        result = await smart_ctx.get_context(query, top_k=3)
+        result = await smart_ctx.get_context(query, max_chunks=3)
 
-        if result.context:
-            return result.context
+        if result.content:
+            return result.content
 
     except Exception:
         pass

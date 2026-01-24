@@ -19,9 +19,16 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sunwell.indexing.service import IndexingService
+    from sunwell.intelligence.codebase import CodebaseGraph
+    from sunwell.models.protocol import ModelProtocol
     from sunwell.navigation.navigator import TocNavigator
 
 logger = logging.getLogger(__name__)
+
+# Default paths for auto-loading
+SUNWELL_DIR = ".sunwell"
+INTELLIGENCE_DIR = "intelligence"
+NAVIGATION_DIR = "navigation"
 
 # Structural query signals - queries that benefit from ToC navigation
 STRUCTURAL_SIGNALS: frozenset[str] = frozenset({
@@ -66,11 +73,16 @@ class SmartContext:
     - "Where is authentication implemented?"
     - "How does the routing work?"
     - "Find the model validation code"
+
+    Codebase graph (RFC-045) provides relationship queries:
+    - "What calls this function?"
+    - "What will break if I change this?"
     """
 
     indexer: IndexingService | None
     workspace_root: Path
     navigator: TocNavigator | None = None
+    codebase_graph: CodebaseGraph | None = None
 
     async def get_context(self, query: str, max_chunks: int = 5) -> ContextResult:
         """Get best available context for a query.
@@ -130,6 +142,10 @@ class SmartContext:
         Content queries should use vector search:
         - "What does this error message mean?"
         - "Show me examples of batch processing"
+
+        Relationship queries benefit from codebase graph:
+        - "What calls this function?"
+        - "What will break if I change this?"
 
         Args:
             query: Query string.
@@ -407,3 +423,232 @@ class SmartContext:
                 rel = f
             sections.append(f"- `{rel}`")
         return "\n".join(sections)
+
+    # === Codebase Graph Methods (RFC-045) ===
+
+    def get_callers(self, function_name: str) -> list[str]:
+        """Find all functions that call the given function.
+
+        Args:
+            function_name: Fully qualified function name (e.g., 'auth.login').
+
+        Returns:
+            List of caller function names.
+        """
+        if not self.codebase_graph:
+            return []
+
+        callers = []
+        for func, called in self.codebase_graph.call_graph.items():
+            if function_name in called or function_name.split(".")[-1] in called:
+                callers.append(func)
+        return callers
+
+    def get_callees(self, function_name: str) -> list[str]:
+        """Find all functions called by the given function.
+
+        Args:
+            function_name: Fully qualified function name.
+
+        Returns:
+            List of called function names.
+        """
+        if not self.codebase_graph:
+            return []
+
+        # Try exact match first, then partial match
+        if function_name in self.codebase_graph.call_graph:
+            return self.codebase_graph.call_graph[function_name]
+
+        # Partial match (just function name without module)
+        short_name = function_name.split(".")[-1]
+        for func, called in self.codebase_graph.call_graph.items():
+            if func.endswith(f".{short_name}"):
+                return called
+
+        return []
+
+    def get_importers(self, module_name: str) -> list[str]:
+        """Find all modules that import the given module.
+
+        Args:
+            module_name: Module name (e.g., 'auth').
+
+        Returns:
+            List of importing module names.
+        """
+        if not self.codebase_graph:
+            return []
+
+        importers = []
+        for mod, imports in self.codebase_graph.import_graph.items():
+            if module_name in imports:
+                importers.append(mod)
+        return importers
+
+    def get_subclasses(self, class_name: str) -> list[str]:
+        """Find all classes that inherit from the given class.
+
+        Args:
+            class_name: Class name (e.g., 'BaseModel').
+
+        Returns:
+            List of subclass names.
+        """
+        if not self.codebase_graph:
+            return []
+
+        subclasses = []
+        short_name = class_name.split(".")[-1]
+        for cls, bases in self.codebase_graph.class_hierarchy.items():
+            if class_name in bases or short_name in bases:
+                subclasses.append(cls)
+        return subclasses
+
+    def get_impact_summary(self, target: str) -> str:
+        """Get a summary of what would be affected by changing the target.
+
+        Args:
+            target: Function, class, or module name.
+
+        Returns:
+            Markdown summary of impact.
+        """
+        if not self.codebase_graph:
+            return "Codebase graph not available. Run `sunwell intel scan` to build it."
+
+        sections = [f"## Impact Analysis: `{target}`\n"]
+
+        # Callers
+        callers = self.get_callers(target)
+        if callers:
+            sections.append(f"### Functions that call `{target}` ({len(callers)})")
+            for c in callers[:10]:
+                sections.append(f"- `{c}`")
+            if len(callers) > 10:
+                sections.append(f"- ... and {len(callers) - 10} more")
+            sections.append("")
+
+        # Importers
+        importers = self.get_importers(target)
+        if importers:
+            sections.append(f"### Modules that import `{target}` ({len(importers)})")
+            for i in importers[:10]:
+                sections.append(f"- `{i}`")
+            if len(importers) > 10:
+                sections.append(f"- ... and {len(importers) - 10} more")
+            sections.append("")
+
+        # Subclasses (if it's a class)
+        subclasses = self.get_subclasses(target)
+        if subclasses:
+            sections.append(f"### Classes that inherit from `{target}` ({len(subclasses)})")
+            for s in subclasses[:10]:
+                sections.append(f"- `{s}`")
+            if len(subclasses) > 10:
+                sections.append(f"- ... and {len(subclasses) - 10} more")
+            sections.append("")
+
+        if len(sections) == 1:
+            sections.append("No dependencies found in codebase graph.")
+
+        return "\n".join(sections)
+
+
+def create_smart_context(
+    workspace_root: Path,
+    indexer: IndexingService | None = None,
+    model: ModelProtocol | None = None,
+    *,
+    auto_load_toc: bool = True,
+    auto_load_graph: bool = True,
+) -> SmartContext:
+    """Factory to create SmartContext with automatic intelligence loading.
+
+    Loads existing ToC and CodebaseGraph from .sunwell/ if available.
+    For structural queries ("where is X?") uses ToC navigation.
+    For relationship queries ("what calls X?") uses codebase graph.
+
+    Args:
+        workspace_root: Project root directory.
+        indexer: Optional IndexingService for semantic search.
+        model: Optional model for LLM-powered navigation.
+            If not provided, ToC navigation uses keyword fallback.
+        auto_load_toc: Whether to auto-load ToC (default True).
+        auto_load_graph: Whether to auto-load CodebaseGraph (default True).
+
+    Returns:
+        SmartContext configured with available features.
+
+    Example:
+        >>> ctx = create_smart_context(Path.cwd(), model=my_model)
+        >>> result = await ctx.get_context("Where is auth implemented?")
+        >>> callers = ctx.get_callers("auth.login")
+    """
+    navigator: TocNavigator | None = None
+    codebase_graph: CodebaseGraph | None = None
+
+    # Load ToC navigation (RFC-124)
+    if auto_load_toc:
+        try:
+            from sunwell.navigation import ProjectToc, TocNavigator as Navigator
+
+            toc = ProjectToc.load(workspace_root / SUNWELL_DIR)
+            if toc:
+                # Create navigator (works with or without model)
+                if model:
+                    navigator = Navigator(
+                        toc=toc,
+                        model=model,
+                        workspace_root=workspace_root,
+                    )
+                    logger.debug("ToC navigator created with LLM support")
+                else:
+                    # Create with mock model - will use keyword fallback
+                    from sunwell.models.mock import MockModel
+
+                    navigator = Navigator(
+                        toc=toc,
+                        model=MockModel(),
+                        workspace_root=workspace_root,
+                    )
+                    logger.debug("ToC navigator created with keyword fallback")
+        except ImportError:
+            logger.debug("Navigation module not available")
+        except Exception as e:
+            logger.warning("Failed to load ToC navigator: %s", e)
+
+    # Load Codebase Graph (RFC-045)
+    if auto_load_graph:
+        try:
+            from sunwell.intelligence.codebase import CodebaseGraph as Graph
+
+            intelligence_path = workspace_root / SUNWELL_DIR / INTELLIGENCE_DIR
+            codebase_graph = Graph.load(intelligence_path)
+
+            # Check if graph has data (not just empty)
+            if codebase_graph and (
+                codebase_graph.call_graph
+                or codebase_graph.import_graph
+                or codebase_graph.class_hierarchy
+            ):
+                logger.debug(
+                    "Codebase graph loaded: %d functions, %d imports, %d classes",
+                    len(codebase_graph.call_graph),
+                    len(codebase_graph.import_graph),
+                    len(codebase_graph.class_hierarchy),
+                )
+            else:
+                codebase_graph = None
+                logger.debug("Codebase graph empty - run 'sunwell intel scan' to build")
+        except ImportError:
+            logger.debug("Intelligence module not available")
+        except Exception as e:
+            logger.warning("Failed to load codebase graph: %s", e)
+
+    return SmartContext(
+        indexer=indexer,
+        workspace_root=workspace_root,
+        navigator=navigator,
+        codebase_graph=codebase_graph,
+    )

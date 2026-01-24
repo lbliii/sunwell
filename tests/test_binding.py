@@ -25,8 +25,8 @@ class TestBinding:
 
         assert binding.name == "test"
         assert binding.lens_path == "./test.lens"
-        assert binding.provider == "openai"
-        assert binding.model == "gpt-4o"
+        assert binding.provider == "ollama"  # Default changed to ollama
+        assert binding.model == "gemma3:4b"  # Default changed to gemma3:4b
         # simulacrum defaults to name
         assert binding.simulacrum == "test"
 

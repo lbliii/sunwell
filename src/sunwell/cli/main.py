@@ -477,10 +477,24 @@ async def _run_agent(
             max_iterations=converge_max,
         )
 
-    # Build RunRequest
+    # RFC-126: Build workspace context for agent orientation
+    from sunwell.cli.helpers import build_workspace_context, format_workspace_context
+
+    workspace_ctx = build_workspace_context(workspace)
+    workspace_prompt = format_workspace_context(workspace_ctx)
+
+    # Build RunRequest with workspace context
     request = RunRequest(
         goal=goal,
-        context={"cwd": str(Path.cwd())},
+        context={
+            "cwd": str(workspace),
+            "workspace_context": workspace_prompt,
+            "project_name": workspace_ctx.get("name", ""),
+            "project_type": workspace_ctx.get("type", "unknown"),
+            "project_framework": workspace_ctx.get("framework"),
+            "key_files": [kf[0] for kf in workspace_ctx.get("key_files", [])],
+            "entry_points": workspace_ctx.get("entry_points", []),
+        },
         cwd=workspace,
         options=RunOptions(
             trust=trust,
@@ -970,6 +984,12 @@ from sunwell.cli import index_cmd
 index_cmd.index.hidden = True
 main.add_command(index_cmd.index)
 
+# ToC Navigation (RFC-124) - Studio: nav build/find/show/stats
+from sunwell.cli import nav_cmd
+
+nav_cmd.nav.hidden = True
+main.add_command(nav_cmd.nav)
+
 
 # -----------------------------------------------------------------------------
 # TIER 4 CONTINUED: Additional internal commands
@@ -1072,10 +1092,3 @@ from sunwell.cli import epic_cmd
 
 main.add_command(epic_cmd.epic)
 
-# -----------------------------------------------------------------------------
-# RFC-109: Register deprecated command aliases
-# -----------------------------------------------------------------------------
-
-from sunwell.cli.deprecated import register_deprecated_commands
-
-register_deprecated_commands(main)

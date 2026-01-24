@@ -183,6 +183,9 @@ class Agent:
     _files_changed_this_run: list[str] = field(default_factory=list, init=False)
     """Files modified during this run (for template extraction)."""
 
+    _workspace_context: str | None = field(default=None, init=False)
+    """Workspace context for task execution (RFC-126)."""
+
     def __post_init__(self) -> None:
         if self.cwd is None:
             self.cwd = Path.cwd()
@@ -240,6 +243,9 @@ class Agent:
         # Use request's cwd if provided, else use agent's cwd
         cwd = request.cwd or self.cwd
         self._current_goal = request.goal
+
+        # RFC-126: Store workspace context for task execution
+        self._workspace_context = request.context.get("workspace_context")
 
         # Load memory and briefing
         async for event in self._load_memory(request):
@@ -860,6 +866,11 @@ class Agent:
                             content=result_text,
                             task_id=task.id,
                         )
+                    elif result_text:
+                        # No target path - emit output for display (conversational task)
+                        from sunwell.agent.events import task_output_event
+                        yield task_output_event(task.id, result_text)
+                        artifact = None
                     else:
                         artifact = None
                 else:
@@ -1012,13 +1023,33 @@ class Agent:
 
         learnings_context = self._learning_store.format_for_prompt(5)
 
-        prompt = f"""Generate code for this task:
+        # RFC-126: Build context sections
+        context_sections = []
+        if self._workspace_context:
+            context_sections.append(self._workspace_context)
+        if learnings_context:
+            context_sections.append(f"KNOWN FACTS:\n{learnings_context}")
+
+        context_block = "\n\n".join(context_sections) if context_sections else ""
+
+        # Detect if task is code generation (has target_path) or conversational
+        if task.target_path:
+            prompt = f"""Generate code for this task:
 
 TASK: {task.description}
 
-{f"KNOWN FACTS:{chr(10)}{learnings_context}" if learnings_context else ""}
+{context_block}
 
 Output ONLY the code (no explanation, no markdown fences):"""
+        else:
+            # Conversational task - allow natural response
+            prompt = f"""Complete this task:
+
+TASK: {task.description}
+
+{context_block}
+
+Respond directly and helpfully:"""
 
         prompt_tokens = len(prompt) // 4
         model_id = getattr(self.model, "model_id", "unknown")

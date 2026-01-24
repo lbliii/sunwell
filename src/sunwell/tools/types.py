@@ -54,6 +54,8 @@ TRUST_LEVEL_TOOLS: dict[ToolTrust, frozenset[str]] = {
         "list_files", "search_files", "read_file",
         # Git read operations - safe, no side effects
         "git_info", "git_status", "git_diff", "git_log", "git_blame", "git_show",
+        # RFC-125: Self-knowledge tools (read-only, safe at READ_ONLY level)
+        "sunwell_self_modules", "sunwell_self_search", "sunwell_self_read",
     }),
 
     ToolTrust.WORKSPACE: frozenset({
@@ -63,6 +65,13 @@ TRUST_LEVEL_TOOLS: dict[ToolTrust, frozenset[str]] = {
         "git_add", "git_restore",
         # Repository initialization - creates new repo, doesn't modify history
         "git_init",
+        # RFC-125: Self-knowledge tools (inherited from READ_ONLY)
+        "sunwell_self_modules", "sunwell_self_search", "sunwell_self_read",
+        # RFC-125: Sunwell project tools (require workspace context)
+        "sunwell_intel_decisions", "sunwell_intel_failures", "sunwell_intel_patterns",
+        "sunwell_search_semantic", "sunwell_lineage_file", "sunwell_lineage_impact",
+        "sunwell_weakness_scan", "sunwell_weakness_preview",
+        "sunwell_workflow_chains", "sunwell_workflow_route",
     }),
 
     ToolTrust.SHELL: frozenset({
@@ -72,6 +81,12 @@ TRUST_LEVEL_TOOLS: dict[ToolTrust, frozenset[str]] = {
         # History-modifying operations - require explicit trust
         "git_commit", "git_branch", "git_checkout", "git_stash",
         "git_reset", "git_merge",
+        # RFC-125: All Sunwell tools (inherited from WORKSPACE)
+        "sunwell_self_modules", "sunwell_self_search", "sunwell_self_read",
+        "sunwell_intel_decisions", "sunwell_intel_failures", "sunwell_intel_patterns",
+        "sunwell_search_semantic", "sunwell_lineage_file", "sunwell_lineage_impact",
+        "sunwell_weakness_scan", "sunwell_weakness_preview",
+        "sunwell_workflow_chains", "sunwell_workflow_route",
     }),
 
     ToolTrust.FULL: frozenset({
@@ -87,6 +102,12 @@ TRUST_LEVEL_TOOLS: dict[ToolTrust, frozenset[str]] = {
         "get_env", "list_env",
         # Future: dynamic tool learning
         "learn_api",
+        # RFC-125: All Sunwell tools (inherited from SHELL)
+        "sunwell_self_modules", "sunwell_self_search", "sunwell_self_read",
+        "sunwell_intel_decisions", "sunwell_intel_failures", "sunwell_intel_patterns",
+        "sunwell_search_semantic", "sunwell_lineage_file", "sunwell_lineage_impact",
+        "sunwell_weakness_scan", "sunwell_weakness_preview",
+        "sunwell_workflow_chains", "sunwell_workflow_route",
     }),
 }
 

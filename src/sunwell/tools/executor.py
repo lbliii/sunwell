@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     from sunwell.skills.executor import SkillExecutor
     from sunwell.skills.sandbox import ScriptSandbox
     from sunwell.tools.expertise import ExpertiseToolHandler
+    from sunwell.tools.sunwell_handlers import SunwellToolHandlers
     from sunwell.tools.web_search import WebSearchHandler
 
 
@@ -83,6 +84,7 @@ class ToolExecutor:
     web_search_handler: WebSearchHandler | None = None  # Web search tools
     mirror_handler: MirrorHandler | None = None  # RFC-015: Mirror neurons
     expertise_handler: ExpertiseToolHandler | None = None  # RFC-027: Self-directed expertise
+    sunwell_handler: SunwellToolHandlers | None = None  # RFC-125: Agent self-access
     policy: ToolPolicy | None = None
     audit_path: Path | None = None
 
@@ -135,6 +137,15 @@ class ToolExecutor:
         "get_expertise", "verify_against_expertise", "list_expertise_areas",
     }, init=False)
 
+    # RFC-125: Sunwell self-access tools
+    _sunwell_tools: set[str] = field(default_factory=lambda: {
+        "sunwell_intel_decisions", "sunwell_intel_failures", "sunwell_intel_patterns",
+        "sunwell_search_semantic", "sunwell_lineage_file", "sunwell_lineage_impact",
+        "sunwell_weakness_scan", "sunwell_weakness_preview",
+        "sunwell_self_modules", "sunwell_self_search", "sunwell_self_read",
+        "sunwell_workflow_chains", "sunwell_workflow_route",
+    }, init=False)
+
     def __post_init__(self) -> None:
         """Initialize core tool handlers."""
         from sunwell.project.validation import (
@@ -171,6 +182,13 @@ class ToolExecutor:
                 workspace,
                 self.sandbox,
             )
+
+        # Initialize rate limits from policy
+        if self.policy and self.policy.rate_limits:
+            self._rate_limits = self.policy.rate_limits
+
+        # Register built-in tools (filtered by policy)
+        self._register_core_tools()
 
     def _resolve_workspace(self) -> Path:
         """Resolve workspace from project or direct parameter.
@@ -228,13 +246,6 @@ class ToolExecutor:
             has_custom = True
 
         return frozenset(patterns) if has_custom else None
-
-        # Initialize rate limits from policy
-        if self.policy and self.policy.rate_limits:
-            self._rate_limits = self.policy.rate_limits
-
-        # Register built-in tools (filtered by policy)
-        self._register_core_tools()
 
     def _register_core_tools(self) -> None:
         """Register built-in tools filtered by policy."""
@@ -452,6 +463,34 @@ class ToolExecutor:
                     tool_call_id=tool_call.id,
                     success=False,
                     output="Expertise tools not configured. Set expertise_handler on ToolExecutor.",
+                )
+
+        # RFC-125: Route Sunwell self-access tools to sunwell handler
+        if tool_call.name in self._sunwell_tools:
+            if self.sunwell_handler:
+                try:
+                    result = await self._execute_sunwell_tool(tool_call)
+                    elapsed_ms = int((time.monotonic() - start) * 1000)
+                    self._log_audit(tool_call, result.success, elapsed_ms)
+                    return ToolResult(
+                        tool_call_id=tool_call.id,
+                        success=result.success,
+                        output=result.output,
+                        execution_time_ms=elapsed_ms,
+                    )
+                except Exception as e:
+                    elapsed_ms = int((time.monotonic() - start) * 1000)
+                    self._log_audit(tool_call, False, elapsed_ms, str(e))
+                    return ToolResult(
+                        tool_call_id=tool_call.id,
+                        success=False,
+                        output=f"Sunwell tool error: {e}",
+                    )
+            else:
+                return ToolResult(
+                    tool_call_id=tool_call.id,
+                    success=False,
+                    output="Sunwell tools not configured. Set sunwell_handler on ToolExecutor.",
                 )
 
         # Check rate limits
@@ -699,3 +738,34 @@ class ToolExecutor:
             "avg_time_ms": round(avg_time, 1),
             "by_tool": tool_counts,
         }
+
+    async def _execute_sunwell_tool(self, tool_call: ToolCall) -> ToolResult:
+        """Execute a Sunwell self-access tool (RFC-125).
+
+        Routes tool calls to the appropriate handler method based on tool name.
+        """
+        handler_map = {
+            "sunwell_intel_decisions": self.sunwell_handler.handle_intel_decisions,
+            "sunwell_intel_failures": self.sunwell_handler.handle_intel_failures,
+            "sunwell_intel_patterns": self.sunwell_handler.handle_intel_patterns,
+            "sunwell_search_semantic": self.sunwell_handler.handle_search_semantic,
+            "sunwell_lineage_file": self.sunwell_handler.handle_lineage_file,
+            "sunwell_lineage_impact": self.sunwell_handler.handle_lineage_impact,
+            "sunwell_weakness_scan": self.sunwell_handler.handle_weakness_scan,
+            "sunwell_weakness_preview": self.sunwell_handler.handle_weakness_preview,
+            "sunwell_self_modules": self.sunwell_handler.handle_self_modules,
+            "sunwell_self_search": self.sunwell_handler.handle_self_search,
+            "sunwell_self_read": self.sunwell_handler.handle_self_read,
+            "sunwell_workflow_chains": self.sunwell_handler.handle_workflow_chains,
+            "sunwell_workflow_route": self.sunwell_handler.handle_workflow_route,
+        }
+
+        handler = handler_map.get(tool_call.name)
+        if not handler:
+            return ToolResult(
+                tool_call_id=tool_call.id,
+                success=False,
+                output=f"Unknown Sunwell tool: {tool_call.name}",
+            )
+
+        return await handler(**tool_call.arguments)

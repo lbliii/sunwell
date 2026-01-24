@@ -174,6 +174,11 @@ class TocNavigator:
         try:
             response = await self.model.generate(prompt)
             result = self._parse_navigation_response(response.text)
+
+            # If parsing produced invalid result, use fallback
+            if not result.path:
+                logger.debug("LLM response invalid, using keyword fallback")
+                result = self._fallback_navigate(query)
         except Exception as e:
             logger.warning("Navigation failed: %s", e)
             # Fallback to best-guess based on query keywords

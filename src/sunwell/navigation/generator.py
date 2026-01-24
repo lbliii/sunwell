@@ -19,6 +19,7 @@ SKIP_DIRS: frozenset[str] = frozenset({
     ".git",
     ".sunwell",
     ".venv",
+    ".venv-ft",  # Free-threaded Python venv
     ".mypy_cache",
     ".pytest_cache",
     ".ruff_cache",
@@ -183,18 +184,26 @@ class TocGenerator:
         Returns:
             True if path should be skipped.
         """
-        name = path.name
+        # Check the path itself and all parent directories up to root
+        try:
+            rel_path = path.relative_to(self.root)
+        except ValueError:
+            rel_path = path
 
-        # Skip hidden files/directories
-        if name.startswith(".") and name not in (".sunwell",):
-            return True
+        for part in rel_path.parts:
+            # Skip hidden files/directories (except .sunwell which stores our data)
+            if part.startswith(".") and part != ".sunwell":
+                return True
 
-        # Skip known directories
-        if path.is_dir() and name in SKIP_DIRS:
-            return True
+            # Skip known directories
+            if part in SKIP_DIRS:
+                return True
 
-        # Skip pattern matches (e.g., *.egg-info)
-        return any("*" in pattern and path.match(pattern) for pattern in SKIP_DIRS)
+            # Skip pattern matches (e.g., *.egg-info)
+            if any("*" in pattern and Path(part).match(pattern) for pattern in SKIP_DIRS):
+                return True
+
+        return False
 
     def _infer_project_summary(self) -> str:
         """Infer project summary from README or pyproject.toml.

@@ -87,7 +87,24 @@ def init_cmd(
     if not no_register:
         console.print("  Registered: ~/.sunwell/projects.json")
     console.print()
-    console.print("[dim]You can now run 'sunwell agent run' from this directory.[/dim]")
+
+    # Check if bindings are set up
+    from sunwell.binding import BindingManager
+
+    manager = BindingManager()
+    default_binding = manager.get_default()
+
+    if default_binding:
+        console.print("[dim]You can now run:[/dim]")
+        console.print("  [cyan]sunwell \"your goal here\"[/cyan]")
+        console.print("  [cyan]sunwell chat[/cyan]")
+    else:
+        console.print("[yellow]No default binding configured.[/yellow]")
+        console.print("[dim]Run setup to create bindings:[/dim]")
+        console.print("  [cyan]sunwell setup[/cyan]")
+        console.print()
+        console.print("[dim]Or run directly with a goal:[/dim]")
+        console.print("  [cyan]sunwell \"your goal here\"[/cyan]")
 
 
 @project.command(name="list")

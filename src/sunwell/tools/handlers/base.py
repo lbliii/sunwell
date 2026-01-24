@@ -36,7 +36,9 @@ class BaseHandler:
         self,
         workspace: Path,
         blocked_patterns: frozenset[str] = DEFAULT_BLOCKED_PATTERNS,
+        **kwargs,  # Accept extra kwargs for cooperative multiple inheritance
     ) -> None:
+        # Don't call super().__init__(**kwargs) - we're the root class
         self.workspace = workspace.resolve()
         self.blocked_patterns = blocked_patterns
 

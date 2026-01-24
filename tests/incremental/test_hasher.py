@@ -63,12 +63,12 @@ class TestComputeInputHash:
         assert hash1 == hash2
 
     def test_hash_length(self) -> None:
-        """Hash is truncated to 16 characters."""
+        """Hash is truncated to 20 characters (80 bits, RFC-094)."""
         spec = ArtifactSpec(id="a", description="test", contract="test")
 
         hash_value = compute_input_hash(spec, {})
 
-        assert len(hash_value) == 16
+        assert len(hash_value) == 20
 
     def test_missing_dependency_uses_sentinel(self) -> None:
         """Missing dependencies use MISSING sentinel."""
@@ -126,7 +126,7 @@ class TestCreateArtifactHash:
         artifact_hash = create_artifact_hash(spec, {})
 
         assert artifact_hash.artifact_id == "test_artifact"
-        assert len(artifact_hash.input_hash) == 16
+        assert len(artifact_hash.input_hash) == 20  # 80 bits, RFC-094
         assert artifact_hash.computed_at > 0
 
     def test_artifact_hash_is_frozen(self) -> None:

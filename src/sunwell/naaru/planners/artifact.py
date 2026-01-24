@@ -1133,13 +1133,32 @@ Output ONLY valid JSON array of artifacts:"""
             return "No additional context."
 
         lines = []
-        if "cwd" in context:
-            lines.append(f"Working directory: {context['cwd']}")
+
+        # RFC-126: Include full workspace context if available
+        if "workspace_context" in context:
+            lines.append(context["workspace_context"])
+        else:
+            # Fallback to individual fields
+            if "cwd" in context:
+                lines.append(f"Working directory: {context['cwd']}")
+            if "project_name" in context:
+                lines.append(f"Project: {context['project_name']}")
+            if "project_type" in context and context["project_type"] != "unknown":
+                ptype = context["project_type"]
+                framework = context.get("project_framework")
+                lines.append(f"Type: {ptype}" + (f" ({framework})" if framework else ""))
+            if "key_files" in context:
+                files = context["key_files"][:10]
+                lines.append(f"Key files: {', '.join(files)}")
+            if "entry_points" in context:
+                entries = context["entry_points"][:5]
+                lines.append(f"Entry points: {', '.join(entries)}")
+            if "description" in context:
+                lines.append(f"Description: {context['description']}")
+
         if "files" in context:
             files = context["files"][:15]
             lines.append(f"Existing files: {', '.join(str(f) for f in files)}")
-        if "description" in context:
-            lines.append(f"Project: {context['description']}")
 
         return "\n".join(lines) or "No additional context."
 
