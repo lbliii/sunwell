@@ -1,0 +1,528 @@
+"""PersistentMemory — Unified access to all memory stores (RFC-MEMORY).
+
+The PersistentMemory facade provides a single interface to all memory systems:
+- SimulacrumStore (conversation history, learnings)
+- DecisionMemory (architectural decisions)
+- FailureMemory (failed approaches)
+- PatternProfile (user/project preferences)
+- TeamKnowledgeStore (shared team knowledge, optional)
+
+This is loaded ONCE per workspace and reused across sessions.
+
+Example:
+    >>> memory = PersistentMemory.load(workspace)
+    >>> ctx = await memory.get_relevant("add caching")
+    >>> if ctx.constraints:
+    ...     print("Avoid:", ctx.constraints)
+"""
+
+import logging
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+from sunwell.memory.types import MemoryContext, SyncResult, TaskMemoryContext
+
+if TYPE_CHECKING:
+    from sunwell.intelligence.decisions import Decision, DecisionMemory
+    from sunwell.intelligence.failures import FailedApproach, FailureMemory
+    from sunwell.intelligence.patterns import PatternProfile
+    from sunwell.simulacrum.core.store import SimulacrumStore
+    from sunwell.team.store import TeamKnowledgeStore
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class PersistentMemory:
+    """Unified access to all memory stores.
+
+    Owns and coordinates:
+    - SimulacrumStore — conversation history, learnings
+    - DecisionMemory — architectural decisions
+    - FailureMemory — failed approaches
+    - PatternProfile — user preferences
+    - TeamKnowledgeStore — shared team knowledge (optional)
+
+    Load once per workspace using PersistentMemory.load(workspace).
+    """
+
+    workspace: Path
+    """Root workspace path."""
+
+    simulacrum: SimulacrumStore | None = None
+    """Conversation history and learnings."""
+
+    decisions: DecisionMemory | None = None
+    """Architectural decisions."""
+
+    failures: FailureMemory | None = None
+    """Failed approaches."""
+
+    patterns: PatternProfile | None = None
+    """User/project preferences."""
+
+    team: TeamKnowledgeStore | None = None
+    """Shared team knowledge (optional)."""
+
+    _initialized: bool = field(default=False, init=False, repr=False)
+    """Whether all stores have been loaded."""
+
+    @classmethod
+    def load(cls, workspace: Path) -> PersistentMemory:
+        """Load all memory for workspace.
+
+        Each store loads independently — failure in one doesn't block others.
+        Gracefully handles missing directories or corrupted files.
+
+        Args:
+            workspace: Root workspace path
+
+        Returns:
+            PersistentMemory with all available stores loaded
+        """
+        workspace = Path(workspace).resolve()
+        intel_path = workspace / ".sunwell" / "intelligence"
+        memory_path = workspace / ".sunwell" / "memory"
+        team_path = workspace / ".sunwell" / "team"
+
+        # Load each component independently
+        simulacrum = _load_simulacrum(memory_path)
+        decisions = _load_decisions(intel_path)
+        failures = _load_failures(intel_path)
+        patterns = _load_patterns(intel_path)
+        team = _load_team(team_path)
+
+        instance = cls(
+            workspace=workspace,
+            simulacrum=simulacrum,
+            decisions=decisions,
+            failures=failures,
+            patterns=patterns,
+            team=team,
+        )
+        instance._initialized = True
+        return instance
+
+    @classmethod
+    def empty(cls, workspace: Path) -> PersistentMemory:
+        """Create empty memory for testing or fresh workspaces.
+
+        Args:
+            workspace: Root workspace path
+
+        Returns:
+            PersistentMemory with empty stores
+        """
+        workspace = Path(workspace).resolve()
+        intel_path = workspace / ".sunwell" / "intelligence"
+
+        # Create minimal stores without loading from disk
+        from sunwell.intelligence.decisions import DecisionMemory
+        from sunwell.intelligence.failures import FailureMemory
+        from sunwell.intelligence.patterns import PatternProfile
+
+        instance = cls(
+            workspace=workspace,
+            simulacrum=None,  # Optional
+            decisions=DecisionMemory(intel_path),
+            failures=FailureMemory(intel_path),
+            patterns=PatternProfile(),
+            team=None,
+        )
+        instance._initialized = True
+        return instance
+
+    async def get_relevant(self, goal: str, top_k: int = 5) -> MemoryContext:
+        """Get all relevant memory for a goal.
+
+        Queries each store and aggregates results into a MemoryContext
+        suitable for injection into planning prompts.
+
+        Args:
+            goal: Natural language goal description
+            top_k: Maximum items to return per category
+
+        Returns:
+            MemoryContext with learnings, constraints, dead_ends, etc.
+        """
+        constraints: list[str] = []
+        dead_ends: list[str] = []
+        team_decisions: list[str] = []
+        learnings: list[Any] = []
+        patterns: list[str] = []
+
+        # Query DecisionMemory for constraints
+        if self.decisions:
+            try:
+                relevant_decisions = await self.decisions.find_relevant_decisions(
+                    goal, top_k=top_k
+                )
+                # Extract constraints from rejected options
+                for decision in relevant_decisions:
+                    for rejected in decision.rejected:
+                        constraints.append(
+                            f"{rejected.option}: {rejected.reason}"
+                        )
+            except Exception as e:
+                logger.warning(f"Failed to query decisions: {e}")
+
+        # Query FailureMemory for dead ends
+        if self.failures:
+            try:
+                similar_failures = await self.failures.check_similar_failures(
+                    goal, top_k=top_k
+                )
+                dead_ends = [f.description for f in similar_failures]
+            except Exception as e:
+                logger.warning(f"Failed to query failures: {e}")
+
+        # Query TeamKnowledgeStore
+        if self.team:
+            try:
+                team_ctx = await self.team.get_relevant_context(goal)
+                if team_ctx and hasattr(team_ctx, "decisions"):
+                    team_decisions = list(team_ctx.decisions)
+            except Exception as e:
+                logger.warning(f"Failed to query team knowledge: {e}")
+
+        # Get learnings from SimulacrumStore
+        if self.simulacrum:
+            try:
+                learnings = list(self.simulacrum.get_relevant_learnings(goal))[:top_k]
+            except Exception as e:
+                logger.warning(f"Failed to query simulacrum: {e}")
+
+        # Get patterns from PatternProfile
+        if self.patterns:
+            patterns = self._get_relevant_patterns(goal)
+
+        return MemoryContext(
+            learnings=tuple(learnings),
+            facts=(),  # TODO: Add fact extraction
+            constraints=tuple(constraints),
+            dead_ends=tuple(dead_ends),
+            team_decisions=tuple(team_decisions),
+            patterns=tuple(patterns),
+        )
+
+    def get_task_context(self, task: Any) -> TaskMemoryContext:
+        """Get memory relevant to a specific task.
+
+        Args:
+            task: Task object with target_path and mode attributes
+
+        Returns:
+            TaskMemoryContext with constraints, hazards, and patterns
+        """
+        constraints: list[str] = []
+        hazards: list[str] = []
+        patterns: list[str] = []
+
+        target_path = getattr(task, "target_path", None)
+        task_mode = getattr(task, "mode", None)
+
+        # Get constraints for path from DecisionMemory
+        if self.decisions and target_path:
+            try:
+                path_constraints = self._get_constraints_for_path(target_path)
+                constraints.extend(path_constraints)
+            except Exception as e:
+                logger.warning(f"Failed to get path constraints: {e}")
+
+        # Get hazards from FailureMemory
+        if self.failures and target_path:
+            try:
+                path_hazards = self._get_hazards_for_path(target_path)
+                hazards.extend(path_hazards)
+            except Exception as e:
+                logger.warning(f"Failed to get path hazards: {e}")
+
+        # Get patterns for task type
+        if self.patterns and task_mode:
+            try:
+                mode_patterns = self._get_patterns_for_mode(task_mode)
+                patterns.extend(mode_patterns)
+            except Exception as e:
+                logger.warning(f"Failed to get mode patterns: {e}")
+
+        return TaskMemoryContext(
+            constraints=tuple(constraints),
+            hazards=tuple(hazards),
+            patterns=tuple(patterns),
+        )
+
+    def _get_relevant_patterns(self, goal: str) -> list[str]:
+        """Extract relevant patterns from PatternProfile."""
+        if not self.patterns:
+            return []
+
+        patterns: list[str] = []
+        goal_lower = goal.lower()
+
+        # Add naming conventions if goal mentions code
+        code_keywords = ["function", "class", "code", "implement"]
+        if any(kw in goal_lower for kw in code_keywords) and self.patterns.naming_conventions:
+            for kind, style in self.patterns.naming_conventions.items():
+                patterns.append(f"Use {style} for {kind}")
+
+        # Add docstring style
+        if self.patterns.docstring_style != "none":
+            patterns.append(f"Use {self.patterns.docstring_style} docstring style")
+
+        # Add type annotation preference
+        if self.patterns.type_annotation_level == "all":
+            patterns.append("Add type annotations to all functions")
+        elif self.patterns.type_annotation_level == "public":
+            patterns.append("Add type annotations to public functions")
+
+        # Add formatter/linter if configured
+        if self.patterns.formatter:
+            patterns.append(f"Format code with {self.patterns.formatter}")
+        if self.patterns.linter:
+            patterns.append(f"Code must pass {self.patterns.linter}")
+
+        return patterns
+
+    def _get_constraints_for_path(self, target_path: str) -> list[str]:
+        """Get constraints relevant to a specific file path."""
+        # For now, return empty - this would need path-based filtering
+        # in DecisionMemory to work properly
+        return []
+
+    def _get_hazards_for_path(self, target_path: str) -> list[str]:
+        """Get past failures involving a specific file path."""
+        if not self.failures:
+            return []
+
+        hazards: list[str] = []
+        for failure in self.failures._failures.values():
+            # Check if failure context mentions this path
+            in_context = target_path in (failure.context or "")
+            in_snapshot = failure.code_snapshot and target_path in failure.code_snapshot
+            if in_context or in_snapshot:
+                hazards.append(f"{failure.description}: {failure.error_message}")
+
+        return hazards[:3]  # Limit to top 3
+
+    def _get_patterns_for_mode(self, task_mode: Any) -> list[str]:
+        """Get patterns relevant to a task mode."""
+        if not self.patterns:
+            return []
+
+        patterns: list[str] = []
+        mode_str = str(task_mode).lower() if task_mode else ""
+
+        # Test-related patterns
+        if "test" in mode_str:
+            patterns.append(f"Test preference: {self.patterns.test_preference}")
+
+        # Error handling patterns
+        if any(kw in mode_str for kw in ["generate", "create", "implement"]):
+            patterns.append(f"Error handling: {self.patterns.error_handling}")
+
+        return patterns
+
+    # === RECORD METHODS (during/after execution) ===
+
+    def add_learning(self, learning: Any) -> None:
+        """Record a new learning.
+
+        Args:
+            learning: Learning object to add
+        """
+        if self.simulacrum:
+            try:
+                dag = self.simulacrum.get_dag()
+                dag.add_learning(learning)
+            except Exception as e:
+                logger.warning(f"Failed to add learning: {e}")
+
+    async def add_decision(self, decision: Decision) -> None:
+        """Record an architectural decision.
+
+        Args:
+            decision: Decision object to record
+        """
+        if self.decisions:
+            try:
+                await self.decisions.record_decision(
+                    category=decision.category,
+                    question=decision.question,
+                    choice=decision.choice,
+                    rejected=[(r.option, r.reason) for r in decision.rejected],
+                    rationale=decision.rationale,
+                    context=decision.context,
+                    session_id=decision.session_id,
+                    confidence=decision.confidence,
+                    source=decision.source,
+                    metadata=decision.metadata,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to add decision: {e}")
+
+    async def add_failure(self, failure: FailedApproach) -> None:
+        """Record what didn't work.
+
+        Args:
+            failure: FailedApproach object to record
+        """
+        if self.failures:
+            try:
+                await self.failures.record_failure(
+                    description=failure.description,
+                    error_type=failure.error_type,
+                    error_message=failure.error_message,
+                    context=failure.context,
+                    code=failure.code_snapshot,
+                    fix_attempted=failure.fix_attempted,
+                    root_cause=failure.root_cause,
+                    session_id=failure.session_id,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to add failure: {e}")
+
+    # === SYNC ===
+
+    def sync(self) -> SyncResult:
+        """Persist all changes to disk.
+
+        Returns:
+            SyncResult with success/failure status for each component
+        """
+        results: list[tuple[str, bool, str | None]] = []
+
+        # Sync SimulacrumStore
+        if self.simulacrum:
+            try:
+                self.simulacrum.save_session()
+                results.append(("simulacrum", True, None))
+            except Exception as e:
+                logger.error(f"Failed to sync simulacrum: {e}")
+                results.append(("simulacrum", False, str(e)))
+
+        # Sync PatternProfile
+        if self.patterns:
+            try:
+                intel_path = self.workspace / ".sunwell" / "intelligence"
+                self.patterns.save(intel_path)
+                results.append(("patterns", True, None))
+            except Exception as e:
+                logger.error(f"Failed to sync patterns: {e}")
+                results.append(("patterns", False, str(e)))
+
+        # DecisionMemory and FailureMemory auto-save on add
+        results.append(("decisions", True, None))
+        results.append(("failures", True, None))
+
+        # Sync TeamKnowledgeStore if configured
+        if self.team:
+            try:
+                self.team.sync()
+                results.append(("team", True, None))
+            except Exception as e:
+                logger.error(f"Failed to sync team: {e}")
+                results.append(("team", False, str(e)))
+
+        return SyncResult(results=tuple(results))
+
+    # === PROPERTIES ===
+
+    @property
+    def learning_count(self) -> int:
+        """Number of learnings in memory."""
+        if self.simulacrum:
+            try:
+                return len(self.simulacrum.get_dag().get_learnings())
+            except Exception:
+                pass
+        return 0
+
+    @property
+    def decision_count(self) -> int:
+        """Number of decisions in memory."""
+        if self.decisions:
+            return len(self.decisions._decisions)
+        return 0
+
+    @property
+    def failure_count(self) -> int:
+        """Number of recorded failures."""
+        if self.failures:
+            return len(self.failures._failures)
+        return 0
+
+
+# =============================================================================
+# Loader Functions (graceful failure handling)
+# =============================================================================
+
+
+def _load_simulacrum(memory_path: Path) -> SimulacrumStore | None:
+    """Load SimulacrumStore, returning None on failure."""
+    try:
+        from sunwell.simulacrum.core.store import SimulacrumStore
+
+        if memory_path.exists():
+            store = SimulacrumStore(memory_path)
+            # Try to load existing session
+            sessions = list(memory_path.glob("*.session"))
+            if sessions:
+                # Load most recent session
+                latest = max(sessions, key=lambda p: p.stat().st_mtime)
+                store.load_session(latest.stem)
+            return store
+        return SimulacrumStore(memory_path)
+    except Exception as e:
+        logger.warning(f"Failed to load SimulacrumStore: {e}")
+        return None
+
+
+def _load_decisions(intel_path: Path) -> DecisionMemory | None:
+    """Load DecisionMemory, returning None on failure."""
+    try:
+        from sunwell.intelligence.decisions import DecisionMemory
+
+        return DecisionMemory(intel_path)
+    except Exception as e:
+        logger.warning(f"Failed to load DecisionMemory: {e}")
+        return None
+
+
+def _load_failures(intel_path: Path) -> FailureMemory | None:
+    """Load FailureMemory, returning None on failure."""
+    try:
+        from sunwell.intelligence.failures import FailureMemory
+
+        return FailureMemory(intel_path)
+    except Exception as e:
+        logger.warning(f"Failed to load FailureMemory: {e}")
+        return None
+
+
+def _load_patterns(intel_path: Path) -> PatternProfile | None:
+    """Load PatternProfile, returning None on failure."""
+    try:
+        from sunwell.intelligence.patterns import PatternProfile
+
+        return PatternProfile.load(intel_path)
+    except Exception as e:
+        logger.warning(f"Failed to load PatternProfile: {e}")
+        return None
+
+
+def _load_team(team_path: Path) -> TeamKnowledgeStore | None:
+    """Load TeamKnowledgeStore if configured, returning None otherwise."""
+    if not team_path.exists():
+        return None
+
+    try:
+        from sunwell.team.store import TeamKnowledgeStore
+
+        config_path = team_path / "config.json"
+        if config_path.exists():
+            return TeamKnowledgeStore(team_path)
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to load TeamKnowledgeStore: {e}")
+        return None

@@ -4,19 +4,24 @@ import contextlib
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
+if TYPE_CHECKING:
+    from sunwell.agent import Agent
+
 from sunwell.server.events import BusEvent, EventBus
 from sunwell.server.runs import RunManager, RunState
+from sunwell.server.workspace_manager import get_workspace_manager
 
 router = APIRouter(prefix="/api", tags=["agent"])
 
 # Global instances (shared across requests)
 _run_manager = RunManager()
 _event_bus = EventBus()
+_workspace_manager = get_workspace_manager()
 
 
 def get_run_manager() -> RunManager:
@@ -44,6 +49,8 @@ class RunRequest(BaseModel):
     trust: str = "workspace"
     timeout: int = 300
     source: str = "studio"
+    use_v2: bool = False
+    """Use new SessionContext + PersistentMemory architecture."""
 
 
 class StopRunRequest(BaseModel):
@@ -68,8 +75,9 @@ async def start_run(request: RunRequest) -> dict[str, Any]:
         trust=request.trust,
         timeout=request.timeout,
         source=request.source,
+        use_v2=request.use_v2,
     )
-    return {"run_id": run.run_id, "status": run.status}
+    return {"run_id": run.run_id, "status": run.status, "use_v2": run.use_v2}
 
 
 @router.get("/run/{run_id}")
@@ -120,7 +128,7 @@ async def stream_events(websocket: WebSocket, run_id: str) -> None:
     if run.status == "pending":
         run.status = "running"
         try:
-            async for event in _execute_agent(run):
+            async for event in _execute_agent(run, use_v2=run.use_v2):
                 event_dict = event if isinstance(event, dict) else event.to_dict()
                 run.events.append(event_dict)
                 await websocket.send_json(event_dict)
@@ -247,13 +255,16 @@ async def stop_run(request: StopRunRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _execute_agent(run: RunState) -> AsyncIterator[dict[str, Any]]:
+async def _execute_agent(run: RunState, *, use_v2: bool = False) -> AsyncIterator[dict[str, Any]]:
     """Execute the agent and yield events.
 
     This is where we wire the real Agent.run() to the WebSocket.
+
+    Args:
+        run: The run state containing goal, workspace, options.
+        use_v2: Deprecated, always uses SessionContext + PersistentMemory.
     """
-    from sunwell.agent import Agent, RunOptions
-    from sunwell.agent import RunRequest as AgentRunRequest
+    from sunwell.agent import Agent
     from sunwell.agent.budget import AdaptiveBudget
     from sunwell.config import get_config
     from sunwell.project import ProjectResolutionError, resolve_project
@@ -302,17 +313,17 @@ async def _execute_agent(run: RunState) -> AsyncIterator[dict[str, Any]]:
         budget=AdaptiveBudget(total_budget=50_000),
     )
 
-    request = AgentRunRequest(
-        goal=run.goal,
-        context={"cwd": str(workspace)},
-        cwd=workspace,
-        options=RunOptions(
-            trust=run.trust,
-            timeout_seconds=run.timeout,
-        ),
+    # RFC-MEMORY: Single unified execution path
+    # Build session and load memory via WorkspaceManager
+    session, memory = await _workspace_manager.build_session_async(
+        workspace,
+        run.goal,
+        trust=run.trust,
+        timeout=run.timeout,
+        model=run.model,
     )
 
-    async for event in agent.run(request):
+    async for event in agent.run(session, memory):
         if run.is_cancelled:
             break
 

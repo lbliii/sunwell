@@ -16,5 +16,6 @@ Benefits:
 """
 
 from sunwell.server.main import create_app
+from sunwell.server.workspace_manager import WorkspaceManager, get_workspace_manager
 
-__all__ = ["create_app"]
+__all__ = ["create_app", "WorkspaceManager", "get_workspace_manager"]

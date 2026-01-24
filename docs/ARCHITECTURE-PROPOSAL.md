@@ -1684,6 +1684,573 @@ def test_agent_no_memory():
 
 ---
 
+## Simplification Metrics
+
+### Lines of Code
+
+| Component | Before | After | Change |
+|-----------|--------|-------|--------|
+| `agent/core.py` | 1,370 | ~500 | **-870 lines** |
+| `agent/request.py` | 174 | 0 (deleted) | **-174 lines** |
+| `cli/agent/run.py` | 952 | 0 (deleted) | **-952 lines** |
+| Context building (scattered) | ~200 across 5 files | ~150 in 1 file | **-50 lines, unified** |
+| **Net change** | | | **~1,900 lines deleted** |
+
+New code added:
+- `context/session.py` — ~150 lines
+- `memory/persistent.py` — ~200 lines
+- `memory/types.py` — ~100 lines
+
+**Net reduction: ~1,400 lines**
+
+### Complexity Reduction
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Entry points into Agent | 4 (`run()`, `plan()`, `resume_from_recovery()`, + `cli/agent/run.py` bypass) | 1 (`run()`) |
+| Context building locations | 5 files | 1 file (`SessionContext.build()`) |
+| Memory loading locations | 2 (`Agent._load_memory()`, `cli/agent/run.py`) | 1 (`PersistentMemory.load()`) |
+| Agent fields | 18 | 5 |
+| Agent private methods | 15 | 8 |
+
+### Agent Field Reduction
+
+**Before (18 fields)**:
+```python
+model, tool_executor, cwd, budget,
+session, simulacrum, lens, auto_lens,
+stream_inference, token_batch_size,
+_learning_store, _learning_extractor, _validation_runner, _fix_stage,
+_naaru, _inference_metrics, _task_graph, _briefing, _prefetched_context,
+_session_learnings, _current_blockers, _current_goal, _last_planning_context,
+_files_changed_this_run, _workspace_context
+```
+
+**After (5 fields)**:
+```python
+model, tool_executor, cwd, budget, _naaru
+```
+
+Everything else moves to `SessionContext` or `PersistentMemory`.
+
+### What This Eliminates
+
+| Anti-Pattern | Example | Fixed By |
+|--------------|---------|----------|
+| **Bypass paths** | `cli/agent/run.py` called Naaru directly | Deleted |
+| **Scattered state** | Agent had 18+ fields for context/memory | State consolidated into 2 objects |
+| **Internal loading** | `Agent._load_memory()` made testing hard | Memory passed in, easily mocked |
+| **Duplicate context building** | 5 different implementations | One `SessionContext.build()` |
+| **Implicit dependencies** | Agent loaded its own memory | Explicit `run(session, memory)` |
+| **Untestable internals** | Private `_briefing`, `_simulacrum` fields | Public objects passed in |
+
+### Architectural Clarity
+
+**Before**: Agent is a god object that loads its own dependencies, has multiple entry points, and maintains complex internal state.
+
+```
+cli/main.py ─────────────────────────────────┐
+cli/chat.py ─────────────────────────────────┤
+cli/agent/run.py (BYPASS) ──→ Naaru directly │
+server/routes/agent.py ──────────────────────┴──→ Agent (1370 lines, 18 fields)
+                                                    ├── _load_memory()
+                                                    ├── _load_briefing()
+                                                    ├── _run_prefetch()
+                                                    └── ... 12 more private methods
+```
+
+**After**: Agent is a focused execution engine. Context and memory are passed in. One entry point.
+
+```
+cli/main.py ──────────────────────────────┐
+cli/chat.py ──────────────────────────────┤
+server/routes/agent.py ───────────────────┴──→ SessionContext.build()
+                                              PersistentMemory.load()
+                                                    │
+                                                    ▼
+                                              Agent.run(session, memory)
+                                              (~500 lines, 5 fields)
+```
+
+### Testability Improvement
+
+**Before**:
+```python
+# Hard to test — Agent loads its own dependencies
+agent = Agent(model=mock_model, cwd=tmp_path)
+# How do I inject test decisions? Test failures? Test briefing?
+# Answer: You can't easily
+```
+
+**After**:
+```python
+# Easy to test — inject everything
+session = SessionContext(
+    goal="test",
+    cwd=tmp_path,
+    briefing=test_briefing,  # Inject test briefing
+    ...
+)
+memory = PersistentMemory(
+    decisions=mock_decisions,  # Inject test decisions
+    failures=mock_failures,    # Inject test failures
+    ...
+)
+agent = Agent(model=mock_model, cwd=tmp_path)
+
+# Full control over all inputs
+async for event in agent.run(session, memory):
+    ...
+```
+
+---
+
+## Post-Refactor Architecture
+
+### System Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              ENTRY POINTS                                        │
+│                                                                                  │
+│   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐    │
+│   │  CLI (main)  │   │    Chat      │   │   Server     │   │   Studio     │    │
+│   │  sunwell run │   │ sunwell chat │   │   /api/*     │   │   WebSocket  │    │
+│   └──────┬───────┘   └──────┬───────┘   └──────┬───────┘   └──────┬───────┘    │
+│          │                  │                  │                  │             │
+│          └──────────────────┼──────────────────┼──────────────────┘             │
+│                             │                  │                                 │
+│                             ▼                  ▼                                 │
+│                    ┌────────────────────────────────────┐                       │
+│                    │     ALL ENTRY POINTS DO THIS:      │                       │
+│                    │                                    │                       │
+│                    │  session = SessionContext.build()  │                       │
+│                    │  memory = PersistentMemory.load()  │                       │
+│                    │  agent.run(session, memory)        │                       │
+│                    └────────────────────────────────────┘                       │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              CORE OBJECTS                                        │
+│                                                                                  │
+│  ┌─────────────────────────────┐      ┌─────────────────────────────────────┐  │
+│  │      SessionContext         │      │        PersistentMemory             │  │
+│  │  (lives during one run)     │      │    (lives across all runs)          │  │
+│  ├─────────────────────────────┤      ├─────────────────────────────────────┤  │
+│  │ • session_id                │      │ • simulacrum: SimulacrumStore       │  │
+│  │ • cwd, goal                 │      │ • decisions: DecisionMemory         │  │
+│  │ • project_type, framework   │      │ • failures: FailureMemory           │  │
+│  │ • key_files, entry_points   │      │ • patterns: PatternProfile          │  │
+│  │ • briefing: Briefing        │      │ • team: TeamKnowledgeStore | None   │  │
+│  │ • lens: Lens                │      ├─────────────────────────────────────┤  │
+│  │ • tasks: list[Task]         │      │ get_relevant(goal) → MemoryContext  │  │
+│  │ • artifacts_created         │      │ record_decision(...)                │  │
+│  ├─────────────────────────────┤      │ record_failure(...)                 │  │
+│  │ to_planning_prompt()        │      │ sync()                              │  │
+│  │ to_task_prompt(task)        │      └─────────────────────────────────────┘  │
+│  │ save_briefing()             │                                               │
+│  └─────────────────────────────┘                                               │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                                 AGENT                                            │
+│                          (~500 lines, 5 fields)                                  │
+│                                                                                  │
+│  ┌───────────────────────────────────────────────────────────────────────────┐  │
+│  │  class Agent:                                                              │  │
+│  │      model: ModelProtocol                                                  │  │
+│  │      tool_executor: ToolExecutor                                           │  │
+│  │      cwd: Path                                                             │  │
+│  │      budget: AdaptiveBudget                                                │  │
+│  │      _naaru: Naaru                                                         │  │
+│  │                                                                            │  │
+│  │      async def run(session, memory) → AsyncIterator[AgentEvent]:           │  │
+│  │          ├── ORIENT: memory.get_relevant(goal) → constraints, dead_ends   │  │
+│  │          ├── PLAN: planner.plan(goal, memory_ctx) → tasks                  │  │
+│  │          ├── EXECUTE: for task in tasks: execute(task, memory)            │  │
+│  │          ├── VALIDATE: gates, convergence loops                            │  │
+│  │          └── LEARN: memory.record_decision(), memory.sync()                │  │
+│  └───────────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                               EXECUTION                                          │
+│                                                                                  │
+│  ┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────────────┐  │
+│  │  HarmonicPlanner    │  │    Naaru            │  │   ConvergenceLoop      │  │
+│  │  (planning)         │  │    (execution)      │  │   (validation)         │  │
+│  ├─────────────────────┤  ├─────────────────────┤  ├─────────────────────────┤  │
+│  │ Receives:           │  │ Receives:           │  │ Receives:               │  │
+│  │ • goal              │  │ • tasks             │  │ • artifacts             │  │
+│  │ • memory_ctx        │  │ • tool_executor     │  │ • gates                 │  │
+│  │                     │  │                     │  │                         │  │
+│  │ Injects:            │  │ Executes:           │  │ Runs:                   │  │
+│  │ • constraints       │  │ • file writes       │  │ • lint, type, test      │  │
+│  │ • dead_ends         │  │ • commands          │  │ • auto-fix loop         │  │
+│  │ • team_decisions    │  │ • LLM calls         │  │                         │  │
+│  └─────────────────────┘  └─────────────────────┘  └─────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                            PERSISTENT STORAGE                                    │
+│                             (.sunwell/ directory)                                │
+│                                                                                  │
+│  ┌──────────────────────────────────────────────────────────────────────────┐   │
+│  │ .sunwell/                                                                 │   │
+│  │ ├── memory/                    # SimulacrumStore                          │   │
+│  │ │   ├── sessions/              # Conversation DAGs                        │   │
+│  │ │   └── learnings/             # Extracted learnings                      │   │
+│  │ ├── intelligence/              # Decision/Failure/Pattern stores          │   │
+│  │ │   ├── decisions.jsonl        # Architectural decisions                  │   │
+│  │ │   ├── failures.jsonl         # Failed approaches                        │   │
+│  │ │   └── patterns.json          # User preferences                         │   │
+│  │ ├── team/                      # TeamKnowledgeStore (optional)            │   │
+│  │ │   └── shared.jsonl           # Team-shared decisions                    │   │
+│  │ └── briefing.json              # Session continuity                       │   │
+│  └──────────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Data Flow: A Single Run
+
+```
+                                USER GOAL
+                                    │
+                                    ▼
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ 1. BUILD CONTEXT                                                               │
+│                                                                                │
+│    SessionContext.build(workspace, goal, options)                              │
+│    ├── Detect project type (python, node, rust, etc.)                          │
+│    ├── Find key files (README, pyproject.toml, etc.)                           │
+│    ├── Build directory tree                                                    │
+│    ├── Load briefing from previous session                                     │
+│    └── Resolve lens                                                            │
+│                                                                                │
+│    PersistentMemory.load(workspace)                                            │
+│    ├── Load SimulacrumStore (learnings, conversation history)                  │
+│    ├── Load DecisionMemory (architectural decisions)                           │
+│    ├── Load FailureMemory (failed approaches)                                  │
+│    ├── Load PatternProfile (user preferences)                                  │
+│    └── Load TeamKnowledgeStore (if configured)                                 │
+└───────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ 2. ORIENT (new phase)                                                          │
+│                                                                                │
+│    memory_ctx = memory.get_relevant(goal)                                      │
+│                                                                                │
+│    Returns MemoryContext:                                                      │
+│    ├── constraints: ["Don't use Redis", "Don't add new deps without approval"] │
+│    ├── dead_ends: ["Async SQLAlchemy failed 3x", "Memcached had pool issues"]  │
+│    ├── team_decisions: ["Use Pydantic v2", "Follow async patterns"]            │
+│    ├── learnings: ["billing.py is fragile", "tests require DB fixture"]        │
+│    └── patterns: ["snake_case functions", "Google-style docstrings"]           │
+│                                                                                │
+│    yield AgentEvent(ORIENT, {constraints: 2, dead_ends: 2, ...})               │
+└───────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ 3. PLAN                                                                        │
+│                                                                                │
+│    planner.plan(goal, session, memory_ctx)                                     │
+│                                                                                │
+│    Prompt includes:                                                            │
+│    ┌─────────────────────────────────────────────────────────────────────┐    │
+│    │ Generate a plan for: "Add caching to user service"                  │    │
+│    │                                                                     │    │
+│    │ ⛔ CONSTRAINTS (DO NOT violate):                                    │    │
+│    │ - Do not use Redis (too much operational complexity)                │    │
+│    │ - Do not add new dependencies without approval                      │    │
+│    │                                                                     │    │
+│    │ ⚠️ KNOWN DEAD ENDS (DO NOT repeat):                                 │    │
+│    │ - Async SQLAlchemy with connection pooling (failed 3 times)         │    │
+│    │ - Memcached integration (connection pool issues)                    │    │
+│    │                                                                     │    │
+│    │ ✓ TEAM STANDARDS:                                                   │    │
+│    │ - Use Pydantic v2 for all data models                               │    │
+│    │ - Follow existing async patterns in services/                       │    │
+│    │                                                                     │    │
+│    │ Project: Python FastAPI, SQLite database                            │    │
+│    └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                                │
+│    Output: TaskGraph with tasks and gates                                      │
+└───────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ 4. EXECUTE                                                                     │
+│                                                                                │
+│    for task in tasks:                                                          │
+│        task_memory = memory.get_task_context(task)                             │
+│        # Constraints specific to this file/path                                │
+│                                                                                │
+│        result = naaru.execute(task, task_memory)                               │
+│                                                                                │
+│        if result.created_file:                                                 │
+│            session.artifacts_created.append(result.path)                       │
+│                                                                                │
+│        yield AgentEvent(TASK_COMPLETE, {task_id, duration_ms})                 │
+└───────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ 5. VALIDATE                                                                    │
+│                                                                                │
+│    for gate in gates:                                                          │
+│        result = gate.validate(artifacts)                                       │
+│                                                                                │
+│        if result.failed:                                                       │
+│            # Record failure                                                    │
+│            memory.record_failure(                                              │
+│                description=gate.description,                                   │
+│                error=result.error,                                             │
+│            )                                                                   │
+│                                                                                │
+│            # Auto-fix with convergence loop                                    │
+│            for attempt in convergence_loop:                                    │
+│                fix_result = await fix(artifacts, result.error)                 │
+│                if fix_result.passed:                                           │
+│                    break                                                       │
+└───────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ 6. LEARN                                                                       │
+│                                                                                │
+│    # Record architectural decision if one was made                             │
+│    if detected_decision:                                                       │
+│        memory.record_decision(                                                 │
+│            category="caching",                                                 │
+│            question="What caching approach?",                                  │
+│            choice="dogpile.cache with SQLAlchemy",                             │
+│            rejected=[("Redis", "operational complexity")],                     │
+│        )                                                                       │
+│                                                                                │
+│    # Save briefing for next session                                            │
+│    session.save_briefing()                                                     │
+│                                                                                │
+│    # Persist all memory to disk                                                │
+│    memory.sync()                                                               │
+│                                                                                │
+│    yield AgentEvent(COMPLETE, {tasks: 5, gates: 2, learnings: 3})              │
+└───────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+                          ARTIFACTS + UPDATED MEMORY
+```
+
+### Module Structure (Post-Refactor)
+
+```
+src/sunwell/
+│
+├── context/                          # NEW: Session context
+│   ├── __init__.py
+│   └── session.py                    # SessionContext class
+│
+├── memory/                           # EXPANDED: Unified memory access
+│   ├── __init__.py
+│   ├── persistent.py                 # NEW: PersistentMemory class
+│   ├── types.py                      # NEW: MemoryContext, TaskMemoryContext
+│   └── briefing.py                   # EXISTING: Briefing class
+│
+├── intelligence/                     # UNCHANGED: Individual stores
+│   ├── decisions.py                  # DecisionMemory
+│   ├── failures.py                   # FailureMemory
+│   └── patterns.py                   # PatternProfile
+│
+├── simulacrum/                       # UNCHANGED: Conversation memory
+│   └── core/
+│       └── store.py                  # SimulacrumStore
+│
+├── team/                             # UNCHANGED: Team knowledge
+│   └── store.py                      # TeamKnowledgeStore
+│
+├── agent/                            # SIMPLIFIED: Execution engine
+│   ├── __init__.py
+│   ├── core.py                       # Agent class (~500 lines, was 1370)
+│   ├── events.py                     # Event types (+ ORIENT)
+│   ├── budget.py                     # Token budgeting
+│   ├── gates.py                      # Validation gates
+│   ├── validation.py                 # Validation runner
+│   ├── fixer.py                      # Auto-fix logic
+│   └── [request.py]                  # DELETED
+│
+├── naaru/                            # UPDATED: Accepts memory
+│   ├── planners/
+│   │   ├── harmonic.py               # HarmonicPlanner (+ memory param)
+│   │   └── artifact.py               # ArtifactPlanner (+ memory param)
+│   └── ...
+│
+├── cli/                              # SIMPLIFIED: Unified entry point
+│   ├── main.py                       # CLI entry (uses SessionContext)
+│   ├── chat/
+│   │   └── command.py                # Chat entry (uses SessionContext)
+│   ├── [agent/]                      # DELETED (bypass path)
+│   │   └── [run.py]                  # DELETED
+│   └── helpers.py                    # REDUCED (context building moved)
+│
+├── server/                           # UPDATED: Memory caching
+│   ├── routes/
+│   │   └── agent.py                  # Uses SessionContext + PersistentMemory
+│   └── workspace_manager.py          # NEW: Per-workspace memory cache
+│
+└── ... (other modules unchanged)
+```
+
+### Server Architecture (Studio Integration)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              SUNWELL SERVER                                      │
+│                                                                                  │
+│  ┌────────────────────────────────────────────────────────────────────────────┐ │
+│  │                        WorkspaceManager                                     │ │
+│  │                                                                             │ │
+│  │   Caches PersistentMemory per workspace (expensive to reload)               │ │
+│  │                                                                             │ │
+│  │   workspace_id → PersistentMemory                                           │ │
+│  │   "a1b2c3d4"   → PersistentMemory(decisions, failures, patterns, ...)       │ │
+│  │   "x9y8z7w6"   → PersistentMemory(decisions, failures, patterns, ...)       │ │
+│  │                                                                             │ │
+│  └────────────────────────────────────────────────────────────────────────────┘ │
+│                                    │                                             │
+│       ┌────────────────────────────┼────────────────────────────┐               │
+│       │                            │                            │               │
+│       ▼                            ▼                            ▼               │
+│  ┌──────────────────┐  ┌──────────────────────┐  ┌──────────────────────────┐  │
+│  │ GET /workspace/  │  │ POST /workspace/     │  │ WS /workspace/           │  │
+│  │     {id}/memory  │  │      {id}/run        │  │    {id}/events           │  │
+│  ├──────────────────┤  ├──────────────────────┤  ├──────────────────────────┤  │
+│  │ Returns:         │  │ Creates:             │  │ Streams:                 │  │
+│  │ • decisions[]    │  │ • SessionContext     │  │ • ORIENT                 │  │
+│  │ • failures[]     │  │                      │  │ • PLAN_COMPLETE          │  │
+│  │ • learnings[]    │  │ Gets from cache:     │  │ • TASK_START/COMPLETE    │  │
+│  │ • patterns       │  │ • PersistentMemory   │  │ • LEARNING_ADDED         │  │
+│  │                  │  │                      │  │ • DECISION_MADE          │  │
+│  │                  │  │ Runs:                │  │ • FAILURE_RECORDED       │  │
+│  │                  │  │ • agent.run(s, m)    │  │ • COMPLETE               │  │
+│  └──────────────────┘  └──────────────────────┘  └──────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    │ WebSocket
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              STUDIO (Svelte)                                     │
+│                                                                                  │
+│  ┌────────────────────────────────────────────────────────────────────────────┐ │
+│  │                          State Store                                        │ │
+│  │                                                                             │ │
+│  │   workspace: { path, name, type, framework }                                │ │
+│  │   memory: { decisions[], failures[], learnings[], patterns }                │ │
+│  │   briefing: { mission, status, hazards, nextAction }                        │ │
+│  │   activeRun: { id, goal, tasks[], events[], status }                        │ │
+│  └────────────────────────────────────────────────────────────────────────────┘ │
+│                                    │                                             │
+│       ┌────────────────────────────┼────────────────────────────┐               │
+│       │                            │                            │               │
+│       ▼                            ▼                            ▼               │
+│  ┌──────────────────┐  ┌──────────────────────┐  ┌──────────────────────────┐  │
+│  │   Observatory    │  │   Memory Explorer    │  │   Briefing Panel         │  │
+│  │   (runs)         │  │   (browse memory)    │  │   (session continuity)   │  │
+│  ├──────────────────┤  ├──────────────────────┤  ├──────────────────────────┤  │
+│  │ • Task progress  │  │ • Decision timeline  │  │ • Mission               │  │
+│  │ • Event stream   │  │ • Failure patterns   │  │ • Status                 │  │
+│  │ • Live learnings │  │ • Learning graph     │  │ • Hazards                │  │
+│  └──────────────────┘  └──────────────────────┘  └──────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Memory Flow Across Sessions
+
+```
+                    SESSION 1                              SESSION 2
+                    ─────────                              ─────────
+
+              ┌─────────────────┐                    ┌─────────────────┐
+              │ Goal: "Add auth"│                    │ Goal: "Add cache│
+              └────────┬────────┘                    └────────┬────────┘
+                       │                                      │
+                       ▼                                      ▼
+              ┌─────────────────┐                    ┌─────────────────┐
+              │ memory.load()   │                    │ memory.load()   │
+              │ (empty/minimal) │                    │ (has decisions) │
+              └────────┬────────┘                    └────────┬────────┘
+                       │                                      │
+                       ▼                                      ▼
+              ┌─────────────────┐                    ┌─────────────────┐
+              │ ORIENT          │                    │ ORIENT          │
+              │ constraints: 0  │                    │ constraints: 2  │◄─┐
+              │ dead_ends: 0    │                    │ dead_ends: 1    │  │
+              └────────┬────────┘                    └────────┬────────┘  │
+                       │                                      │           │
+                       ▼                                      ▼           │
+              ┌─────────────────┐                    ┌─────────────────┐  │
+              │ PLAN            │                    │ PLAN            │  │
+              │ (no constraints)│                    │ (respects them) │  │
+              └────────┬────────┘                    └────────┬────────┘  │
+                       │                                      │           │
+                       ▼                                      ▼           │
+              ┌─────────────────┐                    ┌─────────────────┐  │
+              │ EXECUTE         │                    │ EXECUTE         │  │
+              │ Tries Redis     │                    │ Uses SQLAlchemy │  │
+              │ (fails)         │                    │ cache (works!)  │  │
+              └────────┬────────┘                    └────────┬────────┘  │
+                       │                                      │           │
+                       ▼                                      ▼           │
+              ┌─────────────────┐                    ┌─────────────────┐  │
+              │ LEARN           │                    │ LEARN           │  │
+              │                 │                    │                 │  │
+              │ record_decision:│─────────────────────────────────────────┘
+              │ "Chose OAuth"   │                    │ record_decision:│
+              │ "Rejected JWT"  │                    │ "Chose dogpile" │
+              │                 │                    │                 │
+              │ record_failure: │─────────────────────────────────────────┐
+              │ "Redis failed"  │                    │                 │  │
+              │                 │                    │                 │  │
+              │ memory.sync()   │                    │ memory.sync()   │  │
+              └─────────────────┘                    └─────────────────┘  │
+                                                                          │
+                                                                          │
+                                         SESSION 3                        │
+                                         ─────────                        │
+                                                                          │
+                                   ┌─────────────────┐                    │
+                                   │ Goal: "Optimize │                    │
+                                   │ caching layer"  │                    │
+                                   └────────┬────────┘                    │
+                                            │                             │
+                                            ▼                             │
+                                   ┌─────────────────┐                    │
+                                   │ memory.load()   │                    │
+                                   │ (has history)   │                    │
+                                   └────────┬────────┘                    │
+                                            │                             │
+                                            ▼                             │
+                                   ┌─────────────────┐                    │
+                                   │ ORIENT          │                    │
+                                   │ constraints: 3  │◄───────────────────┘
+                                   │ dead_ends: 1    │
+                                   │ learnings: 5    │
+                                   └────────┬────────┘
+                                            │
+                                            ▼
+                                   Agent KNOWS:
+                                   • Don't use Redis (failed)
+                                   • We chose OAuth for auth
+                                   • We use dogpile.cache
+                                   • Pydantic v2 everywhere
+```
+
+---
+
 ## Appendix: Quick Reference
 
 ### New Files

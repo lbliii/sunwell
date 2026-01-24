@@ -14,6 +14,97 @@ import pytest
 from sunwell.server.events import BusEvent, EventBus
 from sunwell.server.runs import RunManager, RunState
 
+# Import new event types for testing
+from sunwell.agent.events import (
+    EventType,
+    orient_event,
+    learning_added_event,
+    decision_made_event,
+    failure_recorded_event,
+    briefing_updated_event,
+)
+
+
+class TestNewEventTypes:
+    """Tests for new event types (RFC: Architecture Proposal)."""
+
+    def test_orient_event_type(self) -> None:
+        """EventType.ORIENT should exist."""
+        assert EventType.ORIENT.value == "orient"
+
+    def test_learning_added_event_type(self) -> None:
+        """EventType.LEARNING_ADDED should exist."""
+        assert EventType.LEARNING_ADDED.value == "learning_added"
+
+    def test_decision_made_event_type(self) -> None:
+        """EventType.DECISION_MADE should exist."""
+        assert EventType.DECISION_MADE.value == "decision_made"
+
+    def test_failure_recorded_event_type(self) -> None:
+        """EventType.FAILURE_RECORDED should exist."""
+        assert EventType.FAILURE_RECORDED.value == "failure_recorded"
+
+    def test_briefing_updated_event_type(self) -> None:
+        """EventType.BRIEFING_UPDATED should exist."""
+        assert EventType.BRIEFING_UPDATED.value == "briefing_updated"
+
+    def test_orient_event_factory(self) -> None:
+        """orient_event() should create proper event."""
+        event = orient_event(learnings=5, constraints=3, dead_ends=2)
+
+        assert event.type == EventType.ORIENT
+        assert event.data["learnings"] == 5
+        assert event.data["constraints"] == 3
+        assert event.data["dead_ends"] == 2
+
+    def test_learning_added_event_factory(self) -> None:
+        """learning_added_event() should create proper event."""
+        event = learning_added_event(
+            fact="API uses REST",
+            category="architecture",
+            confidence=0.95,
+        )
+
+        assert event.type == EventType.LEARNING_ADDED
+        assert event.data["fact"] == "API uses REST"
+        assert event.data["category"] == "architecture"
+
+    def test_decision_made_event_factory(self) -> None:
+        """decision_made_event() should create proper event."""
+        event = decision_made_event(
+            category="database",
+            question="Which database to use?",
+            choice="PostgreSQL",
+            rejected_count=2,
+        )
+
+        assert event.type == EventType.DECISION_MADE
+        assert event.data["choice"] == "PostgreSQL"
+        assert event.data["rejected_count"] == 2
+
+    def test_failure_recorded_event_factory(self) -> None:
+        """failure_recorded_event() should create proper event."""
+        event = failure_recorded_event(
+            description="Connection pool exhausted",
+            error_type="resource_exhaustion",
+            context="database connection",
+        )
+
+        assert event.type == EventType.FAILURE_RECORDED
+        assert event.data["description"] == "Connection pool exhausted"
+
+    def test_briefing_updated_event_factory(self) -> None:
+        """briefing_updated_event() should create proper event."""
+        event = briefing_updated_event(
+            status="in_progress",
+            next_action="Add authentication",
+            hot_files=["src/api.py"],
+        )
+
+        assert event.type == EventType.BRIEFING_UPDATED
+        assert event.data["status"] == "in_progress"
+        assert event.data["next_action"] == "Add authentication"
+
 
 class TestBusEvent:
     """Tests for BusEvent dataclass."""
@@ -225,11 +316,17 @@ class TestRunState:
         assert run.started_at is not None
         assert run.completed_at is None
         assert not run.is_cancelled
+        assert run.use_v2 is False  # Default
 
     def test_run_state_with_source(self) -> None:
         """RunState should accept source parameter."""
         run = RunState(run_id="run-123", goal="Fix bug", source="cli")
         assert run.source == "cli"
+
+    def test_run_state_with_use_v2(self) -> None:
+        """RunState should accept use_v2 parameter."""
+        run = RunState(run_id="run-123", goal="Build API", use_v2=True)
+        assert run.use_v2 is True
 
     def test_cancel(self) -> None:
         """RunState.cancel() should update status and completed_at."""
@@ -282,6 +379,14 @@ class TestRunManager:
         run = manager.create_run(goal="CLI task", source="cli")
 
         assert run.source == "cli"
+
+    def test_create_run_with_use_v2(self) -> None:
+        """RunManager.create_run() should accept use_v2 parameter."""
+        manager = RunManager()
+
+        run = manager.create_run(goal="V2 task", use_v2=True)
+
+        assert run.use_v2 is True
 
     def test_get_run(self) -> None:
         """RunManager should retrieve runs by ID."""

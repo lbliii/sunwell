@@ -323,7 +323,7 @@ def main(
 @main.command(name="_run", hidden=True)
 @click.argument("goal")
 @click.option("--dry-run", is_flag=True)
-@click.option("--open-studio", is_flag=True)
+@click.option("--open-studio", is_flag=True, hidden=True)  # Deprecated
 @click.option("--json-output", is_flag=True)
 @click.option("--provider", "-p", default=None)
 @click.option("--model", "-m", default=None)
@@ -331,9 +331,9 @@ def main(
 @click.option("--time", "-t", default=300)
 @click.option("--trust", default="workspace")
 @click.option("--workspace", "-w", default=None)
-@click.option("--converge/--no-converge", default=False)
-@click.option("--converge-gates", default="lint,type")
-@click.option("--converge-max", default=5, type=int)
+@click.option("--converge/--no-converge", default=False, hidden=True)  # Deprecated
+@click.option("--converge-gates", default="lint,type", hidden=True)  # Deprecated
+@click.option("--converge-max", default=5, type=int, hidden=True)  # Deprecated
 def _run_goal(
     goal: str,
     dry_run: bool,
@@ -349,12 +349,12 @@ def _run_goal(
     converge_gates: str,
     converge_max: int,
 ) -> None:
-    """Internal command for goal execution."""
+    """Internal command for goal execution (RFC-MEMORY)."""
     workspace_path = Path(workspace) if workspace else None
+    # RFC-MEMORY: Single unified execution path
     asyncio.run(_run_agent(
         goal, time, trust, dry_run, verbose, provider, model, workspace_path,
-        open_studio=open_studio, json_output=json_output,
-        converge=converge, converge_gates=converge_gates, converge_max=converge_max,
+        json_output=json_output,
     ))
 
 
@@ -368,46 +368,42 @@ async def _run_agent(
     model_override: str | None,
     workspace_path: Path | None = None,
     *,
-    open_studio: bool = False,
     json_output: bool = False,
-    converge: bool = False,
-    converge_gates: str = "lint,type",
-    converge_max: int = 5,
 ) -> None:
-    """Execute goal with Agent (RFC-110).
+    """Execute goal with Agent (RFC-MEMORY).
 
-    This is THE unified entry point. The Agent automatically:
+    This is THE unified entry point using:
+    - SessionContext: All session state in one object
+    - PersistentMemory: Unified access to all memory stores
+    - Agent.run(session, memory): Memory flows through, not around
+
+    The Agent automatically:
+    - Orients using persistent memory (decisions, failures, patterns)
     - Extracts signals to select techniques
-    - Uses Harmonic planning for complex goals
+    - Uses Harmonic planning with memory constraints
     - Validates at gates with fail-fast
     - Auto-fixes errors with Compound Eye
-    - Persists learnings via Simulacrum
-
-    RFC-110: Agent renamed to Agent and moved to agent/ module.
-
-    RFC-090 additions:
-    - open_studio: Launch Studio with plan after --plan
-    - json_output: Output plan as JSON for scripting
+    - Persists learnings via PersistentMemory
     """
     from sunwell.agent import (
         AdaptiveBudget,
         Agent,
         EventType,
         RunOptions,
-        RunRequest,
         create_renderer,
     )
     from sunwell.cli.helpers import resolve_model
     from sunwell.cli.workspace_prompt import resolve_workspace_interactive
     from sunwell.config import get_config
+    from sunwell.context.session import SessionContext
+    from sunwell.memory.persistent import PersistentMemory
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust
 
     # Load config
     config = get_config()
 
-    # Resolve workspace (RFC-043 addendum)
-    # Extract project name hint from goal for new projects
+    # Resolve workspace
     project_name = _extract_project_name(goal)
     workspace = resolve_workspace_interactive(
         explicit=workspace_path,
@@ -415,128 +411,71 @@ async def _run_agent(
         quiet=not verbose,
     )
 
-    # Create model using resolve_model() helper
+    # Create model
     synthesis_model = None
     try:
         synthesis_model = resolve_model(provider_override, model_override)
-        if verbose and not json_output:
-            provider = provider_override or config.model.default_provider if config else "ollama"
-            model_name = model_override or config.model.default_model if config else "gemma3:4b"
-            console.print(f"[dim]Using model: {provider}:{model_name}[/dim]")
-
     except Exception as e:
-        if not json_output:
-            console.print(f"[yellow]Warning: Could not load model: {e}[/yellow]")
-
-    if not synthesis_model:
-        if json_output:
-            print('{"type": "error", "data": {"message": "No model available"}}')
-        else:
-            console.print("[red]No model available[/red]")
+        console.print(f"[red]Failed to load model: {e}[/red]")
         return
 
-    # RFC-117: Try to resolve project context for workspace
-    from sunwell.project import ProjectResolutionError, resolve_project
-
-    project = None
-    try:
-        project = resolve_project(project_root=workspace)
-    except ProjectResolutionError:
-        pass  # Use workspace directly
-
-    # Setup tool executor with resolved workspace
-    trust_level = ToolTrust.from_string(trust)
-    tool_executor = ToolExecutor(
-        project=project,
-        workspace=workspace if project is None else None,
-        policy=ToolPolicy(trust_level=trust_level),
+    # Create tool executor
+    trust_level = {"read_only": ToolTrust.READ_ONLY, "workspace": ToolTrust.WORKSPACE, "shell": ToolTrust.SHELL}.get(
+        trust, ToolTrust.WORKSPACE
     )
+    policy = ToolPolicy(trust_level=trust_level, allow_network=False)
+    tool_executor = ToolExecutor(cwd=workspace, policy=policy)
 
-    if verbose and not json_output:
-        console.print(f"[dim]Trust level: {trust}[/dim]")
-        available_tools = frozenset(tool_executor.get_available_tools())
-        console.print(f"[dim]Available tools: {', '.join(sorted(available_tools))}[/dim]")
-
-    # Create Agent with resolved workspace (RFC-110)
+    # Create agent
     agent = Agent(
         model=synthesis_model,
         tool_executor=tool_executor,
         cwd=workspace,
-        budget=AdaptiveBudget(total_budget=50_000),
-    )
-
-    # Build convergence config if enabled (RFC-123)
-    convergence_config = None
-    if converge:
-        from sunwell.agent.gates import GateType
-        from sunwell.convergence import ConvergenceConfig
-
-        gates = frozenset(GateType(g.strip()) for g in converge_gates.split(","))
-        convergence_config = ConvergenceConfig(
-            enabled_gates=gates,
-            max_iterations=converge_max,
-        )
-
-    # RFC-126: Build workspace context for agent orientation
-    from sunwell.cli.helpers import build_workspace_context, format_workspace_context
-
-    workspace_ctx = build_workspace_context(workspace)
-    workspace_prompt = format_workspace_context(workspace_ctx)
-
-    # Build RunRequest with workspace context
-    request = RunRequest(
-        goal=goal,
-        context={
-            "cwd": str(workspace),
-            "workspace_context": workspace_prompt,
-            "project_name": workspace_ctx.get("name", ""),
-            "project_type": workspace_ctx.get("type", "unknown"),
-            "project_framework": workspace_ctx.get("framework"),
-            "key_files": [kf[0] for kf in workspace_ctx.get("key_files", [])],
-            "entry_points": workspace_ctx.get("entry_points", []),
-        },
-        cwd=workspace,
-        options=RunOptions(
-            trust=trust,
-            timeout_seconds=time,
-            converge=converge,
-            convergence_config=convergence_config,
+        budget=AdaptiveBudget(
+            max_tokens=config.naaru.token_budget if hasattr(config, "naaru") else 50000,
         ),
     )
 
-    # Dry run: just plan (RFC-090 enhanced)
+    # RFC-MEMORY: Build SessionContext and load PersistentMemory
+    options = RunOptions(
+        trust=trust,
+        timeout_seconds=time,
+    )
+    session = SessionContext.build(workspace, goal, options)
+    memory = PersistentMemory.load(workspace)
+
+    if verbose:
+        console.print(f"[dim]Session: {session.session_id}[/dim]")
+        console.print(f"[dim]Project: {session.project_type} ({session.framework or 'no framework'})[/dim]")
+        console.print(f"[dim]Memory: {memory.learning_count} learnings, {memory.decision_count} decisions, {memory.failure_count} failures[/dim]")
+
+    # Dry run: just plan
     if dry_run:
+        if not json_output:
+            console.print("[yellow]Dry run mode - planning only[/yellow]\n")
+
         plan_data = None
-        async for event in agent.plan(request):
+        async for event in agent.plan(session):
             if event.type == EventType.PLAN_WINNER:
                 plan_data = event.data
             elif event.type == EventType.ERROR and not json_output:
                 _print_event(event, verbose)
 
         if plan_data:
-            # RFC-090: JSON output for scripting
             if json_output:
                 import json
                 click.echo(json.dumps(plan_data, indent=2))
                 return
-
-            # Rich output
-            console.print("[yellow]Planning only (--plan)[/yellow]\n")
             _print_plan_details(plan_data, verbose, goal)
-
-            # Open in Studio if requested
-            if open_studio:
-                _open_plan_in_studio(plan_data, goal, workspace)
-
         return
 
-    # Create renderer based on output mode (RFC-110: import from agent/)
+    # Create renderer
     renderer_mode = "json" if json_output else "interactive"
     renderer = create_renderer(mode=renderer_mode, verbose=verbose)
 
-    # Full execution (RFC-110: Agent.run() takes RunRequest)
+    # RFC-MEMORY: Full execution with new architecture
     try:
-        await renderer.render(agent.run(request))
+        await renderer.render(agent.run(session, memory))
 
     except KeyboardInterrupt:
         if json_output:

@@ -1,20 +1,24 @@
-"""Agent — Unified Execution Engine (RFC-110).
+"""Agent — Unified Execution Engine (RFC-110, RFC-MEMORY).
 
 The Agent is THE execution engine for Sunwell. All entry points
-(CLI, chat, Studio) call Agent.run() with a RunRequest.
+(CLI, chat, Studio) call Agent.run() with SessionContext and PersistentMemory.
 
 Key components:
 - Agent: The brain — analyzes, plans, executes, validates, learns
-- RunRequest: Input contract for Agent.run()
+- SessionContext: Session state (goal, workspace, options)
+- PersistentMemory: Unified memory facade (decisions, failures, patterns)
 - Events: Streaming progress updates
 - Signals: Goal analysis for routing decisions
 - Gates: Validation checkpoints in task graphs
 
 Example:
-    >>> from sunwell.agent import Agent, RunRequest
+    >>> from sunwell.agent import Agent
+    >>> from sunwell.context.session import SessionContext
+    >>> from sunwell.memory.persistent import PersistentMemory
     >>> agent = Agent(model=my_model, tool_executor=tools)
-    >>> request = RunRequest(goal="Build a Flask forum app")
-    >>> async for event in agent.run(request):
+    >>> session = SessionContext.build(workspace, "Build a Flask forum app", options)
+    >>> memory = PersistentMemory.load(workspace)
+    >>> async for event in agent.run(session, memory):
     ...     print(event)
 """
 
@@ -29,8 +33,11 @@ from sunwell.agent.events import (
     briefing_loaded_event,
     briefing_saved_event,
     complete_event,
+    decision_made_event,
+    failure_recorded_event,
     gate_start_event,
     gate_step_event,
+    learning_added_event,
     lens_selected_event,
     lens_suggested_event,
     memory_learning_event,
@@ -38,6 +45,7 @@ from sunwell.agent.events import (
     model_start_event,
     model_thinking_event,
     model_tokens_event,
+    orient_event,
     plan_winner_event,
     prefetch_complete_event,
     prefetch_start_event,
@@ -59,7 +67,7 @@ from sunwell.agent.renderer import (
     RichRenderer,
     create_renderer,
 )
-from sunwell.agent.request import RunOptions, RunRequest
+from sunwell.agent.request import RunOptions
 from sunwell.agent.signals import (
     AdaptiveSignals,
     ErrorSignals,
@@ -91,8 +99,7 @@ __all__ = [
     # Agent
     "Agent",
     "TaskGraph",
-    # Request
-    "RunRequest",
+    # Options
     "RunOptions",
     # Budget
     "AdaptiveBudget",
@@ -124,6 +131,11 @@ __all__ = [
     "model_thinking_event",
     "model_complete_event",
     "plan_winner_event",
+    # RFC-MEMORY event factories
+    "orient_event",
+    "learning_added_event",
+    "decision_made_event",
+    "failure_recorded_event",
     # Thinking
     "ThinkingBlock",
     "ThinkingDetector",

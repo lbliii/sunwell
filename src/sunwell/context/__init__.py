@@ -5,6 +5,7 @@ This package provides:
 - ContextResolver: Resolves references to actual content
 - ResolvedContext: Result with content and metadata
 - IDEContext: Context from IDE extensions
+- SessionContext: All session state in one object (RFC-MEMORY)
 
 Example:
     >>> from sunwell.context import ContextReference, ContextResolver
@@ -13,6 +14,9 @@ Example:
     >>> for ref in refs:
     ...     ctx = await resolver.resolve(ref)
     ...     print(f"{ref.raw}: {len(ctx.content)} chars")
+
+    >>> from sunwell.context import SessionContext
+    >>> session = SessionContext.build(Path.cwd(), "add auth", options)
 """
 
 from sunwell.context.constants import (
@@ -23,8 +27,10 @@ from sunwell.context.constants import (
 from sunwell.context.ide import IDEContext
 from sunwell.context.reference import ContextReference, ResolvedContext
 from sunwell.context.resolver import ContextResolver
+from sunwell.context.session import SessionContext, workspace_id
 
 __all__ = [
+    # Reference system
     "ContextReference",
     "ResolvedContext",
     "ContextResolver",
@@ -32,4 +38,7 @@ __all__ = [
     "MAX_INLINE_CHARS",
     "MAX_CONTEXT_CHARS",
     "MAX_TOTAL_CONTEXT",
+    # Session context
+    "SessionContext",
+    "workspace_id",
 ]

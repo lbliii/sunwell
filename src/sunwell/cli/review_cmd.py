@@ -316,14 +316,15 @@ async def _auto_fix_recovery(
     failed_files = [str(a.path) for a in state.failed_artifacts]
     fix_goal = f"Fix the following files: {', '.join(failed_files)}\n\n{healing_context}"
 
-    # Run agent with focused goal
+    # Run agent with focused goal (RFC-MEMORY)
     from sunwell.agent import (
         AdaptiveBudget,
         Agent,
         RunOptions,
-        RunRequest,
         create_renderer,
     )
+    from sunwell.context.session import SessionContext
+    from sunwell.memory.persistent import PersistentMemory
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust
 
@@ -340,25 +341,15 @@ async def _auto_fix_recovery(
         budget=AdaptiveBudget(total_budget=30_000),
     )
 
-    request = RunRequest(
-        goal=fix_goal,
-        context={
-            "cwd": str(cwd),
-            "recovery_id": recovery_id,
-            "is_recovery": True,
-        },
-        cwd=cwd,
-        options=RunOptions(
-            trust="workspace",
-            timeout_seconds=300,
-            converge=True,
-        ),
-    )
+    # RFC-MEMORY: Build session and load memory
+    options = RunOptions(trust="workspace", timeout_seconds=300)
+    session = SessionContext.build(cwd, fix_goal, options)
+    memory = PersistentMemory.load(cwd)
 
     renderer = create_renderer(mode="interactive", verbose=verbose)
 
     try:
-        await renderer.render(agent.run(request))
+        await renderer.render(agent.run(session, memory))
         # If successful, mark resolved
         manager.mark_resolved(recovery_id)
         console.print("\n[green]✅ Recovery completed! Artifacts fixed.[/green]")

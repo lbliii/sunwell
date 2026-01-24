@@ -1,24 +1,28 @@
-"""Agent — THE Execution Engine for Sunwell (RFC-110).
+"""Agent — THE Execution Engine for Sunwell (RFC-110, RFC-MEMORY).
 
 The Agent is the single point of intelligence. All entry points
-(CLI, chat, Studio) call Agent.run() with a RunRequest.
+(CLI, chat, Studio) call Agent.run() with SessionContext and PersistentMemory.
 
 The Agent:
-1. Analyzes goals (signals)
-2. Selects expertise (lens)
-3. Plans execution (task graph)
-4. Executes with validation (gates)
-5. Auto-fixes errors (Compound Eye)
-6. Learns from execution (Simulacrum)
+1. Orients — loads memory context, identifies constraints
+2. Analyzes goals (signals)
+3. Selects expertise (lens)
+4. Plans execution (task graph) — memory-informed
+5. Executes with validation (gates)
+6. Auto-fixes errors (Compound Eye)
+7. Learns from execution — syncs to PersistentMemory
 
 Agent uses Naaru internally for parallel task execution,
 but Naaru is an implementation detail — not an entry point.
 
 Example:
-    >>> from sunwell.agent import Agent, RunRequest
+    >>> from sunwell.agent import Agent
+    >>> from sunwell.context.session import SessionContext
+    >>> from sunwell.memory.persistent import PersistentMemory
     >>> agent = Agent(model=model, tool_executor=tools)
-    >>> request = RunRequest(goal="Build a REST API with auth")
-    >>> async for event in agent.run(request):
+    >>> session = SessionContext.build(workspace, "Build a REST API", options)
+    >>> memory = PersistentMemory.load(workspace)
+    >>> async for event in agent.run(session, memory):
     ...     print(event)
 """
 
@@ -35,19 +39,16 @@ from sunwell.agent.events import (
     GateSummary,
     TaskSummary,
     briefing_loaded_event,
-    briefing_saved_event,
     complete_event,
+    failure_recorded_event,
     lens_selected_event,
-    lens_suggested_event,
     memory_learning_event,
     model_complete_event,
     model_start_event,
     model_thinking_event,
     model_tokens_event,
+    orient_event,
     plan_winner_event,
-    prefetch_complete_event,
-    prefetch_start_event,
-    prefetch_timeout_event,
     signal_event,
     task_complete_event,
     task_start_event,
@@ -56,7 +57,7 @@ from sunwell.agent.fixer import FixStage
 from sunwell.agent.gates import GateDetector, ValidationGate
 from sunwell.agent.learning import LearningExtractor, LearningStore
 from sunwell.agent.metrics import InferenceMetrics
-from sunwell.agent.request import RunOptions, RunRequest
+from sunwell.agent.request import RunOptions
 from sunwell.agent.signals import AdaptiveSignals, extract_signals
 from sunwell.agent.thinking import ThinkingDetector
 from sunwell.agent.toolchain import detect_toolchain
@@ -64,10 +65,12 @@ from sunwell.agent.validation import Artifact, ValidationRunner, ValidationStage
 
 if TYPE_CHECKING:
     from sunwell.core.lens import Lens
-    from sunwell.memory.briefing import Briefing, PrefetchedContext
+    from sunwell.memory.briefing import Briefing
     from sunwell.models.protocol import ModelProtocol
     from sunwell.naaru.types import Task
-    from sunwell.simulacrum.core.store import SimulacrumStore
+
+from sunwell.context.session import SessionContext
+from sunwell.memory.persistent import PersistentMemory
 
 
 @dataclass
@@ -112,10 +115,10 @@ class TaskGraph:
 
 @dataclass
 class Agent:
-    """THE execution engine for Sunwell.
+    """THE execution engine for Sunwell (RFC-MEMORY).
 
     This is the single point of intelligence. All entry points
-    (CLI, chat, Studio) call Agent.run() with a RunRequest.
+    (CLI, chat, Studio) call Agent.run() with SessionContext and PersistentMemory.
 
     Agent uses Naaru internally for parallel task execution,
     but Naaru is an implementation detail — not an entry point.
@@ -138,13 +141,6 @@ class Agent:
 
     budget: AdaptiveBudget = field(default_factory=AdaptiveBudget)
     """Token budget with auto-economization."""
-
-    # Optional session/memory
-    session: str | None = None
-    """Simulacrum session name for persistence."""
-
-    simulacrum: SimulacrumStore | None = None
-    """Optional pre-configured Simulacrum store."""
 
     # Lens configuration
     lens: Lens | None = None
@@ -169,22 +165,12 @@ class Agent:
     _inference_metrics: InferenceMetrics = field(default_factory=InferenceMetrics, init=False)
     _task_graph: TaskGraph | None = field(default=None, init=False)
 
-    # Briefing state
-    _briefing: Briefing | None = field(default=None, init=False)
-    _prefetched_context: PrefetchedContext | None = field(default=None, init=False)
-    _session_learnings: list[Any] = field(default_factory=list, init=False)
-    _current_blockers: list[str] = field(default_factory=list, init=False)
+    # Run state (set by run() method)
     _current_goal: str = field(default="", init=False)
-
-    # RFC-122: Compound learning state
-    _last_planning_context: Any = field(default=None, init=False)
-    """Last planning context from HarmonicPlanner for learning loop."""
-
-    _files_changed_this_run: list[str] = field(default_factory=list, init=False)
-    """Files modified during this run (for template extraction)."""
-
+    _briefing: Briefing | None = field(default=None, init=False)
     _workspace_context: str | None = field(default=None, init=False)
-    """Workspace context for task execution (RFC-126)."""
+    _files_changed_this_run: list[str] = field(default_factory=list, init=False)
+    _last_planning_context: Any = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         if self.cwd is None:
@@ -218,48 +204,71 @@ class Agent:
             ),
         )
 
-    async def run(self, request: RunRequest) -> AsyncIterator[AgentEvent]:
-        """Execute a goal through the unified pipeline.
+    async def run(
+        self,
+        session: SessionContext,
+        memory: PersistentMemory,
+    ) -> AsyncIterator[AgentEvent]:
+        """Execute goal with explicit context and memory (RFC-MEMORY).
 
-        This is THE execution method. All roads lead here.
+        This is THE execution method. All entry points (CLI, chat, Studio)
+        build SessionContext and PersistentMemory, then call Agent.run().
 
         Pipeline:
-        1. SIGNAL    → Analyze goal complexity and domain
-        2. LENS      → Select or validate expertise injection
-        3. PLAN      → Decompose into task graph
-        4. EXECUTE   → Run tasks (Naaru handles parallelism)
-        5. VALIDATE  → Check gates at checkpoints
-        6. FIX       → Auto-fix failures (Compound Eye)
-        7. LEARN     → Persist patterns to Simulacrum
+        1. ORIENT   → Load memory context, identify constraints
+        2. SIGNAL   → Analyze goal complexity and domain
+        3. LENS     → Select or validate expertise injection
+        4. PLAN     → Decompose into task graph (memory-informed)
+        5. EXECUTE  → Run tasks (Naaru handles parallelism)
+        6. VALIDATE → Check gates at checkpoints
+        7. FIX      → Auto-fix failures (Compound Eye)
+        8. LEARN    → Persist patterns to PersistentMemory
 
         Args:
-            request: RunRequest with goal, context, options
+            session: SessionContext with goal, workspace, options
+            memory: PersistentMemory with decisions, failures, patterns
 
         Yields:
             AgentEvent for each step of execution
         """
         start_time = time()
-
-        # Use request's cwd if provided, else use agent's cwd
-        cwd = request.cwd or self.cwd
-        self._current_goal = request.goal
+        self._current_goal = session.goal
+        self.cwd = session.cwd
 
         # RFC-126: Store workspace context for task execution
-        self._workspace_context = request.context.get("workspace_context")
+        self._workspace_context = session.to_planning_prompt()
 
-        # Load memory and briefing
-        async for event in self._load_memory(request):
-            yield event
+        # ─── PHASE 1: ORIENT ───
+        # What do we know? What should we avoid?
+        memory_ctx = await memory.get_relevant(session.goal)
 
-        # Resolve lens if not already set
-        if request.lens:
-            self.lens = request.lens
+        yield orient_event(
+            learnings=len(memory_ctx.learnings),
+            constraints=len(memory_ctx.constraints),
+            dead_ends=len(memory_ctx.dead_ends),
+        )
+
+        # Use session's briefing if available
+        if session.briefing:
+            self._briefing = session.briefing
+            yield briefing_loaded_event(
+                mission=session.briefing.mission,
+                status=session.briefing.status.value,
+                has_hazards=len(session.briefing.hazards) > 0,
+                has_dispatch_hints=bool(
+                    session.briefing.predicted_skills or session.briefing.suggested_lens
+                ),
+            )
+
+        # Resolve lens
+        if session.lens:
+            self.lens = session.lens
         elif self.lens is None and self.auto_lens:
             from sunwell.agent.lens import resolve_lens_for_goal
 
             resolution = await resolve_lens_for_goal(
-                goal=request.goal,
-                project_path=cwd,
+                goal=session.goal,
+                project_path=session.cwd,
                 auto_select=True,
             )
             if resolution.lens:
@@ -271,9 +280,9 @@ class Agent:
                     reason=resolution.reason,
                 )
 
-        # Extract signals
+        # ─── PHASE 2: SIGNAL ───
         yield signal_event("extracting")
-        signals = await self._extract_signals_with_memory(request.goal)
+        signals = await self._extract_signals_with_memory(session.goal)
         yield signal_event("extracted", signals=signals.to_dict())
 
         # Check for dangerous or ambiguous goals
@@ -297,37 +306,87 @@ class Agent:
             )
             return
 
-        # Plan
-        async for event in self._plan_with_signals(request.goal, signals, request.context):
+        # ─── PHASE 3: PLAN ───
+        # Build context with memory constraints
+        planning_context: dict[str, Any] = {}
+        learnings_context = self._learning_store.format_for_prompt()
+        if learnings_context:
+            planning_context["learnings"] = learnings_context
+
+        if self.lens:
+            planning_context["lens_context"] = self.lens.to_context()
+
+        if self._briefing:
+            planning_context["briefing"] = self._briefing.to_prompt()
+
+        # RFC-MEMORY: Inject memory constraints into planning
+        memory_prompt = memory_ctx.to_prompt()
+        if memory_prompt:
+            planning_context["memory_constraints"] = memory_prompt
+
+        async for event in self._plan_with_signals(session.goal, signals, planning_context):
             yield event
             if event.type == EventType.ERROR:
                 return
 
-        # Execute with gates (RFC-123: optionally with convergence loops)
-        execution_success = True
-        if request.options.converge:
-            async for event in self._execute_with_convergence(request.options):
-                yield event
-                if event.type in (EventType.ERROR, EventType.ESCALATE):
-                    execution_success = False
-                    return
-        else:
-            async for event in self._execute_with_gates(request.options):
-                yield event
-                if event.type in (EventType.ERROR, EventType.ESCALATE):
-                    execution_success = False
-                    return
+        # Update session with tasks
+        if self._task_graph:
+            session.tasks = self._task_graph.tasks
 
-        # RFC-122: Extract learnings from execution
-        async for event in self._learn_from_execution(request.goal, execution_success):
+        # ─── PHASE 4: EXECUTE ───
+        # Build run options from session
+        from sunwell.agent.request import RunOptions
+        options = RunOptions(
+            trust=session.trust,
+            timeout_seconds=session.timeout,
+            validate=True,
+            persist_learnings=True,
+            auto_fix=True,
+        )
+
+        execution_success = True
+        async for event in self._execute_with_gates(options):
+            yield event
+            if event.type in (EventType.ERROR, EventType.ESCALATE):
+                execution_success = False
+                # Record failure to memory
+                if self._task_graph and self._task_graph.tasks:
+                    current = session.current_task
+                    if current:
+                        from sunwell.intelligence.failures import FailedApproach
+                        failure = FailedApproach(
+                            id="",  # Will be generated
+                            description=current.description,
+                            error_type="execution_error",
+                            error_message=event.data.get("message", "Unknown error"),
+                            context=session.goal,
+                            session_id=session.session_id,
+                        )
+                        await memory.add_failure(failure)
+                        yield failure_recorded_event(
+                            description=failure.description,
+                            error_type=failure.error_type,
+                            context=failure.context,
+                        )
+                return
+
+        # Track modified files
+        if self._task_graph:
+            for task in self._task_graph.tasks:
+                if task.id in self._task_graph.completed_ids and task.target_path:
+                    session.files_modified.append(task.target_path)
+
+        # ─── PHASE 5: LEARN ───
+        async for event in self._learn_from_execution(session.goal, execution_success, memory):
             yield event
 
-        # Save session
-        if request.options.persist_learnings:
-            async for event in self._save_memory(request.options):
-                yield event
+        # Sync memory to disk
+        memory.sync()
 
-        # Complete
+        # Save briefing for next session
+        session.save_briefing()
+
+        # ─── COMPLETE ───
         duration = time() - start_time
         tasks_done = len(self._task_graph.completed_ids) if self._task_graph else 0
         gates_done = len(self._task_graph.gates) if self._task_graph else 0
@@ -452,20 +511,20 @@ class Agent:
         async for event in loop.run(failed_files):
             yield event
 
-    async def plan(self, request: RunRequest) -> AsyncIterator[AgentEvent]:
+    async def plan(self, session: SessionContext) -> AsyncIterator[AgentEvent]:
         """Plan without executing (dry run mode).
 
         Extracts signals, selects technique, and generates plan,
         but does not execute tasks.
 
         Args:
-            request: RunRequest with goal and context
+            session: SessionContext with goal
 
         Yields:
             Planning events only
         """
         yield signal_event("extracting")
-        signals = await self._extract_signals_with_memory(request.goal)
+        signals = await self._extract_signals_with_memory(session.goal)
         yield signal_event("extracted", signals=signals.to_dict())
 
         yield AgentEvent(
@@ -477,140 +536,8 @@ class Agent:
             },
         )
 
-        async for event in self._plan_with_signals(request.goal, signals, request.context):
+        async for event in self._plan_with_signals(session.goal, signals, {}):
             yield event
-
-    async def _load_memory(self, request: RunRequest) -> AsyncIterator[AgentEvent]:
-        """Load Simulacrum session if specified, plus disk-persisted learnings and briefing."""
-        # Load briefing FIRST (instant orientation)
-        if request.options.enable_briefing:
-            async for event in self._load_briefing():
-                yield event
-
-        # Always try to load disk-persisted learnings
-        disk_loaded = self._learning_store.load_from_disk(self.cwd)
-        if disk_loaded > 0:
-            yield AgentEvent(
-                EventType.MEMORY_LEARNING,
-                {"loaded": disk_loaded, "source": "disk"},
-            )
-
-        # Use pre-configured simulacrum if provided
-        if self.simulacrum:
-            yield AgentEvent(
-                EventType.MEMORY_LOADED,
-                {"session": "pre-configured", "turns": 0},
-            )
-            loaded = self._learning_store.load_from_simulacrum(self.simulacrum)
-            if loaded > 0:
-                yield AgentEvent(
-                    EventType.MEMORY_LEARNING,
-                    {"loaded": loaded, "source": "simulacrum"},
-                )
-            return
-
-        # Load session if specified
-        session = request.session or self.session
-        if not session:
-            return
-
-        yield AgentEvent(EventType.MEMORY_LOAD, {"session": session})
-
-        try:
-            from sunwell.simulacrum.core.store import SimulacrumStore
-
-            memory_path = self.cwd / ".sunwell" / "memory"
-            store = SimulacrumStore(memory_path)
-
-            try:
-                store.load_session(session)
-                self.simulacrum = store
-                yield AgentEvent(
-                    EventType.MEMORY_LOADED,
-                    {
-                        "session": session,
-                        "turns": len(store.get_dag().turns),
-                    },
-                )
-                loaded = self._learning_store.load_from_simulacrum(store)
-                if loaded > 0:
-                    yield AgentEvent(
-                        EventType.MEMORY_LEARNING,
-                        {"loaded": loaded, "source": "session"},
-                    )
-            except FileNotFoundError:
-                store.new_session(session)
-                self.simulacrum = store
-                yield AgentEvent(EventType.MEMORY_NEW, {"session": session})
-
-        except ImportError:
-            yield AgentEvent(
-                EventType.MEMORY_NEW,
-                {"session": session, "note": "Simulacrum not available"},
-            )
-
-    async def _load_briefing(self) -> AsyncIterator[AgentEvent]:
-        """Load briefing and optionally run prefetch."""
-        from sunwell.memory.briefing import Briefing
-
-        briefing = Briefing.load(self.cwd)
-        if not briefing:
-            return
-
-        self._briefing = briefing
-
-        yield briefing_loaded_event(
-            mission=briefing.mission,
-            status=briefing.status.value,
-            has_hazards=len(briefing.hazards) > 0,
-            has_dispatch_hints=bool(briefing.predicted_skills or briefing.suggested_lens),
-        )
-
-        # Run prefetch if enabled
-        if self._briefing:
-            async for event in self._run_prefetch():
-                yield event
-
-    async def _run_prefetch(self) -> AsyncIterator[AgentEvent]:
-        """Run briefing-driven prefetch with timeout."""
-        if not self._briefing:
-            return
-
-        yield prefetch_start_event(self._briefing.mission)
-
-        try:
-            from sunwell.prefetch.dispatcher import (
-                analyze_briefing_for_prefetch,
-                execute_prefetch,
-            )
-
-            prefetch_plan = await analyze_briefing_for_prefetch(self._briefing)
-            self._prefetched_context = await execute_prefetch(
-                prefetch_plan,
-                self.cwd,
-                timeout=2.0,
-            )
-
-            if self._prefetched_context:
-                current_lens_name = getattr(self.lens, "name", None)
-                if prefetch_plan.suggested_lens and (
-                    not self.lens or prefetch_plan.suggested_lens != current_lens_name
-                ):
-                    yield lens_suggested_event(
-                        suggested=prefetch_plan.suggested_lens,
-                        reason="briefing_routing",
-                    )
-
-                yield prefetch_complete_event(
-                    files_loaded=len(self._prefetched_context.files),
-                    learnings_loaded=len(self._prefetched_context.learnings),
-                    skills_activated=list(self._prefetched_context.active_skills),
-                )
-            else:
-                yield prefetch_timeout_event()
-
-        except Exception as e:
-            yield prefetch_timeout_event(error=str(e))
 
     async def _extract_signals_with_memory(self, goal: str) -> AdaptiveSignals:
         """Extract signals with memory context."""
@@ -1166,101 +1093,6 @@ Respond directly and helpfully:"""
         async for event in self._fix_stage.fix_errors(errors, artifacts_dict):
             yield event
 
-    async def _save_memory(self, options: RunOptions) -> AsyncIterator[AgentEvent]:
-        """Save learnings to disk, optionally to Simulacrum, and update briefing."""
-        disk_saved = self._learning_store.save_to_disk(self.cwd)
-
-        sim_synced = 0
-        if self.simulacrum:
-            sim_synced = self._learning_store.sync_to_simulacrum(self.simulacrum)
-            self.simulacrum.save_session()
-
-        metrics_saved = self._inference_metrics.save_to_disk(self.cwd)
-
-        if disk_saved > 0 or sim_synced > 0:
-            yield AgentEvent(
-                EventType.MEMORY_SAVED,
-                {
-                    "learnings": len(self._learning_store.learnings),
-                    "disk_saved": disk_saved,
-                    "sim_synced": sim_synced,
-                    "metrics_models": metrics_saved,
-                },
-            )
-
-        if options.enable_briefing:
-            async for event in self._save_briefing():
-                yield event
-
-    async def _save_briefing(self) -> AsyncIterator[AgentEvent]:
-        """Generate and save new briefing based on session work."""
-        from sunwell.memory.briefing import (
-            Briefing,
-            BriefingStatus,
-            ExecutionSummary,
-            briefing_to_learning,
-            compress_briefing,
-        )
-        from sunwell.routing.briefing_router import (
-            predict_skills_from_briefing,
-            suggest_lens_from_briefing,
-        )
-
-        if self._task_graph:
-            summary = ExecutionSummary.from_task_graph(
-                self._task_graph,
-                self._session_learnings,
-            )
-        else:
-            summary = ExecutionSummary(
-                last_action="Session completed.",
-                next_action=None,
-                modified_files=(),
-                tasks_completed=0,
-                gates_passed=0,
-                new_learnings=(),
-            )
-
-        new_status = self._determine_briefing_status()
-
-        if self._briefing:
-            old_briefing = self._briefing
-        elif self._current_goal:
-            old_briefing = Briefing.create_initial(
-                mission=self._current_goal,
-                goal_hash=None,
-            )
-        else:
-            return
-
-        predicted_skills = predict_skills_from_briefing(old_briefing)
-        suggested_lens = suggest_lens_from_briefing(old_briefing)
-
-        new_briefing = compress_briefing(
-            old_briefing=old_briefing,
-            summary=summary,
-            new_status=new_status,
-            blockers=self._current_blockers,
-            predicted_skills=predicted_skills,
-            suggested_lens=suggested_lens,
-        )
-        new_briefing.save(self.cwd)
-
-        yield briefing_saved_event(
-            status=new_briefing.status.value,
-            next_action=new_briefing.next_action,
-            tasks_completed=summary.tasks_completed,
-        )
-
-        if new_status == BriefingStatus.COMPLETE:
-            completion_learning = briefing_to_learning(new_briefing)
-            if completion_learning:
-                self._learning_store.add_learning(completion_learning)
-                yield memory_learning_event(
-                    fact=completion_learning.fact,
-                    category="task_completion",
-                )
-
     # =========================================================================
     # RFC-122: Compound Learning Loop
     # =========================================================================
@@ -1269,6 +1101,7 @@ Respond directly and helpfully:"""
         self,
         goal: str,
         success: bool,
+        memory: PersistentMemory | None = None,
     ) -> AsyncIterator[AgentEvent]:
         """Extract learnings from completed execution (RFC-122).
 
@@ -1280,6 +1113,7 @@ Respond directly and helpfully:"""
         Args:
             goal: The completed goal
             success: Whether execution succeeded
+            memory: PersistentMemory for storing learnings (optional for recovery)
 
         Yields:
             Learning events for new templates/heuristics
@@ -1318,6 +1152,9 @@ Respond directly and helpfully:"""
             and planning_context.best_template.confidence >= 0.8
         )
 
+        # Get simulacrum from memory if available
+        simulacrum = memory.simulacrum if memory else None
+
         if not template_was_used and len(artifacts_created) >= 2:
             try:
                 template_learning = await self._learning_extractor.extract_template(
@@ -1326,8 +1163,8 @@ Respond directly and helpfully:"""
                     artifacts_created=artifacts_created,
                     tasks=tasks,
                 )
-                if template_learning and self.simulacrum:
-                    self.simulacrum.get_dag().add_learning(template_learning)
+                if template_learning and simulacrum:
+                    simulacrum.get_dag().add_learning(template_learning)
                     yield memory_learning_event(
                         fact=template_learning.fact,
                         category="template",
@@ -1342,8 +1179,8 @@ Respond directly and helpfully:"""
                     goal=goal,
                     tasks=tasks,
                 )
-                if heuristic_learning and self.simulacrum:
-                    self.simulacrum.get_dag().add_learning(heuristic_learning)
+                if heuristic_learning and simulacrum:
+                    simulacrum.get_dag().add_learning(heuristic_learning)
                     yield memory_learning_event(
                         fact=heuristic_learning.fact,
                         category="heuristic",
@@ -1353,18 +1190,3 @@ Respond directly and helpfully:"""
 
         # Clear run state
         self._files_changed_this_run = []
-
-    def _determine_briefing_status(self) -> Any:
-        """Determine briefing status from task graph state."""
-        from sunwell.memory.briefing import BriefingStatus
-
-        if not self._task_graph:
-            return BriefingStatus.IN_PROGRESS
-
-        if self._current_blockers:
-            return BriefingStatus.BLOCKED
-
-        if not self._task_graph.has_pending_tasks():
-            return BriefingStatus.COMPLETE
-
-        return BriefingStatus.IN_PROGRESS

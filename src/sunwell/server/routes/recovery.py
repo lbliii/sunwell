@@ -228,9 +228,11 @@ async def auto_fix_recovery(
 
 
 async def _run_auto_fix(state: Any, hint: str | None) -> None:
-    """Background task to run auto-fix."""
-    from sunwell.agent import AdaptiveBudget, Agent, RunOptions, RunRequest
+    """Background task to run auto-fix (RFC-MEMORY)."""
+    from sunwell.agent import AdaptiveBudget, Agent, RunOptions
     from sunwell.cli.helpers import resolve_model
+    from sunwell.context.session import SessionContext
+    from sunwell.memory.persistent import PersistentMemory
     from sunwell.recovery import RecoveryManager, build_healing_context
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust
@@ -260,16 +262,14 @@ async def _run_auto_fix(state: Any, hint: str | None) -> None:
         budget=AdaptiveBudget(total_budget=30_000),
     )
 
-    request = RunRequest(
-        goal=fix_goal,
-        context={"cwd": str(cwd), "recovery_id": state.run_id, "is_recovery": True},
-        cwd=cwd,
-        options=RunOptions(trust="workspace", timeout_seconds=300, converge=True),
-    )
+    # RFC-MEMORY: Build session and load memory
+    options = RunOptions(trust="workspace", timeout_seconds=300)
+    session = SessionContext.build(cwd, fix_goal, options)
+    memory = PersistentMemory.load(cwd)
 
     # Run agent (events will be streamed via SSE if client is connected)
     try:
-        async for _event in agent.run(request):
+        async for _event in agent.run(session, memory):
             pass  # Events stream to connected clients
         # Success — mark resolved
         manager = RecoveryManager(_get_recovery_dir())
