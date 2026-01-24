@@ -32,6 +32,7 @@ export const app = {
   get isDemo() { return _route === Route.DEMO; },
   get isProjects() { return _route === Route.PROJECTS; },
   get isEvaluation() { return _route === Route.EVALUATION; },
+  get isObservatory() { return _route === Route.OBSERVATORY; },
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -82,6 +83,10 @@ export function goToProjects(): void {
 
 export function goToEvaluation(): void {
   _route = Route.EVALUATION;
+}
+
+export function goToObservatory(): void {
+  _route = Route.OBSERVATORY;
 }
 
 export function setInitialized(value = true): void {

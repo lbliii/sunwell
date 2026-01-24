@@ -38,6 +38,11 @@ export { default as MemoryPane } from './MemoryPane.svelte';
 export { default as DAGView } from './DAGView.svelte';
 export { default as BriefingCard } from './BriefingCard.svelte';
 
+// Animation primitives (RFC-112: Observatory)
+export { default as AnimatedPath } from './AnimatedPath.svelte';
+export { default as GlowingNode } from './GlowingNode.svelte';
+export { default as ParticleStream } from './ParticleStream.svelte';
+
 // Types
 export type { PrimitiveProps, CodePrimitiveProps, WritingPrimitiveProps, PlanningPrimitiveProps, DataPrimitiveProps } from './types';
 
@@ -78,4 +83,9 @@ export const componentMap: Record<string, any> = {
   InputBar: () => import('../InputBar.svelte'),
   DAGView: () => import('./DAGView.svelte'),
   BriefingCard: () => import('./BriefingCard.svelte'),
+  
+  // Animation (RFC-112)
+  AnimatedPath: () => import('./AnimatedPath.svelte'),
+  GlowingNode: () => import('./GlowingNode.svelte'),
+  ParticleStream: () => import('./ParticleStream.svelte'),
 };

@@ -1,10 +1,14 @@
-"""Project Analysis CLI (RFC-079).
+"""Project Analysis and Management CLI (RFC-079, RFC-117).
 
-CLI commands for universal project understanding.
+CLI commands for universal project understanding and workspace isolation.
+
+RFC-079: Project analysis (analyze, signals, monorepo, cache)
+RFC-117: Workspace management (init, list, default, remove)
 """
 
 import asyncio
 import json
+from datetime import datetime
 from pathlib import Path
 
 import click
@@ -15,10 +19,262 @@ from rich.table import Table
 console = Console()
 
 
+# =============================================================================
+# RFC-117: Workspace Management Commands
+# =============================================================================
+
+
 @click.group(name="project")
 def project() -> None:
-    """Project analysis and management (RFC-079)."""
+    """Project analysis and workspace management (RFC-079, RFC-117)."""
     pass
+
+
+@project.command(name="init")
+@click.argument("path", type=click.Path(), default=".")
+@click.option("--id", "project_id", help="Project identifier (default: directory name)")
+@click.option("--name", "project_name", help="Human-readable name (default: same as id)")
+@click.option("--trust", type=click.Choice(["discovery", "read_only", "workspace", "full"]),
+              default="workspace", help="Default trust level for agent")
+@click.option("--no-register", is_flag=True, help="Don't add to global registry")
+def init_cmd(
+    path: str,
+    project_id: str | None,
+    project_name: str | None,
+    trust: str,
+    no_register: bool,
+) -> None:
+    """Initialize a new project workspace (RFC-117).
+
+    Creates .sunwell/project.toml and registers in global registry.
+
+    Examples:
+        sunwell project init
+        sunwell project init ~/projects/my-app
+        sunwell project init . --id my-app --name "My Application"
+    """
+    from sunwell.project import (
+        ProjectValidationError,
+        RegistryError,
+        init_project,
+    )
+
+    project_path = Path(path).resolve()
+
+    # Ensure directory exists
+    if not project_path.exists():
+        project_path.mkdir(parents=True, exist_ok=True)
+        console.print(f"[dim]Created directory: {project_path}[/dim]")
+
+    try:
+        proj = init_project(
+            root=project_path,
+            project_id=project_id,
+            name=project_name,
+            trust=trust,
+            register=not no_register,
+        )
+    except ProjectValidationError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from None
+    except RegistryError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from None
+
+    console.print()
+    console.print(f"[green]✓[/green] Initialized project: [bold]{proj.id}[/bold]")
+    console.print(f"  Root: {proj.root}")
+    console.print(f"  Manifest: {proj.manifest_path}")
+    if not no_register:
+        console.print(f"  Registered: ~/.sunwell/projects.json")
+    console.print()
+    console.print("[dim]You can now run 'sunwell agent run' from this directory.[/dim]")
+
+
+@project.command(name="list")
+@click.option("--json", "output_json", is_flag=True, help="Output as JSON")
+def list_cmd(output_json: bool) -> None:
+    """List registered projects (RFC-117).
+
+    Shows all projects in the global registry with their paths
+    and last used timestamps.
+    """
+    from sunwell.project import ProjectRegistry
+
+    registry = ProjectRegistry()
+    projects = registry.list_projects()
+    default_id = registry.default_project_id
+
+    if output_json:
+        result = {
+            "projects": [
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "root": str(p.root),
+                    "workspace_type": p.workspace_type.value,
+                    "is_default": p.id == default_id,
+                }
+                for p in projects
+            ],
+            "default_project": default_id,
+        }
+        console.print(json.dumps(result, indent=2))
+        return
+
+    if not projects:
+        console.print("[yellow]No projects registered.[/yellow]")
+        console.print()
+        console.print("Initialize a project with:")
+        console.print("  [cyan]sunwell project init .[/cyan]")
+        return
+
+    console.print()
+    table = Table(show_header=True)
+    table.add_column("ID", style="cyan")
+    table.add_column("Name")
+    table.add_column("Root")
+    table.add_column("Default", justify="center")
+
+    for p in sorted(projects, key=lambda x: x.id):
+        is_default = "✓" if p.id == default_id else ""
+        table.add_row(p.id, p.name, str(p.root), is_default)
+
+    console.print(table)
+    console.print()
+
+
+@project.command(name="default")
+@click.argument("project_id", required=False)
+def default_cmd(project_id: str | None) -> None:
+    """Get or set the default project (RFC-117).
+
+    Without argument, shows current default.
+    With argument, sets the default project.
+
+    Examples:
+        sunwell project default          # Show default
+        sunwell project default my-app   # Set default
+    """
+    from sunwell.project import ProjectRegistry, RegistryError
+
+    registry = ProjectRegistry()
+
+    if project_id is None:
+        # Show current default
+        default = registry.get_default()
+        if default:
+            console.print(f"Default project: [cyan]{default.id}[/cyan]")
+            console.print(f"  Root: {default.root}")
+        else:
+            console.print("[yellow]No default project set.[/yellow]")
+            console.print()
+            console.print("Set one with:")
+            console.print("  [cyan]sunwell project default <project-id>[/cyan]")
+        return
+
+    # Set default
+    try:
+        registry.set_default(project_id)
+        console.print(f"[green]✓[/green] Default project set to: [cyan]{project_id}[/cyan]")
+    except RegistryError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from None
+
+
+@project.command(name="remove")
+@click.argument("project_id")
+@click.option("--force", "-f", is_flag=True, help="Remove without confirmation")
+def remove_cmd(project_id: str, force: bool) -> None:
+    """Remove a project from the registry (RFC-117).
+
+    This only removes from the registry, not the actual files.
+
+    Examples:
+        sunwell project remove my-app
+        sunwell project remove my-app --force
+    """
+    from sunwell.project import ProjectRegistry
+
+    registry = ProjectRegistry()
+
+    # Check if exists
+    project = registry.get(project_id)
+    if not project:
+        console.print(f"[yellow]Project not found:[/yellow] {project_id}")
+        raise SystemExit(1)
+
+    # Confirm unless forced
+    if not force:
+        console.print(f"Remove project [cyan]{project_id}[/cyan] from registry?")
+        console.print(f"  Root: {project.root}")
+        console.print()
+        console.print("[dim]This will NOT delete any files.[/dim]")
+        if not click.confirm("Continue?"):
+            console.print("[dim]Aborted.[/dim]")
+            return
+
+    if registry.unregister(project_id):
+        console.print(f"[green]✓[/green] Removed project: [cyan]{project_id}[/cyan]")
+    else:
+        console.print(f"[red]Failed to remove project[/red]")
+
+
+@project.command(name="info")
+@click.argument("project_id", required=False)
+def info_cmd(project_id: str | None) -> None:
+    """Show detailed project information (RFC-117).
+
+    Without argument, shows info for cwd project or default.
+    With argument, shows info for specified project.
+
+    Examples:
+        sunwell project info            # Current project
+        sunwell project info my-app     # Specific project
+    """
+    from sunwell.project import (
+        ProjectRegistry,
+        ProjectResolutionError,
+        resolve_project,
+    )
+
+    try:
+        if project_id:
+            project = resolve_project(project_id=project_id)
+        else:
+            project = resolve_project(cwd=Path.cwd())
+    except ProjectResolutionError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from None
+
+    console.print()
+    console.print(Panel(
+        f"[bold]{project.name}[/bold]",
+        subtitle=project.id,
+    ))
+
+    console.print(f"  [dim]Root:[/dim] {project.root}")
+    console.print(f"  [dim]Type:[/dim] {project.workspace_type.value}")
+    console.print(f"  [dim]Created:[/dim] {project.created_at.isoformat()}")
+
+    if project.manifest:
+        console.print()
+        console.print("[bold]Manifest[/bold]")
+        console.print(f"  [dim]Trust:[/dim] {project.manifest.agent.trust}")
+        console.print(f"  [dim]Protected:[/dim] {', '.join(project.manifest.agent.protected)}")
+
+    # Check if default
+    registry = ProjectRegistry()
+    if registry.default_project_id == project.id:
+        console.print()
+        console.print("[green]✓[/green] This is the default project")
+
+    console.print()
+
+
+# =============================================================================
+# RFC-079: Project Analysis Commands (existing)
+# =============================================================================
 
 
 @project.command(name="analyze")

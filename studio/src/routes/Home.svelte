@@ -17,7 +17,7 @@
 	import LensBadge from '../components/LensBadge.svelte';
 	import ChatHistory from '../components/ChatHistory.svelte';
 	import { BlockSurface, ActionToast, ConversationLayout, ProjectManager } from '../components';
-	import { goToProject, goToDemo } from '../stores/app.svelte';
+	import { goToProject, goToDemo, goToObservatory } from '../stores/app.svelte';
 	import {
 		project,
 		scanProjects,
@@ -384,11 +384,16 @@
 				{/if}
 			</div>
 
+		<div class="bottom-buttons">
 			<button class="demo-trigger" onclick={goToDemo} title="See the Prism Principle in action">
 				🔮 Try Demo
 			</button>
+			<button class="observatory-trigger" onclick={goToObservatory} title="Watch AI cognition in real-time">
+				🔭 Observatory
+			</button>
+		</div>
 
-			<footer class="version">v0.1.0</footer>
+		<footer class="version">v0.1.0</footer>
 		</div>
 	{/snippet}
 </MouseMotes>
@@ -534,10 +539,17 @@
 		z-index: 2;
 	}
 
-	.demo-trigger {
+	.bottom-buttons {
 		position: fixed;
 		bottom: var(--space-4);
 		left: var(--space-4);
+		display: flex;
+		gap: var(--space-2);
+		z-index: 10;
+	}
+
+	.demo-trigger,
+	.observatory-trigger {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
@@ -551,17 +563,18 @@
 		border-radius: var(--radius-md);
 		cursor: pointer;
 		transition: all var(--transition-fast);
-		z-index: 10;
 	}
 
-	.demo-trigger:hover {
+	.demo-trigger:hover,
+	.observatory-trigger:hover {
 		color: var(--text-gold);
 		background: rgba(201, 162, 39, 0.15);
 		border-color: rgba(201, 162, 39, 0.4);
 		box-shadow: var(--glow-gold-subtle);
 	}
 
-	.demo-trigger:focus-visible {
+	.demo-trigger:focus-visible,
+	.observatory-trigger:focus-visible {
 		outline: 2px solid var(--border-emphasis);
 		outline-offset: 2px;
 	}

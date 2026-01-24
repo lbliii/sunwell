@@ -64,12 +64,12 @@
         <div class="stat-card tier-warm">
           <span class="stat-value">{stats.warmFiles ?? 0}</span>
           <span class="stat-label">Warm Files</span>
-          <span class="stat-detail">{(stats.warmSizeMb ?? 0).toFixed(1)} MB</span>
+          <span class="stat-detail">{Number(stats.warmSizeMb ?? 0).toFixed(1)} MB</span>
         </div>
         <div class="stat-card tier-cold">
           <span class="stat-value">{stats.coldFiles ?? 0}</span>
           <span class="stat-label">Cold Files</span>
-          <span class="stat-detail">{(stats.coldSizeMb ?? 0).toFixed(1)} MB</span>
+          <span class="stat-detail">{Number(stats.coldSizeMb ?? 0).toFixed(1)} MB</span>
         </div>
         <div class="stat-card">
           <span class="stat-value">{stats.branches ?? 0}</span>

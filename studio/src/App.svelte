@@ -16,6 +16,7 @@
   import Demo from './routes/Demo.svelte';
   import Gallery from './routes/Gallery.svelte';  // RFC-097
   import Evaluation from './routes/Evaluation.svelte';  // RFC-098
+  import Observatory from './routes/Observatory.svelte';  // RFC-112
   import { app, setInitialized, navigate, goToWriter } from './stores/app.svelte';
   import { Route } from '$lib/constants';
   import { setupInferenceListeners } from '$lib/inference';
@@ -98,6 +99,8 @@
     <Gallery />
   {:else if app.route === Route.EVALUATION}
     <Evaluation />
+  {:else if app.route === Route.OBSERVATORY}
+    <Observatory />
   {/if}
 </div>
 

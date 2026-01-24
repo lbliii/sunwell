@@ -72,3 +72,6 @@ export * from './coordinator';
 
 // Workspace (RFC-103) — Workspace-aware scanning & drift detection
 export * from './workspace';
+
+// Observatory (RFC-112) — AI cognition visualizations
+export * from './observatory';

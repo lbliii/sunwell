@@ -443,3 +443,24 @@ export {
   type GoalStatus,
   type BacklogState,
 } from './backlog.svelte';
+
+// Observatory state (RFC-112)
+export {
+  observatory,
+  startPlayback,
+  pausePlayback,
+  resumePlayback,
+  stopPlayback,
+  nextRound,
+  prevRound,
+  scrubToRound,
+  setPlaybackSpeed,
+  goLive,
+  snapshotHistory,
+  clearHistory as clearObservatoryHistory,
+  loadDemoData,
+  DEMO_ITERATIONS,
+  type ResonanceIteration,
+  type ResonanceWaveState,
+  type PlaybackState,
+} from './observatory.svelte';

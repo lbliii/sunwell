@@ -139,6 +139,7 @@ export const Route = {
   DEMO: 'demo',
   GALLERY: 'gallery',  // RFC-097: Component showcase
   EVALUATION: 'evaluation',  // RFC-098: Full-stack evaluation
+  OBSERVATORY: 'observatory',  // RFC-112: AI cognition visualizations
 } as const;
 
 export type Route = (typeof Route)[keyof typeof Route];
