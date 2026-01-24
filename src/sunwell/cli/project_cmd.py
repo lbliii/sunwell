@@ -8,7 +8,6 @@ RFC-117: Workspace management (init, list, default, remove)
 
 import asyncio
 import json
-from datetime import datetime
 from pathlib import Path
 
 import click
@@ -86,7 +85,7 @@ def init_cmd(
     console.print(f"  Root: {proj.root}")
     console.print(f"  Manifest: {proj.manifest_path}")
     if not no_register:
-        console.print(f"  Registered: ~/.sunwell/projects.json")
+        console.print("  Registered: ~/.sunwell/projects.json")
     console.print()
     console.print("[dim]You can now run 'sunwell agent run' from this directory.[/dim]")
 
@@ -217,7 +216,7 @@ def remove_cmd(project_id: str, force: bool) -> None:
     if registry.unregister(project_id):
         console.print(f"[green]✓[/green] Removed project: [cyan]{project_id}[/cyan]")
     else:
-        console.print(f"[red]Failed to remove project[/red]")
+        console.print("[red]Failed to remove project[/red]")
 
 
 @project.command(name="info")
