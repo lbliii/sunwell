@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from sunwell.demo.judge import DemoJudge
+from sunwell.demo.scorer import DemoScorer
 from sunwell.demo.tasks import DemoTask
 from sunwell.naaru.resonance import Resonance, ResonanceConfig
 
@@ -109,6 +110,7 @@ class DemoExecutor:
         self.model = model
         self.verbose = verbose
         self.judge = DemoJudge(model)
+        self.scorer = DemoScorer()  # Deterministic scorer for honest evaluation
         self.resonance = Resonance(
             model=model,
             config=ResonanceConfig(
@@ -304,28 +306,31 @@ Code only (no explanations):"""
         judge_issues = tuple(judgment.feedback) if judgment.feedback else ()
         judge_passed = judgment.score >= 8.0
 
-        # 3. Resonance refinement (if needed)
+        # 3. Score initial code with deterministic scorer (same scorer used for final evaluation)
+        initial_score_result = self.scorer.score(initial_code, task.expected_features)
+        initial_score = initial_score_result.score
+
+        # 4. Resonance refinement (if initial score is low)
         iterations = 0
         final_code = initial_code
         resonance_triggered = False
         resonance_succeeded = False
         resonance_improvements: list[str] = []
-        final_score = judgment.score  # Start with honest initial score
 
-        # Trigger Resonance on low score (not requiring features_missing)
-        if not judge_passed:
+        # Trigger Resonance on low score (using deterministic scorer, not judge)
+        if initial_score < 8.0:
             resonance_triggered = True
             if on_progress:
                 on_progress("Resonance refining...")
 
-            # Build feedback from whatever info we have
+            # Build feedback from judge AND scorer issues
             feedback_parts = []
-            if judgment.features_missing:
-                feedback_parts.append(f"Missing features: {', '.join(judgment.features_missing)}")
+            if initial_score_result.issues:
+                feedback_parts.append(f"Missing features: {', '.join(initial_score_result.issues)}")
             if judgment.feedback:
                 feedback_parts.extend(judgment.feedback)
             if not feedback_parts:
-                feedback_parts.append(f"Score too low ({judgment.score}/10). Improve code quality.")
+                feedback_parts.append(f"Score too low ({initial_score}/10). Improve code quality.")
 
             # Prepare proposal and rejection for Resonance
             proposal = {
@@ -335,47 +340,48 @@ Code only (no explanations):"""
             }
 
             rejection = {
-                "issues": list(judgment.feedback),
+                "issues": list(initial_score_result.issues),
                 "feedback": " ".join(feedback_parts),
-                "score": judgment.score,
+                "score": initial_score,
             }
 
             # Run Resonance refinement
             resonance_result = await self.resonance.refine(proposal, rejection)
 
-            if resonance_result.success:
-                resonance_succeeded = True
-                final_code = resonance_result.refined_code
-                iterations = len(resonance_result.attempts)
-                if judgment.features_missing:
-                    resonance_improvements = list(judgment.features_missing)
-                else:
-                    resonance_improvements = ["code_quality"]
-                # Conservative score improvement - don't assume perfection
-                final_score = min(judgment.score + 2.0, 10.0)
+            if resonance_result.success and resonance_result.refined_code:
+                # CRITICAL: Re-score refined code with same deterministic scorer
+                refined_score_result = self.scorer.score(
+                    resonance_result.refined_code, task.expected_features
+                )
 
-                # Add resonance tokens if tracked
-                if hasattr(resonance_result, 'total_tokens'):
-                    total_prompt_tokens += getattr(resonance_result, 'prompt_tokens', 0)
-                    total_completion_tokens += getattr(resonance_result, 'completion_tokens', 0)
-            else:
-                # Resonance triggered but failed - be honest
-                final_score = judgment.score  # Keep original low score
+                # Only accept refinement if it ACTUALLY improved the score
+                if refined_score_result.score > initial_score:
+                    resonance_succeeded = True
+                    final_code = resonance_result.refined_code
+                    iterations = len(resonance_result.attempts)
+
+                    # Track what features were actually gained
+                    initial_features = set(
+                        f for f, present in initial_score_result.features.items() if present
+                    )
+                    refined_features = set(
+                        f for f, present in refined_score_result.features.items() if present
+                    )
+                    gained_features = refined_features - initial_features
+                    resonance_improvements = list(gained_features) if gained_features else ["quality"]
+
+                    # Add resonance tokens if tracked
+                    if hasattr(resonance_result, 'total_tokens'):
+                        total_prompt_tokens += getattr(resonance_result, 'prompt_tokens', 0)
+                        total_completion_tokens += getattr(resonance_result, 'completion_tokens', 0)
+                # else: refinement didn't help, keep original code
 
         elapsed = int((time.perf_counter() - start) * 1000)
 
-        # Compute features based on what actually happened
-        if judge_passed:
-            achieved = tuple(task.expected_features)
-            missing: tuple[str, ...] = ()
-        elif resonance_succeeded:
-            achieved = tuple(task.expected_features)
-            missing = ()
-        else:
-            achieved = tuple(
-                f for f in task.expected_features if f not in judgment.features_missing
-            )
-            missing = tuple(judgment.features_missing)
+        # Final scoring with deterministic scorer (honest evaluation)
+        final_score_result = self.scorer.score(final_code, task.expected_features)
+        achieved = tuple(f for f, present in final_score_result.features.items() if present)
+        missing = tuple(final_score_result.issues)
 
         # Build component breakdown - honest about what happened
         breakdown = ComponentBreakdown(
@@ -384,14 +390,14 @@ Code only (no explanations):"""
             heuristics_applied=tuple(self.lens_heuristics) if self.lens_heuristics else (),
             prompt_type="lens-enhanced" if lens_detected else "structured",
             requirements_added=requirements_added,
-            judge_score=judgment.score,
+            judge_score=initial_score,  # Use deterministic scorer, not LLM judge
             judge_issues=judge_issues,
-            judge_passed=judge_passed,
+            judge_passed=initial_score >= 8.0,
             resonance_triggered=resonance_triggered,
             resonance_succeeded=resonance_succeeded,
             resonance_iterations=iterations,
             resonance_improvements=tuple(resonance_improvements),
-            final_score=final_score,
+            final_score=final_score_result.score,  # Honest final score
             features_achieved=achieved,
             features_missing=missing,
         )
@@ -511,13 +517,16 @@ Code only (no explanations):"""
         initial_code = "".join(chunks)
         total_completion_tokens += len(initial_code) // 4  # Estimate
 
-        # Phase 2: Judge evaluation
+        # Phase 2: Judge evaluation (for feedback) + deterministic scoring
         if on_phase:
             on_phase("judging")
 
         judgment = await self.judge.evaluate(initial_code, task.expected_features)
         judge_issues = tuple(judgment.feedback) if judgment.feedback else ()
-        judge_passed = judgment.score >= 8.0
+
+        # Score with deterministic scorer (same scorer used for final evaluation)
+        initial_score_result = self.scorer.score(initial_code, task.expected_features)
+        initial_score = initial_score_result.score
 
         # Phase 3: Resonance refinement (if needed)
         iterations = 0
@@ -525,22 +534,21 @@ Code only (no explanations):"""
         resonance_triggered = False
         resonance_succeeded = False
         resonance_improvements: list[str] = []
-        final_score = judgment.score  # Start with honest initial score
 
-        # Trigger Resonance on low score (not requiring features_missing)
-        if not judge_passed:
+        # Trigger Resonance on low score (using deterministic scorer)
+        if initial_score < 8.0:
             resonance_triggered = True
             if on_phase:
                 on_phase("refining")
 
-            # Build feedback from whatever info we have
+            # Build feedback from judge AND scorer issues
             feedback_parts = []
-            if judgment.features_missing:
-                feedback_parts.append(f"Missing features: {', '.join(judgment.features_missing)}")
+            if initial_score_result.issues:
+                feedback_parts.append(f"Missing features: {', '.join(initial_score_result.issues)}")
             if judgment.feedback:
                 feedback_parts.extend(judgment.feedback)
             if not feedback_parts:
-                feedback_parts.append(f"Score too low ({judgment.score}/10). Improve code quality.")
+                feedback_parts.append(f"Score too low ({initial_score}/10). Improve code quality.")
 
             proposal = {
                 "diff": initial_code,
@@ -549,41 +557,42 @@ Code only (no explanations):"""
             }
 
             rejection = {
-                "issues": list(judgment.feedback),
+                "issues": list(initial_score_result.issues),
                 "feedback": " ".join(feedback_parts),
-                "score": judgment.score,
+                "score": initial_score,
             }
 
             resonance_result = await self.resonance.refine(proposal, rejection)
 
-            if resonance_result.success:
-                resonance_succeeded = True
-                final_code = resonance_result.refined_code
-                iterations = len(resonance_result.attempts)
-                if judgment.features_missing:
-                    resonance_improvements = list(judgment.features_missing)
-                else:
-                    resonance_improvements = ["code_quality"]
-                # Conservative score improvement - don't assume perfection
-                final_score = min(judgment.score + 2.0, 10.0)
-            else:
-                # Resonance triggered but failed - be honest
-                final_score = judgment.score
+            if resonance_result.success and resonance_result.refined_code:
+                # CRITICAL: Re-score refined code with same deterministic scorer
+                refined_score_result = self.scorer.score(
+                    resonance_result.refined_code, task.expected_features
+                )
+
+                # Only accept refinement if it ACTUALLY improved the score
+                if refined_score_result.score > initial_score:
+                    resonance_succeeded = True
+                    final_code = resonance_result.refined_code
+                    iterations = len(resonance_result.attempts)
+
+                    # Track what features were actually gained
+                    initial_features = set(
+                        f for f, present in initial_score_result.features.items() if present
+                    )
+                    refined_features = set(
+                        f for f, present in refined_score_result.features.items() if present
+                    )
+                    gained_features = refined_features - initial_features
+                    resonance_improvements = list(gained_features) if gained_features else ["quality"]
+                # else: refinement didn't help, keep original code
 
         elapsed = int((time.perf_counter() - start) * 1000)
 
-        # Compute features based on what actually happened
-        if judge_passed:
-            achieved = tuple(task.expected_features)
-            missing: tuple[str, ...] = ()
-        elif resonance_succeeded:
-            achieved = tuple(task.expected_features)
-            missing = ()
-        else:
-            achieved = tuple(
-                f for f in task.expected_features if f not in judgment.features_missing
-            )
-            missing = tuple(judgment.features_missing)
+        # Final scoring with deterministic scorer (honest evaluation)
+        final_score_result = self.scorer.score(final_code, task.expected_features)
+        achieved = tuple(f for f, present in final_score_result.features.items() if present)
+        missing = tuple(final_score_result.issues)
 
         # Build component breakdown - honest about what happened
         breakdown = ComponentBreakdown(
@@ -592,14 +601,14 @@ Code only (no explanations):"""
             heuristics_applied=tuple(self.lens_heuristics) if self.lens_heuristics else (),
             prompt_type="lens-enhanced" if lens_detected else "structured",
             requirements_added=requirements_added,
-            judge_score=judgment.score,
+            judge_score=initial_score,  # Use deterministic scorer
             judge_issues=judge_issues,
-            judge_passed=judge_passed,
+            judge_passed=initial_score >= 8.0,
             resonance_triggered=resonance_triggered,
             resonance_succeeded=resonance_succeeded,
             resonance_iterations=iterations,
             resonance_improvements=tuple(resonance_improvements),
-            final_score=final_score,
+            final_score=final_score_result.score,  # Honest final score
             features_achieved=achieved,
             features_missing=missing,
         )
@@ -609,7 +618,7 @@ Code only (no explanations):"""
             time_ms=elapsed,
             method="sunwell",
             iterations=iterations,
-            judge_score=judgment.score,
+            judge_score=initial_score,  # Deterministic score
             judge_feedback=judgment.feedback,
             prompt_tokens=total_prompt_tokens,
             completion_tokens=total_completion_tokens,

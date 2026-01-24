@@ -2,16 +2,21 @@
   PrismFracture — Multi-perspective synthesis visualization (RFC-112)
   
   Shows a single prompt refracting into multiple perspectives (harmonic candidates),
-  then converging into the final output.
+  then converging into the final output. Wired to real plan_candidate events.
   
   Data contract:
-  - input_prompt: string
-  - candidates: Array<{ index, persona, score, description }>
-  - winner: { index, selection_reason, final_score }
-  - technique: string ("harmonic_5", "variance_3", etc.)
+  - Consumes real events via observatory.prismFracture
+  - Falls back to demo data when no live data
+  - Supports animation playback
 -->
 <script lang="ts">
   import { fade, fly, scale } from 'svelte/transition';
+  import { AnimatedPath } from '../primitives';
+  import {
+    observatory,
+    DEMO_PRISM_CANDIDATES,
+    type PrismCandidate,
+  } from '../../stores';
   
   interface Props {
     isLive?: boolean;
@@ -19,23 +24,41 @@
   
   let { isLive = true }: Props = $props();
   
-  // Demo data
-  const demoData = {
-    input_prompt: "Build a REST API with auth",
-    candidates: [
-      { index: 0, persona: 'architect', score: 85, color: '#3b82f6', description: 'Comprehensive 6-file structure' },
-      { index: 1, persona: 'critic', score: 72, color: '#ef4444', description: 'Security-focused review' },
-      { index: 2, persona: 'simplifier', score: 91, color: '#22c55e', description: 'Minimal 2-file solution' },
-      { index: 3, persona: 'user', score: 78, color: '#a855f7', description: 'UX-optimized endpoints' },
-      { index: 4, persona: 'adversary', score: 65, color: '#f97316', description: 'Edge case hardened' },
-    ],
-    winner: { index: 2, persona: 'simplifier', selection_reason: 'Highest quality score with minimal complexity', final_score: 91 },
-    technique: 'harmonic_5',
-  };
+  // Use real data if available, otherwise demo
+  const prismState = $derived(observatory.prismFracture);
+  const candidates = $derived(
+    prismState.candidates.length > 0
+      ? prismState.candidates
+      : DEMO_PRISM_CANDIDATES
+  );
+  const winner = $derived(
+    prismState.winner ?? DEMO_PRISM_CANDIDATES[2] // demo winner is simplifier
+  );
+  const isPrismActive = $derived(observatory.isPrismActive);
   
-  let phase = $state<'ready' | 'refracting' | 'scoring' | 'converging' | 'complete'>('ready');
+  // Animation state
+  type AnimPhase = 'ready' | 'refracting' | 'scoring' | 'converging' | 'complete';
+  let phase = $state<AnimPhase>('ready');
   let visibleCandidates = $state<number[]>([]);
   let scoredCandidates = $state<number[]>([]);
+  
+  // Sync phase with live data
+  $effect(() => {
+    if (isPrismActive) {
+      if (prismState.phase === 'generating') {
+        phase = 'refracting';
+        // Show candidates as they arrive
+        visibleCandidates = candidates.map((_, i) => i);
+      } else if (prismState.phase === 'scoring') {
+        phase = 'scoring';
+        scoredCandidates = candidates.filter(c => c.score !== undefined).map((_, i) => i);
+      } else if (prismState.phase === 'complete') {
+        phase = 'complete';
+        visibleCandidates = candidates.map((_, i) => i);
+        scoredCandidates = candidates.map((_, i) => i);
+      }
+    }
+  });
   
   function playAnimation() {
     phase = 'ready';
@@ -45,7 +68,7 @@
     setTimeout(() => {
       phase = 'refracting';
       // Stagger candidate appearances
-      demoData.candidates.forEach((_, i) => {
+      candidates.forEach((_, i) => {
         setTimeout(() => {
           visibleCandidates = [...visibleCandidates, i];
         }, i * 300);
@@ -55,7 +78,7 @@
     setTimeout(() => {
       phase = 'scoring';
       // Stagger score reveals
-      demoData.candidates.forEach((_, i) => {
+      candidates.forEach((_, i) => {
         setTimeout(() => {
           scoredCandidates = [...scoredCandidates, i];
         }, i * 200);
@@ -71,7 +94,20 @@
     }, 5000);
   }
   
+  function reset() {
+    phase = 'ready';
+    visibleCandidates = [];
+    scoredCandidates = [];
+  }
+  
+  // Get persona label from variance config
+  function getPersona(candidate: PrismCandidate): string {
+    return candidate.varianceConfig?.promptStyle ?? `variant-${candidate.index}`;
+  }
+  
   // Prism geometry
+  const svgWidth = 700;
+  const svgHeight = 400;
   const prismPath = "M 250 80 L 350 200 L 150 200 Z";
 </script>
 
@@ -79,22 +115,54 @@
   <div class="prism-header">
     <h2>Prism Fracture</h2>
     <p class="description">Watch one prompt refract into multiple perspectives</p>
+    
+    <!-- Status badges -->
+    <div class="status-badges">
+      {#if isPrismActive}
+        <span class="badge live">🔴 Live</span>
+      {:else if phase !== 'ready' && phase !== 'complete'}
+        <span class="badge replay">⏪ Demo</span>
+      {:else}
+        <span class="badge idle">Ready</span>
+      {/if}
+    </div>
   </div>
   
   <div class="prism-content">
-    <svg viewBox="0 0 700 400" class="prism-svg">
-      <!-- Input beam -->
-      <line 
-        x1="0" y1="140" x2="180" y2="140"
-        class="input-beam"
-        class:active={phase !== 'ready'}
-      />
+    <svg viewBox="0 0 {svgWidth} {svgHeight}" class="prism-svg">
+      <!-- Defs -->
+      <defs>
+        <linearGradient id="inputBeamGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="var(--ui-gold)" stop-opacity="0.3" />
+          <stop offset="100%" stop-color="var(--ui-gold)" />
+        </linearGradient>
+        <filter id="prismGlow">
+          <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+      
+      <!-- Input beam using AnimatedPath -->
+      {#if phase !== 'ready'}
+        <AnimatedPath
+          d="M 0 140 L 180 140"
+          duration={800}
+          color="var(--ui-gold)"
+          strokeWidth={4}
+          glow={true}
+          active={true}
+        />
+      {/if}
       
       <!-- Prism -->
       <path 
         d={prismPath} 
         class="prism-shape"
         class:glowing={phase === 'refracting' || phase === 'scoring'}
+        filter={phase === 'refracting' || phase === 'scoring' ? 'url(#prismGlow)' : undefined}
       />
       <text x="250" y="160" class="prism-label">🔮</text>
       
@@ -102,41 +170,57 @@
       {#if phase !== 'ready'}
         <g in:fly={{ x: -50, duration: 500 }}>
           <rect x="10" y="110" width="160" height="60" rx="8" class="prompt-box" />
-          <text x="90" y="135" class="prompt-text">"{demoData.input_prompt}"</text>
+          <text x="90" y="135" class="prompt-text">Goal Input</text>
           <text x="90" y="155" class="prompt-hint">↳ Single prompt</text>
         </g>
       {/if}
       
       <!-- Refracted beams -->
-      {#each demoData.candidates as candidate, i}
-        {@const angle = -40 + (i * 20)}
-        {@const endX = 550 + (i * 10)}
-        {@const endY = 80 + (i * 70)}
+      {#each candidates as candidate, i}
+        {@const endX = 550 + (i * 8)}
+        {@const endY = 60 + (i * 70)}
         
         {#if visibleCandidates.includes(i)}
           <g in:fly={{ x: -100, duration: 500 }}>
-            <!-- Beam line -->
-            <line 
-              x1="350" y1="140" x2={endX} y2={endY}
-              class="refracted-beam"
-              style="stroke: {candidate.color}; opacity: {phase === 'complete' && candidate.index !== demoData.winner.index ? 0.3 : 1}"
+            <!-- Beam line using AnimatedPath -->
+            <AnimatedPath
+              d="M 350 140 L {endX} {endY}"
+              duration={300}
+              delay={i * 100}
+              color={candidate.color}
+              strokeWidth={3}
+              glow={true}
+              active={phase !== 'complete' || candidate.id === winner?.id}
             />
+            
+            <!-- Dim non-winners -->
+            {#if phase === 'complete' && candidate.id !== winner?.id}
+              <line 
+                x1="350" y1="140" x2={endX} y2={endY}
+                stroke={candidate.color}
+                stroke-width="3"
+                opacity="0.2"
+              />
+            {/if}
             
             <!-- Candidate card -->
             <g transform="translate({endX}, {endY})">
               <rect 
                 x="-10" y="-25" width="140" height="50" rx="8" 
                 class="candidate-card"
-                class:winner={phase === 'complete' && candidate.index === demoData.winner.index}
+                class:winner={phase === 'complete' && candidate.id === winner?.id}
                 style="stroke: {candidate.color}"
               />
               <text x="60" y="-5" class="candidate-persona" style="fill: {candidate.color}">
-                {candidate.persona}
+                {getPersona(candidate)}
+              </text>
+              <text x="60" y="10" class="candidate-artifacts">
+                {candidate.artifactCount} artifacts
               </text>
               
-              {#if scoredCandidates.includes(i)}
-                <text x="60" y="15" class="candidate-score" in:scale={{ duration: 300 }}>
-                  {candidate.score}/100
+              {#if scoredCandidates.includes(i) && candidate.score !== undefined}
+                <text x="125" y="-5" class="candidate-score" in:scale={{ duration: 300 }}>
+                  {candidate.score.toFixed(0)}
                 </text>
               {/if}
             </g>
@@ -145,11 +229,13 @@
       {/each}
       
       <!-- Winner highlight -->
-      {#if phase === 'complete'}
+      {#if phase === 'complete' && winner}
         <g in:fade={{ duration: 500 }}>
           <rect x="200" y="320" width="300" height="60" rx="12" class="winner-box" />
-          <text x="350" y="345" class="winner-label">🏆 Winner: {demoData.winner.persona}</text>
-          <text x="350" y="365" class="winner-score">Score: {demoData.winner.final_score}/100</text>
+          <text x="350" y="345" class="winner-label">🏆 Winner: {getPersona(winner)}</text>
+          <text x="350" y="365" class="winner-score">
+            Score: {winner.score?.toFixed(0) ?? '?'} | {winner.artifactCount} artifacts
+          </text>
         </g>
       {/if}
     </svg>
@@ -160,6 +246,12 @@
       {phase === 'ready' || phase === 'complete' ? '▶ Play Animation' : '⏳ Playing...'}
     </button>
     
+    {#if phase !== 'ready'}
+      <button class="reset-btn" onclick={reset}>
+        ↺ Reset
+      </button>
+    {/if}
+    
     <div class="phase-indicator">
       <span class="phase-label">Phase:</span>
       <span class="phase-value">{phase}</span>
@@ -167,9 +259,13 @@
   </div>
   
   <div class="prism-footer">
-    <span class="technique-badge">{demoData.technique}</span>
+    <span class="technique-badge">harmonic_{candidates.length}</span>
     <span class="separator">•</span>
-    <span class="candidate-count">{demoData.candidates.length} candidates</span>
+    <span class="candidate-count">{candidates.length} candidates</span>
+    {#if winner?.score}
+      <span class="separator">•</span>
+      <span class="winner-badge">Winner: {winner.score.toFixed(0)}/100</span>
+    {/if}
   </div>
 </div>
 
@@ -197,7 +293,38 @@
     font-family: var(--font-mono);
     font-size: var(--text-sm);
     color: var(--text-tertiary);
-    margin: 0;
+    margin: 0 0 var(--space-2);
+  }
+  
+  .status-badges {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-2);
+  }
+  
+  .badge {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+  }
+  
+  .badge.live {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    animation: pulse-opacity 1.5s ease-in-out infinite;
+  }
+  
+  .badge.replay {
+    background: var(--ui-gold-15);
+    color: var(--text-gold);
+  }
+  
+  @keyframes pulse-opacity {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
   }
   
   .prism-content {
@@ -213,19 +340,6 @@
     height: auto;
   }
   
-  .input-beam {
-    stroke: var(--ui-gold);
-    stroke-width: 4;
-    stroke-dasharray: 400;
-    stroke-dashoffset: 400;
-    transition: stroke-dashoffset 1s ease-out;
-  }
-  
-  .input-beam.active {
-    stroke-dashoffset: 0;
-    filter: drop-shadow(0 0 8px var(--ui-gold));
-  }
-  
   .prism-shape {
     fill: rgba(var(--ui-gold-rgb), 0.1);
     stroke: var(--ui-gold);
@@ -235,7 +349,6 @@
   
   .prism-shape.glowing {
     fill: rgba(var(--ui-gold-rgb), 0.2);
-    filter: drop-shadow(0 0 20px var(--ui-gold));
   }
   
   .prism-label {
@@ -251,7 +364,7 @@
   
   .prompt-text {
     font-family: var(--font-serif);
-    font-size: 11px;
+    font-size: 12px;
     fill: var(--text-primary);
     text-anchor: middle;
   }
@@ -263,12 +376,6 @@
     text-anchor: middle;
   }
   
-  .refracted-beam {
-    stroke-width: 3;
-    transition: opacity var(--transition-normal);
-    filter: drop-shadow(0 0 4px currentColor);
-  }
-  
   .candidate-card {
     fill: var(--bg-primary);
     stroke-width: 2;
@@ -277,7 +384,7 @@
   
   .candidate-card.winner {
     fill: rgba(var(--success-rgb), 0.1);
-    stroke: var(--success);
+    stroke: var(--success) !important;
     filter: drop-shadow(0 0 12px var(--success));
   }
   
@@ -288,11 +395,19 @@
     text-anchor: middle;
   }
   
+  .candidate-artifacts {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    fill: var(--text-tertiary);
+    text-anchor: middle;
+  }
+  
   .candidate-score {
     font-family: var(--font-mono);
-    font-size: 11px;
-    fill: var(--text-secondary);
-    text-anchor: middle;
+    font-size: 14px;
+    font-weight: 700;
+    fill: var(--text-gold);
+    text-anchor: end;
   }
   
   .winner-box {
@@ -320,7 +435,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: var(--space-6);
+    gap: var(--space-4);
     margin-top: var(--space-4);
   }
   
@@ -345,6 +460,23 @@
   .play-btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+  
+  .reset-btn {
+    padding: var(--space-2) var(--space-4);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+  
+  .reset-btn:hover {
+    border-color: var(--border-default);
+    background: var(--bg-secondary);
   }
   
   .phase-indicator {
@@ -378,6 +510,10 @@
     background: var(--bg-primary);
     border-radius: var(--radius-sm);
     color: var(--text-gold);
+  }
+  
+  .winner-badge {
+    color: var(--success);
   }
   
   .separator {

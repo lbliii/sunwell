@@ -98,13 +98,14 @@
   ];
 </script>
 
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <g 
   class="glowing-node" 
   class:active={status === 'active'} 
   class:complete={status === 'complete'}
   class:interactive
   role={interactive ? 'button' : undefined}
-  tabindex={interactive ? 0 : undefined}
+  tabindex={interactive ? 0 : -1}
   onclick={onclick}
   onkeydown={(e) => e.key === 'Enter' && onclick?.()}
 >

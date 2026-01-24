@@ -5,6 +5,7 @@
  */
 
 import { agent } from './agent.svelte';
+import { evaluation } from './evaluation.svelte';
 import type { RefinementRound, PlanCandidate, Task } from '$lib/types';
 import { PlanningPhase } from '$lib/constants';
 
@@ -96,6 +97,62 @@ export interface ExecutionCinemaState {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// MEMORY LATTICE TYPES
+// ═══════════════════════════════════════════════════════════════
+
+/** Node category in the memory lattice */
+export type LatticeNodeCategory = 'fact' | 'decision' | 'dead_end' | 'pattern' | 'concept';
+
+/** A node in the memory lattice */
+export interface LatticeNode {
+  id: string;
+  label: string;
+  category: LatticeNodeCategory;
+  x: number;
+  y: number;
+  timestamp?: number;
+}
+
+/** An edge in the memory lattice */
+export interface LatticeEdge {
+  source: string;
+  target: string;
+  relation: string;
+}
+
+/** Memory lattice visualization state */
+export interface MemoryLatticeState {
+  nodes: LatticeNode[];
+  edges: LatticeEdge[];
+  factCount: number;
+  conceptCount: number;
+  totalLearnings: number;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODEL PARADOX TYPES
+// ═══════════════════════════════════════════════════════════════
+
+/** A model comparison entry for the paradox visualization */
+export interface ParadoxComparison {
+  model: string;
+  params: string;
+  cost: string;
+  rawScore: number;
+  sunwellScore: number;
+  improvement: number;
+}
+
+/** Model paradox visualization state */
+export interface ModelParadoxState {
+  thesis: string;
+  comparisons: ParadoxComparison[];
+  avgImprovement: number;
+  sunwellWins: number;
+  totalRuns: number;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════════
 
@@ -155,6 +212,54 @@ function transformTasks(tasks: Task[]): CinemaTask[] {
     status: t.status === 'running' ? 'active' : t.status as CinemaTaskStatus,
     progress: t.progress / 100, // normalize to 0-1
   }));
+}
+
+/**
+ * Map concept category to lattice node category
+ */
+function mapConceptCategory(category: string): LatticeNodeCategory {
+  switch (category) {
+    case 'framework':
+    case 'database':
+    case 'tool':
+      return 'concept';
+    case 'testing':
+      return 'pattern';
+    case 'pattern':
+      return 'pattern';
+    case 'language':
+      return 'fact';
+    default:
+      return 'fact';
+  }
+}
+
+/**
+ * Get parameter count string for a model
+ */
+function getModelParams(model: string): string {
+  if (model.includes('3b') || model.includes(':3b')) return '3B';
+  if (model.includes('7b') || model.includes(':7b')) return '7B';
+  if (model.includes('8b') || model.includes(':8b')) return '8B';
+  if (model.includes('13b') || model.includes(':13b')) return '13B';
+  if (model.includes('20b') || model.includes(':20b')) return '20B';
+  if (model.includes('70b') || model.includes(':70b')) return '70B';
+  if (model.includes('gpt-4')) return '~1T';
+  if (model.includes('gpt-3.5')) return '~175B';
+  if (model.includes('claude-3')) return '~200B';
+  return '?';
+}
+
+/**
+ * Get cost string for a model
+ */
+function getModelCost(model: string): string {
+  if (model.includes('llama') || model.includes('qwen') || model.includes('phi')) return '$0';
+  if (model.includes('gpt-4')) return '~$30/1M';
+  if (model.includes('gpt-3.5')) return '~$2/1M';
+  if (model.includes('claude-3-opus')) return '~$75/1M';
+  if (model.includes('claude-3-sonnet')) return '~$15/1M';
+  return '$0';
 }
 
 /**
@@ -251,6 +356,177 @@ export const observatory = {
     
     // In live mode, show the latest
     return iterations[iterations.length - 1];
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // PRISM FRACTURE STATE
+  // ═══════════════════════════════════════════════════════════════
+
+  // Prism fracture state (derived from agent store)
+  get prismFracture(): PrismFractureState {
+    const candidates = transformCandidates(agent.planningCandidates);
+    const selected = agent.selectedCandidate;
+    const progress = agent.planningProgress;
+
+    // Determine phase
+    let phase: PrismFractureState['phase'] = 'idle';
+    if (progress) {
+      if (progress.phase === PlanningPhase.GENERATING) phase = 'generating';
+      else if (progress.phase === PlanningPhase.SCORING) phase = 'scoring';
+      else if (progress.phase === PlanningPhase.COMPLETE || selected) phase = 'complete';
+    }
+
+    // Find winner
+    let winner: PrismCandidate | null = null;
+    if (selected) {
+      winner = candidates.find(c => c.id === selected.id) ?? null;
+    }
+
+    return {
+      candidates,
+      winner,
+      selectionReason: selected?.selection_reason ?? '',
+      phase,
+      totalCandidates: progress?.total_candidates ?? 0,
+      currentProgress: progress?.current_candidates ?? 0,
+    };
+  },
+
+  // Is prism generation active?
+  get isPrismActive() {
+    const phase = agent.planningProgress?.phase;
+    return phase === PlanningPhase.GENERATING || phase === PlanningPhase.SCORING;
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // EXECUTION CINEMA STATE
+  // ═══════════════════════════════════════════════════════════════
+
+  // Execution cinema state (derived from agent store)
+  get executionCinema(): ExecutionCinemaState {
+    const tasks = transformTasks(agent.tasks);
+    const currentIdx = agent.currentTaskIndex;
+    
+    return {
+      tasks,
+      currentTaskIndex: currentIdx,
+      totalTasks: agent.totalTasks,
+      completedTasks: agent.completedTasks,
+      failedTasks: agent.failedTasks,
+      isExecuting: agent.isRunning,
+    };
+  },
+
+  // Is execution active?
+  get isExecuting() {
+    return agent.isRunning;
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // MEMORY LATTICE STATE
+  // ═══════════════════════════════════════════════════════════════
+
+  // Memory lattice state (derived from agent store)
+  get memoryLattice(): MemoryLatticeState {
+    const learnings = agent.learnings;
+    const concepts = agent.concepts;
+
+    // Generate nodes from concepts with simple force-directed layout
+    const nodes: LatticeNode[] = concepts.map((c, i) => {
+      // Simple circular layout with some randomness
+      const angle = (i / Math.max(concepts.length, 1)) * 2 * Math.PI;
+      const radius = 150 + Math.random() * 50;
+      return {
+        id: c.id,
+        label: c.label,
+        category: mapConceptCategory(c.category),
+        x: 350 + Math.cos(angle) * radius,
+        y: 225 + Math.sin(angle) * radius,
+        timestamp: c.timestamp,
+      };
+    });
+
+    // Generate simple edges between related concepts
+    const edges: LatticeEdge[] = [];
+    for (let i = 0; i < concepts.length - 1; i++) {
+      // Connect sequential concepts
+      if (concepts[i].category === concepts[i + 1].category) {
+        edges.push({
+          source: concepts[i].id,
+          target: concepts[i + 1].id,
+          relation: 'relates_to',
+        });
+      }
+    }
+
+    return {
+      nodes,
+      edges,
+      factCount: learnings.length,
+      conceptCount: concepts.length,
+      totalLearnings: learnings.length,
+    };
+  },
+
+  // Has memory data?
+  get hasMemory() {
+    return agent.learnings.length > 0 || agent.concepts.length > 0;
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // MODEL PARADOX STATE
+  // ═══════════════════════════════════════════════════════════════
+
+  // Model paradox state (derived from evaluation store)
+  get modelParadox(): ModelParadoxState {
+    const history = evaluation.history;
+    const stats = evaluation.stats;
+
+    // Group runs by model and compute averages
+    const modelGroups: Map<string, { raw: number[]; sunwell: number[] }> = new Map();
+    
+    for (const run of history) {
+      if (!modelGroups.has(run.model)) {
+        modelGroups.set(run.model, { raw: [], sunwell: [] });
+      }
+      const group = modelGroups.get(run.model)!;
+      if (run.single_shot_score) {
+        group.raw.push(run.single_shot_score.total);
+      }
+      if (run.sunwell_score) {
+        group.sunwell.push(run.sunwell_score.total);
+      }
+    }
+
+    // Build comparisons
+    const comparisons: ParadoxComparison[] = [];
+    for (const [model, group] of modelGroups) {
+      if (group.raw.length > 0 && group.sunwell.length > 0) {
+        const avgRaw = group.raw.reduce((a, b) => a + b, 0) / group.raw.length;
+        const avgSunwell = group.sunwell.reduce((a, b) => a + b, 0) / group.sunwell.length;
+        comparisons.push({
+          model,
+          params: getModelParams(model),
+          cost: getModelCost(model),
+          rawScore: avgRaw,
+          sunwellScore: avgSunwell,
+          improvement: avgRaw > 0 ? ((avgSunwell / avgRaw) - 1) * 100 : 0,
+        });
+      }
+    }
+
+    return {
+      thesis: "Small models contain hidden capability. Structured cognition reveals it.",
+      comparisons: comparisons.length > 0 ? comparisons : DEMO_PARADOX_COMPARISONS,
+      avgImprovement: stats?.avg_improvement ?? 0,
+      sunwellWins: stats?.sunwell_wins ?? 0,
+      totalRuns: stats?.total_runs ?? 0,
+    };
+  },
+
+  // Has evaluation data?
+  get hasEvaluations() {
+    return evaluation.history.length > 0;
   },
 };
 
@@ -378,6 +654,51 @@ export const DEMO_ITERATIONS: ResonanceIteration[] = [
   { round: 2, score: 5.5, delta: 2.3, improvements: ['docstring'], improved: true },
   { round: 3, score: 7.8, delta: 2.3, improvements: ['error handling'], improved: true },
   { round: 4, score: 8.5, delta: 0.7, improvements: ['polish'], improved: true, reason: 'Diminishing returns' },
+];
+
+/** Demo prism candidates for testing/preview */
+export const DEMO_PRISM_CANDIDATES: PrismCandidate[] = [
+  { id: 'candidate-0', index: 0, artifactCount: 6, score: 85, color: '#3b82f6', varianceConfig: { promptStyle: 'architect' } },
+  { id: 'candidate-1', index: 1, artifactCount: 4, score: 72, color: '#ef4444', varianceConfig: { promptStyle: 'critic' } },
+  { id: 'candidate-2', index: 2, artifactCount: 2, score: 91, color: '#22c55e', varianceConfig: { promptStyle: 'simplifier' } },
+  { id: 'candidate-3', index: 3, artifactCount: 5, score: 78, color: '#a855f7', varianceConfig: { promptStyle: 'user' } },
+  { id: 'candidate-4', index: 4, artifactCount: 7, score: 65, color: '#f97316', varianceConfig: { promptStyle: 'adversary' } },
+];
+
+/** Demo cinema tasks for testing/preview */
+export const DEMO_CINEMA_TASKS: CinemaTask[] = [
+  { id: 'models', label: 'models/', status: 'complete', progress: 1 },
+  { id: 'auth', label: 'auth/', status: 'active', progress: 0.7 },
+  { id: 'api', label: 'api/', status: 'pending', progress: 0 },
+  { id: 'tests', label: 'tests/', status: 'pending', progress: 0 },
+];
+
+/** Demo memory lattice nodes for testing/preview */
+export const DEMO_LATTICE_NODES: LatticeNode[] = [
+  { id: 'oauth', label: 'OAuth', category: 'decision', x: 300, y: 150 },
+  { id: 'jwt', label: 'JWT', category: 'dead_end', x: 450, y: 100 },
+  { id: 'auth-module', label: 'auth module', category: 'fact', x: 250, y: 250 },
+  { id: 'billing', label: 'billing.py', category: 'fact', x: 200, y: 350 },
+  { id: 'snake-case', label: 'snake_case', category: 'pattern', x: 400, y: 300 },
+  { id: 'type-hints', label: 'type hints', category: 'pattern', x: 500, y: 250 },
+  { id: 'flask', label: 'Flask', category: 'concept', x: 150, y: 150 },
+  { id: 'sqlalchemy', label: 'SQLAlchemy', category: 'concept', x: 550, y: 350 },
+];
+
+/** Demo memory lattice edges for testing/preview */
+export const DEMO_LATTICE_EDGES: LatticeEdge[] = [
+  { source: 'oauth', target: 'jwt', relation: 'contradicts' },
+  { source: 'oauth', target: 'auth-module', relation: 'decided_on' },
+  { source: 'auth-module', target: 'billing', relation: 'depends_on' },
+  { source: 'snake-case', target: 'type-hints', relation: 'elaborates' },
+  { source: 'flask', target: 'auth-module', relation: 'uses' },
+  { source: 'billing', target: 'sqlalchemy', relation: 'uses' },
+];
+
+/** Demo model paradox comparisons for testing/preview */
+export const DEMO_PARADOX_COMPARISONS: ParadoxComparison[] = [
+  { model: 'llama3.2:3b', params: '3B', cost: '$0', rawScore: 1.0, sunwellScore: 8.5, improvement: 750 },
+  { model: 'llama3.2:8b', params: '8B', cost: '$0', rawScore: 4.0, sunwellScore: 9.2, improvement: 130 },
 ];
 
 /** Load demo data for preview mode */

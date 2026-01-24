@@ -5,79 +5,140 @@
   The paradox: 3B + architecture > 20B raw.
   
   Data contract:
-  - comparisons: Array<{ model, params, cost_per_run, conditions: { technique, score, improvement_pct }[] }>
-  - thesis_claim: string
+  - Consumes real events via observatory.modelParadox
+  - Falls back to demo data when no evaluation data
 -->
 <script lang="ts">
-  import { fade, fly } from 'svelte/transition';
+  import { fade, fly, scale } from 'svelte/transition';
   import { spring } from 'svelte/motion';
+  import {
+    observatory,
+    DEMO_PARADOX_COMPARISONS,
+    type ParadoxComparison,
+  } from '../../stores';
   
-  // Demo data showing the paradox
-  const demoData = {
-    thesis: "Small models contain hidden capability. Structured cognition reveals it.",
-    comparisons: [
-      {
-        model: 'llama3.2:3b',
-        params: '3.2B',
-        cost: '$0',
-        raw: 1.0,
-        sunwell: 8.5,
-      },
-      {
-        model: 'llama3.2:20b', 
-        params: '20.9B',
-        cost: '$0',
-        raw: 6.0,
-        sunwell: 9.5,
-      },
-    ],
-  };
+  interface Props {
+    isLive?: boolean;
+  }
   
+  let { isLive = true }: Props = $props();
+  
+  // Use real data if available, otherwise demo
+  const paradoxState = $derived(observatory.modelParadox);
+  const comparisons = $derived(
+    paradoxState.comparisons.length > 0
+      ? paradoxState.comparisons
+      : DEMO_PARADOX_COMPARISONS
+  );
+  const hasEvaluations = $derived(observatory.hasEvaluations);
+  
+  // Animation state
   let showSunwell = $state(false);
-  const smallRawSpring = spring(0, { stiffness: 0.03, damping: 0.3 });
-  const smallSunwellSpring = spring(0, { stiffness: 0.03, damping: 0.3 });
-  const bigRawSpring = spring(0, { stiffness: 0.03, damping: 0.3 });
-  const bigSunwellSpring = spring(0, { stiffness: 0.03, damping: 0.3 });
+  let animationPlayed = $state(false);
+  
+  // Spring values as state (reactive)
+  let springValues = $state([
+    { raw: 0, sunwell: 0 },
+    { raw: 0, sunwell: 0 },
+    { raw: 0, sunwell: 0 },
+    { raw: 0, sunwell: 0 },
+  ]);
+  
+  // Springs for animation
+  const rawSprings = [
+    spring(0, { stiffness: 0.03, damping: 0.3 }),
+    spring(0, { stiffness: 0.03, damping: 0.3 }),
+    spring(0, { stiffness: 0.03, damping: 0.3 }),
+    spring(0, { stiffness: 0.03, damping: 0.3 }),
+  ];
+  
+  const sunwellSprings = [
+    spring(0, { stiffness: 0.03, damping: 0.3 }),
+    spring(0, { stiffness: 0.03, damping: 0.3 }),
+    spring(0, { stiffness: 0.03, damping: 0.3 }),
+    spring(0, { stiffness: 0.03, damping: 0.3 }),
+  ];
+  
+  // Subscribe to spring updates
+  rawSprings.forEach((s, i) => {
+    s.subscribe(v => {
+      springValues[i] = { ...springValues[i], raw: v };
+    });
+  });
+  
+  sunwellSprings.forEach((s, i) => {
+    s.subscribe(v => {
+      springValues[i] = { ...springValues[i], sunwell: v };
+    });
+  });
   
   function playAnimation() {
     showSunwell = false;
-    smallRawSpring.set(0, { hard: true });
-    smallSunwellSpring.set(0, { hard: true });
-    bigRawSpring.set(0, { hard: true });
-    bigSunwellSpring.set(0, { hard: true });
+    animationPlayed = true;
+    
+    // Reset springs
+    rawSprings.forEach(s => s.set(0, { hard: true }));
+    sunwellSprings.forEach(s => s.set(0, { hard: true }));
     
     // Animate raw scores first
     setTimeout(() => {
-      smallRawSpring.set(demoData.comparisons[0].raw);
-      bigRawSpring.set(demoData.comparisons[1].raw);
+      comparisons.forEach((comp, i) => {
+        if (i < rawSprings.length) {
+          rawSprings[i].set(comp.rawScore);
+        }
+      });
     }, 500);
     
-    // Then show Sunwell activation
+    // Show Sunwell activation flash
     setTimeout(() => {
       showSunwell = true;
     }, 2000);
     
     // Animate Sunwell scores
     setTimeout(() => {
-      smallSunwellSpring.set(demoData.comparisons[0].sunwell);
-      bigSunwellSpring.set(demoData.comparisons[1].sunwell);
+      comparisons.forEach((comp, i) => {
+        if (i < sunwellSprings.length) {
+          sunwellSprings[i].set(comp.sunwellScore);
+        }
+      });
     }, 2500);
+  }
+  
+  function reset() {
+    showSunwell = false;
+    animationPlayed = false;
+    rawSprings.forEach(s => s.set(0, { hard: true }));
+    sunwellSprings.forEach(s => s.set(0, { hard: true }));
   }
   
   // SVG dimensions
   const width = 600;
   const height = 300;
-  const padding = { top: 40, right: 80, bottom: 60, left: 60 };
+  const padding = { top: 40, right: 100, bottom: 60, left: 60 };
   
   function scoreToY(score: number): number {
-    return height - padding.bottom - ((score / 10) * (height - padding.top - padding.bottom));
+    const maxScore = 10;
+    return height - padding.bottom - ((score / maxScore) * (height - padding.top - padding.bottom));
   }
+  
+  // Colors for different models
+  const colors = ['#3b82f6', '#22c55e', '#a855f7', '#f97316'];
 </script>
 
 <div class="model-paradox" in:fade={{ duration: 300 }}>
   <div class="paradox-header">
     <h2>Model Paradox</h2>
-    <p class="thesis">"{demoData.thesis}"</p>
+    <p class="thesis">"{paradoxState.thesis}"</p>
+    
+    <!-- Status badges -->
+    <div class="status-badges">
+      {#if hasEvaluations}
+        <span class="badge live">📊 Real Data</span>
+        <span class="badge count">{paradoxState.totalRuns} runs</span>
+      {:else}
+        <span class="badge idle">Demo</span>
+      {/if}
+    </div>
   </div>
   
   <div class="paradox-content">
@@ -104,137 +165,139 @@
         Quality Score
       </text>
       
-      <!-- 3B raw line (flat, disappointing) -->
-      <line
-        x1={padding.left + 50}
-        y1={scoreToY($smallRawSpring)}
-        x2={width - padding.right - 50}
-        y2={scoreToY($smallRawSpring)}
-        class="data-line raw small"
-      />
-      <circle 
-        cx={padding.left + 50} 
-        cy={scoreToY($smallRawSpring)} 
-        r="6" 
-        class="data-point raw"
-      />
-      <text 
-        x={width - padding.right - 40} 
-        y={scoreToY($smallRawSpring) + 4} 
-        class="line-label raw"
-      >
-        3B (raw): {$smallRawSpring.toFixed(1)}
-      </text>
-      
-      <!-- 20B raw line (mediocre) -->
-      <line
-        x1={padding.left + 50}
-        y1={scoreToY($bigRawSpring)}
-        x2={width - padding.right - 50}
-        y2={scoreToY($bigRawSpring)}
-        class="data-line raw big"
-      />
-      <circle 
-        cx={padding.left + 50} 
-        cy={scoreToY($bigRawSpring)} 
-        r="6" 
-        class="data-point raw"
-      />
-      <text 
-        x={width - padding.right - 40} 
-        y={scoreToY($bigRawSpring) + 4} 
-        class="line-label raw"
-      >
-        20B (raw): {$bigRawSpring.toFixed(1)}
-      </text>
+      <!-- X-axis labels -->
+      <text x={padding.left + 30} y={height - 20} class="x-label">Raw</text>
+      <text x={width - padding.right - 30} y={height - 20} class="x-label">+Sunwell</text>
       
       <!-- Sunwell activation flash -->
       {#if showSunwell}
-        <g in:fade={{ duration: 300 }}>
-          <rect 
-            x={padding.left} 
-            y={padding.top} 
-            width={width - padding.left - padding.right}
-            height={height - padding.top - padding.bottom}
-            class="activation-flash"
-          />
-          
-          <!-- 3B + Sunwell line (rockets up!) -->
-          <line
-            x1={padding.left + 50}
-            y1={scoreToY(demoData.comparisons[0].raw)}
-            x2={width - padding.right - 50}
-            y2={scoreToY($smallSunwellSpring)}
-            class="data-line sunwell small"
-          />
-          <circle 
-            cx={width - padding.right - 50} 
-            cy={scoreToY($smallSunwellSpring)} 
-            r="8" 
-            class="data-point sunwell"
-          />
-          <text 
-            x={width - padding.right + 10} 
-            y={scoreToY($smallSunwellSpring) + 4} 
-            class="line-label sunwell"
-          >
-            3B + Sunwell: {$smallSunwellSpring.toFixed(1)}
-          </text>
-          
-          <!-- 20B + Sunwell line -->
-          <line
-            x1={padding.left + 50}
-            y1={scoreToY(demoData.comparisons[1].raw)}
-            x2={width - padding.right - 50}
-            y2={scoreToY($bigSunwellSpring)}
-            class="data-line sunwell big"
-          />
-          <circle 
-            cx={width - padding.right - 50} 
-            cy={scoreToY($bigSunwellSpring)} 
-            r="8" 
-            class="data-point sunwell"
-          />
-          <text 
-            x={width - padding.right + 10} 
-            y={scoreToY($bigSunwellSpring) + 4} 
-            class="line-label sunwell"
-          >
-            20B + Sunwell: {$bigSunwellSpring.toFixed(1)}
-          </text>
-        </g>
+        <rect 
+          x={padding.left} 
+          y={padding.top} 
+          width={width - padding.left - padding.right}
+          height={height - padding.top - padding.bottom}
+          class="activation-flash"
+          in:fade={{ duration: 300 }}
+        />
       {/if}
+      
+      <!-- Data lines for each comparison -->
+      {#each comparisons.slice(0, springValues.length) as comp, i}
+        {@const color = colors[i % colors.length]}
+        {@const rawY = scoreToY(springValues[i].raw)}
+        {@const sunwellY = scoreToY(springValues[i].sunwell)}
+        {@const xStart = padding.left + 50}
+        {@const xEnd = width - padding.right - 50}
+        
+        <!-- Raw data point and label -->
+        {#if animationPlayed}
+          <circle 
+            cx={xStart} 
+            cy={rawY} 
+            r="6" 
+            fill={color}
+            opacity="0.6"
+          />
+          <text 
+            x={xStart - 10} 
+            y={rawY + 4} 
+            class="data-label"
+            text-anchor="end"
+            fill={color}
+          >
+            {comp.params}: {springValues[i].raw.toFixed(1)}
+          </text>
+        {/if}
+        
+        <!-- Connecting line -->
+        {#if showSunwell}
+          <line
+            x1={xStart}
+            y1={rawY}
+            x2={xEnd}
+            y2={sunwellY}
+            stroke={color}
+            stroke-width="3"
+            stroke-linecap="round"
+            class="connector-line"
+            style="filter: drop-shadow(0 0 4px {color})"
+            in:fade={{ duration: 500 }}
+          />
+          
+          <!-- Sunwell data point and label -->
+          <circle 
+            cx={xEnd} 
+            cy={sunwellY} 
+            r="8" 
+            fill={color}
+            style="filter: drop-shadow(0 0 8px {color})"
+            in:scale={{ duration: 300 }}
+          />
+          <text 
+            x={xEnd + 15} 
+            y={sunwellY + 4} 
+            class="data-label sunwell"
+            fill={color}
+            in:fly={{ x: -10, duration: 300 }}
+          >
+            {springValues[i].sunwell.toFixed(1)}
+          </text>
+        {/if}
+      {/each}
     </svg>
     
     <!-- Stats cards -->
     <div class="stats-row">
-      {#each demoData.comparisons as comp, i}
+      {#each comparisons.slice(0, 2) as comp, i}
         <div class="stat-card" in:fly={{ y: 20, delay: i * 100, duration: 300 }}>
           <div class="stat-header">
             <span class="stat-model">{comp.model}</span>
-            <span class="stat-params">{comp.params}</span>
+            <span class="stat-params">{comp.params} • {comp.cost}</span>
           </div>
           <div class="stat-comparison">
             <div class="stat-value raw">
               <span class="value-label">Raw</span>
-              <span class="value-number">{comp.raw.toFixed(1)}</span>
+              <span class="value-number">{comp.rawScore.toFixed(1)}</span>
             </div>
             <span class="stat-arrow">→</span>
             <div class="stat-value sunwell">
               <span class="value-label">+Sunwell</span>
-              <span class="value-number">{comp.sunwell.toFixed(1)}</span>
+              <span class="value-number">{comp.sunwellScore.toFixed(1)}</span>
             </div>
-            <span class="stat-improvement">+{(((comp.sunwell / comp.raw) - 1) * 100).toFixed(0)}%</span>
+            <span class="stat-improvement">+{comp.improvement.toFixed(0)}%</span>
           </div>
         </div>
       {/each}
     </div>
+    
+    <!-- Summary stats -->
+    {#if hasEvaluations && paradoxState.totalRuns > 0}
+      <div class="summary-stats" in:fade={{ duration: 300 }}>
+        <div class="summary-item">
+          <span class="summary-value">{paradoxState.avgImprovement.toFixed(0)}%</span>
+          <span class="summary-label">Avg Improvement</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-value">{paradoxState.sunwellWins}</span>
+          <span class="summary-label">Sunwell Wins</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-value">{paradoxState.totalRuns}</span>
+          <span class="summary-label">Total Runs</span>
+        </div>
+      </div>
+    {/if}
   </div>
   
   <div class="paradox-controls">
-    <button class="play-btn" onclick={playAnimation}>
-      ▶ Reveal the Paradox
+    <button class="play-btn" onclick={playAnimation} disabled={animationPlayed && showSunwell}>
+      {animationPlayed ? (showSunwell ? '✨ Revealed!' : '⏳ Revealing...') : '▶ Reveal the Paradox'}
     </button>
+    {#if animationPlayed}
+      <button class="reset-btn" onclick={reset}>
+        ↺ Reset
+      </button>
+    {/if}
   </div>
   
   <div class="paradox-footer">
@@ -267,7 +330,32 @@
     font-size: var(--text-base);
     font-style: italic;
     color: var(--text-secondary);
-    margin: 0;
+    margin: 0 0 var(--space-2);
+  }
+  
+  .status-badges {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-2);
+  }
+  
+  .badge {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+  }
+  
+  .badge.live {
+    background: rgba(var(--success-rgb), 0.15);
+    color: var(--success);
+  }
+  
+  .badge.count {
+    background: var(--ui-gold-15);
+    color: var(--text-gold);
   }
   
   .paradox-content {
@@ -275,7 +363,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--space-6);
+    gap: var(--space-4);
   }
   
   .chart-svg {
@@ -292,11 +380,15 @@
     stroke-dasharray: 4 4;
   }
   
-  .y-label {
+  .y-label, .x-label {
     font-family: var(--font-mono);
     font-size: 10px;
     fill: var(--text-tertiary);
     text-anchor: end;
+  }
+  
+  .x-label {
+    text-anchor: middle;
   }
   
   .axis-title {
@@ -306,46 +398,17 @@
     text-anchor: middle;
   }
   
-  .data-line {
-    stroke-width: 3;
-    stroke-linecap: round;
-    transition: all 0.5s ease;
-  }
-  
-  .data-line.raw {
-    stroke: var(--text-tertiary);
-  }
-  
-  .data-line.sunwell {
-    stroke: var(--ui-gold);
-    filter: drop-shadow(0 0 8px var(--ui-gold));
-  }
-  
-  .data-point {
-    transition: all 0.5s ease;
-  }
-  
-  .data-point.raw {
-    fill: var(--text-tertiary);
-  }
-  
-  .data-point.sunwell {
-    fill: var(--radiant-gold);
-    filter: drop-shadow(0 0 8px var(--radiant-gold));
-  }
-  
-  .line-label {
+  .data-label {
     font-family: var(--font-mono);
     font-size: 10px;
   }
   
-  .line-label.raw {
-    fill: var(--text-tertiary);
+  .data-label.sunwell {
+    font-weight: 600;
   }
   
-  .line-label.sunwell {
-    fill: var(--text-gold);
-    font-weight: 600;
+  .connector-line {
+    opacity: 0.8;
   }
   
   .activation-flash {
@@ -441,9 +504,39 @@
     margin-left: auto;
   }
   
+  .summary-stats {
+    display: flex;
+    gap: var(--space-6);
+    padding: var(--space-4);
+    background: var(--bg-primary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+  }
+  
+  .summary-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  
+  .summary-value {
+    font-family: var(--font-mono);
+    font-size: var(--text-xl);
+    font-weight: 700;
+    color: var(--text-gold);
+  }
+  
+  .summary-label {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+  }
+  
   .paradox-controls {
     display: flex;
     justify-content: center;
+    gap: var(--space-3);
     padding: var(--space-4) 0;
   }
   
@@ -460,9 +553,31 @@
     transition: all var(--transition-fast);
   }
   
-  .play-btn:hover {
+  .play-btn:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: var(--glow-gold);
+  }
+  
+  .play-btn:disabled {
+    opacity: 0.8;
+    cursor: default;
+  }
+  
+  .reset-btn {
+    padding: var(--space-2) var(--space-4);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+  
+  .reset-btn:hover {
+    border-color: var(--border-default);
+    background: var(--bg-secondary);
   }
   
   .paradox-footer {

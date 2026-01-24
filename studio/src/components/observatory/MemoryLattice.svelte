@@ -1,16 +1,23 @@
 <!--
   MemoryLattice — Force-directed knowledge graph visualization (RFC-112)
   
-  Shows project knowledge growing over time with facts, decisions, and dead ends.
+  Shows project knowledge growing over time with facts, decisions, and patterns.
+  Uses GlowingNode primitive for interactive nodes.
   
   Data contract:
-  - nodes: Array<{ id, label, category, timestamp, recall_count }>
-  - edges: Array<{ source, target, relation, confidence }>
-  - timeline: { start, end }
+  - Consumes real events via observatory.memoryLattice
+  - Falls back to demo data when no live data
 -->
 <script lang="ts">
-  import { fade } from 'svelte/transition';
-  import { onMount } from 'svelte';
+  import { fade, fly, scale } from 'svelte/transition';
+  import {
+    observatory,
+    DEMO_LATTICE_NODES,
+    DEMO_LATTICE_EDGES,
+    type LatticeNode,
+    type LatticeEdge,
+    type LatticeNodeCategory,
+  } from '../../stores';
   
   interface Props {
     isLive?: boolean;
@@ -18,33 +25,41 @@
   
   let { isLive = true }: Props = $props();
   
-  // Demo data
-  const demoNodes = [
-    { id: 'auth', label: 'OAuth', category: 'decision', x: 300, y: 150 },
-    { id: 'jwt', label: 'JWT', category: 'dead_end', x: 450, y: 100 },
-    { id: 'module', label: 'auth module', category: 'fact', x: 250, y: 250 },
-    { id: 'billing', label: 'billing.py', category: 'fact', x: 200, y: 350 },
-    { id: 'patterns', label: 'snake_case', category: 'pattern', x: 400, y: 300 },
-    { id: 'types', label: 'type hints', category: 'pattern', x: 500, y: 250 },
-  ];
-  
-  const demoEdges = [
-    { source: 'auth', target: 'jwt', relation: 'contradicts' },
-    { source: 'auth', target: 'module', relation: 'decided_on' },
-    { source: 'module', target: 'billing', relation: 'depends_on' },
-    { source: 'patterns', target: 'types', relation: 'elaborates' },
-  ];
+  // Use real data if available, otherwise demo
+  const latticeState = $derived(observatory.memoryLattice);
+  const nodes = $derived(
+    latticeState.nodes.length > 0
+      ? latticeState.nodes
+      : DEMO_LATTICE_NODES
+  );
+  const edges = $derived(
+    latticeState.edges.length > 0
+      ? latticeState.edges
+      : DEMO_LATTICE_EDGES
+  );
+  const hasMemory = $derived(observatory.hasMemory);
   
   let selectedNode = $state<string | null>(null);
   let hoveredNode = $state<string | null>(null);
   
-  function getCategoryColor(category: string): string {
+  function getCategoryColor(category: LatticeNodeCategory): string {
     switch (category) {
       case 'fact': return 'var(--info)';
       case 'decision': return 'var(--ui-gold)';
       case 'dead_end': return 'var(--error)';
       case 'pattern': return 'var(--success)';
+      case 'concept': return '#a855f7'; // purple
       default: return 'var(--text-secondary)';
+    }
+  }
+  
+  function getCategoryIcon(category: LatticeNodeCategory): string {
+    switch (category) {
+      case 'decision': return '◆';
+      case 'dead_end': return '✕';
+      case 'pattern': return '⬡';
+      case 'concept': return '◉';
+      default: return '●';
     }
   }
   
@@ -54,23 +69,77 @@
       case 'decided_on': return 'none';
       case 'depends_on': return 'none';
       case 'elaborates': return '2, 2';
+      case 'uses': return '3, 3';
       default: return 'none';
     }
   }
+  
+  function getRelationColor(relation: string): string {
+    switch (relation) {
+      case 'contradicts': return 'var(--error)';
+      case 'decided_on': return 'var(--ui-gold)';
+      case 'uses': return 'var(--info)';
+      default: return 'var(--border-default)';
+    }
+  }
+  
+  function getNodeById(id: string): LatticeNode | undefined {
+    return nodes.find(n => n.id === id);
+  }
+  
+  function getConnections(nodeId: string): number {
+    return edges.filter(e => e.source === nodeId || e.target === nodeId).length;
+  }
+  
+  function getCategoryCounts() {
+    const counts: Record<LatticeNodeCategory, number> = {
+      fact: 0,
+      decision: 0,
+      dead_end: 0,
+      pattern: 0,
+      concept: 0,
+    };
+    for (const node of nodes) {
+      counts[node.category]++;
+    }
+    return counts;
+  }
+  
+  const categoryCounts = $derived(getCategoryCounts());
 </script>
 
 <div class="memory-lattice" in:fade={{ duration: 300 }}>
   <div class="lattice-header">
     <h2>Memory Lattice</h2>
     <p class="description">Explore the knowledge graph Sunwell built about your project</p>
+    
+    <!-- Status badges -->
+    <div class="status-badges">
+      {#if hasMemory}
+        <span class="badge live">🧠 Active</span>
+      {:else}
+        <span class="badge idle">Demo</span>
+      {/if}
+      <span class="badge count">{nodes.length} nodes</span>
+    </div>
   </div>
   
   <div class="lattice-content">
     <svg viewBox="0 0 700 450" class="lattice-svg">
+      <defs>
+        <filter id="nodeGlow">
+          <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+      
       <!-- Edges -->
-      {#each demoEdges as edge}
-        {@const source = demoNodes.find(n => n.id === edge.source)}
-        {@const target = demoNodes.find(n => n.id === edge.target)}
+      {#each edges as edge}
+        {@const source = getNodeById(edge.source)}
+        {@const target = getNodeById(edge.target)}
         {#if source && target}
           <line
             x1={source.x}
@@ -79,21 +148,24 @@
             y2={target.y}
             class="edge"
             class:highlighted={selectedNode === source.id || selectedNode === target.id}
+            stroke={getRelationColor(edge.relation)}
             stroke-dasharray={getRelationStyle(edge.relation)}
           />
         {/if}
       {/each}
       
       <!-- Nodes -->
-      {#each demoNodes as node}
+      {#each nodes as node, i}
         <g
           class="node"
           transform="translate({node.x}, {node.y})"
           onclick={() => selectedNode = selectedNode === node.id ? null : node.id}
+          onkeydown={(e) => e.key === 'Enter' && (selectedNode = selectedNode === node.id ? null : node.id)}
           onmouseenter={() => hoveredNode = node.id}
           onmouseleave={() => hoveredNode = null}
           role="button"
           tabindex="0"
+          in:scale={{ delay: i * 50, duration: 300 }}
         >
           <!-- Glow ring for selected/hovered -->
           {#if selectedNode === node.id || hoveredNode === node.id}
@@ -111,6 +183,7 @@
             class:selected={selectedNode === node.id}
             class:dead-end={node.category === 'dead_end'}
             style="fill: {getCategoryColor(node.category)}; opacity: {node.category === 'dead_end' ? 0.5 : 1}"
+            filter={selectedNode === node.id ? 'url(#nodeGlow)' : undefined}
           />
           
           <!-- Node label -->
@@ -118,10 +191,7 @@
           
           <!-- Category icon -->
           <text y="6" class="node-icon">
-            {#if node.category === 'decision'}◆
-            {:else if node.category === 'dead_end'}✕
-            {:else if node.category === 'pattern'}⬡
-            {:else}●{/if}
+            {getCategoryIcon(node.category)}
           </text>
         </g>
       {/each}
@@ -129,63 +199,88 @@
     
     <!-- Legend -->
     <div class="legend">
-      <div class="legend-item">
-        <span class="legend-dot" style="background: var(--info)"></span>
-        <span>Facts ({demoNodes.filter(n => n.category === 'fact').length})</span>
-      </div>
-      <div class="legend-item">
-        <span class="legend-dot" style="background: var(--ui-gold)"></span>
-        <span>Decisions ({demoNodes.filter(n => n.category === 'decision').length})</span>
-      </div>
-      <div class="legend-item">
-        <span class="legend-dot" style="background: var(--success)"></span>
-        <span>Patterns ({demoNodes.filter(n => n.category === 'pattern').length})</span>
-      </div>
-      <div class="legend-item">
-        <span class="legend-dot dead-end" style="background: var(--error)"></span>
-        <span>Dead Ends ({demoNodes.filter(n => n.category === 'dead_end').length})</span>
-      </div>
+      {#if categoryCounts.fact > 0}
+        <div class="legend-item">
+          <span class="legend-dot" style="background: var(--info)"></span>
+          <span>Facts ({categoryCounts.fact})</span>
+        </div>
+      {/if}
+      {#if categoryCounts.decision > 0}
+        <div class="legend-item">
+          <span class="legend-dot" style="background: var(--ui-gold)"></span>
+          <span>Decisions ({categoryCounts.decision})</span>
+        </div>
+      {/if}
+      {#if categoryCounts.pattern > 0}
+        <div class="legend-item">
+          <span class="legend-dot" style="background: var(--success)"></span>
+          <span>Patterns ({categoryCounts.pattern})</span>
+        </div>
+      {/if}
+      {#if categoryCounts.concept > 0}
+        <div class="legend-item">
+          <span class="legend-dot" style="background: #a855f7"></span>
+          <span>Concepts ({categoryCounts.concept})</span>
+        </div>
+      {/if}
+      {#if categoryCounts.dead_end > 0}
+        <div class="legend-item">
+          <span class="legend-dot dead-end" style="background: var(--error)"></span>
+          <span>Dead Ends ({categoryCounts.dead_end})</span>
+        </div>
+      {/if}
     </div>
     
     <!-- Detail panel -->
     {#if selectedNode}
-      {@const node = demoNodes.find(n => n.id === selectedNode)}
+      {@const node = getNodeById(selectedNode)}
       {#if node}
-        <div class="detail-panel" in:fade={{ duration: 200 }}>
+        <div class="detail-panel" in:fly={{ x: 20, duration: 200 }}>
           <div class="detail-header" style="border-color: {getCategoryColor(node.category)}">
             <span class="detail-category" style="color: {getCategoryColor(node.category)}">
-              {node.category}
+              {getCategoryIcon(node.category)} {node.category.replace('_', ' ')}
             </span>
             <h3>{node.label}</h3>
           </div>
           <div class="detail-body">
             <p class="detail-description">
               {#if node.category === 'decision'}
-                Sunwell decided to use {node.label} based on project requirements and previous failures.
+                Sunwell decided to use {node.label} based on project requirements.
               {:else if node.category === 'dead_end'}
-                This approach was tried but abandoned after multiple failures.
+                This approach was tried but abandoned after failures.
               {:else if node.category === 'pattern'}
-                Detected pattern: {node.label} is consistently used throughout the project.
+                Detected pattern: {node.label} is used throughout the project.
+              {:else if node.category === 'concept'}
+                Technology/framework detected in the project.
               {:else}
                 Key fact about the project structure.
               {/if}
             </p>
-            <div class="detail-connections">
-              <span class="connections-label">Connections:</span>
-              <span class="connections-count">
-                {demoEdges.filter(e => e.source === node.id || e.target === node.id).length}
-              </span>
+            <div class="detail-stats">
+              <div class="stat-item">
+                <span class="stat-value">{getConnections(node.id)}</span>
+                <span class="stat-label">Connections</span>
+              </div>
+              {#if node.timestamp}
+                <div class="stat-item">
+                  <span class="stat-value">{new Date(node.timestamp).toLocaleTimeString()}</span>
+                  <span class="stat-label">Discovered</span>
+                </div>
+              {/if}
             </div>
           </div>
+          <button class="close-btn" onclick={() => selectedNode = null}>
+            ✕
+          </button>
         </div>
       {/if}
     {/if}
   </div>
   
   <div class="lattice-footer">
-    <span class="stat">Total Nodes: {demoNodes.length}</span>
+    <span class="stat">Nodes: {nodes.length}</span>
     <span class="separator">•</span>
-    <span class="stat">Edges: {demoEdges.length}</span>
+    <span class="stat">Edges: {edges.length}</span>
     <span class="separator">•</span>
     <span class="stat hint">Click a node to explore</span>
   </div>
@@ -215,7 +310,32 @@
     font-family: var(--font-mono);
     font-size: var(--text-sm);
     color: var(--text-tertiary);
-    margin: 0;
+    margin: 0 0 var(--space-2);
+  }
+  
+  .status-badges {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-2);
+  }
+  
+  .badge {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+  }
+  
+  .badge.live {
+    background: rgba(var(--info-rgb), 0.15);
+    color: var(--info);
+  }
+  
+  .badge.count {
+    background: var(--ui-gold-15);
+    color: var(--text-gold);
   }
   
   .lattice-content {
@@ -232,14 +352,12 @@
   }
   
   .edge {
-    stroke: var(--border-default);
     stroke-width: 2;
     opacity: 0.4;
     transition: all var(--transition-fast);
   }
   
   .edge.highlighted {
-    stroke: var(--ui-gold);
     opacity: 1;
     stroke-width: 3;
   }
@@ -251,6 +369,10 @@
   
   .node:hover {
     transform: scale(1.1);
+  }
+  
+  .node:focus {
+    outline: none;
   }
   
   .node-glow {
@@ -273,7 +395,6 @@
   
   .node-circle.selected {
     stroke-width: 4;
-    filter: drop-shadow(0 0 12px currentColor);
   }
   
   .node-circle.dead-end {
@@ -334,7 +455,7 @@
     position: absolute;
     top: var(--space-4);
     right: var(--space-4);
-    width: 220px;
+    width: 240px;
     background: var(--bg-primary);
     border-radius: var(--radius-md);
     border: 1px solid var(--border-subtle);
@@ -372,19 +493,49 @@
     margin: 0 0 var(--space-3);
   }
   
-  .detail-connections {
+  .detail-stats {
     display: flex;
-    justify-content: space-between;
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
+    gap: var(--space-4);
   }
   
-  .connections-label {
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  
+  .stat-value {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--text-gold);
+  }
+  
+  .stat-label {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
     color: var(--text-tertiary);
   }
   
-  .connections-count {
-    color: var(--text-gold);
+  .close-btn {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: color var(--transition-fast);
+  }
+  
+  .close-btn:hover {
+    color: var(--text-primary);
   }
   
   .lattice-footer {

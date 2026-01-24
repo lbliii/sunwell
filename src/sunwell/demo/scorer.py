@@ -102,26 +102,49 @@ class DemoScorer:
         return text.strip()
 
     def _has_type_hints(self, code: str) -> bool:
-        """Check for type annotations using AST."""
+        """Check for type annotations using AST.
+
+        Detects type hints on:
+        - Function parameters and return types (def foo(x: int) -> str)
+        - Async function parameters and return types
+        - Annotated assignments (x: int = 5)
+        - Dataclass fields (@dataclass class Foo: x: int)
+        """
         try:
             tree = ast.parse(code)
             for node in ast.walk(tree):
-                if isinstance(node, ast.FunctionDef) and (
+                # Check sync and async function definitions
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and (
                     node.returns or any(arg.annotation for arg in node.args.args)
                 ):
+                    return True
+                # Check annotated assignments (dataclass fields, module-level typed vars)
+                if isinstance(node, ast.AnnAssign) and node.annotation:
                     return True
             return False
         except SyntaxError:
             # Fallback to regex for malformed code
-            return bool(re.search(r"def \w+\([^)]*:\s*\w+", code))
+            return bool(re.search(r"(def \w+\([^)]*:\s*\w+|:\s*\w+\s*=)", code))
 
     def _has_docstring(self, code: str) -> bool:
-        """Check for docstring using AST."""
+        """Check for docstring using AST.
+
+        Detects docstrings on:
+        - Regular functions (def foo)
+        - Async functions (async def foo)
+        - Classes (class Foo)
+        - Module-level docstrings
+        """
         try:
             tree = ast.parse(code)
+            # Check module-level docstring
+            if ast.get_docstring(tree):
+                return True
             for node in ast.walk(tree):
-                if isinstance(node, ast.FunctionDef):
-                    return ast.get_docstring(node) is not None
+                # Check sync functions, async functions, and classes
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    if ast.get_docstring(node) is not None:
+                        return True
             return False
         except SyntaxError:
             return '"""' in code or "'''" in code

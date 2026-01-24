@@ -8,6 +8,7 @@
   import { fade, fly, scale } from 'svelte/transition';
   import { spring } from 'svelte/motion';
   import Sparkle from '../ui/Sparkle.svelte';
+  import CodeBlock from '../primitives/CodeBlock.svelte';
   import { demo, runDemo, reset, setTask, loadTasks } from '../../stores/demo.svelte';
   import type { DemoTask, DemoMethodOutput, ComponentBreakdown } from '../../stores/demo.svelte';
   
@@ -131,9 +132,7 @@
               <span class="phase-badge">Waiting...</span>
             {/if}
           </div>
-          <pre class="code-content">
-            <code>{singleShotCode}</code>{#if !singleShotCode || phase !== 'revealed'}<span class="cursor"></span>{/if}
-          </pre>
+          <pre class="code-content"><code>{extractCode(singleShotCode)}</code>{#if !singleShotCode || phase !== 'revealed'}<span class="cursor"></span>{/if}</pre>
         </div>
         
         <!-- Sunwell pane: Shows streaming code + phase updates -->
@@ -149,9 +148,7 @@
               <span class="phase-badge">Refining...</span>
             {/if}
           </div>
-          <pre class="code-content">
-            <code>{sunwellCode}</code>{#if !sunwellCode || phase !== 'revealed'}<span class="cursor"></span>{/if}
-          </pre>
+          <pre class="code-content"><code>{extractCode(sunwellCode)}</code>{#if !sunwellCode || phase !== 'revealed'}<span class="cursor"></span>{/if}</pre>
         </div>
       </div>
       
@@ -225,7 +222,9 @@
           </div>
           
           {#if viewMode === 'code'}
-            <pre class="code-content"><code>{@html highlightPython(singleShotCode)}</code></pre>
+            <div class="code-wrapper">
+              <CodeBlock code={extractCode(singleShotCode)} language="python" maxHeight="300px" />
+            </div>
           {:else}
             <div class="eval-content">
               <div class="eval-stats">
@@ -274,7 +273,9 @@
           </div>
           
           {#if viewMode === 'code'}
-            <pre class="code-content"><code>{@html highlightPython(sunwellCode)}</code></pre>
+            <div class="code-wrapper">
+              <CodeBlock code={extractCode(sunwellCode)} language="python" maxHeight="300px" />
+            </div>
           {:else}
             <div class="eval-content">
               <div class="eval-stats">
@@ -515,8 +516,50 @@
 </div>
 
 <script module lang="ts">
+  /**
+   * Extract Python code from LLM output that may contain markdown code blocks.
+   * 
+   * Handles:
+   * - ```python\n...\n``` blocks
+   * - ```\n...\n``` blocks (language-less)
+   * - Prose before/after code blocks (stripped)
+   * - Multiple code blocks (concatenated)
+   */
+  function extractCode(raw: string): string {
+    if (!raw) return '';
+    
+    // Match markdown code blocks: ```python ... ``` or ``` ... ```
+    const codeBlockPattern = /```(?:python|py)?\s*\n?([\s\S]*?)```/gi;
+    const matches = raw.matchAll(codeBlockPattern);
+    const codeBlocks: string[] = [];
+    
+    for (const match of matches) {
+      const code = match[1].trim();
+      if (code) {
+        codeBlocks.push(code);
+      }
+    }
+    
+    // If we found code blocks, return them concatenated
+    if (codeBlocks.length > 0) {
+      return codeBlocks.join('\n\n');
+    }
+    
+    // No code blocks found - check if the entire content looks like code
+    // (starts with def, class, import, from, @, or #)
+    const trimmed = raw.trim();
+    if (/^(def |class |import |from |@|#)/.test(trimmed)) {
+      return trimmed;
+    }
+    
+    // Fallback: return as-is but warn it may contain prose
+    return trimmed;
+  }
+
   // Basic Python syntax highlighting (will be replaced with Shiki in RFC-097)
-  function highlightPython(code: string): string {
+  function highlightPython(rawCode: string): string {
+    // First extract clean code from markdown blocks
+    const code = extractCode(rawCode);
     if (!code) return '';
     
     // Escape HTML first
@@ -527,7 +570,7 @@
     
     // Keywords
     html = html.replace(
-      /\b(def|return|if|else|elif|for|while|try|except|finally|raise|import|from|as|class|with|not|and|or|in|is|None|True|False)\b/g,
+      /\b(def|return|if|else|elif|for|while|try|except|finally|raise|import|from|as|class|with|not|and|or|in|is|None|True|False|async|await)\b/g,
       '<span class="syntax-keyword">$1</span>'
     );
     
@@ -535,6 +578,12 @@
     html = html.replace(
       /\b(def)\s+(\w+)/g,
       '<span class="syntax-keyword">$1</span> <span class="syntax-function">$2</span>'
+    );
+    
+    // Decorator (after @)
+    html = html.replace(
+      /@(\w+)/g,
+      '@<span class="syntax-builtin">$1</span>'
     );
     
     // Strings (triple-quoted and single-quoted)
@@ -551,19 +600,19 @@
     
     // Types (common Python types and after colons in annotations)
     html = html.replace(
-      /:\s*(float|int|str|bool|list|dict|tuple|set|None)\b/g,
+      /:\s*(float|int|str|bool|list|dict|tuple|set|None|Union|Decimal)\b/g,
       ': <span class="syntax-type">$1</span>'
     );
     
     // Return type annotation
     html = html.replace(
-      /-&gt;\s*(float|int|str|bool|list|dict|tuple|set|None)\b/g,
+      /-&gt;\s*(float|int|str|bool|list|dict|tuple|set|None|Union|Decimal)\b/g,
       '-&gt; <span class="syntax-type">$1</span>'
     );
     
     // Builtins
     html = html.replace(
-      /\b(isinstance|type|print|len|range|enumerate|zip|map|filter|sorted|TypeError|ZeroDivisionError|ValueError|Exception)\b/g,
+      /\b(isinstance|type|print|len|range|enumerate|zip|map|filter|sorted|TypeError|ZeroDivisionError|ValueError|Exception|DivisionError)\b/g,
       '<span class="syntax-builtin">$1</span>'
     );
     

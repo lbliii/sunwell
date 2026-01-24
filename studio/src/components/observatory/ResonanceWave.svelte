@@ -6,7 +6,7 @@
   
   Data contract:
   - Consumes real events via observatory store
-  - Falls back to demo data when no live data
+  - Shows empty state when no data
   - Supports playback controls (scrub, speed, live/replay)
 -->
 <script lang="ts">
@@ -14,6 +14,7 @@
   import { spring, tweened } from 'svelte/motion';
   import { cubicOut } from 'svelte/easing';
   import { AnimatedPath } from '../primitives';
+  import EmptyState from './EmptyState.svelte';
   import {
     observatory,
     startPlayback,
@@ -23,8 +24,6 @@
     scrubToRound,
     setPlaybackSpeed,
     goLive,
-    loadDemoData,
-    DEMO_ITERATIONS,
     type ResonanceIteration,
   } from '../../stores';
   
@@ -34,12 +33,9 @@
   
   let { isLive = true }: Props = $props();
   
-  // Use real data if available, otherwise demo
-  const iterations = $derived(
-    observatory.resonanceWave.iterations.length > 0
-      ? observatory.resonanceWave.iterations
-      : DEMO_ITERATIONS
-  );
+  // Use real data only
+  const iterations = $derived(observatory.resonanceWave.iterations);
+  const hasData = $derived(iterations.length > 0);
   
   const playback = $derived(observatory.playback);
   const isRefining = $derived(observatory.isRefining);
@@ -105,10 +101,6 @@
     goLive();
   }
   
-  function handleLoadDemo() {
-    loadDemoData();
-  }
-  
   // SVG dimensions
   const svgWidth = 600;
   const svgHeight = 200;
@@ -141,6 +133,13 @@
   );
 </script>
 
+{#if !hasData}
+  <EmptyState
+    icon="📈"
+    title="No refinement data"
+    message="Start a goal with resonance enabled to watch quality emerge through iterative refinement."
+  />
+{:else}
 <div class="resonance-wave" in:fade={{ duration: 300 }}>
   <div class="wave-header">
     <h2>Resonance Wave</h2>
@@ -153,7 +152,7 @@
       {:else if playback.mode === 'replay'}
         <span class="badge replay">⏪ Replay</span>
       {:else}
-        <span class="badge idle">Demo</span>
+        <span class="badge idle">Recorded</span>
       {/if}
       
       {#if playback.speed !== 1}
@@ -334,11 +333,6 @@
           </div>
         </div>
         
-        {#if iterations === DEMO_ITERATIONS}
-          <button class="load-demo-btn" onclick={handleLoadDemo}>
-            🎭 Reset Demo
-          </button>
-        {/if}
       </div>
     </div>
   </div>
@@ -351,6 +345,7 @@
     <span class="improvement">+{improvementPct}% improvement</span>
   </div>
 </div>
+{/if}
 
 <style>
   .resonance-wave {
@@ -705,5 +700,70 @@
   
   .improvement {
     color: var(--success);
+  }
+  
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    .resonance-wave {
+      padding: var(--space-4);
+    }
+    
+    .wave-header h2 {
+      font-size: var(--text-lg);
+    }
+    
+    .wave-content {
+      grid-template-columns: 1fr;
+      gap: var(--space-4);
+    }
+    
+    .round-scrubber {
+      padding: var(--space-2) var(--space-3);
+      flex-wrap: wrap;
+      gap: var(--space-1);
+    }
+    
+    .round-marker {
+      font-size: 10px;
+      padding: var(--space-1);
+    }
+    
+    .score-value {
+      font-size: var(--text-3xl);
+    }
+    
+    .control-row {
+      flex-wrap: wrap;
+    }
+    
+    .speed-controls {
+      width: 100%;
+      justify-content: center;
+      margin-left: 0;
+      margin-top: var(--space-2);
+    }
+    
+    .wave-footer {
+      flex-wrap: wrap;
+      gap: var(--space-2);
+    }
+  }
+  
+  /* Reduced motion preference */
+  @media (prefers-reduced-motion: reduce) {
+    .badge.live {
+      animation: none;
+    }
+    
+    .current-point-ring {
+      animation: none;
+      opacity: 0.2;
+    }
+    
+    .round-marker,
+    .control-btn,
+    .speed-btn {
+      transition: none;
+    }
   }
 </style>

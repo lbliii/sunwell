@@ -10,3 +10,4 @@ export { default as PrismFracture } from './PrismFracture.svelte';
 export { default as MemoryLattice } from './MemoryLattice.svelte';
 export { default as ExecutionCinema } from './ExecutionCinema.svelte';
 export { default as ModelParadox } from './ModelParadox.svelte';
+export { default as EmptyState } from './EmptyState.svelte';

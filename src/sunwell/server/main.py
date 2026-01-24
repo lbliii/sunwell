@@ -5,6 +5,7 @@ All Studio communication goes through here.
 """
 
 import contextlib
+import uuid
 from collections.abc import AsyncIterator
 from datetime import datetime
 from pathlib import Path
@@ -504,11 +505,16 @@ def _register_routes(app: FastAPI) -> None:
 
     @app.post("/api/demo/run")
     async def run_demo(request: DemoRunRequest) -> dict[str, Any]:
-        """Run a demo comparison (single-shot vs Sunwell)."""
+        """Run a demo comparison (single-shot vs Sunwell).
+
+        Code is saved to files to avoid JSON escaping issues.
+        Use /api/demo/code/{run_id}/{method} to fetch raw code.
+        """
         try:
             from sunwell.cli.helpers import resolve_model
             from sunwell.config import get_config
             from sunwell.demo import DemoComparison, DemoExecutor, DemoScorer, get_task
+            from sunwell.demo.files import cleanup_old_demos, save_demo_code
 
             # Resolve model
             config = get_config()
@@ -541,15 +547,20 @@ def _register_routes(app: FastAPI) -> None:
                 sunwell_score=sunwell_score,
             )
 
+            # Save code to files (avoids JSON escaping issues)
+            run_id = str(uuid.uuid4())[:8]
+            save_demo_code(run_id, single_shot.code, sunwell.code)
+            cleanup_old_demos(keep_count=20)
+
             return {
                 "model": f"{provider}:{model_name}",
                 "task": {"name": demo_task.name, "prompt": demo_task.prompt},
+                "run_id": run_id,  # Use this to fetch code files
                 "single_shot": {
                     "score": single_score.score,
                     "lines": single_score.lines,
                     "time_ms": single_shot.time_ms,
                     "features": single_score.features,
-                    "code": single_shot.code,
                 },
                 "sunwell": {
                     "score": sunwell_score.score,
@@ -557,12 +568,38 @@ def _register_routes(app: FastAPI) -> None:
                     "time_ms": sunwell.time_ms,
                     "iterations": sunwell.iterations,
                     "features": sunwell_score.features,
-                    "code": sunwell.code,
                 },
                 "improvement_percent": round(comparison.improvement_percent, 1),
             }
         except Exception as e:
             return {"error": str(e)}
+
+    @app.get("/api/demo/code/{run_id}/{method}")
+    async def get_demo_code(run_id: str, method: str) -> dict[str, Any]:
+        """Get raw code from a demo run.
+
+        Args:
+            run_id: The demo run identifier.
+            method: Either 'single_shot' or 'sunwell'.
+
+        Returns:
+            Raw code as plain text (not JSON-escaped).
+        """
+        from fastapi.responses import PlainTextResponse
+
+        from sunwell.demo.files import load_demo_code
+
+        if method not in ("single_shot", "sunwell"):
+            return {"error": f"Invalid method: {method}. Must be 'single_shot' or 'sunwell'."}
+
+        result = load_demo_code(run_id)
+        if result is None:
+            return {"error": f"Demo run not found: {run_id}"}
+
+        single_shot_code, sunwell_code = result
+        code = single_shot_code if method == "single_shot" else sunwell_code
+
+        return PlainTextResponse(content=code, media_type="text/plain")
 
     # ═══════════════════════════════════════════════════════════════
     # EVALUATION (RFC-098)

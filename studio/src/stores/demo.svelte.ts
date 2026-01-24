@@ -88,6 +88,8 @@ export interface DemoComparison {
   single_shot: DemoMethodOutput;
   sunwell: DemoMethodOutput;
   improvement_percent: number;
+  /** Unique ID to fetch code files */
+  run_id?: string;
   /** Component breakdown showing what each Sunwell feature contributed */
   breakdown?: ComponentBreakdown;
 }
@@ -121,6 +123,10 @@ let _availableTasks = $state<DemoTask[]>([]);
 let _singleShotCodeStream = $state('');
 let _sunwellCodeStream = $state('');
 let _sunwellPhase = $state<'generating' | 'judging' | 'refining'>('generating');
+
+// Final code loaded from files (clean, no escaping issues)
+let _singleShotCodeFile = $state('');
+let _sunwellCodeFile = $state('');
 
 // Default task if none loaded
 const DEFAULT_TASK: DemoTask = {
@@ -156,18 +162,20 @@ export const demo = {
   get actualModel() { return _comparison?.model ?? _currentModel; },
   
   /** 
-   * Code for display — uses streaming buffer during generation,
-   * final code from comparison after completion.
+   * Code for display — uses file-loaded code when available (clean, no escaping),
+   * falls back to streaming buffer during generation.
    */
   get singleShotCode() { 
-    if (_phase === 'revealed' && _comparison?.single_shot.code) {
-      return _comparison.single_shot.code;
+    // Prefer file-loaded code (no escaping issues)
+    if (_phase === 'revealed' && _singleShotCodeFile) {
+      return _singleShotCodeFile;
     }
     return _singleShotCodeStream || '';
   },
   get sunwellCode() { 
-    if (_phase === 'revealed' && _comparison?.sunwell.code) {
-      return _comparison.sunwell.code;
+    // Prefer file-loaded code (no escaping issues)
+    if (_phase === 'revealed' && _sunwellCodeFile) {
+      return _sunwellCodeFile;
     }
     return _sunwellCodeStream || '';
   },
@@ -280,6 +288,10 @@ export async function runDemo(): Promise<void> {
         _phase = 'revealed';
         _progress = 100;
         _message = 'Demo complete!';
+        // Load code from files (clean, no escaping)
+        if (_comparison.run_id) {
+          loadCodeFiles(_comparison.run_id);
+        }
         unsubscribe();
       } else if (event.type === 'demo_error') {
         _error = (event.data as { message: string }).message;
@@ -299,12 +311,38 @@ export async function runDemo(): Promise<void> {
       _phase = 'revealed';
       _progress = 100;
       _message = 'Demo complete!';
+      // Load code from files (clean, no escaping)
+      if (result.run_id) {
+        await loadCodeFiles(result.run_id);
+      }
     }
   } catch (e) {
     _phase = 'error';
     _error = e instanceof Error ? e.message : String(e);
     _message = 'Demo failed';
     console.error('Demo failed:', e);
+  }
+}
+
+/**
+ * Load code from files (avoids JSON escaping issues).
+ */
+async function loadCodeFiles(runId: string): Promise<void> {
+  try {
+    const [singleShotRes, sunwellRes] = await Promise.all([
+      fetch(`/api/demo/code/${runId}/single_shot`),
+      fetch(`/api/demo/code/${runId}/sunwell`),
+    ]);
+
+    if (singleShotRes.ok) {
+      _singleShotCodeFile = await singleShotRes.text();
+    }
+    if (sunwellRes.ok) {
+      _sunwellCodeFile = await sunwellRes.text();
+    }
+  } catch (e) {
+    console.error('Failed to load code files:', e);
+    // Fall back to streaming buffers (already in state)
   }
 }
 
@@ -319,6 +357,8 @@ export function reset(): void {
   _comparison = null;
   _singleShotCodeStream = '';
   _sunwellCodeStream = '';
+  _singleShotCodeFile = '';
+  _sunwellCodeFile = '';
   _sunwellPhase = 'generating';
 }
 
