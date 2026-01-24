@@ -119,6 +119,20 @@ class ToolExecutor:
 
     def __post_init__(self) -> None:
         """Initialize core tool handlers."""
+        # RFC-117: Validate workspace is not Sunwell's own repo
+        from sunwell.project.validation import (
+            ProjectValidationError,
+            validate_not_sunwell_repo,
+        )
+
+        try:
+            validate_not_sunwell_repo(self.workspace)
+        except ProjectValidationError as e:
+            # Re-raise with clear message
+            raise ProjectValidationError(
+                f"{e}\n\nHint: Use --project-root to specify a different workspace."
+            ) from None
+
         # Get blocked patterns from policy or use defaults
         blocked_patterns = None
         if self.policy and self.policy.blocked_paths:
