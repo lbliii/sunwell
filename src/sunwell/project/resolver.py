@@ -1,391 +1,199 @@
-"""Schema to Task resolver for RFC-035/RFC-034 integration.
+"""Project resolver for RFC-117.
 
-This module provides the SchemaResolver that converts user-defined artifacts
-into RFC-034 Tasks with proper dependency tracking, parallel grouping, and
-contract awareness.
-
-Example:
-    ```python
-    schema = ProjectSchema.load(project_root)
-    resolver = SchemaResolver(schema)
-
-    # Convert an artifact to a task
-    task = resolver.resolve_artifact(artifact_path)
-
-    # Or convert all artifacts in a directory
-    tasks = resolver.resolve_all_artifacts(project_root / "artifacts")
-    ```
+Resolves project context from various sources with explicit precedence.
 """
 
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
-import yaml
+from sunwell.project.manifest import ManifestError, load_manifest
+from sunwell.project.registry import ProjectRegistry
+from sunwell.project.types import Project, WorkspaceType
+from sunwell.project.validation import ProjectValidationError, validate_workspace
 
-from sunwell.naaru.types import Task, TaskMode
-from sunwell.project.schema import ProjectSchema
+
+class ProjectResolutionError(Exception):
+    """Raised when project cannot be resolved."""
 
 
-@dataclass
-class SchemaResolver:
-    """Converts user artifact definitions into RFC-034 Tasks.
+class ProjectResolver:
+    """Resolves project from context with explicit precedence.
 
-    The resolver is the bridge between domain-specific schemas and
-    Sunwell's execution infrastructure. It handles:
+    Resolution order:
+    1. Explicit --project-root flag (with validation)
+    2. Explicit -p <project-id> flag
+    3. .sunwell/project.toml in current directory
+    4. Default project from registry
+    5. ERROR — no implicit fallback to cwd()
 
-    1. Template expansion: "Character_{id}" → "Character_john"
-    2. Dependency resolution: requires/produces tracking
-    3. Phase mapping: artifact_type → parallel_group
-    4. Conflict detection: modifies set population
+    Example:
+        >>> resolver = ProjectResolver()
+        >>> project = resolver.resolve(project_root="/path/to/project")
+        >>> project = resolver.resolve(project_id="my-app")
+        >>> project = resolver.resolve()  # Uses cwd manifest or default
     """
 
-    schema: ProjectSchema
+    def __init__(self) -> None:
+        """Initialize resolver with registry."""
+        self._registry = ProjectRegistry()
 
-    def resolve_artifact(self, artifact_path: Path) -> Task:
-        """Convert a user's artifact definition into an RFC-034 Task.
+    def resolve(
+        self,
+        *,
+        project_root: str | Path | None = None,
+        project_id: str | None = None,
+        cwd: Path | None = None,
+    ) -> Project:
+        """Resolve project from provided context.
 
         Args:
-            artifact_path: Path to the artifact YAML file
+            project_root: Explicit path to project root (highest priority)
+            project_id: Project ID from registry
+            cwd: Current working directory (for manifest detection)
 
         Returns:
-            Task ready for execution
+            Resolved Project instance
 
         Raises:
-            ValueError: If artifact is invalid or type not in schema
+            ProjectResolutionError: If no project can be resolved
+            ProjectValidationError: If project root is invalid
         """
-        with open(artifact_path) as f:
-            artifact = yaml.safe_load(f)
+        # Priority 1: Explicit project root
+        if project_root:
+            return self._from_root(Path(project_root))
 
-        # Get artifact type
-        type_name = artifact.get("type")
-        if not type_name:
-            raise ValueError(f"Artifact missing 'type' field: {artifact_path}")
+        # Priority 2: Project ID from registry
+        if project_id:
+            return self._from_registry(project_id)
 
-        artifact_type = self.schema.get_artifact_type(type_name)
-        if not artifact_type:
-            raise ValueError(
-                f"Unknown artifact type '{type_name}' in {artifact_path}. "
-                f"Available types: {list(self.schema.artifact_types.keys())}"
-            )
+        # Priority 3: Manifest in current directory
+        if cwd:
+            project = self._from_cwd_manifest(cwd)
+            if project:
+                return project
 
-        # Get artifact ID
-        artifact_id = artifact.get("id")
-        if not artifact_id:
-            raise ValueError(f"Artifact missing 'id' field: {artifact_path}")
+        # Priority 4: Default project from registry
+        default = self._registry.get_default()
+        if default:
+            self._registry.update_last_used(default.id)
+            return default
 
-        # Validate required fields
-        missing_fields = []
-        for field_name in artifact_type.fields.required:
-            if field_name not in artifact:
-                missing_fields.append(field_name)
-
-        if missing_fields:
-            raise ValueError(
-                f"Artifact {artifact_id} missing required fields: {missing_fields}"
-            )
-
-        # Expand patterns
-        produces = self._expand_pattern(artifact_type.produces_pattern, artifact)
-        requires = self._expand_patterns(artifact_type.requires_patterns, artifact)
-        modifies = self._expand_patterns(artifact_type.modifies_patterns, artifact)
-
-        # Add conditional requirements
-        for cond_req in artifact_type.conditional_requirements:
-            if self._check_condition(cond_req.condition, artifact):
-                if cond_req.iterate_over:
-                    # Expand for each item in the collection
-                    collection = artifact.get(cond_req.iterate_over, [])
-                    for item in collection:
-                        expanded = self._expand_pattern_simple(
-                            cond_req.requires_pattern,
-                            item,
-                        )
-                        requires = requires | frozenset([expanded])
-                else:
-                    expanded = self._expand_pattern(cond_req.requires_pattern, artifact)
-                    requires = requires | expanded
-
-        # Get phase mapping
-        phase = self.schema.get_phase_for_artifact_type(type_name)
-        parallel_group = phase.maps_to if phase else None
-
-        # Default modifies to artifact file if not specified
-        if not modifies:
-            modifies = frozenset([str(artifact_path)])
-
-        # Determine description
-        name = artifact.get("name", artifact_id)
-        description = f"Create {artifact_type.description}: {name}"
-
-        return Task(
-            id=artifact_id,
-            description=description,
-            mode=TaskMode.GENERATE,
-            target_path=str(artifact_path),
-            produces=produces,
-            requires=requires,
-            modifies=modifies,
-            parallel_group=parallel_group,
-            is_contract=artifact_type.is_contract,
-            details={"artifact_type": type_name, "artifact_data": artifact},
+        # Priority 5: Error — no implicit fallback
+        raise ProjectResolutionError(
+            "No project context found.\n\n"
+            "Options:\n"
+            "  1. Run from a directory with .sunwell/project.toml\n"
+            "  2. Use -p <project-id> to specify a registered project\n"
+            "  3. Use --project-root <path> to specify a path\n"
+            "  4. Set a default project: sunwell project default <id>\n\n"
+            "To initialize a new project:\n"
+            "  sunwell project init ."
         )
 
-    def resolve_all_artifacts(
-        self,
-        artifacts_dir: Path,
-        recursive: bool = True,
-    ) -> list[Task]:
-        """Convert all artifact files in a directory to Tasks.
+    def _from_root(self, root: Path) -> Project:
+        """Create project from explicit root path."""
+        root = root.resolve()
 
-        Args:
-            artifacts_dir: Directory containing artifact YAML files
-            recursive: Whether to search subdirectories
+        # Validate the workspace
+        validate_workspace(root)
 
-        Returns:
-            List of Tasks for all valid artifacts
-        """
-        tasks: list[Task] = []
-
-        # Find all YAML files
-        pattern = "**/*.yaml" if recursive else "*.yaml"
-        for artifact_path in artifacts_dir.glob(pattern):
+        # Check for existing manifest
+        manifest_path = root / ".sunwell" / "project.toml"
+        if manifest_path.exists():
             try:
-                task = self.resolve_artifact(artifact_path)
-                tasks.append(task)
-            except (ValueError, yaml.YAMLError) as e:
-                # Log warning but continue with other artifacts
-                import warnings
+                manifest = load_manifest(manifest_path)
+                return Project(
+                    id=manifest.id,
+                    name=manifest.name,
+                    root=root,
+                    workspace_type=WorkspaceType.MANIFEST,
+                    created_at=manifest.created,
+                    manifest=manifest,
+                )
+            except ManifestError:
+                pass  # Fall through to unmanifested project
 
-                warnings.warn(
-                    f"Skipping invalid artifact {artifact_path}: {e}",
-                    stacklevel=2,
+        # Create project without manifest
+        project_id = root.name.lower().replace(" ", "-")
+        return Project(
+            id=project_id,
+            name=root.name,
+            root=root,
+            workspace_type=WorkspaceType.REGISTERED,
+            created_at=__import__("datetime").datetime.now(),
+            manifest=None,
+        )
+
+    def _from_registry(self, project_id: str) -> Project:
+        """Get project from registry by ID."""
+        project = self._registry.get(project_id)
+        if not project:
+            # List available projects for helpful error
+            available = [p.id for p in self._registry.list_projects()]
+            if available:
+                available_str = ", ".join(available)
+                raise ProjectResolutionError(
+                    f"Project not found: {project_id}\n"
+                    f"Available projects: {available_str}"
+                )
+            else:
+                raise ProjectResolutionError(
+                    f"Project not found: {project_id}\n"
+                    f"No projects registered. Run 'sunwell project init .' to create one."
                 )
 
-        return tasks
-
-    def build_task_graph(
-        self,
-        tasks: list[Task],
-    ) -> list[Task]:
-        """Add dependency links between tasks based on produces/requires.
-
-        This post-processes tasks to set `depends_on` based on artifact
-        dependencies (requires → produces).
-
-        Args:
-            tasks: List of tasks from resolve_all_artifacts
-
-        Returns:
-            Tasks with depends_on populated
-        """
-        # Build producer map: artifact → task_id
-        producers: dict[str, str] = {}
-        for task in tasks:
-            for artifact in task.produces:
-                producers[artifact] = task.id
-
-        # Add dependencies
-        updated_tasks = []
-        for task in tasks:
-            deps = list(task.depends_on)
-
-            for required_artifact in task.requires:
-                producer_id = producers.get(required_artifact)
-                if producer_id and producer_id not in deps:
-                    deps.append(producer_id)
-
-            # Create updated task with new dependencies
-            updated_task = Task(
-                id=task.id,
-                description=task.description,
-                mode=task.mode,
-                tools=task.tools,
-                target_path=task.target_path,
-                working_directory=task.working_directory,
-                depends_on=tuple(deps),
-                subtasks=task.subtasks,
-                produces=task.produces,
-                requires=task.requires,
-                modifies=task.modifies,
-                parallel_group=task.parallel_group,
-                is_contract=task.is_contract,
-                contract=task.contract,
-                category=task.category,
-                priority=task.priority,
-                estimated_effort=task.estimated_effort,
-                risk_level=task.risk_level,
-                details=task.details,
-                status=task.status,
-                verification=task.verification,
-                verification_command=task.verification_command,
+        # Validate the workspace still exists and is valid
+        if not project.root.exists():
+            raise ProjectResolutionError(
+                f"Project root no longer exists: {project.root}\n"
+                f"Remove with: sunwell project remove {project_id}"
             )
-            updated_tasks.append(updated_task)
 
-        return updated_tasks
+        try:
+            validate_workspace(project.root)
+        except ProjectValidationError as e:
+            raise ProjectResolutionError(
+                f"Project {project_id} has invalid workspace:\n{e}"
+            ) from e
 
-    def _expand_pattern(
-        self,
-        pattern: str,
-        artifact: dict[str, Any],
-    ) -> frozenset[str]:
-        """Expand a template pattern like 'Character_{id}' → 'Character_john'.
+        self._registry.update_last_used(project_id)
+        return project
 
-        Args:
-            pattern: Template with {field} placeholders
-            artifact: Artifact data for substitution
+    def _from_cwd_manifest(self, cwd: Path) -> Project | None:
+        """Try to load project from manifest in cwd."""
+        manifest_path = cwd / ".sunwell" / "project.toml"
+        if not manifest_path.exists():
+            return None
 
-        Returns:
-            Frozenset with the expanded pattern
-        """
-        result = self._expand_pattern_simple(pattern, artifact)
-        return frozenset([result]) if result else frozenset()
+        try:
+            # Validate first
+            validate_workspace(cwd)
 
-    def _expand_pattern_simple(
-        self,
-        pattern: str,
-        context: Any,
-    ) -> str:
-        """Expand a pattern with simple substitution.
-
-        Args:
-            pattern: Template with {field} placeholders
-            context: Dict or string for substitution
-
-        Returns:
-            Expanded string
-        """
-        import re
-
-        if isinstance(context, str):
-            # Simple case: replace all {var} with the string
-            return re.sub(r"\{[^}]+\}", context, pattern)
-
-        if isinstance(context, dict):
-            # Replace {field} with context[field]
-            result = pattern
-            for match in re.finditer(r"\{(\w+)\}", pattern):
-                field_name = match.group(1)
-                value = context.get(field_name, "")
-                result = result.replace(match.group(0), str(value))
-            return result
-
-        return pattern
-
-    def _expand_patterns(
-        self,
-        patterns: tuple[str, ...],
-        artifact: dict[str, Any],
-    ) -> frozenset[str]:
-        """Expand multiple patterns.
-
-        Args:
-            patterns: Tuple of template patterns
-            artifact: Artifact data for substitution
-
-        Returns:
-            Frozenset of all expanded patterns
-        """
-        results = set()
-        for pattern in patterns:
-            expanded = self._expand_pattern_simple(pattern, artifact)
-            if expanded:
-                results.add(expanded)
-        return frozenset(results)
-
-    def _check_condition(
-        self,
-        condition: str,
-        artifact: dict[str, Any],
-    ) -> bool:
-        """Check if a condition is satisfied.
-
-        Simple implementation: checks if the named field is truthy.
-
-        Args:
-            condition: Field name or simple condition
-            artifact: Artifact data
-
-        Returns:
-            True if condition is satisfied
-        """
-        # Simple case: field name
-        if condition in artifact:
-            value = artifact[condition]
-            # Truthy check
-            if isinstance(value, (list, tuple)):
-                return len(value) > 0
-            return bool(value)
-        return False
+            manifest = load_manifest(manifest_path)
+            return Project(
+                id=manifest.id,
+                name=manifest.name,
+                root=cwd.resolve(),
+                workspace_type=WorkspaceType.MANIFEST,
+                created_at=manifest.created,
+                manifest=manifest,
+            )
+        except (ManifestError, ProjectValidationError):
+            return None
 
 
-@dataclass
-class ArtifactLoader:
-    """Loads artifacts from a project directory.
+def resolve_project(
+    *,
+    project_root: str | Path | None = None,
+    project_id: str | None = None,
+    cwd: Path | None = None,
+) -> Project:
+    """Convenience function to resolve project.
 
-    Provides utilities for discovering and loading artifact files,
-    organizing them by type for validation.
+    See ProjectResolver.resolve() for details.
     """
-
-    schema: ProjectSchema
-
-    def load_all_artifacts(
-        self,
-        project_root: Path | None = None,
-    ) -> dict[str, list[dict[str, Any]]]:
-        """Load all artifacts from the project, organized by type.
-
-        Args:
-            project_root: Root of the project (defaults to schema's root)
-
-        Returns:
-            Dict mapping artifact type → list of artifacts
-        """
-        root = project_root or self.schema.project_root
-        if not root:
-            raise ValueError("No project root specified")
-
-        artifacts: dict[str, list[dict[str, Any]]] = {}
-
-        # Initialize empty lists for all known types
-        for type_name in self.schema.artifact_types:
-            artifacts[type_name] = []
-
-        # Search common locations
-        artifacts_dir = root / "artifacts"
-        if artifacts_dir.exists():
-            self._load_from_directory(artifacts_dir, artifacts)
-
-        # Also check for type-specific directories
-        for type_name in self.schema.artifact_types:
-            type_dir = root / type_name
-            if type_dir.exists():
-                self._load_from_directory(type_dir, artifacts)
-
-            # Check plural form
-            plural_dir = root / f"{type_name}s"
-            if plural_dir.exists():
-                self._load_from_directory(plural_dir, artifacts)
-
-        return artifacts
-
-    def _load_from_directory(
-        self,
-        directory: Path,
-        artifacts: dict[str, list[dict[str, Any]]],
-    ) -> None:
-        """Load artifacts from a directory into the artifacts dict."""
-        for path in directory.glob("**/*.yaml"):
-            try:
-                with open(path) as f:
-                    data = yaml.safe_load(f)
-
-                if not data or not isinstance(data, dict):
-                    continue
-
-                type_name = data.get("type")
-                if type_name and type_name in artifacts:
-                    artifacts[type_name].append(data)
-            except (yaml.YAMLError, OSError):
-                # Skip invalid files
-                continue
+    resolver = ProjectResolver()
+    return resolver.resolve(
+        project_root=project_root,
+        project_id=project_id,
+        cwd=cwd,
+    )
