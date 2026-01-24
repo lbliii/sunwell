@@ -225,6 +225,7 @@ async def main() -> int:
                     "time_ms": r.time_ms,
                     "prompt_tokens": r.prompt_tokens,
                     "completion_tokens": r.completion_tokens,
+                    "code": r.code,  # Include actual generated code
                 }
                 for r in runner.results
             ],

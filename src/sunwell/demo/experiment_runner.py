@@ -15,6 +15,7 @@ from sunwell.demo.lens_experiments import (
     ExperimentSummary,
     LensData,
     LensStrategy,
+    PromptParts,
     create_prompt_builder,
     load_default_lens,
 )
@@ -156,17 +157,30 @@ class ExperimentRunner:
         """Run a single experiment iteration."""
         from sunwell.models.protocol import GenerateOptions
 
-        prompt = builder.build_prompt(task.prompt)
-
         start = time.perf_counter()
 
-        result = await self.model.generate(
-            prompt,
-            options=GenerateOptions(
-                temperature=self.config.temperature,
-                max_tokens=self.config.max_tokens,
-            ),
-        )
+        # Check if builder uses proper system prompt separation
+        if builder.uses_system_prompt:
+            # Use proper system/user split!
+            parts = builder.build_prompt_parts(task.prompt)
+            result = await self.model.generate(
+                parts.user,  # User message only
+                options=GenerateOptions(
+                    system_prompt=parts.system,  # Lens in system prompt!
+                    temperature=self.config.temperature,
+                    max_tokens=self.config.max_tokens,
+                ),
+            )
+        else:
+            # Legacy: everything in one prompt
+            prompt = builder.build_prompt(task.prompt)
+            result = await self.model.generate(
+                prompt,
+                options=GenerateOptions(
+                    temperature=self.config.temperature,
+                    max_tokens=self.config.max_tokens,
+                ),
+            )
 
         elapsed_ms = int((time.perf_counter() - start) * 1000)
 

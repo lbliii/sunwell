@@ -119,12 +119,48 @@ class DemoExecutor:
                 max_tokens=1024,
             ),
         )
-        # Load coder lens for enhanced prompting
+        # Load lens for enhanced prompting - prefer v2 mental model format
+        self.lens_data = self._load_lens_v2()
+        self.prompt_builder = self._create_prompt_builder()
+        # Legacy: also load raw YAML for backwards compat
         self.lens = self._load_coder_lens()
         self.lens_heuristics = self._extract_lens_heuristics()
 
+    def _load_lens_v2(self):
+        """Load v2 lens (mental model format) for enhanced prompting."""
+        try:
+            from sunwell.demo.lens_experiments import LensData
+            
+            # Prefer v2 python-expert lens, fall back to coder.lens
+            lens_paths = [
+                Path("lenses/python-expert-v2.lens"),
+                Path(__file__).parent.parent.parent.parent / "lenses" / "python-expert-v2.lens",
+                Path("lenses/coder.lens"),
+                Path(__file__).parent.parent.parent.parent / "lenses" / "coder.lens",
+                Path.home() / ".sunwell" / "lenses" / "coder.lens",
+            ]
+            
+            for path in lens_paths:
+                if path.exists():
+                    return LensData.from_yaml(path)
+            return None
+        except Exception:
+            return None
+    
+    def _create_prompt_builder(self):
+        """Create the best prompt builder for the loaded lens."""
+        if not self.lens_data:
+            return None
+        
+        try:
+            from sunwell.demo.lens_experiments import LensStrategy, create_prompt_builder
+            # Use examples_prominent - best performing strategy
+            return create_prompt_builder(LensStrategy.EXAMPLES_PROMINENT, self.lens_data)
+        except Exception:
+            return None
+
     def _load_coder_lens(self) -> dict | None:
-        """Load the coder.lens file for enhanced prompting."""
+        """Load the coder.lens file for enhanced prompting (legacy)."""
         try:
             import yaml
 
@@ -159,9 +195,22 @@ class DemoExecutor:
     def _build_lens_enhanced_prompt(self, task: DemoTask) -> tuple[str, tuple[str, ...]]:
         """Build a prompt enhanced with lens heuristics.
 
+        Uses v2 mental model format if available, falls back to v1.
+
         Returns:
             Tuple of (prompt, requirements_added)
         """
+        # Use v2 prompt builder if available
+        if self.prompt_builder and self.lens_data:
+            prompt = self.prompt_builder.build_prompt(task.prompt)
+            # Extract heuristic names as "requirements" for tracking
+            requirements = tuple(
+                h.get("name", "Heuristic")
+                for h in self.lens_data.heuristics
+            )
+            return prompt, requirements
+        
+        # Fallback to v1 approach
         requirements = [
             "Include type hints for all parameters and return values",
             "Write a complete docstring with Args, Returns, and Raises sections",

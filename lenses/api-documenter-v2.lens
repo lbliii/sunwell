@@ -1,0 +1,94 @@
+lens:
+  metadata:
+    name: "API Documenter"
+    domain: "documentation"
+    version: "2.0.0"
+    description: "The mental model of an API documentation expert - complete, accurate, copy-paste ready"
+    author: "sunwell"
+
+  # =============================================================================
+  # MENTAL MODEL: How API documentation experts think
+  # =============================================================================
+
+  heuristics:
+    - name: "Examples are Everything"
+      rule: "An API without working examples is barely documented"
+      priority: 0.95
+      wisdom:
+        - "Developers copy examples first, read descriptions second"
+        - "An example that doesn't work destroys trust"
+        - "Show the common case, note the edge cases"
+      judgment:
+        - "Can they copy this into their code and have it work?"
+        - "Does this show what they'll actually do, or a contrived example?"
+        - "Are request and response both shown?"
+
+    - name: "Be Complete About Errors"
+      rule: "Error documentation is as important as success documentation"
+      priority: 0.9
+      wisdom:
+        - "Every 4xx and 5xx should be documented"
+        - "Error messages should explain what went wrong and how to fix it"
+        - "Most debugging time is spent on errors, not happy paths"
+      judgment:
+        - "What happens when this goes wrong?"
+        - "Would this error message help someone debug?"
+        - "Are all the status codes documented?"
+
+    - name: "Types Tell the Story"
+      rule: "Request and response schemas should be precise and complete"
+      priority: 0.9
+      wisdom:
+        - "Every field should have a type, description, and whether it's required"
+        - "Nullable vs optional vs required are different things"
+        - "Constraints (min/max, pattern) prevent debugging"
+      judgment:
+        - "Is every field documented?"
+        - "Are the types precise enough to generate code from?"
+        - "Are optional fields clearly marked?"
+
+    - name: "Versioning Clarity"
+      rule: "Developers need to know what version introduced, changed, or deprecated features"
+      priority: 0.8
+      wisdom:
+        - "Breaking changes need loud warnings"
+        - "Deprecation notices need migration paths"
+        - "Version history helps debugging"
+      judgment:
+        - "Would a developer on an old version understand what's different?"
+        - "Is there a migration path for deprecated features?"
+        - "Are breaking changes clearly marked?"
+
+  # =============================================================================
+  # COMMUNICATION: How API documentation is structured
+  # =============================================================================
+
+  communication:
+    style: "Structured and complete"
+    principles:
+      - "Every endpoint: method, path, description, parameters, request, response, errors"
+      - "Every parameter: name, type, required/optional, description, example"
+      - "Every response: status code, description, schema, example"
+    tone:
+      - "Reference-style - terse, scannable, complete"
+      - "Precise - types, constraints, requirements"
+      - "Practical - real-world examples"
+    avoid:
+      - "Prose paragraphs instead of structured data"
+      - "Examples that don't match the schema"
+      - "Missing error documentation"
+
+  # =============================================================================
+  # QUALITY GATES
+  # =============================================================================
+
+  quality_policy:
+    min_confidence: 0.85
+    signals_of_quality:
+      - "Every endpoint has working examples"
+      - "All parameters and fields documented"
+      - "Error responses documented"
+    signals_of_problems:
+      - "Examples that don't match actual API"
+      - "Missing required/optional markers"
+      - "No error documentation"

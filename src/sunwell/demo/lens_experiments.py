@@ -34,6 +34,10 @@ class LensStrategy(Enum):
     
     All strategies (except BASELINE) include the FULL lens content.
     The variation is how that content is formatted/structured.
+    
+    KEY DISTINCTION:
+    - Most strategies: lens + task in single user prompt
+    - SYSTEM_* strategies: lens in system prompt, task in user prompt
     """
 
     BASELINE = "baseline"  # Current demo approach (minimal) - for comparison only
@@ -44,13 +48,17 @@ class LensStrategy(Enum):
     ROLE_FRAMED = "role_framed"  # Expert role-play wrapper
     CHECKLIST_FORMAT = "checklist_format"  # Actionable checklist
     PRIORITY_ORDERED = "priority_ordered"  # Ordered by priority
-    SYSTEM_SPLIT = "system_split"  # Split lens/task into system/user
+    SYSTEM_PROMPT = "system_prompt"  # Full lens AS system prompt (proper placement!)
+    SYSTEM_XML = "system_xml"  # Full lens as XML in system prompt
     COMPACT_DENSE = "compact_dense"  # Compressed format
 
 
 @dataclass(frozen=True, slots=True)
 class LensData:
-    """Parsed lens data for prompt building."""
+    """Parsed lens data for prompt building.
+    
+    Supports both v1 (always/never lists) and v2 (wisdom/judgment) formats.
+    """
 
     name: str
     domain: str
@@ -58,6 +66,8 @@ class LensData:
     heuristics: tuple[dict[str, Any], ...]
     communication: dict[str, Any] | None
     quality_policy: dict[str, Any] | None
+    knowledge_sources: dict[str, Any] | None  # v2: resources to consult
+    version: str  # v1 or v2 format
 
     @classmethod
     def from_yaml(cls, path: Path) -> "LensData":
@@ -67,15 +77,69 @@ class LensData:
 
         lens = data.get("lens", {})
         metadata = lens.get("metadata", {})
+        
+        # Detect v1 vs v2 format
+        heuristics = lens.get("heuristics", [])
+        is_v2 = any(
+            "wisdom" in h or "judgment" in h 
+            for h in heuristics
+        )
 
         return cls(
             name=metadata.get("name", "Unknown"),
             domain=metadata.get("domain", "general"),
             description=metadata.get("description", ""),
-            heuristics=tuple(lens.get("heuristics", [])),
+            heuristics=tuple(heuristics),
             communication=lens.get("communication"),
             quality_policy=lens.get("quality_policy"),
+            knowledge_sources=lens.get("knowledge_sources"),
+            version="v2" if is_v2 else "v1",
         )
+    
+    def get_all_wisdom(self) -> list[str]:
+        """Extract all wisdom statements from heuristics."""
+        wisdom = []
+        for h in self.heuristics:
+            wisdom.extend(h.get("wisdom", []))
+        return wisdom
+    
+    def get_all_judgment(self) -> list[str]:
+        """Extract all judgment statements from heuristics."""
+        judgment = []
+        for h in self.heuristics:
+            judgment.extend(h.get("judgment", []))
+        return judgment
+    
+    def get_all_anti_patterns(self) -> list[str]:
+        """Extract all anti-patterns from heuristics."""
+        patterns = []
+        for h in self.heuristics:
+            patterns.extend(h.get("anti_patterns", []))
+        return patterns
+    
+    def get_all_examples(self) -> dict[str, str]:
+        """Extract all named examples from heuristics."""
+        examples = {}
+        for h in self.heuristics:
+            ex = h.get("examples", {})
+            if isinstance(ex, dict):
+                examples.update(ex)
+        return examples
+
+
+@dataclass(frozen=True, slots=True)
+class PromptParts:
+    """Separated prompt parts for system/user split."""
+
+    system: str | None  # System prompt (lens expertise)
+    user: str  # User prompt (task)
+
+    @property
+    def combined(self) -> str:
+        """Combine for strategies that don't use system prompt."""
+        if self.system:
+            return f"{self.system}\n\n{self.user}"
+        return self.user
 
 
 class LensPromptBuilder(ABC):
@@ -86,8 +150,24 @@ class LensPromptBuilder(ABC):
 
     @abstractmethod
     def build_prompt(self, task_prompt: str) -> str:
-        """Build the full prompt with lens enhancement."""
+        """Build the full prompt with lens enhancement.
+        
+        For strategies that combine lens + task in one prompt.
+        """
         ...
+
+    def build_prompt_parts(self, task_prompt: str) -> PromptParts:
+        """Build separated system/user prompts.
+        
+        Override for strategies that use proper system prompt separation.
+        Default: returns None for system, combined prompt for user.
+        """
+        return PromptParts(system=None, user=self.build_prompt(task_prompt))
+
+    @property
+    def uses_system_prompt(self) -> bool:
+        """Whether this strategy uses a separate system prompt."""
+        return False
 
     @property
     @abstractmethod
@@ -342,13 +422,111 @@ Return ONLY Python code. No explanations, no markdown fences.
 
 
 class ExamplesProminentPromptBuilder(LensPromptBuilder):
-    """Full lens with examples section prominently placed first."""
+    """Full lens with examples section prominently placed first.
+    
+    Adapts to v1 (always/never) or v2 (wisdom/judgment) format.
+    """
 
     @property
     def strategy(self) -> LensStrategy:
         return LensStrategy.EXAMPLES_PROMINENT
 
     def build_prompt(self, task_prompt: str) -> str:
+        # Use v2-aware builder if detected
+        if self.lens.version == "v2":
+            return self._build_v2_prompt(task_prompt)
+        return self._build_v1_prompt(task_prompt)
+    
+    def _build_v2_prompt(self, task_prompt: str) -> str:
+        """Build prompt using v2 mental model format."""
+        sections = [
+            f"# {self.lens.name}",
+            f"*{self.lens.description}*" if self.lens.description else "",
+            "",
+        ]
+        
+        # Mental models first - teach HOW to think
+        sections.append("## Mental Models\n")
+        sorted_h = sorted(
+            self.lens.heuristics,
+            key=lambda h: h.get("priority", 0.5),
+            reverse=True,
+        )
+        
+        for h in sorted_h:
+            name = h.get("name", "Principle")
+            rule = h.get("rule", "")
+            sections.append(f"### {name}")
+            sections.append(f"**Core principle**: {rule}\n")
+            
+            # Wisdom - expert insights
+            wisdom = h.get("wisdom", [])
+            if wisdom:
+                sections.append("**Wisdom**:")
+                for w in wisdom:
+                    sections.append(f"  • {w}")
+                sections.append("")
+            
+            # Judgment - when to apply
+            judgment = h.get("judgment", [])
+            if judgment:
+                sections.append("**Judgment** (when to apply):")
+                for j in judgment:
+                    sections.append(f"  • {j}")
+                sections.append("")
+            
+            # Examples as illustrations
+            examples = h.get("examples", {})
+            if examples and isinstance(examples, dict):
+                sections.append("**Illustrated**:")
+                for label, code in examples.items():
+                    sections.append(f"  {label}: `{code}`")
+                sections.append("")
+            
+            # Anti-patterns
+            anti = h.get("anti_patterns", [])
+            if anti:
+                sections.append("**Avoid**:")
+                for a in anti:
+                    sections.append(f"  ✗ {a}")
+                sections.append("")
+        
+        # Communication style
+        if self.lens.communication:
+            sections.append("## Communication Style")
+            style = self.lens.communication.get("style", "")
+            if style:
+                sections.append(f"*{style}*")
+            
+            principles = self.lens.communication.get("principles", [])
+            if principles:
+                for p in principles:
+                    sections.append(f"- {p}")
+            
+            tone = self.lens.communication.get("tone", [])
+            if tone:
+                sections.append(f"\nTone: {', '.join(tone) if isinstance(tone, list) else tone}")
+        
+        # Quality signals
+        if self.lens.quality_policy:
+            signals = self.lens.quality_policy.get("signals_of_quality", [])
+            if signals:
+                sections.append("\n## Quality Signals")
+                for s in signals:
+                    sections.append(f"✓ {s}")
+        
+        return f"""{chr(10).join(sections)}
+
+---
+
+## Task
+{task_prompt}
+
+Apply the mental models above. Use your judgment about what's appropriate for this context.
+Code only:"""
+
+    def _build_v1_prompt(self, task_prompt: str) -> str:
+        """Build prompt using v1 always/never format."""
         content = _get_all_heuristic_content(self.lens)
 
         # Examples first (prominent)
@@ -656,69 +834,180 @@ Code only:"""
 
 
 # =============================================================================
-# Strategy 9: SYSTEM_SPLIT (Full lens split between system/user)
+# Strategy 9: SYSTEM_PROMPT (Full lens AS system prompt - proper placement!)
 # =============================================================================
 
 
-class SystemSplitPromptBuilder(LensPromptBuilder):
-    """Full lens - designed to be split: lens in system prompt, task in user.
+class SystemPromptBuilder(LensPromptBuilder):
+    """Full lens placed in the model's SYSTEM PROMPT where it belongs.
     
-    NOTE: This builder returns the full prompt, but the experiment runner
-    could potentially split at the marker and put lens in system role.
+    This is the PROPER way to use lenses - as the model's identity/expertise,
+    not mixed in with user requests.
     """
 
     @property
     def strategy(self) -> LensStrategy:
-        return LensStrategy.SYSTEM_SPLIT
+        return LensStrategy.SYSTEM_PROMPT
+
+    @property
+    def uses_system_prompt(self) -> bool:
+        return True
 
     def build_prompt(self, task_prompt: str) -> str:
+        # Fallback if not using system prompt properly
+        parts = self.build_prompt_parts(task_prompt)
+        return parts.combined
+
+    def build_prompt_parts(self, task_prompt: str) -> PromptParts:
         content = _get_all_heuristic_content(self.lens)
 
-        # System portion (the lens expertise)
+        # SYSTEM PROMPT: The lens expertise
         system_sections = [
-            f"[SYSTEM CONTEXT - {self.lens.name}]\n",
-            f"{self.lens.description}\n" if self.lens.description else "",
-            "You are an expert following these standards:\n",
+            f"# {self.lens.name}",
+            f"{self.lens.description}" if self.lens.description else "",
+            "",
+            "## Your Expertise Standards",
+            "",
         ]
 
-        # All heuristics
+        # All heuristics as your principles
         sorted_rules = sorted(content["rules"], key=lambda r: r[2], reverse=True)
         for name, rule, priority in sorted_rules:
-            system_sections.append(f"• {name}: {rule}")
+            importance = "CRITICAL" if priority >= 0.9 else "HIGH" if priority >= 0.8 else "STANDARD"
+            system_sections.append(f"### [{importance}] {name}")
+            system_sections.append(f"{rule}")
+            system_sections.append("")
 
-        system_sections.append("\nPractices you ALWAYS follow:")
+        # All always rules
+        system_sections.append("## Required Practices")
         for a in content["always"]:
-            system_sections.append(f"  + {a}")
+            system_sections.append(f"- {a}")
 
-        system_sections.append("\nPatterns you NEVER use:")
+        # All never rules
+        system_sections.append("")
+        system_sections.append("## Prohibited Patterns")
         for n in content["never"]:
-            system_sections.append(f"  - {n}")
+            system_sections.append(f"- NEVER: {n}")
 
-        # Reference examples
-        system_sections.append("\nYour code looks like:")
+        # Examples
+        system_sections.append("")
+        system_sections.append("## Code Quality Examples")
+        system_sections.append("Good patterns:")
         for ex in content["examples_good"]:
             system_sections.append(f"  ✓ {ex}")
-
-        system_sections.append("\nCode you reject:")
+        system_sections.append("Bad patterns:")
         for ex in content["examples_bad"]:
             system_sections.append(f"  ✗ {ex}")
 
         # Communication style
         if self.lens.communication:
             tone = self.lens.communication.get("tone", [])
+            avoid = self.lens.communication.get("avoid", [])
+            system_sections.append("")
+            system_sections.append("## Communication Style")
             if tone:
-                system_sections.append(f"\nYour style: {', '.join(tone) if isinstance(tone, list) else tone}")
+                system_sections.append(f"Be: {', '.join(tone) if isinstance(tone, list) else tone}")
+            if avoid:
+                system_sections.append(f"Avoid: {', '.join(avoid) if isinstance(avoid, list) else avoid}")
 
-        system_sections.append("\n[END SYSTEM CONTEXT]\n")
+        system_sections.append("")
+        system_sections.append("Apply ALL your standards to every request. Return only code unless asked otherwise.")
 
-        # User portion (the task)
-        user_section = f"""[USER REQUEST]
-{task_prompt}
+        # USER PROMPT: Just the task
+        user_prompt = f"{task_prompt}\n\nWrite the code:"
 
-Write the code. Apply ALL your standards.
-Code only:"""
+        return PromptParts(
+            system=chr(10).join(system_sections),
+            user=user_prompt,
+        )
 
-        return chr(10).join(system_sections) + "\n" + user_section
+
+# =============================================================================
+# Strategy 10: SYSTEM_XML (Full lens as XML in system prompt)
+# =============================================================================
+
+
+class SystemXMLBuilder(LensPromptBuilder):
+    """Full lens as XML structure in system prompt.
+    
+    Combines the benefits of:
+    1. Proper system prompt placement
+    2. XML structure for clear parsing
+    """
+
+    @property
+    def strategy(self) -> LensStrategy:
+        return LensStrategy.SYSTEM_XML
+
+    @property
+    def uses_system_prompt(self) -> bool:
+        return True
+
+    def build_prompt(self, task_prompt: str) -> str:
+        parts = self.build_prompt_parts(task_prompt)
+        return parts.combined
+
+    def build_prompt_parts(self, task_prompt: str) -> PromptParts:
+        content = _get_all_heuristic_content(self.lens)
+
+        # SYSTEM PROMPT as XML
+        always_xml = "\n".join(f"  <rule>{a}</rule>" for a in content["always"])
+        never_xml = "\n".join(f"  <rule>{n}</rule>" for n in content["never"])
+        good_xml = "\n".join(f"  <example>{ex}</example>" for ex in content["examples_good"])
+        bad_xml = "\n".join(f"  <example>{ex}</example>" for ex in content["examples_bad"])
+
+        # Heuristics
+        heuristics_xml = []
+        sorted_rules = sorted(content["rules"], key=lambda r: r[2], reverse=True)
+        for name, rule, priority in sorted_rules:
+            heuristics_xml.append(f"""  <heuristic priority="{priority}">
+    <name>{name}</name>
+    <principle>{rule}</principle>
+  </heuristic>""")
+
+        tone = ""
+        if self.lens.communication:
+            t = self.lens.communication.get("tone", [])
+            tone = ", ".join(t) if isinstance(t, list) else str(t) if t else ""
+
+        system_xml = f"""<expertise name="{self.lens.name}" domain="{self.lens.domain}">
+<description>{self.lens.description}</description>
+
+<heuristics>
+{chr(10).join(heuristics_xml)}
+</heuristics>
+
+<always>
+{always_xml}
+</always>
+
+<never>
+{never_xml}
+</never>
+
+<examples>
+<good>
+{good_xml}
+</good>
+<bad>
+{bad_xml}
+</bad>
+</examples>
+
+<style>{tone}</style>
+
+<instructions>
+Apply ALL heuristics. Follow ALL rules. Return only code.
+</instructions>
+</expertise>"""
+
+        # USER PROMPT: Clean task only
+        user_prompt = f"{task_prompt}"
+
+        return PromptParts(
+            system=system_xml,
+            user=user_prompt,
+        )
 
 
 # =============================================================================
@@ -774,7 +1063,8 @@ STRATEGY_BUILDERS: dict[LensStrategy, type[LensPromptBuilder]] = {
     LensStrategy.ROLE_FRAMED: RoleFramedPromptBuilder,
     LensStrategy.CHECKLIST_FORMAT: ChecklistFormatPromptBuilder,
     LensStrategy.PRIORITY_ORDERED: PriorityOrderedPromptBuilder,
-    LensStrategy.SYSTEM_SPLIT: SystemSplitPromptBuilder,
+    LensStrategy.SYSTEM_PROMPT: SystemPromptBuilder,  # Proper system prompt!
+    LensStrategy.SYSTEM_XML: SystemXMLBuilder,  # XML in system prompt!
     LensStrategy.COMPACT_DENSE: CompactDensePromptBuilder,
 }
 

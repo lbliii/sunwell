@@ -273,6 +273,64 @@ def _register_routes(app: FastAPI) -> None:
             return {"error": str(e)}
 
     # ═══════════════════════════════════════════════════════════════
+    # DEBUG (RFC-120)
+    # ═══════════════════════════════════════════════════════════════
+
+    @app.get("/api/debug/dump")
+    async def get_debug_dump():
+        """Generate and return debug dump tarball.
+
+        Returns a tar.gz file containing diagnostics for bug reports.
+        """
+        import tarfile
+        import tempfile
+
+        from fastapi.responses import StreamingResponse
+
+        from sunwell.cli.debug_cmd import (
+            _collect_config,
+            _collect_events,
+            _collect_logs,
+            _collect_meta,
+            _collect_plans,
+            _collect_runs,
+            _collect_simulacrum,
+            _collect_system,
+        )
+
+        timestamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
+        filename = f"sunwell-debug-{timestamp}.tar.gz"
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+
+            # Collect all components
+            _collect_meta(root / "meta.json")
+            _collect_config(root / "config.yaml")
+            _collect_events(root / "events.jsonl")
+            _collect_runs(root / "runs")
+            _collect_plans(root / "plans")
+            _collect_simulacrum(root / "simulacrum.json")
+            _collect_logs(root / "agent.log")
+            _collect_system(root / "system")
+
+            # Create tarball in memory
+            tarball_path = Path(tmpdir) / filename
+            with tarfile.open(tarball_path, "w:gz") as tar:
+                tar.add(root, arcname="sunwell-debug")
+
+            # Stream the file
+            def iterfile():
+                with open(tarball_path, "rb") as f:
+                    yield from f
+
+            return StreamingResponse(
+                iterfile(),
+                media_type="application/gzip",
+                headers={"Content-Disposition": f"attachment; filename={filename}"},
+            )
+
+    # ═══════════════════════════════════════════════════════════════
     # LENSES
     # ═══════════════════════════════════════════════════════════════
 
@@ -764,6 +822,133 @@ def _register_routes(app: FastAPI) -> None:
             "error": "Full evaluation requires CLI: sunwell eval --task <task>",
             "hint": "The HTTP API for eval is under development.",
         }
+
+    # ═══════════════════════════════════════════════════════════════
+    # SESSION SUMMARY (RFC-120)
+    # ═══════════════════════════════════════════════════════════════
+
+    @app.get("/api/session/summary")
+    async def get_session_summary(session_id: str | None = None) -> dict[str, Any]:
+        """Get session activity summary.
+
+        Returns current session summary or specific session by ID.
+        """
+        from sunwell.session.tracker import SessionTracker
+
+        if session_id:
+            # Find specific session
+            recent = SessionTracker.list_recent(limit=100)
+            session_path = None
+            for p in recent:
+                if session_id in p.stem:
+                    session_path = p
+                    break
+
+            if not session_path:
+                return {"error": f"Session {session_id} not found"}
+
+            tracker = SessionTracker.load(session_path)
+        else:
+            # Get most recent session
+            recent = SessionTracker.list_recent(limit=1)
+            if recent:
+                tracker = SessionTracker.load(recent[0])
+            else:
+                return {"error": "No session data available"}
+
+        return tracker.get_summary().to_dict()
+
+    @app.get("/api/session/history")
+    async def get_session_history(limit: int = 10) -> dict[str, Any]:
+        """Get list of recent sessions."""
+        from sunwell.session.tracker import SessionTracker
+
+        recent = SessionTracker.list_recent(limit=limit)
+
+        sessions = []
+        for path in recent:
+            try:
+                tracker = SessionTracker.load(path)
+                summary = tracker.get_summary()
+                sessions.append({
+                    "session_id": summary.session_id,
+                    "started_at": summary.started_at.isoformat(),
+                    "goals_completed": summary.goals_completed,
+                    "goals_started": summary.goals_started,
+                    "files_modified": summary.files_modified + summary.files_created,
+                    "total_duration_seconds": summary.total_duration_seconds,
+                })
+            except Exception:
+                continue
+
+        return {"sessions": sessions, "count": len(sessions)}
+
+    # ═══════════════════════════════════════════════════════════════
+    # PLAN VERSIONING (RFC-120)
+    # ═══════════════════════════════════════════════════════════════
+
+    @app.get("/api/plans/{plan_id}/versions")
+    async def get_plan_versions(plan_id: str) -> dict[str, Any]:
+        """Get all versions of a plan."""
+        from sunwell.naaru.persistence import PlanStore
+
+        store = PlanStore()
+        versions = store.get_versions(plan_id)
+
+        return {
+            "plan_id": plan_id,
+            "versions": [v.to_dict() for v in versions],
+            "count": len(versions),
+        }
+
+    @app.get("/api/plans/{plan_id}/versions/{version}")
+    async def get_plan_version(plan_id: str, version: int) -> dict[str, Any]:
+        """Get a specific version of a plan."""
+        from sunwell.naaru.persistence import PlanStore
+
+        store = PlanStore()
+        v = store.get_version(plan_id, version)
+
+        if not v:
+            return {"error": f"Version {version} not found for plan {plan_id}"}
+
+        return v.to_dict()
+
+    @app.get("/api/plans/{plan_id}/diff")
+    async def get_plan_diff(plan_id: str, v1: int, v2: int) -> dict[str, Any]:
+        """Get diff between two plan versions."""
+        from sunwell.naaru.persistence import PlanStore
+
+        store = PlanStore()
+        diff = store.diff(plan_id, v1, v2)
+
+        if not diff:
+            return {"error": f"Could not compute diff for plan {plan_id}"}
+
+        return diff.to_dict()
+
+    @app.get("/api/plans/recent")
+    async def get_recent_plans(limit: int = 20) -> dict[str, Any]:
+        """Get recent plans with version info."""
+        from sunwell.naaru.persistence import PlanStore
+
+        store = PlanStore()
+        plans = store.list_recent(limit=limit)
+
+        result = []
+        for p in plans:
+            versions = store.get_versions(p.goal_hash)
+            result.append({
+                "plan_id": p.goal_hash,
+                "goal": p.goal,
+                "status": p.status.value,
+                "created_at": p.created_at.isoformat(),
+                "updated_at": p.updated_at.isoformat(),
+                "version_count": len(versions),
+                "progress_percent": p.progress_percent,
+            })
+
+        return {"plans": result, "count": len(result)}
 
     # ═══════════════════════════════════════════════════════════════
     # DAG (RFC-105)

@@ -1,0 +1,245 @@
+# Lens v2 Schema - Mental Model Format
+# 
+# A lens is the "hat" of a domain expert - their mental model, judgment,
+# and professional wisdom. NOT a checklist of patterns.
+#
+# Key principle: Teach HOW to think, not WHAT to do.
+
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "sunwell:schema/lens-v2"
+title: "Sunwell Lens v2 - Mental Model Format"
+version: "2.0.0"
+
+description: |
+  A lens captures the expertise of a domain professional:
+  - Mental models: How they frame problems
+  - Judgment: When to apply which principles  
+  - Wisdom: Hard-won insights that aren't in textbooks
+  - Knowledge sources: What they consult when unsure
+  - Communication style: How they explain things
+
+type: object
+required: [lens]
+
+properties:
+  lens:
+    type: object
+    required: [metadata, heuristics]
+    properties:
+      
+      # =================================================================
+      # METADATA
+      # =================================================================
+      metadata:
+        type: object
+        required: [name, domain, version]
+        properties:
+          name:
+            type: string
+            description: "Human-readable lens name"
+            examples: ["Python Expert", "Security Auditor", "API Designer"]
+          
+          domain:
+            type: string
+            description: "Professional domain"
+            examples: ["software", "security", "documentation", "data"]
+          
+          version:
+            type: string
+            pattern: "^\\d+\\.\\d+\\.\\d+$"
+            description: "Semantic version"
+          
+          description:
+            type: string
+            description: "What expertise this lens provides"
+          
+          author:
+            type: string
+
+      # =================================================================
+      # HEURISTICS - The Mental Models
+      # =================================================================
+      heuristics:
+        type: array
+        description: |
+          Mental models that guide expert thinking.
+          NOT checklists - these are frameworks for judgment.
+        items:
+          type: object
+          required: [name, rule]
+          properties:
+            name:
+              type: string
+              description: "Memorable name for this mental model"
+              examples: ["The Trust Boundary", "Error Philosophy", "Simplicity Discipline"]
+            
+            rule:
+              type: string
+              description: "Core principle in one sentence"
+              examples: ["Know where your system's edge is - that's where validation happens"]
+            
+            priority:
+              type: number
+              minimum: 0
+              maximum: 1
+              description: "Relative importance (0.0-1.0)"
+            
+            # v2: Wisdom - insights beyond rules
+            wisdom:
+              type: array
+              items:
+                type: string
+              description: |
+                Hard-won insights that aren't obvious.
+                Things an expert knows but a textbook won't tell you.
+              examples:
+                - "External input is untrusted; internal code with type hints is trusted"
+                - "The reader of your error is probably you, 6 months from now, at 2am"
+            
+            # v2: Judgment - when to apply principles
+            judgment:
+              type: array
+              items:
+                type: string
+              description: |
+                Guidance on WHEN to apply this principle.
+                Helps the model make contextual decisions.
+              examples:
+                - "If you're validating deep inside your code, you don't trust your own architecture"
+                - "Every validation has a maintenance cost - is this boundary worth defending?"
+            
+            # v2: Anti-patterns with context
+            anti_patterns:
+              type: array
+              items:
+                type: string
+              description: |
+                Patterns to avoid, with commentary on WHY.
+                Not just "never do X" but "X leads to Y problem"
+              examples:
+                - "except: pass  # 'It works on my machine' - hides real problems"
+            
+            # v2: Examples as illustrations, not templates
+            examples:
+              type: object
+              description: |
+                Illustrative code showing the principle in action.
+                NOT templates to copy - demonstrations of thinking.
+              additionalProperties:
+                type: string
+              examples:
+                boundary_validation: "def handle_request(data: dict): validated = Schema.parse(data)"
+                internal_trust: "def _process(item: Item): # No validation - Item is internal"
+
+      # =================================================================
+      # COMMUNICATION - How Experts Explain
+      # =================================================================
+      communication:
+        type: object
+        properties:
+          style:
+            type: string
+            description: "Overall communication approach"
+            examples: ["Confident but not arrogant", "Direct and practical"]
+          
+          principles:
+            type: array
+            items:
+              type: string
+            description: "How to explain things"
+            examples:
+              - "Lead with code, follow with explanation"
+              - "Acknowledge trade-offs - there's always a cost"
+          
+          tone:
+            type: array
+            items:
+              type: string
+            description: "Voice characteristics"
+            examples:
+              - "Direct - no hedging when you know the answer"
+              - "Humble - acknowledge when something is a judgment call"
+          
+          avoid:
+            type: array
+            items:
+              type: string
+            description: "Communication anti-patterns"
+            examples:
+              - "Marketing language ('robust', 'scalable')"
+              - "Unnecessary caveats ('this might work')"
+
+      # =================================================================
+      # KNOWLEDGE SOURCES - What Experts Consult
+      # =================================================================
+      knowledge_sources:
+        type: object
+        description: |
+          Resources the expert would consult when unsure.
+          Can be used for tool-calling integration.
+        properties:
+          authoritative:
+            type: array
+            items:
+              type: object
+              properties:
+                name:
+                  type: string
+                url:
+                  type: string
+                  format: uri
+                use_for:
+                  type: string
+            description: "Official/canonical sources"
+          
+          community_wisdom:
+            type: array
+            items:
+              type: object
+              properties:
+                name:
+                  type: string
+                url:
+                  type: string
+                  format: uri
+                use_for:
+                  type: string
+            description: "Respected community resources"
+          
+          tools_to_consult:
+            type: array
+            items:
+              type: string
+            description: "CLI tools or commands to run for verification"
+            examples:
+              - "mypy --strict for type checking edge cases"
+              - "ruff for style and common errors"
+
+      # =================================================================
+      # QUALITY POLICY - What "Good Enough" Looks Like
+      # =================================================================
+      quality_policy:
+        type: object
+        properties:
+          min_confidence:
+            type: number
+            minimum: 0
+            maximum: 1
+          
+          signals_of_quality:
+            type: array
+            items:
+              type: string
+            description: "How to recognize good output"
+            examples:
+              - "Code reads like prose - intent is clear"
+              - "Error paths are as considered as happy paths"
+          
+          signals_of_problems:
+            type: array
+            items:
+              type: string
+            description: "Red flags that indicate issues"
+            examples:
+              - "Multiple levels of nesting"
+              - "Comments explaining what (not why)"

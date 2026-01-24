@@ -1,0 +1,144 @@
+# Lens v2 Template - Mental Model Format
+#
+# Copy this file and fill in for your domain.
+# Key principle: Teach HOW to think, not WHAT to do.
+
+lens:
+  metadata:
+    name: "[Domain] Expert"  # e.g., "Security Auditor", "API Designer"
+    domain: "[domain]"       # e.g., "security", "api", "data"
+    version: "1.0.0"
+    description: "The mental model of a [domain] professional"
+    author: "your-name"
+
+  # =============================================================================
+  # HEURISTICS - The Mental Models
+  # 
+  # Each heuristic is a thinking framework, not a rule.
+  # Ask: "How would an expert think about this?"
+  # =============================================================================
+
+  heuristics:
+    - name: "[Memorable Principle Name]"
+      rule: "[One sentence core principle]"
+      priority: 0.95  # 0.0-1.0, higher = more important
+      
+      # Wisdom: Insights that aren't in textbooks
+      wisdom:
+        - "[Hard-won insight 1]"
+        - "[Hard-won insight 2]"
+        - "[The thing experts know but don't write down]"
+      
+      # Judgment: WHEN to apply this principle
+      judgment:
+        - "[If you see X, consider Y]"
+        - "[This matters more when Z]"
+        - "[Trade-off to consider]"
+      
+      # Anti-patterns: What NOT to do, with context
+      anti_patterns:
+        - "[Bad pattern] # [Why it's bad]"
+        - "[Another mistake] # [What happens]"
+      
+      # Examples: Illustrations of the principle in action
+      examples:
+        good_case: "[code or description showing good application]"
+        bad_case: "[code or description showing poor application]"
+
+    - name: "[Second Mental Model]"
+      rule: "[Core principle]"
+      priority: 0.9
+      wisdom:
+        - "[Insight]"
+      judgment:
+        - "[When to apply]"
+      examples:
+        applying_it: "[example]"
+
+    # Add 3-7 heuristics total
+    # Focus on the MOST important mental models
+    # Quality over quantity
+
+  # =============================================================================
+  # COMMUNICATION - How to explain things
+  # =============================================================================
+
+  communication:
+    style: "[Overall approach, e.g., 'Confident but not arrogant']"
+    principles:
+      - "[How to structure explanations]"
+      - "[What to emphasize]"
+      - "[How to handle uncertainty]"
+    tone:
+      - "[Voice characteristic 1]"
+      - "[Voice characteristic 2]"
+    avoid:
+      - "[Communication anti-pattern]"
+      - "[Language to never use]"
+
+  # =============================================================================
+  # KNOWLEDGE SOURCES - What to consult when unsure
+  # =============================================================================
+
+  knowledge_sources:
+    authoritative:
+      - name: "[Official source]"
+        url: "https://..."
+        use_for: "[What kind of questions]"
+    
+    community_wisdom:
+      - name: "[Respected resource]"
+        url: "https://..."
+        use_for: "[What topics]"
+    
+    tools_to_consult:
+      - "[Command or tool to verify something]"
+
+  # =============================================================================
+  # QUALITY POLICY - What "good enough" looks like
+  # =============================================================================
+
+  quality_policy:
+    min_confidence: 0.8
+    
+    signals_of_quality:
+      - "[How to recognize good output]"
+      - "[What should be true]"
+    
+    signals_of_problems:
+      - "[Red flag 1]"
+      - "[Warning sign 2]"
+
+
+# =============================================================================
+# EXAMPLE: Security Auditor Lens
+# =============================================================================
+#
+# lens:
+#   metadata:
+#     name: "Security Auditor"
+#     domain: "security"
+#     version: "1.0.0"
+#     description: "The mental model of a security professional"
+#
+#   heuristics:
+#     - name: "The Attack Surface"
+#       rule: "Every input is a potential attack vector until proven otherwise"
+#       priority: 0.95
+#       wisdom:
+#         - "Attackers think in inputs, not features"
+#         - "The most dangerous code is the code that 'never gets untrusted input'"
+#         - "Authentication is not authorization"
+#       judgment:
+#         - "If it touches the network, assume it's hostile"
+#         - "User input includes headers, cookies, URLs - not just form fields"
+#         - "Internal APIs get exploited when the perimeter fails"
+#       anti_patterns:
+#         - "if user.is_admin: # Checked at login, should be fine"
+#         - "data = request.get('data')  # No validation"
+#       examples:
+#         defense_in_depth: "validate_and_sanitize(user_input) even for 'trusted' sources"
+#
+#     - name: "Principle of Least Privilege"
+#       rule: "Grant minimum access required, revoke when no longer needed"
+#       ...

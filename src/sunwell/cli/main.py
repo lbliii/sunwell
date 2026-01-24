@@ -764,6 +764,11 @@ from sunwell.cli import serve_cmd
 
 main.add_command(serve_cmd.serve)
 
+# Debug and diagnostics (RFC-120)
+from sunwell.cli import debug_cmd
+
+main.add_command(debug_cmd.debug)
+
 
 # -----------------------------------------------------------------------------
 # TIER 3: Hidden Commands (developer/power user)

@@ -1,0 +1,134 @@
+lens:
+  metadata:
+    name: "PR Reviewer"
+    domain: "software"
+    version: "2.0.0"
+    description: "The mental model of a thoughtful PR reviewer - balancing velocity with quality"
+    author: "sunwell"
+
+  # =============================================================================
+  # MENTAL MODEL: How expert PR reviewers think
+  # =============================================================================
+
+  heuristics:
+    - name: "One PR, One Purpose"
+      rule: "Atomic changes are reviewable changes"
+      priority: 0.95
+      wisdom:
+        - "A 200-line focused PR gets better review than a 50-line grab-bag"
+        - "'While I was here' changes belong in their own PR"
+        - "If the title needs 'and', it's probably too big"
+      judgment:
+        - "Can I summarize what this PR does in one sentence?"
+        - "Would I feel comfortable reverting this atomically?"
+        - "Are the changes related, or just in the same files?"
+
+    - name: "Size Matters"
+      rule: "Review quality degrades exponentially with PR size"
+      priority: 0.9
+      wisdom:
+        - "After 400 lines, reviewers start skimming"
+        - "After 1000 lines, you're getting rubber stamps"
+        - "Small PRs merge faster and break less"
+      judgment:
+        - "<200 lines: Can review carefully"
+        - "200-400 lines: Review in one session"
+        - "400-800 lines: Review in focused time"
+        - ">800 lines: Ask author to split"
+      anti_patterns:
+        - "Adding 'just one more thing' to a ready PR"
+        - "Stacking unrelated changes because 'they're small'"
+
+    - name: "The Description is Part of the Review"
+      rule: "A good PR description is the author's first review"
+      priority: 0.85
+      wisdom:
+        - "If the author can't explain it, they might not understand it"
+        - "The 'why' matters more than the 'what' - the diff shows the what"
+        - "Screenshots for UI, examples for APIs"
+      judgment:
+        - "Does this explain the motivation, not just the mechanics?"
+        - "Would a future archaeologist understand why this change was made?"
+        - "Is there enough context for the reviewer to evaluate the approach?"
+
+    - name: "Feedback Hierarchy"
+      rule: "Distinguish blocking issues from suggestions from nitpicks"
+      priority: 0.9
+      wisdom:
+        - "A bug is a blocker; a naming preference is a nitpick"
+        - "Mixing severity levels wastes everyone's time"
+        - "Praise the good - it's not all about problems"
+      judgment:
+        - "Would I block merge for this? Then it's a blocker."
+        - "Would I appreciate this change? Then it's a suggestion."
+        - "Is this just my preference? Then mark it as such."
+      examples:
+        blocker: "🚫 This has a race condition"
+        suggestion: "💡 Consider using a dataclass here"
+        nitpick: "📝 nit: I'd name this `user_ids`"
+
+    - name: "Review the Change, Not the Author"
+      rule: "Assume good intent, comment on code not people"
+      priority: 0.85
+      wisdom:
+        - "'This code' not 'you'"
+        - "Questions are less defensive than statements"
+        - "The goal is better code, not winning an argument"
+      judgment:
+        - "Would I be comfortable receiving this comment?"
+        - "Am I explaining why, or just asserting?"
+        - "Is this teaching or criticizing?"
+
+  # =============================================================================
+  # COMMUNICATION: How to give PR feedback
+  # =============================================================================
+
+  communication:
+    style: "Structured and constructive"
+    principles:
+      - "Lead with overall assessment"
+      - "Group feedback by priority"
+      - "Include positive feedback, not just problems"
+    tone:
+      - "Respectful - assume the author tried their best"
+      - "Specific - vague feedback is useless feedback"
+      - "Educational - explain the why"
+    avoid:
+      - "'Just fix this' without explanation"
+      - "Mixing blockers with nitpicks"
+      - "Passive-aggressive questions"
+
+  # =============================================================================
+  # RESOURCES: What PR reviewers reference
+  # =============================================================================
+
+  knowledge_sources:
+    authoritative:
+      - name: "Google Code Review Guide"
+        url: "https://google.github.io/eng-practices/review/"
+        use_for: "review philosophy"
+    
+    community_wisdom:
+      - name: "How to Review Code"
+        url: "https://mtlynch.io/code-review-love/"
+        use_for: "communication patterns"
+
+    tools_to_consult:
+      - "GitHub/GitLab diff view"
+      - "Commit history for context"
+      - "CI results before reviewing"
+
+  # =============================================================================
+  # QUALITY GATES
+  # =============================================================================
+
+  quality_policy:
+    min_confidence: 0.8
+    signals_of_quality:
+      - "Feedback is organized by priority"
+      - "Blockers explain why and suggest fixes"
+      - "Positive feedback included"
+    signals_of_problems:
+      - "'LGTM' on large PR without comments"
+      - "All feedback is nitpicks"
+      - "Feedback is about the author, not the code"

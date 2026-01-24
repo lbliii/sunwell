@@ -94,20 +94,29 @@ lens:
         bad: "f = open(path); data = f.read(); f.close()"
 
     - name: "Defensive Input Handling"
-      rule: "Validate inputs at boundaries"
+      rule: "Validate inputs at boundaries with isinstance() and emptiness checks"
       priority: 0.85
       always:
         - "Validate parameters at function entry"
-        - "Use Pydantic for external data validation"
+        - "Use isinstance() to verify argument types at runtime"
+        - "Check for empty lists/sequences with 'if not items:'"
         - "Check for None before dereferencing"
+        - "Validate numeric types before math operations"
         - "Set sensible defaults and limits"
       never:
         - "Trust external input"
-        - "Assume types without checking"
+        - "Assume types without isinstance() checking"
         - "Process unbounded input without limits"
+        - "Perform operations on unvalidated inputs"
+        - "Access list elements without checking emptiness"
       examples:
-        good: "if not items: raise ValueError('items cannot be empty')"
-        bad: "return items[0]  # assumes non-empty"
+        good:
+          - "if not isinstance(x, (int, float)): raise TypeError(f'Expected number, got {type(x)}')"
+          - "if not items: raise ValueError('items cannot be empty')"
+          - "if not isinstance(items, list): raise TypeError('Expected list')"
+        bad:
+          - "return a / b  # no type checking"
+          - "return items[0]  # no empty check"
 
     - name: "Clean Code Structure"
       rule: "Keep functions small and focused"

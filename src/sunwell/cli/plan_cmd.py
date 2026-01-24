@@ -1,15 +1,18 @@
-"""Plan command for DAG visualization and export (RFC-043 prep).
+"""Plan command for DAG visualization and export (RFC-043 prep, RFC-120 versioning).
 
 Provides a dedicated command for planning without execution:
 - Read goals from files (RFCs, specs, etc.)
 - Output in multiple formats (human, json, mermaid)
 - Save plans for later evaluation
+- View plan history and diffs (RFC-120)
 
 Example:
     sunwell plan "Build a forum app"
     sunwell plan --file docs/RFC-043.md
     sunwell plan "Build app" --output plan.json --format json
     sunwell plan --file RFC.md --output plan.json
+    sunwell plan history abc123
+    sunwell plan diff abc123 1 2
 """
 
 
@@ -28,7 +31,13 @@ from rich.tree import Tree
 console = Console()
 
 
-@click.command()
+# =============================================================================
+# Plan Group
+# =============================================================================
+
+
+@click.group(invoke_without_command=True)
+@click.pass_context
 @click.argument("goal", required=False)
 @click.option(
     "--file", "-f",
@@ -85,6 +94,7 @@ console = Console()
     help="Use squash extraction (3x per question, keep only agreement)",
 )
 def plan(
+    ctx: click.Context,
     goal: str | None,
     input_file: str | None,
     output: str | None,
@@ -113,12 +123,21 @@ def plan(
         sunwell plan --file RFC.md --extract-goal
 
     \b
+    Subcommands:
+        history - View plan version history
+        diff    - Compare two plan versions
+        show    - Show specific version details
+
+    \b
     Output formats:
         human   - Rich terminal output with tables and waves (default)
         json    - Machine-readable JSON (implies --output if not set)
         mermaid - Mermaid diagram syntax
         tree    - ASCII dependency tree
     """
+    # If a subcommand is invoked, don't run the default plan generation
+    if ctx.invoked_subcommand is not None:
+        return
     # Resolve goal from arguments or file
     if squash and input_file:
         # Use squash extraction (best for avoiding hallucination)
@@ -725,3 +744,209 @@ def _output_tree(plan_data: dict, graph, waves: list) -> None:
             wave_branch.add(f"[green]{artifact_id}[/green]: {desc}{file_info}")
 
     console.print(tree)
+
+
+# =============================================================================
+# Plan Versioning Subcommands (RFC-120)
+# =============================================================================
+
+
+@plan.command("history")
+@click.argument("plan_id", required=False)
+@click.option(
+    "--limit", "-l",
+    default=20,
+    help="Maximum number of versions to show",
+)
+def plan_history(plan_id: str | None, limit: int) -> None:
+    """View plan version history.
+
+    Shows all saved versions of a plan with timestamps, reasons, and scores.
+
+    \b
+    Examples:
+        sunwell plan history            # List recent plans
+        sunwell plan history abc123     # Show versions for specific plan
+        sunwell plan history --limit 50 # Show more versions
+    """
+    from sunwell.naaru.persistence import PlanStore
+
+    store = PlanStore()
+
+    if plan_id:
+        # Show versions for specific plan
+        versions = store.get_versions(plan_id)
+
+        if not versions:
+            console.print(f"[yellow]No versions found for plan {plan_id}[/yellow]")
+            return
+
+        table = Table(title=f"Plan History: {plan_id[:16]}")
+        table.add_column("Version", style="cyan", width=8)
+        table.add_column("Created", style="dim")
+        table.add_column("Reason", style="green")
+        table.add_column("Artifacts", style="yellow", width=10)
+        table.add_column("Score", style="magenta", width=8)
+        table.add_column("Changes", style="blue")
+
+        for v in versions[-limit:]:
+            changes = []
+            if v.added_artifacts:
+                changes.append(f"+{len(v.added_artifacts)}")
+            if v.removed_artifacts:
+                changes.append(f"-{len(v.removed_artifacts)}")
+            change_str = " ".join(changes) if changes else "-"
+
+            table.add_row(
+                f"v{v.version}",
+                v.created_at.strftime("%Y-%m-%d %H:%M"),
+                v.reason[:40] + ("..." if len(v.reason) > 40 else ""),
+                str(len(v.artifacts)),
+                f"{v.score:.1f}" if v.score else "-",
+                change_str,
+            )
+
+        console.print(table)
+
+    else:
+        # List all plans with version info
+        plans = store.list_recent(limit=limit)
+
+        if not plans:
+            console.print("[yellow]No saved plans found[/yellow]")
+            return
+
+        table = Table(title="Recent Plans with Versions")
+        table.add_column("Plan ID", style="cyan")
+        table.add_column("Goal", style="green")
+        table.add_column("Versions", style="yellow", width=10)
+        table.add_column("Last Updated", style="dim")
+
+        for p in plans:
+            versions = store.get_versions(p.goal_hash)
+            version_count = len(versions)
+            goal_preview = p.goal[:50] + ("..." if len(p.goal) > 50 else "")
+
+            table.add_row(
+                p.goal_hash[:16],
+                goal_preview,
+                str(version_count) if version_count else "-",
+                p.updated_at.strftime("%Y-%m-%d %H:%M"),
+            )
+
+        console.print(table)
+        console.print("\n[dim]Use 'sunwell plan history <plan_id>' to see version details[/dim]")
+
+
+@plan.command("diff")
+@click.argument("plan_id")
+@click.argument("v1", type=int)
+@click.argument("v2", type=int)
+def plan_diff(plan_id: str, v1: int, v2: int) -> None:
+    """Compare two plan versions.
+
+    Shows what changed between two versions of the same plan.
+
+    \b
+    Examples:
+        sunwell plan diff abc123 1 2
+        sunwell plan diff abc123 1 3
+    """
+    from sunwell.naaru.persistence import PlanStore
+
+    store = PlanStore()
+
+    diff = store.diff(plan_id, v1, v2)
+
+    if not diff:
+        console.print(f"[red]Could not compute diff. Check plan ID and versions exist.[/red]")
+        return
+
+    console.print(Panel(
+        f"Comparing v{v1} → v{v2}",
+        title=f"Plan Diff: {plan_id[:16]}",
+        border_style="blue",
+    ))
+
+    # Show changes
+    if diff.added:
+        console.print("\n[green]+ Added artifacts:[/green]")
+        for artifact in diff.added:
+            console.print(f"  + {artifact}")
+
+    if diff.removed:
+        console.print("\n[red]- Removed artifacts:[/red]")
+        for artifact in diff.removed:
+            console.print(f"  - {artifact}")
+
+    if diff.modified:
+        console.print("\n[yellow]~ Modified artifacts:[/yellow]")
+        for artifact in diff.modified:
+            console.print(f"  ~ {artifact}")
+
+    if not diff.added and not diff.removed and not diff.modified:
+        console.print("\n[dim]No changes detected between versions[/dim]")
+
+    # Summary
+    console.print(f"\n[dim]Summary: +{len(diff.added)} -{len(diff.removed)} ~{len(diff.modified)}[/dim]")
+
+
+@plan.command("show")
+@click.argument("plan_id")
+@click.argument("version", type=int)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["human", "json"]),
+    default="human",
+    help="Output format",
+)
+def plan_show_version(plan_id: str, version: int, output_format: str) -> None:
+    """Show details of a specific plan version.
+
+    \b
+    Examples:
+        sunwell plan show abc123 2
+        sunwell plan show abc123 1 --format json
+    """
+    from sunwell.naaru.persistence import PlanStore
+
+    store = PlanStore()
+    v = store.get_version(plan_id, version)
+
+    if not v:
+        console.print(f"[red]Version {version} not found for plan {plan_id}[/red]")
+        return
+
+    if output_format == "json":
+        print(json.dumps(v.to_dict(), indent=2))
+        return
+
+    # Human format
+    console.print(Panel(
+        f"Version {v.version} • {v.created_at.strftime('%Y-%m-%d %H:%M')}",
+        title=f"Plan: {plan_id[:16]}",
+        border_style="blue",
+    ))
+
+    console.print(f"\n[bold]Goal:[/bold] {v.goal[:100]}{'...' if len(v.goal) > 100 else ''}")
+    console.print(f"[bold]Reason:[/bold] {v.reason}")
+
+    if v.score:
+        console.print(f"[bold]Score:[/bold] {v.score:.2f}")
+
+    # Artifacts
+    if v.artifacts:
+        console.print(f"\n[bold]Artifacts ({len(v.artifacts)}):[/bold]")
+        for artifact in v.artifacts[:20]:
+            console.print(f"  • {artifact}")
+        if len(v.artifacts) > 20:
+            console.print(f"  [dim]... and {len(v.artifacts) - 20} more[/dim]")
+
+    # Changes from previous
+    if v.added_artifacts or v.removed_artifacts:
+        console.print("\n[bold]Changes from previous version:[/bold]")
+        if v.added_artifacts:
+            console.print(f"  [green]+{len(v.added_artifacts)} added[/green]")
+        if v.removed_artifacts:
+            console.print(f"  [red]-{len(v.removed_artifacts)} removed[/red]")

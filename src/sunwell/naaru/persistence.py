@@ -362,6 +362,109 @@ class SavedExecution:
 
 
 # =============================================================================
+# Plan Versioning (RFC-120)
+# =============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class PlanVersion:
+    """A single version of a plan.
+
+    Attributes:
+        version: Version number (1, 2, 3, ...)
+        plan_id: Hash of goal (same as goal_hash)
+        goal: The goal text
+        artifacts: List of artifact IDs in this version
+        tasks: List of task descriptions
+        score: Harmonic score if available
+        created_at: When this version was created
+        reason: Why this version exists (e.g., "Initial plan", "Resonance round 2")
+        added_artifacts: Artifacts added since previous version
+        removed_artifacts: Artifacts removed since previous version
+        modified_artifacts: Artifacts modified since previous version
+    """
+
+    version: int
+    plan_id: str
+    goal: str
+    artifacts: tuple[str, ...]
+    tasks: tuple[str, ...]
+    created_at: datetime
+    reason: str
+    score: float | None = None
+    added_artifacts: tuple[str, ...] = ()
+    removed_artifacts: tuple[str, ...] = ()
+    modified_artifacts: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to JSON-serializable dict."""
+        return {
+            "version": self.version,
+            "plan_id": self.plan_id,
+            "goal": self.goal,
+            "artifacts": list(self.artifacts),
+            "tasks": list(self.tasks),
+            "score": self.score,
+            "created_at": self.created_at.isoformat(),
+            "reason": self.reason,
+            "added_artifacts": list(self.added_artifacts),
+            "removed_artifacts": list(self.removed_artifacts),
+            "modified_artifacts": list(self.modified_artifacts),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> PlanVersion:
+        """Create from dict."""
+        return cls(
+            version=data["version"],
+            plan_id=data["plan_id"],
+            goal=data["goal"],
+            artifacts=tuple(data.get("artifacts", [])),
+            tasks=tuple(data.get("tasks", [])),
+            score=data.get("score"),
+            created_at=datetime.fromisoformat(data["created_at"])
+            if "created_at" in data
+            else datetime.now(),
+            reason=data.get("reason", "Unknown"),
+            added_artifacts=tuple(data.get("added_artifacts", [])),
+            removed_artifacts=tuple(data.get("removed_artifacts", [])),
+            modified_artifacts=tuple(data.get("modified_artifacts", [])),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class PlanDiff:
+    """Diff between two plan versions.
+
+    Attributes:
+        plan_id: The plan ID
+        v1: First version number
+        v2: Second version number
+        added: Artifacts added in v2
+        removed: Artifacts removed in v2
+        modified: Artifacts present in both but changed
+    """
+
+    plan_id: str
+    v1: int
+    v2: int
+    added: tuple[str, ...]
+    removed: tuple[str, ...]
+    modified: tuple[str, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to JSON-serializable dict."""
+        return {
+            "plan_id": self.plan_id,
+            "v1": self.v1,
+            "v2": self.v2,
+            "added": list(self.added),
+            "removed": list(self.removed),
+            "modified": list(self.modified),
+        }
+
+
+# =============================================================================
 # PlanStore
 # =============================================================================
 
@@ -458,7 +561,7 @@ class PlanStore:
         return path.exists()
 
     def delete(self, goal_hash: str) -> bool:
-        """Delete a saved plan.
+        """Delete a saved plan and its version history.
 
         Args:
             goal_hash: The goal hash to delete
@@ -466,8 +569,11 @@ class PlanStore:
         Returns:
             True if deleted, False if not found
         """
+        import shutil
+
         path = self.base_path / f"{goal_hash}.json"
         trace_path = path.with_suffix(".trace.jsonl")
+        version_dir = self.base_path / goal_hash
 
         deleted = False
         with self._lock:
@@ -476,6 +582,10 @@ class PlanStore:
                 deleted = True
             if trace_path.exists():
                 trace_path.unlink()
+            # Also delete version history directory
+            if version_dir.exists() and version_dir.is_dir():
+                shutil.rmtree(version_dir)
+                deleted = True
 
         return deleted
 
@@ -537,21 +647,195 @@ class PlanStore:
         mtime = datetime.fromtimestamp(path.stat().st_mtime)
         return (datetime.now() - mtime).total_seconds() / 3600
 
-    def clean_old(self, max_age_hours: float = 168.0) -> int:
-        """Clean plans older than max_age_hours.
+    def clean_old(self, max_age_hours: float = 168.0, max_versions: int = 50) -> int:
+        """Clean plans older than max_age_hours and prune old versions.
 
         Args:
             max_age_hours: Maximum age (default: 1 week)
+            max_versions: Keep at most N versions per plan (default: 50)
 
         Returns:
-            Number of plans deleted
+            Number of items deleted (plans + versions)
         """
         deleted = 0
+
+        # Age-based cleanup of main plan files
         for goal_hash, _path in self.list_all():
             age = self.get_plan_age_hours(goal_hash)
             if age and age > max_age_hours and self.delete(goal_hash):
                 deleted += 1
+
+        # Version cleanup
+        for plan_dir in self.base_path.iterdir():
+            if plan_dir.is_dir():
+                versions = sorted(plan_dir.glob("v*.json"))
+                if len(versions) > max_versions:
+                    for old_version in versions[:-max_versions]:
+                        old_version.unlink()
+                        deleted += 1
+
         return deleted
+
+    # =========================================================================
+    # Plan Versioning (RFC-120)
+    # =========================================================================
+
+    def save_version(self, execution: SavedExecution, reason: str) -> PlanVersion:
+        """Save a new version of a plan.
+
+        Args:
+            execution: The execution state to version
+            reason: Why this version exists (e.g., "Initial plan", "User edit")
+
+        Returns:
+            The created PlanVersion
+        """
+        plan_id = execution.goal_hash
+        versions = self.get_versions(plan_id)
+        version_num = len(versions) + 1
+
+        # Extract artifact IDs and task descriptions
+        artifacts = tuple(execution.graph) if execution.graph else ()
+        tasks = tuple(
+            execution.graph[aid].description
+            for aid in execution.graph
+            if hasattr(execution.graph[aid], "description")
+        ) if execution.graph else ()
+
+        # Compute diff from previous version
+        prev = versions[-1] if versions else None
+        diff = self._compute_version_diff(prev, artifacts) if prev else {}
+
+        version = PlanVersion(
+            version=version_num,
+            plan_id=plan_id,
+            goal=execution.goal,
+            artifacts=artifacts,
+            tasks=tasks,
+            score=getattr(execution, "score", None),
+            created_at=datetime.now(),
+            reason=reason,
+            added_artifacts=diff.get("added", ()),
+            removed_artifacts=diff.get("removed", ()),
+            modified_artifacts=diff.get("modified", ()),
+        )
+
+        self._write_version(version)
+        return version
+
+    def get_versions(self, plan_id: str) -> list[PlanVersion]:
+        """Get all versions of a plan.
+
+        Args:
+            plan_id: The plan ID (goal_hash)
+
+        Returns:
+            List of PlanVersion objects, ordered by version number
+        """
+        version_dir = self.base_path / plan_id
+        if not version_dir.exists():
+            return []
+
+        versions = []
+        for vfile in sorted(version_dir.glob("v*.json")):
+            try:
+                with open(vfile) as f:
+                    versions.append(PlanVersion.from_dict(json.load(f)))
+            except (json.JSONDecodeError, KeyError):
+                continue
+
+        return sorted(versions, key=lambda v: v.version)
+
+    def get_version(self, plan_id: str, version: int) -> PlanVersion | None:
+        """Get a specific version of a plan.
+
+        Args:
+            plan_id: The plan ID (goal_hash)
+            version: Version number
+
+        Returns:
+            PlanVersion or None if not found
+        """
+        version_path = self.base_path / plan_id / f"v{version}.json"
+        if not version_path.exists():
+            return None
+
+        with open(version_path) as f:
+            return PlanVersion.from_dict(json.load(f))
+
+    def diff(self, plan_id: str, v1: int, v2: int) -> PlanDiff | None:
+        """Compute diff between two versions.
+
+        Args:
+            plan_id: The plan ID
+            v1: First version number
+            v2: Second version number
+
+        Returns:
+            PlanDiff or None if versions not found
+        """
+        version1 = self.get_version(plan_id, v1)
+        version2 = self.get_version(plan_id, v2)
+
+        if not version1 or not version2:
+            return None
+
+        set1 = set(version1.artifacts)
+        set2 = set(version2.artifacts)
+
+        return PlanDiff(
+            plan_id=plan_id,
+            v1=v1,
+            v2=v2,
+            added=tuple(set2 - set1),
+            removed=tuple(set1 - set2),
+            modified=(),  # Would need content comparison for true modification
+        )
+
+    def _write_version(self, version: PlanVersion) -> Path:
+        """Write a version to disk.
+
+        Args:
+            version: The version to write
+
+        Returns:
+            Path to the written file
+        """
+        version_dir = self.base_path / version.plan_id
+        version_dir.mkdir(parents=True, exist_ok=True)
+
+        version_path = version_dir / f"v{version.version}.json"
+
+        with self._lock:
+            temp_path = version_path.with_suffix(".tmp")
+            with open(temp_path, "w") as f:
+                json.dump(version.to_dict(), f, indent=2)
+            temp_path.rename(version_path)
+
+        return version_path
+
+    def _compute_version_diff(
+        self,
+        prev: PlanVersion,
+        current_artifacts: tuple[str, ...],
+    ) -> dict[str, tuple[str, ...]]:
+        """Compute diff between previous version and current artifacts.
+
+        Args:
+            prev: Previous version
+            current_artifacts: Current artifact IDs
+
+        Returns:
+            Dict with 'added', 'removed', 'modified' keys
+        """
+        prev_set = set(prev.artifacts)
+        curr_set = set(current_artifacts)
+
+        return {
+            "added": tuple(curr_set - prev_set),
+            "removed": tuple(prev_set - curr_set),
+            "modified": (),  # Would need deeper comparison
+        }
 
 
 # =============================================================================
