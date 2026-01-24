@@ -1,7 +1,8 @@
 # RFC-117: Project-Centric Workspace Isolation
 
-**Status**: Draft  
+**Status**: Implemented  
 **Created**: 2026-01-23  
+**Implemented**: 2026-01-23  
 **Author**: @llane  
 **Depends on**: RFC-012 (Tool Calling), RFC-042 (Adaptive Agent)  
 **Priority**: P0 — Prevents self-pollution bugs
@@ -323,12 +324,12 @@ When determining project context:
 
 ### Migration Path
 
-1. **Phase 1** (immediate): Add self-pollution guard to existing code
-2. **Phase 2**: Create `Project` model and validation
-3. **Phase 3**: Add `sunwell project` CLI commands
-4. **Phase 4**: Refactor `ToolExecutor` to use `Project`
-5. **Phase 5**: Update Studio to require project binding
-6. **Phase 6**: Remove all `Path.cwd()` fallbacks
+1. **Phase 1** ✅: Add self-pollution guard to existing code (`d050e2e`)
+2. **Phase 2** ✅: Create `Project` model and validation (`0802347`)
+3. **Phase 3** ✅: Add `sunwell project` CLI commands (`d08708a`)
+4. **Phase 4** ✅: Refactor `ToolExecutor` to use `Project` (`6bca83e`)
+5. **Phase 5** ✅: Update Studio to require project binding (`fc4a945`, `ab89420`)
+6. **Phase 6** ✅: Validate no implicit cwd() fallbacks (this commit)
 
 ### Backward Compatibility
 
@@ -418,10 +419,20 @@ src/sunwell/project/
 ## Success Criteria
 
 1. ✅ Running `sunwell agent run` from Sunwell's repo directory fails with clear error
+   - `ProjectResolutionError` raised with helpful options
+   - `ProjectValidationError` if explicit `--project-root .` used
 2. ✅ `sunwell project init .` creates valid manifest
+   - Creates `.sunwell/project.toml` with proper schema
+   - Registers project in `~/.sunwell/projects.json`
 3. ✅ Projects persist across sessions via registry
-4. ✅ Studio shows project selector, requires binding
-5. ✅ No `Path.cwd()` remains in file operation paths
+   - `sunwell project list` shows registered projects
+   - `sunwell project default` sets/gets default
+4. ✅ Studio sends `project_id` with agent runs
+   - RunRequest includes `project_id` field
+   - Components pass project context on goal execution
+5. ✅ No implicit `Path.cwd()` fallback for workspace determination
+   - `ProjectResolver` requires explicit context or manifest
+   - ToolExecutor validates project before accepting
 
 ---
 
