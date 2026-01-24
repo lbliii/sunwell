@@ -36,18 +36,18 @@ dependencies = [
     "fastapi>=0.109",
     "uvicorn>=0.27",
     "websockets>=16.0",
+    # Ollama is default provider, uses OpenAI client for /v1 endpoint
+    "openai>=1.0",
 ]
 
 [project.optional-dependencies]
-openai = ["openai>=1.0"]
 anthropic = ["anthropic>=0.18"]
-ollama = ["openai>=1.0"]  # OllamaModel uses OpenAI client for /v1 endpoint
 embeddings = ["sentence-transformers>=2.2"]
 external = [
     "httpx>=0.27.0",       # Async HTTP client for API calls
     "apscheduler>=3.10.0", # Cron scheduling
 ]
-all = ["sunwell[openai,anthropic,ollama,embeddings,external]"]
+all = ["sunwell[anthropic,embeddings,external]"]
 benchmark = [
     "tiktoken>=0.5.0", # Accurate token counting
     "scipy>=1.10.0",   # Statistical tests (Mann-Whitney, Wilcoxon)

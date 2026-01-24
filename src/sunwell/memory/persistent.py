@@ -189,7 +189,9 @@ class PersistentMemory:
         # Get learnings from SimulacrumStore
         if self.simulacrum:
             try:
-                learnings = list(self.simulacrum.get_relevant_learnings(goal))[:top_k]
+                # Use retrieve_for_planning which returns categorized learnings
+                planning_ctx = await self.simulacrum.retrieve_for_planning(goal, top_k)
+                learnings = list(planning_ctx.all_learnings)[:top_k]
             except Exception as e:
                 logger.warning(f"Failed to query simulacrum: {e}")
 

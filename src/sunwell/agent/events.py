@@ -178,6 +178,12 @@ class EventType(Enum):
     BRIEFING_UPDATED = "briefing_updated"
     """Briefing saved for next session."""
 
+    KNOWLEDGE_RETRIEVED = "knowledge_retrieved"
+    """Knowledge retrieved from simulacrum for planning."""
+
+    TEMPLATE_MATCHED = "template_matched"
+    """Template matched for guided planning."""
+
     # Signal events (adaptive routing)
     SIGNAL = "signal"
     """Signal extraction status or results."""

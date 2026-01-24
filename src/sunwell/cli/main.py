@@ -423,17 +423,15 @@ async def _run_agent(
     trust_level = {"read_only": ToolTrust.READ_ONLY, "workspace": ToolTrust.WORKSPACE, "shell": ToolTrust.SHELL}.get(
         trust, ToolTrust.WORKSPACE
     )
-    policy = ToolPolicy(trust_level=trust_level, allow_network=False)
-    tool_executor = ToolExecutor(cwd=workspace, policy=policy)
+    policy = ToolPolicy(trust_level=trust_level)
+    tool_executor = ToolExecutor(workspace=workspace, policy=policy)
 
     # Create agent
     agent = Agent(
         model=synthesis_model,
         tool_executor=tool_executor,
         cwd=workspace,
-        budget=AdaptiveBudget(
-            max_tokens=config.naaru.token_budget if hasattr(config, "naaru") else 50000,
-        ),
+        budget=AdaptiveBudget(total_budget=50_000),
     )
 
     # RFC-MEMORY: Build SessionContext and load PersistentMemory
@@ -455,7 +453,7 @@ async def _run_agent(
             console.print("[yellow]Dry run mode - planning only[/yellow]\n")
 
         plan_data = None
-        async for event in agent.plan(session):
+        async for event in agent.plan(session, memory):
             if event.type == EventType.PLAN_WINNER:
                 plan_data = event.data
             elif event.type == EventType.ERROR and not json_output:

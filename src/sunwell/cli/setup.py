@@ -187,7 +187,7 @@ def setup(
 
             if lens_path:
                 bindings_created = _setup_default_bindings(
-                    manager, lens_path, resolved_provider, resolved_model, force, quiet
+                    manager, lens_path, resolved_provider, resolved_model, force, quiet, project_path
                 )
                 if bindings_created:
                     actions.append("bindings")
@@ -238,8 +238,11 @@ def _setup_default_bindings(
     model: str,
     force: bool,
     quiet: bool,
+    project_path: Path,
 ) -> bool:
     """Set up default lens bindings. Returns True if any created."""
+    import yaml
+
     # Default bindings - minimal set
     default_bindings = [
         {
@@ -258,6 +261,7 @@ def _setup_default_bindings(
     ]
 
     created = []
+    default_binding_name: str | None = None
 
     for binding_def in default_bindings:
         name = binding_def["name"]
@@ -268,6 +272,9 @@ def _setup_default_bindings(
 
         existing = manager.get(name)
         if existing and not force:
+            # If this is the default and it exists, note it
+            if binding_def.get("is_default"):
+                default_binding_name = name
             continue
 
         try:
@@ -280,13 +287,44 @@ def _setup_default_bindings(
             )
 
             if binding_def.get("is_default"):
-                manager.set_default(name)
+                default_binding_name = name
 
             created.append(name)
         except Exception:
             pass
 
+    # Write default to user-global config.yaml (not project-local)
+    # This ensures it works across all projects
+    if default_binding_name:
+        _update_global_config_default(default_binding_name)
+
     if created and not quiet:
         console.print(f"[green]✓[/green] Created bindings: {', '.join(created)}")
 
     return bool(created)
+
+
+def _update_global_config_default(binding_name: str) -> None:
+    """Update the default binding in user-global config.yaml."""
+    import yaml
+
+    config_path = Path.home() / ".sunwell" / "config.yaml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Load existing config or start fresh
+    config_data: dict = {}
+    if config_path.exists():
+        try:
+            with open(config_path) as f:
+                config_data = yaml.safe_load(f) or {}
+        except Exception:
+            pass
+
+    # Update binding.default
+    if "binding" not in config_data:
+        config_data["binding"] = {}
+    config_data["binding"]["default"] = binding_name
+
+    # Write back
+    with open(config_path, "w") as f:
+        yaml.safe_dump(config_data, f, default_flow_style=False, sort_keys=False)

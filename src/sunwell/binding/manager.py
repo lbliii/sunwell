@@ -376,12 +376,40 @@ class BindingManager:
         return self.get_default()
 
     def get_default(self) -> Binding | None:
-        """Get the default binding."""
-        if not self.default_file.exists():
-            return None
+        """Get the default binding.
 
-        default_name = self.default_file.read_text().strip()
-        return self.get(default_name)
+        Resolution order:
+        1. Project config: .sunwell/config.yaml -> binding.default
+        2. User config: ~/.sunwell/config.yaml -> binding.default
+        3. Legacy: Local .sunwell/default_binding file (deprecated)
+        4. Legacy: Global index is_default flag (deprecated)
+        """
+        from sunwell.config import get_config
+
+        # Try config first (project-local → user-global)
+        try:
+            config = get_config()
+            if config.binding.default:
+                binding = self.get(config.binding.default)
+                if binding:
+                    return binding
+        except Exception:
+            pass  # Config not available, continue to legacy
+
+        # Legacy: Try local default_binding file
+        if self.default_file.exists():
+            default_name = self.default_file.read_text().strip()
+            binding = self.get(default_name)
+            if binding:
+                return binding
+
+        # Legacy: Fall back to global index is_default flag
+        entries = self._index_manager.list_bindings(namespace="global")
+        for entry in entries:
+            if entry.is_default:
+                return self.get(entry.uri)
+
+        return None
 
     def set_default(self, name: str) -> bool:
         """Set the default binding.

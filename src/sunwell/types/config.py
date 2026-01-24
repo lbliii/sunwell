@@ -129,6 +129,14 @@ class EmbeddingConfig:
 
 
 @dataclass
+class BindingConfig:
+    """Configuration for lens bindings."""
+
+    default: str = "coder"
+    """Default binding name (used when no binding specified)."""
+
+
+@dataclass
 class ModelConfig:
     """Configuration for model defaults (local-first)."""
 

@@ -24,6 +24,7 @@ from typing import Any
 import yaml
 
 from sunwell.types.config import (
+    BindingConfig,
     EmbeddingConfig,
     LifecycleConfig,
     ModelConfig,
@@ -40,6 +41,7 @@ def _get_dataclass_defaults() -> dict[str, dict[str, Any]]:
     This ensures config.py stays in sync with types/config.py.
     """
     # Create instances to get field defaults
+    binding = BindingConfig()
     simulacrum = SimulacrumConfig()
     model = ModelConfig()
     naaru = NaaruConfig()
@@ -57,6 +59,7 @@ def _get_dataclass_defaults() -> dict[str, dict[str, Any]]:
         return result
 
     return {
+        "binding": to_serializable(binding),
         "simulacrum": to_serializable(simulacrum),
         "model": to_serializable(model),
         "naaru": to_serializable(naaru),
@@ -68,6 +71,9 @@ def _get_dataclass_defaults() -> dict[str, dict[str, Any]]:
 @dataclass
 class SunwellConfig:
     """Root configuration for Sunwell."""
+
+    binding: BindingConfig = field(default_factory=BindingConfig)
+    """Binding configuration (default binding, etc.)."""
 
     simulacrum: SimulacrumConfig = field(default_factory=SimulacrumConfig)
     """Simulacrum configuration."""
@@ -118,6 +124,7 @@ def _apply_env_overrides(config_dict: dict) -> dict:
 
     # Known section structure for proper splitting
     known_sections = {
+        "binding": {"default"},
         "simulacrum": {"spawn", "lifecycle", "base_path"},
         "embedding": {"prefer_local", "ollama_model", "ollama_url", "fallback_to_hash"},
         "model": {"default_provider", "default_model", "smart_routing"},
@@ -221,6 +228,8 @@ def _apply_env_overrides(config_dict: dict) -> dict:
 def _dict_to_config(data: dict) -> SunwellConfig:
     """Convert a dict to SunwellConfig."""
     # Build nested configs
+    binding_config = BindingConfig(**data.get("binding", {}))
+
     simulacrum_data = data.get("simulacrum", {})
     spawn_config = SpawnConfig(**simulacrum_data.get("spawn", {}))
     lifecycle_config = LifecycleConfig(**simulacrum_data.get("lifecycle", {}))
@@ -236,6 +245,7 @@ def _dict_to_config(data: dict) -> SunwellConfig:
     ollama_config = OllamaConfig(**data.get("ollama", {}))
 
     return SunwellConfig(
+        binding=binding_config,
         simulacrum=simulacrum_config,
         embedding=embedding_config,
         model=model_config,
@@ -268,6 +278,7 @@ def load_config(path: str | Path | None = None) -> SunwellConfig:
 
     # Start with defaults from dataclasses (single source of truth)
     config_dict: dict[str, Any] = {
+        "binding": dataclass_defaults["binding"],
         "simulacrum": dataclass_defaults["simulacrum"],
         "embedding": dataclass_defaults["embedding"],
         "model": dataclass_defaults["model"],

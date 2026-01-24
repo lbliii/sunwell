@@ -1028,7 +1028,7 @@ def chat(
 
         # RFC-103: Load linked source context if available
         try:
-            linked_context, workspace_data = asyncio.get_event_loop().run_until_complete(
+            linked_context, workspace_data = asyncio.run(
                 _load_workspace_context(Path.cwd())
             )
             if linked_context:
@@ -1051,7 +1051,7 @@ def chat(
     if enable_rag:
         try:
             console.print("[dim]Building codebase index...[/dim]", end="")
-            codebase_indexer, rag_stats = asyncio.get_event_loop().run_until_complete(
+            codebase_indexer, rag_stats = asyncio.run(
                 _build_codebase_index(Path.cwd(), embedder)
             )
             if rag_stats.get("indexed"):

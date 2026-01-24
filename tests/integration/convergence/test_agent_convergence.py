@@ -1,4 +1,4 @@
-"""Integration tests for agent convergence (RFC-123).
+"""Integration tests for agent convergence (RFC-123, RFC-MEMORY).
 
 Tests the integration between Agent and ConvergenceLoop.
 """
@@ -10,7 +10,7 @@ import pytest
 
 from sunwell.agent.events import EventType
 from sunwell.agent.gates import GateType
-from sunwell.agent.request import RunOptions, RunRequest
+from sunwell.agent.request import RunOptions
 from sunwell.convergence import ConvergenceConfig
 
 
@@ -39,17 +39,15 @@ class TestAgentConvergenceIntegration:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_run_request_with_convergence(self):
-        """RunRequest should carry convergence options."""
+    async def test_session_context_with_convergence_options(self):
+        """SessionContext should work with convergence options."""
         config = ConvergenceConfig(max_iterations=5)
-        request = RunRequest(
-            goal="Test goal",
-            cwd=Path.cwd(),
-            options=RunOptions(converge=True, convergence_config=config),
-        )
+        options = RunOptions(converge=True, convergence_config=config)
         
-        assert request.options.converge is True
-        assert request.options.convergence_config is not None
+        # SessionContext uses RunOptions
+        assert options.converge is True
+        assert options.convergence_config is not None
+        assert options.convergence_config.max_iterations == 5
 
 
 class TestToolExecutorHook:

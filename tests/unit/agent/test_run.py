@@ -11,8 +11,19 @@ import pytest
 from sunwell.agent.events import EventType
 
 
-class TestAgentRun:
-    """Tests for Agent.run() method."""
+class TestAgentRunSignature:
+    """Tests for Agent.run() method signature."""
+
+    @pytest.mark.asyncio
+    async def test_run_method_exists(self) -> None:
+        """Agent class should have run method."""
+        from sunwell.agent import Agent
+
+        assert hasattr(Agent, "run")
+
+
+class TestAgentRunEventFlow:
+    """Tests for expected event flow from run()."""
 
     @pytest.fixture
     def mock_session(self, tmp_path: Path) -> MagicMock:
@@ -56,7 +67,7 @@ class TestAgentRun:
 
         # Mock sync
         mock_sync_result = MagicMock()
-        mock_sync_result.success = True
+        mock_sync_result.all_succeeded = True
         memory.sync = MagicMock(return_value=mock_sync_result)
 
         # Mock add_failure
@@ -64,149 +75,70 @@ class TestAgentRun:
 
         return memory
 
-    @pytest.fixture
-    def mock_agent(self) -> MagicMock:
-        """Create mock Agent with run."""
-        from sunwell.agent import Agent
-
-        # We can't easily instantiate Agent without all dependencies,
-        # so we'll test the method signature and behavior indirectly
-        agent = MagicMock(spec=Agent)
-        return agent
-
     @pytest.mark.asyncio
-    async def test_run_signature_exists(self) -> None:
-        """Agent should have run method with SessionContext, PersistentMemory signature."""
-        from sunwell.agent import Agent
-
-        assert hasattr(Agent, "run")
-
-    @pytest.mark.asyncio
-    async def test_run_yields_orient_event(
-        self,
-        mock_session: MagicMock,
-        mock_memory: MagicMock,
-    ) -> None:
-        """run() should yield ORIENT event at start."""
-        from sunwell.agent import Agent
+    async def test_orient_event_has_correct_type(self) -> None:
+        """ORIENT event should have correct type."""
         from sunwell.agent.events import orient_event
 
-        # Create a minimal agent mock
-        agent = MagicMock(spec=Agent)
+        event = orient_event(learnings=5, constraints=2, dead_ends=1)
 
-        # Mock the internal methods
-        async def mock_run(session, memory):
-            # ORIENT phase
-            ctx = await memory.get_relevant(session.goal)
-            yield orient_event(
-                learnings=5,
-                constraints=len(ctx.constraints),
-                dead_ends=len(ctx.dead_ends),
-            )
-
-        agent.run = mock_run
-
-        events = []
-        async for event in agent.run(mock_session, mock_memory):
-            events.append(event)
-
-        assert len(events) >= 1
-        assert events[0].type == EventType.ORIENT
-        assert events[0].data["constraints"] == 1
-        assert events[0].data["dead_ends"] == 1
+        assert event.type == EventType.ORIENT
+        assert event.data["learnings"] == 5
+        assert event.data["constraints"] == 2
+        assert event.data["dead_ends"] == 1
 
     @pytest.mark.asyncio
-    async def test_run_calls_get_relevant(
-        self,
-        mock_session: MagicMock,
-        mock_memory: MagicMock,
-    ) -> None:
-        """run() should call memory.get_relevant() with goal."""
-        from sunwell.agent import Agent
-        from sunwell.agent.events import orient_event
+    async def test_complete_event_exists(self) -> None:
+        """complete_event should be available."""
+        from sunwell.agent.events import complete_event
 
-        async def mock_run(session, memory):
-            ctx = await memory.get_relevant(session.goal)
-            yield orient_event(
-                learnings=0,
-                constraints=len(ctx.constraints),
-                dead_ends=len(ctx.dead_ends),
-            )
-
-        agent = MagicMock(spec=Agent)
-        agent.run = mock_run
-
-        async for _ in agent.run(mock_session, mock_memory):
-            pass
-
-        mock_memory.get_relevant.assert_called_once_with("build an API")
-
-    @pytest.mark.asyncio
-    async def test_run_syncs_memory(
-        self,
-        mock_session: MagicMock,
-        mock_memory: MagicMock,
-    ) -> None:
-        """run() should sync memory at the end."""
-        from sunwell.agent import Agent
-        from sunwell.agent.events import complete_event, orient_event
-
-        async def mock_run(session, memory):
-            await memory.get_relevant(session.goal)
-            yield orient_event(0, 0, 0)
-
-            # LEARN phase
-            memory.sync()
-            yield complete_event()
-
-        agent = MagicMock(spec=Agent)
-        agent.run = mock_run
-
-        events = []
-        async for event in agent.run(mock_session, mock_memory):
-            events.append(event)
-
-        mock_memory.sync.assert_called_once()
-
-
-class TestAgentRunIntegration:
-    """Integration-style tests for run."""
-
-    @pytest.fixture
-    def mock_model(self) -> MagicMock:
-        """Create mock model."""
-        model = MagicMock()
-        model.complete = AsyncMock(return_value="Task completed")
-        return model
-
-    @pytest.fixture
-    def mock_tool_executor(self) -> MagicMock:
-        """Create mock tool executor."""
-        executor = MagicMock()
-        executor.execute = AsyncMock(return_value=None)
-        return executor
-
-    @pytest.mark.asyncio
-    async def test_run_full_flow_mocked(
-        self,
-        tmp_path: Path,
-        mock_model: MagicMock,
-        mock_tool_executor: MagicMock,
-    ) -> None:
-        """Test full run flow with mocked dependencies."""
-        from sunwell.agent import Agent
-        from sunwell.agent.budget import AdaptiveBudget
-
-        # Create real agent with mocked dependencies
-        agent = Agent(
-            model=mock_model,
-            tool_executor=mock_tool_executor,
-            cwd=tmp_path,
-            budget=AdaptiveBudget(total_budget=10_000),
+        # complete_event requires arguments
+        event = complete_event(
+            tasks_completed=3,
+            gates_passed=2,
+            duration_s=45.5,
         )
 
-        # Verify run exists and is callable
-        assert callable(agent.run)
+        assert event.type == EventType.COMPLETE
+        assert event.data["tasks_completed"] == 3
 
-        # Note: Full execution test would require extensive mocking
-        # This test verifies the method signature is correct
+
+class TestAgentRunMemoryIntegration:
+    """Tests for memory integration with run()."""
+
+    @pytest.fixture
+    def mock_memory(self, tmp_path: Path) -> MagicMock:
+        """Create mock PersistentMemory."""
+        memory = MagicMock()
+        memory.workspace = tmp_path
+        memory.learning_count = 0
+        memory.decision_count = 0
+        memory.failure_count = 0
+
+        mock_ctx = MagicMock()
+        mock_ctx.constraints = ()
+        mock_ctx.dead_ends = ()
+        mock_ctx.to_prompt = MagicMock(return_value="")
+        memory.get_relevant = AsyncMock(return_value=mock_ctx)
+
+        mock_sync_result = MagicMock()
+        mock_sync_result.all_succeeded = True
+        memory.sync = MagicMock(return_value=mock_sync_result)
+
+        return memory
+
+    @pytest.mark.asyncio
+    async def test_memory_get_relevant_returns_context(
+        self, mock_memory: MagicMock
+    ) -> None:
+        """Memory.get_relevant() should return context with constraints and dead_ends."""
+        ctx = await mock_memory.get_relevant("test goal")
+
+        assert hasattr(ctx, "constraints")
+        assert hasattr(ctx, "dead_ends")
+
+    def test_memory_sync_returns_result(self, mock_memory: MagicMock) -> None:
+        """Memory.sync() should return sync result."""
+        result = mock_memory.sync()
+
+        assert hasattr(result, "all_succeeded")

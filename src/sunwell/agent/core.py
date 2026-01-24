@@ -171,6 +171,12 @@ class Agent:
     _workspace_context: str | None = field(default=None, init=False)
     _files_changed_this_run: list[str] = field(default_factory=list, init=False)
     _last_planning_context: Any = field(default=None, init=False)
+    _prefetched_context: Any = field(default=None, init=False)
+    """Prefetched context from briefing (files, hints)."""
+
+    # RFC-MEMORY: Reference to SimulacrumStore for planning
+    _simulacrum: Any = field(default=None, init=False)
+    """SimulacrumStore from PersistentMemory (set during run())."""
 
     def __post_init__(self) -> None:
         if self.cwd is None:
@@ -188,6 +194,11 @@ class Agent:
         # Initialize Naaru for task execution (if tool_executor provided)
         if self.tool_executor:
             self._init_naaru()
+
+    @property
+    def simulacrum(self) -> Any:
+        """Get SimulacrumStore from current run context (RFC-MEMORY)."""
+        return self._simulacrum
 
     def _init_naaru(self) -> None:
         """Initialize internal Naaru for task execution."""
@@ -234,6 +245,9 @@ class Agent:
         start_time = time()
         self._current_goal = session.goal
         self.cwd = session.cwd
+
+        # RFC-MEMORY: Store simulacrum reference for planning
+        self._simulacrum = memory.simulacrum
 
         # RFC-126: Store workspace context for task execution
         self._workspace_context = session.to_planning_prompt()
@@ -511,7 +525,11 @@ class Agent:
         async for event in loop.run(failed_files):
             yield event
 
-    async def plan(self, session: SessionContext) -> AsyncIterator[AgentEvent]:
+    async def plan(
+        self,
+        session: SessionContext,
+        memory: PersistentMemory | None = None,
+    ) -> AsyncIterator[AgentEvent]:
         """Plan without executing (dry run mode).
 
         Extracts signals, selects technique, and generates plan,
@@ -519,10 +537,15 @@ class Agent:
 
         Args:
             session: SessionContext with goal
+            memory: Optional PersistentMemory for simulacrum access
 
         Yields:
             Planning events only
         """
+        # RFC-MEMORY: Store simulacrum reference for planning
+        if memory:
+            self._simulacrum = memory.simulacrum
+
         yield signal_event("extracting")
         signals = await self._extract_signals_with_memory(session.goal)
         yield signal_event("extracted", signals=signals.to_dict())
@@ -573,9 +596,6 @@ class Agent:
 
         if self._briefing:
             planning_context["briefing"] = self._briefing.to_prompt()
-
-        if self._prefetched_context and self._prefetched_context.files:
-            planning_context["prefetched_files"] = self._prefetched_context.files
 
         if signals.planning_route == "HARMONIC":
             async for event in self._harmonic_plan(goal, planning_context):
