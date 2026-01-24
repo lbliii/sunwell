@@ -86,6 +86,10 @@ class ToolExecutor:
     policy: ToolPolicy | None = None
     audit_path: Path | None = None
 
+    # RFC-123: Convergence hook
+    on_file_write: Callable[[Path], Awaitable[None]] | None = None
+    """Hook called after successful write_file or edit_file operations."""
+
     # Handler registry
     _handlers: dict[str, ToolHandler] = field(default_factory=dict)
     _core_handlers: CoreToolHandlers | None = field(default=None, init=False)
@@ -498,6 +502,9 @@ class ToolExecutor:
             output = await handler(tool_call.arguments)
             elapsed_ms = int((time.monotonic() - start) * 1000)
 
+            # RFC-123: Fire convergence hook after successful file writes
+            await self._fire_write_hook(tool_call)
+
             # Audit log
             self._log_audit(tool_call, True, elapsed_ms)
 
@@ -641,6 +648,31 @@ class ToolExecutor:
         log_file = self.audit_path / f"tools-{entry.timestamp.strftime('%Y-%m-%d')}.jsonl"
         with open(log_file, "a") as f:
             f.write(json.dumps(entry.to_dict()) + "\n")
+
+    async def _fire_write_hook(self, tool_call: ToolCall) -> None:
+        """Fire on_file_write hook if this was a file mutation (RFC-123).
+
+        Called after successful write_file or edit_file operations.
+        Hook is async to allow convergence validation to run.
+
+        Args:
+            tool_call: The tool call that just completed
+        """
+        if not self.on_file_write:
+            return
+
+        if tool_call.name not in ("write_file", "edit_file"):
+            return
+
+        path_str = tool_call.arguments.get("path", "")
+        if not path_str:
+            return
+
+        # Resolve path relative to workspace
+        workspace = self._resolve_workspace()
+        path = workspace / path_str
+
+        await self.on_file_write(path)
 
     def get_audit_log(self) -> list[ToolAuditEntry]:
         """Get all audit entries for this session."""

@@ -444,7 +444,7 @@ export {
   type BacklogState,
 } from './backlog.svelte';
 
-// Observatory state (RFC-112)
+// Observatory state (RFC-112, RFC-123)
 export {
   observatory,
   startPlayback,
@@ -472,6 +472,10 @@ export {
   type MemoryLatticeState,
   type ParadoxComparison,
   type ModelParadoxState,
+  // RFC-123: Convergence loop types
+  type ConvergenceGate,
+  type ConvergenceIterationViz,
+  type ConvergenceVizState,
 } from './observatory.svelte';
 
 // Lineage state (RFC-121)
@@ -503,3 +507,14 @@ export {
   type DependencyGraph,
   type UntrackedChange,
 } from './lineage.svelte';
+
+// Recovery state (RFC-125)
+export {
+  recovery,
+  type ArtifactStatus as RecoveryArtifactStatus,
+  type RecoveryArtifact,
+  type RecoverySummary,
+  type RecoveryState,
+  type RecoveryIteration,
+  type RecoveryPanelState,
+} from './recovery.svelte';

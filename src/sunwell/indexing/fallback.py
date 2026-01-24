@@ -1,13 +1,17 @@
-"""SmartContext - Graceful degradation from semantic to grep (RFC-108).
+"""SmartContext - Graceful degradation with ToC navigation (RFC-108, RFC-124).
 
 Provides context retrieval that works even without embeddings:
 1. Semantic index (quality=1.0) - Best, uses embeddings
-2. Grep search (quality=0.6) - Fallback, keyword matching
-3. File listing (quality=0.3) - Minimal, just shows structure
+2. ToC navigation (quality=0.85) - Reasoning-based, uses structure
+3. Grep search (quality=0.6) - Fallback, keyword matching
+4. File listing (quality=0.3) - Minimal, just shows structure
 """
+
+from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,13 +19,34 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sunwell.indexing.service import IndexingService
+    from sunwell.navigation.navigator import TocNavigator
+
+logger = logging.getLogger(__name__)
+
+# Structural query signals - queries that benefit from ToC navigation
+STRUCTURAL_SIGNALS: frozenset[str] = frozenset({
+    "where is",
+    "where does",
+    "where are",
+    "how does",
+    "how is",
+    "find the",
+    "find where",
+    "locate",
+    "which file",
+    "which module",
+    "what file",
+    "what module",
+    "implemented",
+    "implementation",
+})
 
 
 @dataclass
 class ContextResult:
     """Result of context retrieval."""
 
-    source: str  # 'semantic', 'grep', 'file_list'
+    source: str  # 'semantic', 'toc_navigation', 'grep', 'file_list'
     quality: float  # 0.0-1.0
     content: str
     chunks_used: int = 0
@@ -31,14 +56,21 @@ class ContextResult:
 class SmartContext:
     """Context provider that degrades gracefully.
 
-    Fallback chain:
+    Fallback chain (RFC-108, RFC-124):
     1. Semantic index (quality=1.0) - Best, uses embeddings
-    2. Grep search (quality=0.6) - Fallback, keyword matching
-    3. File listing (quality=0.3) - Minimal, just shows structure
+    2. ToC navigation (quality=0.85) - Reasoning-based, uses structure
+    3. Grep search (quality=0.6) - Fallback, keyword matching
+    4. File listing (quality=0.3) - Minimal, just shows structure
+
+    ToC navigation excels at structural queries like:
+    - "Where is authentication implemented?"
+    - "How does the routing work?"
+    - "Find the model validation code"
     """
 
     indexer: IndexingService | None
     workspace_root: Path
+    navigator: TocNavigator | None = None
 
     async def get_context(self, query: str, max_chunks: int = 5) -> ContextResult:
         """Get best available context for a query.
@@ -61,7 +93,14 @@ class SmartContext:
                     chunks_used=len(chunks),
                 )
 
-        # Tier 2: Grep-based search (fallback)
+        # Tier 2: ToC reasoning navigation (RFC-124)
+        # Only attempt for structural queries
+        if self.navigator and self._is_structural_query(query):
+            toc_result = await self._toc_navigation(query, max_chunks)
+            if toc_result:
+                return toc_result
+
+        # Tier 3: Grep-based search (fallback)
         grep_results = await self._grep_search(query)
         if grep_results:
             return ContextResult(
@@ -71,7 +110,7 @@ class SmartContext:
                 chunks_used=len(grep_results),
             )
 
-        # Tier 3: File listing (minimal)
+        # Tier 4: File listing (minimal)
         files = self._list_relevant_files(query)
         return ContextResult(
             source="file_list",
@@ -79,6 +118,94 @@ class SmartContext:
             content=self._format_file_list(files),
             chunks_used=0,
         )
+
+    def _is_structural_query(self, query: str) -> bool:
+        """Heuristic: is this a structural navigation query?
+
+        Structural queries benefit from ToC navigation:
+        - "Where is authentication implemented?"
+        - "How does the routing work?"
+        - "Find the model validation code"
+
+        Content queries should use vector search:
+        - "What does this error message mean?"
+        - "Show me examples of batch processing"
+
+        Args:
+            query: Query string.
+
+        Returns:
+            True if query appears structural.
+        """
+        query_lower = query.lower()
+        return any(signal in query_lower for signal in STRUCTURAL_SIGNALS)
+
+    async def _toc_navigation(
+        self,
+        query: str,
+        max_results: int = 5,
+    ) -> ContextResult | None:
+        """Use ToC navigation for structural queries.
+
+        Args:
+            query: Natural language query.
+            max_results: Maximum results to return.
+
+        Returns:
+            ContextResult if navigation succeeds, None otherwise.
+        """
+        if not self.navigator:
+            return None
+
+        try:
+            results = await self.navigator.iterative_search(
+                query, max_iterations=min(max_results, 3)
+            )
+
+            if results and any(r.content for r in results):
+                # Calculate average confidence
+                confidences = [r.confidence for r in results if r.confidence > 0]
+                avg_confidence = sum(confidences) / len(confidences) if confidences else 0.5
+
+                # Scale quality by confidence (base 0.85, scaled down by confidence)
+                quality = 0.85 * avg_confidence
+
+                return ContextResult(
+                    source="toc_navigation",
+                    quality=quality,
+                    content=self._format_navigation_results(results),
+                    chunks_used=len(results),
+                )
+        except TimeoutError:
+            logger.warning("ToC navigation timed out for query: %s", query[:50])
+        except Exception as e:
+            logger.warning("ToC navigation failed: %s", e)
+
+        return None
+
+    def _format_navigation_results(self, results: list) -> str:
+        """Format ToC navigation results.
+
+        Args:
+            results: List of NavigationResult objects.
+
+        Returns:
+            Formatted markdown string.
+        """
+        sections: list[str] = ["## Relevant Code (ToC Navigation)\n"]
+
+        for result in results:
+            if not result.content:
+                continue
+
+            sections.append(f"### {result.path}\n")
+            sections.append(f"*{result.reasoning}* (confidence: {result.confidence:.0%})\n")
+            sections.append(f"```\n{result.content[:2000]}\n```\n")
+
+            if result.follow_up:
+                sections.append(f"*Related: {', '.join(result.follow_up[:3])}*\n")
+
+        return "\n".join(sections)
 
     async def _grep_search(
         self, query: str, max_results: int = 10

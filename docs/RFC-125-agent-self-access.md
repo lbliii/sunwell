@@ -1,8 +1,9 @@
 # RFC-125: Agent Self-Access — Recursive Sunwell Capabilities
 
-**Status**: Draft  
+**Status**: Evaluated (87% confidence 🟢)  
 **Author**: Auto-generated  
 **Created**: 2026-01-24  
+**Evaluated**: 2026-01-24  
 **Depends on**: RFC-121 (Artifact Lineage), RFC-119 (Unified Event Bus), RFC-085 (Self-Knowledge)
 
 ## Summary
@@ -386,9 +387,20 @@ SUNWELL_TOOLS: dict[str, Tool] = {
 """Handlers for Sunwell self-access tools (RFC-125)."""
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
+from uuid import uuid4
 
 from sunwell.tools.types import ToolResult
+
+if TYPE_CHECKING:
+    from sunwell.intelligence.context import ProjectContext
+    from sunwell.lineage.store import LineageStore
+    from sunwell.self import Self
+
+
+def _result(success: bool, output: str) -> ToolResult:
+    """Factory for ToolResult with auto-generated ID."""
+    return ToolResult(tool_call_id=str(uuid4()), success=success, output=output)
 
 
 class SunwellToolHandlers:
@@ -399,7 +411,7 @@ class SunwellToolHandlers:
     
     def __init__(self, workspace: Path):
         self.workspace = workspace
-        self._intel: ProjectIntelligence | None = None
+        self._intel: ProjectContext | None = None
         self._lineage: LineageStore | None = None
         self._self: Self | None = None
     
@@ -412,27 +424,22 @@ class SunwellToolHandlers:
         limit: int = 5,
     ) -> ToolResult:
         """Query past architectural decisions."""
-        from sunwell.intelligence import ProjectIntelligence
+        from sunwell.intelligence.context import ProjectContext
         
         if not self._intel:
-            self._intel = ProjectIntelligence(project_root=self.workspace)
-        
-        context = await self._intel.load()
+            self._intel = await ProjectContext.load(self.workspace)
         
         if query:
-            decisions = await context.decisions.find_relevant_decisions(
+            decisions = await self._intel.decisions.find_relevant_decisions(
                 query, top_k=limit
             )
         else:
-            decisions = await context.decisions.get_decisions(
+            decisions = await self._intel.decisions.get_decisions(
                 category=category, active_only=True
             )[:limit]
         
         if not decisions:
-            return ToolResult(
-                success=True,
-                output="No matching decisions found. This might be a new decision area.",
-            )
+            return _result(True, "No matching decisions found. This might be a new decision area.")
         
         output = f"Found {len(decisions)} relevant decision(s):\n\n"
         for d in decisions:
@@ -444,7 +451,7 @@ class SunwellToolHandlers:
                 output += f"**Rejected**: {rejected}\n"
             output += f"**Confidence**: {d.confidence:.0%}\n\n"
         
-        return ToolResult(success=True, output=output)
+        return _result(True, output)
     
     async def handle_intel_failures(
         self,
@@ -452,25 +459,20 @@ class SunwellToolHandlers:
         limit: int = 5,
     ) -> ToolResult:
         """Query past failed approaches."""
-        from sunwell.intelligence import ProjectIntelligence
+        from sunwell.intelligence.context import ProjectContext
         
         if not self._intel:
-            self._intel = ProjectIntelligence(project_root=self.workspace)
-        
-        context = await self._intel.load()
+            self._intel = await ProjectContext.load(self.workspace)
         
         if query:
-            failures = await context.failures.check_similar_failures(
+            failures = await self._intel.failures.check_similar_failures(
                 query, top_k=limit
             )
         else:
-            failures = list(context.failures._failures.values())[-limit:]
+            failures = list(self._intel.failures._failures.values())[-limit:]
         
         if not failures:
-            return ToolResult(
-                success=True,
-                output="No similar failures found. Proceed with caution!",
-            )
+            return _result(True, "No similar failures found. Proceed with caution!")
         
         output = f"⚠️ Found {len(failures)} similar failure(s) in history:\n\n"
         for f in failures:
@@ -481,17 +483,16 @@ class SunwellToolHandlers:
                 output += f"**What worked instead**: {f.solution_hint}\n"
             output += "\n"
         
-        return ToolResult(success=True, output=output)
+        return _result(True, output)
     
     async def handle_intel_patterns(self) -> ToolResult:
         """Get learned code patterns."""
-        from sunwell.intelligence import ProjectIntelligence
+        from sunwell.intelligence.context import ProjectContext
         
         if not self._intel:
-            self._intel = ProjectIntelligence(project_root=self.workspace)
+            self._intel = await ProjectContext.load(self.workspace)
         
-        context = await self._intel.load()
-        patterns = context.patterns
+        patterns = self._intel.patterns
         
         output = "## Learned Code Patterns\n\n"
         
@@ -505,7 +506,7 @@ class SunwellToolHandlers:
         output += f"**Explanation Verbosity**: {patterns.explanation_verbosity:.0%}\n"
         output += f"**Code Comment Level**: {patterns.code_comment_level:.0%}\n"
         
-        return ToolResult(success=True, output=output)
+        return _result(True, output)
     
     # ─── Semantic Search ────────────────────────────────────────────
     
@@ -516,7 +517,7 @@ class SunwellToolHandlers:
         file_pattern: str | None = None,
     ) -> ToolResult:
         """Semantic search across the codebase."""
-        from sunwell.index import CodebaseIndex
+        from sunwell.workspace.indexer import CodebaseIndex
         
         index = CodebaseIndex(self.workspace)
         results = await index.search(query, top_k=top_k)
@@ -526,23 +527,20 @@ class SunwellToolHandlers:
             results = [r for r in results if fnmatch.fnmatch(r.path, file_pattern)]
         
         if not results:
-            return ToolResult(
-                success=True,
-                output=f"No semantic matches found for: {query}",
-            )
+            return _result(True, f"No semantic matches found for: {query}")
         
         output = f"Found {len(results)} semantic match(es):\n\n"
         for r in results:
             output += f"## {r.path}:{r.start_line}-{r.end_line} (score: {r.score:.2f})\n"
             output += f"```\n{r.content[:500]}{'...' if len(r.content) > 500 else ''}\n```\n\n"
         
-        return ToolResult(success=True, output=output)
+        return _result(True, output)
     
     # ─── Artifact Lineage ───────────────────────────────────────────
     
     async def handle_lineage_file(self, path: str) -> ToolResult:
         """Get lineage for a file."""
-        from sunwell.lineage import LineageStore
+        from sunwell.lineage.store import LineageStore
         
         if not self._lineage:
             self._lineage = LineageStore(self.workspace)
@@ -550,10 +548,7 @@ class SunwellToolHandlers:
         lineage = self._lineage.get_by_path(path)
         
         if not lineage:
-            return ToolResult(
-                success=True,
-                output=f"No lineage found for {path}. File may predate Sunwell tracking.",
-            )
+            return _result(True, f"No lineage found for {path}. File may predate Sunwell tracking.")
         
         output = f"## Lineage: {path}\n\n"
         output += f"**Created**: {lineage.created_at}\n"
@@ -568,11 +563,12 @@ class SunwellToolHandlers:
         if lineage.imported_by:
             output += f"**Imported by**: {', '.join(lineage.imported_by)}\n"
         
-        return ToolResult(success=True, output=output)
+        return _result(True, output)
     
     async def handle_lineage_impact(self, path: str) -> ToolResult:
         """Impact analysis for a file."""
-        from sunwell.lineage import LineageStore, get_impact_analysis
+        from sunwell.lineage.store import LineageStore
+        from sunwell.lineage.dependencies import get_impact_analysis
         
         if not self._lineage:
             self._lineage = LineageStore(self.workspace)
@@ -590,7 +586,7 @@ class SunwellToolHandlers:
         if impact['risk_level'] == 'high':
             output += "\n⚠️ **HIGH IMPACT** — Many files depend on this!\n"
         
-        return ToolResult(success=True, output=output)
+        return _result(True, output)
     
     # ─── Weakness Analysis ──────────────────────────────────────────
     
@@ -615,10 +611,7 @@ class SunwellToolHandlers:
         scores = [s for s in scores if s.total_severity >= min_severity]
         
         if not scores:
-            return ToolResult(
-                success=True,
-                output="No weaknesses found above threshold. 🎉",
-            )
+            return _result(True, "No weaknesses found above threshold. 🎉")
         
         output = f"Found {len(scores)} weakness(es):\n\n"
         for s in scores[:10]:
@@ -629,7 +622,7 @@ class SunwellToolHandlers:
             output += f"**Cascade Risk**: {s.cascade_risk.upper()}\n"
             output += f"**Dependents**: {s.fan_out}\n\n"
         
-        return ToolResult(success=True, output=output)
+        return _result(True, output)
     
     # ─── Self-Knowledge ─────────────────────────────────────────────
     
@@ -665,7 +658,7 @@ class SunwellToolHandlers:
                 output += f"  - ... and {len(mods) - 5} more\n"
             output += "\n"
         
-        return ToolResult(success=True, output=output)
+        return _result(True, output)
     
     async def handle_self_search(
         self,
@@ -681,17 +674,14 @@ class SunwellToolHandlers:
         results = self._self.source.search(query, limit=limit)
         
         if not results:
-            return ToolResult(
-                success=True,
-                output=f"No matches found in Sunwell source for: {query}",
-            )
+            return _result(True, f"No matches found in Sunwell source for: {query}")
         
         output = f"Found {len(results)} match(es) in Sunwell source:\n\n"
         for r in results:
             output += f"## {r.module}::{r.symbol} (score: {r.score:.2f})\n"
             output += f"```python\n{r.snippet[:300]}{'...' if len(r.snippet) > 300 else ''}\n```\n\n"
         
-        return ToolResult(success=True, output=output)
+        return _result(True, output)
     
     async def handle_self_read(
         self,
@@ -708,10 +698,7 @@ class SunwellToolHandlers:
             if symbol:
                 result = self._self.source.find_symbol(module, symbol)
                 if not result:
-                    return ToolResult(
-                        success=False,
-                        output=f"Symbol '{symbol}' not found in '{module}'",
-                    )
+                    return _result(False, f"Symbol '{symbol}' not found in '{module}'")
                 output = f"## {module}::{result.name}\n"
                 output += f"**Kind**: {result.kind}\n"
                 output += f"**Line**: {result.line}\n"
@@ -726,13 +713,10 @@ class SunwellToolHandlers:
                     output += f"\n... ({len(source) - 3000} more characters)\n"
                 output += "```"
             
-            return ToolResult(success=True, output=output)
+            return _result(True, output)
         
         except FileNotFoundError:
-            return ToolResult(
-                success=False,
-                output=f"Module not found: {module}",
-            )
+            return _result(False, f"Module not found: {module}")
     
     # ─── Workflow Orchestration ─────────────────────────────────────
     
@@ -752,11 +736,11 @@ class SunwellToolHandlers:
                 output += f"  {i}. {step.skill} — {step.purpose}{checkpoint}\n"
             output += "\n"
         
-        return ToolResult(success=True, output=output)
+        return _result(True, output)
     
     async def handle_workflow_route(self, request: str) -> ToolResult:
         """Route request to appropriate workflow."""
-        from sunwell.workflow import IntentRouter
+        from sunwell.workflow.router import IntentRouter
         
         router = IntentRouter()
         intent, workflow = router.classify_and_select(request)
@@ -773,7 +757,7 @@ class SunwellToolHandlers:
         else:
             output += "\nNo specific workflow recommended — handle directly.\n"
         
-        return ToolResult(success=True, output=output)
+        return _result(True, output)
     
     # ─── Helpers ────────────────────────────────────────────────────
     
@@ -888,14 +872,22 @@ class ToolExecutor:
         handler = handler_map.get(tool_call.name)
         if not handler:
             return ToolResult(
+                tool_call_id=tool_call.id,
                 success=False,
                 output=f"Unknown Sunwell tool: {tool_call.name}",
             )
         
         try:
-            return await handler(**tool_call.arguments)
+            # Handler returns ToolResult; we override tool_call_id
+            result = await handler(**tool_call.arguments)
+            return ToolResult(
+                tool_call_id=tool_call.id,
+                success=result.success,
+                output=result.output,
+            )
         except Exception as e:
             return ToolResult(
+                tool_call_id=tool_call.id,
                 success=False,
                 output=f"Error executing {tool_call.name}: {e}",
             )

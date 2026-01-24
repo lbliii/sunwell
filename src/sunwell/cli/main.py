@@ -185,6 +185,12 @@ def _show_all_commands(ctx: click.Context) -> None:
 @click.option("--workspace", "-w", type=click.Path(exists=False),
               help="Project directory (default: auto-detect)")
 @click.option("--quiet", "-q", is_flag=True, help="Suppress warnings")
+@click.option("--converge/--no-converge", default=False,
+              help="Enable convergence loops (iterate until lint/types pass)")
+@click.option("--converge-gates", default="lint,type",
+              help="Gates for convergence (comma-separated: lint,type,test)")
+@click.option("--converge-max", default=5, type=int,
+              help="Maximum convergence iterations")
 @click.option("--all-commands", is_flag=True, hidden=True,
               help="Show all commands including hidden")
 @click.version_option(version="0.2.0")
@@ -204,6 +210,9 @@ def main(
     trust: str | None,
     workspace: str | None,
     quiet: bool,
+    converge: bool,
+    converge_gates: str,
+    converge_max: int,
     all_commands: bool,
 ) -> None:
     """Sunwell — AI agent for software tasks.
@@ -305,6 +314,9 @@ def main(
             time=time,
             trust=trust or "workspace",
             workspace=workspace,
+            converge=converge,
+            converge_gates=converge_gates,
+            converge_max=converge_max,
         )
 
 
@@ -319,6 +331,9 @@ def main(
 @click.option("--time", "-t", default=300)
 @click.option("--trust", default="workspace")
 @click.option("--workspace", "-w", default=None)
+@click.option("--converge/--no-converge", default=False)
+@click.option("--converge-gates", default="lint,type")
+@click.option("--converge-max", default=5, type=int)
 def _run_goal(
     goal: str,
     dry_run: bool,
@@ -330,12 +345,16 @@ def _run_goal(
     time: int,
     trust: str,
     workspace: str | None,
+    converge: bool,
+    converge_gates: str,
+    converge_max: int,
 ) -> None:
     """Internal command for goal execution."""
     workspace_path = Path(workspace) if workspace else None
     asyncio.run(_run_agent(
         goal, time, trust, dry_run, verbose, provider, model, workspace_path,
         open_studio=open_studio, json_output=json_output,
+        converge=converge, converge_gates=converge_gates, converge_max=converge_max,
     ))
 
 
@@ -351,6 +370,9 @@ async def _run_agent(
     *,
     open_studio: bool = False,
     json_output: bool = False,
+    converge: bool = False,
+    converge_gates: str = "lint,type",
+    converge_max: int = 5,
 ) -> None:
     """Execute goal with Agent (RFC-110).
 
@@ -443,6 +465,18 @@ async def _run_agent(
         budget=AdaptiveBudget(total_budget=50_000),
     )
 
+    # Build convergence config if enabled (RFC-123)
+    convergence_config = None
+    if converge:
+        from sunwell.agent.gates import GateType
+        from sunwell.convergence import ConvergenceConfig
+
+        gates = frozenset(GateType(g.strip()) for g in converge_gates.split(","))
+        convergence_config = ConvergenceConfig(
+            enabled_gates=gates,
+            max_iterations=converge_max,
+        )
+
     # Build RunRequest
     request = RunRequest(
         goal=goal,
@@ -451,6 +485,8 @@ async def _run_agent(
         options=RunOptions(
             trust=trust,
             timeout_seconds=time,
+            converge=converge,
+            convergence_config=convergence_config,
         ),
     )
 
@@ -773,6 +809,11 @@ main.add_command(debug_cmd.debug)
 from sunwell.cli import lineage_cmd
 
 main.add_command(lineage_cmd.lineage)
+
+# Recovery & Review (RFC-125)
+from sunwell.cli import review_cmd
+
+main.add_command(review_cmd.review)
 
 
 # -----------------------------------------------------------------------------

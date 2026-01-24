@@ -176,6 +176,13 @@ class Agent:
     _current_blockers: list[str] = field(default_factory=list, init=False)
     _current_goal: str = field(default="", init=False)
 
+    # RFC-122: Compound learning state
+    _last_planning_context: Any = field(default=None, init=False)
+    """Last planning context from HarmonicPlanner for learning loop."""
+
+    _files_changed_this_run: list[str] = field(default_factory=list, init=False)
+    """Files modified during this run (for template extraction)."""
+
     def __post_init__(self) -> None:
         if self.cwd is None:
             self.cwd = Path.cwd()
@@ -290,11 +297,24 @@ class Agent:
             if event.type == EventType.ERROR:
                 return
 
-        # Execute with gates
-        async for event in self._execute_with_gates(request.options):
+        # Execute with gates (RFC-123: optionally with convergence loops)
+        execution_success = True
+        if request.options.converge:
+            async for event in self._execute_with_convergence(request.options):
+                yield event
+                if event.type in (EventType.ERROR, EventType.ESCALATE):
+                    execution_success = False
+                    return
+        else:
+            async for event in self._execute_with_gates(request.options):
+                yield event
+                if event.type in (EventType.ERROR, EventType.ESCALATE):
+                    execution_success = False
+                    return
+
+        # RFC-122: Extract learnings from execution
+        async for event in self._learn_from_execution(request.goal, execution_success):
             yield event
-            if event.type in (EventType.ERROR, EventType.ESCALATE):
-                return
 
         # Save session
         if request.options.persist_learnings:
@@ -311,6 +331,120 @@ class Agent:
             duration_s=duration,
             learnings=len(self._learning_store.learnings),
         )
+
+    async def resume_from_recovery(
+        self,
+        recovery_state: Any,
+        user_hint: str | None = None,
+    ) -> AsyncIterator[AgentEvent]:
+        """Resume execution from a recovery state (RFC-125).
+
+        When a previous run failed with partial progress, this method
+        resumes with full context of what succeeded and what failed,
+        focusing only on fixing the failed artifacts.
+
+        Args:
+            recovery_state: RecoveryState from a previous failed run
+            user_hint: Optional hint from user to guide fixes
+
+        Yields:
+            AgentEvent for each step of recovery execution
+        """
+        from sunwell.recovery import build_healing_context
+
+        start_time = time()
+
+        yield AgentEvent(
+            EventType.MEMORY_LOAD,
+            {
+                "source": "recovery",
+                "recovery_id": recovery_state.run_id,
+                "passed_count": len(recovery_state.passed_artifacts),
+                "failed_count": len(recovery_state.failed_artifacts),
+            },
+        )
+
+        # Build healing context with full information about what failed
+        healing_context = build_healing_context(recovery_state, user_hint)
+
+        # Create focused goal for fixing failed artifacts
+        failed_paths = [str(a.path) for a in recovery_state.failed_artifacts]
+        fix_goal = (
+            f"Fix these files that failed validation: {', '.join(failed_paths)}\n\n"
+            f"CONTEXT:\n{healing_context}"
+        )
+
+        self._current_goal = fix_goal
+
+        # Extract signals for the fix task
+        yield signal_event("extracting")
+        signals = await self._extract_signals_with_memory(fix_goal)
+        yield signal_event("extracted", signals=signals.to_dict())
+
+        # Plan the fix
+        async for event in self._plan_with_signals(fix_goal, signals, {
+            "is_recovery": True,
+            "original_goal": recovery_state.goal,
+            "failed_files": failed_paths,
+            "passed_files": [str(a.path) for a in recovery_state.passed_artifacts],
+        }):
+            yield event
+            if event.type == EventType.ERROR:
+                return
+
+        # Execute with convergence to ensure we reach a stable state
+        async for event in self._execute_with_convergence_recovery(
+            recovery_state, healing_context
+        ):
+            yield event
+            if event.type in (EventType.ERROR, EventType.ESCALATE):
+                # Recovery failed again — state preserved for another attempt
+                return
+
+        # Success — extract learnings from recovery
+        async for event in self._learn_from_execution(recovery_state.goal, True):
+            yield event
+
+        duration = time() - start_time
+        yield complete_event(
+            tasks_completed=len(recovery_state.failed_artifacts),
+            gates_passed=1,
+            duration_s=duration,
+            learnings=len(self._learning_store.learnings),
+        )
+
+    async def _execute_with_convergence_recovery(
+        self,
+        recovery_state: Any,
+        healing_context: str,
+    ) -> AsyncIterator[AgentEvent]:
+        """Execute recovery with convergence loops.
+
+        Focused execution that only regenerates failed artifacts,
+        preserving passed ones.
+        """
+        from sunwell.agent.gates import GateType
+        from sunwell.convergence import ConvergenceConfig, ConvergenceLoop
+
+        # Get files to fix
+        failed_files = [a.path for a in recovery_state.failed_artifacts]
+
+        # Run convergence loop focused on failed files
+        config = ConvergenceConfig(
+            max_iterations=5,
+            enabled_gates=frozenset({GateType.LINT, GateType.TYPE, GateType.SYNTAX}),
+        )
+
+        loop = ConvergenceLoop(
+            model=self.model,
+            cwd=self.cwd,
+            config=config,
+            goal=recovery_state.goal,
+            run_id=f"recovery-{recovery_state.run_id}",
+        )
+
+        async for event in loop.run(failed_files):
+            yield event
 
     async def plan(self, request: RunRequest) -> AsyncIterator[AgentEvent]:
         """Plan without executing (dry run mode).
@@ -523,35 +657,56 @@ class Agent:
         context: dict[str, Any],
     ) -> AsyncIterator[AgentEvent]:
         """Plan using Harmonic planning (multiple candidates)."""
+        import asyncio
+
         try:
             from sunwell.naaru.planners.harmonic import HarmonicPlanner
 
-            # Collect events from harmonic planner for UI visibility
-            collected_events: list[AgentEvent] = []
+            # RFC-123: Stream events live using async queue (fixes regression)
+            event_queue: asyncio.Queue[AgentEvent | None] = asyncio.Queue()
+            selected_candidate_id = "candidate-0"
 
-            def capture_event(event: AgentEvent) -> None:
-                collected_events.append(event)
+            def queue_event(event: AgentEvent) -> None:
+                # Track the winner ID as events come in
+                nonlocal selected_candidate_id
+                if event.type == EventType.PLAN_WINNER:
+                    selected_candidate_id = event.data.get("selected_candidate_id", "candidate-0")
+                event_queue.put_nowait(event)
 
             candidates = 5 if not self.budget.is_low else 3
             planner = HarmonicPlanner(
                 model=self.model,
                 candidates=candidates,
-                event_callback=capture_event,
+                event_callback=queue_event,
+                # RFC-122: Connect to SimulacrumStore for knowledge retrieval
+                simulacrum=self.simulacrum,
             )
-            tasks = await planner.plan([goal], context)
 
-            # Extract selected_candidate_id from planner's plan_winner event
-            selected_candidate_id = "candidate-0"  # default
-            for event in collected_events:
-                if event.type == EventType.PLAN_WINNER:
-                    selected_candidate_id = event.data.get("selected_candidate_id", "candidate-0")
+            # Run planning in background task so we can stream events
+            async def run_planning() -> list[Task]:
+                try:
+                    result = await planner.plan([goal], context)
+                    return result
+                finally:
+                    # Signal completion
+                    event_queue.put_nowait(None)
+
+            planning_task = asyncio.create_task(run_planning())
+
+            # Stream events as they arrive (live progress)
+            while True:
+                event = await event_queue.get()
+                if event is None:
                     break
-
-            # Yield all captured planning events (candidates, scoring, etc.)
-            for event in collected_events:
                 # Skip plan_winner from planner - we emit our own with full details
                 if event.type != EventType.PLAN_WINNER:
                     yield event
+
+            # Await completion and get tasks
+            tasks = await planning_task
+
+            # RFC-122: Store planning context for learning loop
+            self._last_planning_context = planner.last_planning_context
 
             detector = GateDetector()
             gates = detector.detect_gates(tasks)
@@ -697,6 +852,8 @@ class Agent:
                         path = self.cwd / task.target_path
                         path.parent.mkdir(parents=True, exist_ok=True)
                         path.write_text(result_text)
+                        # RFC-122: Track files changed for learning extraction
+                        self._files_changed_this_run.append(task.target_path)
 
                         artifact = Artifact(
                             path=path,
@@ -758,6 +915,75 @@ class Agent:
 
                     current_gate_idx = self._task_graph.gates.index(gate) + 1
 
+    async def _execute_with_convergence(
+        self,
+        options: RunOptions,
+    ) -> AsyncIterator[AgentEvent]:
+        """Execute with convergence loops enabled (RFC-123).
+
+        After each task completes, runs validation gates and fixes errors
+        until code stabilizes or limits are reached.
+
+        Args:
+            options: Execution options including convergence config
+        """
+        from sunwell.convergence import ConvergenceConfig, ConvergenceLoop
+
+        config = options.convergence_config or ConvergenceConfig()
+
+        # Create convergence loop
+        loop = ConvergenceLoop(
+            model=self.model,
+            cwd=self.cwd,
+            config=config,
+        )
+
+        # Track files written during execution
+        written_files: list[Path] = []
+        artifacts: dict[str, Artifact] = {}
+
+        async def on_write(path: Path) -> None:
+            """Hook called after each file write."""
+            written_files.append(path)
+            # Build artifact for convergence
+            if path.exists():
+                artifacts[str(path)] = Artifact(
+                    path=path,
+                    content=path.read_text(),
+                    task_id="convergence",
+                )
+
+        # Set up hook on tool executor
+        if self._naaru and self._naaru.tool_executor:
+            self._naaru.tool_executor.on_file_write = on_write
+
+        try:
+            # Execute tasks normally with gates
+            async for event in self._execute_with_gates(options):
+                yield event
+
+                # After each task completes, run convergence if files changed
+                if event.type == EventType.TASK_COMPLETE and written_files:
+                    async for conv_event in loop.run(list(written_files), artifacts):
+                        yield conv_event
+
+                    if loop.result and not loop.result.stable:
+                        # Escalate if convergence failed
+                        yield AgentEvent(
+                            EventType.ESCALATE,
+                            {"reason": f"Convergence failed: {loop.result.status.value}"},
+                        )
+                        return
+
+                    written_files.clear()
+
+                if event.type in (EventType.ERROR, EventType.ESCALATE):
+                    return
+        finally:
+            # Clean up hook
+            if self._naaru and self._naaru.tool_executor:
+                self._naaru.tool_executor.on_file_write = None
+
     async def _execute_task(self, task: Task) -> Artifact | None:
         """Execute a single task (non-streaming fallback)."""
         async for _event in self._execute_task_streaming(task):
@@ -769,6 +995,8 @@ class Agent:
             path = self.cwd / task.target_path
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(result_text)
+            # RFC-122: Track files changed for learning extraction
+            self._files_changed_this_run.append(task.target_path)
 
             return Artifact(
                 path=path,
@@ -1001,6 +1229,99 @@ Output ONLY the code (no explanation, no markdown fences):"""
                     fact=completion_learning.fact,
                     category="task_completion",
                 )
+
+    # =========================================================================
+    # RFC-122: Compound Learning Loop
+    # =========================================================================
+
+    async def _learn_from_execution(
+        self,
+        goal: str,
+        success: bool,
+    ) -> AsyncIterator[AgentEvent]:
+        """Extract learnings from completed execution (RFC-122).
+
+        Called after all tasks complete to:
+        1. Record usage of learnings that were retrieved for planning
+        2. Extract template patterns from successful novel tasks
+        3. Extract ordering heuristics from successful executions
+
+        Args:
+            goal: The completed goal
+            success: Whether execution succeeded
+
+        Yields:
+            Learning events for new templates/heuristics
+        """
+        # Get tasks from task graph
+        if not self._task_graph:
+            return
+
+        tasks = self._task_graph.tasks
+
+        # Get planning context that was used
+        planning_context = self._last_planning_context
+
+        # Record usage of learnings that were retrieved
+        if planning_context and success:
+            for learning in planning_context.all_learnings:
+                self._learning_store.record_usage(learning.id, success=True)
+
+        # Only extract new learnings on success
+        if not success:
+            return
+
+        # Collect files changed and artifacts created
+        files_changed = self._files_changed_this_run
+        artifacts_created = [
+            artifact
+            for task in tasks
+            for artifact in (task.produces or [])
+        ]
+
+        # Try to extract template from successful novel task
+        # Novel = no high-confidence template was used
+        template_was_used = (
+            planning_context
+            and planning_context.best_template
+            and planning_context.best_template.confidence >= 0.8
+        )
+
+        if not template_was_used and len(artifacts_created) >= 2:
+            try:
+                template_learning = await self._learning_extractor.extract_template(
+                    goal=goal,
+                    files_changed=files_changed,
+                    artifacts_created=artifacts_created,
+                    tasks=tasks,
+                )
+                if template_learning and self.simulacrum:
+                    self.simulacrum.get_dag().add_learning(template_learning)
+                    yield memory_learning_event(
+                        fact=template_learning.fact,
+                        category="template",
+                    )
+            except Exception:
+                pass  # Don't fail run on learning extraction errors
+
+        # Try to extract ordering heuristics
+        if len(tasks) >= 3:
+            try:
+                heuristic_learning = self._learning_extractor.extract_heuristic(
+                    goal=goal,
+                    tasks=tasks,
+                )
+                if heuristic_learning and self.simulacrum:
+                    self.simulacrum.get_dag().add_learning(heuristic_learning)
+                    yield memory_learning_event(
+                        fact=heuristic_learning.fact,
+                        category="heuristic",
+                    )
+            except Exception:
+                pass  # Don't fail run on learning extraction errors
+
+        # Clear run state
+        self._files_changed_this_run = []
 
     def _determine_briefing_status(self) -> Any:
         """Determine briefing status from task graph state."""

@@ -15,16 +15,27 @@ Learning categories:
 - pattern: Code patterns, conventions
 - fix: What fixed certain errors
 - dead_end: Approaches that didn't work
+
+RFC-122: Compound Learning Extensions:
+- template: Structural task patterns (extracted by extract_template())
+- heuristic: Ordering/strategy hints (extracted by extract_heuristic())
+- Thread-safe LearningStore with record_usage() for 3.14t
 """
 
 
+import json
 import re
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
+    from sunwell.naaru.artifacts import ArtifactGraph
+    from sunwell.naaru.types import Task
+    from sunwell.simulacrum.core.turn import Learning as SimLearning
+    from sunwell.simulacrum.core.turn import TemplateData, TemplateVariable
 
 
 @dataclass(frozen=True, slots=True)
@@ -313,6 +324,195 @@ PATTERN: Using Flask-SQLAlchemy with create_app pattern"""
         except Exception:
             return []
 
+    # =========================================================================
+    # RFC-122: Template and Heuristic Extraction
+    # =========================================================================
+
+    async def extract_template(
+        self,
+        goal: str,
+        files_changed: list[str],
+        artifacts_created: list[str],
+        tasks: list[Task],
+    ) -> SimLearning | None:
+        """Extract a reusable template from successful novel task (RFC-122).
+
+        Criteria for extraction:
+        - Multiple artifacts created (structured output)
+        - Consistent file naming pattern
+        - Clean success (no retries)
+
+        Args:
+            goal: The completed goal description
+            files_changed: List of file paths that were modified
+            artifacts_created: List of artifact names created
+            tasks: Tasks that were executed
+
+        Returns:
+            Template Learning if extractable, None otherwise
+        """
+        from sunwell.simulacrum.core.turn import (
+            Learning as SimLearning,
+            TemplateData,
+            TemplateVariable,
+        )
+
+        # Check if this is extractable
+        if len(artifacts_created) < 2:
+            return None
+        if len(files_changed) < 2:
+            return None
+
+        if not self.model:
+            return None
+
+        from sunwell.models.protocol import GenerateOptions
+
+        # Use LLM to analyze pattern
+        prompt = f"""Analyze this successful task for repeatable patterns.
+
+Goal: {goal}
+
+Files created/modified:
+{chr(10).join(f'- {f}' for f in files_changed)}
+
+Artifacts produced:
+{chr(10).join(f'- {a}' for a in artifacts_created)}
+
+Tasks executed:
+{chr(10).join(f'- {t.description}' for t in tasks[:10])}
+
+Is this a repeatable pattern? If yes, extract:
+1. Pattern name (e.g., "CRUD Endpoint", "Service Module")
+2. Variables that could be parameterized (e.g., "entity" extracted from "User")
+3. Expected artifacts for the pattern (with {{{{variable}}}} placeholders)
+4. Prerequisites (what must exist before this pattern)
+5. Validation commands
+
+Return JSON with:
+{{"is_pattern": true/false, "name": "...", "match_patterns": [...], "variables": [...], "produces": [...], "requires": [...], "expected_artifacts": [...], "validation": [...]}}
+
+For variables, use format: {{"name": "entity", "description": "Model name", "type": "string", "hints": ["for {{{{entity}}}}", "{{{{entity}}}} API"]}}"""
+
+        try:
+            result = await self.model.generate(
+                prompt,
+                options=GenerateOptions(temperature=0.2, max_tokens=1000),
+            )
+
+            # Parse JSON from response
+            json_match = re.search(r"\{.*\}", result.text, re.DOTALL)
+            if not json_match:
+                return None
+
+            data = json.loads(json_match.group())
+            if not data.get("is_pattern"):
+                return None
+
+            template_data = TemplateData(
+                name=data["name"],
+                match_patterns=tuple(data.get("match_patterns", [])),
+                variables=tuple(
+                    TemplateVariable(
+                        name=v["name"],
+                        description=v.get("description", ""),
+                        var_type=v.get("type", "string"),
+                        extraction_hints=tuple(v.get("hints", [])),
+                    )
+                    for v in data.get("variables", [])
+                ),
+                produces=tuple(data.get("produces", [])),
+                requires=tuple(data.get("requires", [])),
+                expected_artifacts=tuple(data.get("expected_artifacts", [])),
+                validation_commands=tuple(data.get("validation", [])),
+            )
+
+            return SimLearning(
+                fact=f"Task pattern: {template_data.name}",
+                source_turns=(),
+                confidence=0.7,  # Start moderate, boost with reuse
+                category="template",
+                template_data=template_data,
+            )
+
+        except (json.JSONDecodeError, KeyError):
+            return None
+
+    def extract_heuristic(
+        self,
+        goal: str,
+        tasks: list[Task],
+    ) -> SimLearning | None:
+        """Extract ordering/strategy heuristic from successful task (RFC-122).
+
+        Analyzes task ordering for patterns like "models before routes before tests".
+        No LLM needed - uses pattern matching.
+
+        Args:
+            goal: The completed goal
+            tasks: Tasks that were executed
+
+        Returns:
+            Heuristic Learning if extractable, None otherwise
+        """
+        from sunwell.simulacrum.core.turn import Learning as SimLearning
+
+        if len(tasks) < 3:
+            return None
+
+        # Analyze task ordering for patterns
+        task_types: list[str] = []
+        for task in tasks:
+            desc_lower = task.description.lower()
+            if "model" in desc_lower or "schema" in desc_lower:
+                task_types.append("model")
+            elif "route" in desc_lower or "endpoint" in desc_lower or "api" in desc_lower:
+                task_types.append("routes")
+            elif "test" in desc_lower:
+                task_types.append("tests")
+            elif "config" in desc_lower or "setup" in desc_lower:
+                task_types.append("config")
+
+        # Check for common patterns
+        if task_types:
+            # Model before routes before tests
+            if "model" in task_types and "tests" in task_types:
+                model_idx = task_types.index("model")
+                tests_idx = len(task_types) - 1 - task_types[::-1].index("tests")
+                if model_idx < tests_idx:
+                    return SimLearning(
+                        fact="Create models before writing tests",
+                        source_turns=(),
+                        confidence=0.6,
+                        category="heuristic",
+                    )
+
+            # Config before models
+            if "config" in task_types and "model" in task_types:
+                config_idx = task_types.index("config")
+                model_idx = task_types.index("model")
+                if config_idx < model_idx:
+                    return SimLearning(
+                        fact="Setup configuration before creating models",
+                        source_turns=(),
+                        confidence=0.6,
+                        category="heuristic",
+                    )
+
+            # Routes after models
+            if "model" in task_types and "routes" in task_types:
+                model_idx = task_types.index("model")
+                routes_idx = task_types.index("routes")
+                if model_idx < routes_idx:
+                    return SimLearning(
+                        fact="Create models before defining API routes",
+                        source_turns=(),
+                        confidence=0.65,
+                        category="heuristic",
+                    )
+
+        return None
+
 
 # =============================================================================
 # Learning Store Integration
@@ -324,6 +524,9 @@ class LearningStore:
     """In-memory store for learnings during a session.
 
     Integrates with Simulacrum for persistence.
+
+    RFC-122: Extended with thread-safe operations for Python 3.14t
+    free-threading support.
     """
 
     learnings: list[Learning] = field(default_factory=list)
@@ -332,15 +535,72 @@ class LearningStore:
     dead_ends: list[DeadEnd] = field(default_factory=list)
     """Dead ends encountered."""
 
+    # RFC-122: Thread-safe lock for mutable operations (3.14t)
+    _lock: threading.Lock = field(default_factory=threading.Lock, init=False)
+    """Lock for thread-safe mutations."""
+
     def add_learning(self, learning: Learning) -> None:
-        """Add a learning, deduplicating by ID."""
-        existing_ids = {lrn.id for lrn in self.learnings}
-        if learning.id not in existing_ids:
-            self.learnings.append(learning)
+        """Add a learning, deduplicating by ID (thread-safe)."""
+        with self._lock:
+            existing_ids = {lrn.id for lrn in self.learnings}
+            if learning.id not in existing_ids:
+                self.learnings.append(learning)
 
     def add_dead_end(self, dead_end: DeadEnd) -> None:
-        """Add a dead end."""
-        self.dead_ends.append(dead_end)
+        """Add a dead end (thread-safe)."""
+        with self._lock:
+            self.dead_ends.append(dead_end)
+
+    # =========================================================================
+    # RFC-122: Usage Tracking and Template Access
+    # =========================================================================
+
+    def record_usage(self, learning_id: str, success: bool) -> None:
+        """Record that a learning was used (RFC-122, thread-safe).
+
+        Updates the learning's use_count and adjusts confidence based on outcome.
+
+        Args:
+            learning_id: ID of learning used
+            success: Whether the task succeeded
+        """
+        with self._lock:
+            for i, learning in enumerate(self.learnings):
+                if learning.id == learning_id:
+                    # Adjust confidence based on outcome
+                    new_confidence = learning.confidence
+                    if success:
+                        new_confidence = min(1.0, new_confidence + 0.05)
+                    else:
+                        new_confidence = max(0.1, new_confidence - 0.1)
+
+                    # Create updated learning (Learning is frozen)
+                    self.learnings[i] = Learning(
+                        fact=learning.fact,
+                        category=learning.category,
+                        confidence=new_confidence,
+                        source_file=learning.source_file,
+                        source_line=learning.source_line,
+                    )
+                    break
+
+    def get_templates(self) -> list[Learning]:
+        """Get all template learnings (RFC-122).
+
+        Returns:
+            List of learnings with category="template"
+        """
+        with self._lock:
+            return [lrn for lrn in self.learnings if lrn.category == "template"]
+
+    def get_heuristics(self) -> list[Learning]:
+        """Get all heuristic learnings (RFC-122).
+
+        Returns:
+            List of learnings with category="heuristic"
+        """
+        with self._lock:
+            return [lrn for lrn in self.learnings if lrn.category == "heuristic"]
 
     def get_relevant(self, query: str, limit: int = 10) -> list[Learning]:
         """Get learnings relevant to a query.

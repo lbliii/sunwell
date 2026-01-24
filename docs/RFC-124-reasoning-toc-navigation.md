@@ -1,8 +1,9 @@
 # RFC-124: Reasoning-based ToC Navigation
 
-**Status**: Draft  
+**Status**: Ready for Review  
 **Author**: Auto-generated  
 **Created**: 2026-01-24  
+**Updated**: 2026-01-24  
 **Depends on**: RFC-108 (SmartContext), RFC-045 (Project Intelligence)
 
 ## Summary
@@ -108,11 +109,29 @@ Store project structure as a navigable JSON tree. Put the ToC directly in the LL
 - Works offline
 
 **Cons**:
-- ToC consumes context window tokens (~500-2000 tokens for typical project)
+- ToC consumes context window tokens (see token budget analysis below)
 - Requires rebuild on project changes
-- Deep hierarchies may need pagination
+- Deep hierarchies need pagination (strategy defined below)
 
-**Token budget**: ~10-50 tokens per node × ~50-200 nodes = 500-10000 tokens for full ToC. Acceptable for most models.
+**Token budget analysis**:
+
+| Project Size | Files | Nodes (est.) | Tokens/Node | Total Tokens | Strategy |
+|--------------|-------|--------------|-------------|--------------|----------|
+| Small (<100 files) | 100 | ~150 | 15 | ~2,250 | Full ToC in context |
+| Medium (100-500 files) | 300 | ~500 | 15 | ~7,500 | Depth=2 + on-demand expansion |
+| Large (500-1000 files) | 800 | ~1,200 | 15 | ~18,000 | Depth=1 + subtree pagination |
+| Very large (>1000 files) | 1500+ | ~2,500+ | 15 | ~37,500+ | Hybrid mode required |
+
+**Compact node format** (~15 tokens per node):
+```json
+{"id":"naaru.harmonic","t":"module","s":"Harmonic resonance coordination","c":["naaru.planners"]}
+```
+
+**Pagination strategy for large codebases**:
+1. **Depth-limited initial view**: Show root + depth=1 children (~50-100 nodes, ~1,500 tokens)
+2. **On-demand expansion**: Navigator requests subtree expansion via `get_subtree(node_id)`
+3. **Subtree budget**: Each expansion adds ~500 tokens max
+4. **Total budget cap**: 3,000 tokens for ToC across all iterations
 
 ### Option B: External ToC with Tool Calls
 
@@ -275,11 +294,82 @@ class TocGenerator:
         # 3. Extract cross-references
         self._extract_cross_refs(toc)
         
-        # 4. Generate summaries (from docstrings + LLM if needed)
-        await self._generate_summaries(toc)
+        # 4. Generate summaries (docstring-first, fallback to inference)
+        self._generate_summaries(toc)
         
-        # 5. Classify concepts
+        # 5. Classify concepts (keyword extraction, no LLM)
         self._classify_concepts(toc)
+        
+        return toc
+    
+    def _generate_summaries(self, toc: ProjectToc) -> None:
+        """Generate node summaries from docstrings.
+        
+        Strategy (no LLM in v1):
+        1. Docstring present → Use first sentence
+        2. No docstring, class → "Class with methods: {method_names[:3]}"
+        3. No docstring, function → "Function in {module_name}"
+        4. Directory → "{n} files: {top_children[:3]}"
+        
+        LLM-based summaries deferred to Phase 4 (hybrid mode).
+        """
+        for node_id, node in toc.nodes.items():
+            if node.summary:
+                continue  # Already has summary
+            
+            if node.node_type == "directory":
+                children = [n for n in toc.nodes.values() if n.path.startswith(node.path)]
+                summary = f"{len(children)} items"
+            elif node.node_type in ("class", "function", "module"):
+                # Try to extract docstring
+                summary = self._extract_docstring_summary(node) or f"{node.node_type.title()} in {node.path}"
+            else:
+                summary = node.title
+            
+            toc.nodes[node_id] = TocNode(**{**node.__dict__, "summary": summary})
+    
+    def _classify_concepts(self, toc: ProjectToc) -> None:
+        """Classify nodes by semantic concept using keyword extraction.
+        
+        Algorithm (deterministic, no LLM):
+        1. Extract keywords from: node title, path components, docstring
+        2. Map keywords to predefined concept categories
+        3. Build reverse index: concept → [node_ids]
+        
+        Concept categories (extensible):
+        - auth: authentication, authorization, token, session, login
+        - api: endpoint, route, handler, request, response
+        - data: model, schema, database, query, orm
+        - config: settings, configuration, environment, options
+        - test: test, mock, fixture, assert
+        - util: util, helper, common, shared
+        """
+        CONCEPT_KEYWORDS: dict[str, set[str]] = {
+            "auth": {"auth", "authentication", "authorization", "token", "session", "login", "permission", "role"},
+            "api": {"api", "endpoint", "route", "handler", "request", "response", "rest", "http"},
+            "data": {"model", "schema", "database", "query", "orm", "entity", "repository", "store"},
+            "config": {"config", "settings", "configuration", "environment", "options", "env"},
+            "test": {"test", "mock", "fixture", "assert", "spec", "integration"},
+            "util": {"util", "helper", "common", "shared", "tools", "utils"},
+            "core": {"core", "base", "protocol", "interface", "abstract"},
+            "cli": {"cli", "command", "arg", "parser", "console"},
+        }
+        
+        for node_id, node in toc.nodes.items():
+            # Extract keywords from title and path
+            text = f"{node.title} {node.path} {node.summary}".lower()
+            words = set(re.findall(r'[a-z]+', text))
+            
+            # Match to concepts
+            matched_concepts = []
+            for concept, keywords in CONCEPT_KEYWORDS.items():
+                if words & keywords:
+                    matched_concepts.append(concept)
+                    # Update concept index
+                    toc.concept_index.setdefault(concept, []).append(node_id)
+            
+            if matched_concepts:
+                toc.nodes[node_id] = TocNode(**{**node.__dict__, "concepts": tuple(matched_concepts)})
         
         return toc
     
@@ -330,30 +420,58 @@ class TocGenerator:
     def _extract_cross_refs(self, toc: ProjectToc) -> None:
         """Detect and link cross-references.
         
-        Patterns detected:
-        - '# See: path/to/file.py'
-        - 'See also: ClassName'
-        - Import statements
-        - Type annotations referencing other modules
+        Three extraction strategies:
+        1. Comment patterns: '# See: path/to/file.py'
+        2. Import statements: 'from sunwell.auth import TokenValidator'
+        3. Type annotations: 'def validate(token: auth.Token) -> bool'
         """
         import re
         
+        # Pattern 1: Comment-based references
         see_pattern = re.compile(
             r'#\s*[Ss]ee:?\s*([a-zA-Z0-9_/\.]+)',
             re.IGNORECASE
         )
         
         for node_id, node in toc.nodes.items():
-            if node.node_type in ("file", "module"):
-                path = self.root / node.path
-                if path.exists():
-                    content = path.read_text()
-                    refs = see_pattern.findall(content)
-                    if refs:
-                        # Update node with cross-refs
-                        toc.nodes[node_id] = TocNode(
-                            **{**node.__dict__, "cross_refs": tuple(refs)}
-                        )
+            if node.node_type not in ("file", "module"):
+                continue
+                
+            path = self.root / node.path
+            if not path.exists():
+                continue
+                
+            content = path.read_text()
+            refs: list[str] = []
+            
+            # Strategy 1: Comment patterns
+            refs.extend(see_pattern.findall(content))
+            
+            # Strategy 2: Import statements (AST-based)
+            try:
+                tree = ast.parse(content)
+                for ast_node in ast.walk(tree):
+                    if isinstance(ast_node, ast.Import):
+                        for alias in ast_node.names:
+                            refs.append(f"import:{alias.name}")
+                    elif isinstance(ast_node, ast.ImportFrom):
+                        if ast_node.module:
+                            refs.append(f"import:{ast_node.module}")
+            except SyntaxError:
+                pass
+            
+            # Strategy 3: Type annotation references (regex for speed)
+            # Matches: 'auth.Token', 'models.User', etc.
+            type_pattern = re.compile(r':\s*([a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)')
+            type_refs = type_pattern.findall(content)
+            refs.extend(f"type:{t}" for t in type_refs)
+            
+            if refs:
+                # Deduplicate and update node
+                unique_refs = tuple(sorted(set(refs)))
+                toc.nodes[node_id] = TocNode(
+                    **{**node.__dict__, "cross_refs": unique_refs}
+                )
 ```
 
 ### Part 3: Navigation Engine
@@ -522,7 +640,8 @@ class SmartContext:
                 )
         
         # Tier 2: ToC reasoning navigation (NEW)
-        if self.navigator:
+        # Only attempt for structural queries (heuristic: contains "where", "how", "find")
+        if self.navigator and self._is_structural_query(query):
             try:
                 results = await self.navigator.iterative_search(query, max_iterations=2)
                 if results and any(r.content for r in results):
@@ -532,8 +651,27 @@ class SmartContext:
                         content=self._format_navigation_results(results),
                         chunks_used=len(results),
                     )
+            except (TimeoutError, ModelError) as e:
+                # Log but don't fail - fall through to grep
+                logger.warning(f"ToC navigation failed: {e}")
             except Exception:
-                pass  # Fall through to grep
+                pass  # Unexpected error - fall through silently
+    
+    def _is_structural_query(self, query: str) -> bool:
+        """Heuristic: is this a structural navigation query?
+        
+        Structural queries benefit from ToC navigation:
+        - "Where is authentication implemented?"
+        - "How does the routing work?"
+        - "Find the model validation code"
+        
+        Content queries should use vector search:
+        - "What does this error message mean?"
+        - "Show me examples of batch processing"
+        """
+        structural_signals = ["where", "how does", "find the", "locate", "which file", "which module"]
+        query_lower = query.lower()
+        return any(signal in query_lower for signal in structural_signals)
         
         # Tier 3: Grep-based search (fallback)
         # ... existing code ...
@@ -561,27 +699,36 @@ sunwell nav stats
 
 ### Phase 1: ToC Generation (Week 1)
 - [ ] `TocNode` and `ProjectToc` data models
-- [ ] Directory tree scanning
+- [ ] Directory tree scanning with skip patterns (`.git`, `__pycache__`, `node_modules`)
 - [ ] Python AST parsing for classes/functions
-- [ ] Basic summary extraction from docstrings
-- [ ] JSON serialization for context
+- [ ] Summary extraction from docstrings (no LLM)
+- [ ] Keyword-based concept classification
+- [ ] JSON serialization with depth-limited `to_context_json()`
+- [ ] Cross-reference extraction (comments + imports + type annotations)
+- [ ] Persistence to `.sunwell/navigation/toc.json`
 
 ### Phase 2: Navigation Engine (Week 2)
 - [ ] `TocNavigator` with single-step navigation
-- [ ] `iterative_search` for multi-step exploration
-- [ ] Cross-reference detection and following
-- [ ] Integration with Naaru for model access
+- [ ] `iterative_search` for multi-step exploration (max 3 iterations)
+- [ ] Sufficiency check (quick LLM call: "is this enough?")
+- [ ] Navigation result caching (LRU, 100 entries)
+- [ ] Subtree expansion for large codebases (`get_subtree()`)
+- [ ] Model config: Haiku/GPT-4o-mini for navigation
 
 ### Phase 3: SmartContext Integration (Week 3)
-- [ ] Add ToC tier to fallback chain
+- [ ] Add ToC as Tier 2 in fallback chain
+- [ ] Graceful degradation: skip ToC if unavailable/failed
+- [ ] Query classification: structural vs. content queries
+- [ ] CLI commands (`sunwell nav build`, `sunwell nav find`, `sunwell nav stats`)
 - [ ] Performance benchmarking vs vector-only
-- [ ] CLI commands (`sunwell nav`)
-- [ ] Documentation
+- [ ] Integration tests with Sunwell codebase
 
-### Phase 4: Hybrid Mode (Future)
-- [ ] Use ToC for navigation, vectors for content within section
-- [ ] Concept classification from embeddings
-- [ ] Incremental ToC updates on file changes
+### Phase 4: Hybrid Mode + Enhancements (Future)
+- [ ] Hybrid: ToC navigation → vector search within selected section
+- [ ] LLM-generated summaries for docstring-less nodes
+- [ ] Incremental ToC updates on file changes (file watcher)
+- [ ] TypeScript AST support
+- [ ] User feedback learning (navigation corrections)
 
 ---
 
@@ -590,12 +737,46 @@ sunwell nav stats
 | Metric | Vector-only | ToC Navigation | Hybrid |
 |--------|------------|----------------|--------|
 | **Cold start** | 5-30s (embedding) | 1-5s (AST) | 5-30s |
-| **Query latency** | 10-50ms | 50-200ms (LLM) | 50-200ms |
+| **Query latency** | 10-50ms | 100-500ms (LLM) | 100-500ms |
 | **Relevance (structural queries)** | 60-70% | 85-95% | 90%+ |
 | **Relevance (content queries)** | 85-90% | 70-80% | 90%+ |
-| **Context tokens** | 0 (external) | 500-2000 | 500-2000 |
+| **Context tokens** | 0 (external) | 1,500-3,000 | 1,500-3,000 |
+| **Cost per query** | ~$0.0001 | ~$0.005-0.018 | ~$0.005-0.018 |
 
 ToC navigation excels at structural queries ("where is X?", "how does Y work?") while vector search excels at content queries ("find code that does Z").
+
+---
+
+## LLM Cost Analysis
+
+Navigation requires LLM calls for reasoning. Cost breakdown per query:
+
+| Operation | LLM Calls | Input Tokens | Output Tokens | Cost (GPT-4o) |
+|-----------|-----------|--------------|---------------|---------------|
+| **Single navigation** | 1 | ~1,500 (ToC) + ~100 (query) | ~150 | ~$0.005 |
+| **Iterative search (2 iter)** | 2 + 1 (sufficiency) | ~3,200 + ~500 | ~400 | ~$0.012 |
+| **Iterative search (3 iter)** | 3 + 2 (sufficiency) | ~4,800 + ~1,000 | ~600 | ~$0.018 |
+
+**Cost comparison vs. vector search**:
+- Vector search: $0.0001/query (embedding only, cached)
+- ToC navigation: $0.005-0.018/query (LLM reasoning)
+- **ToC is ~50-180x more expensive per query**
+
+**Mitigation strategies**:
+1. **Use ToC only as fallback** (Tier 2 in SmartContext) — vector search handles most queries
+2. **Cache navigation paths** — Same query pattern → same navigation result
+3. **Smaller model for navigation** — Claude Haiku or GPT-4o-mini for navigation reasoning
+4. **Query classification** — Only route structural queries to ToC navigator
+
+**Recommended model config**:
+```python
+# Navigation uses cheaper, faster model
+NAVIGATION_MODEL = "claude-3-haiku"  # or "gpt-4o-mini"
+SUFFICIENCY_MODEL = "claude-3-haiku"  # Quick yes/no check
+
+# Main reasoning uses primary model
+PRIMARY_MODEL = "claude-sonnet"  # or "gpt-4o"
+```
 
 ---
 
@@ -638,12 +819,22 @@ ToC navigation excels at structural queries ("where is X?", "how does Y work?") 
 
 ---
 
-## Open Questions
+## Resolved Design Decisions
 
-1. **Token budget**: How much context should ToC consume? 500? 1000? 2000?
-2. **Summary quality**: Generate summaries from docstrings only, or use LLM?
-3. **Rebuild frequency**: On every file change? On explicit command? On goal start?
-4. **Language priority**: Python first, then what? TypeScript? Go?
+| Question | Decision | Rationale |
+|----------|----------|-----------|
+| **Token budget** | 3,000 max (1,500 initial + 1,500 expansion) | Fits all models; pagination handles larger projects |
+| **Summary quality** | Docstrings only (v1), LLM deferred to Phase 4 | Avoids generation-time cost; keeps build fast |
+| **Rebuild frequency** | Explicit `sunwell nav build` + auto-rebuild if stale (>24h) | Balances freshness vs. overhead |
+| **Language priority** | Python → TypeScript → others as needed | Python has best AST support; TS is common |
+| **Navigation model** | Haiku/GPT-4o-mini for navigation, primary for content | 10x cost reduction on navigation |
+| **Cache strategy** | LRU cache (100 entries) for query→path mappings | Repeated queries hit cache |
+
+## Remaining Open Questions
+
+1. **Concept taxonomy**: Should categories be configurable per-project, or fixed?
+2. **Stale detection**: How to detect ToC drift without rescanning all files?
+3. **Hybrid trigger**: In Phase 4, what determines when to use vector vs. ToC?
 
 ---
 

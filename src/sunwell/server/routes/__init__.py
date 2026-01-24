@@ -5,6 +5,7 @@ Each module defines an APIRouter for a specific domain:
 - project: Project operations (RFC-113, RFC-117)
 - backlog: Goal backlog management (RFC-114)
 - lineage: Artifact lineage tracking (RFC-121)
+- recovery: Recovery state management (RFC-125)
 - dag: DAG operations (RFC-105)
 - coordinator: Parallel worker coordination (RFC-100)
 - demo: Demo comparison, evaluation (RFC-095, RFC-098)
@@ -23,6 +24,7 @@ from sunwell.server.routes.lineage import router as lineage_router
 from sunwell.server.routes.memory import router as memory_router
 from sunwell.server.routes.misc import router as misc_router
 from sunwell.server.routes.project import router as project_router
+from sunwell.server.routes.recovery import router as recovery_router
 from sunwell.server.routes.surface import router as surface_router
 from sunwell.server.routes.writer import router as writer_router
 
@@ -36,6 +38,7 @@ __all__ = [
     "memory_router",
     "misc_router",
     "project_router",
+    "recovery_router",
     "surface_router",
     "writer_router",
 ]

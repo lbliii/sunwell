@@ -21,6 +21,11 @@ RFC-101: Session Identity System:
 - Project-scoped storage prevents collisions
 - Global session index for O(1) listing
 
+RFC-122: Compound Learning
+- retrieve_for_planning() for knowledge retrieval during planning
+- PlanningContext for categorized knowledge injection
+- Integration with Convergence for HarmonicPlanner
+
 Key features:
 - Progressive compression: 10 → 25 → 100 turn consolidation
 - Semantic retrieval via embeddings
@@ -37,7 +42,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from sunwell.simulacrum.core.dag import ConversationDAG
-from sunwell.simulacrum.core.turn import Turn, TurnType
+from sunwell.simulacrum.core.turn import Learning, Turn, TurnType
 from sunwell.simulacrum.hierarchical.chunks import Chunk, ChunkSummary
 from sunwell.simulacrum.hierarchical.config import ChunkConfig
 
@@ -45,6 +50,7 @@ if TYPE_CHECKING:
     from typing import Any
 
     from sunwell.embedding.protocol import EmbeddingProtocol
+    from sunwell.naaru.convergence import Slot
     from sunwell.simulacrum.hierarchical.chunk_manager import ChunkManager
     from sunwell.simulacrum.hierarchical.summarizer import Summarizer
     from sunwell.simulacrum.memory_tools import MemoryToolHandler
@@ -85,6 +91,161 @@ class StorageConfig:
 
     auto_summarize: bool = True
     """Auto-generate summaries for chunks (uses HeuristicSummarizer if no LLM)."""
+
+
+# =============================================================================
+# RFC-122: Planning Context
+# =============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class PlanningContext:
+    """All knowledge relevant to a planning task (RFC-122).
+
+    Structured context for HarmonicPlanner that categorizes retrieved
+    learnings for injection via Convergence slots.
+
+    Example:
+        >>> context = await store.retrieve_for_planning("Build CRUD API")
+        >>> print(context.best_template.template_data.name)
+        'CRUD Endpoint'
+        >>> slots = context.to_convergence_slots()
+    """
+
+    facts: tuple[Learning, ...]
+    """Factual knowledge about the codebase."""
+
+    constraints: tuple[Learning, ...]
+    """Constraints that must be followed."""
+
+    dead_ends: tuple[Learning, ...]
+    """Approaches that didn't work (avoid these)."""
+
+    templates: tuple[Learning, ...]
+    """Structural task patterns."""
+
+    heuristics: tuple[Learning, ...]
+    """Ordering/strategy hints."""
+
+    patterns: tuple[Learning, ...]
+    """Code patterns used in the codebase."""
+
+    goal: str
+    """The planning goal this context was retrieved for."""
+
+    def to_convergence_slots(self) -> list[Slot]:
+        """Convert to Convergence slots for HarmonicPlanner injection."""
+        from sunwell.naaru.convergence import Slot, SlotSource
+
+        slots: list[Slot] = []
+
+        if self.facts:
+            slots.append(Slot(
+                id="knowledge:facts",
+                content=[f.fact for f in self.facts],
+                relevance=0.9,
+                source=SlotSource.MEMORY_FETCHER,
+            ))
+
+        if self.constraints:
+            slots.append(Slot(
+                id="knowledge:constraints",
+                content=[f"⚠️ {c.fact}" for c in self.constraints],
+                relevance=1.0,  # Constraints are high priority
+                source=SlotSource.MEMORY_FETCHER,
+            ))
+
+        if self.dead_ends:
+            slots.append(Slot(
+                id="knowledge:dead_ends",
+                content=[f"❌ {d.fact}" for d in self.dead_ends],
+                relevance=0.95,  # Dead ends are important to avoid
+                source=SlotSource.MEMORY_FETCHER,
+            ))
+
+        if self.templates:
+            slots.append(Slot(
+                id="knowledge:templates",
+                content=self.templates,  # Full Learning objects for template matching
+                relevance=0.85,
+                source=SlotSource.MEMORY_FETCHER,
+            ))
+
+        if self.heuristics:
+            slots.append(Slot(
+                id="knowledge:heuristics",
+                content=[f"💡 {h.fact}" for h in self.heuristics],
+                relevance=0.7,
+                source=SlotSource.MEMORY_FETCHER,
+            ))
+
+        if self.patterns:
+            slots.append(Slot(
+                id="knowledge:patterns",
+                content=[p.fact for p in self.patterns],
+                relevance=0.8,
+                source=SlotSource.MEMORY_FETCHER,
+            ))
+
+        return slots
+
+    def to_prompt_section(self) -> str:
+        """Format for injection into planner prompt."""
+        sections: list[str] = []
+
+        if self.facts or self.patterns:
+            sections.append("## Project Knowledge")
+            for f in self.facts[:10]:
+                sections.append(f"- {f.fact}")
+            for p in self.patterns[:5]:
+                sections.append(f"- {p.fact}")
+
+        if self.constraints:
+            sections.append("\n## Constraints (must follow)")
+            for c in self.constraints[:5]:
+                sections.append(f"- ⚠️ {c.fact}")
+
+        if self.dead_ends:
+            sections.append("\n## Dead Ends (don't do these)")
+            for d in self.dead_ends[:5]:
+                sections.append(f"- ❌ {d.fact}")
+
+        if self.templates:
+            sections.append("\n## Known Task Patterns")
+            for t in self.templates[:3]:
+                if t.template_data:
+                    sections.append(f"- **{t.template_data.name}**: {t.fact}")
+
+        if self.heuristics:
+            sections.append("\n## Heuristics")
+            for h in self.heuristics[:5]:
+                sections.append(f"- 💡 {h.fact}")
+
+        return "\n".join(sections)
+
+    @property
+    def best_template(self) -> Learning | None:
+        """Get the highest-confidence matching template."""
+        if not self.templates:
+            return None
+        return max(self.templates, key=lambda t: t.confidence)
+
+    @property
+    def all_learnings(self) -> tuple[Learning, ...]:
+        """Get all learnings for usage tracking."""
+        return (
+            self.facts +
+            self.constraints +
+            self.dead_ends +
+            self.templates +
+            self.heuristics +
+            self.patterns
+        )
+
+
+# =============================================================================
+# SimulacrumStore
+# =============================================================================
 
 
 @dataclass
@@ -675,6 +836,115 @@ class SimulacrumStore:
     def get_dag(self) -> ConversationDAG:
         """Get the current conversation DAG."""
         return self._hot_dag
+
+    # === RFC-122: Knowledge Retrieval for Planning ===
+
+    async def retrieve_for_planning(
+        self,
+        goal: str,
+        limit_per_category: int = 5,
+    ) -> PlanningContext:
+        """Retrieve all relevant knowledge for planning a task (RFC-122).
+
+        Uses existing _embedder for semantic matching against learnings
+        stored in DAG. Returns categorized results for injection into
+        HarmonicPlanner via Convergence.
+
+        Args:
+            goal: Task description to match against
+            limit_per_category: Max items per category
+
+        Returns:
+            PlanningContext with categorized learnings
+        """
+        # Get all learnings from the DAG
+        learnings = self._hot_dag.get_active_learnings()
+
+        # Compute goal embedding using existing embedder
+        goal_embedding: tuple[float, ...] | None = None
+        if self._embedder:
+            try:
+                embedding_result = await self._embedder.embed([goal])
+                goal_embedding = tuple(embedding_result[0])
+            except Exception:
+                goal_embedding = None
+
+        # Score all learnings by relevance
+        scored: list[tuple[float, Learning]] = []
+
+        for learning in learnings:
+            if goal_embedding and learning.embedding:
+                similarity = self._cosine_similarity(goal_embedding, learning.embedding)
+            else:
+                # Fallback: keyword matching
+                similarity = self._keyword_similarity(goal, learning.fact)
+
+            # Boost by confidence and usage
+            boost = learning.confidence * (1.0 + 0.05 * min(learning.use_count, 10))
+            final_score = similarity * boost
+
+            if final_score > 0.3:
+                scored.append((final_score, learning))
+
+        # Sort by score
+        scored.sort(key=lambda x: -x[0])
+
+        # Categorize
+        facts: list[Learning] = []
+        constraints: list[Learning] = []
+        dead_ends: list[Learning] = []
+        templates: list[Learning] = []
+        heuristics: list[Learning] = []
+        patterns: list[Learning] = []
+
+        for _score, learning in scored:
+            if learning.category == "fact" and len(facts) < limit_per_category:
+                facts.append(learning)
+            elif learning.category == "preference" and len(facts) < limit_per_category:
+                facts.append(learning)
+            elif learning.category == "constraint" and len(constraints) < limit_per_category:
+                constraints.append(learning)
+            elif learning.category == "dead_end" and len(dead_ends) < limit_per_category:
+                dead_ends.append(learning)
+            elif learning.category == "template" and len(templates) < limit_per_category:
+                templates.append(learning)
+            elif learning.category == "heuristic" and len(heuristics) < limit_per_category:
+                heuristics.append(learning)
+            elif learning.category == "pattern" and len(patterns) < limit_per_category:
+                patterns.append(learning)
+
+        return PlanningContext(
+            facts=tuple(facts),
+            constraints=tuple(constraints),
+            dead_ends=tuple(dead_ends),
+            templates=tuple(templates),
+            heuristics=tuple(heuristics),
+            patterns=tuple(patterns),
+            goal=goal,
+        )
+
+    @staticmethod
+    def _cosine_similarity(
+        a: tuple[float, ...],
+        b: tuple[float, ...],
+    ) -> float:
+        """Compute cosine similarity between two vectors."""
+        dot = sum(x * y for x, y in zip(a, b, strict=True))
+        norm_a = sum(x * x for x in a) ** 0.5
+        norm_b = sum(x * x for x in b) ** 0.5
+        if norm_a == 0 or norm_b == 0:
+            return 0.0
+        return dot / (norm_a * norm_b)
+
+    @staticmethod
+    def _keyword_similarity(query: str, fact: str) -> float:
+        """Keyword-based similarity fallback."""
+        query_words = set(query.lower().split())
+        fact_words = set(fact.lower().split())
+        overlap = len(query_words & fact_words)
+        if not query_words:
+            return 0.0
+        return overlap / len(query_words)
 
     # === Context Retrieval (RFC-013) ===
 

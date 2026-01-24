@@ -43,6 +43,8 @@ if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
     from sunwell.naaru.convergence import Convergence
     from sunwell.project.schema import ProjectSchema
+    from sunwell.simulacrum.core.store import PlanningContext, SimulacrumStore
+    from sunwell.simulacrum.core.turn import Learning, TemplateData
 
 
 # =============================================================================
@@ -382,9 +384,15 @@ class HarmonicPlanner:
     log_scoring_disagreements: bool = True
     """Log when V1 and V2 would select different candidates (for A/B analysis)."""
 
+    # RFC-122: Knowledge integration via SimulacrumStore
+    simulacrum: SimulacrumStore | None = None
+    """Reference to SimulacrumStore for knowledge retrieval (RFC-122)."""
+
     # Internal state
     _base_planner: Any = field(default=None, init=False)
     _logger: logging.Logger = field(default=None, init=False)
+    _last_planning_context: PlanningContext | None = field(default=None, init=False)
+    """Last planning context retrieved (for Agent learning loop)."""
 
     def __post_init__(self) -> None:
         """Initialize logger for RFC-116 scoring disagreement logging."""
@@ -456,12 +464,15 @@ class HarmonicPlanner:
         """Plan with harmonic optimization, return graph and metrics.
 
         This is the main entry point that:
-        1. Generates N candidate plans in parallel
-        2. Scores each plan (V1 or V2 based on scoring_version)
-        3. Selects the best
-        4. Optionally refines
+        1. RFC-122: Retrieves relevant knowledge from SimulacrumStore
+        2. RFC-122: If template matches with high confidence, uses template-guided planning
+        3. Generates N candidate plans in parallel
+        4. Scores each plan (V1 or V2 based on scoring_version)
+        5. Selects the best
+        6. Optionally refines
 
         RFC-116: Returns PlanMetricsV2 when scoring_version is V2 or AUTO.
+        RFC-122: Integrates knowledge from SimulacrumStore via Convergence.
 
         Args:
             goal: The goal to achieve
@@ -470,8 +481,44 @@ class HarmonicPlanner:
         Returns:
             Tuple of (best_graph, metrics)
         """
+        # RFC-122: Retrieve relevant knowledge from SimulacrumStore
+        planning_context = None
+        if self.simulacrum:
+            planning_context = await self.simulacrum.retrieve_for_planning(goal)
+            object.__setattr__(self, "_last_planning_context", planning_context)
+
+            # Emit knowledge retrieved event
+            self._emit_event("knowledge_retrieved", {
+                "facts_count": len(planning_context.facts),
+                "constraints_count": len(planning_context.constraints),
+                "dead_ends_count": len(planning_context.dead_ends),
+                "templates_count": len(planning_context.templates),
+                "heuristics_count": len(planning_context.heuristics),
+                "patterns_count": len(planning_context.patterns),
+            })
+
+            # Inject into Convergence for use during generation
+            if self.convergence and planning_context:
+                for slot in planning_context.to_convergence_slots():
+                    await self.convergence.add(slot)
+
+        # RFC-122: Check for high-confidence template match
+        template = planning_context.best_template if planning_context else None
+        if template and template.template_data and template.confidence >= 0.8:
+            self._emit_event("template_matched", {
+                "template_id": template.id,
+                "template_name": template.template_data.name,
+                "confidence": template.confidence,
+            })
+            return await self._plan_with_template(goal, template, planning_context, context)
+
+        # Build context with knowledge if available
+        enriched_context = dict(context) if context else {}
+        if planning_context:
+            enriched_context["knowledge_context"] = planning_context.to_prompt_section()
+
         # Generate candidates in parallel (returns CandidateResult objects with stable IDs)
-        candidates = await self._generate_candidates(goal, context)
+        candidates = await self._generate_candidates(goal, enriched_context)
 
         if not candidates:
             # Fallback: single discovery
@@ -691,6 +738,172 @@ class HarmonicPlanner:
 
         # Delegate to base planner
         return await base_planner.create_artifact(artifact, context)
+
+    # =========================================================================
+    # RFC-122: Template-Guided Planning
+    # =========================================================================
+
+    async def _plan_with_template(
+        self,
+        goal: str,
+        template: Learning,
+        planning_context: PlanningContext,
+        additional_context: dict[str, Any] | None,
+    ) -> tuple[ArtifactGraph, PlanMetrics | PlanMetricsV2]:
+        """Plan using template structure (RFC-122).
+
+        When a high-confidence template matches, we use its structure
+        to generate artifacts directly instead of harmonic candidate generation.
+
+        Args:
+            goal: Task goal
+            template: Matched template Learning
+            planning_context: Full planning context
+            additional_context: Additional context from caller
+
+        Returns:
+            Tuple of (artifact_graph, metrics)
+        """
+        template_data = template.template_data
+
+        # Extract variables from goal
+        variables = await self._extract_template_variables(goal, template_data)
+
+        # Build artifacts from template
+        artifacts: list[ArtifactSpec] = []
+        for artifact_pattern in template_data.expected_artifacts:
+            resolved = self._substitute_variables(artifact_pattern, variables)
+            artifacts.append(ArtifactSpec(
+                id=resolved.replace("/", "_").replace(".", "_"),
+                description=f"Create {resolved}",
+                produces=(resolved,),
+                produces_file=resolved,
+                requires=frozenset(
+                    self._substitute_variables(r, variables)
+                    for r in template_data.requires
+                ),
+            ))
+
+        # Build graph
+        graph = ArtifactGraph(limits=self.limits)
+        for artifact in artifacts:
+            try:
+                graph.add(artifact)
+            except ValueError:
+                continue  # Skip duplicates
+
+        # Compute metrics
+        metrics = self._score_plan(graph, goal)
+
+        # Emit template planning complete event
+        self._emit_event("plan_winner", {
+            "tasks": len(graph),
+            "artifact_count": len(graph),
+            "selected_candidate_id": "template-guided",
+            "total_candidates": 1,
+            "score": self._get_effective_score(metrics),
+            "scoring_version": self.scoring_version.value,
+            "metrics": self._metrics_to_dict(metrics),
+            "selection_reason": f"Template-guided: {template_data.name}",
+            "variance_strategy": "template",
+            "variance_config": {
+                "template_name": template_data.name,
+                "template_id": template.id,
+                "variables": variables,
+            },
+            "refinement_rounds": 0,
+            "final_score_improvement": 0.0,
+        })
+
+        return graph, metrics
+
+    async def _extract_template_variables(
+        self,
+        goal: str,
+        template_data: TemplateData,
+    ) -> dict[str, str]:
+        """Extract variable values from goal text using LLM (RFC-122).
+
+        Args:
+            goal: The task goal
+            template_data: Template with variable definitions
+
+        Returns:
+            Dict mapping variable names to extracted values
+        """
+        if not template_data.variables:
+            return {}
+
+        from sunwell.models.protocol import GenerateOptions
+
+        var_specs = "\n".join(
+            f"- {v.name}: {v.description} (hints: {', '.join(v.extraction_hints)})"
+            for v in template_data.variables
+        )
+
+        prompt = f"""Extract template variables from this goal.
+
+Template: {template_data.name}
+Variables to extract:
+{var_specs}
+
+Goal: "{goal}"
+
+Return JSON mapping variable names to extracted values.
+Example: {{"entity": "Product"}}
+
+IMPORTANT: Return ONLY the JSON object, no other text."""
+
+        try:
+            result = await self.model.generate(
+                prompt,
+                options=GenerateOptions(temperature=0.1, max_tokens=200),
+            )
+
+            # Parse JSON from response
+            json_match = re.search(r"\{[^}]+\}", result.text or result.content)
+            if json_match:
+                return json.loads(json_match.group())
+            return {}
+        except (json.JSONDecodeError, Exception):
+            return {}
+
+    def _substitute_variables(
+        self,
+        pattern: str,
+        variables: dict[str, str],
+    ) -> str:
+        """Substitute {{var}} patterns in template strings (RFC-122).
+
+        Supports:
+        - {{var}} - direct substitution
+        - {{var_lower}} - lowercase version
+        - {{var_upper}} - uppercase version
+
+        Args:
+            pattern: Template pattern with {{var}} placeholders
+            variables: Variable name to value mapping
+
+        Returns:
+            Pattern with variables substituted
+        """
+        result = pattern
+        for name, value in variables.items():
+            # Direct substitution: {{name}}
+            result = result.replace("{{" + name + "}}", value)
+            # Lowercase: {{name_lower}}
+            result = result.replace("{{" + name + "_lower}}", value.lower())
+            # Uppercase: {{name_upper}}
+            result = result.replace("{{" + name + "_upper}}", value.upper())
+        return result
+
+    @property
+    def last_planning_context(self) -> PlanningContext | None:
+        """Get the last planning context retrieved (RFC-122).
+
+        Useful for the Agent learning loop to know what knowledge was used.
+        """
+        return self._last_planning_context
 
     # =========================================================================
     # Candidate Generation

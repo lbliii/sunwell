@@ -20,7 +20,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from sunwell.simulacrum.core.turn import Learning, Turn, TurnType
+from sunwell.simulacrum.core.turn import Learning, TemplateData, TemplateVariable, Turn, TurnType
 
 
 @dataclass
@@ -243,6 +243,64 @@ class ConversationDAG:
             "learnings": len(self.learnings),
         }
 
+    # =========================================================================
+    # RFC-122: Template Data Serialization
+    # =========================================================================
+
+    @staticmethod
+    def _serialize_template_data(template_data: TemplateData | None) -> dict | None:
+        """Serialize TemplateData for JSON storage."""
+        if template_data is None:
+            return None
+        return {
+            "name": template_data.name,
+            "match_patterns": list(template_data.match_patterns),
+            "variables": [
+                {
+                    "name": v.name,
+                    "description": v.description,
+                    "var_type": v.var_type,
+                    "extraction_hints": list(v.extraction_hints),
+                    "default": v.default,
+                }
+                for v in template_data.variables
+            ],
+            "produces": list(template_data.produces),
+            "requires": list(template_data.requires),
+            "expected_artifacts": list(template_data.expected_artifacts),
+            "validation_commands": list(template_data.validation_commands),
+            "suggested_order": template_data.suggested_order,
+        }
+
+    @staticmethod
+    def _deserialize_template_data(data: dict | None) -> TemplateData | None:
+        """Deserialize TemplateData from JSON storage."""
+        if data is None:
+            return None
+        return TemplateData(
+            name=data["name"],
+            match_patterns=tuple(data["match_patterns"]),
+            variables=tuple(
+                TemplateVariable(
+                    name=v["name"],
+                    description=v["description"],
+                    var_type=v["var_type"],
+                    extraction_hints=tuple(v["extraction_hints"]),
+                    default=v.get("default"),
+                )
+                for v in data.get("variables", [])
+            ),
+            produces=tuple(data["produces"]),
+            requires=tuple(data["requires"]),
+            expected_artifacts=tuple(data["expected_artifacts"]),
+            validation_commands=tuple(data["validation_commands"]),
+            suggested_order=data.get("suggested_order", 50),
+        )
+
+    # =========================================================================
+    # Persistence
+    # =========================================================================
+
     def save(self, path: Path) -> None:
         """Save DAG to file."""
         data = {
@@ -268,6 +326,11 @@ class ConversationDAG:
                     "category": l.category,
                     "timestamp": l.timestamp,
                     "superseded_by": l.superseded_by,
+                    # RFC-122: Extended fields
+                    "template_data": self._serialize_template_data(l.template_data),
+                    "embedding": list(l.embedding) if l.embedding else None,
+                    "use_count": l.use_count,
+                    "last_used": l.last_used,
                 }
                 for lid, l in self.learnings.items()
             },
@@ -315,6 +378,11 @@ class ConversationDAG:
                 category=ldata["category"],
                 timestamp=ldata["timestamp"],
                 superseded_by=ldata.get("superseded_by"),
+                # RFC-122: Extended fields
+                template_data=dag._deserialize_template_data(ldata.get("template_data")),
+                embedding=tuple(ldata["embedding"]) if ldata.get("embedding") else None,
+                use_count=ldata.get("use_count", 0),
+                last_used=ldata.get("last_used"),
             )
             dag.learnings[lid] = learning
 

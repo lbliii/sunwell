@@ -1,9 +1,10 @@
 /**
- * Observatory — AI Cognition Visualizations (RFC-112, RFC-119, RFC-120)
+ * Observatory — AI Cognition Visualizations (RFC-112, RFC-119, RFC-120, RFC-123)
  * 
  * Cinematic visualizations that make r/dataisbeautiful weep.
  * RFC-119: Unified run history showing CLI and Studio runs.
  * RFC-120: Session activity summaries.
+ * RFC-123: Convergence loop progress visualization.
  */
 
 export { default as ObservatoryPanel } from './ObservatoryPanel.svelte';
@@ -15,3 +16,4 @@ export { default as ModelParadox } from './ModelParadox.svelte';
 export { default as EmptyState } from './EmptyState.svelte';
 export { default as RunHistory } from './RunHistory.svelte';
 export { default as SessionSummary } from './SessionSummary.svelte';
+export { default as ConvergenceProgress } from './ConvergenceProgress.svelte';

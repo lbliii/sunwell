@@ -285,12 +285,19 @@ export async function runDemo(): Promise<void> {
         }
       } else if (event.type === 'demo_complete') {
         _comparison = event.data as unknown as DemoComparison;
-        _phase = 'revealed';
-        _progress = 100;
-        _message = 'Demo complete!';
-        // Load code from files (clean, no escaping)
+        _progress = 95;
+        _message = 'Loading code...';
+        // Load code from files BEFORE revealing
         if (_comparison.run_id) {
-          loadCodeFiles(_comparison.run_id);
+          loadCodeFiles(_comparison.run_id).then(() => {
+            _phase = 'revealed';
+            _progress = 100;
+            _message = 'Demo complete!';
+          });
+        } else {
+          _phase = 'revealed';
+          _progress = 100;
+          _message = 'Demo complete!';
         }
         unsubscribe();
       } else if (event.type === 'demo_error') {
@@ -308,13 +315,19 @@ export async function runDemo(): Promise<void> {
     const phase = _phase as DemoPhase; // Re-read phase after async
     if (phase !== 'revealed' && phase !== 'error') {
       _comparison = result;
-      _phase = 'revealed';
-      _progress = 100;
-      _message = 'Demo complete!';
-      // Load code from files (clean, no escaping)
+      _progress = 95;
+      _message = 'Loading code...';
+      
+      // Load code from files BEFORE setting phase to revealed
+      // This avoids a race condition where the UI renders with empty code
       if (result.run_id) {
         await loadCodeFiles(result.run_id);
       }
+      
+      // Now reveal with code loaded
+      _phase = 'revealed';
+      _progress = 100;
+      _message = 'Demo complete!';
     }
   } catch (e) {
     _phase = 'error';

@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    pass
+    from sunwell.convergence import ConvergenceConfig
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +64,13 @@ class RunOptions:
     prefetch_timeout: float = 2.0
     """Maximum time to wait for prefetch (seconds)."""
 
+    # RFC-123: Convergence loops
+    converge: bool = False
+    """Enable convergence loops after file writes."""
+
+    convergence_config: ConvergenceConfig | None = None
+    """Custom convergence configuration (uses defaults if None)."""
+
     def with_trust(self, trust: str) -> RunOptions:
         """Return options with updated trust level."""
         return RunOptions(
@@ -78,6 +85,8 @@ class RunOptions:
             enable_briefing=self.enable_briefing,
             enable_prefetch=self.enable_prefetch,
             prefetch_timeout=self.prefetch_timeout,
+            converge=self.converge,
+            convergence_config=self.convergence_config,
         )
 
 
@@ -152,6 +161,8 @@ class RunRequest:
             enable_briefing=kwargs.get("enable_briefing", current.enable_briefing),
             enable_prefetch=kwargs.get("enable_prefetch", current.enable_prefetch),
             prefetch_timeout=kwargs.get("prefetch_timeout", current.prefetch_timeout),
+            converge=kwargs.get("converge", current.converge),
+            convergence_config=kwargs.get("convergence_config", current.convergence_config),
         )
         return RunRequest(
             goal=self.goal,

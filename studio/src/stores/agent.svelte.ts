@@ -40,6 +40,7 @@ const initialState: AgentState = {
   selectedCandidate: null,
   refinementRounds: [],
   planningProgress: null,
+  convergence: null,
 };
 
 let _state = $state<AgentState>({ ...initialState });
@@ -106,8 +107,10 @@ export const agent = {
   get selectedCandidate() { return _state.selectedCandidate; },
   get refinementRounds() { return _state.refinementRounds; },
   get planningProgress() { return _state.planningProgress; },
+  get convergence() { return _state.convergence; },
   // Computed
   get isRunning() { return RUNNING_STATUSES.includes(_state.status); },
+  get isConverging() { return _state.convergence?.status === 'running'; },
   get isDone() { return _state.status === AgentStatus.DONE; },
   get hasError() { return _state.status === AgentStatus.ERROR; },
   get progress() {
@@ -1020,6 +1023,145 @@ export function handleAgentEvent(event: AgentEvent): void {
     case 'skill_compile_cache_hit':
     case 'skill_subgraph_extracted': {
       // Absorb - internal skill system events
+      break;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // RFC-123: CONVERGENCE LOOP EVENTS
+    // ═══════════════════════════════════════════════════════════════
+
+    case 'convergence_start': {
+      const files = (data.files as string[]) ?? [];
+      const gates = (data.gates as string[]) ?? [];
+      const maxIterations = (data.max_iterations as number) ?? 5;
+      _state = {
+        ..._state,
+        convergence: {
+          status: 'running',
+          iterations: [],
+          max_iterations: maxIterations,
+          enabled_gates: gates,
+          current_iteration: 0,
+        },
+      };
+      console.debug(`[Sunwell] Convergence started: ${files.length} files, gates: ${gates.join(', ')}`);
+      break;
+    }
+
+    case 'convergence_iteration_start': {
+      const iteration = (data.iteration as number) ?? 1;
+      if (_state.convergence) {
+        _state = {
+          ..._state,
+          convergence: {
+            ..._state.convergence,
+            current_iteration: iteration,
+          },
+        };
+      }
+      break;
+    }
+
+    case 'convergence_iteration_complete': {
+      const iteration = (data.iteration as number) ?? 1;
+      const allPassed = (data.all_passed as boolean) ?? false;
+      const totalErrors = (data.total_errors as number) ?? 0;
+      const gateResults = (data.gate_results as Array<{ gate: string; passed: boolean; errors: number }>) ?? [];
+      if (_state.convergence) {
+        const newIteration = {
+          iteration,
+          all_passed: allPassed,
+          total_errors: totalErrors,
+          gate_results: gateResults,
+        };
+        _state = {
+          ..._state,
+          convergence: {
+            ..._state.convergence,
+            iterations: [..._state.convergence.iterations, newIteration],
+          },
+        };
+      }
+      break;
+    }
+
+    case 'convergence_fixing': {
+      // Track that we're in fixing phase - no state change needed
+      const errorCount = (data.error_count as number) ?? 0;
+      console.debug(`[Sunwell] Convergence fixing ${errorCount} errors`);
+      break;
+    }
+
+    case 'convergence_stable': {
+      const iterations = (data.iterations as number) ?? 0;
+      const durationMs = (data.duration_ms as number) ?? 0;
+      if (_state.convergence) {
+        _state = {
+          ..._state,
+          convergence: {
+            ..._state.convergence,
+            status: 'stable',
+            duration_ms: durationMs,
+          },
+        };
+      }
+      console.debug(`[Sunwell] Convergence stable after ${iterations} iteration(s)`);
+      break;
+    }
+
+    case 'convergence_timeout': {
+      if (_state.convergence) {
+        _state = {
+          ..._state,
+          convergence: {
+            ..._state.convergence,
+            status: 'timeout',
+          },
+        };
+      }
+      break;
+    }
+
+    case 'convergence_stuck': {
+      const repeatedErrors = (data.repeated_errors as string[]) ?? [];
+      if (_state.convergence) {
+        _state = {
+          ..._state,
+          convergence: {
+            ..._state.convergence,
+            status: 'stuck',
+          },
+        };
+      }
+      console.warn(`[Sunwell] Convergence stuck on: ${repeatedErrors.join(', ')}`);
+      break;
+    }
+
+    case 'convergence_max_iterations': {
+      if (_state.convergence) {
+        _state = {
+          ..._state,
+          convergence: {
+            ..._state.convergence,
+            status: 'escalated',
+          },
+        };
+      }
+      break;
+    }
+
+    case 'convergence_budget_exceeded': {
+      const tokensUsed = (data.tokens_used as number) ?? 0;
+      if (_state.convergence) {
+        _state = {
+          ..._state,
+          convergence: {
+            ..._state.convergence,
+            status: 'escalated',
+            tokens_used: tokensUsed,
+          },
+        };
+      }
       break;
     }
 

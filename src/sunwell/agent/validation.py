@@ -166,10 +166,21 @@ class ValidationRunner:
         cascade_passed, cascade_steps = await self.cascade.run(files)
 
         for step_info in cascade_steps:
+            # Build message with error details when available
+            error_count = step_info.get('errors', 0)
+            error_details = step_info.get("error_details", [])
+            if error_details:
+                detail_str = "; ".join(error_details[:3])  # Top 3 errors in message
+                if error_count > 3:
+                    detail_str += f" (+{error_count - 3} more)"
+                message = f"{error_count} errors: {detail_str}"
+            else:
+                message = f"{error_count} errors"
+
             step_result = GateStepResult(
                 step=step_info["step"],
                 passed=step_info["passed"],
-                message=f"{step_info.get('errors', 0)} errors",
+                message=message,
                 duration_ms=step_info.get("duration_ms", 0),
                 auto_fixed=step_info.get("auto_fixed", 0) > 0,
             )

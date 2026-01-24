@@ -153,6 +153,49 @@ export interface ModelParadoxState {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// CONVERGENCE LOOP TYPES (RFC-123)
+// ═══════════════════════════════════════════════════════════════
+
+/** Gate result for visualization */
+export interface ConvergenceGate {
+  name: string;
+  passed: boolean;
+  errorCount: number;
+}
+
+/** Single convergence iteration for visualization */
+export interface ConvergenceIterationViz {
+  iteration: number;
+  allPassed: boolean;
+  totalErrors: number;
+  gates: ConvergenceGate[];
+}
+
+/** Convergence visualization state */
+export interface ConvergenceVizState {
+  status: 'idle' | 'running' | 'stable' | 'escalated' | 'timeout' | 'stuck';
+  iterations: ConvergenceIterationViz[];
+  maxIterations: number;
+  currentIteration: number;
+  enabledGates: string[];
+  isActive: boolean;
+  tokensUsed?: number;
+  durationMs?: number;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DEMO DATA
+// ═══════════════════════════════════════════════════════════════
+
+/** Demo paradox comparisons when no evaluation data available */
+const DEMO_PARADOX_COMPARISONS: ParadoxComparison[] = [
+  { model: 'claude-sonnet-4-20250514', params: '~70B', cost: '$$', rawScore: 72, sunwellScore: 89, improvement: 23.6 },
+  { model: 'gpt-4o-mini', params: '~8B', cost: '$', rawScore: 58, sunwellScore: 81, improvement: 39.7 },
+  { model: 'claude-3-5-haiku-20241022', params: '~20B', cost: '$', rawScore: 64, sunwellScore: 85, improvement: 32.8 },
+  { model: 'gemini-2.0-flash', params: '~27B', cost: '$', rawScore: 61, sunwellScore: 82, improvement: 34.4 },
+];
+
+// ═══════════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════════
 
@@ -527,6 +570,59 @@ export const observatory = {
   // Has evaluation data?
   get hasEvaluations() {
     return evaluation.history.length > 0;
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // CONVERGENCE LOOP STATE (RFC-123)
+  // ═══════════════════════════════════════════════════════════════
+
+  // Convergence visualization state (derived from agent store)
+  get convergence(): ConvergenceVizState {
+    const conv = agent.convergence;
+    
+    if (!conv) {
+      return {
+        status: 'idle',
+        iterations: [],
+        maxIterations: 5,
+        currentIteration: 0,
+        enabledGates: [],
+        isActive: false,
+      };
+    }
+
+    // Transform iterations for visualization
+    const iterations: ConvergenceIterationViz[] = conv.iterations.map(iter => ({
+      iteration: iter.iteration,
+      allPassed: iter.all_passed,
+      totalErrors: iter.total_errors,
+      gates: iter.gate_results.map(g => ({
+        name: g.gate,
+        passed: g.passed,
+        errorCount: g.errors,
+      })),
+    }));
+
+    return {
+      status: conv.status,
+      iterations,
+      maxIterations: conv.max_iterations,
+      currentIteration: conv.current_iteration,
+      enabledGates: conv.enabled_gates,
+      isActive: conv.status === 'running',
+      tokensUsed: conv.tokens_used,
+      durationMs: conv.duration_ms,
+    };
+  },
+
+  // Is convergence currently running?
+  get isConverging() {
+    return agent.convergence?.status === 'running';
+  },
+
+  // Has convergence data?
+  get hasConvergence() {
+    return agent.convergence !== null;
   },
 };
 
