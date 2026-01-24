@@ -119,11 +119,21 @@ async def _resume_agent(checkpoint_path: str | None, plan_id: str | None, provid
 
     # Resume execution
     from sunwell.naaru import Naaru
+    from sunwell.project import ProjectResolutionError, resolve_project
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust
 
+    # RFC-117: Try to resolve project context
+    workspace = Path(cp.working_directory)
+    project = None
+    try:
+        project = resolve_project(project_root=workspace)
+    except ProjectResolutionError:
+        pass
+
     tool_executor = ToolExecutor(
-        workspace=Path(cp.working_directory),
+        project=project,
+        workspace=workspace if project is None else None,
         policy=ToolPolicy(trust_level=ToolTrust.WORKSPACE),
     )
 

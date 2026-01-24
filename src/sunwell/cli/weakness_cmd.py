@@ -217,10 +217,22 @@ def fix(
 
         # Create model and planner using resolve_model()
         from sunwell.cli.helpers import resolve_model
+        from sunwell.project import ProjectResolutionError, resolve_project
 
         resolved_model = resolve_model(provider, model)
         planner = ArtifactPlanner(model=resolved_model)
-        tool_executor = ToolExecutor(workspace=project_root)
+
+        # RFC-117: Try to resolve project context
+        project = None
+        try:
+            project = resolve_project(project_root=project_root)
+        except ProjectResolutionError:
+            pass
+
+        tool_executor = ToolExecutor(
+            project=project,
+            workspace=project_root if project is None else None,
+        )
 
         def emit_json(event: Any) -> None:
             if as_json:

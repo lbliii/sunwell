@@ -514,8 +514,20 @@ async def create_cascade_executor(
     # Create planner
     planner = ArtifactPlanner(model=model)
 
+    # RFC-117: Try to resolve project context
+    from sunwell.project import ProjectResolutionError, resolve_project
+
+    project = None
+    try:
+        project = resolve_project(project_root=project_root)
+    except ProjectResolutionError:
+        pass
+
     # Create tool executor
-    tool_executor = ToolExecutor(workspace=project_root)
+    tool_executor = ToolExecutor(
+        project=project,
+        workspace=project_root if project is None else None,
+    )
 
     # Create cascade engine
     engine = CascadeEngine(graph=graph, project_root=project_root)

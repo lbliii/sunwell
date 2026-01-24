@@ -210,12 +210,21 @@ async def run_shortcut(
         console.print("[red]No model available. Run 'sunwell setup' first.[/red]")
         return
 
-    # 7. Create tool executor
+    # 7. Create tool executor (RFC-117: with project context if available)
+    from sunwell.project import ProjectResolutionError, resolve_project
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust
 
+    workspace = workspace_root or Path.cwd()
+    project = None
+    try:
+        project = resolve_project(project_root=workspace)
+    except ProjectResolutionError:
+        pass
+
     tool_executor = ToolExecutor(
-        workspace=workspace_root or Path.cwd(),
+        project=project,
+        workspace=workspace if project is None else None,
         policy=ToolPolicy(
             trust_level=ToolTrust.WORKSPACE,
             allowed_tools=skill.allowed_tools,

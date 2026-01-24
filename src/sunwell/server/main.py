@@ -1983,8 +1983,17 @@ async def _execute_agent(run: RunState) -> AsyncIterator[dict[str, Any]]:
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust
 
-    # Resolve workspace
-    workspace = Path(run.workspace).expanduser().resolve() if run.workspace else Path.cwd()
+    # RFC-117: Resolve workspace with project context
+    from sunwell.project import ProjectResolutionError, resolve_project
+
+    workspace_path = Path(run.workspace).expanduser().resolve() if run.workspace else Path.cwd()
+
+    project = None
+    try:
+        project = resolve_project(project_root=workspace_path)
+        workspace = project.root
+    except ProjectResolutionError:
+        workspace = workspace_path
 
     # Load config and model
     config = get_config()
@@ -2004,10 +2013,11 @@ async def _execute_agent(run: RunState) -> AsyncIterator[dict[str, Any]]:
         yield {"type": "error", "data": {"message": "No model available"}}
         return
 
-    # Setup tool executor
+    # Setup tool executor (RFC-117: use project if available)
     trust_level = ToolTrust.from_string(run.trust)
     tool_executor = ToolExecutor(
-        workspace=workspace,
+        project=project,
+        workspace=workspace if project is None else None,
         policy=ToolPolicy(trust_level=trust_level),
     )
 

@@ -122,6 +122,19 @@ console = Console()
     is_flag=True,
     help="Output NDJSON events for programmatic consumption (RFC-043)",
 )
+# RFC-117: Project workspace isolation
+@click.option(
+    "--project", "-P",
+    "project_id",
+    default=None,
+    help="Project ID from registry (RFC-117)",
+)
+@click.option(
+    "--project-root",
+    default=None,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    help="Explicit project root path (RFC-117)",
+)
 def run(
     goal: str,
     time: int,
@@ -144,6 +157,8 @@ def run(
     diff_plan: bool,
     plan_id: str | None,
     json_output: bool,
+    project_id: str | None,
+    project_root: str | None,
 ) -> None:
     """Execute a task using agent mode.
 
@@ -190,7 +205,7 @@ def run(
     asyncio.run(_run_agent(
         goal, time, trust, strategy, lens, auto_lens, dry_run, verbose, provider, model,
         show_graph, candidates, refine, scoring, incremental, force, show_plan, diff_plan,
-        plan_id, json_output,
+        plan_id, json_output, project_id, project_root,
     ))
 
 
@@ -215,6 +230,8 @@ async def _run_agent(
     diff_plan: bool = False,
     plan_id: str | None = None,
     json_output: bool = False,
+    project_id: str | None = None,
+    project_root: str | None = None,
 ) -> None:
     """Execute agent mode."""
     from sunwell.cli.helpers import resolve_model
@@ -262,10 +279,38 @@ async def _run_agent(
             print(json.dumps(error_event.to_dict()), file=sys.stdout, flush=True)
         return
 
-    # Setup tool executor
+    # RFC-117: Resolve project context
+    from sunwell.project import (
+        ProjectResolutionError,
+        ProjectValidationError,
+        resolve_project,
+    )
+
+    try:
+        project = resolve_project(
+            project_root=project_root,
+            project_id=project_id,
+            cwd=Path.cwd(),
+        )
+        if verbose and not json_output:
+            console.print(f"[dim]Project: {project.id} ({project.root})[/dim]")
+    except (ProjectResolutionError, ProjectValidationError) as e:
+        if json_output:
+            import json
+            import sys
+
+            from sunwell.agent.events import AgentEvent, EventType
+
+            error_event = AgentEvent(EventType.ERROR, {"message": str(e)})
+            print(json.dumps(error_event.to_dict()), file=sys.stdout, flush=True)
+        else:
+            console.print(f"[red]Error:[/red] {e}")
+        return
+
+    # Setup tool executor with project context
     trust_level = ToolTrust.from_string(trust)
     tool_executor = ToolExecutor(
-        workspace=Path.cwd(),
+        project=project,
         policy=ToolPolicy(trust_level=trust_level),
     )
 
@@ -288,7 +333,7 @@ async def _run_agent(
         lens_resolution = await resolve_lens_for_goal(
             goal=goal,
             explicit_lens=lens_name,
-            project_path=Path.cwd(),
+            project_path=project.root,
             auto_select=auto_lens,
         )
         if lens_resolution.lens:
@@ -415,7 +460,7 @@ async def _run_agent(
 
     # Create Naaru once with callback already configured
     naaru = Naaru(
-        workspace=Path.cwd(),
+        workspace=project.root,
         synthesis_model=synthesis_model,
         planner=planner,
         tool_executor=tool_executor,
@@ -423,7 +468,7 @@ async def _run_agent(
     )
 
     # RFC-064: Build context with lens expertise
-    run_context: dict = {"cwd": str(Path.cwd())}
+    run_context: dict = {"cwd": str(project.root)}
     if lens_context:
         run_context["lens_context"] = lens_context
 
@@ -485,7 +530,7 @@ async def _task_dry_run(goal: str, planner, show_graph: bool, verbose: bool) -> 
     console.print("[yellow]Dry run - planning only[/yellow]\n")
 
     try:
-        tasks = await planner.plan([goal], {"cwd": str(Path.cwd())})
+        tasks = await planner.plan([goal], {"cwd": str(project.root)})
     except Exception as e:
         console.print(f"[red]Planning failed: {e}[/red]")
         return
@@ -524,7 +569,7 @@ async def _artifact_dry_run(goal: str, planner, show_graph: bool, verbose: bool)
     console.print("[yellow]Dry run - artifact discovery only (RFC-036)[/yellow]\n")
 
     try:
-        graph = await planner.discover_graph(goal, {"cwd": str(Path.cwd())})
+        graph = await planner.discover_graph(goal, {"cwd": str(project.root)})
     except Exception as e:
         console.print(f"[red]Discovery failed: {e}[/red]")
         return
@@ -596,7 +641,7 @@ async def _show_plan_preview(
     console.print("[yellow]Plan preview - RFC-074[/yellow]\n")
 
     try:
-        graph = await planner.discover_graph(goal, {"cwd": str(Path.cwd())})
+        graph = await planner.discover_graph(goal, {"cwd": str(project.root)})
     except Exception as e:
         console.print(f"[red]Discovery failed: {e}[/red]")
         return
@@ -660,7 +705,7 @@ async def _show_plan_preview(
 
     # Show changes vs previous (if requested)
     if diff_plan:
-        cache_path = Path.cwd() / ".sunwell" / "cache" / "execution.db"
+        cache_path = project.root / ".sunwell" / "cache" / "execution.db"
         cache = ExecutionCache(cache_path)
         executor = IncrementalExecutor(graph=graph, cache=cache)
         plan = executor.plan_execution()
@@ -717,7 +762,7 @@ async def _incremental_run(
     # Create emitter and manager
     emitter = StdoutEmitter(json_output=json_output)
     manager = ExecutionManager(
-        root=Path.cwd(),
+        root=project.root,
         emitter=emitter,
     )
 
@@ -767,7 +812,7 @@ async def _harmonic_dry_run(goal: str, planner, show_graph: bool, verbose: bool)
     console.print(f"[dim]Generating {planner.candidates} candidates...[/dim]\n")
 
     try:
-        graph, metrics = await planner.plan_with_metrics(goal, {"cwd": str(Path.cwd())})
+        graph, metrics = await planner.plan_with_metrics(goal, {"cwd": str(project.root)})
     except Exception as e:
         console.print(f"[red]Harmonic planning failed: {e}[/red]")
         return

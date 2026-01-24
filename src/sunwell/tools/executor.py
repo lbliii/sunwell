@@ -6,6 +6,11 @@ ToolExecutor dispatches tool calls to appropriate handlers:
 - Memory tools → MemoryToolHandler (RFC-014)
 - Web search tools → WebSearchHandler
 - Learned tools → LearnedToolHandler (Phase 6 - future)
+
+RFC-117: Project-centric workspace isolation
+- Prefer passing `project` parameter instead of raw `workspace` path
+- Project provides validated root path and configuration
+- Direct `workspace` parameter still supported for backward compatibility
 """
 
 
@@ -30,6 +35,7 @@ from sunwell.tools.types import (
 if TYPE_CHECKING:
     from sunwell.mirror.handler import MirrorHandler
     from sunwell.models.protocol import Tool
+    from sunwell.project import Project
     from sunwell.simulacrum.manager import SimulacrumToolHandler
     from sunwell.simulacrum.memory_tools import MemoryToolHandler
     from sunwell.skills.executor import SkillExecutor
@@ -52,8 +58,14 @@ class ToolExecutor:
     - Memory tools → MemoryToolHandler (RFC-014)
     - Learned tools → LearnedToolHandler (future)
 
+    RFC-117: Project-centric workspace isolation
+    - Prefer `project` parameter for validated workspace context
+    - Falls back to `workspace` for backward compatibility
+    - Validates workspace is not Sunwell's own repo
+
     Args:
-        workspace: Root directory for file operations
+        workspace: Root directory for file operations (deprecated, use project)
+        project: Project instance with validated root (RFC-117, preferred)
         sandbox: ScriptSandbox for command execution (RFC-011)
         skill_executor: For skill-derived tools
         memory_handler: For memory tools (RFC-014)
@@ -61,7 +73,9 @@ class ToolExecutor:
         audit_path: Where to write audit logs (None to disable)
     """
 
-    workspace: Path
+    # RFC-117: Accept either project or workspace (project preferred)
+    workspace: Path | None = None
+    project: Project | None = None
     sandbox: ScriptSandbox | None = None
     skill_executor: SkillExecutor | None = None
     memory_handler: MemoryToolHandler | None = None  # RFC-014
@@ -119,38 +133,97 @@ class ToolExecutor:
 
     def __post_init__(self) -> None:
         """Initialize core tool handlers."""
-        # RFC-117: Validate workspace is not Sunwell's own repo
         from sunwell.project.validation import (
             ProjectValidationError,
             validate_not_sunwell_repo,
         )
 
+        # RFC-117: Resolve workspace from project or direct parameter
+        workspace = self._resolve_workspace()
+
+        # Validate workspace is not Sunwell's own repo
         try:
-            validate_not_sunwell_repo(self.workspace)
+            validate_not_sunwell_repo(workspace)
         except ProjectValidationError as e:
-            # Re-raise with clear message
             raise ProjectValidationError(
-                f"{e}\n\nHint: Use --project-root to specify a different workspace."
+                f"{e}\n\nHint: Use --project-root or -p <project-id> to specify a project."
             ) from None
 
-        # Get blocked patterns from policy or use defaults
-        blocked_patterns = None
-        if self.policy and self.policy.blocked_paths:
-            from sunwell.tools.handlers import DEFAULT_BLOCKED_PATTERNS
-            blocked_patterns = DEFAULT_BLOCKED_PATTERNS | self.policy.blocked_paths
+        # Store resolved workspace for internal use
+        object.__setattr__(self, "_resolved_workspace", workspace)
 
-        # Initialize core tool handlers - only pass blocked_patterns if we have a custom value
+        # Get blocked patterns from policy, project, or defaults
+        blocked_patterns = self._get_blocked_patterns()
+
+        # Initialize core tool handlers
         if blocked_patterns is not None:
             self._core_handlers = CoreToolHandlers(
-                self.workspace,
+                workspace,
                 self.sandbox,
                 blocked_patterns=blocked_patterns,
             )
         else:
             self._core_handlers = CoreToolHandlers(
-                self.workspace,
+                workspace,
                 self.sandbox,
             )
+
+    def _resolve_workspace(self) -> Path:
+        """Resolve workspace from project or direct parameter.
+
+        RFC-117: Project takes precedence over direct workspace.
+
+        Returns:
+            Resolved workspace path
+
+        Raises:
+            ValueError: If neither project nor workspace is provided
+        """
+        if self.project is not None:
+            return self.project.root
+
+        if self.workspace is not None:
+            return self.workspace
+
+        raise ValueError(
+            "ToolExecutor requires either 'project' or 'workspace' parameter.\n"
+            "Preferred: ToolExecutor(project=resolve_project(...))\n"
+            "Legacy: ToolExecutor(workspace=Path('/path/to/project'))"
+        )
+
+    def _get_blocked_patterns(self) -> frozenset[str] | None:
+        """Get blocked patterns from policy and project.
+
+        Combines patterns from:
+        1. Default patterns
+        2. Policy blocked_paths
+        3. Project protected paths (RFC-117)
+
+        Returns:
+            Combined blocked patterns or None to use defaults
+        """
+        from sunwell.tools.handlers import DEFAULT_BLOCKED_PATTERNS
+
+        patterns: set[str] = set()
+        has_custom = False
+
+        # Add policy blocked paths
+        if self.policy and self.policy.blocked_paths:
+            patterns.update(DEFAULT_BLOCKED_PATTERNS)
+            patterns.update(self.policy.blocked_paths)
+            has_custom = True
+
+        # Add project protected paths (RFC-117)
+        if self.project and self.project.protected_paths:
+            if not has_custom:
+                patterns.update(DEFAULT_BLOCKED_PATTERNS)
+            # Convert protected paths to glob patterns
+            for protected in self.project.protected_paths:
+                patterns.add(f"**/{protected}/**")
+                patterns.add(f"**/{protected}")
+            has_custom = True
+
+        return frozenset(patterns) if has_custom else None
 
         # Initialize rate limits from policy
         if self.policy and self.policy.rate_limits:

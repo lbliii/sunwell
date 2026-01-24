@@ -413,10 +413,20 @@ async def _run_agent(
             console.print("[red]No model available[/red]")
         return
 
+    # RFC-117: Try to resolve project context for workspace
+    from sunwell.project import ProjectResolutionError, resolve_project
+
+    project = None
+    try:
+        project = resolve_project(project_root=workspace)
+    except ProjectResolutionError:
+        pass  # Use workspace directly
+
     # Setup tool executor with resolved workspace
     trust_level = ToolTrust.from_string(trust)
     tool_executor = ToolExecutor(
-        workspace=workspace,
+        project=project,
+        workspace=workspace if project is None else None,
         policy=ToolPolicy(trust_level=trust_level),
     )
 

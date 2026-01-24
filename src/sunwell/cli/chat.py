@@ -1253,7 +1253,16 @@ async def _chat_loop(
         from sunwell.tools.executor import ToolExecutor
         from sunwell.tools.types import ToolPolicy, ToolTrust
 
-        workspace_root = Path.cwd()
+        # RFC-117: Try to resolve project context, fall back to cwd
+        from sunwell.project import ProjectResolutionError, resolve_project
+
+        project = None
+        try:
+            project = resolve_project(cwd=Path.cwd())
+            workspace_root = project.root
+        except ProjectResolutionError:
+            # No project manifest/registry - use cwd (legacy behavior)
+            workspace_root = Path.cwd()
 
         # Create sandbox for shell commands if trust allows
         sandbox = None
@@ -1280,7 +1289,7 @@ async def _chat_loop(
             mirror_storage = memory_path / "mirror" if memory_path else Path(".sunwell/mirror")
 
             mirror_handler = MirrorHandler(
-                workspace=Path.cwd(),  # User's workspace
+                workspace=workspace_root,  # User's workspace (RFC-117: from project or cwd)
                 storage_path=mirror_storage,
                 lens=lens,
                 lens_config=lens_config,
@@ -1304,8 +1313,10 @@ async def _chat_loop(
             expertise_handler = ExpertiseToolHandler(retriever=retriever, lens=lens)
             console.print("[cyan]Self-Directed Expertise:[/cyan] Enabled (RFC-027)")
 
+        # RFC-117: Use project if available, otherwise workspace
         tool_executor = ToolExecutor(
-            workspace=workspace_root,
+            project=project,
+            workspace=workspace_root if project is None else None,
             sandbox=sandbox,
             policy=policy,
             mirror_handler=mirror_handler,
@@ -1708,12 +1719,22 @@ async def _handle_chat_command(
                 # Initialize tool executor
                 from pathlib import Path as PathLib
 
+                from sunwell.project import ProjectResolutionError, resolve_project
                 from sunwell.tools.executor import ToolExecutor
                 from sunwell.tools.types import ToolPolicy, ToolTrust
 
+                # RFC-117: Try to resolve project context
+                project = None
+                workspace = PathLib.cwd()
+                try:
+                    project = resolve_project(cwd=workspace)
+                except ProjectResolutionError:
+                    pass  # Use cwd fallback
+
                 policy = ToolPolicy(trust_level=ToolTrust.from_string(state.trust_level))
                 state.tool_executor = ToolExecutor(
-                    workspace=PathLib.cwd(),
+                    project=project,
+                    workspace=workspace if project is None else None,
                     sandbox=None,
                     policy=policy,
                 )
