@@ -144,4 +144,27 @@ export {
 	openTerminal,
 	openEditor,
 	healthCheck,
+	apiGet,
+	apiPost,
+	apiDelete,
 } from '$lib/socket';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// API OBJECT (for stores that need a unified interface)
+// ═══════════════════════════════════════════════════════════════════════════
+
+import { apiGet, apiPost, apiDelete } from '$lib/socket';
+
+/**
+ * Unified API object for HTTP requests.
+ *
+ * @example
+ * import { api } from '$lib/api';
+ * const data = await api.get<MyType>('/api/some/path');
+ * const result = await api.post<MyType>('/api/some/path', { body });
+ */
+export const api = {
+	get: apiGet,
+	post: apiPost,
+	delete: apiDelete,
+};

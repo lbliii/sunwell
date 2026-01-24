@@ -3,6 +3,7 @@
 
 import shutil
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -11,9 +12,16 @@ from sunwell.tools.handlers.base import BaseHandler, PathSecurityError
 if TYPE_CHECKING:
     from sunwell.skills.sandbox import ScriptSandbox
 
+# Type for file event callbacks (RFC-121 lineage integration)
+FileEventCallback = Callable[[str, str, str, int, int], None]
+# Args: (event_type, path, content, lines_added, lines_removed)
+
 
 class FileHandlers(BaseHandler):
-    """File operation handlers."""
+    """File operation handlers.
+
+    Supports optional file event callbacks for lineage tracking (RFC-121).
+    """
 
     def __init__(
         self,
@@ -23,6 +31,35 @@ class FileHandlers(BaseHandler):
     ) -> None:
         super().__init__(workspace, **kwargs)
         self.sandbox = sandbox
+        self._file_event_callback: FileEventCallback | None = None
+
+    def set_file_event_callback(self, callback: FileEventCallback | None) -> None:
+        """Set callback for file events (RFC-121 lineage tracking).
+
+        Args:
+            callback: Function called with (event_type, path, content, lines_added, lines_removed)
+        """
+        self._file_event_callback = callback
+
+    def _emit_file_event(
+        self,
+        event_type: str,
+        path: str,
+        content: str,
+        lines_added: int = 0,
+        lines_removed: int = 0,
+    ) -> None:
+        """Emit file event if callback is set.
+
+        Args:
+            event_type: "file_created" or "file_modified"
+            path: File path relative to workspace
+            content: File content
+            lines_added: Lines added
+            lines_removed: Lines removed
+        """
+        if self._file_event_callback:
+            self._file_event_callback(event_type, path, content, lines_added, lines_removed)
 
     async def read_file(self, args: dict) -> str:
         """Read file contents. Respects blocked patterns."""
@@ -55,18 +92,38 @@ class FileHandlers(BaseHandler):
                 f"Did you mean '{user_path}/filename.ext'?"
             )
 
+        # Track if this is a new file or modification
+        is_new = not path.exists()
+        old_content = ""
+        if not is_new:
+            try:
+                old_content = path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                pass
+
         path.parent.mkdir(parents=True, exist_ok=True)
 
         content = args.get("content", "")
         path.write_text(content, encoding="utf-8")
+
+        # Emit file event for lineage tracking (RFC-121)
+        if is_new:
+            lines_added = content.count("\n") + 1 if content else 0
+            self._emit_file_event("file_created", user_path, content, lines_added, 0)
+        else:
+            old_lines = old_content.count("\n") + 1 if old_content else 0
+            new_lines = content.count("\n") + 1 if content else 0
+            lines_added = max(0, new_lines - old_lines)
+            lines_removed = max(0, old_lines - new_lines)
+            self._emit_file_event("file_modified", user_path, content, lines_added, lines_removed)
 
         return f"✓ Wrote {user_path} ({len(content):,} bytes)"
 
     async def edit_file(self, args: dict) -> str:
         """Make targeted edits to a file by replacing specific content."""
         user_path = args["path"]
-        old_content = args["old_content"]
-        new_content = args["new_content"]
+        old_content_arg = args["old_content"]
+        new_content_arg = args["new_content"]
         occurrence = args.get("occurrence", 1)
 
         path = self._safe_path(user_path, allow_write=True)
@@ -79,10 +136,10 @@ class FileHandlers(BaseHandler):
             raise ValueError(f"Not a file: {user_path}")
 
         content = path.read_text(encoding="utf-8")
-        count = content.count(old_content)
+        count = content.count(old_content_arg)
 
         if count == 0:
-            preview = old_content[:100] + "..." if len(old_content) > 100 else old_content
+            preview = old_content_arg[:100] + "..." if len(old_content_arg) > 100 else old_content_arg
             raise ValueError(
                 f"Content not found in {user_path}.\n"
                 f"Looking for:\n{preview}\n\n"
@@ -93,11 +150,11 @@ class FileHandlers(BaseHandler):
         backup_path.write_text(content, encoding="utf-8")
 
         if occurrence == 0:
-            new_file_content = content.replace(old_content, new_content)
+            new_file_content = content.replace(old_content_arg, new_content_arg)
             replaced_count = count
         elif occurrence == -1:
-            idx = content.rfind(old_content)
-            new_file_content = content[:idx] + new_content + content[idx + len(old_content):]
+            idx = content.rfind(old_content_arg)
+            new_file_content = content[:idx] + new_content_arg + content[idx + len(old_content_arg):]
             replaced_count = 1
         else:
             if occurrence > count:
@@ -106,15 +163,20 @@ class FileHandlers(BaseHandler):
                 )
             idx = -1
             for _ in range(occurrence):
-                idx = content.find(old_content, idx + 1)
-            new_file_content = content[:idx] + new_content + content[idx + len(old_content):]
+                idx = content.find(old_content_arg, idx + 1)
+            new_file_content = content[:idx] + new_content_arg + content[idx + len(old_content_arg):]
             replaced_count = 1
 
         path.write_text(new_file_content, encoding="utf-8")
 
-        lines_before = content[:content.find(old_content)].count('\n') + 1
-        old_lines = old_content.count('\n') + 1
-        new_lines = new_content.count('\n') + 1
+        lines_before = content[:content.find(old_content_arg)].count('\n') + 1
+        old_lines = old_content_arg.count('\n') + 1
+        new_lines = new_content_arg.count('\n') + 1
+
+        # Emit file event for lineage tracking (RFC-121)
+        lines_added = max(0, new_lines - old_lines) * replaced_count
+        lines_removed = max(0, old_lines - new_lines) * replaced_count
+        self._emit_file_event("file_modified", user_path, new_file_content, lines_added, lines_removed)
 
         return (
             f"✓ Edited {user_path}\n"

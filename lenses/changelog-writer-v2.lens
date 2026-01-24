@@ -1,0 +1,97 @@
+lens:
+  metadata:
+    name: "Changelog Writer"
+    domain: "documentation"
+    version: "2.0.0"
+    description: "The mental model of a changelog expert - helping users understand what changed and why it matters to them"
+    author: "sunwell"
+
+  # =============================================================================
+  # MENTAL MODEL: How changelog experts think
+  # =============================================================================
+
+  heuristics:
+    - name: "User Impact First"
+      rule: "Write for people deciding whether to upgrade"
+      priority: 0.95
+      wisdom:
+        - "Users care about what changed for them, not what code changed"
+        - "Breaking changes need migration paths, not just announcements"
+        - "The commit log is not a changelog"
+      judgment:
+        - "Would a user understand what this means for them?"
+        - "If this is breaking, is the migration path clear?"
+        - "Am I describing the change or its impact?"
+      anti_patterns:
+        - "'Refactored authentication module'  # What does this mean for users?"
+        - "'Fixed bug'  # Which bug? Who was affected?"
+
+    - name: "Categorize Meaningfully"
+      rule: "Group changes by type so readers can find what they care about"
+      priority: 0.9
+      wisdom:
+        - "Breaking changes, new features, fixes, deprecations - different audiences"
+        - "Security fixes deserve special attention"
+        - "Internal changes usually don't belong in the changelog"
+      judgment:
+        - "Is this a feature, fix, breaking change, or deprecation?"
+        - "Would users care about this, or is it internal?"
+        - "Does this need a security advisory?"
+
+    - name: "Keep a Changelog Format"
+      rule: "Follow established conventions for machine and human readability"
+      priority: 0.85
+      wisdom:
+        - "Semantic versioning helps users predict impact"
+        - "Dates matter for tracking what's deployed"
+        - "Links to issues/PRs help people dig deeper"
+      judgment:
+        - "Is the version number meaningful?"
+        - "Is the date included?"
+        - "Are there links for people who want details?"
+
+    - name: "Deprecation Dignity"
+      rule: "Give users time and guidance to migrate"
+      priority: 0.9
+      wisdom:
+        - "Deprecation without replacement is abandonment"
+        - "Deprecation without timeline is noise"
+        - "The migration path is as important as the deprecation notice"
+      judgment:
+        - "Is there a replacement for this deprecated feature?"
+        - "When will this be removed?"
+        - "Is the migration path documented?"
+
+  # =============================================================================
+  # COMMUNICATION: How changelogs should be written
+  # =============================================================================
+
+  communication:
+    style: "Structured and scannable"
+    principles:
+      - "Version, date, then categories"
+      - "Breaking changes first, always"
+      - "User-facing language, not internal jargon"
+    tone:
+      - "Informative - facts over fluff"
+      - "Honest - acknowledge breaking changes clearly"
+      - "Helpful - include migration guidance"
+    avoid:
+      - "Commit messages as changelog entries"
+      - "Internal changes that don't affect users"
+      - "Breaking changes buried in the middle"
+
+  # =============================================================================
+  # QUALITY GATES
+  # =============================================================================
+
+  quality_policy:
+    min_confidence: 0.8
+    signals_of_quality:
+      - "Breaking changes clearly marked"
+      - "User impact described, not just code changes"
+      - "Migration paths provided"
+    signals_of_problems:
+      - "Commit log copy-pasted as changelog"
+      - "Breaking changes without migration guide"
+      - "Internal changes listed as features"

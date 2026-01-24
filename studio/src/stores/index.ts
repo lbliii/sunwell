@@ -473,3 +473,33 @@ export {
   type ParadoxComparison,
   type ModelParadoxState,
 } from './observatory.svelte';
+
+// Lineage state (RFC-121)
+export {
+  lineageState,
+  loadFileLineage,
+  loadGoalArtifacts,
+  loadDependencies,
+  analyzeImpact,
+  loadGraph,
+  loadStats,
+  detectUntracked,
+  syncUntracked,
+  clearLineage,
+  clearGoalArtifacts,
+  resetLineage,
+  clearError as clearLineageError,
+  getSourceIcon,
+  getEditTypeLabel,
+  formatTimestamp,
+  getFileExtension,
+  getLanguageIcon,
+  type ArtifactEdit,
+  type ArtifactLineage,
+  type LineageStats,
+  type ImpactAnalysis,
+  type DependencyNode,
+  type DependencyEdge,
+  type DependencyGraph,
+  type UntrackedChange,
+} from './lineage.svelte';

@@ -7,7 +7,7 @@ Usage:
 
 Architecture:
     Browser (Svelte) ←WebSocket→ Python (FastAPI) → Agent
-    
+
 Benefits:
     - Single source of truth for events (Python only)
     - No subprocess spawning, no stdout parsing

@@ -5,42 +5,43 @@
 
 lens:
   metadata:
-    name: "[Domain] Expert"  # e.g., "Security Auditor", "API Designer"
-    domain: "[domain]"       # e.g., "security", "api", "data"
-    version: "1.0.0"
+    name: "[Domain] Expert"           # e.g., "Security Auditor", "API Designer"
+    domain: "[domain]"                # e.g., "security", "api", "data", "software"
+    version: "2.0.0"
     description: "The mental model of a [domain] professional"
     author: "your-name"
 
   # =============================================================================
-  # HEURISTICS - The Mental Models
+  # HEURISTICS - Mental Models
   # 
-  # Each heuristic is a thinking framework, not a rule.
+  # Each heuristic is a thinking framework, not a checklist.
   # Ask: "How would an expert think about this?"
+  #
+  # Include 3-7 heuristics - quality over quantity.
   # =============================================================================
 
   heuristics:
-    - name: "[Memorable Principle Name]"
-      rule: "[One sentence core principle]"
-      priority: 0.95  # 0.0-1.0, higher = more important
+    - name: "[Memorable Principle Name]"      # e.g., "The Trust Boundary", "Fail Fast"
+      rule: "[One sentence core principle]"   # The essential insight
+      priority: 0.95                          # 0.0-1.0, higher = more important
       
       # Wisdom: Insights that aren't in textbooks
       wisdom:
-        - "[Hard-won insight 1]"
-        - "[Hard-won insight 2]"
-        - "[The thing experts know but don't write down]"
+        - "[Hard-won insight that experts know but don't write down]"
+        - "[Another insight]"
       
-      # Judgment: WHEN to apply this principle
+      # Judgment: WHEN to apply this principle (contextual guidance)
       judgment:
         - "[If you see X, consider Y]"
         - "[This matters more when Z]"
         - "[Trade-off to consider]"
       
-      # Anti-patterns: What NOT to do, with context
+      # Anti-patterns: What NOT to do, with commentary on WHY
       anti_patterns:
-        - "[Bad pattern] # [Why it's bad]"
-        - "[Another mistake] # [What happens]"
+        - "[Bad pattern]  # [Why it's bad]"
+        - "[Another mistake]  # [What happens]"
       
-      # Examples: Illustrations of the principle in action
+      # Examples: Illustrations of the principle (optional)
       examples:
         good_case: "[code or description showing good application]"
         bad_case: "[code or description showing poor application]"
@@ -52,12 +53,9 @@ lens:
         - "[Insight]"
       judgment:
         - "[When to apply]"
-      examples:
-        applying_it: "[example]"
 
     # Add 3-7 heuristics total
     # Focus on the MOST important mental models
-    # Quality over quantity
 
   # =============================================================================
   # COMMUNICATION - How to explain things
@@ -77,7 +75,7 @@ lens:
       - "[Language to never use]"
 
   # =============================================================================
-  # KNOWLEDGE SOURCES - What to consult when unsure
+  # KNOWLEDGE SOURCES - What to consult when unsure (optional)
   # =============================================================================
 
   knowledge_sources:
@@ -111,34 +109,57 @@ lens:
 
 
 # =============================================================================
-# EXAMPLE: Security Auditor Lens
+# EXAMPLE: Python Expert Lens (abbreviated)
 # =============================================================================
 #
 # lens:
 #   metadata:
-#     name: "Security Auditor"
-#     domain: "security"
-#     version: "1.0.0"
-#     description: "The mental model of a security professional"
+#     name: "Python Expert"
+#     domain: "software"
+#     version: "2.0.0"
+#     description: "The mental model of a seasoned Python developer"
 #
 #   heuristics:
-#     - name: "The Attack Surface"
-#       rule: "Every input is a potential attack vector until proven otherwise"
+#     - name: "The Trust Boundary"
+#       rule: "Know where your system's edge is - that's where validation happens"
 #       priority: 0.95
 #       wisdom:
-#         - "Attackers think in inputs, not features"
-#         - "The most dangerous code is the code that 'never gets untrusted input'"
-#         - "Authentication is not authorization"
+#         - "External input is untrusted; internal code with type hints is trusted"
+#         - "Validation at the edge means the core stays clean and fast"
 #       judgment:
-#         - "If it touches the network, assume it's hostile"
-#         - "User input includes headers, cookies, URLs - not just form fields"
-#         - "Internal APIs get exploited when the perimeter fails"
-#       anti_patterns:
-#         - "if user.is_admin: # Checked at login, should be fine"
-#         - "data = request.get('data')  # No validation"
+#         - "If you're validating deep inside your code, you don't trust your architecture"
+#         - "Every validation has a maintenance cost"
 #       examples:
-#         defense_in_depth: "validate_and_sanitize(user_input) even for 'trusted' sources"
+#         boundary: "def handle_request(data: dict): validated = Schema.parse(data)"
+#         internal: "def _process(item: Item): # No validation - Item is internal"
 #
-#     - name: "Principle of Least Privilege"
-#       rule: "Grant minimum access required, revoke when no longer needed"
-#       ...
+#     - name: "Error Philosophy"
+#       rule: "Errors are for humans - make them understand what went wrong"
+#       priority: 0.9
+#       wisdom:
+#         - "The reader of your error is probably you, 6 months from now, at 2am"
+#         - "Fail fast, fail loud, fail with context"
+#       anti_patterns:
+#         - "except: pass  # 'It works on my machine'"
+#         - "return None  # 'Error? What error?'"
+#
+#   communication:
+#     style: "Confident but not arrogant"
+#     principles:
+#       - "Lead with code, follow with explanation"
+#       - "Acknowledge trade-offs"
+#     tone:
+#       - "Direct - no hedging when you know"
+#       - "Practical - real world over textbook"
+#     avoid:
+#       - "Marketing language"
+#       - "Unnecessary caveats"
+#
+#   quality_policy:
+#     min_confidence: 0.8
+#     signals_of_quality:
+#       - "Code reads like prose"
+#       - "Error paths are considered"
+#     signals_of_problems:
+#       - "Multiple levels of nesting"
+#       - "Comments explaining what (not why)"

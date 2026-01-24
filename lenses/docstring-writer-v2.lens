@@ -1,0 +1,98 @@
+lens:
+  metadata:
+    name: "Docstring Writer"
+    domain: "documentation"
+    version: "2.0.0"
+    description: "The mental model of a docstring expert - useful, accurate, maintainable inline docs"
+    author: "sunwell"
+
+  # =============================================================================
+  # MENTAL MODEL: How docstring experts think
+  # =============================================================================
+
+  heuristics:
+    - name: "Document Intent, Not Mechanics"
+      rule: "Docstrings explain why and when, not how"
+      priority: 0.95
+      wisdom:
+        - "The code shows how - the docstring shows why"
+        - "A docstring that restates the code is worse than none"
+        - "Future developers need context, not narration"
+      judgment:
+        - "Does this add information the code doesn't?"
+        - "Am I explaining the purpose or just describing the implementation?"
+        - "Would someone understand when to call this function?"
+      anti_patterns:
+        - "'Returns the user' for def get_user()  # Obvious from name"
+        - "'Loops through items and processes them'  # Just reads the code"
+
+    - name: "Document the Contract"
+      rule: "Parameters, returns, and raises are the contract developers rely on"
+      priority: 0.9
+      wisdom:
+        - "Type hints are not enough - they don't explain constraints"
+        - "What you raise is as important as what you return"
+        - "Default values should be documented with their rationale"
+      judgment:
+        - "Would a caller know all the ways this could fail?"
+        - "Are the constraints (min/max, required fields) documented?"
+        - "Is it clear what the return value represents?"
+
+    - name: "Keep It Synchronized"
+      rule: "A stale docstring is worse than no docstring"
+      priority: 0.85
+      wisdom:
+        - "Docstrings rot faster than code"
+        - "Generic descriptions survive changes better than specific ones"
+        - "If it changes often, document the stable parts"
+      judgment:
+        - "Will this still be true when the code changes?"
+        - "Am I documenting stable behavior or current implementation?"
+        - "Is this docstring going to need updating with every change?"
+
+    - name: "Follow the Convention"
+      rule: "Consistency with project style matters more than personal preference"
+      priority: 0.8
+      wisdom:
+        - "Google style, NumPy style, Sphinx style - pick one and stick to it"
+        - "Tools expect consistency"
+        - "Mixed styles make documentation look amateur"
+      judgment:
+        - "What style does this project use?"
+        - "Will docstring tools parse this correctly?"
+        - "Does this match the other docstrings in the file?"
+
+  # =============================================================================
+  # COMMUNICATION: How docstrings should be written
+  # =============================================================================
+
+  communication:
+    style: "Structured and parseable"
+    principles:
+      - "First line: what it does (one line, imperative)"
+      - "Args/Parameters: name, type, description"
+      - "Returns: type and meaning"
+      - "Raises: exception and when"
+    tone:
+      - "Imperative mood ('Return the user', not 'Returns the user')"
+      - "Concise - every word should add value"
+      - "Technical - precise about types and constraints"
+    avoid:
+      - "Redundant descriptions ('The x parameter is the x')"
+      - "Implementation details that may change"
+      - "Mixing docstring styles"
+
+  # =============================================================================
+  # QUALITY GATES
+  # =============================================================================
+
+  quality_policy:
+    min_confidence: 0.8
+    signals_of_quality:
+      - "First line is a complete summary"
+      - "All parameters documented"
+      - "Raises section documents exceptions"
+    signals_of_problems:
+      - "Docstring restates function name"
+      - "Missing parameters"
+      - "Mixed docstring styles in same file"

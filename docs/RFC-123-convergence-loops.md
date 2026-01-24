@@ -1,9 +1,11 @@
 # RFC-123: Convergence Loops — Self-Stabilizing Code Generation
 
-**Status**: Draft  
+**Status**: Evaluated  
 **Author**: Auto-generated  
 **Created**: 2026-01-24  
-**Depends on**: RFC-042 (Validation Gates), RFC-119 (Event Bus)
+**Updated**: 2026-01-24  
+**Depends on**: RFC-042 (Validation Gates), RFC-119 (Event Bus)  
+**Confidence**: 92% 🟢
 
 ## Summary
 
@@ -190,7 +192,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from sunwell.agent.events import AgentEvent, EventType
+from sunwell.agent.fixer import FixStage
 from sunwell.agent.gates import GateType
+from sunwell.agent.validation import Artifact, ValidationError
 from sunwell.convergence.types import (
     ConvergenceConfig,
     ConvergenceIteration,
@@ -201,6 +205,7 @@ from sunwell.convergence.types import (
 
 if TYPE_CHECKING:
     from sunwell.agent.core import Agent
+    from sunwell.models.protocol import ModelProtocol
 
 
 @dataclass
@@ -211,30 +216,47 @@ class ConvergenceLoop:
     If any fail, agent fixes and loop continues until stable.
     
     Example:
-        >>> loop = ConvergenceLoop(config=ConvergenceConfig())
-        >>> async for event in loop.run(agent, changed_files):
+        >>> loop = ConvergenceLoop(model=model, cwd=Path.cwd())
+        >>> async for event in loop.run(changed_files, artifacts):
         ...     print(event)  # Progress events
         >>> print(loop.result.status)  # STABLE or ESCALATED
     """
     
+    model: ModelProtocol
+    """Model for generating fixes."""
+    
+    cwd: Path
+    """Working directory for file operations."""
+    
     config: ConvergenceConfig = field(default_factory=ConvergenceConfig)
     result: ConvergenceResult | None = field(default=None, init=False)
+    
+    # Internal components
+    _fixer: FixStage | None = field(default=None, init=False)
     
     # Internal state
     _start_time: float = field(default=0.0, init=False)
     _tokens_used: int = field(default=0, init=False)
     _error_history: dict[str, int] = field(default_factory=dict, init=False)
     
+    def __post_init__(self) -> None:
+        """Initialize fix stage."""
+        self._fixer = FixStage(
+            self.model,
+            self.cwd,
+            max_attempts=self.config.max_iterations,
+        )
+    
     async def run(
         self,
-        agent: Agent,
         initial_files: list[Path],
+        artifacts: dict[str, Artifact] | None = None,
     ) -> AsyncIterator[AgentEvent]:
         """Run convergence loop until stable or limits hit.
         
         Args:
-            agent: Agent instance for fixes
             initial_files: Files to validate initially
+            artifacts: Optional mapping of file paths to Artifact objects
             
         Yields:
             AgentEvent for progress tracking
@@ -244,7 +266,18 @@ class ConvergenceLoop:
         iterations: list[ConvergenceIteration] = []
         changed_files = set(initial_files)
         
-        yield self._event("convergence_start", {
+        # Build artifacts dict if not provided
+        if artifacts is None:
+            artifacts = {}
+            for f in initial_files:
+                if f.exists():
+                    artifacts[str(f)] = Artifact(
+                        path=f,
+                        content=f.read_text(),
+                        task_id="convergence",
+                    )
+        
+        yield self._event(EventType.CONVERGENCE_START, {
             "files": [str(f) for f in initial_files],
             "gates": [g.value for g in self.config.enabled_gates],
             "max_iterations": self.config.max_iterations,
@@ -259,7 +292,7 @@ class ConvergenceLoop:
                     total_duration_ms=self._elapsed_ms(),
                     tokens_used=self._tokens_used,
                 )
-                yield self._event("convergence_timeout", {
+                yield self._event(EventType.CONVERGENCE_TIMEOUT, {
                     "iterations": iteration_num - 1,
                 })
                 return
@@ -272,13 +305,13 @@ class ConvergenceLoop:
                     total_duration_ms=self._elapsed_ms(),
                     tokens_used=self._tokens_used,
                 )
-                yield self._event("convergence_budget_exceeded", {
+                yield self._event(EventType.CONVERGENCE_BUDGET_EXCEEDED, {
                     "tokens_used": self._tokens_used,
                     "max_tokens": self.config.max_tokens,
                 })
                 return
             
-            yield self._event("convergence_iteration_start", {
+            yield self._event(EventType.CONVERGENCE_ITERATION_START, {
                 "iteration": iteration_num,
                 "files": [str(f) for f in changed_files],
             })
@@ -295,7 +328,7 @@ class ConvergenceLoop:
             )
             iterations.append(iteration)
             
-            yield self._event("convergence_iteration_complete", {
+            yield self._event(EventType.CONVERGENCE_ITERATION_COMPLETE, {
                 "iteration": iteration_num,
                 "all_passed": iteration.all_passed,
                 "total_errors": iteration.total_errors,
@@ -313,7 +346,7 @@ class ConvergenceLoop:
                     total_duration_ms=self._elapsed_ms(),
                     tokens_used=self._tokens_used,
                 )
-                yield self._event("convergence_stable", {
+                yield self._event(EventType.CONVERGENCE_STABLE, {
                     "iterations": iteration_num,
                     "duration_ms": self._elapsed_ms(),
                 })
@@ -327,41 +360,54 @@ class ConvergenceLoop:
                     total_duration_ms=self._elapsed_ms(),
                     tokens_used=self._tokens_used,
                 )
-                yield self._event("convergence_stuck", {
+                yield self._event(EventType.CONVERGENCE_STUCK, {
                     "iterations": iteration_num,
                     "repeated_errors": list(self._get_stuck_errors()),
                 })
                 return
             
-            # Collect errors for fixing
-            all_errors = [
-                (r.gate, err) 
+            # Convert gate errors to ValidationError format
+            validation_errors: list[ValidationError] = [
+                ValidationError(
+                    error_type=r.gate.value,
+                    message=err,
+                )
                 for r in gate_results 
                 if not r.passed
                 for err in r.errors
             ]
             
-            yield self._event("convergence_fixing", {
+            yield self._event(EventType.CONVERGENCE_FIXING, {
                 "iteration": iteration_num,
-                "error_count": len(all_errors),
+                "error_count": len(validation_errors),
             })
             
-            # Agent fixes errors
+            # Use FixStage to fix errors (matches existing agent pattern)
             changed_files.clear()
-            for gate_type, error in all_errors:
-                async for fix_event in agent.fix_error(gate_type, error):
-                    yield fix_event
-                    
-                    # Track files changed by fix
-                    if fix_event.type == EventType.TOOL_RESULT:
-                        if fix_event.data.get("tool") in ("write_file", "edit_file"):
-                            path = Path(fix_event.data.get("path", ""))
-                            if path.suffix:  # Valid file
-                                changed_files.add(path)
-                    
-                    # Track tokens
-                    if "tokens" in fix_event.data:
-                        self._tokens_used += fix_event.data["tokens"]
+            async for fix_event in self._fixer.fix_errors(validation_errors, artifacts):
+                yield fix_event
+                
+                # Track files changed by fix
+                if fix_event.type == EventType.FIX_COMPLETE:
+                    fixed_file = fix_event.data.get("file")
+                    if fixed_file:
+                        path = Path(fixed_file)
+                        changed_files.add(path)
+                        # Update artifacts dict with new content
+                        if path.exists():
+                            artifacts[str(path)] = Artifact(
+                                path=path,
+                                content=path.read_text(),
+                                task_id="convergence",
+                            )
+                
+                # Track tokens
+                if "tokens" in fix_event.data:
+                    self._tokens_used += fix_event.data["tokens"]
+            
+            # If no files changed during fix, we're stuck
+            if not changed_files:
+                changed_files = set(initial_files)  # Re-check all
             
             # Debounce before next iteration
             await asyncio.sleep(self.config.debounce_ms / 1000)
@@ -373,7 +419,7 @@ class ConvergenceLoop:
             total_duration_ms=self._elapsed_ms(),
             tokens_used=self._tokens_used,
         )
-        yield self._event("convergence_max_iterations", {
+        yield self._event(EventType.CONVERGENCE_MAX_ITERATIONS, {
             "iterations": self.config.max_iterations,
         })
     
@@ -565,39 +611,79 @@ class ConvergenceLoop:
             if count >= self.config.escalate_after_same_error
         ]
     
-    def _event(self, event_type: str, data: dict) -> AgentEvent:
-        """Create an agent event."""
-        return AgentEvent(type=EventType(event_type), data=data)
+    def _event(self, event_type: EventType, data: dict) -> AgentEvent:
+        """Create an agent event.
+        
+        Args:
+            event_type: EventType enum value (not a string)
+            data: Event data dictionary
+            
+        Returns:
+            AgentEvent with proper type
+        """
+        return AgentEvent(type=event_type, data=data)
 ```
 
 ### Hook Integration
 
-Wire convergence into `ToolExecutor`:
+Wire convergence into `ToolExecutor`. Note: ToolExecutor routes tools to different handlers
+(memory tools, headspace tools, mirror tools, core tools). The hook must fire for ALL
+file write operations regardless of routing path.
 
 ```python
 # sunwell/tools/executor.py (additions)
+
+from collections.abc import Awaitable, Callable
 
 @dataclass
 class ToolExecutor:
     # ... existing fields ...
     
-    # Convergence hook
-    on_file_write: Callable[[Path, str], Awaitable[None]] | None = None
+    # Convergence hook (fires after any successful file write)
+    on_file_write: Callable[[Path], Awaitable[None]] | None = None
+    """Optional hook called after write_file or edit_file succeeds."""
     
     async def execute(self, tool_call: ToolCall) -> ToolResult:
-        result = await handler(tool_call.arguments)
+        # ... existing routing logic (memory, headspace, mirror, core) ...
         
-        # Fire hook after successful file writes
-        if result.success and self.on_file_write:
-            if tool_call.name == "write_file":
-                path = Path(tool_call.arguments["path"])
-                await self.on_file_write(path, tool_call.arguments.get("content", ""))
-            elif tool_call.name == "edit_file":
-                path = Path(tool_call.arguments["path"])
-                await self.on_file_write(path, "")  # Content already in file
+        # After existing handler execution:
+        try:
+            output = await handler(tool_call.arguments)
+            elapsed_ms = int((time.monotonic() - start) * 1000)
+            
+            # Fire convergence hook after successful file writes
+            await self._fire_write_hook(tool_call)
+            
+            # ... rest of existing success handling ...
+            
+        except Exception as e:
+            # ... existing error handling ...
+    
+    async def _fire_write_hook(self, tool_call: ToolCall) -> None:
+        """Fire on_file_write hook if this was a file mutation.
         
-        return result
+        Called after successful write_file or edit_file operations.
+        Hook is async to allow convergence validation to run.
+        """
+        if not self.on_file_write:
+            return
+        
+        if tool_call.name not in ("write_file", "edit_file"):
+            return
+        
+        path_str = tool_call.arguments.get("path", "")
+        if not path_str:
+            return
+        
+        # Resolve path relative to workspace
+        workspace = self._resolve_workspace()
+        path = workspace / path_str
+        
+        await self.on_file_write(path)
 ```
+
+**Important**: The hook is placed in `execute()` AFTER the handler returns successfully,
+ensuring it fires for all tool routing paths (core, skill-derived, etc.).
 
 ### Agent Integration
 
@@ -606,9 +692,11 @@ Add convergence mode to agent runs:
 ```python
 # sunwell/agent/request.py (additions)
 
-@dataclass
+from sunwell.convergence.types import ConvergenceConfig
+
+@dataclass(frozen=True, slots=True)
 class RunOptions:
-    # ... existing fields ...
+    # ... existing fields (trust, timeout_seconds, max_tokens, etc.) ...
     
     # Convergence mode
     converge: bool = False
@@ -616,50 +704,101 @@ class RunOptions:
     
     convergence_config: ConvergenceConfig | None = None
     """Custom convergence configuration."""
+    
+    def with_convergence(
+        self,
+        enabled: bool = True,
+        config: ConvergenceConfig | None = None,
+    ) -> RunOptions:
+        """Return options with convergence settings."""
+        # Copy existing fields + add convergence
+        return RunOptions(
+            trust=self.trust,
+            timeout_seconds=self.timeout_seconds,
+            max_tokens=self.max_tokens,
+            streaming=self.streaming,
+            validate=self.validate,
+            persist_learnings=self.persist_learnings,
+            auto_fix=self.auto_fix,
+            max_fix_attempts=self.max_fix_attempts,
+            enable_briefing=self.enable_briefing,
+            enable_prefetch=self.enable_prefetch,
+            prefetch_timeout=self.prefetch_timeout,
+            converge=enabled,
+            convergence_config=config,
+        )
 ```
 
 ```python
 # sunwell/agent/core.py (additions)
 
-async def _execute_with_convergence(
-    self,
-    options: RunOptions,
-) -> AsyncIterator[AgentEvent]:
-    """Execute with convergence loops enabled."""
+from sunwell.convergence.loop import ConvergenceLoop
+from sunwell.convergence.types import ConvergenceConfig
+
+@dataclass
+class Agent:
+    # ... existing fields ...
     
-    config = options.convergence_config or ConvergenceConfig()
-    loop = ConvergenceLoop(config=config)
-    
-    # Track files written during execution
-    written_files: list[Path] = []
-    
-    async def on_write(path: Path, content: str) -> None:
-        written_files.append(path)
-    
-    # Set up hook
-    self.tool_executor.on_file_write = on_write
-    
-    try:
-        # Execute tasks normally
-        async for event in self._execute_with_gates(options):
-            yield event
-            
-            # After each task batch, run convergence if files changed
-            if event.type == EventType.TASK_COMPLETE and written_files:
-                async for conv_event in loop.run(self, written_files):
-                    yield conv_event
+    async def _execute_with_convergence(
+        self,
+        options: RunOptions,
+    ) -> AsyncIterator[AgentEvent]:
+        """Execute with convergence loops enabled.
+        
+        After each task completes, runs validation gates and fixes errors
+        until code stabilizes or limits are reached.
+        """
+        config = options.convergence_config or ConvergenceConfig()
+        
+        # Create convergence loop with model and cwd
+        loop = ConvergenceLoop(
+            model=self.model,
+            cwd=self.cwd,
+            config=config,
+        )
+        
+        # Track files written during execution
+        written_files: list[Path] = []
+        artifacts: dict[str, Artifact] = {}
+        
+        async def on_write(path: Path) -> None:
+            """Hook called after each file write."""
+            written_files.append(path)
+            # Build artifact for convergence
+            if path.exists():
+                artifacts[str(path)] = Artifact(
+                    path=path,
+                    content=path.read_text(),
+                    task_id="convergence",
+                )
+        
+        # Set up hook on tool executor (via Naaru)
+        if self._naaru and self._naaru.tool_executor:
+            self._naaru.tool_executor.on_file_write = on_write
+        
+        try:
+            # Execute tasks normally
+            async for event in self._execute_with_gates(options):
+                yield event
                 
-                if loop.result and not loop.result.stable:
-                    # Escalate if convergence failed
-                    yield AgentEvent(
-                        EventType.ESCALATE,
-                        {"reason": f"Convergence failed: {loop.result.status.value}"},
-                    )
-                    return
-                
-                written_files.clear()
-    finally:
-        self.tool_executor.on_file_write = None
+                # After each task completes, run convergence if files changed
+                if event.type == EventType.TASK_COMPLETE and written_files:
+                    async for conv_event in loop.run(list(written_files), artifacts):
+                        yield conv_event
+                    
+                    if loop.result and not loop.result.stable:
+                        # Escalate if convergence failed
+                        yield AgentEvent(
+                            EventType.ESCALATE,
+                            {"reason": f"Convergence failed: {loop.result.status.value}"},
+                        )
+                        return
+                    
+                    written_files.clear()
+        finally:
+            # Clean up hook
+            if self._naaru and self._naaru.tool_executor:
+                self._naaru.tool_executor.on_file_write = None
 ```
 
 ### Event Types
@@ -672,7 +811,7 @@ Add new events for convergence:
 class EventType(Enum):
     # ... existing types ...
     
-    # Convergence events
+    # Convergence events (RFC-123)
     CONVERGENCE_START = "convergence_start"
     """Starting convergence loop."""
     
@@ -699,6 +838,20 @@ class EventType(Enum):
     
     CONVERGENCE_BUDGET_EXCEEDED = "convergence_budget_exceeded"
     """Token budget exhausted."""
+
+
+# Add to _DEFAULT_UI_HINTS dict:
+_DEFAULT_UI_HINTS.update({
+    "convergence_start": EventUIHints(icon="🔄", severity="info", animation="pulse"),
+    "convergence_iteration_start": EventUIHints(icon="🔄", severity="info"),
+    "convergence_iteration_complete": EventUIHints(icon="📊", severity="info"),
+    "convergence_fixing": EventUIHints(icon="🔧", severity="warning", animation="pulse"),
+    "convergence_stable": EventUIHints(icon="✓", severity="success", animation="fade-in"),
+    "convergence_timeout": EventUIHints(icon="⏱️", severity="error"),
+    "convergence_stuck": EventUIHints(icon="🔁", severity="error", animation="shake"),
+    "convergence_max_iterations": EventUIHints(icon="⚠️", severity="warning"),
+    "convergence_budget_exceeded": EventUIHints(icon="💸", severity="error"),
+})
 ```
 
 ### CLI Integration
@@ -804,30 +957,62 @@ Display convergence progress in Observatory:
 
 ## Migration Plan
 
-### Phase 1: Core Types & Loop (1 day)
+### Phase 1: Core Types & Events (0.5 days)
 
 | Task | File | Status |
 |------|------|--------|
+| Add convergence types | `src/sunwell/convergence/__init__.py` (new) | ⬜ |
 | Add convergence types | `src/sunwell/convergence/types.py` (new) | ⬜ |
+| Add EventType values | `src/sunwell/agent/events.py` | ⬜ |
+
+**Key changes to events.py**:
+```python
+# Add to EventType enum:
+CONVERGENCE_START = "convergence_start"
+CONVERGENCE_ITERATION_START = "convergence_iteration_start"
+CONVERGENCE_ITERATION_COMPLETE = "convergence_iteration_complete"
+CONVERGENCE_FIXING = "convergence_fixing"
+CONVERGENCE_STABLE = "convergence_stable"
+CONVERGENCE_TIMEOUT = "convergence_timeout"
+CONVERGENCE_STUCK = "convergence_stuck"
+CONVERGENCE_MAX_ITERATIONS = "convergence_max_iterations"
+CONVERGENCE_BUDGET_EXCEEDED = "convergence_budget_exceeded"
+```
+
+### Phase 2: Core Loop (1 day)
+
+| Task | File | Status |
+|------|------|--------|
 | Implement ConvergenceLoop | `src/sunwell/convergence/loop.py` (new) | ⬜ |
-| Add convergence events | `src/sunwell/agent/events.py` | ⬜ |
 | Unit tests | `tests/unit/test_convergence.py` | ⬜ |
 
-### Phase 2: Tool Hooks (0.5 days)
+**Dependencies**: Uses existing `FixStage` from `agent/fixer.py` for error fixing.
+
+### Phase 3: Tool Hooks (0.5 days)
 
 | Task | File | Status |
 |------|------|--------|
 | Add `on_file_write` hook | `src/sunwell/tools/executor.py` | ⬜ |
-| Wire hook in execution | `src/sunwell/agent/core.py` | ⬜ |
+| Add `_fire_write_hook` method | `src/sunwell/tools/executor.py` | ⬜ |
+| Hook integration tests | `tests/integration/test_tool_hooks.py` | ⬜ |
+
+### Phase 4: Agent Integration (0.5 days)
+
+| Task | File | Status |
+|------|------|--------|
+| Add `converge` to RunOptions | `src/sunwell/agent/request.py` | ⬜ |
+| Add `_execute_with_convergence` | `src/sunwell/agent/core.py` | ⬜ |
 | Integration tests | `tests/integration/test_convergence.py` | ⬜ |
 
-### Phase 3: CLI & Studio (1 day)
+### Phase 5: CLI & Studio (1 day)
 
 | Task | File | Status |
 |------|------|--------|
 | Add CLI flags | `src/sunwell/cli/main.py` | ⬜ |
 | Add Studio component | `studio/src/components/observatory/ConvergenceProgress.svelte` | ⬜ |
 | E2E test | `tests/e2e/test_convergence_cli.py` | ⬜ |
+
+**Total: ~3.5 days**
 
 ---
 
@@ -836,37 +1021,68 @@ Display convergence progress in Observatory:
 ```python
 # tests/unit/test_convergence.py
 
+import asyncio
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
+
+from sunwell.agent.gates import GateType
 from sunwell.convergence.loop import ConvergenceLoop
-from sunwell.convergence.types import ConvergenceConfig, ConvergenceStatus, GateType
+from sunwell.convergence.types import ConvergenceConfig, ConvergenceStatus
+
+
+@pytest.fixture
+def mock_model():
+    """Create a mock model for testing."""
+    model = MagicMock()
+    model.generate = AsyncMock(return_value=MagicMock(text="fixed code"))
+    return model
+
+
+@pytest.fixture
+def tmp_workspace(tmp_path):
+    """Create a temporary workspace with a test file."""
+    test_file = tmp_path / "test.py"
+    test_file.write_text("x = 1\n")
+    return tmp_path
 
 
 class TestConvergenceLoop:
     """Convergence loop unit tests."""
     
-    async def test_stable_on_first_try(self, mock_agent):
+    async def test_stable_on_first_try(self, mock_model, tmp_workspace):
         """Should return STABLE if all gates pass immediately."""
         config = ConvergenceConfig(
             enabled_gates=frozenset({GateType.LINT}),
             max_iterations=5,
         )
-        loop = ConvergenceLoop(config=config)
+        loop = ConvergenceLoop(
+            model=mock_model,
+            cwd=tmp_workspace,
+            config=config,
+        )
         
         # Mock: lint passes
         loop._check_lint = AsyncMock(return_value=(True, []))
         
-        events = [e async for e in loop.run(mock_agent, [Path("test.py")])]
+        test_file = tmp_workspace / "test.py"
+        events = [e async for e in loop.run([test_file])]
         
         assert loop.result.status == ConvergenceStatus.STABLE
         assert loop.result.iteration_count == 1
     
-    async def test_converges_after_fix(self, mock_agent):
-        """Should converge after agent fixes errors."""
+    async def test_converges_after_fix(self, mock_model, tmp_workspace):
+        """Should converge after FixStage fixes errors."""
         config = ConvergenceConfig(
             enabled_gates=frozenset({GateType.LINT}),
             max_iterations=5,
         )
-        loop = ConvergenceLoop(config=config)
+        loop = ConvergenceLoop(
+            model=mock_model,
+            cwd=tmp_workspace,
+            config=config,
+        )
         
         # Mock: fail first, pass second
         call_count = 0
@@ -879,71 +1095,96 @@ class TestConvergenceLoop:
         
         loop._check_lint = mock_lint
         
-        events = [e async for e in loop.run(mock_agent, [Path("test.py")])]
+        # Mock the fixer to "fix" the file
+        loop._fixer.fix_errors = AsyncMock(return_value=iter([]))
+        
+        test_file = tmp_workspace / "test.py"
+        events = [e async for e in loop.run([test_file])]
         
         assert loop.result.status == ConvergenceStatus.STABLE
         assert loop.result.iteration_count == 2
     
-    async def test_escalates_on_max_iterations(self, mock_agent):
+    async def test_escalates_on_max_iterations(self, mock_model, tmp_workspace):
         """Should escalate if max iterations reached."""
         config = ConvergenceConfig(
             enabled_gates=frozenset({GateType.LINT}),
             max_iterations=3,
         )
-        loop = ConvergenceLoop(config=config)
+        loop = ConvergenceLoop(
+            model=mock_model,
+            cwd=tmp_workspace,
+            config=config,
+        )
         
         # Mock: always fail
         loop._check_lint = AsyncMock(return_value=(False, ["persistent error"]))
+        loop._fixer.fix_errors = AsyncMock(return_value=iter([]))
         
-        events = [e async for e in loop.run(mock_agent, [Path("test.py")])]
+        test_file = tmp_workspace / "test.py"
+        events = [e async for e in loop.run([test_file])]
         
         assert loop.result.status == ConvergenceStatus.ESCALATED
         assert loop.result.iteration_count == 3
     
-    async def test_detects_stuck_errors(self, mock_agent):
+    async def test_detects_stuck_errors(self, mock_model, tmp_workspace):
         """Should escalate if same error repeats."""
         config = ConvergenceConfig(
             enabled_gates=frozenset({GateType.LINT}),
             max_iterations=10,
             escalate_after_same_error=2,
         )
-        loop = ConvergenceLoop(config=config)
+        loop = ConvergenceLoop(
+            model=mock_model,
+            cwd=tmp_workspace,
+            config=config,
+        )
         
         # Mock: same error every time
         loop._check_lint = AsyncMock(return_value=(False, ["E501 exact same error"]))
+        loop._fixer.fix_errors = AsyncMock(return_value=iter([]))
         
-        events = [e async for e in loop.run(mock_agent, [Path("test.py")])]
+        test_file = tmp_workspace / "test.py"
+        events = [e async for e in loop.run([test_file])]
         
         assert loop.result.status == ConvergenceStatus.ESCALATED
-        assert "stuck" in [e.type.value for e in events]
+        assert any("stuck" in e.type.value for e in events)
     
-    async def test_parallel_gate_execution(self, mock_agent):
+    async def test_parallel_gate_execution(self, mock_model, tmp_workspace):
         """Should run multiple gates in parallel."""
         config = ConvergenceConfig(
             enabled_gates=frozenset({GateType.LINT, GateType.TYPE}),
             max_iterations=1,
         )
-        loop = ConvergenceLoop(config=config)
+        loop = ConvergenceLoop(
+            model=mock_model,
+            cwd=tmp_workspace,
+            config=config,
+        )
         
         # Mock both gates
         loop._check_lint = AsyncMock(return_value=(True, []))
         loop._check_types = AsyncMock(return_value=(True, []))
         
-        events = [e async for e in loop.run(mock_agent, [Path("test.py")])]
+        test_file = tmp_workspace / "test.py"
+        events = [e async for e in loop.run([test_file])]
         
         assert loop.result.status == ConvergenceStatus.STABLE
         # Both gates should have been called
         assert loop._check_lint.called
         assert loop._check_types.called
     
-    async def test_respects_timeout(self, mock_agent):
+    async def test_respects_timeout(self, mock_model, tmp_workspace):
         """Should timeout if taking too long."""
         config = ConvergenceConfig(
             enabled_gates=frozenset({GateType.LINT}),
             max_iterations=100,
             timeout_seconds=1,
         )
-        loop = ConvergenceLoop(config=config)
+        loop = ConvergenceLoop(
+            model=mock_model,
+            cwd=tmp_workspace,
+            config=config,
+        )
         
         # Mock: slow check
         async def slow_lint(files):
@@ -952,9 +1193,30 @@ class TestConvergenceLoop:
         
         loop._check_lint = slow_lint
         
-        events = [e async for e in loop.run(mock_agent, [Path("test.py")])]
+        test_file = tmp_workspace / "test.py"
+        events = [e async for e in loop.run([test_file])]
         
         assert loop.result.status == ConvergenceStatus.TIMEOUT
+    
+    async def test_builds_artifacts_if_not_provided(self, mock_model, tmp_workspace):
+        """Should auto-build artifacts dict from file paths."""
+        config = ConvergenceConfig(
+            enabled_gates=frozenset({GateType.SYNTAX}),
+            max_iterations=1,
+        )
+        loop = ConvergenceLoop(
+            model=mock_model,
+            cwd=tmp_workspace,
+            config=config,
+        )
+        
+        # Mock: syntax passes
+        loop._check_syntax = AsyncMock(return_value=(True, []))
+        
+        test_file = tmp_workspace / "test.py"
+        events = [e async for e in loop.run([test_file])]
+        
+        assert loop.result.status == ConvergenceStatus.STABLE
 ```
 
 ---
@@ -1015,8 +1277,47 @@ Re-run all gates on all files each iteration.
 ## Open Questions
 
 1. **Test convergence**: Should `pytest` be in default gates? (Slower, but more complete)
+   - **Recommendation**: No, keep default as `lint,type`. Tests can be enabled with `--converge-gates=lint,type,test`.
+   
 2. **Doc convergence**: Should docs rebuild be a gate? (Sphinx/mkdocs)
+   - **Answer**: No, doc rebuild is too slow and has different failure modes. Future RFC could add `DOCS` gate.
+   
 3. **Cross-file dependencies**: How to handle when fixing A breaks B?
+   - **Answer**: The loop re-validates ALL changed files each iteration, so cross-file breakage is detected and fixed in subsequent iterations. The `escalate_after_same_error` config catches infinite fix loops.
+
+4. **RFC-122 integration**: How does convergence interact with learning extraction?
+   - **Answer**: Convergence and learning are orthogonal. If convergence fixes code:
+     - Learnings are extracted from the FINAL stable code, not intermediate attempts
+     - Dead ends (failed fixes) can be recorded if `escalate_after_same_error` triggers
+   - No special integration needed; works with existing `_learn_from_execution` flow.
+
+---
+
+## Resolved Issues (from evaluation)
+
+### Issue 1: `agent.fix_error()` method didn't exist
+
+**Problem**: Original design called `agent.fix_error(gate_type, error)` but this method doesn't exist.
+
+**Resolution**: Changed to use existing `FixStage.fix_errors()` API:
+- `ConvergenceLoop` now takes `model` and `cwd` directly (not agent)
+- Creates its own `FixStage` instance internally
+- Converts gate errors to `ValidationError` format that `FixStage` expects
+
+### Issue 2: EventType enum casting
+
+**Problem**: `_event()` helper tried `EventType(event_type)` with string, which fails.
+
+**Resolution**: 
+- `_event()` now takes `EventType` enum directly, not string
+- All call sites use `EventType.CONVERGENCE_*` constants
+- New EventType values must be added to `agent/events.py` (see Migration Plan)
+
+### Issue 3: ToolExecutor hook placement
+
+**Problem**: ToolExecutor has multiple routing paths; hook must fire for all.
+
+**Resolution**: Added `_fire_write_hook()` method called AFTER handler succeeds, ensuring it fires regardless of which routing path handled the tool call.
 
 ---
 

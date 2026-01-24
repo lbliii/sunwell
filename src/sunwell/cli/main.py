@@ -769,6 +769,11 @@ from sunwell.cli import debug_cmd
 
 main.add_command(debug_cmd.debug)
 
+# Artifact Lineage (RFC-121)
+from sunwell.cli import lineage_cmd
+
+main.add_command(lineage_cmd.lineage)
+
 
 # -----------------------------------------------------------------------------
 # TIER 3: Hidden Commands (developer/power user)

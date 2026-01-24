@@ -123,7 +123,7 @@ class EventBus:
                         ws.send_json(event.to_dict()),
                         timeout=self.SEND_TIMEOUT,
                     )
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     to_remove.append(ws)
                 except Exception:
                     to_remove.append(ws)

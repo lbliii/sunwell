@@ -4,9 +4,12 @@ Track the complete lineage of every artifact: which goal spawned it,
 which model wrote it, what edits were made, and how it relates to other artifacts.
 
 Example:
-    >>> from sunwell.lineage import LineageStore
+    >>> from sunwell.lineage import LineageStore, LineageEventListener
     >>> store = LineageStore(Path("/project"))
-    >>> lineage = store.record_create(
+    >>> listener = LineageEventListener(store)
+    >>>
+    >>> # Record file creation
+    >>> listener.on_file_created(
     ...     path="src/auth.py",
     ...     content="class Auth: pass",
     ...     goal_id="goal-1",
@@ -14,9 +17,20 @@ Example:
     ...     reason="Auth module",
     ...     model="claude-sonnet",
     ... )
+    >>>
+    >>> # Query lineage
+    >>> lineage = store.get_by_path("src/auth.py")
     >>> print(lineage.artifact_id)
 """
 
+from sunwell.lineage.dependencies import (
+    detect_imports,
+    detect_language,
+    get_impact_analysis,
+    update_dependency_graph,
+)
+from sunwell.lineage.human_detection import HumanEditDetector
+from sunwell.lineage.listener import LineageEventListener, create_lineage_listener
 from sunwell.lineage.models import (
     ArtifactEdit,
     ArtifactLineage,
@@ -26,9 +40,20 @@ from sunwell.lineage.models import (
 from sunwell.lineage.store import LineageStore
 
 __all__ = [
+    # Models
     "ArtifactEdit",
     "ArtifactLineage",
-    "LineageStore",
     "compute_content_hash",
     "generate_artifact_id",
+    # Store
+    "LineageStore",
+    # Event handling
+    "LineageEventListener",
+    "HumanEditDetector",
+    "create_lineage_listener",
+    # Dependencies
+    "detect_imports",
+    "detect_language",
+    "update_dependency_graph",
+    "get_impact_analysis",
 ]
