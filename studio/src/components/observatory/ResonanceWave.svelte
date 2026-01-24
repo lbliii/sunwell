@@ -661,23 +661,6 @@
     color: var(--text-gold);
   }
   
-  .load-demo-btn {
-    padding: var(--space-2);
-    font-family: var(--font-mono);
-    font-size: var(--text-sm);
-    color: var(--text-secondary);
-    background: var(--bg-primary);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-  }
-  
-  .load-demo-btn:hover {
-    border-color: var(--border-default);
-    background: var(--bg-secondary);
-  }
-  
   .wave-footer {
     display: flex;
     justify-content: center;

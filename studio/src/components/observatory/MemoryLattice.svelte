@@ -6,14 +6,13 @@
   
   Data contract:
   - Consumes real events via observatory.memoryLattice
-  - Falls back to demo data when no live data
+  - Shows empty state when no data
 -->
 <script lang="ts">
   import { fade, fly, scale } from 'svelte/transition';
+  import EmptyState from './EmptyState.svelte';
   import {
     observatory,
-    DEMO_LATTICE_NODES,
-    DEMO_LATTICE_EDGES,
     type LatticeNode,
     type LatticeEdge,
     type LatticeNodeCategory,
@@ -25,19 +24,11 @@
   
   let { isLive = true }: Props = $props();
   
-  // Use real data if available, otherwise demo
+  // Use real data only
   const latticeState = $derived(observatory.memoryLattice);
-  const nodes = $derived(
-    latticeState.nodes.length > 0
-      ? latticeState.nodes
-      : DEMO_LATTICE_NODES
-  );
-  const edges = $derived(
-    latticeState.edges.length > 0
-      ? latticeState.edges
-      : DEMO_LATTICE_EDGES
-  );
-  const hasMemory = $derived(observatory.hasMemory);
+  const nodes = $derived(latticeState.nodes);
+  const edges = $derived(latticeState.edges);
+  const hasData = $derived(nodes.length > 0);
   
   let selectedNode = $state<string | null>(null);
   let hoveredNode = $state<string | null>(null);
@@ -108,6 +99,13 @@
   const categoryCounts = $derived(getCategoryCounts());
 </script>
 
+{#if !hasData}
+  <EmptyState
+    icon="🧠"
+    title="No memory data"
+    message="Run a goal to build a knowledge graph of facts, decisions, and patterns about your project."
+  />
+{:else}
 <div class="memory-lattice" in:fade={{ duration: 300 }}>
   <div class="lattice-header">
     <h2>Memory Lattice</h2>
@@ -115,11 +113,7 @@
     
     <!-- Status badges -->
     <div class="status-badges">
-      {#if hasMemory}
-        <span class="badge live">🧠 Active</span>
-      {:else}
-        <span class="badge idle">Demo</span>
-      {/if}
+      <span class="badge live">🧠 Active</span>
       <span class="badge count">{nodes.length} nodes</span>
     </div>
   </div>
@@ -285,6 +279,7 @@
     <span class="stat hint">Click a node to explore</span>
   </div>
 </div>
+{/if}
 
 <style>
   .memory-lattice {

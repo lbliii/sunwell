@@ -314,3 +314,168 @@ export const openEditor = (path: string) => apiPost<{ status: string }>('/api/sh
 
 /** Health check */
 export const healthCheck = () => apiGet<{ status: string; active_runs: number }>('/api/health');
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GLOBAL EVENT STREAM (RFC-119)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Run info with source tracking */
+export interface RunInfo {
+	run_id: string;
+	goal: string;
+	status: string;
+	source: 'cli' | 'studio' | 'api';
+	started_at: string;
+	completed_at: string | null;
+	event_count: number;
+}
+
+/** Global event with source metadata */
+export interface GlobalEvent {
+	v: number;
+	run_id: string;
+	type: string;
+	data: Record<string, unknown>;
+	timestamp: string;
+	source: 'cli' | 'studio' | 'api';
+	project_id: string | null;
+}
+
+type GlobalEventListener = (event: GlobalEvent) => void;
+
+let _globalWs: WebSocket | null = null;
+let _globalReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let _globalReconnectAttempts = 0;
+const _globalListeners: Set<GlobalEventListener> = new Set();
+
+/** Global event stream stats */
+export const globalStats = {
+	connected: false,
+	reconnects: 0,
+	totalEvents: 0,
+};
+
+/**
+ * Subscribe to ALL events across CLI and Studio.
+ * 
+ * @param projectId - Optional project filter
+ * @returns Cleanup function to close connection
+ * 
+ * @example
+ * const cleanup = subscribeToGlobalEvents();
+ * onGlobalEvent((event) => {
+ *   console.log('Event from', event.source, ':', event.type);
+ * });
+ */
+export function subscribeToGlobalEvents(projectId?: string): () => void {
+	// Close existing connection
+	if (_globalWs) {
+		_globalWs.close();
+		_globalWs = null;
+	}
+
+	const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+	const host = API_BASE ? new URL(API_BASE).host : window.location.host;
+	const params = projectId ? `?project_id=${encodeURIComponent(projectId)}` : '';
+	const url = `${protocol}//${host}/api/events${params}`;
+
+	console.log(`[socket] Connecting to global event stream: ${url}`);
+	_globalWs = new WebSocket(url);
+
+	_globalWs.onopen = () => {
+		console.log('[socket] Global event stream connected');
+		globalStats.connected = true;
+		_globalReconnectAttempts = 0;
+	};
+
+	_globalWs.onclose = (event) => {
+		console.log(`[socket] Global event stream disconnected (code: ${event.code})`);
+		globalStats.connected = false;
+
+		// Auto-reconnect unless explicitly closed
+		if (event.code !== 1000) {
+			const delay = Math.min(1000 * Math.pow(2, _globalReconnectAttempts), 10000);
+			_globalReconnectAttempts++;
+			globalStats.reconnects++;
+
+			console.log(`[socket] Global stream reconnecting in ${delay}ms...`);
+			_globalReconnectTimer = setTimeout(() => {
+				subscribeToGlobalEvents(projectId);
+			}, delay);
+		}
+	};
+
+	_globalWs.onerror = (error) => {
+		console.error('[socket] Global event stream error:', error);
+	};
+
+	_globalWs.onmessage = (msg) => {
+		try {
+			const event = JSON.parse(msg.data) as GlobalEvent;
+			globalStats.totalEvents++;
+
+			// Dispatch to all listeners
+			for (const listener of _globalListeners) {
+				try {
+					listener(event);
+				} catch (e) {
+					console.error('[socket] Global listener error:', e);
+				}
+			}
+		} catch (e) {
+			console.error('[socket] Failed to parse global event:', e);
+		}
+	};
+
+	// Return cleanup function
+	return () => {
+		if (_globalReconnectTimer) {
+			clearTimeout(_globalReconnectTimer);
+			_globalReconnectTimer = null;
+		}
+		if (_globalWs) {
+			_globalWs.close();
+			_globalWs = null;
+		}
+		globalStats.connected = false;
+	};
+}
+
+/**
+ * Add listener for global events.
+ * 
+ * @param listener - Callback for each global event
+ * @returns Unsubscribe function
+ */
+export function onGlobalEvent(listener: GlobalEventListener): () => void {
+	_globalListeners.add(listener);
+	return () => _globalListeners.delete(listener);
+}
+
+/**
+ * Disconnect global event stream.
+ */
+export function disconnectGlobal(): void {
+	if (_globalReconnectTimer) {
+		clearTimeout(_globalReconnectTimer);
+		_globalReconnectTimer = null;
+	}
+	if (_globalWs) {
+		_globalWs.close();
+		_globalWs = null;
+	}
+	globalStats.connected = false;
+}
+
+/**
+ * List all runs from server.
+ * 
+ * @param projectId - Optional project filter
+ * @param limit - Max runs to return (default: 20)
+ */
+export const listRuns = (projectId?: string, limit = 20) => {
+	const params = new URLSearchParams();
+	if (projectId) params.set('project_id', projectId);
+	params.set('limit', String(limit));
+	return apiGet<{ runs: RunInfo[] }>(`/api/runs?${params.toString()}`);
+};

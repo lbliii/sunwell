@@ -6,14 +6,14 @@
   
   Data contract:
   - Consumes real events via observatory.executionCinema
-  - Falls back to demo data when no live execution
+  - Shows empty state when no data
 -->
 <script lang="ts">
   import { fade, fly } from 'svelte/transition';
   import { GlowingNode, ParticleStream } from '../primitives';
+  import EmptyState from './EmptyState.svelte';
   import {
     observatory,
-    DEMO_CINEMA_TASKS,
     type CinemaTask,
   } from '../../stores';
   
@@ -23,14 +23,11 @@
   
   let { isLive = true }: Props = $props();
   
-  // Use real data if available, otherwise demo
+  // Use real data only
   const cinemaState = $derived(observatory.executionCinema);
-  const tasks = $derived(
-    cinemaState.tasks.length > 0
-      ? cinemaState.tasks
-      : DEMO_CINEMA_TASKS
-  );
+  const tasks = $derived(cinemaState.tasks);
   const isExecuting = $derived(observatory.isExecuting);
+  const hasData = $derived(tasks.length > 0);
   
   // Layout: position tasks in a grid/flow
   interface TaskPosition {
@@ -109,6 +106,13 @@
   });
 </script>
 
+{#if !hasData}
+  <EmptyState
+    icon="🎬"
+    title="No execution data"
+    message="Run a goal to watch tasks flow through the execution pipeline with cinematic effects."
+  />
+{:else}
 <div class="execution-cinema" in:fade={{ duration: 300 }}>
   <div class="cinema-header">
     <h2>Execution Cinema</h2>
@@ -121,7 +125,7 @@
       {:else if progress === 100}
         <span class="badge complete">✅ Complete</span>
       {:else}
-        <span class="badge idle">Demo</span>
+        <span class="badge idle">Recorded</span>
       {/if}
       <span class="badge progress">{progress}%</span>
     </div>
@@ -240,6 +244,7 @@
     {/if}
   </div>
 </div>
+{/if}
 
 <style>
   .execution-cinema {

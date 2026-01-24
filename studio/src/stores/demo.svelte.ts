@@ -328,10 +328,13 @@ export async function runDemo(): Promise<void> {
  * Load code from files (avoids JSON escaping issues).
  */
 async function loadCodeFiles(runId: string): Promise<void> {
+  // Use the same API base as other calls (Python server on :8080 in dev)
+  const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? 'http://127.0.0.1:8080' : '');
+  
   try {
     const [singleShotRes, sunwellRes] = await Promise.all([
-      fetch(`/api/demo/code/${runId}/single_shot`),
-      fetch(`/api/demo/code/${runId}/sunwell`),
+      fetch(`${API_BASE}/api/demo/code/${runId}/single_shot`),
+      fetch(`${API_BASE}/api/demo/code/${runId}/sunwell`),
     ]);
 
     if (singleShotRes.ok) {

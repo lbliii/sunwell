@@ -556,74 +556,6 @@
     return trimmed;
   }
 
-  // Basic Python syntax highlighting (will be replaced with Shiki in RFC-097)
-  function highlightPython(rawCode: string): string {
-    // First extract clean code from markdown blocks
-    const code = extractCode(rawCode);
-    if (!code) return '';
-    
-    // Escape HTML first
-    let html = code
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-    
-    // Keywords
-    html = html.replace(
-      /\b(def|return|if|else|elif|for|while|try|except|finally|raise|import|from|as|class|with|not|and|or|in|is|None|True|False|async|await)\b/g,
-      '<span class="syntax-keyword">$1</span>'
-    );
-    
-    // Function names (after def)
-    html = html.replace(
-      /\b(def)\s+(\w+)/g,
-      '<span class="syntax-keyword">$1</span> <span class="syntax-function">$2</span>'
-    );
-    
-    // Decorator (after @)
-    html = html.replace(
-      /@(\w+)/g,
-      '@<span class="syntax-builtin">$1</span>'
-    );
-    
-    // Strings (triple-quoted and single-quoted)
-    html = html.replace(
-      /("""[\s\S]*?"""|'''[\s\S]*?'''|"[^"]*"|'[^']*')/g,
-      '<span class="syntax-string">$1</span>'
-    );
-    
-    // Numbers
-    html = html.replace(
-      /\b(\d+\.?\d*)\b/g,
-      '<span class="syntax-number">$1</span>'
-    );
-    
-    // Types (common Python types and after colons in annotations)
-    html = html.replace(
-      /:\s*(float|int|str|bool|list|dict|tuple|set|None|Union|Decimal)\b/g,
-      ': <span class="syntax-type">$1</span>'
-    );
-    
-    // Return type annotation
-    html = html.replace(
-      /-&gt;\s*(float|int|str|bool|list|dict|tuple|set|None|Union|Decimal)\b/g,
-      '-&gt; <span class="syntax-type">$1</span>'
-    );
-    
-    // Builtins
-    html = html.replace(
-      /\b(isinstance|type|print|len|range|enumerate|zip|map|filter|sorted|TypeError|ZeroDivisionError|ValueError|Exception|DivisionError)\b/g,
-      '<span class="syntax-builtin">$1</span>'
-    );
-    
-    // Comments (must come last to not interfere with other patterns)
-    html = html.replace(
-      /(#.*)$/gm,
-      '<span class="syntax-comment">$1</span>'
-    );
-    
-    return html;
-  }
 </script>
 
 <style>
@@ -889,6 +821,17 @@
     margin: 0;
     white-space: pre-wrap;
     color: var(--text-secondary);
+  }
+  
+  .code-wrapper {
+    min-height: 200px;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  
+  .code-wrapper :global(.code-block) {
+    border: none;
+    border-radius: 0;
   }
   
   .cursor {
@@ -1252,39 +1195,6 @@
   .action-secondary:hover {
     background: var(--bg-tertiary);
     color: var(--text-primary);
-  }
-  
-  /* ═══════════════════════════════════════════════════════════
-     SYNTAX HIGHLIGHTING — Holy Light Theme
-     ═══════════════════════════════════════════════════════════ */
-  
-  .code-content :global(.syntax-keyword) {
-    color: var(--ui-gold);
-  }
-  
-  .code-content :global(.syntax-function) {
-    color: var(--syntax-function);
-  }
-  
-  .code-content :global(.syntax-string) {
-    color: var(--syntax-string);
-  }
-  
-  .code-content :global(.syntax-number) {
-    color: var(--syntax-number);
-  }
-  
-  .code-content :global(.syntax-comment) {
-    color: var(--syntax-comment);
-    font-style: italic;
-  }
-  
-  .code-content :global(.syntax-type) {
-    color: var(--syntax-type);
-  }
-  
-  .code-content :global(.syntax-builtin) {
-    color: var(--syntax-builtin);
   }
   
   /* ═══════════════════════════════════════════════════════════

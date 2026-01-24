@@ -135,6 +135,12 @@ console = Console()
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     help="Explicit project root path (RFC-117)",
 )
+# RFC-119: Server bridge for unified visibility
+@click.option(
+    "--no-server",
+    is_flag=True,
+    help="Force direct execution, skip server routing (RFC-119)",
+)
 def run(
     goal: str,
     time: int,
@@ -159,6 +165,7 @@ def run(
     json_output: bool,
     project_id: str | None,
     project_root: str | None,
+    no_server: bool,
 ) -> None:
     """Execute a task using agent mode.
 
@@ -205,7 +212,7 @@ def run(
     asyncio.run(_run_agent(
         goal, time, trust, strategy, lens, auto_lens, dry_run, verbose, provider, model,
         show_graph, candidates, refine, scoring, incremental, force, show_plan, diff_plan,
-        plan_id, json_output, project_id, project_root,
+        plan_id, json_output, project_id, project_root, no_server,
     ))
 
 
@@ -232,8 +239,53 @@ async def _run_agent(
     json_output: bool = False,
     project_id: str | None = None,
     project_root: str | None = None,
+    no_server: bool = False,
 ) -> None:
     """Execute agent mode."""
+    # RFC-119: Route through server for unified visibility (if available)
+    if not no_server and not dry_run:
+        from sunwell.cli.server_bridge import detect_server, run_via_server
+
+        server_url = await detect_server()
+        if server_url:
+            if not json_output:
+                console.print(f"[dim]Routing through server at {server_url} (RFC-119)[/dim]")
+
+            # Event callback for terminal output
+            def print_event(event: dict) -> None:
+                if json_output:
+                    import json
+                    import sys
+                    print(json.dumps(event), file=sys.stdout, flush=True)
+                else:
+                    event_type = event.get("type", "")
+                    data = event.get("data", {})
+                    if event_type == "task_start":
+                        console.print(f"[cyan]▶[/cyan] {data.get('description', '')}")
+                    elif event_type == "task_complete":
+                        console.print(f"[green]✓[/green] {data.get('task_id', '')}")
+                    elif event_type == "error":
+                        console.print(f"[red]✗[/red] {data.get('message', '')}")
+                    elif event_type == "complete":
+                        console.print("[green]✓ Goal completed successfully[/green]")
+
+            result = await run_via_server(
+                server_url,
+                goal,
+                workspace=project_root or str(Path.cwd()),
+                project_id=project_id,
+                lens=lens_name,
+                provider=provider_override,
+                model=model_override,
+                trust=trust,
+                timeout=time,
+                event_callback=print_event,
+            )
+
+            if result.get("status") == "error":
+                console.print(f"[red]Error: {result.get('error', 'Unknown')}[/red]")
+            return
+
     from sunwell.cli.helpers import resolve_model
     from sunwell.naaru import Naaru
     from sunwell.naaru.planners import (

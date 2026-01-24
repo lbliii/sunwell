@@ -7,7 +7,7 @@ All Studio communication goes through here.
 import contextlib
 import uuid
 from collections.abc import AsyncIterator
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 
+from sunwell.server.events import BusEvent, EventBus
 from sunwell.server.runs import RunManager, RunState
 
 
@@ -36,6 +37,9 @@ class CamelModel(BaseModel):
 
 # Global run manager (single server instance)
 _run_manager = RunManager()
+
+# Global event bus for unified CLI/Studio visibility (RFC-119)
+_event_bus = EventBus()
 
 
 def create_app(*, dev_mode: bool = False, static_dir: Path | None = None) -> FastAPI:
@@ -96,6 +100,7 @@ def _register_routes(app: FastAPI) -> None:
         model: str | None = None
         trust: str = "workspace"
         timeout: int = 300
+        source: str = "studio"  # RFC-119: "cli" | "studio" | "api"
 
     @app.post("/api/run")
     async def start_run(request: RunRequest) -> dict[str, Any]:
@@ -109,6 +114,7 @@ def _register_routes(app: FastAPI) -> None:
             model=request.model,
             trust=request.trust,
             timeout=request.timeout,
+            source=request.source,
         )
         return {"run_id": run.run_id, "status": run.status}
 
@@ -182,6 +188,58 @@ def _register_routes(app: FastAPI) -> None:
             finally:
                 with contextlib.suppress(Exception):
                     await websocket.close()
+
+    # ═══════════════════════════════════════════════════════════════
+    # GLOBAL EVENT STREAM (RFC-119)
+    # ═══════════════════════════════════════════════════════════════
+
+    @app.websocket("/api/events")
+    async def global_events(websocket: WebSocket, project_id: str | None = None) -> None:
+        """Subscribe to all events, optionally filtered by project.
+
+        This enables Studio Observatory to see CLI-triggered runs.
+        Events are broadcast to all subscribers regardless of origin.
+        """
+        await websocket.accept()
+
+        if not await _event_bus.subscribe(websocket, project_filter=project_id):
+            await websocket.close(code=4029, reason="Too many connections")
+            return
+
+        try:
+            # Keep connection alive, events pushed via broadcast()
+            while True:
+                await websocket.receive_text()  # Ping/pong keep-alive
+        except WebSocketDisconnect:
+            pass
+        finally:
+            await _event_bus.unsubscribe(websocket)
+
+    @app.get("/api/runs")
+    async def list_runs(project_id: str | None = None, limit: int = 20) -> dict[str, Any]:
+        """List all runs, optionally filtered by project.
+
+        Returns runs regardless of origin (CLI, Studio, API).
+        """
+        runs = _run_manager.list_runs()
+
+        if project_id:
+            runs = [r for r in runs if r.project_id == project_id]
+
+        return {
+            "runs": [
+                {
+                    "run_id": r.run_id,
+                    "goal": r.goal,
+                    "status": r.status,
+                    "source": r.source,
+                    "started_at": r.started_at.isoformat(),
+                    "completed_at": r.completed_at.isoformat() if r.completed_at else None,
+                    "event_count": len(r.events),
+                }
+                for r in runs[-limit:]
+            ]
+        }
 
     # ═══════════════════════════════════════════════════════════════
     # MEMORY
@@ -575,7 +633,7 @@ def _register_routes(app: FastAPI) -> None:
             return {"error": str(e)}
 
     @app.get("/api/demo/code/{run_id}/{method}")
-    async def get_demo_code(run_id: str, method: str) -> dict[str, Any]:
+    async def get_demo_code(run_id: str, method: str):
         """Get raw code from a demo run.
 
         Args:
@@ -585,16 +643,19 @@ def _register_routes(app: FastAPI) -> None:
         Returns:
             Raw code as plain text (not JSON-escaped).
         """
-        from fastapi.responses import PlainTextResponse
+        from fastapi.responses import JSONResponse, PlainTextResponse
 
         from sunwell.demo.files import load_demo_code
 
         if method not in ("single_shot", "sunwell"):
-            return {"error": f"Invalid method: {method}. Must be 'single_shot' or 'sunwell'."}
+            return JSONResponse(
+                {"error": f"Invalid method: {method}. Must be 'single_shot' or 'sunwell'."},
+                status_code=400,
+            )
 
         result = load_demo_code(run_id)
         if result is None:
-            return {"error": f"Demo run not found: {run_id}"}
+            return JSONResponse({"error": f"Demo run not found: {run_id}"}, status_code=404)
 
         single_shot_code, sunwell_code = result
         code = single_shot_code if method == "single_shot" else sunwell_code
@@ -2083,11 +2144,29 @@ async def _execute_agent(run: RunState) -> AsyncIterator[dict[str, Any]]:
         ),
     )
 
-    # Execute and yield events
+    # Execute and yield events, broadcasting to global bus (RFC-119)
     async for event in agent.run(request):
         if run.is_cancelled:
             break
-        yield event.to_dict()
+
+        event_dict = event.to_dict()
+
+        # Broadcast to all subscribers for unified visibility
+        bus_event = BusEvent(
+            v=1,
+            run_id=run.run_id,
+            type=event_dict.get("type", "unknown"),
+            data=event_dict.get("data", {}),
+            timestamp=datetime.now(UTC),
+            source=run.source,
+            project_id=run.project_id,
+        )
+        await _event_bus.broadcast(bus_event)
+
+        yield event_dict
+
+    # Mark run complete
+    run.complete()
 
 
 def _mount_static(app: FastAPI, static_dir: Path) -> None:

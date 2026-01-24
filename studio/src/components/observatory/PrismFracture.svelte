@@ -6,15 +6,15 @@
   
   Data contract:
   - Consumes real events via observatory.prismFracture
-  - Falls back to demo data when no live data
+  - Shows empty state when no data
   - Supports animation playback
 -->
 <script lang="ts">
   import { fade, fly, scale } from 'svelte/transition';
   import { AnimatedPath } from '../primitives';
+  import EmptyState from './EmptyState.svelte';
   import {
     observatory,
-    DEMO_PRISM_CANDIDATES,
     type PrismCandidate,
   } from '../../stores';
   
@@ -24,17 +24,12 @@
   
   let { isLive = true }: Props = $props();
   
-  // Use real data if available, otherwise demo
+  // Use real data only
   const prismState = $derived(observatory.prismFracture);
-  const candidates = $derived(
-    prismState.candidates.length > 0
-      ? prismState.candidates
-      : DEMO_PRISM_CANDIDATES
-  );
-  const winner = $derived(
-    prismState.winner ?? DEMO_PRISM_CANDIDATES[2] // demo winner is simplifier
-  );
+  const candidates = $derived(prismState.candidates);
+  const winner = $derived(prismState.winner);
   const isPrismActive = $derived(observatory.isPrismActive);
+  const hasData = $derived(candidates.length > 0);
   
   // Animation state
   type AnimPhase = 'ready' | 'refracting' | 'scoring' | 'converging' | 'complete';
@@ -111,6 +106,13 @@
   const prismPath = "M 250 80 L 350 200 L 150 200 Z";
 </script>
 
+{#if !hasData}
+  <EmptyState
+    icon="🔮"
+    title="No planning data"
+    message="Run a goal with harmonic planning to see how Sunwell synthesizes multiple perspectives."
+  />
+{:else}
 <div class="prism-fracture" in:fade={{ duration: 300 }}>
   <div class="prism-header">
     <h2>Prism Fracture</h2>
@@ -120,10 +122,8 @@
     <div class="status-badges">
       {#if isPrismActive}
         <span class="badge live">🔴 Live</span>
-      {:else if phase !== 'ready' && phase !== 'complete'}
-        <span class="badge replay">⏪ Demo</span>
       {:else}
-        <span class="badge idle">Ready</span>
+        <span class="badge idle">Recorded</span>
       {/if}
     </div>
   </div>
@@ -268,6 +268,7 @@
     {/if}
   </div>
 </div>
+{/if}
 
 <style>
   .prism-fracture {
@@ -315,11 +316,6 @@
     background: rgba(239, 68, 68, 0.15);
     color: #ef4444;
     animation: pulse-opacity 1.5s ease-in-out infinite;
-  }
-  
-  .badge.replay {
-    background: var(--ui-gold-15);
-    color: var(--text-gold);
   }
   
   @keyframes pulse-opacity {

@@ -417,9 +417,11 @@ integration:
 A minimal desktop GUI built with Tauri + Svelte:
 
 ```bash
-cd studio
-npm install
-npm run tauri dev
+# Development (API + Frontend with hot reload)
+make dev
+
+# Or Tauri desktop app
+cd studio && npm run tauri dev
 ```
 
 Features:
@@ -483,6 +485,22 @@ pytest
 # Run linter
 ruff check src/
 ```
+
+### Running the Full Stack
+
+To develop with both the API server and Studio frontend:
+
+```bash
+make dev   # Starts both API (8080) and Vite (5173)
+```
+
+This launches:
+- **Python API**: http://localhost:8080 (FastAPI with hot reload)
+- **Frontend**: http://localhost:5173 (Vite dev server)
+
+Press `Ctrl+C` to stop both servers.
+
+See `make help` for all available commands.
 
 ---
 

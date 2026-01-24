@@ -12,6 +12,7 @@ Example:
 """
 
 from sunwell.demo.executor import ComponentBreakdown, DemoComparison, DemoExecutor, DemoResult
+from sunwell.demo.files import DemoFiles, cleanup_old_demos, load_demo_code, save_demo_code
 from sunwell.demo.history import (
     DemoHistoryEntry,
     get_history_summary,
@@ -49,6 +50,11 @@ __all__ = [
     "save_demo_result",
     "load_history",
     "get_history_summary",
+    # Files
+    "DemoFiles",
+    "save_demo_code",
+    "load_demo_code",
+    "cleanup_old_demos",
     # Runner
     "DemoRunner",
     "run_demo",

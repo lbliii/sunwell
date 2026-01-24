@@ -1,7 +1,8 @@
 /**
- * Observatory — AI Cognition Visualizations (RFC-112)
+ * Observatory — AI Cognition Visualizations (RFC-112, RFC-119)
  * 
  * Cinematic visualizations that make r/dataisbeautiful weep.
+ * RFC-119: Unified run history showing CLI and Studio runs.
  */
 
 export { default as ObservatoryPanel } from './ObservatoryPanel.svelte';
@@ -11,3 +12,4 @@ export { default as MemoryLattice } from './MemoryLattice.svelte';
 export { default as ExecutionCinema } from './ExecutionCinema.svelte';
 export { default as ModelParadox } from './ModelParadox.svelte';
 export { default as EmptyState } from './EmptyState.svelte';
+export { default as RunHistory } from './RunHistory.svelte';

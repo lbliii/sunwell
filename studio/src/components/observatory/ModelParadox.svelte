@@ -6,14 +6,14 @@
   
   Data contract:
   - Consumes real events via observatory.modelParadox
-  - Falls back to demo data when no evaluation data
+  - Shows empty state when no evaluation data
 -->
 <script lang="ts">
   import { fade, fly, scale } from 'svelte/transition';
   import { spring } from 'svelte/motion';
+  import EmptyState from './EmptyState.svelte';
   import {
     observatory,
-    DEMO_PARADOX_COMPARISONS,
     type ParadoxComparison,
   } from '../../stores';
   
@@ -23,14 +23,10 @@
   
   let { isLive = true }: Props = $props();
   
-  // Use real data if available, otherwise demo
+  // Use real data only
   const paradoxState = $derived(observatory.modelParadox);
-  const comparisons = $derived(
-    paradoxState.comparisons.length > 0
-      ? paradoxState.comparisons
-      : DEMO_PARADOX_COMPARISONS
-  );
-  const hasEvaluations = $derived(observatory.hasEvaluations);
+  const comparisons = $derived(paradoxState.comparisons);
+  const hasData = $derived(comparisons.length > 0);
   
   // Animation state
   let showSunwell = $state(false);
@@ -125,6 +121,13 @@
   const colors = ['#3b82f6', '#22c55e', '#a855f7', '#f97316'];
 </script>
 
+{#if !hasData}
+  <EmptyState
+    icon="⚡"
+    title="No evaluation data"
+    message="Run evaluations to see the Model Paradox — how small models + Sunwell beat large models raw."
+  />
+{:else}
 <div class="model-paradox" in:fade={{ duration: 300 }}>
   <div class="paradox-header">
     <h2>Model Paradox</h2>
@@ -132,12 +135,8 @@
     
     <!-- Status badges -->
     <div class="status-badges">
-      {#if hasEvaluations}
-        <span class="badge live">📊 Real Data</span>
-        <span class="badge count">{paradoxState.totalRuns} runs</span>
-      {:else}
-        <span class="badge idle">Demo</span>
-      {/if}
+      <span class="badge live">📊 Real Data</span>
+      <span class="badge count">{paradoxState.totalRuns} runs</span>
     </div>
   </div>
   
@@ -271,7 +270,7 @@
     </div>
     
     <!-- Summary stats -->
-    {#if hasEvaluations && paradoxState.totalRuns > 0}
+    {#if paradoxState.totalRuns > 0}
       <div class="summary-stats" in:fade={{ duration: 300 }}>
         <div class="summary-item">
           <span class="summary-value">{paradoxState.avgImprovement.toFixed(0)}%</span>
@@ -304,6 +303,7 @@
     <span class="punchline">💡 $0 beats $50 with the right architecture.</span>
   </div>
 </div>
+{/if}
 
 <style>
   .model-paradox {
