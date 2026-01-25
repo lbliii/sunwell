@@ -10,7 +10,7 @@ import pytest
 
 from sunwell.agent.events import EventType
 from sunwell.agent.validation.gates import GateType
-from sunwell.agent.core.request import RunOptions
+from sunwell.agent.utils.request import RunOptions
 from sunwell.agent.convergence import ConvergenceConfig
 
 

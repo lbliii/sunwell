@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sunwell.foundation.core.lens import Lens
-    from sunwell.agent.runtime.engine import ExecutionResult
+    from sunwell.agent.execution.manager import ExecutionResult
 
 
 @dataclass(frozen=True, slots=True)

@@ -62,7 +62,7 @@ def client(temp_project, monkeypatch):
     # Monkeypatch cwd to temp project
     monkeypatch.chdir(temp_project)
 
-    from sunwell.server.main import create_app
+    from sunwell.interface.server.main import create_app
 
     app = create_app(dev_mode=True)
     return TestClient(app)

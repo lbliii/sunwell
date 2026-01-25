@@ -11,8 +11,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 # Import directly from modules to avoid FastAPI dependency in __init__
-from sunwell.server.events import BusEvent, EventBus
-from sunwell.server.runs import RunManager, RunState
+from sunwell.interface.server.events import BusEvent, EventBus
+from sunwell.interface.server.runs import RunManager, RunState
 
 # Import new event types for testing
 from sunwell.agent.events import (

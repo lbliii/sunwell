@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import tempfile
 
-from sunwell.interface.core.types import ActionSpec, ViewSpec, IntentAnalysis
+from sunwell.interface.generative.types import ActionSpec, ViewSpec, IntentAnalysis
 from sunwell.interface.executor import ActionExecutor, ActionResult
 from sunwell.interface.views import ViewRenderer
 from sunwell.interface.router import (

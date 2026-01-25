@@ -51,7 +51,7 @@ async def resume_from_recovery(
     Yields:
         AgentEvent for each step of recovery execution
     """
-    from sunwell.recovery import build_healing_context
+    from sunwell.agent.recovery import build_healing_context
 
     start_time = time()
 
@@ -134,7 +134,7 @@ async def execute_with_convergence_recovery(
         AgentEvent for each step
     """
     from sunwell.agent.validation.gates import GateType
-    from sunwell.convergence import ConvergenceConfig, ConvergenceLoop
+    from sunwell.agent.convergence import ConvergenceConfig, ConvergenceLoop
 
     # Get files to fix
     failed_files = [a.path for a in recovery_state.failed_artifacts]

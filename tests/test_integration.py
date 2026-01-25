@@ -11,13 +11,13 @@ from sunwell.features.external.integration.decomposer import (
     IntegrationCheck,
     IntegrationCheckType,
     IntegrationType,
-    IntegrationVerifier,
     ProducedArtifact,
     RequiredIntegration,
     TaskType,
     create_wire_task,
     decompose_with_wiring,
 )
+from sunwell.features.external.integration.verifier import IntegrationVerifier
 
 # =============================================================================
 # Type Tests

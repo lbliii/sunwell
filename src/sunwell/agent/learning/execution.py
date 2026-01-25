@@ -14,8 +14,8 @@ if TYPE_CHECKING:
     from sunwell.agent.core.task_graph import TaskGraph
     from sunwell.agent.learning.extractor import LearningExtractor
     from sunwell.agent.learning.store import LearningStore
-    from sunwell.agent.planning.types import PlanningContext
-    from sunwell.memory.persistent import PersistentMemory
+    from sunwell.memory.simulacrum.core.planning_context import PlanningContext
+    from sunwell.memory.facade.persistent import PersistentMemory
 
 
 async def learn_from_execution(

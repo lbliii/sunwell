@@ -27,7 +27,7 @@ from sunwell.memory.simulacrum.core.turn import (
 from sunwell.memory.simulacrum.core.store import PlanningContext, SimulacrumStore
 from sunwell.memory.simulacrum.core.dag import ConversationDAG
 from sunwell.agent.learning import LearningExtractor, LearningStore
-from sunwell.agent.builtin_templates import (
+from sunwell.agent.utils.builtin_templates import (
     BUILTIN_TEMPLATES,
     BUILTIN_CONSTRAINTS,
     BUILTIN_DEAD_ENDS,

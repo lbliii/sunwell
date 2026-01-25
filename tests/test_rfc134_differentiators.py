@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.agent.introspection import (
+from sunwell.agent.validation.introspection import (
     IntrospectionResult,
     introspect_tool_call,
     _sanitize_code_content,

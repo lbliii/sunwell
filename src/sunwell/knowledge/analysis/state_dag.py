@@ -23,7 +23,7 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
-    from sunwell.planning.lens.loader import Lens
+    from sunwell.foundation.core.lens import Lens
 
 logger = logging.getLogger(__name__)
 

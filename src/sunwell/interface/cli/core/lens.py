@@ -149,7 +149,7 @@ def lens_show(lens_name: str, json_output: bool) -> None:
 
 async def _show_lens(lens_name: str, json_output: bool) -> None:
     """Show lens details."""
-    from sunwell.agent.lens_resolver import _load_lens
+    from sunwell.agent.utils.lens import _load_lens
     from sunwell.planning.naaru.expertise.discovery import LensDiscovery
 
     discovery = LensDiscovery()
@@ -239,7 +239,7 @@ async def _resolve_lens(
     goal: str, explicit: str | None, auto_select: bool, json_output: bool
 ) -> None:
     """Resolve lens for a goal."""
-    from sunwell.agent.lens_resolver import resolve_lens_for_goal
+    from sunwell.agent.utils.lens import resolve_lens_for_goal
 
     resolution = await resolve_lens_for_goal(
         goal=goal,
@@ -633,7 +633,7 @@ def export_lens(name: str, output: str | None, fmt: str) -> None:
 
 async def _export_lens(name: str, output: str | None, fmt: str) -> None:
     """Export a lens to a file."""
-    from sunwell.agent.lens_resolver import _load_lens
+    from sunwell.agent.utils.lens import _load_lens
     from sunwell.planning.naaru.expertise.discovery import LensDiscovery
 
     discovery = LensDiscovery()
@@ -721,7 +721,7 @@ def skill_graph(lens_name: str, json_output: bool, mermaid: bool) -> None:
 
 async def _skill_graph(lens_name: str, json_output: bool, mermaid: bool) -> None:
     """Show skill graph for a lens."""
-    from sunwell.agent.lens_resolver import _load_lens
+    from sunwell.agent.utils.lens import _load_lens
     from sunwell.planning.naaru.expertise.discovery import LensDiscovery
     from sunwell.planning.skills.graph import SkillGraph
 
@@ -823,7 +823,7 @@ def skill_plan(lens_name: str, context_hash: str | None, json_output: bool) -> N
 
 async def _skill_plan(lens_name: str, context_hash: str | None, json_output: bool) -> None:
     """Show execution plan for a lens."""
-    from sunwell.agent.lens_resolver import _load_lens
+    from sunwell.agent.utils.lens import _load_lens
     from sunwell.planning.naaru.expertise.discovery import LensDiscovery
     from sunwell.planning.skills.graph import SkillGraph
 
@@ -923,7 +923,7 @@ def lens_skills(lens_name: str, json_output: bool) -> None:
 
 async def _lens_skills(lens_name: str, json_output: bool) -> None:
     """List skills for a lens."""
-    from sunwell.agent.lens_resolver import _load_lens
+    from sunwell.agent.utils.lens import _load_lens
     from sunwell.planning.naaru.expertise.discovery import LensDiscovery
 
     discovery = LensDiscovery()

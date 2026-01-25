@@ -15,7 +15,7 @@ from sunwell.agent.events import (
     model_thinking_event,
     model_tokens_event,
 )
-from sunwell.agent.observability.metrics import (
+from sunwell.agent.utils.metrics import (
     InferenceMetrics,
     ModelPerformanceProfile,
     load_profiles_from_disk,

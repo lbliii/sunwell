@@ -658,7 +658,7 @@ async def execute_with_convergence(
     Yields:
         AgentEvent for each step
     """
-    from sunwell.convergence import ConvergenceConfig, ConvergenceLoop
+    from sunwell.agent.convergence import ConvergenceConfig, ConvergenceLoop
 
     config = options.convergence_config or ConvergenceConfig()
 

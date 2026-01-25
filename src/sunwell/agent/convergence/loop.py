@@ -507,7 +507,7 @@ class ConvergenceLoop:
         """
         import hashlib
 
-        from sunwell.recovery import ArtifactStatus, RecoveryManager, RecoveryState
+        from sunwell.agent.recovery import ArtifactStatus, RecoveryManager, RecoveryState
         from sunwell.agent.recovery.types import RecoveryArtifact
 
         if not self.goal:

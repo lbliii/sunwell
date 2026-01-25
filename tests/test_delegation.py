@@ -20,7 +20,7 @@ from sunwell.agent.events import (
 )
 from sunwell.agent.core.loop import AgentLoop, LoopConfig
 from sunwell.agent.utils.request import RunOptions
-from sunwell.context.session import SessionContext
+from sunwell.agent.context.session import SessionContext
 from sunwell.foundation.core.lens import EphemeralLens
 from sunwell.models.core.protocol import ModelProtocol
 

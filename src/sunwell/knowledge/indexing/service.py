@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.embedding import EmbeddingProtocol
+    from sunwell.knowledge.embedding import EmbeddingProtocol
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum

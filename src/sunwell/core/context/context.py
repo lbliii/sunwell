@@ -135,7 +135,7 @@ class AppContext:
         config = SunwellConfig()
 
         # In-memory embedder (hash-based, no API calls)
-        from sunwell.knowledge.embedding.hash import HashEmbedder
+        from sunwell.knowledge.embedding.simple import HashEmbedding as HashEmbedder
         embedder = HashEmbedder()
 
         # In-memory memory store (no disk I/O)

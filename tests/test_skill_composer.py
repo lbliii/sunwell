@@ -2,7 +2,7 @@
 
 import pytest
 
-from sunwell.agent.composer import (
+from sunwell.agent.planning.composer import (
     CapabilityAnalysis,
     CompositionResult,
     CompositionType,

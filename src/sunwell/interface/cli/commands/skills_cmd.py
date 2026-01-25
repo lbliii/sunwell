@@ -83,7 +83,7 @@ def learn_skill(
     # Try to get a model if available
     model = None
     try:
-        from sunwell.models.factory import create_model
+        from sunwell.interface.cli.helpers.models import create_model
 
         model = create_model(config.default_model)
     except Exception:

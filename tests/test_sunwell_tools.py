@@ -3,7 +3,7 @@
 import pytest
 from pathlib import Path
 
-from sunwell.tools.sunwell_handlers import SunwellToolHandlers
+from sunwell.tools.sunwell import SunwellToolHandlers
 from sunwell.tools.sunwell_tools import (
     SUNWELL_TOOLS,
     SUNWELL_WORKSPACE_TOOLS,
