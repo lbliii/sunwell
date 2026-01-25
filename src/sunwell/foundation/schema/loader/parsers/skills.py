@@ -1,8 +1,8 @@
 """Skills parsing (RFC-011, RFC-070, RFC-092)."""
 
-import yaml
 from pathlib import Path
 
+from sunwell.foundation.utils import safe_yaml_load
 from sunwell.planning.skills.types import (
     Resource,
     Script,
@@ -101,7 +101,7 @@ def load_skill_include(
         )
 
     # Load and parse the skill file
-    skill_data = yaml.safe_load(skill_file.read_text())
+    skill_data = safe_yaml_load(skill_file)
 
     # The file should have a 'skills' key
     if "skills" not in skill_data:

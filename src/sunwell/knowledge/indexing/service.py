@@ -5,7 +5,6 @@ Provides always-on semantic search without blocking user interaction.
 
 import asyncio
 import hashlib
-import json
 import pickle
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -18,6 +17,7 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 
+from sunwell.foundation.utils import safe_json_dumps, safe_json_loads
 from sunwell.knowledge.indexing.chunkers import ChunkerRegistry
 from sunwell.knowledge.indexing.metrics import IndexMetrics
 from sunwell.knowledge.indexing.priority import get_priority_files
@@ -580,7 +580,7 @@ class IndexingService:
             with open(cache_file, "rb") as f:
                 self._index = pickle.load(f)
 
-            meta = json.loads(meta_file.read_text())
+            meta = safe_json_loads(meta_file.read_text())
             self._update_status(
                 chunk_count=meta.get("chunk_count", 0),
                 file_count=meta.get("file_count", 0),
@@ -597,7 +597,7 @@ class IndexingService:
         meta_file = self.cache_dir / "meta.json"
 
         try:
-            meta = json.loads(meta_file.read_text())
+            meta = safe_json_loads(meta_file.read_text())
             cached_hash = meta.get("content_hash")
             current_hash = self._compute_content_hash()
             return cached_hash == current_hash
@@ -634,7 +634,7 @@ class IndexingService:
             "updated_at": datetime.now().isoformat(),
             "project_type": self._project_type.value,
         }
-        (self.cache_dir / "meta.json").write_text(json.dumps(meta, indent=2))
+        (self.cache_dir / "meta.json").write_text(safe_json_dumps(meta, indent=2))
 
     @staticmethod
     def _cosine_similarity(a: list[float], b: list[float]) -> float:

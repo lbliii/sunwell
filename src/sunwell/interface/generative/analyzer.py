@@ -15,7 +15,6 @@ Usage:
 
 
 import contextlib
-import json
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -24,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 # Pre-compiled pattern for JSON extraction
 _JSON_EXTRACT_PATTERN = re.compile(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", re.DOTALL)
 
+from sunwell.foundation.utils import safe_json_loads
 from sunwell.interface.generative.types import (
     ActionSpec,
     IntentAnalysis,
@@ -359,14 +359,14 @@ class IntentAnalyzer:
                 json_str = parts[1]
 
         try:
-            data = json.loads(json_str.strip())
-        except json.JSONDecodeError:
+            data = safe_json_loads(json_str.strip())
+        except ValueError:
             # Try to find JSON object in the response (pre-compiled pattern)
             match = _JSON_EXTRACT_PATTERN.search(response)
             if match:
                 try:
-                    data = json.loads(match.group())
-                except json.JSONDecodeError:
+                    data = safe_json_loads(match.group())
+                except ValueError:
                     return self._fallback_response()
             else:
                 return self._fallback_response()

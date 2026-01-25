@@ -17,6 +17,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 
 from sunwell.foundation.binding import BindingManager
+from sunwell.foundation.utils import safe_json_dumps, safe_json_loads
 from sunwell.interface.generative.cli.chat import ContextBuilder, ProjectDetector
 from sunwell.interface.generative.cli.helpers import create_model
 from sunwell.interface.generative.cli.theme import create_sunwell_console
@@ -108,9 +109,9 @@ async def _load_workspace_context(cwd: Path) -> tuple[str | None, dict[str, Any]
                     age_hours = (time.time() - stat.st_mtime) / 3600
                     if age_hours < 24:  # 24-hour cache
                         try:
-                            data = json.loads(ctx_cache.read_text())
+                            data = safe_json_loads(ctx_cache.read_text())
                             workspace_data["symbols"].extend(data.get("symbols", [])[:50])
-                        except (json.JSONDecodeError, OSError):
+                        except (ValueError, OSError):
                             pass
 
                 if not workspace_data["symbols"]:
@@ -130,11 +131,10 @@ async def _load_workspace_context(cwd: Path) -> tuple[str | None, dict[str, Any]
 
                         # Save to cache
                         ctx_cache.parent.mkdir(parents=True, exist_ok=True)
-                        import json
-                        ctx_cache.write_text(json.dumps({
+                        ctx_cache.write_text(safe_json_dumps({
                             "symbols": key_symbols,
                             "indexed_at": ctx.indexed_at.isoformat(),
-                        }))
+                        }, indent=2))
                     except Exception:
                         pass  # Non-fatal
 

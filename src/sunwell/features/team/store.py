@@ -12,13 +12,14 @@ Storage format:
 """
 
 import hashlib
-import json
 import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from sunwell.foundation.utils import safe_json_dumps, safe_json_loads, safe_yaml_dump, safe_yaml_load
 
 if TYPE_CHECKING:
     from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
@@ -110,10 +111,10 @@ class TeamKnowledgeStore:
                 if not line:
                     continue
                 try:
-                    data = json.loads(line)
+                    data = safe_json_loads(line)
                     decision = TeamDecision.from_dict(data)
                     self._decisions[decision.id] = decision
-                except (json.JSONDecodeError, KeyError, ValueError):
+                except (ValueError, KeyError):
                     continue
 
     async def record_decision(
@@ -134,7 +135,7 @@ class TeamKnowledgeStore:
 
         # Append to decisions file
         with open(self._decisions_path, "a") as f:
-            f.write(json.dumps(decision.to_dict()) + "\n")
+            f.write(safe_json_dumps(decision.to_dict()) + "\n")
 
         self._decisions[decision.id] = decision
 
@@ -377,7 +378,7 @@ class TeamKnowledgeStore:
 
         # Append endorsement as new record (preserves history)
         with open(self._decisions_path, "a") as f:
-            f.write(json.dumps(updated.to_dict()) + "\n")
+            f.write(safe_json_dumps(updated.to_dict()) + "\n")
 
         self._decisions[decision_id] = updated
 
@@ -404,10 +405,10 @@ class TeamKnowledgeStore:
                 if not line:
                     continue
                 try:
-                    data = json.loads(line)
+                    data = safe_json_loads(line)
                     failure = TeamFailure.from_dict(data)
                     self._failures[failure.id] = failure
-                except (json.JSONDecodeError, KeyError, ValueError):
+                except (ValueError, KeyError):
                     continue
 
     async def record_failure(
@@ -439,11 +440,11 @@ class TeamKnowledgeStore:
             self._failures[existing.id] = updated
             # Append updated record
             with open(self._failures_path, "a") as f:
-                f.write(json.dumps(updated.to_dict()) + "\n")
+                f.write(safe_json_dumps(updated.to_dict()) + "\n")
         else:
             # Append new failure
             with open(self._failures_path, "a") as f:
-                f.write(json.dumps(failure.to_dict()) + "\n")
+                f.write(safe_json_dumps(failure.to_dict()) + "\n")
             self._failures[failure.id] = failure
 
         if auto_commit:
@@ -551,10 +552,8 @@ class TeamKnowledgeStore:
             return TeamPatterns()
 
         try:
-            import yaml
-
-            data = yaml.safe_load(self._patterns_path.read_text())
-            return TeamPatterns.from_dict(data or {})
+            data = safe_yaml_load(self._patterns_path) or {}
+            return TeamPatterns.from_dict(data)
         except Exception:
             return TeamPatterns()
 
@@ -569,9 +568,7 @@ class TeamKnowledgeStore:
             patterns: New patterns to set
             auto_commit: If True, commits the change to git
         """
-        import yaml
-
-        self._patterns_path.write_text(yaml.dump(patterns.to_dict(), default_flow_style=False))
+        safe_yaml_dump(patterns.to_dict(), self._patterns_path)
 
         if auto_commit:
             await self._commit(
@@ -593,10 +590,8 @@ class TeamKnowledgeStore:
             return TeamOwnership()
 
         try:
-            import yaml
-
-            data = yaml.safe_load(self._ownership_path.read_text())
-            return TeamOwnership.from_dict(data or {})
+            data = safe_yaml_load(self._ownership_path) or {}
+            return TeamOwnership.from_dict(data)
         except Exception:
             return TeamOwnership()
 
@@ -611,9 +606,7 @@ class TeamKnowledgeStore:
             ownership: New ownership to set
             auto_commit: If True, commits the change to git
         """
-        import yaml
-
-        self._ownership_path.write_text(yaml.dump(ownership.to_dict(), default_flow_style=False))
+        safe_yaml_dump(ownership.to_dict(), self._ownership_path)
 
         if auto_commit:
             await self._commit(

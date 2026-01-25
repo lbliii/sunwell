@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from sunwell.foundation.utils import normalize_path
 from sunwell.features.backlog.goals import Goal, GoalScope
 from sunwell.features.backlog.manager import BacklogManager
 
@@ -50,7 +51,7 @@ class RefreshBacklogRequest(BaseModel):
 @router.get("")
 async def get_backlog(path: str | None = None) -> dict[str, Any]:
     """Get backlog goals."""
-    project_path = Path(path).expanduser().resolve() if path else Path.cwd()
+    project_path = normalize_path(path) if path else Path.cwd()
 
     try:
         manager = BacklogManager(project_path)
@@ -88,7 +89,7 @@ async def get_backlog(path: str | None = None) -> dict[str, Any]:
 @router.post("/goals")
 async def add_backlog_goal(request: AddGoalRequest) -> dict[str, Any]:
     """Add a goal to the backlog."""
-    project_path = Path(request.path).expanduser().resolve() if request.path else Path.cwd()
+    project_path = normalize_path(request.path) if request.path else Path.cwd()
 
     try:
         manager = BacklogManager(project_path)
@@ -117,7 +118,7 @@ async def add_backlog_goal(request: AddGoalRequest) -> dict[str, Any]:
 @router.get("/goals/{goal_id}")
 async def get_backlog_goal(goal_id: str, path: str | None = None) -> dict[str, Any]:
     """Get a specific goal."""
-    project_path = Path(path).expanduser().resolve() if path else Path.cwd()
+    project_path = normalize_path(path) if path else Path.cwd()
 
     try:
         manager = BacklogManager(project_path)
@@ -162,7 +163,7 @@ async def update_backlog_goal(goal_id: str, request: UpdateGoalRequest) -> dict[
 @router.delete("/goals/{goal_id}")
 async def delete_backlog_goal(goal_id: str, path: str | None = None) -> dict[str, Any]:
     """Remove a goal from backlog."""
-    project_path = Path(path).expanduser().resolve() if path else Path.cwd()
+    project_path = normalize_path(path) if path else Path.cwd()
 
     try:
         manager = BacklogManager(project_path)
@@ -178,7 +179,7 @@ async def delete_backlog_goal(goal_id: str, path: str | None = None) -> dict[str
 @router.post("/goals/{goal_id}/skip")
 async def skip_backlog_goal(goal_id: str, path: str | None = None) -> dict[str, Any]:
     """Skip a goal."""
-    project_path = Path(path).expanduser().resolve() if path else Path.cwd()
+    project_path = normalize_path(path) if path else Path.cwd()
 
     try:
         manager = BacklogManager(project_path)
@@ -191,7 +192,7 @@ async def skip_backlog_goal(goal_id: str, path: str | None = None) -> dict[str, 
 @router.post("/reorder")
 async def reorder_backlog_goals(request: ReorderGoalsRequest) -> dict[str, Any]:
     """Reorder goals by priority."""
-    project_path = Path(request.path).expanduser().resolve() if request.path else Path.cwd()
+    project_path = normalize_path(request.path) if request.path else Path.cwd()
 
     try:
         manager = BacklogManager(project_path)
@@ -226,7 +227,7 @@ async def reorder_backlog_goals(request: ReorderGoalsRequest) -> dict[str, Any]:
 @router.post("/refresh")
 async def refresh_backlog(request: RefreshBacklogRequest) -> dict[str, Any]:
     """Refresh backlog from project signals."""
-    project_path = Path(request.path).expanduser().resolve() if request.path else Path.cwd()
+    project_path = normalize_path(request.path) if request.path else Path.cwd()
 
     try:
         manager = BacklogManager(project_path)

@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from sunwell.foundation.utils import normalize_path
 from sunwell.interface.generative.server.routes._models import CamelModel
 
 # Pre-compiled regex for slug generation (avoid recompiling per call)
@@ -83,7 +84,7 @@ async def validate_project_path(request: ProjectPathRequest) -> ValidationResult
     from sunwell.knowledge.project.validation import ProjectValidationError, validate_workspace
     from sunwell.knowledge.workspace import default_workspace_root
 
-    path = Path(request.path).expanduser().resolve()
+    path = normalize_path(request.path)
 
     if not path.exists():
         return ValidationResult(
@@ -205,7 +206,7 @@ async def create_project(request: CreateProjectRequest) -> CreateProjectResponse
 
     # Determine path
     if request.path:
-        project_path = Path(request.path).expanduser().resolve()
+        project_path = normalize_path(request.path)
     else:
         # Default location with slugified name
         slug = name.lower()
@@ -391,7 +392,7 @@ async def resume_project(request: ProjectPathRequest) -> dict[str, Any]:
 @router.post("/project/open")
 async def open_project(request: ProjectPathRequest) -> dict[str, Any]:
     """Open a project."""
-    path = Path(request.path).expanduser().resolve()
+    path = normalize_path(request.path)
     return {
         "id": str(hash(str(path))),
         "path": str(path),
@@ -444,7 +445,7 @@ async def analyze_project(request: AnalyzeRequest) -> dict[str, Any]:
     try:
         from sunwell.knowledge.project import ProjectAnalyzer
 
-        path = Path(request.path).expanduser().resolve()
+        path = normalize_path(request.path)
         if not path.exists():
             return {"error": f"Path does not exist: {path}"}
 
@@ -458,7 +459,7 @@ async def analyze_project(request: AnalyzeRequest) -> dict[str, Any]:
 @router.get("/project/files")
 async def list_project_files(path: str | None = None, max_depth: int = 3) -> dict[str, Any]:
     """List project files."""
-    target = Path(path).expanduser().resolve() if path else Path.cwd()
+    target = normalize_path(path) if path else Path.cwd()
     if not target.exists():
         return {"error": "Path does not exist"}
 
@@ -497,7 +498,7 @@ async def list_project_files(path: str | None = None, max_depth: int = 3) -> dic
 @router.post("/project/analyze-run")
 async def analyze_project_for_run(request: AnalyzeRunRequest) -> dict[str, Any]:
     """Analyze project for running."""
-    project_path = Path(request.path).expanduser().resolve()
+        project_path = normalize_path(request.path)
 
     command = "echo 'No run command detected'"
     expected_url = None
@@ -553,7 +554,7 @@ async def analyze_project_for_run_alias(request: AnalyzeRunRequest) -> dict[str,
 async def get_project_file(path: str, max_size: int = 50000) -> dict[str, Any]:
     """Get file contents."""
     try:
-        file_path = Path(path).expanduser().resolve()
+        file_path = normalize_path(path)
         if not file_path.exists():
             return {"error": "File not found"}
         if file_path.stat().st_size > max_size:
@@ -566,7 +567,7 @@ async def get_project_file(path: str, max_size: int = 50000) -> dict[str, Any]:
 @router.get("/project/status")
 async def get_project_status(path: str) -> dict[str, Any]:
     """Get project status."""
-    project_path = Path(path).expanduser().resolve()
+    project_path = normalize_path(path)
     return {
         "path": str(project_path),
         "exists": project_path.exists(),

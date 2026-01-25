@@ -22,6 +22,8 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from sunwell.foundation.utils import safe_yaml_load
+
 console = Console()
 
 
@@ -161,10 +163,7 @@ def _load_skills_from_lens(path: Path) -> list:
 
     # Try to parse as YAML lens
     try:
-        import yaml
-
-        with open(path) as f:
-            data = yaml.safe_load(f)
+        data = safe_yaml_load(path)
 
         if not data:
             return []
@@ -728,10 +727,7 @@ def policy(ctx, validate: bool, json_output: bool) -> None:
 
     # Load and display policy
     try:
-        import yaml
-
-        with open(policy_path) as f:
-            policy_data = yaml.safe_load(f)
+        policy_data = safe_yaml_load(policy_path)
 
         if validate:
             # Validate policy structure

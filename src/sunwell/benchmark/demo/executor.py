@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from sunwell.foundation.utils import safe_yaml_load
 from sunwell.benchmark.demo.judge import DemoJudge
 from sunwell.benchmark.demo.scorer import DemoScorer
 from sunwell.benchmark.demo.tasks import DemoTask
@@ -162,8 +163,6 @@ class DemoExecutor:
     def _load_coder_lens(self) -> dict | None:
         """Load the coder.lens file for enhanced prompting."""
         try:
-            import yaml
-
             # Try common lens locations
             lens_paths = [
                 Path("lenses/coder.lens"),
@@ -173,8 +172,7 @@ class DemoExecutor:
 
             for path in lens_paths:
                 if path.exists():
-                    with open(path) as f:
-                        return yaml.safe_load(f)
+                    return safe_yaml_load(path)
             return None
         except Exception:
             return None

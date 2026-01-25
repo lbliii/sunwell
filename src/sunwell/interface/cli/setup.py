@@ -16,6 +16,7 @@ from pathlib import Path
 
 import click
 
+from sunwell.foundation.utils import normalize_path, safe_yaml_dump, safe_yaml_load
 from sunwell.interface.generative.cli.theme import create_sunwell_console
 
 console = create_sunwell_console()
@@ -59,7 +60,7 @@ def setup(
     from sunwell.interface.generative.cli.helpers import build_workspace_context
     from sunwell.foundation.config import get_config
 
-    project_path = Path(path).resolve()
+    project_path = normalize_path(path)
 
     # Ensure directory exists
     if not project_path.exists():
@@ -307,8 +308,6 @@ def _setup_default_bindings(
 
 def _update_global_config_default(binding_name: str) -> None:
     """Update the default binding in user-global config.yaml."""
-    import yaml
-
     config_path = Path.home() / ".sunwell" / "config.yaml"
     config_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -316,8 +315,7 @@ def _update_global_config_default(binding_name: str) -> None:
     config_data: dict = {}
     if config_path.exists():
         try:
-            with open(config_path) as f:
-                config_data = yaml.safe_load(f) or {}
+            config_data = safe_yaml_load(config_path) or {}
         except Exception:
             pass
 
@@ -327,5 +325,4 @@ def _update_global_config_default(binding_name: str) -> None:
     config_data["binding"]["default"] = binding_name
 
     # Write back
-    with open(config_path, "w") as f:
-        yaml.safe_dump(config_data, f, default_flow_style=False, sort_keys=False)
+    safe_yaml_dump(config_data, config_path)

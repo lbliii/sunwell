@@ -18,7 +18,17 @@ from pathlib import Path
 
 import yaml
 
-from sunwell.foundation.identity import SunwellURI, URIParseError, slugify, validate_slug
+from sunwell.foundation.identity import SunwellURI, URIParseError
+from sunwell.foundation.utils import (
+    safe_json_dumps,
+    safe_json_loads,
+    safe_yaml_dump,
+    safe_yaml_dumps,
+    safe_yaml_load,
+    safe_yaml_loads,
+    slugify,
+    validate_slug,
+)
 from sunwell.foundation.core.lens import Lens
 from sunwell.core.types import SemanticVersion
 from sunwell.planning.lens.identity import (
@@ -304,7 +314,7 @@ class LensManager:
                 continue
 
             try:
-                data = json.loads(manifest_path.read_text())
+                data = safe_json_loads(manifest_path.read_text())
                 manifest = LensManifest.from_dict(data)
                 version_info = manifest.get_version_by_sha(search_sha)
                 if version_info:
@@ -377,14 +387,14 @@ class LensManager:
         content = source_path.read_text()
 
         # Update metadata in content
-        data = yaml.safe_load(content)
+        data = safe_yaml_loads(content)
         data["lens"]["metadata"]["name"] = new_name
         data["lens"]["metadata"]["version"] = "1.0.0"
         if "author" not in data["lens"]["metadata"]:
             data["lens"]["metadata"]["author"] = "User"
 
         # Write new lens
-        new_content = yaml.dump(data, default_flow_style=False, sort_keys=False)
+        new_content = safe_yaml_dumps(data)
         new_path.write_text(new_content)
 
         # Create manifest with lineage
@@ -449,7 +459,8 @@ class LensManager:
             raise ValueError(msg)
 
         # Parse to validate and get current version
-        data = yaml.safe_load(content)
+        content = path.read_text()
+        data = safe_yaml_loads(content)
         current_version = SemanticVersion.parse(
             data["lens"]["metadata"].get("version", "0.1.0")
         )
@@ -468,7 +479,7 @@ class LensManager:
 
         # Update version in content
         data["lens"]["metadata"]["version"] = str(new_version)
-        new_content = yaml.dump(data, default_flow_style=False, sort_keys=False)
+        new_content = safe_yaml_dumps(data)
 
         # Write file
         path.write_text(new_content)
@@ -478,7 +489,7 @@ class LensManager:
         manifest_path = self.user_lens_dir / slug / "manifest.json"
         if manifest_path.exists():
             try:
-                manifest_data = json.loads(manifest_path.read_text())
+                manifest_data = safe_json_loads(manifest_path.read_text())
                 manifest = LensManifest.from_dict(manifest_data)
                 updated_manifest = add_version_to_manifest(
                     manifest,
@@ -563,7 +574,7 @@ class LensManager:
         manifest_path = self.user_lens_dir / slug / "manifest.json"
         if manifest_path.exists():
             try:
-                data = json.loads(manifest_path.read_text())
+                data = safe_json_loads(manifest_path.read_text())
                 manifest = LensManifest.from_dict(data)
                 return list(manifest.versions)
             except (json.JSONDecodeError, KeyError):
@@ -626,7 +637,7 @@ class LensManager:
         """
         config: dict[str, object] = {}
         if self.config_path.exists():
-            config = yaml.safe_load(self.config_path.read_text()) or {}
+            config = safe_yaml_load(self.config_path) or {}
 
         if identifier:
             # Resolve to URI for consistency
@@ -645,7 +656,7 @@ class LensManager:
             self._index_manager.set_default(None)
 
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
-        self.config_path.write_text(yaml.dump(config))
+        safe_yaml_dump(config, self.config_path)
 
     # =========================================================================
     # Content Access
@@ -703,7 +714,7 @@ class LensManager:
         if not self.config_path.exists():
             return None
 
-        config = yaml.safe_load(self.config_path.read_text()) or {}
+        config = safe_yaml_load(self.config_path) or {}
         # Prefer default_lens_uri, fall back to default_lens for backwards compatibility
         return config.get("default_lens_uri") or config.get("default_lens")
 
@@ -756,7 +767,7 @@ class LensManager:
         manifest_dir = self.user_lens_dir / slug
         manifest_dir.mkdir(parents=True, exist_ok=True)
         manifest_path = manifest_dir / "manifest.json"
-        manifest_path.write_text(json.dumps(manifest.to_dict(), indent=2))
+        manifest_path.write_text(safe_json_dumps(manifest.to_dict(), indent=2))
 
     def _count_versions(self, name: str) -> int:
         """Count versions for a lens from manifest."""
@@ -764,7 +775,7 @@ class LensManager:
         if not manifest_path.exists():
             return 0
         try:
-            data = json.loads(manifest_path.read_text())
+            data = safe_json_loads(manifest_path.read_text())
             manifest = LensManifest.from_dict(data)
             return len(manifest.versions)
         except (json.JSONDecodeError, KeyError):

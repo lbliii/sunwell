@@ -14,14 +14,12 @@ Example:
 """
 
 
-import json
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import yaml
-
+from sunwell.foundation.utils import safe_json_dumps, safe_yaml_load
 from sunwell.benchmark.naaru.conditions import ConditionRunner
 from sunwell.benchmark.naaru.types import (
     NaaruBenchmarkResults,
@@ -285,8 +283,7 @@ class NaaruBenchmarkRunner:
     def _load_task_file(self, path: Path) -> BenchmarkTask | None:
         """Load a single task from a YAML file."""
         try:
-            with open(path) as f:
-                data = yaml.safe_load(f)
+            data = safe_yaml_load(path)
 
             if not data or "task" not in data:
                 return None
@@ -362,7 +359,7 @@ class NaaruBenchmarkRunner:
         outputs_path = results_dir / "raw_outputs.jsonl"
         with open(outputs_path, "w") as f:
             for task_result in results.results:
-                f.write(json.dumps(task_result.to_dict()) + "\n")
+                f.write(safe_json_dumps(task_result.to_dict()) + "\n")
 
         # Save condition summary
         summary = self._compute_condition_summary(results)

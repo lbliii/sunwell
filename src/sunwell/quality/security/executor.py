@@ -20,6 +20,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from sunwell.foundation.utils import safe_json_dumps, safe_yaml_load
 from sunwell.quality.security.analyzer import PermissionAnalyzer, PermissionScope, RiskAssessment
 from sunwell.quality.security.audit import AuditLogManager, LocalAuditLog
 from sunwell.quality.security.monitor import SecurityMonitor, SecurityViolation
@@ -82,13 +83,10 @@ class SecurityPolicy:
         Returns:
             SecurityPolicy instance
         """
-        import yaml
-
         if not path.exists():
             return cls()
 
-        with open(path) as f:
-            data = yaml.safe_load(f) or {}
+        data = safe_yaml_load(path) or {}
 
         return cls(
             require_approval_above_risk=data.get("require_approval_above_risk", 0.5),
@@ -508,18 +506,16 @@ class SecureSkillExecutor:
     def _compute_inputs_hash(self, context: ExecutionContext) -> str:
         """Compute hash of execution inputs."""
         import hashlib
-        import json
 
-        data = json.dumps(context.snapshot(), sort_keys=True, default=str)
+        data = safe_json_dumps(context.snapshot(), sort_keys=True, default=str)
         return hashlib.sha256(data.encode()).hexdigest()[:16]
 
     def _compute_outputs_hash(self, results: dict[str, SkillOutput]) -> str:
         """Compute hash of execution outputs."""
         import hashlib
-        import json
 
         data = {k: v.content[:1000] for k, v in results.items()}
-        return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()[:16]
+        return hashlib.sha256(safe_json_dumps(data, sort_keys=True).encode()).hexdigest()[:16]
 
     def _check_soft_warnings(self, graph: SkillGraph) -> None:
         """Check for undeclared permissions (soft enforcement)."""

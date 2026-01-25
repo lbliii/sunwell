@@ -8,11 +8,11 @@ ensuring correct resolution from any workspace.
 """
 
 
-import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from sunwell.foundation.utils import safe_json_dumps
 from sunwell.features.mirror.analysis import (
     FailureAnalyzer,
     analyze_errors,
@@ -138,13 +138,13 @@ class MirrorHandler:
 
         handler = handlers.get(tool_name)
         if not handler:
-            return json.dumps({"error": f"Unknown mirror tool: {tool_name}"})
+            return safe_json_dumps({"error": f"Unknown mirror tool: {tool_name}"})
 
         try:
             result = await handler(arguments)
-            return json.dumps(result, indent=2, default=str)
+            return safe_json_dumps(result, indent=2, default=str)
         except Exception as e:
-            return json.dumps({"error": str(e), "type": type(e).__name__})
+            return safe_json_dumps({"error": str(e), "type": type(e).__name__})
 
     # === INTROSPECTION HANDLERS ===
 
@@ -390,7 +390,7 @@ class MirrorHandler:
 
         # For now, we just mark as applied with placeholder rollback data
         # Actual application logic would be implemented based on proposal type
-        rollback_data = json.dumps({
+        rollback_data = safe_json_dumps({
             "original_state": "placeholder",
             "applied_at": str(proposal.created_at),
         })

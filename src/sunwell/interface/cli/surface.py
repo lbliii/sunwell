@@ -4,11 +4,11 @@ Provides CLI interface for surface composition, called by Tauri.
 Uses SurfaceComposer for intelligent goal-to-layout conversion.
 """
 
-import json
 from pathlib import Path
 
 import click
 
+from sunwell.foundation.utils import safe_json_dumps, safe_json_loads
 from sunwell.interface.surface import (
     PrimitiveRegistry,
     SurfaceComposer,
@@ -103,7 +103,7 @@ def compose(
                 },
                 "reasoning": result.reasoning,
             }
-        click.echo(json.dumps(output))
+        click.echo(safe_json_dumps(output))
     else:
         click.echo(f"Confidence: {result.confidence:.0%}")
         click.echo(f"Primary: {layout.primary.id} ({layout.primary.size})")
@@ -139,7 +139,7 @@ def record(
     project_path = Path(project) if project else Path.cwd()
 
     # Parse layout JSON
-    layout_data = json.loads(layout)
+    layout_data = safe_json_loads(layout)
     surface_layout = _parse_layout(layout_data)
 
     # Record interaction
@@ -179,7 +179,7 @@ def registry(json_output: bool, category: str | None) -> None:
             }
             for p in primitives
         ]
-        click.echo(json.dumps(output))
+        click.echo(safe_json_dumps(output))
     else:
         for p in primitives:
             flags = []
@@ -213,7 +213,7 @@ def analyze(goal: str, json_output: bool) -> None:
             "suggested_arrangement": intent.suggested_arrangement,
             "confidence": intent.confidence,
         }
-        click.echo(json.dumps(output, indent=2))
+        click.echo(safe_json_dumps(output, indent=2))
     else:
         click.echo(f"Primary Domain: {intent.primary_domain}")
         click.echo(f"Confidence: {intent.confidence:.0%}")

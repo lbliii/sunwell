@@ -1,10 +1,10 @@
 """Main LensLoader class that coordinates all parsers."""
 
-import yaml
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from sunwell.foundation.errors import ErrorCode, lens_error
+from sunwell.foundation.utils import safe_yaml_load, safe_yaml_loads
 from sunwell.foundation.core.lens import Lens
 from sunwell.core.types import LensReference
 from sunwell.foundation.schema.loader.parsers import (
@@ -67,9 +67,8 @@ class LensLoader:
             )
 
         try:
-            with open(path) as f:
-                data = yaml.safe_load(f)
-        except yaml.YAMLError as e:
+            data = safe_yaml_load(path)
+        except ValueError as e:
             raise lens_error(
                 code=ErrorCode.LENS_PARSE_ERROR,
                 lens=path.stem,
@@ -126,8 +125,8 @@ class LensLoader:
     def load_string(self, content: str, source_path: Path | None = None) -> Lens:
         """Load a lens from a YAML string."""
         try:
-            data = yaml.safe_load(content)
-        except yaml.YAMLError as e:
+            data = safe_yaml_loads(content)
+        except ValueError as e:
             raise lens_error(
                 code=ErrorCode.LENS_PARSE_ERROR,
                 lens="<string>",

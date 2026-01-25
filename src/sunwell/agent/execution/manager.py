@@ -7,7 +7,6 @@ RFC-105: Enhanced with hierarchical DAG context for skip decisions.
 """
 
 import inspect
-import json
 import logging
 import uuid
 from dataclasses import dataclass
@@ -15,6 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from sunwell.foundation.utils import safe_json_dumps, safe_json_loads
 from sunwell.agent.events.schemas import EventEmitter
 from sunwell.agent.events import AgentEvent, EventType
 from sunwell.features.backlog.goals import Goal, GoalResult, GoalScope
@@ -278,7 +278,7 @@ class ExecutionManager:
             return DagContext()
 
         try:
-            data = json.loads(index_path.read_text())
+            data = safe_json_loads(index_path.read_text())
 
             # Extract goal titles for context
             goals = data.get("goals", [])
@@ -294,9 +294,9 @@ class ExecutionManager:
             if goals_dir.exists():
                 for goal_file in goals_dir.glob("*.json"):
                     try:
-                        goal_data = json.loads(goal_file.read_text())
+                        goal_data = safe_json_loads(goal_file.read_text())
                         learnings.extend(goal_data.get("learnings", []))
-                    except (json.JSONDecodeError, OSError):
+                    except (ValueError, OSError):
                         continue
 
             summary = data.get("summary", {})
@@ -521,7 +521,7 @@ class ExecutionManager:
             learnings_file = intel_path / "learnings.jsonl"
             with open(learnings_file, "a") as f:
                 for learning in learnings:
-                    f.write(json.dumps(learning) + "\n")
+                    f.write(safe_json_dumps(learning) + "\n")
 
         return len(learnings)
 

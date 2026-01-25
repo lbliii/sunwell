@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from sunwell.foundation.utils import safe_yaml_load
+
 if TYPE_CHECKING:
     from sunwell.foundation.core.lens import Lens
     from sunwell.planning.naaru.expertise.discovery import LensDiscovery
@@ -77,10 +79,7 @@ async def resolve_lens_for_goal(
     if project_path:
         config_path = project_path / ".sunwell" / "config.yaml"
         if config_path.exists():
-            import yaml
-
-            with open(config_path) as f:
-                config = yaml.safe_load(f) or {}
+            config = safe_yaml_load(config_path) or {}
             # Prefer default_lens_uri, fall back to default_lens for backwards compatibility
             default_lens = config.get("default_lens_uri") or config.get("default_lens")
             if default_lens:

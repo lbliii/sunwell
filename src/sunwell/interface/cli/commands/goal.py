@@ -12,6 +12,7 @@ from sunwell.agent import (
     RunOptions,
     create_renderer,
 )
+from sunwell.foundation.utils import safe_json_dumps
 from sunwell.interface.generative.cli.helpers import extract_project_name, print_event, print_plan_details
 from sunwell.interface.generative.cli.helpers import resolve_model  # type: ignore[attr-defined]  # In helpers.py, not helpers/
 from sunwell.interface.generative.cli.theme import console, print_banner
@@ -176,8 +177,7 @@ async def run_agent(
 
         if plan_data:
             if json_output:
-                import json
-                click.echo(json.dumps(plan_data, indent=2))
+                click.echo(safe_json_dumps(plan_data, indent=2))
                 return
             print_plan_details(plan_data, verbose, goal)
         return

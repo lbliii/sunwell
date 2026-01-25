@@ -309,3 +309,4 @@ class ResourceIdentity:
 # Re-export utilities for backward compatibility
 # These are now in foundation.utils but kept here for existing imports
 validate_slug = _validate_slug
+# slugify is already imported above from foundation.utils.strings

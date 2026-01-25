@@ -10,12 +10,13 @@ Provides context retrieval that works even without embeddings:
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from sunwell.foundation.utils import safe_json_loads
 
 if TYPE_CHECKING:
     from sunwell.knowledge.indexing.service import IndexingService
@@ -323,7 +324,7 @@ class SmartContext:
             if not line:
                 continue
             try:
-                data = json.loads(line)
+                data = safe_json_loads(line)
                 if data.get("type") == "match":
                     match_data = data.get("data", {})
                     results.append({

@@ -9,6 +9,8 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from sunwell.foundation.utils import safe_json_dumps, safe_yaml_dumps
+
 console = Console()
 
 
@@ -684,10 +686,9 @@ async def _export_lens(name: str, output: str | None, fmt: str) -> None:
 
     # Write to file
     if fmt == "json":
-        output_path.write_text(json_module.dumps(export_data, indent=2))
+        output_path.write_text(safe_json_dumps(export_data, indent=2))
     else:
-        import yaml
-        output_path.write_text(yaml.dump(export_data, default_flow_style=False, sort_keys=False))
+        output_path.write_text(safe_yaml_dumps(export_data))
 
     console.print(f"[green]✓[/green] Exported to: {output_path}")
 

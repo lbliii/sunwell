@@ -5,8 +5,9 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-import yaml
 from fastapi import APIRouter
+
+from sunwell.foundation.utils import safe_yaml_load
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 
@@ -171,8 +172,7 @@ async def list_eval_tasks() -> list[dict[str, Any]]:
                 continue
             for task_file in category_dir.glob("*.yaml"):
                 try:
-                    with open(task_file) as f:
-                        task_data = yaml.safe_load(f)
+                    task_data = safe_yaml_load(task_file)
                     tasks.append({
                         "id": f"{category_dir.name}/{task_file.stem}",
                         "name": task_data.get("name", task_file.stem),

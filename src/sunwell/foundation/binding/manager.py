@@ -24,7 +24,8 @@ from sunwell.foundation.binding.identity import (
     create_binding_identity,
     create_binding_uri,
 )
-from sunwell.foundation.identity import SunwellURI, slugify
+from sunwell.foundation.identity import SunwellURI
+from sunwell.foundation.utils import slugify
 
 # Default models per provider (extracted to avoid per-call dict creation)
 _DEFAULT_MODELS: dict[str, str] = {

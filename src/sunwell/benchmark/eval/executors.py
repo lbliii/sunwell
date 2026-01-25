@@ -13,6 +13,7 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
+from sunwell.foundation.utils import safe_yaml_load
 from sunwell.benchmark.eval.types import FullStackTask, SingleShotResult, SunwellResult
 from sunwell.models.protocol import GenerateOptions, ModelProtocol, Tool
 
@@ -443,8 +444,7 @@ class SunwellFullStackExecutor:
 
             for path in lens_paths:
                 if path.exists():
-                    with open(path) as f:
-                        lens_data = yaml.safe_load(f)
+                    lens_data = safe_yaml_load(path)
                     heuristics = lens_data.get("lens", {}).get("heuristics", [])
                     # Extract high-priority heuristics
                     sorted_h = sorted(
