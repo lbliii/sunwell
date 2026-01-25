@@ -1,6 +1,6 @@
 """Spellbook parsing (RFC-021)."""
 
-from sunwell.core.spell import Spell, parse_spell
+from sunwell.core.models.spell import Spell, parse_spell
 
 
 def parse_spellbook(data: list[dict]) -> tuple[Spell, ...]:

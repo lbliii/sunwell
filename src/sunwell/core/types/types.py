@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Literal
 
+from sunwell.foundation.errors import ErrorCode, SunwellError
+
 
 class Severity(Enum):
     """Validation severity levels."""

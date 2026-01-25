@@ -145,7 +145,7 @@ async def _load_lens(name_or_path: str, discovery: LensDiscovery) -> Lens | None
     """
     import logging
 
-    from sunwell.core.types import LensReference
+    from sunwell.core.types.types import LensReference
     from sunwell.features.fount.client import FountClient
     from sunwell.features.fount.resolver import LensResolver
     from sunwell.foundation.schema.loader import LensLoader

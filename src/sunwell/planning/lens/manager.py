@@ -30,7 +30,7 @@ from sunwell.foundation.utils import (
     validate_slug,
 )
 from sunwell.foundation.core.lens import Lens
-from sunwell.core.types import SemanticVersion
+from sunwell.core.types.types import SemanticVersion
 from sunwell.planning.lens.identity import (
     LensIndexEntry,
     LensManifest,

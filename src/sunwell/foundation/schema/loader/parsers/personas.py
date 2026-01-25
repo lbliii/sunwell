@@ -1,6 +1,6 @@
 """Personas parsing."""
 
-from sunwell.core.persona import Persona
+from sunwell.core.models.persona import Persona
 
 
 def parse_personas(data: list[dict]) -> tuple[Persona, ...]:

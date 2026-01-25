@@ -3,7 +3,7 @@
 from typing import Any
 
 from sunwell.foundation.core.lens import LensMetadata
-from sunwell.core.types import LensReference, SemanticVersion
+from sunwell.core.types.types import LensReference, SemanticVersion
 
 
 def parse_metadata(data: dict[str, Any]) -> LensMetadata:

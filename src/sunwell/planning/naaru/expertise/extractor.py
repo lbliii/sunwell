@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.core.heuristic import Heuristic
+    from sunwell.core.models.heuristic import Heuristic
     from sunwell.foundation.core.lens import Lens
     from sunwell.knowledge.embedding.protocol import Embedder
 
@@ -343,7 +343,7 @@ def _parse_dori_rule(content: str, rule_name: str) -> list[Heuristic]:
     - Lists starting with ✅ or "Do" as always patterns
     - Lists starting with ❌ or "Don't" as never patterns
     """
-    from sunwell.core.heuristic import Heuristic
+    from sunwell.core.models.heuristic import Heuristic
 
     heuristics: list[Heuristic] = []
 

@@ -5,15 +5,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sunwell.core.framework import Framework
-from sunwell.core.heuristic import AntiHeuristic, CommunicationStyle, Heuristic
-from sunwell.core.persona import Persona
-from sunwell.core.types import LensReference, SemanticVersion, Tier
-from sunwell.core.validator import DeterministicValidator, HeuristicValidator, SchemaValidator
-from sunwell.core.workflow import Refiner, Workflow
+from sunwell.core.models.framework import Framework
+from sunwell.core.models.heuristic import AntiHeuristic, CommunicationStyle, Heuristic
+from sunwell.core.models.persona import Persona
+from sunwell.core.types.types import LensReference, SemanticVersion, Tier
+from sunwell.core.models.validator import DeterministicValidator, HeuristicValidator, SchemaValidator
+from sunwell.core.models.workflow import Refiner, Workflow
 
 if TYPE_CHECKING:
-    from sunwell.core.spell import Spell
+    from sunwell.core.models.spell import Spell
     from sunwell.planning.skills.types import Skill, SkillRetryPolicy
 
 

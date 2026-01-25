@@ -1,36 +1,30 @@
 """Core domain models for Sunwell."""
 
-from sunwell.core.context import AppContext
-from sunwell.core.framework import Framework, FrameworkCategory
-from sunwell.foundation.freethreading import (
-    WorkloadType,
-    is_free_threaded,
-    optimal_workers,
-    run_cpu_bound,
-    run_parallel,
-    run_parallel_async,
-    runtime_info,
-)
-from sunwell.core.heuristic import AntiHeuristic, CommunicationStyle, Heuristic
-from sunwell.foundation.identity import (
-    ResourceIdentity,
-    SunwellURI,
-    URIParseError,
-    slugify,
-    validate_slug,
-)
-from sunwell.foundation.core.lens import Lens, LensMetadata
-from sunwell.core.persona import Persona
-from sunwell.core.spell import (
+from sunwell.core.context.context import AppContext
+from sunwell.core.models import (
+    AntiHeuristic,
+    CommunicationStyle,
+    DeterministicValidator,
+    Framework,
+    FrameworkCategory,
     Grimoire,
+    Heuristic,
+    HeuristicValidator,
+    Persona,
     Reagent,
     ReagentMode,
     ReagentType,
+    Refiner,
+    SchemaValidationMethod,
+    SchemaValidator,
     Spell,
     SpellExample,
     SpellResult,
     SpellValidation,
     ValidationMode,
+    ValidationResult,
+    Workflow,
+    WorkflowStep,
     parse_spell,
     validate_spell_output,
 )
@@ -43,12 +37,23 @@ from sunwell.core.types import (
     Tier,
     ValidationMethod,
 )
-from sunwell.core.validator import (
-    DeterministicValidator,
-    HeuristicValidator,
-    ValidationResult,
+from sunwell.foundation.freethreading import (
+    WorkloadType,
+    is_free_threaded,
+    optimal_workers,
+    run_cpu_bound,
+    run_parallel,
+    run_parallel_async,
+    runtime_info,
 )
-from sunwell.core.workflow import Refiner, Workflow, WorkflowStep
+from sunwell.foundation.identity import (
+    ResourceIdentity,
+    SunwellURI,
+    URIParseError,
+    slugify,
+    validate_slug,
+)
+from sunwell.foundation.core.lens import Lens, LensMetadata
 
 __all__ = [
     "Lens",
@@ -59,6 +64,8 @@ __all__ = [
     "Persona",
     "DeterministicValidator",
     "HeuristicValidator",
+    "SchemaValidator",
+    "SchemaValidationMethod",
     "ValidationResult",
     "Framework",
     "FrameworkCategory",

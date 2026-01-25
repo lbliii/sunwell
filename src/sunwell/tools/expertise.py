@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.core.heuristic import Heuristic
+    from sunwell.core.models.heuristic import Heuristic
     from sunwell.foundation.core.lens import Lens
     from sunwell.agent.runtime.retriever import ExpertiseRetriever
 

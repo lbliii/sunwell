@@ -40,7 +40,7 @@ class FountClient:
         Returns:
             Raw lens YAML content
         """
-        from sunwell.core.types import LensReference
+        from sunwell.core.types.types import LensReference
         ref = LensReference(source=source, version=version)
 
         # 1. Check cache

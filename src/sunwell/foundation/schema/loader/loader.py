@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 from sunwell.foundation.errors import ErrorCode, lens_error
 from sunwell.foundation.utils import safe_yaml_load, safe_yaml_loads
 from sunwell.foundation.core.lens import Lens
-from sunwell.core.types import LensReference
+from sunwell.core.types.types import LensReference
 from sunwell.foundation.schema.loader.parsers import (
     parse_affordances,
     parse_anti_heuristics,

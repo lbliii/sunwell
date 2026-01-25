@@ -6,12 +6,12 @@ The Naaru architecture (RFC-019) provides coordinated intelligence for local mod
 """
 
 from sunwell.foundation.errors import ErrorCode, SunwellError
-from sunwell.core.framework import Framework, FrameworkCategory
-from sunwell.core.heuristic import AntiHeuristic, Heuristic
+from sunwell.core.models.framework import Framework, FrameworkCategory
+from sunwell.core.models.heuristic import AntiHeuristic, Heuristic
 from sunwell.foundation.core.lens import Lens, LensMetadata
-from sunwell.core.persona import Persona
-from sunwell.core.types import Confidence, Severity, Tier
-from sunwell.core.validator import (
+from sunwell.core.models.persona import Persona
+from sunwell.core.types.types import Confidence, Severity, Tier
+from sunwell.core.models.validator import (
     DeterministicValidator,
     HeuristicValidator,
     ValidationResult,

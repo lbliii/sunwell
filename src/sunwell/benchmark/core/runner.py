@@ -35,7 +35,7 @@ from sunwell.models.protocol import GenerateOptions, ModelProtocol
 
 if TYPE_CHECKING:
     from sunwell.benchmark.types import PrefetchMetrics
-    from sunwell.core.heuristic import Heuristic
+    from sunwell.core.models.heuristic import Heuristic
     from sunwell.foundation.core.lens import Lens
     from sunwell.foundation.schema.loader import LensLoader
 

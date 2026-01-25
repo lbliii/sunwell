@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.core.types import LensReference
+    from sunwell.core.types.types import LensReference
 
 
 @dataclass(slots=True)

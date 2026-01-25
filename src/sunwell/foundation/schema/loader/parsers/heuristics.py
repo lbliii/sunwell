@@ -1,7 +1,7 @@
 """Heuristics, anti-heuristics, communication, and identity parsing."""
 
-from sunwell.core.framework import CommunicationStyle
-from sunwell.core.heuristic import AntiHeuristic, Example, Heuristic, Identity
+from sunwell.core.models.framework import CommunicationStyle
+from sunwell.core.models.heuristic import AntiHeuristic, Example, Heuristic, Identity
 
 
 def parse_heuristics(data: list[dict]) -> tuple[Heuristic, ...]:

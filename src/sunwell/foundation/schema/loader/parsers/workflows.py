@@ -1,6 +1,6 @@
 """Workflows and refiners parsing."""
 
-from sunwell.core.workflow import Refiner, Workflow, WorkflowStep
+from sunwell.core.models.workflow import Refiner, Workflow, WorkflowStep
 
 
 def parse_workflows(data: list[dict]) -> tuple[Workflow, ...]:

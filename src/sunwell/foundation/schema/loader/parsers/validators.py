@@ -1,7 +1,7 @@
 """Validators parsing."""
 
-from sunwell.core.types import Severity, ValidationMethod
-from sunwell.core.validator import (
+from sunwell.core.types.types import Severity, ValidationMethod
+from sunwell.core.models.validator import (
     DeterministicValidator,
     HeuristicValidator,
     SchemaValidationMethod,

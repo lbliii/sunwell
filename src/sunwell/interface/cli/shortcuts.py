@@ -333,7 +333,7 @@ async def run_shortcut(
 
 async def _resolve_lens(loader, lens_name: str):  # type: ignore[no-untyped-def]
     """Resolve lens by name, checking built-in and local paths."""
-    from sunwell.core.types import LensReference
+    from sunwell.core.types.types import LensReference
     from sunwell.features.fount.resolver import LensResolver
 
     resolver = LensResolver(loader=loader)

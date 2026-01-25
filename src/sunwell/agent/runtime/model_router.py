@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from sunwell.foundation.errors import tools_not_supported
-from sunwell.core.types import Tier
+from sunwell.core.types.types import Tier
 from sunwell.models.protocol import ModelProtocol
 
 if TYPE_CHECKING:

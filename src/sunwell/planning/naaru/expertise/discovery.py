@@ -205,7 +205,7 @@ class LensDiscovery:
         Uses the schema loader for proper parsing.
         """
         try:
-            from sunwell.core.types import LensReference
+            from sunwell.core.types.types import LensReference
             from sunwell.features.fount.client import FountClient
             from sunwell.features.fount.resolver import LensResolver
             from sunwell.foundation.schema.loader import LensLoader

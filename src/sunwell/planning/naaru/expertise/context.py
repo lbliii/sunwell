@@ -22,8 +22,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.core.heuristic import Heuristic
-    from sunwell.core.validator import Validator
+    from sunwell.core.models.heuristic import Heuristic
+    from sunwell.core.models.validator import Validator
 
 
 @dataclass(frozen=True, slots=True)

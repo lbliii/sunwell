@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from sunwell.benchmark.types import PromptStrategy
 
 if TYPE_CHECKING:
-    from sunwell.core.heuristic import Heuristic
+    from sunwell.core.models.heuristic import Heuristic
 
 
 class PromptBuilder:
