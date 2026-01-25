@@ -405,34 +405,3 @@ def learn_from_acceptance(
         profile.confidence[key] = min(profile.confidence[key] + 0.05, 1.0)
 
     return profile
-
-
-# Backwards compatibility alias
-class PatternLearner:
-    """Deprecated: Use module-level functions instead."""
-
-    @staticmethod
-    def learn_from_edit(
-        original: str,
-        edited: str,
-        profile: PatternProfile,
-        session_id: str = "",
-    ) -> PatternProfile:
-        return learn_from_edit(original, edited, profile, session_id)
-
-    @staticmethod
-    def learn_from_rejection(
-        rejected_output: str,
-        reason: str | None,
-        profile: PatternProfile,
-        session_id: str = "",
-    ) -> PatternProfile:
-        return learn_from_rejection(rejected_output, reason, profile, session_id)
-
-    @staticmethod
-    def learn_from_acceptance(
-        accepted_output: str,
-        profile: PatternProfile,
-        session_id: str = "",
-    ) -> PatternProfile:
-        return learn_from_acceptance(accepted_output, profile, session_id)

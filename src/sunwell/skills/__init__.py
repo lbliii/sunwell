@@ -31,7 +31,7 @@ from sunwell.skills.interop import (
     SkillExporter,
     SkillImporter,
     SkillValidationResult,
-    SkillValidator,
+    validate_skill_folder,
 )
 from sunwell.skills.learner import (
     ExecutionPattern,
@@ -105,6 +105,6 @@ __all__ = [
     # Interop (Phase 4)
     "SkillExporter",
     "SkillImporter",
-    "SkillValidator",
+    "validate_skill_folder",
     "SkillValidationResult",
 ]

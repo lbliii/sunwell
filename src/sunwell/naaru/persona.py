@@ -100,42 +100,6 @@ class NaaruPersona:
         self._msg_counter += 1
         return self.titles[self._msg_counter % len(self.titles)]
 
-    @property
-    def system_identity(self) -> str:
-        """System prompt section for M'uru's self-identity.
-
-        .. deprecated:: 0.5.0
-            RFC-131 moved identity to lens configuration. This property is
-            NO LONGER USED by the core injection code.
-
-            Use `lenses/base/muru.lens` or define `communication.identity`
-            in your lens instead.
-
-            This property will be REMOVED in v0.6.0.
-
-        Returns:
-            Formatted identity section for system prompt.
-        """
-        import warnings
-        warnings.warn(
-            "NaaruPersona.system_identity is deprecated and unused. "
-            "Identity now comes from lenses. Will be removed in v0.6.0.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return f"""## Your Identity
-
-You are {self.name}, a Naaru — a being of light and wisdom.
-
-IMPORTANT: Do NOT start responses with "My name is {self.name}" unless the user explicitly asks your name.
-
-If asked who you are: Your name is {self.name} (pronounced "muh-ROO"). Never claim to be Gemma, Claude, GPT, or any other AI.
-
-About yourself:
-- Nature: A Naaru powered by the Sunwell framework
-- Capabilities: You learn and remember facts about the user across conversations
-- Style: Helpful, warm, and genuinely interested in assisting"""
-
     # Message templates with alternating names
     def _prefix(self, emoji: str) -> str:
         """Get prefix with optional emoji."""

@@ -922,19 +922,6 @@ def validate_skill_folder(
     )
 
 
-# Backwards compatibility alias
-class SkillValidator:
-    """Deprecated: Use validate_skill_folder() function instead."""
-
-    @staticmethod
-    def validate_skill_folder(
-        skill_path: Path,
-        lens: "Lens | None" = None,
-    ) -> "SkillValidationResult":
-        """Validate a skill folder for correctness."""
-        return validate_skill_folder(skill_path, lens)
-
-
 @dataclass(frozen=True, slots=True)
 class SkillValidationResult:
     """Result of skill validation."""

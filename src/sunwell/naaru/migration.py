@@ -84,8 +84,6 @@ def migrate_rfc019_to_rfc033(old_config: NaaruConfig) -> NaaruConfig:
         harmonic_synthesis=old_config.harmonic_synthesis,
         resonance=old_config.resonance,
         discernment=old_config.discernment,
-        attunement=old_config.attunement,
-        attunement_model=old_config.attunement_model,
     )
 
 

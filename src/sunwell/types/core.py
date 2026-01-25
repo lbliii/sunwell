@@ -120,24 +120,6 @@ class Confidence:
             return "🔴 Uncertain"
 
 
-# Legacy ErrorCategory - kept for backward compatibility
-# New code should use ErrorCode from sunwell.core.errors
-class ErrorCategory(Enum):
-    """Categories of errors in Sunwell.
-
-    DEPRECATED: Use ErrorCode from sunwell.core.errors instead.
-    """
-
-    LENS_LOADING = "lens_loading"
-    LENS_RESOLUTION = "lens_resolution"
-    MODEL_ERROR = "model_error"
-    VALIDATION_ERROR = "validation_error"
-    EMBEDDING_ERROR = "embedding_error"
-    FOUNT_ERROR = "fount_error"
-    PLUGIN_ERROR = "plugin_error"
-    SANDBOX_ERROR = "sandbox_error"
-
-
 @dataclass(frozen=True, slots=True)
 class ValidationExecutionError:
     """Error during validator execution."""

@@ -524,12 +524,12 @@ From markdown file.
         assert "markdown file" in data["description"]
 
 
-class TestSkillValidator:
+class TestSkillValidation:
     """Tests for skill validation."""
 
     def test_validate_valid_skill(self, tmp_path):
         """Valid skill passes validation."""
-        from sunwell.skills.interop import SkillValidator
+        from sunwell.skills.interop import validate_skill_folder
         
         skill_dir = tmp_path / "valid-skill"
         skill_dir.mkdir()
@@ -543,8 +543,7 @@ A properly formatted skill.
 2. Check the result
 """)
         
-        validator = SkillValidator()
-        result = validator.validate_skill_folder(skill_dir)
+        result = validate_skill_folder(skill_dir)
         
         assert result.valid
         assert result.score > 0.7
@@ -552,7 +551,7 @@ A properly formatted skill.
 
     def test_validate_missing_description(self, tmp_path):
         """Skill missing description fails validation."""
-        from sunwell.skills.interop import SkillValidator
+        from sunwell.skills.interop import validate_skill_folder
         
         skill_dir = tmp_path / "bad-skill"
         skill_dir.mkdir()
@@ -562,15 +561,14 @@ A properly formatted skill.
 Do something without saying what.
 """)
         
-        validator = SkillValidator()
-        result = validator.validate_skill_folder(skill_dir)
+        result = validate_skill_folder(skill_dir)
         
         # Missing description is an issue
         assert not result.valid or "description" in str(result.issues).lower()
 
     def test_validate_with_lens(self, tmp_path):
         """Validate skill against lens validators."""
-        from sunwell.skills.interop import SkillValidator
+        from sunwell.skills.interop import validate_skill_folder
         
         skill_dir = tmp_path / "lens-validated"
         skill_dir.mkdir()
@@ -586,18 +584,16 @@ Follow the lens heuristics.
         loader = LensLoader()
         lens = loader.load(Path("lenses/tech-writer.lens"))
         
-        validator = SkillValidator()
-        result = validator.validate_skill_folder(skill_dir, lens)
+        result = validate_skill_folder(skill_dir, lens)
         
         assert result.valid
         assert result.skill_data is not None
 
     def test_validate_nonexistent_folder(self, tmp_path):
         """Nonexistent folder fails validation."""
-        from sunwell.skills.interop import SkillValidator
+        from sunwell.skills.interop import validate_skill_folder
         
-        validator = SkillValidator()
-        result = validator.validate_skill_folder(tmp_path / "does-not-exist")
+        result = validate_skill_folder(tmp_path / "does-not-exist")
         
         assert not result.valid
         assert len(result.issues) > 0

@@ -324,7 +324,6 @@ def main(
 @main.command(name="_run", hidden=True)
 @click.argument("goal")
 @click.option("--dry-run", is_flag=True)
-@click.option("--open-studio", is_flag=True, hidden=True)  # Deprecated
 @click.option("--json-output", is_flag=True)
 @click.option("--provider", "-p", default=None)
 @click.option("--model", "-m", default=None)
@@ -332,13 +331,9 @@ def main(
 @click.option("--time", "-t", default=300)
 @click.option("--trust", default="workspace")
 @click.option("--workspace", "-w", default=None)
-@click.option("--converge/--no-converge", default=False, hidden=True)  # Deprecated
-@click.option("--converge-gates", default="lint,type", hidden=True)  # Deprecated
-@click.option("--converge-max", default=5, type=int, hidden=True)  # Deprecated
 def _run_goal(
     goal: str,
     dry_run: bool,
-    open_studio: bool,
     json_output: bool,
     provider: str | None,
     model: str | None,
@@ -346,9 +341,6 @@ def _run_goal(
     time: int,
     trust: str,
     workspace: str | None,
-    converge: bool,
-    converge_gates: str,
-    converge_max: int,
 ) -> None:
     """Internal command for goal execution (RFC-MEMORY)."""
     from sunwell.cli.commands.goal import run_agent

@@ -872,11 +872,3 @@ class LensManager:
             return datetime.fromtimestamp(mtime, UTC).isoformat()
         except OSError:
             return None
-
-    def _slugify(self, name: str) -> str:
-        """Convert name to filesystem-safe slug (deprecated, use slugify())."""
-        return slugify(name)
-
-    def _validate_slug(self, slug: str) -> None:
-        """Validate slug (deprecated, use validate_slug())."""
-        validate_slug(slug)

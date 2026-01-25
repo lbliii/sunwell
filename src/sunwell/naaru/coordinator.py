@@ -529,16 +529,10 @@ class Naaru:
         """Create all Naaru region workers."""
         self._synthesis_workers = []
 
-        if self.config.attunement:
-            router_model = None
-            if hasattr(self.config, "router") and self.config.router:
-                from sunwell.models.ollama import OllamaModel
+        if hasattr(self.config, "router") and self.config.router:
+            from sunwell.models.ollama import OllamaModel
 
-                router_model = OllamaModel(model=self.config.router)
-            elif self.config.attunement_model:
-                router_model = self.config.attunement_model
-            else:
-                router_model = self.synthesis_model
+            router_model = OllamaModel(model=self.config.router)
 
             lens_dir = self.workspace / "lenses"
             available_lenses = []

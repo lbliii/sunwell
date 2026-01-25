@@ -96,9 +96,9 @@ class HarmonicSynthesisWorker(RegionWorker):
                 if self.model:
                     next_opp = self._pending_work[0] if len(self._pending_work) > 1 else None
 
-                    # RFC-020: Attunement - route task to get intent + lens
+                    # RFC-030: Unified Router - route task to get intent + lens
                     routing = None
-                    if self.routing_worker and self.config.attunement:
+                    if self.routing_worker and hasattr(self.config, "router") and self.config.router:
                         task_desc = opp.get("description", "") or opp.get("category", "")
                         routing = await self.routing_worker.route_sync(task_desc)
                         self.stats["routed_tasks"] = self.stats.get("routed_tasks", 0) + 1

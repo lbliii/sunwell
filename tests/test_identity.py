@@ -56,12 +56,6 @@ class TestNaaruPersona:
         assert "extraction failed" in msg
         assert "Connection failed" in msg
     
-    def test_system_identity(self):
-        """M'uru's system identity should contain key info."""
-        assert "M'uru" in MURU.system_identity
-        assert "Your Identity" in MURU.system_identity
-        assert "name" in MURU.system_identity.lower()
-    
     def test_alternating_titles(self):
         """Messages should alternate between titles."""
         persona = NaaruPersona(

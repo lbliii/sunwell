@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from sunwell.skills.interop import SkillExporter, SkillImporter, SkillValidator
+from sunwell.skills.interop import SkillExporter, SkillImporter, validate_skill_folder
 from sunwell.skills.types import (
     Resource,
     Script,
@@ -414,15 +414,17 @@ class TestRoundTrip:
 
 
 # =============================================================================
-# SkillValidator Tests
+# Skill Validation Tests
 # =============================================================================
 
 
-class TestSkillValidator:
+class TestSkillValidation:
     """Tests for skill validation."""
 
     def test_validate_valid_skill(self):
         """Test validating a well-formed skill."""
+        from sunwell.skills.interop import validate_skill_folder
+
         with tempfile.TemporaryDirectory() as tmpdir:
             skill_dir = Path(tmpdir) / "valid-skill"
             skill_dir.mkdir()
@@ -435,8 +437,7 @@ description: A valid skill
 Do the valid thing.
 """)
 
-            validator = SkillValidator()
-            result = validator.validate_skill_folder(skill_dir)
+            result = validate_skill_folder(skill_dir)
 
             assert result.valid
             assert result.score > 0.5
@@ -444,6 +445,8 @@ Do the valid thing.
 
     def test_validate_missing_name(self):
         """Test validation catches missing name."""
+        from sunwell.skills.interop import validate_skill_folder
+
         with tempfile.TemporaryDirectory() as tmpdir:
             skill_dir = Path(tmpdir) / "no-name"
             skill_dir.mkdir()
@@ -455,20 +458,20 @@ description: Missing name
 Instructions.
 """)
 
-            validator = SkillValidator()
-            result = validator.validate_skill_folder(skill_dir)
+            result = validate_skill_folder(skill_dir)
 
             # The name gets defaulted from directory, so it should still be valid
             assert "no-name" == result.skill_data.get("name")
 
     def test_validate_missing_file(self):
         """Test validation handles missing skill file."""
+        from sunwell.skills.interop import validate_skill_folder
+
         with tempfile.TemporaryDirectory() as tmpdir:
             skill_dir = Path(tmpdir) / "empty"
             skill_dir.mkdir()
 
-            validator = SkillValidator()
-            result = validator.validate_skill_folder(skill_dir)
+            result = validate_skill_folder(skill_dir)
 
             assert not result.valid
             assert len(result.issues) > 0

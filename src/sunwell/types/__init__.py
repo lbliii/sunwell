@@ -11,7 +11,6 @@ from sunwell.types.config import (
 )
 from sunwell.types.core import (
     Confidence,
-    ErrorCategory,
     IntentCategory,
     LensReference,
     LensResolutionError,
@@ -62,7 +61,6 @@ __all__ = [
     "SemanticVersion",
     "LensReference",
     "Confidence",
-    "ErrorCategory",
     "ValidationExecutionError",
     "ModelError",
     "LensResolutionError",

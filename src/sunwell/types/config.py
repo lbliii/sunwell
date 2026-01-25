@@ -270,19 +270,6 @@ class NaaruConfig:
     discernment: bool = True
     """Enable tiered validation (fast model before full judgment)."""
 
-    attunement: bool = True
-    """Enable intent-aware cognitive routing (RFC-020).
-
-    DEPRECATED in RFC-030: Use `router` instead. This flag is kept for
-    backward compatibility and will be removed in v0.6.
-    """
-
-    attunement_model: Any | None = None
-    """Model for cognitive routing (None = use voice model).
-
-    DEPRECATED in RFC-030: Use `router` instead.
-    """
-
     # RFC-030: Unified Router (replaces attunement, discernment, model routing)
     router: str = "qwen2.5:1.5b"
     """Single model for ALL routing decisions (RFC-030).

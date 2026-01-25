@@ -136,7 +136,7 @@ def _apply_env_overrides(config_dict: dict) -> dict:
         "model": {"default_provider", "default_model", "smart_routing"},
         "naaru": {
             "name", "title", "voice", "wisdom", "router",
-            "harmonic_synthesis", "resonance", "convergence", "discernment", "attunement",
+            "harmonic_synthesis", "resonance", "convergence", "discernment",
             "enable_parallel_execution", "max_parallel_tasks", "max_parallel_llm_requests",
         },
         "ollama": {"base_url", "num_parallel", "max_loaded_models", "connection_pool_size", "request_timeout"},
@@ -586,9 +586,6 @@ naaru:
   # Discernment - Quick insight before deep judgment
   # Enables tiered validation (fast model → full wisdom)
   discernment: true
-
-  # Attunement - Intent-aware cognitive routing (RFC-020)
-  attunement: true
 
   # Shards - Parallel helpers (fragments working in parallel)
   num_analysis_shards: 2
