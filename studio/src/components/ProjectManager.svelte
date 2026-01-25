@@ -212,7 +212,7 @@
       {/if}
       <h2 class="manager-title">
         {#if showWorkspaceDiscovery}
-          Workspace Discovery
+          Link External Codebase
         {:else if projectManager.view === 'detail'}
           {projectManager.selectedProject?.name}
         {:else}
@@ -227,7 +227,7 @@
     <div class="header-right">
       {#if !showWorkspaceDiscovery}
         <Button variant="ghost" size="sm" onclick={() => (showWorkspaceDiscovery = true)}>
-          Discover Workspaces
+          Link Codebase
         </Button>
       {:else}
         <Button variant="ghost" size="sm" onclick={() => (showWorkspaceDiscovery = false)}>
@@ -386,13 +386,6 @@
   .manager-content {
     flex: 1;
     overflow-y: auto;
-  }
-  
-  .modal-actions {
-    display: flex;
-    gap: var(--space-3);
-    justify-content: flex-end;
-    margin-top: var(--space-4);
   }
   
   .view-all-link {

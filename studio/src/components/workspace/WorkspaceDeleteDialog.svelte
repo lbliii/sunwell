@@ -8,6 +8,7 @@
   - Show progress and results
 -->
 <script lang="ts">
+  import Modal from '../Modal.svelte';
   import Button from '../Button.svelte';
   import {
     deleteWorkspace,
@@ -145,269 +146,189 @@
   }
 </script>
 
-<div class="dialog-overlay" onclick={onClose}>
-  <div class="dialog" onclick={(e) => e.stopPropagation()}>
-    <header class="dialog-header">
-      <h2 class="dialog-title">
-        {#if step === 'result'}
-          {result?.success ? 'Workspace Deleted' : 'Delete Failed'}
-        {:else}
-          Delete Workspace
-        {/if}
-      </h2>
-      <button class="close-button" onclick={onClose}>&times;</button>
-    </header>
+<Modal
+  isOpen={true}
+  title={step === 'result' ? (result?.success ? 'Workspace Deleted' : 'Delete Failed') : 'Delete Workspace'}
+  onClose={onClose}
+>
+  {#if step === 'select'}
+    <!-- Step 1: Select deletion mode -->
+    <div class="workspace-info">
+      <span class="workspace-name">{workspace.name}</span>
+      <span class="workspace-path">{workspace.path}</span>
+    </div>
 
-    <div class="dialog-content">
-      {#if step === 'select'}
-        <!-- Step 1: Select deletion mode -->
-        <div class="workspace-info">
-          <span class="workspace-name">{workspace.name}</span>
-          <span class="workspace-path">{workspace.path}</span>
+    <div class="mode-options">
+      <label class="mode-option" class:selected={mode === 'unregister'}>
+        <input type="radio" bind:group={mode} value="unregister" />
+        <div class="mode-content">
+          <span class="mode-name">Unregister</span>
+          <span class="mode-description">Remove from registry, keep all files</span>
+          <ul class="mode-details">
+            <li class="keeps">Keeps: All files, .sunwell/ data</li>
+            <li class="removes">Removes: Registry entry</li>
+          </ul>
         </div>
+      </label>
 
-        <div class="mode-options">
-          <label class="mode-option" class:selected={mode === 'unregister'}>
-            <input type="radio" bind:group={mode} value="unregister" />
-            <div class="mode-content">
-              <span class="mode-name">Unregister</span>
-              <span class="mode-description">Remove from registry, keep all files</span>
-              <ul class="mode-details">
-                <li class="keeps">Keeps: All files, .sunwell/ data</li>
-                <li class="removes">Removes: Registry entry</li>
-              </ul>
-            </div>
-          </label>
-
-          <label class="mode-option" class:selected={mode === 'purge'}>
-            <input type="radio" bind:group={mode} value="purge" />
-            <div class="mode-content">
-              <span class="mode-name warning">Purge Data</span>
-              <span class="mode-description">Delete Sunwell data, keep source code</span>
-              <ul class="mode-details">
-                <li class="keeps">Keeps: Source code and project files</li>
-                <li class="removes">Removes: .sunwell/ directory, registry entry</li>
-              </ul>
-            </div>
-          </label>
-
-          <label class="mode-option" class:selected={mode === 'full'}>
-            <input type="radio" bind:group={mode} value="full" />
-            <div class="mode-content">
-              <span class="mode-name danger">Full Delete</span>
-              <span class="mode-description">Delete everything including source code</span>
-              <ul class="mode-details">
-                <li class="removes">Removes: EVERYTHING - cannot be undone!</li>
-              </ul>
-            </div>
-          </label>
+      <label class="mode-option" class:selected={mode === 'purge'}>
+        <input type="radio" bind:group={mode} value="purge" />
+        <div class="mode-content">
+          <span class="mode-name warning">Purge Data</span>
+          <span class="mode-description">Delete Sunwell data, keep source code</span>
+          <ul class="mode-details">
+            <li class="keeps">Keeps: Source code and project files</li>
+            <li class="removes">Removes: .sunwell/ directory, registry entry</li>
+          </ul>
         </div>
+      </label>
 
-      {:else if step === 'confirm'}
-        <!-- Step 2: Confirm deletion -->
-        <div class="confirm-section">
-          <div class="mode-summary" style="border-color: {getModeColor(mode)}">
-            <span class="mode-label">Mode:</span>
-            <span class="mode-value" style="color: {getModeColor(mode)}">{getModeName(mode)}</span>
-          </div>
+      <label class="mode-option" class:selected={mode === 'full'}>
+        <input type="radio" bind:group={mode} value="full" />
+        <div class="mode-content">
+          <span class="mode-name danger">Full Delete</span>
+          <span class="mode-description">Delete everything including source code</span>
+          <ul class="mode-details">
+            <li class="removes">Removes: EVERYTHING - cannot be undone!</li>
+          </ul>
+        </div>
+      </label>
+    </div>
 
-          <div class="workspace-info">
-            <span class="workspace-name">{workspace.name}</span>
-            <span class="workspace-path">{workspace.path}</span>
-          </div>
+  {:else if step === 'confirm'}
+    <!-- Step 2: Confirm deletion -->
+    <div class="mode-summary" style="border-color: {getModeColor(mode)}">
+      <span class="mode-label">Mode:</span>
+      <span class="mode-value" style="color: {getModeColor(mode)}">{getModeName(mode)}</span>
+    </div>
 
-          {#if activeRuns.length > 0}
-            <div class="warning-box">
-              <strong>Warning:</strong> This workspace has {activeRuns.length} active run(s):
-              <ul>
-                {#each activeRuns.slice(0, 3) as runId}
-                  <li>{runId}</li>
+    <div class="workspace-info">
+      <span class="workspace-name">{workspace.name}</span>
+      <span class="workspace-path">{workspace.path}</span>
+    </div>
+
+    {#if activeRuns.length > 0}
+      <div class="warning-box">
+        <strong>Warning:</strong> This workspace has {activeRuns.length} active run(s):
+        <ul>
+          {#each activeRuns.slice(0, 3) as runId}
+            <li>{runId}</li>
+          {/each}
+          {#if activeRuns.length > 3}
+            <li>...and {activeRuns.length - 3} more</li>
+          {/if}
+        </ul>
+        <label class="checkbox-label">
+          <input type="checkbox" bind:checked={force} />
+          Force delete (abort active runs)
+        </label>
+      </div>
+    {/if}
+
+    {#if mode !== 'unregister'}
+      <label class="checkbox-label">
+        <input type="checkbox" bind:checked={deleteRuns} />
+        Also delete associated runs from history
+      </label>
+    {/if}
+
+    {#if mode !== 'unregister'}
+      <div class="confirm-input-section">
+        <p class="confirm-prompt">
+          Type <strong>{workspace.id}</strong> to confirm:
+        </p>
+        <input
+          type="text"
+          class="confirm-input"
+          bind:value={confirmInput}
+          placeholder={workspace.id}
+        />
+      </div>
+    {/if}
+
+    {#if error}
+      <div class="error-message">{error}</div>
+    {/if}
+
+  {:else if step === 'progress'}
+    <!-- Step 3: Progress -->
+    <div class="progress-section">
+      <div class="spinner"></div>
+      <p class="progress-text">Deleting workspace...</p>
+    </div>
+
+  {:else if step === 'result'}
+    <!-- Step 4: Result -->
+    <div class="result-section">
+      {#if result?.success}
+        <div class="success-icon">✓</div>
+        <p class="result-text">Workspace successfully deleted</p>
+      {:else}
+        <div class="error-icon">✗</div>
+        <p class="result-text">Some items could not be deleted</p>
+      {/if}
+
+      {#if result}
+        <div class="result-details">
+          {#if result.deletedItems.length > 0}
+            <div class="result-group">
+              <span class="result-label">Deleted:</span>
+              <ul class="result-list">
+                {#each result.deletedItems.slice(0, 5) as item}
+                  <li>{item}</li>
                 {/each}
-                {#if activeRuns.length > 3}
-                  <li>...and {activeRuns.length - 3} more</li>
+                {#if result.deletedItems.length > 5}
+                  <li>...and {result.deletedItems.length - 5} more</li>
                 {/if}
               </ul>
-              <label class="checkbox-label">
-                <input type="checkbox" bind:checked={force} />
-                Force delete (abort active runs)
-              </label>
             </div>
           {/if}
 
-          {#if mode !== 'unregister'}
-            <label class="checkbox-label">
-              <input type="checkbox" bind:checked={deleteRuns} />
-              Also delete associated runs from history
-            </label>
-          {/if}
-
-          {#if mode !== 'unregister'}
-            <div class="confirm-input-section">
-              <p class="confirm-prompt">
-                Type <strong>{workspace.id}</strong> to confirm:
-              </p>
-              <input
-                type="text"
-                class="confirm-input"
-                bind:value={confirmInput}
-                placeholder={workspace.id}
-              />
+          {#if result.failedItems.length > 0}
+            <div class="result-group error">
+              <span class="result-label">Failed:</span>
+              <ul class="result-list">
+                {#each result.failedItems as item}
+                  <li>{item}</li>
+                {/each}
+              </ul>
             </div>
           {/if}
 
-          {#if error}
-            <div class="error-message">{error}</div>
-          {/if}
-        </div>
-
-      {:else if step === 'progress'}
-        <!-- Step 3: Progress -->
-        <div class="progress-section">
-          <div class="spinner"></div>
-          <p class="progress-text">Deleting workspace...</p>
-        </div>
-
-      {:else if step === 'result'}
-        <!-- Step 4: Result -->
-        <div class="result-section">
-          {#if result?.success}
-            <div class="success-icon">✓</div>
-            <p class="result-text">Workspace successfully deleted</p>
-          {:else}
-            <div class="error-icon">✗</div>
-            <p class="result-text">Some items could not be deleted</p>
+          {#if result.runsDeleted > 0}
+            <p class="result-stat">Runs deleted: {result.runsDeleted}</p>
           {/if}
 
-          {#if result}
-            <div class="result-details">
-              {#if result.deletedItems.length > 0}
-                <div class="result-group">
-                  <span class="result-label">Deleted:</span>
-                  <ul class="result-list">
-                    {#each result.deletedItems.slice(0, 5) as item}
-                      <li>{item}</li>
-                    {/each}
-                    {#if result.deletedItems.length > 5}
-                      <li>...and {result.deletedItems.length - 5} more</li>
-                    {/if}
-                  </ul>
-                </div>
-              {/if}
-
-              {#if result.failedItems.length > 0}
-                <div class="result-group error">
-                  <span class="result-label">Failed:</span>
-                  <ul class="result-list">
-                    {#each result.failedItems as item}
-                      <li>{item}</li>
-                    {/each}
-                  </ul>
-                </div>
-              {/if}
-
-              {#if result.runsDeleted > 0}
-                <p class="result-stat">Runs deleted: {result.runsDeleted}</p>
-              {/if}
-
-              {#if result.runsOrphaned > 0}
-                <p class="result-stat">Runs orphaned: {result.runsOrphaned}</p>
-              {/if}
-            </div>
+          {#if result.runsOrphaned > 0}
+            <p class="result-stat">Runs orphaned: {result.runsOrphaned}</p>
           {/if}
         </div>
       {/if}
     </div>
+  {/if}
 
-    <footer class="dialog-footer">
-      {#if step === 'select'}
-        <Button variant="ghost" onclick={onClose}>Cancel</Button>
-        <Button variant="primary" onclick={nextStep}>Next</Button>
-      {:else if step === 'confirm'}
-        <Button variant="ghost" onclick={prevStep}>Back</Button>
-        <Button
-          variant={mode === 'full' ? 'destructive' : 'primary'}
-          onclick={handleDelete}
-          disabled={isLoading || (mode !== 'unregister' && confirmInput !== workspace.id)}
-        >
-          {mode === 'unregister' ? 'Unregister' : mode === 'purge' ? 'Purge' : 'Delete'}
-        </Button>
-      {:else if step === 'progress'}
-        <!-- No buttons during progress -->
-      {:else if step === 'result'}
-        <Button variant="primary" onclick={handleDone}>Done</Button>
-      {/if}
-    </footer>
+  <div class="modal-actions">
+    {#if step === 'select'}
+      <Button variant="ghost" onclick={onClose}>Cancel</Button>
+      <Button variant="primary" onclick={nextStep}>Next</Button>
+    {:else if step === 'confirm'}
+      <Button variant="ghost" onclick={prevStep}>Back</Button>
+      <Button
+        variant={mode === 'full' ? 'destructive' : 'primary'}
+        onclick={handleDelete}
+        disabled={isLoading || (mode !== 'unregister' && confirmInput !== workspace.id)}
+      >
+        {mode === 'unregister' ? 'Unregister' : mode === 'purge' ? 'Purge' : 'Delete'}
+      </Button>
+    {:else if step === 'progress'}
+      <!-- No buttons during progress -->
+    {:else if step === 'result'}
+      <Button variant="primary" onclick={handleDone}>Done</Button>
+    {/if}
   </div>
-</div>
+</Modal>
 
 <style>
-  .dialog-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
-
-  .dialog {
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
-    width: 100%;
-    max-width: 500px;
-    max-height: 80vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .dialog-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--space-4);
-    border-bottom: 1px solid var(--border-color);
-  }
-
-  .dialog-title {
-    margin: 0;
-    font-size: var(--text-lg);
-    font-weight: 600;
-  }
-
-  .close-button {
-    background: none;
-    border: none;
-    font-size: 24px;
-    color: var(--text-tertiary);
-    cursor: pointer;
-    padding: 0;
-    line-height: 1;
-  }
-
-  .close-button:hover {
-    color: var(--text-primary);
-  }
-
-  .dialog-content {
-    flex: 1;
-    padding: var(--space-4);
-    overflow-y: auto;
-  }
-
-  .dialog-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--space-2);
-    padding: var(--space-4);
-    border-top: 1px solid var(--border-color);
-  }
-
   .workspace-info {
     display: flex;
     flex-direction: column;
@@ -502,12 +423,6 @@
 
   .mode-details .removes {
     color: var(--error);
-  }
-
-  .confirm-section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4);
   }
 
   .mode-summary {

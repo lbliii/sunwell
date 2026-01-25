@@ -11,6 +11,8 @@
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
+  import Modal from '../Modal.svelte';
+  import Button from '../Button.svelte';
   import DagCanvas from '../dag/DagCanvas.svelte';
   import { 
     coordinatorStore, 
@@ -252,29 +254,25 @@
   {/if}
   
   <!-- Intent Dialog -->
-  {#if showIntentDialog && selectedNode}
-    <div class="dialog-overlay" role="presentation" onclick={() => showIntentDialog = false} onkeydown={(e) => e.key === 'Escape' && (showIntentDialog = false)}>
-      <div class="dialog" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
-        <h3>Give Intent for {selectedNode.title}</h3>
-        <p class="dialog-hint">What would you like to do with this file?</p>
-        
-        <textarea 
-          bind:value={intentInput}
-          placeholder="e.g., Fix the broken links, Update to match current API, Add missing tests..."
-          rows="4"
-        ></textarea>
-        
-        <div class="dialog-actions">
-          <button class="cancel-btn" onclick={() => showIntentDialog = false}>
-            Cancel
-          </button>
-          <button class="confirm-btn" onclick={handleIntentSubmit}>
-            Execute Intent
-          </button>
-        </div>
-      </div>
+  <Modal 
+    isOpen={showIntentDialog && !!selectedNode} 
+    title={selectedNode ? `Give Intent for ${selectedNode.title}` : ''} 
+    onClose={() => showIntentDialog = false}
+  >
+    <p class="intent-hint">What would you like to do with this file?</p>
+    
+    <textarea 
+      class="intent-input"
+      bind:value={intentInput}
+      placeholder="e.g., Fix the broken links, Update to match current API, Add missing tests..."
+      rows="4"
+    ></textarea>
+    
+    <div class="modal-actions">
+      <Button variant="ghost" onclick={() => showIntentDialog = false}>Cancel</Button>
+      <Button variant="primary" onclick={handleIntentSubmit}>Execute Intent</Button>
     </div>
-  {/if}
+  </Modal>
 </div>
 
 <style>
@@ -618,79 +616,27 @@
     to { transform: rotate(360deg); }
   }
   
-  /* Dialog */
-  .dialog-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
-  
-  .dialog {
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    padding: 24px;
-    width: 480px;
-    max-width: 90vw;
-  }
-  
-  .dialog h3 {
-    margin: 0 0 8px;
-    font-size: 18px;
-  }
-  
-  .dialog-hint {
-    margin: 0 0 16px;
-    font-size: 13px;
+  /* Intent Dialog Content */
+  .intent-hint {
+    margin: 0;
+    font-size: var(--text-sm);
     color: var(--text-tertiary);
   }
   
-  .dialog textarea {
+  .intent-input {
     width: 100%;
-    padding: 12px;
+    padding: var(--space-3);
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
-    font-size: 14px;
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
     color: var(--text-primary);
     resize: vertical;
     font-family: inherit;
   }
   
-  .dialog textarea:focus {
+  .intent-input:focus {
     outline: none;
     border-color: var(--accent);
-  }
-  
-  .dialog-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    margin-top: 16px;
-  }
-  
-  .cancel-btn {
-    padding: 10px 20px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    font-size: 14px;
-    color: var(--text-secondary);
-    cursor: pointer;
-  }
-  
-  .confirm-btn {
-    padding: 10px 20px;
-    background: var(--accent);
-    border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--bg-primary);
-    cursor: pointer;
   }
 </style>

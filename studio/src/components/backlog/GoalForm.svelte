@@ -5,6 +5,8 @@
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
+  import Modal from '../Modal.svelte';
+  import Button from '../Button.svelte';
   import type { GoalCategory, GoalComplexity } from '../../stores/backlog.svelte';
   import { addGoal, getCategoryInfo, getComplexityInfo } from '../../stores/backlog.svelte';
 
@@ -61,197 +63,107 @@
   }
 </script>
 
-<div
-  class="modal-overlay"
-  role="presentation"
-  onclick={onClose}
-  onkeydown={handleKeydown}
->
-  <div
-    class="modal"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="modal-title"
-    tabindex="-1"
-    onclick={(e) => e.stopPropagation()}
-    onkeydown={(e) => e.stopPropagation()}
-  >
-    <header class="modal-header">
-      <h3 id="modal-title">Add Goal</h3>
-      <button class="close-btn" onclick={onClose} aria-label="Close">✕</button>
-    </header>
+<Modal isOpen={true} title="Add Goal" onClose={onClose}>
+  <form class="goal-form" onsubmit={handleSubmit}>
+    <!-- Title -->
+    <div class="form-group">
+      <label for="goal-title">Title <span class="required">*</span></label>
+      <input
+        bind:this={titleInput}
+        id="goal-title"
+        type="text"
+        bind:value={title}
+        placeholder="Implement user authentication"
+        maxlength="60"
+      />
+      <span class="char-count">{title.length}/60</span>
+    </div>
 
-    <form onsubmit={handleSubmit}>
-      <div class="form-body">
-        <!-- Title -->
-        <div class="form-group">
-          <label for="goal-title">Title <span class="required">*</span></label>
-          <input
-            bind:this={titleInput}
-            id="goal-title"
-            type="text"
-            bind:value={title}
-            placeholder="Implement user authentication"
-            maxlength="60"
-          />
-          <span class="char-count">{title.length}/60</span>
-        </div>
+    <!-- Description -->
+    <div class="form-group">
+      <label for="goal-description">Description <span class="optional">(optional)</span></label>
+      <textarea
+        id="goal-description"
+        bind:value={description}
+        placeholder="Add OAuth2 login flow supporting Google and GitHub providers. Include session management and logout."
+        rows="3"
+      ></textarea>
+    </div>
 
-        <!-- Description -->
-        <div class="form-group">
-          <label for="goal-description">Description <span class="optional">(optional)</span></label>
-          <textarea
-            id="goal-description"
-            bind:value={description}
-            placeholder="Add OAuth2 login flow supporting Google and GitHub providers. Include session management and logout."
-            rows="3"
-          ></textarea>
-        </div>
-
-        <!-- Category + Complexity Row -->
-        <div class="form-row">
-          <div class="form-group">
-            <label for="goal-category">Category</label>
-            <select id="goal-category" bind:value={category}>
-              {#each categories as cat (cat)}
-                {@const info = getCategoryInfo(cat)}
-                <option value={cat}>{info.emoji} {info.label}</option>
-              {/each}
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="goal-complexity">Complexity</label>
-            <select id="goal-complexity" bind:value={complexity}>
-              {#each complexities as comp (comp)}
-                {@const info = getComplexityInfo(comp)}
-                <option value={comp}>{info.emoji} {info.label}</option>
-              {/each}
-            </select>
-          </div>
-        </div>
-
-        <!-- Priority Slider -->
-        <div class="form-group">
-          <label for="goal-priority">
-            Priority
-            <span class="priority-value">{Math.round(priority * 100)}%</span>
-          </label>
-          <div class="priority-slider-container">
-            <span class="priority-label low">Low</span>
-            <input
-              id="goal-priority"
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              bind:value={priority}
-              class="priority-slider"
-            />
-            <span class="priority-label high">High</span>
-          </div>
-        </div>
-
-        <!-- Auto-approvable -->
-        <div class="form-group checkbox-group">
-          <label class="checkbox-label">
-            <input type="checkbox" bind:checked={autoApprovable} />
-            <span class="checkbox-text">
-              <span class="checkbox-title">⚡ Auto-approve if tests pass</span>
-              <span class="checkbox-hint">Allows execution without manual review</span>
-            </span>
-          </label>
-        </div>
-
-        <!-- Error -->
-        {#if error}
-          <div class="error-message">
-            ⚠️ {error}
-          </div>
-        {/if}
+    <!-- Category + Complexity Row -->
+    <div class="form-row">
+      <div class="form-group">
+        <label for="goal-category">Category</label>
+        <select id="goal-category" bind:value={category}>
+          {#each categories as cat (cat)}
+            {@const info = getCategoryInfo(cat)}
+            <option value={cat}>{info.emoji} {info.label}</option>
+          {/each}
+        </select>
       </div>
 
-      <footer class="modal-footer">
-        <button type="button" class="btn secondary" onclick={onClose}>
-          Cancel
-        </button>
-        <button
-          type="submit"
-          class="btn primary"
-          disabled={!isValid || isSubmitting}
-        >
-          {isSubmitting ? 'Adding...' : 'Add Goal'}
-        </button>
-      </footer>
-    </form>
-  </div>
-</div>
+      <div class="form-group">
+        <label for="goal-complexity">Complexity</label>
+        <select id="goal-complexity" bind:value={complexity}>
+          {#each complexities as comp (comp)}
+            {@const info = getComplexityInfo(comp)}
+            <option value={comp}>{info.emoji} {info.label}</option>
+          {/each}
+        </select>
+      </div>
+    </div>
+
+    <!-- Priority Slider -->
+    <div class="form-group">
+      <label for="goal-priority">
+        Priority
+        <span class="priority-value">{Math.round(priority * 100)}%</span>
+      </label>
+      <div class="priority-slider-container">
+        <span class="priority-label low">Low</span>
+        <input
+          id="goal-priority"
+          type="range"
+          min="0"
+          max="1"
+          step="0.05"
+          bind:value={priority}
+          class="priority-slider"
+        />
+        <span class="priority-label high">High</span>
+      </div>
+    </div>
+
+    <!-- Auto-approvable -->
+    <div class="form-group checkbox-group">
+      <label class="checkbox-label">
+        <input type="checkbox" bind:checked={autoApprovable} />
+        <span class="checkbox-text">
+          <span class="checkbox-title">⚡ Auto-approve if tests pass</span>
+          <span class="checkbox-hint">Allows execution without manual review</span>
+        </span>
+      </label>
+    </div>
+
+    <!-- Error -->
+    {#if error}
+      <div class="error-message">
+        ⚠️ {error}
+      </div>
+    {/if}
+
+    <div class="modal-actions">
+      <Button variant="ghost" onclick={onClose}>Cancel</Button>
+      <Button variant="primary" disabled={!isValid || isSubmitting} onclick={handleSubmit}>
+        {isSubmitting ? 'Adding...' : 'Add Goal'}
+      </Button>
+    </div>
+  </form>
+</Modal>
 
 <style>
-  .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    backdrop-filter: blur(2px);
-  }
-
-  .modal {
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    width: min(480px, 90vw);
-    max-height: 90vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
-  }
-
-  .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px 24px;
-    border-bottom: 1px solid var(--border-color);
-  }
-
-  .modal-header h3 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .close-btn {
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    color: var(--text-tertiary);
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-
-  .close-btn:hover {
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-  }
-
-  .form-body {
-    padding: 20px 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    overflow-y: auto;
+  .goal-form {
+    display: contents;
   }
 
   .form-group {
@@ -429,49 +341,5 @@
     border-radius: 8px;
     font-size: 13px;
     color: var(--error);
-  }
-
-  .modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    padding: 16px 24px;
-    border-top: 1px solid var(--border-color);
-    background: var(--bg-secondary);
-  }
-
-  .btn {
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-
-  .btn.secondary {
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
-    color: var(--text-secondary);
-  }
-
-  .btn.secondary:hover {
-    background: var(--bg-primary);
-    color: var(--text-primary);
-  }
-
-  .btn.primary {
-    background: var(--accent);
-    border: none;
-    color: var(--bg-primary);
-  }
-
-  .btn.primary:hover:not(:disabled) {
-    filter: brightness(1.1);
-  }
-
-  .btn.primary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 </style>

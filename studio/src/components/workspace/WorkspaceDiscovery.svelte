@@ -32,7 +32,7 @@
   let isDiscovering = $state(false);
   let discoveryRoot = $state('');
 
-  const filteredWorkspaces = $derived(() => {
+  const filteredWorkspaces = $derived.by(() => {
     let filtered = workspaceManager.workspaces;
 
     // Search filter
@@ -92,10 +92,10 @@
 
 <div class="workspace-discovery">
   <header class="discovery-header">
-    <h1 class="discovery-title">Workspace Discovery</h1>
+    <h1 class="discovery-title">Link External Codebases</h1>
     <p class="discovery-description">
-      Discover and manage workspaces across your filesystem. Register workspaces to track them in
-      your project registry.
+      Find existing code repositories on your system to link with Sunwell projects.
+      Your Sunwell projects are shown below.
     </p>
   </header>
 
@@ -103,7 +103,7 @@
     <div class="controls-row">
       <Input
         type="search"
-        placeholder="Search workspaces..."
+        placeholder="Search projects and codebases..."
         bind:value={searchQuery}
         size="md"
       />
@@ -133,12 +133,12 @@
     <div class="controls-row">
       <Input
         type="text"
-        placeholder="Root directory to scan (optional)"
+        placeholder="Directory to scan, e.g. ~/Code (optional)"
         bind:value={discoveryRoot}
         size="md"
       />
       <Button variant="primary" onclick={handleDiscover} loading={isDiscovering}>
-        {isDiscovering ? 'Discovering...' : 'Discover Workspaces'}
+        {isDiscovering ? 'Scanning...' : 'Scan for Codebases'}
       </Button>
       <Button variant="ghost" onclick={loadWorkspaces} disabled={workspaceManager.isLoading}>
         Refresh

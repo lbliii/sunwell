@@ -10,6 +10,8 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import Modal from '../Modal.svelte';
+  import Button from '../Button.svelte';
   import { 
     coordinatorStore, 
     setProjectPath, 
@@ -176,33 +178,25 @@
   </section>
   
   <!-- Start Workers Dialog -->
-  {#if showStartDialog}
-    <div class="dialog-overlay" role="presentation" onclick={() => showStartDialog = false} onkeydown={(e) => e.key === 'Escape' && (showStartDialog = false)}>
-      <div class="dialog" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
-        <h3>Start Parallel Execution</h3>
-        
-        <div class="form-group">
-          <label for="num-workers">Number of Workers</label>
-          <input 
-            id="num-workers"
-            type="number" 
-            min="1" 
-            max="8" 
-            bind:value={numWorkersInput}
-          />
-        </div>
-        
-        <div class="dialog-actions">
-          <button class="cancel-btn" onclick={() => showStartDialog = false}>
-            Cancel
-          </button>
-          <button class="confirm-btn" onclick={handleStartWorkers}>
-            Start {numWorkersInput} Workers
-          </button>
-        </div>
-      </div>
+  <Modal isOpen={showStartDialog} title="Start Parallel Execution" onClose={() => showStartDialog = false}>
+    <div class="workers-form-group">
+      <label for="num-workers">Number of Workers</label>
+      <input 
+        id="num-workers"
+        type="number" 
+        min="1" 
+        max="8" 
+        bind:value={numWorkersInput}
+      />
     </div>
-  {/if}
+    
+    <div class="modal-actions">
+      <Button variant="ghost" onclick={() => showStartDialog = false}>Cancel</Button>
+      <Button variant="primary" onclick={handleStartWorkers}>
+        Start {numWorkersInput} Workers
+      </Button>
+    </div>
+  </Modal>
   
   <!-- Loading/Error States -->
   {#if coordinatorStore.isLoading}
@@ -429,90 +423,27 @@
     margin-bottom: 16px;
   }
   
-  /* Dialog */
-  .dialog-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
-  
-  .dialog {
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    padding: 24px;
-    min-width: 360px;
-  }
-  
-  .dialog h3 {
-    margin: 0 0 20px;
-    font-size: 18px;
-    color: var(--text-primary);
-  }
-  
-  .form-group {
-    margin-bottom: 20px;
-  }
-  
-  .form-group label {
+  /* Workers Dialog Form */
+  .workers-form-group label {
     display: block;
-    font-size: 13px;
+    font-size: var(--text-sm);
     color: var(--text-secondary);
-    margin-bottom: 8px;
+    margin-bottom: var(--space-2);
   }
   
-  .form-group input {
+  .workers-form-group input {
     width: 100%;
-    padding: 10px 12px;
+    padding: var(--space-2) var(--space-3);
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
-    font-size: 14px;
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
     color: var(--text-primary);
   }
   
-  .form-group input:focus {
+  .workers-form-group input:focus {
     outline: none;
     border-color: var(--accent);
-  }
-  
-  .dialog-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-  }
-  
-  .cancel-btn {
-    padding: 10px 20px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    font-size: 14px;
-    color: var(--text-secondary);
-    cursor: pointer;
-  }
-  
-  .cancel-btn:hover {
-    background: var(--bg-secondary);
-  }
-  
-  .confirm-btn {
-    padding: 10px 20px;
-    background: var(--accent);
-    border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--bg-primary);
-    cursor: pointer;
-  }
-  
-  .confirm-btn:hover {
-    filter: brightness(1.1);
   }
   
   /* Loading/Error */

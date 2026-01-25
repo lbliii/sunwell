@@ -189,6 +189,10 @@ class WorkspaceManager:
         Scans common locations and project markers to find workspaces.
         Merges with registered projects and deduplicates.
 
+        Projects found in ~/Sunwell/projects/ are auto-registered (they're Sunwell
+        projects, not external workspaces). Only external directories are shown
+        as "discovered" workspaces.
+
         Args:
             root: Root directory to scan (defaults to common locations)
 
@@ -207,7 +211,13 @@ class WorkspaceManager:
             if not root.is_dir():
                 raise ValueError(f"Root must be a directory: {root}")
 
-        # Get registered projects
+        # Get the Sunwell projects directory (projects here should be registered, not discovered)
+        sunwell_projects_root = default_workspace_root().resolve()
+
+        # Auto-register any unregistered Sunwell projects in ~/Sunwell/projects/
+        self._auto_register_sunwell_projects(sunwell_projects_root)
+
+        # Get registered projects (now includes auto-registered ones)
         registered_projects = self._registry.list_projects()
         # Use canonical paths (resolve symlinks) for deduplication
         registered_paths: set[Path] = {
@@ -215,13 +225,16 @@ class WorkspaceManager:
         }
 
         # Scan locations if root not specified
+        # NOTE: Do NOT scan ~/Sunwell/projects/ for "discovered" workspaces —
+        # those are Sunwell projects and should be registered, not discovered.
         if root is None:
             scan_roots = [
-                default_workspace_root(),
                 Path.home() / "Projects",
                 Path.home() / "Code",
                 Path.home() / "workspace",
                 Path.home() / "workspaces",
+                Path.home() / "Developer",
+                Path.home() / "dev",
             ]
         else:
             scan_roots = [root]
@@ -247,6 +260,10 @@ class WorkspaceManager:
             if is_nested:
                 continue
 
+            # Skip if this is inside ~/Sunwell/ (not external)
+            if scan_root_canonical.is_relative_to(sunwell_projects_root.parent):
+                continue
+
             # Scan direct children only (depth 1)
             try:
                 for item in scan_root.iterdir():
@@ -266,12 +283,16 @@ class WorkspaceManager:
                     if is_nested_workspace:
                         continue
 
+                    # Skip if inside ~/Sunwell/ (those are projects, not external workspaces)
+                    if item_canonical.is_relative_to(sunwell_projects_root.parent):
+                        continue
+
                     # Check for project markers
                     if self._has_project_markers(item):
                         # Resolve to canonical path for deduplication
                         canonical_path = item.resolve().resolve()
                         discovered_paths.add(canonical_path)
-            except (OSError, PermissionError) as e:
+            except (OSError, PermissionError):
                 # Log permission errors but continue
                 # Could be enhanced to return warnings
                 continue
@@ -336,6 +357,42 @@ class WorkspaceManager:
         )
 
         return workspaces
+
+    def _auto_register_sunwell_projects(self, sunwell_projects_root: Path) -> None:
+        """Auto-register any valid Sunwell projects found in ~/Sunwell/projects/.
+
+        These are Sunwell projects (have .sunwell/ or are in the projects dir),
+        not external workspaces. They should be registered, not discovered.
+
+        Args:
+            sunwell_projects_root: Path to ~/Sunwell/projects/
+        """
+        if not sunwell_projects_root.exists():
+            return
+
+        try:
+            for item in sunwell_projects_root.iterdir():
+                if not item.is_dir():
+                    continue
+
+                # Skip if already registered
+                canonical_path = item.resolve().resolve()
+                if self._registry.find_by_root(canonical_path):
+                    continue
+
+                # Check if it looks like a valid project (has .sunwell/ or project markers)
+                if not self._has_project_markers(item):
+                    continue
+
+                # Auto-register this project
+                try:
+                    project = create_project_from_workspace(canonical_path)
+                    self._registry.register(project)
+                    logger.info(f"Auto-registered Sunwell project: {project.id}")
+                except Exception as e:
+                    logger.debug(f"Could not auto-register {item.name}: {e}")
+        except (OSError, PermissionError) as e:
+            logger.debug(f"Could not scan {sunwell_projects_root}: {e}")
 
     def get_current(self) -> WorkspaceInfo | None:
         """Get current workspace.

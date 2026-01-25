@@ -331,6 +331,310 @@ def remove_cmd(project_id: str, force: bool) -> None:
         console.print("[red]Failed to remove project[/red]")
 
 
+# =============================================================================
+# RFC-141: Project Lifecycle Commands (delegating to WorkspaceManager)
+# =============================================================================
+
+
+@project.command(name="purge")
+@click.argument("project_id")
+@click.option("--confirm", is_flag=True, help="Confirm purge operation")
+@click.option("--delete-runs", is_flag=True, help="Also delete associated runs")
+@click.option("--force", is_flag=True, help="Force purge even if runs are active")
+def purge_cmd(project_id: str, confirm: bool, delete_runs: bool, force: bool) -> None:
+    """Purge Sunwell data from a project (RFC-141).
+
+    Removes the project from the registry and deletes the .sunwell/
+    directory, but keeps source code and other files intact.
+
+    \b
+    Examples:
+        sunwell project purge my-app --confirm
+        sunwell project purge my-app --confirm --delete-runs
+    """
+    from sunwell.knowledge.project import ProjectRegistry
+    from sunwell.knowledge.workspace import WorkspaceManager
+
+    registry = ProjectRegistry()
+    proj = registry.get(project_id)
+
+    if not proj:
+        console.print(f"[red]Project not registered:[/red] {project_id}")
+        raise SystemExit(1)
+
+    manager = WorkspaceManager()
+
+    # Show what will be purged
+    sunwell_dir = proj.root / ".sunwell"
+    console.print(f"[bold]Purging project:[/bold] {project_id}")
+    console.print(f"  Path: {proj.root}")
+    console.print()
+    console.print("[yellow]This will DELETE the following:[/yellow]")
+    console.print("  - Registry entry")
+    console.print(f"  - {sunwell_dir}/ (all Sunwell data)")
+    if delete_runs:
+        console.print("  - Associated runs in ~/.sunwell/runs/")
+    console.print()
+    console.print("[green]This will KEEP:[/green]")
+    console.print("  - Source code and other project files")
+
+    if not confirm:
+        console.print()
+        console.print("[red]Use --confirm to proceed with purge.[/red]")
+        raise SystemExit(1)
+
+    # Check for active runs
+    active_runs = manager.has_active_runs(project_id)
+    if active_runs and not force:
+        console.print()
+        console.print(f"[red]Error:[/red] Project has {len(active_runs)} active run(s):")
+        for run_id in active_runs[:5]:
+            console.print(f"  - {run_id}")
+        if len(active_runs) > 5:
+            console.print(f"  ... and {len(active_runs) - 5} more")
+        console.print()
+        console.print("[dim]Use --force to purge anyway (runs will be marked as orphaned).[/dim]")
+        raise SystemExit(1)
+
+    try:
+        result = manager.purge(project_id, delete_runs=delete_runs, force=force)
+        console.print()
+        console.print(f"[green]✓[/green] Project purged: [cyan]{project_id}[/cyan]")
+        if result.deleted_dirs:
+            console.print(f"  Deleted directories: {len(result.deleted_dirs)}")
+        if result.deleted_files:
+            console.print(f"  Deleted files: {len(result.deleted_files)}")
+        if result.runs_deleted > 0:
+            console.print(f"  Runs deleted: {result.runs_deleted}")
+        if result.failed_items:
+            console.print(f"  [yellow]Failed to delete: {len(result.failed_items)}[/yellow]")
+            for item in result.failed_items:
+                console.print(f"    - {item}")
+        if result.was_current:
+            console.print("[dim]Note: This was the current project. Current project cleared.[/dim]")
+    except (ValueError, RuntimeError) as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from None
+
+
+@project.command(name="delete")
+@click.argument("project_id")
+@click.option("--confirm-full-delete", is_flag=True, help="Confirm full deletion (required)")
+@click.option("--delete-runs", is_flag=True, help="Also delete associated runs")
+@click.option("--force", is_flag=True, help="Force delete even if runs are active")
+def delete_cmd(project_id: str, confirm_full_delete: bool, delete_runs: bool, force: bool) -> None:
+    """Fully delete a project (RFC-141).
+
+    WARNING: This is destructive and cannot be undone.
+
+    Removes the project from the registry and DELETES the entire
+    project directory including all source code.
+
+    \b
+    Examples:
+        sunwell project delete my-app --confirm-full-delete
+    """
+    from sunwell.knowledge.project import ProjectRegistry
+    from sunwell.knowledge.workspace import WorkspaceManager, has_nested_workspaces
+
+    registry = ProjectRegistry()
+    proj = registry.get(project_id)
+
+    if not proj:
+        console.print(f"[red]Project not registered:[/red] {project_id}")
+        raise SystemExit(1)
+
+    manager = WorkspaceManager()
+
+    # Check for nested workspaces
+    nested = has_nested_workspaces(proj.root, registry.projects)
+    if nested:
+        console.print(f"[red]Error:[/red] Project contains nested workspaces/projects:")
+        for nested_id in nested:
+            console.print(f"  - {nested_id}")
+        console.print()
+        console.print("[dim]Delete or unregister nested projects first.[/dim]")
+        raise SystemExit(1)
+
+    # Show what will be deleted
+    console.print(f"[bold red]FULL DELETE:[/bold red] {project_id}")
+    console.print(f"  Path: {proj.root}")
+    console.print()
+    console.print("[red]This will PERMANENTLY DELETE:[/red]")
+    console.print("  - Registry entry")
+    console.print(f"  - ENTIRE project directory: {proj.root}")
+    console.print("  - All source code and files within")
+    if delete_runs:
+        console.print("  - Associated runs in ~/.sunwell/runs/")
+    console.print()
+    console.print("[yellow]THIS CANNOT BE UNDONE![/yellow]")
+
+    if not confirm_full_delete:
+        console.print()
+        console.print("[red]Use --confirm-full-delete to proceed with full deletion.[/red]")
+        raise SystemExit(1)
+
+    # Double-confirm by typing project name
+    console.print()
+    typed_name = click.prompt(
+        f"Type '{project_id}' to confirm full deletion",
+        default="",
+    )
+    if typed_name != project_id:
+        console.print("[dim]Cancelled - name did not match[/dim]")
+        raise SystemExit(1)
+
+    # Check for active runs
+    active_runs = manager.has_active_runs(project_id)
+    if active_runs and not force:
+        console.print()
+        console.print(f"[red]Error:[/red] Project has {len(active_runs)} active run(s):")
+        for run_id in active_runs[:5]:
+            console.print(f"  - {run_id}")
+        console.print()
+        console.print("[dim]Use --force to delete anyway.[/dim]")
+        raise SystemExit(1)
+
+    try:
+        result = manager.delete(project_id, delete_runs=delete_runs, force=force)
+        console.print()
+        console.print(f"[green]✓[/green] Project deleted: [cyan]{project_id}[/cyan]")
+        if result.runs_deleted > 0:
+            console.print(f"  Runs deleted: {result.runs_deleted}")
+        if result.runs_orphaned > 0:
+            console.print(f"  Runs orphaned: {result.runs_orphaned}")
+        if result.failed_items:
+            console.print(f"  [yellow]Failed to delete: {len(result.failed_items)}[/yellow]")
+            for item in result.failed_items:
+                console.print(f"    - {item}")
+    except (ValueError, RuntimeError) as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from None
+
+
+@project.command(name="rename")
+@click.argument("project_id")
+@click.argument("new_id")
+@click.option("--name", help="New display name (defaults to new_id)")
+def rename_cmd(project_id: str, new_id: str, name: str | None) -> None:
+    """Rename a project (RFC-141).
+
+    Changes the project ID and optionally the display name.
+    Updates all references including runs.
+
+    \b
+    Examples:
+        sunwell project rename old-name new-name
+        sunwell project rename my-app my-awesome-app --name "My Awesome App"
+    """
+    from sunwell.knowledge.workspace import WorkspaceManager
+
+    manager = WorkspaceManager()
+
+    try:
+        result = manager.rename(project_id, new_id=new_id, new_name=name)
+        console.print(f"[green]✓[/green] Project renamed: [cyan]{result.old_id}[/cyan] → [cyan]{result.new_id}[/cyan]")
+        if result.runs_updated > 0:
+            console.print(f"  Runs updated: {result.runs_updated}")
+    except ValueError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from None
+
+
+@project.command(name="move")
+@click.argument("project_id")
+@click.argument("new_path", type=click.Path(exists=True, file_okay=False))
+def move_cmd(project_id: str, new_path: str) -> None:
+    """Update project path after manual move (RFC-141).
+
+    Call this AFTER manually moving a project directory to update
+    the registry and current project state.
+
+    \b
+    Examples:
+        # First: mv ~/old-location/my-app ~/new-location/my-app
+        sunwell project move my-app ~/new-location/my-app
+    """
+    from sunwell.knowledge.workspace import WorkspaceManager
+
+    manager = WorkspaceManager()
+    new_path_resolved = Path(new_path).resolve()
+
+    try:
+        result = manager.move(project_id, new_path_resolved)
+        console.print(f"[green]✓[/green] Project path updated: [cyan]{project_id}[/cyan]")
+        console.print(f"  Old path: {result.old_path}")
+        console.print(f"  New path: {result.new_path}")
+    except ValueError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from None
+
+
+@project.command(name="cleanup")
+@click.option("--dry-run/--no-dry-run", default=True, help="Only report what would be cleaned (default: dry-run)")
+@click.option("--confirm", is_flag=True, help="Actually perform cleanup (same as --no-dry-run)")
+def cleanup_cmd(dry_run: bool, confirm: bool) -> None:
+    """Find and clean up orphaned project data (RFC-141).
+
+    Finds:
+    - Runs that reference non-existent projects
+    - Registry entries with missing project paths
+
+    \b
+    Examples:
+        sunwell project cleanup              # Dry run
+        sunwell project cleanup --confirm    # Actually clean up
+        sunwell project cleanup --no-dry-run # Same as --confirm
+    """
+    from sunwell.knowledge.workspace import WorkspaceManager
+
+    manager = WorkspaceManager()
+
+    # --confirm overrides dry_run
+    if confirm:
+        dry_run = False
+
+    result = manager.cleanup_orphaned(dry_run=dry_run)
+
+    console.print()
+    if dry_run:
+        console.print("[bold]Cleanup Report (dry run):[/bold]")
+    else:
+        console.print("[bold]Cleanup Report:[/bold]")
+
+    console.print()
+    console.print(f"[bold]Orphaned runs:[/bold] {len(result.orphaned_runs)}")
+    if result.orphaned_runs:
+        for run_id in result.orphaned_runs[:10]:
+            console.print(f"  - {run_id}")
+        if len(result.orphaned_runs) > 10:
+            console.print(f"  ... and {len(result.orphaned_runs) - 10} more")
+
+    console.print()
+    console.print(f"[bold]Invalid registrations:[/bold] {len(result.invalid_registrations)}")
+    if result.invalid_registrations:
+        for proj_id in result.invalid_registrations[:10]:
+            console.print(f"  - {proj_id}")
+        if len(result.invalid_registrations) > 10:
+            console.print(f"  ... and {len(result.invalid_registrations) - 10} more")
+
+    if dry_run:
+        console.print()
+        if result.orphaned_runs or result.invalid_registrations:
+            console.print("[dim]Use --confirm to clean up orphaned data.[/dim]")
+        else:
+            console.print("[green]No orphaned data found.[/green]")
+    else:
+        console.print()
+        console.print(f"[green]Cleaned runs:[/green] {result.cleaned_runs}")
+        console.print(f"[green]Cleaned registrations:[/green] {result.cleaned_registrations}")
+
+
+# =============================================================================
+# RFC-117: Project Info Command
+# =============================================================================
+
+
 @project.command(name="info")
 @click.argument("project_id", required=False)
 def info_cmd(project_id: str | None) -> None:

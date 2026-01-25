@@ -10,11 +10,18 @@ def _to_camel(string: str) -> str:
 
 
 class CamelModel(BaseModel):
-    """Base model with camelCase JSON serialization."""
+    """Base model with camelCase support.
+
+    - Accepts camelCase input (via alias_generator)
+    - Serializes as snake_case (frontend expects snake_case)
+    """
 
     model_config = ConfigDict(
         alias_generator=_to_camel,
         populate_by_name=True,
+        # Serialize using field names (snake_case), not aliases (camelCase)
+        # Frontend expects snake_case: run_id, project_id, etc.
+        serialize_by_alias=False,
     )
 
 

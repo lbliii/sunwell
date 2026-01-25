@@ -791,39 +791,37 @@
   onClose={() => showForkModal = false} 
   title="Fork Lens"
 >
-  <div class="modal-content">
-    <p>Create an editable copy of <strong>{forkSourceName}</strong></p>
-    
-    <label class="field">
-      <span>New Name</span>
-      <input 
-        type="text" 
-        bind:value={forkNewName}
-        placeholder="my-custom-lens"
-      />
-    </label>
-    
-    <label class="field">
-      <span>Message (optional)</span>
-      <input 
-        type="text" 
-        bind:value={forkMessage}
-        placeholder="Initial fork from..."
-      />
-    </label>
-    
-    <div class="modal-actions">
-      <Button variant="ghost" onclick={() => showForkModal = false}>
-        Cancel
-      </Button>
-      <Button 
-        variant="primary" 
-        onclick={handleForkConfirm}
-        disabled={isForkingLens || !forkNewName.trim()}
-      >
-        {isForkingLens ? 'Forking...' : 'Fork Lens'}
-      </Button>
-    </div>
+  <p>Create an editable copy of <strong>{forkSourceName}</strong></p>
+  
+  <label class="field">
+    <span>New Name</span>
+    <input 
+      type="text" 
+      bind:value={forkNewName}
+      placeholder="my-custom-lens"
+    />
+  </label>
+  
+  <label class="field">
+    <span>Message (optional)</span>
+    <input 
+      type="text" 
+      bind:value={forkMessage}
+      placeholder="Initial fork from..."
+    />
+  </label>
+  
+  <div class="modal-actions">
+    <Button variant="ghost" onclick={() => showForkModal = false}>
+      Cancel
+    </Button>
+    <Button 
+      variant="primary" 
+      onclick={handleForkConfirm}
+      disabled={isForkingLens || !forkNewName.trim()}
+    >
+      {isForkingLens ? 'Forking...' : 'Fork Lens'}
+    </Button>
   </div>
 </Modal>
 
@@ -833,18 +831,16 @@
   onClose={() => showDeleteModal = false} 
   title="Delete Lens"
 >
-  <div class="modal-content">
-    <p>Are you sure you want to delete <strong>{deleteTargetName}</strong>?</p>
-    <p class="warning">This action cannot be undone. Version history will be preserved.</p>
-    
-    <div class="modal-actions">
-      <Button variant="ghost" onclick={() => showDeleteModal = false}>
-        Cancel
-      </Button>
-      <button class="delete-button" onclick={handleDeleteConfirm}>
-        Delete
-      </button>
-    </div>
+  <p>Are you sure you want to delete <strong>{deleteTargetName}</strong>?</p>
+  <p class="warning">This action cannot be undone. Version history will be preserved.</p>
+  
+  <div class="modal-actions">
+    <Button variant="ghost" onclick={() => showDeleteModal = false}>
+      Cancel
+    </Button>
+    <button class="delete-button" onclick={handleDeleteConfirm}>
+      Delete
+    </button>
   </div>
 </Modal>
 
@@ -854,33 +850,31 @@
   onClose={() => showSaveModal = false} 
   title="Save Lens"
 >
-  <div class="modal-content">
-    <label class="field">
-      <span>Version Message (optional)</span>
-      <input 
-        type="text" 
-        bind:value={saveMessage}
-        placeholder="What changed?"
-      />
-    </label>
-    
-    <label class="field">
-      <span>Version Bump</span>
-      <select bind:value={saveBump}>
-        <option value="patch">Patch (x.x.1)</option>
-        <option value="minor">Minor (x.1.0)</option>
-        <option value="major">Major (1.0.0)</option>
-      </select>
-    </label>
-    
-    <div class="modal-actions">
-      <Button variant="ghost" onclick={() => showSaveModal = false}>
-        Cancel
-      </Button>
-      <Button variant="primary" onclick={handleSaveConfirm}>
-        Save
-      </Button>
-    </div>
+  <label class="field">
+    <span>Version Message (optional)</span>
+    <input 
+      type="text" 
+      bind:value={saveMessage}
+      placeholder="What changed?"
+    />
+  </label>
+  
+  <label class="field">
+    <span>Version Bump</span>
+    <select bind:value={saveBump}>
+      <option value="patch">Patch (x.x.1)</option>
+      <option value="minor">Minor (x.1.0)</option>
+      <option value="major">Major (1.0.0)</option>
+    </select>
+  </label>
+  
+  <div class="modal-actions">
+    <Button variant="ghost" onclick={() => showSaveModal = false}>
+      Cancel
+    </Button>
+    <Button variant="primary" onclick={handleSaveConfirm}>
+      Save
+    </Button>
   </div>
 </Modal>
 
@@ -1514,14 +1508,7 @@
     font-size: var(--text-xs);
   }
   
-  /* Modal styles */
-  .modal-content {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-    min-width: 350px;
-  }
-  
+  /* Modal form styles */
   .field {
     display: flex;
     flex-direction: column;
@@ -1567,13 +1554,6 @@
   
   .delete-button:hover {
     opacity: 0.9;
-  }
-  
-  .modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--space-2);
-    padding-top: var(--space-3);
   }
   
   @media (prefers-reduced-motion: reduce) {

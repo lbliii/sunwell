@@ -609,13 +609,6 @@
 		}
 	}
 
-	.modal-actions {
-		display: flex;
-		gap: var(--space-3);
-		justify-content: flex-end;
-		margin-top: var(--space-4);
-	}
-
 	.history-toggle {
 		position: fixed;
 		top: var(--space-4);

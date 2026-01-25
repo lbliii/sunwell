@@ -25,7 +25,7 @@
   let deleteDialogWorkspace = $state<WorkspaceInfo | null>(null);
 
   // Group workspaces by status
-  const grouped = $derived(() => {
+  const grouped = $derived.by(() => {
     const groups: {
       registered: WorkspaceInfo[];
       discovered: WorkspaceInfo[];
@@ -88,7 +88,7 @@
 <div class="workspace-list">
   {#if grouped.registered.length > 0}
     <section class="workspace-group">
-      <h3 class="group-title">Registered Workspaces ({grouped.registered.length})</h3>
+      <h3 class="group-title">Sunwell Projects ({grouped.registered.length})</h3>
       <div class="workspace-items">
         {#each grouped.registered as workspace (workspace.id)}
           <div class="workspace-item" class:current={workspace.isCurrent}>
@@ -122,7 +122,7 @@
 
   {#if grouped.discovered.length > 0}
     <section class="workspace-group">
-      <h3 class="group-title">Discovered Workspaces ({grouped.discovered.length})</h3>
+      <h3 class="group-title">External Codebases ({grouped.discovered.length})</h3>
       <div class="workspace-items">
         {#each grouped.discovered as workspace (workspace.id)}
           <div class="workspace-item" class:current={workspace.isCurrent}>
@@ -156,7 +156,7 @@
 
   {#if grouped.invalid.length > 0}
     <section class="workspace-group">
-      <h3 class="group-title">Invalid Workspaces ({grouped.invalid.length})</h3>
+      <h3 class="group-title">Invalid ({grouped.invalid.length})</h3>
       <div class="workspace-items">
         {#each grouped.invalid as workspace (workspace.id)}
           <div class="workspace-item invalid">
@@ -178,16 +178,16 @@
 
   {#if displayWorkspaces.length === 0}
     <div class="empty-state">
-      <p class="empty-title">No workspaces found</p>
+      <p class="empty-title">No projects found</p>
       <p class="empty-description">
         {grouped.registered.length === 0 &&
         grouped.discovered.length === 0 &&
         grouped.invalid.length === 0
-          ? 'No workspaces available. Try discovering workspaces or creating a new project.'
-          : 'No workspaces match the current filters.'}
+          ? 'No projects available. Create a new project from the home screen, or scan for external codebases.'
+          : 'No items match the current filters.'}
       </p>
       <Button variant="primary" onclick={() => discoverWorkspaces()}>
-        Discover Workspaces
+        Scan for Codebases
       </Button>
     </div>
   {/if}

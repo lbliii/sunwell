@@ -170,10 +170,21 @@
     outline-offset: 2px;
   }
   
+  .modal-description {
+    padding: 0 var(--space-4);
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    line-height: var(--leading-relaxed);
+  }
+  
   .modal-content {
     flex: 1;
     overflow-y: auto;
     padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
   }
   
   .modal-footer {
@@ -183,6 +194,14 @@
     padding: var(--space-4);
     background: var(--bg-secondary);
     border-top: 1px solid var(--border-color);
+  }
+  
+  /* Support for modal-actions pattern in children slot */
+  .modal-content :global(.modal-actions) {
+    display: flex;
+    gap: var(--space-3);
+    justify-content: flex-end;
+    margin-top: var(--space-4);
   }
   
   @keyframes fadeIn {
