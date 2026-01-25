@@ -230,7 +230,7 @@ async def auto_fix_recovery(
 async def _run_auto_fix(state: Any, hint: str | None) -> None:
     """Background task to run auto-fix (RFC-MEMORY)."""
     from sunwell.agent import AdaptiveBudget, Agent, RunOptions
-    from sunwell.interface.generative.cli.helpers import resolve_model
+    from sunwell.interface.cli.helpers import resolve_model
     from sunwell.agent.context.session import SessionContext
     from sunwell.memory import PersistentMemory
     from sunwell.agent.recovery import RecoveryManager, build_healing_context

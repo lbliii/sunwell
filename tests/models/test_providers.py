@@ -4,12 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.providers.native.bookmarks import SunwellBookmarks
-from sunwell.providers.native.contacts import SunwellContacts
-from sunwell.providers.native.files import SunwellFiles
-from sunwell.providers.native.git import SunwellGit
-from sunwell.providers.native.habits import SunwellHabits
-from sunwell.providers.native.projects import SunwellProjects
+from sunwell.models.providers.native.bookmarks import SunwellBookmarks
+from sunwell.models.providers.native.contacts import SunwellContacts
+from sunwell.models.providers.native.files import SunwellFiles
+from sunwell.models.providers.native.git import SunwellGit
+from sunwell.models.providers.native.habits import SunwellHabits
+from sunwell.models.providers.native.projects import SunwellProjects
 
 
 class TestSunwellFiles:
@@ -711,7 +711,7 @@ class TestSunwellContacts:
     @pytest.fixture
     def contacts_provider(self, temp_data_dir: Path) -> SunwellContacts:
         """Create a contacts provider for testing."""
-        from sunwell.providers.native.contacts import SunwellContacts
+        from sunwell.models.providers.native.contacts import SunwellContacts
         return SunwellContacts(temp_data_dir)
 
     async def test_create_contact(self, contacts_provider: SunwellContacts) -> None:

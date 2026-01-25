@@ -5,12 +5,12 @@ import threading
 
 import pytest
 from pathlib import Path
-from sunwell.fount.client import FountClient
-from sunwell.fount.cache import FountCache
-from sunwell.fount.resolver import LensResolver
-from sunwell.schema.loader import LensLoader
+from sunwell.features.fount.client import FountClient
+from sunwell.features.fount.cache import FountCache
+from sunwell.features.fount.resolver import LensResolver
+from sunwell.foundation.schema.loader.loader import LensLoader
 from sunwell.foundation.errors import SunwellError
-from sunwell.core.types import LensReference
+from sunwell.core.types.types import LensReference
 
 @pytest.fixture
 def lens_loader(fount_client):

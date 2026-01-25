@@ -497,8 +497,8 @@ def test_incremental_executor_force_rerun(sample_graph: ArtifactGraph) -> None:
         cache = ExecutionCache(Path(tmpdir) / "cache.db")
 
         # First, simulate a successful execution by setting cache entries
-        from sunwell.incremental.cache import ExecutionStatus
-        from sunwell.incremental.hasher import compute_input_hash
+        from sunwell.agent.incremental.cache import ExecutionStatus
+        from sunwell.agent.incremental.hasher import compute_input_hash
         for artifact_id in sample_graph:
             spec = sample_graph[artifact_id]
             input_hash = compute_input_hash(spec, {})

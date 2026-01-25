@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sunwell.agent.gates import GateType, ValidationGate
+from sunwell.agent.validation.gates import GateType, ValidationGate
 from sunwell.agent.validation import (
     Artifact,
     ValidationError,

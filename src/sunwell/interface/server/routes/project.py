@@ -81,7 +81,7 @@ async def validate_project_path(request: ProjectPathRequest) -> ValidationResult
 
     Returns structured error with suggestion instead of raising.
     """
-    from sunwell.knowledge import ProjectValidationError, validate_workspace
+    from sunwell.knowledge.project import ProjectValidationError, validate_workspace
     from sunwell.knowledge.workspace import default_workspace_root
 
     path = normalize_path(request.path)
@@ -170,8 +170,8 @@ async def create_project(request: CreateProjectRequest) -> CreateProjectResponse
     """
     import re
 
-    from sunwell.knowledge import ProjectRegistry, init_project
-    from sunwell.knowledge import RegistryError
+    from sunwell.knowledge import ProjectRegistry
+    from sunwell.knowledge.project import init_project, RegistryError
     from sunwell.knowledge.workspace import default_workspace_root
 
     # Validate name
@@ -303,7 +303,7 @@ async def set_default_project(request: SetDefaultRequest) -> dict[str, Any]:
     Validates project exists in registry before setting.
     """
     from sunwell.knowledge import ProjectRegistry
-    from sunwell.knowledge import RegistryError
+    from sunwell.knowledge.project import RegistryError
 
     registry = ProjectRegistry()
 

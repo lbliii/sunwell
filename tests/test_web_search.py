@@ -14,7 +14,7 @@ from sunwell.tools.web_search import (
 from sunwell.tools.executor import ToolExecutor
 from sunwell.tools.types import ToolPolicy, ToolTrust
 from sunwell.tools.builtins import CORE_TOOLS
-from sunwell.models.protocol import ToolCall
+from sunwell.models.core.protocol import ToolCall
 
 
 # =============================================================================

@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from sunwell.agent.gates import (
+from sunwell.agent.validation.gates import (
     GateResult,
     GateStepResult,
     GateType,

@@ -3,8 +3,8 @@
 
 import pytest
 
-from sunwell.security.analyzer import PermissionScope
-from sunwell.security.monitor import (
+from sunwell.quality.security.analyzer import PermissionScope
+from sunwell.quality.security.monitor import (
     SecurityClassification,
     SecurityMonitor,
     SecurityViolation,

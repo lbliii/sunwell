@@ -23,7 +23,7 @@ class TestCreateModel:
     def test_create_model_mock(self) -> None:
         """create_model('mock', ...) returns MockModel."""
         from sunwell.interface.cli.helpers import create_model
-        from sunwell.models.mock import MockModel
+        from sunwell.models.adapters.mock import MockModel
 
         model = create_model("mock", "mock")
         assert isinstance(model, MockModel)

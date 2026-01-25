@@ -8,7 +8,7 @@ from sunwell.models.capability.validation import (
     format_validation_feedback,
     validate_tool_call,
 )
-from sunwell.models.protocol import Tool, ToolCall
+from sunwell.models.core.protocol import Tool, ToolCall
 
 
 class TestValidateToolCall:

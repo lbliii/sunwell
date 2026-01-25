@@ -6,7 +6,7 @@ from collections import OrderedDict
 import pytest
 from pathlib import Path
 
-from sunwell.skills.types import (
+from sunwell.planning.skills.types import (
     Skill,
     SkillType,
     TrustLevel,
@@ -17,9 +17,9 @@ from sunwell.skills.types import (
     SkillRetryPolicy,
     validate_skill_name,
 )
-from sunwell.skills.cache import SkillCache, SkillCacheKey, SkillCacheEntry
-from sunwell.skills.sandbox import ScriptSandbox, expand_template_variables
-from sunwell.schema.loader import LensLoader
+from sunwell.planning.skills.cache import SkillCache, SkillCacheKey, SkillCacheEntry
+from sunwell.planning.skills.sandbox import ScriptSandbox, expand_template_variables
+from sunwell.foundation.schema.loader.loader import LensLoader
 
 
 class TestSkillTypes:
@@ -332,7 +332,7 @@ class TestSkillExporter:
 
     def test_export_to_yaml(self):
         """Export skill to YAML format."""
-        from sunwell.skills.interop import SkillExporter
+        from sunwell.planning.skills.interop import SkillExporter
         import yaml
         
         skill = Skill(
@@ -352,7 +352,7 @@ class TestSkillExporter:
 
     def test_export_lens_skills(self, tmp_path):
         """Export all skills from a lens to files."""
-        from sunwell.skills.interop import SkillExporter
+        from sunwell.planning.skills.interop import SkillExporter
         
         loader = LensLoader()
         lens = loader.load(Path("lenses/tech-writer.lens"))
@@ -371,7 +371,7 @@ class TestSkillImporter:
 
     def test_import_skill_md(self, tmp_path):
         """Import skill from SKILL.md file."""
-        from sunwell.skills.interop import SkillImporter
+        from sunwell.planning.skills.interop import SkillImporter
         
         # Create a test SKILL.md
         skill_dir = tmp_path / "test-skill"
@@ -407,7 +407,7 @@ print("hello from imported skill")
 
     def test_import_skill_yaml(self, tmp_path):
         """Import skill from YAML file."""
-        from sunwell.skills.interop import SkillImporter
+        from sunwell.planning.skills.interop import SkillImporter
         import yaml
         
         skill_file = tmp_path / "skill.yaml"
@@ -428,7 +428,7 @@ print("hello from imported skill")
 
     def test_import_skill_folder_prefers_md(self, tmp_path):
         """Folder with both SKILL.md and skill.yaml prefers SKILL.md."""
-        from sunwell.skills.interop import SkillImporter
+        from sunwell.planning.skills.interop import SkillImporter
         import yaml
         
         skill_dir = tmp_path / "hybrid-skill"
@@ -460,7 +460,7 @@ class TestSkillValidation:
 
     def test_validate_valid_skill(self, tmp_path):
         """Valid skill passes validation."""
-        from sunwell.skills.interop import validate_skill_folder
+        from sunwell.planning.skills.interop import validate_skill_folder
         
         skill_dir = tmp_path / "valid-skill"
         skill_dir.mkdir()
@@ -482,7 +482,7 @@ A properly formatted skill.
 
     def test_validate_missing_description(self, tmp_path):
         """Skill missing description fails validation."""
-        from sunwell.skills.interop import validate_skill_folder
+        from sunwell.planning.skills.interop import validate_skill_folder
         
         skill_dir = tmp_path / "bad-skill"
         skill_dir.mkdir()
@@ -499,7 +499,7 @@ Do something without saying what.
 
     def test_validate_with_lens(self, tmp_path):
         """Validate skill against lens validators."""
-        from sunwell.skills.interop import validate_skill_folder
+        from sunwell.planning.skills.interop import validate_skill_folder
         
         skill_dir = tmp_path / "lens-validated"
         skill_dir.mkdir()
@@ -522,7 +522,7 @@ Follow the lens heuristics.
 
     def test_validate_nonexistent_folder(self, tmp_path):
         """Nonexistent folder fails validation."""
-        from sunwell.skills.interop import validate_skill_folder
+        from sunwell.planning.skills.interop import validate_skill_folder
         
         result = validate_skill_folder(tmp_path / "does-not-exist")
         
@@ -535,7 +535,7 @@ class TestExportImportRoundtrip:
 
     def test_roundtrip_skill_yaml(self, tmp_path):
         """Export to YAML and import back preserves key data."""
-        from sunwell.skills.interop import SkillExporter, SkillImporter
+        from sunwell.planning.skills.interop import SkillExporter, SkillImporter
         
         # Create original skill
         original = Skill(
@@ -659,7 +659,7 @@ class TestSkillCacheLRU:
 
     def _make_output(self, content: str):
         """Helper to create a mock SkillOutput."""
-        from sunwell.skills.types import SkillOutput
+        from sunwell.planning.skills.types import SkillOutput
         return SkillOutput(content=content)
 
     def test_cache_uses_ordered_dict(self):

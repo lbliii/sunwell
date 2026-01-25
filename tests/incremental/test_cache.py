@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.incremental.cache import (
+from sunwell.agent.incremental.cache import (
     ExecutionCache,
     ExecutionStatus,
 )

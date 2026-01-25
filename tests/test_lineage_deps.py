@@ -4,13 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.lineage.dependencies import (
+from sunwell.memory.lineage.dependencies import (
     detect_imports,
     detect_language,
     get_impact_analysis,
     update_dependency_graph,
 )
-from sunwell.lineage.store import LineageStore
+from sunwell.memory.lineage.store import LineageStore
 
 
 class TestLanguageDetection:
@@ -52,7 +52,7 @@ class TestPythonImports:
 
     def test_from_import(self) -> None:
         """Test from...import statement."""
-        content = "from sunwell.lineage.store import LineageStore"
+        content = "from sunwell.memory.lineage.store import LineageStore"
         imports = detect_imports(Path("src/main.py"), content)
         assert any("sunwell" in imp or "lineage" in imp for imp in imports)
 

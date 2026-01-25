@@ -13,7 +13,7 @@ from sunwell.tools.builtins import CORE_TOOLS, get_tools_for_trust_level
 from sunwell.tools.handlers import CoreToolHandlers, PathSecurityError, DEFAULT_BLOCKED_PATTERNS
 from sunwell.knowledge.project import Project
 from sunwell.tools.executor import ToolExecutor
-from sunwell.models.protocol import Tool, ToolCall, Message, GenerateResult
+from sunwell.models.core.protocol import Tool, ToolCall, Message, GenerateResult
 
 
 # =============================================================================

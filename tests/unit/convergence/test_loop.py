@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from sunwell.agent.events import EventType
-from sunwell.agent.gates import GateType
+from sunwell.agent.validation.gates import GateType
 from sunwell.convergence.loop import ConvergenceLoop
 from sunwell.convergence.types import ConvergenceConfig, ConvergenceStatus
 

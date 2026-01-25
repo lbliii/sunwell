@@ -6,14 +6,14 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from sunwell.skills.learner import (
+from sunwell.planning.skills.learner import (
     ExecutionPattern,
     LearnedSkillMetadata,
     SkillLearner,
     SkillLearningResult,
 )
-from sunwell.skills.library import SkillLibrary, SkillProvenance
-from sunwell.skills.types import Skill, SkillDependency, SkillMetadata, SkillType
+from sunwell.planning.skills.library import SkillLibrary, SkillProvenance
+from sunwell.planning.skills.types import Skill, SkillDependency, SkillMetadata, SkillType
 
 
 # =============================================================================
@@ -179,7 +179,7 @@ class TestSkillLearnerPatternExtraction:
 
     def test_topological_sort_empty_dag(self):
         """Test topological sort with empty DAG."""
-        from sunwell.simulacrum.core.dag import ConversationDAG
+        from sunwell.memory.simulacrum.core.dag import ConversationDAG
 
         learner = SkillLearner()
         dag = ConversationDAG()
@@ -189,8 +189,8 @@ class TestSkillLearnerPatternExtraction:
 
     def test_topological_sort_linear(self):
         """Test topological sort with linear conversation."""
-        from sunwell.simulacrum.core.dag import ConversationDAG
-        from sunwell.simulacrum.core.turn import Turn, TurnType
+        from sunwell.memory.simulacrum.core.dag import ConversationDAG
+        from sunwell.memory.simulacrum.core.turn import Turn, TurnType
 
         learner = SkillLearner()
         dag = ConversationDAG()
@@ -211,8 +211,8 @@ class TestSkillLearnerPatternExtraction:
 
     def test_summarize_steps(self):
         """Test step summarization."""
-        from sunwell.simulacrum.core.dag import ConversationDAG
-        from sunwell.simulacrum.core.turn import Turn, TurnType
+        from sunwell.memory.simulacrum.core.dag import ConversationDAG
+        from sunwell.memory.simulacrum.core.turn import Turn, TurnType
 
         learner = SkillLearner()
         dag = ConversationDAG()
@@ -533,8 +533,8 @@ class TestSkillLearnerLibraryIntegration:
     @pytest.mark.asyncio
     async def test_learn_and_save_workflow(self):
         """Test the full learn -> save workflow."""
-        from sunwell.simulacrum.core.dag import ConversationDAG
-        from sunwell.simulacrum.core.turn import Turn, TurnType
+        from sunwell.memory.simulacrum.core.dag import ConversationDAG
+        from sunwell.memory.simulacrum.core.turn import Turn, TurnType
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)

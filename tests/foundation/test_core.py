@@ -2,10 +2,10 @@
 
 import pytest
 
-from sunwell.core.types import SemanticVersion, LensReference, Confidence, Tier
-from sunwell.core.heuristic import Heuristic, Example
-from sunwell.core.persona import Persona
-from sunwell.core.lens import Lens, LensMetadata
+from sunwell.core.types.types import SemanticVersion, LensReference, Confidence, Tier
+from sunwell.core.models.heuristic import Heuristic, Example
+from sunwell.core.models.persona import Persona
+from sunwell.foundation.core.lens import Lens, LensMetadata
 
 
 class TestSemanticVersion:

@@ -13,7 +13,7 @@ import pytest
 import numpy as np
 from pathlib import Path
 
-from sunwell.simulacrum.topology import (
+from sunwell.memory.simulacrum.topology import (
     SpatialContext, SpatialQuery, spatial_match, PositionType,
     ConceptGraph, ConceptEdge, RelationType,
     DocumentTree, DocumentSection, SectionType, infer_section_type,
@@ -21,8 +21,8 @@ from sunwell.simulacrum.topology import (
     VerificationState, ConfidenceLevel,
     MemoryNode, UnifiedMemoryStore,
 )
-from sunwell.simulacrum.extractors.spatial_extractor import SpatialExtractor
-from sunwell.simulacrum.extractors.structural_chunker import StructuralChunker
+from sunwell.memory.simulacrum.extractors.spatial_extractor import SpatialExtractor
+from sunwell.memory.simulacrum.extractors.structural_chunker import StructuralChunker
 
 
 class TestSpatialMemory:
@@ -454,7 +454,7 @@ class TestFacetExtractor:
     
     def test_detect_diataxis_type(self):
         """Diataxis type detection works."""
-        from sunwell.simulacrum.extractors.facet_extractor import extract_facets_from_text
+        from sunwell.memory.simulacrum.extractors.facet_extractor import extract_facets_from_text
         
         tutorial_text = "In this tutorial, you will learn step by step how to..."
         facets = extract_facets_from_text(tutorial_text)
@@ -466,7 +466,7 @@ class TestFacetExtractor:
     
     def test_detect_persona(self):
         """Persona detection works."""
-        from sunwell.simulacrum.extractors.facet_extractor import extract_facets_from_text
+        from sunwell.memory.simulacrum.extractors.facet_extractor import extract_facets_from_text
         
         beginner_text = "This beginner introduction covers the basic concepts..."
         facets = extract_facets_from_text(beginner_text)
@@ -478,7 +478,7 @@ class TestFacetExtractor:
     
     def test_detect_domains(self):
         """Domain tag detection works."""
-        from sunwell.simulacrum.extractors.facet_extractor import extract_facets_from_text
+        from sunwell.memory.simulacrum.extractors.facet_extractor import extract_facets_from_text
         
         cli_text = "Run the following command in your terminal..."
         facets = extract_facets_from_text(cli_text)

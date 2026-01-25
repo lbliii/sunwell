@@ -7,7 +7,7 @@ If they break, users get confusing errors instead of deprecation warnings.
 import pytest
 from click.testing import CliRunner
 
-from sunwell.interface.cli.main import main
+from sunwell.interface.cli.core.main import main
 
 
 class TestDeprecatedAskCommand:

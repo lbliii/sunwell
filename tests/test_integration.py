@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.integration import (
+from sunwell.features.external.integration.decomposer import (
     ArtifactDefinition,
     IntegrationAwareGoal,
     IntegrationCheck,

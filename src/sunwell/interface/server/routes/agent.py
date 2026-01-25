@@ -300,7 +300,7 @@ async def _execute_agent(run: RunState, *, use_v2: bool = False) -> AsyncIterato
     provider = run.provider or (config.model.default_provider if config else "ollama")
     model_name = run.model or (config.model.default_model if config else "gemma3:4b")
 
-    from sunwell.interface.generative.cli.helpers import resolve_model
+    from sunwell.interface.cli.helpers import resolve_model
 
     try:
         synthesis_model = resolve_model(provider, model_name)

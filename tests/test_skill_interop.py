@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from sunwell.skills.interop import SkillExporter, SkillImporter, validate_skill_folder
-from sunwell.skills.types import (
+from sunwell.planning.skills.interop import SkillExporter, SkillImporter, validate_skill_folder
+from sunwell.planning.skills.types import (
     Resource,
     Script,
     Skill,
@@ -423,7 +423,7 @@ class TestSkillValidation:
 
     def test_validate_valid_skill(self):
         """Test validating a well-formed skill."""
-        from sunwell.skills.interop import validate_skill_folder
+        from sunwell.planning.skills.interop import validate_skill_folder
 
         with tempfile.TemporaryDirectory() as tmpdir:
             skill_dir = Path(tmpdir) / "valid-skill"
@@ -445,7 +445,7 @@ Do the valid thing.
 
     def test_validate_missing_name(self):
         """Test validation catches missing name."""
-        from sunwell.skills.interop import validate_skill_folder
+        from sunwell.planning.skills.interop import validate_skill_folder
 
         with tempfile.TemporaryDirectory() as tmpdir:
             skill_dir = Path(tmpdir) / "no-name"
@@ -465,7 +465,7 @@ Instructions.
 
     def test_validate_missing_file(self):
         """Test validation handles missing skill file."""
-        from sunwell.skills.interop import validate_skill_folder
+        from sunwell.planning.skills.interop import validate_skill_folder
 
         with tempfile.TemporaryDirectory() as tmpdir:
             skill_dir = Path(tmpdir) / "empty"

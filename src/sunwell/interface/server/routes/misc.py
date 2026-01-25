@@ -111,7 +111,7 @@ async def get_debug_dump() -> StreamingResponse:
 
     Returns a tar.gz file containing diagnostics for bug reports.
     """
-    from sunwell.interface.generative.cli.debug_cmd import (
+    from sunwell.interface.cli.commands.debug_cmd import (
         _collect_config,
         _collect_events,
         _collect_logs,

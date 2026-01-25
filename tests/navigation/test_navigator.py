@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import pytest
 
-from sunwell.models.mock import MockModel
-from sunwell.navigation.navigator import (
+from sunwell.models.adapters.mock import MockModel
+from sunwell.knowledge.navigation.navigator import (
     NavigationResult,
     NavigatorConfig,
     TocNavigator,
 )
-from sunwell.navigation.toc import ProjectToc, TocNode
+from sunwell.knowledge.navigation.toc import ProjectToc, TocNode
 
 
 class TestNavigationResult:

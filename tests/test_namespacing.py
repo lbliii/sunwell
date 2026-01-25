@@ -9,7 +9,7 @@ from sunwell.models.capability.namespacing import (
     parse_namespaced_name,
     resolve_tool,
 )
-from sunwell.models.protocol import Tool, ToolCall
+from sunwell.models.core.protocol import Tool, ToolCall
 
 
 class TestNamespaceTools:

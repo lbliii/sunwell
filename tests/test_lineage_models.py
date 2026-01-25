@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from sunwell.lineage.models import (
+from sunwell.memory.lineage.models import (
     ArtifactEdit,
     ArtifactLineage,
     compute_content_hash,
@@ -419,8 +419,8 @@ class TestIdentityResolver:
 
     def test_resolve_new_file(self, tmp_path) -> None:
         """Test new file gets new artifact ID."""
-        from sunwell.lineage.identity import ArtifactIdentityResolver
-        from sunwell.lineage.store import LineageStore
+        from sunwell.memory.lineage.identity import ArtifactIdentityResolver
+        from sunwell.memory.lineage.store import LineageStore
 
         store = LineageStore(tmp_path)
         resolver = ArtifactIdentityResolver(store)
@@ -433,8 +433,8 @@ class TestIdentityResolver:
 
     def test_resolve_reuses_deleted_on_content_match(self, tmp_path) -> None:
         """Test resolver reuses ID when content matches deleted artifact."""
-        from sunwell.lineage.identity import ArtifactIdentityResolver
-        from sunwell.lineage.store import LineageStore
+        from sunwell.memory.lineage.identity import ArtifactIdentityResolver
+        from sunwell.memory.lineage.store import LineageStore
 
         store = LineageStore(tmp_path)
         resolver = ArtifactIdentityResolver(store)
@@ -461,8 +461,8 @@ class TestIdentityResolver:
 
     def test_resolve_new_id_for_different_content(self, tmp_path) -> None:
         """Test resolver creates new ID when content differs."""
-        from sunwell.lineage.identity import ArtifactIdentityResolver
-        from sunwell.lineage.store import LineageStore
+        from sunwell.memory.lineage.identity import ArtifactIdentityResolver
+        from sunwell.memory.lineage.store import LineageStore
 
         store = LineageStore(tmp_path)
         resolver = ArtifactIdentityResolver(store)

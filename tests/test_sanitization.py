@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-from sunwell.models.protocol import _sanitize_dict_values, sanitize_llm_content
+from sunwell.models.core.protocol import _sanitize_dict_values, sanitize_llm_content
 
 
 class TestSanitizeLlmContent:

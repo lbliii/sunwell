@@ -2,7 +2,7 @@
 
 import pytest
 
-from sunwell.incremental.hasher import (
+from sunwell.agent.incremental.hasher import (
     compute_input_hash,
     compute_spec_hash,
     create_artifact_hash,

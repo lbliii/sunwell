@@ -19,13 +19,13 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.simulacrum.core.turn import (
+from sunwell.memory.simulacrum.core.turn import (
     Learning,
     TemplateData,
     TemplateVariable,
 )
-from sunwell.simulacrum.core.store import PlanningContext, SimulacrumStore
-from sunwell.simulacrum.core.dag import ConversationDAG
+from sunwell.memory.simulacrum.core.store import PlanningContext, SimulacrumStore
+from sunwell.memory.simulacrum.core.dag import ConversationDAG
 from sunwell.agent.learning import LearningExtractor, LearningStore
 from sunwell.agent.builtin_templates import (
     BUILTIN_TEMPLATES,

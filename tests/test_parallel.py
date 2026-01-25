@@ -10,7 +10,7 @@ from sunwell.models.capability.parallel import (
     plan_parallel_execution,
 )
 from sunwell.models.capability.registry import ModelCapability
-from sunwell.models.protocol import Tool, ToolCall
+from sunwell.models.core.protocol import Tool, ToolCall
 
 
 class TestClassifyTool:

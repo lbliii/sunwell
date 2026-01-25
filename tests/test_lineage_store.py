@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.lineage.models import compute_content_hash
-from sunwell.lineage.store import LineageStore
+from sunwell.memory.lineage.models import compute_content_hash
+from sunwell.memory.lineage.store import LineageStore
 
 
 class TestLineageStore:

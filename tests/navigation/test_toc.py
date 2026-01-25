@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.navigation.toc import ProjectToc, TocNode, node_id_from_path
+from sunwell.knowledge.navigation.toc import ProjectToc, TocNode, node_id_from_path
 
 
 class TestTocNode:

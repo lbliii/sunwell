@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.security.analyzer import PermissionScope
-from sunwell.security.audit import (
+from sunwell.quality.security.analyzer import PermissionScope
+from sunwell.quality.security.audit import (
     AuditEntry,
     AuditLogManager,
     LocalAuditLog,

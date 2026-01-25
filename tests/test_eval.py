@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.eval.evaluator import FullStackEvaluator
-from sunwell.eval.tasks import FULL_STACK_TASKS, get_eval_task, list_eval_tasks
-from sunwell.eval.types import (
+from sunwell.benchmark.eval.evaluator import FullStackEvaluator
+from sunwell.benchmark.eval.tasks import FULL_STACK_TASKS, get_eval_task, list_eval_tasks
+from sunwell.benchmark.eval.types import (
     FullStackTask,
     SingleShotResult,
     SunwellResult,
@@ -151,7 +151,7 @@ class TestStore:
 
     def test_store_creation(self, tmp_path):
         """Store should be creatable with a path."""
-        from sunwell.eval.store import EvaluationStore
+        from sunwell.benchmark.evaluation.store import EvaluationStore
 
         db_path = tmp_path / "eval.db"
         store = EvaluationStore(db_path)
@@ -161,7 +161,7 @@ class TestStore:
 
     def test_store_aggregate_stats_empty(self, tmp_path):
         """Empty store should return zero stats."""
-        from sunwell.eval.store import EvaluationStore
+        from sunwell.benchmark.evaluation.store import EvaluationStore
 
         db_path = tmp_path / "empty.db"
         store = EvaluationStore(db_path)
@@ -170,7 +170,7 @@ class TestStore:
 
     def test_store_load_recent_empty(self, tmp_path):
         """Empty store should return empty list."""
-        from sunwell.eval.store import EvaluationStore
+        from sunwell.benchmark.evaluation.store import EvaluationStore
 
         db_path = tmp_path / "empty2.db"
         store = EvaluationStore(db_path)

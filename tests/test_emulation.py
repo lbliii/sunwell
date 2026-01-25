@@ -11,7 +11,7 @@ from sunwell.models.capability.emulation import (
     optimize_tool_definitions,
 )
 from sunwell.models.capability.registry import ModelCapability
-from sunwell.models.protocol import Tool
+from sunwell.models.core.protocol import Tool
 
 
 @pytest.fixture

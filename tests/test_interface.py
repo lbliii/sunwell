@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import tempfile
 
-from sunwell.interface.types import ActionSpec, ViewSpec, IntentAnalysis
+from sunwell.interface.core.types import ActionSpec, ViewSpec, IntentAnalysis
 from sunwell.interface.executor import ActionExecutor, ActionResult
 from sunwell.interface.views import ViewRenderer
 from sunwell.interface.router import (
@@ -14,8 +14,8 @@ from sunwell.interface.router import (
     ViewOutput,
     ConversationOutput,
 )
-from sunwell.providers.registry import ProviderRegistry
-from sunwell.providers.base import CalendarEvent
+from sunwell.models.providers.registry import ProviderRegistry
+from sunwell.models.providers.base import CalendarEvent
 
 
 @pytest.fixture

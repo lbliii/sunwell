@@ -5,7 +5,7 @@ Tests the confidence aggregation and calibration components.
 
 from pathlib import Path
 
-from sunwell.confidence import (
+from sunwell.quality.confidence import (
     CalibrationTracker,
     ConfidenceFeedback,
     ConfidenceLevel,
@@ -14,7 +14,7 @@ from sunwell.confidence import (
     aggregate_confidence,
     score_to_band,
 )
-from sunwell.confidence.aggregation import ConfidenceFactors, calculate_confidence
+from sunwell.quality.confidence.aggregation import ConfidenceFactors, calculate_confidence
 
 
 class TestConfidenceLevel:

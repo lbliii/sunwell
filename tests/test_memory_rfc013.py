@@ -1,11 +1,11 @@
 """Tests for RFC-013 Hierarchical Memory and CTF."""
 
 import pytest
-from sunwell.simulacrum.core.turn import Turn, TurnType
-from sunwell.simulacrum.hierarchical.ctf import CTFEncoder, CTFDecoder
-from sunwell.simulacrum.hierarchical.chunks import Chunk, ChunkType
-from sunwell.simulacrum.hierarchical.chunk_manager import ChunkManager
-from sunwell.simulacrum.hierarchical.config import ChunkConfig
+from sunwell.memory.simulacrum.core.turn import Turn, TurnType
+from sunwell.memory.simulacrum.hierarchical.ctf import CTFEncoder, CTFDecoder
+from sunwell.memory.simulacrum.hierarchical.chunks import Chunk, ChunkType
+from sunwell.memory.simulacrum.hierarchical.chunk_manager import ChunkManager
+from sunwell.memory.simulacrum.hierarchical.config import ChunkConfig
 from pathlib import Path
 
 def test_ctf_encoding_decoding():
@@ -32,7 +32,7 @@ def test_token_estimation():
     # 7 words * 1.3 = 9.1 -> 9 tokens
     assert turn.token_count == 9
 
-from sunwell.simulacrum.hierarchical.summarizer import Summarizer
+from sunwell.memory.simulacrum.hierarchical.summarizer import Summarizer
 
 @pytest.mark.asyncio
 async def test_summarizer_heuristic():

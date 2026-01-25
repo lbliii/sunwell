@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from sunwell.models.protocol import ModelProtocol
+from sunwell.models.core.protocol import ModelProtocol
 from sunwell.models.registry import (
     DEFAULT_ALIASES,
     ModelRegistry,

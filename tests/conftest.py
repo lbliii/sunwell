@@ -4,13 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.core.lens import Lens, LensMetadata
-from sunwell.core.heuristic import Heuristic, Example
-from sunwell.core.persona import Persona
-from sunwell.core.validator import HeuristicValidator
-from sunwell.core.types import SemanticVersion, Severity, ValidationMethod
-from sunwell.models.mock import MockModel
-from sunwell.schema.loader import LensLoader
+from sunwell.foundation.core.lens import Lens, LensMetadata
+from sunwell.core.models.heuristic import Heuristic, Example
+from sunwell.core.models.persona import Persona
+from sunwell.core.models.validator import HeuristicValidator
+from sunwell.core.types.types import SemanticVersion, Severity, ValidationMethod
+from sunwell.models.adapters.mock import MockModel
+from sunwell.foundation.schema.loader.loader import LensLoader
 
 
 @pytest.fixture

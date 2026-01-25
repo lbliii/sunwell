@@ -619,8 +619,8 @@ class TestSkillTriggerMatching:
     @pytest.fixture
     def mock_lens_with_skills(self):
         """Create a mock lens with skills that have triggers."""
-        from sunwell.core.lens import Lens, LensMetadata, Router
-        from sunwell.skills.types import Skill, SkillType
+        from sunwell.foundation.core.lens import Lens, LensMetadata, Router
+        from sunwell.planning.skills.types import Skill, SkillType
         
         skills = (
             Skill(
@@ -730,7 +730,7 @@ class TestShortcutCommands:
     @pytest.fixture
     def mock_lens_with_shortcuts(self):
         """Create a mock lens with shortcuts."""
-        from sunwell.core.lens import Lens, LensMetadata, Router
+        from sunwell.foundation.core.lens import Lens, LensMetadata, Router
         
         router = Router(
             shortcuts={
@@ -784,7 +784,7 @@ class TestShortcutCommands:
 
     def test_lens_without_router_returns_none(self, mock_model):
         """Test that lens without router returns None."""
-        from sunwell.core.lens import Lens, LensMetadata
+        from sunwell.foundation.core.lens import Lens, LensMetadata
         
         lens = Lens(metadata=LensMetadata(name="no-router"))
         router = UnifiedRouter(model=mock_model)
@@ -800,8 +800,8 @@ class TestRouteWithSkills:
     @pytest.fixture
     def mock_lens_with_skills(self):
         """Create a mock lens with skills."""
-        from sunwell.core.lens import Lens, LensMetadata, Router
-        from sunwell.skills.types import Skill, SkillType
+        from sunwell.foundation.core.lens import Lens, LensMetadata, Router
+        from sunwell.planning.skills.types import Skill, SkillType
         
         skills = (
             Skill(

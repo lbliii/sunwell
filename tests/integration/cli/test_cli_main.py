@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 import click
 import pytest
 
-from sunwell.interface.cli.main import GoalFirstGroup, main
+from sunwell.interface.cli.core.main import GoalFirstGroup, main
 
 
 class TestGoalFirstGroup:

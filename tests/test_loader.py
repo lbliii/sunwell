@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.schema.loader import LensLoader
+from sunwell.foundation.schema.loader.loader import LensLoader
 from sunwell.foundation.errors import SunwellError
 
 

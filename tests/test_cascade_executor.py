@@ -16,13 +16,13 @@ from unittest.mock import patch
 import pytest
 
 from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
-from sunwell.weakness.cascade import CascadeEngine, CascadeExecution, CascadePreview
-from sunwell.weakness.executor import (
+from sunwell.quality.weakness.cascade import CascadeEngine, CascadeExecution, CascadePreview
+from sunwell.quality.weakness.executor import (
     CascadeArtifactBuilder,
     CascadeExecutor,
     WaveResult,
 )
-from sunwell.weakness.types import (
+from sunwell.quality.weakness.types import (
     ExtractedContract,
     WaveConfidence,
     WeaknessScore,

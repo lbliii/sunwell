@@ -2,7 +2,7 @@
 
 import pytest
 
-from sunwell.interface.block_actions import BlockActionExecutor, BlockActionResult
+from sunwell.interface.generative.block_actions import BlockActionExecutor, BlockActionResult
 
 
 class TestBlockActionResult:

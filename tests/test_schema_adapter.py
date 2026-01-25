@@ -11,7 +11,7 @@ from sunwell.models.capability.schema import (
     OpenAISchemaAdapter,
     get_schema_adapter,
 )
-from sunwell.models.protocol import Tool
+from sunwell.models.core.protocol import Tool
 
 
 @pytest.fixture

@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.incremental.cache import ExecutionCache, ExecutionStatus
-from sunwell.incremental.executor import (
+from sunwell.agent.incremental.cache import ExecutionCache, ExecutionStatus
+from sunwell.agent.incremental.executor import (
     ExecutionPlan,
     IncrementalExecutor,
     SkipDecision,
@@ -53,7 +53,7 @@ class TestShouldSkip:
         spec = ArtifactSpec(id="artifact_a", description="test", contract="test")
 
         # Cache a completed execution with matching hash
-        from sunwell.incremental.hasher import compute_input_hash
+        from sunwell.agent.incremental.hasher import compute_input_hash
 
         input_hash = compute_input_hash(spec, {})
         cache.set("artifact_a", input_hash, ExecutionStatus.COMPLETED, {"output": "value"})
@@ -90,7 +90,7 @@ class TestShouldSkip:
         """Artifacts that previously failed must execute."""
         spec = ArtifactSpec(id="artifact_a", description="test", contract="test")
 
-        from sunwell.incremental.hasher import compute_input_hash
+        from sunwell.agent.incremental.hasher import compute_input_hash
 
         input_hash = compute_input_hash(spec, {})
         cache.set("artifact_a", input_hash, ExecutionStatus.FAILED)
@@ -104,7 +104,7 @@ class TestShouldSkip:
         """Force rerun overrides caching."""
         spec = ArtifactSpec(id="artifact_a", description="test", contract="test")
 
-        from sunwell.incremental.hasher import compute_input_hash
+        from sunwell.agent.incremental.hasher import compute_input_hash
 
         input_hash = compute_input_hash(spec, {})
         cache.set("artifact_a", input_hash, ExecutionStatus.COMPLETED)
@@ -139,7 +139,7 @@ class TestIncrementalExecutor:
         # Pre-populate cache for A with correct hash
         spec_a = simple_graph.get("A")
         assert spec_a is not None
-        from sunwell.incremental.hasher import compute_input_hash
+        from sunwell.agent.incremental.hasher import compute_input_hash
 
         hash_a = compute_input_hash(spec_a, {})
         cache.set("A", hash_a, ExecutionStatus.COMPLETED)
@@ -160,7 +160,7 @@ class TestIncrementalExecutor:
         for artifact_id in ["A", "B", "C"]:
             spec = simple_graph.get(artifact_id)
             assert spec is not None
-            from sunwell.incremental.hasher import compute_input_hash
+            from sunwell.agent.incremental.hasher import compute_input_hash
 
             dep_hashes = {}
             if artifact_id == "B":
@@ -215,7 +215,7 @@ class TestIncrementalExecutor:
         # Pre-cache A
         spec_a = simple_graph.get("A")
         assert spec_a is not None
-        from sunwell.incremental.hasher import compute_input_hash
+        from sunwell.agent.incremental.hasher import compute_input_hash
 
         hash_a = compute_input_hash(spec_a, {})
         cache.set("A", hash_a, ExecutionStatus.COMPLETED, {"output": "cached"})

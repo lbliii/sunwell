@@ -5,7 +5,8 @@ import tempfile
 from pathlib import Path
 from datetime import datetime, timedelta
 
-from sunwell.identity.store import Identity, IdentityStore, Observation
+from sunwell.core.models.heuristic import Identity, Observation
+from sunwell.identity.store import IdentityStore
 from sunwell.identity.extractor import extract_behaviors_regex, _TWO_TIER_EXTRACTION_PROMPT
 from sunwell.identity.digest import _extract_confidence, _extract_prompt, quick_digest
 from sunwell.identity.injection import build_system_prompt_with_identity
@@ -375,8 +376,8 @@ class TestInjection:
     
     def _make_lens_with_identity(self):
         """Create a lens with M'uru identity for testing."""
-        from sunwell.core.lens import Lens, LensMetadata
-        from sunwell.core.heuristic import CommunicationStyle, Identity as LensIdentity
+        from sunwell.foundation.core.lens import Lens, LensMetadata
+        from sunwell.core.models.heuristic import CommunicationStyle, Identity as LensIdentity
         
         return Lens(
             metadata=LensMetadata(name="test"),

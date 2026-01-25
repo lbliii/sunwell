@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from sunwell.incremental.deduper import AsyncWorkDeduper, WorkDeduper
+from sunwell.agent.incremental.deduper import AsyncWorkDeduper, WorkDeduper
 
 
 class TestWorkDeduper:

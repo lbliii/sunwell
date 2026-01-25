@@ -6,7 +6,7 @@ Tests action classification, scope limits, trust zones, and escalation.
 import pytest
 from pathlib import Path
 
-from sunwell.guardrails import (
+from sunwell.quality.guardrails import (
     ActionClassifier,
     ActionRisk,
     TrustLevel,

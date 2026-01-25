@@ -3,15 +3,15 @@
 
 import pytest
 
-from sunwell.guardrails.types import ActionRisk
-from sunwell.security.analyzer import (
+from sunwell.quality.guardrails.types import ActionRisk
+from sunwell.quality.security.analyzer import (
     PermissionAnalyzer,
     PermissionScope,
     RiskAssessment,
     RiskWeights,
 )
-from sunwell.skills.graph import SkillGraph
-from sunwell.skills.types import Skill, SkillType
+from sunwell.planning.skills.graph import SkillGraph
+from sunwell.planning.skills.types import Skill, SkillType
 
 
 class TestPermissionScope:

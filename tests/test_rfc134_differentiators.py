@@ -23,7 +23,7 @@ from sunwell.agent.learning import (
     ToolPattern,
     classify_task_type,
 )
-from sunwell.models.protocol import ToolCall
+from sunwell.models.core.protocol import ToolCall
 from sunwell.tools.progressive import ProgressivePolicy
 from sunwell.tools.types import ToolTrust
 

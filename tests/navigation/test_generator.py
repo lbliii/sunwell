@@ -5,7 +5,7 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-from sunwell.navigation.generator import (
+from sunwell.knowledge.navigation.generator import (
     CONCEPT_KEYWORDS,
     SKIP_DIRS,
     GeneratorConfig,

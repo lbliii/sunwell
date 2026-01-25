@@ -14,8 +14,8 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.core.lens import Lens, LensMetadata
-from sunwell.schema.loader import LensLoader
+from sunwell.foundation.core.lens import Lens, LensMetadata
+from sunwell.foundation.schema.loader.loader import LensLoader
 
 
 # =============================================================================

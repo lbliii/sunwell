@@ -35,7 +35,7 @@ from sunwell.models.capability import (
 from sunwell.models.capability.parallel import ToolCategory
 from sunwell.models.capability.response_format import ResponseFormat
 from sunwell.models.capability.streaming import ToolStreamParser
-from sunwell.models.protocol import Tool, ToolCall
+from sunwell.models.core.protocol import Tool, ToolCall
 from sunwell.tools.errors import ToolError, ToolErrorCode, get_retry_strategy, should_retry
 
 

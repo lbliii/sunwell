@@ -23,7 +23,8 @@ import pytest
 
 from sunwell.agent.events import AgentEvent, EventType
 from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
-from sunwell.planning.naaru.planners.harmonic import CandidateResult, HarmonicPlanner, PlanMetrics
+from sunwell.planning.naaru.planners.harmonic import HarmonicPlanner
+from sunwell.planning.naaru.planners.metrics import CandidateResult, PlanMetrics
 
 
 # =============================================================================

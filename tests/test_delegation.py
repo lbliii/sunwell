@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from sunwell.agent.ephemeral_lens import (
+from sunwell.agent.utils.ephemeral_lens import (
     _parse_lens_json,
     create_ephemeral_lens,
     should_use_delegation,
@@ -18,11 +18,11 @@ from sunwell.agent.events import (
     delegation_started_event,
     ephemeral_lens_created_event,
 )
-from sunwell.agent.loop import AgentLoop, LoopConfig
-from sunwell.agent.request import RunOptions
+from sunwell.agent.core.loop import AgentLoop, LoopConfig
+from sunwell.agent.utils.request import RunOptions
 from sunwell.context.session import SessionContext
-from sunwell.core.lens import EphemeralLens
-from sunwell.models.protocol import ModelProtocol
+from sunwell.foundation.core.lens import EphemeralLens
+from sunwell.models.core.protocol import ModelProtocol
 
 
 class TestShouldUseDelegation:

@@ -15,12 +15,12 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.simulacrum.core.turn import Turn, TurnType
-from sunwell.simulacrum.core.store import SimulacrumStore, StorageConfig
-from sunwell.simulacrum.hierarchical.summarizer import HeuristicSummarizer
-from sunwell.simulacrum.extractors.topology_extractor import TopologyExtractor
-from sunwell.simulacrum.topology.topology_base import RelationType
-from sunwell.simulacrum.context.focus import Focus
+from sunwell.memory.simulacrum.core.turn import Turn, TurnType
+from sunwell.memory.simulacrum.core.store import SimulacrumStore, StorageConfig
+from sunwell.memory.simulacrum.hierarchical.summarizer import HeuristicSummarizer
+from sunwell.memory.simulacrum.extractors.topology_extractor import TopologyExtractor
+from sunwell.memory.simulacrum.topology.topology_base import RelationType
+from sunwell.memory.simulacrum.context.focus import Focus
 
 
 # =============================================================================
@@ -368,10 +368,10 @@ class TestSimulacrumAlias:
 
     def test_simulacrum_is_simulacrum_store(self) -> None:
         """Test that Simulacrum is SimulacrumStore."""
-        from sunwell.simulacrum.core import Simulacrum, SimulacrumStore
+        from sunwell.memory.simulacrum.core import Simulacrum, SimulacrumStore
         assert Simulacrum is SimulacrumStore
 
     def test_legacy_simulacrum_available(self) -> None:
         """Test that LegacySimulacrum is still importable."""
-        from sunwell.simulacrum.core import LegacySimulacrum
+        from sunwell.memory.simulacrum.core import LegacySimulacrum
         assert LegacySimulacrum is not None

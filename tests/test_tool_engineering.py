@@ -9,7 +9,7 @@ from sunwell.models.capability.tool_engineering import (
     enhance_tool_description,
     get_quality_summary,
 )
-from sunwell.models.protocol import Tool
+from sunwell.models.core.protocol import Tool
 
 
 class TestAuditTool:

@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.backlog.goals import Goal, GoalGenerator, GoalPolicy, GoalResult, GoalScope
-from sunwell.backlog.manager import Backlog, BacklogManager
-from sunwell.backlog.signals import ObservableSignal, SignalExtractor
-from sunwell.intelligence.codebase import CodeLocation
+from sunwell.features.backlog.goals import Goal, GoalGenerator, GoalPolicy, GoalResult, GoalScope
+from sunwell.features.backlog.manager import Backlog, BacklogManager
+from sunwell.features.backlog.signals import ObservableSignal, SignalExtractor
+from sunwell.knowledge.codebase import CodeLocation
 
 
 class TestObservableSignal:

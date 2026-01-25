@@ -53,8 +53,8 @@ from sunwell.features.vortex.locality import (
     select_best_signal_per_island,
     merge_island_signals,
 )
-from sunwell.models.protocol import GenerateOptions, GenerateResult
-from sunwell.models.mock import MockModel
+from sunwell.models.core.protocol import GenerateOptions, GenerateResult
+from sunwell.models.adapters.mock import MockModel
 
 
 # =============================================================================

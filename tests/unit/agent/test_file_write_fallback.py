@@ -56,7 +56,7 @@ def mock_model():
 @pytest.fixture
 def mock_model_with_tools():
     """Create a mock model that properly uses write_file tool."""
-    from sunwell.models.protocol import ToolCall
+    from sunwell.models.core.protocol import ToolCall
 
     model = MagicMock()
     model.generate = AsyncMock(
