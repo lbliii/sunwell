@@ -37,13 +37,20 @@ from sunwell.naaru.artifacts import (
     ArtifactSpec,
     artifacts_to_tasks,
 )
+from sunwell.naaru.planners.metrics import CandidateResult, PlanMetrics, PlanMetricsV2
+from sunwell.naaru.planners.variance import (
+    VarianceStrategy,
+    apply_variance,
+    get_variance_configs,
+)
 from sunwell.naaru.types import Task, TaskMode
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
     from sunwell.naaru.convergence import Convergence
     from sunwell.project.schema import ProjectSchema
-    from sunwell.simulacrum.core.store import PlanningContext, SimulacrumStore
+    from sunwell.simulacrum.core.planning_context import PlanningContext
+    from sunwell.simulacrum.core.store import SimulacrumStore
     from sunwell.simulacrum.core.turn import Learning, TemplateData
 
 
@@ -91,310 +98,6 @@ _RE_JSON_OBJECT = re.compile(r"\{[^}]+\}")
 _RE_WORD_SPLIT = re.compile(r"[^a-zA-Z0-9]+")
 _RE_JSON_ARRAY = re.compile(r"\[.*\]", re.DOTALL)
 _RE_JSON_CODE_BLOCK = re.compile(r"```(?:json)?\s*(\[.*?\])\s*```", re.DOTALL)
-
-
-# =============================================================================
-# Plan Quality Metrics
-# =============================================================================
-
-
-@dataclass(frozen=True, slots=True)
-class PlanMetrics:
-    """Quantitative measures of plan quality (V1 formula).
-
-    These metrics enable comparison and selection of plan candidates.
-    Higher composite score = better plan for parallel execution.
-
-    Attributes:
-        depth: Critical path length (longest dependency chain)
-        width: Maximum parallel artifacts at any level
-        leaf_count: Artifacts with no dependencies (can start immediately)
-        artifact_count: Total artifacts in the graph
-        parallelism_factor: leaf_count / artifact_count (higher = more parallel)
-        balance_factor: width / depth (higher = more balanced tree)
-        file_conflicts: Pairs of artifacts that modify the same file
-        estimated_waves: Minimum execution waves (topological levels)
-    """
-
-    depth: int
-    """Critical path length (longest dependency chain)."""
-
-    width: int
-    """Maximum parallel artifacts at any level."""
-
-    leaf_count: int
-    """Artifacts with no dependencies (can start immediately)."""
-
-    artifact_count: int
-    """Total artifacts in the graph."""
-
-    parallelism_factor: float
-    """leaf_count / artifact_count — higher is more parallel."""
-
-    balance_factor: float
-    """width / depth — higher means more balanced tree."""
-
-    file_conflicts: int
-    """Pairs of artifacts that modify the same file."""
-
-    estimated_waves: int
-    """Minimum execution waves (topological levels)."""
-
-    @property
-    def score(self) -> float:
-        """V1 composite score (higher is better).
-
-        Formula balances parallelism against complexity:
-        - Reward: high parallelism_factor, high balance_factor
-        - Penalize: deep graphs, many file conflicts
-        """
-        return (
-            self.parallelism_factor * 40
-            + self.balance_factor * 30
-            + (1 / max(self.depth, 1)) * 20
-            + (1 / (1 + self.file_conflicts)) * 10
-        )
-
-
-@dataclass(frozen=True, slots=True)
-class PlanMetricsV2(PlanMetrics):
-    """Extended metrics for Harmonic Scoring v2 (RFC-116).
-
-    Adds domain-aware metrics that recognize:
-    - Irreducible depth (some goals legitimately require sequential phases)
-    - Mid-graph parallelism (fat waves in the middle matter, not just leaves)
-    - Semantic coherence (plans should actually cover the goal)
-
-    New Attributes:
-        wave_sizes: Size of each execution wave
-        avg_wave_width: artifact_count / estimated_waves
-        parallel_work_ratio: Work per wave transition
-        wave_variance: Standard deviation of wave sizes
-        keyword_coverage: Fraction of goal keywords in artifact descriptions
-        has_convergence: True if graph has a single root
-        depth_utilization: avg_wave_width / depth
-    """
-
-    # Wave analysis (new in V2)
-    wave_sizes: tuple[int, ...]
-    """Size of each execution wave, e.g., (5, 4, 3, 2, 1)."""
-
-    avg_wave_width: float
-    """artifact_count / estimated_waves — measures "fatness" of waves."""
-
-    parallel_work_ratio: float
-    """(artifacts - 1) / max(estimated_waves - 1, 1) — work per transition."""
-
-    wave_variance: float
-    """Standard deviation of wave sizes — lower = more balanced."""
-
-    # Semantic signals (new in V2)
-    keyword_coverage: float
-    """Fraction of goal keywords found in artifact descriptions (0.0-1.0)."""
-
-    has_convergence: bool
-    """True if graph has a single root (proper convergence point)."""
-
-    # Depth context (new in V2)
-    depth_utilization: float
-    """avg_wave_width / depth — how well we use the depth we have."""
-
-    @property
-    def score_v2(self) -> float:
-        """RFC-116 v2 composite score — rewards appropriate structure.
-
-        Philosophy:
-        - Don't penalize depth; penalize UNUSED depth
-        - Reward parallel work at ALL levels, not just leaves
-        - Add lightweight semantic sanity check
-
-        Weight allocation:
-        - Parallelism (reworked): 35%
-        - Structure quality: 30%
-        - Semantic coherence: 20%
-        - Conflict avoidance: 15%
-        """
-        return (
-            # Parallelism (reworked) — 35%
-            self.parallel_work_ratio * 20        # Work per wave transition
-            + self.avg_wave_width * 15           # Fat waves = good
-
-            # Structure quality — 30%
-            + self.depth_utilization * 20        # Using depth well
-            + (1 / (1 + self.wave_variance)) * 10  # Balanced waves
-
-            # Semantic coherence — 20%
-            + self.keyword_coverage * 15         # Covers the goal
-            + (5 if self.has_convergence else 0)  # Proper DAG structure
-
-            # Conflict avoidance — 15%
-            + (1 / (1 + self.file_conflicts)) * 15
-        )
-
-
-# =============================================================================
-# Candidate Result (ID-based tracking)
-# =============================================================================
-
-
-@dataclass(frozen=True, slots=True)
-class CandidateResult:
-    """A plan candidate with stable ID for tracking through transformations.
-
-    Using explicit IDs instead of array indices prevents alignment bugs
-    between frontend and backend when candidates are filtered or reordered.
-    """
-
-    id: str
-    """Stable identifier (e.g., 'candidate-0', 'candidate-1')."""
-
-    graph: ArtifactGraph
-    """The artifact graph for this candidate."""
-
-    variance_config: dict[str, Any]
-    """Configuration used to generate this candidate."""
-
-    score: PlanMetrics | None = None
-    """Computed metrics (added after scoring)."""
-
-
-# =============================================================================
-# Variance Strategies
-# =============================================================================
-
-
-class VarianceStrategy(Enum):
-    """Strategies for generating plan variance."""
-
-    PROMPTING = "prompting"
-    """Vary the discovery prompt emphasis (parallel-first, minimal, thorough)."""
-
-    TEMPERATURE = "temperature"
-    """Vary temperature (0.2, 0.4, 0.6) for different exploration."""
-
-    CONSTRAINTS = "constraints"
-    """Add different constraints (max depth, min parallelism)."""
-
-    MIXED = "mixed"
-    """Mix of prompting and temperature strategies."""
-
-
-# Variance prompt templates - different prompts bias toward different plan shapes
-#
-# RFC-038/RFC-116: Each prompt should produce meaningfully different plan structures.
-# Benchmark data (2026-01-24) showed:
-# - parallel_first was NOT achieving high parallelism (0.27 vs target 0.5+)
-# - balanced had low keyword coverage (0.67 vs 0.76)
-# - minimal never won on V2 scoring
-#
-# Revised prompts address these issues with explicit structural targets.
-VARIANCE_PROMPTS: dict[str, str] = {
-    "parallel_first": """
-OPTIMIZATION GOAL: MAXIMUM PARALLELISM (target: parallelism_factor > 0.5)
-
-CRITICAL RULES:
-1. At least 50% of artifacts MUST have ZERO dependencies (be leaves)
-2. Maximum depth should be 2-3 levels, not deeper
-3. When in doubt, make artifacts independent rather than dependent
-
-Structural Pattern:
-- Wave 1: Many independent leaf artifacts (models, interfaces, utilities)
-- Wave 2: Integration artifacts that depend on Wave 1
-- Wave 3 (max): Final assembly/root artifact
-
-Do NOT create long sequential chains. If artifact B only exists to feed artifact C,
-consider whether B and C can be independent instead.
-
-Ask: "Does this artifact REALLY need that dependency, or could it be independent?"
-""",
-    "minimal": """
-OPTIMIZATION GOAL: ESSENTIAL ARTIFACTS ONLY (while covering all goal keywords)
-
-CRITICAL RULES:
-1. Maximum 5-7 artifacts for any goal
-2. Each artifact MUST directly address a keyword from the goal
-3. Combine related functionality into single artifacts
-4. No "nice to have" artifacts - only what's strictly required
-
-Coverage Check:
-Before finalizing, verify that every important word from the goal
-appears in at least one artifact description.
-
-Do NOT add tests, documentation, or validation as separate artifacts
-unless explicitly requested in the goal.
-
-Ask: "Would removing this artifact make the goal impossible to achieve?"
-""",
-    "thorough": """
-OPTIMIZATION GOAL: COMPLETE PRODUCTION-READY COVERAGE
-
-CRITICAL RULES:
-1. Include error handling artifacts for each component
-2. Include test artifacts for core functionality
-3. Include validation/config artifacts where appropriate
-4. Every keyword from the goal must appear in artifact descriptions
-
-Coverage Targets:
-- All happy paths covered
-- All error paths covered
-- Configuration/setup included
-- Integration points explicit
-
-This approach produces MORE artifacts but ensures nothing is missed.
-Use when the goal is complex or production-readiness matters.
-
-Ask: "What could go wrong? What's missing for production-ready?"
-""",
-    "modular": """
-OPTIMIZATION GOAL: INDEPENDENT MODULES - MAXIMIZE PARALLEL WORK THROUGH ISOLATION
-
-CRITICAL RULES:
-1. Create artifacts that have NO dependencies on each other (maximize leaves)
-2. Each artifact should be self-contained and testable in isolation
-3. Prefer MANY SMALL independent artifacts over FEW LARGE coupled ones
-4. Every goal keyword MUST appear in artifact descriptions
-
-Structural Pattern (aim for depth ≤ 3):
-- Wave 1: 3-5 independent module artifacts (data layer, logic, interface, config)
-- Wave 2: Integration artifacts that combine modules
-- Final: Root artifact that ties everything together
-
-Key Insight: True modularity = high parallelism. 
-If modules are truly independent, they can execute in parallel.
-Target: parallelism_factor > 0.4
-
-Ask: "Can this be split into independent pieces? Does this NEED that dependency?"
-""",
-    "risk_aware": """
-OPTIMIZATION GOAL: FAIL-FAST - IDENTIFY RISKS EARLY
-
-CRITICAL RULES:
-1. Put highest-risk/uncertainty artifacts FIRST (as leaves)
-2. Validate risky assumptions before building dependent artifacts
-3. Critical path should surface failures early, not late
-4. Every goal keyword MUST appear in artifact descriptions
-
-Risk Categories (do these first):
-- External dependencies (APIs, databases, third-party services)
-- Novel/unfamiliar technology
-- Performance-critical components
-- Security-sensitive operations
-
-Structural Pattern:
-- Wave 1: Spike/validate risky components
-- Wave 2: Core implementation (risks already validated)
-- Wave 3: Integration and polish
-
-This produces plans where failures happen early when they're cheap to fix.
-
-Ask: "What could fail? What's uncertain? Should we validate that first?"
-""",
-    "default": """
-Discover artifacts naturally based on the goal.
-Focus on what must exist when the goal is complete.
-Every important concept from the goal should appear in artifact descriptions.
-""",
-}
 
 
 # =============================================================================
@@ -1007,7 +710,7 @@ IMPORTANT: Return ONLY the JSON object, no other text."""
             await self._warm_convergence(goal, context)
 
         # Generate variance configurations
-        configs = self._get_variance_configs()
+        configs = get_variance_configs(self.variance, self.candidates)
 
         # RFC-058: Emit candidate generation start event
         self._emit_event("plan_candidate_start", {
@@ -1024,7 +727,7 @@ IMPORTANT: Return ONLY the JSON object, no other text."""
 
             try:
                 # Apply variance to goal prompt
-                varied_goal = self._apply_variance(goal, config)
+                varied_goal = apply_variance(goal, config)
                 graph = await base_planner.discover_graph(varied_goal, context)
 
                 # Build normalized variance_config
@@ -1068,65 +771,6 @@ IMPORTANT: Return ONLY the JSON object, no other text."""
 
         return candidates
 
-    def _get_variance_configs(self) -> list[dict]:
-        """Get variance configurations based on strategy.
-
-        Available prompt styles:
-        - parallel_first: Maximize parallelism, shallow depth
-        - minimal: Essential artifacts only, fast planning
-        - thorough: Complete production-ready coverage
-        - modular: Clean separation of concerns
-        - risk_aware: Fail-fast, validate risks early
-        - default: Natural discovery baseline
-        """
-        if self.variance == VarianceStrategy.PROMPTING:
-            configs = [
-                {"prompt_style": "parallel_first"},
-                {"prompt_style": "minimal"},
-                {"prompt_style": "thorough"},
-                {"prompt_style": "modular"},
-                {"prompt_style": "risk_aware"},
-            ]
-            return configs[: self.candidates]
-
-        elif self.variance == VarianceStrategy.TEMPERATURE:
-            temps = [0.2, 0.3, 0.4, 0.5, 0.6][: self.candidates]
-            return [{"temperature": t, "prompt_style": "default"} for t in temps]
-
-        elif self.variance == VarianceStrategy.CONSTRAINTS:
-            return [
-                {"constraint": "max_depth=2", "prompt_style": "default"},
-                {"constraint": "min_leaves=5", "prompt_style": "default"},
-                {"constraint": "max_artifacts=8", "prompt_style": "default"},
-                {"constraint": "no_bottlenecks", "prompt_style": "default"},
-                {"constraint": None, "prompt_style": "default"},
-            ][: self.candidates]
-
-        elif self.variance == VarianceStrategy.MIXED:
-            return [
-                {"prompt_style": "parallel_first"},
-                {"prompt_style": "thorough", "temperature": 0.4},
-                {"prompt_style": "modular"},
-                {"prompt_style": "risk_aware", "temperature": 0.3},
-                {"prompt_style": "minimal", "temperature": 0.5},
-            ][: self.candidates]
-
-        else:
-            # Default: mix of strategies
-            return [{"prompt_style": "default"}] * self.candidates
-
-    def _apply_variance(self, goal: str, config: dict) -> str:
-        """Apply variance configuration to the goal prompt."""
-        prompt_style = config.get("prompt_style", "default")
-        variance_prompt = VARIANCE_PROMPTS.get(prompt_style, VARIANCE_PROMPTS["default"])
-
-        # Add constraint if present
-        constraint = config.get("constraint")
-        constraint_text = ""
-        if constraint:
-            constraint_text = f"\n\nCONSTRAINT: {constraint}"
-
-        return f"{goal}\n\n{variance_prompt}{constraint_text}"
 
     async def _warm_convergence(
         self,

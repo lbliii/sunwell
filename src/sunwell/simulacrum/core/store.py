@@ -35,13 +35,22 @@ Key features:
 
 
 import json
-import shutil
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from sunwell.simulacrum.core.config import StorageConfig
 from sunwell.simulacrum.core.dag import ConversationDAG
+from sunwell.simulacrum.core.episodes import EpisodeManager
+from sunwell.simulacrum.core.planning_context import PlanningContext
+from sunwell.simulacrum.core.retrieval import (
+    ContextAssembler,
+    PlanningRetriever,
+    SemanticRetriever,
+)
+from sunwell.simulacrum.core.session_manager import SessionManager
+from sunwell.simulacrum.core.tier_manager import TierManager
 from sunwell.simulacrum.core.turn import Learning, Turn, TurnType
 from sunwell.simulacrum.hierarchical.chunks import Chunk, ChunkSummary
 from sunwell.simulacrum.hierarchical.config import ChunkConfig
@@ -58,217 +67,6 @@ if TYPE_CHECKING:
 
 # RFC-022 Enhancement: Episode tracking
 from sunwell.types.memory import Episode
-
-
-@dataclass(frozen=True, slots=True)
-class StorageConfig:
-    """Configuration for tiered storage."""
-
-    hot_max_turns: int = 100
-    """Max turns to keep in hot storage."""
-
-    warm_max_age_hours: int = 24 * 7  # 1 week
-    """Max age before moving to cold storage."""
-
-    cold_compression: bool = True
-    """Whether to compress cold storage."""
-
-    auto_cleanup: bool = True
-    """Auto-move old turns to cold storage."""
-
-    # RFC-084: Auto-wiring configuration
-    auto_topology: bool = True
-    """Auto-extract topology relationships every N turns."""
-
-    topology_interval: int = 10
-    """Extract topology every N turns (when auto_topology=True)."""
-
-    auto_cold_demotion: bool = True
-    """Auto-demote warm chunks to cold tier based on age/count."""
-
-    warm_retention_days: int = 7
-    """Days to keep chunks in warm tier before demoting to cold."""
-
-    max_warm_chunks: int = 50
-    """Maximum warm chunks to keep (oldest demoted when exceeded)."""
-
-    auto_summarize: bool = True
-    """Auto-generate summaries for chunks (uses HeuristicSummarizer if no LLM)."""
-
-
-# =============================================================================
-# RFC-122: Planning Context
-# =============================================================================
-
-
-@dataclass(frozen=True, slots=True)
-class PlanningContext:
-    """All knowledge relevant to a planning task (RFC-122).
-
-    Structured context for HarmonicPlanner that categorizes retrieved
-    learnings for injection via Convergence slots.
-
-    RFC-022 Enhancement: Now includes episode tracking for learning from
-    past sessions and avoiding dead ends.
-
-    Example:
-        >>> context = await store.retrieve_for_planning("Build CRUD API")
-        >>> print(context.best_template.template_data.name)
-        'CRUD Endpoint'
-        >>> slots = context.to_convergence_slots()
-    """
-
-    facts: tuple[Learning, ...]
-    """Factual knowledge about the codebase."""
-
-    constraints: tuple[Learning, ...]
-    """Constraints that must be followed."""
-
-    dead_ends: tuple[Learning, ...]
-    """Approaches that didn't work (avoid these)."""
-
-    templates: tuple[Learning, ...]
-    """Structural task patterns."""
-
-    heuristics: tuple[Learning, ...]
-    """Ordering/strategy hints."""
-
-    patterns: tuple[Learning, ...]
-    """Code patterns used in the codebase."""
-
-    goal: str
-    """The planning goal this context was retrieved for."""
-
-    # RFC-022 Enhancement: Episode tracking
-    episodes: tuple[Episode, ...] = ()
-    """Past sessions with their outcomes and learnings."""
-
-    dead_end_summaries: tuple[str, ...] = ()
-    """Summary strings from failed episodes for quick injection."""
-
-    def to_convergence_slots(self) -> list[Slot]:
-        """Convert to Convergence slots for HarmonicPlanner injection."""
-        from sunwell.naaru.convergence import Slot, SlotSource
-
-        slots: list[Slot] = []
-
-        if self.facts:
-            slots.append(Slot(
-                id="knowledge:facts",
-                content=[f.fact for f in self.facts],
-                relevance=0.9,
-                source=SlotSource.MEMORY_FETCHER,
-            ))
-
-        if self.constraints:
-            slots.append(Slot(
-                id="knowledge:constraints",
-                content=[f"⚠️ {c.fact}" for c in self.constraints],
-                relevance=1.0,  # Constraints are high priority
-                source=SlotSource.MEMORY_FETCHER,
-            ))
-
-        if self.dead_ends:
-            slots.append(Slot(
-                id="knowledge:dead_ends",
-                content=[f"❌ {d.fact}" for d in self.dead_ends],
-                relevance=0.95,  # Dead ends are important to avoid
-                source=SlotSource.MEMORY_FETCHER,
-            ))
-
-        if self.templates:
-            slots.append(Slot(
-                id="knowledge:templates",
-                content=self.templates,  # Full Learning objects for template matching
-                relevance=0.85,
-                source=SlotSource.MEMORY_FETCHER,
-            ))
-
-        if self.heuristics:
-            slots.append(Slot(
-                id="knowledge:heuristics",
-                content=[f"💡 {h.fact}" for h in self.heuristics],
-                relevance=0.7,
-                source=SlotSource.MEMORY_FETCHER,
-            ))
-
-        if self.patterns:
-            slots.append(Slot(
-                id="knowledge:patterns",
-                content=[p.fact for p in self.patterns],
-                relevance=0.8,
-                source=SlotSource.MEMORY_FETCHER,
-            ))
-
-        # RFC-022: Episode-based dead ends from past sessions
-        if self.dead_end_summaries:
-            slots.append(Slot(
-                id="knowledge:episode_dead_ends",
-                content=[f"❌ [Past session] {s}" for s in self.dead_end_summaries],
-                relevance=0.92,  # High priority to avoid past mistakes
-                source=SlotSource.MEMORY_FETCHER,
-            ))
-
-        return slots
-
-    def to_prompt_section(self) -> str:
-        """Format for injection into planner prompt."""
-        sections: list[str] = []
-
-        if self.facts or self.patterns:
-            sections.append("## Project Knowledge")
-            for f in self.facts[:10]:
-                sections.append(f"- {f.fact}")
-            for p in self.patterns[:5]:
-                sections.append(f"- {p.fact}")
-
-        if self.constraints:
-            sections.append("\n## Constraints (must follow)")
-            for c in self.constraints[:5]:
-                sections.append(f"- ⚠️ {c.fact}")
-
-        if self.dead_ends:
-            sections.append("\n## Dead Ends (don't do these)")
-            for d in self.dead_ends[:5]:
-                sections.append(f"- ❌ {d.fact}")
-
-        if self.templates:
-            sections.append("\n## Known Task Patterns")
-            for t in self.templates[:3]:
-                if t.template_data:
-                    sections.append(f"- **{t.template_data.name}**: {t.fact}")
-
-        if self.heuristics:
-            sections.append("\n## Heuristics")
-            for h in self.heuristics[:5]:
-                sections.append(f"- 💡 {h.fact}")
-
-        # RFC-022: Episode-based dead ends
-        if self.dead_end_summaries:
-            sections.append("\n## Past Session Dead Ends")
-            for s in self.dead_end_summaries[:5]:
-                sections.append(f"- ❌ {s}")
-
-        return "\n".join(sections)
-
-    @property
-    def best_template(self) -> Learning | None:
-        """Get the highest-confidence matching template."""
-        if not self.templates:
-            return None
-        return max(self.templates, key=lambda t: t.confidence)
-
-    @property
-    def all_learnings(self) -> tuple[Learning, ...]:
-        """Get all learnings for usage tracking."""
-        return (
-            self.facts +
-            self.constraints +
-            self.dead_ends +
-            self.templates +
-            self.heuristics +
-            self.patterns
-        )
 
 
 # =============================================================================
@@ -351,9 +149,21 @@ class SimulacrumStore:
     _focus: Any | None = field(default=None, init=False)
     """Focus mechanism for weighted topic tracking (RFC-084)."""
 
-    # RFC-022 Enhancement: Episode tracking for learning from past sessions
-    _episodes: list[Episode] = field(default_factory=list, init=False)
-    """Past problem-solving episodes with outcomes and learnings."""
+    # Modular managers
+    _episode_manager: EpisodeManager | None = field(default=None, init=False)
+    """Episode manager for tracking past sessions."""
+    _session_manager: SessionManager | None = field(default=None, init=False)
+    """Session manager for session lifecycle."""
+    _tier_manager: TierManager | None = field(default=None, init=False)
+    """Tier manager for hot/warm/cold storage."""
+
+    # Retrieval modules (extracted for modularity)
+    _planning_retriever: PlanningRetriever | None = field(default=None, init=False)
+    """Planning context retriever (RFC-122)."""
+    _semantic_retriever: SemanticRetriever | None = field(default=None, init=False)
+    """Semantic retriever for parallel memory access."""
+    _context_assembler: ContextAssembler | None = field(default=None, init=False)
+    """Context assembler for prompt building."""
 
     def __post_init__(self):
         self.base_path = Path(self.base_path)
@@ -361,7 +171,7 @@ class SimulacrumStore:
         self._init_chunk_manager()
         self._init_unified_store()
         self._init_auto_wiring()  # RFC-084
-        self._load_episodes()  # RFC-022
+        self._init_managers()  # Initialize modular managers
 
     def _ensure_dirs(self) -> None:
         """Create storage directories."""
@@ -372,6 +182,49 @@ class SimulacrumStore:
         (self.base_path / "chunks").mkdir(parents=True, exist_ok=True)
         (self.base_path / "unified").mkdir(parents=True, exist_ok=True)  # RFC-014
         (self.base_path / "episodes").mkdir(parents=True, exist_ok=True)  # RFC-022
+
+    def _init_managers(self) -> None:
+        """Initialize modular managers."""
+        self._episode_manager = EpisodeManager(self.base_path)
+        self._session_manager = SessionManager(
+            self.base_path,
+            lambda: self._hot_dag,
+            lambda dag: setattr(self, "_hot_dag", dag),
+            self._unified_store,
+        )
+        self._tier_manager = TierManager(
+            self.base_path,
+            self.config,
+            self._hot_dag,
+        )
+        # Keep tier_manager's hot_dag in sync
+        self._tier_manager.update_hot_dag = lambda dag: setattr(self._tier_manager, "_hot_dag", dag)
+
+        # Initialize retrieval modules
+        self._init_retrievers()
+
+    def _init_retrievers(self) -> None:
+        """Initialize retrieval modules."""
+        episodes = self._episode_manager.get_episodes(limit=100) if self._episode_manager else []
+
+        self._planning_retriever = PlanningRetriever(
+            dag=self._hot_dag,
+            embedder=self._embedder,
+            episodes=episodes,
+        )
+
+        self._semantic_retriever = SemanticRetriever(
+            dag=self._hot_dag,
+            embedder=self._embedder,
+            episodes=episodes,
+            chunk_manager=self._chunk_manager,
+        )
+
+        self._context_assembler = ContextAssembler(
+            dag=self._hot_dag,
+            chunk_manager=self._chunk_manager,
+            focus=self._focus,
+        )
 
     def _init_chunk_manager(self) -> None:
         """Initialize the hierarchical chunk manager (RFC-013)."""
@@ -451,6 +304,11 @@ class SimulacrumStore:
             self._unified_store.set_embedder(embedder)
         if self._memory_handler:
             self._memory_handler.embedder = embedder
+        # Update retrievers with new embedder
+        if self._planning_retriever:
+            self._planning_retriever._embedder = embedder
+        if self._semantic_retriever:
+            self._semantic_retriever._embedder = embedder
 
     async def _on_chunk_demotion(self, chunk: Chunk, new_tier: str) -> None:
         """Called when a chunk is demoted to warm/cold tier (RFC-045).
@@ -504,6 +362,8 @@ class SimulacrumStore:
 
     # === Session Management ===
 
+    # === Session Management ===
+
     def new_session(
         self,
         name: str | None = None,
@@ -520,16 +380,27 @@ class SimulacrumStore:
         Returns:
             Session ID (slug)
         """
-        self._session_id = name or datetime.now().strftime("%Y%m%d_%H%M%S")
-        if project:
-            self._project = project
-        self._session_uri = f"sunwell:session/{self._project}/{self._session_id}"
-        self._hot_dag = ConversationDAG()
-        return self._session_id
+        if not self._session_manager:
+            self._session_id = name or datetime.now().strftime("%Y%m%d_%H%M%S")
+            if project:
+                self._project = project
+            self._session_uri = f"sunwell:session/{self._project}/{self._session_id}"
+            self._hot_dag = ConversationDAG()
+            return self._session_id
+        session_id = self._session_manager.new_session(name, project)
+        self._session_id = session_id
+        self._project = self._session_manager.project
+        self._session_uri = self._session_manager.session_uri
+        # Update tier_manager's hot_dag reference
+        if self._tier_manager:
+            self._tier_manager._hot_dag = self._hot_dag
+        return session_id
 
     @property
     def session_uri(self) -> str:
         """Get the full session URI (RFC-101)."""
+        if self._session_manager:
+            return self._session_manager.session_uri
         if not self._session_uri:
             self._session_uri = f"sunwell:session/{self._project}/{self._session_id}"
         return self._session_uri
@@ -537,6 +408,8 @@ class SimulacrumStore:
     @property
     def project(self) -> str:
         """Get the current project slug."""
+        if self._session_manager:
+            return self._session_manager.project
         return self._project
 
     def set_project(self, project: str) -> None:
@@ -545,10 +418,13 @@ class SimulacrumStore:
         Args:
             project: Project slug
         """
-        self._project = project
-        # Update URI if session exists
-        if self._session_id:
-            self._session_uri = f"sunwell:session/{self._project}/{self._session_id}"
+        if self._session_manager:
+            self._session_manager.set_project(project)
+            self._project = project
+        else:
+            self._project = project
+            if self._session_id:
+                self._session_uri = f"sunwell:session/{self._project}/{self._session_id}"
 
     def list_sessions(self, project: str | None = None) -> list[dict]:
         """List all saved sessions.
@@ -561,99 +437,20 @@ class SimulacrumStore:
         Returns:
             List of session metadata dicts
         """
-        sessions = []
-
-        # RFC-101: Check project-scoped sessions first
-        projects_dir = self.base_path / "projects"
-        if projects_dir.exists():
-            for project_dir in projects_dir.iterdir():
-                if project_dir.is_dir():
-                    if project and project_dir.name != project:
-                        continue
-                    for path in project_dir.glob("*.json"):
-                        if path.stem.endswith("_dag"):
-                            continue
-                        try:
-                            with open(path) as f:
-                                meta = json.load(f)
-                            sessions.append({
-                                "id": path.stem,
-                                "uri": f"sunwell:session/{project_dir.name}/{path.stem}",
-                                "project": project_dir.name,
-                                "name": meta.get("name", path.stem),
-                                "created": meta.get("created"),
-                                "turns": meta.get("turn_count", 0),
-                                "path": str(path),
-                            })
-                        except (json.JSONDecodeError, OSError):
-                            continue
-
-        # Legacy: Check flat sessions directory
-        legacy_sessions_dir = self.base_path / "sessions"
-        if legacy_sessions_dir.exists() and not project:
-            for path in legacy_sessions_dir.glob("*.json"):
-                if path.stem.endswith("_dag"):
-                    continue
-                try:
-                    with open(path) as f:
-                        meta = json.load(f)
-                    sessions.append({
-                        "id": path.stem,
-                        "uri": f"sunwell:session/default/{path.stem}",
-                        "project": "default",
-                        "name": meta.get("name", path.stem),
-                        "created": meta.get("created"),
-                        "turns": meta.get("turn_count", 0),
-                        "path": str(path),
-                    })
-                except (json.JSONDecodeError, OSError):
-                    continue
-
-        return sorted(sessions, key=lambda s: s.get("created") or "", reverse=True)
+        if not self._session_manager:
+            return []
+        return self._session_manager.list_sessions(project)
 
     def save_session(self, name: str | None = None) -> Path:
         """Save current session to disk.
 
         RFC-101: Saves to project-scoped directory.
         """
-        session_name = name or self._session_id
-
-        # RFC-101: Use project-scoped storage
-        session_dir = self.base_path / "projects" / self._project
-        session_dir.mkdir(parents=True, exist_ok=True)
-
-        # Save DAG
-        dag_path = session_dir / f"{session_name}_dag.json"
-        self._hot_dag.save(dag_path)
-
-        # Save unified store (RFC-014)
-        if self._unified_store:
-            self._unified_store.save()
-
-        # Save metadata with identity info (RFC-101)
-        meta_path = session_dir / f"{session_name}.json"
-        meta = {
-            "name": session_name,
-            "uri": f"sunwell:session/{self._project}/{session_name}",
-            "project": self._project,
-            "created": datetime.now().isoformat(),
-            "turn_count": len(self._hot_dag.turns),
-            "stats": self._hot_dag.stats,
-            "unified_store_nodes": len(self._unified_store._nodes) if self._unified_store else 0,
-        }
-        with open(meta_path, "w") as f:
-            json.dump(meta, f, indent=2)
-
-        # Also save to legacy location for backwards compat
-        legacy_dir = self.base_path / "sessions"
-        legacy_dir.mkdir(parents=True, exist_ok=True)
-        legacy_dag_path = legacy_dir / f"{session_name}_dag.json"
-        self._hot_dag.save(legacy_dag_path)
-        legacy_meta_path = legacy_dir / f"{session_name}.json"
-        with open(legacy_meta_path, "w") as f:
-            json.dump(meta, f, indent=2)
-
-        return meta_path
+        if not self._session_manager:
+            return self.base_path / "sessions" / f"{name or self._session_id}.json"
+        # Update session manager's hot_dag reference before saving
+        self._session_manager._set_hot_dag(self._hot_dag)
+        return self._session_manager.save_session(name)
 
     def load_session(
         self,
@@ -674,35 +471,41 @@ class SimulacrumStore:
         Raises:
             FileNotFoundError: If session not found
         """
-        # Parse URI if provided
-        if session_id.startswith("sunwell:session/"):
-            parts = session_id[17:].split("/", 1)  # Remove "sunwell:session/"
-            if len(parts) == 2:
-                project = parts[0]
-                session_id = parts[1]
+        if not self._session_manager:
+            # Fallback implementation
+            if session_id.startswith("sunwell:session/"):
+                parts = session_id[17:].split("/", 1)
+                if len(parts) == 2:
+                    project = parts[0]
+                    session_id = parts[1]
+            if project:
+                self._project = project
+            dag_path = self.base_path / "projects" / self._project / f"{session_id}_dag.json"
+            if not dag_path.exists():
+                dag_path = self.base_path / "sessions" / f"{session_id}_dag.json"
+            if not dag_path.exists():
+                raise FileNotFoundError(f"Session not found: {session_id}")
+            self._hot_dag = ConversationDAG.load(dag_path)
+            self._session_id = session_id
+            self._session_uri = f"sunwell:session/{self._project}/{self._session_id}"
+            if self.config.auto_cleanup:
+                self._maybe_demote_to_warm()
+            return self._hot_dag
 
-        # Set project context
-        if project:
-            self._project = project
-
-        # Try project-scoped path first (RFC-101)
-        dag_path = self.base_path / "projects" / self._project / f"{session_id}_dag.json"
-        if not dag_path.exists():
-            # Fall back to legacy path
-            dag_path = self.base_path / "sessions" / f"{session_id}_dag.json"
-
-        if not dag_path.exists():
-            raise FileNotFoundError(f"Session not found: {session_id}")
-
-        self._hot_dag = ConversationDAG.load(dag_path)
-        self._session_id = session_id
-        self._session_uri = f"sunwell:session/{self._project}/{self._session_id}"
+        loaded_dag = self._session_manager.load_session(session_id, project)
+        self._hot_dag = loaded_dag
+        self._session_id = self._session_manager._session_id
+        self._project = self._session_manager.project
+        self._session_uri = self._session_manager.session_uri
+        # Update tier_manager's hot_dag reference
+        if self._tier_manager:
+            self._tier_manager._hot_dag = loaded_dag
 
         # Apply tiered compression if session has many turns
         if self.config.auto_cleanup:
             self._maybe_demote_to_warm()
 
-        return self._hot_dag
+        return loaded_dag
 
     # === Turn Operations ===
 
@@ -737,8 +540,8 @@ class SimulacrumStore:
             self._flush_hot()
 
         # Check if we need to move old turns to warm
-        if self.config.auto_cleanup:
-            self._maybe_demote_to_warm()
+        if self.config.auto_cleanup and self._tier_manager:
+            self._tier_manager.maybe_demote_to_warm()
 
         return turn_id
 
@@ -772,8 +575,8 @@ class SimulacrumStore:
             self._flush_hot()
 
         # Check if we need to move old turns to warm
-        if self.config.auto_cleanup:
-            self._maybe_demote_to_warm()
+        if self.config.auto_cleanup and self._tier_manager:
+            self._tier_manager.maybe_demote_to_warm()
 
         # RFC-084: Auto-extract topology every N turns
         turn_count = len(self._hot_dag.turns)
@@ -873,45 +676,7 @@ class SimulacrumStore:
 
     # === RFC-022 Enhancement: Episode Tracking ===
 
-    def _load_episodes(self) -> None:
-        """Load episodes from disk."""
-        episodes_file = self.base_path / "episodes" / "episodes.json"
-        if episodes_file.exists():
-            try:
-                with open(episodes_file) as f:
-                    data = json.load(f)
-                self._episodes = [
-                    Episode(
-                        id=ep["id"],
-                        summary=ep["summary"],
-                        outcome=ep["outcome"],
-                        timestamp=ep.get("timestamp", ""),
-                        learnings_extracted=tuple(ep.get("learnings_extracted", [])),
-                        models_used=tuple(ep.get("models_used", [])),
-                        turn_count=ep.get("turn_count", 0),
-                    )
-                    for ep in data
-                ]
-            except (json.JSONDecodeError, KeyError):
-                self._episodes = []
-
-    def _save_episodes(self) -> None:
-        """Save episodes to disk."""
-        episodes_file = self.base_path / "episodes" / "episodes.json"
-        data = [
-            {
-                "id": ep.id,
-                "summary": ep.summary,
-                "outcome": ep.outcome,
-                "timestamp": ep.timestamp,
-                "learnings_extracted": list(ep.learnings_extracted),
-                "models_used": list(ep.models_used),
-                "turn_count": ep.turn_count,
-            }
-            for ep in self._episodes
-        ]
-        with open(episodes_file, "w") as f:
-            json.dump(data, f, indent=2)
+    # === RFC-022 Enhancement: Episode Tracking ===
 
     def add_episode(
         self,
@@ -933,19 +698,16 @@ class SimulacrumStore:
         Returns:
             Episode ID
         """
-        from datetime import datetime
-
-        episode = Episode(
-            id=f"ep_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{len(self._episodes)}",
+        if not self._episode_manager:
+            return ""
+        turn_count = sum(1 for _ in self._hot_dag.iter_all_turns())
+        return self._episode_manager.add_episode(
             summary=summary,
             outcome=outcome,
             learnings_extracted=learnings_extracted,
             models_used=models_used,
-            turn_count=sum(1 for _ in self._hot_dag.iter_all_turns()),
+            turn_count=turn_count,
         )
-        self._episodes.append(episode)
-        self._save_episodes()
-        return episode.id
 
     def get_episodes(self, limit: int = 50) -> list[Episode]:
         """Get recent episodes.
@@ -956,7 +718,9 @@ class SimulacrumStore:
         Returns:
             List of episodes, most recent first
         """
-        return self._episodes[-limit:][::-1]  # Most recent first
+        if not self._episode_manager:
+            return []
+        return self._episode_manager.get_episodes(limit=limit)
 
     def get_dead_ends(self) -> list[Episode]:
         """Get failed episodes to avoid repeating mistakes.
@@ -964,7 +728,9 @@ class SimulacrumStore:
         Returns:
             List of episodes with 'failed' outcome
         """
-        return [ep for ep in self._episodes if ep.outcome == "failed"]
+        if not self._episode_manager:
+            return []
+        return self._episode_manager.get_dead_ends()
 
     def get_successful_patterns(self) -> list[Episode]:
         """Get successful episodes for learning what works.
@@ -972,7 +738,9 @@ class SimulacrumStore:
         Returns:
             List of episodes with 'succeeded' outcome
         """
-        return [ep for ep in self._episodes if ep.outcome == "succeeded"]
+        if not self._episode_manager:
+            return []
+        return self._episode_manager.get_successful_patterns()
 
     def get_episode_by_id(self, episode_id: str) -> Episode | None:
         """Get a specific episode by ID.
@@ -983,10 +751,9 @@ class SimulacrumStore:
         Returns:
             Episode if found, None otherwise
         """
-        for ep in self._episodes:
-            if ep.id == episode_id:
-                return ep
-        return None
+        if not self._episode_manager:
+            return None
+        return self._episode_manager.get_episode_by_id(episode_id)
 
     # === RFC-122: Knowledge Retrieval for Planning ===
 
@@ -1008,100 +775,17 @@ class SimulacrumStore:
         Returns:
             PlanningContext with categorized learnings
         """
-        # Get all learnings from the DAG
-        learnings = self._hot_dag.get_active_learnings()
+        if not self._planning_retriever:
+            # Initialize if not already done
+            self._init_retrievers()
+            assert self._planning_retriever is not None
 
-        # Compute goal embedding using existing embedder
-        goal_embedding: tuple[float, ...] | None = None
-        if self._embedder:
-            try:
-                embedding_result = await self._embedder.embed([goal])
-                goal_embedding = tuple(embedding_result[0])
-            except Exception:
-                goal_embedding = None
+        # Update episodes if needed
+        if self._episode_manager:
+            episodes = self._episode_manager.get_episodes(limit=100)
+            self._planning_retriever._episodes = episodes
 
-        # Score all learnings by relevance
-        scored: list[tuple[float, Learning]] = []
-
-        for learning in learnings:
-            if goal_embedding and learning.embedding:
-                similarity = self._cosine_similarity(goal_embedding, learning.embedding)
-            else:
-                # Fallback: keyword matching
-                similarity = self._keyword_similarity(goal, learning.fact)
-
-            # Boost by confidence and usage
-            boost = learning.confidence * (1.0 + 0.05 * min(learning.use_count, 10))
-            final_score = similarity * boost
-
-            if final_score > 0.3:
-                scored.append((final_score, learning))
-
-        # Sort by score
-        scored.sort(key=lambda x: -x[0])
-
-        # Categorize
-        facts: list[Learning] = []
-        constraints: list[Learning] = []
-        dead_ends: list[Learning] = []
-        templates: list[Learning] = []
-        heuristics: list[Learning] = []
-        patterns: list[Learning] = []
-
-        for _score, learning in scored:
-            if learning.category == "fact" and len(facts) < limit_per_category:
-                facts.append(learning)
-            elif learning.category == "preference" and len(facts) < limit_per_category:
-                facts.append(learning)
-            elif learning.category == "constraint" and len(constraints) < limit_per_category:
-                constraints.append(learning)
-            elif learning.category == "dead_end" and len(dead_ends) < limit_per_category:
-                dead_ends.append(learning)
-            elif learning.category == "template" and len(templates) < limit_per_category:
-                templates.append(learning)
-            elif learning.category == "heuristic" and len(heuristics) < limit_per_category:
-                heuristics.append(learning)
-            elif learning.category == "pattern" and len(patterns) < limit_per_category:
-                patterns.append(learning)
-
-        # RFC-022: Include episodes for learning from past sessions
-        failed_episodes = self.get_dead_ends()[:limit_per_category]
-        dead_end_summaries = tuple(ep.summary for ep in failed_episodes)
-
-        return PlanningContext(
-            facts=tuple(facts),
-            constraints=tuple(constraints),
-            dead_ends=tuple(dead_ends),
-            templates=tuple(templates),
-            heuristics=tuple(heuristics),
-            patterns=tuple(patterns),
-            goal=goal,
-            episodes=tuple(failed_episodes),
-            dead_end_summaries=dead_end_summaries,
-        )
-
-    @staticmethod
-    def _cosine_similarity(
-        a: tuple[float, ...],
-        b: tuple[float, ...],
-    ) -> float:
-        """Compute cosine similarity between two vectors."""
-        dot = sum(x * y for x, y in zip(a, b, strict=True))
-        norm_a = sum(x * x for x in a) ** 0.5
-        norm_b = sum(x * x for x in b) ** 0.5
-        if norm_a == 0 or norm_b == 0:
-            return 0.0
-        return dot / (norm_a * norm_b)
-
-    @staticmethod
-    def _keyword_similarity(query: str, fact: str) -> float:
-        """Keyword-based similarity fallback."""
-        query_words = set(query.lower().split())
-        fact_words = set(fact.lower().split())
-        overlap = len(query_words & fact_words)
-        if not query_words:
-            return 0.0
-        return overlap / len(query_words)
+        return await self._planning_retriever.retrieve(goal, limit_per_category)
 
     # === RFC-022: Parallel Retrieval ===
 
@@ -1130,101 +814,25 @@ class SimulacrumStore:
         Returns:
             MemoryRetrievalResult with all retrieved items
         """
-        from sunwell.core.freethreading import WorkloadType, optimal_workers, run_parallel
-        from sunwell.types.memory import MemoryRetrievalResult
+        if not self._semantic_retriever:
+            # Initialize if not already done
+            self._init_retrievers()
+            assert self._semantic_retriever is not None
 
-        # Compute query embedding once
-        query_embedding: tuple[float, ...] | None = None
-        if self._embedder:
-            try:
-                result = await self._embedder.embed([query])
-                query_embedding = tuple(result[0])
-            except Exception:
-                query_embedding = None
+        # Update episodes and chunk_manager if needed
+        if self._episode_manager:
+            episodes = self._episode_manager.get_episodes(limit=100)
+            self._semantic_retriever._episodes = episodes
+        if self._chunk_manager:
+            self._semantic_retriever._chunk_manager = self._chunk_manager
 
-        # Define retrieval tasks as sync functions
-        def get_learnings() -> list[tuple["Learning", float]]:
-            """Retrieve and score learnings."""
-            if not include_learnings:
-                return []
-
-            learnings = self._hot_dag.get_active_learnings()
-            scored: list[tuple[Learning, float]] = []
-
-            for learning in learnings:
-                if query_embedding and learning.embedding:
-                    score = self._cosine_similarity(query_embedding, learning.embedding)
-                else:
-                    score = self._keyword_similarity(query, learning.fact)
-
-                if score > 0.3:
-                    scored.append((learning, score))
-
-            scored.sort(key=lambda x: -x[1])
-            return scored[:limit_per_type]
-
-        def get_episodes() -> list[tuple[Episode, float]]:
-            """Retrieve and score episodes."""
-            if not include_episodes:
-                return []
-
-            scored: list[tuple[Episode, float]] = []
-            for ep in self._episodes:
-                # Simple keyword match for episodes
-                score = self._keyword_similarity(query, ep.summary)
-                if score > 0.2 or ep.outcome == "failed":  # Always include dead ends
-                    # Boost failed episodes to avoid dead ends
-                    if ep.outcome == "failed":
-                        score += 0.3
-                    scored.append((ep, min(1.0, score)))
-
-            scored.sort(key=lambda x: -x[1])
-            return scored[:limit_per_type]
-
-        def get_recent_turns() -> list[tuple[Turn, float]]:
-            """Retrieve recent turns."""
-            if not include_recent_turns:
-                return []
-
-            turns = self._hot_dag.get_recent_turns(limit_per_type)
-            # Recent turns get relevance based on recency
-            return [(turn, 1.0 - (i * 0.05)) for i, turn in enumerate(turns)]
-
-        def get_chunks() -> list[tuple[str, float]]:
-            """Retrieve relevant chunks."""
-            if not include_chunks or not self._chunk_manager:
-                return []
-
-            # Get all chunks and score them
-            all_chunks = self._chunk_manager.get_all_chunks()
-            scored: list[tuple[str, float]] = []
-
-            for chunk in all_chunks:
-                if chunk.summary:
-                    score = self._keyword_similarity(query, chunk.summary.main_points)
-                    if score > 0.2:
-                        content = chunk.summary.main_points
-                        scored.append((content, score))
-
-            scored.sort(key=lambda x: -x[1])
-            return scored[:limit_per_type]
-
-        # Get optimal worker count based on GIL state
-        workers = optimal_workers(WorkloadType.IO_BOUND)
-
-        # Run all retrieval tasks in parallel
-        tasks = [get_learnings, get_episodes, get_recent_turns, get_chunks]
-        results, stats = await run_parallel(tasks, WorkloadType.IO_BOUND, max_workers=workers)
-
-        # Unpack results
-        learnings_result, episodes_result, turns_result, chunks_result = results
-
-        return MemoryRetrievalResult(
-            learnings=learnings_result,
-            episodes=episodes_result,
-            turns=turns_result,
-            code_chunks=chunks_result,
-            focus_topics=query.split()[:3],
+        return await self._semantic_retriever.retrieve_parallel(
+            query=query,
+            include_learnings=include_learnings,
+            include_episodes=include_episodes,
+            include_recent_turns=include_recent_turns,
+            include_chunks=include_chunks,
+            limit_per_type=limit_per_type,
         )
 
     # === Context Retrieval (RFC-013) ===
@@ -1246,29 +854,12 @@ class SimulacrumStore:
         Returns:
             Formatted context string for inclusion in prompts
         """
-        if not self._chunk_manager:
-            # Fall back to simple retrieval
-            return self._simple_context(query, max_tokens)
+        if not self._context_assembler:
+            # Initialize if not already done
+            self._init_retrievers()
+            assert self._context_assembler is not None
 
-        context_items = self._chunk_manager.get_context_window(
-            max_tokens=max_tokens,
-            query=query,
-        )
-
-        # Format for prompt
-        parts: list[str] = []
-        for item in context_items:
-            if isinstance(item, Chunk) and item.turns:
-                # Full turns from hot tier
-                for turn in item.turns:
-                    parts.append(f"{turn.turn_type.value}: {turn.content}")
-            elif isinstance(item, ChunkSummary):
-                # Summary from cold tier
-                parts.append(f"[Earlier context: {item.summary}]")
-            elif hasattr(item, 'summary') and item.summary:
-                parts.append(f"[Context: {item.summary}]")
-
-        return "\n\n".join(parts)
+        return self._context_assembler.get_context_for_prompt(query, max_tokens)
 
     async def get_context_for_prompt_async(
         self,
@@ -1287,50 +878,12 @@ class SimulacrumStore:
         Returns:
             Formatted context string for inclusion in prompts
         """
-        if not self._chunk_manager:
-            return self._simple_context(query, max_tokens)
+        if not self._context_assembler:
+            # Initialize if not already done
+            self._init_retrievers()
+            assert self._context_assembler is not None
 
-        # Use async method with semantic retrieval
-        context_items = await self._chunk_manager.get_context_window_async(
-            max_tokens=max_tokens,
-            query=query,
-            semantic_limit=5,
-        )
-
-        # Format for prompt
-        parts: list[str] = []
-        for item in context_items:
-            if isinstance(item, Chunk) and item.turns:
-                # Full turns from hot or expanded warm tier
-                for turn in item.turns:
-                    parts.append(f"{turn.turn_type.value}: {turn.content}")
-            elif isinstance(item, ChunkSummary):
-                # Summary from cold tier
-                parts.append(f"[Earlier context: {item.summary}]")
-            elif hasattr(item, "summary") and item.summary:
-                parts.append(f"[Context: {item.summary}]")
-
-        return "\n\n".join(parts)
-
-    def _simple_context(self, query: str, max_tokens: int) -> str:
-        """Simple context retrieval without ChunkManager.
-
-        Falls back to recent turns from DAG.
-        """
-        recent = self._hot_dag.get_recent_turns(20)
-
-        parts = []
-        token_count = 0
-
-        for turn in reversed(recent):
-            turn_tokens = turn.token_count or len(turn.content.split())
-            if token_count + turn_tokens > max_tokens:
-                break
-            parts.append(f"{turn.turn_type.value}: {turn.content}")
-            token_count += turn_tokens
-
-        parts.reverse()
-        return "\n\n".join(parts)
+        return await self._context_assembler.get_context_for_prompt_async(query, max_tokens)
 
     def get_relevant_chunks(
         self,
@@ -1371,69 +924,12 @@ class SimulacrumStore:
             - messages: List of message dicts for LLM
             - stats: Dict with retrieval statistics
         """
-        messages: list[dict] = []
-        stats = {
-            "retrieved_chunks": 0,
-            "hot_turns": 0,
-            "warm_summaries": 0,
-            "cold_summaries": 0,
-            "compression_applied": False,
-        }
+        if not self._context_assembler:
+            # Initialize if not already done
+            self._init_retrievers()
+            assert self._context_assembler is not None
 
-        # 1. System prompt with learnings
-        system_parts = [system_prompt] if system_prompt else []
-
-        # Add learnings from DAG
-        learnings = self._hot_dag.get_active_learnings()
-        if learnings:
-            system_parts.append("\n\n## Key Context (from conversation history)")
-            for learning in learnings:
-                system_parts.append(f"- [{learning.category}] {learning.fact}")
-
-        if system_parts:
-            messages.append({
-                "role": "system",
-                "content": "\n".join(system_parts),
-            })
-
-        # 2. Get context from hierarchical chunks
-        if self._chunk_manager:
-            context_items = self._chunk_manager.get_context_window(
-                max_tokens=max_tokens,
-                query=query,
-            )
-
-            stats["retrieved_chunks"] = len(context_items)
-
-            for item in context_items:
-                if isinstance(item, Chunk) and item.turns:
-                    # HOT tier: full turns as messages
-                    stats["hot_turns"] += len(item.turns)
-                    for turn in item.turns:
-                        messages.append(turn.to_message())
-                elif isinstance(item, ChunkSummary):
-                    # COLD tier: summary only
-                    stats["cold_summaries"] += 1
-                    stats["compression_applied"] = True
-                    messages.append({
-                        "role": "assistant",
-                        "content": f"[Earlier context: {item.summary}]",
-                    })
-                elif hasattr(item, 'summary') and item.summary:
-                    # WARM tier: has summary
-                    stats["warm_summaries"] += 1
-                    messages.append({
-                        "role": "assistant",
-                        "content": f"[Context: {item.summary}]",
-                    })
-        else:
-            # Fallback: recent turns from DAG
-            recent = self._hot_dag.get_recent_turns(10)
-            stats["hot_turns"] = len(recent)
-            for turn in recent:
-                messages.append(turn.to_message())
-
-        return messages, stats
+        return self._context_assembler.assemble_messages(query, system_prompt, max_tokens)
 
     # === RFC-084: Auto-Wiring Methods ===
 
@@ -1536,180 +1032,74 @@ class SimulacrumStore:
         Uses the focus mechanism to weight chunk relevance based on
         topic tracking across the conversation.
         """
-        if not self._chunk_manager:
-            return self._simple_context(query, max_tokens)
+        if not self._context_assembler:
+            # Initialize if not already done
+            self._init_retrievers()
+            assert self._context_assembler is not None
 
-        # Update focus from query
+        # Update focus if needed
         if self._focus:
-            self._focus.update_from_query(query)
+            self._context_assembler._focus = self._focus
 
-        # Get context items
-        context_items = self._chunk_manager.get_context_window(
-            max_tokens=max_tokens,
-            query=query,
-        )
-
-        # If we have focus, apply weighting
-        if self._focus and self._focus.topics:
-            from sunwell.simulacrum.context.focus import FocusFilter
-            focus_filter = FocusFilter(self._focus)
-
-            # Score and reorder by focus relevance
-            scored_items: list[tuple[float, Any]] = []
-            for item in context_items:
-                if hasattr(item, "turns") and item.turns:
-                    # Score based on turns content
-                    turns_scored = focus_filter.filter_turns(list(item.turns), min_relevance=0.0)
-                    if turns_scored:
-                        avg_score = sum(s for _, s in turns_scored) / len(turns_scored)
-                    else:
-                        avg_score = 0.5
-                    scored_items.append((avg_score, item))
-                elif hasattr(item, "summary") and item.summary:
-                    # Score based on summary
-                    tags = focus_filter._extract_tags(item.summary)
-                    score = self._focus.matches(tags)
-                    scored_items.append((score, item))
-                else:
-                    scored_items.append((0.5, item))
-
-            # Sort by score descending
-            scored_items.sort(key=lambda x: x[0], reverse=True)
-            context_items = [item for _, item in scored_items]
-
-        # Format for prompt
-        from sunwell.simulacrum.hierarchical.chunks import Chunk, ChunkSummary
-        parts: list[str] = []
-        for item in context_items:
-            if isinstance(item, Chunk) and item.turns:
-                for turn in item.turns:
-                    parts.append(f"{turn.turn_type.value}: {turn.content}")
-            elif isinstance(item, ChunkSummary):
-                parts.append(f"[Earlier context: {item.summary}]")
-            elif hasattr(item, "summary") and item.summary:
-                parts.append(f"[Context: {item.summary}]")
-
-        return "\n\n".join(parts)
+        return self._context_assembler.get_context_for_prompt_weighted(query, max_tokens)
 
     # === Tier Management ===
 
+    # === Tier Management ===
+
+    @property
+    def hot_path(self) -> Path:
+        """Path to hot storage file."""
+        return self.base_path / "hot" / f"{self._session_id}.json"
+
+    @property
+    def warm_path(self) -> Path:
+        """Path to warm storage directory."""
+        return self.base_path / "warm"
+
+    @property
+    def cold_path(self) -> Path:
+        """Path to cold storage directory."""
+        return self.base_path / "cold"
+
     def _flush_hot(self) -> None:
         """Flush hot tier to disk."""
-        self._hot_dag.save(self.hot_path)
+        if self._tier_manager:
+            self._tier_manager.flush_hot(self._session_id)
+        else:
+            self._hot_dag.save(self.hot_path)
 
     def _maybe_demote_to_warm(self) -> None:
         """Move old turns from hot to warm storage."""
-        if len(self._hot_dag.turns) <= self.config.hot_max_turns:
-            return
-
-        # Find oldest turns to demote
-        turns_by_time = sorted(
-            self._hot_dag.turns.values(),
-            key=lambda t: t.timestamp,
-        )
-
-        to_demote = turns_by_time[:len(turns_by_time) - self.config.hot_max_turns]
-
-        # Save to warm storage
-        for turn in to_demote:
-            self._save_to_warm(turn)
-            # Don't remove from DAG - keep structure, just mark as demoted
-            self._hot_dag.compressed.add(turn.id)
-
-    def _save_to_warm(self, turn: Turn) -> None:
-        """Save a turn to warm storage."""
-        # Use date-based sharding for warm storage
-        date_str = turn.timestamp[:10]  # YYYY-MM-DD
-        shard_path = self.warm_path / f"{date_str}.jsonl"
-
-        with open(shard_path, "a") as f:
-            data = {
-                "id": turn.id,
-                "content": turn.content,
-                "turn_type": turn.turn_type.value,
-                "timestamp": turn.timestamp,
-                "parent_ids": list(turn.parent_ids),
-            }
-            f.write(json.dumps(data) + "\n")
+        if self._tier_manager:
+            self._tier_manager.maybe_demote_to_warm()
+        # Fallback implementation if tier_manager not initialized
+        elif len(self._hot_dag.turns) > self.config.hot_max_turns:
+            turns_by_time = sorted(
+                self._hot_dag.turns.values(),
+                key=lambda t: t.timestamp,
+            )
+            to_demote = turns_by_time[:len(turns_by_time) - self.config.hot_max_turns]
+            for turn in to_demote:
+                self._hot_dag.compressed.add(turn.id)
 
     def move_to_cold(self, older_than_hours: int | None = None) -> int:
         """Archive old warm storage to cold (compressed)."""
-        hours = older_than_hours or self.config.warm_max_age_hours
-        cutoff = datetime.now() - timedelta(hours=hours)
-        moved = 0
-
-        for shard_file in self.warm_path.glob("*.jsonl"):
-            # Parse date from filename
-            try:
-                file_date = datetime.strptime(shard_file.stem, "%Y-%m-%d")
-            except ValueError:
-                continue
-
-            if file_date < cutoff:
-                # Move to cold storage
-                cold_dest = self.cold_path / shard_file.name
-
-                if self.config.cold_compression:
-                    # Compress with zstd if available
-                    try:
-                        import zstd
-                        with open(shard_file, "rb") as src:
-                            compressed = zstd.compress(src.read())
-                        with open(cold_dest.with_suffix(".jsonl.zst"), "wb") as dst:
-                            dst.write(compressed)
-                    except ImportError:
-                          # Fall back to gzip
-                          import gzip
-                          with (
-                              open(shard_file, "rb") as src,
-                              gzip.open(cold_dest.with_suffix(".jsonl.gz"), "wb") as dst,
-                          ):
-                              dst.write(src.read())
-                else:
-                    shutil.move(shard_file, cold_dest)
-
-                # Remove original
-                shard_file.unlink(missing_ok=True)
-                moved += 1
-
-        return moved
+        if self._tier_manager:
+            return self._tier_manager.move_to_cold(older_than_hours)
+        return 0
 
     def retrieve_from_warm(self, turn_id: str) -> Turn | None:
         """Retrieve a specific turn from warm storage."""
-        for shard_file in self.warm_path.glob("*.jsonl"):
-            with open(shard_file) as f:
-                for line in f:
-                    data = json.loads(line)
-                    if data["id"] == turn_id:
-                        return Turn(
-                            content=data["content"],
-                            turn_type=TurnType(data["turn_type"]),
-                            timestamp=data["timestamp"],
-                            parent_ids=tuple(data.get("parent_ids", [])),
-                        )
+        if self._tier_manager:
+            return self._tier_manager.retrieve_from_warm(turn_id)
         return None
 
     def search_warm(self, query: str, limit: int = 10) -> list[Turn]:
         """Simple text search over warm storage."""
-        query_lower = query.lower()
-        matches = []
-
-        for shard_file in self.warm_path.glob("*.jsonl"):
-            with open(shard_file) as f:
-                for line in f:
-                    data = json.loads(line)
-                    if query_lower in data["content"].lower():
-                        turn = Turn(
-                            content=data["content"],
-                            turn_type=TurnType(data["turn_type"]),
-                            timestamp=data["timestamp"],
-                            parent_ids=tuple(data.get("parent_ids", [])),
-                        )
-                        matches.append(turn)
-                        if len(matches) >= limit:
-                            return matches
-
-        return matches
+        if self._tier_manager:
+            return self._tier_manager.search_warm(query, limit)
+        return []
 
     # === RFC-014: Document/Code Ingestion ===
 
@@ -1879,25 +1269,7 @@ class SimulacrumStore:
 
     def cleanup_dead_ends(self) -> int:
         """Remove dead end turns from warm/cold storage."""
-        # Get all dead end IDs
         dead_end_ids = self._hot_dag.dead_ends
-        if not dead_end_ids:
+        if not dead_end_ids or not self._tier_manager:
             return 0
-
-        removed = 0
-
-        # Clean warm storage
-        for shard_file in self.warm_path.glob("*.jsonl"):
-            lines_to_keep = []
-            with open(shard_file) as f:
-                for line in f:
-                    data = json.loads(line)
-                    if data["id"] not in dead_end_ids:
-                        lines_to_keep.append(line)
-                    else:
-                        removed += 1
-
-            with open(shard_file, "w") as f:
-                f.writelines(lines_to_keep)
-
-        return removed
+        return self._tier_manager.cleanup_dead_ends(dead_end_ids)

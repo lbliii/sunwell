@@ -43,6 +43,8 @@ from sunwell.reasoning.decisions import (
     ReasonedDecision,
     RecoveryDecision,
 )
+from sunwell.reasoning.enrichment import ContextEnricher
+from sunwell.reasoning.prompts import PromptBuilder
 
 # Pre-compiled regex patterns
 _MARKDOWN_CODE_BLOCK_RE = re.compile(r"```(?:json)?\s*([\s\S]*?)```")
@@ -346,10 +348,21 @@ class Reasoner:
     )
     """Index of decisions by type for O(1) lookup."""
 
+    _context_enricher: ContextEnricher | None = field(default=None, init=False)
+    """Context enricher for assembling rich context."""
+
     def __post_init__(self) -> None:
         """Initialize default fallback rules."""
         if not self.fallback_rules:
             self.fallback_rules = self._default_fallback_rules()
+
+        # Initialize context enricher
+        self._context_enricher = ContextEnricher(
+            project_context=self.project_context,
+            execution_cache=self.execution_cache,
+            artifact_graph=self.artifact_graph,
+            decision_history=self._history_by_type,
+        )
 
     async def decide(
         self,
@@ -382,7 +395,14 @@ class Reasoner:
             ... )
         """
         # 1. Assemble full context
-        enriched = await self._enrich_context(decision_type, context)
+        if not self._context_enricher:
+            self._context_enricher = ContextEnricher(
+                project_context=self.project_context,
+                execution_cache=self.execution_cache,
+                artifact_graph=self.artifact_graph,
+                decision_history=self._history_by_type,
+            )
+        enriched = await self._context_enricher.enrich(decision_type, context)
 
         # 2. Check for high-confidence match with past decisions
         if not force_reasoning:
@@ -392,10 +412,10 @@ class Reasoner:
 
         # 3. Build reasoning prompt
         if self.use_tool_calling:
-            prompt = self._build_prompt(decision_type, enriched)
+            prompt = PromptBuilder.build_prompt(decision_type, enriched)
             tools = self._get_tools(decision_type)
         else:
-            prompt = self._build_fast_prompt(decision_type, enriched)
+            prompt = PromptBuilder.build_fast_prompt(decision_type, enriched)
             tools = None
 
         # 4. Reason with model
@@ -414,7 +434,19 @@ class Reasoner:
                     prompt,
                     options=GenerateOptions(temperature=0.1),
                 )
-                decision = self._parse_json_decision(decision_type, result)
+                outcome, confidence, rationale = PromptBuilder.parse_json_decision(
+                    decision_type,
+                    result,
+                    _OUTCOME_VALIDATORS,
+                    _CONSERVATIVE_DEFAULTS,
+                )
+                decision = ReasonedDecision(
+                    decision_type=decision_type,
+                    outcome=outcome,
+                    confidence=confidence,
+                    rationale=rationale,
+                    context_used=tuple(enriched.get("context_factors", [])),
+                )
 
         except Exception as e:
             # Fallback to rules on any error
@@ -498,196 +530,8 @@ class Reasoner:
         )
 
     # =========================================================================
-    # Context Assembly
+    # Context Assembly (now using ContextEnricher)
     # =========================================================================
-
-    async def _enrich_context(
-        self,
-        decision_type: DecisionType,
-        context: dict[str, Any],
-    ) -> dict[str, Any]:
-        """Assemble rich context from all available sources.
-
-        Sources:
-        - CodebaseGraph: Static/dynamic analysis (hot paths, coupling, ownership)
-        - ExecutionCache: Provenance and execution history
-        - ProjectContext: Decisions, failures, patterns
-        - ArtifactGraph: Dependency relationships
-
-        Args:
-            decision_type: Type of decision being made.
-            context: Base context to enrich.
-
-        Returns:
-            Enriched context dict with all available information.
-        """
-        enriched = dict(context)
-
-        # === CodebaseGraph (RFC-045): Static + Dynamic Analysis ===
-        if "file_path" in context and self.project_context:
-            await self._enrich_from_codebase(enriched)
-
-        # === ExecutionCache (RFC-074): Provenance + History ===
-        if "artifact_id" in context and self.execution_cache:
-            await self._enrich_from_cache(enriched, context["artifact_id"])
-
-        # === ProjectContext (RFC-045): Memory + Learning ===
-        if self.project_context:
-            await self._enrich_from_project_context(enriched, decision_type)
-
-        # === ArtifactGraph (RFC-036): Dependencies ===
-        if "artifact_id" in context and self.artifact_graph:
-            await self._enrich_from_artifact_graph(enriched, context["artifact_id"])
-
-        return enriched
-
-    async def _enrich_from_codebase(self, enriched: dict[str, Any]) -> None:
-        """Add codebase graph context."""
-        if not self.project_context:
-            return
-
-        file_path = Path(enriched.get("file_path", ""))
-        codebase = self.project_context.codebase
-
-        # Check hot paths
-        enriched["in_hot_path"] = any(
-            file_path.name in path.nodes for path in codebase.hot_paths
-        )
-
-        # Check error-prone
-        enriched["is_error_prone"] = any(
-            loc.file == file_path for loc in codebase.error_prone
-        )
-
-        # Get change frequency
-        enriched["change_frequency"] = codebase.change_frequency.get(file_path, 0.0)
-
-        # Get ownership
-        enriched["file_ownership"] = codebase.file_ownership.get(file_path)
-
-        # Get coupling score (sum of all couplings involving this file's module)
-        module_name = str(file_path.with_suffix("")).replace("/", ".")
-        coupling_scores = [
-            score
-            for (m1, m2), score in codebase.coupling_scores.items()
-            if module_name in (m1, m2)
-        ]
-        if coupling_scores:
-            enriched["coupling"] = sum(coupling_scores) / len(coupling_scores)
-        else:
-            enriched["coupling"] = 0.0
-
-    async def _enrich_from_cache(
-        self,
-        enriched: dict[str, Any],
-        artifact_id: str,
-    ) -> None:
-        """Add execution cache context."""
-        if not self.execution_cache:
-            return
-
-        entry = self.execution_cache.get(artifact_id)
-        if entry:
-            enriched["skip_count"] = entry.skip_count
-            enriched["last_execution_time_ms"] = entry.execution_time_ms
-            enriched["last_status"] = entry.status.value
-
-        # Lineage queries (O(1) via recursive CTE)
-        enriched["upstream_artifacts"] = self.execution_cache.get_upstream(artifact_id)
-        enriched["downstream_artifacts"] = self.execution_cache.get_downstream(artifact_id)
-
-    async def _enrich_from_project_context(
-        self,
-        enriched: dict[str, Any],
-        decision_type: DecisionType,
-    ) -> None:
-        """Add project context (decisions, failures, patterns)."""
-        if not self.project_context:
-            return
-
-        # Similar past decisions
-        try:
-            similar = await self._query_similar_decisions(decision_type, enriched)
-            enriched["similar_decisions"] = similar
-        except Exception:
-            enriched["similar_decisions"] = []
-
-        # Related failures
-        try:
-            failures = await self._query_related_failures(enriched)
-            enriched["related_failures"] = failures
-        except Exception:
-            enriched["related_failures"] = []
-
-        # User patterns
-        try:
-            patterns = await self._query_user_patterns(decision_type)
-            enriched["user_patterns"] = patterns
-        except Exception:
-            enriched["user_patterns"] = []
-
-    async def _enrich_from_artifact_graph(
-        self,
-        enriched: dict[str, Any],
-        artifact_id: str,
-    ) -> None:
-        """Add artifact graph context."""
-        if not self.artifact_graph:
-            return
-
-        spec = self.artifact_graph.get(artifact_id)
-        if spec:
-            enriched["artifact_requires"] = list(spec.requires)
-            enriched["artifact_contract"] = spec.contract
-
-    async def _query_similar_decisions(
-        self,
-        decision_type: DecisionType,
-        context: dict[str, Any],
-    ) -> list[dict[str, Any]]:
-        """Query similar past decisions from ProjectContext."""
-        if not self.project_context:
-            return []
-
-        # Use index for O(1) type lookup instead of O(n) scan
-        history = self._history_by_type.get(decision_type, [])
-        similar = []
-        for decision in history[-100:]:  # Last 100 of this type
-            # Simple similarity: same file path or signal type
-            if context.get("file_path") and "file_path" in decision.context_used:
-                similar.append(decision.to_dict())
-        return similar[:5]  # Top 5 similar
-
-    async def _query_related_failures(
-        self,
-        context: dict[str, Any],
-    ) -> list[dict[str, Any]]:
-        """Query related failures from ProjectContext."""
-        if not self.project_context or not hasattr(self.project_context, "failures"):
-            return []
-
-        try:
-            file_path = context.get("file_path")
-            if file_path:
-                failures = self.project_context.failures.query_by_file(Path(file_path))
-                return [f.to_dict() for f in failures[:3]] if failures else []
-        except Exception:
-            pass
-        return []
-
-    async def _query_user_patterns(
-        self,
-        decision_type: DecisionType,
-    ) -> list[str]:
-        """Query user patterns from ProjectContext."""
-        if not self.project_context or not hasattr(self.project_context, "patterns"):
-            return []
-
-        try:
-            patterns = self.project_context.patterns.get_patterns(decision_type.value)
-            return patterns if patterns else []
-        except Exception:
-            return []
 
     # =========================================================================
     # Similar Decision Matching
