@@ -7,6 +7,7 @@ import type { AgentState, AgentEvent, Task, Concept, ConceptCategory, PlanCandid
 import { updateNode, completeNode, reloadDag, loadProjectDagIndex } from './dag.svelte';
 import { reloadFiles } from './files.svelte';
 import { runGoal as apiRunGoal, stopAgent as apiStopAgent, onAgentEvent } from '$lib/api';
+import { apiPost } from '$lib/socket';
 import type { GoalNode, TaskNodeDetail } from '$lib/types';
 import { setActiveLens } from './lens.svelte';
 import {
@@ -87,6 +88,22 @@ function deduplicateConcepts(concepts: Concept[]): Concept[] {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+
+/** Safely get learnings array, returns empty array if not initialized */
+function getLearnings(): string[] {
+  const learnings = _state.learnings;
+  return Array.isArray(learnings) ? learnings : [];
+}
+
+/** Safely get refinement rounds array, returns empty array if not initialized */
+function getRefinementRounds(): RefinementRound[] {
+  const rounds = _state.refinementRounds;
+  return Array.isArray(rounds) ? rounds : [];
+}
+
+// ═══════════════════════════════════════════════════════════════
 // EXPORTS
 // ═══════════════════════════════════════════════════════════════
 
@@ -96,32 +113,49 @@ const RUNNING_STATUSES: AgentStatus[] = [AgentStatus.STARTING, AgentStatus.PLANN
 function getTaskCounts(): { complete: number; failed: number; total: number } {
   let complete = 0;
   let failed = 0;
-  for (const t of _state.tasks) {
+  const tasks = _state.tasks;
+  if (!Array.isArray(tasks)) return { complete: 0, failed: 0, total: 0 };
+  for (const t of tasks) {
     if (t.status === TaskStatus.COMPLETE) complete++;
     else if (t.status === TaskStatus.FAILED) failed++;
   }
-  return { complete, failed, total: _state.tasks.length };
+  return { complete, failed, total: tasks.length };
 }
 
 export const agent = {
   get status() { return _state.status; },
   get goal() { return _state.goal; },
   /** Tasks array (frozen to prevent external mutation) */
-  get tasks(): readonly Task[] { return Object.freeze([..._state.tasks]); },
+  get tasks(): readonly Task[] { 
+    const tasks = _state.tasks;
+    return Object.freeze(Array.isArray(tasks) ? [...tasks] : []); 
+  },
   get currentTaskIndex() { return _state.currentTaskIndex; },
   get totalTasks() { return _state.totalTasks; },
   get startTime() { return _state.startTime; },
   get endTime() { return _state.endTime; },
   get error() { return _state.error; },
   /** Learnings array (frozen to prevent external mutation) */
-  get learnings(): readonly string[] { return Object.freeze([..._state.learnings]); },
+  get learnings(): readonly string[] { 
+    const learnings = _state.learnings;
+    return Object.freeze(Array.isArray(learnings) ? [...learnings] : []); 
+  },
   /** Concepts array (frozen to prevent external mutation) */
-  get concepts(): readonly Concept[] { return Object.freeze([..._state.concepts]); },
+  get concepts(): readonly Concept[] { 
+    const concepts = _state.concepts;
+    return Object.freeze(Array.isArray(concepts) ? [...concepts] : []); 
+  },
   /** Planning candidates array (frozen to prevent external mutation) */
-  get planningCandidates(): readonly PlanCandidate[] { return Object.freeze([..._state.planningCandidates]); },
+  get planningCandidates(): readonly PlanCandidate[] { 
+    const candidates = _state.planningCandidates;
+    return Object.freeze(Array.isArray(candidates) ? [...candidates] : []); 
+  },
   get selectedCandidate() { return _state.selectedCandidate; },
   /** Refinement rounds array (frozen to prevent external mutation) */
-  get refinementRounds(): readonly RefinementRound[] { return Object.freeze([..._state.refinementRounds]); },
+  get refinementRounds(): readonly RefinementRound[] { 
+    const rounds = _state.refinementRounds;
+    return Object.freeze(Array.isArray(rounds) ? [...rounds] : []); 
+  },
   get planningProgress() { return _state.planningProgress; },
   get convergence() { return _state.convergence; },
   // Computed
@@ -142,7 +176,10 @@ export const agent = {
   get completedTasks() { return getTaskCounts().complete; },
   get failedTasks() { return getTaskCounts().failed; },
   /** Number of planned artifacts that were skipped (incremental builds) */
-  get skippedTasks() { return Math.max(0, _state.totalTasks - _state.tasks.length); },
+  get skippedTasks() { 
+    const tasks = _state.tasks;
+    return Math.max(0, _state.totalTasks - (Array.isArray(tasks) ? tasks.length : 0)); 
+  },
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -218,9 +255,21 @@ async function runDemoGoal(goal: string): Promise<boolean> {
   await sleep(800);
   _state = { ..._state, status: AgentStatus.RUNNING };
   for (let i = 0; i < demoTasks.length; i++) {
-    _state = { ..._state, tasks: _state.tasks.map((t, idx) => idx === i ? { ...t, status: TaskStatus.RUNNING, progress: 0 } : t), currentTaskIndex: i };
-    for (let p = 0; p <= 100; p += 25) { await sleep(100 + Math.random() * 150); _state = { ..._state, tasks: _state.tasks.map((t, idx) => idx === i ? { ...t, progress: p } : t) }; }
-    _state = { ..._state, tasks: _state.tasks.map((t, idx) => idx === i ? { ...t, status: TaskStatus.COMPLETE, progress: 100 } : t) };
+    const tasks1 = _state.tasks;
+    if (Array.isArray(tasks1)) {
+      _state = { ..._state, tasks: tasks1.map((t, idx) => idx === i ? { ...t, status: TaskStatus.RUNNING, progress: 0 } : t), currentTaskIndex: i };
+    }
+    for (let p = 0; p <= 100; p += 25) { 
+      await sleep(100 + Math.random() * 150); 
+      const tasks2 = _state.tasks;
+      if (Array.isArray(tasks2)) {
+        _state = { ..._state, tasks: tasks2.map((t, idx) => idx === i ? { ...t, progress: p } : t) }; 
+      }
+    }
+    const tasks3 = _state.tasks;
+    if (Array.isArray(tasks3)) {
+      _state = { ..._state, tasks: tasks3.map((t, idx) => idx === i ? { ...t, status: TaskStatus.COMPLETE, progress: 100 } : t) };
+    }
     await sleep(150);
   }
   const demoLearnings = ['Detected Flask web framework', 'Using SQLAlchemy for ORM', 'pytest available for testing'];
@@ -243,7 +292,8 @@ async function appendCompletedGoalToDag(
 
   try {
     // Build task nodes from current agent state
-    const tasks: TaskNodeDetail[] = _state.tasks.map(t => ({
+    const stateTasks = _state.tasks;
+    const tasks: TaskNodeDetail[] = Array.isArray(stateTasks) ? stateTasks.map(t => ({
       id: t.id,
       description: t.description,
       status: t.status === 'complete' ? 'complete' : t.status === 'failed' ? 'failed' : 'pending',
@@ -251,10 +301,11 @@ async function appendCompletedGoalToDag(
       requires: [],
       dependsOn: [],
       contentHash: undefined,
-    }));
+    })) : [];
 
     // Construct the GoalNode
     const now = new Date().toISOString();
+    const stateLearnings = _state.learnings;
     const goalNode: GoalNode = {
       id: goalId || `goal-${Date.now()}`,
       title: goalTitle,
@@ -263,16 +314,15 @@ async function appendCompletedGoalToDag(
       createdAt: _state.startTime ? new Date(_state.startTime).toISOString() : now,
       completedAt: now,
       tasks,
-      learnings: _state.learnings.filter(l => !l.startsWith('🚀') && !l.startsWith('✅') && !l.startsWith('❌') && !l.startsWith('⚠️')),
+      learnings: Array.isArray(stateLearnings) ? stateLearnings.filter(l => !l.startsWith('🚀') && !l.startsWith('✅') && !l.startsWith('❌') && !l.startsWith('⚠️')) : [],
       metrics: {
         durationSeconds: _state.startTime ? Math.round((Date.now() - _state.startTime) / 1000) : undefined,
-        tasksCompleted: _state.tasks.filter(t => t.status === 'complete').length,
-        tasksSkipped: Math.max(0, _state.totalTasks - _state.tasks.length),
+        tasksCompleted: Array.isArray(stateTasks) ? stateTasks.filter(t => t.status === 'complete').length : 0,
+        tasksSkipped: Math.max(0, _state.totalTasks - (Array.isArray(stateTasks) ? stateTasks.length : 0)),
       },
     };
 
     // RFC-113: Use HTTP API
-    const { apiPost } = await import('$lib/socket');
     await apiPost('/api/dag/append', {
       path: _currentProjectPath,
       goal: goalNode,
@@ -359,8 +409,11 @@ export function handleAgentEvent(event: AgentEvent): void {
       const varianceConfig = (data.variance_config as Record<string, unknown>) ?? {};
       // Store by ID (no index fallback)
       const candidateMap = new Map<string, PlanCandidate>();
-      for (const candidate of _state.planningCandidates) {
-        if (candidate != null) candidateMap.set(candidate.id, candidate);
+      const planningCandidates = _state.planningCandidates;
+      if (Array.isArray(planningCandidates)) {
+        for (const candidate of planningCandidates) {
+          if (candidate != null) candidateMap.set(candidate.id, candidate);
+        }
       }
       candidateMap.set(candidateId, {
         id: candidateId,
@@ -400,8 +453,11 @@ export function handleAgentEvent(event: AgentEvent): void {
       const progressVal = (data.progress as number) ?? 0;
       // Match by ID (no index fallback)
       const candidateMap = new Map<string, PlanCandidate>();
-      for (const candidate of _state.planningCandidates) {
-        if (candidate != null) candidateMap.set(candidate.id, candidate);
+      const planningCandidates = _state.planningCandidates;
+      if (Array.isArray(planningCandidates)) {
+        for (const candidate of planningCandidates) {
+          if (candidate != null) candidateMap.set(candidate.id, candidate);
+        }
       }
       const existing = candidateMap.get(candidateId);
       if (existing) {
@@ -437,14 +493,14 @@ export function handleAgentEvent(event: AgentEvent): void {
       const rawImprovements = data.improvements_identified;
       const improvementsIdentified = Array.isArray(rawImprovements) ? rawImprovements.join('; ') : (rawImprovements as string) ?? '';
       const totalRounds = (data.total_rounds as number) ?? 0;
-      _state = { ..._state, planningProgress: { phase: PlanningPhase.REFINING, current_candidates: round, total_candidates: totalRounds }, refinementRounds: [..._state.refinementRounds, { round, current_score: currentScore, improvements_identified: improvementsIdentified, improved: false }] };
+      _state = { ..._state, planningProgress: { phase: PlanningPhase.REFINING, current_candidates: round, total_candidates: totalRounds }, refinementRounds: [...getRefinementRounds(), { round, current_score: currentScore, improvements_identified: improvementsIdentified, improved: false }] };
       break;
     }
 
     case 'plan_refine_attempt': {
       const round = (data.round as number) ?? 0;
       const improvementsApplied = (data.improvements_applied as string[]) ?? [];
-      const rounds = [..._state.refinementRounds];
+      const rounds = [...getRefinementRounds()];
       const roundIndex = rounds.findIndex(r => r.round === round);
       if (roundIndex >= 0) rounds[roundIndex] = { ...rounds[roundIndex], improvements_applied: improvementsApplied };
       else rounds.push({ round, current_score: 0, improvements_identified: '', improved: false, improvements_applied: improvementsApplied });
@@ -459,7 +515,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const newScore = (data.new_score as number) ?? undefined;
       const improvement = (data.improvement as number) ?? undefined;
       const reason = (data.reason as string) ?? undefined;
-      const rounds = [..._state.refinementRounds];
+      const rounds = [...getRefinementRounds()];
       const roundIndex = rounds.findIndex(r => r.round === round);
       if (roundIndex >= 0) rounds[roundIndex] = { ...rounds[roundIndex], improved, old_score: oldScore, new_score: newScore, improvement, reason };
       _state = { ..._state, refinementRounds: rounds };
@@ -481,7 +537,8 @@ export function handleAgentEvent(event: AgentEvent): void {
       const score = (data.score as number) ?? undefined;
       const varianceConfig = (data.variance_config as PlanCandidate['variance_config']) ?? undefined;
       // Match by ID (no index fallback)
-      const selected = _state.planningCandidates.find(c => c.id === selectedId) ?? null;
+      const planningCandidates = _state.planningCandidates;
+      const selected = Array.isArray(planningCandidates) ? planningCandidates.find(c => c.id === selectedId) ?? null : null;
       _state = {
         ..._state,
         status: AgentStatus.RUNNING,
@@ -514,13 +571,19 @@ export function handleAgentEvent(event: AgentEvent): void {
         break;
       }
       const description = (data.description as string) ?? 'Working...';
-      const existingIndex = _state.tasks.findIndex(t => t.id === taskId);
-      if (existingIndex >= 0) {
-        const tasks = [..._state.tasks]; tasks[existingIndex] = { ...tasks[existingIndex], status: TaskStatus.RUNNING };
-        _state = { ..._state, tasks, currentTaskIndex: existingIndex };
-      } else {
+      const stateTasks = _state.tasks;
+      if (!Array.isArray(stateTasks)) {
         const newTask: Task = { id: taskId, description, status: TaskStatus.RUNNING, progress: 0 };
-        _state = { ..._state, tasks: [..._state.tasks, newTask], currentTaskIndex: _state.tasks.length };
+        _state = { ..._state, tasks: [newTask], currentTaskIndex: 0 };
+      } else {
+        const existingIndex = stateTasks.findIndex(t => t.id === taskId);
+        if (existingIndex >= 0) {
+          const tasks = [...stateTasks]; tasks[existingIndex] = { ...tasks[existingIndex], status: TaskStatus.RUNNING };
+          _state = { ..._state, tasks, currentTaskIndex: existingIndex };
+        } else {
+          const newTask: Task = { id: taskId, description, status: TaskStatus.RUNNING, progress: 0 };
+          _state = { ..._state, tasks: [...stateTasks, newTask], currentTaskIndex: stateTasks.length };
+        }
       }
       updateNode(taskId, { status: 'running', currentAction: description });
       break;
@@ -533,10 +596,13 @@ export function handleAgentEvent(event: AgentEvent): void {
         break;
       }
       const progressVal = (data.progress as number) ?? 0;
-      const taskIndex = _state.tasks.findIndex(t => t.id === taskId);
-      if (taskIndex >= 0) {
-        const tasks = [..._state.tasks]; tasks[taskIndex] = { ...tasks[taskIndex], progress: progressVal };
-        _state = { ..._state, tasks };
+      const stateTasks = _state.tasks;
+      if (Array.isArray(stateTasks)) {
+        const taskIndex = stateTasks.findIndex(t => t.id === taskId);
+        if (taskIndex >= 0) {
+          const tasks = [...stateTasks]; tasks[taskIndex] = { ...tasks[taskIndex], progress: progressVal };
+          _state = { ..._state, tasks };
+        }
       }
       updateNode(taskId, { progress: progressVal });
       break;
@@ -549,8 +615,11 @@ export function handleAgentEvent(event: AgentEvent): void {
         break;
       }
       const durationMs = (data.duration_ms as number) ?? 0;
-      const tasks = _state.tasks.map(t => t.id === taskId ? { ...t, status: TaskStatus.COMPLETE, progress: 100, duration_ms: durationMs } : t);
-      _state = { ..._state, tasks };
+      const stateTasks = _state.tasks;
+      if (Array.isArray(stateTasks)) {
+        const tasks = stateTasks.map(t => t.id === taskId ? { ...t, status: TaskStatus.COMPLETE, progress: 100, duration_ms: durationMs } : t);
+        _state = { ..._state, tasks };
+      }
       completeNode(taskId);
       reloadFiles(); // Refresh file tree when task completes
       break;
@@ -562,8 +631,11 @@ export function handleAgentEvent(event: AgentEvent): void {
         console.error('[Sunwell] task_failed missing required task_id');
         break;
       }
-      const tasks = _state.tasks.map(t => t.id === taskId ? { ...t, status: TaskStatus.FAILED } : t);
-      _state = { ..._state, tasks };
+      const stateTasks = _state.tasks;
+      if (Array.isArray(stateTasks)) {
+        const tasks = stateTasks.map(t => t.id === taskId ? { ...t, status: TaskStatus.FAILED } : t);
+        _state = { ..._state, tasks };
+      }
       updateNode(taskId, { status: 'failed' });
       break;
     }
@@ -572,7 +644,13 @@ export function handleAgentEvent(event: AgentEvent): void {
       const fact = (data.fact as string) ?? '';
       if (fact) {
         const newConcepts = extractConcepts(fact);
-        _state = { ..._state, learnings: [..._state.learnings, fact], concepts: deduplicateConcepts([..._state.concepts, ...newConcepts]) };
+        const stateLearnings = _state.learnings;
+        const stateConcepts = _state.concepts;
+        _state = { 
+          ..._state, 
+          learnings: Array.isArray(stateLearnings) ? [...stateLearnings, fact] : [fact], 
+          concepts: deduplicateConcepts(Array.isArray(stateConcepts) ? [...stateConcepts, ...newConcepts] : newConcepts) 
+        };
       }
       break;
     }
@@ -580,13 +658,15 @@ export function handleAgentEvent(event: AgentEvent): void {
     case 'complete': {
       const tasksCompleted = (data.tasks_completed as number) ?? (data.completed as number) ?? 0;
       const tasksFailed = (data.tasks_failed as number) ?? (data.failed as number) ?? 0;
-      const hasAnomaly = _state.tasks.length === 0 && tasksCompleted > 0;
+      const stateTasks = _state.tasks;
+      const tasksLen = Array.isArray(stateTasks) ? stateTasks.length : 0;
+      const hasAnomaly = tasksLen === 0 && tasksCompleted > 0;
       if (hasAnomaly) {
         console.warn(`[Sunwell] Agent completed with ${tasksCompleted} artifacts but no task_start events`);
         const syntheticTasks: Task[] = [];
         for (let i = 0; i < tasksCompleted; i++) syntheticTasks.push({ id: `completed-${i}`, description: `Completed artifact ${i + 1}`, status: TaskStatus.COMPLETE, progress: 100 });
         for (let i = 0; i < tasksFailed; i++) syntheticTasks.push({ id: `failed-${i}`, description: `Failed artifact ${i + 1}`, status: TaskStatus.FAILED, progress: 0 });
-        _state = { ..._state, status: AgentStatus.DONE, endTime: Date.now(), tasks: syntheticTasks.length > 0 ? syntheticTasks : _state.tasks, totalTasks: _state.totalTasks > 0 ? _state.totalTasks : tasksCompleted + tasksFailed };
+        _state = { ..._state, status: AgentStatus.DONE, endTime: Date.now(), tasks: syntheticTasks.length > 0 ? syntheticTasks : (Array.isArray(stateTasks) ? stateTasks : []), totalTasks: _state.totalTasks > 0 ? _state.totalTasks : tasksCompleted + tasksFailed };
       } else {
         _state = { ..._state, status: AgentStatus.DONE, endTime: Date.now() };
       }
@@ -628,7 +708,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       setActiveLens(name);
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `Using lens: ${name} (${reason})`],
+        learnings: [...getLearnings(), `Using lens: ${name} (${reason})`],
       };
       break;
     }
@@ -651,7 +731,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       if (hasDispatchHints) briefingInfo += ' 🎯 Has dispatch hints';
       _state = {
         ..._state,
-        learnings: [..._state.learnings, briefingInfo],
+        learnings: [...getLearnings(), briefingInfo],
       };
       break;
     }
@@ -661,7 +741,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const tasksCompleted = (data.tasks_completed as number) ?? 0;
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `📋 Briefing saved: ${status} (${tasksCompleted} tasks)`],
+        learnings: [...getLearnings(), `📋 Briefing saved: ${status} (${tasksCompleted} tasks)`],
       };
       break;
     }
@@ -670,7 +750,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const briefing = (data.briefing as string) ?? '';
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `🔄 Prefetch starting for: ${briefing}`],
+        learnings: [...getLearnings(), `🔄 Prefetch starting for: ${briefing}`],
       };
       break;
     }
@@ -682,7 +762,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const skills = skillsActivated.length > 0 ? ` Skills: ${skillsActivated.join(', ')}` : '';
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `✅ Prefetch complete: ${filesLoaded} files, ${learningsLoaded} learnings.${skills}`],
+        learnings: [...getLearnings(), `✅ Prefetch complete: ${filesLoaded} files, ${learningsLoaded} learnings.${skills}`],
       };
       break;
     }
@@ -692,7 +772,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const msg = error ? `⏱️ Prefetch timed out: ${error}` : '⏱️ Prefetch timed out (proceeding without warm context)';
       _state = {
         ..._state,
-        learnings: [..._state.learnings, msg],
+        learnings: [...getLearnings(), msg],
       };
       break;
     }
@@ -702,7 +782,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const reason = (data.reason as string) ?? '';
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `🎯 Lens suggested: ${suggested} (${reason})`],
+        learnings: [...getLearnings(), `🎯 Lens suggested: ${suggested} (${reason})`],
       };
       break;
     }
@@ -720,7 +800,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const lensName = (data.lens_name as string) ?? '';
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `🔧 Skill graph: ${skillCount} skills in ${waveCount} waves (${lensName})`],
+        learnings: [...getLearnings(), `🔧 Skill graph: ${skillCount} skills in ${waveCount} waves (${lensName})`],
       };
       break;
     }
@@ -737,7 +817,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const skills = (data.skills as string[]) ?? [];
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `⚡ Wave ${waveIndex + 1}/${totalWaves}: ${skills.join(', ')}`],
+        learnings: [...getLearnings(), `⚡ Wave ${waveIndex + 1}/${totalWaves}: ${skills.join(', ')}`],
       };
       break;
     }
@@ -756,7 +836,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const status = failed.length > 0 ? `⚠️ ${failed.length} failed` : `✅ ${succeeded.length} complete`;
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `Wave ${waveIndex + 1} done: ${status} (${durationMs}ms)`],
+        learnings: [...getLearnings(), `Wave ${waveIndex + 1} done: ${status} (${durationMs}ms)`],
       };
       break;
     }
@@ -771,7 +851,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const savedMs = (data.saved_ms as number) ?? 0;
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `💨 Cache hit: ${skillName} (saved ~${savedMs}ms)`],
+        learnings: [...getLearnings(), `💨 Cache hit: ${skillName} (saved ~${savedMs}ms)`],
       };
       break;
     }
@@ -802,7 +882,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       if (!success) {
         _state = {
           ..._state,
-          learnings: [..._state.learnings, `❌ Skill ${skillName}: ${error ?? 'failed'}`],
+          learnings: [...getLearnings(), `❌ Skill ${skillName}: ${error ?? 'failed'}`],
         };
       }
       break;
@@ -818,7 +898,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       if (learning) {
         _state = {
           ..._state,
-          learnings: [..._state.learnings, learning],
+          learnings: [...getLearnings(), learning],
         };
       }
       break;
@@ -830,7 +910,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const title = (data.title as string) ?? '';
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `📋 Goal added: ${title || goalId}`],
+        learnings: [...getLearnings(), `📋 Goal added: ${title || goalId}`],
       };
       reloadDag();
       break;
@@ -841,7 +921,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const title = (data.title as string) ?? '';
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `🚀 Goal started: ${title || goalId}`],
+        learnings: [...getLearnings(), `🚀 Goal started: ${title || goalId}`],
       };
       reloadDag();
       break;
@@ -858,12 +938,15 @@ export function handleAgentEvent(event: AgentEvent): void {
         : `✅ Goal completed: ${artifacts.length} artifacts created`;
       _state = {
         ..._state,
-        learnings: [..._state.learnings, statusMsg],
+        learnings: [...getLearnings(), statusMsg],
       };
 
       // RFC-105: Append completed goal to hierarchical DAG
       if (_currentProjectPath) {
-        appendCompletedGoalToDag(goalId, goalTitle, artifacts, failed, partial);
+        // Fire-and-forget but log errors (don't block event handling)
+        appendCompletedGoalToDag(goalId, goalTitle, artifacts, failed, partial).catch(
+          (e) => console.error('Failed to append goal to DAG:', e)
+        );
       }
 
       reloadDag();
@@ -875,7 +958,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const error = (data.error as string) ?? 'Unknown error';
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `❌ Goal failed: ${error}`],
+        learnings: [...getLearnings(), `❌ Goal failed: ${error}`],
       };
       reloadDag();
       break;
@@ -884,7 +967,7 @@ export function handleAgentEvent(event: AgentEvent): void {
     case 'backlog_refreshed': {
       _state = {
         ..._state,
-        learnings: [..._state.learnings, '🔄 Backlog refreshed'],
+        learnings: [...getLearnings(), '🔄 Backlog refreshed'],
       };
       reloadDag();
       break;
@@ -894,39 +977,39 @@ export function handleAgentEvent(event: AgentEvent): void {
     case 'gate_start': {
       const gateId = (data.gate_id as string) ?? '';
       const gateType = (data.gate_type as string) ?? '';
-      _state = { ..._state, learnings: [..._state.learnings, `🔒 Gate ${gateId}: ${gateType} starting`] };
+      _state = { ..._state, learnings: [...getLearnings(), `🔒 Gate ${gateId}: ${gateType} starting`] };
       break;
     }
     case 'gate_step': {
       const step = (data.step as string) ?? '';
       const passed = (data.passed as boolean) ?? false;
-      _state = { ..._state, learnings: [..._state.learnings, `  ${passed ? '✓' : '✗'} ${step}`] };
+      _state = { ..._state, learnings: [...getLearnings(), `  ${passed ? '✓' : '✗'} ${step}`] };
       break;
     }
     case 'gate_pass': {
       const gateId = (data.gate_id as string) ?? '';
-      _state = { ..._state, learnings: [..._state.learnings, `✅ Gate ${gateId} passed`] };
+      _state = { ..._state, learnings: [...getLearnings(), `✅ Gate ${gateId} passed`] };
       break;
     }
     case 'gate_fail': {
       const gateId = (data.gate_id as string) ?? '';
-      _state = { ..._state, learnings: [..._state.learnings, `❌ Gate ${gateId} failed`] };
+      _state = { ..._state, learnings: [...getLearnings(), `❌ Gate ${gateId} failed`] };
       break;
     }
 
     // Fix/auto-repair events
     case 'fix_start': {
-      _state = { ..._state, learnings: [..._state.learnings, '🔧 Auto-fix starting...'] };
+      _state = { ..._state, learnings: [...getLearnings(), '🔧 Auto-fix starting...'] };
       break;
     }
     case 'fix_attempt': {
       const errorType = (data.error_type as string) ?? '';
-      _state = { ..._state, learnings: [..._state.learnings, `  Attempting fix: ${errorType}`] };
+      _state = { ..._state, learnings: [...getLearnings(), `  Attempting fix: ${errorType}`] };
       break;
     }
     case 'fix_complete': {
       const totalFixed = (data.total_fixed as number) ?? 0;
-      _state = { ..._state, learnings: [..._state.learnings, `✅ Auto-fix complete: ${totalFixed} fixed`] };
+      _state = { ..._state, learnings: [...getLearnings(), `✅ Auto-fix complete: ${totalFixed} fixed`] };
       break;
     }
     case 'fix_failed':
@@ -937,17 +1020,17 @@ export function handleAgentEvent(event: AgentEvent): void {
 
     // Validation cascade events
     case 'validate_start': {
-      _state = { ..._state, learnings: [..._state.learnings, '🔍 Validating...'] };
+      _state = { ..._state, learnings: [...getLearnings(), '🔍 Validating...'] };
       break;
     }
     case 'validate_error': {
       const file = (data.file as string) ?? '';
       const message = (data.message as string) ?? '';
-      _state = { ..._state, learnings: [..._state.learnings, `  ⚠️ ${file}: ${message}`] };
+      _state = { ..._state, learnings: [...getLearnings(), `  ⚠️ ${file}: ${message}`] };
       break;
     }
     case 'validate_pass': {
-      _state = { ..._state, learnings: [..._state.learnings, '✅ Validation passed'] };
+      _state = { ..._state, learnings: [...getLearnings(), '✅ Validation passed'] };
       break;
     }
     case 'validate_level': {
@@ -957,13 +1040,13 @@ export function handleAgentEvent(event: AgentEvent): void {
 
     // Model/inference events
     case 'model_start': {
-      _state = { ..._state, learnings: [..._state.learnings, '🤖 Model thinking...'] };
+      _state = { ..._state, learnings: [...getLearnings(), '🤖 Model thinking...'] };
       break;
     }
     case 'model_complete': {
       const tokensUsed = (data.tokens_used as number) ?? 0;
       if (tokensUsed > 0) {
-        _state = { ..._state, learnings: [..._state.learnings, `  ${tokensUsed} tokens`] };
+        _state = { ..._state, learnings: [...getLearnings(), `  ${tokensUsed} tokens`] };
       }
       break;
     }
@@ -983,15 +1066,54 @@ export function handleAgentEvent(event: AgentEvent): void {
     }
     case 'memory_dead_end': {
       const approach = (data.approach as string) ?? '';
-      _state = { ..._state, learnings: [..._state.learnings, `⛔ Dead end: ${approach}`] };
+      _state = { ..._state, learnings: [...getLearnings(), `⛔ Dead end: ${approach}`] };
       break;
     }
     case 'memory_checkpoint': {
-      _state = { ..._state, learnings: [..._state.learnings, '💾 Memory checkpoint saved'] };
+      _state = { ..._state, learnings: [...getLearnings(), '💾 Memory checkpoint saved'] };
       break;
     }
     case 'memory_saved': {
-      _state = { ..._state, learnings: [..._state.learnings, '💾 Memory saved'] };
+      _state = { ..._state, learnings: [...getLearnings(), '💾 Memory saved'] };
+      break;
+    }
+
+    // Informational events
+    case 'info': {
+      const message = (data.message as string) ?? '';
+      if (message) {
+        console.debug(`[Sunwell] Info: ${message}`);
+      }
+      // Absorb - informational message from backend
+      break;
+    }
+
+    // OODA loop / knowledge events
+    case 'orient': {
+      const learningsCount = (data.learnings as number) ?? 0;
+      const constraintsCount = (data.constraints as number) ?? 0;
+      const deadEndsCount = (data.dead_ends as number) ?? 0;
+      // Only log if there's meaningful context
+      if (learningsCount > 0 || constraintsCount > 0 || deadEndsCount > 0) {
+        console.debug(`[Sunwell] Orient: ${learningsCount} learnings, ${constraintsCount} constraints, ${deadEndsCount} dead ends`);
+      }
+      // Absorb - internal OODA cycle event
+      break;
+    }
+
+    case 'knowledge_retrieved': {
+      const factsCount = (data.facts_count as number) ?? 0;
+      const constraintsCount = (data.constraints_count as number) ?? 0;
+      const deadEndsCount = (data.dead_ends_count as number) ?? 0;
+      const templatesCount = (data.templates_count as number) ?? 0;
+      const heuristicsCount = (data.heuristics_count as number) ?? 0;
+      const patternsCount = (data.patterns_count as number) ?? 0;
+      const totalKnowledge = factsCount + constraintsCount + deadEndsCount + templatesCount + heuristicsCount + patternsCount;
+      // Only log if knowledge was retrieved
+      if (totalKnowledge > 0) {
+        console.debug(`[Sunwell] Knowledge retrieved: ${totalKnowledge} items (${factsCount} facts, ${patternsCount} patterns, ${templatesCount} templates)`);
+      }
+      // Absorb - internal knowledge retrieval event
       break;
     }
 
@@ -1001,13 +1123,13 @@ export function handleAgentEvent(event: AgentEvent): void {
       if (status === 'complete' && data.signals) {
         const signals = data.signals as Record<string, unknown>;
         const route = (signals.planning_route as string) ?? '';
-        _state = { ..._state, learnings: [..._state.learnings, `📡 Route: ${route}`] };
+        _state = { ..._state, learnings: [...getLearnings(), `📡 Route: ${route}`] };
       }
       break;
     }
     case 'signal_route': {
       const route = (data.route as string) ?? '';
-      _state = { ..._state, learnings: [..._state.learnings, `📡 Routed to: ${route}`] };
+      _state = { ..._state, learnings: [...getLearnings(), `📡 Routed to: ${route}`] };
       break;
     }
 
@@ -1190,7 +1312,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const goal = (data.goal as string) ?? '';
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `🌟 Spawned specialist: ${role} → "${goal.slice(0, 50)}..."`],
+        learnings: [...getLearnings(), `🌟 Spawned specialist: ${role} → "${goal.slice(0, 50)}..."`],
       };
       console.debug(`[Sunwell] Specialist spawned: ${specialistId} (${role})`);
       break;
@@ -1202,7 +1324,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const statusIcon = status === 'completed' ? '✅' : status === 'failed' ? '❌' : '⚠️';
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `${statusIcon} Specialist ${specialistId} ${status}`],
+        learnings: [...getLearnings(), `${statusIcon} Specialist ${specialistId} ${status}`],
       };
       break;
     }
@@ -1212,7 +1334,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const phase = (data.phase as string) ?? '';
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `📍 Found checkpoint at phase: ${phase}`],
+        learnings: [...getLearnings(), `📍 Found checkpoint at phase: ${phase}`],
       };
       break;
     }
@@ -1221,7 +1343,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const phase = (data.phase as string) ?? '';
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `💾 Checkpoint saved: ${phase}`],
+        learnings: [...getLearnings(), `💾 Checkpoint saved: ${phase}`],
       };
       break;
     }
@@ -1230,7 +1352,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const phase = (data.phase as string) ?? '';
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `🔄 Resumed from checkpoint: ${phase}`],
+        learnings: [...getLearnings(), `🔄 Resumed from checkpoint: ${phase}`],
       };
       break;
     }
@@ -1240,7 +1362,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const summary = (data.summary as string) ?? '';
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `✅ Phase ${phase} complete${summary ? `: ${summary}` : ''}`],
+        learnings: [...getLearnings(), `✅ Phase ${phase} complete${summary ? `: ${summary}` : ''}`],
       };
       break;
     }
@@ -1251,7 +1373,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const reason = (data.reason as string) ?? '';
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `🛡️ Blocked: ${action} — ${reason}`],
+        learnings: [...getLearnings(), `🛡️ Blocked: ${action} — ${reason}`],
       };
       break;
     }
@@ -1261,7 +1383,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const description = (data.description as string) ?? '';
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `💡 Guard evolution: ${ruleId} — ${description}`],
+        learnings: [...getLearnings(), `💡 Guard evolution: ${ruleId} — ${description}`],
       };
       break;
     }
@@ -1272,7 +1394,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const goal = (data.goal as string) ?? '';
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `🚀 Autonomous session: ${goal.slice(0, 60)}...`],
+        learnings: [...getLearnings(), `🚀 Autonomous session: ${goal.slice(0, 60)}...`],
       };
       console.debug(`[Sunwell] Autonomous session started: ${sessionId}`);
       break;
@@ -1284,38 +1406,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const icon = success ? '✅' : '⚠️';
       _state = {
         ..._state,
-        learnings: [..._state.learnings, `${icon} Autonomous session complete (${durationS.toFixed(1)}s)`],
-      };
-      break;
-    }
-
-    // Memory-Informed Prefetch
-    case 'prefetch_start': {
-      _state = {
-        ..._state,
-        learnings: [..._state.learnings, '🔮 Loading context from memory...'],
-      };
-      break;
-    }
-
-    case 'prefetch_complete': {
-      const filesCount = (data.files_count as number) ?? 0;
-      const learningsCount = (data.learnings_count as number) ?? 0;
-      const lens = (data.lens as string) ?? '';
-      _state = {
-        ..._state,
-        learnings: [
-          ..._state.learnings,
-          `📦 Prefetch: ${filesCount} files, ${learningsCount} learnings${lens ? `, lens: ${lens}` : ''}`,
-        ],
-      };
-      break;
-    }
-
-    case 'prefetch_timeout': {
-      _state = {
-        ..._state,
-        learnings: [..._state.learnings, '⏱️ Prefetch timed out, continuing...'],
+        learnings: [...getLearnings(), `${icon} Autonomous session complete (${durationS.toFixed(1)}s)`],
       };
       break;
     }

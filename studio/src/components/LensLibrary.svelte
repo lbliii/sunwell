@@ -98,7 +98,8 @@
   let activeMoteComponent: LensCardMotes | null = $state(null);
   
   onMount(() => {
-    if (lensLibrary.entries.length === 0) {
+    const entries = lensLibrary.entries;
+    if (!Array.isArray(entries) || entries.length === 0) {
       loadLibrary();
     }
   });
@@ -111,14 +112,17 @@
   
   // Computed: Featured lenses (default + top by heuristics)
   const featuredLenses = $derived.by(() => {
+    const entries = lensLibrary.entries;
+    if (!Array.isArray(entries)) return [];
+    
     const featured: LensLibraryEntry[] = [];
     
     // Always include default
-    const defLens = lensLibrary.entries.find(e => e.is_default);
+    const defLens = entries.find(e => e.is_default);
     if (defLens) featured.push(defLens);
     
     // Add top by heuristics count (proxy for "power")
-    const byPower = [...lensLibrary.entries]
+    const byPower = [...entries]
       .filter(e => !e.is_default)
       .sort((a, b) => b.heuristics_count - a.heuristics_count)
       .slice(0, 2);
@@ -130,10 +134,13 @@
   const searchSuggestions = $derived.by(() => {
     if (!lensLibrary.filter.search || lensLibrary.filter.search.length < 2) return [];
     
+    const entries = lensLibrary.entries;
+    if (!Array.isArray(entries)) return [];
+    
     const q = lensLibrary.filter.search.toLowerCase();
     const suggestions = new Set<string>();
     
-    for (const entry of lensLibrary.entries) {
+    for (const entry of entries) {
       if (entry.name.toLowerCase().includes(q)) {
         suggestions.add(entry.name);
       }
@@ -168,9 +175,11 @@
   // Computed: Similar lenses for detail view (O(n) once, not O(n²) in template)
   const similarLenses = $derived.by(() => {
     if (!lensLibrary.detail) return [];
+    const entries = lensLibrary.entries;
+    if (!Array.isArray(entries)) return [];
     const detailName = lensLibrary.detail.name;
     const detailDomain = lensLibrary.detail.domain;
-    return lensLibrary.entries
+    return entries
       .filter(e => e.name !== detailName && e.domain === detailDomain)
       .slice(0, 4);
   });
@@ -393,7 +402,7 @@
         />
         
         {#if showSuggestions && searchSuggestions.length > 0}
-          <div class="search-suggestions" in:fly={{ y: -8, duration: 100 }}>
+          <div class="search-suggestions" transition:fly={{ y: -8, duration: 100 }}>
             {#each searchSuggestions as suggestion (suggestion)}
               <button 
                 class="suggestion"
@@ -430,7 +439,7 @@
     
     <!-- Error display -->
     {#if lensLibrary.error}
-      <div class="error-banner" in:fly={{ y: -10, duration: 150 }}>
+      <div class="error-banner" transition:fly={{ y: -10, duration: 150 }}>
         <span>{lensLibrary.error}</span>
         <button onclick={clearError}>×</button>
       </div>
@@ -449,7 +458,7 @@
     {:else}
       <!-- Featured section -->
       {#if showFeatured}
-        <section class="featured-section" in:fly={{ y: -20, duration: 300 }}>
+        <section class="featured-section" transition:fly={{ y: -20, duration: 300 }}>
           <h3 class="section-title">
             <span class="section-icon">✨</span>
             Recommended
@@ -496,7 +505,7 @@
               onmouseenter={(e) => handleCardMouseEnter(e, entry)}
               onmouseleave={cancelPreview}
               oncontextmenu={(e) => showContextMenuHandler(e, entry)}
-              in:fly={{ y: 12, duration: 300, delay: Math.min(i * 50, 300) }}
+              transition:fly={{ y: 12, duration: 300, delay: Math.min(i * 50, 300) }}
             >
               <LensCardMotes bind:this={activeMoteComponent} />
               
@@ -606,7 +615,7 @@
     
   {:else if lensLibrary.view === 'detail'}
     <!-- Detail View -->
-    <div class="detail-view" in:fly={{ x: 20, duration: 200 }}>
+    <div class="detail-view" transition:fly={{ x: 20, duration: 200 }}>
       <button class="back-button" onclick={backToList}>← Back to Library</button>
       
       {#if lensLibrary.isLoadingDetail}
@@ -637,7 +646,7 @@
             <h3>Heuristics ({lensLibrary.detail.heuristics.length})</h3>
             <ul class="heuristic-list">
               {#each lensLibrary.detail.heuristics as h, i (h.name)}
-                <li in:fly={{ y: 8, delay: i * 30 }}>
+                <li transition:fly={{ y: 8, delay: i * 30 }}>
                   <div class="heuristic-header">
                     <span 
                       class="priority-indicator" 
@@ -693,7 +702,7 @@
     
   {:else if lensLibrary.view === 'editor'}
     <!-- Editor View -->
-    <div class="editor-view" in:fly={{ x: 20, duration: 200 }}>
+    <div class="editor-view" transition:fly={{ x: 20, duration: 200 }}>
       <div class="editor-header">
         <button class="back-button" onclick={backToList}>← Back to Library</button>
         <h2>Editing: {lensLibrary.selectedLens?.name}</h2>
@@ -718,7 +727,7 @@
     
   {:else if lensLibrary.view === 'versions'}
     <!-- Versions View -->
-    <div class="versions-view" in:fly={{ x: 20, duration: 200 }}>
+    <div class="versions-view" transition:fly={{ x: 20, duration: 200 }}>
       <button class="back-button" onclick={backToList}>← Back to Library</button>
       <h2>Version History: {lensLibrary.selectedLens?.name}</h2>
       
@@ -732,7 +741,7 @@
             <div 
               class="version-item" 
               class:is-current={i === 0}
-              in:fly={{ y: 8, delay: i * 50 }}
+              transition:fly={{ y: 8, delay: i * 50 }}
             >
               <div class="version-header">
                 <span class="version-number">v{v.version}</span>

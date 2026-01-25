@@ -209,13 +209,16 @@
                   {/if}
                 </div>
                 {#if proj.valid && !proj.isDefault}
-                  <button 
+                  <span 
                     class="make-default-btn"
+                    role="button"
+                    tabindex="0"
                     onclick={(e) => makeDefault(proj, e)}
+                    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') makeDefault(proj, e); }}
                     title="Set as default"
                   >
                     ★
-                  </button>
+                  </span>
                 {/if}
               </button>
             </li>
@@ -234,7 +237,6 @@
           placeholder="Project name" 
           bind:value={newProjectName}
           onkeydown={handleKeydown}
-          autofocus
         />
         <p class="path-preview">
           Will create: ~/Sunwell/projects/{getSlug(newProjectName)}

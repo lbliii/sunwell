@@ -11,7 +11,7 @@
  * RFC-113: Uses HTTP API instead of Tauri for all communication.
  */
 
-import { apiGet, onEvent, startRun } from '$lib/socket';
+import { apiGet, onEvent, startRun, disconnect } from '$lib/socket';
 import type { AgentEvent } from '$lib/types';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -449,7 +449,6 @@ export async function getConvergenceSlot(slot: string): Promise<ConvergenceSlot 
  * RFC-113: Uses disconnect from socket module.
  */
 export async function cancel(): Promise<void> {
-	const { disconnect } = await import('$lib/socket');
 	disconnect();
 	naaruState.isProcessing = false;
 }
@@ -526,4 +525,54 @@ export function isWorkspaceRoute(): boolean {
 
 export function isHybridRoute(): boolean {
 	return getRouteType() === 'hybrid';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HELPER FUNCTIONS FOR TYPE-SAFE EVENT DATA EXTRACTION
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Extract token content from model_tokens event data.
+ */
+function getTokenContent(data: NaaruEventData): string {
+	if (typeof data === 'object' && data !== null && 'content' in data) {
+		return String((data as { content: unknown }).content ?? '');
+	}
+	if (typeof data === 'object' && data !== null && 'tokens' in data) {
+		return String((data as { tokens: unknown }).tokens ?? '');
+	}
+	return '';
+}
+
+/**
+ * Extract file path from file_written event data.
+ */
+function getFilePath(data: NaaruEventData): string | null {
+	if (typeof data === 'object' && data !== null && 'path' in data) {
+		const path = (data as { path: unknown }).path;
+		return typeof path === 'string' ? path : null;
+	}
+	return null;
+}
+
+/**
+ * Extract error message from error event data.
+ */
+function getErrorMessage(data: NaaruEventData): string {
+	if (typeof data === 'object' && data !== null && 'message' in data) {
+		return String((data as { message: unknown }).message ?? 'Unknown error');
+	}
+	return 'Unknown error';
+}
+
+/**
+ * Extract response string from complete event data.
+ */
+function getResponseString(data: NaaruEventData): string {
+	if (typeof data === 'object' && data !== null) {
+		const d = data as Record<string, unknown>;
+		if ('response' in d) return String(d.response ?? '');
+		if ('message' in d) return String(d.message ?? '');
+	}
+	return '';
 }

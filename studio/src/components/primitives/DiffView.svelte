@@ -199,8 +199,8 @@
       </button>
     </div>
     <div class="diff-stats">
-      <span class="stat added">+{stats().added}</span>
-      <span class="stat removed">-{stats().removed}</span>
+      <span class="stat added">+{stats.added}</span>
+      <span class="stat removed">-{stats.removed}</span>
     </div>
   </div>
   

@@ -6,6 +6,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { FileEntry } from '$lib/types';
+  import { listProjectFiles, apiGet } from '$lib/socket';
   
   interface Props {
     path?: string;
@@ -51,7 +52,6 @@
     try {
       isLoading = true;
       _error = null;
-      const { listProjectFiles } = await import('$lib/socket');
       const result = await listProjectFiles(path, 2);
       files = result.files as FileEntry[];
     } catch (e) {
@@ -101,7 +101,6 @@
     
     try {
       isLoadingFile = true;
-      const { apiGet } = await import('$lib/socket');
       const result = await apiGet<{ content: string }>(`/api/project/file?path=${encodeURIComponent(file.path)}&max_size=50000`);
       fileContent = result.content;
     } catch (e) {

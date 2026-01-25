@@ -256,8 +256,11 @@ export function dismissSuggestion(id: string): void {
  * Dismiss all current suggestions.
  */
 export function dismissAll(): void {
-	for (const suggestion of suggestionState.suggestions) {
-		suggestionState.dismissed.add(suggestion.id);
+	const suggestions = suggestionState.suggestions;
+	if (Array.isArray(suggestions)) {
+		for (const suggestion of suggestions) {
+			suggestionState.dismissed.add(suggestion.id);
+		}
 	}
 	suggestionState.suggestions = [];
 

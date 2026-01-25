@@ -308,11 +308,10 @@ class BindingManager:
             provider = cfg.model.default_provider if cfg else "ollama"
 
         # Auto-select model based on provider if not specified
-            if model is None:
-            if cfg:
-                model = cfg.model.default_model
-            else:
-                model = _DEFAULT_MODELS.get(provider, "gpt-4o")
+        if model is None:
+            model = (
+                cfg.model.default_model if cfg else _DEFAULT_MODELS.get(provider, "gpt-4o")
+            )
 
         # Create identity
         namespace = project or self.project or "global"

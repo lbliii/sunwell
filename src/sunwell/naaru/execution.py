@@ -211,7 +211,11 @@ class ExecutionCoordinator:
             task.error = result.output
 
     def _strip_markdown_fences(self, content: str) -> str:
-        """Remove markdown code fences from content."""
+        """Remove markdown code fences from content.
+
+        Legacy method kept for backward compatibility. New code should use
+        the sanitization in tools/handlers/file.py instead.
+        """
         lines = content.split("\n")
         if lines and lines[0].strip().startswith("```"):
             lines = lines[1:]
@@ -220,13 +224,97 @@ class ExecutionCoordinator:
         return "\n".join(lines)
 
     async def _generate_task(self, task: Any) -> None:
-        """Execute a code generation task."""
+        """Execute a code generation task via agentic tool loop.
+
+        Uses native tool calling when available:
+        - Model calls write_file/edit_file directly
+        - Tool descriptions explicitly forbid markdown fences
+        - Defensive sanitization as fallback
+
+        Falls back to text generation if no tool executor available.
+        """
         from sunwell.naaru.types import TaskStatus
 
         if not self._synthesis_model:
             task.status = TaskStatus.FAILED
             task.error = "No synthesis model available"
             return
+
+        # Use agentic tool loop if tool executor is available
+        if self._tool_executor:
+            try:
+                await self._generate_task_with_tools(task)
+                return
+            except Exception as e:
+                # Fall back to text generation on error
+                import logging
+                logging.getLogger(__name__).warning(
+                    "Tool-based generation failed, falling back to text: %s", e
+                )
+
+        # Fallback: Text generation with markdown fence stripping
+        await self._generate_task_text_fallback(task)
+
+    async def _generate_task_with_tools(self, task: Any) -> None:
+        """Execute generation via agentic tool loop (preferred path)."""
+        from sunwell.agent.loop import AgentLoop, LoopConfig
+        from sunwell.naaru.types import TaskStatus
+
+        # Build system prompt for code generation
+        system_prompt = (
+            "You are a code generation assistant. When you need to create or modify files, "
+            "use the write_file or edit_file tools. Do NOT output code in your text response - "
+            "always use the appropriate file tool to write code to disk."
+        )
+
+        # Create loop config
+        config = LoopConfig(
+            max_turns=10,
+            temperature=self._config.voice_temperature if self._config else 0.3,
+            tool_choice="auto",
+        )
+
+        # Create and run the loop
+        loop = AgentLoop(
+            model=self._synthesis_model,
+            executor=self._tool_executor,
+            config=config,
+        )
+
+        file_writes: list[str] = []
+        try:
+            async for event in loop.run(
+                task_description=task.description,
+                system_prompt=system_prompt,
+            ):
+                # Emit events if emitter available
+                if self._emitter:
+                    self._emitter.emit(event)
+
+                # Track file writes from tool events
+                if event.type.value == "tool_complete":
+                    data = event.data
+                    if data.get("tool_name") in ("write_file", "edit_file"):
+                        if data.get("success"):
+                            path = data.get("arguments", {}).get("path")
+                            if path:
+                                file_writes.append(path)
+
+            task.status = TaskStatus.COMPLETED
+            task.produces = file_writes
+            task.output = f"Generated {len(file_writes)} file(s): {', '.join(file_writes)}"
+
+            # Run validation if judge model available
+            if self._judge_model and file_writes:
+                await self._validate_generated_files(task, file_writes)
+
+        except Exception as e:
+            task.status = TaskStatus.FAILED
+            task.error = str(e)
+
+    async def _generate_task_text_fallback(self, task: Any) -> None:
+        """Fallback: Text generation with markdown fence stripping."""
+        from sunwell.naaru.types import TaskStatus
 
         prompt = f"""Task: {task.description}
 
@@ -254,6 +342,26 @@ Code only, no explanations:"""
         except Exception as e:
             task.status = TaskStatus.FAILED
             task.error = str(e)
+
+    async def _validate_generated_files(self, task: Any, file_paths: list[str]) -> None:
+        """Validate generated files using judge model."""
+        from sunwell.naaru.types import TaskStatus
+
+        if not self._judge_model or not file_paths:
+            return
+
+        # Read first file for validation (simplified)
+        first_file = file_paths[0]
+        file_path = self._root / first_file
+
+        if not file_path.exists():
+            return
+
+        try:
+            code = file_path.read_text(encoding="utf-8")[:1000]
+            await self._validate_and_escalate(task, code)
+        except Exception:
+            pass  # Validation is best-effort
 
     async def _validate_and_escalate(self, task: Any, code: str) -> None:
         """Validate generated code and escalate if quality is low (RFC-034)."""

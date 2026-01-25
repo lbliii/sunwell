@@ -23,9 +23,18 @@
   
   let { isLive = true }: Props = $props();
   
-  // Use real data only
-  const paradoxState = $derived(observatory.modelParadox);
-  const comparisons = $derived(paradoxState.comparisons);
+  // Use a single derived to avoid chained $derived issues
+  const paradoxState = $derived.by(() => {
+    const state = observatory.modelParadox;
+    return state ?? {
+      thesis: '',
+      comparisons: [],
+      avgImprovement: 0,
+      sunwellWins: 0,
+      totalRuns: 0,
+    };
+  });
+  const comparisons = $derived(paradoxState.comparisons ?? []);
   const hasData = $derived(comparisons.length > 0);
   
   // Animation state
@@ -64,13 +73,21 @@
     
     rawSprings.forEach((s, i) => {
       unsubscribers.push(s.subscribe(v => {
-        springValues[i] = { ...springValues[i], raw: v };
+        // Use functional update pattern to avoid reading stale state
+        const current = springValues[i];
+        if (current && current.raw !== v) {
+          springValues[i] = { raw: v, sunwell: current.sunwell };
+        }
       }));
     });
     
     sunwellSprings.forEach((s, i) => {
       unsubscribers.push(s.subscribe(v => {
-        springValues[i] = { ...springValues[i], sunwell: v };
+        // Use functional update pattern to avoid reading stale state
+        const current = springValues[i];
+        if (current && current.sunwell !== v) {
+          springValues[i] = { raw: current.raw, sunwell: v };
+        }
       }));
     });
     
@@ -85,13 +102,16 @@
     showSunwell = false;
     animationPlayed = true;
     
+    // Capture current comparisons to avoid accessing $derived in setTimeout
+    const currentComparisons = [...comparisons];
+    
     // Reset springs
     rawSprings.forEach(s => s.set(0, { hard: true }));
     sunwellSprings.forEach(s => s.set(0, { hard: true }));
     
     // Animate raw scores first
     animationTimeouts.push(setTimeout(() => {
-      comparisons.forEach((comp, i) => {
+      currentComparisons.forEach((comp, i) => {
         if (i < rawSprings.length) {
           rawSprings[i].set(comp.rawScore);
         }
@@ -105,7 +125,7 @@
     
     // Animate Sunwell scores
     animationTimeouts.push(setTimeout(() => {
-      comparisons.forEach((comp, i) => {
+      currentComparisons.forEach((comp, i) => {
         if (i < sunwellSprings.length) {
           sunwellSprings[i].set(comp.sunwellScore);
         }
@@ -150,7 +170,7 @@
     message="Run evaluations to see the Model Paradox — how small models + Sunwell beat large models raw."
   />
 {:else}
-<div class="model-paradox" in:fade={{ duration: 300 }}>
+<div class="model-paradox" transition:fade={{ duration: 300 }}>
   <div class="paradox-header">
     <h2>Model Paradox</h2>
     <p class="thesis">"{paradoxState.thesis}"</p>
@@ -198,15 +218,16 @@
           width={width - padding.left - padding.right}
           height={height - padding.top - padding.bottom}
           class="activation-flash"
-          in:fade={{ duration: 300 }}
+          transition:fade={{ duration: 300 }}
         />
       {/if}
       
       <!-- Data lines for each comparison -->
       {#each comparisons.slice(0, springValues.length) as comp, i (comp.model + comp.params)}
+        {@const springVal = springValues[i] ?? { raw: 0, sunwell: 0 }}
         {@const color = colors[i % colors.length]}
-        {@const rawY = scoreToY(springValues[i].raw)}
-        {@const sunwellY = scoreToY(springValues[i].sunwell)}
+        {@const rawY = scoreToY(springVal.raw)}
+        {@const sunwellY = scoreToY(springVal.sunwell)}
         {@const xStart = padding.left + 50}
         {@const xEnd = width - padding.right - 50}
         
@@ -226,7 +247,7 @@
             text-anchor="end"
             fill={color}
           >
-            {comp.params}: {springValues[i].raw.toFixed(1)}
+            {comp.params}: {springVal.raw.toFixed(1)}
           </text>
         {/if}
         
@@ -242,7 +263,7 @@
             stroke-linecap="round"
             class="connector-line"
             style="filter: drop-shadow(0 0 4px {color})"
-            in:fade={{ duration: 500 }}
+            transition:fade={{ duration: 500 }}
           />
           
           <!-- Sunwell data point and label -->
@@ -252,16 +273,16 @@
             r="8" 
             fill={color}
             style="filter: drop-shadow(0 0 8px {color})"
-            in:scale={{ duration: 300 }}
+            transition:scale={{ duration: 300 }}
           />
           <text 
             x={xEnd + 15} 
             y={sunwellY + 4} 
             class="data-label sunwell"
             fill={color}
-            in:fly={{ x: -10, duration: 300 }}
+            transition:fly={{ x: -10, duration: 300 }}
           >
-            {springValues[i].sunwell.toFixed(1)}
+            {springVal.sunwell.toFixed(1)}
           </text>
         {/if}
       {/each}
@@ -270,7 +291,7 @@
     <!-- Stats cards -->
     <div class="stats-row">
       {#each comparisons.slice(0, 2) as comp, i (comp.model + comp.params)}
-        <div class="stat-card" in:fly={{ y: 20, delay: i * 100, duration: 300 }}>
+        <div class="stat-card" transition:fly={{ y: 20, delay: i * 100, duration: 300 }}>
           <div class="stat-header">
             <span class="stat-model">{comp.model}</span>
             <span class="stat-params">{comp.params} • {comp.cost}</span>
@@ -293,7 +314,7 @@
     
     <!-- Summary stats -->
     {#if paradoxState.totalRuns > 0}
-      <div class="summary-stats" in:fade={{ duration: 300 }}>
+      <div class="summary-stats" transition:fade={{ duration: 300 }}>
         <div class="summary-item">
           <span class="summary-value">{paradoxState.avgImprovement.toFixed(0)}%</span>
           <span class="summary-label">Avg Improvement</span>

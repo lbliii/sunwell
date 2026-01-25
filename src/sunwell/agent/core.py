@@ -79,6 +79,28 @@ from sunwell.memory.persistent import PersistentMemory
 from sunwell.naaru.checkpoint import AgentCheckpoint, CheckpointPhase
 
 
+def _sanitize_code_content(content: str) -> str:
+    """Strip markdown fences from generated code content.
+
+    Defense-in-depth: Called before direct file writes to ensure
+    markdown fences are removed even if other sanitization missed them.
+    """
+    if not content or not content.startswith("```"):
+        return content
+
+    lines = content.split("\n")
+
+    # Remove opening fence (```python, ```rust, etc.)
+    if lines[0].startswith("```"):
+        lines = lines[1:]
+
+    # Remove closing fence
+    if lines and lines[-1].strip() == "```":
+        lines = lines[:-1]
+
+    return "\n".join(lines)
+
+
 @dataclass(slots=True)
 class TaskGraph:
     """A graph of tasks with execution state."""
@@ -180,9 +202,12 @@ class Agent:
     _prefetched_context: Any = field(default=None, init=False)
     """Prefetched context from briefing (files, hints)."""
 
-    # RFC-MEMORY: Reference to SimulacrumStore for planning
+    # RFC-MEMORY: Reference to memory stores for planning and execution
     _simulacrum: Any = field(default=None, init=False)
     """SimulacrumStore from PersistentMemory (set during run())."""
+
+    _memory: PersistentMemory | None = field(default=None, init=False)
+    """Full PersistentMemory reference for task-level context (set during run())."""
 
     # RFC-130: Agent Constellation — Specialist spawning
     _spawned_specialist_ids: list[str] = field(default_factory=list, init=False)
@@ -197,6 +222,9 @@ class Agent:
 
     _checkpoint_count: int = field(default=0, init=False)
     """Number of checkpoints saved in this run."""
+
+    _last_task_result: str | None = field(default=None, init=False)
+    """Last task result text (for file writing)."""
 
     _current_phase: CheckpointPhase = field(
         default=CheckpointPhase.ORIENT_COMPLETE, init=False
@@ -271,8 +299,9 @@ class Agent:
         self._current_goal = session.goal
         self.cwd = session.cwd
 
-        # RFC-MEMORY: Store simulacrum reference for planning
+        # RFC-MEMORY: Store memory references for planning and task execution
         self._simulacrum = memory.simulacrum
+        self._memory = memory
 
         # RFC-126: Store workspace context for task execution
         self._workspace_context = session.to_planning_prompt()
@@ -593,9 +622,10 @@ class Agent:
         Yields:
             Planning events only
         """
-        # RFC-MEMORY: Store simulacrum reference for planning
+        # RFC-MEMORY: Store memory references for planning
         if memory:
             self._simulacrum = memory.simulacrum
+            self._memory = memory
 
         yield signal_event("extracting")
         signals = await self._extract_signals_with_memory(session.goal)
@@ -863,7 +893,10 @@ class Agent:
                     if result_text and task.target_path:
                         path = self.cwd / task.target_path
                         path.parent.mkdir(parents=True, exist_ok=True)
-                        path.write_text(result_text)
+                        # Sanitize before writing (defense-in-depth)
+                        sanitized = _sanitize_code_content(result_text)
+                        path.write_text(sanitized)
+                        result_text = sanitized  # Update for artifact
                         # RFC-122: Track files changed for learning extraction
                         self._files_changed_this_run.append(task.target_path)
 
@@ -1011,20 +1044,208 @@ class Agent:
         if result_text and task.target_path:
             path = self.cwd / task.target_path
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(result_text)
+            # Sanitize before writing (defense-in-depth)
+            sanitized = _sanitize_code_content(result_text)
+            path.write_text(sanitized)
             # RFC-122: Track files changed for learning extraction
             self._files_changed_this_run.append(task.target_path)
 
             return Artifact(
                 path=path,
-                content=result_text,
+                content=sanitized,
                 task_id=task.id,
             )
 
         return None
 
     async def _execute_task_streaming(self, task: Task) -> AsyncIterator[AgentEvent]:
-        """Execute a single task with inference visibility."""
+        """Execute a single task with inference visibility.
+
+        For code generation tasks (task.target_path is set), uses AgentLoop
+        with native tool calling when tool_executor is available. This ensures
+        code is written via write_file tool calls, avoiding markdown fence issues.
+
+        Falls back to text streaming for conversational tasks or when tools unavailable.
+        """
+        # Use AgentLoop for code generation if tool executor available
+        if task.target_path and self.tool_executor:
+            try:
+                async for event in self._execute_task_with_tools(task):
+                    yield event
+                return
+            except Exception as e:
+                # Fall back to streaming on error
+                import logging
+                logging.getLogger(__name__).warning(
+                    "Tool-based execution failed, falling back to streaming: %s", e
+                )
+
+        # Use streaming for conversational tasks or as fallback
+        async for event in self._execute_task_streaming_fallback(task):
+            yield event
+
+    async def _execute_task_with_tools(self, task: Task) -> AsyncIterator[AgentEvent]:
+        """Execute task via AgentLoop with native tool calling (preferred path).
+
+        Enhancements over basic tool calling:
+        - Lens rotation: Selects best-fit lens per task
+        - Task memory: Injects task-specific constraints/hazards/patterns
+        - Validation gates: Runs lint/syntax checks after file writes
+        - Recovery integration: Saves state on failures for later resume
+        """
+        from sunwell.agent.loop import AgentLoop, LoopConfig
+
+        # === LENS ROTATION: Select best lens for this specific task ===
+        task_lens = await self._select_lens_for_task(task)
+        if task_lens and task_lens != self.lens:
+            yield lens_selected_event(
+                name=task_lens.metadata.name,
+                source="task_rotation",
+            )
+
+        # === BUILD CONTEXT: Learnings + Task Memory + Lens ===
+        context_sections = []
+
+        # Workspace context (ToC, structure)
+        if self._workspace_context:
+            context_sections.append(self._workspace_context)
+
+        # Learnings from past runs
+        learnings_context = self._learning_store.format_for_prompt(5)
+        if learnings_context:
+            context_sections.append(f"KNOWN FACTS:\n{learnings_context}")
+
+        # Task-specific memory (constraints, hazards, patterns)
+        if self._memory:
+            task_memory = self._memory.get_task_context(task)
+            if task_memory:
+                context_sections.append(f"TASK CONTEXT:\n{task_memory.to_prompt()}")
+
+        # Lens expertise (heuristics, patterns, anti-patterns)
+        active_lens = task_lens or self.lens
+        if active_lens:
+            context_sections.append(f"EXPERTISE:\n{active_lens.to_context()}")
+
+        context_block = "\n\n".join(context_sections) if context_sections else None
+
+        # === BUILD SYSTEM PROMPT ===
+        system_prompt = (
+            "You are a code generation assistant. When you need to create or modify files, "
+            "use the write_file or edit_file tools. Do NOT output code in your text response - "
+            "always use the appropriate file tool to write code to disk. "
+            "The write_file content parameter expects RAW code, not wrapped in markdown."
+        )
+
+        # === CREATE LOOP CONFIG ===
+        config = LoopConfig(
+            max_turns=15,
+            temperature=0.3,
+            tool_choice="auto",
+            enable_learning_injection=True,
+            enable_validation_gates=True,  # Run lint/syntax after file writes
+            enable_recovery=True,  # Save state on failures
+        )
+
+        # === CREATE VALIDATION STAGE (for inner-loop validation) ===
+        validation_stage = ValidationStage(self.cwd)
+
+        # === CREATE MIRROR HANDLER (for self-reflection) ===
+        mirror_handler = None
+        try:
+            from sunwell.mirror.handler import MirrorHandler
+
+            mirror_handler = MirrorHandler(
+                workspace=self.cwd,
+                storage_path=self.cwd / ".sunwell" / "mirror",
+                lens=active_lens,
+                simulacrum=self._simulacrum,
+                executor=self.tool_executor,
+            )
+        except Exception:
+            pass  # Mirror is optional enhancement
+
+        # === CREATE AND RUN THE LOOP ===
+        loop = AgentLoop(
+            model=self.model,
+            executor=self.tool_executor,
+            config=config,
+            learning_store=self._learning_store,
+            validation_stage=validation_stage,
+            lens=active_lens,  # For expertise injection
+            mirror_handler=mirror_handler,  # For self-reflection
+        )
+
+        start_time = time()
+        tool_results: list[str] = []
+
+        async for event in loop.run(
+            task_description=task.description,
+            system_prompt=system_prompt,
+            context=context_block,
+        ):
+            yield event
+
+            # Track successful file writes for result
+            if event.type.value == "tool_complete":
+                data = event.data
+                if data.get("tool_name") in ("write_file", "edit_file"):
+                    if data.get("success"):
+                        tool_results.append(data.get("output", ""))
+
+        duration = time() - start_time
+
+        # Set the task result
+        if tool_results:
+            self._last_task_result = "\n".join(tool_results)
+        else:
+            self._last_task_result = ""
+
+        # Record metrics
+        model_id = getattr(self.model, "model_id", "unknown")
+        self._inference_metrics.record(
+            model=model_id,
+            duration_s=duration,
+            tokens=0,  # Token count from tool loop not easily available
+            ttft_ms=None,
+        )
+
+    async def _select_lens_for_task(self, task: Task) -> Lens | None:
+        """Select the best-fit lens for a specific task (lens rotation).
+
+        Different tasks may benefit from different expertise:
+        - Database task → database lens
+        - Frontend task → frontend lens
+        - API task → API lens
+
+        Returns:
+            Best lens for this task, or None to use current lens
+        """
+        from sunwell.agent.lens import resolve_lens_for_goal
+
+        # Skip if no auto-lens or task doesn't have a clear domain
+        if not self.auto_lens:
+            return None
+
+        # Use task description + target path for lens selection
+        task_hint = task.description
+        if task.target_path:
+            task_hint = f"{task.target_path}: {task_hint}"
+
+        try:
+            resolution = await resolve_lens_for_goal(
+                goal=task_hint,
+                project_path=self.cwd,
+                auto_select=True,
+            )
+            if resolution.lens and resolution.confidence > 0.7:
+                return resolution.lens
+        except Exception:
+            pass  # Fall back to current lens
+
+        return None
+
+    async def _execute_task_streaming_fallback(self, task: Task) -> AsyncIterator[AgentEvent]:
+        """Fallback: Execute task via text streaming (original implementation)."""
         from sunwell.models.protocol import GenerateOptions
 
         learnings_context = self._learning_store.format_for_prompt(5)
@@ -1279,7 +1500,9 @@ Respond directly and helpfully:"""
         if result.success and result.output and task.target_path:
             path = self.cwd / task.target_path
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(str(result.output))
+            # Sanitize before writing (defense-in-depth)
+            sanitized = _sanitize_code_content(str(result.output))
+            path.write_text(sanitized)
             self._files_changed_this_run.append(task.target_path)
 
     def _determine_specialist_role(self, task: Task) -> str:

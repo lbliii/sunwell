@@ -4,6 +4,12 @@ Any model can use tools via JSON-structured output. This module wraps models
 that don't support native tool calling and adds the capability.
 
 The floor is: every model is agentic. No exceptions.
+
+Model capability registry enables intelligent routing:
+- Native tools: Use structured tool calling
+- Parallel tools: Execute multiple tools in one turn
+- Tool streaming: Stream tool call arguments
+- JSON mode: Structured output without tools
 """
 
 import json
@@ -25,13 +31,299 @@ _TOOL_JSON_PATTERN = re.compile(
     re.DOTALL,
 )
 
-# Known models with native tool support (frozenset for O(1) lookup)
-_NATIVE_TOOL_MODELS: frozenset[str] = frozenset({
-    "gpt-4", "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo",
-    "claude-3", "claude-3.5", "claude-3-opus", "claude-3-sonnet", "claude-3-haiku",
-    "llama3", "llama3.1", "llama3.2", "llama3:8b", "llama3:70b",
-    "qwen2.5", "mistral", "mixtral",
-})
+
+# =============================================================================
+# Model Capability Registry (S-Tier Tool Calling)
+# =============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class ModelCapability:
+    """Capabilities of a model for intelligent routing.
+
+    This enables Sunwell to adapt its execution strategy based on what
+    the model supports:
+    - native_tools: Use structured tool calling (preferred)
+    - parallel_tools: Can execute multiple tools in one turn
+    - tool_streaming: Can stream tool call arguments as they're generated
+    - json_mode: Can produce structured JSON output reliably
+    - reasoning: Supports extended thinking/reasoning (e.g., Claude thinking)
+    """
+
+    native_tools: bool = False
+    """Model supports native function/tool calling."""
+
+    parallel_tools: bool = False
+    """Model can call multiple tools in a single turn."""
+
+    tool_streaming: bool = False
+    """Model supports streaming tool call arguments."""
+
+    json_mode: bool = False
+    """Model has reliable JSON output mode."""
+
+    reasoning: bool = False
+    """Model supports extended thinking/reasoning blocks."""
+
+    max_output_tokens: int | None = None
+    """Maximum output tokens (for budget calculations)."""
+
+    context_window: int | None = None
+    """Maximum context window size."""
+
+
+# Comprehensive model capability registry
+# Keys are model name prefixes (matched case-insensitively)
+MODEL_CAPABILITIES: dict[str, ModelCapability] = {
+    # OpenAI models
+    "gpt-4o": ModelCapability(
+        native_tools=True,
+        parallel_tools=True,
+        tool_streaming=True,
+        json_mode=True,
+        max_output_tokens=16384,
+        context_window=128000,
+    ),
+    "gpt-4o-mini": ModelCapability(
+        native_tools=True,
+        parallel_tools=True,
+        tool_streaming=True,
+        json_mode=True,
+        max_output_tokens=16384,
+        context_window=128000,
+    ),
+    "gpt-4-turbo": ModelCapability(
+        native_tools=True,
+        parallel_tools=True,
+        json_mode=True,
+        max_output_tokens=4096,
+        context_window=128000,
+    ),
+    "gpt-4": ModelCapability(
+        native_tools=True,
+        parallel_tools=True,
+        max_output_tokens=8192,
+        context_window=8192,
+    ),
+    "gpt-3.5-turbo": ModelCapability(
+        native_tools=True,
+        parallel_tools=True,
+        json_mode=True,
+        max_output_tokens=4096,
+        context_window=16385,
+    ),
+    "o1": ModelCapability(
+        native_tools=True,
+        parallel_tools=True,
+        reasoning=True,
+        max_output_tokens=100000,
+        context_window=200000,
+    ),
+    "o3": ModelCapability(
+        native_tools=True,
+        parallel_tools=True,
+        reasoning=True,
+        max_output_tokens=100000,
+        context_window=200000,
+    ),
+
+    # Anthropic models
+    "claude-4": ModelCapability(
+        native_tools=True,
+        parallel_tools=True,
+        tool_streaming=True,
+        json_mode=True,
+        reasoning=True,
+        max_output_tokens=64000,
+        context_window=200000,
+    ),
+    "claude-3.5-sonnet": ModelCapability(
+        native_tools=True,
+        parallel_tools=True,
+        tool_streaming=True,
+        json_mode=True,
+        max_output_tokens=8192,
+        context_window=200000,
+    ),
+    "claude-3.5-haiku": ModelCapability(
+        native_tools=True,
+        parallel_tools=True,
+        tool_streaming=True,
+        json_mode=True,
+        max_output_tokens=8192,
+        context_window=200000,
+    ),
+    "claude-3-opus": ModelCapability(
+        native_tools=True,
+        parallel_tools=True,
+        max_output_tokens=4096,
+        context_window=200000,
+    ),
+    "claude-3-sonnet": ModelCapability(
+        native_tools=True,
+        parallel_tools=True,
+        max_output_tokens=4096,
+        context_window=200000,
+    ),
+    "claude-3-haiku": ModelCapability(
+        native_tools=True,
+        parallel_tools=True,
+        max_output_tokens=4096,
+        context_window=200000,
+    ),
+
+    # Llama models (via Ollama or cloud providers)
+    "llama3.3": ModelCapability(
+        native_tools=True,
+        parallel_tools=False,
+        json_mode=True,
+        max_output_tokens=8192,
+        context_window=128000,
+    ),
+    "llama3.2": ModelCapability(
+        native_tools=True,
+        parallel_tools=False,
+        json_mode=True,
+        max_output_tokens=8192,
+        context_window=128000,
+    ),
+    "llama3.1": ModelCapability(
+        native_tools=True,
+        parallel_tools=False,
+        json_mode=True,
+        max_output_tokens=8192,
+        context_window=128000,
+    ),
+    "llama3": ModelCapability(
+        native_tools=True,
+        parallel_tools=False,
+        max_output_tokens=4096,
+        context_window=8192,
+    ),
+
+    # Qwen models
+    "qwen2.5": ModelCapability(
+        native_tools=True,
+        parallel_tools=False,
+        json_mode=True,
+        max_output_tokens=8192,
+        context_window=32768,
+    ),
+    "qwen3": ModelCapability(
+        native_tools=True,
+        parallel_tools=True,
+        json_mode=True,
+        reasoning=True,
+        max_output_tokens=8192,
+        context_window=128000,
+    ),
+
+    # Mistral models
+    "mistral-large": ModelCapability(
+        native_tools=True,
+        parallel_tools=True,
+        json_mode=True,
+        max_output_tokens=8192,
+        context_window=128000,
+    ),
+    "mistral": ModelCapability(
+        native_tools=True,
+        parallel_tools=False,
+        max_output_tokens=4096,
+        context_window=32768,
+    ),
+    "mixtral": ModelCapability(
+        native_tools=True,
+        parallel_tools=False,
+        max_output_tokens=4096,
+        context_window=32768,
+    ),
+
+    # Google models
+    "gemini-2": ModelCapability(
+        native_tools=True,
+        parallel_tools=True,
+        tool_streaming=True,
+        json_mode=True,
+        reasoning=True,
+        max_output_tokens=8192,
+        context_window=1000000,
+    ),
+    "gemini-1.5-pro": ModelCapability(
+        native_tools=True,
+        parallel_tools=True,
+        json_mode=True,
+        max_output_tokens=8192,
+        context_window=1000000,
+    ),
+    "gemini-1.5-flash": ModelCapability(
+        native_tools=True,
+        parallel_tools=True,
+        json_mode=True,
+        max_output_tokens=8192,
+        context_window=1000000,
+    ),
+
+    # DeepSeek models
+    "deepseek-r1": ModelCapability(
+        native_tools=True,
+        parallel_tools=False,
+        json_mode=True,
+        reasoning=True,
+        max_output_tokens=8192,
+        context_window=64000,
+    ),
+    "deepseek-v3": ModelCapability(
+        native_tools=True,
+        parallel_tools=False,
+        json_mode=True,
+        max_output_tokens=8192,
+        context_window=64000,
+    ),
+
+    # Models that DON'T support native tools (need emulation)
+    "gemma": ModelCapability(native_tools=False),
+    "phi": ModelCapability(native_tools=False),
+    "codellama": ModelCapability(native_tools=False),
+    "starcoder": ModelCapability(native_tools=False),
+}
+
+
+def get_model_capability(model_id: str) -> ModelCapability:
+    """Get capabilities for a model.
+
+    Matches model_id against known prefixes (case-insensitive).
+    Returns default (no capabilities) if model is unknown.
+
+    Args:
+        model_id: The model identifier (e.g., "gpt-4o", "claude-3.5-sonnet")
+
+    Returns:
+        ModelCapability for the model
+    """
+    model_lower = model_id.lower()
+
+    # Check exact match first, then prefix matches (longest first)
+    for key in sorted(MODEL_CAPABILITIES.keys(), key=len, reverse=True):
+        if key.lower() in model_lower:
+            return MODEL_CAPABILITIES[key]
+
+    # Unknown model - assume no native tools
+    return ModelCapability()
+
+
+def has_native_tools(model_id: str) -> bool:
+    """Check if a model supports native tool calling.
+
+    Quick check for routing decisions.
+    """
+    return get_model_capability(model_id).native_tools
+
+
+# Legacy: Keep old frozenset for backward compatibility
+_NATIVE_TOOL_MODELS: frozenset[str] = frozenset(
+    key for key, cap in MODEL_CAPABILITIES.items() if cap.native_tools
+)
 
 # System prompt that teaches the model to use tools via JSON
 # Note: Double braces {{ }} are escaped for .format() - they become single braces
@@ -206,23 +498,11 @@ def wrap_for_tools(model: object) -> object:
         model = wrap_for_tools(any_model)  # Now always has tool support
     """
     # Check if model already supports tools
-    # We do this by checking model capabilities or trying to detect
     model_id = getattr(model, "model_id", "") or getattr(model, "model", "")
 
-    # Check if any known model is a prefix
-    for known in _NATIVE_TOOL_MODELS:
-        if known in model_id.lower():
-            return model  # Has native support
-
-    # Check via capability registry if available
-    try:
-        from sunwell.runtime.model_router import get_model_capability
-
-        cap = get_model_capability(model_id)
-        if cap and cap.tools:
-            return model  # Has native support
-    except ImportError:
-        pass
+    # Use capability registry
+    if has_native_tools(model_id):
+        return model  # Has native support
 
     # Wrap with emulator
     return ToolEmulatorModel(inner_model=model)

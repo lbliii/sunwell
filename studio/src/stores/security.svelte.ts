@@ -86,12 +86,15 @@ export const securityState = {
 
   /** Whether there are unacknowledged violations. */
   get hasUnacknowledgedViolations() {
-    return _state.violations.some((v) => !v.acknowledged);
+    const violations = _state.violations;
+    if (!Array.isArray(violations)) return false;
+    return violations.some((v) => !v.acknowledged);
   },
 
   /** Total violation count. */
   get violationCount() {
-    return _state.violations.length;
+    const violations = _state.violations;
+    return Array.isArray(violations) ? violations.length : 0;
   },
 
   /** Whether audit has been verified. */
@@ -123,7 +126,10 @@ export const securityState = {
       critical: 0,
     };
 
-    for (const v of _state.violations) {
+    const violations = _state.violations;
+    if (!Array.isArray(violations)) return counts;
+
+    for (const v of violations) {
       // Classify based on violation type
       if (v.violationType === 'credential_leak' || v.violationType === 'shell_injection') {
         counts.critical++;

@@ -26,6 +26,7 @@ export interface CodePrimitiveProps extends PrimitiveProps<CodeSeed> {
 export interface CodeSeed {
   readonly content?: string;
   readonly highlights?: readonly number[];
+  readonly [key: string]: unknown;
 }
 
 /** Props for writing-related primitives. */
@@ -38,6 +39,7 @@ export interface WritingPrimitiveProps extends PrimitiveProps<WritingSeed> {
 export interface WritingSeed {
   readonly template?: string;
   readonly variables?: Readonly<Record<string, string>>;
+  readonly [key: string]: unknown;
 }
 
 /** Props for planning-related primitives. */
@@ -50,6 +52,7 @@ export interface PlanningPrimitiveProps<TItem = unknown> extends PrimitiveProps<
 export interface PlanningSeed<TItem = unknown> {
   readonly defaultItems?: readonly TItem[];
   readonly sortBy?: string;
+  readonly [key: string]: unknown;
 }
 
 /** Props for data-related primitives. */
@@ -62,4 +65,5 @@ export interface DataPrimitiveProps<TRow = Record<string, unknown>> extends Prim
 export interface DataSeed<TRow = Record<string, unknown>> {
   readonly defaultData?: readonly TRow[];
   readonly schema?: Readonly<Record<string, 'string' | 'number' | 'boolean' | 'date'>>;
+  readonly [key: string]: unknown;
 }

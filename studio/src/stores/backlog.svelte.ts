@@ -160,6 +160,16 @@ let _projectPath = $state<string | null>(null);
 let _pollingInterval = $state<number | null>(null);
 
 // ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+
+/** Safely get goals array, returns empty array if not initialized */
+function getGoals(): Goal[] {
+  const goals = _state.goals;
+  return Array.isArray(goals) ? goals : [];
+}
+
+// ═══════════════════════════════════════════════════════════════
 // COMPUTED
 // ═══════════════════════════════════════════════════════════════
 
@@ -179,7 +189,13 @@ function categorizeGoals(): GoalCategories {
   const completed: Goal[] = [];
   const goalMap = new Map<string, Goal>();
 
-  for (const g of _state.goals) {
+  const goals = _state.goals;
+  // Defensive: ensure goals is iterable before looping
+  if (!Array.isArray(goals)) {
+    return { pending, blocked, executing, completed, goalMap };
+  }
+
+  for (const g of goals) {
     goalMap.set(g.id, g);
     switch (g.status) {
       case 'pending':
@@ -235,7 +251,8 @@ function getGoalById(id: string): Goal | undefined {
 }
 
 function getTotalCount(): number {
-  return _state.goals.length;
+  const goals = _state.goals;
+  return Array.isArray(goals) ? goals.length : 0;
 }
 
 function getPendingCount(): number {
@@ -249,11 +266,15 @@ function getCompletedCount(): number {
 
 // RFC-115: Epic/Milestone helpers
 function getEpics(): Goal[] {
-  return _state.goals.filter((g) => g.goal_type === 'epic');
+  const goals = _state.goals;
+  if (!Array.isArray(goals)) return [];
+  return goals.filter((g) => g.goal_type === 'epic');
 }
 
 function getMilestones(epicId?: string): Goal[] {
-  const milestones = _state.goals.filter((g) => g.goal_type === 'milestone');
+  const goals = _state.goals;
+  if (!Array.isArray(goals)) return [];
+  const milestones = goals.filter((g) => g.goal_type === 'milestone');
   if (epicId) {
     return milestones.filter((m) => m.parent_goal_id === epicId);
   }
@@ -261,19 +282,25 @@ function getMilestones(epicId?: string): Goal[] {
 }
 
 function getTasksForMilestone(milestoneId: string): Goal[] {
-  return _state.goals.filter(
+  const goals = _state.goals;
+  if (!Array.isArray(goals)) return [];
+  return goals.filter(
     (g) => g.goal_type === 'task' && g.parent_goal_id === milestoneId
   );
 }
 
 function getActiveEpic(): Goal | undefined {
   if (!_state.active_epic) return undefined;
-  return _state.goals.find((g) => g.id === _state.active_epic);
+  const goals = _state.goals;
+  if (!Array.isArray(goals)) return undefined;
+  return goals.find((g) => g.id === _state.active_epic);
 }
 
 function getActiveMilestone(): Goal | undefined {
   if (!_state.active_milestone) return undefined;
-  return _state.goals.find((g) => g.id === _state.active_milestone);
+  const goals = _state.goals;
+  if (!Array.isArray(goals)) return undefined;
+  return goals.find((g) => g.id === _state.active_milestone);
 }
 
 function hasActiveEpic(): boolean {
@@ -287,7 +314,9 @@ function hasActiveEpic(): boolean {
 export const backlogStore = {
   // Raw state (frozen to prevent external mutation)
   get state(): Readonly<BacklogState> {
-    return Object.freeze({ ..._state, goals: Object.freeze([..._state.goals]) });
+    const goals = _state.goals;
+    // Object.freeze already makes properties shallow-readonly
+    return Object.freeze({ ..._state, goals: Array.isArray(goals) ? [...goals] : [] });
   },
   get isLoading() {
     return _state.is_loading;
@@ -301,7 +330,8 @@ export const backlogStore = {
 
   // Goals (all return frozen arrays to prevent external mutation)
   get goals(): readonly Goal[] {
-    return Object.freeze([..._state.goals]);
+    const goals = _state.goals;
+    return Object.freeze(Array.isArray(goals) ? [...goals] : []);
   },
   get pendingGoals(): readonly Goal[] {
     return Object.freeze(getPendingGoals());
@@ -455,7 +485,7 @@ export async function removeGoal(goalId: string): Promise<void> {
     }
 
     // Optimistic update: remove from local state
-    _state = { ..._state, goals: _state.goals.filter((g) => g.id !== goalId) };
+    _state = { ..._state, goals: getGoals().filter((g) => g.id !== goalId) };
   } catch (e) {
     _state = { ..._state, error: e instanceof Error ? e.message : String(e) };
     // Reload to sync state on error
@@ -499,7 +529,8 @@ export async function reorderGoals(goalIds: string[]): Promise<void> {
 
   try {
     // Optimistic update: reorder local state (O(n) with index)
-    const goalMap = new Map(_state.goals.map(g => [g.id, g]));
+    const goals = getGoals();
+    const goalMap = new Map(goals.map(g => [g.id, g]));
     const goalIdSet = new Set(goalIds);
     const reordered: Goal[] = [];
 
@@ -509,7 +540,7 @@ export async function reorderGoals(goalIds: string[]): Promise<void> {
       if (goal) reordered.push(goal);
     }
     // Add remaining goals not in the reorder list
-    for (const goal of _state.goals) {
+    for (const goal of goals) {
       if (!goalIdSet.has(goal.id)) {
         reordered.push(goal);
       }
@@ -615,7 +646,7 @@ export async function updateGoalPriority(goalId: string, priority: number): Prom
     // Optimistic update
     _state = {
       ..._state,
-      goals: _state.goals.map((g) =>
+      goals: getGoals().map((g) =>
         g.id === goalId ? { ...g, priority: clampedPriority } : g
       ),
     };
@@ -659,7 +690,7 @@ export function handleBacklogEvent(event: BacklogEvent): void {
       const { goal_id: goalId, worker_id: workerId } = event.data;
       _state = {
         ..._state,
-        goals: _state.goals.map((g) =>
+        goals: getGoals().map((g) =>
           g.id === goalId
             ? { ...g, status: 'executing' as GoalStatus, claimed_by: workerId }
             : g
@@ -672,7 +703,7 @@ export function handleBacklogEvent(event: BacklogEvent): void {
       const { goal_id: goalId } = event.data;
       _state = {
         ..._state,
-        goals: _state.goals.map((g) =>
+        goals: getGoals().map((g) =>
           g.id === goalId ? { ...g, status: 'completed' as GoalStatus } : g
         ),
       };
@@ -683,7 +714,7 @@ export function handleBacklogEvent(event: BacklogEvent): void {
       const { goal_id: goalId } = event.data;
       _state = {
         ..._state,
-        goals: _state.goals.map((g) =>
+        goals: getGoals().map((g) =>
           g.id === goalId ? { ...g, status: 'failed' as GoalStatus } : g
         ),
       };
@@ -699,7 +730,7 @@ export function handleBacklogEvent(event: BacklogEvent): void {
       const { goal_id: goalId, worker_id: workerId } = event.data;
       _state = {
         ..._state,
-        goals: _state.goals.map((g) =>
+        goals: getGoals().map((g) =>
           g.id === goalId
             ? { ...g, status: 'claimed' as GoalStatus, claimed_by: workerId }
             : g

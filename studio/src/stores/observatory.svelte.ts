@@ -230,7 +230,7 @@ const PRISM_COLORS = [
 /**
  * Transform agent planning candidates into prism visualization
  */
-function transformCandidates(candidates: PlanCandidate[]): PrismCandidate[] {
+function transformCandidates(candidates: readonly PlanCandidate[]): PrismCandidate[] {
   return candidates.map((c, index) => ({
     id: c.id,
     index,
@@ -248,7 +248,7 @@ function transformCandidates(candidates: PlanCandidate[]): PrismCandidate[] {
 /**
  * Transform agent tasks into cinema tasks
  */
-function transformTasks(tasks: Task[]): CinemaTask[] {
+function transformTasks(tasks: readonly Task[]): CinemaTask[] {
   return tasks.map(t => ({
     id: t.id,
     label: t.description,
@@ -308,7 +308,7 @@ function getModelCost(model: string): string {
 /**
  * Transform agent refinement rounds into resonance iterations
  */
-function transformRounds(rounds: RefinementRound[]): ResonanceIteration[] {
+function transformRounds(rounds: readonly RefinementRound[]): ResonanceIteration[] {
   if (rounds.length === 0) return [];
 
   return rounds.map((round, index) => {

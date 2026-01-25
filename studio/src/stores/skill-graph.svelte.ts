@@ -101,7 +101,10 @@ export const skillGraphState = {
   get progress(): number {
     if (_state.skillCount === 0) return 0;
     let completed = 0;
-    for (const skill of _state.skills.values()) {
+    const skills = _state.skills;
+    // Defensive: ensure skills is a Map before iterating
+    if (!(skills instanceof Map)) return 0;
+    for (const skill of skills.values()) {
       if (skill.status === 'complete' || skill.status === 'cached') {
         completed++;
       }
@@ -137,9 +140,10 @@ export function handleSkillGraphResolved(data: SkillGraphResolvedData): void {
 }
 
 export function handleSkillWaveStart(data: SkillWaveStartData): void {
+  const skills = Array.isArray(data.skills) ? data.skills : [];
   const wave: SkillWave = {
     index: data.wave_index,
-    skills: [...data.skills],
+    skills: [...skills],
     status: 'running',
     succeeded: [],
     failed: [],
@@ -147,7 +151,7 @@ export function handleSkillWaveStart(data: SkillWaveStartData): void {
 
   // Initialize skill nodes for this wave
   const newSkills = new Map(_state.skills);
-  for (const skillName of data.skills) {
+  for (const skillName of skills) {
     newSkills.set(skillName, {
       name: skillName,
       status: 'running',
@@ -159,7 +163,8 @@ export function handleSkillWaveStart(data: SkillWaveStartData): void {
     });
   }
 
-  const newWaves = [..._state.waves, wave];
+  const waves = _state.waves;
+  const newWaves = Array.isArray(waves) ? [...waves, wave] : [wave];
 
   _state = {
     ..._state,
@@ -170,14 +175,17 @@ export function handleSkillWaveStart(data: SkillWaveStartData): void {
 }
 
 export function handleSkillWaveComplete(data: SkillWaveCompleteData): void {
-  const newWaves = _state.waves.map(w =>
+  const waves = _state.waves;
+  if (!Array.isArray(waves)) return;
+  
+  const newWaves = waves.map(w =>
     w.index === data.wave_index
       ? {
           ...w,
           status: 'complete' as const,
           durationMs: data.duration_ms,
-          succeeded: data.succeeded,
-          failed: data.failed,
+          succeeded: [...data.succeeded],  // Convert readonly to mutable
+          failed: [...data.failed],        // Convert readonly to mutable
         }
       : w
   );
@@ -272,10 +280,16 @@ export function getWavesWithSkills(): Array<{
   wave: SkillWave;
   skills: SkillNode[];
 }> {
-  return _state.waves.map(wave => ({
+  const waves = _state.waves;
+  const skills = _state.skills;
+  if (!Array.isArray(waves)) return [];
+  if (!(skills instanceof Map)) {
+    return waves.map(wave => ({ wave, skills: [] }));
+  }
+  return waves.map(wave => ({
     wave,
-    skills: wave.skills
-      .map(name => _state.skills.get(name))
+    skills: (Array.isArray(wave.skills) ? wave.skills : [])
+      .map(name => skills.get(name))
       .filter((s): s is SkillNode => s !== undefined),
   }));
 }
@@ -292,7 +306,10 @@ export function getStatusCounts(): Record<SkillNode['status'], number> {
     failed: 0,
   };
 
-  for (const skill of _state.skills.values()) {
+  const skills = _state.skills;
+  if (!(skills instanceof Map)) return counts;
+
+  for (const skill of skills.values()) {
     counts[skill.status]++;
   }
 
@@ -311,7 +328,10 @@ export function getRiskCounts(): Record<'low' | 'medium' | 'high' | 'critical' |
     none: 0,
   };
 
-  for (const skill of _state.skills.values()) {
+  const skills = _state.skills;
+  if (!(skills instanceof Map)) return counts;
+
+  for (const skill of skills.values()) {
     counts[skill.riskLevel ?? 'none']++;
   }
 

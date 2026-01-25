@@ -1,6 +1,8 @@
 """File operation handlers."""
 
 
+import logging
+import re
 import shutil
 import subprocess
 from collections.abc import Callable
@@ -8,6 +10,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from sunwell.tools.handlers.base import BaseHandler, PathSecurityError
+
+logger = logging.getLogger(__name__)
+
+# Regex for detecting markdown code fences at start of content
+_MARKDOWN_FENCE_RE = re.compile(r"^```\w*\n", re.MULTILINE)
 
 if TYPE_CHECKING:
     from sunwell.skills.sandbox import ScriptSandbox
@@ -61,6 +68,46 @@ class FileHandlers(BaseHandler):
         if self._file_event_callback:
             self._file_event_callback(event_type, path, content, lines_added, lines_removed)
 
+    def _sanitize_content(self, content: str, path: str) -> str:
+        """Strip markdown fences if model accidentally included them.
+
+        This is a defensive measure for when LLMs wrap code in markdown fences
+        despite being instructed not to. Logs a warning for telemetry.
+
+        Args:
+            content: Raw content from tool call
+            path: File path (for logging)
+
+        Returns:
+            Content with markdown fences stripped if present
+        """
+        if not content.startswith("```"):
+            return content
+
+        lines = content.split("\n")
+
+        # Check for opening fence (```python, ```rust, etc.)
+        if lines[0].startswith("```"):
+            lines = lines[1:]  # Remove opening fence
+
+        # Check for closing fence
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]  # Remove closing fence
+
+        sanitized = "\n".join(lines)
+
+        # Log warning for telemetry - indicates model regression or prompt issue
+        logger.warning(
+            "Stripped markdown fences from write_file content",
+            extra={
+                "path": path,
+                "original_len": len(content),
+                "sanitized_len": len(sanitized),
+            },
+        )
+
+        return sanitized
+
     async def read_file(self, args: dict) -> str:
         """Read file contents. Respects blocked patterns."""
         path = self._safe_path(args["path"])
@@ -104,6 +151,8 @@ class FileHandlers(BaseHandler):
         path.parent.mkdir(parents=True, exist_ok=True)
 
         content = args.get("content", "")
+        # Defensive sanitization: strip markdown fences if model included them
+        content = self._sanitize_content(content, user_path)
         path.write_text(content, encoding="utf-8")
 
         # Emit file event for lineage tracking (RFC-121)
@@ -124,6 +173,8 @@ class FileHandlers(BaseHandler):
         user_path = args["path"]
         old_content_arg = args["old_content"]
         new_content_arg = args["new_content"]
+        # Defensive sanitization: strip markdown fences if model included them
+        new_content_arg = self._sanitize_content(new_content_arg, user_path)
         occurrence = args.get("occurrence", 1)
 
         path = self._safe_path(user_path, allow_write=True)

@@ -149,6 +149,7 @@ class ToolExecutor:
     _core_handlers: CoreToolHandlers | None = field(default=None, init=False)
     _rate_limits: ToolRateLimits = field(default_factory=ToolRateLimits, init=False)
     _audit_entries: list[ToolAuditEntry] = field(default_factory=list, init=False)
+    _resolved_workspace: Path | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         """Initialize core tool handlers."""
@@ -169,7 +170,7 @@ class ToolExecutor:
             ) from None
 
         # Store resolved workspace for internal use
-        object.__setattr__(self, "_resolved_workspace", workspace)
+        self._resolved_workspace = workspace
 
         # Get blocked patterns from policy, project, or defaults
         blocked_patterns = self._get_blocked_patterns()
@@ -403,7 +404,8 @@ class ToolExecutor:
                 return ToolResult(
                     tool_call_id=tool_call.id,
                     success=False,
-                    output="Simulacrum tools not configured. Set headspace_handler on ToolExecutor.",
+                    output="Simulacrum tools not configured. "
+                    "Set headspace_handler on ToolExecutor.",
                 )
 
         # RFC-015: Route mirror tools to mirror handler
@@ -507,10 +509,11 @@ class ToolExecutor:
         # Find handler
         handler = self._handlers.get(tool_call.name)
         if not handler:
+            available = ", ".join(self._handlers.keys())
             return ToolResult(
                 tool_call_id=tool_call.id,
                 success=False,
-                output=f"Unknown tool: {tool_call.name}. Available: {', '.join(self._handlers.keys())}",
+                output=f"Unknown tool: {tool_call.name}. Available: {available}",
             )
 
         # Additional rate limit checks for specific tools
@@ -710,9 +713,8 @@ class ToolExecutor:
         if not path_str:
             return
 
-        # Resolve path relative to workspace
-        workspace = self._resolve_workspace()
-        path = workspace / path_str
+        # Resolve path relative to workspace (use cached value)
+        path = self._resolved_workspace / path_str
 
         await self.on_file_write(path)
 

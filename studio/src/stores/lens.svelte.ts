@@ -60,10 +60,15 @@ export const lens = {
   get error() { return _state.error; },
   
   // Computed
-  get hasLenses() { return _state.available.length > 0; },
+  get hasLenses() { 
+    const available = _state.available;
+    return Array.isArray(available) && available.length > 0; 
+  },
   get selectedLensSummary(): LensSummary | undefined {
     if (!_state.selection.lens) return undefined;
-    return _state.available.find(l => l.name === _state.selection.lens);
+    const available = _state.available;
+    if (!Array.isArray(available)) return undefined;
+    return available.find(l => l.name === _state.selection.lens);
   },
 };
 
@@ -198,7 +203,9 @@ export async function saveProjectLensConfig(
  * Get lens by domain (for auto-suggestions).
  */
 export function getLensByDomain(domain: string): LensSummary | undefined {
-  return _state.available.find(l => l.domain === domain);
+  const available = _state.available;
+  if (!Array.isArray(available)) return undefined;
+  return available.find(l => l.domain === domain);
 }
 
 /**
@@ -218,8 +225,10 @@ export function resetLensState(): void {
  */
 export function getLensesByDomain(): Map<string, LensSummary[]> {
   const grouped = new Map<string, LensSummary[]>();
+  const available = _state.available;
+  if (!Array.isArray(available)) return grouped;
   
-  for (const l of _state.available) {
+  for (const l of available) {
     const domain = l.domain || 'general';
     const existing = grouped.get(domain) || [];
     grouped.set(domain, [...existing, l]);

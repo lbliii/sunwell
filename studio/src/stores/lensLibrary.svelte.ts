@@ -106,6 +106,9 @@ export const lensLibrary = {
 export function getFilteredEntries(): LensLibraryEntry[] {
   let entries = _state.entries;
   
+  // Defensive: ensure entries is an array before filtering
+  if (!Array.isArray(entries)) return [];
+  
   // Filter by source
   if (_state.filter.source !== 'all') {
     entries = entries.filter(e => e.source === _state.filter.source);
@@ -132,7 +135,10 @@ export function getFilteredEntries(): LensLibraryEntry[] {
 /** Get unique domains for filter dropdown */
 export function getAvailableDomains(): string[] {
   const domains = new Set<string>();
-  for (const entry of _state.entries) {
+  const entries = _state.entries;
+  // Defensive: ensure entries is iterable before looping
+  if (!Array.isArray(entries)) return [];
+  for (const entry of entries) {
     if (entry.domain) domains.add(entry.domain);
   }
   return Array.from(domains).sort();
@@ -140,7 +146,9 @@ export function getAvailableDomains(): string[] {
 
 /** The global default lens */
 export function getDefaultLens(): LensLibraryEntry | null {
-  return _state.entries.find(e => e.is_default) ?? null;
+  const entries = _state.entries;
+  if (!Array.isArray(entries)) return null;
+  return entries.find(e => e.is_default) ?? null;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -378,12 +386,13 @@ export async function setDefaultLens(name: string | null): Promise<boolean> {
     await apiPost('/api/lenses/set-default', { name });
     
     // Update local state
+    const entries = _state.entries;
     _state = {
       ..._state,
-      entries: _state.entries.map(e => ({
+      entries: Array.isArray(entries) ? entries.map(e => ({
         ...e,
         is_default: e.name === name,
-      })),
+      })) : [],
     };
     
     return true;

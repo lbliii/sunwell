@@ -280,50 +280,98 @@ class VarianceStrategy(Enum):
 
 
 # Variance prompt templates - different prompts bias toward different plan shapes
+#
+# RFC-038/RFC-116: Each prompt should produce meaningfully different plan structures.
+# Benchmark data (2026-01-24) showed:
+# - parallel_first was NOT achieving high parallelism (0.27 vs target 0.5+)
+# - balanced had low keyword coverage (0.67 vs 0.76)
+# - minimal never won on V2 scoring
+#
+# Revised prompts address these issues with explicit structural targets.
 VARIANCE_PROMPTS: dict[str, str] = {
     "parallel_first": """
-OPTIMIZATION GOAL: MAXIMUM PARALLELISM
+OPTIMIZATION GOAL: MAXIMUM PARALLELISM (target: parallelism_factor > 0.5)
 
-Prioritize:
-1. Many leaf artifacts (no dependencies) that can execute in parallel
-2. Shallow dependency chains (prefer wide over deep)
-3. Split large artifacts into smaller, independent pieces
+CRITICAL RULES:
+1. At least 50% of artifacts MUST have ZERO dependencies (be leaves)
+2. Maximum depth should be 2-3 levels, not deeper
+3. When in doubt, make artifacts independent rather than dependent
 
-Ask: "Can this artifact be split? Can this dependency be removed?"
+Structural Pattern:
+- Wave 1: Many independent leaf artifacts (models, interfaces, utilities)
+- Wave 2: Integration artifacts that depend on Wave 1
+- Wave 3 (max): Final assembly/root artifact
+
+Do NOT create long sequential chains. If artifact B only exists to feed artifact C,
+consider whether B and C can be independent instead.
+
+Ask: "Does this artifact REALLY need that dependency, or could it be independent?"
 """,
     "minimal": """
-OPTIMIZATION GOAL: MINIMUM ARTIFACTS
+OPTIMIZATION GOAL: ESSENTIAL ARTIFACTS ONLY (while covering all goal keywords)
 
-Prioritize:
-1. Combine related artifacts where possible
-2. Only essential artifacts (no nice-to-haves)
-3. Direct paths from leaves to root
+CRITICAL RULES:
+1. Maximum 5-7 artifacts for any goal
+2. Each artifact MUST directly address a keyword from the goal
+3. Combine related functionality into single artifacts
+4. No "nice to have" artifacts - only what's strictly required
 
-Ask: "Is this artifact truly necessary? Can two artifacts merge?"
+Coverage Check:
+Before finalizing, verify that every important word from the goal
+appears in at least one artifact description.
+
+Do NOT add tests, documentation, or validation as separate artifacts
+unless explicitly requested in the goal.
+
+Ask: "Would removing this artifact make the goal impossible to achieve?"
 """,
     "thorough": """
-OPTIMIZATION GOAL: COMPLETE COVERAGE
+OPTIMIZATION GOAL: COMPLETE PRODUCTION-READY COVERAGE
 
-Prioritize:
-1. All edge cases and error handling
-2. Complete test coverage as artifacts
-3. Documentation and validation artifacts
+CRITICAL RULES:
+1. Include error handling artifacts for each component
+2. Include test artifacts for core functionality
+3. Include validation/config artifacts where appropriate
+4. Every keyword from the goal must appear in artifact descriptions
+
+Coverage Targets:
+- All happy paths covered
+- All error paths covered
+- Configuration/setup included
+- Integration points explicit
+
+This approach produces MORE artifacts but ensures nothing is missed.
+Use when the goal is complex or production-readiness matters.
 
 Ask: "What could go wrong? What's missing for production-ready?"
 """,
     "balanced": """
-OPTIMIZATION GOAL: BALANCED STRUCTURE
+OPTIMIZATION GOAL: FAT WAVES - MAXIMIZE PARALLEL WORK PER LEVEL
 
-Prioritize:
-1. Consistent depth across branches
-2. No single bottleneck artifact
-3. Clear separation of concerns
+CRITICAL RULES:
+1. Keep depth SHALLOW (2-3 levels max) to avoid score penalties
+2. Make each wave FAT (3+ artifacts per level)
+3. Every goal keyword MUST appear in artifact descriptions (maintain coverage)
+4. Distribute work evenly - no thin waves with only 1-2 artifacts
 
-Ask: "Is one branch deeper than others? Is there a bottleneck?"
+Structural Metrics to Optimize:
+- avg_wave_width should be HIGH (artifacts / waves)
+- parallel_work_ratio should be HIGH (work done per wave transition)
+- wave_variance should be LOW (consistent wave sizes)
+
+Pattern: Instead of deep balanced branches, create WIDE shallow layers:
+- Wave 1: 3-5 leaf artifacts covering core concepts
+- Wave 2: 2-3 integration artifacts 
+- Wave 3: 1 final root artifact (if needed)
+
+AVOID creating depth to "balance" branches - that hurts scores!
+
+Ask: "Can this be done in fewer levels? Does each level have multiple artifacts?"
 """,
     "default": """
 Discover artifacts naturally based on the goal.
 Focus on what must exist when the goal is complete.
+Every important concept from the goal should appear in artifact descriptions.
 """,
 }
 
@@ -599,7 +647,6 @@ class HarmonicPlanner:
             refinement_rounds_applied = self.refinement_rounds
 
         # Emit winner event with candidate_id (reliable matching)
-        self._plan_winner_emitted = True
         final_score = self._get_effective_score(best_metrics)
         self._emit_event("plan_winner", {
             "tasks": len(best_graph),

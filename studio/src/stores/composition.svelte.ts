@@ -11,7 +11,7 @@
  * 4. Content streams in, replacing skeleton
  */
 
-// Dynamic import used in predict() for code splitting
+import { apiPost } from '$lib/socket';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -99,7 +99,6 @@ export async function predict(
 
 	try {
 		// RFC-113: Call Python via HTTP API
-		const { apiPost } = await import('$lib/socket');
 		const result = await apiPost<CompositionSpec | null>('/api/composition/predict', {
 			input,
 			current_page: currentPage,

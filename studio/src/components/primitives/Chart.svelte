@@ -18,6 +18,7 @@
     label: string;
     value: number;
     color?: string;
+    [key: string]: unknown;
   }
   
   interface Props extends DataPrimitiveProps {

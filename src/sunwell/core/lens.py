@@ -377,3 +377,129 @@ class Lens:
         if self.skills:
             parts.append(f"Skills: {len(self.skills)}")
         return " | ".join(parts)
+
+
+# =============================================================================
+# RFC-XXX: Ephemeral Lenses for Smart-to-Dumb Model Delegation
+# =============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class EphemeralLens:
+    """Virtual lens generated on-the-fly for model delegation.
+
+    A smart model (Opus, o1) creates an EphemeralLens encoding its understanding
+    of how to complete a task, then delegates the actual generation to a cheaper
+    model (Haiku, 4o-mini) that follows the encoded expertise.
+
+    Use cases:
+    - Cost optimization: Think once with Opus, generate 10 files with Haiku
+    - Parallel execution: Same lens across many Haiku instances
+    - Quality preservation: Expertise survives model downgrade
+
+    Example:
+        >>> # Smart model creates lens
+        >>> lens = await create_ephemeral_lens(
+        ...     model=opus,
+        ...     task="Build REST API with FastAPI",
+        ...     context=codebase_summary,
+        ... )
+        >>>
+        >>> # Cheap model uses lens for generation
+        >>> loop = AgentLoop(model=haiku, ...)
+        >>> async for event in loop.run(task, lens=lens):
+        ...     ...
+
+    The lens implements the same `to_context()` interface as Lens,
+    so it can be used interchangeably in prompts.
+    """
+
+    # Core expertise (what to do)
+    heuristics: tuple[str, ...] = ()
+    """Domain-specific guidelines. e.g., "Use Pydantic for validation"."""
+
+    patterns: tuple[str, ...] = ()
+    """Code patterns to follow. e.g., "snake_case functions", "type hints required"."""
+
+    anti_patterns: tuple[str, ...] = ()
+    """Things to avoid. e.g., "No global state", "No print() debugging"."""
+
+    constraints: tuple[str, ...] = ()
+    """Hard requirements. e.g., "Must use existing db.py module"."""
+
+    # Examples (show, don't tell)
+    examples: tuple[str, ...] = ()
+    """Code snippets demonstrating the desired style."""
+
+    # Task scoping
+    task_scope: str = ""
+    """Description of what tasks this lens is valid for."""
+
+    target_files: tuple[str, ...] = ()
+    """Files this lens is designed to generate/modify."""
+
+    # Provenance
+    generated_by: str = ""
+    """Model that created this lens."""
+
+    generation_prompt: str = ""
+    """The prompt used to generate this lens (for debugging/replay)."""
+
+    def to_context(self) -> str:
+        """Format for prompt injection (same interface as Lens).
+
+        This allows EphemeralLens to be used anywhere a Lens can be used.
+        """
+        sections = []
+
+        # Header
+        if self.task_scope:
+            sections.append(f"# Task Expertise: {self.task_scope}")
+        else:
+            sections.append("# Generated Expertise")
+
+        # Heuristics
+        if self.heuristics:
+            sections.append("\n## Guidelines")
+            for h in self.heuristics:
+                sections.append(f"- {h}")
+
+        # Patterns
+        if self.patterns:
+            sections.append("\n## Patterns to Follow")
+            for p in self.patterns:
+                sections.append(f"- {p}")
+
+        # Anti-patterns
+        if self.anti_patterns:
+            sections.append("\n## Things to Avoid")
+            for ap in self.anti_patterns:
+                sections.append(f"- ❌ {ap}")
+
+        # Constraints
+        if self.constraints:
+            sections.append("\n## Hard Constraints")
+            for c in self.constraints:
+                sections.append(f"- ⚠️ {c}")
+
+        # Examples
+        if self.examples:
+            sections.append("\n## Style Examples")
+            for i, ex in enumerate(self.examples, 1):
+                sections.append(f"\n### Example {i}")
+                sections.append(f"```\n{ex}\n```")
+
+        return "\n".join(sections)
+
+    def summary(self) -> str:
+        """Brief summary for logging."""
+        parts = [f"EphemeralLens({self.task_scope or 'unnamed'})"]
+        parts.append(f"heuristics={len(self.heuristics)}")
+        parts.append(f"patterns={len(self.patterns)}")
+        if self.generated_by:
+            parts.append(f"by={self.generated_by}")
+        return " ".join(parts)
+
+
+# Type alias for functions that accept either lens type
+LensLike = Lens | EphemeralLens

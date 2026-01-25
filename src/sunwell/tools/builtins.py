@@ -29,7 +29,12 @@ CORE_TOOLS: dict[str, Tool] = {
 
     "write_file": Tool(
         name="write_file",
-        description="Write content to a file. Creates parent directories if needed. Overwrites existing files.",
+        description=(
+            "Write content to a file. Creates parent directories if needed. "
+            "Overwrites existing files completely. Use edit_file for targeted changes. "
+            "IMPORTANT: The content parameter must contain ONLY raw file content - "
+            "do NOT wrap code in markdown fences (```) or include language tags."
+        ),
         parameters={
             "type": "object",
             "properties": {
@@ -39,7 +44,12 @@ CORE_TOOLS: dict[str, Tool] = {
                 },
                 "content": {
                     "type": "string",
-                    "description": "Content to write to the file",
+                    "description": (
+                        "The raw file content to write. Must be the exact text that should "
+                        "appear in the file. Do NOT include markdown code fences (```), "
+                        "language tags, or wrapper formatting. For example, a Python file "
+                        "should start directly with imports or code, not ```python."
+                    ),
                 },
             },
             "required": ["path", "content"],
@@ -71,7 +81,10 @@ CORE_TOOLS: dict[str, Tool] = {
                 },
                 "new_content": {
                     "type": "string",
-                    "description": "The content to replace old_content with",
+                    "description": (
+                        "The content to replace old_content with. Must be raw code/text - "
+                        "do NOT wrap in markdown fences (```) or include language tags."
+                    ),
                 },
                 "occurrence": {
                     "type": "integer",

@@ -24,6 +24,7 @@ Example:
 
 from sunwell.agent.budget import AdaptiveBudget, CostEstimate
 from sunwell.agent.core import Agent, TaskGraph
+from sunwell.agent.loop import AgentLoop, LoopConfig, LoopState, run_tool_loop
 from sunwell.agent.events import (
     AgentEvent,
     EventType,
@@ -53,6 +54,12 @@ from sunwell.agent.events import (
     signal_event,
     task_complete_event,
     task_start_event,
+    tool_complete_event,
+    tool_error_event,
+    tool_loop_complete_event,
+    tool_loop_start_event,
+    tool_loop_turn_event,
+    tool_start_event,
     validate_error_event,
 )
 from sunwell.agent.fixer import FixResult, FixStage
@@ -107,6 +114,11 @@ __all__ = [
     # Agent
     "Agent",
     "TaskGraph",
+    # AgentLoop (S-Tier Tool Calling)
+    "AgentLoop",
+    "LoopConfig",
+    "LoopState",
+    "run_tool_loop",
     # Options
     "RunOptions",
     # Budget
@@ -139,6 +151,13 @@ __all__ = [
     "model_thinking_event",
     "model_complete_event",
     "plan_winner_event",
+    # Tool event factories (S-Tier Tool Calling)
+    "tool_start_event",
+    "tool_complete_event",
+    "tool_error_event",
+    "tool_loop_start_event",
+    "tool_loop_turn_event",
+    "tool_loop_complete_event",
     # RFC-MEMORY event factories
     "orient_event",
     "learning_added_event",

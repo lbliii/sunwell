@@ -86,18 +86,20 @@ let _nodeIndex = $derived(new Map(_graph.nodes.map(n => [n.id, n])));
 // ═══════════════════════════════════════════════════════════════
 
 function computeLayout(graph: DagGraph): DagGraph {
-  if (graph.nodes.length === 0) return graph;
+  const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
+  const edges = Array.isArray(graph.edges) ? graph.edges : [];
+  if (nodes.length === 0) return graph;
   const g = new dagre.graphlib.Graph();
   g.setGraph({ rankdir: 'TB', nodesep: NODE_MARGIN_X, ranksep: NODE_MARGIN_Y, marginx: 40, marginy: 40 });
   g.setDefaultEdgeLabel(() => ({}));
-  for (const node of graph.nodes) g.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT, label: node.id });
-  for (const edge of graph.edges) g.setEdge(edge.source, edge.target);
+  for (const node of nodes) g.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT, label: node.id });
+  for (const edge of edges) g.setEdge(edge.source, edge.target);
   dagre.layout(g);
-  const layoutedNodes = graph.nodes.map(node => {
+  const layoutedNodes = nodes.map(node => {
     const layoutNode = g.node(node.id);
     return { ...node, x: layoutNode?.x ?? 0, y: layoutNode?.y ?? 0, width: NODE_WIDTH, height: NODE_HEIGHT };
   });
-  const layoutedEdges = graph.edges.map(edge => {
+  const layoutedEdges = edges.map(edge => {
     const layoutEdge = g.edge(edge.source, edge.target);
     return { ...edge, points: layoutEdge?.points ?? [] };
   });
@@ -151,9 +153,12 @@ function getCriticalPath(): Set<string> {
 
 function getBottlenecks(): Set<string> {
   const blockedCount = new Map<string, number>();
-  for (const node of _graph.nodes) {
+  const nodes = _graph.nodes;
+  if (!Array.isArray(nodes)) return new Set();
+  for (const node of nodes) {
     if (node.status === DagNodeStatus.COMPLETE) continue;
-    for (const depId of node.dependsOn) {
+    const dependsOn = Array.isArray(node.dependsOn) ? node.dependsOn : [];
+    for (const depId of dependsOn) {
       const depNode = _nodeIndex.get(depId);
       if (depNode && depNode.status !== DagNodeStatus.COMPLETE) blockedCount.set(depId, (blockedCount.get(depId) ?? 0) + 1);
     }

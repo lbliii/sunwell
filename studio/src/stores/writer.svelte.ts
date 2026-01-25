@@ -121,6 +121,22 @@ const initialState: WriterState = {
 let _state = $state<WriterState>({ ...initialState });
 
 // ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+
+/** Safely get validation warnings array */
+function getValidationWarnings(): ValidationWarning[] {
+  const warnings = _state.validationWarnings;
+  return Array.isArray(warnings) ? warnings : [];
+}
+
+/** Safely get recent skills array */
+function getRecentSkills(): string[] {
+  const skills = _state.recentSkills;
+  return Array.isArray(skills) ? skills : [];
+}
+
+// ═══════════════════════════════════════════════════════════════
 // EXPORTS
 // ═══════════════════════════════════════════════════════════════
 
@@ -189,13 +205,18 @@ export const writerState = {
 
   // Computed
   get errorCount() {
-    return _state.validationWarnings.filter((w) => w.severity === 'error').length;
+    const warnings = _state.validationWarnings;
+    if (!Array.isArray(warnings)) return 0;
+    return warnings.filter((w) => w.severity === 'error').length;
   },
   get warningCount() {
-    return _state.validationWarnings.filter((w) => w.severity === 'warning').length;
+    const warnings = _state.validationWarnings;
+    if (!Array.isArray(warnings)) return 0;
+    return warnings.filter((w) => w.severity === 'warning').length;
   },
   get hasIssues() {
-    return _state.validationWarnings.length > 0;
+    const warnings = _state.validationWarnings;
+    return Array.isArray(warnings) && warnings.length > 0;
   },
   get diataxisType() {
     return _state.diataxis?.detectedType ?? null;
@@ -371,7 +392,7 @@ export async function validateDocument(): Promise<void> {
 export function dismissWarning(warning: ValidationWarning): void {
   _state = {
     ..._state,
-    validationWarnings: _state.validationWarnings.filter(
+    validationWarnings: getValidationWarnings().filter(
       (w) => w.line !== warning.line || w.rule !== warning.rule,
     ),
   };
@@ -383,7 +404,7 @@ export function dismissWarning(warning: ValidationWarning): void {
 export async function fixAllIssues(): Promise<void> {
   // This would invoke the lens fix skill
   const fixableCount =
-    _state.validationWarnings.filter((w) => w.severity !== 'info').length;
+    getValidationWarnings().filter((w) => w.severity !== 'info').length;
   if (fixableCount === 0) return;
 
   try {
@@ -452,7 +473,7 @@ export async function executeSkill(skillId: string): Promise<void> {
     });
 
     // Track as recent
-    const recent = [skillId, ..._state.recentSkills.filter((s) => s !== skillId)].slice(
+    const recent = [skillId, ...getRecentSkills().filter((s) => s !== skillId)].slice(
       0,
       5,
     );

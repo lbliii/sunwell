@@ -127,25 +127,34 @@ function getNodeMap(): Map<string, StateDagNode> {
 // ═══════════════════════════════════════════════════════════════
 
 function getActiveWorkers(): WorkerStatus[] {
-  return _state.workers.filter(
+  const workers = _state.workers;
+  if (!Array.isArray(workers)) return [];
+  return workers.filter(
     (w) => w.status !== 'stopped' && w.status !== 'failed'
   );
 }
 
 function getRunningWorkers(): WorkerStatus[] {
-  return _state.workers.filter((w) => w.status === 'executing');
+  const workers = _state.workers;
+  if (!Array.isArray(workers)) return [];
+  return workers.filter((w) => w.status === 'executing');
 }
 
 function getCompletedGoals(): number {
-  return _state.workers.reduce((sum, w) => sum + w.goals_completed, 0);
+  const workers = _state.workers;
+  if (!Array.isArray(workers)) return 0;
+  return workers.reduce((sum, w) => sum + w.goals_completed, 0);
 }
 
 function getFailedGoals(): number {
-  return _state.workers.reduce((sum, w) => sum + w.goals_failed, 0);
+  const workers = _state.workers;
+  if (!Array.isArray(workers)) return 0;
+  return workers.reduce((sum, w) => sum + w.goals_failed, 0);
 }
 
 function hasConflicts(): boolean {
-  return _state.conflicts.length > 0;
+  const conflicts = _state.conflicts;
+  return Array.isArray(conflicts) && conflicts.length > 0;
 }
 
 // State DAG computed
@@ -433,11 +442,14 @@ export function getConnectedNodes(nodeId: string): {
 } {
   if (!_stateDag) return { parents: [], children: [] };
 
+  const edges = _stateDag.edges;
+  if (!Array.isArray(edges)) return { parents: [], children: [] };
+
   const nodeMap = getNodeMap();
   const parents: StateDagNode[] = [];
   const children: StateDagNode[] = [];
 
-  for (const edge of _stateDag.edges) {
+  for (const edge of edges) {
     if (edge.target === nodeId) {
       const parent = nodeMap.get(edge.source);
       if (parent) parents.push(parent);

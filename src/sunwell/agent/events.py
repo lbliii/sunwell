@@ -83,6 +83,16 @@ _DEFAULT_UI_HINTS: dict[str, EventUIHints] = {
     "task_output": EventUIHints(icon="◦", severity="info"),
 
     # ═══════════════════════════════════════════════════════════════
+    # TOOL CALLING
+    # ═══════════════════════════════════════════════════════════════
+    "tool_start": EventUIHints(icon="⚙", severity="info", animation="pulse"),
+    "tool_complete": EventUIHints(icon="✓", severity="success"),
+    "tool_error": EventUIHints(icon="✗", severity="error"),
+    "tool_loop_start": EventUIHints(icon="◎", severity="info", animation="pulse"),
+    "tool_loop_turn": EventUIHints(icon="·", severity="info"),
+    "tool_loop_complete": EventUIHints(icon="✓", severity="success"),
+
+    # ═══════════════════════════════════════════════════════════════
     # COMPLETION & ERROR
     # ═══════════════════════════════════════════════════════════════
     "error": EventUIHints(icon="✗", severity="error", dismissible=False, animation="shake"),
@@ -636,6 +646,25 @@ class EventType(Enum):
     BACKLOG_REFRESHED = "backlog_refreshed"
     """Backlog refreshed from signals."""
 
+    # Tool calling events (RFC-XXX: S-Tier Tool Calling)
+    TOOL_START = "tool_start"
+    """Tool call initiated. Shows tool name and arguments."""
+
+    TOOL_COMPLETE = "tool_complete"
+    """Tool call completed successfully."""
+
+    TOOL_ERROR = "tool_error"
+    """Tool call failed."""
+
+    TOOL_LOOP_START = "tool_loop_start"
+    """Agentic tool loop started."""
+
+    TOOL_LOOP_TURN = "tool_loop_turn"
+    """Turn in the agentic tool loop."""
+
+    TOOL_LOOP_COMPLETE = "tool_loop_complete"
+    """Agentic tool loop finished."""
+
     # Convergence events (RFC-123)
     CONVERGENCE_START = "convergence_start"
     """Starting convergence loop."""
@@ -897,6 +926,121 @@ def complete_event(
             "tasks_completed": tasks_completed,
             "gates_passed": gates_passed,
             "duration_s": duration_s,
+            **kwargs,
+        },
+    )
+
+
+# =============================================================================
+# Tool Calling Events (RFC-XXX: S-Tier Tool Calling)
+# =============================================================================
+
+
+def tool_start_event(
+    tool_name: str,
+    tool_call_id: str,
+    arguments: dict[str, Any] | None = None,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a tool start event."""
+    return AgentEvent(
+        EventType.TOOL_START,
+        {
+            "tool_name": tool_name,
+            "tool_call_id": tool_call_id,
+            "arguments": arguments or {},
+            **kwargs,
+        },
+    )
+
+
+def tool_complete_event(
+    tool_name: str,
+    tool_call_id: str,
+    success: bool,
+    output: str,
+    execution_time_ms: int = 0,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a tool completion event."""
+    return AgentEvent(
+        EventType.TOOL_COMPLETE,
+        {
+            "tool_name": tool_name,
+            "tool_call_id": tool_call_id,
+            "success": success,
+            "output": output[:500] if len(output) > 500 else output,  # Truncate for display
+            "execution_time_ms": execution_time_ms,
+            **kwargs,
+        },
+    )
+
+
+def tool_error_event(
+    tool_name: str,
+    tool_call_id: str,
+    error: str,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a tool error event."""
+    return AgentEvent(
+        EventType.TOOL_ERROR,
+        {
+            "tool_name": tool_name,
+            "tool_call_id": tool_call_id,
+            "error": error,
+            **kwargs,
+        },
+    )
+
+
+def tool_loop_start_event(
+    task_description: str,
+    max_turns: int,
+    tool_count: int,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a tool loop start event."""
+    return AgentEvent(
+        EventType.TOOL_LOOP_START,
+        {
+            "task_description": task_description[:200],
+            "max_turns": max_turns,
+            "tool_count": tool_count,
+            **kwargs,
+        },
+    )
+
+
+def tool_loop_turn_event(
+    turn: int,
+    tool_calls_count: int,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a tool loop turn event."""
+    return AgentEvent(
+        EventType.TOOL_LOOP_TURN,
+        {
+            "turn": turn,
+            "tool_calls_count": tool_calls_count,
+            **kwargs,
+        },
+    )
+
+
+def tool_loop_complete_event(
+    turns_used: int,
+    tool_calls_total: int,
+    final_response: str | None = None,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a tool loop completion event."""
+    return AgentEvent(
+        EventType.TOOL_LOOP_COMPLETE,
+        {
+            "turns_used": turns_used,
+            "tool_calls_total": tool_calls_total,
+            "final_response": final_response[:500] if final_response and len(final_response) > 500 else final_response,
             **kwargs,
         },
     )

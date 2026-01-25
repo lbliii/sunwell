@@ -61,6 +61,22 @@ function createInitialState(): SurfaceState {
 let _state = $state<SurfaceState>(createInitialState());
 
 // ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+
+/** Safely get registry array */
+function getRegistry(): PrimitiveDef[] {
+  const registry = _state.registry;
+  return Array.isArray(registry) ? registry : [];
+}
+
+/** Safely get history array */
+function getHistory(): SurfaceLayout[] {
+  const history = _state.history;
+  return Array.isArray(history) ? history : [];
+}
+
+// ═══════════════════════════════════════════════════════════════
 // EXPORTS
 // ═══════════════════════════════════════════════════════════════
 
@@ -78,16 +94,23 @@ export const surface = {
   get hasLayout() { return _state.layout !== null; },
   get primaryDef(): PrimitiveDef | undefined {
     if (!_state.layout) return undefined;
-    return _state.registry.find(p => p.id === _state.layout!.primary.id);
+    const registry = _state.registry;
+    if (!Array.isArray(registry)) return undefined;
+    return registry.find(p => p.id === _state.layout!.primary.id);
   },
   get activeCategories(): Set<string> {
     if (!_state.layout) return new Set();
     const cats = new Set([_state.layout.primary.category]);
-    _state.layout.secondary.forEach(p => cats.add(p.category));
-    _state.layout.contextual.forEach(p => cats.add(p.category));
+    const secondary = _state.layout.secondary;
+    const contextual = _state.layout.contextual;
+    if (Array.isArray(secondary)) secondary.forEach(p => cats.add(p.category));
+    if (Array.isArray(contextual)) contextual.forEach(p => cats.add(p.category));
     return cats;
   },
-  get canUndo() { return _state.history.length > 0; },
+  get canUndo() { 
+    const history = _state.history;
+    return Array.isArray(history) && history.length > 0; 
+  },
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -143,7 +166,7 @@ export async function composeSurface(
     if (_state.layout) {
       _state = {
         ..._state,
-        history: [_state.layout, ..._state.history.slice(0, 4)],
+        history: [_state.layout, ...getHistory().slice(0, 4)],
       };
     }
     
@@ -229,7 +252,7 @@ export function addPrimitive(
 ): void {
   if (!_state.layout) return;
   
-  const def = _state.registry.find(p => p.id === primitiveId);
+  const def = getRegistry().find(p => p.id === primitiveId);
   if (!def) return;
   
   const primitive: SurfacePrimitive = {
@@ -293,9 +316,10 @@ export function setArrangement(arrangement: SurfaceArrangement): void {
  * Undo to previous layout.
  */
 export function undoLayout(): void {
-  if (_state.history.length === 0) return;
+  const history = getHistory();
+  if (history.length === 0) return;
   
-  const [previous, ...rest] = _state.history;
+  const [previous, ...rest] = history;
   _state = {
     ..._state,
     layout: previous,
@@ -310,7 +334,7 @@ export function setLayout(layout: SurfaceLayout): void {
   if (_state.layout) {
     _state = {
       ..._state,
-      history: [_state.layout, ..._state.history.slice(0, 4)],
+      history: [_state.layout, ...getHistory().slice(0, 4)],
     };
   }
   
@@ -343,28 +367,36 @@ export function resetSurface(): void {
  * Get primitives by category.
  */
 export function getPrimitivesByCategory(category: string): PrimitiveDef[] {
-  return _state.registry.filter(p => p.category === category);
+  const registry = _state.registry;
+  if (!Array.isArray(registry)) return [];
+  return registry.filter(p => p.category === category);
 }
 
 /**
  * Get primitives that can be primary.
  */
 export function getPrimaryCapable(): PrimitiveDef[] {
-  return _state.registry.filter(p => p.can_be_primary);
+  const registry = _state.registry;
+  if (!Array.isArray(registry)) return [];
+  return registry.filter(p => p.can_be_primary);
 }
 
 /**
  * Get primitives that can be secondary.
  */
 export function getSecondaryCapable(): PrimitiveDef[] {
-  return _state.registry.filter(p => p.can_be_secondary);
+  const registry = _state.registry;
+  if (!Array.isArray(registry)) return [];
+  return registry.filter(p => p.can_be_secondary);
 }
 
 /**
  * Get primitives that can be contextual.
  */
 export function getContextualCapable(): PrimitiveDef[] {
-  return _state.registry.filter(p => p.can_be_contextual);
+  const registry = _state.registry;
+  if (!Array.isArray(registry)) return [];
+  return registry.filter(p => p.can_be_contextual);
 }
 
 /**

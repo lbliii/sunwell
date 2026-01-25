@@ -162,7 +162,9 @@ function transformSummary(data: unknown): RecoverySummary {
 
 export const recovery = {
   // State getters (return frozen copies to prevent external mutation)
-  get pendingRecoveries(): readonly RecoverySummary[] { return Object.freeze([..._pendingRecoveries]); },
+  get pendingRecoveries(): readonly RecoverySummary[] { 
+    return Object.freeze(Array.isArray(_pendingRecoveries) ? [..._pendingRecoveries] : []); 
+  },
   get activeRecovery(): Readonly<RecoveryState> | null { return _activeRecovery ? Object.freeze({ ..._activeRecovery }) : null; },
   get panelState() { return _panelState; },
   get isLoading() { return _isLoading; },

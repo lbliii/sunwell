@@ -33,8 +33,11 @@ let _error = $state<string | null>(null);
 function getWeaknessMap(): Map<string, WeaknessScore> {
   const map = new Map<string, WeaknessScore>();
   if (_report) {
-    for (const w of _report.weaknesses) {
-      map.set(w.artifact_id, w);
+    const weaknesses = _report.weaknesses;
+    if (Array.isArray(weaknesses)) {
+      for (const w of weaknesses) {
+        map.set(w.artifact_id, w);
+      }
     }
   }
   return map;

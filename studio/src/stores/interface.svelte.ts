@@ -4,7 +4,7 @@
  * Manages the state for the LLM-driven interaction routing system.
  */
 
-// Dynamic import used in analyzeIntent() for code splitting
+import { apiPost } from '$lib/socket';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -102,7 +102,10 @@ export const interfaceState = {
 	get current() { return _state.current; },
 	get isAnalyzing() { return _state.isAnalyzing; },
 	get lastAnalysis() { return _state.lastAnalysis; },
-	get messages(): readonly Message[] { return Object.freeze([..._state.messages]); },
+	get messages(): readonly Message[] { 
+		const messages = _state.messages;
+		return Object.freeze(Array.isArray(messages) ? [...messages] : []); 
+	},
 	get error() { return _state.error; },
 	get dataDir() { return _state.dataDir; },
 };
@@ -132,7 +135,6 @@ export async function processInput(input: string): Promise<InterfaceOutput | nul
 
 	try {
 		// RFC-113: Call Python via HTTP API
-		const { apiPost } = await import('$lib/socket');
 		const result = await apiPost<InterfaceOutput>('/api/interface/process', {
 			goal: input,
 			data_dir: _state.dataDir,
