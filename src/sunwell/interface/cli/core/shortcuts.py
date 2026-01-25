@@ -145,7 +145,7 @@ async def run_shortcut(
     """
     from sunwell.interface.cli.helpers import resolve_model
     from sunwell.foundation.schema.loader import LensLoader
-    from sunwell.planning.skills.executor import SkillExecutor
+    from sunwell.features.workflow.engine import SkillExecutor
 
     # Normalize shortcut (remove :: prefix if present)
     shortcut_clean = shortcut.lstrip(":")
@@ -217,20 +217,22 @@ async def run_shortcut(
         return
 
     # 7. Create tool executor (RFC-117: with project context if available)
-    from sunwell.knowledge.project import ProjectResolutionError, resolve_project
+    from sunwell.knowledge.project import (
+        ProjectResolutionError,
+        create_project_from_workspace,
+        resolve_project,
+    )
     from sunwell.tools.execution import ToolExecutor
     from sunwell.tools.core.types import ToolPolicy, ToolTrust
 
     workspace = workspace_root or Path.cwd()
-    project = None
     try:
         project = resolve_project(project_root=workspace)
     except ProjectResolutionError:
-        pass
+        project = create_project_from_workspace(workspace)
 
     tool_executor = ToolExecutor(
         project=project,
-        workspace=workspace if project is None else None,
         policy=ToolPolicy(
             trust_level=ToolTrust.WORKSPACE,
             allowed_tools=skill.allowed_tools,

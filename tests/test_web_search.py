@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from pathlib import Path
 
+from sunwell.knowledge.project import create_project_from_workspace
 from sunwell.tools.providers.web_search import (
     WebSearchResult,
     WebFetchResult,
@@ -200,9 +201,10 @@ async def test_ollama_web_search_integration():
 async def test_tool_executor_with_web_search(tmp_path, mock_provider):
     """ToolExecutor should route web_search to handler."""
     handler = WebSearchHandler(provider=mock_provider)
+    project = create_project_from_workspace(tmp_path)
     
     executor = ToolExecutor(
-        workspace=tmp_path,
+        project=project,
         web_search_handler=handler,
         policy=ToolPolicy(trust_level=ToolTrust.FULL),
     )
@@ -226,10 +228,11 @@ async def test_tool_executor_with_web_search(tmp_path, mock_provider):
 async def test_tool_executor_web_search_requires_full_trust(tmp_path, mock_provider):
     """web_search should not be available below FULL trust level."""
     handler = WebSearchHandler(provider=mock_provider)
+    project = create_project_from_workspace(tmp_path)
     
     # SHELL trust level - should NOT include web search
     executor = ToolExecutor(
-        workspace=tmp_path,
+        project=project,
         web_search_handler=handler,
         policy=ToolPolicy(trust_level=ToolTrust.SHELL),
     )

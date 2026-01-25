@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from sunwell.knowledge.project import Project
     from sunwell.memory.simulacrum.manager import SimulacrumToolHandler
     from sunwell.memory.simulacrum.memory_tools import MemoryToolHandler
-    from sunwell.planning.skills.executor import SkillExecutor
+    from sunwell.features.workflow.engine import SkillExecutor
     from sunwell.planning.skills.sandbox import ScriptSandbox
     from sunwell.tools.providers.expertise import ExpertiseToolHandler
     from sunwell.tools.providers.web_search import WebSearchHandler

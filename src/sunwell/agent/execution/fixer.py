@@ -375,12 +375,9 @@ class FixStage:
 
         For runtime errors where we need to explore solutions.
         """
-        # Import vortex components
-        try:
-            from sunwell.features.vortex.pipeline import VortexPipeline
-        except ImportError:
-            # Fallback to compound eye if vortex not available
-            return await self._compound_eye_fix(error, artifact, signals)
+        # VortexPipeline doesn't exist - use compound eye fallback
+        # TODO: Implement VortexPipeline or use Vortex class directly
+        return await self._compound_eye_fix(error, artifact, signals)
 
         # Find error region
         lines = artifact.content.split("\n")

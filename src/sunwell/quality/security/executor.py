@@ -31,7 +31,7 @@ from sunwell.quality.security.sandbox import (
 if TYPE_CHECKING:
     from sunwell.foundation.core.lens import Lens
     from sunwell.models import ModelProtocol
-    from sunwell.planning.skills.executor import ExecutionContext
+    from sunwell.planning.skills.executor import ExecutionContext, IncrementalSkillExecutor
     from sunwell.planning.skills.graph import SkillGraph
     from sunwell.planning.skills.types import SkillOutput
 
@@ -380,7 +380,7 @@ class SecureSkillExecutor:
         Raises:
             PermissionDeniedError: If execution not approved
         """
-        from sunwell.planning.skills.executor import IncrementalSkillExecutor
+        # IncrementalSkillExecutor imported above
 
         # Pre-execution checks
         dag_id = self._compute_dag_id(graph)

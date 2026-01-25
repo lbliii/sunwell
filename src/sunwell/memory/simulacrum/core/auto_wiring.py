@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from sunwell.extractors.topology_extractor import TopologyExtractor
-    from sunwell.hierarchical.chunks import Chunk, ChunkSummary
-    from sunwell.hierarchical.config import ChunkConfig
+    from sunwell.memory.simulacrum.extractors.topology_extractor import TopologyExtractor
+    from sunwell.memory.simulacrum.hierarchical.chunks import Chunk, ChunkSummary
+    from sunwell.memory.simulacrum.hierarchical.config import ChunkConfig
     from sunwell.memory.simulacrum.hierarchical.chunk_manager import ChunkManager
     from sunwell.memory.simulacrum.topology.unified_store import UnifiedMemoryStore
 

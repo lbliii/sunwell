@@ -599,3 +599,74 @@ async def get_project_intelligence(path: str) -> dict[str, Any]:
         "signals": [],
         "context_quality": 1.0,
     }
+
+
+@router.get("/project/current")
+async def get_current_project() -> dict[str, Any]:
+    """Get current project (RFC-140).
+
+    Returns current workspace/project if set, otherwise returns default project.
+    """
+    from sunwell.knowledge.workspace import WorkspaceManager
+
+    manager = WorkspaceManager()
+    current = manager.get_current()
+
+    if current and current.project:
+        return {
+            "project": {
+                "id": current.project.id,
+                "name": current.project.name,
+                "root": str(current.project.root),
+            }
+        }
+
+    # Fallback to default project
+    from sunwell.knowledge import ProjectRegistry
+
+    registry = ProjectRegistry()
+    default = registry.get_default()
+
+    if default:
+        return {
+            "project": {
+                "id": default.id,
+                "name": default.name,
+                "root": str(default.root),
+            }
+        }
+
+    return {"project": None}
+
+
+class SwitchProjectRequest(BaseModel):
+    """Request to switch project context."""
+
+    project_id: str
+
+
+@router.post("/project/switch")
+async def switch_project(request: SwitchProjectRequest) -> dict[str, Any]:
+    """Switch project context (RFC-140).
+
+    Sets the project as current workspace.
+    """
+    from sunwell.knowledge.workspace import WorkspaceManager
+
+    manager = WorkspaceManager()
+
+    try:
+        workspace_info = manager.switch_workspace(request.project_id)
+        return {
+            "success": True,
+            "project": {
+                "id": workspace_info.id,
+                "name": workspace_info.name,
+                "root": str(workspace_info.path),
+            },
+        }
+    except ValueError as e:
+        return {
+            "success": False,
+            "error": str(e),
+        }

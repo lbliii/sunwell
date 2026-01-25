@@ -32,7 +32,7 @@ from sunwell.memory.simulacrum.hierarchical.ctf import CTFDecoder, CTFEncoder
 if TYPE_CHECKING:
     from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
     from sunwell.memory.simulacrum.core.turn import Turn
-    from sunwell.memory.simulacrum.summarizer import Summarizer
+    from sunwell.memory.simulacrum.hierarchical.summarizer import Summarizer
 
 
 @dataclass(slots=True)

@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from sunwell.foundation.utils import safe_yaml_load
+from sunwell.knowledge.project import create_project_from_workspace
 from sunwell.planning.naaru import AgentResult, Naaru, Task
 from sunwell.planning.naaru.planners import AgentPlanner
 from sunwell.tools.execution import ToolExecutor
@@ -237,8 +238,9 @@ class AgentBenchmarkRunner:
         try:
             # Setup tool executor
             trust = ToolTrust.from_string(task_def.context.get("trust_level", "workspace"))
+            project = create_project_from_workspace(workspace)
             tool_executor = ToolExecutor(
-                workspace=workspace,
+                project=project,
                 policy=ToolPolicy(trust_level=trust),
             )
 

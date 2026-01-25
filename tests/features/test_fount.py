@@ -34,7 +34,7 @@ lens:
       rule: "Add more details"
 """
     # Force the mock fetch to return this for a specific name
-    async def custom_mock_fetch(source, version=None):
+    async def custom_fetch(source, version=None):
         if source == "sunwell/base-writer":
             return """
 lens:
@@ -46,7 +46,8 @@ lens:
 """
         return child_content
     
-    fount_client._mock_fetch = custom_mock_fetch
+    # Use the _mock_fetch_override field for testing
+    fount_client._mock_fetch_override = custom_fetch
     
     ref = LensReference(source="child-lens")
     resolved = await lens_resolver.resolve(ref)
@@ -67,7 +68,7 @@ lens:
     name: "{source}"
   extends: "{'a' if source == 'b' else 'b'}"
 """
-    fount_client._mock_fetch = circular_mock_fetch
+    fount_client._mock_fetch_override = circular_mock_fetch
     
     with pytest.raises(SunwellError) as excinfo:
         await lens_resolver.resolve(LensReference(source="a"))

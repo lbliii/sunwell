@@ -477,16 +477,20 @@ async def create_cascade_executor(
     # RFC-117: Try to resolve project context
     from sunwell.knowledge.project import ProjectResolutionError, resolve_project
 
-    project = None
+    from sunwell.knowledge.project import (
+        ProjectResolutionError,
+        create_project_from_workspace,
+        resolve_project,
+    )
+    
     try:
         project = resolve_project(project_root=project_root)
     except ProjectResolutionError:
-        pass
+        project = create_project_from_workspace(project_root)
 
     # Create tool executor
     tool_executor = ToolExecutor(
         project=project,
-        workspace=project_root if project is None else None,
     )
 
     # Create cascade engine

@@ -250,8 +250,19 @@ async def _run_auto_fix(state: Any, hint: str | None) -> None:
     except Exception:
         return  # Can't load model, abort silently
 
+    from sunwell.knowledge.project import (
+        ProjectResolutionError,
+        create_project_from_workspace,
+        resolve_project,
+    )
+    
+    try:
+        project = resolve_project(cwd=cwd)
+    except ProjectResolutionError:
+        project = create_project_from_workspace(cwd)
+
     tool_executor = ToolExecutor(
-        workspace=cwd,
+        project=project,
         policy=ToolPolicy(trust_level=ToolTrust.WORKSPACE),
     )
 

@@ -18,6 +18,11 @@ from sunwell.knowledge.workspace.detector import (
     resolve_trust_level,
 )
 from sunwell.knowledge.workspace.indexer import CodebaseIndexer
+from sunwell.knowledge.workspace.manager import (
+    WorkspaceInfo,
+    WorkspaceManager,
+    WorkspaceStatus,
+)
 from sunwell.knowledge.workspace.resolver import (
     ResolutionSource,
     WorkspaceResult,
@@ -45,4 +50,8 @@ __all__ = [
     "default_workspace_root",
     "default_config_root",
     "format_resolution_message",
+    # Management (RFC-140)
+    "WorkspaceManager",
+    "WorkspaceInfo",
+    "WorkspaceStatus",
 ]

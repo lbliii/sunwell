@@ -45,6 +45,7 @@ from sunwell.knowledge.project.registry import (
 from sunwell.knowledge.project.resolver import (
     ProjectResolutionError,
     ProjectResolver,
+    create_project_from_workspace,
     resolve_project,
 )
 from sunwell.knowledge.project.signals import (
@@ -105,6 +106,7 @@ __all__ = [
     # Resolver
     "ProjectResolutionError",
     "ProjectResolver",
+    "create_project_from_workspace",
     "resolve_project",
     # Signals (RFC-079)
     "gather_project_signals",

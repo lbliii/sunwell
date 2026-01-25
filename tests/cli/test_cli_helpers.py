@@ -31,7 +31,7 @@ class TestCreateModel:
     def test_create_model_ollama(self) -> None:
         """create_model('ollama', 'gemma3:4b') returns OllamaModel."""
         from sunwell.interface.cli.helpers import create_model
-        from sunwell.models.ollama import OllamaModel
+        from sunwell.models.adapters.ollama import OllamaModel
 
         model = create_model("ollama", "gemma3:4b")
         assert isinstance(model, OllamaModel)
@@ -40,7 +40,7 @@ class TestCreateModel:
     def test_create_model_openai(self) -> None:
         """create_model('openai', 'gpt-4o') returns OpenAIModel."""
         from sunwell.interface.cli.helpers import create_model
-        from sunwell.models.openai import OpenAIModel
+        from sunwell.models.adapters.openai import OpenAIModel
 
         model = create_model("openai", "gpt-4o")
         assert isinstance(model, OpenAIModel)
@@ -49,7 +49,7 @@ class TestCreateModel:
     def test_create_model_anthropic(self) -> None:
         """create_model('anthropic', 'claude-sonnet-4-20250514') returns AnthropicModel."""
         from sunwell.interface.cli.helpers import create_model
-        from sunwell.models.anthropic import AnthropicModel
+        from sunwell.models.adapters.anthropic import AnthropicModel
 
         model = create_model("anthropic", "claude-sonnet-4-20250514")
         assert isinstance(model, AnthropicModel)
@@ -69,7 +69,7 @@ class TestResolveModel:
     def test_resolve_model_cli_override_takes_precedence(self) -> None:
         """CLI override takes precedence over config defaults."""
         from sunwell.interface.cli.helpers import resolve_model
-        from sunwell.models.anthropic import AnthropicModel
+        from sunwell.models.adapters.anthropic import AnthropicModel
 
         # Even if config says ollama, CLI override wins
         model = resolve_model(
@@ -82,15 +82,15 @@ class TestResolveModel:
     def test_resolve_model_uses_config_defaults(self) -> None:
         """resolve_model() with no args uses config.model.default_provider."""
         from sunwell.interface.cli.helpers import resolve_model
-        from sunwell.models.openai import OpenAIModel
+        from sunwell.models.adapters.openai import OpenAIModel
 
         # Mock config to return openai as default
         mock_config = MagicMock()
         mock_config.model.default_provider = "openai"
         mock_config.model.default_model = "gpt-4o"
 
-        # Patch at the source module where get_config is defined
-        with patch("sunwell.config.get_config", return_value=mock_config):
+        # Patch at the import location used by resolve_model
+        with patch("sunwell.foundation.config.get_config", return_value=mock_config):
             model = resolve_model()
 
         assert isinstance(model, OpenAIModel)
@@ -99,15 +99,17 @@ class TestResolveModel:
     def test_resolve_model_provider_only_override(self) -> None:
         """Provider override uses provider-specific default model when config model is None."""
         from sunwell.interface.cli.helpers import resolve_model
-        from sunwell.models.anthropic import AnthropicModel
+        from sunwell.models.adapters.anthropic import AnthropicModel
 
         # Mock config with no default model
         mock_config = MagicMock()
-        mock_config.model.default_provider = "ollama"
-        mock_config.model.default_model = None
+        mock_model_config = MagicMock()
+        mock_model_config.default_provider = "ollama"
+        mock_model_config.default_model = None
+        mock_config.model = mock_model_config
 
         # Override provider but not model — should use anthropic's default
-        with patch("sunwell.config.get_config", return_value=mock_config):
+        with patch("sunwell.foundation.config.get_config", return_value=mock_config):
             model = resolve_model(provider_override="anthropic")
 
         assert isinstance(model, AnthropicModel)
@@ -116,14 +118,16 @@ class TestResolveModel:
     def test_resolve_model_model_only_override(self) -> None:
         """Model override with config provider uses specified model."""
         from sunwell.interface.cli.helpers import resolve_model
-        from sunwell.models.openai import OpenAIModel
+        from sunwell.models.adapters.openai import OpenAIModel
 
         # Mock config to return openai as default provider
         mock_config = MagicMock()
-        mock_config.model.default_provider = "openai"
-        mock_config.model.default_model = None  # No default model
+        mock_model_config = MagicMock()
+        mock_model_config.default_provider = "openai"
+        mock_model_config.default_model = None  # No default model
+        mock_config.model = mock_model_config
 
-        with patch("sunwell.config.get_config", return_value=mock_config):
+        with patch("sunwell.foundation.config.get_config", return_value=mock_config):
             model = resolve_model(model_override="gpt-4-turbo")
 
         assert isinstance(model, OpenAIModel)
@@ -132,14 +136,16 @@ class TestResolveModel:
     def test_resolve_model_fallback_to_ollama(self) -> None:
         """With no config and no override, fallback to ollama."""
         from sunwell.interface.cli.helpers import resolve_model
-        from sunwell.models.ollama import OllamaModel
+        from sunwell.models.adapters.ollama import OllamaModel
 
         # Mock config that has no model settings
         mock_config = MagicMock()
-        mock_config.model.default_provider = None
-        mock_config.model.default_model = None
+        mock_model_config = MagicMock()
+        mock_model_config.default_provider = None
+        mock_model_config.default_model = None
+        mock_config.model = mock_model_config
 
-        with patch("sunwell.config.get_config", return_value=mock_config):
+        with patch("sunwell.foundation.config.get_config", return_value=mock_config):
             model = resolve_model()
 
         assert isinstance(model, OllamaModel)
@@ -164,10 +170,12 @@ class TestProviderDefaults:
 
         # Mock config with no defaults
         mock_config = MagicMock()
-        mock_config.model.default_provider = None
-        mock_config.model.default_model = None
+        mock_model_config = MagicMock()
+        mock_model_config.default_provider = None
+        mock_model_config.default_model = None
+        mock_config.model = mock_model_config
 
-        with patch("sunwell.config.get_config", return_value=mock_config):
+        with patch("sunwell.foundation.config.get_config", return_value=mock_config):
             model = resolve_model(provider_override=provider)
 
         assert get_model_name(model) == expected_model

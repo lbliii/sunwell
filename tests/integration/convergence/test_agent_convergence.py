@@ -57,6 +57,7 @@ class TestToolExecutorHook:
     @pytest.mark.integration
     async def test_hook_callback_structure(self, tmp_path: Path):
         """Hook callback should receive Path."""
+        from sunwell.knowledge.project import create_project_from_workspace
         from sunwell.tools.executor import ToolExecutor
         from sunwell.tools.core.types import ToolPolicy, ToolTrust
 
@@ -66,8 +67,9 @@ class TestToolExecutorHook:
         async def hook_callback(path: Path) -> None:
             called_with.append(path)
 
+        project = create_project_from_workspace(tmp_path)
         executor = ToolExecutor(
-            workspace=tmp_path,  # Use tmp_path to avoid workspace validation
+            project=project,
             policy=ToolPolicy(trust_level=ToolTrust.READ_ONLY),
             on_file_write=hook_callback,
         )

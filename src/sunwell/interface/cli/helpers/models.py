@@ -59,7 +59,8 @@ def resolve_model(
     Priority:
     1. CLI overrides (--provider, --model)
     2. Config defaults (model.default_provider, model.default_model)
-    3. Hardcoded fallbacks (ollama, gemma3:4b)
+    3. Provider-specific defaults (if provider specified but no model)
+    4. Hardcoded fallbacks (ollama, gemma3:4b)
 
     Args:
         provider_override: Provider from CLI --provider flag
@@ -74,6 +75,20 @@ def resolve_model(
 
     # Priority 1: CLI overrides
     provider = provider_override or cfg.model.default_provider or "ollama"
-    model_name = model_override or cfg.model.default_model or "gemma3:4b"
+    
+    # Priority 2: Config model, then provider-specific defaults, then fallback
+    if model_override:
+        model_name = model_override
+    elif cfg.model.default_model:
+        model_name = cfg.model.default_model
+    else:
+        # Priority 3: Provider-specific defaults
+        provider_defaults = {
+            "openai": "gpt-4o",
+            "anthropic": "claude-sonnet-4-20250514",
+            "ollama": "gemma3:4b",
+            "mock": "mock-model",
+        }
+        model_name = provider_defaults.get(provider, "gemma3:4b")
 
     return create_model(provider, model_name)

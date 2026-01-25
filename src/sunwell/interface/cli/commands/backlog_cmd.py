@@ -330,19 +330,21 @@ async def _run_backlog_goal(
     planner = ArtifactPlanner(model=synthesis_model)
 
     # RFC-117: Try to resolve project context
-    from sunwell.knowledge.project import ProjectResolutionError, resolve_project
+    from sunwell.knowledge.project import (
+        ProjectResolutionError,
+        create_project_from_workspace,
+        resolve_project,
+    )
 
-    project = None
     try:
         project = resolve_project(project_root=root)
     except ProjectResolutionError:
-        pass
+        project = create_project_from_workspace(root)
 
     # Create tool executor
     trust_level = ToolTrust.from_string(trust)
     executor = ToolExecutor(
         project=project,
-        workspace=root if project is None else None,
         policy=ToolPolicy(trust_level=trust_level),
     )
 

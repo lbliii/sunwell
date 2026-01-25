@@ -312,10 +312,23 @@ async def _execute_agent(run: RunState, *, use_v2: bool = False) -> AsyncIterato
         yield {"type": "error", "data": {"message": "No model available"}}
         return
 
+    from sunwell.knowledge.project import (
+        ProjectResolutionError,
+        create_project_from_workspace,
+    )
+    
+    # Ensure we have a project (create from workspace if resolve failed)
+    if project is None:
+        try:
+            project = create_project_from_workspace(workspace)
+        except Exception:
+            # If workspace validation fails, we can't create tool executor
+            yield {"type": "error", "data": {"message": "Invalid workspace"}}
+            return
+    
     trust_level = ToolTrust.from_string(run.trust)
     tool_executor = ToolExecutor(
         project=project,
-        workspace=workspace if project is None else None,
         policy=ToolPolicy(trust_level=trust_level),
     )
 

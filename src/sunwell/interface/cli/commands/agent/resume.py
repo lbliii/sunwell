@@ -169,16 +169,20 @@ async def _resume_agent(
     from sunwell.tools.core.types import ToolPolicy, ToolTrust
 
     # RFC-117: Try to resolve project context
+    from sunwell.knowledge.project import (
+        ProjectResolutionError,
+        create_project_from_workspace,
+        resolve_project,
+    )
+    
     workspace = Path(cp.working_directory)
-    project = None
     try:
         project = resolve_project(project_root=workspace)
     except ProjectResolutionError:
-        pass
+        project = create_project_from_workspace(workspace)
 
     tool_executor = ToolExecutor(
         project=project,
-        workspace=workspace if project is None else None,
         policy=ToolPolicy(trust_level=ToolTrust.WORKSPACE),
     )
 
@@ -292,20 +296,22 @@ async def _resume_from_goal(
 
     # Resume execution
     from sunwell.planning.naaru import Naaru
-    from sunwell.knowledge.project import ProjectResolutionError, resolve_project
+    from sunwell.knowledge.project import (
+        ProjectResolutionError,
+        create_project_from_workspace,
+        resolve_project,
+    )
     from sunwell.tools.execution import ToolExecutor
     from sunwell.tools.core.types import ToolPolicy, ToolTrust
 
     # Resolve project context
-    project = None
     try:
         project = resolve_project(project_root=workspace)
     except ProjectResolutionError:
-        pass
+        project = create_project_from_workspace(workspace)
 
     tool_executor = ToolExecutor(
         project=project,
-        workspace=workspace if project is None else None,
         policy=ToolPolicy(trust_level=ToolTrust.WORKSPACE),
     )
 

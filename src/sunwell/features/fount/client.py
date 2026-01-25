@@ -1,7 +1,8 @@
 """Client for interacting with Sunwell founts."""
 
 
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from sunwell.foundation.errors import ErrorCode, SunwellError
@@ -29,6 +30,7 @@ class FountClient:
 
     base_url: str = "https://fount.sunwell.ai"
     cache: FountCache | None = None
+    _mock_fetch_override: Callable[[str, str | None], str] | None = field(default=None, repr=False, compare=False)
 
     async def fetch(self, source: str, version: str | None = None) -> str:
         """Fetch lens from fount, using cache if available.
@@ -51,7 +53,10 @@ class FountClient:
 
         # 2. Fetch from remote (Simulated for now)
         # TODO: Implement real HTTP fetch once server exists
-        content = await self._mock_fetch(source, version)
+        if self._mock_fetch_override:
+            content = await self._mock_fetch_override(source, version)
+        else:
+            content = await self._mock_fetch(source, version)
 
         # 3. Store in cache
         if self.cache:

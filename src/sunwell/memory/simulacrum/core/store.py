@@ -63,9 +63,9 @@ from sunwell.memory.simulacrum.hierarchical.chunks import Chunk, ChunkSummary
 from sunwell.memory.simulacrum.hierarchical.config import ChunkConfig
 
 if TYPE_CHECKING:
-    from sunwell.agent.context.focus import Focus
+    from sunwell.memory.simulacrum.context.focus import Focus
     from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
-    from sunwell.extractors.topology_extractor import TopologyExtractor
+    from sunwell.memory.simulacrum.extractors.topology_extractor import TopologyExtractor
     from sunwell.knowledge.codebase.extractor import IntelligenceExtractor
     from sunwell.planning.naaru.convergence import Slot
     from sunwell.memory.simulacrum.hierarchical.chunk_manager import ChunkManager

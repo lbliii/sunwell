@@ -13,7 +13,7 @@ from sunwell.agent.chat.checkpoint import (
     CheckpointResponse,
 )
 from sunwell.agent.chat.intent import Intent, IntentClassification
-from sunwell.interface.cli.chat.unified import LoopState, UnifiedChatLoop
+from sunwell.agent.chat.unified import LoopState, UnifiedChatLoop
 
 
 class TestLoopState:

@@ -329,9 +329,20 @@ async def _auto_fix_recovery(
     from sunwell.tools.execution import ToolExecutor
     from sunwell.tools.core.types import ToolPolicy, ToolTrust
 
+    from sunwell.knowledge.project import (
+        ProjectResolutionError,
+        create_project_from_workspace,
+        resolve_project,
+    )
+    
     cwd = Path.cwd()
+    try:
+        project = resolve_project(cwd=cwd)
+    except ProjectResolutionError:
+        project = create_project_from_workspace(cwd)
+    
     tool_executor = ToolExecutor(
-        workspace=cwd,
+        project=project,
         policy=ToolPolicy(trust_level=ToolTrust.WORKSPACE),
     )
 

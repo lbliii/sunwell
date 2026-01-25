@@ -46,18 +46,23 @@ async def chat_loop(
     # Set up tool executor if tools are enabled
     tool_executor = None
     if tools_enabled:
-        project = None
+        from sunwell.knowledge.project import (
+            ProjectResolutionError,
+            create_project_from_workspace,
+            resolve_project,
+        )
+        
         workspace_root = workspace
         try:
             project = resolve_project(cwd=workspace)
             workspace_root = project.root
         except ProjectResolutionError:
-            pass
+            project = create_project_from_workspace(workspace)
+            workspace_root = project.root
         
         policy = ToolPolicy(trust_level=ToolTrust.from_string(trust_level))
         tool_executor = ToolExecutor(
             project=project,
-            workspace=workspace_root if project is None else None,
             sandbox=None,
             policy=policy,
         )

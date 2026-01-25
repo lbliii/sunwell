@@ -3,6 +3,7 @@
 Resolves project context from various sources with explicit precedence.
 """
 
+from datetime import datetime
 from pathlib import Path
 
 from sunwell.knowledge.project.manifest import ManifestError, load_manifest
@@ -119,7 +120,7 @@ class ProjectResolver:
             name=root.name,
             root=root,
             workspace_type=WorkspaceType.REGISTERED,
-            created_at=__import__("datetime").datetime.now(),
+            created_at=datetime.now(),
             manifest=None,
         )
 
@@ -196,4 +197,52 @@ def resolve_project(
         project_root=project_root,
         project_id=project_id,
         cwd=cwd,
+    )
+
+
+def create_project_from_workspace(workspace: str | Path) -> Project:
+    """Create a Project instance from a workspace path.
+
+    This is a fallback when resolve_project() fails. Creates an unmanifested
+    project from the workspace path, similar to ProjectResolver._from_root().
+
+    Args:
+        workspace: Path to workspace root
+
+    Returns:
+        Project instance with workspace as root
+
+    Raises:
+        ProjectValidationError: If workspace is invalid
+    """
+    root = Path(workspace).resolve()
+
+    # Validate the workspace
+    validate_workspace(root)
+
+    # Check for existing manifest
+    manifest_path = root / ".sunwell" / "project.toml"
+    if manifest_path.exists():
+        try:
+            manifest = load_manifest(manifest_path)
+            return Project(
+                id=manifest.id,
+                name=manifest.name,
+                root=root,
+                workspace_type=WorkspaceType.MANIFEST,
+                created_at=manifest.created,
+                manifest=manifest,
+            )
+        except ManifestError:
+            pass  # Fall through to unmanifested project
+
+    # Create project without manifest
+    project_id = root.name.lower().replace(" ", "-")
+    return Project(
+        id=project_id,
+        name=root.name,
+        root=root,
+        workspace_type=WorkspaceType.REGISTERED,
+        created_at=datetime.now(),
+        manifest=None,
     )

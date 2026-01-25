@@ -198,6 +198,101 @@ def default_cmd(project_id: str | None) -> None:
         raise SystemExit(1) from None
 
 
+@project.command(name="current")
+@click.option(
+    "--json",
+    "json_output",
+    is_flag=True,
+    help="Output as JSON",
+)
+def current_cmd(json_output: bool) -> None:
+    """Show current project/workspace (RFC-140).
+
+    Shows the current workspace context, falling back to default project.
+
+    Examples:
+        sunwell project current
+        sunwell project current --json
+    """
+    from sunwell.knowledge.workspace import WorkspaceManager
+
+    manager = WorkspaceManager()
+    current = manager.get_current()
+
+    if json_output:
+        import json
+
+        if current and current.project:
+            output = {
+                "id": current.project.id,
+                "name": current.project.name,
+                "root": str(current.project.root),
+            }
+        else:
+            # Fallback to default
+            from sunwell.knowledge import ProjectRegistry
+
+            registry = ProjectRegistry()
+            default = registry.get_default()
+            if default:
+                output = {
+                    "id": default.id,
+                    "name": default.name,
+                    "root": str(default.root),
+                }
+            else:
+                output = None
+        console.print(json.dumps(output, indent=2))
+        return
+
+    if current and current.project:
+        console.print(f"Current project: [cyan]{current.project.name}[/cyan]")
+        console.print(f"  ID: {current.project.id}")
+        console.print(f"  Root: {current.project.root}")
+        return
+
+    # Fallback to default
+    from sunwell.knowledge import ProjectRegistry
+
+    registry = ProjectRegistry()
+    default = registry.get_default()
+
+    if default:
+        console.print(f"Current project: [cyan]{default.id}[/cyan]")
+        console.print(f"  Root: {default.root}")
+        console.print("[dim](Using default project - no workspace context set)[/dim]")
+    else:
+        console.print("[yellow]No current project or default set.[/yellow]")
+        console.print()
+        console.print("Set one with:")
+        console.print("  [cyan]sunwell project switch <project-id>[/cyan]")
+        console.print("  [cyan]sunwell project default <project-id>[/cyan]")
+
+
+@project.command(name="switch")
+@click.argument("project_id")
+def switch_cmd(project_id: str) -> None:
+    """Switch project context (RFC-140).
+
+    Alias for `sunwell workspace switch`. Sets the project as current workspace.
+
+    Examples:
+        sunwell project switch my-app
+        sunwell project switch /path/to/project
+    """
+    from sunwell.knowledge.workspace import WorkspaceManager
+
+    manager = WorkspaceManager()
+
+    try:
+        workspace_info = manager.switch_workspace(project_id)
+        console.print(f"[green]✓[/green] Switched to project: [cyan]{workspace_info.name}[/cyan]")
+        console.print(f"  Path: {workspace_info.path}")
+    except ValueError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from None
+
+
 @project.command(name="remove")
 @click.argument("project_id")
 @click.option("--force", "-f", is_flag=True, help="Remove without confirmation")

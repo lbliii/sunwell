@@ -8,8 +8,9 @@ from datetime import datetime, timedelta
 from sunwell.core.models.heuristic import Identity
 from sunwell.identity.core.models import Observation
 from sunwell.identity.store import IdentityStore
-from sunwell.identity.extraction.extractor import extract_behaviors_regex, _TWO_TIER_EXTRACTION_PROMPT
-from sunwell.identity.digest import _extract_confidence, _extract_prompt, quick_digest
+from sunwell.identity.extraction.extractor import extract_behaviors_regex
+from sunwell.identity.extraction.patterns import TWO_TIER_EXTRACTION_PROMPT
+from sunwell.identity.synthesis.digest import _extract_confidence, _extract_prompt, quick_digest
 from sunwell.identity.injection import build_system_prompt_with_identity
 from sunwell.planning.naaru.persona import MURU, NaaruPersona
 
@@ -310,9 +311,9 @@ class TestBehaviorExtraction:
     
     def test_prompt_format(self):
         """Verify extraction prompt contains expected structure."""
-        assert "FACT:" in _TWO_TIER_EXTRACTION_PROMPT
-        assert "BEHAVIOR:" in _TWO_TIER_EXTRACTION_PROMPT
-        assert "NONE" in _TWO_TIER_EXTRACTION_PROMPT
+        assert "FACT:" in TWO_TIER_EXTRACTION_PROMPT
+        assert "BEHAVIOR:" in TWO_TIER_EXTRACTION_PROMPT
+        assert "NONE" in TWO_TIER_EXTRACTION_PROMPT
 
 
 class TestDigest:

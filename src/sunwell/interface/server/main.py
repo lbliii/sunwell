@@ -36,6 +36,7 @@ from sunwell.interface.server.routes import (
     project_router,
     recovery_router,
     surface_router,
+    workspace_router,
     writer_router,
 )
 
@@ -69,6 +70,7 @@ def create_app(*, dev_mode: bool = False, static_dir: Path | None = None) -> Fas
     app.include_router(writer_router)
     app.include_router(memory_router)
     app.include_router(surface_router)
+    app.include_router(workspace_router)
     app.include_router(misc_router)
 
     if dev_mode:
