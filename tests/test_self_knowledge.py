@@ -16,11 +16,11 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.self import Self
-from sunwell.self.analysis import AnalysisKnowledge
-from sunwell.self.proposals import Proposal, ProposalManager
-from sunwell.self.source import SourceKnowledge
-from sunwell.self.types import (
+from sunwell.features.mirror.self import Self
+from sunwell.features.mirror.self.analysis import AnalysisKnowledge
+from sunwell.features.mirror.self.proposals import Proposal, ProposalManager
+from sunwell.features.mirror.self.source import SourceKnowledge
+from sunwell.features.mirror.self.types import (
     ExecutionEvent,
     FailureSeverity,
     FileChange,

@@ -2,8 +2,8 @@
 
 import pytest
 
-from sunwell.workflow import IntentRouter, Intent, IntentCategory, WorkflowTier
-from sunwell.workflow.types import WORKFLOW_CHAINS
+from sunwell.features.workflow import IntentRouter, Intent, IntentCategory, WorkflowTier
+from sunwell.features.workflow.types import WORKFLOW_CHAINS
 
 
 class TestIntentRouter:

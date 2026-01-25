@@ -122,7 +122,7 @@ class DemoExecutor:
         # Load lens for enhanced prompting - prefer v2 mental model format
         self.lens_data = self._load_lens_v2()
         self.prompt_builder = self._create_prompt_builder()
-        # Legacy: also load raw YAML for backwards compat
+        # Also load raw YAML for fallback
         self.lens = self._load_coder_lens()
         self.lens_heuristics = self._extract_lens_heuristics()
 
@@ -160,7 +160,7 @@ class DemoExecutor:
             return None
 
     def _load_coder_lens(self) -> dict | None:
-        """Load the coder.lens file for enhanced prompting (legacy)."""
+        """Load the coder.lens file for enhanced prompting."""
         try:
             import yaml
 

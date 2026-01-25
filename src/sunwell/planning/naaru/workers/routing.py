@@ -80,7 +80,6 @@ class CognitiveRoutingWorker(RegionWorker):
         """Route a task and return the routing decision.
 
         RFC-030: Uses UnifiedRouter, falling back to heuristics if unavailable.
-        Output format is backward-compatible with legacy consumers.
         """
         await self._ensure_router()
 

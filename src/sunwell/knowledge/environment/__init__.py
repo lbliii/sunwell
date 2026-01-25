@@ -5,7 +5,7 @@ across them, and which projects represent "gold standards" worth
 learning from.
 
 Usage:
-    from sunwell.environment import (
+    from sunwell.knowledge.environment import (
         load_environment,
         save_environment,
         discover_roots,

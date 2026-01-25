@@ -51,8 +51,8 @@ class Binding:
     name: str
     """Binding name (e.g., "my-project", "docs-writer")."""
 
-    lens_path: str
-    """Path to lens file (legacy, use lens_uri instead)."""
+    lens_path: str = ""
+    """Path to lens file (deprecated, use lens_uri instead)."""
 
     # RFC-101: New identity fields
     uri: str | None = None
@@ -121,9 +121,14 @@ class Binding:
     def get_lens_reference(self) -> str:
         """Get the lens reference (URI or path).
 
-        Returns lens_uri if set, otherwise falls back to lens_path.
+        Returns lens_uri if set, otherwise falls back to lens_path for backwards compatibility.
         """
-        return self.lens_uri or self.lens_path
+        if self.lens_uri:
+            return self.lens_uri
+        # Backwards compatibility: convert old lens_path to URI if it's a slug
+        if self.lens_path and "/" not in self.lens_path and "\\" not in self.lens_path:
+            return f"sunwell:lens/user/{self.lens_path}"
+        return self.lens_path
 
     def save(self, path: Path) -> None:
         """Save binding to file."""
@@ -131,7 +136,6 @@ class Binding:
 
         data = {
             "name": self.name,
-            "lens_path": self.lens_path,
             "uri": self.uri,
             "id": self.id,
             "lens_uri": self.lens_uri,
@@ -171,12 +175,20 @@ class Binding:
         default_provider = cfg.model.default_provider if cfg else "ollama"
         default_model = cfg.model.default_model if cfg else "gemma3:4b"
 
+        # Migrate lens_path to lens_uri if needed
+        lens_uri = data.get("lens_uri")
+        lens_path = data.get("lens_path", "")
+        if not lens_uri and lens_path:
+            # Convert old lens_path to URI if it's a slug
+            if "/" not in lens_path and "\\" not in lens_path:
+                lens_uri = f"sunwell:lens/user/{lens_path}"
+        
         return cls(
             name=data["name"],
-            lens_path=data.get("lens_path", ""),
+            lens_path="",  # Deprecated, kept empty for backwards compatibility
             uri=data.get("uri"),
             id=data.get("id"),
-            lens_uri=data.get("lens_uri"),
+            lens_uri=lens_uri or lens_path,  # Use migrated URI or keep path for file paths
             provider=data.get("provider", default_provider),
             model=data.get("model", default_model),
             simulacrum=simulacrum,
@@ -312,7 +324,6 @@ class BindingManager:
 
         # Determine lens reference
         effective_lens_uri = lens_uri
-        effective_lens_path = lens_path or ""
         if (
             not effective_lens_uri
             and lens_path
@@ -321,10 +332,13 @@ class BindingManager:
         ):
             # Convert path to URI if it looks like a slug
             effective_lens_uri = f"sunwell:lens/user/{lens_path}"
+        elif not effective_lens_uri and lens_path:
+            # Keep file path as-is for actual file paths
+            effective_lens_uri = lens_path
 
         binding = Binding(
             name=name,
-            lens_path=effective_lens_path,
+            lens_path="",  # Deprecated, kept empty
             uri=str(uri),
             id=str(identity.id),
             lens_uri=effective_lens_uri,
@@ -536,7 +550,7 @@ class BindingManager:
             id=binding.id or "",
             display_name=binding.name,
             namespace=namespace,
-            lens_uri=binding.lens_uri or binding.lens_path,
+            lens_uri=binding.get_lens_reference(),
             provider=binding.provider,
             model=binding.model,
             is_default=False,
@@ -588,9 +602,14 @@ def get_binding_or_create_temp(
 
     # Create temporary binding (not saved)
     if lens_path:
+        # Convert path to URI if it's a slug, otherwise keep as file path
+        lens_uri = lens_path
+        if "/" not in lens_path and "\\" not in lens_path:
+            lens_uri = f"sunwell:lens/user/{lens_path}"
         temp = Binding(
             name="_temp",
-            lens_path=lens_path,
+            lens_path="",  # Deprecated
+            lens_uri=lens_uri,
             provider=provider or "ollama",
             model=model or "gemma3:4b",
             simulacrum=simulacrum,

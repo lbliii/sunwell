@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.workflow import (
+from sunwell.features.workflow import (
     WorkflowEngine,
     WorkflowResult,
     WorkflowChain,

@@ -281,7 +281,7 @@ def _setup_default_bindings(
         try:
             manager.create(
                 name=name,
-                lens_path=str(lens_file),
+                lens_uri=str(lens_file),
                 provider=provider,
                 model=model,
                 tier=binding_def.get("tier", 1),

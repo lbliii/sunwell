@@ -20,7 +20,7 @@ from sunwell.agent.events import AgentEvent, EventType
 from sunwell.features.backlog.goals import Goal, GoalResult, GoalScope
 from sunwell.features.backlog.manager import BacklogManager
 from sunwell.agent.execution.context import BacklogContext
-from sunwell.incremental import ExecutionCache, IncrementalExecutor, IncrementalResult
+from sunwell.agent.incremental import ExecutionCache, IncrementalExecutor, IncrementalResult
 from sunwell.planning.naaru.persistence import hash_goal
 
 if TYPE_CHECKING:

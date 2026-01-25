@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.binding import Binding, BindingManager, get_binding_or_create_temp
+from sunwell.foundation.binding import Binding, BindingManager, get_binding_or_create_temp
 
 
 class TestBinding:

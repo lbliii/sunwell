@@ -93,7 +93,8 @@ def bind_create(
 
     binding = manager.create(
         name=name,
-        lens_path=lens,
+        lens_uri=lens if lens and ("/" in lens or "\\" in lens or lens.startswith("sunwell:")) else None,
+        lens_path=lens if lens and not ("/" in lens or "\\" in lens or lens.startswith("sunwell:")) else None,
         provider=provider,
         model=model,
         tier=int(tier),
@@ -114,7 +115,7 @@ def bind_create(
     table = Table(show_header=False, box=None)
     table.add_column("Key", style="cyan")
     table.add_column("Value")
-    table.add_row("Lens", binding.lens_path)
+    table.add_row("Lens", binding.get_lens_reference())
     table.add_row("Model", f"{binding.provider}:{binding.model}")
     table.add_row("Simulacrum", binding.simulacrum or name)
     table.add_row("Tier", str(binding.tier))
@@ -156,7 +157,8 @@ def bind_list() -> None:
 
     for b in bindings:
         is_default = "⭐" if default and b.name == default.name else ""
-        lens_short = Path(b.lens_path).name
+        lens_ref = b.get_lens_reference()
+        lens_short = Path(lens_ref).name if "/" in lens_ref or "\\" in lens_ref else lens_ref
         mode = "🤖 Agent" if b.tools_enabled else "💬 Chat"
         table.add_row(
             b.name,
@@ -199,7 +201,7 @@ def bind_show(name: str) -> None:
     table.add_column("Key", style="cyan")
     table.add_column("Value")
 
-    table.add_row("Lens", binding.lens_path)
+    table.add_row("Lens", binding.get_lens_reference())
     table.add_row("Provider", binding.provider)
     table.add_row("Model", binding.model)
     table.add_row("Simulacrum", binding.simulacrum or name)
@@ -240,7 +242,7 @@ def bind_default(name: str | None) -> None:
         default = manager.get_default()
         if default:
             console.print(f"[cyan]Default binding:[/cyan] {default.name}")
-            console.print(f"[dim]  Lens: {default.lens_path}[/dim]")
+            console.print(f"[dim]  Lens: {default.get_lens_reference()}[/dim]")
             console.print(f"[dim]  Model: {default.provider}:{default.model}[/dim]")
         else:
             console.print("[dim]No default binding set.[/dim]")
@@ -275,7 +277,7 @@ def bind_delete(name: str, force: bool) -> None:
 
     if not force:
         console.print(f"[yellow]Delete binding '{name}'?[/yellow]")
-        console.print(f"[dim]  Lens: {binding.lens_path}[/dim]")
+        console.print(f"[dim]  Lens: {binding.get_lens_reference()}[/dim]")
         console.print(f"[dim]  Uses: {binding.use_count}[/dim]")
         if not click.confirm("Continue?"):
             console.print("[dim]Cancelled.[/dim]")

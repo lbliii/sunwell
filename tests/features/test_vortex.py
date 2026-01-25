@@ -13,7 +13,7 @@ from __future__ import annotations
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from sunwell.vortex import (
+from sunwell.features.vortex import (
     # Config
     VortexConfig,
     FAST_CONFIG,

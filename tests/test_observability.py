@@ -21,7 +21,7 @@ from sunwell.naaru.persistence import (
     PlanVersion,
     SavedExecution,
 )
-from sunwell.session import GoalSummary, SessionSummary, SessionTracker
+from sunwell.memory.session import GoalSummary, SessionSummary, SessionTracker
 
 
 # =============================================================================

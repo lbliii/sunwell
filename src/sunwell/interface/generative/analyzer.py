@@ -187,7 +187,7 @@ class IntentAnalyzer:
 
     # Two-step pipeline support (recommended)
     use_pipeline: bool = True
-    """Use two-step pipeline (classifier + responder) instead of legacy single-prompt."""
+    """Use two-step pipeline (classifier + responder) instead of single-prompt."""
 
     _pipeline: IntentPipeline | None = field(default=None, repr=False)
     """Cached pipeline instance."""
@@ -218,7 +218,7 @@ class IntentAnalyzer:
                 goal, project_context, conversation_history
             )
 
-        # Legacy single-prompt approach (deprecated)
+        # Single-prompt approach (fallback)
         # Gather context about available data
         context = await self._gather_context()
 

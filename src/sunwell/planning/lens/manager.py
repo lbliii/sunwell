@@ -632,15 +632,13 @@ class LensManager:
             # Resolve to URI for consistency
             try:
                 uri = self.resolve_uri(identifier)
-                # Store the slug for backwards compat
-                parsed = SunwellURI.parse(uri)
-                config["default_lens"] = parsed.slug
-                # Also store full URI
+                # Store full URI
                 config["default_lens_uri"] = uri
                 # Update index
                 self._index_manager.set_default(uri)
             except ValueError:
-                config["default_lens"] = identifier
+                # Fallback: store identifier as-is (might be a path or slug)
+                config["default_lens_uri"] = identifier
         else:
             config.pop("default_lens", None)
             config.pop("default_lens_uri", None)
@@ -706,7 +704,8 @@ class LensManager:
             return None
 
         config = yaml.safe_load(self.config_path.read_text()) or {}
-        return config.get("default_lens")
+        # Prefer default_lens_uri, fall back to default_lens for backwards compatibility
+        return config.get("default_lens_uri") or config.get("default_lens")
 
     def _get_lens_path(self, uri: str) -> Path | None:
         """Get filesystem path for a lens URI.

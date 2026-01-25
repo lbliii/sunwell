@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.incremental import (
+from sunwell.agent.incremental import (
     ExecutionCache,
     ExecutionPlan,
     IncrementalExecutor,

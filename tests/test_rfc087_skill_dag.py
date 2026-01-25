@@ -2,7 +2,7 @@
 
 import pytest
 
-from sunwell.skills import (
+from sunwell.planning.skills import (
     CircularDependencyError,
     MissingDependencyError,
     Skill,

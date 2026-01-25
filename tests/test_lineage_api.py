@@ -14,7 +14,7 @@ pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient
 
-from sunwell.lineage import LineageStore
+from sunwell.memory.lineage import LineageStore
 
 
 @pytest.fixture

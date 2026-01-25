@@ -591,7 +591,7 @@ def create_smart_context(
     # Load ToC navigation (RFC-124)
     if auto_load_toc:
         try:
-            from sunwell.navigation import ProjectToc, TocNavigator as Navigator
+            from sunwell.knowledge.navigation import ProjectToc, TocNavigator as Navigator
 
             toc = ProjectToc.load(workspace_root / SUNWELL_DIR)
             if toc:

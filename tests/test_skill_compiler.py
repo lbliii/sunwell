@@ -3,7 +3,7 @@
 import pytest
 
 from sunwell.naaru.types import TaskMode, TaskStatus
-from sunwell.skills import (
+from sunwell.planning.skills import (
     CompiledTaskGraph,
     Skill,
     SkillCompilationCache,

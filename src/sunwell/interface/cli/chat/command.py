@@ -176,7 +176,7 @@ def _resolve_binding(
         # Check if it's a binding name first
         binding = manager.get(binding_or_lens)
         if binding:
-            lens_path = binding.lens_path
+            lens_path = binding.get_lens_reference()
             provider = provider or binding.provider
             if not cli_provider_override or cli_model_override:
                 model = model or binding.model
@@ -197,7 +197,7 @@ def _resolve_binding(
         # Try default binding
         binding = manager.get_default()
         if binding:
-            lens_path = binding.lens_path
+            lens_path = binding.get_lens_reference()
             provider = provider or binding.provider
             if not cli_provider_override or cli_model_override:
                 model = model or binding.model

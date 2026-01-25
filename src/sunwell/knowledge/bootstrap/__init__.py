@@ -7,7 +7,7 @@ Provides immediate intelligence by mining existing project artifacts:
 - Configuration (pyproject.toml, CI configs)
 
 Usage:
-    from sunwell.bootstrap import BootstrapOrchestrator, BootstrapResult
+    from sunwell.knowledge.bootstrap import BootstrapOrchestrator, BootstrapResult
 
     orchestrator = BootstrapOrchestrator(project_root, context)
     result = await orchestrator.bootstrap()

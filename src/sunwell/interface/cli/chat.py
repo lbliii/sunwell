@@ -398,7 +398,7 @@ def chat(
         # Check if it's a binding name first
         binding = manager.get(binding_or_lens)
         if binding:
-            lens_path = binding.lens_path
+            lens_path = binding.get_lens_reference()
             # Only use binding's model if provider wasn't overridden
             # (otherwise the model might be wrong for the new provider)
             provider = provider or binding.provider
@@ -421,7 +421,7 @@ def chat(
         # Try default binding
         binding = manager.get_default()
         if binding:
-            lens_path = binding.lens_path
+            lens_path = binding.get_lens_reference()
             # Only use binding's model if provider wasn't overridden
             provider = provider or binding.provider
             if not cli_provider_override or cli_model_override:

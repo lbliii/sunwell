@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.lineage import (
+from sunwell.memory.lineage import (
     HumanEditDetector,
     LineageEventListener,
     LineageStore,

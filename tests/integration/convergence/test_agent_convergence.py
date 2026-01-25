@@ -11,7 +11,7 @@ import pytest
 from sunwell.agent.events import EventType
 from sunwell.agent.gates import GateType
 from sunwell.agent.request import RunOptions
-from sunwell.convergence import ConvergenceConfig
+from sunwell.agent.convergence import ConvergenceConfig
 
 
 class TestAgentConvergenceIntegration:

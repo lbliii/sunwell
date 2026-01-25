@@ -9,7 +9,7 @@ This package provides v2 incremental execution with:
 
 Example:
     >>> from pathlib import Path
-    >>> from sunwell.incremental import (
+    >>> from sunwell.agent.incremental import (
     ...     IncrementalExecutor,
     ...     ExecutionCache,
     ...     should_skip,

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import click
 
-from sunwell.surface import (
+from sunwell.interface.surface import (
     PrimitiveRegistry,
     SurfaceComposer,
     SurfaceRenderer,

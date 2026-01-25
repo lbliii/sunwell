@@ -8,7 +8,7 @@ from sunwell.agent.composer import (
     CompositionType,
     SkillComposer,
 )
-from sunwell.skills import (
+from sunwell.planning.skills import (
     Skill,
     SkillDependency,
     SkillGraph,

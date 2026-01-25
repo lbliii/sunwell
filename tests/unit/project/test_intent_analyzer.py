@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from sunwell.project import (
+from sunwell.knowledge.project import (
     WORKSPACE_PRIMARIES,
     DevCommand,
     GitStatus,

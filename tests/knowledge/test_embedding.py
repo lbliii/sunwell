@@ -3,11 +3,11 @@
 import numpy as np
 import pytest
 
-from sunwell.embedding.index import InMemoryIndex
-from sunwell.embedding.simple import HashEmbedding, TFIDFEmbedding
-from sunwell.embedding.ollama import OllamaEmbedding
-from sunwell.embedding.protocol import SearchResult
-from sunwell.embedding import create_embedder
+from sunwell.knowledge.embedding.index import InMemoryIndex
+from sunwell.knowledge.embedding.simple import HashEmbedding, TFIDFEmbedding
+from sunwell.knowledge.embedding.ollama import OllamaEmbedding
+from sunwell.knowledge.embedding.protocol import SearchResult
+from sunwell.knowledge.embedding import create_embedder
 
 
 class TestInMemoryIndex:

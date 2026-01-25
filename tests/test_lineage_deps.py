@@ -93,7 +93,7 @@ from collections import defaultdict
         """Test multiple imports in one file."""
         content = """
 from sunwell.core import Page
-from sunwell.lineage import LineageStore
+from sunwell.memory.lineage import LineageStore
 from .utils import helper
 """
         imports = detect_imports(Path("src/main.py"), content)

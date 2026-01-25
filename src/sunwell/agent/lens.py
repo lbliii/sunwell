@@ -81,7 +81,9 @@ async def resolve_lens_for_goal(
 
             with open(config_path) as f:
                 config = yaml.safe_load(f) or {}
-            if default_lens := config.get("default_lens"):
+            # Prefer default_lens_uri, fall back to default_lens for backwards compatibility
+            default_lens = config.get("default_lens_uri") or config.get("default_lens")
+            if default_lens:
                 lens = await _load_lens(default_lens, discovery)
                 if lens:
                     return LensResolution(

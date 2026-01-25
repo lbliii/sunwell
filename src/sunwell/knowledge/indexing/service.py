@@ -540,7 +540,7 @@ class IndexingService:
     async def _create_embedder(self) -> "EmbeddingProtocol | None":
         """Create embedder with graceful fallback."""
         try:
-            from sunwell.embedding import create_embedder
+            from sunwell.knowledge.embedding import create_embedder
 
             return create_embedder(prefer_local=True, fallback=True)
         except Exception:

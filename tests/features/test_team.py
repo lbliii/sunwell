@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.team import (
+from sunwell.features.team import (
     ConflictResolver,
     KnowledgeConflict,
     OnboardingSummary,

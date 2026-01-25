@@ -39,7 +39,7 @@ from sunwell.features.mirror.model_tracker import ModelPerformanceTracker
 from sunwell.features.mirror.proposals import ProposalManager, ProposalStatus
 from sunwell.features.mirror.router import ModelRouter
 from sunwell.features.mirror.safety import SafetyChecker
-from sunwell.self import Self
+from sunwell.features.mirror.self import Self
 
 if TYPE_CHECKING:
     from sunwell.tools.executor import ToolExecutor
