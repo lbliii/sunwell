@@ -15,11 +15,14 @@ Follows the same patterns as ArtifactGraph (src/sunwell/naaru/artifacts.py).
 import hashlib
 import threading
 from collections import deque
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sunwell.skills.types import Skill
+else:
+    Skill = object
 
 
 # =============================================================================
@@ -126,7 +129,7 @@ class SkillGraph:
     def __len__(self) -> int:
         return len(self._skills)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Skill]:
         return iter(self._skills.values())
 
     @property

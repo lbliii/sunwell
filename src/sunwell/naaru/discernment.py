@@ -638,7 +638,7 @@ DISCERNMENT_TOOLS = (
 # =============================================================================
 
 
-async def demo():
+async def demo() -> None:
     """Demonstrate the Discernment evaluator."""
 
     print("=" * 60)

@@ -8,6 +8,10 @@ import hashlib
 import json
 import pickle
 from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from sunwell.embedding import EmbeddingProtocol
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -532,7 +536,7 @@ class IndexingService:
 
         await self._save_cache()
 
-    async def _create_embedder(self):
+    async def _create_embedder(self) -> Any | None:
         """Create embedder with graceful fallback."""
         try:
             from sunwell.embedding import create_embedder

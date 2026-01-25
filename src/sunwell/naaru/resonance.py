@@ -432,7 +432,7 @@ async def create_resonance_handler(
 # =============================================================================
 
 
-async def demo():
+async def demo() -> None:
     """Demonstrate the Resonance feedback loop."""
     print("=" * 60)
     print("Resonance Feedback Loop Demo")
@@ -440,7 +440,7 @@ async def demo():
 
     # Mock model for demo
     class MockModel:
-        async def generate(self, prompt, options=None):
+        async def generate(self, prompt: str, options: Any | None = None) -> Any:
             class MockResult:
                 content = '''def example(x: int) -> int:
     """Example function with proper docstring.

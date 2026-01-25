@@ -23,6 +23,7 @@ Example:
 
 
 from collections import deque
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -333,7 +334,7 @@ class ArtifactGraph:
         """Return the number of artifacts in the graph."""
         return len(self._artifacts)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         """Iterate over artifact IDs."""
         return iter(self._artifacts)
 

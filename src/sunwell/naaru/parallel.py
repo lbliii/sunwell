@@ -256,7 +256,7 @@ class ParallelAutonomousRunner:
         scope = scope_map.get(opp.category.value, "heuristic")
 
         # Run async handler in sync context
-        async def create_proposal():
+        async def create_proposal() -> str:
             return await mirror.handle("propose_improvement", {
                 "scope": scope,
                 "problem": opp.description,

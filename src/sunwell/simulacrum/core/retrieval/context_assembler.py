@@ -193,7 +193,7 @@ class ContextAssembler:
         query: str,
         system_prompt: str = "",
         max_tokens: int = 4000,
-    ) -> tuple[list[dict], dict]:
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """Assemble messages for LLM using hierarchical context.
 
         Uses progressive compression (hot/warm/cold tiers) to build
@@ -209,7 +209,7 @@ class ContextAssembler:
             - messages: List of message dicts for LLM
             - stats: Dict with retrieval statistics
         """
-        messages: list[dict] = []
+        messages: list[dict[str, Any]] = []
         stats = {
             "retrieved_chunks": 0,
             "hot_turns": 0,

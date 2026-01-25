@@ -2,7 +2,7 @@
 
 import json
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from sunwell.naaru.artifacts import ArtifactSpec
@@ -37,7 +37,7 @@ def parse_artifacts(response: str) -> list[ArtifactSpec]:
     return []
 
 
-def specs_from_data(data: list[dict]) -> list[ArtifactSpec]:
+def specs_from_data(data: list[dict[str, Any]]) -> list[ArtifactSpec]:
     """Convert parsed JSON to ArtifactSpec list."""
     from sunwell.naaru.artifacts import ArtifactSpec
 

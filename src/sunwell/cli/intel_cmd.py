@@ -45,7 +45,7 @@ def status(project_root: str) -> None:
         return
 
     # Load intelligence
-    async def _show_status():
+    async def _show_status() -> None:
         intelligence = ProjectIntelligence(project_root=project_path)
         context = await intelligence.load()
 
@@ -99,7 +99,7 @@ def decisions(project_root: str, category: str | None, query: str | None, limit:
     """View architectural decisions."""
     project_path = Path(project_root)
 
-    async def _show_decisions():
+    async def _show_decisions() -> None:
         intelligence = ProjectIntelligence(project_root=project_path)
         context = await intelligence.load()
 
@@ -158,7 +158,7 @@ def failures(project_root: str, query: str | None, limit: int, recent: int | Non
     """View failed approaches."""
     project_path = Path(project_root)
 
-    async def _show_failures():
+    async def _show_failures() -> None:
         intelligence = ProjectIntelligence(project_root=project_path)
         context = await intelligence.load()
 
@@ -208,7 +208,7 @@ def patterns(project_root: str) -> None:
     """View learned patterns."""
     project_path = Path(project_root)
 
-    async def _show_patterns():
+    async def _show_patterns() -> None:
         intelligence = ProjectIntelligence(project_root=project_path)
         context = await intelligence.load()
 
@@ -254,7 +254,7 @@ def scan(project_root: str, force: bool) -> None:
     """Force full codebase scan to rebuild codebase graph."""
     project_path = Path(project_root)
 
-    async def _scan():
+    async def _scan() -> None:
         intelligence = ProjectIntelligence(project_root=project_path)
         context = await intelligence.load()
 
@@ -298,7 +298,7 @@ def record_decision(
     """Manually record an architectural decision."""
     project_path = Path(project_root)
 
-    async def _record():
+    async def _record() -> None:
         intelligence = ProjectIntelligence(project_root=project_path)
         context = await intelligence.load()
 

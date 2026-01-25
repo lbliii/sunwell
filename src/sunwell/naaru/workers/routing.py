@@ -4,6 +4,7 @@
 import asyncio
 from collections import deque
 from datetime import datetime
+from typing import Any
 
 from sunwell.naaru.core.bus import MessageType, NaaruRegion
 from sunwell.naaru.core.worker import RegionWorker
@@ -38,7 +39,7 @@ class CognitiveRoutingWorker(RegionWorker):
         # Bounded deque to prevent memory leak (keeps last 5000 routing decisions)
         self._routing_history: deque[dict] = deque(maxlen=5000)
 
-    async def _ensure_router(self):
+    async def _ensure_router(self) -> None:
         """Lazily initialize the UnifiedRouter."""
         if self._router is None and self.router_model is not None:
             from sunwell.routing import UnifiedRouter
@@ -75,7 +76,7 @@ class CognitiveRoutingWorker(RegionWorker):
 
             await asyncio.sleep(0.01)
 
-    async def _route_task(self, task: str, context: dict | None = None) -> dict:
+    async def _route_task(self, task: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
         """Route a task and return the routing decision.
 
         RFC-030: Uses UnifiedRouter, falling back to heuristics if unavailable.
@@ -104,7 +105,7 @@ class CognitiveRoutingWorker(RegionWorker):
                 "fallback": self._heuristic_route(task),
             }
 
-    def _heuristic_route(self, task: str) -> dict:
+    def _heuristic_route(self, task: str) -> dict[str, Any]:
         """Fallback heuristic routing without LLM."""
         task_lower = task.lower()
 
@@ -146,6 +147,6 @@ class CognitiveRoutingWorker(RegionWorker):
                 "confidence": 0.1,
             }
 
-    async def route_sync(self, task: str, context: dict | None = None) -> dict:
+    async def route_sync(self, task: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
         """Synchronous routing for direct use (not via message bus)."""
         return await self._route_task(task, context)

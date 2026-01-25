@@ -6,7 +6,7 @@ All handlers are async and return ToolResult.
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from sunwell.tools.types import ToolResult
@@ -423,7 +423,7 @@ class SunwellToolHandlers:
             self._self = Self.get()
         return self._self
 
-    async def _build_artifact_graph(self, path: str | None = None):
+    async def _build_artifact_graph(self, path: str | None = None) -> Any:
         """Build artifact graph for weakness analysis.
 
         Returns:

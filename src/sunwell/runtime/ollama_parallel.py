@@ -14,7 +14,7 @@ import asyncio
 import os
 import threading
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     pass
@@ -248,11 +248,11 @@ class OllamaSemaphore:
     def __post_init__(self):
         self._semaphore = asyncio.Semaphore(self.max_concurrent)
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> OllamaSemaphore:
         await self._semaphore.acquire()
         return self
 
-    async def __aexit__(self, *args):
+    async def __aexit__(self, *args: Any) -> None:
         self._semaphore.release()
 
     @classmethod

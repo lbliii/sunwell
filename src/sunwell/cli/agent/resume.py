@@ -3,6 +3,7 @@
 
 import asyncio
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -395,7 +396,7 @@ async def _resume_artifact_execution(
         console.print(f"[void.purple]✗ Failed to load model: {e}[/void.purple]")
         return
 
-    async def create_artifact(spec):
+    async def create_artifact(spec: Any) -> str:
         """Create an artifact using the planner."""
         result = await planner.create_artifact(spec, {})
         return result

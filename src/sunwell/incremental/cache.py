@@ -22,6 +22,8 @@ import json
 import sqlite3
 import threading
 import time
+import sqlite3
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
@@ -189,7 +191,7 @@ class ExecutionCache:
         self.close()
 
     @contextmanager
-    def transaction(self):
+    def transaction(self) -> Iterator[sqlite3.Connection]:
         """Context manager for transactions.
 
         Automatically commits on success, rolls back on exception.

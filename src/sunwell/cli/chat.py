@@ -46,7 +46,7 @@ console = create_sunwell_console()
 # =============================================================================
 
 
-async def _load_workspace_context(cwd: Path) -> tuple[str | None, dict | None]:
+async def _load_workspace_context(cwd: Path) -> tuple[str | None, dict[str, Any] | None]:
     """Load RFC-103 workspace and source context if available.
 
     Returns:
@@ -436,7 +436,7 @@ async def _retrieve_relevant_code(
     return RAGResult(context="")
 
 
-def _format_context_summary(ctx_data: dict, workspace_data: dict | None = None) -> str:
+def _format_context_summary(ctx_data: dict[str, Any], workspace_data: dict[str, Any] | None = None) -> str:
     """Format context summary for /context command."""
     builder = ContextBuilder()
     return builder.format_context_summary(ctx_data, workspace_data)

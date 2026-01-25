@@ -3,7 +3,7 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from sunwell.simulacrum.core.dag import ConversationDAG
 
@@ -83,7 +83,7 @@ class SessionManager:
         if self._session_id:
             self._session_uri = f"sunwell:session/{self._project}/{self._session_id}"
 
-    def list_sessions(self, project: str | None = None) -> list[dict]:
+    def list_sessions(self, project: str | None = None) -> list[dict[str, Any]]:
         """List all saved sessions.
 
         RFC-101: Can filter by project.

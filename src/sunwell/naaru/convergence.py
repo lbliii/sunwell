@@ -326,7 +326,7 @@ class Convergence:
 # =============================================================================
 
 
-async def demo():
+async def demo() -> None:
     """Demonstrate the Convergence working memory."""
     print("=" * 60)
     print("Convergence (Working Memory) Demo")

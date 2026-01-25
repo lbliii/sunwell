@@ -366,14 +366,14 @@ def worker_entry(
     # Setup signal handling for graceful shutdown
     shutdown_requested = False
 
-    def handle_shutdown(signum, frame):
+    def handle_shutdown(signum: int, frame: Any) -> None:
         nonlocal shutdown_requested
         shutdown_requested = True
 
     signal.signal(signal.SIGTERM, handle_shutdown)
     signal.signal(signal.SIGINT, handle_shutdown)
 
-    async def _run():
+    async def _run() -> None:
         # Each worker needs its own instances (fresh per process)
         from sunwell.backlog.manager import BacklogManager
 

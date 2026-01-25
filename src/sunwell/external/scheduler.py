@@ -66,7 +66,7 @@ class ExternalScheduler:
 
             trigger = CronTrigger.from_crontab(cron_expression)
 
-            async def job():
+            async def job() -> None:
                 logger.info(f"Running scheduled job: {name}")
                 event = event_factory()
                 await self.processor.process_event(event)

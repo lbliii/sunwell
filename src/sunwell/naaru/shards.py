@@ -559,7 +559,7 @@ class ShardPool:
 # =============================================================================
 
 
-async def demo():
+async def demo() -> None:
     """Demonstrate the Shard pool."""
     print("=" * 60)
     print("Shards (Parallel Helpers) Demo")

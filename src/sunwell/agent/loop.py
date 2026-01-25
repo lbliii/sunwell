@@ -45,7 +45,15 @@ from sunwell.agent.loop_routing import (
     single_shot_generate,
     vortex_generate,
 )
-from sunwell.models.protocol import GenerateOptions, Message, Tool, ToolCall
+from sunwell.agent.loop import (
+    delegation as loop_delegation,
+    expertise as loop_expertise,
+    learning as loop_learning,
+    recovery as loop_recovery,
+    reflection as loop_reflection,
+    validation as loop_validation,
+)
+from sunwell.models.protocol import GenerateOptions, GenerateResult, Message, Tool, ToolCall
 
 if TYPE_CHECKING:
     from sunwell.agent.learning import LearningStore
@@ -140,7 +148,9 @@ class AgentLoop:
             tools = self.executor.get_tool_definitions()
 
         # DIFFERENTIATOR: Enhance tools with lens expertise
-        tools = self._enhance_tools_with_expertise(tools)
+        tools = loop_expertise.enhance_tools_with_expertise(
+            tools, self.lens, self.config.enable_expertise_injection
+        )
 
         # RFC-134: Initialize progressive tool policy if enabled
         if self.config.enable_progressive_tools:
@@ -179,8 +189,12 @@ class AgentLoop:
                     estimated_tokens,
                     self.config.delegation_threshold_tokens,
                 )
-                async for event in self._run_with_delegation(
-                    task_description, tools, system_prompt, context
+                async for event in loop_delegation.run_with_delegation(
+                    self,  # Pass self for model/lens switching
+                    task_description,
+                    tools,
+                    system_prompt,
+                    context,
                 ):
                     yield event
                 return
@@ -195,7 +209,11 @@ class AgentLoop:
         # Inject learnings if enabled
         learnings_injected = False
         if self.config.enable_learning_injection and self.learning_store:
-            learnings_prompt = await self._get_learnings_prompt(task_description)
+            learnings_prompt = await loop_learning.get_learnings_prompt(
+                task_description,
+                self.learning_store,
+                self.config.enable_tool_learning,
+            )
             if learnings_prompt:
                 state.messages.append(Message(role="system", content=learnings_prompt))
                 learnings_injected = True
@@ -292,7 +310,9 @@ class AgentLoop:
                     and self.mirror_handler
                     and state.turn % self.config.reflection_interval == 0
                 ):
-                    async for event in self._run_self_reflection(state, task_description):
+                    async for event in loop_reflection.run_self_reflection(
+                        state, task_description, self.mirror_handler, self.config.reflection_interval
+                    ):
                         yield event
 
             else:
@@ -314,7 +334,9 @@ class AgentLoop:
             and self.validation_stage
             and state.file_writes
         ):
-            async for event in self._run_validation_gates(state.file_writes):
+            async for event in loop_validation.run_validation_gates(
+                state.file_writes, self.validation_stage
+            ):
                 yield event
                 # Track if validation failed
                 if event.type.value in ("gate_fail", "validate_error"):
@@ -363,7 +385,7 @@ class AgentLoop:
         messages: list[Message],
         tools: tuple[Tool, ...],
         task_description: str | None = None,
-    ):
+    ) -> GenerateResult:
         """Generate with optional confidence-based routing.
 
         High confidence (>0.85): Single-shot
@@ -574,7 +596,9 @@ class AgentLoop:
 
             # Save recovery state if enabled
             if self.config.enable_recovery and self.recovery_manager:
-                await self._save_recovery_state(tc, error_msg, state)
+                await loop_recovery.save_recovery_state(
+                    tc, error_msg, state, self.recovery_manager
+                )
 
     async def _retry_with_escalation(
         self,
@@ -637,480 +661,9 @@ class AgentLoop:
                 error=f"Max retries exceeded after {failure_count} attempts: {error}",
             )
 
-    async def _get_learnings_prompt(self, task_description: str) -> str | None:
-        """Get relevant learnings and tool suggestions for the task (RFC-134)."""
-        if not self.learning_store:
-            return None
-
-        try:
-            sections: list[str] = []
-
-            # Get relevant learnings
-            relevant = self.learning_store.get_relevant(task_description)
-            if relevant:
-                learnings_text = "\n".join(f"- {learning.fact}" for learning in relevant[:5])
-                sections.append(f"Apply these known facts from past experience:\n{learnings_text}")
-                logger.info(
-                    "Learning injection: Applied %d learnings from memory",
-                    len(relevant[:5]),
-                    extra={"learnings_count": len(relevant[:5])},
-                )
-
-            # RFC-134: Get tool suggestions based on task type
-            if self.config.enable_tool_learning:
-                from sunwell.agent.learning import classify_task_type
-
-                task_type = classify_task_type(task_description)
-                tool_suggestion = self.learning_store.format_tool_suggestions(task_type)
-                if tool_suggestion:
-                    sections.append(tool_suggestion)
-                    logger.info(
-                        "Tool suggestion: %s for task type '%s'",
-                        tool_suggestion,
-                        task_type,
-                    )
-
-            return "\n\n".join(sections) if sections else None
-
-        except Exception as e:
-            logger.warning("Failed to get learnings: %s", e)
-            return None
-
-    async def _run_validation_gates(
-        self,
-        file_paths: list[str],
-    ) -> AsyncIterator[AgentEvent]:
-        """Run validation gates on written files (Sunwell differentiator).
-
-        After each file write, runs syntax/lint validation. This catches
-        errors early before they propagate - competitors don't do this.
-        """
-        if not self.validation_stage:
-            logger.debug("Validation gates skipped - no validation stage configured")
-            return
-
-        logger.info(
-            "═ VALIDATION GATES → Running syntax/lint on %d file(s)",
-            len(file_paths),
-            extra={"files": file_paths},
-        )
-
-        from sunwell.agent.events import gate_start_event, gate_step_event
-        from sunwell.agent.validation import Artifact
-
-        # Create artifacts for validation
-        artifacts = [
-            Artifact(path=path, content="")  # Content loaded by validator
-            for path in file_paths
-        ]
-
-        # Create validation gate for post-write checks
-        from sunwell.agent.gates import ValidationGate
-
-        gate = ValidationGate(
-            id="post_tool_write",
-            type="syntax",  # Start with syntax, can expand
-            after_tasks=[],
-        )
-
-        # Emit gate start
-        yield gate_start_event(
-            gate_id=gate.id,
-            gate_type="syntax",
-            artifacts=[a.path for a in artifacts],
-        )
-
-        try:
-            # Run validation
-            gate_result = await self.validation_stage.run_gate(gate, artifacts)
-
-            # Emit step events
-            for step_result in gate_result.step_results:
-                yield gate_step_event(
-                    gate_id=gate.id,
-                    step=step_result.step,
-                    passed=step_result.passed,
-                    message=step_result.message or "",
-                )
-
-            # If validation failed, emit error events
-            if not gate_result.passed:
-                from sunwell.agent.events import validate_error_event
-
-                for error in gate_result.errors:
-                    yield validate_error_event(
-                        error_type="validation",
-                        message=str(error),
-                        file=error.file if hasattr(error, "file") else None,
-                        line=error.line if hasattr(error, "line") else None,
-                    )
-
-                # Log for telemetry
-                logger.warning(
-                    "Validation gate failed after tool write",
-                    extra={
-                        "files": file_paths,
-                        "errors": len(gate_result.errors),
-                    },
-                )
-
-        except Exception as e:
-            logger.warning("Validation gate error: %s", e)
-            # Don't fail the entire operation if validation has issues
-
-    async def _save_recovery_state(
-        self,
-        failed_tool: ToolCall,
-        error: str,
-        state: LoopState,
-    ) -> None:
-        """Save recovery state for later resume (Sunwell differentiator).
-
-        When tool execution fails, we save the current state so the user can:
-        - Review what happened with `sunwell review`
-        - Resume from where they left off
-        - Manually fix and continue
-
-        Competitors lose all progress on failure - Sunwell preserves it.
-        """
-        if not self.recovery_manager:
-            logger.debug("Recovery skipped - no recovery manager configured")
-            return
-
-        try:
-            from sunwell.recovery.types import RecoveryState
-
-            # Build context from messages
-            conversation_context = []
-            for msg in state.messages[-10:]:  # Last 10 messages
-                role = msg.role
-                content = msg.content[:500] if msg.content else ""
-                conversation_context.append(f"[{role}] {content}")
-
-            # Extract goal from first user message
-            goal = ""
-            for msg in state.messages:
-                if msg.role == "user" and msg.content:
-                    goal = msg.content[:200]
-                    break
-
-            # Create recovery state
-            recovery_state = RecoveryState(
-                goal=goal,
-                artifacts=state.file_writes,
-                failed_gate="tool_execution",
-                error_details=[
-                    f"Tool: {failed_tool.name}",
-                    f"Arguments: {failed_tool.arguments}",
-                    f"Error: {error}",
-                ],
-                context={
-                    "turn": state.turn,
-                    "tool_calls_total": state.tool_calls_total,
-                    "conversation": conversation_context,
-                },
-            )
-
-            # Save via recovery manager
-            await self.recovery_manager.save(recovery_state)
-
-            logger.info(
-                "◇ RECOVERY → State saved [sunwell review to resume]",
-                extra={
-                    "tool": failed_tool.name,
-                    "turn": state.turn,
-                    "files_written": len(state.file_writes),
-                },
-            )
-
-        except Exception as e:
-            logger.warning("Failed to save recovery state: %s", e)
-            # Don't fail the operation if recovery save fails
-
-    def _enhance_tools_with_expertise(
-        self,
-        tools: tuple[Tool, ...],
-    ) -> tuple[Tool, ...]:
-        """Enhance tool descriptions with lens-specific heuristics (Sunwell differentiator).
-
-        Dynamically injects domain expertise into tool descriptions so the model
-        knows HOW to use tools correctly for this domain. Competitors use static
-        tool descriptions - Sunwell's tools are context-aware.
-
-        Example:
-            write_file for Python lens gets:
-            "When writing Python files: always include type hints, use snake_case,
-             add docstrings to public functions. AVOID: global state, print debugging."
-        """
-        if not self.lens or not self.config.enable_expertise_injection:
-            return tools
-
-        try:
-            # Extract heuristics from lens
-            heuristics: list[str] = []
-            anti_heuristics: list[str] = []
-
-            # Get heuristics (do's)
-            if hasattr(self.lens, "heuristics"):
-                for h in self.lens.heuristics[:5]:  # Limit to top 5
-                    if hasattr(h, "name") and hasattr(h, "description"):
-                        heuristics.append(f"{h.name}: {h.description}")
-                    elif hasattr(h, "content"):
-                        heuristics.append(str(h.content)[:100])
-                    else:
-                        heuristics.append(str(h)[:100])
-
-            # Get anti-heuristics (don'ts)
-            if hasattr(self.lens, "anti_heuristics"):
-                for ah in self.lens.anti_heuristics[:3]:  # Limit to top 3
-                    if hasattr(ah, "pattern"):
-                        anti_heuristics.append(f"AVOID: {ah.pattern}")
-                    else:
-                        anti_heuristics.append(f"AVOID: {str(ah)[:80]}")
-
-            if not heuristics and not anti_heuristics:
-                return tools
-
-            # Build expertise suffix for file-writing tools
-            expertise_suffix = ""
-            if heuristics:
-                expertise_suffix += " BEST PRACTICES: " + "; ".join(heuristics[:3])
-            if anti_heuristics:
-                expertise_suffix += " " + "; ".join(anti_heuristics[:2])
-
-            # Enhance write_file and edit_file descriptions
-            enhanced: list[Tool] = []
-            for tool in tools:
-                if tool.name in ("write_file", "edit_file"):
-                    # Create enhanced copy
-                    enhanced.append(Tool(
-                        name=tool.name,
-                        description=tool.description + expertise_suffix,
-                        parameters=tool.parameters,
-                    ))
-                else:
-                    enhanced.append(tool)
-
-            lens_name = "unknown"
-            if hasattr(self.lens, "metadata") and hasattr(self.lens.metadata, "name"):
-                lens_name = self.lens.metadata.name
-            logger.info(
-                "⚙ EXPERTISE INJECTION → Enhanced tools with %d heuristics [%s]",
-                len(heuristics),
-                lens_name,
-                extra={
-                    "lens": lens_name,
-                    "heuristics_count": len(heuristics),
-                    "anti_heuristics_count": len(anti_heuristics),
-                },
-            )
-
-            return tuple(enhanced)
-
-        except Exception as e:
-            logger.warning("Failed to enhance tools with expertise: %s", e)
-            return tools
-
-    async def _run_self_reflection(
-        self,
-        state: LoopState,
-        task_description: str,
-    ) -> AsyncIterator[AgentEvent]:
-        """Self-reflect on tool usage patterns and adjust strategy (Sunwell differentiator).
-
-        Every N turns, analyze recent tool calls to detect:
-        - Repeated failures → suggest different approach
-        - Inefficient patterns → suggest better tool sequence
-        - Stuck loops → recommend breaking out
-
-        Competitors blindly continue. Sunwell adapts mid-execution.
-        """
-        if not self.config.enable_self_reflection:
-            return
-
-        if not self.mirror_handler:
-            logger.debug("Self-reflection skipped - no mirror handler configured")
-            return
-
-        try:
-            # Analyze recent tool calls
-            analysis = await self.mirror_handler.handle(
-                "analyze_patterns",
-                {
-                    "context": "tool_calls",
-                    "scope": "session",
-                    "include_sequences": True,
-                },
-            )
-
-            if not analysis or not analysis.get("patterns"):
-                return
-
-            patterns = analysis.get("patterns", [])
-            suggestions: list[str] = []
-
-            # Check for repeated failures
-            failure_count = sum(1 for p in patterns if p.get("type") == "failure")
-            if failure_count >= 2:
-                suggestions.append("Multiple failures detected. Consider different approach.")
-
-            # Check for repetitive sequences (stuck in loop)
-            sequences = analysis.get("sequences", [])
-            for seq in sequences:
-                if seq.get("count", 0) >= 3:
-                    tool_pair = seq.get("sequence", [])
-                    suggestions.append(
-                        f"Repetitive pattern detected: {' → '.join(tool_pair)}. "
-                        "Breaking may be needed."
-                    )
-
-            # Emit reflection event if we have suggestions
-            if suggestions:
-                yield signal_event(
-                    "self_reflection",
-                    {
-                        "turn": state.turn,
-                        "suggestions": suggestions,
-                        "patterns_analyzed": len(patterns),
-                    },
-                )
-
-                # Inject reflection into conversation for model awareness
-                reflection_msg = (
-                    f"[Self-Reflection at turn {state.turn}] "
-                    f"Observed: {'; '.join(suggestions)} "
-                    "Consider adjusting approach."
-                )
-                state.messages.append(Message(role="system", content=reflection_msg))
-
-                logger.info(
-                    "◜ SELF-REFLECTION → Detected patterns, suggesting adjustments",
-                    extra={
-                        "turn": state.turn,
-                        "suggestions_count": len(suggestions),
-                        "suggestions": suggestions,
-                    },
-                )
-
-        except Exception as e:
-            logger.debug("Self-reflection failed (non-fatal): %s", e)
-            # Self-reflection is enhancement, not critical path
-
     def _estimate_output_tokens(self, task_description: str) -> int:
         """Estimate expected output tokens based on task description."""
         return estimate_output_tokens(task_description)
-
-    async def _run_with_delegation(
-        self,
-        task_description: str,
-        tools: tuple[Tool, ...],
-        system_prompt: str | None = None,
-        context: str | None = None,
-    ) -> AsyncIterator[AgentEvent]:
-        """Execute task with smart-to-dumb delegation (RFC-137).
-
-        Uses a smart model to create an EphemeralLens, then executes
-        with a cheaper model using that lens for guidance.
-
-        Args:
-            task_description: What to accomplish
-            tools: Available tools
-            system_prompt: Optional system prompt
-            context: Additional context
-
-        Yields:
-            AgentEvent for progress tracking
-        """
-        from sunwell.agent.ephemeral_lens import create_ephemeral_lens
-
-        # Must have both smart and delegation models
-        if self.smart_model is None:
-            self.smart_model = self.model  # Use primary as smart model
-        if self.delegation_model is None:
-            logger.warning("Delegation requested but no delegation_model set")
-            # Fall through to normal execution
-            async for event in self.run(task_description, tools, system_prompt, context):
-                yield event
-            return
-
-        smart_model_id = getattr(self.smart_model, "model_id", "unknown")
-        delegation_model_id = getattr(self.delegation_model, "model_id", "unknown")
-
-        # Emit delegation started event
-        yield delegation_started_event(
-            task_description=task_description,
-            smart_model=smart_model_id,
-            delegation_model=delegation_model_id,
-            reason="Task exceeds delegation threshold",
-            estimated_tokens=self._estimate_output_tokens(task_description),
-        )
-
-        logger.info(
-            "◈ DELEGATION → Creating lens with %s for execution by %s",
-            smart_model_id,
-            delegation_model_id,
-        )
-
-        # Create ephemeral lens using smart model
-        context_summary = context[:2000] if context else ""
-        ephemeral_lens = await create_ephemeral_lens(
-            model=self.smart_model,
-            task=task_description,
-            context=context_summary,
-        )
-
-        # Emit lens created event
-        yield ephemeral_lens_created_event(
-            task_scope=ephemeral_lens.task_scope,
-            heuristics_count=len(ephemeral_lens.heuristics),
-            patterns_count=len(ephemeral_lens.patterns),
-            anti_patterns_count=len(ephemeral_lens.anti_patterns),
-            constraints_count=len(ephemeral_lens.constraints),
-            generated_by=ephemeral_lens.generated_by,
-        )
-
-        logger.info(
-            "◐ LENS CREATED → %s: %d heuristics, %d patterns",
-            ephemeral_lens.task_scope[:50],
-            len(ephemeral_lens.heuristics),
-            len(ephemeral_lens.patterns),
-        )
-
-        # Store original model and lens
-        original_model = self.model
-        original_lens = self.lens
-
-        # Switch to delegation model and ephemeral lens
-        self.model = self.delegation_model
-        self.lens = ephemeral_lens  # type: ignore[assignment]  # LensLike union
-
-        # Inject lens context into system prompt
-        lens_context = ephemeral_lens.to_context()
-        enhanced_system = system_prompt or ""
-        if lens_context:
-            if enhanced_system:
-                enhanced_system = f"{lens_context}\n\n{enhanced_system}"
-            else:
-                enhanced_system = lens_context
-
-        try:
-            # Set flag to prevent recursion
-            self._in_delegation = True
-
-            # Run the loop with delegation model
-            async for event in self.run(
-                task_description=task_description,
-                tools=tools,
-                system_prompt=enhanced_system,
-                context=context,
-            ):
-                yield event
-
-        finally:
-            # Restore original model and lens
-            self.model = original_model
-            self.lens = original_lens
-            self._in_delegation = False
 
 
 # =============================================================================

@@ -496,7 +496,7 @@ class Naaru:
             ))
 
         # Run workers with timeout
-        async def run_workers():
+        async def run_workers() -> None:
             tasks = [asyncio.create_task(w.run()) for w in self.workers]
             try:
                 await asyncio.wait_for(

@@ -38,7 +38,7 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sunwell.simulacrum.core.auto_wiring import (
     extract_topology_batch,
@@ -387,13 +387,6 @@ class SimulacrumStore:
         Returns:
             Session ID (slug)
         """
-        if not self._session_manager:
-            self._session_id = name or datetime.now().strftime("%Y%m%d_%H%M%S")
-            if project:
-                self._project = project
-            self._session_uri = f"sunwell:session/{self._project}/{self._session_id}"
-            self._hot_dag = ConversationDAG()
-            return self._session_id
         session_id = self._session_manager.new_session(name, project)
         self._session_id = session_id
         self._project = self._session_manager.project
@@ -406,18 +399,12 @@ class SimulacrumStore:
     @property
     def session_uri(self) -> str:
         """Get the full session URI (RFC-101)."""
-        if self._session_manager:
-            return self._session_manager.session_uri
-        if not self._session_uri:
-            self._session_uri = f"sunwell:session/{self._project}/{self._session_id}"
-        return self._session_uri
+        return self._session_manager.session_uri
 
     @property
     def project(self) -> str:
         """Get the current project slug."""
-        if self._session_manager:
-            return self._session_manager.project
-        return self._project
+        return self._session_manager.project
 
     def set_project(self, project: str) -> None:
         """Set the project context for session scoping.
@@ -425,15 +412,10 @@ class SimulacrumStore:
         Args:
             project: Project slug
         """
-        if self._session_manager:
-            self._session_manager.set_project(project)
-            self._project = project
-        else:
-            self._project = project
-            if self._session_id:
-                self._session_uri = f"sunwell:session/{self._project}/{self._session_id}"
+        self._session_manager.set_project(project)
+        self._project = project
 
-    def list_sessions(self, project: str | None = None) -> list[dict]:
+    def list_sessions(self, project: str | None = None) -> list[dict[str, Any]]:
         """List all saved sessions.
 
         RFC-101: Can filter by project.
@@ -444,8 +426,6 @@ class SimulacrumStore:
         Returns:
             List of session metadata dicts
         """
-        if not self._session_manager:
-            return []
         return self._session_manager.list_sessions(project)
 
     def save_session(self, name: str | None = None) -> Path:
@@ -453,8 +433,6 @@ class SimulacrumStore:
 
         RFC-101: Saves to project-scoped directory.
         """
-        if not self._session_manager:
-            return self.base_path / "sessions" / f"{name or self._session_id}.json"
         # Update session manager's hot_dag reference before saving
         self._session_manager._set_hot_dag(self._hot_dag)
         return self._session_manager.save_session(name)
@@ -478,27 +456,6 @@ class SimulacrumStore:
         Raises:
             FileNotFoundError: If session not found
         """
-        if not self._session_manager:
-            # Fallback implementation
-            if session_id.startswith("sunwell:session/"):
-                parts = session_id[17:].split("/", 1)
-                if len(parts) == 2:
-                    project = parts[0]
-                    session_id = parts[1]
-            if project:
-                self._project = project
-            dag_path = self.base_path / "projects" / self._project / f"{session_id}_dag.json"
-            if not dag_path.exists():
-                dag_path = self.base_path / "sessions" / f"{session_id}_dag.json"
-            if not dag_path.exists():
-                raise FileNotFoundError(f"Session not found: {session_id}")
-            self._hot_dag = ConversationDAG.load(dag_path)
-            self._session_id = session_id
-            self._session_uri = f"sunwell:session/{self._project}/{self._session_id}"
-            if self.config.auto_cleanup:
-                self._maybe_demote_to_warm()
-            return self._hot_dag
-
         loaded_dag = self._session_manager.load_session(session_id, project)
         self._hot_dag = loaded_dag
         self._session_id = self._session_manager._session_id
@@ -509,8 +466,8 @@ class SimulacrumStore:
             self._tier_manager._hot_dag = loaded_dag
 
         # Apply tiered compression if session has many turns
-        if self.config.auto_cleanup:
-            self._maybe_demote_to_warm()
+        if self.config.auto_cleanup and self._tier_manager:
+            self._tier_manager.maybe_demote_to_warm()
 
         return loaded_dag
 
@@ -687,8 +644,6 @@ class SimulacrumStore:
         Returns:
             Episode ID
         """
-        if not self._episode_manager:
-            return ""
         turn_count = sum(1 for _ in self._hot_dag.iter_all_turns())
         return self._episode_manager.add_episode(
             summary=summary,
@@ -707,8 +662,6 @@ class SimulacrumStore:
         Returns:
             List of episodes, most recent first
         """
-        if not self._episode_manager:
-            return []
         return self._episode_manager.get_episodes(limit=limit)
 
     def get_dead_ends(self) -> list[Episode]:
@@ -717,8 +670,6 @@ class SimulacrumStore:
         Returns:
             List of episodes with 'failed' outcome
         """
-        if not self._episode_manager:
-            return []
         return self._episode_manager.get_dead_ends()
 
     def get_successful_patterns(self) -> list[Episode]:
@@ -727,8 +678,6 @@ class SimulacrumStore:
         Returns:
             List of episodes with 'succeeded' outcome
         """
-        if not self._episode_manager:
-            return []
         return self._episode_manager.get_successful_patterns()
 
     def get_episode_by_id(self, episode_id: str) -> Episode | None:
@@ -740,8 +689,6 @@ class SimulacrumStore:
         Returns:
             Episode if found, None otherwise
         """
-        if not self._episode_manager:
-            return None
         return self._episode_manager.get_episode_by_id(episode_id)
 
     # === RFC-122: Knowledge Retrieval for Planning ===
@@ -803,15 +750,9 @@ class SimulacrumStore:
         Returns:
             MemoryRetrievalResult with all retrieved items
         """
-        if not self._semantic_retriever:
-            # Initialize if not already done
-            self._init_retrievers()
-            assert self._semantic_retriever is not None
-
         # Update episodes and chunk_manager if needed
-        if self._episode_manager:
-            episodes = self._episode_manager.get_episodes(limit=100)
-            self._semantic_retriever._episodes = episodes
+        episodes = self._episode_manager.get_episodes(limit=100)
+        self._semantic_retriever._episodes = episodes
         if self._chunk_manager:
             self._semantic_retriever._chunk_manager = self._chunk_manager
 
@@ -843,11 +784,6 @@ class SimulacrumStore:
         Returns:
             Formatted context string for inclusion in prompts
         """
-        if not self._context_assembler:
-            # Initialize if not already done
-            self._init_retrievers()
-            assert self._context_assembler is not None
-
         return self._context_assembler.get_context_for_prompt(query, max_tokens)
 
     async def get_context_for_prompt_async(
@@ -867,11 +803,6 @@ class SimulacrumStore:
         Returns:
             Formatted context string for inclusion in prompts
         """
-        if not self._context_assembler:
-            # Initialize if not already done
-            self._init_retrievers()
-            assert self._context_assembler is not None
-
         return await self._context_assembler.get_context_for_prompt_async(query, max_tokens)
 
     def get_relevant_chunks(
@@ -948,8 +879,6 @@ class SimulacrumStore:
             self._context_assembler._focus = self._focus
 
         return self._context_assembler.get_context_for_prompt_weighted(query, max_tokens)
-
-    # === Tier Management ===
 
     # === Tier Management ===
 
@@ -1065,7 +994,7 @@ class SimulacrumStore:
 
     # === Stats & Cleanup ===
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         """Storage statistics including chunk manager (RFC-013) and unified store (RFC-014)."""
         hot_turns = len(self._hot_dag.turns)
 

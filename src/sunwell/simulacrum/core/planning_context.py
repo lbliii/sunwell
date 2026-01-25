@@ -51,7 +51,7 @@ class PlanningContext:
     dead_end_summaries: tuple[str, ...] = ()
     """Summary strings from failed episodes for quick injection."""
 
-    def to_convergence_slots(self) -> list:
+    def to_convergence_slots(self) -> list[Slot]:
         """Convert to Convergence slots for HarmonicPlanner injection."""
         from sunwell.naaru.convergence import Slot, SlotSource
 

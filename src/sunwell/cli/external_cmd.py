@@ -5,6 +5,7 @@ Commands for managing external event sources, webhooks, and scheduled jobs.
 
 import asyncio
 from pathlib import Path
+from typing import Any
 
 import click
 from rich.console import Console
@@ -41,7 +42,7 @@ def start(no_server: bool, host: str, port: int):
     asyncio.run(_start_external(no_server, host, port))
 
 
-async def _start_external(no_server: bool, host: str, port: int):
+async def _start_external(no_server: bool, host: str, port: int) -> None:
     """Start external integration."""
     from sunwell.backlog.manager import BacklogManager
     from sunwell.external.policy import ExternalGoalPolicy
@@ -122,7 +123,7 @@ async def _start_external(no_server: bool, host: str, port: int):
     scheduler.stop()
 
 
-async def _setup_adapters(processor):
+async def _setup_adapters(processor: Any) -> None:
     """Setup adapters based on environment variables."""
     import os
 
@@ -148,7 +149,7 @@ def status():
     asyncio.run(_show_status())
 
 
-async def _show_status():
+async def _show_status() -> None:
     """Show status of external integration."""
     import os
 
@@ -220,7 +221,7 @@ def events(source: str | None, limit: int):
     asyncio.run(_list_events(source, limit))
 
 
-async def _list_events(source: str | None, limit: int):
+async def _list_events(source: str | None, limit: int) -> None:
     """List recent events."""
     from sunwell.external.store import ExternalEventStore
     from sunwell.external.types import EventSource
@@ -275,7 +276,7 @@ def poll(source: str):
     asyncio.run(_poll_source(source))
 
 
-async def _poll_source(source: str):
+async def _poll_source(source: str) -> None:
     """Poll a specific source."""
 
     from sunwell.backlog.manager import BacklogManager
@@ -332,7 +333,7 @@ def schedules():
     asyncio.run(_list_schedules())
 
 
-async def _list_schedules():
+async def _list_schedules() -> None:
     """List scheduled jobs."""
     from sunwell.backlog.manager import BacklogManager
     from sunwell.external.policy import ExternalGoalPolicy
