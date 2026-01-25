@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, slots=True)
 class Workspace:
-    """Detected workspace information (legacy compatibility)."""
+    """Detected workspace information."""
 
     root: Path
     """Root directory of the workspace."""
@@ -82,7 +82,7 @@ class WorkspaceConfig:
     """Which subproject cwd is in (if any)."""
 
     def to_workspace(self) -> Workspace:
-        """Convert to legacy Workspace for compatibility."""
+        """Convert to Workspace."""
         return Workspace(
             root=self.root,
             is_git=self.is_git,

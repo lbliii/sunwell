@@ -112,13 +112,11 @@ class ToolExecutor:
     - Learned tools → LearnedToolHandler (future)
 
     RFC-117: Project-centric workspace isolation
-    - Prefer `project` parameter for validated workspace context
-    - Falls back to `workspace` for backward compatibility
+    - Uses `project` parameter for validated workspace context
     - Validates workspace is not Sunwell's own repo
 
     Args:
-        workspace: Root directory for file operations (deprecated, use project)
-        project: Project instance with validated root (RFC-117, preferred)
+        project: Project instance with validated root (RFC-117, required)
         sandbox: ScriptSandbox for command execution (RFC-011)
         skill_executor: For skill-derived tools
         memory_handler: For memory tools (RFC-014)
@@ -126,9 +124,8 @@ class ToolExecutor:
         audit_path: Where to write audit logs (None to disable)
     """
 
-    # RFC-117: Accept either project or workspace (project preferred)
-    workspace: Path | None = None
-    project: Project | None = None
+    # RFC-117: Use project for validated workspace context
+    project: Project
     sandbox: ScriptSandbox | None = None
     skill_executor: SkillExecutor | None = None
     memory_handler: MemoryToolHandler | None = None  # RFC-014
@@ -149,7 +146,6 @@ class ToolExecutor:
     _core_handlers: CoreToolHandlers | None = field(default=None, init=False)
     _rate_limits: ToolRateLimits = field(default_factory=ToolRateLimits, init=False)
     _audit_entries: list[ToolAuditEntry] = field(default_factory=list, init=False)
-    _resolved_workspace: Path | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         """Initialize core tool handlers."""
@@ -158,8 +154,8 @@ class ToolExecutor:
             validate_not_sunwell_repo,
         )
 
-        # RFC-117: Resolve workspace from project or direct parameter
-        workspace = self._resolve_workspace()
+        # RFC-117: Resolve workspace from project
+        workspace = self.project.root
 
         # Validate workspace is not Sunwell's own repo
         try:
@@ -195,28 +191,6 @@ class ToolExecutor:
         # Register built-in tools (filtered by policy)
         self._register_core_tools()
 
-    def _resolve_workspace(self) -> Path:
-        """Resolve workspace from project or direct parameter.
-
-        RFC-117: Project takes precedence over direct workspace.
-
-        Returns:
-            Resolved workspace path
-
-        Raises:
-            ValueError: If neither project nor workspace is provided
-        """
-        if self.project is not None:
-            return self.project.root
-
-        if self.workspace is not None:
-            return self.workspace
-
-        raise ValueError(
-            "ToolExecutor requires either 'project' or 'workspace' parameter.\n"
-            "Preferred: ToolExecutor(project=resolve_project(...))\n"
-            "Legacy: ToolExecutor(workspace=Path('/path/to/project'))"
-        )
 
     def _get_blocked_patterns(self) -> frozenset[str] | None:
         """Get blocked patterns from policy and project.
@@ -714,7 +688,7 @@ class ToolExecutor:
             return
 
         # Resolve path relative to workspace (use cached value)
-        path = self._resolved_workspace / path_str
+        path = self.project.root / path_str
 
         await self.on_file_write(path)
 

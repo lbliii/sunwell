@@ -98,7 +98,6 @@ class LensManager:
     def __post_init__(self) -> None:
         """Ensure directories exist and initialize index manager."""
         self.user_lens_dir.mkdir(parents=True, exist_ok=True)
-        (self.user_lens_dir / ".versions").mkdir(exist_ok=True)
 
         # Initialize index manager
         self._index_manager = LensIndexManager(
@@ -135,7 +134,7 @@ class LensManager:
         if entry:
             return entry.uri
 
-        # Check filesystem directly for legacy lenses not in index
+        # Check filesystem directly for lenses not in index
         user_path = self.user_lens_dir / f"{identifier}.lens"
         if user_path.exists():
             return f"sunwell:lens/user/{identifier}"
@@ -202,7 +201,7 @@ class LensManager:
                         )
                     )
 
-        # Add any filesystem lenses not in index (legacy support)
+        # Add any filesystem lenses not in index
         indexed_paths = {self._get_lens_path(e.uri) for e in index.lenses.values()}
 
         # Built-in lenses not in index
@@ -407,15 +406,6 @@ class LensManager:
         self._save_manifest(slug, manifest)
         self._index_manager.add_lens(manifest)
 
-        # Create legacy version for backwards compat
-        self._create_version(
-            lens_name=slug,
-            version="1.0.0",
-            content=new_content,
-            message=message or f"Forked from {source_identifier}",
-            parent_lens=source_identifier,
-        )
-
         return new_path, new_uri
 
     async def save_lens(
@@ -427,7 +417,7 @@ class LensManager:
     ) -> SemanticVersion:
         """Save changes to a user lens with version tracking.
 
-        RFC-101: Updates both manifest and legacy version storage.
+        RFC-101: Updates manifest-based version storage.
 
         Args:
             identifier: Lens URI or slug
@@ -502,15 +492,6 @@ class LensManager:
             except (json.JSONDecodeError, KeyError):
                 pass
 
-        # Create legacy version snapshot
-        self._create_version(
-            lens_name=slug,
-            version=str(new_version),
-            content=new_content,
-            message=message,
-            parent_version=str(current_version),
-        )
-
         return new_version
 
     async def delete_lens(
@@ -551,12 +532,6 @@ class LensManager:
         if manifest_dir.exists():
             shutil.rmtree(manifest_dir)
 
-        # Delete legacy version history
-        if not keep_versions:
-            version_dir = self.user_lens_dir / ".versions" / slug
-            if version_dir.exists():
-                shutil.rmtree(version_dir)
-
         # Remove from index
         self._index_manager.remove_lens(uri)
 
@@ -567,7 +542,7 @@ class LensManager:
     def get_versions(self, identifier: str) -> list[LensVersionInfo]:
         """Get version history for a lens.
 
-        RFC-101: Reads from manifest if available, falls back to legacy.
+        RFC-101: Reads from manifest-based version storage.
 
         Args:
             identifier: Lens URI or slug
@@ -584,7 +559,7 @@ class LensManager:
         parsed_uri = SunwellURI.parse(uri)
         slug = parsed_uri.slug
 
-        # Try manifest first
+        # Read from manifest
         manifest_path = self.user_lens_dir / slug / "manifest.json"
         if manifest_path.exists():
             try:
@@ -594,22 +569,7 @@ class LensManager:
             except (json.JSONDecodeError, KeyError):
                 pass
 
-        # Fall back to legacy version storage
-        legacy_manifest_path = self.user_lens_dir / ".versions" / slug / "manifest.json"
-        if not legacy_manifest_path.exists():
-            return []
-
-        data = json.loads(legacy_manifest_path.read_text())
-        return [
-            LensVersionInfo(
-                version=v["version"],
-                sha256=v.get("checksum", ""),
-                created_at=v["created_at"],
-                message=v.get("message"),
-                size_bytes=0,
-            )
-            for v in data.get("versions", [])
-        ]
+        return []
 
     async def rollback(self, identifier: str, version: str) -> None:
         """Rollback a lens to a previous version.
@@ -631,12 +591,8 @@ class LensManager:
         parsed_uri = SunwellURI.parse(uri)
         slug = parsed_uri.slug
 
-        # Try manifest directory first
+        # Read from manifest directory
         version_path = self.user_lens_dir / slug / f"v{version}.lens"
-        if not version_path.exists():
-            # Try legacy version storage
-            version_path = self.user_lens_dir / ".versions" / slug / f"{version}.lens"
-
         if not version_path.exists():
             msg = f"Version not found: {identifier}@{version}"
             raise ValueError(msg)
@@ -803,67 +759,17 @@ class LensManager:
         manifest_path = manifest_dir / "manifest.json"
         manifest_path.write_text(json.dumps(manifest.to_dict(), indent=2))
 
-    def _create_version(
-        self,
-        lens_name: str,
-        version: str,
-        content: str,
-        message: str | None,
-        parent_lens: str | None = None,
-        parent_version: str | None = None,
-    ) -> None:
-        """Create a version snapshot (legacy storage)."""
-        version_dir = self.user_lens_dir / ".versions" / lens_name
-        version_dir.mkdir(parents=True, exist_ok=True)
-
-        # Write version file
-        version_path = version_dir / f"{version}.lens"
-        version_path.write_text(content)
-
-        # Also write to new directory structure
-        manifest_dir = self.user_lens_dir / lens_name
-        if manifest_dir.exists():
-            new_version_path = manifest_dir / f"v{version}.lens"
-            new_version_path.write_text(content)
-
-        # Update legacy manifest
-        manifest_path = version_dir / "manifest.json"
-        if manifest_path.exists():
-            manifest = json.loads(manifest_path.read_text())
-        else:
-            manifest = {"lens_name": lens_name, "versions": []}
-
-        manifest["current_version"] = version
-        manifest["versions"].append(
-            {
-                "version": version,
-                "created_at": datetime.now(UTC).isoformat(),
-                "message": message,
-                "checksum": f"sha256:{hashlib.sha256(content.encode()).hexdigest()[:12]}",
-                "parent_lens": parent_lens,
-                "parent_version": parent_version,
-            }
-        )
-
-        # Prune old versions if exceeding limit
-        if len(manifest["versions"]) > MAX_VERSIONS_PER_LENS:
-            old_versions = manifest["versions"][:-MAX_VERSIONS_PER_LENS]
-            manifest["versions"] = manifest["versions"][-MAX_VERSIONS_PER_LENS:]
-
-            for old_v in old_versions:
-                old_path = version_dir / f"{old_v['version']}.lens"
-                if old_path.exists():
-                    old_path.unlink()
-
-        manifest_path.write_text(json.dumps(manifest, indent=2))
-
     def _count_versions(self, name: str) -> int:
-        """Count versions for a lens."""
-        manifest_path = self.user_lens_dir / ".versions" / name / "manifest.json"
+        """Count versions for a lens from manifest."""
+        manifest_path = self.user_lens_dir / name / "manifest.json"
         if not manifest_path.exists():
             return 0
-        data = json.loads(manifest_path.read_text())
-        return len(data.get("versions", []))
+        try:
+            data = json.loads(manifest_path.read_text())
+            manifest = LensManifest.from_dict(data)
+            return len(manifest.versions)
+        except (json.JSONDecodeError, KeyError):
+            return 0
 
     def _get_mtime(self, path: Path) -> str | None:
         """Get file modification time as ISO string."""

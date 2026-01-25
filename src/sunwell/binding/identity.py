@@ -347,14 +347,6 @@ class BindingIndexManager:
                         if entry:
                             bindings[entry.uri] = entry
 
-        # Scan legacy flat bindings (for backwards compatibility)
-        for binding_file in self.bindings_dir.glob("*.json"):
-            if binding_file.name == "index.json":
-                continue
-            entry = self._create_entry_from_file(binding_file, "global")
-            if entry and entry.uri not in bindings:
-                bindings[entry.uri] = entry
-
         new_index = BindingIndex(
             version=1,
             updated_at=datetime.now(UTC).isoformat(),
@@ -387,7 +379,7 @@ class BindingIndexManager:
             # Convert lens_path to lens_uri if needed
             lens_uri = data.get("lens_uri", "")
             if not lens_uri and "lens_path" in data:
-                # Legacy: convert path to URI
+                # Convert path to URI
                 lens_path = data["lens_path"]
                 if "/" in lens_path or "\\" in lens_path:
                     # Path-based, extract slug

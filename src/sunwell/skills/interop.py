@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from sunwell.skills.types import Skill
 
 # Export format types
-ExportFormat = Literal["anthropic", "sunwell", "skill-md", "yaml"]
+ExportFormat = Literal["anthropic", "sunwell", "yaml"]
 
 # Pre-compiled regex patterns for performance (avoid recompiling per-call)
 _RE_HEADER_L2 = re.compile(r"^## ", re.MULTILINE)
@@ -71,7 +71,6 @@ class SkillExporter:
     Supports multiple formats:
     - anthropic: Anthropic Agent Skills format (SKILL.md with frontmatter)
     - sunwell: Full Sunwell format with DAG metadata (SKILL.yaml)
-    - skill-md: Legacy Sunwell markdown format
     - yaml: Simple YAML format
     """
 
@@ -280,7 +279,7 @@ class SkillExporter:
         Args:
             skill: The skill to export
             output_dir: Base output directory
-            format: Export format (anthropic, sunwell, skill-md, yaml)
+            format: Export format (anthropic, sunwell, yaml)
 
         Returns:
             Path to created file/directory
@@ -292,13 +291,6 @@ class SkillExporter:
             return self.export_anthropic(skill, output_dir)
         elif format == "sunwell":
             return self.export_sunwell(skill, output_dir)
-        elif format == "skill-md":
-            # Legacy format
-            content = self.export_skill_md(skill)
-            file_path = output_dir / skill.name / "SKILL.md"
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            file_path.write_text(content)
-            return file_path.parent
         elif format == "yaml":
             content = self._skill_to_yaml(skill)
             file_path = output_dir / f"{skill.name}.yaml"
@@ -307,113 +299,18 @@ class SkillExporter:
         else:
             raise ValueError(f"Unknown format: {format}")
 
-    def export_skill_md(self, skill: "Skill", lens: "Lens | None" = None) -> str:
-        """Export a single skill to SKILL.md format (legacy Sunwell format).
-
-        Args:
-            skill: The skill to export
-            lens: Optional lens to include validation rules from
-
-        Returns:
-            Markdown content for SKILL.md
-        """
-        sections = []
-
-        # Title
-        sections.append(f"# {skill.name}\n")
-
-        # Description
-        sections.append("## Description\n")
-        sections.append(f"{skill.description}\n")
-
-        # Compatibility (if specified)
-        if skill.compatibility:
-            sections.append("## Compatibility\n")
-            sections.append(f"{skill.compatibility}\n")
-
-        # Instructions
-        if skill.instructions:
-            sections.append("## Instructions\n")
-            # Escape any ## headers in instructions to ### to avoid section conflicts
-            instructions = skill.instructions
-            # Convert any ## headers to ### (preserve hierarchy)
-            instructions = _RE_HEADER_L2.sub("### ", instructions)
-            sections.append(f"{instructions}\n")
-
-        # Scripts
-        if skill.scripts:
-            sections.append("## Scripts\n")
-            for script in skill.scripts:
-                sections.append(f"### {script.name}\n")
-                if script.description:
-                    sections.append(f"{script.description}\n")
-                sections.append(f"**Language:** {script.language}\n")
-                sections.append(f"```{script.language}\n{script.content}\n```\n")
-
-        # Templates
-        if skill.templates:
-            sections.append("## Templates\n")
-            for template in skill.templates:
-                sections.append(f"### {template.name}\n")
-                # Detect language from filename
-                ext = Path(template.name).suffix.lstrip('.')
-                lang = {
-                    'py': 'python', 'js': 'javascript', 'ts': 'typescript',
-                    'tsx': 'typescript', 'jsx': 'javascript', 'md': 'markdown',
-                    'yaml': 'yaml', 'yml': 'yaml', 'json': 'json',
-                    'sh': 'bash', 'bash': 'bash',
-                }.get(ext, '')
-                sections.append(f"```{lang}\n{template.content}\n```\n")
-
-        # Resources
-        if skill.resources:
-            sections.append("## Resources\n")
-            for resource in skill.resources:
-                if resource.url:
-                    sections.append(f"- [{resource.name}]({resource.url})\n")
-                elif resource.path:
-                    sections.append(f"- {resource.name}: `{resource.path}`\n")
-
-        # Verification (from lens validators if available)
-        if lens and skill.validate_with.validators:
-            sections.append("## Verification\n")
-            sections.append("After generating content, verify:\n")
-            for validator_name in skill.validate_with.validators:
-                # Try to find the validator in the lens
-                validator = None
-                for v in lens.heuristic_validators:
-                    if v.name == validator_name:
-                        validator = v
-                        break
-
-                if validator and hasattr(validator, 'prompt'):
-                    sections.append(f"- [ ] **{validator_name}**: {validator.prompt[:100]}...\n")
-                else:
-                    sections.append(f"- [ ] {validator_name}\n")
-
-            if skill.validate_with.min_confidence:
-                sections.append(f"\n**Minimum confidence:** {skill.validate_with.min_confidence * 100:.0f}%\n")
-
-        # Metadata footer
-        sections.append("---\n")
-        sections.append("*Exported from Sunwell lens*\n")
-        if skill.trust:
-            sections.append(f"*Trust level: {skill.trust.value}*\n")
-
-        return "\n".join(sections)
-
     def export_lens_skills(
         self,
         lens: Lens,
         output_dir: Path,
-        format: str = "skill-md",
+        format: str = "yaml",
     ) -> list[Path]:
         """Export all skills from a lens to a directory.
 
         Args:
             lens: The lens to export skills from
             output_dir: Directory to write skill files
-            format: Export format ('skill-md' or 'yaml')
+            format: Export format ('yaml', 'anthropic', or 'sunwell')
 
         Returns:
             List of created file paths
@@ -424,12 +321,7 @@ class SkillExporter:
         created_files = []
 
         for skill in lens.skills:
-            if format == "skill-md":
-                content = self.export_skill_md(skill, lens)
-                file_path = output_dir / skill.name / "SKILL.md"
-                file_path.parent.mkdir(parents=True, exist_ok=True)
-                file_path.write_text(content)
-            elif format == "yaml":
+            if format == "yaml":
                 content = self._skill_to_yaml(skill)
                 file_path = output_dir / f"{skill.name}.yaml"
                 file_path.write_text(content)

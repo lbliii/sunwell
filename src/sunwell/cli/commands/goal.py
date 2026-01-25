@@ -19,6 +19,7 @@ from sunwell.cli.workspace_prompt import resolve_workspace_interactive
 from sunwell.config import get_config
 from sunwell.context.session import SessionContext
 from sunwell.memory.persistent import PersistentMemory
+from sunwell.project import ProjectResolutionError, resolve_project
 from sunwell.tools.executor import ToolExecutor
 from sunwell.tools.types import ToolPolicy, ToolTrust
 
@@ -123,7 +124,15 @@ async def run_agent(
     }
     trust_level = trust_map.get(trust, ToolTrust.WORKSPACE)
     policy = ToolPolicy(trust_level=trust_level)
-    tool_executor = ToolExecutor(workspace=workspace, policy=policy)
+    
+    # Resolve project from workspace
+    try:
+        project = resolve_project(project_root=workspace)
+    except ProjectResolutionError as e:
+        console.print(f"  [void.purple]✗[/] [sunwell.error]Failed to resolve project:[/] {e}")
+        return
+    
+    tool_executor = ToolExecutor(project=project, policy=policy)
 
     # Create agent
     agent = Agent(

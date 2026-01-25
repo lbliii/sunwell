@@ -11,6 +11,7 @@ import pytest
 from sunwell.tools.types import ToolTrust, ToolResult, ToolRateLimits, ToolPolicy
 from sunwell.tools.builtins import CORE_TOOLS, get_tools_for_trust_level
 from sunwell.tools.handlers import CoreToolHandlers, PathSecurityError, DEFAULT_BLOCKED_PATTERNS
+from sunwell.project import Project
 from sunwell.tools.executor import ToolExecutor
 from sunwell.models.protocol import Tool, ToolCall, Message, GenerateResult
 
@@ -157,7 +158,8 @@ class TestToolExecutor:
     
     @pytest.fixture
     def executor(self, workspace: Path) -> ToolExecutor:
-        return ToolExecutor(workspace=workspace)
+        project = Project(root=workspace, id="test-project", name="Test Project")
+        return ToolExecutor(project=project)
     
     @pytest.mark.asyncio
     async def test_execute_unknown_tool(self, executor: ToolExecutor) -> None:
@@ -196,7 +198,8 @@ class TestToolExecutor:
         """Test that rate limiting works."""
         limits = ToolRateLimits(max_tool_calls_per_minute=2)
         policy = ToolPolicy(rate_limits=limits)
-        executor = ToolExecutor(workspace=workspace, policy=policy)
+        project = Project(root=workspace, id="test-project", name="Test Project")
+        executor = ToolExecutor(project=project, policy=policy)
         
         # First two calls should succeed
         r1 = await executor.execute(ToolCall(id="1", name="list_files", arguments={}))

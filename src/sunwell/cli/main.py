@@ -504,14 +504,6 @@ from sunwell.cli.agent import agent
 
 agent.hidden = True
 main.add_command(agent)
-# Keep 'naaru' as hidden alias for backward compatibility
-naaru_alias = click.Group(
-    name="naaru",
-    commands=agent.commands,
-    help=agent.help,
-    hidden=True,
-)
-main.add_command(naaru_alias)
 
 # State DAG Scanning (RFC-100) - Studio: scan <path>
 from sunwell.cli import scan_cmd
@@ -530,8 +522,6 @@ from sunwell.cli import self_cmd
 
 self_cmd.self_cmd.hidden = True
 main.add_command(self_cmd.self_cmd, name="self")
-
-# RFC-110: skill CLI deprecated - skill execution moved to Agent
 
 # Surface Primitives & Layout (RFC-072) - Studio: surface registry
 from sunwell.cli import surface
@@ -657,15 +647,6 @@ from sunwell.cli import bind
 
 bind.bind.hidden = True
 main.add_command(bind.bind)
-
-# RFC-110: Legacy commands deleted (ask, apply, do_cmd, naaru_cmd)
-# These entry points are consolidated into Agent.run()
-# - sunwell ask -> sunwell "goal"
-# - sunwell apply -> sunwell -s shortcut
-# - sunwell do -> sunwell -s shortcut
-# - sunwell naaru process -> sunwell "goal"
-
-# RFC-110: Legacy skill commands removed - skill execution moved to Agent
 
 # RFC-111: Skill library management (learn, list, import)
 from sunwell.cli import skills_cmd

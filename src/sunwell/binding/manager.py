@@ -199,7 +199,6 @@ class BindingManager:
     """Manages bindings with identity system (RFC-101).
 
     Storage layouts:
-    - Legacy: .sunwell/bindings/<name>.json
     - RFC-101: ~/.sunwell/bindings/global/<name>.json (global)
               ~/.sunwell/bindings/projects/<project>/<name>.json (project-scoped)
 
@@ -220,9 +219,6 @@ class BindingManager:
         self.root = root or Path.cwd()
         self.project = project
 
-        # Legacy paths (for backwards compatibility)
-        self.bindings_dir = self.root / ".sunwell" / "bindings"
-        self.default_file = self.root / ".sunwell" / "default_binding"
 
         # RFC-101: Global binding index
         self._index_manager = BindingIndexManager(
@@ -257,11 +253,6 @@ class BindingManager:
         entry = self._index_manager.resolve_slug(identifier, self.project)
         if entry:
             return entry.uri
-
-        # Check filesystem directly for legacy bindings not in index
-        legacy_path = self.bindings_dir / f"{identifier}.json"
-        if legacy_path.exists():
-            return f"sunwell:binding/global/{identifier}"
 
         raise ValueError(f"Cannot resolve binding: {identifier}")
 
@@ -364,11 +355,6 @@ class BindingManager:
         except ValueError:
             pass
 
-        # Fall back to legacy path
-        path = self.bindings_dir / f"{name}.json"
-        if path.exists():
-            return Binding.load(path)
-
         return None
 
     def get_or_default(self, name: str | None = None) -> Binding | None:
@@ -383,7 +369,6 @@ class BindingManager:
         Resolution order:
         1. Project config: .sunwell/config.yaml -> binding.default
         2. User config: ~/.sunwell/config.yaml -> binding.default
-        3. Legacy: Local .sunwell/default_binding file (deprecated)
         4. Legacy: Global index is_default flag (deprecated)
         """
         from sunwell.config import get_config
@@ -396,16 +381,9 @@ class BindingManager:
                 if binding:
                     return binding
         except Exception:
-            pass  # Config not available, continue to legacy
+            pass  # Config not available, continue
 
-        # Legacy: Try local default_binding file
-        if self.default_file.exists():
-            default_name = self.default_file.read_text().strip()
-            binding = self.get(default_name)
-            if binding:
-                return binding
-
-        # Legacy: Fall back to global index is_default flag
+        # Fall back to global index is_default flag
         entries = self._index_manager.list_bindings(namespace="global")
         for entry in entries:
             if entry.is_default:
@@ -422,8 +400,7 @@ class BindingManager:
         if not binding:
             return False
 
-        self.default_file.parent.mkdir(parents=True, exist_ok=True)
-        self.default_file.write_text(name)
+        # Default binding is stored in config, not file
 
         # Update index
         if binding.uri:
@@ -459,15 +436,6 @@ class BindingManager:
                 except (json.JSONDecodeError, KeyError):
                     continue
 
-        # Also include legacy bindings not in index
-        if not project and self.bindings_dir.exists():
-            for path in self.bindings_dir.glob("*.json"):
-                if path.stem not in indexed_slugs:
-                    try:
-                        bindings.append(Binding.load(path))
-                    except (json.JSONDecodeError, KeyError):
-                        continue
-
         return sorted(bindings, key=lambda b: b.last_used, reverse=True)
 
     def delete(self, name: str) -> bool:
@@ -485,15 +453,6 @@ class BindingManager:
             self._index_manager.remove_binding(uri)
         except ValueError:
             pass
-
-        # Also try legacy path
-        legacy_path = self.bindings_dir / f"{name}.json"
-        if legacy_path.exists():
-            legacy_path.unlink()
-
-        # Clear default if this was it
-        if self.default_file.exists() and self.default_file.read_text().strip() == name:
-            self.default_file.unlink()
 
         return True
 
@@ -532,12 +491,8 @@ class BindingManager:
     def _get_binding_path(self, namespace: str, slug: str) -> Path | None:
         """Get filesystem path for a binding."""
         if namespace == "global":
-            # Try new global path first
-            new_path = Path.home() / ".sunwell" / "bindings" / "global" / f"{slug}.json"
-            if new_path.exists():
-                return new_path
-            # Fall back to legacy project-local path
-            return self.bindings_dir / f"{slug}.json"
+            # Use global path
+            return Path.home() / ".sunwell" / "bindings" / "global" / f"{slug}.json"
         else:
             # Project-scoped binding
             return (
@@ -554,11 +509,7 @@ class BindingManager:
         slug = slugify(binding.name)
 
         if namespace == "global":
-            # Save to legacy location for backwards compat
-            legacy_path = self.bindings_dir / f"{slug}.json"
-            binding.save(legacy_path)
-
-            # Also save to new global location
+            # Save to global location
             new_path = (
                 Path.home() / ".sunwell" / "bindings" / "global" / f"{slug}.json"
             )

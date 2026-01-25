@@ -448,7 +448,7 @@ class Discernment:
 
         RFC-077: Now supports two modes:
         1. FastClassifier (JSON prompts) - faster, works with smaller models
-        2. Tool-calling (legacy) - for models that support it
+        2. Tool-calling - for models that support it
         """
         if self.use_fast_classifier:
             return await self._quick_insight_fast(code, category, description)
@@ -508,7 +508,7 @@ class Discernment:
         category: str,
         description: str,
     ) -> DiscernmentResult:
-        """Quick insight using tool-calling (legacy mode)."""
+        """Quick insight using tool-calling."""
         prompt = f"""Review this code change:
 
 Category: {category}

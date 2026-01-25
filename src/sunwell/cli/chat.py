@@ -178,11 +178,7 @@ async def _build_codebase_index(
 
     RFC-124: Also loads ToC navigation for structural queries.
     """
-    try:
-        from sunwell.indexing import IndexingService, create_smart_context
-    except ImportError:
-        # Fall back to legacy indexer if new module not available
-        return await _build_codebase_index_legacy(cwd, embedder, force_rebuild)
+    from sunwell.indexing import IndexingService, create_smart_context
 
     stats = {
         "indexed": False,
@@ -248,118 +244,6 @@ async def _build_codebase_index(
             return None, stats
 
 
-async def _build_codebase_index_legacy(
-    cwd: Path,
-    embedder,
-    force_rebuild: bool = False,
-) -> tuple[object | None, dict]:
-    """Legacy codebase indexer (pre-RFC-108 fallback)."""
-    try:
-        from sunwell.workspace.detector import Workspace
-        from sunwell.workspace.indexer import CodebaseIndexer
-    except ImportError:
-        return None, {}
-
-    cache_dir = cwd / ".sunwell" / "index"
-    cache_file = cache_dir / "codebase_index.json"
-
-    stats = {
-        "indexed": False,
-        "file_count": 0,
-        "chunk_count": 0,
-        "from_cache": False,
-    }
-
-    # Check cache (24-hour lifetime)
-    if not force_rebuild and cache_file.exists():
-        import json
-        import time
-
-        try:
-            stat = cache_file.stat()
-            age_hours = (time.time() - stat.st_mtime) / 3600
-            if age_hours < 24:
-                data = json.loads(cache_file.read_text())
-                stats["indexed"] = True
-                stats["file_count"] = data.get("file_count", 0)
-                stats["chunk_count"] = data.get("chunk_count", 0)
-                stats["from_cache"] = True
-
-                # Rebuild indexer from cached embeddings
-                from sunwell.workspace.indexer import CodebaseIndex, CodeChunk
-
-                chunks = [
-                    CodeChunk(
-                        file_path=Path(c["file_path"]),
-                        start_line=c["start_line"],
-                        end_line=c["end_line"],
-                        content=c["content"],
-                        chunk_type=c["chunk_type"],
-                        name=c.get("name"),
-                    )
-                    for c in data.get("chunks", [])
-                ]
-
-                indexer = CodebaseIndexer(embedder)
-                indexer._index = CodebaseIndex(
-                    chunks=chunks,
-                    embeddings=data.get("embeddings", {}),
-                    file_count=stats["file_count"],
-                    total_lines=data.get("total_lines", 0),
-                )
-                return indexer, stats
-        except (json.JSONDecodeError, OSError, KeyError):
-            pass  # Cache invalid, rebuild
-
-    # Detect ignore patterns
-    ignore_patterns = (
-        "__pycache__", "node_modules", ".venv", "venv", ".git",
-        ".mypy_cache", ".pytest_cache", ".ruff_cache", "dist", "build",
-        ".egg-info", ".tox", "htmlcov", ".next", ".svelte-kit", "target",
-    )
-
-    workspace = Workspace(
-        root=cwd,
-        is_git=(cwd / ".git").is_dir(),
-        name=cwd.name,
-        ignore_patterns=ignore_patterns,
-    )
-
-    indexer = CodebaseIndexer(embedder)
-
-    try:
-        index = await indexer.index_workspace(workspace)
-        stats["indexed"] = True
-        stats["file_count"] = index.file_count
-        stats["chunk_count"] = len(index.chunks)
-
-        # Cache the index
-        import json
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        cache_data = {
-            "file_count": index.file_count,
-            "chunk_count": len(index.chunks),
-            "total_lines": index.total_lines,
-            "chunks": [
-                {
-                    "file_path": str(c.file_path),
-                    "start_line": c.start_line,
-                    "end_line": c.end_line,
-                    "content": c.content,
-                    "chunk_type": c.chunk_type,
-                    "name": c.name,
-                }
-                for c in index.chunks
-            ],
-            "embeddings": index.embeddings,
-        }
-        cache_file.write_text(json.dumps(cache_data))
-
-        return indexer, stats
-    except Exception:
-        return None, stats
-
-
 @dataclass(frozen=True, slots=True)
 class RAGResult:
     """Result of RAG retrieval with transparency info."""
@@ -389,7 +273,7 @@ async def _retrieve_relevant_code(
     RFC-108: Now supports SmartContext with graceful fallback.
 
     Args:
-        context_provider: Either SmartContext (RFC-108) or legacy CodebaseIndexer
+        context_provider: SmartContext (RFC-108) for codebase context
         query: The search query
         top_k: Maximum number of results
 
@@ -399,29 +283,23 @@ async def _retrieve_relevant_code(
     if not context_provider:
         return RAGResult(context="")
 
-    # RFC-108: Check if this is the new SmartContext
-    try:
-        from sunwell.indexing import SmartContext
-        if isinstance(context_provider, SmartContext):
-            result = await context_provider.get_context(query, top_k=top_k)
-            references = tuple(
-                (f"{c.file_path}:{c.start_line}-{c.end_line}", c.score)
-                for c in result.chunks
-            ) if hasattr(result, 'chunks') and result.chunks else ()
+    # RFC-108: Use SmartContext for codebase context
+    from sunwell.indexing import SmartContext
+    if isinstance(context_provider, SmartContext):
+        result = await context_provider.get_context(query, top_k=top_k)
+        references = tuple(
+            (f"{c.file_path}:{c.start_line}-{c.end_line}", c.score)
+            for c in result.chunks
+        ) if hasattr(result, 'chunks') and result.chunks else ()
 
-            return RAGResult(
-                context=result.context,
-                references=references,
-                fallback_used=result.fallback_used,
-            )
-    except ImportError:
-        pass  # SmartContext not available, try legacy
+        return RAGResult(
+            context=result.context,
+            references=references,
+            fallback_used=result.fallback_used,
+        )
 
-    # Legacy CodebaseIndexer path
-    try:
-        retrieval = await context_provider.retrieve(query, top_k=top_k, threshold=0.3)
-        if retrieval.chunks:
-            # Build references list for transparency
+    # Fallback if not SmartContext (should not happen)
+    return RAGResult(context="")
             references = tuple(
                 (chunk.reference, retrieval.relevance_scores.get(chunk.id, 0.0))
                 for chunk in retrieval.chunks

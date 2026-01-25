@@ -211,11 +211,7 @@ class ExecutionCoordinator:
             task.error = result.output
 
     def _strip_markdown_fences(self, content: str) -> str:
-        """Remove markdown code fences from content.
-
-        Legacy method kept for backward compatibility. New code should use
-        the sanitization in tools/handlers/file.py instead.
-        """
+        """Remove markdown code fences from content."""
         lines = content.split("\n")
         if lines and lines[0].strip().startswith("```"):
             lines = lines[1:]

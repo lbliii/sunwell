@@ -122,27 +122,6 @@ class SessionManager:
                         except (json.JSONDecodeError, OSError):
                             continue
 
-        # Legacy: Check flat sessions directory
-        legacy_sessions_dir = self.base_path / "sessions"
-        if legacy_sessions_dir.exists() and not project:
-            for path in legacy_sessions_dir.glob("*.json"):
-                if path.stem.endswith("_dag"):
-                    continue
-                try:
-                    with open(path) as f:
-                        meta = json.load(f)
-                    sessions.append({
-                        "id": path.stem,
-                        "uri": f"sunwell:session/default/{path.stem}",
-                        "project": "default",
-                        "name": meta.get("name", path.stem),
-                        "created": meta.get("created"),
-                        "turns": meta.get("turn_count", 0),
-                        "path": str(path),
-                    })
-                except (json.JSONDecodeError, OSError):
-                    continue
-
         return sorted(sessions, key=lambda s: s.get("created") or "", reverse=True)
 
     def save_session(self, name: str | None = None) -> Path:
@@ -178,15 +157,6 @@ class SessionManager:
         with open(meta_path, "w") as f:
             json.dump(meta, f, indent=2)
 
-        # Also save to legacy location for backwards compat
-        legacy_dir = self.base_path / "sessions"
-        legacy_dir.mkdir(parents=True, exist_ok=True)
-        legacy_dag_path = legacy_dir / f"{session_name}_dag.json"
-        self._get_hot_dag().save(legacy_dag_path)
-        legacy_meta_path = legacy_dir / f"{session_name}.json"
-        with open(legacy_meta_path, "w") as f:
-            json.dump(meta, f, indent=2)
-
         return meta_path
 
     def load_session(
@@ -219,12 +189,8 @@ class SessionManager:
         if project:
             self._project = project
 
-        # Try project-scoped path first (RFC-101)
+        # Use project-scoped path (RFC-101)
         dag_path = self.base_path / "projects" / self._project / f"{session_id}_dag.json"
-        if not dag_path.exists():
-            # Fall back to legacy path
-            dag_path = self.base_path / "sessions" / f"{session_id}_dag.json"
-
         if not dag_path.exists():
             raise FileNotFoundError(f"Session not found: {session_id}")
 
