@@ -87,7 +87,7 @@ async def main() -> int:
 
     # Import after parsing to avoid slow imports on --help
     from sunwell.cli.helpers import resolve_model
-    from sunwell.config import get_config
+    from sunwell.foundation.config import get_config
     from sunwell.demo.experiment_runner import (
         ExperimentConfig,
         ExperimentRunner,

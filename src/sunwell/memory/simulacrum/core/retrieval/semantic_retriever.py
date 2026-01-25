@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from sunwell.foundation.freethreading import WorkloadType, optimal_workers, run_parallel
+from sunwell.foundation.threading import WorkloadType, optimal_workers, run_parallel
 from sunwell.memory.simulacrum.core.retrieval.similarity import cosine_similarity, keyword_similarity
 from sunwell.foundation.types.memory import MemoryRetrievalResult
 

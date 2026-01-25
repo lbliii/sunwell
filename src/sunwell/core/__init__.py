@@ -37,7 +37,7 @@ from sunwell.core.types import (
     Tier,
     ValidationMethod,
 )
-from sunwell.foundation.freethreading import (
+from sunwell.foundation.threading import (
     WorkloadType,
     is_free_threaded,
     optimal_workers,

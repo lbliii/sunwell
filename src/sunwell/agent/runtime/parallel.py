@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any, TypeVar
 
-from sunwell.foundation.freethreading import (
+from sunwell.foundation.threading import (
     WorkloadType,
     optimal_workers,
 )

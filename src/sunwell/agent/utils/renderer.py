@@ -84,7 +84,7 @@ class RichRenderer:
         try:
             from rich.console import Console
 
-            from sunwell.interface.cli.theme import SUNWELL_THEME, should_reduce_motion
+            from sunwell.interface.cli.core.theme import SUNWELL_THEME, should_reduce_motion
 
             self.console = Console(theme=SUNWELL_THEME)
             self.rich_available = True

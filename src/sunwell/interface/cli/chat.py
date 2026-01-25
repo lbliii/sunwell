@@ -18,9 +18,9 @@ from rich.panel import Panel
 
 from sunwell.foundation.binding import BindingManager
 from sunwell.foundation.utils import safe_json_dumps, safe_json_loads
-from sunwell.interface.generative.cli.chat import ContextBuilder, ProjectDetector
-from sunwell.interface.generative.cli.helpers import create_model
-from sunwell.interface.generative.cli.theme import create_sunwell_console
+from sunwell.interface.cli.chat import ContextBuilder, ProjectDetector
+from sunwell.interface.cli.helpers import create_model
+from sunwell.interface.cli.core.theme import create_sunwell_console
 from sunwell.foundation.errors import SunwellError
 from sunwell.core.types.types import LensReference
 from sunwell.knowledge.embedding import create_embedder

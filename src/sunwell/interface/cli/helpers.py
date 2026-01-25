@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from rich.console import Console
 from rich.table import Table
 
-from sunwell.foundation.freethreading import is_free_threaded
+from sunwell.foundation.threading import is_free_threaded
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol

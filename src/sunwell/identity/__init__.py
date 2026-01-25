@@ -5,23 +5,37 @@ RFC-023: Two-tier learning system that captures both facts and behaviors:
 - Behaviors → Digest into evolving identity prompt that shapes interaction
 
 Key components:
-- extractor: Two-tier extraction (facts vs behaviors) from user messages
+- extraction: Two-tier extraction (facts vs behaviors) from user messages
 - store: Identity storage with session/global persistence
-- digest: Behavior → Identity synthesis with adaptive frequency
+- synthesis: Behavior → Identity synthesis with adaptive frequency
 - injection: System prompt integration
 """
 
-from sunwell.identity.digest import digest_identity
-from sunwell.identity.extractor import extract_behaviors, extract_with_categories
+# Core models
+from sunwell.identity.core.models import Identity, Observation
+
+# Storage
+from sunwell.identity.store import IdentityStore
+
+# Extraction
+from sunwell.identity.extraction import extract_behaviors, extract_with_categories
+
+# Synthesis
+from sunwell.identity.synthesis import digest_identity
+
+# Injection
 from sunwell.identity.injection import build_system_prompt_with_identity
-from sunwell.identity.store import Identity, IdentityStore, Observation
 
 __all__ = [
+    # Core
     "Identity",
     "IdentityStore",
     "Observation",
+    # Extraction
     "extract_with_categories",
     "extract_behaviors",
+    # Synthesis
     "digest_identity",
+    # Injection
     "build_system_prompt_with_identity",
 ]

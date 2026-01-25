@@ -19,7 +19,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
-from sunwell.foundation.freethreading import (
+from sunwell.foundation.threading import (
     WorkloadType,
     optimal_workers,
 )

@@ -1,12 +1,9 @@
 """Sunwell CLI - Command-line interface.
 
-This module now imports from the modular cli/ package structure.
+This module imports from the modular cli/ package structure.
 All commands have been extracted into separate modules for better organization.
-
-For backward compatibility, this file re-exports the main CLI entry point.
 """
 
-from sunwell.interface.cli import main
+from sunwell.interface.cli.core.main import main
 
-# Re-export for backward compatibility
 __all__ = ["main"]

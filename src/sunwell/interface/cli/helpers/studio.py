@@ -4,8 +4,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from sunwell.interface.generative.cli.open_cmd import launch_studio
-from sunwell.interface.generative.cli.theme import console
+from sunwell.interface.cli.commands.open_cmd import launch_studio
+from sunwell.interface.cli.core.theme import console
 
 
 def open_plan_in_studio(

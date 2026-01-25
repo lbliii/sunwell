@@ -12,7 +12,7 @@ from sunwell.memory.simulacrum.context.assembler import ContextAssembler
 from sunwell.memory.simulacrum.core.store import SimulacrumStore
 
 from sunwell.foundation.binding import BindingManager
-from sunwell.interface.generative.cli.helpers import create_model
+from sunwell.interface.cli.helpers import create_model
 from sunwell.foundation.errors import SunwellError
 from sunwell.core.types.types import LensReference
 from sunwell.knowledge.embedding import create_embedder
@@ -129,7 +129,7 @@ def chat(
     _display_session_info(lens, provider, model, session, tools_enabled, trust_level)
 
     # Import and run chat loop
-    from sunwell.interface.generative.cli.chat.loop import chat_loop
+    from sunwell.interface.cli.chat.loop import chat_loop
 
     asyncio.run(
         chat_loop(
