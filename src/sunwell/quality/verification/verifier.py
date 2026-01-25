@@ -24,7 +24,7 @@ from sunwell.quality.verification.types import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.planning.naaru.artifacts import ArtifactSpec
 
 

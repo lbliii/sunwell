@@ -9,7 +9,7 @@ from sunwell.agent.learning.dead_end import DeadEnd
 from sunwell.agent.learning.learning import Learning
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.planning.naaru.types import Task
     from sunwell.memory.simulacrum.core.turn import Learning as SimLearning
     from sunwell.memory.simulacrum.core.turn import TemplateData, TemplateVariable
@@ -210,7 +210,7 @@ class LearningExtractor:
         if not self.model:
             return []
 
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         prompt = f"""Extract key facts from this code that would help generating similar code.
 
@@ -300,7 +300,7 @@ PATTERN: Using Flask-SQLAlchemy with create_app pattern"""
         if not self.model:
             return None
 
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         # Use LLM to analyze pattern
         prompt = f"""Analyze this successful task for repeatable patterns.

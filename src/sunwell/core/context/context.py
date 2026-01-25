@@ -13,7 +13,7 @@ from pathlib import Path
 from sunwell.foundation.config import SunwellConfig, get_config
 from sunwell.knowledge.embedding import create_embedder
 from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
-from sunwell.models.protocol import ModelProtocol
+from sunwell.models import ModelProtocol
 from sunwell.memory.simulacrum.manager import SimulacrumManager
 from sunwell.foundation.types.protocol import (
     ConsoleProtocol,

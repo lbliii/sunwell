@@ -263,7 +263,7 @@ Code only (no explanations):"""
 
         start = time.perf_counter()
 
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         result = await self.model.generate(
             prompt,
@@ -321,7 +321,7 @@ Code only (no explanations):"""
         if on_progress:
             on_progress("Applying lens heuristics...")
 
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         initial_prompt, requirements_added = self._build_lens_enhanced_prompt(task)
 
@@ -482,7 +482,7 @@ Code only (no explanations):"""
         start = time.perf_counter()
         chunks: list[str] = []
 
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         async for chunk in self.model.generate_stream(
             prompt,
@@ -541,7 +541,7 @@ Code only (no explanations):"""
         lens_name = "coder.lens" if self.lens else "none"
         lens_detected = self.lens is not None
 
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         initial_prompt, requirements_added = self._build_lens_enhanced_prompt(task)
 

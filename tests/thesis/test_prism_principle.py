@@ -125,8 +125,8 @@ class TestHarmonicPlanningImprovement:
     @pytest.mark.asyncio
     async def test_harmonic_planning_improves_parallelism(self):
         """Harmonic planning should produce graphs with higher parallelism."""
-        from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
-        from sunwell.naaru.planners.harmonic import HarmonicPlanner, PlanMetrics
+        from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
+        from sunwell.planning.naaru.planners.harmonic import HarmonicPlanner, PlanMetrics
 
         # Create a mock model that returns different artifacts per call
         call_count = [0]
@@ -179,7 +179,7 @@ class TestHarmonicPlanningImprovement:
     @pytest.mark.asyncio
     async def test_harmonic_planning_selects_best_candidate(self):
         """Harmonic planning should select the highest-scoring candidate."""
-        from sunwell.naaru.planners.harmonic import HarmonicPlanner, PlanMetrics
+        from sunwell.planning.naaru.planners.harmonic import HarmonicPlanner, PlanMetrics
 
         class ScoringMockModel:
             """Mock that returns plans with known scores."""
@@ -239,7 +239,7 @@ class TestMultiPerspectiveSynthesisStructure:
 
     def test_harmonic_worker_has_multiple_personas(self):
         """HarmonicSynthesisWorker must define multiple personas."""
-        from sunwell.naaru.workers.harmonic import HarmonicSynthesisWorker
+        from sunwell.planning.naaru.workers.harmonic import HarmonicSynthesisWorker
 
         assert hasattr(HarmonicSynthesisWorker, "LENS_PERSONAS")
         personas = HarmonicSynthesisWorker.LENS_PERSONAS
@@ -254,7 +254,7 @@ class TestMultiPerspectiveSynthesisStructure:
 
     def test_diversity_module_has_harmonic_function(self):
         """Diversity module must have harmonic (multi-persona) function."""
-        from sunwell.naaru.diversity import diversity_harmonic, HARMONIC_PERSONAS
+        from sunwell.planning.naaru.diversity import diversity_harmonic, HARMONIC_PERSONAS
 
         # Harmonic function must exist
         assert callable(diversity_harmonic), "diversity_harmonic must be callable"
@@ -266,7 +266,7 @@ class TestMultiPerspectiveSynthesisStructure:
 
     def test_variance_strategies_exist(self):
         """HarmonicPlanner must have variance strategies."""
-        from sunwell.naaru.planners.harmonic import VarianceStrategy
+        from sunwell.planning.naaru.planners.harmonic import VarianceStrategy
 
         strategies = [s.value for s in VarianceStrategy]
 
@@ -420,8 +420,8 @@ class TestPrismPrincipleIntegration:
         if not has_model:
             pytest.skip("No model available")
 
-        from sunwell.naaru.planners.artifact import ArtifactPlanner
-        from sunwell.naaru.planners.harmonic import HarmonicPlanner
+        from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
+        from sunwell.planning.naaru.planners.harmonic import HarmonicPlanner
         from sunwell.models.ollama import OllamaModel
 
         model = OllamaModel(model_id="qwen2.5:3b")

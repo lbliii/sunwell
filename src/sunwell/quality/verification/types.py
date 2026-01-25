@@ -2,7 +2,7 @@
 
 Core types for semantic verification of generated code.
 Distinct from:
-- sunwell.naaru.artifacts.VerificationResult (artifact contract verification)
+- sunwell.planning.naaru.artifacts.VerificationResult (artifact contract verification)
 - sunwell.routing.tiered_attunement.VerificationResult (routing self-verification)
 
 This module focuses on behavioral/semantic correctness verification.
@@ -208,7 +208,7 @@ class DeepVerificationResult:
     """Final deep verification result with confidence.
 
     Note: Named DeepVerificationResult to distinguish from:
-    - sunwell.naaru.artifacts.VerificationResult (artifact contract verification)
+    - sunwell.planning.naaru.artifacts.VerificationResult (artifact contract verification)
     - sunwell.routing.tiered_attunement.VerificationResult (self-verification)
 
     This class focuses on semantic correctness of generated code.

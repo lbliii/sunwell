@@ -45,7 +45,7 @@ class DictSerializable(Protocol):
         """Convert to dictionary representation."""
         ...
 
-from sunwell.models.protocol import Tool, ToolCall
+from sunwell.models import Tool, ToolCall
 from sunwell.tools.types import ToolResult
 
 if TYPE_CHECKING:

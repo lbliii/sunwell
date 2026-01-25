@@ -42,7 +42,7 @@ class BenchmarkResult:
 
 async def benchmark_single_shot(model, goal: str) -> BenchmarkResult:
     """Run single-shot (artifact_first) planning."""
-    from sunwell.naaru.planners.artifact import ArtifactPlanner
+    from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
     planner = ArtifactPlanner(model=model)
 
@@ -77,7 +77,7 @@ async def benchmark_single_shot(model, goal: str) -> BenchmarkResult:
 
 async def benchmark_harmonic(model, goal: str, candidates: int = 5) -> BenchmarkResult:
     """Run harmonic planning."""
-    from sunwell.naaru.planners.harmonic import HarmonicPlanner
+    from sunwell.planning.naaru.planners.harmonic import HarmonicPlanner
 
     planner = HarmonicPlanner(
         model=model,

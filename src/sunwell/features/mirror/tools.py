@@ -4,7 +4,7 @@ Defines the tools available for self-introspection and self-modification,
 along with their trust level requirements.
 """
 
-from sunwell.models.protocol import Tool
+from sunwell.models import Tool
 
 # Mirror tool definitions
 MIRROR_TOOLS: dict[str, Tool] = {

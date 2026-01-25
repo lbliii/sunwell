@@ -10,11 +10,11 @@ from typing import TYPE_CHECKING
 from sunwell.foundation.utils import safe_json_loads
 from sunwell.benchmark.naaru.conditions.harmonic import run_harmonic
 from sunwell.benchmark.naaru.types import NaaruCondition, NaaruConditionOutput, ResonanceMetrics
-from sunwell.models.protocol import GenerateOptions
+from sunwell.models import GenerateOptions
 
 if TYPE_CHECKING:
     from sunwell.benchmark.types import BenchmarkTask
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 
 async def judge_output(

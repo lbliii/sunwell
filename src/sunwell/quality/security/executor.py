@@ -30,7 +30,7 @@ from sunwell.quality.security.sandbox import (
 
 if TYPE_CHECKING:
     from sunwell.foundation.core.lens import Lens
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.planning.skills.executor import ExecutionContext
     from sunwell.planning.skills.graph import SkillGraph
     from sunwell.planning.skills.types import SkillOutput

@@ -19,16 +19,16 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from sunwell.naaru.checkpoint import (
+from sunwell.planning.naaru.checkpoint import (
     AgentCheckpoint,
     FailurePolicy,
     TaskExecutionConfig,
 )
-from sunwell.naaru.planners import (
+from sunwell.planning.naaru.planners import (
     AgentPlanner,
     TaskPlanner,
 )
-from sunwell.naaru.types import (
+from sunwell.planning.naaru.types import (
     Opportunity,
     RiskLevel,
     Task,
@@ -116,7 +116,7 @@ class TestTask:
 
     def test_task_to_opportunity(self):
         """Test conversion to Opportunity."""
-        from sunwell.naaru.types import OpportunityCategory
+        from sunwell.planning.naaru.types import OpportunityCategory
 
         task = Task(
             id="test-005",
@@ -142,7 +142,7 @@ class TestTask:
 
     def test_task_from_opportunity(self):
         """Test conversion from Opportunity."""
-        from sunwell.naaru.types import OpportunityCategory
+        from sunwell.planning.naaru.types import OpportunityCategory
 
         opp = Opportunity(
             id="opp-001",

@@ -313,7 +313,7 @@ class CascadeExecutor:
         wave_num: int,
     ) -> WaveResult:
         """Execute a single wave through the artifact system."""
-        from sunwell.models.protocol import ToolCall
+        from sunwell.models import ToolCall
 
         completed_content: dict[str, str] = {}
         errors: list[str] = []
@@ -460,7 +460,7 @@ async def create_cascade_executor(
     # Create model if not provided
     if model is None:
         from sunwell.foundation.config import get_config
-        from sunwell.models.ollama import OllamaModel
+        from sunwell.models import OllamaModel
 
         config = get_config()
         name = model_name

@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ToolCall
+    from sunwell.models import ToolCall
 
 
 # =============================================================================
@@ -162,7 +162,7 @@ def convert_to_tool_calls(parsed: list[ParsedToolCall]) -> list[ToolCall]:
     This allows the same handler code to work with both native and
     prompted tool calling.
     """
-    from sunwell.models.protocol import ToolCall
+    from sunwell.models import ToolCall
 
     return [
         ToolCall(

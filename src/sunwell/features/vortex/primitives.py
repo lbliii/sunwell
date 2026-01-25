@@ -14,7 +14,7 @@ from difflib import SequenceMatcher
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import GenerateOptions, ModelProtocol
+    from sunwell.models import GenerateOptions, ModelProtocol
 
 
 # Pre-compiled regex patterns for gradient parsing

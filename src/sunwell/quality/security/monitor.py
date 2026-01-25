@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 from sunwell.quality.security.analyzer import PermissionAnalyzer, PermissionScope
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 
 # =============================================================================
@@ -326,7 +326,7 @@ Respond with JSON: {{"classification": "safe|<type>", "evidence": "brief explana
 """
 
         try:
-            from sunwell.models.protocol import Message
+            from sunwell.models import Message
 
             response = await self.classifier.generate(
                 prompt=(Message(role="user", content=prompt),)

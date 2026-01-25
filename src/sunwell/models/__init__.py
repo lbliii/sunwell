@@ -16,6 +16,7 @@ from sunwell.models.core.protocol import (
     # RFC-012: Tool calling types
     Tool,
     ToolCall,
+    sanitize_llm_content,
 )
 
 # Registry
@@ -46,6 +47,8 @@ __all__ = [
     "Message",
     "Tool",
     "ToolCall",
+    # Utilities
+    "sanitize_llm_content",
     # Registry
     "ModelRegistry",
     "get_registry",

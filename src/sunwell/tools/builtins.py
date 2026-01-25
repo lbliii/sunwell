@@ -4,7 +4,7 @@ These are standard tools that don't require skill definitions.
 Extended for RFC-024 with git operations and environment access.
 """
 
-from sunwell.models.protocol import Tool
+from sunwell.models import Tool
 
 # =============================================================================
 # Core Tool Definitions

@@ -97,7 +97,7 @@ list all missing features.
 """
 
         try:
-            from sunwell.models.protocol import GenerateOptions
+            from sunwell.models import GenerateOptions
 
             result = await self.model.generate(
                 prompt,

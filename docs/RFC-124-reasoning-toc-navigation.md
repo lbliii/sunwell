@@ -180,7 +180,7 @@ class TocNode:
     """
     
     node_id: str
-    """Unique identifier (e.g., 'sunwell.naaru.harmonic')."""
+    """Unique identifier (e.g., 'sunwell.planning.naaru.harmonic')."""
     
     title: str
     """Human-readable title."""

@@ -51,8 +51,8 @@ Thematic Naming (from Naaru lore):
 - **Luminance**: Confidence/quality score
 
 Example:
-    >>> from sunwell.naaru import Naaru, NaaruConfig
-    >>> from sunwell.models.ollama import OllamaModel
+    >>> from sunwell.planning.naaru import Naaru, NaaruConfig
+    >>> from sunwell.models import OllamaModel
     >>>
     >>> naaru = Naaru(
     ...     workspace=Path("."),
@@ -228,6 +228,15 @@ from sunwell.planning.naaru.planners import (
     SelfImprovementPlanner,
     TaskPlanner,
 )
+# RFC-038: Harmonic Planning - additional exports
+from sunwell.planning.naaru.planners.harmonic import (
+    HarmonicPlanner,
+    PlanMetrics,
+    PlanMetricsV2,
+    ScoringVersion,
+    VarianceStrategy,
+)
+from sunwell.planning.naaru.planners.metrics import CandidateResult
 from sunwell.planning.naaru.refinement import (
     RefinementResult,
     refine_full,
@@ -300,6 +309,9 @@ from sunwell.foundation.types.config import NaaruConfig
 # ModelSize moved to sunwell.types.model_size
 from sunwell.foundation.types.model_size import ModelSize
 
+# Persona - M'uru identity
+from sunwell.planning.naaru.persona import MURU, NaaruPersona
+
 
 __all__ = [
     # Core Types
@@ -360,6 +372,18 @@ __all__ = [
 
     # RFC-036: Artifact-First Planner
     "ArtifactPlanner",
+
+    # RFC-038: Harmonic Planning
+    "HarmonicPlanner",
+    "CandidateResult",
+    "PlanMetrics",
+    "PlanMetricsV2",
+    "ScoringVersion",
+    "VarianceStrategy",
+
+    # Persona
+    "MURU",
+    "NaaruPersona",
 
     # RFC-036: Artifact Types
     "ArtifactSpec",

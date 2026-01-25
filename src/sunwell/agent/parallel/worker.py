@@ -240,7 +240,7 @@ class WorkerProcess:
         from sunwell.agent.utils.request import RunOptions
         from sunwell.agent.context.session import SessionContext
         from sunwell.memory import PersistentMemory
-        from sunwell.models.ollama import OllamaModel
+        from sunwell.models import OllamaModel
 
         # Create model (each worker gets its own model instance)
         try:

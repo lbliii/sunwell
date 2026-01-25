@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import Tool
+    from sunwell.models import Tool
 
 
 class SkillType(Enum):
@@ -459,7 +459,7 @@ class Skill:
         Returns:
             A Tool object suitable for LLM function calling.
         """
-        from sunwell.models.protocol import Tool
+        from sunwell.models import Tool
 
         return Tool(
             name=self.name,

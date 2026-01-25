@@ -7,7 +7,7 @@ RFC-025: Extracted from manager.py to slim it down.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sunwell.models.protocol import Tool
+from sunwell.models import Tool
 
 if TYPE_CHECKING:
     from sunwell.memory.simulacrum.manager.manager import SimulacrumManager

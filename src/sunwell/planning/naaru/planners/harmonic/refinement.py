@@ -8,7 +8,7 @@ from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
 from sunwell.planning.naaru.planners.metrics import PlanMetrics, PlanMetricsV2
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.planning.naaru.planners.harmonic.parsing import parse_artifacts
     from sunwell.planning.naaru.planners.harmonic.planner import HarmonicPlanner
     from sunwell.planning.naaru.planners.harmonic.scoring import compute_metrics_v1, compute_metrics_v2
@@ -130,7 +130,7 @@ Output the COMPLETE revised artifact list as JSON array:
   }}
 ]"""
 
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     result = await planner.model.generate(
         prompt,

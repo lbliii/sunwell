@@ -33,7 +33,7 @@ from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.models.protocol import GenerateOptions, Tool
+from sunwell.models import GenerateOptions, Tool
 from sunwell.planning.reasoning.decisions import (
     APPROVAL_OUTCOMES,
     CONFIDENCE_THRESHOLDS,
@@ -279,7 +279,7 @@ def _get_decision_tools() -> dict[DecisionType, tuple[Tool, ...]]:
 if TYPE_CHECKING:
     from sunwell.agent.incremental.cache import ExecutionCache
     from sunwell.knowledge.codebase.context import ProjectContext
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.planning.naaru.artifacts import ArtifactGraph
 
 

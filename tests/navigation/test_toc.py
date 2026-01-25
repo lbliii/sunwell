@@ -18,14 +18,14 @@ class TestTocNode:
     def test_create_node(self) -> None:
         """Test basic node creation."""
         node = TocNode(
-            node_id="sunwell.naaru.harmonic",
+            node_id="sunwell.planning.naaru.harmonic",
             title="Harmonic Resonance",
             node_type="module",
             summary="Coordinates multi-model consensus",
-            path="sunwell/naaru/harmonic.py",
+            path="sunwell/planning/naaru/harmonic.py",
         )
 
-        assert node.node_id == "sunwell.naaru.harmonic"
+        assert node.node_id == "sunwell.planning.naaru.harmonic"
         assert node.title == "Harmonic Resonance"
         assert node.node_type == "module"
         assert node.summary == "Coordinates multi-model consensus"
@@ -311,8 +311,8 @@ class TestNodeIdFromPath:
 
     def test_simple_path(self) -> None:
         """Test simple path conversion."""
-        nid = node_id_from_path(Path("src/sunwell/naaru/harmonic.py"), Path("src"))
-        assert nid == "sunwell.naaru.harmonic"
+        nid = node_id_from_path(Path("src/sunwell/planning/naaru/harmonic.py"), Path("src"))
+        assert nid == "sunwell.planning.naaru.harmonic"
 
     def test_init_file(self) -> None:
         """Test __init__.py path."""

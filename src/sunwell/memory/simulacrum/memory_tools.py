@@ -15,7 +15,7 @@ Part of RFC-014: Multi-Topology Memory.
 
 from typing import TYPE_CHECKING
 
-from sunwell.models.protocol import Tool
+from sunwell.models import Tool
 
 if TYPE_CHECKING:
     from sunwell.knowledge.embedding.protocol import EmbeddingProtocol

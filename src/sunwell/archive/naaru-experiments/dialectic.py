@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,10 +104,10 @@ async def dialectic_decide(
     Returns:
         DialecticResult with thesis, antithesis, and synthesis
     """
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     if model is None:
-        from sunwell.models.ollama import OllamaModel
+        from sunwell.models import OllamaModel
         model = OllamaModel(model="gemma3:1b")
 
     ctx = f"\nContext: {context}" if context else ""
@@ -203,10 +203,10 @@ async def expand_contract(
     Returns:
         ExpandContractResult with options, survivors, and selection
     """
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     if model is None:
-        from sunwell.models.ollama import OllamaModel
+        from sunwell.models import OllamaModel
         model = OllamaModel(model="gemma3:1b")
 
     # Expansion: Generate options
@@ -318,10 +318,10 @@ async def structure_then_content(
     Returns:
         StructureContentResult with structure, content, and integrated result
     """
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     if model is None:
-        from sunwell.models.ollama import OllamaModel
+        from sunwell.models import OllamaModel
         model = OllamaModel(model="gemma3:1b")
 
     # Structure: Design skeleton
@@ -404,10 +404,10 @@ async def positive_negative_split(
     Returns:
         Dict with 'do', 'dont', and 'balanced' keys
     """
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     if model is None:
-        from sunwell.models.ollama import OllamaModel
+        from sunwell.models import OllamaModel
         model = OllamaModel(model="gemma3:1b")
 
     # What TO do

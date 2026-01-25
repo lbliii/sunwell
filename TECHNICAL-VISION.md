@@ -2251,8 +2251,8 @@ def main(ctx, plan: bool, model: str | None, verbose: bool,
 async def _run_agent(goal: str, time: int, trust: str, dry_run: bool,
                      verbose: bool, model_override: str | None) -> None:
     """Execute agent mode with artifact-first planning."""
-    from sunwell.naaru import Naaru
-    from sunwell.naaru.planners import ArtifactPlanner
+    from sunwell.planning.naaru import Naaru
+    from sunwell.planning.naaru.planners import ArtifactPlanner
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust
     

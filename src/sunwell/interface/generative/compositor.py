@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import Model
+    from sunwell.models import Model
 
 # Valid page types
 PageType = str  # 'home' | 'project' | 'research' | 'planning' | 'conversation'
@@ -406,7 +406,7 @@ class Compositor:
             current_page=context.current_page,
         )
 
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         result = await self.fast_model.generate(
             prompt,

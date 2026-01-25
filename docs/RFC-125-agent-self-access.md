@@ -597,7 +597,7 @@ class SunwellToolHandlers:
     ) -> ToolResult:
         """Scan for code weaknesses."""
         from sunwell.weakness.analyzer import WeaknessAnalyzer
-        from sunwell.naaru.artifacts import ArtifactGraph
+        from sunwell.planning.naaru.artifacts import ArtifactGraph
         
         # Build artifact graph (simplified for scan)
         graph = await self._build_artifact_graph()
@@ -763,7 +763,7 @@ class SunwellToolHandlers:
     
     async def _build_artifact_graph(self):
         """Build artifact graph for weakness analysis."""
-        from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
+        from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
         
         graph = ArtifactGraph()
         src_dir = self.workspace / "src"

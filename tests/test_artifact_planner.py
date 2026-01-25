@@ -16,8 +16,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
-from sunwell.naaru.planners.artifact import ArtifactPlanner
+from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
+from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
 
 # =============================================================================

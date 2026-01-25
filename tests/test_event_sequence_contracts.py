@@ -22,8 +22,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from sunwell.agent.events import AgentEvent, EventType
-from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
-from sunwell.naaru.planners.harmonic import CandidateResult, HarmonicPlanner, PlanMetrics
+from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
+from sunwell.planning.naaru.planners.harmonic import CandidateResult, HarmonicPlanner, PlanMetrics
 
 
 # =============================================================================

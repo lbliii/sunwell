@@ -16,7 +16,7 @@ from sunwell.benchmark.types import (
     SelfDirectedMetrics,
     TaskCategory,
 )
-from sunwell.models.protocol import GenerateOptions, ModelProtocol
+from sunwell.models import GenerateOptions, ModelProtocol
 
 if TYPE_CHECKING:
     from sunwell.benchmark.types import BenchmarkTask, PrefetchMetrics

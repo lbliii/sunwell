@@ -12,7 +12,7 @@ from sunwell.incremental.executor import (
     SkipReason,
     should_skip,
 )
-from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
+from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
 
 
 @pytest.fixture

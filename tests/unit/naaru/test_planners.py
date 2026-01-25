@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from sunwell.naaru.planners.agent import AgentPlanner
-from sunwell.naaru.planners.protocol import PlanningError, PlanningStrategy, TaskPlanner
-from sunwell.naaru.types import Task, TaskMode, TaskStatus
+from sunwell.planning.naaru.planners.agent import AgentPlanner
+from sunwell.planning.naaru.planners.protocol import PlanningError, PlanningStrategy, TaskPlanner
+from sunwell.planning.naaru.types import Task, TaskMode, TaskStatus
 
 
 class TestTaskPlannerProtocol:

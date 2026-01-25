@@ -22,7 +22,7 @@ from sunwell.foundation.types.memory import ContextBudget
 
 if TYPE_CHECKING:
     from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 
 @dataclass(slots=True)

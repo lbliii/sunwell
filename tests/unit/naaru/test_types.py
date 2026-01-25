@@ -2,7 +2,7 @@
 
 import pytest
 
-from sunwell.naaru.types import (
+from sunwell.planning.naaru.types import (
     Opportunity,
     OpportunityCategory,
     RiskLevel,

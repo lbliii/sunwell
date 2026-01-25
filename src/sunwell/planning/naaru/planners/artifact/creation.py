@@ -6,7 +6,7 @@ from sunwell.planning.naaru.artifacts import ArtifactSpec, VerificationResult
 from sunwell.planning.naaru.planners.artifact import parsing, prompts
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 
 async def create_artifact(
@@ -29,7 +29,7 @@ async def create_artifact(
     """
     prompt = prompts.build_creation_prompt(artifact, context)
 
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     result = await model.generate(
         prompt,
@@ -90,7 +90,7 @@ Respond with JSON:
   "missing": ["list", "of", "missing", "requirements"]  // if failed
 }}"""
 
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     result = await model.generate(
         prompt,

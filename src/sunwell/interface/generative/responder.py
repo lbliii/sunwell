@@ -27,7 +27,7 @@ _PROJECT_NAME_PATTERN = re.compile(
 _PROJECT_SUFFIX_PATTERN = re.compile(r"\s+(app|game|site|website|project|system)$")
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 from sunwell.interface.generative.classifier import ClassificationResult
 
@@ -228,7 +228,7 @@ class ResponseGenerator:
             history=history_str,
         )
 
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         result = await self.model.generate(
             prompt,

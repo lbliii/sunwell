@@ -22,7 +22,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sunwell.models.protocol import ToolCall
+from sunwell.models import ToolCall
 from sunwell.tools.handlers import CoreToolHandlers, PathSecurityError
 from sunwell.tools.types import (
     ToolAuditEntry,
@@ -33,7 +33,7 @@ from sunwell.tools.types import (
 
 if TYPE_CHECKING:
     from sunwell.features.mirror.handler import MirrorHandler
-    from sunwell.models.protocol import Tool
+    from sunwell.models import Tool
     from sunwell.knowledge.project import Project
     from sunwell.memory.simulacrum.manager import SimulacrumToolHandler
     from sunwell.memory.simulacrum.memory_tools import MemoryToolHandler

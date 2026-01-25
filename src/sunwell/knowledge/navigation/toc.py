@@ -28,7 +28,7 @@ class TocNode:
     Target: ~15 tokens per node in JSON serialization.
 
     Attributes:
-        node_id: Unique identifier (e.g., 'sunwell.naaru.harmonic').
+        node_id: Unique identifier (e.g., 'sunwell.planning.naaru.harmonic').
         title: Human-readable title.
         node_type: Type: 'module', 'class', 'function', 'directory', 'file'.
         summary: 1-2 sentence description of what this contains.
@@ -339,7 +339,7 @@ def node_id_from_path(path: Path, root: Path) -> str:
     """Generate a node ID from a file path.
 
     Converts path to a dotted identifier:
-    - `sunwell/naaru/harmonic.py` → `sunwell.naaru.harmonic`
+    - `sunwell/planning/naaru/harmonic.py` → `sunwell.planning.naaru.harmonic`
 
     Args:
         path: File path.

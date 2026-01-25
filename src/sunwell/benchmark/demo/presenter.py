@@ -392,7 +392,7 @@ class JsonPresenter:
 
     def _extract_code(self, code: str) -> str:
         """Extract code from markdown if present and sanitize."""
-        from sunwell.models.protocol import sanitize_llm_content
+        from sunwell.models import sanitize_llm_content
 
         if "```" in code:
             import re

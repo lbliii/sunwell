@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import GenerateOptions, ModelProtocol
+    from sunwell.models import GenerateOptions, ModelProtocol
 
 from sunwell.features.vortex.signals import Signal, generate_reaction, generate_signal
 

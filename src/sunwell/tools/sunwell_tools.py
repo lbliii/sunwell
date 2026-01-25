@@ -12,7 +12,7 @@ Tools are organized by category:
 - Workflow Orchestration: Route requests and list chains
 """
 
-from sunwell.models.protocol import Tool
+from sunwell.models import Tool
 
 # =============================================================================
 # Project Intelligence Tools

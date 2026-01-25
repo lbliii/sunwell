@@ -30,10 +30,10 @@ import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from sunwell.models.protocol import GenerateOptions
+from sunwell.models import GenerateOptions
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 # Pre-compiled regex patterns
 _MARKDOWN_CODE_BLOCK_RE = re.compile(r"```(?:json)?\s*([\s\S]*?)```")

@@ -11,7 +11,7 @@ from sunwell.planning.naaru.types import Task, TaskMode
 
 if TYPE_CHECKING:
     from sunwell.agent.events import AgentEvent
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.knowledge.project.schema import ProjectSchema
     from sunwell.planning.routing.unified import UnifiedRouter
 

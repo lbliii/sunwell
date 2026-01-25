@@ -23,7 +23,7 @@ from sunwell.quality.guardrails.types import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 # =============================================================================
 # Default Trust Zones

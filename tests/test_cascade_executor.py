@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 import pytest
 
-from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
+from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
 from sunwell.weakness.cascade import CascadeEngine, CascadeExecution, CascadePreview
 from sunwell.weakness.executor import (
     CascadeArtifactBuilder,

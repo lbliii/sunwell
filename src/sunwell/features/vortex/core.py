@@ -17,9 +17,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
-from sunwell.models.protocol import GenerateOptions
+from sunwell.models import GenerateOptions
 from sunwell.features.vortex.config import VortexConfig
 from sunwell.features.vortex.locality import (
     LocalityResult,
@@ -108,7 +108,7 @@ class Vortex:
 
     Example:
         >>> from sunwell.vortex import Vortex, VortexConfig
-        >>> from sunwell.models.ollama import OllamaModel
+        >>> from sunwell.models import OllamaModel
         >>>
         >>> model = OllamaModel("gemma3:1b")
         >>> vortex = Vortex(model)

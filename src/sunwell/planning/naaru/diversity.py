@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import GenerateOptions, ModelProtocol
+    from sunwell.models import GenerateOptions, ModelProtocol
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,7 +83,7 @@ async def diversity_none(
     Use when: Deterministic tasks, simple questions, cost-constrained
     """
     if options is None:
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
         options = GenerateOptions()
 
     result = await model.generate(prompt, options=options)
@@ -121,7 +121,7 @@ async def diversity_sampling(
     Use when: Non-deterministic tasks, need diversity cheaply
     """
     if options is None:
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
         options = GenerateOptions()
 
     async def generate_with_temp(temp: float) -> Candidate:
@@ -193,7 +193,7 @@ async def diversity_harmonic(
         personas = HARMONIC_PERSONAS
 
     if options is None:
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
         options = GenerateOptions()
 
     async def generate_with_persona(

@@ -35,7 +35,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,7 +110,7 @@ class GradientCascade:
         if self._loaded_tiers:
             return
 
-        from sunwell.models.ollama import OllamaModel
+        from sunwell.models import OllamaModel
 
         for model_name, threshold in self.tiers:
             tier = CascadeTier(

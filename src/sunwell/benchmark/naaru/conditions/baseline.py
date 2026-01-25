@@ -8,12 +8,12 @@ import time
 from typing import TYPE_CHECKING
 
 from sunwell.benchmark.naaru.types import NaaruCondition, NaaruConditionOutput
-from sunwell.models.protocol import GenerateOptions
+from sunwell.models import GenerateOptions
 
 if TYPE_CHECKING:
     from sunwell.benchmark.types import BenchmarkTask
     from sunwell.foundation.core.lens import Lens
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 
 async def run_baseline(

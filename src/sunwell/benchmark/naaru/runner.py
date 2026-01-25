@@ -36,7 +36,7 @@ from sunwell.benchmark.types import (
 
 if TYPE_CHECKING:
     from sunwell.foundation.core.lens import Lens
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.foundation.schema.loader import LensLoader
 
 
@@ -463,7 +463,7 @@ async def create_naaru_runner(
     """
     if model is None:
         from sunwell.foundation.config import get_config
-        from sunwell.models.ollama import OllamaModel
+        from sunwell.models import OllamaModel
 
         cfg = get_config()
         model_name = cfg.naaru.voice if cfg else "gemma3:1b"
@@ -471,7 +471,7 @@ async def create_naaru_runner(
 
     if judge_model is None:
         from sunwell.foundation.config import get_config
-        from sunwell.models.ollama import OllamaModel
+        from sunwell.models import OllamaModel
 
         cfg = get_config()
         judge_name = cfg.naaru.wisdom if cfg else "gemma3:4b"

@@ -7,7 +7,7 @@ from sunwell.incremental.hasher import (
     compute_spec_hash,
     create_artifact_hash,
 )
-from sunwell.naaru.artifacts import ArtifactSpec
+from sunwell.planning.naaru.artifacts import ArtifactSpec
 
 
 class TestComputeInputHash:

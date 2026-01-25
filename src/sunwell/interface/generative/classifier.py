@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 from sunwell.interface.generative.types import ActionSpec, InteractionType, ViewSpec
 from sunwell.interface.generative.surface.types import WorkspaceSpec
@@ -320,7 +320,7 @@ class IntentClassifier:
         )
 
         # Query LLM with low temperature for consistency
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         result = await self.model.generate(
             prompt,

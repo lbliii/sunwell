@@ -2,7 +2,7 @@
 """Show detailed resonance refinement - WHAT changed."""
 
 import asyncio
-from sunwell.naaru.resonance import Resonance, ResonanceConfig
+from sunwell.planning.naaru.resonance import Resonance, ResonanceConfig
 
 
 TEST_CASES = [

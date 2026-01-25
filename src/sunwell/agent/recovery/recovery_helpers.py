@@ -21,7 +21,7 @@ from sunwell.agent.events import (
 if TYPE_CHECKING:
     from sunwell.agent.learning import LearningStore
     from sunwell.agent.signals import AdaptiveSignals
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 
 async def resume_from_recovery(

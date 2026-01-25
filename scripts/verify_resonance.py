@@ -21,7 +21,7 @@ try:
 except ImportError:
     RICH_AVAILABLE = False
 
-from sunwell.naaru.resonance import Resonance, ResonanceConfig
+from sunwell.planning.naaru.resonance import Resonance, ResonanceConfig
 
 
 # =============================================================================

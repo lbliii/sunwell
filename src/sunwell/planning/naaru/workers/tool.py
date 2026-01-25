@@ -39,7 +39,7 @@ class ToolRegionWorker(RegionWorker):
             msg = await self.bus.receive(self.region)
 
             if msg and msg.type == MessageType.TOOL_REQUEST:
-                from sunwell.models.protocol import ToolCall
+                from sunwell.models import ToolCall
 
                 tool_call = ToolCall(
                     id=msg.id,
@@ -86,7 +86,7 @@ class ToolRegionWorker(RegionWorker):
 
     async def _execute_batch(self, tool_specs: list[dict]) -> list[dict]:
         """Execute multiple tools, parallelizing independent ones."""
-        from sunwell.models.protocol import ToolCall
+        from sunwell.models import ToolCall
 
         # For now, execute sequentially (safe default)
         results = []

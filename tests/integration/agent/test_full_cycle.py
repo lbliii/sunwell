@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from sunwell.naaru.types import Task, TaskMode, TaskStatus
+from sunwell.planning.naaru.types import Task, TaskMode, TaskStatus
 
 
 class TestAgentFullCycle:

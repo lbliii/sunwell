@@ -43,7 +43,7 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.planning.naaru.convergence import Convergence
     from sunwell.knowledge.project.schema import ProjectSchema
     from sunwell.memory.simulacrum.core.planning_context import PlanningContext

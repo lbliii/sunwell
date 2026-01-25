@@ -29,7 +29,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from sunwell.models.protocol import ModelProtocol
+from sunwell.models import ModelProtocol
 from sunwell.planning.routing.decision import RoutingDecision
 from sunwell.planning.routing.exemplars import match_exemplar
 from sunwell.planning.routing.rubric import DEFAULT_RUBRIC
@@ -300,7 +300,7 @@ class UnifiedRouter:
         RFC-022 Enhancement: Also calculates deterministic rubric confidence
         and matches against exemplars for calibration.
         """
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         # Step 1: Match exemplar for confidence calibration
         matched_exemplar, exemplar_similarity = match_exemplar(request)
@@ -590,7 +590,7 @@ def create_unified_router(
         Configured UnifiedRouter instance
     """
     if model is None:
-        from sunwell.models.ollama import OllamaModel
+        from sunwell.models import OllamaModel
 
         model = OllamaModel(model=model_name)
 

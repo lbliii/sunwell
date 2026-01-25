@@ -56,8 +56,8 @@ import ast
 from dataclasses import dataclass, field
 from enum import Enum
 
-from sunwell.models.ollama import OllamaModel
-from sunwell.models.protocol import GenerateOptions, Tool
+from sunwell.models import OllamaModel
+from sunwell.models import GenerateOptions, Tool
 from sunwell.planning.reasoning import ClassificationTemplate, FastClassifier
 
 

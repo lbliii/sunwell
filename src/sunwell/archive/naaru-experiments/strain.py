@@ -29,7 +29,7 @@ from sunwell.archive.naaru-experiments.signals import Trit
 from sunwell.archive.naaru-experiments.streams import ChunkSignal, SignalStream
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 
 class StrainType(Enum):
@@ -282,7 +282,7 @@ async def triage_strain(
     Returns:
         StrainDiagnosis with severity and recommendations
     """
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     prompt = TRIAGE_PROMPT.format(
         strain_text=strain.text,

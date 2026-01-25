@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 from sunwell.planning.naaru.diversity import Candidate
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 
 def select_passthrough(candidates: list[Candidate]) -> Candidate:
@@ -142,7 +142,7 @@ async def select_voting(
 
     # Collect votes from each persona
     async def get_vote(persona_name: str, persona_prompt: str) -> int:
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         vote_request = f"""{persona_prompt}
 
@@ -203,7 +203,7 @@ async def select_judge(
         return candidates[0]
 
     async def score_candidate(candidate: Candidate) -> tuple[Candidate, float]:
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         score_prompt = f"""Score this output 0-10 based on: {rubric}
 

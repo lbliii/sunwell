@@ -14,8 +14,8 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
-from sunwell.naaru.persistence import (
+from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
+from sunwell.planning.naaru.persistence import (
     PlanDiff,
     PlanStore,
     PlanVersion,

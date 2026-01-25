@@ -23,9 +23,9 @@ from sunwell.agent.incremental import (
     SkipDecision,
     SkipReason,
 )
-from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
-from sunwell.naaru.executor import ArtifactResult
-from sunwell.naaru.persistence import (
+from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
+from sunwell.planning.naaru.executor import ArtifactResult
+from sunwell.planning.naaru.persistence import (
     ArtifactCompletion,
     ExecutionStatus,
     PlanStore,

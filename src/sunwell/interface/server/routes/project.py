@@ -498,7 +498,7 @@ async def list_project_files(path: str | None = None, max_depth: int = 3) -> dic
 @router.post("/project/analyze-run")
 async def analyze_project_for_run(request: AnalyzeRunRequest) -> dict[str, Any]:
     """Analyze project for running."""
-        project_path = normalize_path(request.path)
+    project_path = normalize_path(request.path)
 
     command = "echo 'No run command detected'"
     expected_url = None

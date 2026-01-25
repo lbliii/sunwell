@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 # Pre-compiled regex patterns for signal extraction (avoid recompiling per call)
 _COMPLEXITY_RE = re.compile(r"COMPLEXITY:\s*(YES|NO|MAYBE)", re.IGNORECASE)
@@ -261,7 +261,7 @@ async def extract_signals(
     Returns:
         AdaptiveSignals for routing decisions
     """
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     prompt = SIGNAL_EXTRACTION_PROMPT.format(goal=goal)
     if context:
@@ -348,7 +348,7 @@ async def extract_task_signals(
     Returns:
         TaskSignals for execution routing
     """
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     prompt = TASK_SIGNAL_PROMPT.format(
         task_description=task_description,

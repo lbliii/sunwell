@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Pattern
 from sunwell.memory.simulacrum.topology.topology_base import ConceptEdge, RelationType
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 
 # =============================================================================

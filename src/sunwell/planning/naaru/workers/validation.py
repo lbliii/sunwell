@@ -175,7 +175,7 @@ Respond with ONLY JSON:
 {{"score": <0-10>, "issues": ["issue1", "issue2"], "verdict": "approve" or "reject"}}"""
 
         try:
-            from sunwell.models.protocol import GenerateOptions
+            from sunwell.models import GenerateOptions
 
             result = await self.model.generate(
                 judge_prompt,

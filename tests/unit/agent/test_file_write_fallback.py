@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from sunwell.agent.events import AgentEvent, EventType
-from sunwell.naaru.types import Task, TaskMode
+from sunwell.planning.naaru.types import Task, TaskMode
 
 
 class MockGenerateResult:

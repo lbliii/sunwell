@@ -17,7 +17,7 @@ from sunwell.planning.naaru.planners.protocol import PlanningError, PlanningStra
 from sunwell.planning.naaru.types import Task, TaskMode, TaskStatus
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol, Tool
+    from sunwell.models import ModelProtocol, Tool
     from sunwell.knowledge.project.schema import ProjectSchema
 
 
@@ -97,7 +97,7 @@ class AgentPlanner:
 
         for attempt in range(self.max_planning_attempts):
             try:
-                from sunwell.models.protocol import GenerateOptions
+                from sunwell.models import GenerateOptions
 
                 result = await self.model.generate(
                     prompt,

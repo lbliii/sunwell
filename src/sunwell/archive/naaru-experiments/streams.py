@@ -36,7 +36,7 @@ from typing import TYPE_CHECKING
 from sunwell.archive.naaru-experiments.signals import Trit
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 
 @dataclass(frozen=True, slots=True)

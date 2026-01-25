@@ -32,7 +32,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from sunwell.naaru.resonance import Resonance, ResonanceConfig, ResonanceResult
+from sunwell.planning.naaru.resonance import Resonance, ResonanceConfig, ResonanceResult
 
 
 # =============================================================================

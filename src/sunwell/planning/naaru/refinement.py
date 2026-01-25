@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.planning.naaru.diversity import Candidate
 
 
@@ -125,7 +125,7 @@ async def refine_tiered(
         )
 
     # Step 3: Refine based on feedback
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     refine_prompt = f"""Your previous response had issues:
 {chr(10).join(f'- {issue}' for issue in judge_issues[:5])}
@@ -206,7 +206,7 @@ async def refine_full(
             )
 
         # Refine based on feedback
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         refine_prompt = f"""Your previous response had issues:
 {chr(10).join(f'- {issue}' for issue in issues[:5])}
@@ -282,7 +282,7 @@ async def _judge_output(
         issues: List of issues found
         tokens: Tokens used
     """
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     judge_prompt = f"""Evaluate this output for the task: {task[:500]}
 

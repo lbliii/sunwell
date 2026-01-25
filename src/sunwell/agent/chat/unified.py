@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from sunwell.agent.events import AgentEvent
     from sunwell.agent.context.session import SessionContext
     from sunwell.memory import PersistentMemory
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.tools.executor import ToolExecutor
 
 logger = logging.getLogger(__name__)
@@ -473,7 +473,7 @@ class UnifiedChatLoop:
             })
 
         # Convert to message tuples for model
-        from sunwell.models.protocol import Message
+        from sunwell.models import Message
 
         structured = tuple(
             Message(role=m["role"], content=m["content"])

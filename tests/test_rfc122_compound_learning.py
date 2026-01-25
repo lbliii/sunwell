@@ -407,7 +407,7 @@ class TestLearningExtractorRFC122:
 
     def test_extract_heuristic_models_before_tests(self) -> None:
         """Test heuristic extraction: models before tests."""
-        from sunwell.naaru.types import Task, TaskMode
+        from sunwell.planning.naaru.types import Task, TaskMode
 
         extractor = LearningExtractor()
         tasks = [
@@ -422,7 +422,7 @@ class TestLearningExtractorRFC122:
 
     def test_extract_heuristic_config_before_models(self) -> None:
         """Test heuristic extraction: config before models."""
-        from sunwell.naaru.types import Task, TaskMode
+        from sunwell.planning.naaru.types import Task, TaskMode
 
         extractor = LearningExtractor()
         tasks = [
@@ -436,7 +436,7 @@ class TestLearningExtractorRFC122:
 
     def test_extract_heuristic_not_enough_tasks(self) -> None:
         """Test heuristic extraction with too few tasks."""
-        from sunwell.naaru.types import Task, TaskMode
+        from sunwell.planning.naaru.types import Task, TaskMode
 
         extractor = LearningExtractor()
         tasks = [

@@ -28,7 +28,7 @@ _RE_SLUG_MULTI_HYPHEN = re.compile(r"-+")
 _RE_WORD_BOUNDARY = re.compile(r"\b\w+\b")
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.memory.simulacrum.core.dag import ConversationDAG
     from sunwell.memory.simulacrum.core.store import SimulacrumStore
     from sunwell.memory.simulacrum.core.turn import Turn
@@ -357,7 +357,7 @@ Apply this pattern when the user's goal matches: {pattern.goal}
         if not self.model:
             return self._generate_skill_heuristic(pattern, success_criteria)
 
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         prompt = f"""Based on this successful execution pattern, generate a reusable skill definition.
 

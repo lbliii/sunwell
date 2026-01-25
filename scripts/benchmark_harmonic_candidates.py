@@ -203,7 +203,7 @@ async def run_single_goal(
     """Run harmonic planning for a single goal and collect metrics."""
     import time
 
-    from sunwell.naaru.planners.harmonic import (
+    from sunwell.planning.naaru.planners.harmonic import (
         HarmonicPlanner,
         PlanMetricsV2,
         ScoringVersion,

@@ -35,7 +35,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 from sunwell.interface.generative.classifier import ClassificationResult, IntentClassifier
 from sunwell.interface.generative.responder import ResponseGenerator

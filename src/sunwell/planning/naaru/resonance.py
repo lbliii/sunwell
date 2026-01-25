@@ -182,7 +182,7 @@ class Resonance:
 
             try:
                 # Generate refined code
-                from sunwell.models.protocol import GenerateOptions
+                from sunwell.models import GenerateOptions
 
                 temperature = min(0.3 + (self.config.temperature_boost * attempt_num), 0.7)
 

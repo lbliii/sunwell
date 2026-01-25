@@ -33,7 +33,7 @@ from typing import Any
 
 import pytest
 
-from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec, artifacts_to_tasks
+from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec, artifacts_to_tasks
 
 
 # =============================================================================
@@ -165,7 +165,7 @@ class TestProvenanceTracking:
     @pytest.mark.asyncio
     async def test_artifact_creation_records_inputs(self):
         """Artifact creation must know its dependencies."""
-        from sunwell.naaru.planners.artifact import ArtifactPlanner
+        from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
         artifacts_json = json.dumps([
             {"id": "Protocol", "description": "Protocol", "contract": "Interface", "requires": []},
@@ -184,7 +184,7 @@ class TestProvenanceTracking:
     @pytest.mark.asyncio
     async def test_execution_trace_captures_lineage(self):
         """Execution must capture full lineage for each artifact."""
-        from sunwell.naaru.planners.artifact import ArtifactPlanner
+        from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
         artifacts_json = json.dumps([
             {"id": "A", "description": "Base", "contract": "Foundation", "requires": []},
@@ -248,8 +248,8 @@ class TestQualityGates:
     @pytest.mark.asyncio
     async def test_verification_produces_confidence(self):
         """Artifact verification must produce a confidence score."""
-        from sunwell.naaru.planners.artifact import ArtifactPlanner
-        from sunwell.naaru.artifacts import VerificationResult
+        from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
+        from sunwell.planning.naaru.artifacts import VerificationResult
 
         model = MockModel(artifact_response="[]")
         planner = ArtifactPlanner(model=model)
@@ -272,7 +272,7 @@ class TestQualityGates:
 
     def test_verification_result_has_required_fields(self):
         """VerificationResult must have all required fields."""
-        from sunwell.naaru.artifacts import VerificationResult
+        from sunwell.planning.naaru.artifacts import VerificationResult
 
         result = VerificationResult(
             passed=True,
@@ -298,7 +298,7 @@ class TestEndToEndExecution:
     @pytest.mark.asyncio
     async def test_full_loop_simple_goal(self):
         """Full loop should work for a simple goal."""
-        from sunwell.naaru.planners.artifact import ArtifactPlanner
+        from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
         artifacts_json = json.dumps([
             {
@@ -345,7 +345,7 @@ class TestEndToEndExecution:
     @pytest.mark.asyncio
     async def test_full_loop_with_dependencies(self):
         """Full loop should handle artifacts with dependencies."""
-        from sunwell.naaru.planners.artifact import ArtifactPlanner
+        from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
         artifacts_json = json.dumps([
             {

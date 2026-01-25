@@ -33,7 +33,7 @@ from sunwell.planning.naaru.selection import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.foundation.types.config import NaaruConfig
 
 

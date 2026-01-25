@@ -7,7 +7,7 @@ The vortex architecture combines:
 
 Example:
     >>> from sunwell.vortex import Vortex
-    >>> from sunwell.models.ollama import OllamaModel
+    >>> from sunwell.models import OllamaModel
     >>>
     >>> model = OllamaModel("gemma3:1b")
     >>> vortex = Vortex(model)

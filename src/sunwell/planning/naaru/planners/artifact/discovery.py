@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from sunwell.agent.events import AgentEvent
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.knowledge.project.schema import ProjectSchema
 
 # Pre-compiled regex patterns
@@ -71,7 +71,7 @@ async def discover(
     """
     prompt = prompts.build_discovery_prompt(goal, context, project_schema)
 
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     result = await model.generate(
         prompt,
@@ -294,7 +294,7 @@ Output a SINGLE artifact JSON object (not an array):
   "produces_file": "..."
 }}"""
 
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     result = await model.generate(
         prompt,
@@ -388,7 +388,7 @@ IMPORTANT: Only identify artifacts that are TRULY NEEDED, not nice-to-haves.
 
 Output ONLY valid JSON array:"""
 
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     result = await model.generate(
         prompt,

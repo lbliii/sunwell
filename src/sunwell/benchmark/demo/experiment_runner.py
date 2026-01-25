@@ -156,7 +156,7 @@ class ExperimentRunner:
         strategy: LensStrategy,
     ) -> ExperimentResult:
         """Run a single experiment iteration."""
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         start = time.perf_counter()
 

@@ -255,7 +255,7 @@ class IntentAnalyzer:
             prompt = prompt.replace("Now analyze the goal:", history_text + "Now analyze the goal:")
 
         # Query LLM
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         result = await self.model.generate(
             prompt,

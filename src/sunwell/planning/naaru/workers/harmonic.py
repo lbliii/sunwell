@@ -175,7 +175,7 @@ class HarmonicSynthesisWorker(RegionWorker):
             self.stats["routed_intents"] = self.stats.get("routed_intents", {})
             self.stats["routed_intents"][intent] = self.stats["routed_intents"].get(intent, 0) + 1
 
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         # Step 1: Generate with ALL lens personas IN PARALLEL
         async def generate_with_lens(lens_id: str, lens: dict) -> dict | None:
@@ -310,7 +310,7 @@ Respond with ONLY the number (1, 2, or 3):"""
         description = opportunity.get("description", "")
         category = opportunity.get("category", "code_quality")
 
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         # RFC-020: Use routing to enhance context
         routing_context = ""
@@ -424,7 +424,7 @@ Code only:"""
         prompt = prompts.get(category, prompts["code_quality"])
 
         try:
-            from sunwell.models.protocol import GenerateOptions
+            from sunwell.models import GenerateOptions
 
             result = await self.model.generate(
                 prompt,
@@ -498,7 +498,7 @@ Keep the same functionality but address the quality concerns.
 Code only, no explanations:"""
 
         try:
-            from sunwell.models.protocol import GenerateOptions
+            from sunwell.models import GenerateOptions
 
             result = await self.model.generate(
                 refine_prompt,

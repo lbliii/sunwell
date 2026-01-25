@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from sunwell.features.backlog.goals import Goal, GoalScope
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 # Pre-compiled regex patterns for milestone parsing
 _MILESTONE_SPLIT_PATTERN = re.compile(r"MILESTONE\s+(\d+)\s*:", re.IGNORECASE)
@@ -62,7 +62,7 @@ async def detect_domain(goal: str, model: "ModelProtocol") -> str:
     Returns:
         One of: "software", "novel", "research", "general"
     """
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     prompt = DOMAIN_DETECTION_PROMPT.format(goal=goal)
 
@@ -118,7 +118,7 @@ async def is_epic(goal: str, model: "ModelProtocol") -> bool:
     Returns:
         True if goal should be treated as an epic
     """
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     prompt = EPIC_DETECTION_PROMPT.format(goal=goal)
 
@@ -434,7 +434,7 @@ class EpicDecomposer:
         Returns:
             Tuple of (epic_goal, list_of_milestone_goals)
         """
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         # Detect domain if not provided
         if domain is None:

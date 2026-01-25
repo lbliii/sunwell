@@ -7,7 +7,7 @@ from sunwell.planning.naaru.artifacts import ArtifactSpec
 from sunwell.planning.naaru.planners.artifact.parsing import parse_artifacts
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 
 def signal_plan_health(artifacts: list[ArtifactSpec]) -> dict[str, Any]:
@@ -216,7 +216,7 @@ Consider:
 Return the COMPLETE corrected artifact list (all artifacts, not just the cycle)
 with the cycle broken. Output ONLY valid JSON array:"""
 
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     result = await model.generate(
         prompt,

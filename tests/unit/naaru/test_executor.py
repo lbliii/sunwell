@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from sunwell.naaru.executor import (
+from sunwell.planning.naaru.executor import (
     ArtifactExecutor,
     ArtifactResult,
     ExecutionEvent,

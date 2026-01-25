@@ -15,12 +15,12 @@ from sunwell.benchmark.naaru.conditions.personas import (
     TemperatureStrategy,
 )
 from sunwell.benchmark.naaru.types import HarmonicMetrics, NaaruCondition, NaaruConditionOutput
-from sunwell.models.protocol import GenerateOptions
+from sunwell.models import GenerateOptions
 
 if TYPE_CHECKING:
     from sunwell.benchmark.types import BenchmarkTask
     from sunwell.foundation.core.lens import Lens
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 
 def build_vote_prompt(

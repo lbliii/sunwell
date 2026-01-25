@@ -9,7 +9,7 @@ from sunwell.identity.store import Identity, IdentityStore, Observation
 from sunwell.identity.extractor import extract_behaviors_regex, _TWO_TIER_EXTRACTION_PROMPT
 from sunwell.identity.digest import _extract_confidence, _extract_prompt, quick_digest
 from sunwell.identity.injection import build_system_prompt_with_identity
-from sunwell.naaru.persona import MURU, NaaruPersona
+from sunwell.planning.naaru.persona import MURU, NaaruPersona
 
 
 class TestNaaruPersona:

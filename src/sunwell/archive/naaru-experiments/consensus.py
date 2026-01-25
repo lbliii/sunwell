@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TypeVar
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 T = TypeVar("T")
 
@@ -179,7 +179,7 @@ async def consensus_decision(
     Returns:
         ConsensusResult with chosen option
     """
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     options_str = ", ".join(options)
     full_prompt = f"""{prompt}

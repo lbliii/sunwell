@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 # =============================================================================
 # Types
@@ -447,7 +447,7 @@ async def analyze_project_for_run(path: Path, model: ModelProtocol) -> RunAnalys
         CommandValidationError: If the detected command fails safety validation
         json.JSONDecodeError: If AI response isn't valid JSON
     """
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     # Gather context
     context = gather_project_context(path)
@@ -493,11 +493,11 @@ async def _main() -> None:
 
     # Import model based on provider
     if args.model == "ollama":
-        from sunwell.models.ollama import OllamaModel
+        from sunwell.models import OllamaModel
 
         model = OllamaModel()
     elif args.model == "anthropic":
-        from sunwell.models.anthropic import AnthropicModel
+        from sunwell.models import AnthropicModel
 
         model = AnthropicModel()
     else:

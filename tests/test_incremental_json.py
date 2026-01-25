@@ -113,8 +113,8 @@ class MockModel:
 @pytest.mark.asyncio
 async def test_incremental_emits_plan_winner_with_tasks():
     """_incremental_run must emit plan_winner with tasks count."""
-    from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
-    from sunwell.naaru.planners.artifact import ArtifactPlanner
+    from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
+    from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
     
     # Create a planner with mock model
     planner = ArtifactPlanner(model=MockModel())

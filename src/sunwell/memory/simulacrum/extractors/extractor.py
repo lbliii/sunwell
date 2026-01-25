@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.memory.simulacrum.core.turn import Turn
 
 
@@ -447,7 +447,7 @@ async def extract_user_facts_with_llm(
     Returns:
         List of (fact_text, category, confidence) tuples.
     """
-    from sunwell.models.protocol import Message
+    from sunwell.models import Message
 
     prompt = _FACT_EXTRACTION_PROMPT.format(message=user_message)
 

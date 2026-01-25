@@ -8,7 +8,7 @@ from sunwell.planning.naaru.planners.metrics import CandidateResult
 from sunwell.planning.naaru.planners.variance import apply_variance, get_variance_configs
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.planning.naaru.convergence import Convergence
     from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
     from sunwell.planning.naaru.planners.harmonic.planner import HarmonicPlanner

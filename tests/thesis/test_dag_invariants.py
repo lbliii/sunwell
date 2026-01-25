@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import pytest
 
-from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec, CyclicDependencyError
+from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec, CyclicDependencyError
 
 
 # =============================================================================
@@ -330,7 +330,7 @@ class TestArtifactPlannerProducesValidGraphs:
     @pytest.mark.asyncio
     async def test_planner_produces_non_empty_graph(self):
         """Planner must produce at least one artifact for any goal."""
-        from sunwell.naaru.planners.artifact import ArtifactPlanner
+        from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
         model = mock_model_with_artifacts([
             {"id": "Main", "description": "Main artifact", "contract": "Must exist", "requires": []}
@@ -344,7 +344,7 @@ class TestArtifactPlannerProducesValidGraphs:
     @pytest.mark.asyncio
     async def test_planner_produces_acyclic_graph(self):
         """Planner must never produce cycles."""
-        from sunwell.naaru.planners.artifact import ArtifactPlanner
+        from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
         model = mock_model_with_artifacts([
             {"id": "A", "description": "A", "contract": "A", "requires": []},
@@ -359,7 +359,7 @@ class TestArtifactPlannerProducesValidGraphs:
     @pytest.mark.asyncio
     async def test_planner_produces_graph_with_leaves(self):
         """Planner must produce graphs with at least one leaf (starting point)."""
-        from sunwell.naaru.planners.artifact import ArtifactPlanner
+        from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
         model = mock_model_with_artifacts([
             {"id": "Protocol", "description": "Protocol", "contract": "Interface", "requires": []},
@@ -374,7 +374,7 @@ class TestArtifactPlannerProducesValidGraphs:
     @pytest.mark.asyncio
     async def test_planner_produces_graph_with_roots(self):
         """Planner must produce graphs with at least one root (ending point)."""
-        from sunwell.naaru.planners.artifact import ArtifactPlanner
+        from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
         model = mock_model_with_artifacts([
             {"id": "A", "description": "A", "contract": "A", "requires": []},
@@ -389,7 +389,7 @@ class TestArtifactPlannerProducesValidGraphs:
     @pytest.mark.asyncio
     async def test_trivial_goal_produces_single_artifact(self):
         """Trivial goals should produce minimal graphs."""
-        from sunwell.naaru.planners.artifact import ArtifactPlanner
+        from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
         model = MockModel()  # Empty response - triggers trivial path
         planner = ArtifactPlanner(model=model)

@@ -15,7 +15,7 @@ from pathlib import Path
 
 from sunwell.foundation.utils import safe_yaml_load
 from sunwell.benchmark.eval.types import FullStackTask, SingleShotResult, SunwellResult
-from sunwell.models.protocol import GenerateOptions, ModelProtocol, Tool
+from sunwell.models import GenerateOptions, ModelProtocol, Tool
 
 logger = logging.getLogger(__name__)
 

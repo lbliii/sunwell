@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
 
 
@@ -105,7 +105,7 @@ async def _fire_cell(
     import json
     import time
 
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
     from sunwell.planning.naaru.artifacts import ArtifactSpec
 
     start = time.perf_counter()

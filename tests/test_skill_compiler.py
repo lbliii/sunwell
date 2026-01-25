@@ -2,7 +2,7 @@
 
 import pytest
 
-from sunwell.naaru.types import TaskMode, TaskStatus
+from sunwell.planning.naaru.types import TaskMode, TaskStatus
 from sunwell.planning.skills import (
     CompiledTaskGraph,
     Skill,

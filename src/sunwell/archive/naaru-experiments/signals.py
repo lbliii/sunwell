@@ -26,7 +26,7 @@ from enum import IntEnum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 
 class Trit(IntEnum):
@@ -321,7 +321,7 @@ async def binary_classify(
     Returns:
         True for Yes, False for No
     """
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     prompt = f"""Goal: {goal}
 
@@ -354,7 +354,7 @@ async def trit_classify(
     Returns:
         Trit value
     """
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     prompt = f"""Goal: {goal}
 

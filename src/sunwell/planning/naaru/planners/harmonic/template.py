@@ -8,7 +8,7 @@ from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
 from sunwell.planning.naaru.planners.metrics import PlanMetrics, PlanMetricsV2
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.memory.simulacrum.core.planning_context import PlanningContext
     from sunwell.memory.simulacrum.core.turn import Learning, TemplateData
     from sunwell.planning.naaru.planners.harmonic.planner import HarmonicPlanner
@@ -119,7 +119,7 @@ async def extract_template_variables(
     if not template_data.variables:
         return {}
 
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     var_specs = "\n".join(
         f"- {v.name}: {v.description} (hints: {', '.join(v.extraction_hints)})"

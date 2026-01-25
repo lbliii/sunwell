@@ -14,7 +14,7 @@ import json
 import re
 from typing import TYPE_CHECKING
 
-from sunwell.models.protocol import GenerateOptions
+from sunwell.models import GenerateOptions
 from sunwell.quality.verification.types import (
     InputSpec,
     OutputSpec,
@@ -22,7 +22,7 @@ from sunwell.quality.verification.types import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.planning.naaru.artifacts import ArtifactSpec
 
 

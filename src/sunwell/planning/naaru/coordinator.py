@@ -530,7 +530,7 @@ class Naaru:
         self._synthesis_workers = []
 
         if hasattr(self.config, "router") and self.config.router:
-            from sunwell.models.ollama import OllamaModel
+            from sunwell.models import OllamaModel
 
             router_model = OllamaModel(model=self.config.router)
 

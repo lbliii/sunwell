@@ -18,7 +18,7 @@ from sunwell.planning.naaru.artifacts import DEFAULT_LIMITS, ArtifactGraph, Arti
 from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.planning.naaru.expertise.classifier import DomainClassifier
     from sunwell.planning.naaru.expertise.context import ExpertiseContext
     from sunwell.planning.naaru.expertise.discovery import LensDiscovery
