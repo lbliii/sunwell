@@ -3,7 +3,7 @@
 import re
 from pydantic import BaseModel
 
-from sunwell.interface.server.routes._models import CamelModel
+from sunwell.interface.server.routes.models import CamelModel
 
 # Pre-compiled regex for slug generation (avoid recompiling per call)
 _RE_SLUG_CHARS = re.compile(r"[^a-z0-9]+")

@@ -5,7 +5,7 @@ from typing import Any
 
 from fastapi import APIRouter
 
-from sunwell.interface.server.routes._models import (
+from sunwell.interface.server.routes.models import (
     ColdChunkItem,
     HotChunkItem,
     MemoryCheckpointResponse,

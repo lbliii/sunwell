@@ -3,7 +3,7 @@
 from fastapi import APIRouter
 
 from sunwell.foundation.utils import normalize_path
-from sunwell.interface.server.routes._models import (
+from sunwell.interface.server.routes.models import (
     DefaultProjectItem,
     DefaultProjectResponse,
     SuccessResponse,

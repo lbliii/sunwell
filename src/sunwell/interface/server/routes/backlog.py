@@ -2,14 +2,20 @@
 
 import hashlib
 from pathlib import Path
-from typing import Any
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from sunwell.foundation.utils import normalize_path
 from sunwell.features.backlog.goals import Goal, GoalScope
 from sunwell.features.backlog.manager import BacklogManager
+from sunwell.foundation.utils import normalize_path
+from sunwell.interface.server.routes.models import (
+    BacklogGoalItem,
+    BacklogRefreshResponse,
+    BacklogResponse,
+    GoalAddResponse,
+    SuccessResponse,
+)
 
 router = APIRouter(prefix="/api/backlog", tags=["backlog"])
 
@@ -49,13 +55,13 @@ class RefreshBacklogRequest(BaseModel):
 
 
 @router.get("")
-async def get_backlog(path: str | None = None) -> dict[str, Any]:
+async def get_backlog(path: str | None = None) -> BacklogResponse:
     """Get backlog goals."""
     project_path = normalize_path(path) if path else Path.cwd()
 
     try:
         manager = BacklogManager(project_path)
-        goals = []
+        goals: list[BacklogGoalItem] = []
         for goal in manager.backlog.execution_order():
             status = (
                 "completed"
@@ -68,26 +74,26 @@ async def get_backlog(path: str | None = None) -> dict[str, Any]:
                 if goal.claimed_by is not None
                 else "pending"
             )
-            goals.append({
-                "id": goal.id,
-                "title": goal.title,
-                "description": goal.description,
-                "priority": goal.priority,
-                "category": goal.category,
-                "status": status,
-                "estimated_complexity": goal.estimated_complexity,
-                "auto_approvable": goal.auto_approvable,
-                "requires": list(goal.requires),
-                "claimed_by": goal.claimed_by,
-                "created_at": goal.claimed_at.isoformat() if goal.claimed_at else None,
-            })
-        return {"goals": goals, "total": len(goals)}
+            goals.append(BacklogGoalItem(
+                id=goal.id,
+                title=goal.title,
+                description=goal.description,
+                priority=goal.priority,
+                category=goal.category,
+                status=status,
+                estimated_complexity=goal.estimated_complexity,
+                auto_approvable=goal.auto_approvable,
+                requires=list(goal.requires),
+                claimed_by=goal.claimed_by,
+                created_at=goal.claimed_at.isoformat() if goal.claimed_at else None,
+            ))
+        return BacklogResponse(goals=goals, total=len(goals))
     except Exception as e:
-        return {"error": str(e), "goals": []}
+        return BacklogResponse(goals=[], total=0, error=str(e))
 
 
 @router.post("/goals")
-async def add_backlog_goal(request: AddGoalRequest) -> dict[str, Any]:
+async def add_backlog_goal(request: AddGoalRequest) -> GoalAddResponse:
     """Add a goal to the backlog."""
     project_path = normalize_path(request.path) if request.path else Path.cwd()
 
@@ -110,13 +116,13 @@ async def add_backlog_goal(request: AddGoalRequest) -> dict[str, Any]:
         )
 
         await manager.add_external_goal(goal)
-        return {"status": "added", "goal_id": goal_id}
+        return GoalAddResponse(status="added", goal_id=goal_id)
     except Exception as e:
-        return {"error": str(e)}
+        return GoalAddResponse(status="error", error=str(e))
 
 
 @router.get("/goals/{goal_id}")
-async def get_backlog_goal(goal_id: str, path: str | None = None) -> dict[str, Any]:
+async def get_backlog_goal(goal_id: str, path: str | None = None) -> BacklogGoalItem | GoalAddResponse:
     """Get a specific goal."""
     project_path = normalize_path(path) if path else Path.cwd()
 
@@ -124,7 +130,7 @@ async def get_backlog_goal(goal_id: str, path: str | None = None) -> dict[str, A
         manager = BacklogManager(project_path)
         goal = await manager.get_goal(goal_id)
         if not goal:
-            return {"error": "Goal not found"}
+            return GoalAddResponse(status="error", error="Goal not found")
 
         status = (
             "completed"
@@ -138,30 +144,31 @@ async def get_backlog_goal(goal_id: str, path: str | None = None) -> dict[str, A
             else "pending"
         )
 
-        return {
-            "id": goal.id,
-            "title": goal.title,
-            "description": goal.description,
-            "priority": goal.priority,
-            "category": goal.category,
-            "status": status,
-            "estimated_complexity": goal.estimated_complexity,
-            "auto_approvable": goal.auto_approvable,
-            "requires": list(goal.requires),
-            "claimed_by": goal.claimed_by,
-        }
+        return BacklogGoalItem(
+            id=goal.id,
+            title=goal.title,
+            description=goal.description,
+            priority=goal.priority,
+            category=goal.category,
+            status=status,
+            estimated_complexity=goal.estimated_complexity,
+            auto_approvable=goal.auto_approvable,
+            requires=list(goal.requires),
+            claimed_by=goal.claimed_by,
+            created_at=None,
+        )
     except Exception as e:
-        return {"error": str(e)}
+        return GoalAddResponse(status="error", error=str(e))
 
 
 @router.put("/goals/{goal_id}")
-async def update_backlog_goal(goal_id: str, request: UpdateGoalRequest) -> dict[str, Any]:
+async def update_backlog_goal(goal_id: str, request: UpdateGoalRequest) -> GoalAddResponse:
     """Update a goal."""
-    return {"status": "updated", "goal_id": goal_id}
+    return GoalAddResponse(status="updated", goal_id=goal_id)
 
 
 @router.delete("/goals/{goal_id}")
-async def delete_backlog_goal(goal_id: str, path: str | None = None) -> dict[str, Any]:
+async def delete_backlog_goal(goal_id: str, path: str | None = None) -> GoalAddResponse:
     """Remove a goal from backlog."""
     project_path = normalize_path(path) if path else Path.cwd()
 
@@ -170,27 +177,27 @@ async def delete_backlog_goal(goal_id: str, path: str | None = None) -> dict[str
         if goal_id in manager.backlog.goals:
             del manager.backlog.goals[goal_id]
             manager._save()
-            return {"status": "deleted", "goal_id": goal_id}
-        return {"error": "Goal not found"}
+            return GoalAddResponse(status="deleted", goal_id=goal_id)
+        return GoalAddResponse(status="error", error="Goal not found")
     except Exception as e:
-        return {"error": str(e)}
+        return GoalAddResponse(status="error", error=str(e))
 
 
 @router.post("/goals/{goal_id}/skip")
-async def skip_backlog_goal(goal_id: str, path: str | None = None) -> dict[str, Any]:
+async def skip_backlog_goal(goal_id: str, path: str | None = None) -> GoalAddResponse:
     """Skip a goal."""
     project_path = normalize_path(path) if path else Path.cwd()
 
     try:
         manager = BacklogManager(project_path)
         await manager.block_goal(goal_id, "Skipped by user")
-        return {"status": "skipped", "goal_id": goal_id}
+        return GoalAddResponse(status="skipped", goal_id=goal_id)
     except Exception as e:
-        return {"error": str(e)}
+        return GoalAddResponse(status="error", error=str(e))
 
 
 @router.post("/reorder")
-async def reorder_backlog_goals(request: ReorderGoalsRequest) -> dict[str, Any]:
+async def reorder_backlog_goals(request: ReorderGoalsRequest) -> SuccessResponse:
     """Reorder goals by priority."""
     project_path = normalize_path(request.path) if request.path else Path.cwd()
 
@@ -219,19 +226,19 @@ async def reorder_backlog_goals(request: ReorderGoalsRequest) -> dict[str, Any]:
                 )
 
         manager._save()
-        return {"status": "reordered"}
+        return SuccessResponse(success=True, message="reordered")
     except Exception as e:
-        return {"error": str(e)}
+        return SuccessResponse(success=False, message=str(e))
 
 
 @router.post("/refresh")
-async def refresh_backlog(request: RefreshBacklogRequest) -> dict[str, Any]:
+async def refresh_backlog(request: RefreshBacklogRequest) -> BacklogRefreshResponse:
     """Refresh backlog from project signals."""
     project_path = normalize_path(request.path) if request.path else Path.cwd()
 
     try:
         manager = BacklogManager(project_path)
         await manager.refresh()
-        return {"status": "refreshed", "goal_count": len(manager.backlog.goals)}
+        return BacklogRefreshResponse(status="refreshed", goal_count=len(manager.backlog.goals))
     except Exception as e:
-        return {"error": str(e)}
+        return BacklogRefreshResponse(status="error", goal_count=0, error=str(e))

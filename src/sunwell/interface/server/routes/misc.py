@@ -13,7 +13,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from sunwell.interface.server.routes._models import (
+from sunwell.interface.server.routes.models import (
     BriefingClearResponse,
     BriefingResponse,
     CamelModel,

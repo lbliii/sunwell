@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from sunwell.interface.server.routes._models import (
+from sunwell.interface.server.routes.models import (
     ActiveWorkflowsResponse,
     DiataxisDetection,
     DiataxisResponse,

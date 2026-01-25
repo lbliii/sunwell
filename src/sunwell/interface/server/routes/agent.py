@@ -11,7 +11,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from sunwell.interface.server.events import BusEvent, EventBus
-from sunwell.interface.server.routes._models import (
+from sunwell.interface.server.routes.models import (
     RunCancelResponse,
     RunEventsResponse,
     RunHistoryItem,

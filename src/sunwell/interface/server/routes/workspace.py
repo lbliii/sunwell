@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from sunwell.foundation.utils import normalize_path
-from sunwell.interface.server.routes._models import CamelModel
+from sunwell.interface.server.routes.models import CamelModel
 from sunwell.knowledge.workspace import (
     WorkspaceInfo,
     WorkspaceManager,
