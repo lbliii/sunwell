@@ -186,21 +186,17 @@ class CodeScanner:
                 elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
                     uses_modern_types = True
 
-                parsed.append(ParsedFile(
-                    path=file_path,
-                    function_names=tuple(function_names),
-                    class_names=tuple(class_names),
-                    constant_names=tuple(constant_names),
-                    private_names=tuple(private_names),
-                    docstrings=tuple(docstrings),
-                    has_type_hints=has_type_hints,
-                    uses_modern_types=uses_modern_types,
-                    import_lines=tuple(import_lines),
-                ))
-
-            except (SyntaxError, UnicodeDecodeError, OSError):
-                # Skip files that can't be parsed
-                continue
+            parsed.append(ParsedFile(
+                path=file_path,
+                function_names=tuple(function_names),
+                class_names=tuple(class_names),
+                constant_names=tuple(constant_names),
+                private_names=tuple(private_names),
+                docstrings=tuple(docstrings),
+                has_type_hints=has_type_hints,
+                uses_modern_types=uses_modern_types,
+                import_lines=tuple(import_lines),
+            ))
 
         return parsed
 

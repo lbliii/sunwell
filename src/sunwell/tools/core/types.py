@@ -5,8 +5,6 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
-from sunwell.tools.core.constants import TRUST_LEVEL_TOOLS
-
 
 class ToolTrust(Enum):
     """Trust levels control tool availability.
@@ -154,6 +152,9 @@ class ToolPolicy:
         """Get the set of allowed tools based on policy."""
         if self.allowed_tools is not None:
             return self.allowed_tools
+        # Local import to break circular dependency with constants.py
+        from sunwell.tools.core.constants import TRUST_LEVEL_TOOLS
+
         return TRUST_LEVEL_TOOLS.get(self.trust_level, frozenset())
 
     def is_tool_allowed(self, tool_name: str) -> bool:

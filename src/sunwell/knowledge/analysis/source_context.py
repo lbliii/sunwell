@@ -273,70 +273,72 @@ async def _index_python(root: Path) -> tuple[dict[str, SymbolInfo], int]:
         if any(skip in py_file.parts for skip in _SKIP_DIRS_PYTHON):
             continue
 
-        tree = parse_python_file(py_file)
-        if tree is None:
-            continue
+        try:
+            tree = parse_python_file(py_file)
+            if tree is None:
+                continue
 
-        file_count += 1
+            file_count += 1
 
-        # Calculate module name from path
-        rel_path = py_file.relative_to(root)
-        if rel_path.name == "__init__.py":
-            module_name = ".".join(rel_path.parent.parts)
-        else:
-            module_name = ".".join(rel_path.with_suffix("").parts)
+            # Calculate module name from path
+            rel_path = py_file.relative_to(root)
+            if rel_path.name == "__init__.py":
+                module_name = ".".join(rel_path.parent.parts)
+            else:
+                module_name = ".".join(rel_path.with_suffix("").parts)
 
-        # Add module itself as a symbol
-        if module_name:
-            symbols[module_name] = SymbolInfo(
-                name=module_name,
-                kind="module",
-                file=py_file,
-                line=1,
-            )
+            # Add module itself as a symbol
+            if module_name:
+                symbols[module_name] = SymbolInfo(
+                    name=module_name,
+                    kind="module",
+                    file=py_file,
+                    line=1,
+                )
 
-        # Extract symbols from AST
-        # Extract top-level functions
-        functions = extract_function_defs(tree)
-        # Filter to only top-level functions (not methods)
-        module_children = list(ast.iter_child_nodes(tree))
-        top_level_functions = [f for f in functions if f in module_children]
-        
-        for node in top_level_functions:
-            symbol = _extract_function(node, module_name, py_file)
-            if symbol:
-                symbols[symbol.name] = symbol
+            # Extract symbols from AST
+            # Extract top-level functions
+            functions = extract_function_defs(tree)
+            # Filter to only top-level functions (not methods)
+            module_children = list(ast.iter_child_nodes(tree))
+            top_level_functions = [f for f in functions if f in module_children]
 
-        # Extract classes and their methods
-        classes = extract_class_defs(tree)
-        for node in classes:
-            class_symbol = _extract_class(node, module_name, py_file)
-            if class_symbol:
-                symbols[class_symbol.name] = class_symbol
+            for node in top_level_functions:
+                symbol = _extract_function(node, module_name, py_file)
+                if symbol:
+                    symbols[symbol.name] = symbol
 
-            # Extract methods
-            for item in node.body:
-                if isinstance(item, ast.FunctionDef | ast.AsyncFunctionDef):
-                    method_symbol = _extract_function(
-                        item,
-                        f"{module_name}.{node.name}" if module_name else node.name,
-                        py_file,
-                    )
-                    if method_symbol:
-                        # Mark as method
-                        symbols[method_symbol.name] = SymbolInfo(
-                            name=method_symbol.name,
-                            kind="method",
-                                    file=method_symbol.file,
-                                    line=method_symbol.line,
-                                    signature=method_symbol.signature,
-                                    docstring=method_symbol.docstring,
-                                    deprecated=method_symbol.deprecated,
-                                    replacement=method_symbol.replacement,
-                                )
+            # Extract classes and their methods
+            classes = extract_class_defs(tree)
+            for class_node in classes:
+                class_symbol = _extract_class(class_node, module_name, py_file)
+                if class_symbol:
+                    symbols[class_symbol.name] = class_symbol
 
-                elif isinstance(node, ast.Assign):
-                    # Module-level constants (UPPER_CASE names)
+                # Extract methods
+                for item in class_node.body:
+                    if isinstance(item, ast.FunctionDef | ast.AsyncFunctionDef):
+                        method_symbol = _extract_function(
+                            item,
+                            f"{module_name}.{class_node.name}" if module_name else class_node.name,
+                            py_file,
+                        )
+                        if method_symbol:
+                            # Mark as method
+                            symbols[method_symbol.name] = SymbolInfo(
+                                name=method_symbol.name,
+                                kind="method",
+                                file=method_symbol.file,
+                                line=method_symbol.line,
+                                signature=method_symbol.signature,
+                                docstring=method_symbol.docstring,
+                                deprecated=method_symbol.deprecated,
+                                replacement=method_symbol.replacement,
+                            )
+
+            # Extract module-level constants (UPPER_CASE names)
+            for node in module_children:
+                if isinstance(node, ast.Assign):
                     for target in node.targets:
                         if isinstance(target, ast.Name) and target.id.isupper():
                             const_name = f"{module_name}.{target.id}" if module_name else target.id

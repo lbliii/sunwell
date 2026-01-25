@@ -52,8 +52,15 @@ from sunwell.foundation.threading import (
     runtime_info,
 )
 
-# Types (re-export from subpackage)
-from sunwell.foundation.types import *  # noqa: F403, F401
+# Types - import key types explicitly (more from sunwell.foundation.types)
+from sunwell.foundation.types import (
+    NaaruConfig,
+    Severity,
+    Tier,
+    ModelSize,
+    Confidence,
+    SemanticVersion,
+)
 
 # Schema (re-export from subpackage)
 from sunwell.foundation.schema import LensLoader
@@ -93,14 +100,23 @@ from sunwell.foundation.utils import (
 )
 
 __all__ = [
-    # Config
+    # === Core Types ===
+    "Lens",
+    "LensMetadata",
+    "NaaruConfig",
+    "Severity",
+    "Tier",
+    "ModelSize",
+    "Confidence",
+    "SemanticVersion",
+    # === Config ===
     "SunwellConfig",
     "get_config",
     "load_config",
     "reset_config",
     "resolve_naaru_model",
     "save_default_config",
-    # Errors
+    # === Errors ===
     "ErrorCode",
     "SunwellError",
     "config_error",
@@ -110,13 +126,13 @@ __all__ = [
     "model_error",
     "tool_error",
     "tools_not_supported",
-    # Identity
+    # === Identity ===
     "ResourceIdentity",
     "ResourceType",
     "SunwellURI",
     "URIParseError",
     "validate_slug",
-    # Threading
+    # === Threading ===
     "WorkloadType",
     "cpu_count",
     "is_free_threaded",
@@ -127,9 +143,9 @@ __all__ = [
     "run_parallel",
     "run_parallel_async",
     "runtime_info",
-    # Schema
+    # === Schema ===
     "LensLoader",
-    # Binding
+    # === Binding ===
     "Binding",
     "BindingManager",
     "BindingIndex",
@@ -138,10 +154,7 @@ __all__ = [
     "create_binding_identity",
     "create_binding_uri",
     "get_binding_or_create_temp",
-    # Core
-    "Lens",
-    "LensMetadata",
-    # Utils
+    # === Utils ===
     "compute_file_hash",
     "compute_hash",
     "compute_string_hash",
@@ -156,5 +169,4 @@ __all__ = [
     "safe_yaml_loads",
     "sanitize_filename",
     "slugify",
-    "validate_slug",
 ]

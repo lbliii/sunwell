@@ -1,10 +1,16 @@
 """Memory subsystem for Sunwell.
 
 Contains:
-- Briefing system (RFC-071) for rolling handoff notes
-- PersistentMemory facade for unified memory access
-- Memory context types for planning and execution
-- Simulacrum, lineage, and session tracking
+- PersistentMemory: Unified memory access facade (the main entry point)
+- Briefing: Rolling handoff notes between sessions (RFC-071)
+- Simulacrum: Conversation memory with hierarchical storage (RFC-013/014)
+- Lineage: Artifact provenance tracking (RFC-121)
+- Session: Session-level tracking and summarization (RFC-120)
+
+Import from subpackages for specialized types:
+    from sunwell.memory.simulacrum import SimulacrumStore, Turn
+    from sunwell.memory.lineage import LineageStore, ArtifactLineage
+    from sunwell.memory.session import SessionTracker
 
 RFC-138: Module Architecture Consolidation
 """
@@ -17,7 +23,7 @@ from sunwell.memory.core.types import (
     TaskMemoryContext,
 )
 
-# Briefing system
+# Briefing system (RFC-071)
 from sunwell.memory.briefing import (
     Briefing,
     BriefingStatus,
@@ -28,21 +34,19 @@ from sunwell.memory.briefing import (
     compress_briefing,
 )
 
-# Persistent memory facade
+# Persistent memory facade - THE main entry point
 from sunwell.memory.facade import GoalMemory, PersistentMemory
 
-# Re-exports from consolidated modules (Phase 5)
-from sunwell.memory.simulacrum import *  # noqa: F403, F401
-from sunwell.memory.lineage import *  # noqa: F403, F401
-from sunwell.memory.session import *  # noqa: F403, F401
+# Key types from subpackages (import more from subpackages directly)
+from sunwell.memory.simulacrum import SimulacrumStore, Turn, Learning
+from sunwell.memory.lineage import LineageStore, ArtifactLineage
+from sunwell.memory.session import SessionTracker
 
 __all__ = [
-    # Core types
-    "MemoryContext",
-    "Promptable",
-    "TaskMemoryContext",
-    "SyncResult",
-    # Briefing types
+    # === Primary API ===
+    "PersistentMemory",
+    "GoalMemory",
+    # === Briefing (RFC-071) ===
     "Briefing",
     "BriefingStatus",
     "ExecutionSummary",
@@ -50,7 +54,16 @@ __all__ = [
     "PrefetchedContext",
     "briefing_to_learning",
     "compress_briefing",
-    # Persistent memory facade
-    "PersistentMemory",
-    "GoalMemory",
+    # === Core Types ===
+    "MemoryContext",
+    "Promptable",
+    "TaskMemoryContext",
+    "SyncResult",
+    # === Key Subpackage Types (for convenience) ===
+    "SimulacrumStore",
+    "Turn",
+    "Learning",
+    "LineageStore",
+    "ArtifactLineage",
+    "SessionTracker",
 ]

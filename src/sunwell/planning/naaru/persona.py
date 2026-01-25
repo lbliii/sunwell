@@ -16,8 +16,6 @@ Configure in ~/.sunwell/config.yaml or .sunwell/config.yaml:
 """
 
 from typing import Any
-      alternate_titles: true
-"""
 
 
 from dataclasses import dataclass, field

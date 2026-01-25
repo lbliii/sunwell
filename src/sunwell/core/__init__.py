@@ -1,16 +1,34 @@
-"""Core domain models for Sunwell."""
+"""Core domain models for Sunwell - Lens data model and supporting types.
 
+This package contains the lens data model and related types:
+- Heuristic, Persona, Framework: Lens components
+- Spell, Grimoire: Workflow incantations (RFC-021)
+- Validators: Quality gates
+- AppContext: Application runtime context
+
+For Lens itself, import from sunwell.foundation:
+    from sunwell.foundation import Lens, LensMetadata
+
+For infrastructure (config, errors, threading), use sunwell.foundation.
+"""
+
+# Context
 from sunwell.core.context.context import AppContext
+
+# Domain models
 from sunwell.core.models import (
     AntiHeuristic,
     CommunicationStyle,
     DeterministicValidator,
+    Example,
     Framework,
     FrameworkCategory,
     Grimoire,
     Heuristic,
     HeuristicValidator,
+    Identity,
     Persona,
+    PersonaResult,
     Reagent,
     ReagentMode,
     ReagentType,
@@ -28,6 +46,8 @@ from sunwell.core.models import (
     parse_spell,
     validate_spell_output,
 )
+
+# Core types
 from sunwell.core.types import (
     Confidence,
     IntentCategory,
@@ -37,57 +57,31 @@ from sunwell.core.types import (
     Tier,
     ValidationMethod,
 )
-from sunwell.foundation.threading import (
-    WorkloadType,
-    is_free_threaded,
-    optimal_workers,
-    run_cpu_bound,
-    run_parallel,
-    run_parallel_async,
-    runtime_info,
-)
-from sunwell.foundation.identity import (
-    ResourceIdentity,
-    SunwellURI,
-    URIParseError,
-    slugify,
-    validate_slug,
-)
-from sunwell.foundation.core.lens import Lens, LensMetadata
 
 __all__ = [
-    "Lens",
-    "LensMetadata",
+    # === Heuristics ===
     "Heuristic",
     "AntiHeuristic",
     "CommunicationStyle",
+    "Identity",
+    "Example",
+    # === Personas ===
     "Persona",
+    "PersonaResult",
+    # === Framework ===
+    "Framework",
+    "FrameworkCategory",
+    # === Validators ===
     "DeterministicValidator",
     "HeuristicValidator",
     "SchemaValidator",
     "SchemaValidationMethod",
     "ValidationResult",
-    "Framework",
-    "FrameworkCategory",
+    # === Workflows ===
     "Workflow",
     "WorkflowStep",
     "Refiner",
-    "Severity",
-    "Tier",
-    "ValidationMethod",
-    "IntentCategory",
-    "SemanticVersion",
-    "LensReference",
-    "Confidence",
-    # Free-threading utilities
-    "is_free_threaded",
-    "optimal_workers",
-    "WorkloadType",
-    "run_parallel",
-    "run_parallel_async",
-    "run_cpu_bound",
-    "runtime_info",
-    # Spells (RFC-021)
+    # === Spells (RFC-021) ===
     "Spell",
     "SpellValidation",
     "SpellExample",
@@ -99,12 +93,14 @@ __all__ = [
     "SpellResult",
     "parse_spell",
     "validate_spell_output",
-    # Context (RFC-025)
+    # === Types ===
+    "Severity",
+    "Tier",
+    "ValidationMethod",
+    "IntentCategory",
+    "SemanticVersion",
+    "LensReference",
+    "Confidence",
+    # === Context ===
     "AppContext",
-    # Identity (RFC-101)
-    "SunwellURI",
-    "ResourceIdentity",
-    "URIParseError",
-    "slugify",
-    "validate_slug",
 ]
