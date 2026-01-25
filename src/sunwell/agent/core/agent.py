@@ -64,7 +64,7 @@ from sunwell.agent.planning import plan_with_signals
 from sunwell.agent.utils.metrics import InferenceMetrics
 from sunwell.agent.utils.request import RunOptions
 from sunwell.agent.signals import AdaptiveSignals, extract_signals
-from sunwell.agent.core.task_graph import TaskGraph, sanitize_code_content
+from sunwell.agent.core import TaskGraph, sanitize_code_content
 from sunwell.agent.utils.toolchain import detect_toolchain
 from sunwell.agent.validation import Artifact, ValidationRunner, ValidationStage
 from sunwell.agent.validation.gates import ValidationGate
@@ -479,7 +479,7 @@ class Agent:
 
         Delegates to recovery.resume_from_recovery for the actual implementation.
         """
-        from sunwell.agent.recovery import resume_from_recovery as _resume
+        from sunwell.agent.recovery.recovery_helpers import resume_from_recovery as _resume
 
         self._current_goal = f"Recovery for: {recovery_state.goal}"
 

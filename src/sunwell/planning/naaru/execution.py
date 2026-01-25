@@ -253,7 +253,8 @@ class ExecutionCoordinator:
 
     async def _generate_task_with_tools(self, task: Any) -> None:
         """Execute generation via agentic tool loop (preferred path)."""
-        from sunwell.agent.core.loop import AgentLoop, LoopConfig
+        from sunwell.agent.core import AgentLoop
+        from sunwell.agent.loop import LoopConfig
         from sunwell.planning.naaru.types import TaskStatus
 
         # Build system prompt for code generation

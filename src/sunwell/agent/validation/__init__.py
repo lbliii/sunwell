@@ -9,7 +9,12 @@ from sunwell.agent.validation.gates import (
     is_runnable_milestone,
 )
 from sunwell.agent.validation.introspection import IntrospectionResult, introspect_tool_call
-from sunwell.agent.validation.validation_runner import Artifact, ValidationRunner, ValidationStage
+from sunwell.agent.validation.validation_runner import (
+    Artifact,
+    ValidationError,
+    ValidationRunner,
+    ValidationStage,
+)
 
 __all__ = [
     "GateType",
@@ -19,6 +24,7 @@ __all__ = [
     "detect_gates",
     "is_runnable_milestone",
     "Artifact",
+    "ValidationError",
     "ValidationRunner",
     "ValidationStage",
     "IntrospectionResult",

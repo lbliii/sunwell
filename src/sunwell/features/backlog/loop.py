@@ -19,7 +19,7 @@ from sunwell.features.backlog.goals import Goal, GoalResult
 from sunwell.features.backlog.manager import BacklogManager
 
 if TYPE_CHECKING:
-    from sunwell.agent.core.agent import Agent
+    from sunwell.agent import Agent
     from sunwell.quality.guardrails import GuardrailSystem
     from sunwell.models.protocol import ModelProtocol
     from sunwell.planning.naaru.planners.artifact import ArtifactPlanner

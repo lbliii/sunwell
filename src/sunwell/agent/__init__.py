@@ -62,7 +62,7 @@ from sunwell.agent.planning.composer import (
     CompositionType,
     SkillComposer,
 )
-from sunwell.agent.core.agent import Agent
+from sunwell.agent.core import Agent
 from sunwell.agent.utils.ephemeral_lens import create_ephemeral_lens, should_use_delegation
 from sunwell.agent.events.schemas import (
     EVENT_SCHEMAS,
@@ -123,7 +123,10 @@ from sunwell.agent.execution import (
     validate_gate,
 )
 from sunwell.agent.execution.fixer import FixResult, FixStage
-from sunwell.agent.learning import Learning, LearningExtractor, LearningStore, learn_from_execution
+from sunwell.agent.learning.learning import Learning
+from sunwell.agent.learning.extractor import LearningExtractor
+from sunwell.agent.learning.store import LearningStore
+from sunwell.agent.learning.execution import learn_from_execution
 from sunwell.agent.planning import plan_with_signals
 from sunwell.agent.planning.planner import (
     SHORTCUT_SKILL_MAP,
@@ -132,9 +135,12 @@ from sunwell.agent.planning.planner import (
     GoalPlanner,
     get_skills_for_shortcut,
 )
-from sunwell.agent.recovery import execute_with_convergence_recovery, resume_from_recovery
-from sunwell.agent.core.loop import AgentLoop, run_tool_loop
-from sunwell.agent.loop.config import LoopConfig, LoopState
+from sunwell.agent.recovery.recovery_helpers import (
+    execute_with_convergence_recovery,
+    resume_from_recovery,
+)
+from sunwell.agent.core import AgentLoop, run_tool_loop
+from sunwell.agent.loop import LoopConfig, LoopState
 from sunwell.agent.utils.metrics import InferenceMetrics, InferenceSample, ModelPerformanceProfile
 from sunwell.agent.utils.renderer import (
     JSONRenderer,
@@ -159,7 +165,7 @@ from sunwell.agent.utils.spawn import (
     SpecialistResult,
     SpecialistState,
 )
-from sunwell.agent.core.task_graph import TaskGraph, sanitize_code_content
+from sunwell.agent.core import TaskGraph, sanitize_code_content
 from sunwell.agent.utils.thinking import ThinkingBlock, ThinkingDetector, ThinkingPhase
 from sunwell.agent.utils.toolchain import LanguageToolchain, detect_toolchain
 from sunwell.agent.utils.lens import resolve_lens_for_goal
@@ -169,6 +175,7 @@ from sunwell.agent.validation import (
     GateStepResult,
     GateType,
     IntrospectionResult,
+    ValidationError,
     ValidationGate,
     ValidationRunner,
     ValidationStage,
@@ -314,6 +321,7 @@ __all__ = [
     "detect_toolchain",
     # Validation
     "Artifact",
+    "ValidationError",
     "ValidationRunner",
     "ValidationStage",
     # RFC-111: Skill Composition

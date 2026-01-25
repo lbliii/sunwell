@@ -7,7 +7,7 @@ Includes LLM output sanitization per RFC-091.
 import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from sunwell.planning.skills.types import Skill
@@ -53,7 +53,7 @@ def sanitize_llm_content(text: str | None) -> str | None:
     return sanitized
 
 
-def _sanitize_dict_values(d: dict[str, str | dict[str, str | dict[str, str | list[str]]] | list[str | dict[str, str]]]]) -> dict[str, str | None | dict[str, str | None | dict[str, str | None | list[str | None]]] | list[str | None | dict[str, str | None]]]]]:
+def _sanitize_dict_values(d: dict[str, Any]) -> dict[str, Any]:
     """Recursively sanitize string values in a dict.
 
     Used for sanitizing tool call arguments which may contain control characters.

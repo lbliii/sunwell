@@ -134,7 +134,7 @@ async def autonomous_goal(
     """
     from time import time
 
-    from sunwell.agent.core.agent import Agent
+    from sunwell.agent import Agent
     from sunwell.agent.context.session import SessionContext
     from sunwell.quality.guardrails.system import GuardrailSystem
     from sunwell.memory.persistent import PersistentMemory

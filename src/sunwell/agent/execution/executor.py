@@ -371,7 +371,8 @@ async def execute_task_with_tools(
     Yields:
         Tuples of (event, result_text, tracker) where result_text is set on completion
     """
-    from sunwell.agent.core.loop import AgentLoop, LoopConfig
+    from sunwell.agent.core import AgentLoop
+    from sunwell.agent.loop import LoopConfig
     from sunwell.agent.core.task_graph import sanitize_code_content
     from sunwell.agent.validation import ValidationStage
     from sunwell.agent.events import AgentEvent, EventType, lens_selected_event
