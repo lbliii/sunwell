@@ -83,7 +83,7 @@ def visualize_task_graph(tasks: list[Task]) -> str:
     return "\n".join(lines)
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ParallelismAnalysis:
     """Analysis of parallelization potential for a task graph (RFC-034).
 
@@ -94,7 +94,7 @@ class ParallelismAnalysis:
         max_parallel_width: Maximum tasks that can run simultaneously
         critical_path_length: Minimum sequential steps required
         parallelization_ratio: total_tasks / critical_path_length (theoretical speedup)
-        phases: List of phases with task counts
+        phases: Tuple of phases with task counts
         potential_conflicts: Tasks with overlapping modifies sets
     """
 
@@ -104,8 +104,8 @@ class ParallelismAnalysis:
     max_parallel_width: int
     critical_path_length: int
     parallelization_ratio: float
-    phases: list[dict[str, Any]]
-    potential_conflicts: list[tuple[str, str, set[str]]]
+    phases: tuple[dict[str, Any], ...]
+    potential_conflicts: tuple[tuple[str, str, frozenset[str]], ...]
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -116,7 +116,7 @@ class ParallelismAnalysis:
             "max_parallel_width": self.max_parallel_width,
             "critical_path_length": self.critical_path_length,
             "parallelization_ratio": self.parallelization_ratio,
-            "phases": self.phases,
+            "phases": list(self.phases),
             "potential_conflicts": [
                 {"task_a": a, "task_b": b, "overlapping_files": list(files)}
                 for a, b, files in self.potential_conflicts
@@ -152,8 +152,8 @@ def analyze_parallelism(tasks: list[Task]) -> ParallelismAnalysis:
             max_parallel_width=0,
             critical_path_length=0,
             parallelization_ratio=1.0,
-            phases=[],
-            potential_conflicts=[],
+            phases=(),
+            potential_conflicts=(),
         )
 
     # Count task types
@@ -169,10 +169,12 @@ def analyze_parallelism(tasks: list[Task]) -> ParallelismAnalysis:
     max_parallel_width = _compute_max_parallel_width(tasks, task_map)
 
     # Compute phases
-    phases = _compute_phases(tasks)
+    phases = tuple(_compute_phases(tasks))
 
-    # Find potential conflicts
-    potential_conflicts = _find_conflicts(tasks)
+    # Find potential conflicts (convert sets to frozensets for immutability)
+    potential_conflicts = tuple(
+        (a, b, frozenset(files)) for a, b, files in _find_conflicts(tasks)
+    )
 
     # Compute parallelization ratio
     parallelization_ratio = (

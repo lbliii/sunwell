@@ -11,6 +11,7 @@ RFC-075 (Generative Interface) will extend this with:
 
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 from sunwell.core.lens import Affordances
@@ -24,7 +25,7 @@ if TYPE_CHECKING:
     from sunwell.core.lens import Lens
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class CompositionResult:
     """Result of surface composition."""
 
@@ -37,8 +38,8 @@ class CompositionResult:
     confidence: float
     """Confidence in composition (0.0-1.0)."""
 
-    reasoning: dict[str, Any]
-    """Explanation of composition decisions."""
+    reasoning: MappingProxyType[str, Any]
+    """Explanation of composition decisions (immutable mapping)."""
 
 
 class SurfaceComposer:
@@ -217,7 +218,7 @@ class SurfaceComposer:
             spec=spec,
             intent=intent,
             confidence=confidence,
-            reasoning={"source": "affordances"},
+            reasoning=MappingProxyType({"source": "affordances"}),
         )
 
     def compose_minimal(self, goal: str) -> WorkspaceSpec:
@@ -287,9 +288,9 @@ class SurfaceComposer:
         secondary_scored: tuple[Any, ...],
         contextual_scored: tuple[Any, ...],
         context: ScoringContext,
-    ) -> dict[str, Any]:
+    ) -> MappingProxyType[str, Any]:
         """Build explanation of composition decisions."""
-        return {
+        return MappingProxyType({
             "intent": {
                 "primary_domain": intent.primary_domain,
                 "domain_scores": intent.domain_scores,
@@ -316,7 +317,7 @@ class SurfaceComposer:
                 "project_domain": context.project_domain,
                 "memory_patterns_count": len(context.memory_patterns),
             },
-        }
+        })
 
 
 # =============================================================================

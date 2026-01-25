@@ -61,6 +61,27 @@ from sunwell.models.protocol import GenerateOptions, Tool
 from sunwell.reasoning import ClassificationTemplate, FastClassifier
 
 
+# =============================================================================
+# Module-Level Constants (avoid rebuilding each call)
+# =============================================================================
+
+_PYTHON_BUILTINS: frozenset[str] = frozenset({
+    'print', 'len', 'range', 'str', 'int', 'float', 'list', 'dict',
+    'set', 'tuple', 'True', 'False', 'None', 'open', 'type', 'isinstance',
+    'hasattr', 'getattr', 'setattr', 'super', 'self', 'cls',
+})
+
+_COMMON_MODULES: dict[str, str] = {
+    'json': 'json',
+    'os': 'os',
+    'sys': 'sys',
+    'Path': 'pathlib',
+    'datetime': 'datetime',
+    'asyncio': 'asyncio',
+    're': 're',
+}
+
+
 class DiscernmentVerdict(Enum):
     """Possible discernment verdicts."""
     APPROVE = "approve"
@@ -69,17 +90,17 @@ class DiscernmentVerdict(Enum):
     UNCERTAIN = "uncertain"  # Escalate to full Wisdom
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class DiscernmentResult:
     """Result from Discernment evaluation."""
 
     verdict: DiscernmentVerdict
     confident: bool  # If True, don't need to escalate to Wisdom
     luminance: float  # 0-10 confidence/quality score
-    issues: list[str] = field(default_factory=list)
-    strengths: list[str] = field(default_factory=list)
+    issues: tuple[str, ...] = ()
+    strengths: tuple[str, ...] = ()
     reason: str = ""
-    checks_passed: dict[str, bool] = field(default_factory=dict)
+    checks_passed: tuple[tuple[str, bool], ...] = ()
 
 
 # =============================================================================
@@ -97,43 +118,30 @@ def check_syntax(code: str) -> tuple[bool, str]:
 
 
 def check_imports(code: str) -> tuple[bool, str]:
-    """Check if code has necessary imports."""
+    """Check if code has necessary imports.
+    
+    Uses a single AST walk to collect both imports and names used.
+    """
     tree = ast.parse(code)
 
-    imports = set()
+    imports: set[str] = set()
+    names_used: set[str] = set()
+    
+    # Single walk to collect both imports and names
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
                 imports.add(alias.name.split('.')[0])
         elif isinstance(node, ast.ImportFrom) and node.module:
             imports.add(node.module.split('.')[0])
-
-    # Get all names used in the code
-    names_used = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Name):
+        elif isinstance(node, ast.Name):
             names_used.add(node.id)
 
-    # Common built-ins that don't need imports
-    builtins = {'print', 'len', 'range', 'str', 'int', 'float', 'list', 'dict',
-                'set', 'tuple', 'True', 'False', 'None', 'open', 'type', 'isinstance',
-                'hasattr', 'getattr', 'setattr', 'super', 'self', 'cls'}
-
-    # Check for common unimported modules
-    common_modules = {
-        'json': 'json',
-        'os': 'os',
-        'sys': 'sys',
-        'Path': 'pathlib',
-        'datetime': 'datetime',
-        'asyncio': 'asyncio',
-        're': 're',
-    }
-
+    # Check for common unimported modules using module-level constants
     missing = []
-    for name, module in common_modules.items():
+    for name, module in _COMMON_MODULES.items():
         if name in names_used and module not in imports and name not in imports:
-            if name not in builtins:
+            if name not in _PYTHON_BUILTINS:
                 missing.append(f"{module} (for {name})")
 
     if missing:
@@ -337,17 +345,20 @@ class Discernment:
 
         # Step 1: Quick Insight - structural checks (fast, no LLM)
         structural_results = run_structural_checks(code)
-        checks_passed = {k: v[0] for k, v in structural_results.items()}
+        checks_passed_dict = {k: v[0] for k, v in structural_results.items()}
 
         # Count passed/failed
-        passed = sum(1 for v in checks_passed.values() if v)
-        total = len(checks_passed)
+        passed = sum(1 for v in checks_passed_dict.values() if v)
+        total = len(checks_passed_dict)
+        
+        # Convert to frozen tuple for DiscernmentResult
+        checks_passed = tuple(checks_passed_dict.items())
 
         # Collect issues from failed checks
-        issues = [v[1] for k, v in structural_results.items() if not v[0]]
+        issues = tuple(v[1] for k, v in structural_results.items() if not v[0])
 
         # If syntax fails, reject immediately
-        if not checks_passed.get("syntax", True):
+        if not checks_passed_dict.get("syntax", True):
             return DiscernmentResult(
                 verdict=DiscernmentVerdict.REJECT,
                 confident=True,
@@ -369,7 +380,7 @@ class Discernment:
                 combined_luminance = max(0, insight_result.luminance - penalty)
 
             # Merge issues
-            all_issues = issues + insight_result.issues
+            all_issues = issues + tuple(insight_result.issues)
 
             # Determine verdict based on purity thresholds
             if combined_luminance >= self.auto_approve_purity and passed == total:
@@ -378,7 +389,7 @@ class Discernment:
                     confident=True,
                     luminance=combined_luminance,
                     issues=all_issues,
-                    strengths=insight_result.strengths,
+                    strengths=tuple(insight_result.strengths),
                     reason=f"Luminance {combined_luminance:.1f}/10 - approved",
                     checks_passed=checks_passed,
                 )
@@ -422,7 +433,7 @@ class Discernment:
                 verdict=DiscernmentVerdict.UNCERTAIN,
                 confident=False,
                 luminance=base_luminance,
-                issues=issues + [f"Insight failed: {e}"],
+                issues=issues + (f"Insight failed: {e}",),
                 reason="Insight error - escalating to Wisdom",
                 checks_passed=checks_passed,
             )
@@ -472,20 +483,22 @@ class Discernment:
 
         # Extract score from raw response if available
         luminance = 5.0
-        issues: list[str] = []
-        strengths: list[str] = []
+        issues: tuple[str, ...] = ()
+        strengths: tuple[str, ...] = ()
 
         if result.raw_response:
             luminance = float(result.raw_response.get("score", 5.0))
-            issues = result.raw_response.get("issues", [])
-            strengths = result.raw_response.get("strengths", [])
+            raw_issues = result.raw_response.get("issues", [])
+            raw_strengths = result.raw_response.get("strengths", [])
+            issues = tuple(raw_issues) if isinstance(raw_issues, list) else ()
+            strengths = tuple(raw_strengths) if isinstance(raw_strengths, list) else ()
 
         return DiscernmentResult(
             verdict=verdict,
             confident=result.confidence > 0.6,
             luminance=luminance,
-            issues=issues if isinstance(issues, list) else [],
-            strengths=strengths if isinstance(strengths, list) else [],
+            issues=issues,
+            strengths=strengths,
             reason=f"FastClassifier: {result.value} ({result.confidence:.0%})",
         )
 
@@ -518,13 +531,15 @@ Decide: approve_code, reject_code, or request_refinement."""
             tc = result.tool_calls[0]
             args = tc.arguments
             luminance = float(args.get("score", 5.0))
+            raw_issues = args.get("issues", [])
+            raw_strengths = args.get("strengths", [])
 
             return DiscernmentResult(
                 verdict=self._tool_to_verdict(tc.name),
                 confident=True,
                 luminance=luminance,
-                issues=args.get("issues", []),
-                strengths=args.get("strengths", []),
+                issues=tuple(raw_issues) if isinstance(raw_issues, list) else (),
+                strengths=tuple(raw_strengths) if isinstance(raw_strengths, list) else (),
                 reason=tc.name,
             )
 

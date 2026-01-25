@@ -16,7 +16,7 @@ from sunwell.guardrails.types import (
 )
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class GuardrailConfig:
     """Configuration for guardrail system.
 

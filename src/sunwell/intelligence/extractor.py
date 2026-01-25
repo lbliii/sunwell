@@ -13,6 +13,46 @@ if TYPE_CHECKING:
     from sunwell.simulacrum.hierarchical.chunks import Chunk
 
 
+# Pre-compiled regex patterns for decision extraction
+_DECISION_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(
+        r"(?:we|let's|i|we'll)\s+(?:decided|chose|use|going with)\s+([^,\.]+)",
+        re.IGNORECASE,
+    ),
+    re.compile(r"(?:decision|choice|using|chose)\s*:?\s*([^,\.]+)", re.IGNORECASE),
+)
+
+_INSTEAD_PATTERN: re.Pattern[str] = re.compile(
+    r"([^,\.]+)\s+instead\s+of\s+([^,\.]+)\s+because\s+([^,\.]+)", re.IGNORECASE
+)
+
+# Pre-compiled regex patterns for failure extraction
+_ERROR_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"error\s*:?\s*([^\n]+)", re.IGNORECASE),
+    re.compile(r"exception\s*:?\s*([^\n]+)", re.IGNORECASE),
+    re.compile(r"failed\s+because\s+([^\n]+)", re.IGNORECASE),
+)
+
+_FAILURE_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(
+        r"(?:that|this|it)\s+(?:didn't|doesn't)\s+work\s+because\s+([^\n]+)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(?:approach|method|solution)\s+failed\s+because\s+([^\n]+)", re.IGNORECASE
+    ),
+)
+
+# Category keywords for decision classification
+_CATEGORY_KEYWORDS: dict[str, frozenset[str]] = {
+    "database": frozenset(["sql", "db", "database", "postgres", "sqlite", "mysql"]),
+    "auth": frozenset(["auth", "authentication", "jwt", "oauth", "login"]),
+    "framework": frozenset(["framework", "django", "flask", "fastapi"]),
+    "caching": frozenset(["cache", "redis", "memcached"]),
+    "testing": frozenset(["test", "pytest", "unittest"]),
+}
+
+
 class IntelligenceExtractor:
     """Extract project intelligence from conversation history."""
 
@@ -118,14 +158,8 @@ class IntelligenceExtractor:
         decisions = []
 
         # Pattern 1: "We decided on X" or "Let's use X"
-        decision_patterns = [
-            r"(?:we|let's|i|we'll)\s+(?:decided|chose|use|use|going with)\s+([^,\.]+)",
-            r"(?:decision|choice|using|chose)\s*:?\s*([^,\.]+)",
-        ]
-
-        for pattern in decision_patterns:
-            matches = re.finditer(pattern, content, re.IGNORECASE)
-            for match in matches:
+        for pattern in _DECISION_PATTERNS:
+            for match in pattern.finditer(content):
                 choice = match.group(1).strip()
                 if len(choice) > 3:  # Filter out very short matches
                     decisions.append({
@@ -138,9 +172,7 @@ class IntelligenceExtractor:
                     })
 
         # Pattern 2: "X instead of Y because..."
-        instead_pattern = r"([^,\.]+)\s+instead\s+of\s+([^,\.]+)\s+because\s+([^,\.]+)"
-        matches = re.finditer(instead_pattern, content, re.IGNORECASE)
-        for match in matches:
+        for match in _INSTEAD_PATTERN.finditer(content):
             choice = match.group(1).strip()
             rejected_option = match.group(2).strip()
             rationale = match.group(3).strip()
@@ -178,15 +210,8 @@ class IntelligenceExtractor:
         failures = []
 
         # Pattern 1: "Error:" or "Exception:"
-        error_patterns = [
-            r"error\s*:?\s*([^\n]+)",
-            r"exception\s*:?\s*([^\n]+)",
-            r"failed\s+because\s+([^\n]+)",
-        ]
-
-        for pattern in error_patterns:
-            matches = re.finditer(pattern, content, re.IGNORECASE)
-            for match in matches:
+        for pattern in _ERROR_PATTERNS:
+            for match in pattern.finditer(content):
                 error_msg = match.group(1).strip()
                 failures.append({
                     "description": "Extracted from conversation",
@@ -196,14 +221,8 @@ class IntelligenceExtractor:
                 })
 
         # Pattern 2: "That didn't work" or "This approach failed"
-        failure_patterns = [
-            r"(?:that|this|it)\s+(?:didn't|doesn't)\s+work\s+because\s+([^\n]+)",
-            r"(?:approach|method|solution)\s+failed\s+because\s+([^\n]+)",
-        ]
-
-        for pattern in failure_patterns:
-            matches = re.finditer(pattern, content, re.IGNORECASE)
-            for match in matches:
+        for pattern in _FAILURE_PATTERNS:
+            for match in pattern.finditer(content):
                 reason = match.group(1).strip()
                 failures.append({
                     "description": "Extracted from conversation",
@@ -218,15 +237,7 @@ class IntelligenceExtractor:
         """Infer decision category from text."""
         text_lower = text.lower()
 
-        categories = {
-            "database": ["sql", "db", "database", "postgres", "sqlite", "mysql"],
-            "auth": ["auth", "authentication", "jwt", "oauth", "login"],
-            "framework": ["framework", "django", "flask", "fastapi"],
-            "caching": ["cache", "redis", "memcached"],
-            "testing": ["test", "pytest", "unittest"],
-        }
-
-        for category, keywords in categories.items():
+        for category, keywords in _CATEGORY_KEYWORDS.items():
             if any(keyword in text_lower for keyword in keywords):
                 return category
 

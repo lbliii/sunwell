@@ -4,12 +4,18 @@ Core types for the LLM-driven interaction routing system.
 """
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 if TYPE_CHECKING:
     from sunwell.surface.types import WorkspaceSpec
 
 InteractionType = Literal["workspace", "view", "action", "conversation", "hybrid"]
+
+
+class Serializable(Protocol):
+    """Protocol for types that can serialize to dict."""
+
+    def to_dict(self) -> dict[str, Any]: ...
 
 # Auxiliary panel types for conversation layouts
 AuxiliaryPanelType = Literal[
@@ -186,6 +192,7 @@ __all__ = [
     "InputToolType",
     "IntentAnalysis",
     "InteractionType",
+    "Serializable",
     "ViewSpec",
     "WorkspaceSpec",
 ]

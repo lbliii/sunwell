@@ -19,9 +19,20 @@ Example:
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 from sunwell.memory.types import MemoryContext, SyncResult, TaskMemoryContext
+
+# =============================================================================
+# Module-Level Constants (avoid per-call allocation)
+# =============================================================================
+
+_CODE_KEYWORDS: frozenset[str] = frozenset({"function", "class", "code", "implement"})
+"""Keywords that indicate code-related goals."""
+
+_GENERATION_KEYWORDS: frozenset[str] = frozenset({"generate", "create", "implement"})
+"""Keywords that indicate generation/creation tasks."""
 
 if TYPE_CHECKING:
     from sunwell.intelligence.decisions import Decision, DecisionMemory
@@ -319,8 +330,7 @@ class PersistentMemory:
         goal_lower = goal.lower()
 
         # Add naming conventions if goal mentions code
-        code_keywords = ["function", "class", "code", "implement"]
-        if any(kw in goal_lower for kw in code_keywords) and self.patterns.naming_conventions:
+        if any(kw in goal_lower for kw in _CODE_KEYWORDS) and self.patterns.naming_conventions:
             for kind, style in self.patterns.naming_conventions.items():
                 patterns.append(f"Use {style} for {kind}")
 
@@ -376,7 +386,7 @@ class PersistentMemory:
             patterns.append(f"Test preference: {self.patterns.test_preference}")
 
         # Error handling patterns
-        if any(kw in mode_str for kw in ["generate", "create", "implement"]):
+        if any(kw in mode_str for kw in _GENERATION_KEYWORDS):
             patterns.append(f"Error handling: {self.patterns.error_handling}")
 
         return patterns

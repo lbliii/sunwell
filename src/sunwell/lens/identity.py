@@ -5,8 +5,25 @@ and manifest structures for the global index.
 """
 
 from dataclasses import dataclass
+from typing import Protocol, Self
 
 from sunwell.core.identity import ResourceIdentity
+
+
+class DictSerializable(Protocol):
+    """Protocol for types that serialize to/from dicts.
+
+    Enables generic serialization utilities across lens identity types.
+    """
+
+    @classmethod
+    def from_dict(cls, data: dict[str, object]) -> Self:
+        """Create instance from dictionary representation."""
+        ...
+
+    def to_dict(self) -> dict[str, object]:
+        """Convert to dictionary representation."""
+        ...
 
 
 @dataclass(frozen=True, slots=True)

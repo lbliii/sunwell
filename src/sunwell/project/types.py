@@ -7,6 +7,15 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
+from typing import Any, Protocol
+
+
+class Serializable(Protocol):
+    """Protocol for objects that can be serialized to dict."""
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to JSON-serializable dict."""
+        ...
 
 
 class WorkspaceType(Enum):

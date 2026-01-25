@@ -14,8 +14,55 @@ if TYPE_CHECKING:
     from sunwell.backlog.goals import Goal
     from sunwell.backlog.manager import Backlog
 
+# Pre-compiled regex patterns for file estimation
+_TEST_PATTERN = re.compile(r"test(?:s)?\s+(?:for\s+)?(\w+)")
+_PY_FILE_PATTERN = re.compile(r"(\w+\.py)")
+_MODULE_REF_PATTERN = re.compile(r"(?:to|in|for)\s+(\w+)(?:\.py)?")
 
-@dataclass
+
+def estimate_affected_files(
+    description: str,
+    scope_paths: set[Path] | None = None,
+) -> set[Path]:
+    """Estimate which files a goal description references.
+
+    Uses (in priority order):
+    1. scope_paths if provided
+    2. Pattern matching on description
+
+    Args:
+        description: Goal description text
+        scope_paths: Optional explicit paths from goal scope
+
+    Returns:
+        Set of estimated file paths
+    """
+    if scope_paths:
+        return scope_paths
+
+    files: set[Path] = set()
+    description_lower = description.lower()
+
+    # "test for X" → tests/test_X.py
+    if "test" in description_lower:
+        for match in _TEST_PATTERN.finditer(description_lower):
+            files.add(Path(f"tests/test_{match.group(1)}.py"))
+
+    # "fix X.py" or "in X.py" → X.py
+    for match in _PY_FILE_PATTERN.finditer(description_lower):
+        files.add(Path(match.group(1)))
+
+    # "add docstrings to X" → X.py
+    for match in _MODULE_REF_PATTERN.finditer(description_lower):
+        module = match.group(1)
+        if not module.endswith(".py"):
+            files.add(Path(f"{module}.py"))
+            files.add(Path(f"src/{module}.py"))
+
+    return files
+
+
+@dataclass(slots=True)
 class GoalDependencyGraph:
     """Tracks dependencies between goals for parallel scheduling.
 
@@ -175,40 +222,15 @@ class GoalDependencyGraph:
     def _estimate_affected_files(self, goal: Goal) -> set[Path]:
         """Estimate which files a goal will touch.
 
-        Uses (in priority order):
-        1. goal.scope.allowed_paths if specified
-        2. Pattern matching on goal description
-
         Args:
             goal: The goal to analyze
 
         Returns:
             Set of estimated file paths
         """
-        files: set[Path] = set()
-
-        # Use scope if available
-        if goal.scope and goal.scope.allowed_paths:
-            return set(goal.scope.allowed_paths)
-
-        # Pattern matching heuristics
-        description = goal.description.lower()
-
-        # "test for X" → tests/test_X.py
-        if "test" in description:
-            for match in re.finditer(r"test(?:s)?\s+(?:for\s+)?(\w+)", description):
-                module = match.group(1)
-                files.add(Path(f"tests/test_{module}.py"))
-
-        # "fix X.py" or "in X.py" → X.py
-        for match in re.finditer(r"(\w+\.py)", description):
-            files.add(Path(match.group(1)))
-
-        # "add docstrings to X" → X.py
-        for match in re.finditer(r"(?:to|in|for)\s+(\w+)(?:\.py)?", description):
-            module = match.group(1)
-            if not module.endswith(".py"):
-                files.add(Path(f"{module}.py"))
-                files.add(Path(f"src/{module}.py"))
-
-        return files
+        scope_paths = (
+            set(goal.scope.allowed_paths)
+            if goal.scope and goal.scope.allowed_paths
+            else None
+        )
+        return estimate_affected_files(goal.description, scope_paths)

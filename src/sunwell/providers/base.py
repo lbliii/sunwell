@@ -7,6 +7,13 @@ Implementations can be Sunwell-native or external integrations.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Protocol
+
+
+class Serializable(Protocol):
+    """Protocol for objects that can serialize to dict."""
+
+    def to_dict(self) -> dict[str, object]: ...
 
 
 @dataclass(frozen=True, slots=True)

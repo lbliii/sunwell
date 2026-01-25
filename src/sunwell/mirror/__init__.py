@@ -24,14 +24,30 @@ Example:
 
 from sunwell.mirror.analysis import (
     FailureAnalyzer,
-    PatternAnalyzer,
+    analyze_errors,
+    analyze_latency,
+    analyze_tool_usage,
 )
 from sunwell.mirror.handler import MirrorHandler
 from sunwell.mirror.introspection import (
-    ExecutionIntrospector,
-    LensIntrospector,
-    SimulacrumIntrospector,
     SourceIntrospector,
+    # Lens introspection functions
+    lens_get_all,
+    lens_get_framework,
+    lens_get_heuristics,
+    lens_get_personas,
+    lens_get_validators,
+    # Simulacrum introspection functions
+    simulacrum_get_all,
+    simulacrum_get_context,
+    simulacrum_get_dead_ends,
+    simulacrum_get_focus,
+    simulacrum_get_learnings,
+    # Execution introspection functions
+    execution_get_error_summary,
+    execution_get_errors,
+    execution_get_recent_tool_calls,
+    execution_get_stats,
 )
 from sunwell.mirror.model_tracker import ModelPerformanceEntry, ModelPerformanceTracker
 from sunwell.mirror.proposals import (
@@ -51,13 +67,30 @@ from sunwell.mirror.safety import SafetyChecker, SafetyPolicy, validate_diff_saf
 from sunwell.mirror.tools import MIRROR_TOOL_TRUST, MIRROR_TOOLS, get_mirror_tools_for_trust
 
 __all__ = [
-    # Introspection
+    # Source Introspection (class - has internal state)
     "SourceIntrospector",
-    "LensIntrospector",
-    "SimulacrumIntrospector",
-    "ExecutionIntrospector",
-    # Analysis
-    "PatternAnalyzer",
+    # Lens Introspection (module functions)
+    "lens_get_all",
+    "lens_get_framework",
+    "lens_get_heuristics",
+    "lens_get_personas",
+    "lens_get_validators",
+    # Simulacrum Introspection (module functions)
+    "simulacrum_get_all",
+    "simulacrum_get_context",
+    "simulacrum_get_dead_ends",
+    "simulacrum_get_focus",
+    "simulacrum_get_learnings",
+    # Execution Introspection (module functions)
+    "execution_get_error_summary",
+    "execution_get_errors",
+    "execution_get_recent_tool_calls",
+    "execution_get_stats",
+    # Pattern Analysis (module functions)
+    "analyze_errors",
+    "analyze_latency",
+    "analyze_tool_usage",
+    # Failure Analysis (frozen dataclass)
     "FailureAnalyzer",
     # Proposals
     "Proposal",

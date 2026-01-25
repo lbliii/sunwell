@@ -237,8 +237,8 @@ class FocusFilter:
         tags = set()
         text_lower = text.lower()
 
-        for topic, pattern in TOPIC_PATTERNS.items():
-            if re.search(pattern, text_lower, re.IGNORECASE):
+        for topic, pattern in _TOPIC_PATTERNS.items():
+            if pattern.search(text_lower):  # Use pre-compiled pattern
                 tags.add(topic)
 
         return tags

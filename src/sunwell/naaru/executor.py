@@ -77,7 +77,7 @@ class ArtifactResult:
         return self.content is not None and self.error is None
 
 
-@dataclass
+@dataclass(slots=True)
 class ExecutionResult:
     """Result of executing an artifact graph.
 
@@ -88,6 +88,8 @@ class ExecutionResult:
         discovered: Artifacts discovered mid-execution
         total_duration_ms: Total execution time
         model_distribution: Count of each model tier used
+
+    Note: Not frozen because it accumulates results during execution.
     """
 
     completed: dict[str, ArtifactResult] = field(default_factory=dict)
@@ -161,7 +163,7 @@ EventCallback = Callable[[ExecutionEvent], None]
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class ArtifactExecutor:
     """Executes artifact graphs with parallel, wave-based execution.
 

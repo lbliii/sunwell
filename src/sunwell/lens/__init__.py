@@ -10,6 +10,7 @@ RFC-101 adds:
 """
 
 from sunwell.lens.identity import (
+    DictSerializable,
     LensIndexEntry,
     LensLineage,
     LensManifest,
@@ -31,6 +32,7 @@ __all__ = [
     "LensLibraryEntry",
     "LensManager",
     # Identity types (RFC-101)
+    "DictSerializable",
     "LensIndexEntry",
     "LensLineage",
     "LensManifest",

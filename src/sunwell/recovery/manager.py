@@ -206,22 +206,20 @@ class RecoveryManager:
                 with open(path) as f:
                     data = json.load(f)
 
+                # Single-pass counting (O(n) instead of O(3n))
+                counts = {"passed": 0, "failed": 0, "waiting": 0}
+                for a in data["artifacts"].values():
+                    status = a["status"]
+                    if status in counts:
+                        counts[status] += 1
+
                 summaries.append(RecoverySummary(
                     goal_hash=data["goal_hash"],
                     goal_preview=data["goal"][:80],
                     run_id=data["run_id"],
-                    passed=sum(
-                        1 for a in data["artifacts"].values()
-                        if a["status"] == "passed"
-                    ),
-                    failed=sum(
-                        1 for a in data["artifacts"].values()
-                        if a["status"] == "failed"
-                    ),
-                    waiting=sum(
-                        1 for a in data["artifacts"].values()
-                        if a["status"] == "waiting"
-                    ),
+                    passed=counts["passed"],
+                    failed=counts["failed"],
+                    waiting=counts["waiting"],
                     created_at=datetime.fromisoformat(data["created_at"]),
                 ))
             except (json.JSONDecodeError, KeyError):

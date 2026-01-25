@@ -10,6 +10,9 @@ from sunwell.models.protocol import GenerateOptions, ModelProtocol, sanitize_llm
 from sunwell.project.intent_types import InferredGoal, ProjectType
 from sunwell.project.signals import ProjectSignals, format_dir_tree, format_recent_commits
 
+# Pre-compiled regex for JSON extraction
+_JSON_OBJECT_PATTERN = re.compile(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', re.DOTALL)
+
 GOAL_INFERENCE_PROMPT = '''Analyze this project and suggest 3-5 reasonable goals.
 
 ## Project Context
@@ -236,7 +239,7 @@ def _extract_json(response: str) -> dict:
         return json.loads(json_str.strip())
     except json.JSONDecodeError:
         # Try to find JSON object in response
-        match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', response, re.DOTALL)
+        match = _JSON_OBJECT_PATTERN.search(response)
         if match:
             return json.loads(match.group())
         raise

@@ -37,6 +37,9 @@ from sunwell.intelligence.failures import (
 from sunwell.intelligence.patterns import (
     PatternLearner,
     PatternProfile,
+    learn_from_acceptance,
+    learn_from_edit,
+    learn_from_rejection,
 )
 
 __all__ = [
@@ -49,7 +52,10 @@ __all__ = [
     "FailureMemory",
     # Pattern Learning
     "PatternProfile",
-    "PatternLearner",
+    "PatternLearner",  # Deprecated: use module-level functions
+    "learn_from_edit",
+    "learn_from_rejection",
+    "learn_from_acceptance",
     # Codebase Graph
     "CodebaseGraph",
     "CodebaseAnalyzer",

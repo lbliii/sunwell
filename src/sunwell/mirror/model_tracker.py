@@ -151,18 +151,25 @@ class ModelPerformanceTracker:
         Returns:
             Model identifier or None if insufficient data
         """
-        models = {
-            e.model for e in self.entries
-            if e.task_category == task_category
-        }
+        # Single pass: aggregate by model O(n)
+        model_data: dict[str, tuple[int, int, int]] = {}  # (count, successes, edits)
+        for e in self.entries:
+            if e.task_category != task_category:
+                continue
+            count, successes, edits = model_data.get(e.model, (0, 0, 0))
+            model_data[e.model] = (
+                count + 1,
+                successes + (1 if e.success else 0),
+                edits + (1 if e.user_edited else 0),
+            )
 
+        # Calculate scores O(m) where m = unique models
         scores: dict[str, float] = {}
-        for model in models:
-            stats = self.get_stats(model, task_category)
-            if stats["count"] >= min_samples:
-                # Score = quality (low edits, high success)
-                quality = (1 - stats["edit_rate"]) * stats["success_rate"]
-                scores[model] = quality
+        for model, (count, successes, edits) in model_data.items():
+            if count >= min_samples:
+                success_rate = successes / count
+                edit_rate = edits / count
+                scores[model] = (1 - edit_rate) * success_rate
 
         if not scores:
             return None

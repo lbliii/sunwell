@@ -141,7 +141,7 @@ class ArtifactSpec:
         produces_file: Optional file path this artifact creates/modifies
         requires: Other artifact IDs that must exist before this can be created
         domain_type: RFC-035 schema type (e.g., "character", "protocol")
-        metadata: Additional domain-specific data
+        metadata: Additional domain-specific data as frozen key-value pairs
 
     Example:
         >>> spec = ArtifactSpec(
@@ -176,8 +176,8 @@ class ArtifactSpec:
     domain_type: str | None = None
     """RFC-035 schema type: 'character', 'protocol', 'hypothesis', etc."""
 
-    metadata: dict[str, Any] = field(default_factory=dict)
-    """Additional domain-specific data."""
+    metadata: tuple[tuple[str, Any], ...] = ()
+    """Additional domain-specific data as frozen key-value pairs."""
 
     def is_leaf(self) -> bool:
         """Check if this artifact has no dependencies (is a leaf)."""
@@ -193,6 +193,13 @@ class ArtifactSpec:
         contract_types = ("protocol", "interface", "schema", "spec", "outline")
         return self.domain_type in contract_types or self.is_leaf()
 
+    def get_metadata(self, key: str, default: Any = None) -> Any:
+        """Get metadata value by key."""
+        for k, v in self.metadata:
+            if k == key:
+                return v
+        return default
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
         return {
@@ -202,12 +209,14 @@ class ArtifactSpec:
             "produces_file": self.produces_file,
             "requires": list(self.requires),
             "domain_type": self.domain_type,
-            "metadata": self.metadata,
+            "metadata": dict(self.metadata),
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ArtifactSpec:
         """Create from dict."""
+        raw_metadata = data.get("metadata", {})
+        metadata = tuple(raw_metadata.items()) if isinstance(raw_metadata, dict) else ()
         return cls(
             id=data["id"],
             description=data["description"],
@@ -215,7 +224,7 @@ class ArtifactSpec:
             produces_file=data.get("produces_file"),
             requires=frozenset(data.get("requires", [])),
             domain_type=data.get("domain_type"),
-            metadata=data.get("metadata", {}),
+            metadata=metadata,
         )
 
 
@@ -246,7 +255,7 @@ class VerificationResult:
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class ArtifactGraph:
     """Directed acyclic graph of artifacts with dependency resolution.
 
@@ -715,7 +724,7 @@ def artifact_to_task(artifact: ArtifactSpec, graph: ArtifactGraph | None = None)
         # Metadata
         details={
             "domain_type": artifact.domain_type,
-            "artifact_metadata": artifact.metadata,
+            "artifact_metadata": dict(artifact.metadata),
         },
         status=TaskStatus.PENDING,
     )

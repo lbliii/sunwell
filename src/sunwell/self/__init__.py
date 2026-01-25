@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from sunwell.self.source import SourceKnowledge
 
 
-@dataclass
+@dataclass(slots=True)
 class Self:
     """Sunwell's self-knowledge service.
 
@@ -41,6 +41,8 @@ class Self:
         >>> Self.get().source.read_module("sunwell.tools.executor")
         >>> Self.get().analysis.recent_failures()
         >>> Self.get().proposals.create(...)
+
+    Note: Not frozen because cached_property requires mutability.
     """
 
     _source_root: Path

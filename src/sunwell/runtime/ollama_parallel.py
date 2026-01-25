@@ -12,8 +12,8 @@ See: https://github.com/ollama/ollama/blob/main/docs/faq.md#how-does-ollama-hand
 
 import asyncio
 import os
+import threading
 from dataclasses import dataclass, field
-from functools import cache
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -71,18 +71,30 @@ CPU_CAPACITY = OllamaCapacity(
 )
 
 
-@cache
+_env_config: dict[str, int | None] | None = None
+_env_config_lock = threading.Lock()
+
+
 def get_ollama_env_config() -> dict[str, int | None]:
     """Read Ollama config from environment variables.
+
+    Thread-safe cached access to Ollama environment configuration.
 
     Returns:
         Dict with num_parallel, max_loaded_models, max_queue from env
     """
-    return {
-        "num_parallel": _parse_int_env("OLLAMA_NUM_PARALLEL"),
-        "max_loaded_models": _parse_int_env("OLLAMA_MAX_LOADED_MODELS"),
-        "max_queue": _parse_int_env("OLLAMA_MAX_QUEUE"),
-    }
+    global _env_config
+    if _env_config is not None:
+        return _env_config
+    with _env_config_lock:
+        if _env_config is not None:
+            return _env_config
+        _env_config = {
+            "num_parallel": _parse_int_env("OLLAMA_NUM_PARALLEL"),
+            "max_loaded_models": _parse_int_env("OLLAMA_MAX_LOADED_MODELS"),
+            "max_queue": _parse_int_env("OLLAMA_MAX_QUEUE"),
+        }
+        return _env_config
 
 
 def _parse_int_env(key: str) -> int | None:
@@ -217,7 +229,7 @@ def detect_ollama_capacity_sync(
     return DEFAULT_CAPACITY
 
 
-@dataclass
+@dataclass(slots=True)
 class OllamaSemaphore:
     """Semaphore for limiting concurrent Ollama requests.
 

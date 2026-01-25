@@ -163,12 +163,14 @@ def _resolve_imports(
     Returns:
         List of resolved paths (relative to project root)
     """
+    seen: set[str] = set()
     resolved: list[str] = []
     base_dir = file_path.parent
 
     for imp in imports:
         resolved_path = _resolve_single_import(base_dir, imp, lang)
-        if resolved_path and resolved_path not in resolved:
+        if resolved_path and resolved_path not in seen:
+            seen.add(resolved_path)
             resolved.append(resolved_path)
 
     return resolved

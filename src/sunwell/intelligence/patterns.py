@@ -20,7 +20,11 @@ if TYPE_CHECKING:
     from sunwell.bootstrap.types import BootstrapPatterns
 
 
-@dataclass
+# Pre-compiled regex for docstring extraction
+_DOCSTRING_PATTERN: re.Pattern[str] = re.compile(r'"""(.*?)"""', re.DOTALL)
+
+
+@dataclass(slots=True)
 class PatternProfile:
     """Learned patterns for a user/project.
 
@@ -204,242 +208,231 @@ class PatternProfile:
             json.dump(self.to_dict(), f, indent=2)
 
 
-class PatternLearner:
-    """Learns patterns from implicit user feedback."""
+def _extract_function_names(code: str) -> list[str]:
+    """Extract function names from code."""
+    try:
+        tree = ast.parse(code)
+        return [
+            node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
+        ]
+    except SyntaxError:
+        return []
 
+
+def _detect_naming_style(name: str) -> str:
+    """Detect naming convention style."""
+    if "_" in name:
+        return "snake_case"
+    elif name[0].isupper() if name else False:
+        return "PascalCase"
+    elif name.isupper():
+        return "UPPER_SNAKE"
+    else:
+        return "camelCase"
+
+
+def _learn_naming(
+    original: str,
+    edited: str,
+    profile: PatternProfile,
+    session_id: str,
+) -> None:
+    """Learn naming conventions from edits."""
+    original_funcs = _extract_function_names(original)
+    edited_funcs = _extract_function_names(edited)
+
+    for orig_name, edit_name in zip(original_funcs, edited_funcs, strict=False):
+        if orig_name != edit_name:
+            orig_style = _detect_naming_style(orig_name)
+            edit_style = _detect_naming_style(edit_name)
+
+            if orig_style != edit_style:
+                profile.naming_conventions["function"] = edit_style
+                profile.confidence["naming_function"] = min(
+                    profile.confidence.get("naming_function", 0.6) + 0.1,
+                    1.0,
+                )
+                if session_id:
+                    profile.evidence.setdefault("naming_function", []).append(
+                        session_id
+                    )
+
+
+def _learn_type_annotations(
+    original: str,
+    edited: str,
+    profile: PatternProfile,
+    session_id: str,
+) -> None:
+    """Learn type annotation preferences."""
+    orig_has_types = ":" in original and "->" in original
+    edit_has_types = ":" in edited and "->" in edited
+
+    if not orig_has_types and edit_has_types:
+        profile.type_annotation_level = "all"
+        profile.confidence["type_annotations"] = min(
+            profile.confidence.get("type_annotations", 0.6) + 0.1,
+            1.0,
+        )
+        if session_id:
+            profile.evidence.setdefault("type_annotations", []).append(session_id)
+    elif orig_has_types and not edit_has_types:
+        profile.type_annotation_level = "none"
+        profile.confidence["type_annotations"] = min(
+            profile.confidence.get("type_annotations", 0.6) + 0.1,
+            1.0,
+        )
+        if session_id:
+            profile.evidence.setdefault("type_annotations", []).append(session_id)
+
+
+def _learn_comments(
+    original: str,
+    edited: str,
+    profile: PatternProfile,
+) -> None:
+    """Learn comment preferences."""
+    orig_comments = original.count("#") + original.count('"""') + original.count("'''")
+    edit_comments = edited.count("#") + edited.count('"""') + edited.count("'''")
+
+    if edit_comments < orig_comments:
+        profile.code_comment_level = max(0.0, profile.code_comment_level - 0.1)
+    elif edit_comments > orig_comments:
+        profile.code_comment_level = min(1.0, profile.code_comment_level + 0.1)
+
+
+def _learn_docstring_style(
+    code: str,
+    profile: PatternProfile,
+    session_id: str,
+) -> None:
+    """Detect docstring style from code."""
+    docstring_match = _DOCSTRING_PATTERN.search(code)
+    if not docstring_match:
+        return
+
+    docstring = docstring_match.group(1)
+
+    if "Args:" in docstring and "Returns:" in docstring:
+        style = "google"
+    elif "Parameters" in docstring and "Returns" in docstring:
+        style = "numpy"
+    elif ":param" in docstring or ":return:" in docstring:
+        style = "sphinx"
+    else:
+        style = "none"
+
+    if style != "none":
+        profile.docstring_style = style
+        profile.confidence["docstring_style"] = min(
+            profile.confidence.get("docstring_style", 0.7) + 0.1,
+            1.0,
+        )
+        if session_id:
+            profile.evidence.setdefault("docstring_style", []).append(session_id)
+
+
+def learn_from_edit(
+    original: str,
+    edited: str,
+    profile: PatternProfile,
+    session_id: str = "",
+) -> PatternProfile:
+    """User edited AI output → learn what they changed.
+
+    If edit contradicts a bootstrap pattern:
+    - Override bootstrap pattern
+    - Upgrade confidence to 0.85 (user-confirmed)
+
+    Args:
+        original: Original code from AI
+        edited: User's edited version
+        profile: Current pattern profile
+        session_id: Session identifier for evidence tracking
+
+    Returns:
+        Updated pattern profile
+    """
+    _learn_naming(original, edited, profile, session_id)
+    _learn_type_annotations(original, edited, profile, session_id)
+    _learn_comments(original, edited, profile)
+    _learn_docstring_style(edited, profile, session_id)
+    return profile
+
+
+def learn_from_rejection(
+    rejected_output: str,
+    reason: str | None,
+    profile: PatternProfile,
+    session_id: str = "",
+) -> PatternProfile:
+    """User rejected output → learn what was wrong.
+
+    Args:
+        rejected_output: Code that was rejected
+        reason: Optional reason for rejection
+        profile: Current pattern profile
+        session_id: Session identifier
+
+    Returns:
+        Updated pattern profile
+    """
+    if reason and "verbose" in reason.lower():
+        profile.explanation_verbosity = max(0.0, profile.explanation_verbosity - 0.1)
+
+    if reason and ("detail" in reason.lower() or "explain" in reason.lower()):
+        profile.explanation_verbosity = min(1.0, profile.explanation_verbosity + 0.1)
+
+    return profile
+
+
+def learn_from_acceptance(
+    accepted_output: str,
+    profile: PatternProfile,
+    session_id: str = "",
+) -> PatternProfile:
+    """User accepted output without edits → reinforce patterns.
+
+    Args:
+        accepted_output: Code that was accepted
+        profile: Current pattern profile
+        session_id: Session identifier
+
+    Returns:
+        Updated pattern profile (reinforced confidence)
+    """
+    for key in profile.confidence:
+        profile.confidence[key] = min(profile.confidence[key] + 0.05, 1.0)
+
+    return profile
+
+
+# Backwards compatibility alias
+class PatternLearner:
+    """Deprecated: Use module-level functions instead."""
+
+    @staticmethod
     def learn_from_edit(
-        self,
         original: str,
         edited: str,
         profile: PatternProfile,
         session_id: str = "",
     ) -> PatternProfile:
-        """User edited AI output → learn what they changed.
+        return learn_from_edit(original, edited, profile, session_id)
 
-        If edit contradicts a bootstrap pattern:
-        - Override bootstrap pattern
-        - Upgrade confidence to 0.85 (user-confirmed)
-
-        Args:
-            original: Original code from AI
-            edited: User's edited version
-            profile: Current pattern profile
-            session_id: Session identifier for evidence tracking
-
-        Returns:
-            Updated pattern profile
-        """
-        # Detect naming convention changes
-        self._learn_naming(original, edited, profile, session_id)
-
-        # Detect type annotation changes
-        self._learn_type_annotations(original, edited, profile, session_id)
-
-        # Detect comment changes
-        self._learn_comments(original, edited, profile, session_id)
-
-        # Detect docstring style
-        self._learn_docstring_style(edited, profile, session_id)
-
-        return profile
-
-    def _upgrade_from_bootstrap(
-        self,
-        profile: PatternProfile,
-        field: str,
-        session_id: str,
-    ) -> None:
-        """Upgrade a bootstrap pattern to user-confirmed confidence.
-
-        Called when user edit confirms or overrides a bootstrap pattern.
-        """
-        if field in profile.evidence:
-            evidence_list = profile.evidence[field]
-            if any("bootstrap:" in e for e in evidence_list):
-                # This was a bootstrap pattern, upgrade to user-confirmed
-                profile.evidence[field] = [session_id] if session_id else ["user_edit"]
-                profile.confidence[field] = 0.85
-
-    def _learn_naming(
-        self,
-        original: str,
-        edited: str,
-        profile: PatternProfile,
-        session_id: str,
-    ) -> None:
-        """Learn naming conventions from edits."""
-        # Extract function names
-        original_funcs = self._extract_function_names(original)
-        edited_funcs = self._extract_function_names(edited)
-
-        # Compare naming styles
-        for orig_name, edit_name in zip(original_funcs, edited_funcs, strict=False):
-            if orig_name != edit_name:
-                # Detect style change
-                orig_style = self._detect_naming_style(orig_name)
-                edit_style = self._detect_naming_style(edit_name)
-
-                if orig_style != edit_style:
-                    profile.naming_conventions["function"] = edit_style
-                    profile.confidence["naming_function"] = min(
-                        profile.confidence.get("naming_function", 0.6) + 0.1,
-                        1.0,
-                    )
-                    if session_id:
-                        profile.evidence.setdefault("naming_function", []).append(
-                            session_id
-                        )
-
-    def _learn_type_annotations(
-        self,
-        original: str,
-        edited: str,
-        profile: PatternProfile,
-        session_id: str,
-    ) -> None:
-        """Learn type annotation preferences."""
-        orig_has_types = ":" in original and "->" in original
-        edit_has_types = ":" in edited and "->" in edited
-
-        if not orig_has_types and edit_has_types:
-            # User added type annotations
-            profile.type_annotation_level = "all"
-            profile.confidence["type_annotations"] = min(
-                profile.confidence.get("type_annotations", 0.6) + 0.1,
-                1.0,
-            )
-            if session_id:
-                profile.evidence.setdefault("type_annotations", []).append(session_id)
-        elif orig_has_types and not edit_has_types:
-            # User removed type annotations
-            profile.type_annotation_level = "none"
-            profile.confidence["type_annotations"] = min(
-                profile.confidence.get("type_annotations", 0.6) + 0.1,
-                1.0,
-            )
-            if session_id:
-                profile.evidence.setdefault("type_annotations", []).append(session_id)
-
-    def _learn_comments(
-        self,
-        original: str,
-        edited: str,
-        profile: PatternProfile,
-        session_id: str,
-    ) -> None:
-        """Learn comment preferences."""
-        orig_comments = original.count("#") + original.count('"""') + original.count("'''")
-        edit_comments = edited.count("#") + edited.count('"""') + edited.count("'''")
-
-        if edit_comments < orig_comments:
-            # User removed comments
-            profile.code_comment_level = max(0.0, profile.code_comment_level - 0.1)
-        elif edit_comments > orig_comments:
-            # User added comments
-            profile.code_comment_level = min(1.0, profile.code_comment_level + 0.1)
-
-    def _learn_docstring_style(
-        self,
-        code: str,
-        profile: PatternProfile,
-        session_id: str,
-    ) -> None:
-        """Detect docstring style from code."""
-        # Look for docstrings
-        docstring_match = re.search(r'"""(.*?)"""', code, re.DOTALL)
-        if not docstring_match:
-            return
-
-        docstring = docstring_match.group(1)
-
-        # Detect style
-        if "Args:" in docstring and "Returns:" in docstring:
-            style = "google"
-        elif "Parameters" in docstring and "Returns" in docstring:
-            style = "numpy"
-        elif ":param" in docstring or ":return:" in docstring:
-            style = "sphinx"
-        else:
-            style = "none"
-
-        if style != "none":
-            profile.docstring_style = style
-            profile.confidence["docstring_style"] = min(
-                profile.confidence.get("docstring_style", 0.7) + 0.1,
-                1.0,
-            )
-            if session_id:
-                profile.evidence.setdefault("docstring_style", []).append(session_id)
-
-    def _extract_function_names(self, code: str) -> list[str]:
-        """Extract function names from code."""
-        try:
-            tree = ast.parse(code)
-            return [
-                node.name
-                for node in ast.walk(tree)
-                if isinstance(node, ast.FunctionDef)
-            ]
-        except SyntaxError:
-            return []
-
-    def _detect_naming_style(self, name: str) -> str:
-        """Detect naming convention style."""
-        if "_" in name:
-            return "snake_case"
-        elif name[0].isupper() if name else False:
-            return "PascalCase"
-        elif name.isupper():
-            return "UPPER_SNAKE"
-        else:
-            return "camelCase"
-
+    @staticmethod
     def learn_from_rejection(
-        self,
         rejected_output: str,
         reason: str | None,
         profile: PatternProfile,
         session_id: str = "",
     ) -> PatternProfile:
-        """User rejected output → learn what was wrong.
+        return learn_from_rejection(rejected_output, reason, profile, session_id)
 
-        Args:
-            rejected_output: Code that was rejected
-            reason: Optional reason for rejection
-            profile: Current pattern profile
-            session_id: Session identifier
-
-        Returns:
-            Updated pattern profile
-        """
-        # If reason mentions "too verbose", reduce verbosity
-        if reason and "verbose" in reason.lower():
-            profile.explanation_verbosity = max(0.0, profile.explanation_verbosity - 0.1)
-
-        # If reason mentions "not enough detail", increase verbosity
-        if reason and ("detail" in reason.lower() or "explain" in reason.lower()):
-            profile.explanation_verbosity = min(1.0, profile.explanation_verbosity + 0.1)
-
-        return profile
-
+    @staticmethod
     def learn_from_acceptance(
-        self,
         accepted_output: str,
         profile: PatternProfile,
         session_id: str = "",
     ) -> PatternProfile:
-        """User accepted output without edits → reinforce patterns.
-
-        Args:
-            accepted_output: Code that was accepted
-            profile: Current pattern profile
-            session_id: Session identifier
-
-        Returns:
-            Updated pattern profile (reinforced confidence)
-        """
-        # Reinforce existing patterns
-        for key in profile.confidence:
-            profile.confidence[key] = min(profile.confidence[key] + 0.05, 1.0)
-
-        return profile
+        return learn_from_acceptance(accepted_output, profile, session_id)

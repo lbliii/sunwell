@@ -20,8 +20,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
+# Outcome icons for attempt status (extracted for O(1) reuse)
+OUTCOME_ICONS: dict[str, str] = {
+    "success": "✅",
+    "partial": "🟡",
+    "failed": "❌",
+    "unclear": "❓",
+}
 
-@dataclass(slots=True)
+
+@dataclass(frozen=True, slots=True)
 class Attempt:
     """Record of something that was tried."""
 
@@ -168,7 +176,7 @@ class HandoffState:
         if self.attempts:
             sections.append("## What's Been Tried\n")
             for i, attempt in enumerate(self.attempts, 1):
-                icon = {"success": "✅", "partial": "🟡", "failed": "❌", "unclear": "❓"}[attempt.outcome]
+                icon = OUTCOME_ICONS[attempt.outcome]
                 sections.append(f"\n### Attempt {i}: {attempt.description} {icon}\n")
                 if attempt.learning:
                     sections.append(f"**Learning:** {attempt.learning}\n")

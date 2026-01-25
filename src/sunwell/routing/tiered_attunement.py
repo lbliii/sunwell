@@ -75,7 +75,7 @@ class TierBehavior:
 # =============================================================================
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class RoutingExemplar:
     """Gold-standard routing example for pattern matching.
 
@@ -261,7 +261,7 @@ ROUTING_EXEMPLARS: tuple[RoutingExemplar, ...] = (
 # =============================================================================
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class ConfidenceRubric:
     """Explicit confidence scoring rubric.
 
@@ -522,7 +522,7 @@ def verify_routing(
 # =============================================================================
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class AttunementResult:
     """Result from TieredAttunement routing."""
 
@@ -704,8 +704,8 @@ class TieredAttunement:
             return RoutingDecision(
                 intent=exemplar.intent,
                 lens=exemplar.lens,
-                secondary_lenses=[],
-                focus=list(exemplar.focus),
+                secondary_lenses=(),
+                focus=exemplar.focus,
                 complexity=Complexity.MODERATE,
                 top_k=5,
                 threshold=0.3,

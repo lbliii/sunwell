@@ -20,6 +20,31 @@ RFC-030 Migration:
     mood, expertise, and confidence - all in one call.
 """
 
+from typing import Any, Protocol
+
+
+# =============================================================================
+# Protocols for routing components
+# =============================================================================
+
+
+class HasStats(Protocol):
+    """Protocol for classes that provide statistics.
+
+    Implemented by: CognitiveRouter, HybridRouter, UnifiedRouter, TieredAttunement
+    """
+
+    def get_stats(self) -> dict[str, Any]: ...
+
+
+class Serializable(Protocol):
+    """Protocol for classes that serialize to dict.
+
+    Implemented by: RoutingDecision (both), AttunementResult
+    """
+
+    def to_dict(self) -> dict[str, Any]: ...
+
 # RFC-030: Unified Router (recommended)
 # RFC-020: Cognitive Router (deprecated - use UnifiedRouter)
 from sunwell.routing.cognitive_router import (
@@ -61,6 +86,9 @@ from sunwell.routing.unified import (
 )
 
 __all__ = [
+    # Protocols
+    "HasStats",
+    "Serializable",
     # RFC-030: Unified Router (recommended)
     "UnifiedRouter",
     "UnifiedRoutingDecision",

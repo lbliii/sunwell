@@ -105,7 +105,7 @@ class IntentTaxonomy:
         return self.lens_mapping.get(intent, "helper")
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class RoutingDecision:
     """Output from the CognitiveRouter.
 
@@ -114,8 +114,8 @@ class RoutingDecision:
 
     intent: Intent                      # Primary intent classification
     lens: str                           # Selected lens file (without .lens)
-    secondary_lenses: list[str]         # Additional lenses to merge
-    focus: list[str]                    # Key topics to boost in retrieval
+    secondary_lenses: tuple[str, ...]   # Additional lenses to merge
+    focus: tuple[str, ...]              # Key topics to boost in retrieval
     complexity: Complexity              # Task complexity
     top_k: int                          # Suggested retrieval count
     threshold: float                    # Minimum relevance threshold
@@ -127,8 +127,8 @@ class RoutingDecision:
         return {
             "intent": self.intent.value,
             "lens": self.lens,
-            "secondary_lenses": self.secondary_lenses,
-            "focus": self.focus,
+            "secondary_lenses": list(self.secondary_lenses),
+            "focus": list(self.focus),
             "complexity": self.complexity.value,
             "top_k": self.top_k,
             "threshold": self.threshold,
@@ -142,8 +142,8 @@ class RoutingDecision:
         return cls(
             intent=Intent(data.get("intent", "unknown")),
             lens=data.get("lens", "helper"),
-            secondary_lenses=data.get("secondary_lenses", []),
-            focus=data.get("focus", []),
+            secondary_lenses=tuple(data.get("secondary_lenses", [])),
+            focus=tuple(data.get("focus", [])),
             complexity=Complexity(data.get("complexity", "moderate")),
             top_k=data.get("top_k", 5),
             threshold=data.get("threshold", 0.3),
@@ -157,8 +157,8 @@ class RoutingDecision:
         return cls(
             intent=Intent.UNKNOWN,
             lens="helper",
-            secondary_lenses=[],
-            focus=[],
+            secondary_lenses=(),
+            focus=(),
             complexity=Complexity.MODERATE,
             top_k=5,
             threshold=0.3,
@@ -374,8 +374,8 @@ class CognitiveRouter:
         return RoutingDecision(
             intent=Intent(mapping["intent"]),
             lens=lens,
-            secondary_lenses=[],
-            focus=mapping["focus"],
+            secondary_lenses=(),
+            focus=tuple(mapping["focus"]),
             complexity=Complexity.MODERATE,
             top_k=5,
             threshold=0.3,
@@ -479,8 +479,8 @@ Respond with ONLY valid JSON (no markdown, no explanation):
         return RoutingDecision(
             intent=intent,
             lens=lens,
-            secondary_lenses=data.get("secondary_lenses", []),
-            focus=data.get("focus", []),
+            secondary_lenses=tuple(data.get("secondary_lenses", [])),
+            focus=tuple(data.get("focus", [])),
             complexity=complexity,
             top_k=data.get("top_k", params["top_k"]),
             threshold=data.get("threshold", params["threshold"]),
@@ -551,8 +551,8 @@ Respond with ONLY valid JSON (no markdown, no explanation):
         return RoutingDecision(
             intent=intent,
             lens=lens,
-            secondary_lenses=[],
-            focus=focus,
+            secondary_lenses=(),
+            focus=tuple(focus),
             complexity=Complexity.MODERATE,
             top_k=5,
             threshold=0.3,
@@ -601,7 +601,7 @@ class HybridRouter:
     patterns, LLM's flexibility for everything else.
     """
 
-    @dataclass
+    @dataclass(frozen=True, slots=True)
     class Rule:
         """A fast-path routing rule."""
         pattern: re.Pattern[str]
@@ -635,8 +635,8 @@ class HybridRouter:
             decision=RoutingDecision(
                 intent=intent,
                 lens=lens,
-                secondary_lenses=[],
-                focus=focus,
+                secondary_lenses=(),
+                focus=tuple(focus),
                 complexity=Complexity.MODERATE,
                 top_k=5,
                 threshold=0.3,

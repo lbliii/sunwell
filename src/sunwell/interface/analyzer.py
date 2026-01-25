@@ -22,9 +22,13 @@ Legacy usage (deprecated):
 
 import contextlib
 import json
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
+
+# Pre-compiled pattern for JSON extraction
+_JSON_EXTRACT_PATTERN = re.compile(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", re.DOTALL)
 
 from sunwell.interface.types import (
     ActionSpec,
@@ -163,7 +167,7 @@ _FALLBACK_RESPONSE = (
 )
 
 
-@dataclass
+@dataclass(slots=True)
 class IntentAnalyzer:
     """LLM-driven intent analysis with provider context.
 
@@ -364,10 +368,8 @@ class IntentAnalyzer:
         try:
             data = json.loads(json_str.strip())
         except json.JSONDecodeError:
-            # Try to find JSON object in the response
-            import re
-
-            match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', response, re.DOTALL)
+            # Try to find JSON object in the response (pre-compiled pattern)
+            match = _JSON_EXTRACT_PATTERN.search(response)
             if match:
                 try:
                     data = json.loads(match.group())

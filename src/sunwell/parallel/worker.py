@@ -10,7 +10,6 @@ Each worker:
 
 import json
 import os
-import re
 import signal
 from dataclasses import asdict
 from datetime import datetime
@@ -19,6 +18,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from sunwell.parallel.config import MultiInstanceConfig
+from sunwell.parallel.dependencies import estimate_affected_files
 from sunwell.parallel.git import commit_all, create_branch
 from sunwell.parallel.locks import FileLockManager
 from sunwell.parallel.types import WorkerResult, WorkerState, WorkerStatus
@@ -122,7 +122,7 @@ class WorkerProcess:
                 goals_failed=self.status.goals_failed,
                 branch=self.branch,
                 duration_seconds=duration,
-                commit_shas=self._commit_shas,
+                commit_shas=tuple(self._commit_shas),
             )
 
         except Exception as e:
@@ -278,29 +278,18 @@ class WorkerProcess:
     async def _estimate_affected_files(self, goal: Goal) -> set[Path]:
         """Estimate which files a goal will touch.
 
-        Strategies:
-        1. Use goal.scope.allowed_paths if specified
-        2. Use pattern matching on goal description
+        Args:
+            goal: The goal to analyze
+
+        Returns:
+            Set of estimated file paths
         """
-        files: set[Path] = set()
-
-        if goal.scope and goal.scope.allowed_paths:
-            return set(goal.scope.allowed_paths)
-
-        # Pattern matching heuristics
-        description = goal.description.lower()
-
-        # "test for X" → tests/test_X.py
-        if "test" in description:
-            for match in re.finditer(r"test(?:s)?\s+(?:for\s+)?(\w+)", description):
-                module = match.group(1)
-                files.add(Path(f"tests/test_{module}.py"))
-
-        # "fix X.py" → X.py
-        for match in re.finditer(r"(\w+\.py)", description):
-            files.add(Path(match.group(1)))
-
-        return files
+        scope_paths = (
+            set(goal.scope.allowed_paths)
+            if goal.scope and goal.scope.allowed_paths
+            else None
+        )
+        return estimate_affected_files(goal.description, scope_paths)
 
     async def _commit_changes(self, goal: Goal) -> str:
         """Commit changes for a completed goal.

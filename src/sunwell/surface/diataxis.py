@@ -8,6 +8,7 @@ from document content and structure.
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import MappingProxyType
 from typing import Literal
 
 DiataxisType = Literal["TUTORIAL", "HOW_TO", "EXPLANATION", "REFERENCE"]
@@ -48,11 +49,15 @@ class DiataxisDetection:
     signals: tuple[DiataxisSignal, ...]
     """Signals that contributed to detection."""
 
-    scores: dict[str, float] = field(default_factory=dict)
-    """Per-type scores for mixed content detection."""
+    scores: tuple[tuple[str, float], ...] = ()
+    """Per-type scores for mixed content detection as immutable pairs."""
 
     mixed_warning: str | None = None
     """Warning if content mixes types."""
+
+    def get_score(self, dtype: str) -> float:
+        """Get score for a specific Diataxis type."""
+        return dict(self.scores).get(dtype, 0.0)
 
 
 # =============================================================================
@@ -216,7 +221,7 @@ def detect_diataxis(content: str, file_path: Path | None = None) -> DiataxisDete
             detected_type=None,
             confidence=0.0,
             signals=tuple(signals),
-            scores=dict.fromkeys(scores, 0.0),
+            scores=tuple((k, 0.0) for k in scores),
         )
 
     best_type = max(scores, key=lambda t: scores[t])
@@ -232,7 +237,7 @@ def detect_diataxis(content: str, file_path: Path | None = None) -> DiataxisDete
         detected_type=detected,
         confidence=round(confidence, 2),
         signals=tuple(signals),
-        scores={k: round(v, 2) for k, v in scores.items()},
+        scores=tuple((k, round(v, 2)) for k, v in scores.items()),
         mixed_warning=mixed_warning,
     )
 

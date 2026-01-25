@@ -117,8 +117,12 @@ class IntegrationAwareGoal:
     priority: float = 0.5
     """0-1, higher = more urgent."""
 
-    metadata: dict[str, Any] = field(default_factory=dict)
-    """Additional context."""
+    metadata: tuple[tuple[str, Any], ...] = ()
+    """Additional context as immutable key-value pairs."""
+
+    def get_metadata(self, key: str, default: Any = None) -> Any:
+        """Get metadata value by key."""
+        return dict(self.metadata).get(key, default)
 
     def is_wire_task(self) -> bool:
         """Check if this is a wiring task."""
@@ -152,12 +156,13 @@ class IntegrationAwareGoal:
             "verification_checks": [c.to_dict() for c in self.verification_checks],
             "task_type": self.task_type.value,
             "priority": self.priority,
-            "metadata": self.metadata,
+            "metadata": dict(self.metadata),
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> IntegrationAwareGoal:
         """Create from dict."""
+        metadata_dict = data.get("metadata", {})
         return cls(
             id=data["id"],
             title=data["title"],
@@ -174,7 +179,7 @@ class IntegrationAwareGoal:
             ),
             task_type=TaskType(data.get("task_type", "create")),
             priority=data.get("priority", 0.5),
-            metadata=data.get("metadata", {}),
+            metadata=tuple(metadata_dict.items()),
         )
 
 

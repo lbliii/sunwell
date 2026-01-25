@@ -11,8 +11,55 @@ from typing import Any
 from sunwell.interface.types import ViewSpec
 from sunwell.providers.registry import ProviderRegistry
 
+# =============================================================================
+# FILE EXTENSION CONSTANTS — Avoid recreation per call
+# =============================================================================
 
-@dataclass
+_MARKDOWN_EXTS: frozenset[str] = frozenset({"md", "markdown", "mdown", "mkd"})
+_CODE_EXTS: frozenset[str] = frozenset({
+    "py", "js", "ts", "jsx", "tsx", "rs", "go", "java", "c", "cpp",
+    "h", "hpp", "cs", "rb", "php", "swift", "kt", "scala", "sh",
+    "bash", "zsh", "fish", "ps1", "yaml", "yml", "json", "toml",
+    "xml", "html", "css", "scss", "sass", "less", "sql", "graphql",
+})
+_IMAGE_EXTS: frozenset[str] = frozenset({"png", "jpg", "jpeg", "gif", "webp", "svg", "ico", "bmp"})
+_PDF_EXTS: frozenset[str] = frozenset({"pdf"})
+
+_EXT_TO_LANGUAGE: dict[str, str] = {
+    "py": "python",
+    "js": "javascript",
+    "ts": "typescript",
+    "jsx": "javascript",
+    "tsx": "typescript",
+    "rs": "rust",
+    "go": "go",
+    "java": "java",
+    "c": "c",
+    "cpp": "cpp",
+    "h": "c",
+    "hpp": "cpp",
+    "cs": "csharp",
+    "rb": "ruby",
+    "php": "php",
+    "swift": "swift",
+    "kt": "kotlin",
+    "scala": "scala",
+    "sh": "bash",
+    "bash": "bash",
+    "zsh": "bash",
+    "yaml": "yaml",
+    "yml": "yaml",
+    "json": "json",
+    "toml": "toml",
+    "xml": "xml",
+    "html": "html",
+    "css": "css",
+    "scss": "scss",
+    "sql": "sql",
+}
+
+
+@dataclass(slots=True)
 class ViewRenderer:
     """Renders views based on ViewSpec."""
 
@@ -397,62 +444,19 @@ class ViewRenderer:
         """Determine content type from file extension."""
         ext_lower = ext.lower()
 
-        markdown_exts = {"md", "markdown", "mdown", "mkd"}
-        code_exts = {
-            "py", "js", "ts", "jsx", "tsx", "rs", "go", "java", "c", "cpp",
-            "h", "hpp", "cs", "rb", "php", "swift", "kt", "scala", "sh",
-            "bash", "zsh", "fish", "ps1", "yaml", "yml", "json", "toml",
-            "xml", "html", "css", "scss", "sass", "less", "sql", "graphql",
-        }
-        image_exts = {"png", "jpg", "jpeg", "gif", "webp", "svg", "ico", "bmp"}
-        pdf_exts = {"pdf"}
-
-        if ext_lower in markdown_exts:
+        if ext_lower in _MARKDOWN_EXTS:
             return "markdown"
-        elif ext_lower in code_exts:
+        if ext_lower in _CODE_EXTS:
             return "code"
-        elif ext_lower in image_exts:
+        if ext_lower in _IMAGE_EXTS:
             return "image"
-        elif ext_lower in pdf_exts:
+        if ext_lower in _PDF_EXTS:
             return "pdf"
-        else:
-            return "text"
+        return "text"
 
     def _get_language(self, ext: str) -> str:
         """Get programming language from file extension for syntax highlighting."""
-        ext_map = {
-            "py": "python",
-            "js": "javascript",
-            "ts": "typescript",
-            "jsx": "javascript",
-            "tsx": "typescript",
-            "rs": "rust",
-            "go": "go",
-            "java": "java",
-            "c": "c",
-            "cpp": "cpp",
-            "h": "c",
-            "hpp": "cpp",
-            "cs": "csharp",
-            "rb": "ruby",
-            "php": "php",
-            "swift": "swift",
-            "kt": "kotlin",
-            "scala": "scala",
-            "sh": "bash",
-            "bash": "bash",
-            "zsh": "bash",
-            "yaml": "yaml",
-            "yml": "yaml",
-            "json": "json",
-            "toml": "toml",
-            "xml": "xml",
-            "html": "html",
-            "css": "css",
-            "scss": "scss",
-            "sql": "sql",
-        }
-        return ext_map.get(ext.lower(), "text")
+        return _EXT_TO_LANGUAGE.get(ext.lower(), "text")
 
     # =========================================================================
     # GIT VIEW TYPES (RFC-078 Phase 2)

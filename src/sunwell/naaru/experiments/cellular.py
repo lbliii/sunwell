@@ -55,7 +55,7 @@ Otherwise, respond with ONLY this JSON (no explanation):
 }}"""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class CellResult:
     """Result from a single cell."""
 
@@ -69,7 +69,7 @@ class CellResult:
     """Time for this cell to respond."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class CellularDiscoveryResult:
     """Result from cellular discovery."""
 

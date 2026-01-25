@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from sunwell.verification import DeepVerificationResult, DeepVerifier
 
 
-@dataclass
+@dataclass(slots=True)
 class VerificationGate:
     """Gate that requires verification before approval.
 

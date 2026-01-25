@@ -74,7 +74,7 @@ def _find_builtin_lenses_dir() -> Path:
     return Path.cwd() / "lenses"
 
 
-@dataclass
+@dataclass(slots=True)
 class LensManager:
     """Manages lens library operations.
 

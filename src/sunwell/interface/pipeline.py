@@ -42,7 +42,7 @@ from sunwell.interface.responder import ResponseGenerator
 from sunwell.interface.types import IntentAnalysis
 
 
-@dataclass
+@dataclass(slots=True)
 class IntentPipeline:
     """Two-step intent analysis pipeline.
 

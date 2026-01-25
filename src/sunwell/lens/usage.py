@@ -10,22 +10,25 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
+# Default structure for empty usage data
+_EMPTY_USAGE: dict[str, dict[str, list[str]]] = {"lens_activations": {}}
+
 
 def _get_usage_path() -> Path:
     """Get the path to the usage tracking file."""
     return Path.home() / ".sunwell" / "usage.json"
 
 
-def _load_usage_data() -> dict:
+def _load_usage_data() -> dict[str, dict[str, list[str]]]:
     """Load usage data from disk."""
     path = _get_usage_path()
     if not path.exists():
-        return {"lens_activations": {}}
+        return {"lens_activations": dict(_EMPTY_USAGE["lens_activations"])}
 
     try:
         return json.loads(path.read_text())
     except (json.JSONDecodeError, OSError):
-        return {"lens_activations": {}}
+        return {"lens_activations": dict(_EMPTY_USAGE["lens_activations"])}
 
 
 def _save_usage_data(data: dict) -> None:

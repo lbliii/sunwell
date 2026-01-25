@@ -16,6 +16,12 @@ from sunwell.providers.base import (
     GitStatus,
 )
 
+# Git log format: hash|short_hash|author|email|timestamp|message
+_GIT_LOG_FORMAT = "%H|%h|%an|%ae|%ct|%s"
+
+# Pre-compiled regex for parsing file change counts
+_GIT_FILES_CHANGED_RE = re.compile(r"(\d+) file")
+
 
 class SunwellGit(GitProvider):
     """Sunwell-native git provider using git CLI."""
@@ -129,11 +135,8 @@ class SunwellGit(GitProvider):
         """Get commit history."""
         repo = self._get_repo_path(path)
 
-        # Use custom format for parsing
-        # Format: hash|short_hash|author|email|timestamp|message
-        fmt = "%H|%h|%an|%ae|%ct|%s"
         code, log_out, _ = await self._run_git(
-            ["log", f"-{limit}", f"--format={fmt}", "--shortstat"],
+            ["log", f"-{limit}", f"--format={_GIT_LOG_FORMAT}", "--shortstat"],
             cwd=repo,
         )
 
@@ -169,7 +172,7 @@ class SunwellGit(GitProvider):
             if i + 1 < len(lines):
                 next_line = lines[i + 1].strip()
                 if "file" in next_line and "changed" in next_line:
-                    match = re.search(r"(\d+) file", next_line)
+                    match = _GIT_FILES_CHANGED_RE.search(next_line)
                     if match:
                         files_changed = int(match.group(1))
                     i += 1
@@ -255,9 +258,8 @@ class SunwellGit(GitProvider):
         repo = self._get_repo_path(path)
 
         # Search in commit messages
-        fmt = "%H|%h|%an|%ae|%ct|%s"
         code, log_out, _ = await self._run_git(
-            ["log", f"-{limit}", f"--format={fmt}", "--grep", query, "-i"],
+            ["log", f"-{limit}", f"--format={_GIT_LOG_FORMAT}", "--grep", query, "-i"],
             cwd=repo,
         )
 
@@ -291,7 +293,7 @@ class SunwellGit(GitProvider):
         if len(commits) < limit:
             remaining = limit - len(commits)
             code, author_out, _ = await self._run_git(
-                ["log", f"-{remaining}", f"--format={fmt}", "--author", query, "-i"],
+                ["log", f"-{remaining}", f"--format={_GIT_LOG_FORMAT}", "--author", query, "-i"],
                 cwd=repo,
             )
 

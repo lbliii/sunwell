@@ -17,9 +17,15 @@ Example:
 
 from dataclasses import dataclass, field
 from time import time
-from typing import Any
+from typing import Any, Protocol
 
 from sunwell.agent.events import AgentEvent, EventType
+
+
+class Serializable(Protocol):
+    """Protocol for objects that can be serialized to dict."""
+
+    def to_dict(self) -> dict[str, Any]: ...
 
 # =============================================================================
 # Event Data Classes
@@ -213,13 +219,13 @@ class CacheInvalidation:
     Attributes:
         trigger_artifact: The artifact that triggered invalidation.
         invalidated_count: Number of artifacts invalidated.
-        invalidated_ids: List of invalidated artifact IDs.
+        invalidated_ids: Tuple of invalidated artifact IDs.
         timestamp: When the invalidation occurred.
     """
 
     trigger_artifact: str
     invalidated_count: int
-    invalidated_ids: list[str]
+    invalidated_ids: tuple[str, ...]
     timestamp: float = field(default_factory=time)
 
     def to_dict(self) -> dict[str, Any]:
@@ -347,7 +353,7 @@ def execution_plan_computed_event(
 def cache_invalidation_event(
     trigger_artifact: str,
     invalidated_count: int,
-    invalidated_ids: list[str],
+    invalidated_ids: tuple[str, ...],
     **kwargs: Any,
 ) -> AgentEvent:
     """Create a cache invalidation event."""

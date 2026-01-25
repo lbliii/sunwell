@@ -106,14 +106,14 @@ class SecurityPolicy:
 # =============================================================================
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class ApprovalRequest:
     """Request for user approval before execution."""
 
     dag_id: str
     """Identifier for the DAG being approved."""
 
-    skills: list[str]
+    skills: tuple[str, ...]
     """Skills requiring execution."""
 
     permissions: PermissionScope
@@ -126,7 +126,7 @@ class ApprovalRequest:
     """When approval was requested."""
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class ApprovalResponse:
     """User response to an approval request."""
 
@@ -229,7 +229,7 @@ class ApprovalManager:
         """
         request = ApprovalRequest(
             dag_id=dag_id,
-            skills=skills,
+            skills=tuple(skills),
             permissions=permissions,
             risk=risk,
         )
@@ -344,9 +344,9 @@ class SecureSkillExecutor:
         """
         scope, risk = self.analyze(graph)
         dag_id = self._compute_dag_id(graph)
-        skills = list(graph.skills.keys())
+        skills = tuple(graph.skills.keys())
 
-        request = self._approval_manager.create_request(dag_id, skills, scope, risk)
+        request = self._approval_manager.create_request(dag_id, list(skills), scope, risk)
 
         if self.on_approval_needed:
             self.on_approval_needed(request)

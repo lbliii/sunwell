@@ -33,7 +33,7 @@ class CodePath:
     latency_p50: float | None = None  # Median latency if available
 
 
-@dataclass
+@dataclass(slots=True)
 class CodebaseGraph:
     """Semantic understanding of a codebase.
 

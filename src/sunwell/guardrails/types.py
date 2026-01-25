@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 # =============================================================================
 # Risk Classification
@@ -210,7 +210,7 @@ class ScopeCheckResult:
 # =============================================================================
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class TrustZone:
     """A path pattern with associated trust level.
 
@@ -338,7 +338,7 @@ class Escalation:
     recommended_option: str = ""
     """ID of recommended option."""
 
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now())
 
     @property
     def severity(self) -> Literal["info", "warning", "critical"]:
@@ -486,7 +486,7 @@ class EvolutionType(Enum):
     """Suggest deprecating/removing the rule (too many overrides)."""
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class GuardViolation:
     """Record of a guardrail violation for learning.
 
@@ -520,11 +520,11 @@ class GuardViolation:
     user_comment: str | None = None
     """Optional user comment explaining why they overrode."""
 
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now())
     """When the violation occurred."""
 
-    context: dict = field(default_factory=dict)
-    """Additional context (goal, action details, etc.)."""
+    context: tuple[tuple[str, Any], ...] = ()
+    """Additional context as immutable key-value pairs."""
 
     similarity_hash: str | None = None
     """Hash for grouping similar violations."""
@@ -538,13 +538,14 @@ class GuardViolation:
             "outcome": self.outcome.value,
             "user_comment": self.user_comment,
             "timestamp": self.timestamp.isoformat(),
-            "context": self.context,
+            "context": dict(self.context),
             "similarity_hash": self.similarity_hash,
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> "GuardViolation":
         """Create from dict."""
+        context_dict = data.get("context", {})
         return cls(
             action_type=data["action_type"],
             path=data.get("path"),
@@ -552,7 +553,7 @@ class GuardViolation:
             outcome=ViolationOutcome(data["outcome"]),
             user_comment=data.get("user_comment"),
             timestamp=datetime.fromisoformat(data["timestamp"]),
-            context=data.get("context", {}),
+            context=tuple(context_dict.items()) if context_dict else (),
             similarity_hash=data.get("similarity_hash"),
         )
 

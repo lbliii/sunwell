@@ -4,11 +4,15 @@ Local bookmark storage in .sunwell/bookmarks.json with Chrome import support.
 """
 
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
 from sunwell.providers.base import Bookmark, BookmarksProvider
+
+# Pre-compiled regex for Chrome HTML bookmark parsing
+_CHROME_HTML_LINK_RE = re.compile(r'<A\s+HREF="([^"]+)"[^>]*>([^<]+)</A>', re.IGNORECASE)
 
 
 class SunwellBookmarks(BookmarksProvider):
@@ -224,11 +228,7 @@ class SunwellBookmarks(BookmarksProvider):
 
     async def _import_chrome_html(self, content: str) -> int:
         """Import from Chrome HTML export format."""
-        import re
-
-        # Find all <A> tags with HREF
-        pattern = r'<A\s+HREF="([^"]+)"[^>]*>([^<]+)</A>'
-        matches = re.findall(pattern, content, re.IGNORECASE)
+        matches = _CHROME_HTML_LINK_RE.findall(content)
 
         for url, title in matches:
             await self.add_bookmark(url, title.strip())

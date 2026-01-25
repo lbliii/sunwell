@@ -19,6 +19,20 @@ from sunwell.models.protocol import (
     ToolCall,
 )
 
+# Pre-compiled regex for parsing tool calls from text (O(1) vs O(n) per call)
+_TOOL_JSON_PATTERN = re.compile(
+    r'```json\s*(\{[^`]+\})\s*```|(\{["\']tool["\']:\s*["\'][^}]+\})',
+    re.DOTALL,
+)
+
+# Known models with native tool support (frozenset for O(1) lookup)
+_NATIVE_TOOL_MODELS: frozenset[str] = frozenset({
+    "gpt-4", "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo",
+    "claude-3", "claude-3.5", "claude-3-opus", "claude-3-sonnet", "claude-3-haiku",
+    "llama3", "llama3.1", "llama3.2", "llama3:8b", "llama3:70b",
+    "qwen2.5", "mistral", "mixtral",
+})
+
 # System prompt that teaches the model to use tools via JSON
 # Note: Double braces {{ }} are escaped for .format() - they become single braces
 TOOL_EMULATION_PROMPT = """You have access to tools. When you need to use a tool, output a JSON block:
@@ -66,10 +80,7 @@ def parse_tool_calls_from_text(text: str) -> tuple[list[ToolCall], str]:
     tool_calls = []
     remaining = text
 
-    # Pattern: ```json ... ``` or just {...}
-    json_pattern = r'```json\s*(\{[^`]+\})\s*```|(\{["\']tool["\']:\s*["\'][^}]+\})'
-
-    for match in re.finditer(json_pattern, text, re.DOTALL):
+    for match in _TOOL_JSON_PATTERN.finditer(text):
         json_str = match.group(1) or match.group(2)
         try:
             data = json.loads(json_str)
@@ -89,7 +100,7 @@ def parse_tool_calls_from_text(text: str) -> tuple[list[ToolCall], str]:
     return tool_calls, remaining.strip()
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class ToolEmulatorModel:
     """Wraps a model to add tool calling via JSON emulation.
 
@@ -198,17 +209,8 @@ def wrap_for_tools(model: object) -> object:
     # We do this by checking model capabilities or trying to detect
     model_id = getattr(model, "model_id", "") or getattr(model, "model", "")
 
-    # Known models with native tool support
-    # TODO: Move this to a proper capability registry
-    native_tool_models = {
-        "gpt-4", "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo",
-        "claude-3", "claude-3.5", "claude-3-opus", "claude-3-sonnet", "claude-3-haiku",
-        "llama3", "llama3.1", "llama3.2", "llama3:8b", "llama3:70b",
-        "qwen2.5", "mistral", "mixtral",
-    }
-
     # Check if any known model is a prefix
-    for known in native_tool_models:
+    for known in _NATIVE_TOOL_MODELS:
         if known in model_id.lower():
             return model  # Has native support
 

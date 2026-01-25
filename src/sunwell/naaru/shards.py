@@ -72,7 +72,52 @@ class ShardType(Enum):
     COMPOSITOR = "compositor"  # RFC-082: UI composition prediction
 
 
-@dataclass
+# =============================================================================
+# Module-Level Constants (avoid rebuilding each call)
+# =============================================================================
+
+_MEMORY_BANK: dict[str, tuple[str, ...]] = {
+    "error_handling": (
+        "Use specific exception types, not bare except",
+        "Always include context in error messages",
+        "Log errors with traceback for debugging",
+        "Implement proper cleanup/rollback on failure",
+    ),
+    "testing": (
+        "Use pytest fixtures for setup/teardown",
+        "Test edge cases: None, empty, boundary values",
+        "Mock external dependencies",
+        "Use parametrize for multiple test cases",
+    ),
+    "documentation": (
+        "Follow Google/NumPy docstring style",
+        "Include examples in docstrings",
+        "Document exceptions that can be raised",
+        "Keep docstrings concise but complete",
+    ),
+    "code_quality": (
+        "Use type hints for public functions",
+        "Keep functions under 20 lines",
+        "Prefer composition over inheritance",
+        "Follow PEP 8 style guidelines",
+    ),
+}
+
+_DEFAULT_MEMORIES: tuple[str, ...] = (
+    "Write clean, readable code",
+    "Handle edge cases",
+    "Follow Python best practices",
+)
+
+_LENS_MAP: dict[str, str] = {
+    "testing": "team-qa.lens",
+    "code_quality": "code-reviewer.lens",
+    "documentation": "tech-writer.lens",
+    "error_handling": "code-reviewer.lens",
+}
+
+
+@dataclass(slots=True)
 class Shard:
     """A background helper that runs while the main LLM thinks.
 
@@ -135,46 +180,15 @@ class Shard:
         task.get("description", "")
         category = task.get("category", "")
 
-        memories = []
+        memories: tuple[str, ...] | list[str] = []
 
         if self.simulacrum_store:
             # In production: query SimulacrumStore
             # memories = await self.simulacrum_store.get_relevant(description)
             pass
 
-        # Simulated domain-specific memories
-        memory_bank = {
-            "error_handling": [
-                "Use specific exception types, not bare except",
-                "Always include context in error messages",
-                "Log errors with traceback for debugging",
-                "Implement proper cleanup/rollback on failure",
-            ],
-            "testing": [
-                "Use pytest fixtures for setup/teardown",
-                "Test edge cases: None, empty, boundary values",
-                "Mock external dependencies",
-                "Use parametrize for multiple test cases",
-            ],
-            "documentation": [
-                "Follow Google/NumPy docstring style",
-                "Include examples in docstrings",
-                "Document exceptions that can be raised",
-                "Keep docstrings concise but complete",
-            ],
-            "code_quality": [
-                "Use type hints for public functions",
-                "Keep functions under 20 lines",
-                "Prefer composition over inheritance",
-                "Follow PEP 8 style guidelines",
-            ],
-        }
-
-        memories = memory_bank.get(category, [
-            "Write clean, readable code",
-            "Handle edge cases",
-            "Follow Python best practices",
-        ])
+        # Use module-level constants for domain-specific memories
+        memories = _MEMORY_BANK.get(category, _DEFAULT_MEMORIES)
 
         # Store in convergence
         slot = Slot(
@@ -198,21 +212,14 @@ class Shard:
         description = task.get("description", "")
         category = task.get("category", "")
 
-        context = {
+        context: dict[str, Any] = {
             "lens": None,
             "embedding": None,
             "related_files": [],
         }
 
-        # Select appropriate lens
-        lens_map = {
-            "testing": "team-qa.lens",
-            "code_quality": "code-reviewer.lens",
-            "documentation": "tech-writer.lens",
-            "error_handling": "code-reviewer.lens",
-        }
-
-        context["lens_file"] = lens_map.get(category, "helper.lens")
+        # Select appropriate lens using module-level constant
+        context["lens_file"] = _LENS_MAP.get(category, "helper.lens")
 
         # Generate embedding if model available
         if self.embedding_model and description:

@@ -6,10 +6,21 @@ Local contact storage in .sunwell/contacts.json with vCard import support.
 import json
 import re
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 from uuid import uuid4
 
 from sunwell.providers.base import Contact, ContactsProvider
+
+# Pre-compiled regex patterns for vCard parsing
+_VCARD_SPLIT_RE = re.compile(r"(?=BEGIN:VCARD)")
+_QUOTED_PRINTABLE_RE = re.compile(r"=([0-9A-Fa-f]{2})")
+
+
+@lru_cache(maxsize=32)
+def _get_vcard_field_pattern(field: str) -> re.Pattern[str]:
+    """Get compiled regex pattern for a vCard field (cached)."""
+    return re.compile(rf"^{field}[;:]([^\r\n]+)", re.MULTILINE | re.IGNORECASE)
 
 
 class SunwellContacts(ContactsProvider):
@@ -223,7 +234,9 @@ class SunwellContacts(ContactsProvider):
     async def _parse_vcard(self, content: str) -> int:
         """Parse vCard content and import contacts."""
         # Split into individual vCards
-        vcards = re.split(r"(?=BEGIN:VCARD)", content)
+        vcards = _VCARD_SPLIT_RE.split(content)
+        data = self._load()  # Load once at start
+        now = datetime.now()
         imported = 0
 
         for vcard in vcards:
@@ -264,10 +277,6 @@ class SunwellContacts(ContactsProvider):
                 except Exception:
                     pass
 
-            # Create contact
-            data = self._load()
-            now = datetime.now()
-
             new_contact = {
                 "id": str(uuid4()),
                 "name": name,
@@ -283,8 +292,10 @@ class SunwellContacts(ContactsProvider):
             }
 
             data.append(new_contact)
-            self._save(data)
             imported += 1
+
+        if imported > 0:
+            self._save(data)  # Save once at end
 
         return imported
 
@@ -294,8 +305,7 @@ class SunwellContacts(ContactsProvider):
         # FIELD:value
         # FIELD;TYPE=type:value
         # FIELD;CHARSET=UTF-8:value
-        pattern = rf"^{field}[;:]([^\r\n]+)"
-        match = re.search(pattern, vcard, re.MULTILINE | re.IGNORECASE)
+        match = _get_vcard_field_pattern(field).search(vcard)
 
         if not match:
             return None
@@ -318,10 +328,10 @@ class SunwellContacts(ContactsProvider):
         text = text.replace("=\n", "").replace("=\r\n", "")
 
         # Decode hex values
-        def decode_hex(match: re.Match) -> str:
+        def decode_hex(match: re.Match[str]) -> str:
             return chr(int(match.group(1), 16))
 
-        return re.sub(r"=([0-9A-Fa-f]{2})", decode_hex, text)
+        return _QUOTED_PRINTABLE_RE.sub(decode_hex, text)
 
     async def export_vcard(self, contact_ids: list[str] | None = None) -> str:
         """Export contacts to vCard format.

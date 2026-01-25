@@ -70,7 +70,7 @@ class UnsatisfiedRequiresError(SkillGraphError):
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class SkillGraph:
     """DAG of skills with dependency resolution.
 

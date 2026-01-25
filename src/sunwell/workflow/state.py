@@ -9,6 +9,7 @@ State is stored in `.sunwell/state/{branch}/{topic}.json` and supports:
 
 import json
 import os
+import re
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
@@ -21,6 +22,9 @@ from sunwell.workflow.types import (
     WorkflowExecution,
     WorkflowStepResult,
 )
+
+# Pre-compiled regex for slugify (avoid O(n²) while loop)
+_RE_MULTI_DASH = re.compile(r"-+")
 
 
 def _slugify(text: str) -> str:
@@ -36,9 +40,8 @@ def _slugify(text: str) -> str:
     slug = text.replace("/", "-").replace("\\", "-").replace(" ", "-")
     # Remove any characters that aren't alphanumeric or dash
     slug = "".join(c for c in slug if c.isalnum() or c == "-")
-    # Collapse multiple dashes
-    while "--" in slug:
-        slug = slug.replace("--", "-")
+    # Collapse multiple dashes (O(n) single pass)
+    slug = _RE_MULTI_DASH.sub("-", slug)
     return slug.strip("-").lower()
 
 
@@ -60,7 +63,7 @@ def _get_git_branch() -> str:
         return "main"
 
 
-@dataclass
+@dataclass(slots=True)
 class WorkflowState:
     """Serializable workflow state for persistence.
 

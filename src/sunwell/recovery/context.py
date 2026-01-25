@@ -156,27 +156,35 @@ def _build_suggestions(state: RecoveryState) -> str:
 def _analyze_errors(state: RecoveryState) -> list[str]:
     """Analyze error patterns and suggest fixes."""
     suggestions = []
-    all_errors = " ".join(state.error_details).lower()
 
-    # Common patterns
-    if "import" in all_errors and ("not found" in all_errors or "no module" in all_errors):
+    # Build word set once for O(1) lookups instead of O(n) string scans
+    all_errors_text = " ".join(state.error_details).lower()
+    words = set(all_errors_text.split())
+
+    # Also check for multi-word phrases with single string scan
+    has_not_found = "not found" in all_errors_text
+    has_no_module = "no module" in all_errors_text
+    has_not_defined = "not defined" in all_errors_text
+
+    # Common patterns (O(1) word lookups)
+    if "import" in words and (has_not_found or has_no_module):
         suggestions.append(
             "Check import paths — some modules may not exist yet or have wrong paths"
         )
 
-    if "syntax" in all_errors:
+    if "syntax" in words:
         suggestions.append("Fix syntax errors first — other errors may be cascading from these")
 
-    if "indent" in all_errors:
+    if "indent" in words or "indentation" in words:
         suggestions.append("Check indentation — Python is whitespace-sensitive")
 
-    if "undefined" in all_errors or "not defined" in all_errors:
+    if "undefined" in words or has_not_defined:
         suggestions.append("Ensure all referenced names are defined before use")
 
-    if "type" in all_errors and ("incompatible" in all_errors or "expected" in all_errors):
+    if "type" in words and ("incompatible" in words or "expected" in words):
         suggestions.append("Review type annotations — ensure types match actual values")
 
-    if "missing" in all_errors and "argument" in all_errors:
+    if "missing" in words and "argument" in words:
         suggestions.append("Check function calls — some may be missing required arguments")
 
     # Dependency analysis

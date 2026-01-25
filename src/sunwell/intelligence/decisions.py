@@ -11,6 +11,7 @@ RFC-050 adds:
 
 import hashlib
 import json
+import math
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -18,6 +19,27 @@ from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from sunwell.embedding.protocol import EmbeddingProtocol
+
+
+# Pre-computed mutually exclusive choice pairs
+_MUTUALLY_EXCLUSIVE_PAIRS: frozenset[tuple[str, str]] = frozenset([
+    ("sqlite", "postgres"),
+    ("jwt", "oauth"),
+    ("redis", "in-memory"),
+    ("sync", "async"),
+])
+
+
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    """Calculate cosine similarity between two vectors."""
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
+    mag_a = math.sqrt(sum(x * x for x in a))
+    mag_b = math.sqrt(sum(x * x for x in b))
+
+    if mag_a == 0 or mag_b == 0:
+        return 0.0
+
+    return dot / (mag_a * mag_b)
 
 # RFC-050: Decision sources
 DecisionSource = Literal["conversation", "bootstrap"]
@@ -449,7 +471,7 @@ class DecisionMemory:
                     continue
 
                 # Calculate cosine similarity
-                similarity = self._cosine_similarity(query_vec, decision_embedding)
+                similarity = _cosine_similarity(query_vec, decision_embedding)
                 scores.append((decision, similarity))
 
             # Sort by score and return top_k
@@ -482,19 +504,6 @@ class DecisionMemory:
 
         scores.sort(key=lambda x: x[1], reverse=True)
         return [d for d, _ in scores[:top_k]]
-
-    def _cosine_similarity(self, a: list[float], b: list[float]) -> float:
-        """Calculate cosine similarity between two vectors."""
-        import math
-
-        dot = sum(x * y for x, y in zip(a, b, strict=True))
-        mag_a = math.sqrt(sum(x * x for x in a))
-        mag_b = math.sqrt(sum(x * x for x in b))
-
-        if mag_a == 0 or mag_b == 0:
-            return 0.0
-
-        return dot / (mag_a * mag_b)
 
     async def check_contradiction(
         self,
@@ -538,22 +547,8 @@ class DecisionMemory:
 
     def _are_mutually_exclusive(self, choice1: str, choice2: str) -> bool:
         """Heuristic to detect if two choices are mutually exclusive."""
-        # Simple patterns for common mutually exclusive choices
-        patterns = [
-            ("sqlite", "postgres"),
-            ("postgres", "sqlite"),
-            ("jwt", "oauth"),
-            ("oauth", "jwt"),
-            ("redis", "in-memory"),
-            ("in-memory", "redis"),
-            ("sync", "async"),
-            ("async", "sync"),
-        ]
-
-        for p1, p2 in patterns:
-            if p1 in choice1.lower() and p2 in choice2.lower():
-                return True
-            if p2 in choice1.lower() and p1 in choice2.lower():
-                return True
-
-        return False
+        c1, c2 = choice1.lower(), choice2.lower()
+        return any(
+            (p1 in c1 and p2 in c2) or (p2 in c1 and p1 in c2)
+            for p1, p2 in _MUTUALLY_EXCLUSIVE_PAIRS
+        )

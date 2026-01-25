@@ -35,6 +35,10 @@ from sunwell.models.protocol import GenerateOptions
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
 
+# Pre-compiled regex patterns
+_MARKDOWN_CODE_BLOCK_RE = re.compile(r"```(?:json)?\s*([\s\S]*?)```")
+_JSON_OBJECT_RE = re.compile(r"\{[^{}]*\}", re.DOTALL)
+
 
 @dataclass(frozen=True, slots=True)
 class ClassificationResult:
@@ -181,7 +185,7 @@ JSON:""",
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class FastClassifier:
     """Fast JSON-based classifier for small models.
 
@@ -376,12 +380,12 @@ JSON:"""
 
         # Handle markdown code blocks
         if "```" in text:
-            match = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+            match = _MARKDOWN_CODE_BLOCK_RE.search(text)
             if match:
                 text = match.group(1).strip()
 
         # Extract JSON object
-        match = re.search(r"\{[^{}]*\}", text, re.DOTALL)
+        match = _JSON_OBJECT_RE.search(text)
         if match:
             text = match.group(0)
 

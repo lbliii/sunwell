@@ -76,7 +76,7 @@ class IntentSignal:
     tools: tuple[str, ...] = ()
 
 
-@dataclass
+@dataclass(slots=True)
 class CompositionContext:
     """Context for composition prediction."""
 
@@ -331,7 +331,7 @@ Respond with JSON only:
 "tools": [...], "confidence": 0.0-1.0}}"""
 
 
-@dataclass
+@dataclass(slots=True)
 class Compositor:
     """Fast UI composition prediction with tiered strategy."""
 

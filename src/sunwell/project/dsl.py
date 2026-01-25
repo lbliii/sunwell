@@ -21,9 +21,17 @@ Security note: This DSL is data, not code. It provides a sandboxed way
 to express constraints without arbitrary code execution.
 """
 
+import itertools
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any
+
+# Pre-compiled regex patterns for condition evaluation
+_AND_SPLIT_PATTERN = re.compile(r"\s+AND\s+", re.IGNORECASE)
+_OR_SPLIT_PATTERN = re.compile(r"\s+OR\s+", re.IGNORECASE)
+_IN_PATTERN = re.compile(r"(.+?)\s+IN\s+(.+)", re.IGNORECASE)
+_NUMBER_PATTERN = re.compile(r"^-?\d+\.?\d*$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -135,166 +143,155 @@ class ConstraintDSL:
         return None
 
 
-class ConstraintEvaluator:
-    """Evaluates parsed constraint rules against artifacts.
+# =============================================================================
+# Constraint Evaluation Functions (stateless)
+# =============================================================================
 
-    This class provides a safe evaluation environment for constraint
-    expressions without arbitrary code execution.
 
-    Note: Stateless utility class - all state comes from method arguments.
+def evaluate_condition(condition: str, bindings: dict[str, Any]) -> bool:
+    """Evaluate a condition expression with variable bindings.
+
+    Supports:
+    - Equality: a == b, a != b
+    - Membership: a IN b
+    - Boolean: AND, OR
+    - Field access: artifact.field
+
+    Args:
+        condition: The condition expression
+        bindings: Variable bindings (name → value)
+
+    Returns:
+        True if condition is satisfied
     """
+    condition = condition.strip()
 
-    __slots__ = ()
+    # Handle AND/OR (simple left-to-right, no precedence)
+    if " AND " in condition.upper():
+        parts = _AND_SPLIT_PATTERN.split(condition)
+        return all(evaluate_condition(p, bindings) for p in parts)
 
-    def evaluate_condition(
-        self,
-        condition: str,
-        bindings: dict[str, Any],
-    ) -> bool:
-        """Evaluate a condition expression with variable bindings.
+    if " OR " in condition.upper():
+        parts = _OR_SPLIT_PATTERN.split(condition)
+        return any(evaluate_condition(p, bindings) for p in parts)
 
-        Supports:
-        - Equality: a == b, a != b
-        - Membership: a IN b
-        - Boolean: AND, OR
-        - Field access: artifact.field
+    # Handle comparisons
+    if "==" in condition:
+        left, right = condition.split("==", 1)
+        return _resolve_value(left.strip(), bindings) == _resolve_value(
+            right.strip(), bindings
+        )
 
-        Args:
-            condition: The condition expression
-            bindings: Variable bindings (name → value)
+    if "!=" in condition:
+        left, right = condition.split("!=", 1)
+        return _resolve_value(left.strip(), bindings) != _resolve_value(
+            right.strip(), bindings
+        )
 
-        Returns:
-            True if condition is satisfied
-        """
-        condition = condition.strip()
+    # Handle IN membership
+    if " IN " in condition.upper():
+        match = _IN_PATTERN.match(condition)
+        if match:
+            item = _resolve_value(match.group(1).strip(), bindings)
+            collection = _resolve_value(match.group(2).strip(), bindings)
+            if collection is None:
+                return False
+            return item in collection
 
-        # Handle AND/OR (simple left-to-right, no precedence)
-        if " AND " in condition.upper():
-            parts = re.split(r"\s+AND\s+", condition, flags=re.IGNORECASE)
-            return all(self.evaluate_condition(p, bindings) for p in parts)
+    # Handle bare boolean
+    value = _resolve_value(condition, bindings)
+    return bool(value)
 
-        if " OR " in condition.upper():
-            parts = re.split(r"\s+OR\s+", condition, flags=re.IGNORECASE)
-            return any(self.evaluate_condition(p, bindings) for p in parts)
 
-        # Handle comparisons
-        if "==" in condition:
-            left, right = condition.split("==", 1)
-            return self._resolve_value(left.strip(), bindings) == self._resolve_value(
-                right.strip(), bindings
-            )
+def _resolve_value(expr: str, bindings: dict[str, Any]) -> Any:
+    """Resolve an expression to a value.
 
-        if "!=" in condition:
-            left, right = condition.split("!=", 1)
-            return self._resolve_value(left.strip(), bindings) != self._resolve_value(
-                right.strip(), bindings
-            )
+    Handles:
+    - Variable references: var_name
+    - Field access: var_name.field
+    - Literal strings: "string" or 'string'
+    - Literal numbers: 123, 123.45
+    """
+    expr = expr.strip()
 
-        # Handle IN membership
-        if " IN " in condition.upper():
-            match = re.match(r"(.+?)\s+IN\s+(.+)", condition, re.IGNORECASE)
-            if match:
-                item = self._resolve_value(match.group(1).strip(), bindings)
-                collection = self._resolve_value(match.group(2).strip(), bindings)
-                if collection is None:
-                    return False
-                return item in collection
-
-        # Handle bare boolean
-        value = self._resolve_value(condition, bindings)
-        return bool(value)
-
-    def _resolve_value(self, expr: str, bindings: dict[str, Any]) -> Any:
-        """Resolve an expression to a value.
-
-        Handles:
-        - Variable references: var_name
-        - Field access: var_name.field
-        - Literal strings: "string" or 'string'
-        - Literal numbers: 123, 123.45
-        """
-        expr = expr.strip()
-
-        # Literal string
-        if (expr.startswith('"') and expr.endswith('"')) or (
-            expr.startswith("'") and expr.endswith("'")
-        ):
-            return expr[1:-1]
-
-        # Literal number
-        if re.match(r"^-?\d+\.?\d*$", expr):
-            if "." in expr:
-                return float(expr)
-            return int(expr)
-
-        # Field access (var.field or var.field.subfield)
-        if "." in expr:
-            parts = expr.split(".")
-            value = bindings.get(parts[0])
-            for part in parts[1:]:
-                if value is None:
-                    return None
-                if isinstance(value, dict):
-                    value = value.get(part)
-                elif hasattr(value, part):
-                    value = getattr(value, part)
-                elif hasattr(value, "__getitem__"):
-                    try:
-                        value = value[part]
-                    except (KeyError, TypeError):
-                        return None
-                else:
-                    return None
-            return value
-
-        # Variable reference
-        return bindings.get(expr)
-
-    def enumerate_bindings(
-        self,
-        for_clauses: tuple[ForClause, ...],
-        artifacts: dict[str, list[dict[str, Any]]],
+    # Literal string
+    if (expr.startswith('"') and expr.endswith('"')) or (
+        expr.startswith("'") and expr.endswith("'")
     ):
-        """Enumerate all possible variable bindings from FOR clauses.
+        return expr[1:-1]
 
-        Yields all combinations of variable assignments.
+    # Literal number
+    if _NUMBER_PATTERN.match(expr):
+        if "." in expr:
+            return float(expr)
+        return int(expr)
 
-        Args:
-            for_clauses: The FOR clauses to process
-            artifacts: Artifact collections (type_name → list of artifacts)
+    # Field access (var.field or var.field.subfield)
+    if "." in expr:
+        parts = expr.split(".")
+        value = bindings.get(parts[0])
+        for part in parts[1:]:
+            if value is None:
+                return None
+            if isinstance(value, dict):
+                value = value.get(part)
+            elif hasattr(value, part):
+                value = getattr(value, part)
+            elif hasattr(value, "__getitem__"):
+                try:
+                    value = value[part]
+                except (KeyError, TypeError):
+                    return None
+            else:
+                return None
+        return value
 
-        Yields:
-            Dict mapping variable names to artifact values
-        """
-        if not for_clauses:
-            yield {}
-            return
+    # Variable reference
+    return bindings.get(expr)
 
-        first_clause = for_clauses[0]
-        rest_clauses = for_clauses[1:]
 
-        # Get collection
-        # Handle "artifacts.type" format
-        collection_path = first_clause.collection
-        if collection_path.startswith("artifacts."):
-            artifact_type = collection_path[len("artifacts."):]
-            collection = artifacts.get(artifact_type, [])
-        else:
-            collection = artifacts.get(collection_path, [])
+def enumerate_bindings(
+    for_clauses: tuple[ForClause, ...],
+    artifacts: dict[str, list[dict[str, Any]]],
+) -> Iterator[dict[str, Any]]:
+    """Enumerate all possible variable bindings from FOR clauses.
 
-        # Single variable: iterate over collection
-        if len(first_clause.variables) == 1:
-            var_name = first_clause.variables[0]
-            for item in collection:
-                for rest_bindings in self.enumerate_bindings(rest_clauses, artifacts):
-                    yield {var_name: item, **rest_bindings}
+    Yields all combinations of variable assignments.
 
-        # Multiple variables: iterate over all pairs/tuples
-        else:
-            import itertools
+    Args:
+        for_clauses: The FOR clauses to process
+        artifacts: Artifact collections (type_name → list of artifacts)
 
-            # Generate all combinations
-            for combo in itertools.product(collection, repeat=len(first_clause.variables)):
-                bindings = dict(zip(first_clause.variables, combo, strict=True))
-                for rest_bindings in self.enumerate_bindings(rest_clauses, artifacts):
-                    yield {**bindings, **rest_bindings}
+    Yields:
+        Dict mapping variable names to artifact values
+    """
+    if not for_clauses:
+        yield {}
+        return
+
+    first_clause = for_clauses[0]
+    rest_clauses = for_clauses[1:]
+
+    # Get collection
+    # Handle "artifacts.type" format
+    collection_path = first_clause.collection
+    if collection_path.startswith("artifacts."):
+        artifact_type = collection_path[len("artifacts.") :]
+        collection = artifacts.get(artifact_type, [])
+    else:
+        collection = artifacts.get(collection_path, [])
+
+    # Single variable: iterate over collection
+    if len(first_clause.variables) == 1:
+        var_name = first_clause.variables[0]
+        for item in collection:
+            for rest_bindings in enumerate_bindings(rest_clauses, artifacts):
+                yield {var_name: item, **rest_bindings}
+
+    # Multiple variables: iterate over all pairs/tuples
+    else:
+        # Generate all combinations
+        for combo in itertools.product(collection, repeat=len(first_clause.variables)):
+            current_bindings = dict(zip(first_clause.variables, combo, strict=True))
+            for rest_bindings in enumerate_bindings(rest_clauses, artifacts):
+                yield {**current_bindings, **rest_bindings}

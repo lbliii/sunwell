@@ -48,7 +48,7 @@ class ExecutionStatus(Enum):
     """Artifact was skipped (cache hit)."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class CachedExecution:
     """A cached artifact execution result.
 

@@ -15,10 +15,12 @@ skills, and DAG context before the main agent starts.
 
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -417,7 +419,7 @@ class PrefetchPlan:
     """Lens that best matches the work type."""
 
     # RFC-130: Memory-informed hints
-    memory_hints: dict[str, Any] = field(default_factory=dict)
+    memory_hints: Mapping[str, Any] | None = None
     """Hints from similar past goals.
 
     May contain:
@@ -435,8 +437,8 @@ class PrefetchedContext:
     context that was pre-loaded before the main agent starts.
     """
 
-    files: dict[str, str]
-    """Map of file path → file content."""
+    files: MappingProxyType[str, str]
+    """Map of file path → file content (immutable)."""
 
     learnings: tuple[Any, ...]  # tuple[Learning, ...] at runtime
     """Pre-loaded learnings from memory store."""

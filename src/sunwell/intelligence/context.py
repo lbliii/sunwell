@@ -183,13 +183,10 @@ class ProjectIntelligence:
 
     project_root: Path
 
-    def __init__(self, project_root: Path):
-        """Initialize project intelligence.
-
-        Args:
-            project_root: Project root directory
-        """
-        self.project_root = Path(project_root)
+    def __post_init__(self) -> None:
+        """Ensure project_root is a Path."""
+        if not isinstance(self.project_root, Path):
+            object.__setattr__(self, "project_root", Path(self.project_root))
 
     async def load(self) -> ProjectContext:
         """Load project intelligence, creating if needed.

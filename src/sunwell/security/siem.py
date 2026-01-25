@@ -52,11 +52,57 @@ class SIEMFormatter(ABC):
 
 
 # =============================================================================
+# SEVERITY MAPPINGS (module-level constants)
+# =============================================================================
+
+_CEF_SEVERITY: dict[str, int] = {
+    "execute": 3,
+    "denied": 5,
+    "violation": 8,
+    "error": 7,
+}
+
+_LEEF_SEVERITY: dict[str, int] = {
+    "execute": 2,
+    "denied": 5,
+    "violation": 9,
+    "error": 7,
+}
+
+_SYSLOG_SEVERITY: dict[str, int] = {
+    "execute": 6,  # informational
+    "denied": 4,  # warning
+    "violation": 3,  # error
+    "error": 3,  # error
+}
+
+_DATADOG_STATUS: dict[str, str] = {
+    "execute": "info",
+    "denied": "warn",
+    "violation": "error",
+    "error": "error",
+}
+
+_ECS_CATEGORY_MAP: dict[str, tuple[str, str]] = {
+    "execute": ("process", "start"),
+    "denied": ("iam", "denied"),
+    "violation": ("intrusion_detection", "alert"),
+    "error": ("process", "error"),
+}
+
+_LEEF_EVENT_IDS: dict[str, str] = {
+    "execute": "SKILL_EXECUTE",
+    "denied": "PERMISSION_DENIED",
+    "violation": "SECURITY_VIOLATION",
+    "error": "EXECUTION_ERROR",
+}
+
+# =============================================================================
 # CEF FORMAT (ArcSight, QRadar)
 # =============================================================================
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class CEFFormatter(SIEMFormatter):
     """Common Event Format (CEF) for ArcSight, QRadar.
 
@@ -78,14 +124,7 @@ class CEFFormatter(SIEMFormatter):
 
     def format_entry(self, entry: AuditEntry) -> str:
         """Format entry as CEF."""
-        # Map action to severity (0-10 scale)
-        severity_map = {
-            "execute": 3,
-            "denied": 5,
-            "violation": 8,
-            "error": 7,
-        }
-        severity = severity_map.get(entry.action, 5)
+        severity = _CEF_SEVERITY.get(entry.action, 5)
 
         # Escape CEF special characters
         def escape(s: str) -> str:
@@ -118,7 +157,7 @@ class CEFFormatter(SIEMFormatter):
 # =============================================================================
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class LEEFFormatter(SIEMFormatter):
     """Log Event Extended Format (LEEF) for QRadar native integration.
 
@@ -139,14 +178,7 @@ class LEEFFormatter(SIEMFormatter):
 
     def format_entry(self, entry: AuditEntry) -> str:
         """Format entry as LEEF."""
-        # Event ID based on action
-        event_ids = {
-            "execute": "SKILL_EXECUTE",
-            "denied": "PERMISSION_DENIED",
-            "violation": "SECURITY_VIOLATION",
-            "error": "EXECUTION_ERROR",
-        }
-        event_id = event_ids.get(entry.action, "UNKNOWN")
+        event_id = _LEEF_EVENT_IDS.get(entry.action, "UNKNOWN")
 
         # Key-value pairs
         kv_pairs = [
@@ -169,7 +201,7 @@ class LEEFFormatter(SIEMFormatter):
 
     def _get_severity(self, action: str) -> int:
         """Map action to LEEF severity (1-10)."""
-        return {"execute": 2, "denied": 5, "violation": 9, "error": 7}.get(action, 5)
+        return _LEEF_SEVERITY.get(action, 5)
 
 
 # =============================================================================
@@ -177,7 +209,7 @@ class LEEFFormatter(SIEMFormatter):
 # =============================================================================
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class SyslogFormatter(SIEMFormatter):
     """RFC 5424 Syslog format for generic syslog integration.
 
@@ -198,14 +230,7 @@ class SyslogFormatter(SIEMFormatter):
 
     def format_entry(self, entry: AuditEntry) -> str:
         """Format entry as RFC 5424 syslog."""
-        # Severity mapping (0=emerg to 7=debug)
-        severity_map = {
-            "execute": 6,  # informational
-            "denied": 4,  # warning
-            "violation": 3,  # error
-            "error": 3,  # error
-        }
-        severity = severity_map.get(entry.action, 6)
+        severity = _SYSLOG_SEVERITY.get(entry.action, 6)
 
         # Priority = facility * 8 + severity
         priority = self.facility * 8 + severity
@@ -230,7 +255,7 @@ class SyslogFormatter(SIEMFormatter):
 # =============================================================================
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class JSONLinesFormatter(SIEMFormatter):
     """JSON Lines format for Splunk, Elasticsearch ingestion."""
 
@@ -273,7 +298,7 @@ class JSONLinesFormatter(SIEMFormatter):
 # =============================================================================
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class ECSFormatter(SIEMFormatter):
     """Elastic Common Schema (ECS) format for Elasticsearch/Kibana.
 
@@ -293,14 +318,7 @@ class ECSFormatter(SIEMFormatter):
 
     def format_entry(self, entry: AuditEntry) -> str:
         """Format entry as ECS-compliant JSON."""
-        # Map to ECS event categories and types
-        category_map = {
-            "execute": ("process", "start"),
-            "denied": ("iam", "denied"),
-            "violation": ("intrusion_detection", "alert"),
-            "error": ("process", "error"),
-        }
-        category, event_type = category_map.get(entry.action, ("process", "info"))
+        category, event_type = _ECS_CATEGORY_MAP.get(entry.action, ("process", "info"))
 
         ecs_doc = {
             "@timestamp": entry.timestamp.isoformat(),
@@ -348,7 +366,7 @@ class ECSFormatter(SIEMFormatter):
 # =============================================================================
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class DatadogFormatter(SIEMFormatter):
     """Datadog Log Management format.
 
@@ -369,17 +387,9 @@ class DatadogFormatter(SIEMFormatter):
 
     def format_entry(self, entry: AuditEntry) -> str:
         """Format entry for Datadog."""
-        # Map to Datadog status levels
-        status_map = {
-            "execute": "info",
-            "denied": "warn",
-            "violation": "error",
-            "error": "error",
-        }
-
         doc = {
             "timestamp": entry.timestamp.isoformat(),
-            "status": status_map.get(entry.action, "info"),
+            "status": _DATADOG_STATUS.get(entry.action, "info"),
             "service": self.service,
             "source": self.source,
             "env": self.env,
@@ -402,7 +412,7 @@ class DatadogFormatter(SIEMFormatter):
 # =============================================================================
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class SplunkHECFormatter(SIEMFormatter):
     """Splunk HTTP Event Collector (HEC) format.
 

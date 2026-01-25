@@ -8,10 +8,14 @@ allowing implementations to be swapped for testing or alternative backends.
 
 
 from collections.abc import Callable, Coroutine
-from typing import Any, Protocol, TypeVar, runtime_checkable
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar, runtime_checkable
 
 from sunwell.models.protocol import Tool, ToolCall
 from sunwell.tools.types import ToolResult
+
+if TYPE_CHECKING:
+    from sunwell.naaru.core.bus import MessageBus, NaaruRegion
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -180,5 +184,47 @@ class ParallelExecutorProtocol(Protocol):
 
         Returns:
             List of results in order
+        """
+        ...
+
+
+@runtime_checkable
+class WorkerProtocol(Protocol):
+    """Protocol for Naaru region workers.
+
+    Enables dependency injection and testing of worker implementations.
+    All workers in naaru/workers/ implement this protocol.
+    """
+
+    region: NaaruRegion
+    """The region this worker handles."""
+
+    bus: MessageBus
+    """Message bus for inter-region communication."""
+
+    workspace: Path
+    """Workspace root path."""
+
+    worker_id: int
+    """Unique identifier for this worker instance."""
+
+    stats: dict[str, int]
+    """Worker statistics."""
+
+    async def process(self) -> None:
+        """Main processing loop for this region.
+
+        Implementations should:
+        1. Listen for messages on self.bus
+        2. Process messages appropriate to their region
+        3. Send results back via self.bus
+        4. Respect self._stop_event for graceful shutdown
+        """
+        ...
+
+    def stop(self) -> None:
+        """Signal this worker to stop.
+
+        Sets the internal stop event to break the processing loop.
         """
         ...

@@ -194,306 +194,291 @@ class SourceIntrospector:
         return sorted(modules)
 
 
-class LensIntrospector:
-    """Examine the currently loaded lens.
+# === Lens Introspection Functions ===
 
-    Provides read-only access to lens heuristics, validators,
-    personas, and framework configuration.
 
-    Note: Stateless utility class - all state comes from method arguments.
+def lens_get_heuristics(lens: Any) -> list[dict[str, Any]]:
+    """Get all heuristics from a lens.
+
+    Args:
+        lens: Loaded lens object
+
+    Returns:
+        List of heuristic dicts with name, rule, always, never
     """
-
-    __slots__ = ()
-
-    def get_heuristics(self, lens: Any) -> list[dict[str, Any]]:
-        """Get all heuristics from a lens.
-
-        Args:
-            lens: Loaded lens object
-
-        Returns:
-            List of heuristic dicts with name, rule, always, never
-        """
-        if not lens or not hasattr(lens, "heuristics"):
-            return []
-
-        return [
-            {
-                "name": getattr(h, "name", "unknown"),
-                "rule": getattr(h, "rule", ""),
-                "always": getattr(h, "always", []),
-                "never": getattr(h, "never", []),
-            }
-            for h in lens.heuristics
-        ]
-
-    def get_validators(self, lens: Any) -> list[dict[str, Any]]:
-        """Get all validators from a lens.
-
-        Args:
-            lens: Loaded lens object
-
-        Returns:
-            List of validator dicts with name, type, severity
-        """
-        if not lens or not hasattr(lens, "validators"):
-            return []
-
-        return [
-            {
-                "name": getattr(v, "name", "unknown"),
-                "type": getattr(v, "type", "heuristic"),
-                "severity": getattr(v, "severity", "warning"),
-            }
-            for v in lens.validators
-        ]
-
-    def get_personas(self, lens: Any) -> list[dict[str, Any]]:
-        """Get all personas from a lens.
-
-        Args:
-            lens: Loaded lens object
-
-        Returns:
-            List of persona dicts with name, background, goals, friction_points
-        """
-        if not lens or not hasattr(lens, "personas"):
-            return []
-
-        return [
-            {
-                "name": getattr(p, "name", "unknown"),
-                "background": getattr(p, "background", ""),
-                "goals": getattr(p, "goals", []),
-                "friction_points": getattr(p, "friction_points", []),
-            }
-            for p in lens.personas
-        ]
-
-    def get_framework(self, lens: Any) -> dict[str, Any] | None:
-        """Get framework configuration from a lens.
-
-        Args:
-            lens: Loaded lens object
-
-        Returns:
-            Framework dict or None if not defined
-        """
-        if not lens or not hasattr(lens, "framework"):
-            return None
-
-        framework = lens.framework
-        return {
-            "name": getattr(framework, "name", "unknown"),
-            "categories": [
-                {
-                    "name": getattr(c, "name", ""),
-                    "purpose": getattr(c, "purpose", ""),
-                }
-                for c in getattr(framework, "categories", [])
-            ],
-        }
-
-    def get_all(self, lens: Any) -> dict[str, Any]:
-        """Get all lens components.
-
-        Args:
-            lens: Loaded lens object
-
-        Returns:
-            Dict with heuristics, validators, personas, framework
-        """
-        return {
-            "heuristics": self.get_heuristics(lens),
-            "validators": self.get_validators(lens),
-            "personas": self.get_personas(lens),
-            "framework": self.get_framework(lens),
-        }
-
-
-class SimulacrumIntrospector:
-    """Examine current simulacrum state.
-
-    Provides read-only access to learnings, dead ends,
-    focus state, and conversation context.
-
-    Note: Stateless utility class - all state comes from method arguments.
-    """
-
-    __slots__ = ()
-
-    def get_learnings(self, simulacrum: Any) -> list[dict[str, Any]]:
-        """Get all learnings from simulacrum.
-
-        Args:
-            simulacrum: Simulacrum manager instance
-
-        Returns:
-            List of learning dicts
-        """
-        if not simulacrum:
-            return []
-
-        # Try different simulacrum interfaces
-        if hasattr(simulacrum, "get_learnings"):
-            return simulacrum.get_learnings()
-        elif hasattr(simulacrum, "learnings"):
-            return list(simulacrum.learnings)
-
+    if not lens or not hasattr(lens, "heuristics"):
         return []
 
-    def get_dead_ends(self, simulacrum: Any) -> list[dict[str, Any]]:
-        """Get all dead ends (approaches that didn't work).
+    return [
+        {
+            "name": getattr(h, "name", "unknown"),
+            "rule": getattr(h, "rule", ""),
+            "always": getattr(h, "always", []),
+            "never": getattr(h, "never", []),
+        }
+        for h in lens.heuristics
+    ]
 
-        Args:
-            simulacrum: Simulacrum manager instance
 
-        Returns:
-            List of dead end dicts
-        """
-        if not simulacrum:
-            return []
+def lens_get_validators(lens: Any) -> list[dict[str, Any]]:
+    """Get all validators from a lens.
 
-        if hasattr(simulacrum, "get_dead_ends"):
-            return simulacrum.get_dead_ends()
-        elif hasattr(simulacrum, "dead_ends"):
-            return list(simulacrum.dead_ends)
+    Args:
+        lens: Loaded lens object
 
+    Returns:
+        List of validator dicts with name, type, severity
+    """
+    if not lens or not hasattr(lens, "validators"):
         return []
 
-    def get_focus(self, simulacrum: Any) -> dict[str, Any] | None:
-        """Get current focus state.
+    return [
+        {
+            "name": getattr(v, "name", "unknown"),
+            "type": getattr(v, "type", "heuristic"),
+            "severity": getattr(v, "severity", "warning"),
+        }
+        for v in lens.validators
+    ]
 
-        Args:
-            simulacrum: Simulacrum manager instance
 
-        Returns:
-            Focus dict or None
-        """
-        if not simulacrum:
-            return None
+def lens_get_personas(lens: Any) -> list[dict[str, Any]]:
+    """Get all personas from a lens.
 
-        if hasattr(simulacrum, "get_focus"):
-            return simulacrum.get_focus()
-        elif hasattr(simulacrum, "focus"):
-            return simulacrum.focus
+    Args:
+        lens: Loaded lens object
 
+    Returns:
+        List of persona dicts with name, background, goals, friction_points
+    """
+    if not lens or not hasattr(lens, "personas"):
+        return []
+
+    return [
+        {
+            "name": getattr(p, "name", "unknown"),
+            "background": getattr(p, "background", ""),
+            "goals": getattr(p, "goals", []),
+            "friction_points": getattr(p, "friction_points", []),
+        }
+        for p in lens.personas
+    ]
+
+
+def lens_get_framework(lens: Any) -> dict[str, Any] | None:
+    """Get framework configuration from a lens.
+
+    Args:
+        lens: Loaded lens object
+
+    Returns:
+        Framework dict or None if not defined
+    """
+    if not lens or not hasattr(lens, "framework"):
         return None
 
-    def get_context(self, simulacrum: Any, limit: int = 10) -> list[dict[str, Any]]:
-        """Get recent conversation context.
+    framework = lens.framework
+    return {
+        "name": getattr(framework, "name", "unknown"),
+        "categories": [
+            {
+                "name": getattr(c, "name", ""),
+                "purpose": getattr(c, "purpose", ""),
+            }
+            for c in getattr(framework, "categories", [])
+        ],
+    }
 
-        Args:
-            simulacrum: Simulacrum manager instance
-            limit: Maximum number of turns to return
 
-        Returns:
-            List of conversation turn dicts
-        """
-        if not simulacrum:
-            return []
+def lens_get_all(lens: Any) -> dict[str, Any]:
+    """Get all lens components.
 
-        if hasattr(simulacrum, "get_recent_context"):
-            return simulacrum.get_recent_context(limit)
-        elif hasattr(simulacrum, "context"):
-            ctx = list(simulacrum.context)
-            return ctx[-limit:] if len(ctx) > limit else ctx
+    Args:
+        lens: Loaded lens object
 
+    Returns:
+        Dict with heuristics, validators, personas, framework
+    """
+    return {
+        "heuristics": lens_get_heuristics(lens),
+        "validators": lens_get_validators(lens),
+        "personas": lens_get_personas(lens),
+        "framework": lens_get_framework(lens),
+    }
+
+
+# === Simulacrum Introspection Functions ===
+
+
+def simulacrum_get_learnings(simulacrum: Any) -> list[dict[str, Any]]:
+    """Get all learnings from simulacrum.
+
+    Args:
+        simulacrum: Simulacrum manager instance
+
+    Returns:
+        List of learning dicts
+    """
+    if not simulacrum:
         return []
 
-    def get_all(self, simulacrum: Any) -> dict[str, Any]:
-        """Get all simulacrum state.
+    # Try different simulacrum interfaces
+    if hasattr(simulacrum, "get_learnings"):
+        return simulacrum.get_learnings()
+    elif hasattr(simulacrum, "learnings"):
+        return list(simulacrum.learnings)
 
-        Args:
-            simulacrum: Simulacrum manager instance
-
-        Returns:
-            Dict with learnings, dead_ends, focus, context
-        """
-        return {
-            "learnings": self.get_learnings(simulacrum),
-            "dead_ends": self.get_dead_ends(simulacrum),
-            "focus": self.get_focus(simulacrum),
-            "context_summary": f"{len(self.get_context(simulacrum))} turns",
-        }
+    return []
 
 
-class ExecutionIntrospector:
-    """Examine execution history.
+def simulacrum_get_dead_ends(simulacrum: Any) -> list[dict[str, Any]]:
+    """Get all dead ends (approaches that didn't work).
 
-    Provides access to tool call audit logs, errors,
-    and execution statistics.
+    Args:
+        simulacrum: Simulacrum manager instance
 
-    Note: Stateless utility class - all state comes from method arguments.
+    Returns:
+        List of dead end dicts
     """
+    if not simulacrum:
+        return []
 
-    __slots__ = ()
+    if hasattr(simulacrum, "get_dead_ends"):
+        return simulacrum.get_dead_ends()
+    elif hasattr(simulacrum, "dead_ends"):
+        return list(simulacrum.dead_ends)
 
-    def get_recent_tool_calls(
-        self,
-        executor: ToolExecutor,
-        limit: int = 10,
-    ) -> list[dict[str, Any]]:
-        """Get recent tool calls from the executor's audit log.
+    return []
 
-        Args:
-            executor: ToolExecutor instance
-            limit: Maximum number of entries
 
-        Returns:
-            List of tool call dicts
-        """
-        entries = executor.get_audit_log()[-limit:]
-        return [e.to_dict() for e in entries]
+def simulacrum_get_focus(simulacrum: Any) -> dict[str, Any] | None:
+    """Get current focus state.
 
-    def get_errors(
-        self,
-        executor: ToolExecutor,
-        limit: int = 10,
-    ) -> list[dict[str, Any]]:
-        """Get recent errors from execution history.
+    Args:
+        simulacrum: Simulacrum manager instance
 
-        Args:
-            executor: ToolExecutor instance
-            limit: Maximum number of errors
+    Returns:
+        Focus dict or None
+    """
+    if not simulacrum:
+        return None
 
-        Returns:
-            List of error dicts
-        """
-        entries = executor.get_audit_log()
-        errors = [e for e in entries if not e.success][-limit:]
-        return [e.to_dict() for e in errors]
+    if hasattr(simulacrum, "get_focus"):
+        return simulacrum.get_focus()
+    elif hasattr(simulacrum, "focus"):
+        return simulacrum.focus
 
-    def get_error_summary(self, executor: ToolExecutor) -> dict[str, Any]:
-        """Summarize errors from execution history.
+    return None
 
-        Args:
-            executor: ToolExecutor instance
 
-        Returns:
-            Dict with total_errors, by_type, recent_errors
-        """
-        entries = executor.get_audit_log()
-        errors = [e for e in entries if not e.success]
+def simulacrum_get_context(simulacrum: Any, limit: int = 10) -> list[dict[str, Any]]:
+    """Get recent conversation context.
 
-        by_type: dict[str, int] = {}
-        for e in errors:
-            error_type = (e.error or "Unknown").split(":")[0]
-            by_type[error_type] = by_type.get(error_type, 0) + 1
+    Args:
+        simulacrum: Simulacrum manager instance
+        limit: Maximum number of turns to return
 
-        return {
-            "total_errors": len(errors),
-            "by_type": by_type,
-            "recent_errors": [e.to_dict() for e in errors[-5:]],
-        }
+    Returns:
+        List of conversation turn dicts
+    """
+    if not simulacrum:
+        return []
 
-    def get_stats(self, executor: ToolExecutor) -> dict[str, Any]:
-        """Get execution statistics.
+    if hasattr(simulacrum, "get_recent_context"):
+        return simulacrum.get_recent_context(limit)
+    elif hasattr(simulacrum, "context"):
+        ctx = list(simulacrum.context)
+        return ctx[-limit:] if len(ctx) > limit else ctx
 
-        Args:
-            executor: ToolExecutor instance
+    return []
 
-        Returns:
-            Execution stats dict
-        """
-        return executor.get_stats()
+
+def simulacrum_get_all(simulacrum: Any) -> dict[str, Any]:
+    """Get all simulacrum state.
+
+    Args:
+        simulacrum: Simulacrum manager instance
+
+    Returns:
+        Dict with learnings, dead_ends, focus, context
+    """
+    return {
+        "learnings": simulacrum_get_learnings(simulacrum),
+        "dead_ends": simulacrum_get_dead_ends(simulacrum),
+        "focus": simulacrum_get_focus(simulacrum),
+        "context_summary": f"{len(simulacrum_get_context(simulacrum))} turns",
+    }
+
+
+# === Execution Introspection Functions ===
+
+
+def execution_get_recent_tool_calls(
+    executor: ToolExecutor,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    """Get recent tool calls from the executor's audit log.
+
+    Args:
+        executor: ToolExecutor instance
+        limit: Maximum number of entries
+
+    Returns:
+        List of tool call dicts
+    """
+    entries = executor.get_audit_log()[-limit:]
+    return [e.to_dict() for e in entries]
+
+
+def execution_get_errors(
+    executor: ToolExecutor,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    """Get recent errors from execution history.
+
+    Args:
+        executor: ToolExecutor instance
+        limit: Maximum number of errors
+
+    Returns:
+        List of error dicts
+    """
+    entries = executor.get_audit_log()
+    errors = [e for e in entries if not e.success][-limit:]
+    return [e.to_dict() for e in errors]
+
+
+def execution_get_error_summary(executor: ToolExecutor) -> dict[str, Any]:
+    """Summarize errors from execution history.
+
+    Args:
+        executor: ToolExecutor instance
+
+    Returns:
+        Dict with total_errors, by_type, recent_errors
+    """
+    entries = executor.get_audit_log()
+    errors = [e for e in entries if not e.success]
+
+    by_type: dict[str, int] = {}
+    for e in errors:
+        error_type = (e.error or "Unknown").split(":")[0]
+        by_type[error_type] = by_type.get(error_type, 0) + 1
+
+    return {
+        "total_errors": len(errors),
+        "by_type": by_type,
+        "recent_errors": [e.to_dict() for e in errors[-5:]],
+    }
+
+
+def execution_get_stats(executor: ToolExecutor) -> dict[str, Any]:
+    """Get execution statistics.
+
+    Args:
+        executor: ToolExecutor instance
+
+    Returns:
+        Execution stats dict
+    """
+    return executor.get_stats()

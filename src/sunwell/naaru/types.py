@@ -448,7 +448,7 @@ class Task:
         )
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class SessionConfig:
     """Configuration for an autonomous session.
 
@@ -456,7 +456,7 @@ class SessionConfig:
     and various safety limits.
     """
 
-    goals: list[str]
+    goals: tuple[str, ...]
     max_hours: float = 8.0
     max_proposals: int = 50
     max_auto_apply: int = 10
@@ -469,7 +469,7 @@ class SessionConfig:
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
         return {
-            "goals": self.goals,
+            "goals": list(self.goals),
             "max_hours": self.max_hours,
             "max_proposals": self.max_proposals,
             "max_auto_apply": self.max_auto_apply,
@@ -483,6 +483,10 @@ class SessionConfig:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> SessionConfig:
         """Create from dict."""
+        # Convert goals list to tuple for frozen dataclass
+        data = dict(data)  # Copy to avoid mutating input
+        if "goals" in data and isinstance(data["goals"], list):
+            data["goals"] = tuple(data["goals"])
         return cls(**data)
 
 

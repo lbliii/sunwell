@@ -81,7 +81,8 @@ class PermissionDiff:
     @property
     def has_changes(self) -> bool:
         """Check if there are any changes."""
-        return len([c for c in self.changes if c.change_type != ChangeType.UNCHANGED]) > 0
+        # Use any() for O(1) best case instead of building full list
+        return any(c.change_type != ChangeType.UNCHANGED for c in self.changes)
 
     @property
     def added(self) -> list[PermissionChange]:

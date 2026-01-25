@@ -18,6 +18,15 @@ class WorkerState(Enum):
     FAILED = "failed"
 
 
+# Module-level constant for worker progress calculation
+_STATE_PROGRESS: dict[WorkerState, float] = {
+    WorkerState.CLAIMING: 0.1,
+    WorkerState.EXECUTING: 0.5,
+    WorkerState.COMMITTING: 0.8,
+    WorkerState.MERGING: 0.9,
+}
+
+
 @dataclass(slots=True)
 class WorkerStatus:
     """Current status of a worker process."""
@@ -53,7 +62,7 @@ class WorkerStatus:
     """Error message if worker is in FAILED state."""
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class WorkerResult:
     """Result of a worker process execution."""
 
@@ -72,23 +81,23 @@ class WorkerResult:
     duration_seconds: float = 0.0
     """Total execution time."""
 
-    commit_shas: list[str] = field(default_factory=list)
-    """List of commit SHAs created by this worker."""
+    commit_shas: tuple[str, ...] = ()
+    """Tuple of commit SHAs created by this worker."""
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class MergeResult:
     """Result of merging worker branches."""
 
-    merged: list[str] = field(default_factory=list)
+    merged: tuple[str, ...] = ()
     """Branches that were successfully merged."""
 
-    conflicts: list[str] = field(default_factory=list)
+    conflicts: tuple[str, ...] = ()
     """Branches with merge conflicts (need human review)."""
 
 
 # RFC-100: UI-focused types for ATC view
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class FileConflict:
     """A file conflict between workers for UI display."""
 
@@ -111,7 +120,7 @@ class FileConflict:
     """When the conflict was detected."""
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class CoordinatorUIState:
     """State snapshot for UI consumption (RFC-100 Phase 4).
 
@@ -119,19 +128,19 @@ class CoordinatorUIState:
     for the ATC (Air Traffic Control) view.
     """
 
-    workers: list[WorkerStatus] = field(default_factory=list)
+    workers: tuple[WorkerStatus, ...] = ()
     """Current status of all workers."""
 
-    conflicts: list[FileConflict] = field(default_factory=list)
+    conflicts: tuple[FileConflict, ...] = ()
     """Active file conflicts requiring attention."""
 
     total_progress: float = 0.0
     """Overall progress (0.0-1.0) across all workers."""
 
-    merged_branches: list[str] = field(default_factory=list)
+    merged_branches: tuple[str, ...] = ()
     """Branches that have been successfully merged."""
 
-    pending_merges: list[str] = field(default_factory=list)
+    pending_merges: tuple[str, ...] = ()
     """Branches waiting to be merged."""
 
     is_running: bool = False
@@ -183,18 +192,6 @@ class CoordinatorUIState:
         """Calculate progress percentage for a worker."""
         if worker.state == WorkerState.STOPPED:
             return 1.0
-        if worker.state == WorkerState.FAILED:
+        if worker.state in (WorkerState.FAILED, WorkerState.STARTING, WorkerState.IDLE):
             return 0.0
-        if worker.state == WorkerState.STARTING:
-            return 0.0
-        if worker.state == WorkerState.IDLE:
-            return 0.0
-
-        # Estimate based on state
-        state_progress = {
-            WorkerState.CLAIMING: 0.1,
-            WorkerState.EXECUTING: 0.5,
-            WorkerState.COMMITTING: 0.8,
-            WorkerState.MERGING: 0.9,
-        }
-        return state_progress.get(worker.state, 0.5)
+        return _STATE_PROGRESS.get(worker.state, 0.5)

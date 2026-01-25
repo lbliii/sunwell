@@ -56,6 +56,7 @@ from sunwell.project.types import (
     AgentConfig,
     Project,
     ProjectManifest,
+    Serializable,
     WorkspaceType,
 )
 from sunwell.project.validation import (
@@ -69,6 +70,7 @@ __all__ = [
     "AgentConfig",
     "Project",
     "ProjectManifest",
+    "Serializable",
     "WorkspaceType",
     # Intent Types (RFC-079)
     "DevCommand",

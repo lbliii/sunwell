@@ -11,9 +11,20 @@ The responder KNOWS what route was decided, so it can:
 See: RFC-075 (original), this refactor improves on it.
 """
 
-
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
+# =============================================================================
+# PRE-COMPILED PATTERNS — Avoid re-compilation per call
+# =============================================================================
+
+_PROJECT_NAME_PATTERN = re.compile(
+    r"\b(?:build|create|make|develop)\s+(?:a|an|the|me|us)?\s*(.+?)"
+    r"(?:\s+app|\s+game|\s+site|\s+project)?$",
+    re.IGNORECASE,
+)
+_PROJECT_SUFFIX_PATTERN = re.compile(r"\s+(app|game|site|website|project|system)$")
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
@@ -100,7 +111,7 @@ DO NOT ask clarifying questions if the route is WORKSPACE with high confidence.
 Respond with ONLY the user-facing message (no JSON, no metadata):'''
 
 
-@dataclass
+@dataclass(slots=True)
 class ResponseGenerator:
     """Generates user-facing responses based on classification results.
 
@@ -289,17 +300,12 @@ class ResponseGenerator:
 
     def _extract_project_name(self, goal: str) -> str:
         """Extract project name from goal for templates."""
-        import re
-
-        # Try to extract "build a X" pattern
-        match = re.search(
-            r"\b(?:build|create|make|develop)\s+(?:a|an|the|me|us)?\s*(.+?)(?:\s+app|\s+game|\s+site|\s+project)?$",
-            goal.lower(),
-        )
+        # Try to extract "build a X" pattern (pre-compiled)
+        match = _PROJECT_NAME_PATTERN.search(goal.lower())
         if match:
             name = match.group(1).strip()
-            # Clean up common suffixes that got captured
-            name = re.sub(r"\s+(app|game|site|website|project|system)$", "", name)
+            # Clean up common suffixes that got captured (pre-compiled)
+            name = _PROJECT_SUFFIX_PATTERN.sub("", name)
             if name:
                 return f"your {name}"
 

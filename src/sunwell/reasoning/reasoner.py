@@ -26,8 +26,10 @@ Example:
     ...     return rule_based_fallback(signal)
 """
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -42,6 +44,236 @@ from sunwell.reasoning.decisions import (
     RecoveryDecision,
 )
 
+# Pre-compiled regex patterns
+_MARKDOWN_CODE_BLOCK_RE = re.compile(r"```(?:json)?\s*([\s\S]*?)```")
+_JSON_OBJECT_RE = re.compile(r"\{[^{}]*\}", re.DOTALL)
+
+# Outcome validators by decision type
+_OUTCOME_VALIDATORS: dict[DecisionType, Callable[[Any], bool]] = {
+    DecisionType.SEVERITY_ASSESSMENT: lambda o: o in SEVERITY_LEVELS,
+    DecisionType.RECOVERY_STRATEGY: lambda o: o in RECOVERY_STRATEGIES,
+    DecisionType.SEMANTIC_APPROVAL: lambda o: o in APPROVAL_OUTCOMES,
+    DecisionType.AUTO_FIXABLE: lambda o: isinstance(o, bool),
+    DecisionType.RISK_ASSESSMENT: lambda o: o in SEVERITY_LEVELS,
+}
+
+# Outcome field names by decision type
+_OUTCOME_FIELDS: dict[DecisionType, str] = {
+    DecisionType.SEVERITY_ASSESSMENT: "severity",
+    DecisionType.RECOVERY_STRATEGY: "strategy",
+    DecisionType.SEMANTIC_APPROVAL: "decision",
+    DecisionType.ROOT_CAUSE_ANALYSIS: "root_cause",
+    DecisionType.AUTO_FIXABLE: "auto_fixable",
+    DecisionType.RISK_ASSESSMENT: "risk_level",
+}
+
+# Conservative defaults for fallback
+_CONSERVATIVE_DEFAULTS: dict[DecisionType, Any] = {
+    DecisionType.SEVERITY_ASSESSMENT: "medium",
+    DecisionType.AUTO_FIXABLE: False,
+    DecisionType.RECOVERY_STRATEGY: "escalate",
+    DecisionType.SEMANTIC_APPROVAL: "flag",
+    DecisionType.RISK_ASSESSMENT: "medium",
+    DecisionType.ROOT_CAUSE_ANALYSIS: "Unknown",
+    DecisionType.GOAL_PRIORITY: 5,
+    DecisionType.DISPLAY_VARIANT: "banner",
+}
+
+
+@cache
+def _get_decision_tools() -> dict[DecisionType, tuple[Tool, ...]]:
+    """Build tools dict once, cached forever."""
+    return {
+        DecisionType.SEVERITY_ASSESSMENT: (
+            Tool(
+                name="decide_severity",
+                description="Assess severity of a code signal",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "severity": {
+                            "type": "string",
+                            "enum": ["critical", "high", "medium", "low"],
+                            "description": "Assessed severity level",
+                        },
+                        "confidence": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1,
+                            "description": "Confidence 0-1 in this assessment",
+                        },
+                        "rationale": {
+                            "type": "string",
+                            "description": "Why this severity was chosen",
+                        },
+                        "context_factors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "What factors influenced the decision",
+                        },
+                    },
+                    "required": ["severity", "confidence", "rationale"],
+                },
+            ),
+        ),
+        DecisionType.RECOVERY_STRATEGY: (
+            Tool(
+                name="decide_recovery",
+                description="Choose recovery strategy for a failure",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "strategy": {
+                            "type": "string",
+                            "enum": ["retry", "retry_different", "escalate", "abort"],
+                            "description": "Recovery strategy",
+                        },
+                        "confidence": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1,
+                            "description": "Confidence in this strategy",
+                        },
+                        "rationale": {
+                            "type": "string",
+                            "description": "Why this strategy was chosen",
+                        },
+                        "retry_hint": {
+                            "type": "string",
+                            "description": "Hint for retry (if retry_different)",
+                        },
+                        "escalation_reason": {
+                            "type": "string",
+                            "description": "Why human needed (if strategy is escalate)",
+                        },
+                    },
+                    "required": ["strategy", "confidence", "rationale"],
+                },
+            ),
+        ),
+        DecisionType.SEMANTIC_APPROVAL: (
+            Tool(
+                name="decide_approval",
+                description="Decide if change can be auto-approved",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "decision": {
+                            "type": "string",
+                            "enum": ["approve", "flag", "deny"],
+                            "description": "Approval decision",
+                        },
+                        "confidence": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1,
+                            "description": "Confidence in this decision",
+                        },
+                        "rationale": {
+                            "type": "string",
+                            "description": "Why this decision was made",
+                        },
+                        "risk_factors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Identified risk factors",
+                        },
+                    },
+                    "required": ["decision", "confidence", "rationale"],
+                },
+            ),
+        ),
+        DecisionType.ROOT_CAUSE_ANALYSIS: (
+            Tool(
+                name="decide_root_cause",
+                description="Analyze root cause of failure",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "root_cause": {
+                            "type": "string",
+                            "description": "Identified root cause",
+                        },
+                        "confidence": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1,
+                            "description": "Confidence in this analysis",
+                        },
+                        "prevention": {
+                            "type": "string",
+                            "description": "How to prevent in future",
+                        },
+                        "similar_to": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "IDs of similar past failures",
+                        },
+                    },
+                    "required": ["root_cause", "confidence", "prevention"],
+                },
+            ),
+        ),
+        DecisionType.AUTO_FIXABLE: (
+            Tool(
+                name="decide_auto_fixable",
+                description="Determine if signal can be auto-fixed",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "auto_fixable": {
+                            "type": "boolean",
+                            "description": "Whether it can be auto-fixed",
+                        },
+                        "confidence": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1,
+                            "description": "Confidence in this assessment",
+                        },
+                        "rationale": {
+                            "type": "string",
+                            "description": "Why this assessment was made",
+                        },
+                    },
+                    "required": ["auto_fixable", "confidence", "rationale"],
+                },
+            ),
+        ),
+        DecisionType.RISK_ASSESSMENT: (
+            Tool(
+                name="decide_risk",
+                description="Assess risk level of a change",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "risk_level": {
+                            "type": "string",
+                            "enum": ["low", "medium", "high", "critical"],
+                            "description": "Assessed risk level",
+                        },
+                        "confidence": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1,
+                            "description": "Confidence in this assessment",
+                        },
+                        "rationale": {
+                            "type": "string",
+                            "description": "Why this risk level was chosen",
+                        },
+                        "risk_factors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Identified risk factors",
+                        },
+                    },
+                    "required": ["risk_level", "confidence", "rationale"],
+                },
+            ),
+        ),
+    }
+
 if TYPE_CHECKING:
     from sunwell.incremental.cache import ExecutionCache
     from sunwell.intelligence.context import ProjectContext
@@ -53,7 +285,7 @@ if TYPE_CHECKING:
 FallbackFunc = Callable[[dict[str, Any]], Any]
 
 
-@dataclass
+@dataclass(slots=True)
 class Reasoner:
     """LLM-driven decision maker with rich context assembly.
 
@@ -108,6 +340,11 @@ class Reasoner:
         default_factory=list, repr=False
     )
     """History of decisions made (for learning and consistency)."""
+
+    _history_by_type: dict[DecisionType, list[ReasonedDecision]] = field(
+        default_factory=dict, repr=False
+    )
+    """Index of decisions by type for O(1) lookup."""
 
     def __post_init__(self) -> None:
         """Initialize default fallback rules."""
@@ -183,8 +420,9 @@ class Reasoner:
             # Fallback to rules on any error
             decision = self._apply_fallback(decision_type, context, error=str(e))
 
-        # 5. Record for learning
+        # 5. Record for learning (maintain both list and index)
         self._decision_history.append(decision)
+        self._history_by_type.setdefault(decision.decision_type, []).append(decision)
         await self._record_decision(decision, enriched)
 
         return decision
@@ -411,15 +649,12 @@ class Reasoner:
         if not self.project_context:
             return []
 
-        # Search decision history for similar contexts
+        # Use index for O(1) type lookup instead of O(n) scan
+        history = self._history_by_type.get(decision_type, [])
         similar = []
-        for decision in self._decision_history[-100:]:  # Last 100 decisions
+        for decision in history[-100:]:  # Last 100 of this type
             # Simple similarity: same file path or signal type
-            if (
-                decision.decision_type == decision_type
-                and context.get("file_path")
-                and "file_path" in decision.context_used
-            ):
+            if context.get("file_path") and "file_path" in decision.context_used:
                 similar.append(decision.to_dict())
         return similar[:5]  # Top 5 similar
 
@@ -475,17 +710,11 @@ class Reasoner:
         Returns:
             Cached decision if found with >=90% confidence, else None.
         """
-        for decision in reversed(self._decision_history[-50:]):
-            if decision.decision_type != decision_type:
-                continue
-
-            if decision.confidence < 0.90:
-                continue
-
-            # Check context similarity (simple heuristic)
-            if self._is_similar_context(context, decision):
+        # Use index for O(1) type lookup instead of O(n) scan
+        history = self._history_by_type.get(decision_type, [])
+        for decision in reversed(history[-50:]):
+            if decision.confidence >= 0.90 and self._is_similar_context(context, decision):
                 return decision
-
         return None
 
     def _is_similar_context(
@@ -587,18 +816,17 @@ JSON:"""
     ) -> ReasonedDecision:
         """Parse direct JSON response (fast mode, no tool calling)."""
         import json
-        import re
 
         text = result.text.strip()
 
         # Handle markdown code blocks
         if "```" in text:
-            match = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+            match = _MARKDOWN_CODE_BLOCK_RE.search(text)
             if match:
                 text = match.group(1).strip()
 
         # Try to extract JSON object
-        match = re.search(r"\{[^{}]*\}", text, re.DOTALL)
+        match = _JSON_OBJECT_RE.search(text)
         if match:
             text = match.group(0)
 
@@ -651,19 +879,8 @@ JSON:"""
         """Validate that outcome is valid for the decision type."""
         if outcome is None:
             return False
-
-        validators = {
-            DecisionType.SEVERITY_ASSESSMENT: lambda o: o in SEVERITY_LEVELS,
-            DecisionType.RECOVERY_STRATEGY: lambda o: o in RECOVERY_STRATEGIES,
-            DecisionType.SEMANTIC_APPROVAL: lambda o: o in APPROVAL_OUTCOMES,
-            DecisionType.AUTO_FIXABLE: lambda o: isinstance(o, bool),
-            DecisionType.RISK_ASSESSMENT: lambda o: o in SEVERITY_LEVELS,
-        }
-
-        validator = validators.get(decision_type)
-        if validator:
-            return validator(outcome)
-        return True  # No specific validation for other types
+        validator = _OUTCOME_VALIDATORS.get(decision_type)
+        return validator(outcome) if validator else True
 
     # =========================================================================
     # Standard Mode (Tool Calling)
@@ -881,197 +1098,7 @@ Call the appropriate decision tool with your reasoning."""
 
     def _get_tools(self, decision_type: DecisionType) -> tuple[Tool, ...]:
         """Get tool definitions for structured output."""
-        tools: dict[DecisionType, tuple[Tool, ...]] = {
-            DecisionType.SEVERITY_ASSESSMENT: (
-                Tool(
-                    name="decide_severity",
-                    description="Assess severity of a code signal",
-                    parameters={
-                        "type": "object",
-                        "properties": {
-                            "severity": {
-                                "type": "string",
-                                "enum": ["critical", "high", "medium", "low"],
-                                "description": "Assessed severity level",
-                            },
-                            "confidence": {
-                                "type": "number",
-                                "minimum": 0,
-                                "maximum": 1,
-                                "description": "Confidence 0-1 in this assessment",
-                            },
-                            "rationale": {
-                                "type": "string",
-                                "description": "Why this severity was chosen",
-                            },
-                            "context_factors": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "What factors influenced the decision",
-                            },
-                        },
-                        "required": ["severity", "confidence", "rationale"],
-                    },
-                ),
-            ),
-            DecisionType.RECOVERY_STRATEGY: (
-                Tool(
-                    name="decide_recovery",
-                    description="Choose recovery strategy for a failure",
-                    parameters={
-                        "type": "object",
-                        "properties": {
-                            "strategy": {
-                                "type": "string",
-                                "enum": ["retry", "retry_different", "escalate", "abort"],
-                                "description": "Recovery strategy",
-                            },
-                            "confidence": {
-                                "type": "number",
-                                "minimum": 0,
-                                "maximum": 1,
-                                "description": "Confidence in this strategy",
-                            },
-                            "rationale": {
-                                "type": "string",
-                                "description": "Why this strategy was chosen",
-                            },
-                            "retry_hint": {
-                                "type": "string",
-                                "description": "Hint for retry (if retry_different)",
-                            },
-                            "escalation_reason": {
-                                "type": "string",
-                                "description": "Why human needed (if strategy is escalate)",
-                            },
-                        },
-                        "required": ["strategy", "confidence", "rationale"],
-                    },
-                ),
-            ),
-            DecisionType.SEMANTIC_APPROVAL: (
-                Tool(
-                    name="decide_approval",
-                    description="Decide if change can be auto-approved",
-                    parameters={
-                        "type": "object",
-                        "properties": {
-                            "decision": {
-                                "type": "string",
-                                "enum": ["approve", "flag", "deny"],
-                                "description": "Approval decision",
-                            },
-                            "confidence": {
-                                "type": "number",
-                                "minimum": 0,
-                                "maximum": 1,
-                                "description": "Confidence in this decision",
-                            },
-                            "rationale": {
-                                "type": "string",
-                                "description": "Why this decision was made",
-                            },
-                            "risk_factors": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "Identified risk factors",
-                            },
-                        },
-                        "required": ["decision", "confidence", "rationale"],
-                    },
-                ),
-            ),
-            DecisionType.ROOT_CAUSE_ANALYSIS: (
-                Tool(
-                    name="decide_root_cause",
-                    description="Analyze root cause of failure",
-                    parameters={
-                        "type": "object",
-                        "properties": {
-                            "root_cause": {
-                                "type": "string",
-                                "description": "Identified root cause",
-                            },
-                            "confidence": {
-                                "type": "number",
-                                "minimum": 0,
-                                "maximum": 1,
-                                "description": "Confidence in this analysis",
-                            },
-                            "prevention": {
-                                "type": "string",
-                                "description": "How to prevent in future",
-                            },
-                            "similar_to": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "IDs of similar past failures",
-                            },
-                        },
-                        "required": ["root_cause", "confidence", "prevention"],
-                    },
-                ),
-            ),
-            DecisionType.AUTO_FIXABLE: (
-                Tool(
-                    name="decide_auto_fixable",
-                    description="Determine if signal can be auto-fixed",
-                    parameters={
-                        "type": "object",
-                        "properties": {
-                            "auto_fixable": {
-                                "type": "boolean",
-                                "description": "Whether it can be auto-fixed",
-                            },
-                            "confidence": {
-                                "type": "number",
-                                "minimum": 0,
-                                "maximum": 1,
-                                "description": "Confidence in this assessment",
-                            },
-                            "rationale": {
-                                "type": "string",
-                                "description": "Why this assessment was made",
-                            },
-                        },
-                        "required": ["auto_fixable", "confidence", "rationale"],
-                    },
-                ),
-            ),
-            DecisionType.RISK_ASSESSMENT: (
-                Tool(
-                    name="decide_risk",
-                    description="Assess risk level of a change",
-                    parameters={
-                        "type": "object",
-                        "properties": {
-                            "risk_level": {
-                                "type": "string",
-                                "enum": ["low", "medium", "high", "critical"],
-                                "description": "Assessed risk level",
-                            },
-                            "confidence": {
-                                "type": "number",
-                                "minimum": 0,
-                                "maximum": 1,
-                                "description": "Confidence in this assessment",
-                            },
-                            "rationale": {
-                                "type": "string",
-                                "description": "Why this risk level was chosen",
-                            },
-                            "risk_factors": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "Identified risk factors",
-                            },
-                        },
-                        "required": ["risk_level", "confidence", "rationale"],
-                    },
-                ),
-            ),
-        }
-
+        tools = _get_decision_tools()
         return tools.get(decision_type, self._generic_tool(decision_type))
 
     def _generic_tool(self, decision_type: DecisionType) -> tuple[Tool, ...]:
@@ -1141,17 +1168,7 @@ Call the appropriate decision tool with your reasoning."""
         args: dict[str, Any],
     ) -> Any:
         """Extract the outcome field from tool call arguments."""
-        # Map decision types to their outcome field names
-        outcome_fields = {
-            DecisionType.SEVERITY_ASSESSMENT: "severity",
-            DecisionType.RECOVERY_STRATEGY: "strategy",
-            DecisionType.SEMANTIC_APPROVAL: "decision",
-            DecisionType.ROOT_CAUSE_ANALYSIS: "root_cause",
-            DecisionType.AUTO_FIXABLE: "auto_fixable",
-            DecisionType.RISK_ASSESSMENT: "risk_level",
-        }
-
-        field_name = outcome_fields.get(decision_type, "outcome")
+        field_name = _OUTCOME_FIELDS.get(decision_type, "outcome")
         return args.get(field_name, args.get("outcome"))
 
     # =========================================================================
@@ -1257,17 +1274,7 @@ Call the appropriate decision tool with your reasoning."""
 
     def _conservative_default(self, decision_type: DecisionType) -> Any:
         """Conservative default for decision types without fallback rules."""
-        defaults = {
-            DecisionType.SEVERITY_ASSESSMENT: "medium",
-            DecisionType.AUTO_FIXABLE: False,
-            DecisionType.RECOVERY_STRATEGY: "escalate",
-            DecisionType.SEMANTIC_APPROVAL: "flag",
-            DecisionType.RISK_ASSESSMENT: "medium",
-            DecisionType.ROOT_CAUSE_ANALYSIS: "Unknown",
-            DecisionType.GOAL_PRIORITY: 5,
-            DecisionType.DISPLAY_VARIANT: "banner",
-        }
-        return defaults.get(decision_type)
+        return _CONSERVATIVE_DEFAULTS.get(decision_type)
 
     # =========================================================================
     # Learning / Recording
@@ -1311,3 +1318,4 @@ Call the appropriate decision tool with your reasoning."""
     def clear_history(self) -> None:
         """Clear decision history (for testing)."""
         self._decision_history.clear()
+        self._history_by_type.clear()

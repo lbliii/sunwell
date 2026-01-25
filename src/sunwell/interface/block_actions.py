@@ -23,7 +23,7 @@ class BlockActionResult:
     data: dict[str, Any] | None = None
 
 
-@dataclass
+@dataclass(slots=True)
 class BlockActionExecutor:
     """Executes block actions against data providers.
 

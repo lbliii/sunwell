@@ -17,9 +17,11 @@ Storage Layout:
 import hashlib
 import json
 import threading
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from types import MappingProxyType
 
 from sunwell.core.identity import ResourceIdentity, SunwellURI
 from sunwell.lens.identity import (
@@ -42,12 +44,12 @@ class LensIndex:
     Attributes:
         version: Index schema version for migrations
         updated_at: ISO timestamp of last index update
-        lenses: URI -> LensIndexEntry mapping
+        lenses: URI -> LensIndexEntry mapping (immutable)
     """
 
     version: int
     updated_at: str
-    lenses: dict[str, LensIndexEntry]
+    lenses: Mapping[str, LensIndexEntry]
 
     @classmethod
     def empty(cls) -> LensIndex:
@@ -55,7 +57,7 @@ class LensIndex:
         return cls(
             version=INDEX_VERSION,
             updated_at=datetime.now(UTC).isoformat(),
-            lenses={},
+            lenses=MappingProxyType({}),
         )
 
     @classmethod
@@ -68,7 +70,7 @@ class LensIndex:
         return cls(
             version=data.get("version", INDEX_VERSION),
             updated_at=data.get("updated_at", datetime.now(UTC).isoformat()),
-            lenses=lenses,
+            lenses=MappingProxyType(lenses),
         )
 
     def to_dict(self) -> dict[str, object]:
@@ -86,7 +88,7 @@ class LensIndex:
         return LensIndex(
             version=self.version,
             updated_at=datetime.now(UTC).isoformat(),
-            lenses=new_lenses,
+            lenses=MappingProxyType(new_lenses),
         )
 
     def without_entry(self, uri: str) -> LensIndex:
@@ -95,11 +97,11 @@ class LensIndex:
         return LensIndex(
             version=self.version,
             updated_at=datetime.now(UTC).isoformat(),
-            lenses=new_lenses,
+            lenses=MappingProxyType(new_lenses),
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class LensIndexManager:
     """Manages the global lens index.
 
@@ -317,7 +319,7 @@ class LensIndexManager:
             new_index = LensIndex(
                 version=index.version,
                 updated_at=datetime.now(UTC).isoformat(),
-                lenses=new_lenses,
+                lenses=MappingProxyType(new_lenses),
             )
             self._save_index(new_index)
             return True
@@ -371,7 +373,7 @@ class LensIndexManager:
         new_index = LensIndex(
             version=INDEX_VERSION,
             updated_at=datetime.now(UTC).isoformat(),
-            lenses=lenses,
+            lenses=MappingProxyType(lenses),
         )
         self._save_index(new_index)
         return new_index

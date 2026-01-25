@@ -52,7 +52,21 @@ DANGEROUS_PATTERNS: frozenset[str] = frozenset({
 })
 
 
-@dataclass(slots=True)
+# Default frozensets for SafetyPolicy (avoid lambda in frozen dataclass)
+_DEFAULT_REQUIRE_CONFIRMATION: frozenset[str] = frozenset({
+    "apply_proposal",
+    "rollback_proposal",
+    "approve_proposal",
+})
+
+_DEFAULT_BLOCKED_OPERATIONS: frozenset[str] = frozenset({
+    "modify_safety_policy",
+    "escalate_trust",
+    "modify_core",
+})
+
+
+@dataclass(frozen=True, slots=True)
 class SafetyPolicy:
     """Safety policy for mirror neuron operations.
 
@@ -67,22 +81,10 @@ class SafetyPolicy:
     max_applications_per_day: int = 5
 
     # Require user confirmation for these operations
-    require_confirmation: frozenset[str] = field(
-        default_factory=lambda: frozenset({
-            "apply_proposal",
-            "rollback_proposal",
-            "approve_proposal",
-        })
-    )
+    require_confirmation: frozenset[str] = _DEFAULT_REQUIRE_CONFIRMATION
 
     # Operations that are always blocked
-    blocked_operations: frozenset[str] = field(
-        default_factory=lambda: frozenset({
-            "modify_safety_policy",
-            "escalate_trust",
-            "modify_core",
-        })
-    )
+    blocked_operations: frozenset[str] = _DEFAULT_BLOCKED_OPERATIONS
 
 
 @dataclass(slots=True)

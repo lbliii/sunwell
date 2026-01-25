@@ -3,7 +3,7 @@
 Evaluates paths against trust zones to determine risk overrides.
 """
 
-
+from dataclasses import dataclass
 from fnmatch import fnmatch
 from pathlib import Path
 
@@ -188,32 +188,18 @@ class TrustZoneEvaluator:
         return False
 
 
+@dataclass(frozen=True, slots=True)
 class TrustZoneMatch:
     """Result of a trust zone evaluation."""
 
-    def __init__(
-        self,
-        path: str,
-        zone: TrustZone,
-        risk_override: ActionRisk | None,
-        allowed_in_autonomous: bool,
-    ):
-        """Initialize match result.
+    path: str
+    """The matched path."""
 
-        Args:
-            path: The matched path
-            zone: The matching zone
-            risk_override: Risk level override
-            allowed_in_autonomous: Whether allowed in autonomous mode
-        """
-        self.path = path
-        self.zone = zone
-        self.risk_override = risk_override
-        self.allowed_in_autonomous = allowed_in_autonomous
+    zone: TrustZone
+    """The matching zone."""
 
-    def __repr__(self) -> str:
-        return (
-            f"TrustZoneMatch(path={self.path!r}, "
-            f"risk={self.risk_override}, "
-            f"autonomous={self.allowed_in_autonomous})"
-        )
+    risk_override: ActionRisk | None
+    """Risk level override."""
+
+    allowed_in_autonomous: bool
+    """Whether allowed in autonomous mode."""

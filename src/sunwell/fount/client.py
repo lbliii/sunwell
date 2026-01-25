@@ -23,7 +23,7 @@ class FountProtocol(Protocol):
         ...
 
 
-@dataclass
+@dataclass(slots=True)
 class FountClient:
     """Standard implementation of the Sunwell fount client."""
 

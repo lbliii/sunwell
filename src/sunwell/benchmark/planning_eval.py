@@ -23,23 +23,24 @@ import json
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 import yaml
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class ArtifactMatch:
     """Match between expected and actual artifact."""
 
     expected_id: str
     actual_id: str | None
     confidence: float  # 0-1
-    matched_files: list[str] = field(default_factory=list)
+    matched_files: tuple[str, ...] = ()
     reasoning: str = ""
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class EvaluationResult:
     """Complete evaluation result for a plan."""
 
@@ -56,10 +57,16 @@ class EvaluationResult:
     # Weighted total
     total_score: float
 
-    # Details
-    coverage_details: dict[str, Any] = field(default_factory=dict)
-    coherence_details: dict[str, Any] = field(default_factory=dict)
-    tech_details: dict[str, Any] = field(default_factory=dict)
+    # Details (immutable mappings)
+    coverage_details: MappingProxyType[str, Any] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
+    coherence_details: MappingProxyType[str, Any] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
+    tech_details: MappingProxyType[str, Any] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
 
     # Timing
     planning_time_ms: float | None = None
@@ -132,9 +139,9 @@ class EvaluationResult:
                 "total": self.total_score,
             },
             "details": {
-                "coverage": self.coverage_details,
-                "coherence": self.coherence_details,
-                "tech": self.tech_details,
+                "coverage": dict(self.coverage_details),
+                "coherence": dict(self.coherence_details),
+                "tech": dict(self.tech_details),
             },
             "timing": {
                 "planning_ms": self.planning_time_ms,
@@ -207,9 +214,9 @@ class PlanningEvaluator:
             granularity_score=granularity_score,
             speed_score=speed_score,
             total_score=total,
-            coverage_details=coverage_details,
-            coherence_details=coherence_details,
-            tech_details=tech_details,
+            coverage_details=MappingProxyType(coverage_details),
+            coherence_details=MappingProxyType(coherence_details),
+            tech_details=MappingProxyType(tech_details),
             eval_time_ms=eval_time,
         )
 

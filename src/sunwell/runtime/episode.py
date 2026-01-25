@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from sunwell.runtime.engine import ExecutionResult
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class EpisodeSnapshot:
     """Portable snapshot of an expertise application session.
 

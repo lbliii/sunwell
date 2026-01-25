@@ -40,7 +40,7 @@ from sunwell.parallel.worker import worker_entry
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class CoordinatorResult:
     """Result of multi-instance execution."""
 
@@ -62,13 +62,13 @@ class CoordinatorResult:
     workers_used: int = 0
     """Number of workers that participated."""
 
-    merged_branches: list[str] = field(default_factory=list)
+    merged_branches: tuple[str, ...] = ()
     """Branches that were successfully merged."""
 
-    conflict_branches: list[str] = field(default_factory=list)
+    conflict_branches: tuple[str, ...] = ()
     """Branches with merge conflicts."""
 
-    errors: list[str] = field(default_factory=list)
+    errors: tuple[str, ...] = ()
     """Error messages encountered."""
 
 
@@ -143,9 +143,9 @@ class Coordinator:
                 skipped=0,
                 duration_seconds=(datetime.now() - start_time).total_seconds(),
                 workers_used=len(worker_results),
-                merged_branches=merge_result.merged,
-                conflict_branches=merge_result.conflicts,
-                errors=[],
+                merged_branches=tuple(merge_result.merged),
+                conflict_branches=tuple(merge_result.conflicts),
+                errors=(),
             )
 
         except Exception as e:
@@ -156,9 +156,9 @@ class Coordinator:
                 skipped=0,
                 duration_seconds=(datetime.now() - start_time).total_seconds(),
                 workers_used=0,
-                merged_branches=[],
-                conflict_branches=[],
-                errors=[str(e)],
+                merged_branches=(),
+                conflict_branches=(),
+                errors=(str(e),),
             )
         finally:
             await self._terminate_all_workers()
@@ -309,8 +309,8 @@ class Coordinator:
         3. If conflict, mark for human review and skip
         4. Base accumulates all clean merges
         """
-        merged = []
-        conflicts = []
+        merged: list[str] = []
+        conflicts: list[str] = []
 
         # Ensure we're on base branch
         await checkout_branch(self.root, self._base_branch)
@@ -349,7 +349,7 @@ class Coordinator:
                 conflicts.append(branch)
                 logger.warning(f"Merge conflict in {branch}, marked for review")
 
-        return MergeResult(merged=merged, conflicts=conflicts)
+        return MergeResult(merged=tuple(merged), conflicts=tuple(conflicts))
 
     async def _cleanup_branches(self, worker_results: list[WorkerResult]) -> None:
         """Delete worker branches."""
@@ -436,8 +436,8 @@ class Coordinator:
             total_progress = 0.0
 
         return CoordinatorUIState(
-            workers=workers,
-            conflicts=conflicts,
+            workers=tuple(workers),
+            conflicts=tuple(conflicts),
             total_progress=total_progress,
             is_running=self.is_running(),
         )

@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from sunwell.naaru.artifacts import ArtifactGraph
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class SpeculativeResult:
     """Result from speculative parallel discovery."""
 

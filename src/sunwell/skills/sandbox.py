@@ -28,7 +28,7 @@ class ScriptResult:
     timed_out: bool
 
 
-@dataclass
+@dataclass(slots=True)
 class ScriptSandbox:
     """Sandboxed script execution with enforced restrictions.
 

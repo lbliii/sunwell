@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from sunwell.core.types import LensReference
 
 
-@dataclass
+@dataclass(slots=True)
 class FountCache:
     """Manages local storage of remote lenses with integrity verification.
 
@@ -85,18 +85,17 @@ class FountCache:
                 (self.root / "lenses").mkdir(exist_ok=True)
                 (self.root / "metadata").mkdir(exist_ok=True)
 
-    def _get_lens_path(self, ref: LensReference) -> Path:
-        """Get filesystem path for a lens in the cache."""
-        # Sanitize name for filesystem
+    def _sanitize_ref_name(self, ref: LensReference) -> str:
+        """Sanitize reference for filesystem-safe name."""
         safe_name = ref.source.replace("/", "__").replace(":", "__")
         if ref.version:
             safe_name = f"{safe_name}@{ref.version}"
-        return self.root / "lenses" / f"{safe_name}.lens"
+        return safe_name
+
+    def _get_lens_path(self, ref: LensReference) -> Path:
+        """Get filesystem path for a lens in the cache."""
+        return self.root / "lenses" / f"{self._sanitize_ref_name(ref)}.lens"
 
     def _get_metadata_path(self, ref: LensReference) -> Path:
         """Get filesystem path for lens metadata in the cache."""
-        # Sanitize name for filesystem
-        safe_name = ref.source.replace("/", "__").replace(":", "__")
-        if ref.version:
-            safe_name = f"{safe_name}@{ref.version}"
-        return self.root / "metadata" / f"{safe_name}.json"
+        return self.root / "metadata" / f"{self._sanitize_ref_name(ref)}.json"

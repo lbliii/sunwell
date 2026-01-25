@@ -6,10 +6,24 @@ These types represent query results from PersistentMemory:
 """
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
     pass
+
+
+class Promptable(Protocol):
+    """Protocol for objects that can be formatted into prompts.
+
+    Implemented by:
+    - MemoryContext
+    - TaskMemoryContext
+    - Briefing
+    """
+
+    def to_prompt(self) -> str:
+        """Format this object for inclusion in an LLM prompt."""
+        ...
 
 
 @dataclass(frozen=True, slots=True)

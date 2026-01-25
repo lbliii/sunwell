@@ -145,7 +145,8 @@ class LensLoader:
 
         return resolved
 
-    def _deep_merge(self, base: dict, override: dict) -> None:
+    @staticmethod
+    def _deep_merge(base: dict, override: dict) -> None:
         """Deep merge override into base (mutates base).
 
         Used for merging skill-specific permissions into preset permissions.
@@ -410,7 +411,8 @@ class LensLoader:
             source_path=source_path,
         )
 
-    def _parse_metadata(self, data: dict[str, Any]) -> LensMetadata:
+    @staticmethod
+    def _parse_metadata(data: dict[str, Any]) -> LensMetadata:
         """Parse lens metadata.
 
         RFC-035: Also parses compatible_schemas for domain-specific lenses.
@@ -443,7 +445,8 @@ class LensLoader:
             icon=icon,
         )
 
-    def _parse_lens_reference(self, data: str | dict) -> LensReference:
+    @staticmethod
+    def _parse_lens_reference(data: str | dict) -> LensReference:
         """Parse a lens reference."""
         if isinstance(data, str):
             # Simple string reference "sunwell/tech-writer@1.0"
@@ -458,7 +461,8 @@ class LensLoader:
             priority=data.get("priority", 1),
         )
 
-    def _parse_heuristics(self, data: list[dict]) -> tuple[Heuristic, ...]:
+    @staticmethod
+    def _parse_heuristics(data: list[dict]) -> tuple[Heuristic, ...]:
         """Parse list of heuristics."""
         heuristics = []
         for h in data:
@@ -483,7 +487,8 @@ class LensLoader:
             )
         return tuple(heuristics)
 
-    def _parse_anti_heuristics(self, data: list[dict]) -> tuple[AntiHeuristic, ...]:
+    @staticmethod
+    def _parse_anti_heuristics(data: list[dict]) -> tuple[AntiHeuristic, ...]:
         """Parse list of anti-heuristics."""
         return tuple(
             AntiHeuristic(
@@ -510,7 +515,8 @@ class LensLoader:
             identity=identity,
         )
 
-    def _parse_identity(self, data: dict) -> Identity:
+    @staticmethod
+    def _parse_identity(data: dict) -> Identity:
         """Parse identity configuration (RFC-131).
 
         Example YAML:
@@ -528,7 +534,8 @@ class LensLoader:
             prohibitions=tuple(data.get("prohibitions", [])),
         )
 
-    def _parse_framework(self, data: dict) -> Framework:
+    @staticmethod
+    def _parse_framework(data: dict) -> Framework:
         """Parse framework."""
         categories = ()
         if "categories" in data:
@@ -551,7 +558,8 @@ class LensLoader:
             categories=categories,
         )
 
-    def _parse_personas(self, data: list[dict]) -> tuple[Persona, ...]:
+    @staticmethod
+    def _parse_personas(data: list[dict]) -> tuple[Persona, ...]:
         """Parse list of personas."""
         return tuple(
             Persona(
@@ -567,8 +575,9 @@ class LensLoader:
             for p in data
         )
 
+    @staticmethod
     def _parse_deterministic_validators(
-        self, data: list[dict]
+        data: list[dict],
     ) -> tuple[DeterministicValidator, ...]:
         """Parse deterministic validators."""
         return tuple(
@@ -582,8 +591,9 @@ class LensLoader:
             for v in data
         )
 
+    @staticmethod
     def _parse_heuristic_validators(
-        self, data: list[dict]
+        data: list[dict],
     ) -> tuple[HeuristicValidator, ...]:
         """Parse heuristic validators."""
         return tuple(
@@ -598,8 +608,9 @@ class LensLoader:
             for v in data
         )
 
+    @staticmethod
     def _parse_schema_validators(
-        self, data: list[dict]
+        data: list[dict],
     ) -> tuple[SchemaValidator, ...]:
         """Parse schema validators (RFC-035).
 
@@ -618,7 +629,8 @@ class LensLoader:
             for v in data
         )
 
-    def _parse_workflows(self, data: list[dict]) -> tuple[Workflow, ...]:
+    @staticmethod
+    def _parse_workflows(data: list[dict]) -> tuple[Workflow, ...]:
         """Parse workflows."""
         workflows = []
         for w in data:
@@ -640,7 +652,8 @@ class LensLoader:
             )
         return tuple(workflows)
 
-    def _parse_refiners(self, data: list[dict]) -> tuple[Refiner, ...]:
+    @staticmethod
+    def _parse_refiners(data: list[dict]) -> tuple[Refiner, ...]:
         """Parse refiners."""
         return tuple(
             Refiner(
@@ -652,7 +665,8 @@ class LensLoader:
             for r in data
         )
 
-    def _parse_provenance(self, data: dict) -> Provenance:
+    @staticmethod
+    def _parse_provenance(data: dict) -> Provenance:
         """Parse provenance configuration."""
         return Provenance(
             format=data.get("format", "file:line"),
@@ -660,7 +674,8 @@ class LensLoader:
             required_contexts=tuple(data.get("required_contexts", [])),
         )
 
-    def _parse_router(self, data: dict) -> Router:
+    @staticmethod
+    def _parse_router(data: dict) -> Router:
         """Parse router configuration.
 
         RFC-070: Also parses shortcuts for skill invocation.
@@ -690,7 +705,8 @@ class LensLoader:
             shortcuts=shortcuts,
         )
 
-    def _parse_quality_policy(self, data: dict) -> QualityPolicy:
+    @staticmethod
+    def _parse_quality_policy(data: dict) -> QualityPolicy:
         """Parse quality policy."""
         return QualityPolicy(
             min_confidence=data.get("min_confidence", 0.7),
@@ -908,7 +924,8 @@ class LensLoader:
             validate_with=validate_with,
         )
 
-    def _parse_skill_retry(self, data: dict) -> SkillRetryPolicy:
+    @staticmethod
+    def _parse_skill_retry(data: dict) -> SkillRetryPolicy:
         """Parse skill retry policy."""
         return SkillRetryPolicy(
             max_attempts=data.get("max_attempts", 3),
@@ -919,7 +936,8 @@ class LensLoader:
 
     # RFC-021: Spellbook parsing
 
-    def _parse_spellbook(self, data: list[dict]) -> tuple[Spell, ...]:
+    @staticmethod
+    def _parse_spellbook(data: list[dict]) -> tuple[Spell, ...]:
         """Parse spellbook (list of spells) from YAML.
 
         Supports both inline spell definitions and includes from external files.
@@ -945,7 +963,8 @@ class LensLoader:
 
     # RFC-072: Affordances parsing
 
-    def _parse_affordances(self, data: dict[str, Any] | None) -> Affordances | None:
+    @staticmethod
+    def _parse_affordances(data: dict[str, Any] | None) -> Affordances | None:
         """Parse affordances section from lens YAML.
 
         Handles the RFC-072 affordances schema:

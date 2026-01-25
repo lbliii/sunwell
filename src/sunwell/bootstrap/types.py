@@ -448,7 +448,7 @@ class BootstrapStatus:
     """How long the scan took."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class BootstrapResult:
     """Result of bootstrap process."""
 

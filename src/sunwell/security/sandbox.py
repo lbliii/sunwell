@@ -62,7 +62,7 @@ class SandboxExecutionError(Exception):
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class SecurityAudit:
     """Audit record for a skill execution.
 
@@ -149,7 +149,7 @@ class SecurityAudit:
 IsolationBackend = Literal["seccomp", "sandbox-exec", "container", "process"]
 
 
-@dataclass
+@dataclass(slots=True)
 class PermissionAwareSandboxConfig:
     """Configuration for permission-aware skill execution.
 

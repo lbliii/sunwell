@@ -20,7 +20,7 @@ from sunwell.providers.base import (
 )
 
 
-@dataclass
+@dataclass(slots=True)
 class ProviderRegistry:
     """Registry for data providers.
 

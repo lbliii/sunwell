@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ConsensusResult[T]:
     """Result from consensus voting."""
 
@@ -41,8 +41,8 @@ class ConsensusResult[T]:
     confidence: float
     """Agreement ratio (0.0 - 1.0)."""
 
-    vote_distribution: dict[T, int]
-    """How many votes each option received."""
+    vote_distribution: tuple[tuple[T, int], ...]
+    """How many votes each option received as immutable pairs."""
 
     total_voters: int
     """Total number of voters."""
@@ -52,6 +52,10 @@ class ConsensusResult[T]:
 
     consensus_reached: bool
     """Whether threshold was met."""
+
+    def get_votes(self, key: T) -> int:
+        """Get vote count for a classification."""
+        return dict(self.vote_distribution).get(key, 0)
 
     @property
     def agreement_ratio(self) -> float:
@@ -120,7 +124,7 @@ async def consensus_classify(
         return ConsensusResult(
             classification=Complexity.STANDARD,
             confidence=0.0,
-            vote_distribution={},
+            vote_distribution=(),
             total_voters=n_voters,
             valid_votes=0,
             consensus_reached=False,
@@ -128,10 +132,10 @@ async def consensus_classify(
 
     # Count votes
     votes = [r.complexity for r in valid_results]
-    distribution = dict(Counter(votes))
+    distribution = Counter(votes)
 
     # Find winner
-    winner, count = Counter(votes).most_common(1)[0]
+    winner, count = distribution.most_common(1)[0]
     confidence = count / len(valid_results)
 
     # Check if threshold met
@@ -144,7 +148,7 @@ async def consensus_classify(
     return ConsensusResult(
         classification=winner,
         confidence=confidence,
-        vote_distribution=distribution,
+        vote_distribution=tuple(distribution.items()),
         total_voters=n_voters,
         valid_votes=len(valid_results),
         consensus_reached=consensus_reached,
@@ -212,21 +216,21 @@ Respond with only the chosen option, nothing else."""
         return ConsensusResult(
             classification=options[0],  # Default to first option
             confidence=0.0,
-            vote_distribution={},
+            vote_distribution=(),
             total_voters=n_voters,
             valid_votes=0,
             consensus_reached=False,
         )
 
     # Count and determine winner
-    distribution = dict(Counter(valid_votes))
-    winner, count = Counter(valid_votes).most_common(1)[0]
+    distribution = Counter(valid_votes)
+    winner, count = distribution.most_common(1)[0]
     confidence = count / len(valid_votes)
 
     return ConsensusResult(
         classification=winner if confidence >= threshold else options[0],
         confidence=confidence,
-        vote_distribution=distribution,
+        vote_distribution=tuple(distribution.items()),
         total_voters=n_voters,
         valid_votes=len(valid_votes),
         consensus_reached=confidence >= threshold,

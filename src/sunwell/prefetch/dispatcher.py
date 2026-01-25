@@ -15,6 +15,7 @@ similar past goals, enabling "memory-informed" warm starts.
 
 import asyncio
 from pathlib import Path
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 from sunwell.memory.briefing import Briefing, PrefetchedContext, PrefetchPlan
@@ -154,7 +155,7 @@ async def execute_prefetch(
         dag_context = await dag_task
 
         return PrefetchedContext(
-            files=files,
+            files=MappingProxyType(files),
             learnings=learnings,
             dag_context=dag_context,
             active_skills=plan.skills_needed,
@@ -193,11 +194,9 @@ async def _load_learnings(
         store = LearningStore()
         store.load_from_disk(project_path)
 
-        # Match learnings by ID
-        matched: list[Learning] = []
-        for lrn in store.learnings:
-            if lrn.id in ids:
-                matched.append(lrn)
+        # O(1) lookups instead of O(n) tuple scan
+        id_set = set(ids)
+        matched = [lrn for lrn in store.learnings if lrn.id in id_set]
 
         return tuple(matched)
     except ImportError:

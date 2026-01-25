@@ -3,12 +3,28 @@
 Executes actions against data providers.
 """
 
+import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
 from sunwell.interface.types import ActionSpec
 from sunwell.providers.base import CalendarEvent, CalendarProvider, ListProvider
+
+# =============================================================================
+# PRE-COMPILED PATTERNS — Avoid re-compilation per call
+# =============================================================================
+
+_TIME_AM_PATTERN = re.compile(r"(\d{1,2})\s*am", re.IGNORECASE)
+_TIME_PM_PATTERN = re.compile(r"(\d{1,2})\s*pm", re.IGNORECASE)
+_TIME_24H_PATTERN = re.compile(r"(\d{1,2}):(\d{2})")
+
+_TIME_PATTERNS: tuple[tuple[re.Pattern[str], Callable[[int], int]], ...] = (
+    (_TIME_AM_PATTERN, lambda h: h if h < 12 else 0),
+    (_TIME_PM_PATTERN, lambda h: h + 12 if h < 12 else h),
+    (_TIME_24H_PATTERN, lambda h: h),
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,7 +36,7 @@ class ActionResult:
     data: dict[str, Any] | None = None
 
 
-@dataclass
+@dataclass(slots=True)
 class ActionExecutor:
     """Executes actions against data providers."""
 
@@ -226,17 +242,11 @@ class ActionExecutor:
 
     def _parse_time_on_date(self, date: datetime, value: str) -> datetime:
         """Parse time component and apply to date."""
-        import re
+        value_lower = value.lower()
 
-        # Look for hour patterns
-        time_patterns = [
-            (r"(\d{1,2})\s*am", lambda h: h if h < 12 else 0),
-            (r"(\d{1,2})\s*pm", lambda h: h + 12 if h < 12 else h),
-            (r"(\d{1,2}):(\d{2})", lambda h, m=0: h),  # 24-hour format
-        ]
-
-        for pattern, converter in time_patterns:
-            match = re.search(pattern, value.lower())
+        # Use pre-compiled patterns
+        for pattern, converter in _TIME_PATTERNS:
+            match = pattern.search(value_lower)
             if match:
                 hour = int(match.group(1))
                 hour = converter(hour)

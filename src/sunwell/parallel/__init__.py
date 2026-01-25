@@ -24,7 +24,7 @@ Example:
 
 from sunwell.parallel.config import MultiInstanceConfig
 from sunwell.parallel.coordinator import Coordinator, CoordinatorResult
-from sunwell.parallel.dependencies import GoalDependencyGraph
+from sunwell.parallel.dependencies import GoalDependencyGraph, estimate_affected_files
 from sunwell.parallel.locks import FileLock, FileLockManager
 from sunwell.parallel.resources import ResourceGovernor, ResourceLimits
 from sunwell.parallel.types import MergeResult, WorkerResult, WorkerState, WorkerStatus
@@ -47,6 +47,8 @@ __all__ = [
     "FileLock",
     "GoalDependencyGraph",
     "ResourceGovernor",
+    # Utilities
+    "estimate_affected_files",
     # Entry points
     "worker_entry",
 ]

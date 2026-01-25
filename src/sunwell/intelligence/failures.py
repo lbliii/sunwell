@@ -6,6 +6,7 @@ Remember what didn't work and why. Prevents repeating the same mistakes.
 
 import hashlib
 import json
+import math
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -13,6 +14,18 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sunwell.embedding.protocol import EmbeddingProtocol
+
+
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    """Calculate cosine similarity between two vectors."""
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
+    mag_a = math.sqrt(sum(x * x for x in a))
+    mag_b = math.sqrt(sum(x * x for x in b))
+
+    if mag_a == 0 or mag_b == 0:
+        return 0.0
+
+    return dot / (mag_a * mag_b)
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,7 +56,7 @@ class FailedApproach:
     root_cause: str | None = None
     """Root cause analysis (if determined)."""
 
-    similar_to: list[str] = field(default_factory=list)
+    similar_to: tuple[str, ...] = ()
     """IDs of similar past failures (pattern detection)."""
 
     timestamp: datetime = field(default_factory=datetime.now)
@@ -60,7 +73,7 @@ class FailedApproach:
             "code_snapshot": self.code_snapshot,
             "fix_attempted": self.fix_attempted,
             "root_cause": self.root_cause,
-            "similar_to": self.similar_to,
+            "similar_to": list(self.similar_to),
             "timestamp": self.timestamp.isoformat(),
             "session_id": self.session_id,
         }
@@ -77,7 +90,7 @@ class FailedApproach:
             code_snapshot=data.get("code_snapshot"),
             fix_attempted=data.get("fix_attempted"),
             root_cause=data.get("root_cause"),
-            similar_to=data.get("similar_to", []),
+            similar_to=tuple(data.get("similar_to", [])),
             timestamp=datetime.fromisoformat(data["timestamp"]),
             session_id=data.get("session_id", ""),
         )
@@ -206,7 +219,7 @@ class FailureMemory:
             code_snapshot=code,
             fix_attempted=fix_attempted,
             root_cause=root_cause,
-            similar_to=similar_ids,
+            similar_to=tuple(similar_ids),
             session_id=session_id,
         )
 
@@ -242,7 +255,7 @@ class FailureMemory:
 
             scores: list[tuple[str, float]] = []
             for failure_id, failure_embedding in self._embeddings.items():
-                similarity = self._cosine_similarity(query_vec, failure_embedding)
+                similarity = _cosine_similarity(query_vec, failure_embedding)
                 if similarity > 0.7:  # Threshold for similarity
                     scores.append((failure_id, similarity))
 
@@ -285,7 +298,7 @@ class FailureMemory:
                 failure = self._failures[failure_id]
 
                 # Calculate cosine similarity
-                similarity = self._cosine_similarity(query_vec, failure_embedding)
+                similarity = _cosine_similarity(query_vec, failure_embedding)
                 if similarity > 0.6:  # Threshold
                     scores.append((failure, similarity))
 
@@ -316,19 +329,6 @@ class FailureMemory:
 
         scores.sort(key=lambda x: x[1], reverse=True)
         return [f for f, _ in scores[:top_k]]
-
-    def _cosine_similarity(self, a: list[float], b: list[float]) -> float:
-        """Calculate cosine similarity between two vectors."""
-        import math
-
-        dot = sum(x * y for x, y in zip(a, b, strict=True))
-        mag_a = math.sqrt(sum(x * x for x in a))
-        mag_b = math.sqrt(sum(x * x for x in b))
-
-        if mag_a == 0 or mag_b == 0:
-            return 0.0
-
-        return dot / (mag_a * mag_b)
 
     async def get_failure_patterns(self) -> list[dict]:
         """Identify recurring failure patterns.

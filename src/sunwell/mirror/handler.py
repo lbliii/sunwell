@@ -13,11 +13,27 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.mirror.analysis import FailureAnalyzer, PatternAnalyzer
+from sunwell.mirror.analysis import (
+    FailureAnalyzer,
+    analyze_errors,
+    analyze_latency,
+    analyze_tool_usage,
+)
 from sunwell.mirror.introspection import (
-    ExecutionIntrospector,
-    LensIntrospector,
-    SimulacrumIntrospector,
+    execution_get_error_summary,
+    execution_get_errors,
+    execution_get_recent_tool_calls,
+    execution_get_stats,
+    lens_get_all,
+    lens_get_framework,
+    lens_get_heuristics,
+    lens_get_personas,
+    lens_get_validators,
+    simulacrum_get_all,
+    simulacrum_get_context,
+    simulacrum_get_dead_ends,
+    simulacrum_get_focus,
+    simulacrum_get_learnings,
 )
 from sunwell.mirror.model_tracker import ModelPerformanceTracker
 from sunwell.mirror.proposals import ProposalManager, ProposalStatus
@@ -57,10 +73,6 @@ class MirrorHandler:
     session_model: str = "session"  # Default model for session
 
     # Internal components (initialized in __post_init__)
-    _lens_introspector: LensIntrospector = field(init=False)
-    _simulacrum_introspector: SimulacrumIntrospector = field(init=False)
-    _execution_introspector: ExecutionIntrospector = field(init=False)
-    _pattern_analyzer: PatternAnalyzer = field(init=False)
     _failure_analyzer: FailureAnalyzer = field(init=False)
     _proposal_manager: ProposalManager = field(init=False)
     _safety_checker: SafetyChecker = field(init=False)
@@ -76,10 +88,6 @@ class MirrorHandler:
         # RFC-085: Use Self.get() for source introspection
         # (accessed directly via Self.get().source in handlers)
 
-        self._lens_introspector = LensIntrospector()
-        self._simulacrum_introspector = SimulacrumIntrospector()
-        self._execution_introspector = ExecutionIntrospector()
-        self._pattern_analyzer = PatternAnalyzer()
         self._failure_analyzer = FailureAnalyzer()
         self._proposal_manager = ProposalManager(self.storage_path / "proposals")
         self._safety_checker = SafetyChecker(workspace=self.workspace)
@@ -187,15 +195,15 @@ class MirrorHandler:
             return {"error": "No lens currently loaded"}
 
         if component == "all":
-            return self._lens_introspector.get_all(self.lens)
+            return lens_get_all(self.lens)
         elif component == "heuristics":
-            return {"heuristics": self._lens_introspector.get_heuristics(self.lens)}
+            return {"heuristics": lens_get_heuristics(self.lens)}
         elif component == "validators":
-            return {"validators": self._lens_introspector.get_validators(self.lens)}
+            return {"validators": lens_get_validators(self.lens)}
         elif component == "personas":
-            return {"personas": self._lens_introspector.get_personas(self.lens)}
+            return {"personas": lens_get_personas(self.lens)}
         elif component == "framework":
-            return {"framework": self._lens_introspector.get_framework(self.lens)}
+            return {"framework": lens_get_framework(self.lens)}
         else:
             return {"error": f"Unknown component: {component}"}
 
@@ -207,15 +215,15 @@ class MirrorHandler:
             return {"error": "No simulacrum currently active"}
 
         if section == "all":
-            return self._simulacrum_introspector.get_all(self.simulacrum)
+            return simulacrum_get_all(self.simulacrum)
         elif section == "learnings":
-            return {"learnings": self._simulacrum_introspector.get_learnings(self.simulacrum)}
+            return {"learnings": simulacrum_get_learnings(self.simulacrum)}
         elif section == "dead_ends":
-            return {"dead_ends": self._simulacrum_introspector.get_dead_ends(self.simulacrum)}
+            return {"dead_ends": simulacrum_get_dead_ends(self.simulacrum)}
         elif section == "focus":
-            return {"focus": self._simulacrum_introspector.get_focus(self.simulacrum)}
+            return {"focus": simulacrum_get_focus(self.simulacrum)}
         elif section == "context":
-            return {"context": self._simulacrum_introspector.get_context(self.simulacrum)}
+            return {"context": simulacrum_get_context(self.simulacrum)}
         else:
             return {"error": f"Unknown section: {section}"}
 
@@ -228,14 +236,14 @@ class MirrorHandler:
             return {"error": "No executor configured"}
 
         if filter_type == "all":
-            calls = self._execution_introspector.get_recent_tool_calls(self.executor, limit)
-            return {"recent_calls": calls, "stats": self._execution_introspector.get_stats(self.executor)}
+            calls = execution_get_recent_tool_calls(self.executor, limit)
+            return {"recent_calls": calls, "stats": execution_get_stats(self.executor)}
         elif filter_type == "errors":
-            errors = self._execution_introspector.get_errors(self.executor, limit)
-            summary = self._execution_introspector.get_error_summary(self.executor)
+            errors = execution_get_errors(self.executor, limit)
+            summary = execution_get_error_summary(self.executor)
             return {"errors": errors, "summary": summary}
         elif filter_type == "tools":
-            calls = self._execution_introspector.get_recent_tool_calls(self.executor, limit)
+            calls = execution_get_recent_tool_calls(self.executor, limit)
             return {"tool_calls": calls}
         else:
             return {"error": f"Unknown filter: {filter_type}"}
@@ -252,11 +260,11 @@ class MirrorHandler:
         audit_log = self.executor.get_audit_log()
 
         if focus == "tool_usage":
-            return self._pattern_analyzer.analyze_tool_usage(audit_log, scope)
+            return analyze_tool_usage(audit_log, scope)
         elif focus == "latency":
-            return self._pattern_analyzer.analyze_latency(audit_log, scope)
+            return analyze_latency(audit_log, scope)
         elif focus == "error_types":
-            return self._pattern_analyzer.analyze_errors(audit_log, scope)
+            return analyze_errors(audit_log, scope)
         else:
             return {"error": f"Unknown focus: {focus}"}
 

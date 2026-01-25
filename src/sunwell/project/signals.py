@@ -7,8 +7,28 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+# Directories/patterns to ignore when scanning files
+_IGNORE_PATTERNS: frozenset[str] = frozenset({
+    ".git",
+    ".svn",
+    "__pycache__",
+    "node_modules",
+    ".venv",
+    "venv",
+    ".env",
+    ".tox",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    "dist",
+    "build",
+    ".sunwell",
+    "target",  # Rust
+    ".cargo",
+})
 
-@dataclass
+
+@dataclass(frozen=True, slots=True)
 class GitStatus:
     """Git repository status."""
 
@@ -25,7 +45,7 @@ class GitStatus:
     """Recent commit messages (up to 5)."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ProjectSignals:
     """Signals collected from project filesystem.
 
@@ -68,7 +88,7 @@ class ProjectSignals:
     # State signals
     git_status: GitStatus | None = None
     readme_content: str | None = None
-    recent_files: list[Path] = field(default_factory=list)
+    recent_files: tuple[Path, ...] = ()
 
     @property
     def summary(self) -> tuple[str, ...]:
@@ -130,60 +150,50 @@ def gather_project_signals(path: Path) -> ProjectSignals:
     Returns:
         ProjectSignals with all detected signals.
     """
-    signals = ProjectSignals(path=path)
-
-    # Code signals
-    signals.has_package_json = (path / "package.json").exists()
-    signals.has_pyproject = (path / "pyproject.toml").exists()
-    signals.has_cargo = (path / "Cargo.toml").exists()
-    signals.has_go_mod = (path / "go.mod").exists()
-    signals.has_makefile = (path / "Makefile").exists()
-    signals.has_src_dir = (path / "src").is_dir()
-
     # Check for Python files in src/ (common Python project structure without pyproject.toml)
     src_dir = path / "src"
+    has_python_in_src = False
+    detected_python_framework = None
     if src_dir.is_dir():
         py_files = ["app.py", "main.py", "__main__.py", "__init__.py"]
-        signals.has_python_in_src = any((src_dir / f).exists() for f in py_files)
+        has_python_in_src = any((src_dir / f).exists() for f in py_files)
 
         # Try to detect framework from Python imports
-        if signals.has_python_in_src:
-            signals.detected_python_framework = _detect_python_framework_from_src(src_dir)
+        if has_python_in_src:
+            detected_python_framework = _detect_python_framework_from_src(src_dir)
 
-    # Documentation signals
-    signals.has_docs_dir = (path / "docs").is_dir()
-    signals.has_sphinx_conf = (path / "docs" / "conf.py").exists() or (
-        path / "conf.py"
-    ).exists()
-    signals.has_mkdocs = (path / "mkdocs.yml").exists() or (path / "mkdocs.yaml").exists()
-    signals.markdown_count = len(list(path.glob("**/*.md")))
-
-    # Data signals
-    signals.has_notebooks = len(list(path.glob("**/*.ipynb"))) > 0
-    signals.has_data_dir = (path / "data").is_dir()
-    signals.has_csv_files = len(list(path.glob("**/*.csv"))) > 0
-
-    # Planning signals
-    signals.has_backlog = (path / ".sunwell" / "backlog").exists() or (
-        path / ".sunwell" / "goals"
-    ).exists()
-    signals.has_roadmap = any(path.glob("**/ROADMAP*")) or any(path.glob("**/roadmap*"))
-    signals.has_rfc_dir = (
-        (path / "docs" / "rfcs").is_dir()
-        or (path / "rfcs").is_dir()
-        or (path / "docs" / "rfc").is_dir()
+    return ProjectSignals(
+        path=path,
+        # Code signals
+        has_package_json=(path / "package.json").exists(),
+        has_pyproject=(path / "pyproject.toml").exists(),
+        has_cargo=(path / "Cargo.toml").exists(),
+        has_go_mod=(path / "go.mod").exists(),
+        has_makefile=(path / "Makefile").exists(),
+        has_src_dir=(path / "src").is_dir(),
+        has_python_in_src=has_python_in_src,
+        detected_python_framework=detected_python_framework,
+        # Documentation signals
+        has_docs_dir=(path / "docs").is_dir(),
+        has_sphinx_conf=(path / "docs" / "conf.py").exists() or (path / "conf.py").exists(),
+        has_mkdocs=(path / "mkdocs.yml").exists() or (path / "mkdocs.yaml").exists(),
+        markdown_count=len(list(path.glob("**/*.md"))),
+        # Data signals
+        has_notebooks=len(list(path.glob("**/*.ipynb"))) > 0,
+        has_data_dir=(path / "data").is_dir(),
+        has_csv_files=len(list(path.glob("**/*.csv"))) > 0,
+        # Planning signals
+        has_backlog=(path / ".sunwell" / "backlog").exists() or (path / ".sunwell" / "goals").exists(),
+        has_roadmap=any(path.glob("**/ROADMAP*")) or any(path.glob("**/roadmap*")),
+        has_rfc_dir=(path / "docs" / "rfcs").is_dir() or (path / "rfcs").is_dir() or (path / "docs" / "rfc").is_dir(),
+        # Creative signals
+        has_prose=(path / "manuscript").is_dir() or (path / "chapters").is_dir(),
+        has_fountain=len(list(path.glob("**/*.fountain"))) > 0,
+        # State signals
+        git_status=_get_git_status(path),
+        readme_content=_read_readme(path),
+        recent_files=tuple(_get_recently_modified(path, limit=10)),
     )
-
-    # Creative signals
-    signals.has_prose = (path / "manuscript").is_dir() or (path / "chapters").is_dir()
-    signals.has_fountain = len(list(path.glob("**/*.fountain"))) > 0
-
-    # State signals
-    signals.git_status = _get_git_status(path)
-    signals.readme_content = _read_readme(path)
-    signals.recent_files = _get_recently_modified(path, limit=10)
-
-    return signals
 
 
 def _get_git_status(path: Path) -> GitStatus | None:
@@ -325,26 +335,7 @@ def _detect_python_framework_from_src(src_dir: Path) -> str | None:
 
 def _should_ignore(path: Path) -> bool:
     """Check if path should be ignored."""
-    ignore_patterns = {
-        ".git",
-        ".svn",
-        "__pycache__",
-        "node_modules",
-        ".venv",
-        "venv",
-        ".env",
-        ".tox",
-        ".mypy_cache",
-        ".pytest_cache",
-        ".ruff_cache",
-        "dist",
-        "build",
-        ".sunwell",
-        "target",  # Rust
-        ".cargo",
-    }
-
-    return any(part in ignore_patterns for part in path.parts)
+    return bool(_IGNORE_PATTERNS & set(path.parts))
 
 
 def format_dir_tree(path: Path, max_depth: int = 2, prefix: str = "") -> str:

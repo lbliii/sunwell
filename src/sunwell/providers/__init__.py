@@ -28,6 +28,7 @@ from sunwell.providers.base import (
     NotesProvider,
     Project,
     ProjectsProvider,
+    Serializable,
 )
 from sunwell.providers.registry import ProviderRegistry
 
@@ -55,6 +56,7 @@ __all__ = [
     "NotesProvider",
     "Project",
     "ProjectsProvider",
+    "Serializable",
     # Registry
     "ProviderRegistry",
 ]

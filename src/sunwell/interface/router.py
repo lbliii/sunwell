@@ -143,7 +143,7 @@ class HybridOutput:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class InteractionRouter:
     """Routes analyzed intent to appropriate handler."""
 

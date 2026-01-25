@@ -16,7 +16,7 @@ from sunwell.memory.briefing import (
     compress_briefing,
 )
 from sunwell.memory.persistent import PersistentMemory
-from sunwell.memory.types import MemoryContext, SyncResult, TaskMemoryContext
+from sunwell.memory.types import MemoryContext, Promptable, SyncResult, TaskMemoryContext
 
 __all__ = [
     # Briefing types
@@ -31,6 +31,7 @@ __all__ = [
     "PersistentMemory",
     # Memory context types
     "MemoryContext",
+    "Promptable",
     "TaskMemoryContext",
     "SyncResult",
 ]

@@ -66,6 +66,13 @@ MODEL_REGISTRY: dict[str, ModelCapability] = {
     "mistral:7b": ModelCapability("mistral:7b", Tier.STANDARD, tools=True, context_window=32000, cost_index=0),
 }
 
+# Pre-built prefix index for O(1) lookups of model families
+_MODEL_PREFIX_INDEX: dict[str, ModelCapability] = {}
+for _key, _cap in MODEL_REGISTRY.items():
+    _prefix = _key.split(":")[0]
+    if _prefix not in _MODEL_PREFIX_INDEX:
+        _MODEL_PREFIX_INDEX[_prefix] = _cap
+
 
 def get_model_capability(model_name: str) -> ModelCapability | None:
     """Look up model capability from registry.
@@ -76,17 +83,13 @@ def get_model_capability(model_name: str) -> ModelCapability | None:
     Returns:
         ModelCapability if found, None if unknown model
     """
-    # Direct lookup
+    # Direct lookup - O(1)
     if model_name in MODEL_REGISTRY:
         return MODEL_REGISTRY[model_name]
 
-    # Try without tag (e.g., "gemma3" matches "gemma3:1b")
+    # Prefix lookup - O(1) via pre-built index
     base_name = model_name.split(":")[0]
-    for key, cap in MODEL_REGISTRY.items():
-        if key.startswith(base_name):
-            return cap
-
-    return None
+    return _MODEL_PREFIX_INDEX.get(base_name)
 
 
 def supports_tools(model_name: str) -> bool:
@@ -147,7 +150,7 @@ def get_tools_fallback(model_name: str, available_models: list[str] | None = Non
     return candidates[0][0]
 
 
-@dataclass
+@dataclass(slots=True)
 class ModelRouter:
     """Orchestrates model selection based on task complexity and availability."""
 

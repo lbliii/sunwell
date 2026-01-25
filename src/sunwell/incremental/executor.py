@@ -338,7 +338,7 @@ class IncrementalExecutor:
 
     def plan_execution(
         self,
-        force_rerun: set[str] | None = None,
+        force_rerun: frozenset[str] | None = None,
     ) -> ExecutionPlan:
         """Plan which artifacts to execute vs skip.
 
@@ -346,12 +346,11 @@ class IncrementalExecutor:
         are available when computing each artifact's hash.
 
         Args:
-            force_rerun: Set of artifact IDs to force re-execute.
+            force_rerun: Frozenset of artifact IDs to force re-execute.
 
         Returns:
             ExecutionPlan with to_execute, to_skip, and decisions.
         """
-        force_rerun = force_rerun or set()
         to_execute: list[str] = []
         to_skip: list[str] = []
         decisions: dict[str, SkipDecision] = {}
@@ -374,7 +373,7 @@ class IncrementalExecutor:
                 spec=spec,
                 cache=self.cache,
                 dependency_hashes=dep_hashes,
-                force_rerun=artifact_id in force_rerun,
+                force_rerun=force_rerun is not None and artifact_id in force_rerun,
             )
 
             # Record hash for downstream artifacts
@@ -424,7 +423,7 @@ class IncrementalExecutor:
     async def execute(
         self,
         create_fn: CreateArtifactFn,
-        force_rerun: set[str] | None = None,
+        force_rerun: frozenset[str] | None = None,
         on_progress: Callable[[str], None] | None = None,
     ) -> IncrementalResult:
         """Execute artifact graph with incremental rebuild.

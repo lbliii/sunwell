@@ -56,6 +56,7 @@ from sunwell.incremental.events import (
     CacheInvalidation,
     ExecutionPlanComputed,
     ProvenanceQueryResult,
+    Serializable,
     artifact_cache_hit_event,
     artifact_cache_miss_event,
     artifact_hash_computed_event,
@@ -110,6 +111,8 @@ __all__ = [
     "CacheInvalidation",
     "ExecutionPlanComputed",
     "ProvenanceQueryResult",
+    # Events - Protocol
+    "Serializable",
     # Events - Factory functions
     "artifact_cache_hit_event",
     "artifact_cache_miss_event",

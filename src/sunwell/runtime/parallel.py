@@ -24,7 +24,8 @@ from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextvars import ContextVar, copy_context
 from dataclasses import dataclass, field
-from typing import TypeVar
+from types import MappingProxyType
+from typing import Any, TypeVar
 
 from sunwell.core.freethreading import (
     WorkloadType,
@@ -63,7 +64,7 @@ class ParallelResult[T]:
         return sequential_estimate / max(self.elapsed_ms, 1)
 
 
-@dataclass
+@dataclass(slots=True)
 class ParallelExecutor:
     """Execute tasks in parallel using Python 3.14 free-threading.
 
@@ -212,16 +213,18 @@ class HashedChunk:
     content: str
     """Original content."""
 
-    metadata: dict = field(default_factory=dict)
-    """Additional metadata."""
+    metadata: MappingProxyType[str, Any] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
+    """Additional metadata (immutable)."""
 
     @classmethod
-    def create(cls, content: str, **metadata) -> HashedChunk:
+    def create(cls, content: str, **metadata: Any) -> HashedChunk:
         """Create a hashed chunk from content."""
         return cls(
             content_hash=content_hash(content),
             content=content,
-            metadata=metadata,
+            metadata=MappingProxyType(metadata),
         )
 
     def __hash__(self) -> int:

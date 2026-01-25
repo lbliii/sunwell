@@ -46,215 +46,209 @@ _FAILURE_PATTERNS: MappingProxyType[str, MappingProxyType[str, str]] = MappingPr
 })
 
 
-class PatternAnalyzer:
-    """Analyze patterns in Sunwell's behavior.
+# === Pattern Analysis Functions ===
 
-    Detects trends in tool usage, latency, error rates,
-    and common execution sequences.
 
-    Note: Stateless utility class - all state comes from method arguments.
+def _filter_by_scope(entries: list[Any], scope: str) -> list[Any]:
+    """Filter entries by time scope."""
+    if scope == "session" or scope == "all":
+        return entries
+
+    now = datetime.now()
+    if scope == "day":
+        cutoff = now - timedelta(days=1)
+    elif scope == "week":
+        cutoff = now - timedelta(weeks=1)
+    else:
+        return entries
+
+    return [e for e in entries if e.timestamp > cutoff]
+
+
+def _find_sequences(
+    entries: list[Any],
+    min_count: int = 2,
+) -> list[dict[str, Any]]:
+    """Find common tool call sequences (bigrams)."""
+    if len(entries) < 2:
+        return []
+
+    # Build bigrams
+    bigrams: list[tuple[str, str]] = []
+    for i in range(len(entries) - 1):
+        bigrams.append((entries[i].tool_name, entries[i + 1].tool_name))
+
+    # Count bigrams
+    bigram_counts = Counter(bigrams)
+
+    # Return common sequences
+    return [
+        {"sequence": list(seq), "count": count}
+        for seq, count in bigram_counts.most_common(5)
+        if count >= min_count
+    ]
+
+
+def _categorize_error(error: str) -> str:
+    """Categorize an error message."""
+    error_lower = error.lower()
+
+    if "permission" in error_lower or "denied" in error_lower:
+        return "permission"
+    elif "not found" in error_lower or "no such" in error_lower:
+        return "not_found"
+    elif "timeout" in error_lower:
+        return "timeout"
+    elif "rate limit" in error_lower:
+        return "rate_limit"
+    elif "connection" in error_lower or "network" in error_lower:
+        return "network"
+    else:
+        return "other"
+
+
+def analyze_tool_usage(
+    audit_log: list[Any],
+    scope: str = "session",
+) -> dict[str, Any]:
+    """Analyze tool usage patterns.
+
+    Args:
+        audit_log: List of audit log entries
+        scope: Time scope ('session', 'day', 'week', 'all')
+
+    Returns:
+        Dict with tool_counts, success_rates, common_sequences
     """
+    entries = _filter_by_scope(audit_log, scope)
 
-    __slots__ = ()
-
-    def analyze_tool_usage(
-        self,
-        audit_log: list[Any],
-        scope: str = "session",
-    ) -> dict[str, Any]:
-        """Analyze tool usage patterns.
-
-        Args:
-            audit_log: List of audit log entries
-            scope: Time scope ('session', 'day', 'week', 'all')
-
-        Returns:
-            Dict with tool_counts, success_rates, common_sequences
-        """
-        entries = self._filter_by_scope(audit_log, scope)
-
-        if not entries:
-            return {
-                "tool_counts": {},
-                "success_rates": {},
-                "common_sequences": [],
-                "total_calls": 0,
-            }
-
-        # Count tool usage
-        tool_counts = Counter(e.tool_name for e in entries)
-
-        # Calculate success rates
-        success_rates: dict[str, float] = {}
-        for tool in tool_counts:
-            tool_entries = [e for e in entries if e.tool_name == tool]
-            successes = sum(1 for e in tool_entries if e.success)
-            success_rates[tool] = round(
-                successes / len(tool_entries) if tool_entries else 0,
-                2,
-            )
-
-        # Find common sequences
-        sequences = self._find_sequences(entries)
-
+    if not entries:
         return {
-            "tool_counts": dict(tool_counts),
-            "success_rates": success_rates,
-            "common_sequences": sequences,
-            "total_calls": len(entries),
+            "tool_counts": {},
+            "success_rates": {},
+            "common_sequences": [],
+            "total_calls": 0,
         }
 
-    def analyze_latency(
-        self,
-        audit_log: list[Any],
-        scope: str = "session",
-    ) -> dict[str, Any]:
-        """Analyze latency patterns.
+    # Count tool usage
+    tool_counts = Counter(e.tool_name for e in entries)
 
-        Args:
-            audit_log: List of audit log entries
-            scope: Time scope ('session', 'day', 'week', 'all')
+    # Build index once O(n), then calculate success rates O(m)
+    tool_entries_map: dict[str, list[Any]] = {}
+    for e in entries:
+        tool_entries_map.setdefault(e.tool_name, []).append(e)
 
-        Returns:
-            Dict with overall and per-tool latency stats
-        """
-        entries = self._filter_by_scope(audit_log, scope)
+    success_rates: dict[str, float] = {}
+    for tool, tool_entries in tool_entries_map.items():
+        successes = sum(1 for e in tool_entries if e.success)
+        success_rates[tool] = round(successes / len(tool_entries), 2)
 
-        if not entries:
-            return {"message": "No data available"}
+    # Find common sequences
+    sequences = _find_sequences(entries)
 
-        times = [e.execution_time_ms for e in entries]
+    return {
+        "tool_counts": dict(tool_counts),
+        "success_rates": success_rates,
+        "common_sequences": sequences,
+        "total_calls": len(entries),
+    }
 
-        by_tool: dict[str, dict[str, float]] = {}
-        for tool in {e.tool_name for e in entries}:
-            tool_times = [
-                e.execution_time_ms for e in entries if e.tool_name == tool
-            ]
-            by_tool[tool] = {
-                "avg_ms": round(sum(tool_times) / len(tool_times), 1),
-                "max_ms": max(tool_times),
-                "min_ms": min(tool_times),
-                "count": len(tool_times),
-            }
 
-        # Calculate overall stats
-        sorted_times = sorted(times)
-        p95_idx = int(len(sorted_times) * 0.95)
+def analyze_latency(
+    audit_log: list[Any],
+    scope: str = "session",
+) -> dict[str, Any]:
+    """Analyze latency patterns.
 
-        return {
-            "overall": {
-                "avg_ms": round(sum(times) / len(times), 1),
-                "max_ms": max(times),
-                "min_ms": min(times),
-                "p95_ms": sorted_times[p95_idx] if len(times) > 20 else max(times),
-                "total_calls": len(times),
-            },
-            "by_tool": by_tool,
-        }
+    Args:
+        audit_log: List of audit log entries
+        scope: Time scope ('session', 'day', 'week', 'all')
 
-    def analyze_errors(
-        self,
-        audit_log: list[Any],
-        scope: str = "session",
-    ) -> dict[str, Any]:
-        """Analyze error patterns.
+    Returns:
+        Dict with overall and per-tool latency stats
+    """
+    entries = _filter_by_scope(audit_log, scope)
 
-        Args:
-            audit_log: List of audit log entries
-            scope: Time scope
+    if not entries:
+        return {"message": "No data available"}
 
-        Returns:
-            Dict with error counts, rates, and categories
-        """
-        entries = self._filter_by_scope(audit_log, scope)
+    times = [e.execution_time_ms for e in entries]
 
-        if not entries:
-            return {"message": "No data available"}
-
-        errors = [e for e in entries if not e.success]
-        total = len(entries)
-
-        # Categorize errors
-        by_category: dict[str, int] = {}
-        for e in errors:
-            category = self._categorize_error(e.error or "Unknown")
-            by_category[category] = by_category.get(category, 0) + 1
-
-        # Error rate by tool
-        error_rate_by_tool: dict[str, float] = {}
-        for tool in {e.tool_name for e in entries}:
-            tool_entries = [e for e in entries if e.tool_name == tool]
-            tool_errors = sum(1 for e in tool_entries if not e.success)
-            error_rate_by_tool[tool] = round(
-                tool_errors / len(tool_entries) if tool_entries else 0,
-                2,
-            )
-
-        return {
-            "total_errors": len(errors),
-            "error_rate": round(len(errors) / total if total else 0, 2),
-            "by_category": by_category,
-            "error_rate_by_tool": error_rate_by_tool,
-        }
-
-    def _filter_by_scope(self, entries: list[Any], scope: str) -> list[Any]:
-        """Filter entries by time scope."""
-        if scope == "session" or scope == "all":
-            return entries
-
-        now = datetime.now()
-        if scope == "day":
-            cutoff = now - timedelta(days=1)
-        elif scope == "week":
-            cutoff = now - timedelta(weeks=1)
-        else:
-            return entries
-
-        return [e for e in entries if e.timestamp > cutoff]
-
-    def _find_sequences(
-        self,
-        entries: list[Any],
-        min_count: int = 2,
-    ) -> list[dict[str, Any]]:
-        """Find common tool call sequences (bigrams)."""
-        if len(entries) < 2:
-            return []
-
-        # Build bigrams
-        bigrams: list[tuple[str, str]] = []
-        for i in range(len(entries) - 1):
-            bigrams.append((entries[i].tool_name, entries[i + 1].tool_name))
-
-        # Count bigrams
-        bigram_counts = Counter(bigrams)
-
-        # Return common sequences
-        return [
-            {"sequence": list(seq), "count": count}
-            for seq, count in bigram_counts.most_common(5)
-            if count >= min_count
+    by_tool: dict[str, dict[str, float]] = {}
+    for tool in {e.tool_name for e in entries}:
+        tool_times = [
+            e.execution_time_ms for e in entries if e.tool_name == tool
         ]
+        by_tool[tool] = {
+            "avg_ms": round(sum(tool_times) / len(tool_times), 1),
+            "max_ms": max(tool_times),
+            "min_ms": min(tool_times),
+            "count": len(tool_times),
+        }
 
-    def _categorize_error(self, error: str) -> str:
-        """Categorize an error message."""
-        error_lower = error.lower()
+    # Calculate overall stats
+    sorted_times = sorted(times)
+    p95_idx = int(len(sorted_times) * 0.95)
 
-        if "permission" in error_lower or "denied" in error_lower:
-            return "permission"
-        elif "not found" in error_lower or "no such" in error_lower:
-            return "not_found"
-        elif "timeout" in error_lower:
-            return "timeout"
-        elif "rate limit" in error_lower:
-            return "rate_limit"
-        elif "connection" in error_lower or "network" in error_lower:
-            return "network"
-        else:
-            return "other"
+    return {
+        "overall": {
+            "avg_ms": round(sum(times) / len(times), 1),
+            "max_ms": max(times),
+            "min_ms": min(times),
+            "p95_ms": sorted_times[p95_idx] if len(times) > 20 else max(times),
+            "total_calls": len(times),
+        },
+        "by_tool": by_tool,
+    }
 
 
-@dataclass(slots=True)
+def analyze_errors(
+    audit_log: list[Any],
+    scope: str = "session",
+) -> dict[str, Any]:
+    """Analyze error patterns.
+
+    Args:
+        audit_log: List of audit log entries
+        scope: Time scope
+
+    Returns:
+        Dict with error counts, rates, and categories
+    """
+    entries = _filter_by_scope(audit_log, scope)
+
+    if not entries:
+        return {"message": "No data available"}
+
+    errors = [e for e in entries if not e.success]
+    total = len(entries)
+
+    # Categorize errors
+    by_category: dict[str, int] = {}
+    for e in errors:
+        category = _categorize_error(e.error or "Unknown")
+        by_category[category] = by_category.get(category, 0) + 1
+
+    # Build index once O(n), then calculate error rates O(m)
+    tool_stats: dict[str, tuple[int, int]] = {}  # (total, errors)
+    for e in entries:
+        entry_total, errs = tool_stats.get(e.tool_name, (0, 0))
+        tool_stats[e.tool_name] = (entry_total + 1, errs + (0 if e.success else 1))
+
+    error_rate_by_tool: dict[str, float] = {
+        tool: round(errs / entry_total, 2)
+        for tool, (entry_total, errs) in tool_stats.items()
+    }
+
+    return {
+        "total_errors": len(errors),
+        "error_rate": round(len(errors) / total if total else 0, 2),
+        "by_category": by_category,
+        "error_rate_by_tool": error_rate_by_tool,
+    }
+
+
+@dataclass(frozen=True, slots=True)
 class FailureAnalyzer:
     """Analyze failures and suggest fixes.
 

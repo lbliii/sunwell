@@ -24,6 +24,12 @@ from sunwell.interface.types import ActionSpec, InteractionType, ViewSpec
 from sunwell.surface.types import WorkspaceSpec
 
 # =============================================================================
+# PRE-COMPILED PATTERNS — Avoid re-compilation per call
+# =============================================================================
+
+_JSON_EXTRACT_PATTERN = re.compile(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", re.DOTALL)
+
+# =============================================================================
 # CLASSIFICATION PROMPT — Structured output only, no response generation
 # =============================================================================
 
@@ -89,28 +95,38 @@ Return ONLY valid JSON (no markdown, no explanation):
 
 
 # =============================================================================
-# HEURISTIC PATTERNS — Fast path for high-confidence cases
+# HEURISTIC PATTERNS — Pre-compiled for fast path
 # =============================================================================
 
-_WORKSPACE_PATTERNS = [
-    r"\b(build|create|make|develop|implement|write)\s+(a|an|the|me|us)?\s*\w*\s*(app|application|game|site|website|webapp|tool|project|system|platform|service|api|backend|frontend|cli|script)",
-    r"\b(start|begin|new)\s+(a|an)?\s*(project|app|game|codebase)",
-    r"\b(code|program|develop)\s+(a|an|the|me)?\s*\w+",
-    r"\blet'?s?\s+(build|create|make|code|develop)",
-    r"\bi\s+want\s+to\s+(build|create|make|code|develop)",
-]
+_WORKSPACE_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(
+        r"\b(build|create|make|develop|implement|write)\s+(a|an|the|me|us)?\s*\w*\s*"
+        r"(app|application|game|site|website|webapp|tool|project|system|platform|service|api|backend|frontend|cli|script)",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\b(start|begin|new)\s+(a|an)?\s*(project|app|game|codebase)", re.IGNORECASE),
+    re.compile(r"\b(code|program|develop)\s+(a|an|the|me)?\s*\w+", re.IGNORECASE),
+    re.compile(r"\blet'?s?\s+(build|create|make|code|develop)", re.IGNORECASE),
+    re.compile(r"\bi\s+want\s+to\s+(build|create|make|code|develop)", re.IGNORECASE),
+)
 
-_ACTION_PATTERNS = [
-    r"\b(add|put)\s+.+\s+(to|on|in)\s+(my\s+)?(list|todo|calendar|reminders?)",
-    r"\b(remind|alert)\s+me\s+(to|about|at|in)",
-    r"\b(set|create)\s+(a\s+)?(timer|alarm|reminder)",
-    r"\b(complete|finish|done|check\s+off)\s+.+",
-]
+_ACTION_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(
+        r"\b(add|put)\s+.+\s+(to|on|in)\s+(my\s+)?(list|todo|calendar|reminders?)", re.IGNORECASE
+    ),
+    re.compile(r"\b(remind|alert)\s+me\s+(to|about|at|in)", re.IGNORECASE),
+    re.compile(r"\b(set|create)\s+(a\s+)?(timer|alarm|reminder)", re.IGNORECASE),
+    re.compile(r"\b(complete|finish|done|check\s+off)\s+.+", re.IGNORECASE),
+)
 
-_VIEW_PATTERNS = [
-    r"\b(show|display|list|what'?s?\s+(on|in))\s+(my\s+)?(calendar|schedule|events?|tasks?|todos?|list|files?|projects?)",
-    r"\bmy\s+(calendar|schedule|events?|tasks?|todos?)",
-]
+_VIEW_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(
+        r"\b(show|display|list|what'?s?\s+(on|in))\s+(my\s+)?"
+        r"(calendar|schedule|events?|tasks?|todos?|list|files?|projects?)",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\bmy\s+(calendar|schedule|events?|tasks?|todos?)", re.IGNORECASE),
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -174,7 +190,7 @@ class ClassificationResult:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class IntentClassifier:
     """Classifies user intent into structured routing decisions.
 
@@ -240,13 +256,13 @@ class IntentClassifier:
         """Fast pattern-based classification for high-confidence cases."""
         goal_lower = goal.lower().strip()
 
-        # Check workspace patterns
+        # Check workspace patterns (pre-compiled, case-insensitive)
         for pattern in _WORKSPACE_PATTERNS:
-            if re.search(pattern, goal_lower):
+            if pattern.search(goal_lower):
                 return ClassificationResult(
                     route="workspace",
                     confidence=self.heuristic_confidence,
-                    reasoning=f"Matched workspace pattern: {pattern[:30]}...",
+                    reasoning=f"Matched workspace pattern: {pattern.pattern[:30]}...",
                     workspace=WorkspaceSpec(
                         primary="CodeEditor",
                         secondary=("FileTree",),
@@ -255,22 +271,22 @@ class IntentClassifier:
                     ),
                 )
 
-        # Check action patterns
+        # Check action patterns (pre-compiled)
         for pattern in _ACTION_PATTERNS:
-            if re.search(pattern, goal_lower):
+            if pattern.search(goal_lower):
                 return ClassificationResult(
                     route="action",
                     confidence=self.heuristic_confidence,
-                    reasoning=f"Matched action pattern: {pattern[:30]}...",
+                    reasoning=f"Matched action pattern: {pattern.pattern[:30]}...",
                 )
 
-        # Check view patterns
+        # Check view patterns (pre-compiled)
         for pattern in _VIEW_PATTERNS:
-            if re.search(pattern, goal_lower):
+            if pattern.search(goal_lower):
                 return ClassificationResult(
                     route="view",
                     confidence=self.heuristic_confidence,
-                    reasoning=f"Matched view pattern: {pattern[:30]}...",
+                    reasoning=f"Matched view pattern: {pattern.pattern[:30]}...",
                 )
 
         # No high-confidence match — need LLM
@@ -347,8 +363,8 @@ class IntentClassifier:
         try:
             data = json.loads(json_str.strip())
         except json.JSONDecodeError:
-            # Try to find JSON object
-            match = re.search(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", response, re.DOTALL)
+            # Try to find JSON object (pre-compiled pattern)
+            match = _JSON_EXTRACT_PATTERN.search(response)
             if match:
                 try:
                     data = json.loads(match.group())

@@ -36,6 +36,7 @@ from sunwell.interface.types import (
     ActionSpec,
     IntentAnalysis,
     InteractionType,
+    Serializable,
     ViewSpec,
 )
 from sunwell.interface.views import ViewRenderer
@@ -45,6 +46,7 @@ __all__ = [
     "ActionSpec",
     "IntentAnalysis",
     "InteractionType",
+    "Serializable",
     "ViewSpec",
     "ClassificationResult",
     # Router

@@ -3,6 +3,7 @@
 Handles escalations with clear user communication.
 """
 
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
@@ -35,7 +36,7 @@ class UIProtocol(Protocol):
         ...
 
 
-@dataclass
+@dataclass(slots=True)
 class EscalationHandler:
     """Handle escalations with clear user communication.
 
@@ -131,8 +132,6 @@ class EscalationHandler:
         Returns:
             Escalation ready to present to user
         """
-        import uuid
-
         escalation_id = f"esc-{uuid.uuid4().hex[:8]}"
         options = self._get_options_for_reason(reason)
         recommended = self._get_recommended_option(reason)

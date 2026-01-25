@@ -1,7 +1,8 @@
 """Type definitions for Recovery & Review system (RFC-125).
 
-Immutable data structures for recovery state and artifacts.
-All types are frozen dataclasses with slots for performance.
+Data structures for recovery state and artifacts. All use slots for performance.
+RecoveryArtifact and RecoverySummary are frozen (immutable).
+RecoveryState is mutable for in-place updates during review workflow.
 """
 
 from dataclasses import dataclass, field
@@ -156,9 +157,15 @@ class RecoveryState:
     @property
     def summary(self) -> str:
         """Short summary for display."""
-        passed = len(self.passed_artifacts)
-        failed = len(self.failed_artifacts)
-        waiting = len(self.waiting_artifacts)
+        # Single-pass counting (O(n) instead of O(3n))
+        passed = failed = waiting = 0
+        for a in self.artifacts.values():
+            if a.status == ArtifactStatus.PASSED:
+                passed += 1
+            elif a.status == ArtifactStatus.FAILED:
+                failed += 1
+            elif a.status == ArtifactStatus.WAITING:
+                waiting += 1
         return f"✅ {passed} passed, ⚠️ {failed} failed, ⏸️ {waiting} waiting"
 
     def mark_fixed(self, path: str, new_content: str) -> None:

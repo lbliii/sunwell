@@ -4,7 +4,8 @@ Classifies actions by risk level using pattern matching and trust zones.
 RFC-077 adds FastClassifier fallback for edge cases that patterns miss.
 """
 
-
+import dataclasses
+from collections import Counter
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -191,13 +192,17 @@ class ActionTaxonomy:
     @classmethod
     def get_default_risk(cls, action_type: str) -> ActionRisk:
         """Get default risk for an action type."""
-        for name in dir(cls):
-            if name.startswith("_"):
-                continue
-            value = getattr(cls, name)
-            if isinstance(value, tuple) and len(value) == 2 and value[0] == action_type:
-                return value[1]
-        return ActionRisk.MODERATE  # Default for unknown
+        return _ACTION_RISK_MAP.get(action_type, ActionRisk.MODERATE)
+
+
+# Pre-built lookup map for O(1) action risk lookups
+_ACTION_RISK_MAP: dict[str, ActionRisk] = {
+    v[0]: v[1]
+    for name in dir(ActionTaxonomy)
+    if not name.startswith("_")
+    and isinstance((v := getattr(ActionTaxonomy, name)), tuple)
+    and len(v) == 2
+}
 
 
 # =============================================================================
@@ -673,8 +678,9 @@ class SmartActionClassifier(ActionClassifier):
         if not self._enable_learning:
             return
 
-        # Compute similarity hash for grouping
-        violation.similarity_hash = self._compute_similarity_hash(violation)
+        # Compute similarity hash for grouping (violation is frozen, use replace)
+        similarity_hash = self._compute_similarity_hash(violation)
+        violation = dataclasses.replace(violation, similarity_hash=similarity_hash)
 
         self._violations.append(violation)
 
@@ -713,10 +719,10 @@ class SmartActionClassifier(ActionClassifier):
             blocking_rule=classification.blocking_rule or "unknown",
             outcome=outcome,
             user_comment=comment,
-            context={
-                "classification_risk": classification.risk.value,
-                "classification_reason": classification.reason,
-            },
+            context=(
+                ("classification_risk", classification.risk.value),
+                ("classification_reason", classification.reason),
+            ),
         )
 
         self.record_violation(violation)
@@ -880,7 +886,6 @@ class SmartActionClassifier(ActionClassifier):
         # Use the most common directory as the specific pattern
         directories = [str(Path(p).parent) for p in valid_paths]
         if directories:
-            from collections import Counter
             most_common = Counter(directories).most_common(1)
             if most_common:
                 return f"{most_common[0][0]}/*"

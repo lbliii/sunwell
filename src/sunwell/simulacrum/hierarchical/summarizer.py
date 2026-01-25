@@ -15,6 +15,12 @@ if TYPE_CHECKING:
     from sunwell.simulacrum.core.turn import Turn
 
 
+# Pre-compiled regex patterns for sentence splitting (avoid per-call compilation)
+_RE_DOT_IN_WORD = re.compile(r"(\w)\.(\w)")
+_RE_ABBREVIATIONS = re.compile(r"(Mr|Mrs|Dr|Prof|etc|vs|i\.e|e\.g)\.")
+_RE_SENTENCE_SPLIT = re.compile(r"[.!?]+")
+
+
 @runtime_checkable
 class SummarizerProtocol(Protocol):
     """Protocol for summarizers - enables dependency injection."""
@@ -178,11 +184,11 @@ class HeuristicSummarizer:
 
     def _split_sentences(self, text: str) -> list[str]:
         """Split text into sentences."""
-        # Handle common abbreviations to avoid false splits
-        text = re.sub(r"(\w)\.(\w)", r"\1<DOT>\2", text)  # e.g., "file.py"
-        text = re.sub(r"(Mr|Mrs|Dr|Prof|etc|vs|i\.e|e\.g)\.", r"\1<DOT>", text)
+        # Handle common abbreviations to avoid false splits (use pre-compiled patterns)
+        text = _RE_DOT_IN_WORD.sub(r"\1<DOT>\2", text)  # e.g., "file.py"
+        text = _RE_ABBREVIATIONS.sub(r"\1<DOT>", text)
 
-        sentences = re.split(r"[.!?]+", text)
+        sentences = _RE_SENTENCE_SPLIT.split(text)
         return [s.replace("<DOT>", ".").strip() for s in sentences if s.strip()]
 
 

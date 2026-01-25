@@ -93,6 +93,7 @@ _RE_TYPE_ANNOTATION = re.compile(
     r":\s*([a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)"
 )
 _RE_LOWERCASE_WORDS = re.compile(r"[a-z]+")
+_RE_PYPROJECT_DESCRIPTION = re.compile(r'description\s*=\s*["\']([^"\']+)["\']')
 
 
 @dataclass(frozen=True, slots=True)
@@ -236,7 +237,7 @@ class TocGenerator:
         if pyproject.exists():
             try:
                 content = pyproject.read_text(errors="ignore")
-                match = re.search(r'description\s*=\s*["\']([^"\']+)["\']', content)
+                match = _RE_PYPROJECT_DESCRIPTION.search(content)
                 if match:
                     return match.group(1)[:100]
             except OSError:

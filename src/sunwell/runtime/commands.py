@@ -20,7 +20,7 @@ Why double-colon?
 
 import re
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -98,6 +98,9 @@ def parse_input(text: str) -> ParsedInput:
 CYAN = "\033[36m"
 BOLD = "\033[1m"
 RESET = "\033[0m"
+
+# Trust level icons (extracted for O(1) reuse)
+TRUST_ICONS: dict[str, str] = {"full": "🔓", "sandboxed": "🔒", "none": "📝"}
 
 HIGHLIGHT_PATTERN = re.compile(r'(^|(?<=\s))(::[\w-]+)')
 
@@ -271,7 +274,7 @@ async def cmd_skills(args: str, session: ChatSession) -> str:
 
     lines = ["Available skills:"]
     for skill in session.lens.skills:
-        trust_icon = {"full": "🔓", "sandboxed": "🔒", "none": "📝"}.get(skill.trust.value, "❓")
+        trust_icon = TRUST_ICONS.get(skill.trust.value, "❓")
         lines.append(f"  {trust_icon} {skill.name}: {skill.description}")
 
     return "\n".join(lines)

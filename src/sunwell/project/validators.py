@@ -15,10 +15,15 @@ Example:
 """
 
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from sunwell.project.dsl import ConstraintDSL, ConstraintEvaluator, ParsedRule
+from sunwell.project.dsl import (
+    ConstraintDSL,
+    ParsedRule,
+    enumerate_bindings,
+    evaluate_condition,
+)
 
 if TYPE_CHECKING:
     from sunwell.project.schema import ValidatorConfig
@@ -35,7 +40,7 @@ class ConstraintViolation:
     description: str
     message: str
     severity: str = "error"
-    bindings: dict[str, Any] = field(default_factory=dict)  # type: ignore[arg-type]
+    bindings: tuple[tuple[str, Any], ...] = ()
     artifact_ids: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
@@ -45,12 +50,12 @@ class ConstraintViolation:
             "description": self.description,
             "message": self.message,
             "severity": self.severity,
-            "bindings": {k: str(v) for k, v in self.bindings.items()},
+            "bindings": {k: str(v) for k, v in self.bindings},
             "artifact_ids": list(self.artifact_ids),
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class ConstraintValidator:
     """Executes constraint DSL rules against project artifacts.
 
@@ -73,8 +78,12 @@ class ConstraintValidator:
         ... )
     """
 
-    dsl: ConstraintDSL = field(default_factory=ConstraintDSL)
-    evaluator: ConstraintEvaluator = field(default_factory=ConstraintEvaluator)
+    dsl: ConstraintDSL | None = None
+
+    def __post_init__(self) -> None:
+        """Initialize DSL parser if not provided."""
+        if self.dsl is None:
+            object.__setattr__(self, "dsl", ConstraintDSL())
 
     def validate(
         self,
@@ -146,15 +155,15 @@ class ConstraintValidator:
         violations = []
 
         # Enumerate all variable bindings
-        for bindings in self.evaluator.enumerate_bindings(parsed.for_clauses, artifacts):
+        for bindings in enumerate_bindings(parsed.for_clauses, artifacts):
             # Check WHERE clause if present (SIM102: combined if)
-            if parsed.where_clause and not self.evaluator.evaluate_condition(
+            if parsed.where_clause and not evaluate_condition(
                 parsed.where_clause, bindings
             ):
                 continue  # Filtered out by WHERE
 
             # Check ASSERT clause
-            if not self.evaluator.evaluate_condition(parsed.assert_clause, bindings):
+            if not evaluate_condition(parsed.assert_clause, bindings):
                 # Collect artifact IDs from bindings
                 artifact_ids = []
                 for value in bindings.values():
@@ -167,7 +176,7 @@ class ConstraintValidator:
                         description=description,
                         message=self._make_violation_message(parsed, bindings),
                         severity=severity,
-                        bindings=dict(bindings),
+                        bindings=tuple(bindings.items()),
                         artifact_ids=tuple(artifact_ids),
                     )
                 )
@@ -196,7 +205,7 @@ class ConstraintValidator:
         return f"ASSERT failed: {parsed.assert_clause} (with {', '.join(binding_strs)})"
 
 
-@dataclass
+@dataclass(slots=True)
 class SchemaValidationRunner:
     """Runs all validators defined in a project schema.
 

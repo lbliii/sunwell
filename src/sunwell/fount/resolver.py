@@ -10,9 +10,22 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.core.lens import Lens
+    from sunwell.core.lens import Lens, QualityPolicy
     from sunwell.core.types import LensReference
     from sunwell.schema.loader import LensLoader
+
+# Lazy singleton for default QualityPolicy (avoid per-call allocation)
+_DEFAULT_QUALITY_POLICY: QualityPolicy | None = None
+
+
+def _get_default_policy() -> QualityPolicy:
+    """Lazy singleton for default QualityPolicy."""
+    global _DEFAULT_QUALITY_POLICY
+    if _DEFAULT_QUALITY_POLICY is None:
+        from sunwell.core.lens import QualityPolicy
+
+        _DEFAULT_QUALITY_POLICY = QualityPolicy()
+    return _DEFAULT_QUALITY_POLICY
 
 
 @dataclass(slots=True)
@@ -250,8 +263,7 @@ class LensResolver:
 
         quality_policy = root.quality_policy
         # If root policy is just defaults, try to get from bases
-        from sunwell.core.lens import QualityPolicy
-        default_policy = QualityPolicy()
+        default_policy = _get_default_policy()
         if quality_policy == default_policy:
             for base in bases:
                 if base.quality_policy != default_policy:

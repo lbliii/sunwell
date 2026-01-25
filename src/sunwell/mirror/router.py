@@ -53,7 +53,7 @@ TASK_CATEGORY_MAP: dict[str, str] = {
 }
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class ModelRoutingConfig:
     """Configuration for model routing from a lens.
 
@@ -276,13 +276,17 @@ class ModelRouter:
         return None
 
 
+# Module-level cache (computed once at import)
+_ALL_TASK_CATEGORIES: tuple[str, ...] = tuple(set(TASK_CATEGORY_MAP.values()))
+
+
 def get_all_task_categories() -> list[str]:
     """Get all defined task categories.
 
     Returns:
         List of unique task category names
     """
-    return list(set(TASK_CATEGORY_MAP.values()))
+    return list(_ALL_TASK_CATEGORIES)
 
 
 def get_tools_for_category(category: str) -> list[str]:

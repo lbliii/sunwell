@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 
-@dataclass
+@dataclass(slots=True)
 class IndexMetrics:
     """Telemetry for index health monitoring."""
 
