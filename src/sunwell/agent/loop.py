@@ -21,7 +21,7 @@ import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from sunwell.agent.events import (
     AgentEvent,
@@ -35,128 +35,29 @@ from sunwell.agent.events import (
     tool_loop_turn_event,
     tool_start_event,
 )
-from sunwell.agent.introspection import IntrospectionResult, introspect_tool_call
-from sunwell.models.protocol import (
-    GenerateOptions,
-    GenerateResult,
-    Message,
-    Tool,
-    ToolCall,
+from sunwell.agent.introspection import introspect_tool_call
+from sunwell.agent.loop_config import LoopConfig, LoopState
+from sunwell.agent.loop_retry import interference_fix, record_tool_dead_end, vortex_fix
+from sunwell.agent.loop_routing import (
+    estimate_output_tokens,
+    get_task_confidence,
+    interference_generate,
+    single_shot_generate,
+    vortex_generate,
 )
-from sunwell.tools.types import ToolResult
+from sunwell.models.protocol import GenerateOptions, Message, Tool, ToolCall
 
 if TYPE_CHECKING:
     from sunwell.agent.learning import LearningStore
-    from sunwell.agent.signals import AdaptiveSignals
     from sunwell.agent.validation import ValidationStage
-    from sunwell.core.lens import EphemeralLens, Lens, LensLike
+    from sunwell.core.lens import Lens
     from sunwell.mirror.handler import MirrorHandler
     from sunwell.models.protocol import ModelProtocol
     from sunwell.recovery.manager import RecoveryManager
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.progressive import ProgressivePolicy
-    from sunwell.vortex.primitives import InterferenceResult
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True, slots=True)
-class LoopConfig:
-    """Configuration for the agentic loop."""
-
-    max_turns: int = 20
-    """Maximum turns before stopping (prevents infinite loops)."""
-
-    temperature: float = 0.3
-    """Temperature for model generation."""
-
-    tool_choice: Literal["auto", "none", "required"] | str = "auto"
-    """Tool choice mode: auto (model decides), none, required, or specific tool name."""
-
-    enable_confidence_routing: bool = True
-    """Use confidence-based routing (Vortex/Interference/Single-shot)."""
-
-    enable_learning_injection: bool = True
-    """Inject relevant learnings into tool call context."""
-
-    enable_validation_gates: bool = True
-    """Run validation gates after file operations."""
-
-    enable_recovery: bool = True
-    """Save recovery state on failures."""
-
-    enable_expertise_injection: bool = True
-    """Enhance tool descriptions with lens-specific heuristics."""
-
-    enable_self_reflection: bool = True
-    """Reflect on tool patterns every N turns and adjust strategy."""
-
-    reflection_interval: int = 5
-    """How often to trigger self-reflection (every N turns)."""
-
-    # RFC-134: Tool call introspection
-    enable_introspection: bool = True
-    """Intercept and repair malformed tool arguments before execution."""
-
-    # RFC-134: Automatic retry with strategy escalation
-    enable_strategy_escalation: bool = True
-    """Escalate through strategies (single → interference → vortex) on failures."""
-
-    max_retries_per_tool: int = 3
-    """Maximum retries per tool call before escalating to user."""
-
-    # RFC-134: Tool usage learning
-    enable_tool_learning: bool = True
-    """Track which tool sequences succeed for which task types."""
-
-    # RFC-134: Progressive tool enablement
-    enable_progressive_tools: bool = False
-    """Start with read-only tools and unlock write tools as trust builds."""
-
-    # RFC-137: Smart-to-dumb model delegation
-    enable_delegation: bool = False
-    """Enable smart-to-dumb model delegation for cost optimization.
-
-    When enabled and delegation criteria are met, the loop will:
-    1. Use a smart model to create an EphemeralLens
-    2. Execute the task with a cheaper delegation model using the lens
-    """
-
-    delegation_threshold_tokens: int = 2000
-    """Minimum expected output tokens to trigger delegation.
-
-    Tasks expected to generate more than this many tokens will use
-    delegation if enabled. Lower values = more aggressive delegation.
-    """
-
-
-@dataclass(slots=True)
-class LoopState:
-    """Mutable state for the agentic loop."""
-
-    messages: list[Message] = field(default_factory=list)
-    """Conversation history."""
-
-    turn: int = 0
-    """Current turn number."""
-
-    tool_calls_total: int = 0
-    """Total tool calls executed."""
-
-    file_writes: list[str] = field(default_factory=list)
-    """Paths of files written (for validation gates)."""
-
-    # RFC-134: Failure tracking for strategy escalation
-    failure_counts: dict[str, int] = field(default_factory=dict)
-    """tool_call_id -> failure count for retry escalation."""
-
-    # RFC-134: Tool sequence tracking for learning
-    tool_sequence: list[str] = field(default_factory=list)
-    """Ordered list of tools called in this turn (for pattern learning)."""
-
-    # RFC-134: Introspection repairs tracking
-    repairs_made: int = 0
-    """Count of repairs made by introspection."""
 
 
 @dataclass(slots=True)
@@ -462,7 +363,7 @@ class AgentLoop:
         messages: list[Message],
         tools: tuple[Tool, ...],
         task_description: str | None = None,
-    ) -> GenerateResult:
+    ):
         """Generate with optional confidence-based routing.
 
         High confidence (>0.85): Single-shot
@@ -471,193 +372,48 @@ class AgentLoop:
 
         This is a KEY DIFFERENTIATOR - competitors always use single-shot.
         """
-        options = GenerateOptions(
-            temperature=self.config.temperature,
-        )
+        options = GenerateOptions(temperature=self.config.temperature)
 
         # Skip routing if disabled
         if not self.config.enable_confidence_routing:
-            return await self._single_shot_generate(messages, tools, options)
+            return await single_shot_generate(
+                self.model, messages, tools, self.config.tool_choice, options
+            )
 
         # Extract confidence if we have task description
-        confidence = await self._get_task_confidence(task_description, messages)
+        confidence = await get_task_confidence(self.model, task_description, messages)
 
         # Route based on confidence
         if confidence < 0.6:
             # Low confidence → Vortex (multiple candidates)
-            strategy = "vortex"
             logger.info(
                 "◎ CONFIDENCE ROUTING → Vortex (multiple candidates) [%.2f]",
                 confidence,
-                extra={"confidence": confidence, "strategy": strategy},
+                extra={"confidence": confidence, "strategy": "vortex"},
             )
-            return await self._vortex_generate(messages, tools, options)
+            return await vortex_generate(
+                self.model, messages, tools, self.config.tool_choice, options
+            )
         elif confidence < 0.85:
             # Medium confidence → Interference (3 perspectives)
-            strategy = "interference"
             logger.info(
                 "◎ CONFIDENCE ROUTING → Interference (3 perspectives) [%.2f]",
                 confidence,
-                extra={"confidence": confidence, "strategy": strategy},
+                extra={"confidence": confidence, "strategy": "interference"},
             )
-            return await self._interference_generate(messages, tools, options)
+            return await interference_generate(
+                self.model, messages, tools, self.config.tool_choice, options
+            )
         else:
             # High confidence → Single-shot
-            strategy = "single_shot"
             logger.info(
                 "◎ CONFIDENCE ROUTING → Single-shot [%.2f]",
                 confidence,
-                extra={"confidence": confidence, "strategy": strategy},
+                extra={"confidence": confidence, "strategy": "single_shot"},
             )
-            return await self._single_shot_generate(messages, tools, options)
-
-    async def _get_task_confidence(
-        self,
-        task_description: str | None,
-        messages: list[Message],
-    ) -> float:
-        """Extract confidence for routing decisions.
-
-        Uses signals extraction if available, otherwise defaults to high confidence.
-        """
-        if not task_description:
-            # Extract from last user message
-            for msg in reversed(messages):
-                if msg.role == "user" and msg.content:
-                    task_description = msg.content
-                    break
-
-        if not task_description:
-            return 0.9  # Default to high confidence if no task
-
-        try:
-            from sunwell.agent.signals import extract_signals
-
-            signals = await extract_signals(task_description, self.model)
-            return signals.effective_confidence
-        except Exception:
-            # If signal extraction fails, default to high confidence
-            return 0.9
-
-    async def _single_shot_generate(
-        self,
-        messages: list[Message],
-        tools: tuple[Tool, ...],
-        options: GenerateOptions,
-    ) -> GenerateResult:
-        """Standard single-shot generation."""
-        return await self.model.generate(
-            tuple(messages),
-            tools=tools,
-            tool_choice=self.config.tool_choice,
-            options=options,
-        )
-
-    async def _interference_generate(
-        self,
-        messages: list[Message],
-        tools: tuple[Tool, ...],
-        options: GenerateOptions,
-    ) -> GenerateResult:
-        """Generate with 3 perspectives and pick best (interference pattern).
-
-        Like constructive/destructive interference in physics:
-        - High agreement = constructive (amplified confidence in result)
-        - Low agreement = destructive (signals uncertainty)
-        """
-        perspectives = ["analyst", "pragmatist", "expert"]
-        candidates: list[GenerateResult] = []
-
-        for perspective in perspectives:
-            # Add perspective hint to system
-            perspective_messages = list(messages)
-            if perspective_messages and perspective_messages[0].role == "system":
-                # Prepend to existing system prompt
-                old_content = perspective_messages[0].content or ""
-                perspective_messages[0] = Message(
-                    role="system",
-                    content=f"[Perspective: {perspective}] {old_content}",
-                )
-            else:
-                # Insert new system message
-                perspective_messages.insert(0, Message(
-                    role="system",
-                    content=f"Think from the perspective of a {perspective}.",
-                ))
-
-            try:
-                result = await self.model.generate(
-                    tuple(perspective_messages),
-                    tools=tools,
-                    tool_choice=self.config.tool_choice,
-                    options=options,
-                )
-                candidates.append(result)
-            except Exception:
-                continue
-
-        if not candidates:
-            # All failed, fall back to single-shot
-            return await self._single_shot_generate(messages, tools, options)
-
-        # Select best candidate via voting/agreement
-        return self._select_best_candidate(candidates)
-
-    async def _vortex_generate(
-        self,
-        messages: list[Message],
-        tools: tuple[Tool, ...],
-        options: GenerateOptions,
-    ) -> GenerateResult:
-        """Generate multiple candidates with different temperatures (Vortex).
-
-        For low-confidence tasks, explore the solution space more thoroughly.
-        """
-        temperatures = [0.2, 0.5, 0.8]
-        candidates: list[GenerateResult] = []
-
-        for temp in temperatures:
-            varied_options = GenerateOptions(
-                temperature=temp,
-                max_tokens=options.max_tokens,
-                stop_sequences=options.stop_sequences,
+            return await single_shot_generate(
+                self.model, messages, tools, self.config.tool_choice, options
             )
-
-            try:
-                result = await self.model.generate(
-                    tuple(messages),
-                    tools=tools,
-                    tool_choice=self.config.tool_choice,
-                    options=varied_options,
-                )
-                candidates.append(result)
-            except Exception:
-                continue
-
-        if not candidates:
-            return await self._single_shot_generate(messages, tools, options)
-
-        return self._select_best_candidate(candidates)
-
-    def _select_best_candidate(self, candidates: list[GenerateResult]) -> GenerateResult:
-        """Select the best candidate from multiple generations.
-
-        Preferences:
-        1. Candidates with tool calls (actionable)
-        2. Candidates with more tool calls (more complete)
-        3. First candidate if tied
-        """
-        if not candidates:
-            raise ValueError("No candidates to select from")
-
-        # Prefer candidates with tool calls
-        with_tools = [c for c in candidates if c.has_tool_calls]
-        if with_tools:
-            # Pick the one with most tool calls
-            return max(with_tools, key=lambda c: len(c.tool_calls))
-
-        # No tool calls - return first (most deterministic temperature)
-        return candidates[0]
 
     async def _execute_tool_calls(
         self,
@@ -781,19 +537,22 @@ class AgentLoop:
             state.failure_counts[tc.id] = failure_count
 
             # RFC-134: Attempt retry with strategy escalation
-            if self.config.enable_strategy_escalation:
-                if failure_count <= self.config.max_retries_per_tool:
-                    logger.info(
-                        "Retry escalation: attempt %d/%d for %s",
-                        failure_count,
-                        self.config.max_retries_per_tool,
-                        tc.name,
-                    )
-                    async for event in self._retry_with_escalation(
-                        tc, error_msg, failure_count, state
-                    ):
-                        yield event
-                    return
+            escalate = (
+                self.config.enable_strategy_escalation
+                and failure_count <= self.config.max_retries_per_tool
+            )
+            if escalate:
+                logger.info(
+                    "Retry escalation: attempt %d/%d for %s",
+                    failure_count,
+                    self.config.max_retries_per_tool,
+                    tc.name,
+                )
+                async for event in self._retry_with_escalation(
+                    tc, error_msg, failure_count, state
+                ):
+                    yield event
+                return
 
             # No escalation or max retries exceeded
             yield tool_error_event(
@@ -841,12 +600,11 @@ class AgentLoop:
         elif failure_count == 2:
             # Interference: 3 perspectives on fixing the error
             logger.info("Strategy: Interference (3 perspectives) for %s", tc.name)
-            fixed_tc = await self._interference_fix(tc, error, state)
+            fixed_tc = await interference_fix(self.model, tc, error, self.config.tool_choice)
             if fixed_tc:
                 async for event in self._execute_single_tool(fixed_tc, state):
                     yield event
             else:
-                # Interference failed to produce fix, fall through to error
                 yield tool_error_event(
                     tool_name=tc.name,
                     tool_call_id=tc.id,
@@ -856,7 +614,7 @@ class AgentLoop:
         elif failure_count == 3:
             # Vortex: multiple candidate fixes
             logger.info("Strategy: Vortex (multiple candidates) for %s", tc.name)
-            fixed_tc = await self._vortex_fix(tc, error, state)
+            fixed_tc = await vortex_fix(self.model, tc, error, self.config.tool_choice)
             if fixed_tc:
                 async for event in self._execute_single_tool(fixed_tc, state):
                     yield event
@@ -869,135 +627,15 @@ class AgentLoop:
 
         else:
             # Max retries exceeded - record dead-end and escalate
-            logger.warning(
-                "Max retries exceeded for %s, recording dead-end",
-                tc.name,
+            logger.warning("Max retries exceeded for %s, recording dead-end", tc.name)
+            await record_tool_dead_end(
+                self.learning_store, tc, error, self.config.max_retries_per_tool
             )
-            await self._record_tool_dead_end(tc, error)
             yield tool_error_event(
                 tool_name=tc.name,
                 tool_call_id=tc.id,
                 error=f"Max retries exceeded after {failure_count} attempts: {error}",
             )
-
-    async def _interference_fix(
-        self,
-        tc: ToolCall,
-        error: str,
-        state: LoopState,
-    ) -> ToolCall | None:
-        """Use interference (3 perspectives) to fix a failed tool call.
-
-        Returns a repaired ToolCall or None if fix failed.
-        """
-        fix_prompt = f"""A tool call failed. Analyze from 3 perspectives and fix it.
-
-Tool: {tc.name}
-Arguments: {tc.arguments}
-Error: {error}
-
-Provide the corrected arguments as a JSON object."""
-
-        # Use interference generate to get multiple perspectives
-        messages = [Message(role="user", content=fix_prompt)]
-        options = GenerateOptions(temperature=0.5, max_tokens=500)
-
-        try:
-            result = await self._interference_generate(
-                messages,
-                tools=(),  # No tools, just get JSON response
-                options=options,
-            )
-
-            if result.text:
-                import json
-                # Try to parse JSON from response
-                try:
-                    # Extract JSON from response
-                    text = result.text.strip()
-                    if "```" in text:
-                        # Extract from code block
-                        import re
-                        match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", text, re.DOTALL)
-                        if match:
-                            text = match.group(1)
-                    fixed_args = json.loads(text)
-                    return ToolCall(id=tc.id, name=tc.name, arguments=fixed_args)
-                except json.JSONDecodeError:
-                    logger.warning("Failed to parse interference fix as JSON")
-                    return None
-        except Exception as e:
-            logger.warning("Interference fix failed: %s", e)
-            return None
-
-        return None
-
-    async def _vortex_fix(
-        self,
-        tc: ToolCall,
-        error: str,
-        state: LoopState,
-    ) -> ToolCall | None:
-        """Use vortex (multiple candidates) to fix a failed tool call.
-
-        Returns a repaired ToolCall or None if fix failed.
-        """
-        fix_prompt = f"""A tool call failed. Generate the best fix.
-
-Tool: {tc.name}
-Arguments: {tc.arguments}
-Error: {error}
-
-Provide the corrected arguments as a JSON object."""
-
-        messages = [Message(role="user", content=fix_prompt)]
-        options = GenerateOptions(temperature=0.3, max_tokens=500)
-
-        try:
-            result = await self._vortex_generate(
-                messages,
-                tools=(),
-                options=options,
-            )
-
-            if result.text:
-                import json
-                try:
-                    text = result.text.strip()
-                    if "```" in text:
-                        import re
-                        match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", text, re.DOTALL)
-                        if match:
-                            text = match.group(1)
-                    fixed_args = json.loads(text)
-                    return ToolCall(id=tc.id, name=tc.name, arguments=fixed_args)
-                except json.JSONDecodeError:
-                    logger.warning("Failed to parse vortex fix as JSON")
-                    return None
-        except Exception as e:
-            logger.warning("Vortex fix failed: %s", e)
-            return None
-
-        return None
-
-    async def _record_tool_dead_end(self, tc: ToolCall, error: str) -> None:
-        """Record a tool call failure as a dead-end for future avoidance.
-
-        RFC-134: Dead-ends are stored in LearningStore and can be used
-        to avoid similar failures in future sessions.
-        """
-        if not self.learning_store:
-            return
-
-        from sunwell.agent.learning import DeadEnd
-
-        dead_end = DeadEnd(
-            approach=f"Tool {tc.name} with args: {tc.arguments}",
-            reason=error,
-            context=f"Failed after {self.config.max_retries_per_tool} retries",
-        )
-        self.learning_store.add_dead_end(dead_end)
-        logger.info("Recorded dead-end: %s", dead_end.approach[:100])
 
     async def _get_learnings_prompt(self, task_description: str) -> str | None:
         """Get relevant learnings and tool suggestions for the task (RFC-134)."""
@@ -1010,7 +648,7 @@ Provide the corrected arguments as a JSON object."""
             # Get relevant learnings
             relevant = self.learning_store.get_relevant(task_description)
             if relevant:
-                learnings_text = "\n".join(f"- {l.fact}" for l in relevant[:5])
+                learnings_text = "\n".join(f"- {learning.fact}" for learning in relevant[:5])
                 sections.append(f"Apply these known facts from past experience:\n{learnings_text}")
                 logger.info(
                     "Learning injection: Applied %d learnings from memory",
@@ -1057,7 +695,7 @@ Provide the corrected arguments as a JSON object."""
             extra={"files": file_paths},
         )
 
-        from sunwell.agent.events import gate_start_event, gate_step_event, EventType
+        from sunwell.agent.events import gate_start_event, gate_step_event
         from sunwell.agent.validation import Artifact
 
         # Create artifacts for validation
@@ -1359,38 +997,8 @@ Provide the corrected arguments as a JSON object."""
             # Self-reflection is enhancement, not critical path
 
     def _estimate_output_tokens(self, task_description: str) -> int:
-        """Estimate expected output tokens based on task description.
-
-        Uses simple heuristics to estimate output size. More sophisticated
-        estimation could use a classifier or historical data.
-
-        Args:
-            task_description: The task to estimate
-
-        Returns:
-            Estimated token count for the task output
-        """
-        # Base estimate: longer descriptions usually mean more complex tasks
-        word_count = len(task_description.split())
-        base_tokens = word_count * 10  # Rough multiplier
-
-        # Indicators of larger output
-        large_indicators = (
-            "multiple files",
-            "all endpoints",
-            "full implementation",
-            "complete",
-            "crud",
-            "scaffold",
-            "generate",
-        )
-        for indicator in large_indicators:
-            if indicator in task_description.lower():
-                base_tokens *= 2
-                break
-
-        # Cap at reasonable range
-        return max(500, min(base_tokens, 20_000))
+        """Estimate expected output tokens based on task description."""
+        return estimate_output_tokens(task_description)
 
     async def _run_with_delegation(
         self,
@@ -1480,7 +1088,10 @@ Provide the corrected arguments as a JSON object."""
         lens_context = ephemeral_lens.to_context()
         enhanced_system = system_prompt or ""
         if lens_context:
-            enhanced_system = f"{lens_context}\n\n{enhanced_system}" if enhanced_system else lens_context
+            if enhanced_system:
+                enhanced_system = f"{lens_context}\n\n{enhanced_system}"
+            else:
+                enhanced_system = lens_context
 
         try:
             # Set flag to prevent recursion

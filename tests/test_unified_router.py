@@ -11,14 +11,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from sunwell.routing.unified import (
     UnifiedRouter,
+    create_unified_router,
+    UNIFIED_ROUTER_PROMPT,
+)
+from sunwell.routing import (
     RoutingDecision,
     Intent,
     Complexity,
     UserMood,
     UserExpertise,
-    LegacyRoutingAdapter,
-    create_unified_router,
-    UNIFIED_ROUTER_PROMPT,
 )
 
 
@@ -231,7 +232,7 @@ class TestUnifiedRouterCache:
     
     def test_clear_cache(self, router):
         """Test cache clearing."""
-        # Add some fake cache entries
+        # Add some fake cache entries (using OrderedDict directly)
         router._cache[123] = RoutingDecision(
             intent=Intent.CODE,
             complexity=Complexity.STANDARD,
@@ -242,14 +243,12 @@ class TestUnifiedRouterCache:
             confidence=0.8,
             reasoning="Test",
         )
-        router._cache_order.append(123)
         
         assert len(router._cache) == 1
         
         router.clear_cache()
         
         assert len(router._cache) == 0
-        assert len(router._cache_order) == 0
 
 
 # =============================================================================
@@ -380,51 +379,8 @@ class TestUnifiedRouterParsing:
         ))
         
         decision = await router.route("test")
-        assert decision.confidence == 0.3  # Fallback confidence
-
-
-# =============================================================================
-# Legacy Adapter Tests
-# =============================================================================
-
-
-class TestLegacyRoutingAdapter:
-    """Test backward compatibility adapter."""
-    
-    @pytest.mark.asyncio
-    async def test_adapter_output_format(self, router, mock_model, mock_generate_result):
-        """Test that adapter produces legacy-compatible output."""
-        mock_model.generate = AsyncMock(return_value=mock_generate_result(json.dumps({
-            "intent": "code",
-            "complexity": "complex",
-            "lens": "coder",
-            "tools": ["file_read"],
-            "mood": "neutral",
-            "expertise": "expert",
-            "confidence": 0.85,
-            "reasoning": "Test",
-        })))
-        
-        adapter = LegacyRoutingAdapter(router)
-        legacy = await adapter.to_cognitive_router_decision("test request")
-        
-        # Check legacy format fields
-        assert "intent" in legacy
-        assert "lens" in legacy
-        assert "secondary_lenses" in legacy
-        assert "focus" in legacy
-        assert "complexity" in legacy
-        assert "top_k" in legacy
-        assert "threshold" in legacy
-        assert "confidence" in legacy
-        assert "reasoning" in legacy
-        
-        # Check intent mapping
-        assert legacy["intent"] == "code_generation"
-        
-        # Check complexity -> top_k mapping
-        assert legacy["top_k"] == 8  # complex -> top_k=8
-        assert legacy["threshold"] == 0.2  # complex -> threshold=0.2
+        # Fallback confidence is low (0.3-0.4 range depending on exemplar matching)
+        assert decision.confidence < 0.5
 
 
 # =============================================================================

@@ -36,35 +36,36 @@ from sunwell.agent.budget import AdaptiveBudget
 from sunwell.agent.events import (
     AgentEvent,
     EventType,
-    GateSummary,
-    TaskSummary,
     briefing_loaded_event,
-    checkpoint_found_event,
-    checkpoint_saved_event,
     complete_event,
     failure_recorded_event,
     lens_selected_event,
     memory_learning_event,
-    model_complete_event,
-    model_start_event,
-    model_thinking_event,
-    model_tokens_event,
     orient_event,
-    phase_complete_event,
-    plan_winner_event,
     signal_event,
-    specialist_completed_event,
-    specialist_spawned_event,
     task_complete_event,
+    task_output_event,
     task_start_event,
 )
+from sunwell.agent.execution import (
+    determine_specialist_role,
+    execute_task_streaming_fallback,
+    execute_task_with_tools,
+    execute_with_convergence,
+    select_lens_for_task,
+    should_spawn_specialist,
+    validate_gate,
+)
+from sunwell.agent.learning import learn_from_execution
+from sunwell.agent.planning import plan_with_signals
+from sunwell.agent.specialist import execute_via_specialist, get_context_snapshot
 from sunwell.agent.fixer import FixStage
-from sunwell.agent.gates import ValidationGate, detect_gates
+from sunwell.agent.gates import ValidationGate
 from sunwell.agent.learning import LearningExtractor, LearningStore
 from sunwell.agent.metrics import InferenceMetrics
 from sunwell.agent.request import RunOptions
 from sunwell.agent.signals import AdaptiveSignals, extract_signals
-from sunwell.agent.thinking import ThinkingDetector
+from sunwell.agent.task_graph import TaskGraph, sanitize_code_content
 from sunwell.agent.toolchain import detect_toolchain
 from sunwell.agent.validation import Artifact, ValidationRunner, ValidationStage
 
@@ -77,68 +78,6 @@ if TYPE_CHECKING:
 from sunwell.context.session import SessionContext
 from sunwell.memory.persistent import PersistentMemory
 from sunwell.naaru.checkpoint import AgentCheckpoint, CheckpointPhase
-
-
-def _sanitize_code_content(content: str) -> str:
-    """Strip markdown fences from generated code content.
-
-    Defense-in-depth: Called before direct file writes to ensure
-    markdown fences are removed even if other sanitization missed them.
-    """
-    if not content or not content.startswith("```"):
-        return content
-
-    lines = content.split("\n")
-
-    # Remove opening fence (```python, ```rust, etc.)
-    if lines[0].startswith("```"):
-        lines = lines[1:]
-
-    # Remove closing fence
-    if lines and lines[-1].strip() == "```":
-        lines = lines[:-1]
-
-    return "\n".join(lines)
-
-
-@dataclass(slots=True)
-class TaskGraph:
-    """A graph of tasks with execution state."""
-
-    tasks: list[Task] = field(default_factory=list)
-    """All tasks in the graph."""
-
-    gates: list[ValidationGate] = field(default_factory=list)
-    """Validation gates."""
-
-    completed_ids: set[str] = field(default_factory=set)
-    """IDs of completed tasks."""
-
-    completed_artifacts: set[str] = field(default_factory=set)
-    """Artifacts that have been produced."""
-
-    def has_pending_tasks(self) -> bool:
-        """Check if there are pending tasks."""
-        return len(self.completed_ids) < len(self.tasks)
-
-    def get_ready_tasks(self) -> list[Task]:
-        """Get tasks that are ready to execute."""
-        return [
-            t
-            for t in self.tasks
-            if t.id not in self.completed_ids
-            and t.is_ready(self.completed_ids, self.completed_artifacts)
-        ]
-
-    def mark_complete(self, task: Task) -> None:
-        """Mark a task as complete."""
-        self.completed_ids.add(task.id)
-        self.completed_artifacts.update(task.produces)
-
-    @property
-    def completed_summary(self) -> str:
-        """Summary of completed work."""
-        return f"{len(self.completed_ids)}/{len(self.tasks)} tasks"
 
 
 @dataclass(slots=True)
@@ -532,111 +471,21 @@ class Agent:
     ) -> AsyncIterator[AgentEvent]:
         """Resume execution from a recovery state (RFC-125).
 
-        When a previous run failed with partial progress, this method
-        resumes with full context of what succeeded and what failed,
-        focusing only on fixing the failed artifacts.
-
-        Args:
-            recovery_state: RecoveryState from a previous failed run
-            user_hint: Optional hint from user to guide fixes
-
-        Yields:
-            AgentEvent for each step of recovery execution
+        Delegates to recovery.resume_from_recovery for the actual implementation.
         """
-        from sunwell.recovery import build_healing_context
+        from sunwell.agent.recovery import resume_from_recovery as _resume
 
-        start_time = time()
+        self._current_goal = f"Recovery for: {recovery_state.goal}"
 
-        yield AgentEvent(
-            EventType.MEMORY_LOAD,
-            {
-                "source": "recovery",
-                "recovery_id": recovery_state.run_id,
-                "passed_count": len(recovery_state.passed_artifacts),
-                "failed_count": len(recovery_state.failed_artifacts),
-            },
-        )
-
-        # Build healing context with full information about what failed
-        healing_context = build_healing_context(recovery_state, user_hint)
-
-        # Create focused goal for fixing failed artifacts
-        failed_paths = [str(a.path) for a in recovery_state.failed_artifacts]
-        fix_goal = (
-            f"Fix these files that failed validation: {', '.join(failed_paths)}\n\n"
-            f"CONTEXT:\n{healing_context}"
-        )
-
-        self._current_goal = fix_goal
-
-        # Extract signals for the fix task
-        yield signal_event("extracting")
-        signals = await self._extract_signals_with_memory(fix_goal)
-        yield signal_event("extracted", signals=signals.to_dict())
-
-        # Plan the fix
-        async for event in self._plan_with_signals(fix_goal, signals, {
-            "is_recovery": True,
-            "original_goal": recovery_state.goal,
-            "failed_files": failed_paths,
-            "passed_files": [str(a.path) for a in recovery_state.passed_artifacts],
-        }):
-            yield event
-            if event.type == EventType.ERROR:
-                return
-
-        # Execute with convergence to ensure we reach a stable state
-        async for event in self._execute_with_convergence_recovery(
-            recovery_state, healing_context
-        ):
-            yield event
-            if event.type in (EventType.ERROR, EventType.ESCALATE):
-                # Recovery failed again — state preserved for another attempt
-                return
-
-        # Success — extract learnings from recovery
-        async for event in self._learn_from_execution(recovery_state.goal, True):
-            yield event
-
-        duration = time() - start_time
-        yield complete_event(
-            tasks_completed=len(recovery_state.failed_artifacts),
-            gates_passed=1,
-            duration_s=duration,
-            learnings=len(self._learning_store.learnings),
-        )
-
-    async def _execute_with_convergence_recovery(
-        self,
-        recovery_state: Any,
-        healing_context: str,
-    ) -> AsyncIterator[AgentEvent]:
-        """Execute recovery with convergence loops.
-
-        Focused execution that only regenerates failed artifacts,
-        preserving passed ones.
-        """
-        from sunwell.agent.gates import GateType
-        from sunwell.convergence import ConvergenceConfig, ConvergenceLoop
-
-        # Get files to fix
-        failed_files = [a.path for a in recovery_state.failed_artifacts]
-
-        # Run convergence loop focused on failed files
-        config = ConvergenceConfig(
-            max_iterations=5,
-            enabled_gates=frozenset({GateType.LINT, GateType.TYPE, GateType.SYNTAX}),
-        )
-
-        loop = ConvergenceLoop(
+        async for event in _resume(
+            recovery_state=recovery_state,
             model=self.model,
             cwd=self.cwd,
-            config=config,
-            goal=recovery_state.goal,
-            run_id=f"recovery-{recovery_state.run_id}",
-        )
-
-        async for event in loop.run(failed_files):
+            learning_store=self._learning_store,
+            extract_signals_fn=self._extract_signals_with_memory,
+            plan_with_signals_fn=self._plan_with_signals,
+            user_hint=user_hint,
+        ):
             yield event
 
     async def plan(
@@ -695,203 +544,22 @@ class Agent:
         context: dict[str, Any],
     ) -> AsyncIterator[AgentEvent]:
         """Plan using signal-appropriate technique."""
-        yield AgentEvent(
-            EventType.PLAN_START,
-            {"technique": signals.planning_route},
-        )
-
-        # Build context with learnings and lens expertise
-        planning_context = dict(context) if context else {}
-        learnings_context = self._learning_store.format_for_prompt()
-        if learnings_context:
-            planning_context["learnings"] = learnings_context
-
-        if self.lens:
-            planning_context["lens_context"] = self.lens.to_context()
-
-        if self._briefing:
-            planning_context["briefing"] = self._briefing.to_prompt()
-
-        if signals.planning_route == "HARMONIC":
-            async for event in self._harmonic_plan(goal, planning_context):
-                yield event
-        else:
-            async for event in self._single_shot_plan(goal, planning_context):
-                yield event
-
-    async def _harmonic_plan(
-        self,
-        goal: str,
-        context: dict[str, Any],
-    ) -> AsyncIterator[AgentEvent]:
-        """Plan using Harmonic planning (multiple candidates)."""
-        import asyncio
-
-        try:
-            from sunwell.naaru.planners.harmonic import HarmonicPlanner
-
-            # RFC-123: Stream events live using async queue (fixes regression)
-            event_queue: asyncio.Queue[AgentEvent | None] = asyncio.Queue()
-            selected_candidate_id = "candidate-0"
-            winner_score: float = 0.0
-            winner_metrics: dict[str, Any] | None = None
-
-            def queue_event(event: AgentEvent) -> None:
-                # Track the winner info as events come in
-                nonlocal selected_candidate_id, winner_score, winner_metrics
-                if event.type == EventType.PLAN_WINNER:
-                    selected_candidate_id = event.data.get("selected_candidate_id", "candidate-0")
-                    winner_score = event.data.get("score", 0.0)
-                    winner_metrics = event.data.get("metrics")
-                event_queue.put_nowait(event)
-
-            candidates = 5 if not self.budget.is_low else 3
-            planner = HarmonicPlanner(
-                model=self.model,
-                candidates=candidates,
-                event_callback=queue_event,
-                # RFC-122: Connect to SimulacrumStore for knowledge retrieval
-                simulacrum=self.simulacrum,
-            )
-
-            # Run planning in background task so we can stream events
-            async def run_planning() -> list[Task]:
-                try:
-                    result = await planner.plan([goal], context)
-                    return result
-                finally:
-                    # Signal completion
-                    event_queue.put_nowait(None)
-
-            planning_task = asyncio.create_task(run_planning())
-
-            # Stream events as they arrive (live progress)
-            while True:
-                event = await event_queue.get()
-                if event is None:
-                    break
-                # Skip plan_winner from planner - we emit our own with full details
-                if event.type != EventType.PLAN_WINNER:
-                    yield event
-
-            # Await completion and get tasks
-            tasks = await planning_task
-
-            # RFC-122: Store planning context for learning loop
-            self._last_planning_context = planner.last_planning_context
-
-            gates = detect_gates(tasks)
-
-            self._task_graph = TaskGraph(tasks=tasks, gates=gates)
-
-            task_list: list[TaskSummary] = [
-                {
-                    "id": t.id,
-                    "description": t.description,
-                    "depends_on": list(t.depends_on),
-                    "produces": list(t.produces) if t.produces else (
-                        [t.target_path] if t.target_path else []
-                    ),
-                    "category": getattr(t, "category", None),
-                }
-                for t in tasks
-            ]
-            gate_list: list[GateSummary] = [
-                {
-                    "id": g.id,
-                    "type": g.gate_type.value,
-                    "after_tasks": list(g.depends_on),
-                }
-                for g in gates
-            ]
-
-            yield plan_winner_event(
-                tasks=len(tasks),
-                gates=len(gates),
-                technique="harmonic",
-                selected_candidate_id=selected_candidate_id,
-                task_list=task_list,
-                gate_list=gate_list,
-                score=winner_score,
-                metrics=winner_metrics,
-            )
-
-        except ImportError:
-            async for event in self._single_shot_plan(goal, context):
-                yield event
-
-    async def _single_shot_plan(
-        self,
-        goal: str,
-        context: dict[str, Any],
-    ) -> AsyncIterator[AgentEvent]:
-        """Simple single-shot planning."""
-        try:
-            from sunwell.naaru.planners.artifact import ArtifactPlanner
-
-            planner = ArtifactPlanner(model=self.model)
-            graph = await planner.discover_graph(goal, context)
-
-            from sunwell.naaru.artifacts import artifacts_to_tasks
-
-            tasks = artifacts_to_tasks(graph)
-
-            gates = detect_gates(tasks)
-
-            self._task_graph = TaskGraph(tasks=tasks, gates=gates)
-
-            task_list: list[TaskSummary] = [
-                {
-                    "id": t.id,
-                    "description": t.description,
-                    "depends_on": list(t.depends_on),
-                    "produces": list(t.produces) if t.produces else (
-                        [t.target_path] if t.target_path else []
-                    ),
-                    "category": getattr(t, "category", None),
-                }
-                for t in tasks
-            ]
-            gate_list: list[GateSummary] = [
-                {
-                    "id": g.id,
-                    "type": g.gate_type.value,
-                    "after_tasks": list(g.depends_on),
-                }
-                for g in gates
-            ]
-
-            yield plan_winner_event(
-                tasks=len(tasks),
-                gates=len(gates),
-                technique="single_shot",
-                task_list=task_list,
-                gate_list=gate_list,
-            )
-
-        except ImportError:
-            from sunwell.naaru.types import Task, TaskMode
-
-            task = Task(
-                id="main",
-                description=goal,
-                mode=TaskMode.GENERATE,
-            )
-            self._task_graph = TaskGraph(tasks=[task], gates=[])
-
-            yield plan_winner_event(
-                tasks=1,
-                gates=0,
-                technique="minimal",
-                task_list=[{
-                    "id": "main",
-                    "description": goal,
-                    "depends_on": [],
-                    "produces": [],
-                    "category": None,
-                }],
-                gate_list=[],
-            )
+        async for event, task_graph, planning_context in plan_with_signals(
+            goal=goal,
+            signals=signals,
+            context=context,
+            model=self.model,
+            learning_store=self._learning_store,
+            lens=self.lens,
+            briefing=self._briefing,
+            budget=self.budget,
+            simulacrum=self.simulacrum,
+        ):
+            yield event
+            if task_graph is not None:
+                self._task_graph = task_graph
+            if planning_context is not None:
+                self._last_planning_context = planning_context
 
     async def _execute_with_gates(self, options: RunOptions) -> AsyncIterator[AgentEvent]:
         """Execute tasks with validation gates and inference visibility.
@@ -934,7 +602,7 @@ class Agent:
                         path = self.cwd / task.target_path
                         path.parent.mkdir(parents=True, exist_ok=True)
                         # Sanitize before writing (defense-in-depth)
-                        sanitized = _sanitize_code_content(result_text)
+                        sanitized = sanitize_code_content(result_text)
                         path.write_text(sanitized)
                         result_text = sanitized  # Update for artifact
                         # RFC-122: Track files changed for learning extraction
@@ -947,7 +615,6 @@ class Agent:
                         )
                     elif result_text:
                         # No target path - emit output for display (conversational task)
-                        from sunwell.agent.events import task_output_event
                         yield task_output_event(task.id, result_text)
                         artifact = None
                     else:
@@ -1011,68 +678,17 @@ class Agent:
     ) -> AsyncIterator[AgentEvent]:
         """Execute with convergence loops enabled (RFC-123).
 
-        After each task completes, runs validation gates and fixes errors
-        until code stabilizes or limits are reached.
-
-        Args:
-            options: Execution options including convergence config
+        Delegates to execution.execute_with_convergence for the actual implementation.
         """
-        from sunwell.convergence import ConvergenceConfig, ConvergenceLoop
-
-        config = options.convergence_config or ConvergenceConfig()
-
-        # Create convergence loop
-        loop = ConvergenceLoop(
+        async for event in execute_with_convergence(
+            task_graph=self._task_graph,
             model=self.model,
             cwd=self.cwd,
-            config=config,
-        )
-
-        # Track files written during execution
-        written_files: list[Path] = []
-        artifacts: dict[str, Artifact] = {}
-
-        async def on_write(path: Path) -> None:
-            """Hook called after each file write."""
-            written_files.append(path)
-            # Build artifact for convergence
-            if path.exists():
-                artifacts[str(path)] = Artifact(
-                    path=path,
-                    content=path.read_text(),
-                    task_id="convergence",
-                )
-
-        # Set up hook on tool executor
-        if self._naaru and self._naaru.tool_executor:
-            self._naaru.tool_executor.on_file_write = on_write
-
-        try:
-            # Execute tasks normally with gates
-            async for event in self._execute_with_gates(options):
-                yield event
-
-                # After each task completes, run convergence if files changed
-                if event.type == EventType.TASK_COMPLETE and written_files:
-                    async for conv_event in loop.run(list(written_files), artifacts):
-                        yield conv_event
-
-                    if loop.result and not loop.result.stable:
-                        # Escalate if convergence failed
-                        yield AgentEvent(
-                            EventType.ESCALATE,
-                            {"reason": f"Convergence failed: {loop.result.status.value}"},
-                        )
-                        return
-
-                    written_files.clear()
-
-                if event.type in (EventType.ERROR, EventType.ESCALATE):
-                    return
-        finally:
-            # Clean up hook
-            if self._naaru and self._naaru.tool_executor:
-                self._naaru.tool_executor.on_file_write = None
+            naaru=self._naaru,
+            options=options,
+            execute_with_gates_fn=self._execute_with_gates,
+        ):
+            yield event
 
     async def _execute_task(self, task: Task) -> Artifact | None:
         """Execute a single task (non-streaming fallback)."""
@@ -1085,7 +701,7 @@ class Agent:
             path = self.cwd / task.target_path
             path.parent.mkdir(parents=True, exist_ok=True)
             # Sanitize before writing (defense-in-depth)
-            sanitized = _sanitize_code_content(result_text)
+            sanitized = sanitize_code_content(result_text)
             path.write_text(sanitized)
             # RFC-122: Track files changed for learning extraction
             self._files_changed_this_run.append(task.target_path)
@@ -1127,413 +743,51 @@ class Agent:
     async def _execute_task_with_tools(self, task: Task) -> AsyncIterator[AgentEvent]:
         """Execute task via AgentLoop with native tool calling (preferred path).
 
-        Enhancements over basic tool calling:
-        - Lens rotation: Selects best-fit lens per task
-        - Task memory: Injects task-specific constraints/hazards/patterns
-        - Validation gates: Runs lint/syntax checks after file writes
-        - Recovery integration: Saves state on failures for later resume
+        Delegates to execution.execute_task_with_tools for the actual implementation.
         """
-        from sunwell.agent.loop import AgentLoop, LoopConfig
-
-        # === LENS ROTATION: Select best lens for this specific task ===
-        task_lens = await self._select_lens_for_task(task)
-        if task_lens and task_lens != self.lens:
-            yield lens_selected_event(
-                name=task_lens.metadata.name,
-                source="task_rotation",
-            )
-
-        # === BUILD CONTEXT: Learnings + Task Memory + Lens ===
-        context_sections = []
-
-        # Workspace context (ToC, structure)
-        if self._workspace_context:
-            context_sections.append(self._workspace_context)
-
-        # Learnings from past runs
-        learnings_context = self._learning_store.format_for_prompt(5)
-        if learnings_context:
-            context_sections.append(f"KNOWN FACTS:\n{learnings_context}")
-
-        # Task-specific memory (constraints, hazards, patterns)
-        if self._memory:
-            task_memory = self._memory.get_task_context(task)
-            if task_memory:
-                context_sections.append(f"TASK CONTEXT:\n{task_memory.to_prompt()}")
-
-        # Lens expertise (heuristics, patterns, anti-patterns)
-        active_lens = task_lens or self.lens
-        if active_lens:
-            context_sections.append(f"EXPERTISE:\n{active_lens.to_context()}")
-
-        context_block = "\n\n".join(context_sections) if context_sections else None
-
-        # === BUILD SYSTEM PROMPT ===
-        system_prompt = (
-            "You are a code generation assistant. When you need to create or modify files, "
-            "use the write_file or edit_file tools. Do NOT output code in your text response - "
-            "always use the appropriate file tool to write code to disk. "
-            "The write_file content parameter expects RAW code, not wrapped in markdown."
-        )
-
-        # === CREATE LOOP CONFIG ===
-        # Get delegation settings from current options (RFC-137)
-        enable_delegation = False
-        delegation_threshold = 2000
-        if self._current_options:
-            enable_delegation = self._current_options.enable_delegation
-            delegation_threshold = self._current_options.delegation_threshold_tokens
-
-        config = LoopConfig(
-            max_turns=15,
-            temperature=0.3,
-            tool_choice="auto",
-            enable_learning_injection=True,
-            enable_validation_gates=True,  # Run lint/syntax after file writes
-            enable_recovery=True,  # Save state on failures
-            # RFC-137: Smart-to-dumb model delegation
-            enable_delegation=enable_delegation,
-            delegation_threshold_tokens=delegation_threshold,
-        )
-
-        # === CREATE VALIDATION STAGE (for inner-loop validation) ===
-        validation_stage = ValidationStage(self.cwd)
-
-        # === CREATE MIRROR HANDLER (for self-reflection) ===
-        mirror_handler = None
-        try:
-            from sunwell.mirror.handler import MirrorHandler
-
-            mirror_handler = MirrorHandler(
-                workspace=self.cwd,
-                storage_path=self.cwd / ".sunwell" / "mirror",
-                lens=active_lens,
-                simulacrum=self._simulacrum,
-                executor=self.tool_executor,
-            )
-        except Exception:
-            pass  # Mirror is optional enhancement
-
-        # === RESOLVE DELEGATION MODELS (RFC-137) ===
-        # Priority: Agent fields > RunOptions > None
-        from sunwell.models.registry import resolve_model
-
-        smart_model_resolved = None
-        delegation_model_resolved = None
-
-        if enable_delegation:
-            # Resolve smart model: Agent field → RunOptions → primary model
-            if self.smart_model is not None:
-                smart_model_resolved = self.smart_model
-            elif self._current_options and self._current_options.smart_model:
-                smart_model_resolved = resolve_model(
-                    self._current_options.smart_model,
-                    fallback=self.model,
-                )
-            else:
-                smart_model_resolved = self.model  # Use primary as smart
-
-            # Resolve delegation model: Agent field → RunOptions → None
-            if self.delegation_model is not None:
-                delegation_model_resolved = self.delegation_model
-            elif self._current_options and self._current_options.delegation_model:
-                delegation_model_resolved = resolve_model(
-                    self._current_options.delegation_model,
-                )
-
-        # === CREATE AND RUN THE LOOP ===
-        loop = AgentLoop(
+        async for event, result_text, tracker in execute_task_with_tools(
+            task=task,
             model=self.model,
-            executor=self.tool_executor,
-            config=config,
+            tool_executor=self.tool_executor,
+            cwd=self.cwd,
             learning_store=self._learning_store,
-            validation_stage=validation_stage,
-            lens=active_lens,  # For expertise injection
-            mirror_handler=mirror_handler,  # For self-reflection
-            # RFC-137: Model delegation
-            smart_model=smart_model_resolved,
-            delegation_model=delegation_model_resolved,
-        )
-
-        # Initialize invocation tracker for this task
-        from sunwell.tools.invocation_tracker import InvocationTracker
-
-        tracker = InvocationTracker(task_id=task.id)
-
-        start_time = time()
-        tool_results: list[str] = []
-        model_text_output: list[str] = []  # Capture text in case we need to self-correct
-
-        async for event in loop.run(
-            task_description=task.description,
-            system_prompt=system_prompt,
-            context=context_block,
+            inference_metrics=self._inference_metrics,
+            workspace_context=self._workspace_context,
+            lens=self.lens,
+            memory=self._memory,
+            simulacrum=self._simulacrum,
+            current_options=self._current_options,
+            smart_model=self.smart_model,
+            delegation_model=self.delegation_model,
+            auto_lens=self.auto_lens,
         ):
-            yield event
-
-            # Track ALL tool invocations via the tracker
-            if event.type.value == "tool_complete":
-                data = event.data
-                tool_name = data.get("tool_name", "unknown")
-                tracker.record(
-                    tool_name=tool_name,
-                    arguments=data.get("arguments", {}),
-                    result=data.get("output"),
-                    success=data.get("success", False),
-                    error=data.get("error"),
-                )
-
-                # Track successful file writes for result
-                if tool_name in ("write_file", "edit_file") and data.get("success"):
-                    tool_results.append(data.get("output", ""))
-
-            # Capture model's text output (for self-correction if needed)
-            if event.type.value == "tool_loop_complete":
-                final_response = event.data.get("final_response")
-                if final_response:
-                    model_text_output.append(final_response)
-
-        duration = time() - start_time
-
-        # Set the task result
-        if tool_results:
-            self._last_task_result = "\n".join(tool_results)
-        else:
-            self._last_task_result = ""
-
-        # Store tracker for potential later analysis
-        self._invocation_tracker = tracker
-
-        # SELF-CORRECTION: Verify expected outcomes based on task type
-        # If tool wasn't called but model output text, self-correct
-        import logging
-        logger = logging.getLogger(__name__)
-
-        if task.target_path:
-            expected_path = self.cwd / task.target_path
-
-            # Check if write_file was actually called
-            write_file_called = tracker.was_called("write_file") or tracker.was_called("edit_file")
-
-            if not expected_path.exists() and not write_file_called:
-                # Tool wasn't called - check if model output something we can use
-                text_output = "\n".join(model_text_output).strip()
-
-                if text_output:
-                    # Self-correct: model output code in text, write it ourselves
-                    logger.info(
-                        "Self-correcting: Task %s - write_file not called, using text output for %s",
-                        task.id,
-                        task.target_path,
-                    )
-
-                    # Sanitize and write the file
-                    expected_path.parent.mkdir(parents=True, exist_ok=True)
-                    sanitized = _sanitize_code_content(text_output)
-                    expected_path.write_text(sanitized)
-                    self._last_task_result = sanitized
-
-                    # Track for learning
+            if event is not None:
+                yield event
+            if result_text is not None:
+                self._last_task_result = result_text
+                if task.target_path:
                     self._files_changed_this_run.append(task.target_path)
-
-                    # Record the self-correction in the tracker
-                    tracker.record(
-                        tool_name="write_file",
-                        arguments={"path": task.target_path, "content": sanitized[:100] + "..."},
-                        result="Self-corrected",
-                        success=True,
-                        self_corrected=True,
-                    )
-
-                    # Emit self-correction event
-                    yield AgentEvent(
-                        type=EventType.TOOL_COMPLETE,
-                        data={
-                            "tool_name": "write_file",
-                            "success": True,
-                            "output": f"Self-corrected: wrote {task.target_path}",
-                            "self_corrected": True,
-                            "invocation_summary": tracker.summary(),
-                        },
-                    )
-                else:
-                    # No text output either - this is a real failure
-                    logger.warning(
-                        "Task %s: write_file not called and no text output for %s",
-                        task.id,
-                        task.target_path,
-                    )
-                    yield AgentEvent(
-                        type=EventType.VALIDATE_ERROR,
-                        data={
-                            "message": f"Expected file {task.target_path} was not created",
-                            "task_id": task.id,
-                            "step": "file_creation",
-                            "invocation_summary": tracker.summary(),
-                        },
-                    )
-                    # Raise to trigger fallback
-                    raise RuntimeError(
-                        f"Task {task.id} did not create expected file {task.target_path}"
-                    )
-
-        # Record metrics
-        model_id = getattr(self.model, "model_id", "unknown")
-        self._inference_metrics.record(
-            model=model_id,
-            duration_s=duration,
-            tokens=0,  # Token count from tool loop not easily available
-            ttft_ms=None,
-        )
+            if tracker is not None:
+                self._invocation_tracker = tracker
 
     async def _select_lens_for_task(self, task: Task) -> Lens | None:
-        """Select the best-fit lens for a specific task (lens rotation).
-
-        Different tasks may benefit from different expertise:
-        - Database task → database lens
-        - Frontend task → frontend lens
-        - API task → API lens
-
-        Returns:
-            Best lens for this task, or None to use current lens
-        """
-        from sunwell.agent.lens import resolve_lens_for_goal
-
-        # Skip if no auto-lens or task doesn't have a clear domain
-        if not self.auto_lens:
-            return None
-
-        # Use task description + target path for lens selection
-        task_hint = task.description
-        if task.target_path:
-            task_hint = f"{task.target_path}: {task_hint}"
-
-        try:
-            resolution = await resolve_lens_for_goal(
-                goal=task_hint,
-                project_path=self.cwd,
-                auto_select=True,
-            )
-            if resolution.lens and resolution.confidence > 0.7:
-                return resolution.lens
-        except Exception:
-            pass  # Fall back to current lens
-
-        return None
+        """Select the best-fit lens for a specific task (lens rotation)."""
+        return await select_lens_for_task(task, self.cwd, self.auto_lens)
 
     async def _execute_task_streaming_fallback(self, task: Task) -> AsyncIterator[AgentEvent]:
         """Fallback: Execute task via text streaming (original implementation)."""
-        from sunwell.models.protocol import GenerateOptions
-
-        learnings_context = self._learning_store.format_for_prompt(5)
-
-        # RFC-126: Build context sections
-        context_sections = []
-        if self._workspace_context:
-            context_sections.append(self._workspace_context)
-        if learnings_context:
-            context_sections.append(f"KNOWN FACTS:\n{learnings_context}")
-
-        context_block = "\n\n".join(context_sections) if context_sections else ""
-
-        # Detect if task is code generation (has target_path) or conversational
-        if task.target_path:
-            prompt = f"""Generate code for this task:
-
-TASK: {task.description}
-
-{context_block}
-
-Output ONLY the code (no explanation, no markdown fences):"""
-        else:
-            # Conversational task - allow natural response
-            prompt = f"""Complete this task:
-
-TASK: {task.description}
-
-{context_block}
-
-Respond directly and helpfully:"""
-
-        prompt_tokens = len(prompt) // 4
-        model_id = getattr(self.model, "model_id", "unknown")
-        estimated_time = self._inference_metrics.estimate_time(
-            model_id, prompt_tokens, expected_output=500
-        )
-
-        yield model_start_event(
-            task_id=task.id,
-            model=model_id,
-            prompt_tokens=prompt_tokens,
-            estimated_time_s=estimated_time,
-        )
-
-        start_time = time()
-        first_token_time: float | None = None
-        token_buffer: list[str] = []
-        token_count = 0
-        thinking_detector = ThinkingDetector()
-
-        try:
-            async for chunk in self.model.generate_stream(
-                prompt,
-                options=GenerateOptions(temperature=0.3, max_tokens=4000),
-            ):
-                if first_token_time is None:
-                    first_token_time = time()
-
-                token_buffer.append(chunk)
-                token_count += 1
-
-                thinking_blocks = thinking_detector.feed(chunk)
-                for block in thinking_blocks:
-                    yield model_thinking_event(
-                        task_id=task.id,
-                        phase=block.phase,
-                        content=block.content,
-                        is_complete=block.is_complete,
-                    )
-
-                elapsed = time() - start_time
-                if token_count % self.token_batch_size == 0:
-                    tps = token_count / elapsed if elapsed > 0 else None
-                    yield model_tokens_event(
-                        task_id=task.id,
-                        tokens="".join(token_buffer[-self.token_batch_size:]),
-                        token_count=token_count,
-                        tokens_per_second=tps,
-                    )
-
-        except AttributeError:
-            result = await self.model.generate(
-                prompt,
-                options=GenerateOptions(temperature=0.3, max_tokens=4000),
-            )
-            if result.text:
-                token_buffer = [result.text]
-                token_count = len(result.text) // 4
-                first_token_time = time()
-
-        duration = time() - start_time
-        tps = token_count / duration if duration > 0 else 0
-        ttft_ms = int((first_token_time - start_time) * 1000) if first_token_time else None
-
-        self._inference_metrics.record(
-            model=model_id,
-            duration_s=duration,
-            tokens=token_count,
-            ttft_ms=ttft_ms,
-        )
-
-        yield model_complete_event(
-            task_id=task.id,
-            total_tokens=token_count,
-            duration_s=duration,
-            tokens_per_second=tps,
-            time_to_first_token_ms=ttft_ms,
-        )
-
-        self._last_task_result = "".join(token_buffer)
+        async for event, result_text in execute_task_streaming_fallback(
+            task=task,
+            model=self.model,
+            cwd=self.cwd,
+            learning_store=self._learning_store,
+            inference_metrics=self._inference_metrics,
+            workspace_context=self._workspace_context,
+            token_batch_size=self.token_batch_size,
+        ):
+            yield event
+            if result_text is not None:
+                self._last_task_result = result_text
 
     async def _validate_gate(
         self,
@@ -1541,10 +795,7 @@ Respond directly and helpfully:"""
         artifacts: list[Artifact],
     ) -> AsyncIterator[AgentEvent]:
         """Validate at a gate."""
-        validation_stage = ValidationStage(self.cwd)
-        gate_artifacts = {gate.id: artifacts}
-
-        async for event in validation_stage.validate_all([gate], gate_artifacts):
+        async for event in validate_gate(gate, artifacts, self.cwd):
             yield event
 
     async def _attempt_fix(
@@ -1575,171 +826,48 @@ Respond directly and helpfully:"""
     # =========================================================================
 
     def _should_spawn_specialist(self, task: Task) -> bool:
-        """Decide if task should be delegated to a specialist.
-
-        Spawning is triggered when:
-        1. Lens has can_spawn enabled
-        2. Task complexity exceeds threshold (estimated_complexity > 0.8)
-        3. OR task requires tools not in current lens
-        4. AND we haven't exceeded max_children
-
-        Args:
-            task: The task to evaluate
-
-        Returns:
-            True if task should be delegated to specialist
-        """
-        # Check if spawning is enabled
-        if not self.lens or not self.lens.can_spawn:
-            return False
-
-        # Check spawn limit
-        if self._specialist_count >= self.lens.max_children:
-            return False
-
-        # Check Naaru is available
-        if not self._naaru:
-            return False
-
-        # Check task complexity (if available)
-        estimated_complexity = getattr(task, "estimated_complexity", 0.0)
-        if estimated_complexity > 0.8:
-            return True
-
-        # Check if task requires specialized tools
-        required_tools = set(getattr(task, "required_tools", []))
-        if required_tools:
-            available_tools = set(self.lens.skills) if self.lens.skills else set()
-            if not required_tools.issubset(available_tools):
-                return True
-
-        return False
+        """Decide if task should be delegated to a specialist."""
+        return should_spawn_specialist(
+            task=task,
+            lens=self.lens,
+            specialist_count=self._specialist_count,
+            has_naaru=self._naaru is not None,
+        )
 
     async def _execute_via_specialist(self, task: Task) -> AsyncIterator[AgentEvent]:
         """Execute task by delegating to a spawned specialist.
 
-        Args:
-            task: The task to delegate
-
-        Yields:
-            Events for spawn, execution, and completion
+        Delegates to specialist.execute_via_specialist for the actual implementation.
         """
-        from sunwell.agent.spawn import SpawnRequest
-
-        # Determine specialist role based on task
-        role = self._determine_specialist_role(task)
-
-        # Create spawn request
-        spawn_request = SpawnRequest(
-            parent_id="agent-main",
-            role=role,
-            focus=task.description,
-            reason=f"Task complexity or requirements exceed current lens capabilities",
-            tools=tuple(getattr(task, "required_tools", [])),
-            context_keys=("goal", "learnings", "workspace_context"),
-            budget_tokens=min(
-                self.lens.spawn_budget_tokens // max(1, self.lens.max_children),
-                5_000,
-            ) if self.lens else 5_000,
-        )
-
-        # Get context snapshot
         context = self._get_context_snapshot()
 
-        # Spawn specialist
-        specialist_id = await self._naaru.spawn_specialist(spawn_request, context)
-        self._spawned_specialist_ids.append(specialist_id)
-        self._specialist_count += 1
-
-        # Emit spawn event
-        yield specialist_spawned_event(
-            specialist_id=specialist_id,
-            task_id=task.id,
-            parent_id="agent-main",
-            role=role,
-            focus=task.description,
-            budget_tokens=spawn_request.budget_tokens,
-        )
-
-        # Wait for specialist to complete
-        result = await self._naaru.wait_specialist(specialist_id)
-
-        # Emit completion event
-        yield specialist_completed_event(
-            specialist_id=specialist_id,
-            success=result.success,
-            summary=result.summary,
-            tokens_used=result.tokens_used,
-            duration_seconds=result.duration_seconds,
-        )
-
-        # If specialist produced output and task has target, write it
-        if result.success and result.output and task.target_path:
-            path = self.cwd / task.target_path
-            path.parent.mkdir(parents=True, exist_ok=True)
-            # Sanitize before writing (defense-in-depth)
-            sanitized = _sanitize_code_content(str(result.output))
-            path.write_text(sanitized)
-            self._files_changed_this_run.append(task.target_path)
+        async for event, specialist_id in execute_via_specialist(
+            task=task,
+            naaru=self._naaru,
+            lens=self.lens,
+            cwd=self.cwd,
+            context_snapshot=context,
+            specialist_count=self._specialist_count,
+            files_changed_tracker=self._files_changed_this_run,
+        ):
+            yield event
+            if specialist_id is not None:
+                self._spawned_specialist_ids.append(specialist_id)
+                self._specialist_count += 1
 
     def _determine_specialist_role(self, task: Task) -> str:
-        """Determine the appropriate specialist role for a task.
-
-        Args:
-            task: The task to analyze
-
-        Returns:
-            Role name (e.g., "code_reviewer", "architect", "debugger")
-        """
-        description_lower = task.description.lower()
-
-        # Match patterns to roles
-        if any(kw in description_lower for kw in ["review", "audit", "check"]):
-            return "code_reviewer"
-        if any(kw in description_lower for kw in ["design", "architect", "structure"]):
-            return "architect"
-        if any(kw in description_lower for kw in ["debug", "fix", "investigate"]):
-            return "debugger"
-        if any(kw in description_lower for kw in ["test", "verify", "validate"]):
-            return "tester"
-        if any(kw in description_lower for kw in ["document", "explain", "describe"]):
-            return "documentarian"
-        if any(kw in description_lower for kw in ["security", "auth", "encrypt"]):
-            return "security_specialist"
-        if any(kw in description_lower for kw in ["optimize", "performance", "speed"]):
-            return "optimizer"
-
-        # Default
-        return "specialist"
+        """Determine the appropriate specialist role for a task."""
+        return determine_specialist_role(task)
 
     def _get_context_snapshot(self) -> dict[str, Any]:
-        """Get current context snapshot to pass to specialist.
-
-        Returns:
-            Dict with relevant context keys
-        """
-        context: dict[str, Any] = {
-            "goal": self._current_goal,
-        }
-
-        # Add learnings context
-        learnings_context = self._learning_store.format_for_prompt()
-        if learnings_context:
-            context["learnings"] = learnings_context
-
-        # Add workspace context
-        if self._workspace_context:
-            context["workspace_context"] = self._workspace_context
-
-        # Add lens context
-        if self.lens:
-            context["lens_context"] = self.lens.to_context()
-
-        # Add briefing context
-        if self._briefing:
-            context["briefing"] = self._briefing.to_prompt()
-
-        return context
+        """Get current context snapshot to pass to specialist."""
+        return get_context_snapshot(
+            goal=self._current_goal,
+            learning_store=self._learning_store,
+            workspace_context=self._workspace_context,
+            lens=self.lens,
+            briefing=self._briefing,
+        )
 
     # =========================================================================
     # RFC-130: Memory-Informed Prefetch
@@ -1795,52 +923,27 @@ Respond directly and helpfully:"""
     ) -> AgentEvent:
         """Save checkpoint at semantic phase boundary.
 
-        RFC-130: Enables intelligent resume from meaningful workflow points.
-
-        Args:
-            phase: The phase being completed
-            phase_summary: Human-readable summary of progress
-
-        Returns:
-            CheckpointSaved event
+        Delegates to CheckpointManager for the actual implementation.
         """
-        from datetime import datetime
+        from sunwell.agent.checkpoint_manager import CheckpointManager
 
-        # Build checkpoint
-        checkpoint = AgentCheckpoint(
-            goal=self._current_goal,
-            started_at=datetime.now(),  # Would track actual start in production
-            checkpoint_at=datetime.now(),
-            tasks=self._task_graph.tasks if self._task_graph else [],
-            completed_ids=self._task_graph.completed_ids if self._task_graph else set(),
-            artifacts=[Path(f) for f in self._files_changed_this_run],
-            working_directory=str(self.cwd),
-            context=self._get_context_snapshot(),
+        manager = CheckpointManager(self.cwd)
+        manager.user_decisions = self._user_decisions
+
+        event = manager.save_phase_checkpoint(
             phase=phase,
             phase_summary=phase_summary,
-            user_decisions=tuple(self._user_decisions),
-            spawned_specialists=tuple(self._spawned_specialist_ids),
+            goal=self._current_goal,
+            task_graph=self._task_graph,
+            files_changed=self._files_changed_this_run,
+            context=self._get_context_snapshot(),
+            spawned_specialist_ids=self._spawned_specialist_ids,
         )
 
-        # Save to disk
-        checkpoint_dir = self.cwd / ".sunwell" / "checkpoints"
-        checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        self._checkpoint_count = manager.checkpoint_count
+        self._current_phase = manager.current_phase
 
-        # Use phase-based filename for easier discovery
-        import uuid
-        checkpoint_id = uuid.uuid4().hex[:8]
-        checkpoint_path = checkpoint_dir / f"agent-{phase.value}-{checkpoint_id}.json"
-        checkpoint.save(checkpoint_path)
-
-        self._checkpoint_count += 1
-        self._current_phase = phase
-
-        # Return event
-        return checkpoint_saved_event(
-            phase=phase.value,
-            summary=phase_summary,
-            tasks_completed=len(self._task_graph.completed_ids) if self._task_graph else 0,
-        )
+        return event
 
     async def _check_for_resumable_checkpoint(
         self,
@@ -1848,25 +951,15 @@ Respond directly and helpfully:"""
     ) -> AgentCheckpoint | None:
         """Check for existing checkpoint for this goal.
 
-        RFC-130: Enables crash recovery and session resume.
-
-        Args:
-            goal: The current goal
-
-        Returns:
-            Checkpoint if found, None otherwise
+        Delegates to CheckpointManager for the actual implementation.
         """
-        checkpoint = AgentCheckpoint.find_latest_for_goal(self.cwd, goal)
-        return checkpoint
+        from sunwell.agent.checkpoint_manager import CheckpointManager
+
+        manager = CheckpointManager(self.cwd)
+        return manager.check_for_resumable_checkpoint(goal)
 
     def record_user_decision(self, decision: str) -> None:
-        """Record a user decision for checkpoint tracking.
-
-        RFC-130: User decisions are preserved in checkpoints for resume context.
-
-        Args:
-            decision: Description of the user's decision
-        """
+        """Record a user decision for checkpoint tracking."""
         self._user_decisions.append(decision)
 
     # =========================================================================
@@ -1881,88 +974,19 @@ Respond directly and helpfully:"""
     ) -> AsyncIterator[AgentEvent]:
         """Extract learnings from completed execution (RFC-122).
 
-        Called after all tasks complete to:
-        1. Record usage of learnings that were retrieved for planning
-        2. Extract template patterns from successful novel tasks
-        3. Extract ordering heuristics from successful executions
-
-        Args:
-            goal: The completed goal
-            success: Whether execution succeeded
-            memory: PersistentMemory for storing learnings (optional for recovery)
-
-        Yields:
-            Learning events for new templates/heuristics
+        Delegates to learning.learn_from_execution for the actual implementation.
         """
-        # Get tasks from task graph
-        if not self._task_graph:
-            return
-
-        tasks = self._task_graph.tasks
-
-        # Get planning context that was used
-        planning_context = self._last_planning_context
-
-        # Record usage of learnings that were retrieved
-        if planning_context and success:
-            for learning in planning_context.all_learnings:
-                self._learning_store.record_usage(learning.id, success=True)
-
-        # Only extract new learnings on success
-        if not success:
-            return
-
-        # Collect files changed and artifacts created
-        files_changed = self._files_changed_this_run
-        artifacts_created = [
-            artifact
-            for task in tasks
-            for artifact in (task.produces or [])
-        ]
-
-        # Try to extract template from successful novel task
-        # Novel = no high-confidence template was used
-        template_was_used = (
-            planning_context
-            and planning_context.best_template
-            and planning_context.best_template.confidence >= 0.8
-        )
-
-        # Get simulacrum from memory if available
-        simulacrum = memory.simulacrum if memory else None
-
-        if not template_was_used and len(artifacts_created) >= 2:
-            try:
-                template_learning = await self._learning_extractor.extract_template(
-                    goal=goal,
-                    files_changed=files_changed,
-                    artifacts_created=artifacts_created,
-                    tasks=tasks,
-                )
-                if template_learning and simulacrum:
-                    simulacrum.get_dag().add_learning(template_learning)
-                    yield memory_learning_event(
-                        fact=template_learning.fact,
-                        category="template",
-                    )
-            except Exception:
-                pass  # Don't fail run on learning extraction errors
-
-        # Try to extract ordering heuristics
-        if len(tasks) >= 3:
-            try:
-                heuristic_learning = self._learning_extractor.extract_heuristic(
-                    goal=goal,
-                    tasks=tasks,
-                )
-                if heuristic_learning and simulacrum:
-                    simulacrum.get_dag().add_learning(heuristic_learning)
-                    yield memory_learning_event(
-                        fact=heuristic_learning.fact,
-                        category="heuristic",
-                    )
-            except Exception:
-                pass  # Don't fail run on learning extraction errors
+        async for fact, category in learn_from_execution(
+            goal=goal,
+            success=success,
+            task_graph=self._task_graph,
+            learning_store=self._learning_store,
+            learning_extractor=self._learning_extractor,
+            files_changed=self._files_changed_this_run,
+            last_planning_context=self._last_planning_context,
+            memory=memory,
+        ):
+            yield memory_learning_event(fact=fact, category=category)
 
         # Clear run state
         self._files_changed_this_run = []

@@ -50,7 +50,16 @@ Example:
 """
 
 from sunwell.agent.budget import AdaptiveBudget, CostEstimate
-from sunwell.agent.core import Agent, TaskGraph
+from sunwell.agent.checkpoint_manager import CheckpointManager
+
+# RFC-111: Skill composition and planning
+from sunwell.agent.composer import (
+    CapabilityAnalysis,
+    CompositionResult,
+    CompositionType,
+    SkillComposer,
+)
+from sunwell.agent.core import Agent
 from sunwell.agent.ephemeral_lens import create_ephemeral_lens, should_use_delegation
 from sunwell.agent.event_schema import (
     EVENT_SCHEMAS,
@@ -59,14 +68,6 @@ from sunwell.agent.event_schema import (
     ValidatedEventEmitter,
     create_validated_event,
     validate_event_data,
-)
-from sunwell.agent.introspection import IntrospectionResult, introspect_tool_call
-from sunwell.agent.loop import AgentLoop, LoopConfig, LoopState, run_tool_loop
-from sunwell.agent.spawn import (
-    SpawnDepthExceeded,
-    SpawnRequest,
-    SpecialistResult,
-    SpecialistState,
 )
 from sunwell.agent.events import (
     AgentEvent,
@@ -107,6 +108,19 @@ from sunwell.agent.events import (
     tool_start_event,
     validate_error_event,
 )
+from sunwell.agent.execution import (
+    determine_specialist_role,
+    execute_task_streaming_fallback,
+    execute_task_with_tools,
+    execute_with_convergence,
+    select_lens_for_task,
+    should_spawn_specialist,
+    validate_gate,
+)
+from sunwell.agent.learning import learn_from_execution
+from sunwell.agent.planning import plan_with_signals
+from sunwell.agent.recovery import execute_with_convergence_recovery, resume_from_recovery
+from sunwell.agent.specialist import execute_via_specialist, get_context_snapshot
 from sunwell.agent.fixer import FixResult, FixStage
 from sunwell.agent.gates import (
     GateResult,
@@ -116,9 +130,18 @@ from sunwell.agent.gates import (
     detect_gates,
     is_runnable_milestone,
 )
+from sunwell.agent.introspection import IntrospectionResult, introspect_tool_call
 from sunwell.agent.learning import Learning, LearningExtractor, LearningStore
 from sunwell.agent.lens import resolve_lens_for_goal
+from sunwell.agent.loop import AgentLoop, LoopConfig, LoopState, run_tool_loop
 from sunwell.agent.metrics import InferenceMetrics, InferenceSample, ModelPerformanceProfile
+from sunwell.agent.planner import (
+    SHORTCUT_SKILL_MAP,
+    CapabilityGap,
+    CapabilityMatch,
+    GoalPlanner,
+    get_skills_for_shortcut,
+)
 from sunwell.agent.renderer import (
     JSONRenderer,
     QuietRenderer,
@@ -136,29 +159,41 @@ from sunwell.agent.signals import (
     classify_error,
     extract_signals,
 )
+from sunwell.agent.spawn import (
+    SpawnDepthExceeded,
+    SpawnRequest,
+    SpecialistResult,
+    SpecialistState,
+)
+from sunwell.agent.task_graph import TaskGraph, sanitize_code_content
 from sunwell.agent.thinking import ThinkingBlock, ThinkingDetector, ThinkingPhase
 from sunwell.agent.toolchain import LanguageToolchain, detect_toolchain
 from sunwell.agent.validation import Artifact, ValidationRunner, ValidationStage
-
-# RFC-111: Skill composition and planning
-from sunwell.agent.composer import (
-    CapabilityAnalysis,
-    CompositionResult,
-    CompositionType,
-    SkillComposer,
-)
-from sunwell.agent.planner import (
-    CapabilityGap,
-    CapabilityMatch,
-    GoalPlanner,
-    get_skills_for_shortcut,
-    SHORTCUT_SKILL_MAP,
-)
 
 __all__ = [
     # Agent
     "Agent",
     "TaskGraph",
+    "CheckpointManager",
+    # Execution helpers
+    "determine_specialist_role",
+    "execute_task_streaming_fallback",
+    "execute_task_with_tools",
+    "execute_with_convergence",
+    "sanitize_code_content",
+    "select_lens_for_task",
+    "should_spawn_specialist",
+    "validate_gate",
+    # Planning helpers
+    "plan_with_signals",
+    # Recovery helpers
+    "execute_with_convergence_recovery",
+    "resume_from_recovery",
+    # Specialist helpers
+    "execute_via_specialist",
+    "get_context_snapshot",
+    # Learning helpers
+    "learn_from_execution",
     # AgentLoop (S-Tier Tool Calling)
     "AgentLoop",
     "LoopConfig",
