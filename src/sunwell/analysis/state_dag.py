@@ -15,9 +15,11 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
@@ -39,8 +41,8 @@ class HealthProbeResult:
     issues: tuple[str, ...]
     """List of issues found by the probe."""
 
-    metadata: dict[str, Any] = field(default_factory=dict)
-    """Additional probe-specific metadata."""
+    metadata: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
+    """Additional probe-specific metadata (immutable)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,8 +73,8 @@ class StateDagNode:
     line_count: int | None = None
     """Number of lines (for files)."""
 
-    metadata: dict[str, Any] = field(default_factory=dict)
-    """Additional artifact-specific metadata."""
+    metadata: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
+    """Additional artifact-specific metadata (immutable)."""
 
     @property
     def confidence_band(self) -> str:
@@ -106,21 +108,21 @@ class StateDagEdge:
     edge_type: str
     """Type of relationship: 'import', 'link', 'toctree', 'depends'."""
 
-    metadata: dict[str, Any] = field(default_factory=dict)
-    """Additional edge-specific metadata."""
+    metadata: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
+    """Additional edge-specific metadata (immutable)."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class StateDag:
     """The complete State DAG for a project."""
 
     root: Path
     """Project root directory."""
 
-    nodes: list[StateDagNode]
+    nodes: tuple[StateDagNode, ...]
     """All nodes in the DAG."""
 
-    edges: list[StateDagEdge]
+    edges: tuple[StateDagEdge, ...]
     """All edges in the DAG."""
 
     scanned_at: datetime = field(default_factory=datetime.now)
@@ -129,8 +131,8 @@ class StateDag:
     lens_name: str | None = None
     """Name of the lens used for scanning."""
 
-    metadata: dict[str, Any] = field(default_factory=dict)
-    """Additional scan metadata."""
+    metadata: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
+    """Additional scan metadata (immutable)."""
 
     @property
     def overall_health(self) -> float:
@@ -299,12 +301,12 @@ class StateDagBuilder:
 
         return StateDag(
             root=self.root,
-            nodes=enriched_nodes,
-            edges=edges,
+            nodes=tuple(enriched_nodes),
+            edges=tuple(edges),
             lens_name=lens_name,
-            metadata={
+            metadata=MappingProxyType({
                 "source_roots": [str(ctx.root) for ctx in self.source_contexts],
-            } if self.source_contexts else {},
+            }) if self.source_contexts else MappingProxyType({}),
         )
 
     async def _get_scanner(self) -> Scanner:

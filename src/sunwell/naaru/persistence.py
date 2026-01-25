@@ -174,7 +174,7 @@ class ArtifactCompletion:
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class SavedExecution:
     """Complete state for a goal's execution.
 
@@ -215,19 +215,32 @@ class SavedExecution:
 
     @property
     def completed_ids(self) -> set[str]:
-        """Get set of completed artifact IDs."""
+        """Get set of completed artifact IDs.
+
+        Note: Returns a new set each call. For internal use,
+        prefer using self.completed.keys() directly when possible.
+        """
         return set(self.completed.keys())
 
     @property
     def failed_ids(self) -> set[str]:
-        """Get set of failed artifact IDs."""
+        """Get set of failed artifact IDs.
+
+        Note: Returns a new set each call. For internal use,
+        prefer using self.failed.keys() directly when possible.
+        """
         return set(self.failed.keys())
 
     @property
     def pending_ids(self) -> set[str]:
-        """Get set of pending artifact IDs."""
+        """Get set of pending artifact IDs.
+
+        Optimized: Uses dict.keys() views directly to avoid
+        intermediate set allocations.
+        """
+        # Use dict.keys() views directly - set subtraction works with them
         all_ids = set(self.graph)
-        return all_ids - self.completed_ids - self.failed_ids
+        return all_ids - self.completed.keys() - self.failed.keys()
 
     @property
     def is_complete(self) -> bool:
@@ -469,7 +482,7 @@ class PlanDiff:
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class PlanStore:
     """Manages plan persistence with file locking.
 
@@ -843,7 +856,7 @@ class PlanStore:
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class TraceLogger:
     """Append-only event logging for execution trace.
 

@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from sunwell.schema.loader import LensLoader
 
 
-@dataclass
+@dataclass(slots=True)
 class LensResolver:
     """Resolves and merges nested lens dependencies.
 
@@ -143,7 +143,7 @@ class LensResolver:
         """
         from dataclasses import replace
 
-        # Start with root fields
+        # Start with root fields and build name indexes once (O(n) total, not O(n²))
         heuristics = list(root.heuristics)
         anti_heuristics = list(root.anti_heuristics)
         personas = list(root.personas)
@@ -153,54 +153,64 @@ class LensResolver:
         refiners = list(root.refiners)
         skills = list(root.skills)
 
+        # Build sets once before loop, update incrementally O(1) per insert
+        existing_h = {h.name for h in heuristics}
+        existing_ah = {ah.name for ah in anti_heuristics}
+        existing_p = {p.name for p in personas}
+        existing_dv = {v.name for v in det_validators}
+        existing_hv = {v.name for v in heur_validators}
+        existing_w = {w.name for w in workflows}
+        existing_r = {r.name for r in refiners}
+        existing_s = {s.name for s in skills}
+
         # Collect from bases (additive, deduplicated by name)
         for base in bases:
             # Heuristics
-            existing_h = {h.name for h in heuristics}
             for h in base.heuristics:
                 if h.name not in existing_h:
                     heuristics.append(h)
+                    existing_h.add(h.name)
 
             # Anti-heuristics
-            existing_ah = {ah.name for ah in anti_heuristics}
             for ah in base.anti_heuristics:
                 if ah.name not in existing_ah:
                     anti_heuristics.append(ah)
+                    existing_ah.add(ah.name)
 
             # Personas
-            existing_p = {p.name for p in personas}
             for p in base.personas:
                 if p.name not in existing_p:
                     personas.append(p)
+                    existing_p.add(p.name)
 
             # Validators
-            existing_dv = {v.name for v in det_validators}
             for v in base.deterministic_validators:
                 if v.name not in existing_dv:
                     det_validators.append(v)
+                    existing_dv.add(v.name)
 
-            existing_hv = {v.name for v in heur_validators}
             for v in base.heuristic_validators:
                 if v.name not in existing_hv:
                     heur_validators.append(v)
+                    existing_hv.add(v.name)
 
             # Workflows
-            existing_w = {w.name for w in workflows}
             for w in base.workflows:
                 if w.name not in existing_w:
                     workflows.append(w)
+                    existing_w.add(w.name)
 
             # Refiners
-            existing_r = {r.name for r in refiners}
             for r in base.refiners:
                 if r.name not in existing_r:
                     refiners.append(r)
+                    existing_r.add(r.name)
 
             # Skills
-            existing_s = {s.name for s in skills}
             for s in base.skills:
                 if s.name not in existing_s:
                     skills.append(s)
+                    existing_s.add(s.name)
 
         # Non-collection fields: Root overrides bases
         communication = root.communication

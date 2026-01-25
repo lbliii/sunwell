@@ -12,7 +12,7 @@ from sunwell.external.policy import ExternalGoalPolicy
 from sunwell.external.types import ExternalEvent
 
 
-@dataclass
+@dataclass(slots=True)
 class RateLimitBucket:
     """Sliding window rate limit bucket."""
 

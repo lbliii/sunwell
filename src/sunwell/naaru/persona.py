@@ -29,7 +29,7 @@ def _get_naaru_config():
         return None
 
 
-@dataclass
+@dataclass(slots=True)
 class NaaruPersona:
     """Core identity for the Naaru AI companion.
 
@@ -51,8 +51,8 @@ class NaaruPersona:
     title: str = field(default="The Naaru")
     """A title/descriptor for the Naaru."""
 
-    titles: list[str] = field(default_factory=lambda: ["M'uru", "The Naaru"])
-    """List of titles to alternate between in messages."""
+    titles: tuple[str, ...] = ("M'uru", "The Naaru")
+    """Tuple of titles to alternate between in messages."""
 
     alternate: bool = True
     """Whether to alternate between titles in messages."""
@@ -83,7 +83,7 @@ class NaaruPersona:
             return cls(
                 name=config.name,
                 title=config.title,
-                titles=list(config.titles),
+                titles=config.titles,  # Already tuple from NaaruConfig
                 alternate=config.alternate_titles,
             )
         return cls()

@@ -37,6 +37,19 @@ if TYPE_CHECKING:
     from sunwell.simulacrum.core.turn import Learning as SimLearning
     from sunwell.simulacrum.core.turn import TemplateData, TemplateVariable
 
+# Pre-compiled regex patterns for learning extraction (avoid recompiling per call)
+_RE_API_ROUTE = re.compile(
+    r"@(?:app|router|bp)\.(?:route|get|post|put|delete)\(['\"]([^'\"]+)['\"]"
+)
+_RE_FUNC_DEF = re.compile(r"def\s+(\w+)")
+_RE_IMPORT_FROM = re.compile(r"^from\s+(\S+)\s+import", re.MULTILINE)
+_RE_JSON_OBJECT = re.compile(r"\{.*\}", re.DOTALL)
+_RE_CLASS_DEF = re.compile(r"class\s+(\w+)(?:\(([^)]+)\))?:")
+_RE_FOREIGN_KEY = re.compile(r"(\w+)\s*=\s*(?:Column\()?ForeignKey\(['\"]([^'\"]+)['\"]")
+_RE_DATACLASS_FIELD = re.compile(r"^\s+(\w+):\s*(\S+)", re.MULTILINE)
+_RE_SQLA_COLUMN = re.compile(r"^\s+(\w+)\s*=\s*Column\(", re.MULTILINE)
+_RE_CLASS_OR_DEF = re.compile(r"(?:class|def)\s+(\w+)")
+
 
 @dataclass(frozen=True, slots=True)
 class Learning:
@@ -120,10 +133,7 @@ class LearningExtractor:
         learnings: list[Learning] = []
 
         # Extract class definitions
-        for match in re.finditer(
-            r"class\s+(\w+)(?:\(([^)]+)\))?:",
-            content,
-        ):
+        for match in _RE_CLASS_DEF.finditer(content):
             class_name = match.group(1)
             bases = match.group(2) or ""
 
@@ -158,10 +168,7 @@ class LearningExtractor:
                 )
 
         # Extract foreign keys
-        for match in re.finditer(
-            r"(\w+)\s*=\s*(?:Column\()?ForeignKey\(['\"]([^'\"]+)['\"]",
-            content,
-        ):
+        for match in _RE_FOREIGN_KEY.finditer(content):
             field_name = match.group(1)
             target = match.group(2)
             learnings.append(
@@ -174,14 +181,10 @@ class LearningExtractor:
             )
 
         # Extract API routes
-        for match in re.finditer(
-            r"@(?:app|router|bp)\.(?:route|get|post|put|delete)\(['\"]([^'\"]+)['\"]",
-            content,
-        ):
+        for match in _RE_API_ROUTE.finditer(content):
             route = match.group(1)
             # Find function name
-            func_match = re.search(
-                r"def\s+(\w+)",
+            func_match = _RE_FUNC_DEF.search(
                 content[match.end() : match.end() + 100],
             )
             func_name = func_match.group(1) if func_match else "unknown"
@@ -195,7 +198,7 @@ class LearningExtractor:
             )
 
         # Extract imports pattern
-        imports = re.findall(r"^from\s+(\S+)\s+import", content, re.MULTILINE)
+        imports = _RE_IMPORT_FROM.findall(content)
         if imports:
             # Get unique import sources
             sources = list(set(imports))[:5]  # Limit to 5
@@ -216,12 +219,12 @@ class LearningExtractor:
         fields: list[str] = []
 
         # Dataclass fields: field_name: Type
-        for match in re.finditer(r"^\s+(\w+):\s*(\S+)", class_body, re.MULTILINE):
+        for match in _RE_DATACLASS_FIELD.finditer(class_body):
             if not match.group(1).startswith("_"):
                 fields.append(match.group(1))
 
         # SQLAlchemy columns: field_name = Column(...)
-        for match in re.finditer(r"^\s+(\w+)\s*=\s*Column\(", class_body, re.MULTILINE):
+        for match in _RE_SQLA_COLUMN.finditer(class_body):
             fields.append(match.group(1))
 
         return fields[:10]  # Limit to 10 fields
@@ -401,7 +404,7 @@ For variables, use format: {{"name": "entity", "description": "Model name", "typ
             )
 
             # Parse JSON from response
-            json_match = re.search(r"\{.*\}", result.text, re.DOTALL)
+            json_match = _RE_JSON_OBJECT.search(result.text)
             if not json_match:
                 return None
 
@@ -890,9 +893,7 @@ class LearningStore:
                             # Extract useful patterns from output if available
                             if output and len(output) > 20:
                                 # Extract class/function definitions
-                                for match in re.finditer(
-                                    r"(?:class|def)\s+(\w+)", output
-                                ):
+                                for match in _RE_CLASS_OR_DEF.finditer(output):
                                     lrn = Learning(
                                         fact=f"Defined {match.group(1)} in {task_id}",
                                         category="pattern",

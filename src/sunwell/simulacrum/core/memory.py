@@ -78,7 +78,7 @@ class Memory(Protocol):
         ...
 
 
-@dataclass
+@dataclass(slots=True)
 class WorkingMemory:
     """Current conversation context.
 
@@ -139,7 +139,7 @@ class WorkingMemory:
             self.turns = [summary] + self.turns[-keep:]
 
 
-@dataclass
+@dataclass(slots=True)
 class LongTermMemory:
     """Persistent learnings, facts, and patterns.
 
@@ -224,7 +224,7 @@ class LongTermMemory:
         return "\n".join(lines)
 
 
-@dataclass
+@dataclass(slots=True)
 class EpisodicMemory:
     """Past sessions, attempts, and branches.
 
@@ -298,7 +298,7 @@ class Episode:
     turn_count: int = 0
 
 
-@dataclass
+@dataclass(slots=True)
 class SemanticMemory:
     """Indexed knowledge from codebase, docs, references.
 
@@ -340,7 +340,7 @@ class SemanticMemory:
         return ""
 
 
-@dataclass
+@dataclass(slots=True)
 class ProceduralMemory:
     """Skills, workflows, and heuristics from Lens.
 

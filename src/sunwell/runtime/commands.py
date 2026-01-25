@@ -46,17 +46,13 @@ class ParsedInput:
         return self.command is not None
 
 
-@dataclass
+@dataclass(slots=True)
 class ChatSession:
     """Session state for command handlers."""
 
     lens: Lens | None = None
     last_response: str = ""
-    conversation_history: list[dict] = None  # type: ignore
-
-    def __post_init__(self):
-        if self.conversation_history is None:
-            self.conversation_history = []
+    conversation_history: list[dict] = field(default_factory=list)
 
 
 # Type for command handlers

@@ -1,6 +1,5 @@
 """In-memory vector index implementation."""
 
-
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -12,7 +11,7 @@ from numpy.typing import NDArray
 from sunwell.embedding.protocol import SearchResult
 
 
-@dataclass
+@dataclass(slots=True)
 class InMemoryIndex:
     """Simple in-memory vector index using NumPy.
 
@@ -22,13 +21,25 @@ class InMemoryIndex:
     - Scenarios where persistence isn't critical
 
     For production with larger lenses, consider FAISS.
+
+    Performance notes:
+    - Vectors stored in list, materialized to array lazily on search (O(n) add, not O(n²))
+    - O(1) id lookups via _id_to_idx mapping
     """
 
     _dimensions: int
 
-    _vectors: NDArray[np.float32] | None = field(default=None, init=False)
+    # Pending vectors (list-based for O(1) append)
+    _vectors_list: list[NDArray[np.float32]] = field(default_factory=list, init=False)
+    # Materialized array (built lazily on search)
+    _vectors_array: NDArray[np.float32] | None = field(default=None, init=False)
+    # Dirty flag for lazy materialization
+    _dirty: bool = field(default=False, init=False)
+    # Core data
     _ids: list[str] = field(default_factory=list, init=False)
     _metadata: list[dict] = field(default_factory=list, init=False)
+    # O(1) id→index lookup
+    _id_to_idx: dict[str, int] = field(default_factory=dict, init=False)
 
     @property
     def dimensions(self) -> int:
@@ -37,6 +48,16 @@ class InMemoryIndex:
     @property
     def count(self) -> int:
         return len(self._ids)
+
+    def _materialize(self) -> None:
+        """Build the contiguous array from pending vectors if dirty."""
+        if not self._dirty:
+            return
+        if self._vectors_list:
+            self._vectors_array = np.vstack(self._vectors_list)
+        else:
+            self._vectors_array = None
+        self._dirty = False
 
     def add(
         self,
@@ -48,13 +69,11 @@ class InMemoryIndex:
         if vector.shape[0] != self._dimensions:
             raise ValueError(f"Expected {self._dimensions} dims, got {vector.shape[0]}")
 
-        if self._vectors is None:
-            self._vectors = vector.reshape(1, -1)
-        else:
-            self._vectors = np.vstack([self._vectors, vector])
-
+        self._id_to_idx[id] = len(self._ids)
         self._ids.append(id)
         self._metadata.append(metadata or {})
+        self._vectors_list.append(vector.reshape(1, -1))
+        self._dirty = True
 
     def add_batch(
         self,
@@ -66,13 +85,14 @@ class InMemoryIndex:
         if vectors.shape[1] != self._dimensions:
             raise ValueError(f"Expected {self._dimensions} dims, got {vectors.shape[1]}")
 
-        if self._vectors is None:
-            self._vectors = vectors
-        else:
-            self._vectors = np.vstack([self._vectors, vectors])
+        start_idx = len(self._ids)
+        for i, id_ in enumerate(ids):
+            self._id_to_idx[id_] = start_idx + i
 
         self._ids.extend(ids)
         self._metadata.extend(metadata or [{} for _ in ids])
+        self._vectors_list.append(vectors)
+        self._dirty = True
 
     def search(
         self,
@@ -81,13 +101,18 @@ class InMemoryIndex:
         threshold: float | None = None,
     ) -> list[SearchResult]:
         """Search for similar vectors using cosine similarity."""
-        if self._vectors is None or len(self._ids) == 0:
+        if len(self._ids) == 0:
+            return []
+
+        # Materialize array if needed
+        self._materialize()
+        if self._vectors_array is None:
             return []
 
         # Normalize for cosine similarity
         query_norm = query_vector / (np.linalg.norm(query_vector) + 1e-10)
-        norms = np.linalg.norm(self._vectors, axis=1, keepdims=True) + 1e-10
-        vectors_norm = self._vectors / norms
+        norms = np.linalg.norm(self._vectors_array, axis=1, keepdims=True) + 1e-10
+        vectors_norm = self._vectors_array / norms
 
         # Compute similarities
         similarities = np.dot(vectors_norm, query_norm)
@@ -114,32 +139,53 @@ class InMemoryIndex:
         ]
 
     def delete(self, id: str) -> bool:
-        """Delete a vector by ID."""
-        try:
-            idx = self._ids.index(id)
-            self._ids.pop(idx)
-            self._metadata.pop(idx)
-            if self._vectors is not None:
-                self._vectors = np.delete(self._vectors, idx, axis=0)
-                if len(self._vectors) == 0:
-                    self._vectors = None
-            return True
-        except ValueError:
+        """Delete a vector by ID. O(1) lookup, O(n) compaction."""
+        idx = self._id_to_idx.pop(id, None)
+        if idx is None:
             return False
+
+        # Remove from lists
+        self._ids.pop(idx)
+        self._metadata.pop(idx)
+
+        # Update indices for all items after the deleted one
+        for id_, i in self._id_to_idx.items():
+            if i > idx:
+                self._id_to_idx[id_] = i - 1
+
+        # Materialize and delete from array
+        self._materialize()
+        if self._vectors_array is not None:
+            self._vectors_array = np.delete(self._vectors_array, idx, axis=0)
+            if len(self._vectors_array) == 0:
+                self._vectors_array = None
+            # Rebuild vectors_list from array
+            if self._vectors_array is not None:
+                self._vectors_list = [self._vectors_array]
+            else:
+                self._vectors_list = []
+            self._dirty = False
+
+        return True
 
     def clear(self) -> None:
         """Remove all vectors from the index."""
-        self._vectors = None
+        self._vectors_array = None
+        self._vectors_list.clear()
+        self._dirty = False
         self._ids.clear()
         self._metadata.clear()
+        self._id_to_idx.clear()
 
     def save(self, path: str | Path) -> None:
         """Persist the index to disk."""
         p = Path(path)
         p.mkdir(parents=True, exist_ok=True)
 
-        if self._vectors is not None:
-            np.save(p / "vectors.npy", self._vectors)
+        # Materialize before saving
+        self._materialize()
+        if self._vectors_array is not None:
+            np.save(p / "vectors.npy", self._vectors_array)
 
         with open(p / "metadata.json", "w") as f:
             json.dump(
@@ -158,9 +204,13 @@ class InMemoryIndex:
         index = cls(_dimensions=data["dims"])
         index._ids = data["ids"]
         index._metadata = data["metadata"]
+        # Rebuild id→index mapping
+        index._id_to_idx = {id_: i for i, id_ in enumerate(index._ids)}
 
         vectors_path = p / "vectors.npy"
         if vectors_path.exists():
-            index._vectors = np.load(vectors_path)
+            index._vectors_array = np.load(vectors_path)
+            index._vectors_list = [index._vectors_array]
+            index._dirty = False
 
         return index

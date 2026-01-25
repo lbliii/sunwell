@@ -23,6 +23,9 @@ from sunwell.routing.cognitive_router import (
     RoutingDecision,
 )
 
+# Pre-compiled regex patterns for performance (avoid recompiling per-call)
+_RE_FILE_EXTENSION = re.compile(r'\b\w+\.(py|js|ts|md|yaml|json)\b')
+
 # =============================================================================
 # Tier System (RFC-022)
 # =============================================================================
@@ -36,7 +39,7 @@ class Tier(int, Enum):
     FULL = 2    # Full CoT reasoning, confirmation required, ~500ms
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class TierBehavior:
     """Behavior configuration for each tier."""
 
@@ -258,7 +261,7 @@ ROUTING_EXEMPLARS: tuple[RoutingExemplar, ...] = (
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class ConfidenceRubric:
     """Explicit confidence scoring rubric.
 
@@ -330,7 +333,7 @@ class ConfidenceRubric:
 
         # Check file context
         has_file = context and context.get("file") or context and context.get("focused_file")
-        file_in_task = bool(re.search(r'\b\w+\.(py|js|ts|md|yaml|json)\b', task))
+        file_in_task = bool(_RE_FILE_EXTENSION.search(task))
 
         if has_file or file_in_task:
             score += self.single_file_target
@@ -340,7 +343,7 @@ class ConfidenceRubric:
             reasons.append(f"{self.no_file_context} no file context")
 
         # Check multi-file scope
-        file_matches = re.findall(r'\b\w+\.(py|js|ts|md|yaml|json)\b', task)
+        file_matches = _RE_FILE_EXTENSION.findall(task)
         if len(file_matches) > 1:
             score += self.multi_file_scope  # Negative
             reasons.append(f"{self.multi_file_scope} multi-file scope")
@@ -386,13 +389,13 @@ class ConfidenceRubric:
 # =============================================================================
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class VerificationResult:
     """Result of self-verification check."""
 
     passed: bool
     action: str  # proceed | escalate | clarify
-    red_flags: list[str] = field(default_factory=list)
+    red_flags: tuple[str, ...] = ()
     adjusted_confidence: str | None = None
 
     def should_escalate(self) -> bool:
@@ -519,7 +522,7 @@ def verify_routing(
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class AttunementResult:
     """Result from TieredAttunement routing."""
 
@@ -556,7 +559,7 @@ class AttunementResult:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class TieredAttunement:
     """Enhanced cognitive routing with DORI-inspired techniques.
 

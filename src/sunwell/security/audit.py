@@ -365,7 +365,7 @@ class LocalAuditLog:
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class S3ObjectLockBackend:
     """S3 backend with Object Lock for true WORM immutability.
 

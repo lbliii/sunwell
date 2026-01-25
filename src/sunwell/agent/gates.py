@@ -187,240 +187,231 @@ class GateResult:
 
 
 # =============================================================================
-# Gate Detection
+# Gate Detection (stateless functions)
 # =============================================================================
 
 
-@dataclass(slots=True)
-class GateDetector:
-    """Detects natural validation boundaries in task graph.
+def detect_gates(tasks: list[Task]) -> list[ValidationGate]:
+    """Find runnable milestones in task graph.
 
-    The detector looks for patterns that indicate runnable milestones:
+    Detects natural validation boundaries based on task patterns:
     - Protocol/Interface completion → IMPORT gate
     - Model/Schema completion → SCHEMA gate
     - Route/Endpoint completion → ENDPOINT gate
     - Test task → TEST gate
     - Entry point → INTEGRATION gate
+
+    Args:
+        tasks: List of tasks from the planner
+
+    Returns:
+        List of ValidationGates at natural checkpoints
     """
+    gates: list[ValidationGate] = []
 
-    def detect_gates(self, tasks: list[Task]) -> list[ValidationGate]:
-        """Find runnable milestones in task graph.
+    # Pattern 1: Protocol/Interface completion
+    protocols = [t for t in tasks if _is_protocol_task(t)]
+    if protocols:
+        gates.append(_make_import_gate(protocols, tasks))
 
-        Args:
-            tasks: List of tasks from the planner
+    # Pattern 2: Model/Schema completion
+    models = [t for t in tasks if _is_model_task(t)]
+    if models:
+        gates.append(_make_schema_gate(models, tasks))
 
-        Returns:
-            List of ValidationGates at natural checkpoints
-        """
-        gates: list[ValidationGate] = []
+    # Pattern 3: Route/Endpoint completion
+    routes = [t for t in tasks if _is_route_task(t)]
+    if routes:
+        gates.append(_make_endpoint_gate(routes, tasks))
 
-        # Pattern 1: Protocol/Interface completion
-        protocols = [
-            t for t in tasks if self._is_protocol_task(t)
-        ]
-        if protocols:
-            gates.append(self._make_import_gate(protocols, tasks))
+    # Pattern 4: Entry point / App factory
+    entry_points = [t for t in tasks if _is_entry_point(t)]
+    if entry_points:
+        gates.append(_make_integration_gate(entry_points))
 
-        # Pattern 2: Model/Schema completion
-        models = [
-            t for t in tasks if self._is_model_task(t)
-        ]
-        if models:
-            gates.append(self._make_schema_gate(models, tasks))
+    # Pattern 5: Explicit test tasks
+    tests = [t for t in tasks if _is_test_task(t)]
+    for test_task in tests:
+        gates.append(_make_test_gate(test_task))
 
-        # Pattern 3: Route/Endpoint completion
-        routes = [
-            t for t in tasks if self._is_route_task(t)
-        ]
-        if routes:
-            gates.append(self._make_endpoint_gate(routes, tasks))
+    return gates
 
-        # Pattern 4: Entry point / App factory
-        entry_points = [
-            t for t in tasks if self._is_entry_point(t)
-        ]
-        if entry_points:
-            gates.append(self._make_integration_gate(entry_points, tasks))
 
-        # Pattern 5: Explicit test tasks
-        tests = [
-            t for t in tasks if self._is_test_task(t)
-        ]
-        for test_task in tests:
-            gates.append(self._make_test_gate(test_task))
+def _is_protocol_task(task: Task) -> bool:
+    """Check if task produces a protocol/interface."""
+    desc_lower = task.description.lower()
+    id_lower = task.id.lower()
 
-        return gates
+    return (
+        "protocol" in desc_lower
+        or "protocol" in id_lower
+        or "interface" in desc_lower
+        or task.is_contract
+    )
 
-    def _is_protocol_task(self, task: Task) -> bool:
-        """Check if task produces a protocol/interface."""
-        desc_lower = task.description.lower()
-        id_lower = task.id.lower()
 
-        return (
-            "protocol" in desc_lower
-            or "protocol" in id_lower
-            or "interface" in desc_lower
-            or task.is_contract
-        )
+def _is_model_task(task: Task) -> bool:
+    """Check if task produces a database model."""
+    desc_lower = task.description.lower()
+    id_lower = task.id.lower()
 
-    def _is_model_task(self, task: Task) -> bool:
-        """Check if task produces a database model."""
-        desc_lower = task.description.lower()
-        id_lower = task.id.lower()
+    return (
+        "model" in desc_lower
+        or "model" in id_lower
+        or "schema" in desc_lower
+        or "table" in desc_lower
+    )
 
-        return (
-            "model" in desc_lower
-            or "model" in id_lower
-            or "schema" in desc_lower
-            or "table" in desc_lower
-        )
 
-    def _is_route_task(self, task: Task) -> bool:
-        """Check if task produces routes/endpoints."""
-        desc_lower = task.description.lower()
-        id_lower = task.id.lower()
+def _is_route_task(task: Task) -> bool:
+    """Check if task produces routes/endpoints."""
+    desc_lower = task.description.lower()
+    id_lower = task.id.lower()
 
-        return (
-            "route" in desc_lower
-            or "route" in id_lower
-            or "endpoint" in desc_lower
-            or "handler" in desc_lower
-            or "controller" in desc_lower
-        )
+    return (
+        "route" in desc_lower
+        or "route" in id_lower
+        or "endpoint" in desc_lower
+        or "handler" in desc_lower
+        or "controller" in desc_lower
+    )
 
-    def _is_entry_point(self, task: Task) -> bool:
-        """Check if task is an entry point."""
-        desc_lower = task.description.lower()
-        id_lower = task.id.lower()
 
-        return (
-            "factory" in desc_lower
-            or "factory" in id_lower
-            or "main" in id_lower
-            or "app" in id_lower
-            or "entry" in desc_lower
-        )
+def _is_entry_point(task: Task) -> bool:
+    """Check if task is an entry point."""
+    desc_lower = task.description.lower()
+    id_lower = task.id.lower()
 
-    def _is_test_task(self, task: Task) -> bool:
-        """Check if task is a test."""
-        desc_lower = task.description.lower()
-        id_lower = task.id.lower()
+    return (
+        "factory" in desc_lower
+        or "factory" in id_lower
+        or "main" in id_lower
+        or "app" in id_lower
+        or "entry" in desc_lower
+    )
 
-        return "test" in desc_lower or "test" in id_lower
 
-    def _make_import_gate(
-        self,
-        protocols: list[Task],
-        all_tasks: list[Task],
-    ) -> ValidationGate:
-        """Create an import gate for protocol tasks."""
-        task_ids = tuple(t.id for t in protocols)
+def _is_test_task(task: Task) -> bool:
+    """Check if task is a test."""
+    desc_lower = task.description.lower()
+    id_lower = task.id.lower()
 
-        # Find tasks that depend on these protocols
-        blocked = tuple(
-            t.id for t in all_tasks
-            if t.id not in task_ids
-            and any(p.id in t.depends_on for p in protocols)
-        )
+    return "test" in desc_lower or "test" in id_lower
 
-        # Build import validation string
-        imports = []
-        for t in protocols:
-            if t.target_path:
-                module = t.target_path.replace("/", ".").replace(".py", "")
-                imports.append(f"import {module}")
-            else:
-                imports.append(f"# Check {t.id}")
 
-        return ValidationGate(
-            id="gate_protocols",
-            gate_type=GateType.IMPORT,
-            depends_on=task_ids,
-            validation="; ".join(imports),
-            blocks=blocked,
-            description="Import all protocols/interfaces",
-        )
+def _make_import_gate(
+    protocols: list[Task],
+    all_tasks: list[Task],
+) -> ValidationGate:
+    """Create an import gate for protocol tasks."""
+    task_ids = tuple(t.id for t in protocols)
 
-    def _make_schema_gate(
-        self,
-        models: list[Task],
-        all_tasks: list[Task],
-    ) -> ValidationGate:
-        """Create a schema gate for model tasks."""
-        task_ids = tuple(t.id for t in models)
+    # Find tasks that depend on these protocols
+    blocked = tuple(
+        t.id for t in all_tasks
+        if t.id not in task_ids
+        and any(p.id in t.depends_on for p in protocols)
+    )
 
-        # Find tasks that depend on models
-        blocked = tuple(
-            t.id for t in all_tasks
-            if t.id not in task_ids
-            and any(m.id in t.depends_on for m in models)
-        )
+    # Build import validation string
+    imports = []
+    for t in protocols:
+        if t.target_path:
+            module = t.target_path.replace("/", ".").replace(".py", "")
+            imports.append(f"import {module}")
+        else:
+            imports.append(f"# Check {t.id}")
 
-        return ValidationGate(
-            id="gate_models",
-            gate_type=GateType.SCHEMA,
-            depends_on=task_ids,
-            validation="Base.metadata.create_all(engine)",
-            blocks=blocked,
-            description="Create database schema",
-        )
+    return ValidationGate(
+        id="gate_protocols",
+        gate_type=GateType.IMPORT,
+        depends_on=task_ids,
+        validation="; ".join(imports),
+        blocks=blocked,
+        description="Import all protocols/interfaces",
+    )
 
-    def _make_endpoint_gate(
-        self,
-        routes: list[Task],
-        all_tasks: list[Task],
-    ) -> ValidationGate:
-        """Create an endpoint gate for route tasks."""
-        task_ids = tuple(t.id for t in routes)
 
-        # Find tasks that depend on routes
-        blocked = tuple(
-            t.id for t in all_tasks
-            if t.id not in task_ids
-            and any(r.id in t.depends_on for r in routes)
-        )
+def _make_schema_gate(
+    models: list[Task],
+    all_tasks: list[Task],
+) -> ValidationGate:
+    """Create a schema gate for model tasks."""
+    task_ids = tuple(t.id for t in models)
 
-        return ValidationGate(
-            id="gate_routes",
-            gate_type=GateType.ENDPOINT,
-            depends_on=task_ids,
-            validation="curl http://localhost:5000/health",
-            blocks=blocked,
-            description="Test endpoint accessibility",
-        )
+    # Find tasks that depend on models
+    blocked = tuple(
+        t.id for t in all_tasks
+        if t.id not in task_ids
+        and any(m.id in t.depends_on for m in models)
+    )
 
-    def _make_integration_gate(
-        self,
-        entry_points: list[Task],
-        _all_tasks: list[Task],
-    ) -> ValidationGate:
-        """Create an integration gate for entry points."""
-        task_ids = tuple(t.id for t in entry_points)
+    return ValidationGate(
+        id="gate_models",
+        gate_type=GateType.SCHEMA,
+        depends_on=task_ids,
+        validation="Base.metadata.create_all(engine)",
+        blocks=blocked,
+        description="Create database schema",
+    )
 
-        return ValidationGate(
-            id="gate_integration",
-            gate_type=GateType.INTEGRATION,
-            depends_on=task_ids,
-            validation="pytest tests/integration/",
-            blocks=(),
-            description="Run integration tests",
-        )
 
-    def _make_test_gate(self, test_task: Task) -> ValidationGate:
-        """Create a test gate for a specific test task."""
-        return ValidationGate(
-            id=f"gate_{test_task.id}",
-            gate_type=GateType.TEST,
-            depends_on=(test_task.id,),
-            validation=test_task.verification_command or f"pytest {test_task.target_path}",
-            blocks=(),
-            description=f"Run {test_task.id}",
-        )
+def _make_endpoint_gate(
+    routes: list[Task],
+    all_tasks: list[Task],
+) -> ValidationGate:
+    """Create an endpoint gate for route tasks."""
+    task_ids = tuple(t.id for t in routes)
 
-    def _is_runnable_milestone(self, tasks: list[Task]) -> bool:
-        """Check if completing these tasks gives us something we can run."""
-        # Heuristic: If tasks produce importable modules, we can validate
-        return all(
-            t.target_path and t.target_path.endswith(".py")
-            for t in tasks
-        )
+    # Find tasks that depend on routes
+    blocked = tuple(
+        t.id for t in all_tasks
+        if t.id not in task_ids
+        and any(r.id in t.depends_on for r in routes)
+    )
+
+    return ValidationGate(
+        id="gate_routes",
+        gate_type=GateType.ENDPOINT,
+        depends_on=task_ids,
+        validation="curl http://localhost:5000/health",
+        blocks=blocked,
+        description="Test endpoint accessibility",
+    )
+
+
+def _make_integration_gate(entry_points: list[Task]) -> ValidationGate:
+    """Create an integration gate for entry points."""
+    task_ids = tuple(t.id for t in entry_points)
+
+    return ValidationGate(
+        id="gate_integration",
+        gate_type=GateType.INTEGRATION,
+        depends_on=task_ids,
+        validation="pytest tests/integration/",
+        blocks=(),
+        description="Run integration tests",
+    )
+
+
+def _make_test_gate(test_task: Task) -> ValidationGate:
+    """Create a test gate for a specific test task."""
+    return ValidationGate(
+        id=f"gate_{test_task.id}",
+        gate_type=GateType.TEST,
+        depends_on=(test_task.id,),
+        validation=test_task.verification_command or f"pytest {test_task.target_path}",
+        blocks=(),
+        description=f"Run {test_task.id}",
+    )
+
+
+def is_runnable_milestone(tasks: list[Task]) -> bool:
+    """Check if completing these tasks gives us something we can run.
+
+    Heuristic: If tasks produce importable modules, we can validate.
+    """
+    return all(
+        t.target_path and t.target_path.endswith(".py")
+        for t in tasks
+    )

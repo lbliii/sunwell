@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from sunwell.intelligence.context import ProjectContext
 
 
-@dataclass
+@dataclass(slots=True)
 class UnifiedContext:
     """Context assembled from multi-topology memory."""
 
@@ -97,7 +97,7 @@ class UnifiedContext:
         return messages
 
 
-@dataclass
+@dataclass(slots=True)
 class UnifiedContextAssembler:
     """Assembles context using RFC-014 multi-topology memory.
 

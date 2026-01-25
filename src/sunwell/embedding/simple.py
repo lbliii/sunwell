@@ -1,7 +1,7 @@
 """Simple embedding implementations that don't require external APIs."""
 
-
 import hashlib
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -10,8 +10,11 @@ from numpy.typing import NDArray
 
 from sunwell.embedding.protocol import EmbeddingResult
 
+# Pre-compiled regex for tokenization (avoid per-call compilation)
+_WORD_PATTERN = re.compile(r"\b\w+\b")
 
-@dataclass
+
+@dataclass(slots=True)
 class HashEmbedding:
     """Simple hash-based embedding for testing/development.
 
@@ -64,7 +67,7 @@ class HashEmbedding:
         return vector
 
 
-@dataclass
+@dataclass(slots=True)
 class TFIDFEmbedding:
     """TF-IDF based embedding for simple semantic similarity.
 
@@ -109,10 +112,7 @@ class TFIDFEmbedding:
 
     def _tokenize(self, text: str) -> list[str]:
         """Simple tokenization."""
-        import re
-
-        words = re.findall(r"\b\w+\b", text.lower())
-        return words
+        return _WORD_PATTERN.findall(text.lower())
 
     def _text_to_vector(self, text: str, vocab: dict[str, int]) -> NDArray[np.float32]:
         """Convert text to vector using vocabulary."""

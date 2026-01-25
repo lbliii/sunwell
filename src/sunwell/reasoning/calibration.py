@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from sunwell.reasoning.decisions import DecisionType, ReasonedDecision
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class CalibrationRecord:
     """A single calibration data point.
 
@@ -48,7 +48,7 @@ class CalibrationRecord:
     context_hash: str = ""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class CalibrationStats:
     """Calibration statistics for a confidence band.
 
@@ -67,7 +67,7 @@ class CalibrationStats:
     calibration_error: float
 
 
-@dataclass
+@dataclass(slots=True)
 class ConfidenceCalibrator:
     """Calibrate reasoner confidence based on historical accuracy.
 

@@ -49,7 +49,7 @@ STRUCTURAL_SIGNALS: frozenset[str] = frozenset({
 })
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ContextResult:
     """Result of context retrieval."""
 
@@ -59,7 +59,7 @@ class ContextResult:
     chunks_used: int = 0
 
 
-@dataclass
+@dataclass(slots=True)
 class SmartContext:
     """Context provider that degrades gracefully.
 

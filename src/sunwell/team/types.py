@@ -236,7 +236,7 @@ class TeamFailure:
         return "\n".join(parts)
 
 
-@dataclass
+@dataclass(slots=True)
 class TeamPatterns:
     """Enforced code patterns for the team."""
 
@@ -289,7 +289,7 @@ class TeamPatterns:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class TeamOwnership:
     """Ownership mapping for files and modules."""
 
@@ -333,7 +333,7 @@ class TeamKnowledgeUpdate:
     detail: str
 
 
-@dataclass
+@dataclass(slots=True)
 class TeamKnowledgeContext:
     """Team knowledge relevant to current context."""
 

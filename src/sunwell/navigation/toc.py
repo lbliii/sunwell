@@ -13,6 +13,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
+# Pre-compiled regex for node ID generation (avoid recompiling per-call)
+_RE_NODE_ID_CLEAN = re.compile(r"[^a-zA-Z0-9_]")
+
 # Node types for the ToC tree
 NodeType = Literal["module", "class", "function", "directory", "file"]
 
@@ -71,7 +74,7 @@ class TocNode:
         return d
 
 
-@dataclass
+@dataclass(slots=True)
 class ProjectToc:
     """Complete project Table of Contents.
 
@@ -357,7 +360,7 @@ def node_id_from_path(path: Path, root: Path) -> str:
     clean_parts = []
     for part in parts:
         # Replace non-alphanumeric with underscore
-        clean = re.sub(r"[^a-zA-Z0-9_]", "_", part)
+        clean = _RE_NODE_ID_CLEAN.sub("_", part)
         # Ensure doesn't start with number
         if clean and clean[0].isdigit():
             clean = "_" + clean

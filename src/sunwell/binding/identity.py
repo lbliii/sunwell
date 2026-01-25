@@ -153,7 +153,7 @@ class BindingIndex:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class BindingIndexManager:
     """Manages the global binding index.
 
@@ -368,13 +368,15 @@ class BindingIndexManager:
     ) -> BindingIndexEntry | None:
         """Create an index entry from a binding file."""
         try:
-            data = json.loads(binding_file.read_text())
+            # Read file once as bytes, decode for JSON
+            content = binding_file.read_bytes()
+            data = json.loads(content.decode("utf-8"))
             slug = binding_file.stem
             uri = f"sunwell:binding/{namespace}/{slug}"
 
             # Generate stable UUID from content hash if not present
             if "id" not in data:
-                content_hash = hashlib.sha256(binding_file.read_bytes()).hexdigest()
+                content_hash = hashlib.sha256(content).hexdigest()
                 stable_uuid = (
                     f"{content_hash[:8]}-{content_hash[8:12]}-"
                     f"{content_hash[12:16]}-{content_hash[16:20]}-{content_hash[20:32]}"

@@ -1100,7 +1100,7 @@ def load_default_lens() -> LensData:
 # =============================================================================
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ExperimentResult:
     """Result of a single experiment run."""
 
@@ -1115,7 +1115,7 @@ class ExperimentResult:
     time_ms: int
 
 
-@dataclass
+@dataclass(slots=True)
 class ExperimentSummary:
     """Summary statistics for a strategy across all tasks."""
 

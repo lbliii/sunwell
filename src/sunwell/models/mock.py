@@ -16,7 +16,7 @@ from sunwell.models.protocol import (
 )
 
 
-@dataclass
+@dataclass(slots=True)
 class MockModel:
     """Mock model for testing.
 
@@ -96,7 +96,7 @@ class MockModel:
             yield word + " "
 
 
-@dataclass
+@dataclass(slots=True)
 class MockModelWithTools:
     """Mock model with configurable tool call responses.
 

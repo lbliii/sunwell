@@ -22,6 +22,7 @@ Skills are stored in .sunwell/skills/ with this structure:
             └── META.yaml
 """
 
+import re
 import json
 import yaml
 from dataclasses import dataclass, field
@@ -35,6 +36,10 @@ from sunwell.skills.types import (
     SkillMetadata,
     SkillType,
 )
+
+# Pre-compiled regex patterns for performance (avoid recompiling per-call)
+_RE_SKILL_NAME = re.compile(r"^#\s+(.+)$", re.MULTILINE)
+_RE_SKILL_DESC = re.compile(r"^#\s+.+\n\n(.+?)(?:\n\n|\Z)", re.MULTILINE | re.DOTALL)
 
 
 SkillSource = Literal["learned", "composed", "imported", "builtin"]
@@ -63,7 +68,7 @@ class SkillProvenance:
     """Path/URL if imported."""
 
 
-@dataclass
+@dataclass(slots=True)
 class SkillLibrary:
     """Local skill library that grows through learning.
 
@@ -549,20 +554,14 @@ class SkillLibrary:
         source_path: Path,
     ) -> Skill | None:
         """Parse Anthropic Agent Skills SKILL.md format."""
-        import re
-
         # Extract name from first heading
-        name_match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
+        name_match = _RE_SKILL_NAME.search(content)
         if not name_match:
             return None
         name = name_match.group(1).lower().replace(" ", "-")
 
         # Extract description (first paragraph after heading)
-        desc_match = re.search(
-            r"^#\s+.+\n\n(.+?)(?:\n\n|\Z)",
-            content,
-            re.MULTILINE | re.DOTALL,
-        )
+        desc_match = _RE_SKILL_DESC.search(content)
         description = desc_match.group(1).strip() if desc_match else ""
 
         # The rest is instructions

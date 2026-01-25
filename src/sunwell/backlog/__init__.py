@@ -20,7 +20,13 @@ from sunwell.backlog.goals import Goal, GoalGenerator, GoalPolicy, GoalResult, G
 from sunwell.backlog.loop import AutonomousLoop
 from sunwell.backlog.manager import Backlog, BacklogManager
 from sunwell.backlog.signals import ObservableSignal, SignalExtractor
-from sunwell.backlog.tracker import LearningStore, MilestoneLearning, MilestoneProgress, MilestoneTracker
+from sunwell.backlog.tracker import (
+    DictSerializable,
+    LearningStore,
+    MilestoneLearning,
+    MilestoneProgress,
+    MilestoneTracker,
+)
 
 __all__ = [
     # Signals
@@ -43,4 +49,6 @@ __all__ = [
     "MilestoneProgress",
     "MilestoneLearning",
     "LearningStore",
+    # Protocols
+    "DictSerializable",
 ]

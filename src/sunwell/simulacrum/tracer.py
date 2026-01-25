@@ -32,7 +32,7 @@ from datetime import datetime
 from pathlib import Path
 
 
-@dataclass
+@dataclass(slots=True)
 class ExtractionEvent:
     """A single extraction event (fact or behavior)."""
 
@@ -54,7 +54,7 @@ class ExtractionEvent:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class IdentitySnapshot:
     """Snapshot of identity state at a point in time."""
 
@@ -76,7 +76,7 @@ class IdentitySnapshot:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class TurnTrace:
     """Trace of a single conversation turn."""
 

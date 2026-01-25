@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     from sunwell.simulacrum.topology.unified_store import UnifiedMemoryStore
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class StorageConfig:
     """Configuration for tiered storage."""
 
@@ -248,7 +248,7 @@ class PlanningContext:
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class SimulacrumStore:
     """Persistent conversation memory with hierarchical chunking.
 

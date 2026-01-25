@@ -82,7 +82,7 @@ class RecoveryArtifact:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class RecoveryState:
     """Complete state for recovery/review workflow.
 

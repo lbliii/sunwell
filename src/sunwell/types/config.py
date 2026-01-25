@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from sunwell.types.model_size import ModelSize
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class SpawnConfig:
     """Configuration for automatic simulacrum spawning."""
 
@@ -33,7 +33,7 @@ class SpawnConfig:
     """Auto-generate simulacrum names from detected topics."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class LifecycleConfig:
     """Configuration for simulacrum lifecycle management."""
 
@@ -59,7 +59,7 @@ class LifecycleConfig:
     """Don't cleanup simulacrums spawned within this many days."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class SimulacrumConfig:
     """Configuration for simulacrum management."""
 
@@ -73,7 +73,7 @@ class SimulacrumConfig:
     """Lifecycle management configuration."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class OllamaConfig:
     """Configuration for Ollama server parallelism.
 
@@ -111,7 +111,7 @@ class OllamaConfig:
     """Request timeout in seconds for generation calls."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class EmbeddingConfig:
     """Configuration for embeddings."""
 
@@ -128,7 +128,7 @@ class EmbeddingConfig:
     """Fall back to hash embeddings if no provider available."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class BindingConfig:
     """Configuration for lens bindings."""
 
@@ -136,7 +136,7 @@ class BindingConfig:
     """Default binding name (used when no binding specified)."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class LensConfig:
     """Lens-related configuration (RFC-131: Helm-style layering).
 
@@ -152,7 +152,7 @@ class LensConfig:
             - ~/.sunwell/lenses
     """
 
-    default_compose: list[str] = field(default_factory=lambda: ["base/muru"])
+    default_compose: tuple[str, ...] = ("base/muru",)
     """Base lenses applied to ALL sessions (RFC-131).
 
     These lenses are composed (prepended) to every resolved lens,
@@ -169,9 +169,7 @@ class LensConfig:
         default_compose: []
     """
 
-    search_paths: list[str] = field(
-        default_factory=lambda: ["./lenses", "~/.sunwell/lenses"]
-    )
+    search_paths: tuple[str, ...] = ("./lenses", "~/.sunwell/lenses")
     """Paths to search for lens files.
 
     Paths are searched in order. Supports:
@@ -181,7 +179,7 @@ class LensConfig:
     """
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ModelConfig:
     """Configuration for model defaults (local-first)."""
 
@@ -195,7 +193,7 @@ class ModelConfig:
     """Enable adaptive model selection by default."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class NaaruConfig:
     """Configuration for the Naaru coordinated intelligence architecture.
 
@@ -221,7 +219,7 @@ class NaaruConfig:
     title: str = "The Naaru"
     """A title/descriptor for the Naaru."""
 
-    titles: list[str] = field(default_factory=lambda: ["M'uru", "The Naaru"])
+    titles: tuple[str, ...] = ("M'uru", "The Naaru")
     """List of titles to alternate between in messages."""
 
     alternate_titles: bool = True
@@ -242,9 +240,7 @@ class NaaruConfig:
     """Model for routing/classification. Fast, can answer trivial directly."""
 
     # Fallback models if voice unavailable
-    voice_models: list[str] = field(default_factory=lambda: [
-        "gemma3:1b", "llama3.2:3b", "qwen2.5:1.5b"
-    ])
+    voice_models: tuple[str, ...] = ("gemma3:1b", "llama3.2:3b", "qwen2.5:1.5b")
     """Models to try for voice (in order of preference)."""
 
     voice_temperature: float = 0.3
@@ -255,9 +251,7 @@ class NaaruConfig:
     """Model for generation/judgment. High quality, consistent output."""
 
     # Fallback models if wisdom unavailable
-    wisdom_models: list[str] = field(default_factory=lambda: [
-        "gpt-oss:20b", "gemma3:12b", "llama3:70b"
-    ])
+    wisdom_models: tuple[str, ...] = ("gpt-oss:20b", "gemma3:12b", "llama3:70b")
     """Models to try for wisdom (in order of preference)."""
 
     purity_threshold: float = 6.0

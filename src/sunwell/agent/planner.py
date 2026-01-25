@@ -65,7 +65,7 @@ class CapabilityGap:
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class GoalPlanner:
     """Translate natural language goals into skill DAGs (RFC-111).
 

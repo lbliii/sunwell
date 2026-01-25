@@ -69,7 +69,7 @@ class DiscernmentVerdict(Enum):
     UNCERTAIN = "uncertain"  # Escalate to full Wisdom
 
 
-@dataclass
+@dataclass(slots=True)
 class DiscernmentResult:
     """Result from Discernment evaluation."""
 
@@ -253,7 +253,7 @@ JSON:''',
 )
 
 
-@dataclass
+@dataclass(slots=True)
 class Discernment:
     """The Naaru's quick insight before full Wisdom judgment.
 

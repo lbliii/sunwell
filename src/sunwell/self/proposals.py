@@ -131,7 +131,7 @@ class Proposal:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class ProposalManager:
     """Manage self-improvement proposals with safety guarantees.
 

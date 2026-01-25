@@ -408,7 +408,7 @@ class Sparkle:
 # RISING MOTES ANIMATION (RFC-131)
 # =============================================================================
 
-@dataclass
+@dataclass(slots=True)
 class Mote:
     """A single rising particle."""
 
@@ -619,7 +619,7 @@ def is_plain_mode() -> bool:
 # SUNWELL RENDERER CONFIG (RFC-131)
 # =============================================================================
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class SunwellRendererConfig:
     """Configuration for Sunwell CLI rendering."""
 

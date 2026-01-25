@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Literal
 
 
-@dataclass
+@dataclass(slots=True)
 class Attempt:
     """Record of something that was tried."""
 
@@ -38,7 +38,7 @@ class Attempt:
     """Code files/lines that were examined."""
 
 
-@dataclass
+@dataclass(slots=True)
 class HandoffState:
     """Complete state for warm handoff between models.
 

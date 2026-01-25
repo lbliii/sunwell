@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from openai import AsyncOpenAI
 
 
-@dataclass
+@dataclass(slots=True)
 class OllamaModel:
     """Ollama model adapter with native API support for better system prompts.
 

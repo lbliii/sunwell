@@ -39,7 +39,7 @@ MODEL_DIMENSIONS: dict[str, int] = {
 }
 
 
-@dataclass
+@dataclass(slots=True)
 class OllamaEmbedding:
     """Ollama embedding provider implementing EmbeddingProtocol.
 

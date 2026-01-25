@@ -16,14 +16,46 @@ from pathlib import Path
 
 from sunwell.analysis.state_dag import (
     HealthProbeResult,
+    Scanner,
     StateDagEdge,
     StateDagNode,
 )
 
 logger = logging.getLogger(__name__)
 
+# ═══════════════════════════════════════════════════════════════
+# MODULE-LEVEL CONSTANTS
+# ═══════════════════════════════════════════════════════════════
 
-class DocsScanner:
+_SKIP_DIRS: frozenset[str] = frozenset({
+    ".git", "__pycache__", "node_modules", "_build", "build",
+    "dist", ".tox", ".pytest_cache", ".mypy_cache", ".ruff_cache",
+    "htmlcov", "site", ".cursor", ".idea", ".vscode",
+})
+
+_SKIP_PREFIXES: tuple[str, ...] = (".venv", "venv", ".env", "env")
+
+# ═══════════════════════════════════════════════════════════════
+# PRE-COMPILED REGEX PATTERNS
+# ═══════════════════════════════════════════════════════════════
+
+# Title extraction
+_RE_MD_H1 = re.compile(r"^#\s+(.+)$", re.MULTILINE)
+_RE_RST_H1 = re.compile(r"^(.+)\n={3,}$", re.MULTILINE)
+
+# Toctree extraction
+_RE_MYST_TOCTREE = re.compile(r"```\{toctree\}.*?```", re.DOTALL)
+_RE_RST_TOCTREE = re.compile(r"\.\.\s+toctree::\s*\n((?:\s+.+\n?)+)")
+
+# Cross-references
+_RE_MYST_REFS = re.compile(r"\{(?:ref|doc)\}`([^`]+)`")
+_RE_RST_REFS = re.compile(r":(?:ref|doc):`([^`]+)`")
+
+# Markdown links
+_RE_MD_LINKS = re.compile(r"\[.+?\]\(([^)]+)\)")
+
+
+class DocsScanner(Scanner):
     """Scanner for documentation projects.
 
     Supports:
@@ -38,11 +70,6 @@ class DocsScanner:
     - freshness: Stale files (not updated recently)
     - readability: Basic readability metrics
     """
-
-    def __init__(self) -> None:
-        """Initialize the docs scanner."""
-        self._toctree_cache: dict[str, set[str]] = {}
-        self._link_cache: dict[str, set[str]] = {}
 
     async def scan_nodes(self, root: Path) -> list[StateDagNode]:
         """Scan documentation project for nodes.
@@ -213,29 +240,10 @@ class DocsScanner:
 
     def _should_skip(self, path: Path) -> bool:
         """Check if a path should be skipped during scanning."""
-        skip_dirs = {
-            ".git",
-            "__pycache__",
-            "node_modules",
-            "_build",
-            "build",
-            "dist",
-            ".tox",
-            ".pytest_cache",
-            ".mypy_cache",
-            ".ruff_cache",
-            "htmlcov",
-            "site",  # MkDocs output
-            ".cursor",  # Cursor IDE
-            ".idea",  # JetBrains
-            ".vscode",  # VS Code
-        }
-        skip_prefixes = (".venv", "venv", ".env", "env")
-        parts = path.parts
-        for part in parts:
-            if part in skip_dirs:
+        for part in path.parts:
+            if part in _SKIP_DIRS:
                 return True
-            if any(part.startswith(prefix) for prefix in skip_prefixes):
+            if any(part.startswith(prefix) for prefix in _SKIP_PREFIXES):
                 return True
         return False
 
@@ -316,13 +324,13 @@ class DocsScanner:
             content = path.read_text(encoding="utf-8", errors="ignore")
 
             # Try to find H1 heading
-            # Markdown: # Title or Title\n===
-            md_h1 = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
+            # Markdown: # Title
+            md_h1 = _RE_MD_H1.search(content)
             if md_h1:
                 return md_h1.group(1).strip()
 
             # RST: Title\n=====
-            rst_h1 = re.search(r"^(.+)\n={3,}$", content, re.MULTILINE)
+            rst_h1 = _RE_RST_H1.search(content)
             if rst_h1:
                 return rst_h1.group(1).strip()
 
@@ -339,8 +347,7 @@ class DocsScanner:
         refs: list[str] = []
 
         # MyST toctree (```{toctree} ... ```)
-        myst_pattern = r"```\{toctree\}.*?```"
-        for match in re.finditer(myst_pattern, content, re.DOTALL):
+        for match in _RE_MYST_TOCTREE.finditer(content):
             block = match.group(0)
             # Extract entries (lines that don't start with :)
             for line in block.split("\n"):
@@ -349,8 +356,7 @@ class DocsScanner:
                     refs.append(line)
 
         # RST toctree (.. toctree::)
-        rst_pattern = r"\.\.\s+toctree::\s*\n((?:\s+.+\n?)+)"
-        for match in re.finditer(rst_pattern, content):
+        for match in _RE_RST_TOCTREE.finditer(content):
             block = match.group(1)
             for line in block.split("\n"):
                 line = line.strip()
@@ -364,19 +370,17 @@ class DocsScanner:
         refs: list[str] = []
 
         # MyST {ref}`label` or {doc}`path`
-        myst_refs = re.findall(r"\{(?:ref|doc)\}`([^`]+)`", content)
-        refs.extend(myst_refs)
+        refs.extend(_RE_MYST_REFS.findall(content))
 
         # RST :ref:`label` or :doc:`path`
-        rst_refs = re.findall(r":(?:ref|doc):`([^`]+)`", content)
-        refs.extend(rst_refs)
+        refs.extend(_RE_RST_REFS.findall(content))
 
         return refs
 
     def _extract_markdown_links(self, content: str) -> list[str]:
         """Extract markdown-style links."""
         # [text](path) but not external links
-        links = re.findall(r"\[.+?\]\(([^)]+)\)", content)
+        links = _RE_MD_LINKS.findall(content)
         return [
             link
             for link in links

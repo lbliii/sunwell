@@ -400,7 +400,7 @@ class SQLiteApprovalCache(ApprovalCacheBackend):
 # =============================================================================
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ApprovalCacheConfig:
     """Configuration for approval caching."""
 

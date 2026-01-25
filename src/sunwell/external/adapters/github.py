@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 from sunwell.external.adapters.base import EventAdapter
 from sunwell.external.types import (
+    STATUS_EMOJI,
     EventCallback,
     EventFeedback,
     EventSource,
@@ -505,15 +506,8 @@ class GitHubAdapter(EventAdapter):
         Returns:
             Formatted message
         """
-        status_emoji = {
-            "acknowledged": "👀",
-            "investigating": "🔍",
-            "fixed": "✅",
-            "skipped": "⏭️",
-        }
-
         lines = [
-            f"{status_emoji.get(feedback.status, '🤖')} **Sunwell**: {feedback.status.title()}",
+            f"{STATUS_EMOJI.get(feedback.status, '🤖')} **Sunwell**: {feedback.status.title()}",
             "",
             feedback.message,
         ]

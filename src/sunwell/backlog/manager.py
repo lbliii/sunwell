@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from sunwell.intelligence.context import ProjectContext
 
 
-@dataclass
+@dataclass(slots=True)
 class Backlog:
     """The prioritized backlog as an artifact DAG."""
 

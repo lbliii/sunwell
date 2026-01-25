@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from sunwell.naaru.types import Task
 
 
-@dataclass
+@dataclass(slots=True)
 class SessionContext:
     """Everything about THIS execution.
 

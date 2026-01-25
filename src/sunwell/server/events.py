@@ -43,7 +43,7 @@ class BusEvent:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class Subscriber:
     """WebSocket subscriber with optional project filter."""
 

@@ -52,7 +52,7 @@ DANGEROUS_PATTERNS: frozenset[str] = frozenset({
 })
 
 
-@dataclass
+@dataclass(slots=True)
 class SafetyPolicy:
     """Safety policy for mirror neuron operations.
 
@@ -85,7 +85,7 @@ class SafetyPolicy:
     )
 
 
-@dataclass
+@dataclass(slots=True)
 class SafetyChecker:
     """Validates mirror operations against safety constraints.
 

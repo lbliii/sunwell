@@ -5,18 +5,57 @@ Provides pattern detection, failure analysis, and behavior diagnostics.
 
 
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from types import MappingProxyType
 from typing import Any
 
 
-@dataclass
+# Module-level constant for failure patterns (avoid per-instance recreation)
+_FAILURE_PATTERNS: MappingProxyType[str, MappingProxyType[str, str]] = MappingProxyType({
+    "Permission denied": MappingProxyType({
+        "category": "security",
+        "suggestion": "Check trust level. Current operation requires elevated permissions.",
+        "fix_hint": "Use --trust-level workspace or shell flag",
+    }),
+    "Rate limit exceeded": MappingProxyType({
+        "category": "throttling",
+        "suggestion": "Wait before retrying. Consider batching operations.",
+        "fix_hint": "Reduce tool call frequency or increase rate limits in policy",
+    }),
+    "Not found": MappingProxyType({
+        "category": "file_system",
+        "suggestion": "Verify path exists. Check for typos or wrong workspace.",
+        "fix_hint": "Use list_files to verify path, check workspace root",
+    }),
+    "Timeout": MappingProxyType({
+        "category": "performance",
+        "suggestion": "Operation took too long. Consider breaking into smaller steps.",
+        "fix_hint": "Increase timeout or simplify the operation",
+    }),
+    "Connection": MappingProxyType({
+        "category": "network",
+        "suggestion": "Network connectivity issue. Check internet connection.",
+        "fix_hint": "Verify network access, check API keys for web tools",
+    }),
+    "Invalid JSON": MappingProxyType({
+        "category": "parsing",
+        "suggestion": "Tool arguments were malformed.",
+        "fix_hint": "Check argument types match tool schema",
+    }),
+})
+
+
 class PatternAnalyzer:
     """Analyze patterns in Sunwell's behavior.
 
     Detects trends in tool usage, latency, error rates,
     and common execution sequences.
+
+    Note: Stateless utility class - all state comes from method arguments.
     """
+
+    __slots__ = ()
 
     def analyze_tool_usage(
         self,
@@ -215,7 +254,7 @@ class PatternAnalyzer:
             return "other"
 
 
-@dataclass
+@dataclass(slots=True)
 class FailureAnalyzer:
     """Analyze failures and suggest fixes.
 
@@ -223,43 +262,10 @@ class FailureAnalyzer:
     actionable suggestions for resolution.
     """
 
-    # Known failure patterns with suggestions
-    known_patterns: dict[str, dict[str, str]] = None
-
-    def __post_init__(self) -> None:
-        """Initialize known patterns."""
-        self.known_patterns = {
-            "Permission denied": {
-                "category": "security",
-                "suggestion": "Check trust level. Current operation requires elevated permissions.",
-                "fix_hint": "Use --trust-level workspace or shell flag",
-            },
-            "Rate limit exceeded": {
-                "category": "throttling",
-                "suggestion": "Wait before retrying. Consider batching operations.",
-                "fix_hint": "Reduce tool call frequency or increase rate limits in policy",
-            },
-            "Not found": {
-                "category": "file_system",
-                "suggestion": "Verify path exists. Check for typos or wrong workspace.",
-                "fix_hint": "Use list_files to verify path, check workspace root",
-            },
-            "Timeout": {
-                "category": "performance",
-                "suggestion": "Operation took too long. Consider breaking into smaller steps.",
-                "fix_hint": "Increase timeout or simplify the operation",
-            },
-            "Connection": {
-                "category": "network",
-                "suggestion": "Network connectivity issue. Check internet connection.",
-                "fix_hint": "Verify network access, check API keys for web tools",
-            },
-            "Invalid JSON": {
-                "category": "parsing",
-                "suggestion": "Tool arguments were malformed.",
-                "fix_hint": "Check argument types match tool schema",
-            },
-        }
+    # Known failure patterns (uses module-level constant)
+    known_patterns: MappingProxyType[str, MappingProxyType[str, str]] = field(
+        default=_FAILURE_PATTERNS
+    )
 
     def analyze(self, error_message: str) -> dict[str, Any]:
         """Analyze an error and provide suggestions.

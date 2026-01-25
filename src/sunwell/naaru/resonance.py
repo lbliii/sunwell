@@ -56,7 +56,7 @@ class GenerativeModel(Protocol):
         ...
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ResonanceConfig:
     """Configuration for the Resonance feedback loop.
 
@@ -75,32 +75,32 @@ class ResonanceConfig:
     preserve_working_code: bool = False
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class RefinementAttempt:
     """Record of a single refinement attempt."""
 
     attempt_number: int
     original_proposal_id: str
     refined_proposal_id: str
-    feedback_used: list[str]
+    feedback_used: tuple[str, ...]
     tokens_used: int = 0
     success: bool = False
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ResonanceResult:
     """Result from a resonance refinement session."""
 
     refined_code: str
     refined_proposal_id: str
     original_proposal_id: str
-    attempts: list[RefinementAttempt]
+    attempts: tuple[RefinementAttempt, ...]
     total_tokens: int
     success: bool
     final_feedback: str = ""
 
 
-@dataclass
+@dataclass(slots=True)
 class Resonance:
     """Feedback loop that refines rejected proposals.
 

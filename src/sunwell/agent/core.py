@@ -59,7 +59,7 @@ from sunwell.agent.events import (
     task_start_event,
 )
 from sunwell.agent.fixer import FixStage
-from sunwell.agent.gates import GateDetector, ValidationGate
+from sunwell.agent.gates import ValidationGate, detect_gates
 from sunwell.agent.learning import LearningExtractor, LearningStore
 from sunwell.agent.metrics import InferenceMetrics
 from sunwell.agent.request import RunOptions
@@ -712,8 +712,7 @@ class Agent:
             # RFC-122: Store planning context for learning loop
             self._last_planning_context = planner.last_planning_context
 
-            detector = GateDetector()
-            gates = detector.detect_gates(tasks)
+            gates = detect_gates(tasks)
 
             self._task_graph = TaskGraph(tasks=tasks, gates=gates)
 
@@ -767,8 +766,7 @@ class Agent:
 
             tasks = artifacts_to_tasks(graph)
 
-            detector = GateDetector()
-            gates = detector.detect_gates(tasks)
+            gates = detect_gates(tasks)
 
             self._task_graph = TaskGraph(tasks=tasks, gates=gates)
 

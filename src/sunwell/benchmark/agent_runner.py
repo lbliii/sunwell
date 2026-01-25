@@ -29,7 +29,7 @@ from sunwell.tools.types import ToolPolicy, ToolTrust
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class AgentTaskDefinition:
     """Definition of an agent benchmark task."""
 
@@ -61,7 +61,7 @@ class AgentTaskDefinition:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class PlanningScore:
     """Evaluation of task planning quality."""
 
@@ -92,7 +92,7 @@ class PlanningScore:
         return points / max_points
 
 
-@dataclass
+@dataclass(slots=True)
 class ExecutionScore:
     """Evaluation of task execution quality."""
 
@@ -120,7 +120,7 @@ class ExecutionScore:
         return self.content_checks_passed / self.content_checks_total
 
 
-@dataclass
+@dataclass(slots=True)
 class AgentBenchmarkResult:
     """Result from running an agent benchmark task."""
 

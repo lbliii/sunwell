@@ -30,10 +30,17 @@ import asyncio
 import re
 from dataclasses import dataclass
 from difflib import SequenceMatcher
+from itertools import chain
 from typing import TYPE_CHECKING
+
+from sunwell.models.protocol import GenerateOptions
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
+
+# Pre-compiled patterns for extraction parsing
+_FACT_PATTERN = re.compile(r"FACT:\s*(.+?)(?=QUOTE:|$)", re.DOTALL | re.IGNORECASE)
+_QUOTE_PATTERN = re.compile(r'QUOTE:\s*["\']?(.+?)["\']?\s*$', re.DOTALL | re.IGNORECASE)
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,8 +165,6 @@ async def _extract_once(
     doc_chunk_size: int = 6000,
 ) -> tuple[str, str | None]:
     """Run a single extraction, returning (fact, quote)."""
-    from sunwell.models.protocol import GenerateOptions
-
     # Use first chunk of document (most important info usually at top)
     doc_chunk = document[:doc_chunk_size]
 
@@ -176,11 +181,11 @@ async def _extract_once(
     fact = None
     quote = None
 
-    fact_match = re.search(r"FACT:\s*(.+?)(?=QUOTE:|$)", response, re.DOTALL | re.IGNORECASE)
+    fact_match = _FACT_PATTERN.search(response)
     if fact_match:
         fact = fact_match.group(1).strip()
 
-    quote_match = re.search(r'QUOTE:\s*["\']?(.+?)["\']?\s*$', response, re.DOTALL | re.IGNORECASE)
+    quote_match = _QUOTE_PATTERN.search(response)
     if quote_match:
         quote = quote_match.group(1).strip()
 
@@ -255,8 +260,6 @@ async def squash_extract(
     Returns:
         SquashResult with confident facts, uncertain facts, and synthesized goal
     """
-    from sunwell.models.protocol import GenerateOptions
-
     confident_facts: list[ExtractedFact] = []
     uncertain_facts: list[ExtractedFact] = []
     total_extractions = 0
@@ -282,8 +285,10 @@ async def squash_extract(
             uncertain_facts.append(fact)
 
     # Calculate overall agreement
-    all_agreements = [f.confidence for f in confident_facts + uncertain_facts]
-    overall_agreement = sum(all_agreements) / len(all_agreements) if all_agreements else 0.0
+    all_facts = confident_facts + uncertain_facts
+    overall_agreement = (
+        sum(f.confidence for f in all_facts) / len(all_facts) if all_facts else 0.0
+    )
 
     # Synthesize goal from confident facts only
     if confident_facts:
@@ -344,13 +349,11 @@ async def section_aware_extract(
     2. Extracts from those sections specifically  
     3. Avoids whole-doc inference that leads to hallucination
     """
-    from sunwell.models.protocol import GenerateOptions
-
     confident_facts: list[ExtractedFact] = []
     uncertain_facts: list[ExtractedFact] = []
     total_extractions = 0
 
-    for key, config in SECTION_QUESTIONS.items():
+    for config in SECTION_QUESTIONS.values():
         section = _find_section(document, config["sections"])
 
         if not section:
@@ -389,8 +392,10 @@ async def section_aware_extract(
             uncertain_facts.append(fact)
 
     # Calculate overall agreement
-    all_agreements = [f.confidence for f in confident_facts + uncertain_facts if f.confidence > 0]
-    overall_agreement = sum(all_agreements) / len(all_agreements) if all_agreements else 0.0
+    all_facts = [f for f in chain(confident_facts, uncertain_facts) if f.confidence > 0]
+    overall_agreement = (
+        sum(f.confidence for f in all_facts) / len(all_facts) if all_facts else 0.0
+    )
 
     # Synthesize from confident facts
     if confident_facts:

@@ -28,7 +28,7 @@ from typing import Any
 import yaml
 
 
-@dataclass
+@dataclass(slots=True)
 class ArtifactMatch:
     """Match between expected and actual artifact."""
 
@@ -39,7 +39,7 @@ class ArtifactMatch:
     reasoning: str = ""
 
 
-@dataclass
+@dataclass(slots=True)
 class EvaluationResult:
     """Complete evaluation result for a plan."""
 
@@ -143,7 +143,7 @@ class EvaluationResult:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class PlanningEvaluator:
     """Evaluates plan quality against a benchmark task."""
 

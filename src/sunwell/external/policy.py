@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from sunwell.external.types import EventSource, EventType, ExternalEvent
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ExternalGoalPolicy:
     """Policy for handling external events as goals.
 

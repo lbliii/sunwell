@@ -35,7 +35,7 @@ class ProposalType(Enum):
     TOOL = "tool"
 
 
-@dataclass
+@dataclass(slots=True)
 class Proposal:
     """A proposed improvement to Sunwell.
 
@@ -111,7 +111,7 @@ class Proposal:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class ProposalManager:
     """Manage proposals for self-improvement.
 

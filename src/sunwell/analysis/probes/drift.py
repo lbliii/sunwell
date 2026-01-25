@@ -28,6 +28,50 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# ═══════════════════════════════════════════════════════════════
+# MODULE-LEVEL CONSTANTS
+# ═══════════════════════════════════════════════════════════════
+
+_SKIP_FUNCS: frozenset[str] = frozenset({
+    "print", "len", "str", "int", "float",
+    "list", "dict", "set", "range", "open",
+})
+
+# ═══════════════════════════════════════════════════════════════
+# PRE-COMPILED REGEX PATTERNS
+# ═══════════════════════════════════════════════════════════════
+
+# Pattern 1: Inline code with parentheses (function calls)
+# `auth.login()`, `User.create()`
+_RE_INLINE_FUNC = re.compile(
+    r"`([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*\([^)]*\)`"
+)
+
+# Pattern 2: Inline code that looks like class/module reference
+# `User`, `AuthService`, `auth.token`
+_RE_INLINE_CLASS = re.compile(
+    r"`([A-Z][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)`"
+)
+
+# Pattern 3: Python-style imports mentioned in text
+# "from auth import login"
+_RE_IMPORT = re.compile(r"from\s+(\w+(?:\.\w+)*)\s+import\s+(\w+)")
+
+# Pattern 4: Code blocks - extract function definitions being demonstrated
+_RE_CODE_BLOCK = re.compile(
+    r"```(?:python|py|javascript|js|typescript|ts)?\n(.*?)```",
+    re.DOTALL,
+)
+
+# Function calls within code blocks
+_RE_FUNC_CALL = re.compile(
+    r"([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*\("
+)
+
+# Pattern 5: Sphinx/MyST roles that reference code
+# :func:`auth.login`, :class:`User`, :meth:`User.save`
+_RE_SPHINX_ROLE = re.compile(r":(?:func|class|meth|attr|mod):`([^`]+)`")
+
 
 @dataclass(frozen=True, slots=True)
 class DriftResult:
@@ -182,52 +226,32 @@ class DriftProbe:
         refs: set[str] = set()
 
         # Pattern 1: Inline code with parentheses (function calls)
-        # `auth.login()`, `User.create()`
-        inline_func_pattern = r"`([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*\([^)]*\)`"
-        for match in re.finditer(inline_func_pattern, content):
-            ref = match.group(1)
-            refs.add(ref)
+        for match in _RE_INLINE_FUNC.finditer(content):
+            refs.add(match.group(1))
 
         # Pattern 2: Inline code that looks like class/module reference
-        # `User`, `AuthService`, `auth.token`
-        inline_class_pattern = r"`([A-Z][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)`"
-        for match in re.finditer(inline_class_pattern, content):
-            ref = match.group(1)
-            refs.add(ref)
+        for match in _RE_INLINE_CLASS.finditer(content):
+            refs.add(match.group(1))
 
         # Pattern 3: Python-style imports mentioned in text
-        # "from auth import login"
-        import_pattern = r"from\s+(\w+(?:\.\w+)*)\s+import\s+(\w+)"
-        for match in re.finditer(import_pattern, content):
+        for match in _RE_IMPORT.finditer(content):
             module = match.group(1)
             symbol = match.group(2)
             refs.add(f"{module}.{symbol}")
 
-        # Pattern 4: Code blocks - extract function definitions being demonstrated
-        # def function_name(...)  or  async def function_name(...)
-        code_block_pattern = r"```(?:python|py|javascript|js|typescript|ts)?\n(.*?)```"
-        for match in re.finditer(code_block_pattern, content, re.DOTALL):
+        # Pattern 4: Code blocks - extract function calls
+        for match in _RE_CODE_BLOCK.finditer(content):
             block = match.group(1)
-            # Extract function calls from code blocks
-            func_pattern = r"([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*\("
-            func_calls = re.findall(func_pattern, block)
-            # Filter out common non-API calls
-            skip_funcs = {
-                "print", "len", "str", "int", "float",
-                "list", "dict", "set", "range", "open",
-            }
+            func_calls = _RE_FUNC_CALL.findall(block)
             for func in func_calls:
-                if func.split(".")[-1] not in skip_funcs:
+                if func.split(".")[-1] not in _SKIP_FUNCS:
                     refs.add(func)
 
         # Pattern 5: Sphinx/MyST roles that reference code
-        # :func:`auth.login`, :class:`User`, :meth:`User.save`
-        role_pattern = r":(?:func|class|meth|attr|mod):`([^`]+)`"
-        for match in re.finditer(role_pattern, content):
+        for match in _RE_SPHINX_ROLE.finditer(content):
             ref = match.group(1)
             # Strip leading ~ which is used for short display
-            ref = ref.lstrip("~")
-            refs.add(ref)
+            refs.add(ref.lstrip("~"))
 
         return list(refs)
 

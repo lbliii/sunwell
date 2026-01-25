@@ -34,20 +34,20 @@ from sunwell.team.types import (
 __all__ = ["TeamKnowledgeStore", "SyncResult"]
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class SyncResult:
     """Result of team knowledge synchronization."""
 
     success: bool
     """Whether sync completed successfully."""
 
-    new_decisions: list[TeamDecision] = field(default_factory=list)
+    new_decisions: tuple[TeamDecision, ...] = ()
     """New decisions from team after sync."""
 
-    new_failures: list[TeamFailure] = field(default_factory=list)
+    new_failures: tuple[TeamFailure, ...] = ()
     """New failure patterns from team after sync."""
 
-    conflicts: list[str] = field(default_factory=list)
+    conflicts: tuple[str, ...] = ()
     """Files with unresolved merge conflicts."""
 
     error: str | None = None

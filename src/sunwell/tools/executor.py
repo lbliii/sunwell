@@ -49,7 +49,7 @@ if TYPE_CHECKING:
 ToolHandler = Callable[[dict], Awaitable[str]]
 
 
-@dataclass
+@dataclass(slots=True)
 class ToolExecutor:
     """Execute tool calls locally.
 
@@ -320,13 +320,12 @@ class ToolExecutor:
         Use this when passing tools to model.generate(tools=...) for reliable
         tool calling instead of text-based prompts.
         """
-        from sunwell.tools.builtins import CORE_TOOLS, ENV_TOOLS, GIT_TOOLS
+        from sunwell.tools.builtins import ALL_BUILTIN_TOOLS
 
-        all_tool_defs = {**CORE_TOOLS, **GIT_TOOLS, **ENV_TOOLS}
-        available_names = set(self._handlers.keys())
+        available_names = self._handlers.keys()
 
         return tuple(
-            tool for name, tool in all_tool_defs.items()
+            tool for name, tool in ALL_BUILTIN_TOOLS.items()
             if name in available_names
         )
 

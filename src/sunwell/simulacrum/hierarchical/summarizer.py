@@ -36,7 +36,7 @@ class SummarizerProtocol(Protocol):
         ...
 
 
-@dataclass
+@dataclass(slots=True)
 class HeuristicSummarizer:
     """Extract summaries using TF-IDF-like scoring (no LLM required).
 
@@ -186,7 +186,7 @@ class HeuristicSummarizer:
         return [s.replace("<DOT>", ".").strip() for s in sentences if s.strip()]
 
 
-@dataclass
+@dataclass(slots=True)
 class Summarizer:
     """Generates concise summaries and extracts insights from conversation turns.
 

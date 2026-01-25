@@ -71,7 +71,7 @@ def _get_dataclass_defaults() -> dict[str, dict[str, Any]]:
     }
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class SunwellConfig:
     """Root configuration for Sunwell."""
 

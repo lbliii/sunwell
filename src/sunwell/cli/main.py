@@ -11,6 +11,7 @@ All other commands are progressive disclosure or hidden for Studio.
 
 
 import asyncio
+import re
 import sys
 from pathlib import Path
 
@@ -19,6 +20,13 @@ import click
 from sunwell.cli.helpers import check_free_threading, load_dotenv
 from sunwell.cli.shortcuts import complete_shortcut, complete_target
 from sunwell.cli.theme import create_sunwell_console
+
+# Pre-compiled patterns for project name extraction (avoid recompiling per call)
+_RE_PROJECT_NAME_PATTERNS = (
+    re.compile(r"(?:build|create|make|write)\s+(?:a\s+)?(.+?)\s+(?:app|api|tool|site|website|service)"),
+    re.compile(r"(?:build|create|make|write)\s+(?:a\s+)?(.+?)\s+(?:with|using)"),
+    re.compile(r"(?:build|create|make)\s+(?:a\s+)?(.+?)$"),
+)
 
 # RFC-131: Holy Light themed console
 console = create_sunwell_console()
@@ -631,19 +639,11 @@ def _extract_project_name(goal: str) -> str | None:
     Returns:
         Extracted project name or None if unclear
     """
-    import re
-
     goal_lower = goal.lower()
 
     # Pattern: "build/create/make a X app/api/tool/site"
-    patterns = [
-        r"(?:build|create|make|write)\s+(?:a\s+)?(.+?)\s+(?:app|api|tool|site|website|service)",
-        r"(?:build|create|make|write)\s+(?:a\s+)?(.+?)\s+(?:with|using)",
-        r"(?:build|create|make)\s+(?:a\s+)?(.+?)$",
-    ]
-
-    for pattern in patterns:
-        match = re.search(pattern, goal_lower)
+    for pattern in _RE_PROJECT_NAME_PATTERNS:
+        match = pattern.search(goal_lower)
         if match:
             name = match.group(1).strip()
             # Filter out very short or generic results

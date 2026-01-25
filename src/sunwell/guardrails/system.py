@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from sunwell.external.types import ExternalEvent
 
 
-@dataclass
+@dataclass(slots=True)
 class GuardrailSystem:
     """Main guardrail system orchestrator.
 

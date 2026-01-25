@@ -19,6 +19,13 @@ from typing import Literal
 
 from sunwell.intelligence.codebase import CodeLocation
 
+# Pre-compiled regex patterns for performance
+_PYTEST_FAILURE_PATTERN = re.compile(r"FAILED\s+([^:]+)::([^\s]+)")
+_TODO_PATTERN = re.compile(r"(TODO|FIXME|XXX|HACK|NOTE):\s*(.+)", re.IGNORECASE)
+_MYPY_ERROR_PATTERN = re.compile(r"([^:]+):(\d+):\s+error:\s+(.+)")
+_RUFF_WARNING_PATTERN = re.compile(r"([^:]+):(\d+):(\d+):\s+([A-Z]\d+)\s+(.+)")
+_COVERAGE_PATTERN = re.compile(r"([^\s]+)\s+\d+\s+(\d+)")
+
 
 @dataclass(frozen=True, slots=True)
 class ObservableSignal:
@@ -98,7 +105,7 @@ class SignalExtractor:
             output = test_result.stdout + test_result.stderr
             for line in output.splitlines():
                 # Match pytest failure format: "FAILED test_file.py::test_func"
-                match = re.search(r"FAILED\s+([^:]+)::([^\s]+)", line)
+                match = _PYTEST_FAILURE_PATTERN.search(line)
                 if match:
                     file_path = match.group(1)
                     test_name = match.group(2)
@@ -139,16 +146,11 @@ class SignalExtractor:
             if not any(part in ignore_dirs for part in f.parts)
         ]
 
-        todo_pattern = re.compile(
-            r"(TODO|FIXME|XXX|HACK|NOTE):\s*(.+)",
-            re.IGNORECASE,
-        )
-
         for file_path in python_files:
             try:
                 content = file_path.read_text(encoding="utf-8")
                 for line_num, line in enumerate(content.splitlines(), start=1):
-                    match = todo_pattern.search(line)
+                    match = _TODO_PATTERN.search(line)
                     if match:
                         todo_type = match.group(1).upper()
                         message = match.group(2).strip()
@@ -202,7 +204,7 @@ class SignalExtractor:
             # Parse mypy output
             for line in result.stdout.splitlines():
                 # Format: "file.py:line: error: message"
-                match = re.search(r"([^:]+):(\d+):\s+error:\s+(.+)", line)
+                match = _MYPY_ERROR_PATTERN.search(line)
                 if match:
                     file_path = Path(match.group(1))
                     line_num = int(match.group(2))
@@ -247,7 +249,7 @@ class SignalExtractor:
             # Parse ruff output
             for line in result.stdout.splitlines():
                 # Format: "file.py:line:col: code message"
-                match = re.search(r"([^:]+):(\d+):(\d+):\s+([A-Z]\d+)\s+(.+)", line)
+                match = _RUFF_WARNING_PATTERN.search(line)
                 if match:
                     file_path = Path(match.group(1))
                     line_num = int(match.group(2))
@@ -311,7 +313,7 @@ class SignalExtractor:
             # Parse coverage report
             # Format: "file.py     line  missing"
             for line in report_result.stdout.splitlines():
-                match = re.search(r"([^\s]+)\s+\d+\s+(\d+)", line)
+                match = _COVERAGE_PATTERN.search(line)
                 if match:
                     file_path = Path(match.group(1))
                     missing_lines = int(match.group(2))

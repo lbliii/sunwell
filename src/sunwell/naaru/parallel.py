@@ -40,7 +40,7 @@ from sunwell.naaru.types import (
 )
 
 
-@dataclass
+@dataclass(slots=True)
 class WorkerStats:
     """Stats for a single worker."""
     worker_id: int
@@ -59,7 +59,7 @@ class WorkerStats:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class ParallelSessionState(SessionState):
     """Extended state for parallel execution."""
 
@@ -73,7 +73,7 @@ class ParallelSessionState(SessionState):
         return base
 
 
-@dataclass
+@dataclass(slots=True)
 class ParallelAutonomousRunner:
     """Parallel runner using multiple worker threads.
 

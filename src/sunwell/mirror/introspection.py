@@ -27,7 +27,7 @@ def _get_sunwell_source_root() -> Path:
     return Path(sunwell.__file__).parent.parent.parent
 
 
-@dataclass
+@dataclass(slots=True)
 class SourceIntrospector:
     """Read and analyze Sunwell's own source code.
 
@@ -194,13 +194,16 @@ class SourceIntrospector:
         return sorted(modules)
 
 
-@dataclass
 class LensIntrospector:
     """Examine the currently loaded lens.
 
     Provides read-only access to lens heuristics, validators,
     personas, and framework configuration.
+
+    Note: Stateless utility class - all state comes from method arguments.
     """
+
+    __slots__ = ()
 
     def get_heuristics(self, lens: Any) -> list[dict[str, Any]]:
         """Get all heuristics from a lens.
@@ -308,13 +311,16 @@ class LensIntrospector:
         }
 
 
-@dataclass
 class SimulacrumIntrospector:
     """Examine current simulacrum state.
 
     Provides read-only access to learnings, dead ends,
     focus state, and conversation context.
+
+    Note: Stateless utility class - all state comes from method arguments.
     """
+
+    __slots__ = ()
 
     def get_learnings(self, simulacrum: Any) -> list[dict[str, Any]]:
         """Get all learnings from simulacrum.
@@ -412,13 +418,16 @@ class SimulacrumIntrospector:
         }
 
 
-@dataclass
 class ExecutionIntrospector:
     """Examine execution history.
 
     Provides access to tool call audit logs, errors,
     and execution statistics.
+
+    Note: Stateless utility class - all state comes from method arguments.
     """
+
+    __slots__ = ()
 
     def get_recent_tool_calls(
         self,

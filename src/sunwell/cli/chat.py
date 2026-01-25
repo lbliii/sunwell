@@ -5,7 +5,7 @@ import asyncio
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import click
 from rich.live import Live
@@ -652,13 +652,16 @@ async def _build_codebase_index_legacy(
         return None, stats
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class RAGResult:
     """Result of RAG retrieval with transparency info."""
+
     context: str
     """Formatted context string for prompt injection."""
-    references: list[tuple[str, float]]
-    """List of (reference_string, relevance_score) tuples."""
+
+    references: tuple[tuple[str, float], ...] = ()
+    """Tuple of (reference_string, relevance_score) pairs."""
+
     fallback_used: bool = False
     """RFC-108: Whether fallback (grep) was used instead of semantic search."""
 
@@ -686,17 +689,17 @@ async def _retrieve_relevant_code(
         RAGResult with context and transparency info.
     """
     if not context_provider:
-        return RAGResult(context="", references=[])
+        return RAGResult(context="")
 
     # RFC-108: Check if this is the new SmartContext
     try:
         from sunwell.indexing import SmartContext
         if isinstance(context_provider, SmartContext):
             result = await context_provider.get_context(query, top_k=top_k)
-            references = [
+            references = tuple(
                 (f"{c.file_path}:{c.start_line}-{c.end_line}", c.score)
                 for c in result.chunks
-            ] if hasattr(result, 'chunks') and result.chunks else []
+            ) if hasattr(result, 'chunks') and result.chunks else ()
 
             return RAGResult(
                 context=result.context,
@@ -711,10 +714,10 @@ async def _retrieve_relevant_code(
         retrieval = await context_provider.retrieve(query, top_k=top_k, threshold=0.3)
         if retrieval.chunks:
             # Build references list for transparency
-            references = [
+            references = tuple(
                 (chunk.reference, retrieval.relevance_scores.get(chunk.id, 0.0))
                 for chunk in retrieval.chunks
-            ]
+            )
             return RAGResult(
                 context=retrieval.to_prompt_context(max_chunks=top_k),
                 references=references,
@@ -722,7 +725,7 @@ async def _retrieve_relevant_code(
     except Exception:
         pass
 
-    return RAGResult(context="", references=[])
+    return RAGResult(context="")
 
 
 def _format_context_summary(ctx_data: dict, workspace_data: dict | None = None) -> str:
@@ -769,9 +772,10 @@ def _format_context_summary(ctx_data: dict, workspace_data: dict | None = None) 
     return "\n".join(lines)
 
 
-@dataclass
+@dataclass(slots=True)
 class ChatState:
     """Mutable state for chat loop - enables model switching."""
+
     model: object
     model_name: str
     lens_name: str = "Assistant"
@@ -784,9 +788,9 @@ class ChatState:
     """Queue for M'uru observations to display after streaming completes."""
 
     # Project context (for /context command)
-    project_context: dict = field(default_factory=dict)
+    project_context: dict[str, Any] = field(default_factory=dict)
     """Cached project context data."""
-    workspace_context: dict | None = None
+    workspace_context: dict[str, Any] | None = None
     """RFC-103 workspace context (linked sources, symbols)."""
 
     # Semantic RAG (Phase 3)
@@ -794,7 +798,7 @@ class ChatState:
     """Codebase indexer for semantic retrieval."""
     rag_enabled: bool = False
     """Whether semantic RAG is enabled for this session."""
-    rag_stats: dict = field(default_factory=dict)
+    rag_stats: dict[str, Any] = field(default_factory=dict)
     """Stats about the codebase index (file_count, chunk_count, etc.)."""
 
     def switch_model(self, new_model: object, new_name: str) -> None:
@@ -1509,7 +1513,7 @@ async def _chat_loop(
 
             # RFC-108: Semantic RAG with graceful fallback
             # Show what was retrieved with transparency
-            rag_result = RAGResult(context="", references=[])
+            rag_result = RAGResult(context="")
             if state.rag_enabled and state.codebase_indexer:
                 try:
                     rag_result = await _retrieve_relevant_code(

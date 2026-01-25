@@ -38,7 +38,7 @@ class WaveResult:
     error: str | None = None
 
 
-@dataclass
+@dataclass(slots=True)
 class CascadeArtifactBuilder:
     """Converts cascade preview into executable artifact specs.
 
@@ -133,7 +133,7 @@ class CascadeArtifactBuilder:
         return "\n".join(lines)
 
 
-@dataclass
+@dataclass(slots=True)
 class CascadeExecutor:
     """Executes cascade regeneration wave-by-wave with verification.
 

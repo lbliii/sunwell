@@ -21,6 +21,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Pre-compiled regex patterns for performance (avoid recompiling per-call)
+_RE_JSON_OBJECT = re.compile(r"\{[^{}]*\}", re.DOTALL)
+_RE_LOWERCASE_WORDS = re.compile(r"[a-z]+")
+
 
 # Navigation prompt template
 NAVIGATION_PROMPT = """You are navigating a codebase to find relevant code.
@@ -89,7 +93,7 @@ class NavigationResult:
     follow_up: tuple[str, ...] = ()
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class NavigatorConfig:
     """Configuration for ToC navigation."""
 
@@ -109,7 +113,7 @@ class NavigatorConfig:
     """Token budget for subtree expansion."""
 
 
-@dataclass
+@dataclass(slots=True)
 class TocNavigator:
     """LLM-powered navigation using ToC reasoning.
 
@@ -453,7 +457,7 @@ class TocNavigator:
             text = "\n".join(lines)
 
         # Try to find JSON object
-        match = re.search(r"\{[^{}]*\}", text, re.DOTALL)
+        match = _RE_JSON_OBJECT.search(text)
         if match:
             text = match.group(0)
 
@@ -495,7 +499,7 @@ class TocNavigator:
             Best-guess NavigationResult.
         """
         # Extract keywords from query
-        keywords = set(re.findall(r"[a-z]+", query.lower()))
+        keywords = set(_RE_LOWERCASE_WORDS.findall(query.lower()))
         keywords -= {"the", "a", "an", "is", "are", "how", "does", "what", "where", "find"}
 
         # Score nodes by keyword overlap
@@ -504,7 +508,7 @@ class TocNavigator:
 
         for node in self.toc.nodes.values():
             text = f"{node.title} {node.path} {node.summary}".lower()
-            node_words = set(re.findall(r"[a-z]+", text))
+            node_words = set(_RE_LOWERCASE_WORDS.findall(text))
             score = len(keywords & node_words)
 
             if score > best_score:

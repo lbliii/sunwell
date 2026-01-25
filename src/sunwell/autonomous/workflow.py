@@ -14,10 +14,9 @@ Example:
 """
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 from sunwell.agent.events import (
     AgentEvent,
@@ -26,7 +25,7 @@ from sunwell.agent.events import (
 )
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class AutonomousConfig:
     """Configuration for autonomous workflow.
 
@@ -67,7 +66,7 @@ class AutonomousConfig:
     """Automatically resume from checkpoint if found."""
 
 
-@dataclass
+@dataclass(slots=True)
 class AutonomousState:
     """Runtime state for autonomous execution."""
 
@@ -103,8 +102,7 @@ async def autonomous_goal(
     goal: str,
     project_path: Path,
     config: AutonomousConfig | None = None,
-    on_checkpoint: callable | None = None,
-    on_escalation: callable | None = None,
+    on_checkpoint: Callable[[AgentEvent], None] | None = None,
 ) -> AsyncIterator[AgentEvent]:
     """Execute goal autonomously with all RFC-130 features.
 
@@ -120,7 +118,6 @@ async def autonomous_goal(
         project_path: Path to the project
         config: Autonomous configuration (uses defaults if None)
         on_checkpoint: Callback when checkpoint is saved
-        on_escalation: Callback when human escalation is needed
 
     Yields:
         AgentEvent for each step of execution

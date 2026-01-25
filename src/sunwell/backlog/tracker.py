@@ -18,14 +18,20 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
     from sunwell.backlog.goals import Goal
     from sunwell.backlog.manager import BacklogManager
 
 
-@dataclass
+class DictSerializable(Protocol):
+    """Protocol for objects that can serialize to dict."""
+
+    def to_dict(self) -> dict[str, Any]: ...
+
+
+@dataclass(frozen=True, slots=True)
 class MilestoneProgress:
     """Progress summary for an epic."""
 
@@ -54,7 +60,7 @@ class MilestoneProgress:
         }
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class MilestoneLearning:
     """A learning extracted from milestone completion."""
 
@@ -62,7 +68,7 @@ class MilestoneLearning:
     milestone_title: str
     learning_type: str  # "artifact", "pattern", "challenge", "decision"
     content: str
-    created_at: datetime = field(default_factory=datetime.now)
+    created_at: datetime
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -75,7 +81,7 @@ class MilestoneLearning:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class LearningStore:
     """Stores learnings extracted from milestone completions."""
 
@@ -115,7 +121,7 @@ class LearningStore:
                         learning_type=data["learning_type"],
                         content=data["content"],
                         created_at=datetime.fromisoformat(data["created_at"]),
-                    )
+                    ),
                 )
             except (json.JSONDecodeError, KeyError):
                 continue
@@ -131,7 +137,7 @@ class LearningStore:
         ]
 
 
-@dataclass
+@dataclass(slots=True)
 class MilestoneTracker:
     """Tracks milestone progress and handles transitions (RFC-115).
 
@@ -242,6 +248,7 @@ class MilestoneTracker:
                         milestone_title=milestone.title,
                         learning_type="artifact",
                         content=f"Produced artifact: {artifact}",
+                        created_at=datetime.now(),
                     ),
                 )
 

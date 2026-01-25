@@ -68,7 +68,7 @@ class SlotSource(Enum):
     NAARU = "naaru"
 
 
-@dataclass
+@dataclass(slots=True)
 class Slot:
     """A slot in the Convergence (working memory).
 
@@ -92,7 +92,7 @@ class Slot:
     created_at: float = field(default_factory=lambda: asyncio.get_event_loop().time())
 
 
-@dataclass
+@dataclass(slots=True)
 class Convergence:
     """Shared working memory with limited capacity (7±2 slots).
 

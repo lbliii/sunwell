@@ -99,10 +99,10 @@ class ValidationResult:
     passed: bool
     """Whether validation passed."""
 
-    errors: list[ValidationError] = field(default_factory=list)
+    errors: tuple[ValidationError, ...] = ()
     """Errors found."""
 
-    gate_results: list[GateResult] = field(default_factory=list)
+    gate_results: tuple[GateResult, ...] = ()
     """Results from each gate."""
 
     duration_ms: int = 0

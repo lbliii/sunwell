@@ -238,13 +238,9 @@ def import_environment(input_path: Path, merge: bool = False) -> UserEnvironment
     if merge:
         existing = load_environment()
         # Merge projects (imported overwrites existing by path)
-        existing_paths = {p.path for p in existing.projects}
+        # add_project handles update-or-insert with O(1) index lookup
         for project in imported.projects:
-            if project.path not in existing_paths:
-                existing.projects.append(project)
-            else:
-                # Update existing
-                existing.add_project(project)
+            existing.add_project(project)
 
         # Merge roots (avoid duplicates)
         existing_root_paths = {r.path for r in existing.roots}

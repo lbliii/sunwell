@@ -53,7 +53,7 @@ TASK_CATEGORY_MAP: dict[str, str] = {
 }
 
 
-@dataclass
+@dataclass(slots=True)
 class ModelRoutingConfig:
     """Configuration for model routing from a lens.
 
@@ -123,7 +123,7 @@ class ModelRoutingConfig:
         return self.privacy.get("local_only", False)
 
 
-@dataclass
+@dataclass(slots=True)
 class ModelRouter:
     """Routes tasks to optimal models based on lens config and performance.
 

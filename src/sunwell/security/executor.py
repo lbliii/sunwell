@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 # =============================================================================
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class SecurityPolicy:
     """Security policy for skill execution.
 
@@ -106,7 +106,7 @@ class SecurityPolicy:
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class ApprovalRequest:
     """Request for user approval before execution."""
 
@@ -126,7 +126,7 @@ class ApprovalRequest:
     """When approval was requested."""
 
 
-@dataclass
+@dataclass(slots=True)
 class ApprovalResponse:
     """User response to an approval request."""
 
@@ -251,7 +251,7 @@ class ApprovalManager:
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class SecureSkillExecutor:
     """Security-aware skill executor (RFC-089).
 

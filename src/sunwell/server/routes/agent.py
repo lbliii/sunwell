@@ -1,6 +1,7 @@
 """Agent execution and event streaming routes (RFC-119)."""
 
 import contextlib
+import re
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from pathlib import Path
@@ -12,6 +13,9 @@ from pydantic import BaseModel
 from sunwell.server.events import BusEvent, EventBus
 from sunwell.server.runs import RunManager, RunState
 from sunwell.server.workspace_manager import get_workspace_manager
+
+# Pre-compiled regex for workspace name generation (avoid recompiling per call)
+_RE_NON_WORD = re.compile(r"[^\w\s-]")
 
 router = APIRouter(prefix="/api", tags=["agent"])
 
@@ -364,12 +368,11 @@ def _create_default_workspace(goal: str, default_root: Path) -> Path:
     Returns:
         Path to created workspace
     """
-    import re
     import time
 
     # Extract a name from the goal
     # Take first few words, remove special chars
-    words = re.sub(r"[^\w\s-]", "", goal.lower()).split()[:3]
+    words = _RE_NON_WORD.sub("", goal.lower()).split()[:3]
     name = "-".join(words) if words else "project"
 
     # Ensure unique name

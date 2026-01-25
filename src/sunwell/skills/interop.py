@@ -46,8 +46,25 @@ if TYPE_CHECKING:
 # Export format types
 ExportFormat = Literal["anthropic", "sunwell", "skill-md", "yaml"]
 
+# Pre-compiled regex patterns for performance (avoid recompiling per-call)
+_RE_HEADER_L2 = re.compile(r"^## ", re.MULTILINE)
+_RE_FRONTMATTER = re.compile(r"^---\n(.*?)\n---\n?", re.DOTALL)
+_RE_DAG_METADATA = re.compile(
+    r"<!-- Sunwell DAG Metadata.*?depends_on:\s*(\[.*?\]).*?produces:\s*(\[.*?\]).*?requires:\s*(\[.*?\]).*?-->",
+    re.DOTALL,
+)
+_RE_TITLE = re.compile(r"^#\s+(.+)$", re.MULTILINE)
+_RE_CODE_BLOCK = re.compile(r"```(\w+)?\n(.*?)\n```", re.DOTALL)
+_RE_CODE_BLOCK_SIMPLE = re.compile(r"```\w*\n(.*?)\n```", re.DOTALL)
+_RE_SECTION_HEADER = re.compile(r"###\s+(.+?)\n(.*?)(?=###|\Z)", re.DOTALL)
+_RE_SCRIPT_DESC = re.compile(r"^(.+?)(?=\*\*|\n```)", re.DOTALL)
+_RE_RESOURCE_LINK = re.compile(r"-\s+\[(.+?)\]\((.+?)\)")
+_RE_RESOURCE_PATH = re.compile(r"-\s+(.+?):\s+`(.+?)`")
+_RE_SLUG_SPECIAL = re.compile(r"[^\w\s-]")
+_RE_SLUG_SPACE = re.compile(r"[\s_]+")
 
-@dataclass
+
+@dataclass(slots=True)
 class SkillExporter:
     """Export skills to standalone formats.
 
@@ -320,7 +337,7 @@ class SkillExporter:
             # Escape any ## headers in instructions to ### to avoid section conflicts
             instructions = skill.instructions
             # Convert any ## headers to ### (preserve hierarchy)
-            instructions = re.sub(r'^## ', '### ', instructions, flags=re.MULTILINE)
+            instructions = _RE_HEADER_L2.sub("### ", instructions)
             sections.append(f"{instructions}\n")
 
         # Scripts
@@ -466,7 +483,7 @@ class SkillExporter:
         return yaml.dump(data, default_flow_style=False, sort_keys=False, allow_unicode=True)
 
 
-@dataclass
+@dataclass(slots=True)
 class SkillImporter:
     """Import external skills from various formats.
 
@@ -542,7 +559,7 @@ class SkillImporter:
         }
 
         # Extract YAML frontmatter
-        frontmatter_match = re.match(r'^---\n(.*?)\n---\n?', content, re.DOTALL)
+        frontmatter_match = _RE_FRONTMATTER.match(content)
         if frontmatter_match:
             try:
                 frontmatter = yaml.safe_load(frontmatter_match.group(1))
@@ -553,11 +570,7 @@ class SkillImporter:
                 pass
 
         # Extract DAG metadata from HTML comments
-        dag_match = re.search(
-            r'<!-- Sunwell DAG Metadata.*?depends_on:\s*(\[.*?\]).*?produces:\s*(\[.*?\]).*?requires:\s*(\[.*?\]).*?-->',
-            content,
-            re.DOTALL,
-        )
+        dag_match = _RE_DAG_METADATA.search(content)
         if dag_match:
             try:
                 # Parse the list literals
@@ -615,7 +628,7 @@ class SkillImporter:
         }
 
         # Extract title (# Skill Name)
-        title_match = re.search(r'^#\s+(.+)$', content, re.MULTILINE)
+        title_match = _RE_TITLE.search(content)
         if title_match:
             skill_data["name"] = self._slugify(title_match.group(1))
 
@@ -688,21 +701,18 @@ class SkillImporter:
         scripts = []
 
         # Find all ### headers (script names) and their code blocks
-        script_pattern = r'###\s+(.+?)\n(.*?)(?=###|\Z)'
-        code_pattern = r'```(\w+)?\n(.*?)\n```'
-
-        for match in re.finditer(script_pattern, content, re.DOTALL):
+        for match in _RE_SECTION_HEADER.finditer(content):
             script_name = match.group(1).strip()
             script_body = match.group(2)
 
             # Find code block in script body
-            code_match = re.search(code_pattern, script_body, re.DOTALL)
+            code_match = _RE_CODE_BLOCK.search(script_body)
             if code_match:
                 language = code_match.group(1) or "python"
                 code = code_match.group(2)
 
                 # Extract description (text before code block)
-                desc_match = re.search(r'^(.+?)(?=\*\*|\n```)', script_body, re.DOTALL)
+                desc_match = _RE_SCRIPT_DESC.search(script_body)
                 description = desc_match.group(1).strip() if desc_match else None
 
                 scripts.append({
@@ -719,14 +729,11 @@ class SkillImporter:
         templates = []
 
         # Find all ### headers (template names) and their code blocks
-        template_pattern = r'###\s+(.+?)\n(.*?)(?=###|\Z)'
-        code_pattern = r'```\w*\n(.*?)\n```'
-
-        for match in re.finditer(template_pattern, content, re.DOTALL):
+        for match in _RE_SECTION_HEADER.finditer(content):
             template_name = match.group(1).strip()
             template_body = match.group(2)
 
-            code_match = re.search(code_pattern, template_body, re.DOTALL)
+            code_match = _RE_CODE_BLOCK_SIMPLE.search(template_body)
             if code_match:
                 templates.append({
                     "name": template_name,
@@ -740,16 +747,13 @@ class SkillImporter:
         resources = []
 
         # Parse markdown links: - [Name](url) or - Name: `path`
-        link_pattern = r'-\s+\[(.+?)\]\((.+?)\)'
-        path_pattern = r'-\s+(.+?):\s+`(.+?)`'
-
-        for match in re.finditer(link_pattern, content):
+        for match in _RE_RESOURCE_LINK.finditer(content):
             resources.append({
                 "name": match.group(1),
                 "url": match.group(2),
             })
 
-        for match in re.finditer(path_pattern, content):
+        for match in _RE_RESOURCE_PATH.finditer(content):
             if match.group(1) not in [r["name"] for r in resources]:
                 resources.append({
                     "name": match.group(1),
@@ -761,9 +765,9 @@ class SkillImporter:
     def _slugify(self, text: str) -> str:
         """Convert text to slug format (lowercase, hyphenated)."""
         slug = text.lower()
-        slug = re.sub(r'[^\w\s-]', '', slug)
-        slug = re.sub(r'[\s_]+', '-', slug)
-        return slug.strip('-')
+        slug = _RE_SLUG_SPECIAL.sub("", slug)
+        slug = _RE_SLUG_SPACE.sub("-", slug)
+        return slug.strip("-")
 
     def import_skill_yaml(self, skill_path: Path) -> dict:
         """Parse a skill YAML file into skill data.
@@ -815,122 +819,130 @@ class SkillImporter:
         )
 
 
-@dataclass
-class SkillValidator:
-    """Validate skill folders against lens quality standards."""
+def validate_skill_folder(
+    skill_path: Path,
+    lens: "Lens | None" = None,
+) -> "SkillValidationResult":
+    """Validate a skill folder for correctness.
 
-    def validate_skill_folder(
-        self,
-        skill_path: Path,
-        lens: Lens | None = None,
-    ) -> SkillValidationResult:
-        """Validate a skill folder for correctness.
+    Args:
+        skill_path: Path to skill folder or file
+        lens: Optional lens to validate against
 
-        Args:
-            skill_path: Path to skill folder or file
-            lens: Optional lens to validate against
+    Returns:
+        Validation result with issues and score
+    """
+    issues: list[str] = []
+    warnings: list[str] = []
 
-        Returns:
-            Validation result with issues and score
-        """
-        issues: list[str] = []
-        warnings: list[str] = []
-
-        # Import the skill to check structure
-        importer = SkillImporter()
-        try:
-            skill_data = importer.import_skill_folder(skill_path)
-        except FileNotFoundError as e:
-            return SkillValidationResult(
-                valid=False,
-                score=0.0,
-                issues=[str(e)],
-                warnings=[],
-            )
-        except Exception as e:
-            return SkillValidationResult(
-                valid=False,
-                score=0.0,
-                issues=[f"Parse error: {e}"],
-                warnings=[],
-            )
-
-        # Required fields
-        if not skill_data.get("name"):
-            issues.append("Missing required field: name")
-        if not skill_data.get("description"):
-            issues.append("Missing required field: description")
-
-        # Recommended fields
-        if not skill_data.get("instructions"):
-            warnings.append("Missing instructions - skill provides no guidance")
-
-        # Validate scripts
-        for script in skill_data.get("scripts", []):
-            if not script.get("name"):
-                issues.append("Script missing name")
-            if not script.get("content"):
-                issues.append(f"Script '{script.get('name', 'unknown')}' has no content")
-            if script.get("language") not in ["python", "bash", "javascript", "typescript", "node"]:
-                warnings.append(
-                    f"Script '{script.get('name')}' uses unusual language: {script.get('language')}"
-                )
-
-        # Validate templates
-        for template in skill_data.get("templates", []):
-            if not template.get("name"):
-                issues.append("Template missing name")
-            if not template.get("content"):
-                issues.append(f"Template '{template.get('name', 'unknown')}' has no content")
-
-        # Check for variable placeholders in templates
-        for template in skill_data.get("templates", []):
-            content = template.get("content", "")
-            if "${" not in content and "{" not in content:
-                warnings.append(
-                    f"Template '{template.get('name')}' has no variables - may not be dynamic"
-                )
-
-        # Validate against lens if provided
-        if lens:
-            # Check if skill name follows lens conventions
-            skill_name = skill_data.get("name", "")
-            if "_" in skill_name:
-                warnings.append(
-                    f"Skill name '{skill_name}' uses underscores - prefer hyphens"
-                )
-
-            # Check for required validators
-            validate_with = skill_data.get("validate_with", {})
-            validators = validate_with.get("validators", [])
-
-            lens_validators = {v.name for v in lens.heuristic_validators}
-            for v in validators:
-                if v not in lens_validators:
-                    warnings.append(f"Validator '{v}' not found in lens")
-
-        # Calculate score
-        total_checks = 10
-        passed_checks = total_checks - len(issues) - (len(warnings) * 0.5)
-        score = max(0.0, min(1.0, passed_checks / total_checks))
-
+    # Import the skill to check structure
+    importer = SkillImporter()
+    try:
+        skill_data = importer.import_skill_folder(skill_path)
+    except FileNotFoundError as e:
         return SkillValidationResult(
-            valid=len(issues) == 0,
-            score=score,
-            issues=issues,
-            warnings=warnings,
-            skill_data=skill_data,
+            valid=False,
+            score=0.0,
+            issues=(str(e),),
+            warnings=(),
+        )
+    except Exception as e:
+        return SkillValidationResult(
+            valid=False,
+            score=0.0,
+            issues=(f"Parse error: {e}",),
+            warnings=(),
         )
 
+    # Required fields
+    if not skill_data.get("name"):
+        issues.append("Missing required field: name")
+    if not skill_data.get("description"):
+        issues.append("Missing required field: description")
 
-@dataclass
+    # Recommended fields
+    if not skill_data.get("instructions"):
+        warnings.append("Missing instructions - skill provides no guidance")
+
+    # Validate scripts
+    for script in skill_data.get("scripts", []):
+        if not script.get("name"):
+            issues.append("Script missing name")
+        if not script.get("content"):
+            issues.append(f"Script '{script.get('name', 'unknown')}' has no content")
+        if script.get("language") not in ["python", "bash", "javascript", "typescript", "node"]:
+            warnings.append(
+                f"Script '{script.get('name')}' uses unusual language: {script.get('language')}"
+            )
+
+    # Validate templates
+    for template in skill_data.get("templates", []):
+        if not template.get("name"):
+            issues.append("Template missing name")
+        if not template.get("content"):
+            issues.append(f"Template '{template.get('name', 'unknown')}' has no content")
+
+    # Check for variable placeholders in templates
+    for template in skill_data.get("templates", []):
+        content = template.get("content", "")
+        if "${" not in content and "{" not in content:
+            warnings.append(
+                f"Template '{template.get('name')}' has no variables - may not be dynamic"
+            )
+
+    # Validate against lens if provided
+    if lens:
+        # Check if skill name follows lens conventions
+        skill_name = skill_data.get("name", "")
+        if "_" in skill_name:
+            warnings.append(
+                f"Skill name '{skill_name}' uses underscores - prefer hyphens"
+            )
+
+        # Check for required validators
+        validate_with = skill_data.get("validate_with", {})
+        validators = validate_with.get("validators", [])
+
+        lens_validators = {v.name for v in lens.heuristic_validators}
+        for v in validators:
+            if v not in lens_validators:
+                warnings.append(f"Validator '{v}' not found in lens")
+
+    # Calculate score
+    total_checks = 10
+    passed_checks = total_checks - len(issues) - (len(warnings) * 0.5)
+    score = max(0.0, min(1.0, passed_checks / total_checks))
+
+    return SkillValidationResult(
+        valid=len(issues) == 0,
+        score=score,
+        issues=tuple(issues),
+        warnings=tuple(warnings),
+        skill_data=skill_data,
+    )
+
+
+# Backwards compatibility alias
+class SkillValidator:
+    """Deprecated: Use validate_skill_folder() function instead."""
+
+    @staticmethod
+    def validate_skill_folder(
+        skill_path: Path,
+        lens: "Lens | None" = None,
+    ) -> "SkillValidationResult":
+        """Validate a skill folder for correctness."""
+        return validate_skill_folder(skill_path, lens)
+
+
+@dataclass(frozen=True, slots=True)
 class SkillValidationResult:
     """Result of skill validation."""
 
     valid: bool
     score: float
-    issues: list[str] = field(default_factory=list)
-    warnings: list[str] = field(default_factory=list)
+    issues: tuple[str, ...] = ()
+    warnings: tuple[str, ...] = ()
     skill_data: dict | None = None
 
     def summary(self) -> str:

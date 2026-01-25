@@ -13,6 +13,14 @@ from typing import Literal
 DiataxisType = Literal["TUTORIAL", "HOW_TO", "EXPLANATION", "REFERENCE"]
 
 
+# Pre-compiled regex patterns for structural detection (avoid per-call compilation)
+_RE_STEP_PATTERN = re.compile(r"^#{1,3}\s*(step\s+\d+|[0-9]+\.)", re.MULTILINE | re.IGNORECASE)
+_RE_CODE_BLOCKS = re.compile(r"```\w*\n")
+_RE_TABLES = re.compile(r"\|[^|]+\|[^|]+\|")
+_RE_QA_PATTERN = re.compile(r"\*\*(why|what|how)\b.*\?\*\*", re.IGNORECASE)
+_RE_NOTES_PATTERN = re.compile(r"^(?:note|warning|tip|important):", re.MULTILINE | re.IGNORECASE)
+
+
 @dataclass(frozen=True, slots=True)
 class DiataxisSignal:
     """A signal contributing to Diataxis type detection."""
@@ -244,17 +252,16 @@ def _detect_structural_signals(
     Returns:
         Updated scores
     """
-    # Count numbered steps (suggests TUTORIAL or HOW_TO)
-    step_pattern = r"^#{1,3}\s*(step\s+\d+|[0-9]+\.)"
-    step_matches = len(re.findall(step_pattern, content, re.MULTILINE | re.IGNORECASE))
+    # Count numbered steps (suggests TUTORIAL or HOW_TO) - pre-compiled
+    step_matches = len(_RE_STEP_PATTERN.findall(content))
 
     if step_matches >= 3:
         scores["TUTORIAL"] += 0.15
         scores["HOW_TO"] += 0.1
         signals.append(DiataxisSignal("TUTORIAL", 0.15, f"{step_matches} numbered steps"))
 
-    # Count code blocks (suggests REFERENCE or HOW_TO)
-    code_blocks = len(re.findall(r"```\w*\n", content))
+    # Count code blocks (suggests REFERENCE or HOW_TO) - pre-compiled
+    code_blocks = len(_RE_CODE_BLOCKS.findall(content))
 
     if code_blocks >= 5:
         scores["REFERENCE"] += 0.1
@@ -263,21 +270,20 @@ def _detect_structural_signals(
         scores["HOW_TO"] += 0.05
         signals.append(DiataxisSignal("HOW_TO", 0.05, f"{code_blocks} code blocks"))
 
-    # Count tables (suggests REFERENCE)
-    tables = len(re.findall(r"\|[^|]+\|[^|]+\|", content))
+    # Count tables (suggests REFERENCE) - pre-compiled
+    tables = len(_RE_TABLES.findall(content))
 
     if tables >= 5:
         scores["REFERENCE"] += 0.2
         signals.append(DiataxisSignal("REFERENCE", 0.2, "Multiple tables detected"))
 
-    # Check for Q&A pattern (suggests EXPLANATION)
-    qa_pattern = r"\*\*(why|what|how)\b.*\?\*\*"
-    if re.search(qa_pattern, content, re.IGNORECASE):
+    # Check for Q&A pattern (suggests EXPLANATION) - pre-compiled
+    if _RE_QA_PATTERN.search(content):
         scores["EXPLANATION"] += 0.1
         signals.append(DiataxisSignal("EXPLANATION", 0.1, "Q&A format detected"))
 
-    # Check for "Note:" or "Warning:" (neutral but suggests docs)
-    if re.search(r"^(?:note|warning|tip|important):", content, re.MULTILINE | re.IGNORECASE):
+    # Check for "Note:" or "Warning:" (neutral but suggests docs) - pre-compiled
+    if _RE_NOTES_PATTERN.search(content):
         scores["HOW_TO"] += 0.05
 
     return scores

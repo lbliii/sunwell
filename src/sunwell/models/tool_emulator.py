@@ -89,7 +89,7 @@ def parse_tool_calls_from_text(text: str) -> tuple[list[ToolCall], str]:
     return tool_calls, remaining.strip()
 
 
-@dataclass
+@dataclass(slots=True)
 class ToolEmulatorModel:
     """Wraps a model to add tool calling via JSON emulation.
 

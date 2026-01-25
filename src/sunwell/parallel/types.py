@@ -18,7 +18,7 @@ class WorkerState(Enum):
     FAILED = "failed"
 
 
-@dataclass
+@dataclass(slots=True)
 class WorkerStatus:
     """Current status of a worker process."""
 
@@ -53,7 +53,7 @@ class WorkerStatus:
     """Error message if worker is in FAILED state."""
 
 
-@dataclass
+@dataclass(slots=True)
 class WorkerResult:
     """Result of a worker process execution."""
 
@@ -76,7 +76,7 @@ class WorkerResult:
     """List of commit SHAs created by this worker."""
 
 
-@dataclass
+@dataclass(slots=True)
 class MergeResult:
     """Result of merging worker branches."""
 
@@ -88,7 +88,7 @@ class MergeResult:
 
 
 # RFC-100: UI-focused types for ATC view
-@dataclass
+@dataclass(slots=True)
 class FileConflict:
     """A file conflict between workers for UI display."""
 
@@ -111,7 +111,7 @@ class FileConflict:
     """When the conflict was detected."""
 
 
-@dataclass
+@dataclass(slots=True)
 class CoordinatorUIState:
     """State snapshot for UI consumption (RFC-100 Phase 4).
 

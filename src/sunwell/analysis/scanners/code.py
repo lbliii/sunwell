@@ -10,6 +10,7 @@ a State DAG with:
 from __future__ import annotations
 
 import ast
+import json
 import logging
 import re
 import subprocess
@@ -18,14 +19,68 @@ from pathlib import Path
 
 from sunwell.analysis.state_dag import (
     HealthProbeResult,
+    Scanner,
     StateDagEdge,
     StateDagNode,
 )
 
 logger = logging.getLogger(__name__)
 
+# ═══════════════════════════════════════════════════════════════
+# MODULE-LEVEL CONSTANTS
+# ═══════════════════════════════════════════════════════════════
 
-class CodeScanner:
+_PROJECT_MARKERS: dict[str, tuple[str, ...]] = {
+    "python": ("pyproject.toml", "setup.py", "requirements.txt", "Pipfile"),
+    "javascript": ("package.json", "tsconfig.json", "jsconfig.json"),
+    "rust": ("Cargo.toml",),
+    "go": ("go.mod",),
+}
+
+_EXTENSIONS: dict[str, tuple[str, ...]] = {
+    "python": (".py",),
+    "javascript": (".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs"),
+    "rust": (".rs",),
+    "go": (".go",),
+    "unknown": (".py", ".js", ".ts"),
+}
+
+_EXT_TO_LANG: tuple[tuple[str, str], ...] = (
+    (".py", "python"),
+    (".js", "javascript"),
+    (".ts", "javascript"),
+    (".rs", "rust"),
+    (".go", "go"),
+)
+
+_SKIP_DIRS: frozenset[str] = frozenset({
+    ".git", "__pycache__", "node_modules", "dist", "build",
+    ".tox", ".pytest_cache", ".mypy_cache", ".ruff_cache",
+    "htmlcov", "target", ".next", ".nuxt", "coverage",
+    ".coverage", ".cursor", ".idea", ".vscode",
+})
+
+_SKIP_PREFIXES: tuple[str, ...] = (".venv", "venv", ".env", "env")
+
+# ═══════════════════════════════════════════════════════════════
+# PRE-COMPILED REGEX PATTERNS
+# ═══════════════════════════════════════════════════════════════
+
+# JavaScript/TypeScript imports
+_RE_ES6_IMPORT = re.compile(r"import\s+.*?\s+from\s+['\"]([^'\"]+)['\"]")
+_RE_CJS_REQUIRE = re.compile(r"require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)")
+
+# Rust imports
+_RE_RUST_USE = re.compile(r"use\s+(crate|super|self)::([^;{]+)")
+_RE_RUST_MOD = re.compile(r"mod\s+(\w+)\s*;")
+
+# Go imports
+_RE_GO_IMPORT_BLOCK = re.compile(r"import\s*\(([^)]+)\)", re.DOTALL)
+_RE_GO_IMPORT_SINGLE = re.compile(r'import\s+"([^"]+)"')
+_RE_GO_IMPORT_LINE = re.compile(r'"([^"]+)"')
+
+
+class CodeScanner(Scanner):
     """Scanner for software/code projects.
 
     Supports:
@@ -40,10 +95,6 @@ class CodeScanner:
     - complexity: Cyclomatic complexity
     - freshness: Last modified date
     """
-
-    def __init__(self) -> None:
-        """Initialize the code scanner."""
-        self._import_cache: dict[str, set[str]] = {}
 
     async def scan_nodes(self, root: Path) -> list[StateDagNode]:
         """Scan software project for nodes.
@@ -185,69 +236,28 @@ class CodeScanner:
 
     def _detect_project_type(self, root: Path) -> str:
         """Detect the primary language/framework of the project."""
-        markers = {
-            "python": ["pyproject.toml", "setup.py", "requirements.txt", "Pipfile"],
-            "javascript": ["package.json", "tsconfig.json", "jsconfig.json"],
-            "rust": ["Cargo.toml"],
-            "go": ["go.mod"],
-        }
-
-        for lang, files in markers.items():
+        for lang, files in _PROJECT_MARKERS.items():
             for marker in files:
                 if (root / marker).exists():
                     return lang
 
         # Fallback: count files by extension
         counts: dict[str, int] = {}
-        ext_to_lang = [
-            (".py", "python"), (".js", "javascript"), (".ts", "javascript"),
-            (".rs", "rust"), (".go", "go"),
-        ]
-        for ext, lang in ext_to_lang:
+        for ext, lang in _EXT_TO_LANG:
             counts[lang] = counts.get(lang, 0) + len(list(root.glob(f"**/*{ext}")))
 
         return max(counts, key=lambda k: counts[k]) if counts else "unknown"
 
-    def _get_extensions(self, project_type: str) -> list[str]:
+    def _get_extensions(self, project_type: str) -> tuple[str, ...]:
         """Get file extensions for a project type."""
-        extensions = {
-            "python": [".py"],
-            "javascript": [".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs"],
-            "rust": [".rs"],
-            "go": [".go"],
-            "unknown": [".py", ".js", ".ts"],
-        }
-        return extensions.get(project_type, extensions["unknown"])
+        return _EXTENSIONS.get(project_type, _EXTENSIONS["unknown"])
 
     def _should_skip(self, path: Path) -> bool:
         """Check if a path should be skipped during scanning."""
-        skip_dirs = {
-            ".git",
-            "__pycache__",
-            "node_modules",
-            "dist",
-            "build",
-            ".tox",
-            ".pytest_cache",
-            ".mypy_cache",
-            ".ruff_cache",
-            "htmlcov",
-            "target",  # Rust
-            ".next",  # Next.js
-            ".nuxt",  # Nuxt.js
-            "coverage",
-            ".coverage",
-            "egg-info",
-            ".cursor",  # Cursor IDE
-            ".idea",  # JetBrains
-            ".vscode",  # VS Code
-        }
-        skip_prefixes = (".venv", "venv", ".env", "env")
-        parts = path.parts
-        for part in parts:
-            if part in skip_dirs or part.endswith(".egg-info"):
+        for part in path.parts:
+            if part in _SKIP_DIRS or part.endswith(".egg-info"):
                 return True
-            if any(part.startswith(prefix) for prefix in skip_prefixes):
+            if any(part.startswith(prefix) for prefix in _SKIP_PREFIXES):
                 return True
         return False
 
@@ -426,17 +436,13 @@ class CodeScanner:
         imports: list[str] = []
 
         # ES6 imports: import ... from 'module'
-        es6_pattern = r"import\s+.*?\s+from\s+['\"]([^'\"]+)['\"]"
-        imports.extend(re.findall(es6_pattern, content))
+        imports.extend(_RE_ES6_IMPORT.findall(content))
 
         # CommonJS: require('module')
-        cjs_pattern = r"require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)"
-        imports.extend(re.findall(cjs_pattern, content))
+        imports.extend(_RE_CJS_REQUIRE.findall(content))
 
         # Filter to local imports (starting with . or /)
-        local_imports = [imp for imp in imports if imp.startswith((".", "/"))]
-
-        return local_imports
+        return [imp for imp in imports if imp.startswith((".", "/"))]
 
     def _extract_rust_imports(self, path: Path) -> list[str]:
         """Extract imports from a Rust file."""
@@ -448,14 +454,12 @@ class CodeScanner:
         imports: list[str] = []
 
         # use statements: use crate::module or use super::module
-        use_pattern = r"use\s+(crate|super|self)::([^;{]+)"
-        for match in re.finditer(use_pattern, content):
+        for match in _RE_RUST_USE.finditer(content):
             path_part = match.group(2).split("::")[0].strip()
             imports.append(path_part)
 
         # mod statements: mod module;
-        mod_pattern = r"mod\s+(\w+)\s*;"
-        imports.extend(re.findall(mod_pattern, content))
+        imports.extend(_RE_RUST_MOD.findall(content))
 
         return imports
 
@@ -469,15 +473,14 @@ class CodeScanner:
         imports: list[str] = []
 
         # import "package" or import ( ... )
-        import_block = re.search(r"import\s*\(([^)]+)\)", content, re.DOTALL)
+        import_block = _RE_GO_IMPORT_BLOCK.search(content)
         if import_block:
             for line in import_block.group(1).split("\n"):
-                match = re.search(r'"([^"]+)"', line)
+                match = _RE_GO_IMPORT_LINE.search(line)
                 if match:
                     imports.append(match.group(1))
 
-        single_imports = re.findall(r'import\s+"([^"]+)"', content)
-        imports.extend(single_imports)
+        imports.extend(_RE_GO_IMPORT_SINGLE.findall(content))
 
         return imports
 
@@ -516,7 +519,6 @@ class CodeScanner:
                     timeout=60,
                 )
                 if result.stdout:
-                    import json
                     lint_output = json.loads(result.stdout)
                     for issue in lint_output:
                         file_path = Path(issue.get("filename", ""))

@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from sunwell.simulacrum.core.turn import Learning, Turn
 
 
-@dataclass
+@dataclass(slots=True)
 class ContextBudget:
     """Token budget for context assembly.
 
@@ -46,7 +46,7 @@ class ContextBudget:
         return self.total_tokens - self.response_tokens
 
 
-@dataclass
+@dataclass(slots=True)
 class MemoryRetrievalResult:
     """Results from parallel memory retrieval (simulacrum).
 

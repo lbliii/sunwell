@@ -32,6 +32,8 @@ _IS_EPIC_RE = re.compile(r"IS_EPIC:\s*(YES|NO|MAYBE)", re.IGNORECASE)
 _CONFIDENCE_RE = re.compile(r"CONFIDENCE:\s*([\d.]+)", re.IGNORECASE)
 _DOMAIN_RE = re.compile(r"DOMAIN:\s*(\w+)", re.IGNORECASE)
 _COMPONENTS_RE = re.compile(r"COMPONENTS:\s*(.+?)(?:\n|$)", re.IGNORECASE)
+_IS_CRITICAL_RE = re.compile(r"IS_CRITICAL:\s*YES", re.IGNORECASE)
+_ERROR_PRONE_RE = re.compile(r"ERROR_PRONE:\s*YES", re.IGNORECASE)
 
 
 @dataclass(frozen=True, slots=True)
@@ -362,7 +364,7 @@ async def extract_task_signals(
         text = result.text
 
         # Parse confidence
-        conf_match = re.search(r"CONFIDENCE:\s*([\d.]+)", text, re.IGNORECASE)
+        conf_match = _CONFIDENCE_RE.search(text)
         try:
             confidence = float(conf_match.group(1)) if conf_match else 0.5
             confidence = min(1.0, max(0.0, confidence))
@@ -370,8 +372,8 @@ async def extract_task_signals(
             confidence = 0.5
 
         # Parse booleans
-        is_critical = bool(re.search(r"IS_CRITICAL:\s*YES", text, re.IGNORECASE))
-        error_prone = bool(re.search(r"ERROR_PRONE:\s*YES", text, re.IGNORECASE))
+        is_critical = bool(_IS_CRITICAL_RE.search(text))
+        error_prone = bool(_ERROR_PRONE_RE.search(text))
 
         return TaskSignals(
             task_id=task_id,

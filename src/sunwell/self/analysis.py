@@ -68,7 +68,7 @@ KNOWN_FAILURE_PATTERNS: dict[str, dict[str, str]] = {
 }
 
 
-@dataclass
+@dataclass(slots=True)
 class AnalysisKnowledge:
     """Analyze Sunwell's runtime behavior.
 

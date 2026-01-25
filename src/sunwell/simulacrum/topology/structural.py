@@ -42,7 +42,7 @@ class SectionType(Enum):
     UNKNOWN = "unknown"
 
 
-@dataclass
+@dataclass(slots=True)
 class DocumentSection:
     """A section in a document hierarchy.
 
@@ -94,7 +94,7 @@ class DocumentSection:
     """Contains notes/warnings/etc."""
 
 
-@dataclass
+@dataclass(slots=True)
 class DocumentTree:
     """Hierarchical document structure for structural retrieval.
 

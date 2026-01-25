@@ -6,7 +6,6 @@ and selects the appropriate workflow chain.
 
 
 import re
-from dataclasses import dataclass
 
 from sunwell.workflow.types import (
     WORKFLOW_CHAINS,
@@ -88,17 +87,6 @@ PHRASE_OVERRIDES: dict[str, tuple[IntentCategory, str]] = {
     "full audit": (IntentCategory.VALIDATION, "health-check"),
     "deep analysis": (IntentCategory.VALIDATION, "health-check"),
 }
-
-
-@dataclass
-class IntentClassification:
-    """Result of intent classification."""
-
-    category: IntentCategory
-    confidence: float
-    signals: list[str]
-    workflow_name: str
-    tier: WorkflowTier
 
 
 class IntentRouter:

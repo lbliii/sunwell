@@ -103,7 +103,7 @@ class OpportunityCategory(Enum):
     OTHER = "other"
 
 
-@dataclass
+@dataclass(slots=True)
 class Opportunity:
     """An identified improvement opportunity.
 
@@ -153,7 +153,7 @@ class Opportunity:
 # NOTE: RFC-067 types moved to sunwell.integration.types
 
 
-@dataclass
+@dataclass(slots=True)
 class Task:
     """A unit of work for Naaru to execute (RFC-032, RFC-034, RFC-067).
 
@@ -448,7 +448,7 @@ class Task:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class SessionConfig:
     """Configuration for an autonomous session.
 
@@ -486,7 +486,7 @@ class SessionConfig:
         return cls(**data)
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class CompletedTask:
     """Record of a completed task."""
 
@@ -494,7 +494,8 @@ class CompletedTask:
     proposal_id: str | None
     result: str  # auto_applied, queued, rejected, failed
     timestamp: datetime
-    details: dict[str, Any] = field(default_factory=dict)
+    details: tuple[tuple[str, Any], ...] = ()
+    """Details as tuple of key-value pairs (frozen-compatible)."""
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -503,11 +504,11 @@ class CompletedTask:
             "proposal_id": self.proposal_id,
             "result": self.result,
             "timestamp": self.timestamp.isoformat(),
-            "details": self.details,
+            "details": dict(self.details),
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class SessionState:
     """Persistent state for an autonomous session.
 

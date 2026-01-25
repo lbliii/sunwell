@@ -135,13 +135,16 @@ class ConstraintDSL:
         return None
 
 
-@dataclass
 class ConstraintEvaluator:
     """Evaluates parsed constraint rules against artifacts.
 
     This class provides a safe evaluation environment for constraint
     expressions without arbitrary code execution.
+
+    Note: Stateless utility class - all state comes from method arguments.
     """
+
+    __slots__ = ()
 
     def evaluate_condition(
         self,

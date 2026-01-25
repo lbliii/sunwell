@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ModelPerformanceEntry:
     """Single performance data point for a model execution."""
 
@@ -20,8 +20,8 @@ class ModelPerformanceEntry:
     task_category: str
     success: bool
     latency_ms: int
+    timestamp: datetime
     user_edited: bool = False  # Did user modify the output?
-    timestamp: datetime = field(default_factory=datetime.now)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -47,7 +47,7 @@ class ModelPerformanceEntry:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class ModelPerformanceTracker:
     """Track and analyze model performance across task categories.
 

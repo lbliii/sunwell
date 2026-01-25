@@ -1,5 +1,6 @@
 """Project management routes (RFC-113, RFC-117, RFC-132)."""
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -7,6 +8,9 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from sunwell.server.routes._models import CamelModel
+
+# Pre-compiled regex for slug generation (avoid recompiling per call)
+_RE_SLUG_CHARS = re.compile(r"[^a-z0-9]+")
 
 router = APIRouter(prefix="/api", tags=["project"])
 
@@ -205,7 +209,7 @@ async def create_project(request: CreateProjectRequest) -> CreateProjectResponse
     else:
         # Default location with slugified name
         slug = name.lower()
-        slug = re.sub(r"[^a-z0-9]+", "-", slug).strip("-") or "project"
+        slug = _RE_SLUG_CHARS.sub("-", slug).strip("-") or "project"
         project_path = default_workspace_root() / slug
 
     # Ensure parent exists
@@ -217,7 +221,7 @@ async def create_project(request: CreateProjectRequest) -> CreateProjectResponse
 
     # Generate slug for project ID
     slug = name.lower()
-    slug = re.sub(r"[^a-z0-9]+", "-", slug).strip("-") or "project"
+    slug = _RE_SLUG_CHARS.sub("-", slug).strip("-") or "project"
 
     # Initialize project
     try:

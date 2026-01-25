@@ -14,7 +14,7 @@ from typing import Any
 from uuid import uuid4
 
 
-@dataclass
+@dataclass(slots=True)
 class RunState:
     """State for a single agent run."""
 

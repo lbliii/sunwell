@@ -25,6 +25,15 @@ from sunwell.backlog.goals import Goal, GoalScope
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
 
+# Pre-compiled regex patterns for milestone parsing
+_MILESTONE_SPLIT_PATTERN = re.compile(r"MILESTONE\s+(\d+)\s*:", re.IGNORECASE)
+_PRODUCES_PATTERN = re.compile(r"PRODUCES:\s*(.+?)(?:\n|$)", re.IGNORECASE)
+_REQUIRES_PATTERN = re.compile(r"REQUIRES:\s*(.+?)(?:\n|$)", re.IGNORECASE)
+_DESCRIPTION_PATTERN = re.compile(
+    r"DESCRIPTION:\s*(.+?)(?:\n\n|$)", re.IGNORECASE | re.DOTALL
+)
+_NUMBER_PATTERN = re.compile(r"\d+")
+
 
 # =============================================================================
 # Domain Detection
@@ -227,14 +236,14 @@ DOMAIN_PROMPTS = {
 # =============================================================================
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ParsedMilestone:
     """Intermediate representation of a parsed milestone."""
 
     index: int
     title: str
-    produces: list[str]
-    requires_indices: list[int]  # Milestone numbers (1-indexed from prompt)
+    produces: tuple[str, ...]
+    requires_indices: tuple[int, ...]  # Milestone numbers (1-indexed from prompt)
     description: str
 
 
@@ -250,7 +259,7 @@ def parse_milestones(text: str) -> list[ParsedMilestone]:
     milestones: list[ParsedMilestone] = []
 
     # Split by MILESTONE N: pattern
-    blocks = re.split(r"MILESTONE\s+(\d+)\s*:", text, flags=re.IGNORECASE)
+    blocks = _MILESTONE_SPLIT_PATTERN.split(text)
 
     # blocks[0] is before first milestone, then pairs of (number, content)
     for i in range(1, len(blocks) - 1, 2):
@@ -263,29 +272,23 @@ def parse_milestones(text: str) -> list[ParsedMilestone]:
 
         # Parse PRODUCES
         produces: list[str] = []
-        produces_match = re.search(
-            r"PRODUCES:\s*(.+?)(?:\n|$)", content, re.IGNORECASE
-        )
+        produces_match = _PRODUCES_PATTERN.search(content)
         if produces_match:
             produces = [p.strip() for p in produces_match.group(1).split(",") if p.strip()]
 
         # Parse REQUIRES
         requires_indices: list[int] = []
-        requires_match = re.search(
-            r"REQUIRES:\s*(.+?)(?:\n|$)", content, re.IGNORECASE
-        )
+        requires_match = _REQUIRES_PATTERN.search(content)
         if requires_match:
             req_text = requires_match.group(1).strip().lower()
             if req_text != "none":
                 # Extract milestone numbers
-                numbers = re.findall(r"\d+", req_text)
+                numbers = _NUMBER_PATTERN.findall(req_text)
                 requires_indices = [int(n) for n in numbers]
 
         # Parse DESCRIPTION
         description = ""
-        desc_match = re.search(
-            r"DESCRIPTION:\s*(.+?)(?:\n\n|$)", content, re.IGNORECASE | re.DOTALL
-        )
+        desc_match = _DESCRIPTION_PATTERN.search(content)
         if desc_match:
             description = desc_match.group(1).strip()
 
@@ -293,8 +296,8 @@ def parse_milestones(text: str) -> list[ParsedMilestone]:
             ParsedMilestone(
                 index=index,
                 title=title,
-                produces=produces,
-                requires_indices=requires_indices,
+                produces=tuple(produces),
+                requires_indices=tuple(requires_indices),
                 description=description,
             )
         )
@@ -369,7 +372,7 @@ def milestones_to_goals(
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class EpicDecomposer:
     """Decomposes ambitious goals into milestones (RFC-115).
 
@@ -464,8 +467,8 @@ class EpicDecomposer:
                 ParsedMilestone(
                     index=1,
                     title=goal[:60],
-                    produces=[],
-                    requires_indices=[],
+                    produces=(),
+                    requires_indices=(),
                     description=goal,
                 )
             ]

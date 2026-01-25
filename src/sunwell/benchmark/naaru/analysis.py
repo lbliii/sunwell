@@ -8,7 +8,6 @@ Provides statistical analysis for Naaru benchmark results:
 """
 
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from sunwell.benchmark.naaru.types import (
@@ -491,9 +490,13 @@ def _evaluate_hypotheses(
     return results
 
 
-@dataclass
 class NaaruReportGenerator:
-    """Generate markdown reports from Naaru benchmark analysis."""
+    """Generate markdown reports from Naaru benchmark analysis.
+
+    Note: Stateless utility class - all state comes from method arguments.
+    """
+
+    __slots__ = ()
 
     def generate(
         self,

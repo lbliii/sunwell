@@ -19,6 +19,11 @@ import click
 
 from sunwell.cli.theme import create_sunwell_console
 
+# Pre-compiled regex patterns for context extraction (avoid recompiling per call)
+_RE_CODE_REF = re.compile(r"`([a-z_][a-z0-9_\.]+)`", re.I)
+_RE_IMPORT = re.compile(r"from\s+(\S+)\s+import|import\s+(\S+)")
+_RE_PY_FILE_REF = re.compile(r"`([a-z_/]+\.py)`")
+
 console = create_sunwell_console()
 
 
@@ -434,11 +439,11 @@ async def _get_semantic_context(target_path: Path, workspace_root: Path) -> str 
 
         query_parts = []
         if target_path.suffix in (".md", ".rst"):
-            code_refs = re.findall(r"`([a-z_][a-z0-9_\.]+)`", file_content, re.I)
+            code_refs = _RE_CODE_REF.findall(file_content)
             query_parts.extend(code_refs[:10])
         elif target_path.suffix == ".py":
             query_parts.append(target_path.stem)
-            imports = re.findall(r"from\s+(\S+)\s+import|import\s+(\S+)", file_content)
+            imports = _RE_IMPORT.findall(file_content)
             for imp in imports[:5]:
                 query_parts.extend([p for p in imp if p])
 
@@ -471,7 +476,7 @@ def _find_related_files(target: Path, workspace: Path) -> list[dict[str, str]]:
     if target.suffix in (".md", ".rst"):
         try:
             content = target.read_text()
-            for match in re.findall(r"`([a-z_/]+\.py)`", content):
+            for match in _RE_PY_FILE_REF.findall(content):
                 impl_path = workspace / match
                 if impl_path.exists():
                     related.append({"path": str(impl_path), "relation": "implementation"})

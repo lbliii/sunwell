@@ -12,12 +12,69 @@ Example:
 import ast
 import logging
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from types import MappingProxyType
 from typing import Literal
 
 logger = logging.getLogger(__name__)
+
+# ═══════════════════════════════════════════════════════════════
+# MODULE-LEVEL CONSTANTS
+# ═══════════════════════════════════════════════════════════════
+
+_LANGUAGE_MARKERS: tuple[tuple[str, str], ...] = (
+    ("pyproject.toml", "python"),
+    ("setup.py", "python"),
+    ("package.json", "typescript"),
+    ("Cargo.toml", "rust"),
+    ("go.mod", "go"),
+)
+
+_SKIP_DIRS_PYTHON: frozenset[str] = frozenset({
+    "__pycache__", ".git", ".venv", "venv", "env", ".tox",
+    "node_modules", "dist", "build", ".pytest_cache", ".mypy_cache",
+})
+
+_SKIP_DIRS_TS: frozenset[str] = frozenset({
+    "node_modules", ".git", "dist", "build", "coverage",
+})
+
+_SKIP_DIRS_GENERIC: frozenset[str] = frozenset({
+    ".git", "target", "vendor", "node_modules",
+})
+
+# ═══════════════════════════════════════════════════════════════
+# PRE-COMPILED REGEX PATTERNS
+# ═══════════════════════════════════════════════════════════════
+
+_RE_DEPRECATION_REPLACEMENT = re.compile(r"use\s+[`']?(\w+)[`']?\s+instead", re.IGNORECASE)
+
+# TypeScript patterns
+_RE_TS_FUNCTION = re.compile(
+    r"export\s+(?:async\s+)?function\s+(\w+)\s*\(([^)]*)\)\s*(?::\s*([^{]+))?",
+    re.MULTILINE,
+)
+_RE_TS_CLASS = re.compile(r"export\s+class\s+(\w+)", re.MULTILINE)
+_RE_TS_INTERFACE = re.compile(r"export\s+interface\s+(\w+)", re.MULTILINE)
+_RE_TS_TYPE = re.compile(r"export\s+type\s+(\w+)", re.MULTILINE)
+_RE_TS_CONST = re.compile(r"export\s+const\s+(\w+)\s*[:=]", re.MULTILINE)
+
+# Generic language patterns (pre-compiled)
+_GENERIC_PATTERNS: dict[str, dict[str, re.Pattern[str] | str]] = {
+    "go": {
+        "ext": "*.go",
+        "func": re.compile(r"func\s+(?:\(.*?\)\s+)?(\w+)\s*\(", re.MULTILINE),
+        "type": re.compile(r"type\s+(\w+)\s+(?:struct|interface)", re.MULTILINE),
+    },
+    "rust": {
+        "ext": "*.rs",
+        "func": re.compile(r"(?:pub\s+)?fn\s+(\w+)\s*[<(]", re.MULTILINE),
+        "type": re.compile(r"(?:pub\s+)?(?:struct|enum|trait)\s+(\w+)", re.MULTILINE),
+    },
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,7 +106,7 @@ class SymbolInfo:
     """Suggested replacement if deprecated."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class SourceContext:
     """Indexed source code context for drift detection.
 
@@ -66,8 +123,14 @@ class SourceContext:
     language: str
     """Primary language (python, typescript, go, rust)."""
 
-    symbols: dict[str, SymbolInfo]
-    """All indexed symbols, keyed by fully qualified name."""
+    symbols: Mapping[str, SymbolInfo]
+    """All indexed symbols, keyed by fully qualified name (immutable)."""
+
+    _lowercase_index: Mapping[str, SymbolInfo]
+    """Secondary index: lowercase name -> symbol for O(1) case-insensitive lookup."""
+
+    _short_name_index: Mapping[str, SymbolInfo]
+    """Secondary index: final component -> symbol for O(1) partial lookup."""
 
     indexed_at: datetime = field(default_factory=datetime.now)
     """When the index was built."""
@@ -108,10 +171,22 @@ class SourceContext:
             # Fallback to basic extraction
             symbols, file_count = await _index_generic(root, language)
 
+        # Build secondary indexes for O(1) lookups
+        lowercase_index: dict[str, SymbolInfo] = {}
+        short_name_index: dict[str, SymbolInfo] = {}
+        for key, symbol in symbols.items():
+            lowercase_index[key.lower()] = symbol
+            short_name = key.split(".")[-1]
+            # Only store if not already present (first wins for short names)
+            if short_name not in short_name_index:
+                short_name_index[short_name] = symbol
+
         return cls(
             root=root,
             language=language,
-            symbols=symbols,
+            symbols=MappingProxyType(symbols),
+            _lowercase_index=MappingProxyType(lowercase_index),
+            _short_name_index=MappingProxyType(short_name_index),
             file_count=file_count,
             symbol_count=len(symbols),
         )
@@ -119,10 +194,10 @@ class SourceContext:
     def lookup(self, name: str) -> SymbolInfo | None:
         """Look up a symbol by name.
 
-        Supports:
+        Supports (all O(1)):
         - Exact match: "auth.login"
-        - Partial match: "login" (finds first match)
-        - Method lookup: "User.create"
+        - Case-insensitive: "Auth.Login"
+        - Short name: "login" (finds first match)
 
         Args:
             name: Symbol name to look up.
@@ -130,20 +205,22 @@ class SourceContext:
         Returns:
             SymbolInfo if found, None otherwise.
         """
-        # Exact match
+        # O(1) exact match
         if name in self.symbols:
             return self.symbols[name]
 
-        # Try with normalized case
+        # O(1) case-insensitive lookup
         name_lower = name.lower()
-        for key, symbol in self.symbols.items():
-            if key.lower() == name_lower:
-                return symbol
+        if name_lower in self._lowercase_index:
+            return self._lowercase_index[name_lower]
 
-        # Partial match (symbol name without module prefix)
-        for key, symbol in self.symbols.items():
-            if key.endswith(f".{name}") or key.split(".")[-1] == name:
-                return symbol
+        # O(1) short name lookup
+        if name in self._short_name_index:
+            return self._short_name_index[name]
+
+        # O(1) short name case-insensitive
+        if name_lower in self._short_name_index:
+            return self._short_name_index[name_lower]
 
         return None
 
@@ -171,14 +248,7 @@ class SourceContext:
 
 def _detect_language(root: Path) -> str:
     """Detect primary language of a source directory."""
-    markers = [
-        ("pyproject.toml", "python"),
-        ("setup.py", "python"),
-        ("package.json", "typescript"),
-        ("Cargo.toml", "rust"),
-        ("go.mod", "go"),
-    ]
-    for marker, lang in markers:
+    for marker, lang in _LANGUAGE_MARKERS:
         if (root / marker).exists():
             return lang
     return "unknown"
@@ -196,24 +266,9 @@ async def _index_python(root: Path) -> tuple[dict[str, SymbolInfo], int]:
     symbols: dict[str, SymbolInfo] = {}
     file_count = 0
 
-    # Skip directories that shouldn't be indexed
-    skip_dirs = {
-        "__pycache__",
-        ".git",
-        ".venv",
-        "venv",
-        "env",
-        ".tox",
-        "node_modules",
-        "dist",
-        "build",
-        ".pytest_cache",
-        ".mypy_cache",
-    }
-
     for py_file in root.glob("**/*.py"):
         # Skip files in excluded directories
-        if any(skip in py_file.parts for skip in skip_dirs):
+        if any(skip in py_file.parts for skip in _SKIP_DIRS_PYTHON):
             continue
 
         try:
@@ -421,7 +476,7 @@ def _check_deprecation(
         if "deprecated" in doc_lower or ".. deprecated::" in doc_lower:
             deprecated = True
             # Try to extract replacement
-            match = re.search(r"use\s+[`']?(\w+)[`']?\s+instead", doc_lower)
+            match = _RE_DEPRECATION_REPLACEMENT.search(doc_lower)
             if match:
                 replacement = match.group(1)
 
@@ -440,20 +495,8 @@ async def _index_typescript(root: Path) -> tuple[dict[str, SymbolInfo], int]:
     symbols: dict[str, SymbolInfo] = {}
     file_count = 0
 
-    skip_dirs = {"node_modules", ".git", "dist", "build", "coverage"}
-
-    # TypeScript patterns
-    function_pattern = re.compile(
-        r"export\s+(?:async\s+)?function\s+(\w+)\s*\(([^)]*)\)\s*(?::\s*([^{]+))?",
-        re.MULTILINE,
-    )
-    class_pattern = re.compile(r"export\s+class\s+(\w+)", re.MULTILINE)
-    interface_pattern = re.compile(r"export\s+interface\s+(\w+)", re.MULTILINE)
-    type_pattern = re.compile(r"export\s+type\s+(\w+)", re.MULTILINE)
-    const_pattern = re.compile(r"export\s+const\s+(\w+)\s*[:=]", re.MULTILINE)
-
     for ts_file in root.glob("**/*.ts"):
-        if any(skip in ts_file.parts for skip in skip_dirs):
+        if any(skip in ts_file.parts for skip in _SKIP_DIRS_TS):
             continue
 
         try:
@@ -468,7 +511,7 @@ async def _index_typescript(root: Path) -> tuple[dict[str, SymbolInfo], int]:
                 module_name = "/".join(rel_path.with_suffix("").parts)
 
             # Extract functions
-            for match in function_pattern.finditer(content):
+            for match in _RE_TS_FUNCTION.finditer(content):
                 name = match.group(1)
                 params = match.group(2)
                 return_type = match.group(3).strip() if match.group(3) else None
@@ -489,7 +532,7 @@ async def _index_typescript(root: Path) -> tuple[dict[str, SymbolInfo], int]:
                 )
 
             # Extract classes
-            for match in class_pattern.finditer(content):
+            for match in _RE_TS_CLASS.finditer(content):
                 name = match.group(1)
                 full_name = f"{module_name}/{name}" if module_name else name
                 line = content[: match.start()].count("\n") + 1
@@ -502,7 +545,7 @@ async def _index_typescript(root: Path) -> tuple[dict[str, SymbolInfo], int]:
                 )
 
             # Extract interfaces and types
-            for match in interface_pattern.finditer(content):
+            for match in _RE_TS_INTERFACE.finditer(content):
                 name = match.group(1)
                 full_name = f"{module_name}/{name}" if module_name else name
                 line = content[: match.start()].count("\n") + 1
@@ -514,7 +557,7 @@ async def _index_typescript(root: Path) -> tuple[dict[str, SymbolInfo], int]:
                     line=line,
                 )
 
-            for match in type_pattern.finditer(content):
+            for match in _RE_TS_TYPE.finditer(content):
                 name = match.group(1)
                 full_name = f"{module_name}/{name}" if module_name else name
                 line = content[: match.start()].count("\n") + 1
@@ -527,7 +570,7 @@ async def _index_typescript(root: Path) -> tuple[dict[str, SymbolInfo], int]:
                 )
 
             # Extract constants
-            for match in const_pattern.finditer(content):
+            for match in _RE_TS_CONST.finditer(content):
                 name = match.group(1)
                 full_name = f"{module_name}/{name}" if module_name else name
                 line = content[: match.start()].count("\n") + 1
@@ -544,7 +587,7 @@ async def _index_typescript(root: Path) -> tuple[dict[str, SymbolInfo], int]:
 
     # Also index .tsx files
     for tsx_file in root.glob("**/*.tsx"):
-        if any(skip in tsx_file.parts for skip in skip_dirs):
+        if any(skip in tsx_file.parts for skip in _SKIP_DIRS_TS):
             continue
 
         try:
@@ -555,7 +598,7 @@ async def _index_typescript(root: Path) -> tuple[dict[str, SymbolInfo], int]:
             module_name = "/".join(rel_path.with_suffix("").parts)
 
             # Same patterns for TSX
-            for match in function_pattern.finditer(content):
+            for match in _RE_TS_FUNCTION.finditer(content):
                 name = match.group(1)
                 full_name = f"{module_name}/{name}" if module_name else name
                 line = content[: match.start()].count("\n") + 1
@@ -584,29 +627,13 @@ async def _index_generic(root: Path, language: str) -> tuple[dict[str, SymbolInf
     symbols: dict[str, SymbolInfo] = {}
     file_count = 0
 
-    # Language-specific patterns
-    patterns = {
-        "go": {
-            "ext": "*.go",
-            "func": re.compile(r"func\s+(?:\(.*?\)\s+)?(\w+)\s*\(", re.MULTILINE),
-            "type": re.compile(r"type\s+(\w+)\s+(?:struct|interface)", re.MULTILINE),
-        },
-        "rust": {
-            "ext": "*.rs",
-            "func": re.compile(r"(?:pub\s+)?fn\s+(\w+)\s*[<(]", re.MULTILINE),
-            "type": re.compile(r"(?:pub\s+)?(?:struct|enum|trait)\s+(\w+)", re.MULTILINE),
-        },
-    }
-
-    lang_patterns = patterns.get(language)
+    lang_patterns = _GENERIC_PATTERNS.get(language)
     if not lang_patterns:
         logger.warning(f"No patterns for language: {language}")
         return symbols, file_count
 
-    skip_dirs = {".git", "target", "vendor", "node_modules"}
-
     for file in root.glob(f"**/{lang_patterns['ext']}"):
-        if any(skip in file.parts for skip in skip_dirs):
+        if any(skip in file.parts for skip in _SKIP_DIRS_GENERIC):
             continue
 
         try:

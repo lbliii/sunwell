@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class TeamSyncConfig:
     """Synchronization settings."""
 
@@ -24,7 +24,7 @@ class TeamSyncConfig:
     """Notify about new team knowledge."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class TeamSharingConfig:
     """What knowledge is shared."""
 
@@ -41,7 +41,7 @@ class TeamSharingConfig:
     """Share ownership mapping."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class TeamPrivacyConfig:
     """Privacy boundaries."""
 
@@ -55,7 +55,7 @@ class TeamPrivacyConfig:
     """Include author names in failures."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class TeamConflictConfig:
     """Conflict handling settings."""
 
@@ -69,7 +69,7 @@ class TeamConflictConfig:
     """Escalate true conflicts for human review."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class TeamOnboardingConfig:
     """Onboarding settings."""
 
@@ -80,7 +80,7 @@ class TeamOnboardingConfig:
     """Skip interactive onboarding by default."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class TeamEnforcementConfig:
     """Enforcement settings."""
 
@@ -91,7 +91,7 @@ class TeamEnforcementConfig:
     """How strictly to apply team decisions."""
 
 
-@dataclass
+@dataclass(slots=True)
 class TeamConfig:
     """Complete team intelligence configuration.
 

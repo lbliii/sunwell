@@ -88,8 +88,14 @@ CONCEPT_KEYWORDS: dict[str, frozenset[str]] = {
 SEE_PATTERN = re.compile(r"#\s*[Ss]ee:?\s+([a-zA-Z0-9_./]+)", re.IGNORECASE)
 TODO_PATTERN = re.compile(r"#\s*TODO:?\s+(.+)$", re.IGNORECASE | re.MULTILINE)
 
+# Pre-compiled patterns for cross-reference extraction (avoid recompiling per call)
+_RE_TYPE_ANNOTATION = re.compile(
+    r":\s*([a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)"
+)
+_RE_LOWERCASE_WORDS = re.compile(r"[a-z]+")
 
-@dataclass
+
+@dataclass(frozen=True, slots=True)
 class GeneratorConfig:
     """Configuration for ToC generation."""
 
@@ -109,7 +115,7 @@ class GeneratorConfig:
     """Maximum file size in bytes to parse."""
 
 
-@dataclass
+@dataclass(slots=True)
 class TocGenerator:
     """Generate hierarchical ToC from codebase analysis.
 
@@ -653,8 +659,7 @@ class TocGenerator:
                 pass
 
             # Strategy 3: Type annotations (module.Type patterns)
-            type_pattern = re.compile(r":\s*([a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)")
-            for match in type_pattern.finditer(content):
+            for match in _RE_TYPE_ANNOTATION.finditer(content):
                 type_ref = match.group(1)
                 # Filter to likely local types
                 if not type_ref.startswith(("typing.", "collections.")):
@@ -688,7 +693,7 @@ class TocGenerator:
         for node_id, node in list(toc.nodes.items()):
             # Build searchable text from title, path, and summary
             text = f"{node.title} {node.path} {node.summary}".lower()
-            words = set(re.findall(r"[a-z]+", text))
+            words = set(_RE_LOWERCASE_WORDS.findall(text))
 
             # Match to concepts
             matched_concepts: list[str] = []

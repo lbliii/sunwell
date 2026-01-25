@@ -59,7 +59,7 @@ class PermissionChange:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class PermissionDiff:
     """Complete diff between two permission scopes."""
 

@@ -19,6 +19,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import re
+
 from sunwell.agent.events import (
     AgentEvent,
     EventType,
@@ -29,6 +31,9 @@ from sunwell.agent.validation import Artifact, ValidationError
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
+
+# Pre-compiled regex for code block extraction (avoid recompiling per call)
+_RE_CODE_BLOCK = re.compile(r"```(?:python)?\s*\n(.*?)\n```", re.DOTALL)
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,10 +69,10 @@ class FixResult:
     success: bool
     """Whether all errors were fixed."""
 
-    attempts: list[FixAttempt] = field(default_factory=list)
+    attempts: tuple[FixAttempt, ...] = ()
     """Fix attempts made."""
 
-    remaining_errors: list[ValidationError] = field(default_factory=list)
+    remaining_errors: tuple[ValidationError, ...] = ()
     """Errors that couldn't be fixed."""
 
 
@@ -418,10 +423,8 @@ Provide the corrected code region."""
 
     def _extract_code(self, text: str) -> str | None:
         """Extract code from LLM response."""
-        import re
-
         # Try to find code block
-        code_match = re.search(r"```(?:python)?\s*\n(.*?)\n```", text, re.DOTALL)
+        code_match = _RE_CODE_BLOCK.search(text)
         if code_match:
             return code_match.group(1)
 

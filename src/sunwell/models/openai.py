@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from openai import AsyncOpenAI
 
 
-@dataclass
+@dataclass(slots=True)
 class OpenAIModel:
     """OpenAI GPT model adapter with tool/function calling support.
 

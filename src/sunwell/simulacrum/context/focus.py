@@ -23,29 +23,35 @@ if TYPE_CHECKING:
     from sunwell.simulacrum.core.turn import Learning, Turn
 
 
-# Common topic patterns for auto-detection
-TOPIC_PATTERNS = {
+# Pre-compiled topic patterns for auto-detection (avoid per-call compilation)
+_TOPIC_PATTERNS: dict[str, re.Pattern[str]] = {
     # Technical domains
-    "auth": r"\b(auth|login|logout|session|token|jwt|oauth|password|credential|permission|role)\b",
-    "api": r"\b(api|endpoint|request|response|rest|graphql|http|status|route)\b",
-    "database": r"\b(database|db|sql|query|table|index|postgres|mysql|mongo|redis)\b",
-    "cache": r"\b(cache|redis|memcache|ttl|expire|invalidat)\b",
-    "network": r"\b(network|socket|tcp|udp|dns|proxy|firewall|timeout|connection)\b",
-    "error": r"\b(error|exception|fail|crash|bug|issue|problem|broken)\b",
-    "performance": r"\b(performance|slow|fast|latency|throughput|optimize|bottleneck)\b",
-    "security": r"\b(security|vulnerab|inject|xss|csrf|encrypt|decrypt|hash)\b",
-    "config": r"\b(config|setting|environment|env|variable|parameter|option)\b",
-    "deploy": r"\b(deploy|release|ci|cd|pipeline|docker|kubernetes|container)\b",
+    "auth": re.compile(r"\b(auth|login|logout|session|token|jwt|oauth|password|credential|permission|role)\b", re.IGNORECASE),
+    "api": re.compile(r"\b(api|endpoint|request|response|rest|graphql|http|status|route)\b", re.IGNORECASE),
+    "database": re.compile(r"\b(database|db|sql|query|table|index|postgres|mysql|mongo|redis)\b", re.IGNORECASE),
+    "cache": re.compile(r"\b(cache|redis|memcache|ttl|expire|invalidat)\b", re.IGNORECASE),
+    "network": re.compile(r"\b(network|socket|tcp|udp|dns|proxy|firewall|timeout|connection)\b", re.IGNORECASE),
+    "error": re.compile(r"\b(error|exception|fail|crash|bug|issue|problem|broken)\b", re.IGNORECASE),
+    "performance": re.compile(r"\b(performance|slow|fast|latency|throughput|optimize|bottleneck)\b", re.IGNORECASE),
+    "security": re.compile(r"\b(security|vulnerab|inject|xss|csrf|encrypt|decrypt|hash)\b", re.IGNORECASE),
+    "config": re.compile(r"\b(config|setting|environment|env|variable|parameter|option)\b", re.IGNORECASE),
+    "deploy": re.compile(r"\b(deploy|release|ci|cd|pipeline|docker|kubernetes|container)\b", re.IGNORECASE),
 
     # Actions
-    "debug": r"\b(debug|trace|log|inspect|investigate|diagnose)\b",
-    "refactor": r"\b(refactor|restructure|reorganize|clean|simplify)\b",
-    "test": r"\b(test|spec|assert|mock|fixture|coverage)\b",
-    "document": r"\b(document|doc|readme|comment|explain)\b",
+    "debug": re.compile(r"\b(debug|trace|log|inspect|investigate|diagnose)\b", re.IGNORECASE),
+    "refactor": re.compile(r"\b(refactor|restructure|reorganize|clean|simplify)\b", re.IGNORECASE),
+    "test": re.compile(r"\b(test|spec|assert|mock|fixture|coverage)\b", re.IGNORECASE),
+    "document": re.compile(r"\b(document|doc|readme|comment|explain)\b", re.IGNORECASE),
 }
 
+# Backwards compatibility alias
+TOPIC_PATTERNS = {k: v.pattern for k, v in _TOPIC_PATTERNS.items()}
 
-@dataclass
+# Pre-compiled pattern for file path detection
+_RE_FILE_PATH = re.compile(r'[\w/]+\.(py|ts|js|go|rs|java|rb|md|yaml|json)')
+
+
+@dataclass(slots=True)
 class Focus:
     """Current attention focus for memory retrieval.
 
@@ -87,8 +93,8 @@ class Focus:
         new_topics = {}
         query_lower = query.lower()
 
-        for topic, pattern in TOPIC_PATTERNS.items():
-            matches = re.findall(pattern, query_lower, re.IGNORECASE)
+        for topic, pattern in _TOPIC_PATTERNS.items():
+            matches = pattern.findall(query_lower)
             if matches:
                 weight = min(1.0, 0.5 + 0.1 * len(matches))  # More matches = higher weight
 
@@ -100,12 +106,12 @@ class Focus:
                     self.topics[topic] = weight
                     new_topics[topic] = weight
 
-        # Detect file paths mentioned
-        file_matches = re.findall(r'[\w/]+\.(py|ts|js|go|rs|java|rb|md|yaml|json)', query)
+        # Detect file paths mentioned (use pre-compiled pattern)
+        file_matches = _RE_FILE_PATH.findall(query)
         for f in file_matches:
-            pattern = f"*{f}*"
-            if pattern not in self.file_patterns:
-                self.file_patterns.append(pattern)
+            pat = f"*{f}*"
+            if pat not in self.file_patterns:
+                self.file_patterns.append(pat)
 
         return new_topics
 
@@ -174,7 +180,7 @@ class Focus:
         return "\n".join(parts)
 
 
-@dataclass
+@dataclass(slots=True)
 class FocusFilter:
     """Filter memories based on focus."""
 

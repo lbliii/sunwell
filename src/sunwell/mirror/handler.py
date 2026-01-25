@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from sunwell.tools.executor import ToolExecutor
 
 
-@dataclass
+@dataclass(slots=True)
 class MirrorHandler:
     """Handler for mirror neuron tool calls.
 

@@ -25,7 +25,7 @@ DEFAULT_TECHNIQUE_MULTIPLIERS: dict[str, float] = {
 }
 
 
-@dataclass
+@dataclass(slots=True)
 class AdaptiveBudget:
     """Token budget with automatic economization.
 

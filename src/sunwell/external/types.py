@@ -128,3 +128,12 @@ class EventCallback(Protocol):
     async def __call__(self, event: ExternalEvent) -> None:
         """Handle an external event."""
         ...
+
+
+# Shared constant for feedback status emojis (used by adapters)
+STATUS_EMOJI: dict[str, str] = {
+    "acknowledged": "👀",
+    "investigating": "🔍",
+    "fixed": "✅",
+    "skipped": "⏭️",
+}

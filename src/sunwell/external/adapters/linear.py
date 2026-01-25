@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 from sunwell.external.adapters.base import EventAdapter
 from sunwell.external.types import (
+    STATUS_EMOJI,
     EventCallback,
     EventFeedback,
     EventSource,
@@ -216,14 +217,7 @@ class LinearAdapter(EventAdapter):
         }
         """
 
-        status_emoji = {
-            "acknowledged": "👀",
-            "investigating": "🔍",
-            "fixed": "✅",
-            "skipped": "⏭️",
-        }
-
-        message = f"{status_emoji.get(feedback.status, '🤖')} **Sunwell**: {feedback.message}"
+        message = f"{STATUS_EMOJI.get(feedback.status, '🤖')} **Sunwell**: {feedback.message}"
         if feedback.commit_sha:
             message += f"\n\n**Fix**: `{feedback.commit_sha[:7]}`"
 

@@ -25,9 +25,13 @@ if TYPE_CHECKING:
     from sunwell.naaru.planners.artifact import ArtifactPlanner
 
 
-@dataclass
+@dataclass(slots=True)
 class LoopEvent:
-    """Event from autonomous loop."""
+    """Event from autonomous loop.
+
+    Note: Not frozen because data dict prevents hashability.
+    Use slots for memory efficiency on high-volume event streams.
+    """
 
     event_type: Literal[
         "session_started",
@@ -46,7 +50,7 @@ class LoopEvent:
         "session_complete",
         "session_rollback",
     ]
-    data: dict
+    data: dict[str, object]
 
 
 # Confidence threshold for auto-approval (RFC-047)
@@ -264,7 +268,15 @@ class AutonomousLoop:
                 result = await self._validate_goal(goal)
 
                 duration = time() - start_time
-                result.duration_seconds = duration
+                # Create new result with duration (GoalResult is frozen)
+                result = GoalResult(
+                    success=result.success,
+                    failure_reason=result.failure_reason,
+                    summary=result.summary,
+                    duration_seconds=duration,
+                    files_changed=result.files_changed,
+                    artifacts_created=result.artifacts_created,
+                )
 
                 if result.success:
                     # RFC-048: Checkpoint the goal
@@ -302,6 +314,8 @@ class AutonomousLoop:
                     success=False,
                     failure_reason=str(e),
                     duration_seconds=duration,
+                    files_changed=(),
+                    artifacts_created=(),
                 )
                 await self.backlog_manager.block_goal(goal.id, str(e))
                 yield LoopEvent(
@@ -391,7 +405,8 @@ class AutonomousLoop:
         return GoalResult(
             success=success,
             failure_reason="; ".join(failure_reasons) if failure_reasons else "",
-            files_changed=[],
+            files_changed=(),
+            artifacts_created=(),
         )
 
     async def _run_deep_verification(self, goal: Goal) -> dict:

@@ -19,6 +19,7 @@ Example:
     >>> # Returns DAG with skills for: scaffold → auth → routes → tests
 """
 
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
@@ -28,6 +29,9 @@ from sunwell.skills.types import Skill, SkillDependency, SkillMetadata, SkillTyp
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
+
+# Pre-compiled regex for skill name extraction
+_RE_SKILL_NAME = re.compile(r"'([a-z-]+)'")
 
 
 # =============================================================================
@@ -591,8 +595,7 @@ Detailed steps to accomplish the goal.
         for error in errors:
             if "non-existent" in error:
                 # Extract skill names from error
-                import re
-                matches = re.findall(r"'([a-z-]+)'", error)
+                matches = _RE_SKILL_NAME.findall(error)
                 missing_skills.update(matches)
 
         if not missing_skills:

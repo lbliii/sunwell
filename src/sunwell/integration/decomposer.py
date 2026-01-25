@@ -183,7 +183,7 @@ class IntegrationAwareGoal:
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class ArtifactDefinition:
     """Intermediate representation of an artifact during planning."""
 
@@ -205,7 +205,7 @@ class ArtifactDefinition:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class IntegrationDefinition:
     """Intermediate representation of an integration during planning."""
 

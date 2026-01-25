@@ -38,6 +38,10 @@ if TYPE_CHECKING:
     from sunwell.core.lens import Lens
     from sunwell.skills.types import Skill
 
+
+# Pre-compiled regex pattern for JSON extraction (avoid per-call compilation)
+_RE_JSON_OBJECT = re.compile(r'\{[^{}]*\}', re.DOTALL)
+
 # =============================================================================
 # Intent Taxonomy (RFC-030)
 # =============================================================================
@@ -222,7 +226,7 @@ INTENT_FOCUS_MAP = {
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class UnifiedRouter:
     """One tiny model for ALL routing decisions.
 
@@ -441,8 +445,8 @@ class UnifiedRouter:
                     json_str = clean.split("```")[0].strip()
                     break
 
-        # Try to find JSON object
-        json_match = re.search(r'\{[^{}]*\}', json_str, re.DOTALL)
+        # Try to find JSON object (pre-compiled pattern)
+        json_match = _RE_JSON_OBJECT.search(json_str)
         if json_match:
             json_str = json_match.group(0)
 

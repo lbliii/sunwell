@@ -39,8 +39,15 @@ if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
     from sunwell.project.schema import ProjectSchema
 
+# Pre-compiled regex patterns for LLM response parsing (avoid recompiling per call)
+_RE_FILENAME = re.compile(r"(\w+\.(?:py|js|ts|md|txt|json|yaml|yml))")
+_RE_JSON_OBJECT = re.compile(r"\{[^{}]*\}", re.DOTALL)
+_RE_CODE_BLOCK = re.compile(r"```(?:\w+)?\s*\n(.*?)```", re.DOTALL)
+_RE_JSON_ARRAY = re.compile(r"\[.*\]", re.DOTALL)
+_RE_JSON_CODE_BLOCK = re.compile(r"```(?:json)?\s*(\[.*?\])\s*```", re.DOTALL)
 
-@dataclass
+
+@dataclass(slots=True)
 class ArtifactPlanner:
     """Plans by discovering artifacts, not decomposing steps (RFC-036).
 
@@ -230,10 +237,8 @@ class ArtifactPlanner:
         Extracts filename from goal if mentioned, otherwise uses a sensible default.
         No protocols, no dependencies - just the artifact.
         """
-        import re
-
         # Try to extract filename from goal
-        filename_match = re.search(r'(\w+\.(?:py|js|ts|md|txt|json|yaml|yml))', goal.lower())
+        filename_match = _RE_FILENAME.search(goal.lower())
         filename = filename_match.group(1) if filename_match else "output.py"
 
         artifact = ArtifactSpec(
@@ -654,7 +659,7 @@ Output a SINGLE artifact JSON object (not an array):
         content = result.content or ""
         try:
             # Try to find JSON object
-            json_match = re.search(r"\{[^{}]*\}", content, re.DOTALL)
+            json_match = _RE_JSON_OBJECT.search(content)
             if json_match:
                 data = json.loads(json_match.group())
                 return ArtifactSpec(
@@ -813,7 +818,7 @@ Output JSON:
         # Parse verification result
         content = result.content or ""
         try:
-            json_match = re.search(r"\{[^{}]*\}", content, re.DOTALL)
+            json_match = _RE_JSON_OBJECT.search(content)
             if json_match:
                 data = json.loads(json_match.group())
                 return VerificationResult(
@@ -931,10 +936,8 @@ Start directly with the code (imports, class definitions, etc.).
     def _extract_code(self, response: str, filename: str | None = None) -> str:
         """Extract code from LLM response, handling markdown code blocks."""
         # Try to extract from markdown code block
-        import re
-
         # Pattern for code blocks with any language tag
-        code_match = re.search(r"```(?:\w+)?\s*\n(.*?)```", response, re.DOTALL)
+        code_match = _RE_CODE_BLOCK.search(response)
         if code_match:
             return code_match.group(1).strip()
 
@@ -1195,7 +1198,7 @@ Output ONLY valid JSON array of artifacts:"""
     def _extract_json(self, response: str) -> list[dict] | None:
         """Extract JSON array from LLM response."""
         # Strategy 1: Find JSON array with regex
-        json_match = re.search(r"\[.*\]", response, re.DOTALL)
+        json_match = _RE_JSON_ARRAY.search(response)
         if json_match:
             try:
                 return json.loads(json_match.group())
@@ -1203,7 +1206,7 @@ Output ONLY valid JSON array of artifacts:"""
                 pass
 
         # Strategy 2: Look for code block with JSON
-        code_match = re.search(r"```(?:json)?\s*(\[.*?\])\s*```", response, re.DOTALL)
+        code_match = _RE_JSON_CODE_BLOCK.search(response)
         if code_match:
             try:
                 return json.loads(code_match.group(1))

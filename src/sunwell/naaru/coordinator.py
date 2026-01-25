@@ -65,7 +65,7 @@ from sunwell.naaru.workers import (
 from sunwell.types.config import NaaruConfig
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class AgentResult:
     """Result from agent mode execution (RFC-032).
 
@@ -73,10 +73,10 @@ class AgentResult:
     """
 
     goal: str
-    tasks: list
+    tasks: tuple
     completed_count: int
     failed_count: int
-    artifacts: list[Path]
+    artifacts: tuple[Path, ...]
     execution_time_seconds: float = 0.0
 
     @property
@@ -96,7 +96,7 @@ class AgentResult:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class Naaru:
     """Internal coordination layer for Sunwell (RFC-019, RFC-110).
 

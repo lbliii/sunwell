@@ -23,7 +23,7 @@ from sunwell.demo.scorer import DemoScorer
 from sunwell.demo.tasks import BUILTIN_TASKS, DemoTask
 
 
-@dataclass
+@dataclass(slots=True)
 class ExperimentConfig:
     """Configuration for experiment runs."""
 

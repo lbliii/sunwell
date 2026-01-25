@@ -94,7 +94,7 @@ class PolicyRule:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class SecurityPolicyConfig:
     """Complete security policy configuration.
 
@@ -281,7 +281,7 @@ class SecurityPolicyConfig:
 # =============================================================================
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class PolicyValidationError:
     """A policy validation error."""
 

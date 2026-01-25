@@ -31,7 +31,7 @@ from sunwell.skills.types import TrustLevel
 # =============================================================================
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class BenchmarkResult:
     """Result of a single benchmark run."""
 
@@ -65,8 +65,8 @@ class BenchmarkResult:
     timestamp: datetime = field(default_factory=datetime.now)
     """When benchmark was run."""
 
-    metadata: dict[str, Any] = field(default_factory=dict)
-    """Additional benchmark metadata."""
+    metadata: tuple[tuple[str, Any], ...] = ()
+    """Additional benchmark metadata as immutable tuples."""
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize for JSON export."""
@@ -81,11 +81,11 @@ class BenchmarkResult:
             "p95_ms": round(self.p95_ms, 3),
             "p99_ms": round(self.p99_ms, 3),
             "timestamp": self.timestamp.isoformat(),
-            "metadata": self.metadata,
+            "metadata": dict(self.metadata),
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class BenchmarkSuite:
     """Complete benchmark suite results."""
 
@@ -221,14 +221,14 @@ def benchmark_permission_analysis(iterations: int = 100) -> BenchmarkResult:
         p50_ms=stats["p50"],
         p95_ms=stats["p95"],
         p99_ms=stats["p99"],
-        metadata={
-            "permissions_count": (
+        metadata=(
+            ("permissions_count", (
                 len(scope.filesystem_read)
                 + len(scope.filesystem_write)
                 + len(scope.network_allow)
                 + len(scope.shell_allow)
-            )
-        },
+            )),
+        ),
     )
 
 
@@ -278,7 +278,7 @@ def benchmark_sandbox_setup(iterations: int = 50) -> BenchmarkResult:
         p50_ms=stats["p50"],
         p95_ms=stats["p95"],
         p99_ms=stats["p99"],
-        metadata={"isolation_backend": config.isolation_backend},
+        metadata=(("isolation_backend", config.isolation_backend),),
     )
 
 
@@ -329,11 +329,11 @@ def benchmark_monitoring_overhead(iterations: int = 100) -> BenchmarkResult:
         p50_ms=stats["p50"],
         p95_ms=stats["p95"],
         p99_ms=stats["p99"],
-        metadata={
-            "chunk_count": len(chunks),
-            "avg_chunk_size": avg_chunk_size,
-            "ms_per_kb": stats["mean"] / (avg_chunk_size / 1000) if avg_chunk_size else 0,
-        },
+        metadata=(
+            ("chunk_count", len(chunks)),
+            ("avg_chunk_size", avg_chunk_size),
+            ("ms_per_kb", stats["mean"] / (avg_chunk_size / 1000) if avg_chunk_size else 0),
+        ),
     )
 
 
@@ -389,10 +389,10 @@ def benchmark_credential_scanning(iterations: int = 100) -> BenchmarkResult:
         p50_ms=stats["p50"],
         p95_ms=stats["p95"],
         p99_ms=stats["p99"],
-        metadata={
-            "sample_count": len(content_samples),
-            "patterns_checked": len(analyzer.CREDENTIAL_PATTERNS),
-        },
+        metadata=(
+            ("sample_count", len(content_samples)),
+            ("patterns_checked", len(analyzer.CREDENTIAL_PATTERNS)),
+        ),
     )
 
 
@@ -444,10 +444,10 @@ def benchmark_audit_write(iterations: int = 100) -> BenchmarkResult:
         p50_ms=stats["p50"],
         p95_ms=stats["p95"],
         p99_ms=stats["p99"],
-        metadata={
-            "final_log_size_kb": final_size / 1024,
-            "bytes_per_entry": final_size / iterations if iterations else 0,
-        },
+        metadata=(
+            ("final_log_size_kb", final_size / 1024),
+            ("bytes_per_entry", final_size / iterations if iterations else 0),
+        ),
     )
 
 
@@ -498,14 +498,14 @@ def benchmark_risk_computation(iterations: int = 500) -> BenchmarkResult:
         p50_ms=stats["p50"],
         p95_ms=stats["p95"],
         p99_ms=stats["p99"],
-        metadata={
-            "flag_count": len(flags),
-            "permission_count": (
+        metadata=(
+            ("flag_count", len(flags)),
+            ("permission_count", (
                 len(scope.filesystem_write)
                 + len(scope.shell_allow)
                 + len(scope.network_allow)
-            ),
-        },
+            )),
+        ),
     )
 
 

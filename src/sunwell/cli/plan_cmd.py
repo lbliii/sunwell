@@ -28,6 +28,11 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
 
+
+# Pre-compiled regex patterns (avoid per-call compilation)
+_RE_TITLE = re.compile(r"^#\s+(.+)$", re.MULTILINE)
+_RE_SUMMARY = re.compile(r"##\s*Summary\s*\n+(.*?)(?=\n##|\Z)", re.IGNORECASE | re.DOTALL)
+
 console = Console()
 
 
@@ -241,7 +246,7 @@ def _extract_key_sections(content: str) -> str:
         return "\n\n".join(sections)
 
     # Fallback: title + first 1000 chars
-    title_match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
+    title_match = _RE_TITLE.search(content)
     title = title_match.group(1) if title_match else "Specification"
 
     preview = content[:1000]
@@ -253,12 +258,8 @@ def _extract_key_sections(content: str) -> str:
 
 def _extract_goal_from_rfc(content: str) -> str | None:
     """Extract goal from RFC Summary section."""
-    # Look for ## Summary section
-    summary_match = re.search(
-        r"##\s*Summary\s*\n+(.*?)(?=\n##|\Z)",
-        content,
-        re.IGNORECASE | re.DOTALL,
-    )
+    # Look for ## Summary section (pre-compiled pattern)
+    summary_match = _RE_SUMMARY.search(content)
     if summary_match:
         summary = summary_match.group(1).strip()
         # Take first paragraph
@@ -266,8 +267,8 @@ def _extract_goal_from_rfc(content: str) -> str | None:
         if first_para:
             return f"Implement: {first_para}"
 
-    # Fallback: use title
-    title_match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
+    # Fallback: use title (pre-compiled pattern)
+    title_match = _RE_TITLE.search(content)
     if title_match:
         return f"Implement {title_match.group(1)}"
 

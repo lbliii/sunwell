@@ -39,14 +39,14 @@ class ApproachWarning:
     """How to prevent the issue."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ApproachCheck:
     """Result of checking a proposed approach."""
 
     safe: bool
     """Whether the approach is safe to proceed with."""
 
-    warnings: list[ApproachWarning] = field(default_factory=list)
+    warnings: tuple[ApproachWarning, ...] = ()
     """Warnings about the approach."""
 
     def format_for_prompt(self) -> str:
@@ -61,23 +61,23 @@ class ApproachCheck:
         return "\n".join(lines)
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class FileContext:
     """Context for working on a specific file."""
 
-    owners: list[str] = field(default_factory=list)
+    owners: tuple[str, ...] = ()
     """Who owns this file."""
 
     patterns: TeamPatterns | None = None
     """Team patterns that apply."""
 
-    relevant_decisions: list[TeamDecision] = field(default_factory=list)
+    relevant_decisions: tuple[TeamDecision, ...] = ()
     """Decisions relevant to this file's domain."""
 
-    dependencies: list[Path] = field(default_factory=list)
+    dependencies: tuple[Path, ...] = ()
     """Files this file depends on."""
 
-    dependents: list[Path] = field(default_factory=list)
+    dependents: tuple[Path, ...] = ()
     """Files that depend on this file."""
 
 
@@ -231,7 +231,7 @@ class UnifiedIntelligence:
 
         return ApproachCheck(
             safe=len(warnings) == 0,
-            warnings=warnings,
+            warnings=tuple(warnings),
         )
 
     async def get_context_for_file(
@@ -266,11 +266,11 @@ class UnifiedIntelligence:
                 pass  # Project analyzer might not be initialized
 
         return FileContext(
-            owners=owners,
+            owners=tuple(owners),
             patterns=patterns,
-            relevant_decisions=relevant_decisions,
-            dependencies=dependencies,
-            dependents=dependents,
+            relevant_decisions=tuple(relevant_decisions),
+            dependencies=tuple(dependencies),
+            dependents=tuple(dependents),
         )
 
     async def get_team_summary(self) -> dict:

@@ -267,7 +267,7 @@ class Spell:
         return tuple(result)
 
 
-@dataclass
+@dataclass(slots=True)
 class SpellResult:
     """Result from casting a spell, including validation outcomes."""
 
@@ -288,7 +288,7 @@ class SpellResult:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class Grimoire:
     """Loads and manages spells from all sources.
 

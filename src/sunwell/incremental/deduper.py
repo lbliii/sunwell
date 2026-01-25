@@ -25,7 +25,7 @@ from typing import Any, TypeVar
 T = TypeVar("T")
 
 
-@dataclass
+@dataclass(slots=True)
 class WorkDeduper[T]:
     """Deduplicate concurrent identical synchronous work.
 
@@ -171,7 +171,7 @@ class WorkDeduper[T]:
             return len(self._in_progress)
 
 
-@dataclass
+@dataclass(slots=True)
 class AsyncWorkDeduper[T]:
     """Deduplicate concurrent identical async work.
 

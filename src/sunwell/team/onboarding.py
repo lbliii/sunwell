@@ -10,6 +10,7 @@ When a new developer runs 'sunwell init', they get:
 
 from collections import Counter
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -25,26 +26,26 @@ from sunwell.team.types import (
 __all__ = ["TeamOnboarding", "OnboardingSummary"]
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class OnboardingSummary:
     """Summary for new team member onboarding."""
 
     total_decisions: int
     """Total number of team decisions."""
 
-    decisions_by_category: dict[str, list[TeamDecision]]
+    decisions_by_category: MappingProxyType[str, tuple[TeamDecision, ...]]
     """Decisions organized by category."""
 
-    critical_failures: list[TeamFailure]
+    critical_failures: tuple[TeamFailure, ...]
     """Most important failure patterns to know."""
 
     patterns: TeamPatterns
     """Team code patterns."""
 
-    ownership_summary: dict[str, str]
+    ownership_summary: MappingProxyType[str, str]
     """Human-readable ownership mapping."""
 
-    top_contributors: list[str]
+    top_contributors: tuple[str, ...]
     """Team members who contributed most decisions."""
 
     def format_welcome_message(self) -> str:

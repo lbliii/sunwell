@@ -70,11 +70,10 @@ def _detect_ollama_embedding_model() -> str | None:
         models = response.json().get("models", [])
 
         # Check for embedding models in preference order
-        embedding_models = list(MODEL_DIMENSIONS.keys())
         for model in models:
             name = model.get("name", "")
             # Check if any known embedding model matches
-            for em in embedding_models:
+            for em in MODEL_DIMENSIONS:
                 if em in name:
                     return name
         return None

@@ -9,12 +9,23 @@ When a user accomplishes something complex, we can:
 This enables self-improving agents that learn from successful patterns.
 """
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from sunwell.skills.types import Skill, SkillDependency, SkillType
+
+# Pre-compiled regex patterns for performance (avoid recompiling per-call)
+_RE_TOOL_JSON = re.compile(r'"tool"\s*:\s*"([^"]+)"')
+_RE_TOOL_CALL = re.compile(r"^(\w+)(?:\(|:)")
+_RE_TOOL_NAME = re.compile(r'"name"\s*:\s*"([^"]+)"')
+_RE_JSON_KEY = re.compile(r'"(\w+)":')
+_RE_SLUG_INVALID = re.compile(r"[^a-z0-9-]")
+_RE_SLUG_SPECIAL = re.compile(r"[^a-z0-9]+")
+_RE_SLUG_MULTI_HYPHEN = re.compile(r"-+")
+_RE_WORD_BOUNDARY = re.compile(r"\b\w+\b")
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
@@ -69,7 +80,7 @@ class LearnedSkillMetadata:
     """Confidence that this skill is reusable."""
 
 
-@dataclass
+@dataclass(slots=True)
 class SkillLearner:
     """Extract reusable skills from successful executions.
 
@@ -226,21 +237,19 @@ class SkillLearner:
 
     def _extract_tool_name(self, content: str) -> str | None:
         """Extract tool name from tool call content."""
-        import re
-
         # Try common patterns
         # Pattern 1: {"tool": "tool_name", ...}
-        match = re.search(r'"tool"\s*:\s*"([^"]+)"', content)
+        match = _RE_TOOL_JSON.search(content)
         if match:
             return match.group(1)
 
         # Pattern 2: tool_name(...) or tool_name:
-        match = re.search(r"^(\w+)(?:\(|:)", content.strip())
+        match = _RE_TOOL_CALL.search(content.strip())
         if match:
             return match.group(1)
 
         # Pattern 3: "name": "tool_name" for function calls
-        match = re.search(r'"name"\s*:\s*"([^"]+)"', content)
+        match = _RE_TOOL_NAME.search(content)
         if match:
             return match.group(1)
 
@@ -248,12 +257,10 @@ class SkillLearner:
 
     def _extract_context_keys(self, content: str) -> set[str]:
         """Extract likely context keys from tool result."""
-        import re
-
         keys: set[str] = set()
 
         # Look for JSON-like key patterns
-        for match in re.finditer(r'"(\w+)":', content):
+        for match in _RE_JSON_KEY.finditer(content):
             key = match.group(1)
             # Filter out common noise
             if key not in ("type", "content", "role", "id", "status"):
@@ -432,7 +439,7 @@ INSTRUCTIONS:
             instructions = f"## Goal\n{pattern.goal}\n\n## Steps\n{pattern.steps_description}"
 
         # Validate name
-        name = re.sub(r"[^a-z0-9-]", "", name.lower())
+        name = _RE_SLUG_INVALID.sub("", name.lower())
         if not name or name[0].isdigit():
             name = f"learned-{name or 'skill'}"
 
@@ -449,14 +456,12 @@ INSTRUCTIONS:
 
     def _slugify(self, text: str) -> str:
         """Convert text to a valid skill name slug."""
-        import re
-
         # Lowercase and replace spaces/special chars with hyphens
-        slug = re.sub(r"[^a-z0-9]+", "-", text.lower())
+        slug = _RE_SLUG_SPECIAL.sub("-", text.lower())
         # Remove leading/trailing hyphens
         slug = slug.strip("-")
         # Collapse multiple hyphens
-        slug = re.sub(r"-+", "-", slug)
+        slug = _RE_SLUG_MULTI_HYPHEN.sub("-", slug)
         # Ensure it starts with a letter
         if slug and slug[0].isdigit():
             slug = f"skill-{slug}"
@@ -464,10 +469,8 @@ INSTRUCTIONS:
 
     def _extract_triggers(self, goal: str) -> list[str]:
         """Extract trigger keywords from goal text."""
-        import re
-
         # Common action words that might trigger this skill
-        words = re.findall(r"\b\w+\b", goal.lower())
+        words = _RE_WORD_BOUNDARY.findall(goal.lower())
 
         # Filter to meaningful triggers
         stopwords = {
@@ -484,7 +487,7 @@ INSTRUCTIONS:
         return triggers[:5]  # Limit to 5 triggers
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class SkillLearningResult:
     """Result of skill learning operation."""
 

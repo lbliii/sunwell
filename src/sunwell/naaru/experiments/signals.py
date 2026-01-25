@@ -93,7 +93,7 @@ class SignalVector:
         return f"SignalVector({bits}, conf={self.confidence:.0%})"
 
 
-@dataclass
+@dataclass(slots=True)
 class SignalTrace:
     """A trace left in shared memory (stigmergy pattern).
 
@@ -123,7 +123,7 @@ class SignalTrace:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class SharedMemory:
     """Shared memory for stigmergy-based coordination.
 
@@ -204,7 +204,7 @@ async def extract_signals(
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class SignalNetwork:
     """A network of models communicating via signals.
 

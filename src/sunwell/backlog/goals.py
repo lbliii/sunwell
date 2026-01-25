@@ -15,8 +15,28 @@ from sunwell.backlog.signals import ObservableSignal
 if TYPE_CHECKING:
     from sunwell.intelligence.context import ProjectContext
 
+# Priority weights for goal categories (module-level constants for performance)
+_CATEGORY_WEIGHTS: dict[str, float] = {
+    "security": 1.0,
+    "fix": 0.9,
+    "performance": 0.8,
+    "test": 0.7,
+    "add": 0.6,
+    "improve": 0.5,
+    "refactor": 0.4,
+    "document": 0.3,
+}
 
-@dataclass
+# Complexity weights (quick wins first)
+_COMPLEXITY_WEIGHTS: dict[str, float] = {
+    "trivial": 1.0,
+    "simple": 0.9,
+    "moderate": 0.7,
+    "complex": 0.5,
+}
+
+
+@dataclass(frozen=True, slots=True)
 class GoalResult:
     """Result of goal execution."""
 
@@ -32,10 +52,10 @@ class GoalResult:
     duration_seconds: float = 0.0
     """Time taken to complete."""
 
-    files_changed: list[str] = field(default_factory=list)
+    files_changed: tuple[str, ...] = ()
     """Files that were modified."""
 
-    artifacts_created: list[str] = field(default_factory=list)
+    artifacts_created: tuple[str, ...] = ()
     """Artifact IDs that were created (RFC-094)."""
 
 
@@ -182,7 +202,7 @@ class Goal:
         return self.goal_type == "task"
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class GoalPolicy:
     """Policy for goal generation."""
 
@@ -478,29 +498,11 @@ class GoalGenerator:
         - Complexity: trivial > simple > moderate > complex (quick wins first)
         - Dependencies: leaves before roots (unblock others)
         """
-        category_weights = {
-            "security": 1.0,
-            "fix": 0.9,
-            "test": 0.7,
-            "improve": 0.5,
-            "refactor": 0.4,
-            "document": 0.3,
-            "add": 0.6,
-            "performance": 0.8,
-        }
-
-        complexity_weights = {
-            "trivial": 1.0,
-            "simple": 0.9,
-            "moderate": 0.7,
-            "complex": 0.5,
-        }
-
         # Calculate adjusted priority and create new goals with updated priority
         prioritized_goals = []
         for goal in goals:
-            category_weight = category_weights.get(goal.category, 0.5)
-            complexity_weight = complexity_weights.get(
+            category_weight = _CATEGORY_WEIGHTS.get(goal.category, 0.5)
+            complexity_weight = _COMPLEXITY_WEIGHTS.get(
                 goal.estimated_complexity, 0.7
             )
 

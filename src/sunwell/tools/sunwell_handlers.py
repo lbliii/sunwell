@@ -22,7 +22,7 @@ def _result(success: bool, output: str) -> ToolResult:
     return ToolResult(tool_call_id=str(uuid4()), success=success, output=output)
 
 
-@dataclass
+@dataclass(slots=True)
 class SunwellToolHandlers:
     """Handlers for Sunwell's internal capability tools.
 

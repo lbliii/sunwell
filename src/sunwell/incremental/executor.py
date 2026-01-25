@@ -175,7 +175,7 @@ def should_skip(
     )
 
 
-@dataclass
+@dataclass(slots=True)
 class ExecutionPlan:
     """Plan for which artifacts to execute vs skip.
 
@@ -224,7 +224,7 @@ class ExecutionPlan:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class IncrementalResult:
     """Result of incremental execution.
 

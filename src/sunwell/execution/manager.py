@@ -6,12 +6,16 @@ Uses IncrementalExecutor for hash-based change detection and caching.
 RFC-105: Enhanced with hierarchical DAG context for skip decisions.
 """
 
+import inspect
 import json
+import logging
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any
 
+from sunwell.agent.event_schema import EventEmitter
 from sunwell.agent.events import AgentEvent, EventType
 from sunwell.backlog.goals import Goal, GoalResult, GoalScope
 from sunwell.backlog.manager import BacklogManager
@@ -51,14 +55,6 @@ class DagContext:
     previous_goals: tuple[str, ...] = ()
     previous_artifacts: frozenset[str] = frozenset()
     learnings: tuple[str, ...] = ()
-
-
-class EventEmitter(Protocol):
-    """Protocol for event emission."""
-
-    def emit(self, event: AgentEvent) -> None:
-        """Emit an event."""
-        ...
 
 
 class ExecutionManager:
@@ -314,7 +310,6 @@ class ExecutionManager:
             )
         except (json.JSONDecodeError, OSError) as e:
             # Log but don't fail - DAG context is optional
-            import logging
             logging.debug("RFC-105: Could not load DAG index: %s", e)
             return DagContext()
 
@@ -361,7 +356,6 @@ class ExecutionManager:
 
         # Task-based planner with backlog support
         if hasattr(planner, "plan"):
-            import inspect
             sig = inspect.signature(planner.plan)
             if "backlog" in sig.parameters:
                 return await planner.plan([goal], context=context, backlog=backlog)
@@ -481,9 +475,6 @@ class ExecutionManager:
             from sunwell.simulacrum.extractors.extractor import auto_extract_learnings
         except ImportError:
             return 0
-
-        import json
-        import uuid
 
         learnings = []
         intel_path = self.root / ".sunwell" / "intelligence"

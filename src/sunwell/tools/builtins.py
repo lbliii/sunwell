@@ -688,6 +688,10 @@ EXPERTISE_TOOLS: dict[str, Tool] = {
     ),
 }
 
+# Pre-merged tool dictionaries for O(1) lookup (avoid merging per call)
+ALL_BUILTIN_TOOLS: dict[str, Tool] = {**CORE_TOOLS, **GIT_TOOLS, **ENV_TOOLS}
+"""All core, git, and env tools merged once at module load."""
+
 
 def get_tools_for_trust_level(trust_level: str) -> tuple[Tool, ...]:
     """Get tools available at a given trust level.
@@ -703,11 +707,8 @@ def get_tools_for_trust_level(trust_level: str) -> tuple[Tool, ...]:
     level = ToolTrust.from_string(trust_level)
     allowed_names = TRUST_LEVEL_TOOLS.get(level, frozenset())
 
-    # Combine all tool dictionaries
-    all_tools = {**CORE_TOOLS, **GIT_TOOLS, **ENV_TOOLS}
-
     return tuple(
-        tool for name, tool in all_tools.items()
+        tool for name, tool in ALL_BUILTIN_TOOLS.items()
         if name in allowed_names
     )
 

@@ -36,8 +36,9 @@ class CascadePreview:
     risk_assessment: str
 
     # Contract and delta information (populated by enhanced preview)
-    extracted_contracts: dict[str, ExtractedContract] = field(default_factory=dict)
-    delta_previews: dict[str, DeltaPreview] = field(default_factory=dict)
+    # Use tuples for immutability in frozen dataclass
+    extracted_contracts: tuple[tuple[str, ExtractedContract], ...] = ()
+    delta_previews: tuple[tuple[str, DeltaPreview], ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -55,10 +56,12 @@ class CascadePreview:
             "risk_assessment": self.risk_assessment,
             "has_contracts": len(self.extracted_contracts) > 0,
             "has_deltas": len(self.delta_previews) > 0,
+            "extracted_contracts": {k: v.to_dict() if hasattr(v, 'to_dict') else str(v) for k, v in self.extracted_contracts},
+            "delta_previews": {k: v.to_dict() if hasattr(v, 'to_dict') else str(v) for k, v in self.delta_previews},
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class CascadeExecution:
     """State of an in-progress cascade execution with wave-by-wave approval."""
 
@@ -157,7 +160,7 @@ class CascadeExecution:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class CascadeEngine:
     """Computes and executes cascade regenerations."""
 
@@ -417,8 +420,8 @@ class CascadeEngine:
             files_touched=preview.files_touched,
             waves=preview.waves,
             risk_assessment=preview.risk_assessment,
-            extracted_contracts=contracts,
-            delta_previews=deltas,
+            extracted_contracts=tuple(contracts.items()),
+            delta_previews=tuple(deltas.items()),
         )
 
     def compute_regeneration_tasks(

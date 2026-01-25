@@ -101,7 +101,7 @@ class ConvergenceIteration:
         return sum(r.error_count for r in self.gate_results)
 
 
-@dataclass
+@dataclass(slots=True)
 class ConvergenceResult:
     """Final result of convergence loop.
 
@@ -136,7 +136,7 @@ class ConvergenceResult:
         return len(self.iterations)
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ConvergenceConfig:
     """Configuration for convergence behavior.
 

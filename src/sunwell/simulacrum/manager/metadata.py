@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ArchiveMetadata:
     """Metadata for an archived simulacrum."""
 
@@ -53,7 +53,7 @@ class ArchiveMetadata:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class SimulacrumMetadata:
     """Metadata about a simulacrum for routing and display."""
 
@@ -111,7 +111,7 @@ class SimulacrumMetadata:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class PendingDomain:
     """Tracks queries that might form a new simulacrum."""
 

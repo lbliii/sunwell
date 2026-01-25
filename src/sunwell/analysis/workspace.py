@@ -23,6 +23,43 @@ from typing import Literal
 logger = logging.getLogger(__name__)
 
 # ═══════════════════════════════════════════════════════════════
+# MODULE-LEVEL CONSTANTS
+# ═══════════════════════════════════════════════════════════════
+
+# Project markers and their languages/confidence
+_PROJECT_MARKERS: tuple[tuple[str, str, float], ...] = (
+    ("pyproject.toml", "python", 0.95),
+    ("setup.py", "python", 0.90),
+    ("package.json", "typescript", 0.90),
+    ("Cargo.toml", "rust", 0.95),
+    ("go.mod", "go", 0.95),
+    ("pom.xml", "java", 0.90),
+    ("build.gradle", "java", 0.85),
+    ("Gemfile", "ruby", 0.85),
+    ("mix.exs", "elixir", 0.90),
+)
+
+# Directories that indicate this is a source code project (not just docs)
+_SOURCE_INDICATORS: frozenset[str] = frozenset({
+    "src", "lib", "pkg", "internal", "cmd", "app",
+})
+
+# ═══════════════════════════════════════════════════════════════
+# PRE-COMPILED REGEX PATTERNS
+# ═══════════════════════════════════════════════════════════════
+
+_RE_SYS_PATH = re.compile(r"sys\.path\.insert\s*\(\s*\d+\s*,\s*['\"]([^'\"]+)['\"]")
+_RE_ABSPATH = re.compile(r"os\.path\.(?:abspath|dirname).*?['\"]([^'\"]+)['\"]")
+_RE_REPO_URL = re.compile(r"repo_url:\s*['\"]?([^'\"\s]+)")
+_RE_HANDLER_PATHS = re.compile(r"paths:\s*\[([^\]]+)\]")
+_RE_GIT_ORG_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"github\.com[:/]([^/]+)/"),
+    re.compile(r"gitlab\.com[:/]([^/]+)/"),
+    re.compile(r"bitbucket\.org[:/]([^/]+)/"),
+)
+_RE_WORD_SPLIT = re.compile(r"[-_]")
+
+# ═══════════════════════════════════════════════════════════════
 # CORE DATA MODELS
 # ═══════════════════════════════════════════════════════════════
 
@@ -222,30 +259,6 @@ class WorkspaceDetector:
         # ]
     """
 
-    # Project markers and their languages/confidence
-    PROJECT_MARKERS: list[tuple[str, str, float]] = [
-        ("pyproject.toml", "python", 0.95),
-        ("setup.py", "python", 0.90),
-        ("package.json", "typescript", 0.90),
-        ("Cargo.toml", "rust", 0.95),
-        ("go.mod", "go", 0.95),
-        ("pom.xml", "java", 0.90),
-        ("build.gradle", "java", 0.85),
-        ("Gemfile", "ruby", 0.85),
-        ("mix.exs", "elixir", 0.90),
-    ]
-
-    # Directories that indicate this is a source code project (not just docs)
-    SOURCE_INDICATORS = ["src", "lib", "pkg", "internal", "cmd", "app"]
-
-    def __init__(self, timeout_per_strategy: float = 0.2):
-        """Initialize detector.
-
-        Args:
-            timeout_per_strategy: Max seconds per detection strategy (default 200ms).
-        """
-        self.timeout = timeout_per_strategy
-
     async def detect(self, docs_root: Path) -> list[WorkspaceLink]:
         """Run all detection strategies and return found links.
 
@@ -297,13 +310,13 @@ class WorkspaceDetector:
         if parent == parent.parent or parent == Path.home():
             return []
 
-        for marker, language, confidence in self.PROJECT_MARKERS:
+        for marker, language, confidence in _PROJECT_MARKERS:
             marker_path = parent / marker
             if marker_path.exists():
                 # Verify parent has actual source code (not just config)
                 has_source = any(
                     (parent / indicator).is_dir()
-                    for indicator in self.SOURCE_INDICATORS
+                    for indicator in _SOURCE_INDICATORS
                 )
 
                 # Adjust confidence based on source indicators
@@ -355,8 +368,7 @@ class WorkspaceDetector:
         links: list[WorkspaceLink] = []
 
         # Look for sys.path.insert() calls
-        sys_path_pattern = r"sys\.path\.insert\s*\(\s*\d+\s*,\s*['\"]([^'\"]+)['\"]"
-        for match in re.finditer(sys_path_pattern, content):
+        for match in _RE_SYS_PATH.finditer(content):
             rel_path = match.group(1)
             source_path = (docs_root / rel_path).resolve()
             if source_path.exists() and source_path.is_dir():
@@ -373,8 +385,7 @@ class WorkspaceDetector:
                 )
 
         # Look for os.path.abspath patterns
-        abspath_pattern = r"os\.path\.(?:abspath|dirname).*?['\"]([^'\"]+)['\"]"
-        for match in re.finditer(abspath_pattern, content):
+        for match in _RE_ABSPATH.finditer(content):
             rel_path = match.group(1)
             if ".." in rel_path:
                 source_path = (docs_root / rel_path).resolve()
@@ -397,17 +408,12 @@ class WorkspaceDetector:
         """Parse MkDocs mkdocs.yml for source path references."""
         links: list[WorkspaceLink] = []
 
-        # Look for repo_url to identify related repo
-        repo_url_pattern = r"repo_url:\s*['\"]?([^'\"\s]+)"
-        match = re.search(repo_url_pattern, content)
-        if match:
-            # Can't resolve to local path, but note for git matching
-            pass
+        # Look for repo_url to identify related repo (unused but parsed for future)
+        # _RE_REPO_URL.search(content) could be used for git matching
 
         # Look for plugins that reference source
         # mkdocstrings plugin often has path config
-        handler_pattern = r"paths:\s*\[([^\]]+)\]"
-        for match in re.finditer(handler_pattern, content):
+        for match in _RE_HANDLER_PATHS.finditer(content):
             paths_str = match.group(1)
             paths = [p.strip().strip("'\"") for p in paths_str.split(",")]
             for rel_path in paths:
@@ -480,7 +486,7 @@ class WorkspaceDetector:
 
         # Get docs project name components for matching
         docs_name = docs_root.name.lower()
-        docs_parts = set(re.split(r"[-_]", docs_name))
+        docs_parts = set(_RE_WORD_SPLIT.split(docs_name))
 
         for sibling in parent.iterdir():
             if sibling == docs_root or not sibling.is_dir():
@@ -491,7 +497,7 @@ class WorkspaceDetector:
                 continue
 
             sibling_name = sibling.name.lower()
-            sibling_parts = set(re.split(r"[-_]", sibling_name))
+            sibling_parts = set(_RE_WORD_SPLIT.split(sibling_name))
 
             # Check for name overlap (e.g., "acme-docs" and "acme-api")
             overlap = docs_parts & sibling_parts
@@ -537,20 +543,15 @@ class WorkspaceDetector:
         # git@github.com:org/repo.git
         # https://github.com/org/repo.git
         # https://github.com/org/repo
-        patterns = [
-            r"github\.com[:/]([^/]+)/",
-            r"gitlab\.com[:/]([^/]+)/",
-            r"bitbucket\.org[:/]([^/]+)/",
-        ]
-        for pattern in patterns:
-            match = re.search(pattern, remote_url)
+        for pattern in _RE_GIT_ORG_PATTERNS:
+            match = pattern.search(remote_url)
             if match:
                 return match.group(1)
         return None
 
     def _detect_language(self, path: Path) -> str | None:
         """Detect the primary language of a project."""
-        for marker, language, _ in self.PROJECT_MARKERS:
+        for marker, language, _ in _PROJECT_MARKERS:
             if (path / marker).exists():
                 return language
         return None

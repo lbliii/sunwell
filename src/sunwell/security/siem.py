@@ -56,7 +56,7 @@ class SIEMFormatter(ABC):
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class CEFFormatter(SIEMFormatter):
     """Common Event Format (CEF) for ArcSight, QRadar.
 
@@ -118,7 +118,7 @@ class CEFFormatter(SIEMFormatter):
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class LEEFFormatter(SIEMFormatter):
     """Log Event Extended Format (LEEF) for QRadar native integration.
 
@@ -177,7 +177,7 @@ class LEEFFormatter(SIEMFormatter):
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class SyslogFormatter(SIEMFormatter):
     """RFC 5424 Syslog format for generic syslog integration.
 
@@ -230,7 +230,7 @@ class SyslogFormatter(SIEMFormatter):
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class JSONLinesFormatter(SIEMFormatter):
     """JSON Lines format for Splunk, Elasticsearch ingestion."""
 
@@ -273,7 +273,7 @@ class JSONLinesFormatter(SIEMFormatter):
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class ECSFormatter(SIEMFormatter):
     """Elastic Common Schema (ECS) format for Elasticsearch/Kibana.
 
@@ -348,7 +348,7 @@ class ECSFormatter(SIEMFormatter):
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class DatadogFormatter(SIEMFormatter):
     """Datadog Log Management format.
 
@@ -402,7 +402,7 @@ class DatadogFormatter(SIEMFormatter):
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class SplunkHECFormatter(SIEMFormatter):
     """Splunk HTTP Event Collector (HEC) format.
 

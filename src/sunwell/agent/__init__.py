@@ -56,7 +56,14 @@ from sunwell.agent.events import (
     validate_error_event,
 )
 from sunwell.agent.fixer import FixResult, FixStage
-from sunwell.agent.gates import GateDetector, GateResult, GateStepResult, GateType, ValidationGate
+from sunwell.agent.gates import (
+    GateResult,
+    GateStepResult,
+    GateType,
+    ValidationGate,
+    detect_gates,
+    is_runnable_milestone,
+)
 from sunwell.agent.learning import Learning, LearningExtractor, LearningStore
 from sunwell.agent.lens import resolve_lens_for_goal
 from sunwell.agent.metrics import InferenceMetrics, InferenceSample, ModelPerformanceProfile
@@ -149,7 +156,8 @@ __all__ = [
     "ValidationGate",
     "GateResult",
     "GateStepResult",
-    "GateDetector",
+    "detect_gates",
+    "is_runnable_milestone",
     # Metrics
     "InferenceMetrics",
     "InferenceSample",

@@ -64,7 +64,7 @@ class SkillCompilationError(Exception):
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class CompiledTaskGraph:
     """Result of skill compilation — ready for Naaru execution.
 
@@ -197,7 +197,7 @@ class SkillCompilationCache:
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class SkillCompiler:
     """Compile SkillGraph into TaskGraph for Naaru execution (RFC-111).
 

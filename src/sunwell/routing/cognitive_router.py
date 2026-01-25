@@ -28,10 +28,13 @@ similarity, it performs:
 2. Lens Selection — Which lens(es) should handle this?
 3. Focus Extraction — What specific aspects matter?
 4. Confidence Scoring — How certain is the routing decision?
+
 5. Parameter Tuning — Adjust top_k, threshold based on complexity
 
 This makes Sunwell a portable DORI — all the intelligent routing of a
 Cursor-based orchestrator, but running anywhere.
+
+NOTE: This file contains deprecated code. Improvements are minimal.
 """
 
 
@@ -40,12 +43,18 @@ import re
 import warnings
 from dataclasses import dataclass, field
 from enum import Enum
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 from sunwell.models.protocol import ModelProtocol
 
 if TYPE_CHECKING:
     from sunwell.core.spell import Grimoire, Spell
+
+
+# Pre-compiled regex patterns for response parsing (avoid per-call compilation)
+_RE_JSON_OBJECT = re.compile(r'\{[^{}]*\}', re.DOTALL)
+_RE_JSON_CODE_BLOCK = re.compile(r'```(?:json)?\s*(\{[^`]*\})\s*```', re.DOTALL)
 
 
 class Intent(str, Enum):
@@ -70,29 +79,33 @@ class Complexity(str, Enum):
     COMPLEX = "complex"     # Multi-faceted, needs comprehensive context
 
 
+# Module-level constant for default lens mapping (immutable)
+_DEFAULT_LENS_MAPPING: MappingProxyType[Intent, str] = MappingProxyType({
+    Intent.CODE_REVIEW: "code-reviewer",
+    Intent.CODE_GENERATION: "helper",
+    Intent.DOCUMENTATION: "tech-writer",
+    Intent.ANALYSIS: "code-reviewer",
+    Intent.REFACTORING: "code-reviewer",
+    Intent.TESTING: "team-qa",
+    Intent.DEBUGGING: "code-reviewer",
+    Intent.EXPLANATION: "tech-writer",
+    Intent.UNKNOWN: "helper",
+})
+
+
 @dataclass(frozen=True, slots=True)
 class IntentTaxonomy:
     """Defines the intent taxonomy for routing."""
 
     intents: tuple[Intent, ...] = tuple(Intent)
-    lens_mapping: dict[Intent, str] = field(default_factory=lambda: {
-        Intent.CODE_REVIEW: "code-reviewer",
-        Intent.CODE_GENERATION: "helper",
-        Intent.DOCUMENTATION: "tech-writer",
-        Intent.ANALYSIS: "code-reviewer",
-        Intent.REFACTORING: "code-reviewer",
-        Intent.TESTING: "team-qa",
-        Intent.DEBUGGING: "code-reviewer",
-        Intent.EXPLANATION: "tech-writer",
-        Intent.UNKNOWN: "helper",
-    })
+    lens_mapping: MappingProxyType[Intent, str] = _DEFAULT_LENS_MAPPING
 
     def suggest_lens(self, intent: Intent) -> str:
         """Suggest a lens for an intent."""
         return self.lens_mapping.get(intent, "helper")
 
 
-@dataclass
+@dataclass(slots=True)
 class RoutingDecision:
     """Output from the CognitiveRouter.
 
@@ -186,7 +199,7 @@ DORI_COMMAND_MAP: dict[str, dict[str, Any]] = {
 }
 
 
-@dataclass
+@dataclass(slots=True)
 class CognitiveRouter:
     """Intent-aware routing using a tiny LLM.
 
@@ -419,10 +432,10 @@ Respond with ONLY valid JSON (no markdown, no explanation):
         """Parse the router model's response into a RoutingDecision."""
 
         # Extract JSON from response (handle markdown code blocks)
-        json_match = re.search(r'\{[^{}]*\}', response, re.DOTALL)
+        json_match = _RE_JSON_OBJECT.search(response)
         if not json_match:
             # Try to find JSON in code blocks
-            code_match = re.search(r'```(?:json)?\s*(\{[^`]*\})\s*```', response, re.DOTALL)
+            code_match = _RE_JSON_CODE_BLOCK.search(response)
             if code_match:
                 json_str = code_match.group(1)
             else:

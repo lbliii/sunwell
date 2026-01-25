@@ -34,7 +34,7 @@ class IndexState(Enum):
     ERROR = "error"
 
 
-@dataclass
+@dataclass(slots=True)
 class IndexStatus:
     """Current status of the indexing service."""
 
@@ -67,7 +67,7 @@ class IndexStatus:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class IndexingService:
     """Background codebase indexing service.
 

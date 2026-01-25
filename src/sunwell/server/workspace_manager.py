@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class CachedWorkspace:
     """Cached workspace state."""
 
@@ -34,7 +34,7 @@ class CachedWorkspace:
         self.access_count += 1
 
 
-@dataclass
+@dataclass(slots=True)
 class WorkspaceManager:
     """Server-side cache for PersistentMemory instances.
 

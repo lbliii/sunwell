@@ -146,7 +146,7 @@ class ContentFacets:
         return score / checks if checks > 0 else 1.0
 
 
-@dataclass
+@dataclass(slots=True)
 class FacetQuery:
     """Query for multi-faceted retrieval."""
 
@@ -181,7 +181,7 @@ class FacetQuery:
         ])
 
 
-@dataclass
+@dataclass(slots=True)
 class FacetedIndex:
     """Index for efficient multi-faceted retrieval.
 

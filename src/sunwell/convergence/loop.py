@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
 
 
-@dataclass
+@dataclass(slots=True)
 class ConvergenceLoop:
     """Self-stabilizing code generation loop.
 

@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from anthropic import AsyncAnthropic
 
 
-@dataclass
+@dataclass(slots=True)
 class AnthropicModel:
     """Anthropic Claude model adapter with tool calling support.
 

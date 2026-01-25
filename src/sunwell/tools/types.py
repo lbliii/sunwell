@@ -123,7 +123,7 @@ class ToolResult:
     execution_time_ms: int = 0
 
 
-@dataclass
+@dataclass(slots=True)
 class ToolRateLimits:
     """Per-session rate limits to prevent abuse."""
 
@@ -199,7 +199,7 @@ class ToolAuditEntry:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class ToolPolicy:
     """Tool execution policy from lens or global config."""
 

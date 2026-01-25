@@ -37,7 +37,7 @@ class SkillExecutor(Protocol):
         ...
 
 
-@dataclass
+@dataclass(slots=True)
 class WriterContext:
     """Context for workflow execution (RFC-086)."""
 
@@ -57,7 +57,7 @@ class WriterContext:
     """Additional context data."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class WorkflowResult:
     """Result of workflow execution."""
 

@@ -15,10 +15,15 @@ The gate system runs static analysis at every checkpoint:
 
 import asyncio
 import json
+import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+# Pre-compiled regex patterns for output parsing
+_RE_RUFF_OUTPUT = re.compile(r"(.+):(\d+):(\d+): (\w+) (.+)")
+_RE_TYPECHECK_OUTPUT = re.compile(r"(.+):(\d+): (error|warning|note): (.+)")
 
 
 @dataclass(frozen=True, slots=True)
@@ -181,10 +186,10 @@ class ToolchainResult:
     passed: bool
     """Whether all checks passed."""
 
-    lint_errors: list[LintError] = field(default_factory=list)
+    lint_errors: tuple[LintError, ...] = ()
     """Lint errors found."""
 
-    type_errors: list[TypeCheckError] = field(default_factory=list)
+    type_errors: tuple[TypeCheckError, ...] = ()
     """Type errors found."""
 
     auto_fixed: int = 0
@@ -257,7 +262,7 @@ class ToolchainRunner:
             duration = int((time.monotonic() - start) * 1000)
             return ToolchainResult(
                 passed=len(errors) == 0,
-                lint_errors=errors,
+                lint_errors=tuple(errors),
                 duration_ms=duration,
             )
 
@@ -309,7 +314,7 @@ class ToolchainRunner:
 
             return ToolchainResult(
                 passed=len(errors) == 0,
-                lint_errors=errors,
+                lint_errors=tuple(errors),
                 auto_fixed=auto_fixed,
                 output=result.stdout or "",
                 duration_ms=duration,
@@ -349,7 +354,7 @@ class ToolchainRunner:
 
             return ToolchainResult(
                 passed=result.returncode == 0,
-                type_errors=errors,
+                type_errors=tuple(errors),
                 output=result.stdout or "",
                 duration_ms=duration,
             )
@@ -391,7 +396,7 @@ class ToolchainRunner:
 
             return ToolchainResult(
                 passed=result.returncode == 0,
-                type_errors=errors,
+                type_errors=tuple(errors),
                 output=result.stdout or "",
                 duration_ms=duration,
             )
@@ -442,10 +447,8 @@ class ToolchainRunner:
                 )
         except json.JSONDecodeError:
             # Try line-by-line parsing for non-JSON output
-            import re
-
             for line in output.split("\n"):
-                match = re.match(r"(.+):(\d+):(\d+): (\w+) (.+)", line)
+                match = _RE_RUFF_OUTPUT.match(line)
                 if match:
                     errors.append(
                         LintError(
@@ -466,11 +469,9 @@ class ToolchainRunner:
         if not output:
             return errors
 
-        import re
-
         for line in output.split("\n"):
             # ty format: file.py:10: error: message
-            match = re.match(r"(.+):(\d+): (error|warning|note): (.+)", line)
+            match = _RE_TYPECHECK_OUTPUT.match(line)
             if match:
                 errors.append(
                     TypeCheckError(
@@ -490,11 +491,9 @@ class ToolchainRunner:
         if not output:
             return errors
 
-        import re
-
         for line in output.split("\n"):
             # mypy format: file.py:10: error: message
-            match = re.match(r"(.+):(\d+): (error|warning|note): (.+)", line)
+            match = _RE_TYPECHECK_OUTPUT.match(line)
             if match:
                 errors.append(
                     TypeCheckError(

@@ -86,6 +86,12 @@ _STOPWORDS: frozenset[str] = frozenset({
     "create", "build", "make", "add", "implement", "write", "using", "use",
 })
 
+# Pre-compiled regex patterns for performance (avoid recompiling per-call)
+_RE_JSON_OBJECT = re.compile(r"\{[^}]+\}")
+_RE_WORD_SPLIT = re.compile(r"[^a-zA-Z0-9]+")
+_RE_JSON_ARRAY = re.compile(r"\[.*\]", re.DOTALL)
+_RE_JSON_CODE_BLOCK = re.compile(r"```(?:json)?\s*(\[.*?\])\s*```", re.DOTALL)
+
 
 # =============================================================================
 # Plan Quality Metrics
@@ -327,7 +333,7 @@ Focus on what must exist when the goal is complete.
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class HarmonicPlanner:
     """Plans by generating multiple candidates and selecting the best (RFC-038).
 
@@ -861,7 +867,7 @@ IMPORTANT: Return ONLY the JSON object, no other text."""
             )
 
             # Parse JSON from response
-            json_match = re.search(r"\{[^}]+\}", result.text or result.content)
+            json_match = _RE_JSON_OBJECT.search(result.text or result.content)
             if json_match:
                 return json.loads(json_match.group())
             return {}
@@ -1212,7 +1218,7 @@ IMPORTANT: Return ONLY the JSON object, no other text."""
         if not text:
             return []
         # Split on non-alphanumeric, lowercase, filter
-        words = re.split(r"[^a-zA-Z0-9]+", text.lower())
+        words = _RE_WORD_SPLIT.split(text.lower())
         return [w for w in words if len(w) > 3 and w not in _STOPWORDS]
 
     def _get_effective_score(self, metrics: PlanMetrics | PlanMetricsV2) -> float:
@@ -1486,7 +1492,7 @@ Output the COMPLETE revised artifact list as JSON array:
     def _parse_artifacts(self, response: str) -> list[ArtifactSpec]:
         """Parse LLM response into ArtifactSpec objects."""
         # Strategy 1: Find JSON array with regex
-        json_match = re.search(r"\[.*\]", response, re.DOTALL)
+        json_match = _RE_JSON_ARRAY.search(response)
         if json_match:
             try:
                 data = json.loads(json_match.group())
@@ -1495,7 +1501,7 @@ Output the COMPLETE revised artifact list as JSON array:
                 pass
 
         # Strategy 2: Look for code block with JSON
-        code_match = re.search(r"```(?:json)?\s*(\[.*?\])\s*```", response, re.DOTALL)
+        code_match = _RE_JSON_CODE_BLOCK.search(response)
         if code_match:
             try:
                 data = json.loads(code_match.group(1))

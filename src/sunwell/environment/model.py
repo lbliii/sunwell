@@ -14,6 +14,16 @@ Composes with existing types:
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import Protocol, Self
+
+
+class Serializable(Protocol):
+    """Protocol for types that can be serialized to/from dict."""
+
+    def to_dict(self) -> dict: ...
+
+    @classmethod
+    def from_dict(cls, data: dict) -> Self: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -198,7 +208,7 @@ class Pattern:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class UserEnvironment:
     """The complete environment model.
 
@@ -220,6 +230,12 @@ class UserEnvironment:
     reference_projects: dict[str, Path] = field(default_factory=dict)
     version: int = 1
     updated_at: datetime = field(default_factory=datetime.now)
+    _project_index: dict[Path, ProjectEntry] = field(default_factory=dict, repr=False)
+
+    def __post_init__(self) -> None:
+        """Build index from projects list for O(1) lookups."""
+        if not self._project_index and self.projects:
+            self._project_index = {p.path.resolve(): p for p in self.projects}
 
     def find_similar(self, project_path: Path) -> list[ProjectEntry]:
         """Find projects similar to the given one.
@@ -236,14 +252,15 @@ class UserEnvironment:
         target = self.get_project(project_path)
         if not target:
             return []
+        resolved = project_path.resolve()
         return [
             p
             for p in self.projects
-            if p.project_type == target.project_type and p.path.resolve() != project_path.resolve()
+            if p.project_type == target.project_type and p.path.resolve() != resolved
         ]
 
     def get_project(self, path: Path) -> ProjectEntry | None:
-        """Get a project by path.
+        """Get a project by path. O(1) lookup.
 
         Args:
             path: Path to the project (resolved to absolute).
@@ -251,11 +268,7 @@ class UserEnvironment:
         Returns:
             ProjectEntry if found, None otherwise.
         """
-        resolved = path.resolve()
-        return next(
-            (p for p in self.projects if p.path.resolve() == resolved),
-            None,
-        )
+        return self._project_index.get(path.resolve())
 
     def get_reference_for(self, category: str) -> ProjectEntry | None:
         """Get the gold standard project for a category.
@@ -295,8 +308,11 @@ class UserEnvironment:
             entry: ProjectEntry to add/update.
         """
         resolved = entry.path.resolve()
-        self.projects = [p for p in self.projects if p.path.resolve() != resolved]
+        old = self._project_index.get(resolved)
+        if old:
+            self.projects.remove(old)
         self.projects.append(entry)
+        self._project_index[resolved] = entry
         self.updated_at = datetime.now()
 
     def remove_project(self, path: Path) -> bool:
@@ -309,9 +325,9 @@ class UserEnvironment:
             True if a project was removed, False if not found.
         """
         resolved = path.resolve()
-        original_count = len(self.projects)
-        self.projects = [p for p in self.projects if p.path.resolve() != resolved]
-        if len(self.projects) < original_count:
+        old = self._project_index.pop(resolved, None)
+        if old:
+            self.projects.remove(old)
             self.updated_at = datetime.now()
             return True
         return False

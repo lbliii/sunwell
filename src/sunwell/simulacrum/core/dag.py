@@ -23,7 +23,7 @@ from pathlib import Path
 from sunwell.simulacrum.core.turn import Learning, TemplateData, TemplateVariable, Turn, TurnType
 
 
-@dataclass
+@dataclass(slots=True)
 class ConversationDAG:
     """Directed Acyclic Graph of conversation turns.
 

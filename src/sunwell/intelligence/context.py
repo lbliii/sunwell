@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from sunwell.team import TeamKnowledgeStore, UnifiedIntelligence
 
 
-@dataclass
+@dataclass(slots=True)
 class ProjectContext:
     """Unified context combining Simulacrum + Project Intelligence + Team Intelligence.
 
@@ -174,7 +174,7 @@ class ProjectContext:
         # Simulacrum saves automatically on operations
 
 
-@dataclass
+@dataclass(slots=True)
 class ProjectIntelligence:
     """Main interface for project intelligence.
 

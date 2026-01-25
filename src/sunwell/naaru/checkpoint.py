@@ -61,7 +61,7 @@ class CheckpointPhase(Enum):
     """Individual task completed (backward compatible)."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class TaskExecutionConfig:
     """Configuration for task execution (RFC-032)."""
 
@@ -93,7 +93,7 @@ class TaskExecutionConfig:
         )
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ParallelConfig:
     """Configuration for parallel task execution (RFC-032)."""
 
@@ -122,7 +122,7 @@ class ParallelConfig:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class AgentCheckpoint:
     """Saved state for resuming agent execution (RFC-032, RFC-130).
 

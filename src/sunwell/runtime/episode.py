@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from sunwell.runtime.engine import ExecutionResult
 
 
-@dataclass
+@dataclass(slots=True)
 class EpisodeSnapshot:
     """Portable snapshot of an expertise application session.
 
@@ -190,7 +190,7 @@ Heuristics: {', '.join(self.retrieved_heuristics) or 'none'}
 Code refs: {len(self.retrieved_code)} files"""
 
 
-@dataclass
+@dataclass(slots=True)
 class EpisodeChain:
     """Chain of related episodes for multi-step workflows.
 

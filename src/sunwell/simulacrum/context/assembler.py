@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
 
 
-@dataclass
+@dataclass(slots=True)
 class AssembledContext:
     """The final assembled context ready for model input."""
 
@@ -79,7 +79,7 @@ class AssembledContext:
         return messages
 
 
-@dataclass
+@dataclass(slots=True)
 class ContextAssembler:
     """Assembles optimal context from conversation DAG.
 

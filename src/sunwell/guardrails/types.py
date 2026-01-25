@@ -96,8 +96,8 @@ class Action:
     content: str | None = None
     """Content being written (for analysis)."""
 
-    metadata: dict = field(default_factory=dict)
-    """Additional metadata."""
+    metadata: tuple[tuple[str, Any], ...] = ()
+    """Additional metadata as immutable key-value pairs."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -148,7 +148,7 @@ class FileChange:
     """Whether this file is being deleted."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ScopeLimits:
     """Hard limits on autonomous operation scope.
 
@@ -352,7 +352,7 @@ class Escalation:
                 return "info"
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class EscalationResolution:
     """Resolution of an escalation."""
 

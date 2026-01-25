@@ -29,7 +29,7 @@ MAX_OBSERVATIONS_GLOBAL = 100
 MAX_IDENTITY_PROMPT_LENGTH = 500
 
 
-@dataclass
+@dataclass(slots=True)
 class Observation:
     """A behavioral observation about the user."""
 
@@ -64,7 +64,7 @@ class Observation:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class Identity:
     """User identity model with behavioral observations and synthesized prompt."""
 

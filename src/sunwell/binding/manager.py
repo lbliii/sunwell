@@ -26,8 +26,15 @@ from sunwell.binding.identity import (
 )
 from sunwell.core.identity import SunwellURI, slugify
 
+# Default models per provider (extracted to avoid per-call dict creation)
+_DEFAULT_MODELS: dict[str, str] = {
+    "openai": "gpt-4o",
+    "anthropic": "claude-sonnet-4-20250514",
+    "ollama": "gemma3:4b",
+}
 
-@dataclass
+
+@dataclass(slots=True)
 class Binding:
     """Your personal attunement to a lens.
 
@@ -301,15 +308,11 @@ class BindingManager:
             provider = cfg.model.default_provider if cfg else "ollama"
 
         # Auto-select model based on provider if not specified
-        if model is None:
+            if model is None:
             if cfg:
                 model = cfg.model.default_model
             else:
-                model = {
-                    "openai": "gpt-4o",
-                    "anthropic": "claude-sonnet-4-20250514",
-                    "ollama": "gemma3:4b",
-                }.get(provider, "gpt-4o")
+                model = _DEFAULT_MODELS.get(provider, "gpt-4o")
 
         # Create identity
         namespace = project or self.project or "global"
@@ -445,8 +448,11 @@ class BindingManager:
         entries = self._index_manager.list_bindings(project=project or self.project)
 
         bindings = []
+        indexed_slugs: set[str] = set()  # Build during first pass to avoid duplicate parsing
+
         for entry in entries:
             parsed = SunwellURI.parse(entry.uri)
+            indexed_slugs.add(parsed.slug)
             path = self._get_binding_path(parsed.namespace, parsed.slug)
             if path and path.exists():
                 try:
@@ -456,9 +462,8 @@ class BindingManager:
 
         # Also include legacy bindings not in index
         if not project and self.bindings_dir.exists():
-            indexed_names = {SunwellURI.parse(e.uri).slug for e in entries}
             for path in self.bindings_dir.glob("*.json"):
-                if path.stem not in indexed_names:
+                if path.stem not in indexed_slugs:
                     try:
                         bindings.append(Binding.load(path))
                     except (json.JSONDecodeError, KeyError):

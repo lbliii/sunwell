@@ -21,7 +21,16 @@ if TYPE_CHECKING:
     from sunwell.project.schema import ProjectSchema
 
 
-@dataclass
+# Pre-compiled regex patterns for goal parsing (avoid per-call compilation)
+_RE_FOLDER_PATTERN = re.compile(r"in (?:the )?(\w+/)?\s*folder")
+_RE_SAVE_PATTERN = re.compile(r"save (?:it )?(?:in|to) (?:the )?(\S+)")
+_RE_FILE_PATTERN = re.compile(r"(?:create|build|write|make) (?:a )?(\w+\.\w+)")
+_RE_APP_PATTERN = re.compile(r"(\w+)\s+app")
+_RE_JSON_ARRAY = re.compile(r"\[.*\]", re.DOTALL)
+_RE_JSON_CODE_BLOCK = re.compile(r"```(?:json)?\s*(\[.*?\])\s*```", re.DOTALL)
+
+
+@dataclass(slots=True)
 class AgentPlanner:
     """Plans arbitrary user tasks using LLM decomposition (RFC-032, RFC-034).
 
@@ -633,18 +642,16 @@ Please ensure your response is ONLY valid JSON with no extra text.
         - "create X file" -> X
         - "build X app" -> X/
         """
-        import re
-
         goal_lower = goal.lower()
 
         # Pattern: "in the X/ folder" or "in X/"
-        folder_match = re.search(r"in (?:the )?(\w+/)?\s*folder", goal_lower)
+        folder_match = _RE_FOLDER_PATTERN.search(goal_lower)
         if folder_match and folder_match.group(1):
             folder = folder_match.group(1).rstrip("/")
             return f"{folder}/index.html" if "app" in goal_lower else f"{folder}/output.txt"
 
         # Pattern: "save in X" or "save to X"
-        save_match = re.search(r"save (?:it )?(?:in|to) (?:the )?(\S+)", goal_lower)
+        save_match = _RE_SAVE_PATTERN.search(goal_lower)
         if save_match:
             path = save_match.group(1).rstrip("/")
             # If it looks like a directory (no extension), add a default file
@@ -653,12 +660,12 @@ Please ensure your response is ONLY valid JSON with no extra text.
             return path
 
         # Pattern: "create X.ext" or "build X.ext"
-        file_match = re.search(r"(?:create|build|write|make) (?:a )?(\w+\.\w+)", goal_lower)
+        file_match = _RE_FILE_PATTERN.search(goal_lower)
         if file_match:
             return file_match.group(1)
 
         # Pattern: "X app" -> X/
-        app_match = re.search(r"(\w+)\s+app", goal_lower)
+        app_match = _RE_APP_PATTERN.search(goal_lower)
         if app_match:
             return f"{app_match.group(1)}/index.html"
 
@@ -759,8 +766,8 @@ Please ensure your response is ONLY valid JSON with no extra text.
 
     def _extract_json(self, response: str) -> list[dict] | None:
         """Extract JSON array from LLM response using multiple strategies."""
-        # Strategy 1: Find JSON array with regex
-        json_match = re.search(r"\[.*\]", response, re.DOTALL)
+        # Strategy 1: Find JSON array with regex (pre-compiled)
+        json_match = _RE_JSON_ARRAY.search(response)
         if json_match:
             try:
                 return json.loads(json_match.group())
@@ -777,8 +784,8 @@ Please ensure your response is ONLY valid JSON with no extra text.
         except json.JSONDecodeError:
             pass
 
-        # Strategy 3: Look for code block with JSON
-        code_match = re.search(r"```(?:json)?\s*(\[.*?\])\s*```", response, re.DOTALL)
+        # Strategy 3: Look for code block with JSON (pre-compiled)
+        code_match = _RE_JSON_CODE_BLOCK.search(response)
         if code_match:
             try:
                 return json.loads(code_match.group(1))
