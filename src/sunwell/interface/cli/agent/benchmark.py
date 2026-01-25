@@ -90,7 +90,7 @@ async def _benchmark_async(
 
     # Run benchmarks
     try:
-        from sunwell.benchmark.agent_runner import AgentBenchmarkRunner
+        from sunwell.benchmark.agents.runner import AgentBenchmarkRunner
 
         runner = AgentBenchmarkRunner(
             model=model,

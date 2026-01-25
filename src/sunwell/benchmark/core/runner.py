@@ -10,7 +10,7 @@ Executes benchmark tasks across multiple conditions:
 
 import asyncio
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING

@@ -182,9 +182,9 @@ async def _run_benchmark(
     naaru: str = "none",
 ) -> None:
     """Async benchmark execution."""
-    from sunwell.benchmark.evaluator import BenchmarkEvaluator
-    from sunwell.benchmark.report import BenchmarkReporter
-    from sunwell.benchmark.runner import BenchmarkRunner
+    from sunwell.benchmark.core.runner import BenchmarkRunner
+    from sunwell.benchmark.evaluation.evaluator import BenchmarkEvaluator
+    from sunwell.benchmark.reporting.reporter import BenchmarkReporter
     from sunwell.benchmark.types import NaaruMode, PromptStrategy
     from sunwell.models.ollama import OllamaModel
     from sunwell.foundation.schema.loader import LensLoader
@@ -952,7 +952,7 @@ def plan_eval(
         sunwell benchmark plan-eval tasks/rfc043.yaml plan.json -o eval.json
         sunwell benchmark plan-eval tasks/rfc043.yaml plan.json --format json
     """
-    from sunwell.benchmark.planning_eval import PlanningEvaluator
+    from sunwell.benchmark.planning.evaluator import PlanningEvaluator
 
     try:
         evaluator = PlanningEvaluator.from_task(task_path)
@@ -1010,7 +1010,7 @@ def plan_compare(
         sunwell benchmark plan-compare tasks/rfc043.yaml sunwell.json baseline.json
         sunwell benchmark plan-compare tasks/rfc043.yaml *.json -o comparison.json
     """
-    from sunwell.benchmark.planning_eval import PlanningEvaluator
+    from sunwell.benchmark.planning.evaluator import PlanningEvaluator
 
     evaluator = PlanningEvaluator.from_task(task_path)
 

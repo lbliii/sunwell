@@ -25,16 +25,14 @@ Usage:
     naaru_results = await naaru_runner.run_suite()
 """
 
-from sunwell.benchmark.evaluator import BenchmarkEvaluator
-
-# Naaru benchmark (RFC-027) - import conditionally to avoid circular imports
+from sunwell.benchmark.core.runner import BenchmarkRunner, create_runner
+from sunwell.benchmark.evaluation.evaluator import BenchmarkEvaluator
+from sunwell.benchmark.reporting.reporter import BenchmarkReporter
 from sunwell.benchmark.naaru import (
     NaaruBenchmarkResults,
     NaaruBenchmarkRunner,
     NaaruCondition,
 )
-from sunwell.benchmark.report import BenchmarkReporter
-from sunwell.benchmark.runner import BenchmarkRunner
 from sunwell.benchmark.types import (
     BenchmarkResults,
     BenchmarkTask,
@@ -48,6 +46,13 @@ from sunwell.benchmark.types import (
 )
 
 __all__ = [
+    # Core
+    "BenchmarkRunner",
+    "create_runner",
+    # Evaluation
+    "BenchmarkEvaluator",
+    # Reporting
+    "BenchmarkReporter",
     # Types
     "BenchmarkTask",
     "TaskResult",
@@ -58,10 +63,6 @@ __all__ = [
     "RetrievalMetrics",
     "BenchmarkResults",
     "StatisticalSummary",
-    # Classes
-    "BenchmarkRunner",
-    "BenchmarkEvaluator",
-    "BenchmarkReporter",
     # Naaru (RFC-027)
     "NaaruBenchmarkRunner",
     "NaaruCondition",
