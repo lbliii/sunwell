@@ -23,7 +23,12 @@ RFC-027 additions:
 - System prompt for ReAct-style tool usage
 """
 
-from sunwell.tools.builtins import (
+# Core types
+from sunwell.tools.core.constants import TRUST_LEVEL_TOOLS
+from sunwell.tools.core.types import ToolAuditEntry, ToolPolicy, ToolRateLimits, ToolResult, ToolTrust
+
+# Tool definitions
+from sunwell.tools.definitions import (
     CORE_TOOLS,
     ENV_ALLOWLIST,
     ENV_BLOCKLIST_PATTERNS,
@@ -33,17 +38,35 @@ from sunwell.tools.builtins import (
     get_all_tools,
     get_tools_for_trust_level,
 )
-from sunwell.tools.executor import ToolExecutor
-from sunwell.tools.expertise import ExpertiseToolHandler, get_self_directed_prompt
+
+# Execution
+from sunwell.tools.execution import ToolExecutor
+
+# Handlers
 from sunwell.tools.handlers import CoreToolHandlers, PathSecurityError
-from sunwell.tools.types import TRUST_LEVEL_TOOLS, ToolRateLimits, ToolResult, ToolTrust
-from sunwell.tools.web_search import (
+
+# Providers
+from sunwell.tools.providers import (
+    ExpertiseToolHandler,
     OllamaWebSearch,
     WebFetchResult,
     WebSearchHandler,
     WebSearchProvider,
     WebSearchResult,
     create_web_search_provider,
+    get_self_directed_prompt,
+)
+
+# Sunwell handlers
+from sunwell.tools.sunwell import SunwellToolHandlers
+
+# Errors
+from sunwell.tools.errors import (
+    ToolError,
+    ToolErrorCode,
+    format_error_for_model,
+    get_retry_strategy,
+    should_retry,
 )
 
 __all__ = [
@@ -51,6 +74,8 @@ __all__ = [
     "ToolTrust",
     "ToolResult",
     "ToolRateLimits",
+    "ToolAuditEntry",
+    "ToolPolicy",
     "TRUST_LEVEL_TOOLS",
     # Tool definitions
     "CORE_TOOLS",
@@ -75,4 +100,12 @@ __all__ = [
     "WebSearchHandler",
     "OllamaWebSearch",
     "create_web_search_provider",
+    # Sunwell handlers
+    "SunwellToolHandlers",
+    # Errors
+    "ToolError",
+    "ToolErrorCode",
+    "should_retry",
+    "get_retry_strategy",
+    "format_error_for_model",
 ]

@@ -9,7 +9,7 @@ Safe unsupervised operation through multi-layer guardrails:
 5. **Escalation System**: Human-in-the-loop
 
 Example:
-    >>> from sunwell.guardrails import GuardrailSystem, GuardrailConfig
+    >>> from sunwell.quality.guardrails import GuardrailSystem, GuardrailConfig
     >>>
     >>> # Create guardrail system
     >>> guardrails = GuardrailSystem(repo_path=Path.cwd())

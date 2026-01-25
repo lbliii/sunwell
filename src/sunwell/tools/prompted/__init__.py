@@ -1,4 +1,4 @@
-"""Backward compatibility stub - use sunwell.tools.prompted instead."""
+"""Prompted tools."""
 
 # Re-export if needed
 # from sunwell.tools.prompted.prompted import ...

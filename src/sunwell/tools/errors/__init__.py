@@ -1,6 +1,6 @@
-"""Backward compatibility stub - use sunwell.tools.errors instead."""
+"""Tool error handling."""
 
-from sunwell.tools.errors import (
+from sunwell.tools.errors.errors import (
     ToolError,
     ToolErrorCode,
     format_error_for_model,

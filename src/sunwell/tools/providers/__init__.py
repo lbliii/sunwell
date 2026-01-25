@@ -1,6 +1,7 @@
-"""Backward compatibility stub - use sunwell.tools.providers instead."""
+"""External tool providers."""
 
-from sunwell.tools.providers import (
+from sunwell.tools.providers.expertise import ExpertiseToolHandler, get_self_directed_prompt
+from sunwell.tools.providers.web_search import (
     OllamaWebSearch,
     WebFetchResult,
     WebSearchHandler,
@@ -16,4 +17,6 @@ __all__ = [
     "WebSearchHandler",
     "OllamaWebSearch",
     "create_web_search_provider",
+    "ExpertiseToolHandler",
+    "get_self_directed_prompt",
 ]

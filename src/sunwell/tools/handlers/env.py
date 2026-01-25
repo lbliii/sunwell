@@ -27,7 +27,7 @@ async def get_env(args: dict) -> str:
     Returns:
         The environment variable value, or an error message if blocked/not found
     """
-    from sunwell.tools.builtins import ENV_ALLOWLIST, ENV_BLOCKLIST_PATTERNS
+    from sunwell.tools.definitions.builtins import ENV_ALLOWLIST, ENV_BLOCKLIST_PATTERNS
 
     name = args.get("name")
     if not name:
@@ -61,7 +61,7 @@ async def list_env(args: dict) -> str:
     Returns:
         Newline-separated list of NAME=value pairs
     """
-    from sunwell.tools.builtins import ENV_ALLOWLIST
+    from sunwell.tools.definitions.builtins import ENV_ALLOWLIST
 
     filter_prefix = args.get("filter", "").upper()
 

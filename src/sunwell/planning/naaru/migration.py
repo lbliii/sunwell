@@ -80,10 +80,6 @@ def migrate_rfc019_to_rfc033(old_config: NaaruConfig) -> NaaruConfig:
         refinement_max_attempts=old_config.resonance if old_config.resonance > 0 else 2,
         cost_budget="normal",
         task_type="auto",
-        # Preserve old fields for backward compatibility
-        harmonic_synthesis=old_config.harmonic_synthesis,
-        resonance=old_config.resonance,
-        discernment=old_config.discernment,
     )
 
 

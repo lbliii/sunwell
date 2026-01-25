@@ -1,6 +1,6 @@
-"""Backward compatibility stub - use sunwell.tools.definitions instead."""
+"""Tool definitions for RFC-012, RFC-024, RFC-027, RFC-125."""
 
-from sunwell.tools.definitions import (
+from sunwell.tools.definitions.builtins import (
     ALL_BUILTIN_TOOLS,
     CORE_TOOLS,
     ENV_ALLOWLIST,
@@ -11,6 +11,7 @@ from sunwell.tools.definitions import (
     get_all_tools,
     get_tools_for_trust_level,
 )
+from sunwell.tools.definitions.sunwell import SUNWELL_TOOLS
 
 __all__ = [
     "CORE_TOOLS",
@@ -20,6 +21,7 @@ __all__ = [
     "ENV_ALLOWLIST",
     "ENV_BLOCKLIST_PATTERNS",
     "ALL_BUILTIN_TOOLS",
+    "SUNWELL_TOOLS",
     "get_tools_for_trust_level",
     "get_all_tools",
 ]

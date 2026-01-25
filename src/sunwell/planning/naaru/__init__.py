@@ -86,7 +86,6 @@ Lore:
 # RFC-067: Integration-Aware DAG types (canonical: sunwell.integration)
 # RFC-067: Integration Verification (canonical: sunwell.integration)
 # RFC-074: Incremental Execution v2 (content-addressed cache)
-# Re-export v2 types from sunwell.incremental for convenience
 from sunwell.agent.incremental import (
     ExecutionCache,
     ExecutionPlan,
@@ -198,11 +197,6 @@ from sunwell.planning.naaru.learnings import LearningExtractor
 
 # Core runners
 from sunwell.planning.naaru.loop import AutonomousRunner
-from sunwell.planning.naaru.migration import (
-    create_rfc019_equivalent_config,
-    create_rfc028_equivalent_config,
-    migrate_rfc019_to_rfc033,
-)
 from sunwell.planning.naaru.parallel import ParallelAutonomousRunner, WorkerStats
 from sunwell.planning.naaru.persistence import (
     ArtifactCompletion,
@@ -481,11 +475,6 @@ __all__ = [
     "create_balanced_config",
     "create_quality_config",
     "create_auto_config",
-
-    # RFC-033: Migration Helpers
-    "migrate_rfc019_to_rfc033",
-    "create_rfc019_equivalent_config",
-    "create_rfc028_equivalent_config",
 
     # RFC-040: Plan Persistence
     "SavedExecution",
