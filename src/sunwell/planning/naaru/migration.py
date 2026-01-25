@@ -4,7 +4,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.types.config import NaaruConfig
+    from sunwell.foundation.types.config import NaaruConfig
 
 
 def migrate_rfc019_to_rfc033(old_config: NaaruConfig) -> NaaruConfig:
@@ -37,7 +37,7 @@ def migrate_rfc019_to_rfc033(old_config: NaaruConfig) -> NaaruConfig:
         >>> #     refinement_max_attempts=2,
         >>> # )
     """
-    from sunwell.types.config import NaaruConfig
+    from sunwell.foundation.types.config import NaaruConfig
 
     # Map old flags to new strategies
     if old_config.harmonic_synthesis:
@@ -96,7 +96,7 @@ def create_rfc019_equivalent_config() -> NaaruConfig:
         - resonance=2
         - discernment=True
     """
-    from sunwell.types.config import NaaruConfig
+    from sunwell.foundation.types.config import NaaruConfig
 
     return NaaruConfig(
         diversity="harmonic",
@@ -116,7 +116,7 @@ def create_rfc028_equivalent_config() -> NaaruConfig:
     Returns:
         NaaruConfig with minimal settings (no diversity, no refinement)
     """
-    from sunwell.types.config import NaaruConfig
+    from sunwell.foundation.types.config import NaaruConfig
 
     return NaaruConfig(
         diversity="none",

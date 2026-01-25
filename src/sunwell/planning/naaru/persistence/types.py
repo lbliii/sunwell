@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from sunwell.naaru.executor import ArtifactResult
+from sunwell.planning.naaru.executor import ArtifactResult
 
 
 class ExecutionStatus(Enum):
@@ -66,7 +66,7 @@ class ArtifactCompletion:
     @classmethod
     def from_result(cls, result: ArtifactResult) -> ArtifactCompletion:
         """Create from ArtifactResult."""
-        from sunwell.naaru.persistence.hashing import hash_content
+        from sunwell.planning.naaru.persistence.hashing import hash_content
 
         content_hash = hash_content(result.content) if result.content else ""
         return cls(

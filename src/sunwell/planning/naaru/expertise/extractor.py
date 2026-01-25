@@ -4,7 +4,7 @@ Extracts relevant heuristics from lenses based on the goal.
 Supports both keyword-based filtering and semantic ranking.
 
 Example:
-    >>> from sunwell.naaru.expertise import ExpertiseExtractor
+    >>> from sunwell.planning.naaru.expertise import ExpertiseExtractor
     >>>
     >>> extractor = ExpertiseExtractor(lenses=[tech_writer_lens])
     >>> context = await extractor.extract("Write API documentation")
@@ -22,10 +22,10 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sunwell.core.heuristic import Heuristic
-    from sunwell.core.lens import Lens
-    from sunwell.embedding.protocol import Embedder
+    from sunwell.foundation.core.lens import Lens
+    from sunwell.knowledge.embedding.protocol import Embedder
 
-from sunwell.naaru.expertise.context import (
+from sunwell.planning.naaru.expertise.context import (
     ExpertiseContext,
     HeuristicSummary,
 )

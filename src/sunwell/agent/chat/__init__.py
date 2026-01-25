@@ -19,13 +19,13 @@ Example:
     ...     response = await gen.asend(CheckpointResponse("y"))
 """
 
-from sunwell.chat.checkpoint import (
+from sunwell.agent.chat.checkpoint import (
     ChatCheckpoint,
     ChatCheckpointType,
     CheckpointResponse,
 )
-from sunwell.chat.intent import Intent, IntentClassification, IntentRouter
-from sunwell.chat.unified import LoopState, UnifiedChatLoop
+from sunwell.agent.chat.intent import Intent, IntentClassification, IntentRouter
+from sunwell.agent.chat.unified import LoopState, UnifiedChatLoop
 
 __all__ = [
     # Intent classification

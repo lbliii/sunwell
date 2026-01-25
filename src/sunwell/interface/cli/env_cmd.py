@@ -65,7 +65,7 @@ def env_scan(path: str, reset: bool) -> None:
         sunwell env scan ~/myproject  # Add specific project
         sunwell env scan --reset .    # Reset and add current
     """
-    from sunwell.environment import (
+    from sunwell.knowledge.environment import (
         create_project_entry_from_path,
         extract_patterns,
         load_environment,
@@ -133,7 +133,7 @@ def env_list(type: str | None, sort: str, verbose: bool) -> None:
         sunwell env list --type python    # Only Python projects
         sunwell env list --sort health    # Sort by health score
     """
-    from sunwell.environment import load_environment
+    from sunwell.knowledge.environment import load_environment
 
     env = load_environment()
 
@@ -230,7 +230,7 @@ def env_patterns(verbose: bool) -> None:
     Patterns are conventions detected across your projects,
     like directory structure, tooling, and configurations.
     """
-    from sunwell.environment import load_environment
+    from sunwell.knowledge.environment import load_environment
 
     env = load_environment()
 
@@ -285,7 +285,7 @@ def env_references() -> None:
     Reference projects are used as templates when planning
     new projects of the same type.
     """
-    from sunwell.environment import (
+    from sunwell.knowledge.environment import (
         check_reference_health,
         list_references,
         load_environment,
@@ -378,7 +378,7 @@ def env_reference_add(path: str, category: str) -> None:
         sunwell env reference add ~/prompt-library --category docs
         sunwell env reference add ~/sunwell --category python
     """
-    from sunwell.environment import (
+    from sunwell.knowledge.environment import (
         add_reference,
         load_environment,
         save_environment,
@@ -403,7 +403,7 @@ def env_reference_remove(category: str) -> None:
     Examples:
         sunwell env reference remove docs
     """
-    from sunwell.environment import (
+    from sunwell.knowledge.environment import (
         load_environment,
         remove_reference,
         save_environment,
@@ -433,7 +433,7 @@ def env_similar(path: str) -> None:
     Examples:
         sunwell env similar ~/new-docs-project
     """
-    from sunwell.environment import load_environment
+    from sunwell.knowledge.environment import load_environment
 
     env = load_environment()
     project_path = Path(path).resolve()
@@ -468,7 +468,7 @@ def env_similar(path: str) -> None:
 @env.command("info")
 def env_info() -> None:
     """Show environment summary and status."""
-    from sunwell.environment import (
+    from sunwell.knowledge.environment import (
         get_environment_age,
         get_environment_path,
         load_environment,

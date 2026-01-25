@@ -4,10 +4,10 @@ import yaml
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.core.errors import ErrorCode, lens_error
-from sunwell.core.lens import Lens
+from sunwell.foundation.errors import ErrorCode, lens_error
+from sunwell.foundation.core.lens import Lens
 from sunwell.core.types import LensReference
-from sunwell.schema.loader.parsers import (
+from sunwell.foundation.schema.loader.parsers import (
     parse_affordances,
     parse_anti_heuristics,
     parse_communication,
@@ -30,10 +30,10 @@ from sunwell.schema.loader.parsers import (
     parse_workflows,
     parse_provenance,
 )
-from sunwell.schema.loader.presets import load_presets, resolve_preset
+from sunwell.foundation.schema.loader.presets import load_presets, resolve_preset
 
 if TYPE_CHECKING:
-    from sunwell.fount.client import FountClient
+    from sunwell.features.fount.client import FountClient
 
 
 class LensLoader:
@@ -95,7 +95,7 @@ class LensLoader:
         Returns:
             Resolved Path or None if not found
         """
-        from sunwell.config import get_config
+        from sunwell.foundation.config import get_config
 
         config = get_config()
         search_paths = config.lens.search_paths
@@ -248,7 +248,7 @@ class LensLoader:
             router = parse_router(lens_data["router"])
 
         # Parse quality policy
-        from sunwell.core.lens import QualityPolicy
+        from sunwell.foundation.core.lens import QualityPolicy
         quality_policy = QualityPolicy()
         if "quality_policy" in lens_data:
             quality_policy = parse_quality_policy(lens_data["quality_policy"])

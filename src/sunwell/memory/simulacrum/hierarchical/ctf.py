@@ -21,7 +21,7 @@ import contextlib
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.simulacrum.core.turn import Turn
+    from sunwell.memory.simulacrum.core.turn import Turn
 
 # Constants
 FIELD_SEP = "\t"
@@ -104,7 +104,7 @@ class CTFDecoder:
         Returns:
             List of Turn objects
         """
-        from sunwell.simulacrum.core.turn import Turn, TurnType
+        from sunwell.memory.simulacrum.core.turn import Turn, TurnType
 
         if not ctf_content or not ctf_content.startswith("#CTF"):
             raise ValueError("Invalid CTF format: missing header")

@@ -15,12 +15,12 @@ Components:
 See: RFC-046-autonomous-backlog.md, RFC-115-hierarchical-goal-decomposition.md
 """
 
-from sunwell.backlog.decomposer import EpicDecomposer
-from sunwell.backlog.goals import Goal, GoalGenerator, GoalPolicy, GoalResult, GoalScope
-from sunwell.backlog.loop import AutonomousLoop
-from sunwell.backlog.manager import Backlog, BacklogManager
-from sunwell.backlog.signals import ObservableSignal, SignalExtractor
-from sunwell.backlog.tracker import (
+from sunwell.features.backlog.decomposer import EpicDecomposer
+from sunwell.features.backlog.goals import Goal, GoalGenerator, GoalPolicy, GoalResult, GoalScope
+from sunwell.features.backlog.loop import AutonomousLoop
+from sunwell.features.backlog.manager import Backlog, BacklogManager
+from sunwell.features.backlog.signals import ObservableSignal, SignalExtractor
+from sunwell.features.backlog.tracker import (
     DictSerializable,
     LearningStore,
     MilestoneLearning,

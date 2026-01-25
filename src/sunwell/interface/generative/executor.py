@@ -9,8 +9,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
-from sunwell.interface.types import ActionSpec
-from sunwell.providers.base import CalendarEvent, CalendarProvider, ListProvider
+from sunwell.interface.generative.types import ActionSpec
+from sunwell.models.providers.base import CalendarEvent, CalendarProvider, ListProvider
 
 # =============================================================================
 # PRE-COMPILED PATTERNS — Avoid re-compilation per call

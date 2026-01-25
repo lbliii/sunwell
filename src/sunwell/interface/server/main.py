@@ -24,7 +24,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from sunwell.server.routes import (
+from sunwell.interface.generative.server.routes import (
     agent_router,
     backlog_router,
     coordinator_router,

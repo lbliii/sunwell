@@ -28,8 +28,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
-    from sunwell.core.lens import Lens
-    from sunwell.routing.unified import RoutingDecision
+    from sunwell.foundation.core.lens import Lens
+    from sunwell.planning.routing.unified import RoutingDecision
 
 
 class ReagentType(str, Enum):
@@ -136,7 +136,7 @@ class Spell:
 
     def to_routing_decision(self) -> RoutingDecision:
         """Convert to RoutingDecision for UnifiedRouter."""
-        from sunwell.routing.unified import (
+        from sunwell.planning.routing.unified import (
             Complexity,
             Intent,
             RoutingDecision,

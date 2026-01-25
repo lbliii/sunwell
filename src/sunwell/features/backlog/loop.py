@@ -15,14 +15,14 @@ from pathlib import Path
 from time import time
 from typing import TYPE_CHECKING, Literal
 
-from sunwell.backlog.goals import Goal, GoalResult
-from sunwell.backlog.manager import BacklogManager
+from sunwell.features.backlog.goals import Goal, GoalResult
+from sunwell.features.backlog.manager import BacklogManager
 
 if TYPE_CHECKING:
     from sunwell.agent.core import Agent
-    from sunwell.guardrails import GuardrailSystem
+    from sunwell.quality.guardrails import GuardrailSystem
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.naaru.planners.artifact import ArtifactPlanner
+    from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
 
 @dataclass(slots=True)
@@ -246,7 +246,7 @@ class AutonomousLoop:
                 # Execute with adaptive agent (RFC-042, RFC-MEMORY)
                 # Agent.run() takes SessionContext and PersistentMemory
                 from sunwell.agent.request import RunOptions
-                from sunwell.context.session import SessionContext
+                from sunwell.agent.context.session import SessionContext
                 from sunwell.memory.persistent import PersistentMemory
 
                 workspace = self.backlog_manager.root
@@ -281,7 +281,7 @@ class AutonomousLoop:
                 if result.success:
                     # RFC-048: Checkpoint the goal
                     if self.guardrails:
-                        from sunwell.guardrails import FileChange
+                        from sunwell.quality.guardrails import FileChange
 
                         changes = [
                             FileChange(path=Path(f), lines_added=10, lines_removed=5)
@@ -358,7 +358,7 @@ class AutonomousLoop:
 
         For auto-approvable goals, requires confidence >= AUTO_APPROVE_CONFIDENCE_THRESHOLD.
         """
-        from sunwell.backlog.signals import SignalExtractor
+        from sunwell.features.backlog.signals import SignalExtractor
 
         # Strategy 1: Signal-based validation
         extractor = SignalExtractor(root=self.backlog_manager.root)
@@ -418,8 +418,8 @@ class AutonomousLoop:
             return {"passed": True, "confidence": 1.0, "issues": []}
 
         try:
-            from sunwell.naaru.artifacts import ArtifactSpec
-            from sunwell.verification import create_verifier
+            from sunwell.planning.naaru.artifacts import ArtifactSpec
+            from sunwell.quality.verification import create_verifier
 
             verifier = create_verifier(
                 model=self.model,

@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from sunwell.integration.types import (
+from sunwell.features.external.integration.types import (
     IntegrationCheck,
     IntegrationCheckType,
     IntegrationType,

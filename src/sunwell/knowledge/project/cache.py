@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from sunwell.project.intent_types import ProjectAnalysis
+from sunwell.knowledge.project.intent_types import ProjectAnalysis
 
 # Cache configuration
 CACHE_VERSION = 1

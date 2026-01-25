@@ -25,9 +25,9 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from sunwell.agent.request import RunOptions
-    from sunwell.core.lens import Lens
+    from sunwell.foundation.core.lens import Lens
     from sunwell.memory.briefing import Briefing
-    from sunwell.naaru.types import Task
+    from sunwell.planning.naaru.types import Task
 
 
 @dataclass(slots=True)

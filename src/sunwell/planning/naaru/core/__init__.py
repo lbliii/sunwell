@@ -8,8 +8,8 @@ This module contains the foundational types for the Naaru architecture:
 - RegionWorker: Base class for all workers
 """
 
-from sunwell.naaru.core.bus import MessageBus, MessageType, NaaruMessage, NaaruRegion
-from sunwell.naaru.core.worker import RegionWorker
+from sunwell.planning.naaru.core.bus import MessageBus, MessageType, NaaruMessage, NaaruRegion
+from sunwell.planning.naaru.core.worker import RegionWorker
 
 __all__ = [
     "NaaruRegion",

@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
-    from sunwell.embedding.protocol import EmbeddingProtocol
+    from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
 
 
 # Pre-computed mutually exclusive choice pairs

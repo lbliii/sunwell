@@ -40,41 +40,41 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sunwell.simulacrum.core.auto_wiring import (
+from sunwell.memory.simulacrum.core.auto_wiring import (
     extract_topology_batch,
     maybe_demote_warm_to_cold,
     turns_to_text,
 )
-from sunwell.simulacrum.core.config import StorageConfig
-from sunwell.simulacrum.core.dag import ConversationDAG
-from sunwell.simulacrum.core.episodes import EpisodeManager
-from sunwell.simulacrum.core.ingestion import ingest_codebase, ingest_document
-from sunwell.simulacrum.core.planning_context import PlanningContext
-from sunwell.simulacrum.core.retrieval import (
+from sunwell.memory.simulacrum.core.config import StorageConfig
+from sunwell.memory.simulacrum.core.dag import ConversationDAG
+from sunwell.memory.simulacrum.core.episodes import EpisodeManager
+from sunwell.memory.simulacrum.core.ingestion import ingest_codebase, ingest_document
+from sunwell.memory.simulacrum.core.planning_context import PlanningContext
+from sunwell.memory.simulacrum.core.retrieval import (
     ContextAssembler,
     PlanningRetriever,
     SemanticRetriever,
 )
-from sunwell.simulacrum.core.session_manager import SessionManager
-from sunwell.simulacrum.core.tier_manager import TierManager
-from sunwell.simulacrum.core.turn import Learning, Turn, TurnType
-from sunwell.simulacrum.core.turn_utils import estimate_token_count
-from sunwell.simulacrum.hierarchical.chunks import Chunk, ChunkSummary
-from sunwell.simulacrum.hierarchical.config import ChunkConfig
+from sunwell.memory.simulacrum.core.session_manager import SessionManager
+from sunwell.memory.simulacrum.core.tier_manager import TierManager
+from sunwell.memory.simulacrum.core.turn import Learning, Turn, TurnType
+from sunwell.memory.simulacrum.core.turn_utils import estimate_token_count
+from sunwell.memory.simulacrum.hierarchical.chunks import Chunk, ChunkSummary
+from sunwell.memory.simulacrum.hierarchical.config import ChunkConfig
 
 if TYPE_CHECKING:
-    from sunwell.context.focus import Focus
-    from sunwell.embedding.protocol import EmbeddingProtocol
+    from sunwell.agent.context.focus import Focus
+    from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
     from sunwell.extractors.topology_extractor import TopologyExtractor
-    from sunwell.intelligence.extractor import IntelligenceExtractor
-    from sunwell.naaru.convergence import Slot
-    from sunwell.simulacrum.hierarchical.chunk_manager import ChunkManager
-    from sunwell.simulacrum.hierarchical.summarizer import Summarizer
-    from sunwell.simulacrum.memory_tools import MemoryToolHandler
-    from sunwell.simulacrum.topology.unified_store import UnifiedMemoryStore
+    from sunwell.knowledge.codebase.extractor import IntelligenceExtractor
+    from sunwell.planning.naaru.convergence import Slot
+    from sunwell.memory.simulacrum.hierarchical.chunk_manager import ChunkManager
+    from sunwell.memory.simulacrum.hierarchical.summarizer import Summarizer
+    from sunwell.memory.simulacrum.memory_tools import MemoryToolHandler
+    from sunwell.memory.simulacrum.topology.unified_store import UnifiedMemoryStore
 
 # RFC-022 Enhancement: Episode tracking
-from sunwell.types.memory import Episode
+from sunwell.foundation.types.memory import Episode
 
 
 # =============================================================================
@@ -236,7 +236,7 @@ class SimulacrumStore:
 
     def _init_chunk_manager(self) -> None:
         """Initialize the hierarchical chunk manager (RFC-013)."""
-        from sunwell.simulacrum.hierarchical.chunk_manager import ChunkManager
+        from sunwell.memory.simulacrum.hierarchical.chunk_manager import ChunkManager
 
         self._chunk_manager = ChunkManager(
             base_path=self.base_path / "chunks",
@@ -247,8 +247,8 @@ class SimulacrumStore:
 
     def _init_unified_store(self) -> None:
         """Initialize the multi-topology memory store (RFC-014)."""
-        from sunwell.simulacrum.memory_tools import MemoryToolHandler
-        from sunwell.simulacrum.topology.unified_store import UnifiedMemoryStore
+        from sunwell.memory.simulacrum.memory_tools import MemoryToolHandler
+        from sunwell.memory.simulacrum.topology.unified_store import UnifiedMemoryStore
 
         unified_path = self.base_path / "unified"
 
@@ -271,9 +271,9 @@ class SimulacrumStore:
 
     def _init_auto_wiring(self) -> None:
         """Initialize RFC-084 auto-wiring features."""
-        from sunwell.simulacrum.context.focus import Focus
-        from sunwell.simulacrum.extractors.topology_extractor import TopologyExtractor
-        from sunwell.simulacrum.hierarchical.summarizer import HeuristicSummarizer
+        from sunwell.memory.simulacrum.context.focus import Focus
+        from sunwell.memory.simulacrum.extractors.topology_extractor import TopologyExtractor
+        from sunwell.memory.simulacrum.hierarchical.summarizer import HeuristicSummarizer
 
         # Initialize topology extractor (heuristic by default, no LLM needed)
         if self.config.auto_topology:
@@ -566,7 +566,7 @@ class SimulacrumStore:
 
         Creates a Turn and routes through add_turn() for ChunkManager integration.
         """
-        from sunwell.simulacrum.core.turn import Turn, TurnType
+        from sunwell.memory.simulacrum.core.turn import Turn, TurnType
 
         turn = Turn(
             content=content,
@@ -580,7 +580,7 @@ class SimulacrumStore:
 
         Creates a Turn and routes through add_turn() for ChunkManager integration.
         """
-        from sunwell.simulacrum.core.turn import Turn, TurnType
+        from sunwell.memory.simulacrum.core.turn import Turn, TurnType
 
         turn = Turn(
             content=content,
@@ -607,7 +607,7 @@ class SimulacrumStore:
         Returns:
             The learning's ID
         """
-        from sunwell.simulacrum.core.turn import Learning
+        from sunwell.memory.simulacrum.core.turn import Learning
 
         learning = Learning(
             fact=fact,

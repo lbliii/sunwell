@@ -4,22 +4,22 @@ RFC-025: Extracted from root simulacrum module.
 RFC-084: Unified memory architecture - SimulacrumStore is the canonical Simulacrum.
 """
 
-from sunwell.simulacrum.core.config import StorageConfig
-from sunwell.simulacrum.core.dag import ConversationDAG
-from sunwell.simulacrum.core.episodes import EpisodeManager
-from sunwell.simulacrum.core.planning_context import PlanningContext
-from sunwell.simulacrum.core.retrieval import (
+from sunwell.memory.simulacrum.core.config import StorageConfig
+from sunwell.memory.simulacrum.core.dag import ConversationDAG
+from sunwell.memory.simulacrum.core.episodes import EpisodeManager
+from sunwell.memory.simulacrum.core.planning_context import PlanningContext
+from sunwell.memory.simulacrum.core.retrieval import (
     ContextAssembler,
     PlanningRetriever,
     SemanticRetriever,
 )
-from sunwell.simulacrum.core.session_manager import SessionManager
-from sunwell.simulacrum.core.store import SimulacrumStore
-from sunwell.simulacrum.core.tier_manager import TierManager
-from sunwell.simulacrum.core.turn import Learning, Turn, TurnType
+from sunwell.memory.simulacrum.core.session_manager import SessionManager
+from sunwell.memory.simulacrum.core.store import SimulacrumStore
+from sunwell.memory.simulacrum.core.tier_manager import TierManager
+from sunwell.memory.simulacrum.core.turn import Learning, Turn, TurnType
 
 # Re-export Episode from types.memory for convenience
-from sunwell.types.memory import Episode
+from sunwell.foundation.types.memory import Episode
 
 # RFC-084: SimulacrumStore is now the unified Simulacrum class
 Simulacrum = SimulacrumStore

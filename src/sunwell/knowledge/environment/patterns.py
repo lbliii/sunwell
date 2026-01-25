@@ -5,7 +5,7 @@ Patterns are re-extracted on each environment scan (cheap to compute).
 """
 
 
-from sunwell.environment.model import Pattern, ProjectEntry
+from sunwell.knowledge.environment.model import Pattern, ProjectEntry
 
 # =============================================================================
 # Pattern Extraction

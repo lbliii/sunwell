@@ -14,9 +14,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from sunwell.team.store import TeamKnowledgeStore
+    from sunwell.features.team.store import TeamKnowledgeStore
 
-from sunwell.team.types import TeamDecision
+from sunwell.features.team.types import TeamDecision
 
 __all__ = ["KnowledgeConflict", "ConflictResolver"]
 

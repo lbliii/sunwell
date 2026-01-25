@@ -5,9 +5,9 @@ from typing import Any
 
 from fastapi import APIRouter
 
-from sunwell.naaru.persistence import PlanStore
-from sunwell.session.tracker import SessionTracker
-from sunwell.simulacrum import SimulacrumStore
+from sunwell.planning.naaru.persistence import PlanStore
+from sunwell.memory.session.tracker import SessionTracker
+from sunwell.memory.simulacrum import SimulacrumStore
 
 router = APIRouter(prefix="/api", tags=["memory"])
 

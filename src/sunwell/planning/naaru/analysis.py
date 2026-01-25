@@ -4,7 +4,7 @@ This module provides utilities for analyzing and visualizing task graphs
 with parallelization potential, contract relationships, and resource conflicts.
 
 Example:
-    >>> from sunwell.naaru.analysis import visualize_task_graph, analyze_parallelism
+    >>> from sunwell.planning.naaru.analysis import visualize_task_graph, analyze_parallelism
     >>>
     >>> diagram = visualize_task_graph(tasks)
     >>> print(diagram)  # Mermaid diagram
@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sunwell.naaru.types import Task
+    from sunwell.planning.naaru.types import Task
 
 
 def visualize_task_graph(tasks: list[Task]) -> str:
@@ -317,7 +317,7 @@ async def validate_contracts(
     Returns:
         List of validation errors (empty if all valid)
     """
-    from sunwell.naaru.types import TaskStatus
+    from sunwell.planning.naaru.types import TaskStatus
 
     errors = []
 
@@ -367,7 +367,7 @@ def format_execution_summary(tasks: list[Task]) -> str:
     Returns:
         Formatted summary string
     """
-    from sunwell.naaru.types import TaskStatus
+    from sunwell.planning.naaru.types import TaskStatus
 
     total = len(tasks)
     completed = sum(1 for t in tasks if t.status == TaskStatus.COMPLETED)

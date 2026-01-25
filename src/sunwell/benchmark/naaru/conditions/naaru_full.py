@@ -14,7 +14,7 @@ from sunwell.benchmark.naaru.types import NaaruCondition, NaaruConditionOutput, 
 
 if TYPE_CHECKING:
     from sunwell.benchmark.types import BenchmarkTask
-    from sunwell.core.lens import Lens
+    from sunwell.foundation.core.lens import Lens
     from sunwell.models.protocol import ModelProtocol
 
 # Import run_harmonic for F condition

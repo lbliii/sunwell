@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from sunwell.agent.loop_config import LoopState
     from sunwell.models.protocol import ToolCall
-    from sunwell.recovery.manager import RecoveryManager
+    from sunwell.agent.recovery.manager import RecoveryManager
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ async def save_recovery_state(
         return
 
     try:
-        from sunwell.recovery.types import RecoveryState
+        from sunwell.agent.recovery.types import RecoveryState
 
         # Build context from messages
         conversation_context = []

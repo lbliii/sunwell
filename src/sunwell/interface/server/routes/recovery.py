@@ -144,7 +144,7 @@ async def list_pending_recoveries() -> PendingRecoveriesResponse:
 
     Returns summaries of all recoveries that haven't been resolved.
     """
-    from sunwell.recovery import RecoveryManager
+    from sunwell.agent.recovery import RecoveryManager
 
     manager = RecoveryManager(_get_recovery_dir())
     pending = manager.list_pending()
@@ -167,7 +167,7 @@ async def get_recovery(goal_hash: str) -> RecoveryStateResponse:
     Raises:
         HTTPException: If recovery not found.
     """
-    from sunwell.recovery import RecoveryManager
+    from sunwell.agent.recovery import RecoveryManager
 
     manager = RecoveryManager(_get_recovery_dir())
 
@@ -213,7 +213,7 @@ async def auto_fix_recovery(
     Returns:
         Acknowledgment that the fix has been started.
     """
-    from sunwell.recovery import RecoveryManager
+    from sunwell.agent.recovery import RecoveryManager
 
     manager = RecoveryManager(_get_recovery_dir())
     state = manager.load(goal_hash)
@@ -230,10 +230,10 @@ async def auto_fix_recovery(
 async def _run_auto_fix(state: Any, hint: str | None) -> None:
     """Background task to run auto-fix (RFC-MEMORY)."""
     from sunwell.agent import AdaptiveBudget, Agent, RunOptions
-    from sunwell.cli.helpers import resolve_model
-    from sunwell.context.session import SessionContext
+    from sunwell.interface.generative.cli.helpers import resolve_model
+    from sunwell.agent.context.session import SessionContext
     from sunwell.memory.persistent import PersistentMemory
-    from sunwell.recovery import RecoveryManager, build_healing_context
+    from sunwell.agent.recovery import RecoveryManager, build_healing_context
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust
 
@@ -291,7 +291,7 @@ async def skip_recovery(goal_hash: str) -> dict[str, Any]:
     Returns:
         Summary of written files.
     """
-    from sunwell.recovery import RecoveryManager
+    from sunwell.agent.recovery import RecoveryManager
 
     manager = RecoveryManager(_get_recovery_dir())
     state = manager.load(goal_hash)
@@ -332,7 +332,7 @@ async def delete_recovery(goal_hash: str) -> dict[str, str]:
     Returns:
         Confirmation of deletion.
     """
-    from sunwell.recovery import RecoveryManager
+    from sunwell.agent.recovery import RecoveryManager
 
     manager = RecoveryManager(_get_recovery_dir())
 

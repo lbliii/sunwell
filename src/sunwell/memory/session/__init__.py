@@ -10,8 +10,8 @@ Example:
     >>> summary = tracker.get_summary()
 """
 
-from sunwell.session.summary import GoalSummary, SessionSummary
-from sunwell.session.tracker import SessionTracker
+from sunwell.memory.session.summary import GoalSummary, SessionSummary
+from sunwell.memory.session.tracker import SessionTracker
 
 __all__ = [
     "GoalSummary",

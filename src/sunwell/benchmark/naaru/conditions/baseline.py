@@ -12,7 +12,7 @@ from sunwell.models.protocol import GenerateOptions
 
 if TYPE_CHECKING:
     from sunwell.benchmark.types import BenchmarkTask
-    from sunwell.core.lens import Lens
+    from sunwell.foundation.core.lens import Lens
     from sunwell.models.protocol import ModelProtocol
 
 

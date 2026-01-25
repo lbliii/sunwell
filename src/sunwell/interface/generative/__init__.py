@@ -1,4 +1,12 @@
-"""Generative Interface — LLM-Driven Interaction Routing (RFC-075).
+"""Interface domain - CLI, Server, UI primitives, Generative Interface.
+
+RFC-138: Module Architecture Consolidation
+
+This domain consolidates all user-facing modules:
+- CLI: Command-line interface
+- Server: HTTP API for Studio
+- Surface: UI primitives
+- Generative: LLM-driven interaction routing (RFC-075)
 
 This module provides an LLM-driven system that analyzes user goals and
 manifests the appropriate interaction type (workspace, view, action, or conversation).
@@ -13,18 +21,18 @@ Key components:
 - ViewRenderer: Renders views for calendar, lists, notes, etc.
 
 Usage (recommended):
-    >>> from sunwell.interface import IntentPipeline
+    >>> from sunwell.interface.generative import IntentPipeline
     >>> pipeline = IntentPipeline.create(model)
     >>> analysis = await pipeline.analyze("build a chat app")
 """
 
-from sunwell.interface.analyzer import IntentAnalyzer
-from sunwell.interface.block_actions import BlockActionExecutor, BlockActionResult
-from sunwell.interface.classifier import ClassificationResult, IntentClassifier
-from sunwell.interface.executor import ActionExecutor, ActionResult
-from sunwell.interface.pipeline import IntentPipeline, analyze_with_pipeline
-from sunwell.interface.responder import ResponseGenerator
-from sunwell.interface.router import (
+from sunwell.interface.generative.analyzer import IntentAnalyzer
+from sunwell.interface.generative.block_actions import BlockActionExecutor, BlockActionResult
+from sunwell.interface.generative.classifier import ClassificationResult, IntentClassifier
+from sunwell.interface.generative.executor import ActionExecutor, ActionResult
+from sunwell.interface.generative.pipeline import IntentPipeline, analyze_with_pipeline
+from sunwell.interface.generative.responder import ResponseGenerator
+from sunwell.interface.generative.router import (
     ActionOutput,
     ConversationOutput,
     HybridOutput,
@@ -32,14 +40,14 @@ from sunwell.interface.router import (
     ViewOutput,
     WorkspaceOutput,
 )
-from sunwell.interface.types import (
+from sunwell.interface.generative.types import (
     ActionSpec,
     IntentAnalysis,
     InteractionType,
     Serializable,
     ViewSpec,
 )
-from sunwell.interface.views import ViewRenderer
+from sunwell.interface.generative.views import ViewRenderer
 
 __all__ = [
     # Types

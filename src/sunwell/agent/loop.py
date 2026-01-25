@@ -58,10 +58,10 @@ from sunwell.models.protocol import GenerateOptions, GenerateResult, Message, To
 if TYPE_CHECKING:
     from sunwell.agent.learning import LearningStore
     from sunwell.agent.validation import ValidationStage
-    from sunwell.core.lens import Lens
-    from sunwell.mirror.handler import MirrorHandler
+    from sunwell.foundation.core.lens import Lens
+    from sunwell.features.mirror.handler import MirrorHandler
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.recovery.manager import RecoveryManager
+    from sunwell.agent.recovery.manager import RecoveryManager
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.progressive import ProgressivePolicy
 

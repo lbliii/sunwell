@@ -20,8 +20,8 @@ Example:
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from sunwell.skills.graph import SkillGraph
-from sunwell.skills.types import Skill, SkillDependency, SkillMetadata, SkillType
+from sunwell.planning.skills.graph import SkillGraph
+from sunwell.planning.skills.types import Skill, SkillDependency, SkillMetadata, SkillType
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol

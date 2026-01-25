@@ -19,8 +19,8 @@ from typing import Any
 
 import yaml
 
-from sunwell.naaru import AgentResult, Naaru, Task
-from sunwell.naaru.planners import AgentPlanner
+from sunwell.planning.naaru import AgentResult, Naaru, Task
+from sunwell.planning.naaru.planners import AgentPlanner
 from sunwell.tools.executor import ToolExecutor
 from sunwell.tools.types import ToolPolicy, ToolTrust
 

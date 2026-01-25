@@ -14,14 +14,14 @@ Example:
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from sunwell.naaru.artifacts import DEFAULT_LIMITS, ArtifactGraph, ArtifactLimits
-from sunwell.naaru.planners.artifact import ArtifactPlanner
+from sunwell.planning.naaru.artifacts import DEFAULT_LIMITS, ArtifactGraph, ArtifactLimits
+from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.naaru.expertise.classifier import DomainClassifier
-    from sunwell.naaru.expertise.context import ExpertiseContext
-    from sunwell.naaru.expertise.discovery import LensDiscovery
+    from sunwell.planning.naaru.expertise.classifier import DomainClassifier
+    from sunwell.planning.naaru.expertise.context import ExpertiseContext
+    from sunwell.planning.naaru.expertise.discovery import LensDiscovery
 
 
 @dataclass(slots=True)
@@ -71,14 +71,14 @@ class ExpertiseAwareArtifactPlanner(ArtifactPlanner):
     def _ensure_classifier(self) -> DomainClassifier:
         """Ensure domain classifier is initialized."""
         if self.domain_classifier is None:
-            from sunwell.naaru.expertise.classifier import DomainClassifier
+            from sunwell.planning.naaru.expertise.classifier import DomainClassifier
             self.domain_classifier = DomainClassifier()
         return self.domain_classifier
 
     def _ensure_discovery(self) -> LensDiscovery:
         """Ensure lens discovery is initialized."""
         if self.lens_discovery is None:
-            from sunwell.naaru.expertise.discovery import LensDiscovery
+            from sunwell.planning.naaru.expertise.discovery import LensDiscovery
             self.lens_discovery = LensDiscovery()
         return self.lens_discovery
 
@@ -120,7 +120,7 @@ class ExpertiseAwareArtifactPlanner(ArtifactPlanner):
 
         Returns ExpertiseContext or None if no expertise loaded.
         """
-        from sunwell.naaru.expertise.extractor import ExpertiseExtractor
+        from sunwell.planning.naaru.expertise.extractor import ExpertiseExtractor
 
         # Classify domain
         classifier = self._ensure_classifier()

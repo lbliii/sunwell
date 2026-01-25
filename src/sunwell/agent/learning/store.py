@@ -300,7 +300,7 @@ class LearningStore:
             Number of learnings synced
         """
         try:
-            from sunwell.simulacrum.core import Learning as SimLearning
+            from sunwell.memory.simulacrum.core import Learning as SimLearning
 
             synced = 0
             for lrn in self.learnings:

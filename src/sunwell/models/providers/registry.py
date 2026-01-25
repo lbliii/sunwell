@@ -7,7 +7,7 @@ Central registry for data providers. Allows swapping implementations
 from dataclasses import dataclass
 from pathlib import Path
 
-from sunwell.providers.base import (
+from sunwell.models.providers.base import (
     BookmarksProvider,
     CalendarProvider,
     ContactsProvider,
@@ -49,7 +49,7 @@ class ProviderRegistry:
             data_dir: The .sunwell data directory.
             workspace_root: The workspace root for file operations.
         """
-        from sunwell.providers.native import (
+        from sunwell.models.providers.native import (
             SunwellBookmarks,
             SunwellCalendar,
             SunwellContacts,

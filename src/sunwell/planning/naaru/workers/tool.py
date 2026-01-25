@@ -6,8 +6,8 @@ import uuid
 from collections import deque
 from datetime import datetime
 
-from sunwell.naaru.core.bus import MessageType, NaaruRegion
-from sunwell.naaru.core.worker import RegionWorker
+from sunwell.planning.naaru.core.bus import MessageType, NaaruRegion
+from sunwell.planning.naaru.core.worker import RegionWorker
 
 
 class ToolRegionWorker(RegionWorker):

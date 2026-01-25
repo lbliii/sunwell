@@ -14,7 +14,7 @@ Goal → DomainClassifier → LensDiscovery → ExpertiseExtractor
 ```
 
 Example:
-    >>> from sunwell.naaru.expertise import (
+    >>> from sunwell.planning.naaru.expertise import (
     ...     DomainClassifier,
     ...     LensDiscovery,
     ...     ExpertiseExtractor,
@@ -34,20 +34,20 @@ Example:
     >>> # expertise.heuristics = [Progressive Disclosure, Diataxis, ...]
 """
 
-from sunwell.naaru.expertise.classifier import (
+from sunwell.planning.naaru.expertise.classifier import (
     Domain,
     DomainClassification,
     DomainClassifier,
 )
-from sunwell.naaru.expertise.context import (
+from sunwell.planning.naaru.expertise.context import (
     ExpertiseContext,
     HeuristicSummary,
 )
-from sunwell.naaru.expertise.discovery import (
+from sunwell.planning.naaru.expertise.discovery import (
     LensDiscovery,
     LensSource,
 )
-from sunwell.naaru.expertise.extractor import (
+from sunwell.planning.naaru.expertise.extractor import (
     ExpertiseExtractor,
 )
 

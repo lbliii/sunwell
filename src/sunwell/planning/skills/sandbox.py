@@ -9,7 +9,7 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from sunwell.skills.types import Script, TrustLevel
+from sunwell.planning.skills.types import Script, TrustLevel
 
 
 class SecurityError(Exception):

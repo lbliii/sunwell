@@ -12,7 +12,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from sunwell.intelligence import ProjectIntelligence
+from sunwell.knowledge.codebase import ProjectIntelligence
 
 console = Console()
 
@@ -264,7 +264,7 @@ def scan(project_root: str, force: bool) -> None:
             return
 
         console.print("[bold]Scanning codebase...[/bold]")
-        from sunwell.intelligence.codebase import CodebaseAnalyzer
+        from sunwell.knowledge.codebase.codebase import CodebaseAnalyzer
 
         analyzer = CodebaseAnalyzer()
         graph = await analyzer.full_scan(project_path)

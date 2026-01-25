@@ -11,7 +11,7 @@ Example:
     >>> print(context)  # Rich markdown with errors, history, suggestions
 """
 
-from sunwell.recovery.types import RecoveryState
+from sunwell.agent.recovery.types import RecoveryState
 
 
 def build_healing_context(

@@ -105,8 +105,8 @@ async def _run_bootstrap(
     max_age_days: int,
 ) -> None:
     """Run bootstrap scan."""
-    from sunwell.bootstrap import BootstrapOrchestrator
-    from sunwell.intelligence.context import ProjectContext
+    from sunwell.knowledge.bootstrap import BootstrapOrchestrator
+    from sunwell.knowledge.codebase.context import ProjectContext
 
     project_root = Path.cwd()
 
@@ -246,7 +246,7 @@ def _save_bootstrap_state(project_root: Path, result) -> None:
 
 async def _show_status() -> None:
     """Show bootstrap status."""
-    from sunwell.intelligence.context import ProjectContext
+    from sunwell.knowledge.codebase.context import ProjectContext
 
     project_root = Path.cwd()
     context = await ProjectContext.load(project_root)
@@ -270,7 +270,7 @@ async def _show_status() -> None:
     console.print(f"  • Ownership domains: {status.ownership_domains}")
 
     # Check if update available
-    from sunwell.bootstrap.incremental import IncrementalBootstrap
+    from sunwell.knowledge.bootstrap.incremental import IncrementalBootstrap
     incremental = IncrementalBootstrap(project_root, context)
     current_head = await incremental._get_head_commit()
 
@@ -281,8 +281,8 @@ async def _show_status() -> None:
 
 async def _run_incremental(verbose: bool) -> None:
     """Run incremental bootstrap update."""
-    from sunwell.bootstrap.incremental import IncrementalBootstrap
-    from sunwell.intelligence.context import ProjectContext
+    from sunwell.knowledge.bootstrap.incremental import IncrementalBootstrap
+    from sunwell.knowledge.codebase.context import ProjectContext
 
     project_root = Path.cwd()
     context = await ProjectContext.load(project_root)
@@ -306,7 +306,7 @@ async def _run_incremental(verbose: bool) -> None:
 
 async def _show_ownership(path: str | None) -> None:
     """Show ownership information."""
-    from sunwell.bootstrap.ownership import OwnershipMap
+    from sunwell.knowledge.bootstrap.ownership import OwnershipMap
 
     project_root = Path.cwd()
     intelligence_path = project_root / ".sunwell" / "intelligence"

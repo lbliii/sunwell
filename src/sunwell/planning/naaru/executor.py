@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sunwell.naaru.artifacts import (
+from sunwell.planning.naaru.artifacts import (
     DEFAULT_LIMITS,
     ArtifactGraph,
     ArtifactLimits,
@@ -36,8 +36,8 @@ from sunwell.naaru.artifacts import (
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from sunwell.integration import IntegrationVerifier
-    from sunwell.naaru.planners.artifact import ArtifactPlanner
+    from sunwell.features.external.integration import IntegrationVerifier
+    from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
 
 # Type alias for artifact creation function
@@ -349,7 +349,7 @@ class ArtifactExecutor:
 
         from pathlib import Path
 
-        from sunwell.integration import ProducedArtifact
+        from sunwell.features.external.integration import ProducedArtifact
 
         try:
             # Build list of produced artifacts from completed results

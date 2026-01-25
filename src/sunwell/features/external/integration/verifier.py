@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from sunwell.integration.types import (
+from sunwell.features.external.integration.types import (
     IntegrationCheck,
     IntegrationCheckType,
     IntegrationResult,
@@ -829,7 +829,7 @@ class IntegrationVerifier:
         integration_type: Any,
     ) -> IntegrationCheckType:
         """Map integration type to check type."""
-        from sunwell.integration.types import IntegrationType
+        from sunwell.features.external.integration.types import IntegrationType
 
         mapping = {
             IntegrationType.IMPORT: IntegrationCheckType.IMPORT_EXISTS,

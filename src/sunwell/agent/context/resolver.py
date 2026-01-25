@@ -9,9 +9,9 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from sunwell.context.constants import MAX_CONTEXT_CHARS, MAX_INLINE_CHARS, MAX_TOTAL_CONTEXT
-from sunwell.context.ide import IDEContext
-from sunwell.context.reference import ContextReference, ResolvedContext
+from sunwell.agent.context.constants import MAX_CONTEXT_CHARS, MAX_INLINE_CHARS, MAX_TOTAL_CONTEXT
+from sunwell.agent.context.ide import IDEContext
+from sunwell.agent.context.reference import ContextReference, ResolvedContext
 
 
 @dataclass(frozen=True, slots=True)

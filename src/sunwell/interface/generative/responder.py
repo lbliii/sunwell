@@ -29,7 +29,7 @@ _PROJECT_SUFFIX_PATTERN = re.compile(r"\s+(app|game|site|website|project|system)
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
 
-from sunwell.interface.classifier import ClassificationResult
+from sunwell.interface.generative.classifier import ClassificationResult
 
 # =============================================================================
 # RESPONSE TEMPLATES — Consistent, route-appropriate language

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.lineage.store import LineageStore
+    from sunwell.memory.lineage.store import LineageStore
 
 # ─────────────────────────────────────────────────────────────────
 # Import Patterns by Language

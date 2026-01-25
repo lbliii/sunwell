@@ -35,20 +35,20 @@ Example:
 
 # Hashing
 # Cache
-from sunwell.incremental.cache import (
+from sunwell.agent.incremental.cache import (
     CachedExecution,
     ExecutionCache,
     ExecutionStatus,
 )
 
 # Work deduplication
-from sunwell.incremental.deduper import (
+from sunwell.agent.incremental.deduper import (
     AsyncWorkDeduper,
     WorkDeduper,
 )
 
 # Events
-from sunwell.incremental.events import (
+from sunwell.agent.incremental.events import (
     ArtifactCacheHit,
     ArtifactCacheMiss,
     ArtifactHashComputed,
@@ -66,7 +66,7 @@ from sunwell.incremental.events import (
 )
 
 # Executor
-from sunwell.incremental.executor import (
+from sunwell.agent.incremental.executor import (
     CreateArtifactFn,
     ExecutionPlan,
     IncrementalExecutor,
@@ -75,7 +75,7 @@ from sunwell.incremental.executor import (
     SkipReason,
     should_skip,
 )
-from sunwell.incremental.hasher import (
+from sunwell.agent.incremental.hasher import (
     ArtifactHash,
     compute_input_hash,
     compute_spec_hash,

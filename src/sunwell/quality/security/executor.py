@@ -20,19 +20,19 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sunwell.security.analyzer import PermissionAnalyzer, PermissionScope, RiskAssessment
-from sunwell.security.audit import AuditLogManager, LocalAuditLog
-from sunwell.security.monitor import SecurityMonitor, SecurityViolation
-from sunwell.security.sandbox import (
+from sunwell.quality.security.analyzer import PermissionAnalyzer, PermissionScope, RiskAssessment
+from sunwell.quality.security.audit import AuditLogManager, LocalAuditLog
+from sunwell.quality.security.monitor import SecurityMonitor, SecurityViolation
+from sunwell.quality.security.sandbox import (
     PermissionDeniedError,
 )
 
 if TYPE_CHECKING:
-    from sunwell.core.lens import Lens
+    from sunwell.foundation.core.lens import Lens
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.skills.executor import ExecutionContext
-    from sunwell.skills.graph import SkillGraph
-    from sunwell.skills.types import SkillOutput
+    from sunwell.planning.skills.executor import ExecutionContext
+    from sunwell.planning.skills.graph import SkillGraph
+    from sunwell.planning.skills.types import SkillOutput
 
 
 # =============================================================================
@@ -382,7 +382,7 @@ class SecureSkillExecutor:
         Raises:
             PermissionDeniedError: If execution not approved
         """
-        from sunwell.skills.executor import IncrementalSkillExecutor
+        from sunwell.planning.skills.executor import IncrementalSkillExecutor
 
         # Pre-execution checks
         dag_id = self._compute_dag_id(graph)

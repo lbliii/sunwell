@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from sunwell.workspace.indexer import CodeChunk, _content_hash
+from sunwell.knowledge.workspace.indexer import CodeChunk, _content_hash
 
 
 @dataclass(frozen=True, slots=True)

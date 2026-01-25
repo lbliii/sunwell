@@ -9,14 +9,14 @@ RFC-101 adds:
 - Namespace isolation (global vs project-scoped)
 """
 
-from sunwell.binding.identity import (
+from sunwell.foundation.binding.identity import (
     BindingIndex,
     BindingIndexEntry,
     BindingIndexManager,
     create_binding_identity,
     create_binding_uri,
 )
-from sunwell.binding.manager import (
+from sunwell.foundation.binding.manager import (
     Binding,
     BindingManager,
     get_binding_or_create_temp,

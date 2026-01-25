@@ -23,9 +23,9 @@ Example:
     ...     print(event)
 """
 
-from sunwell.recovery.context import build_healing_context
-from sunwell.recovery.manager import RecoveryManager
-from sunwell.recovery.types import (
+from sunwell.agent.recovery.context import build_healing_context
+from sunwell.agent.recovery.manager import RecoveryManager
+from sunwell.agent.recovery.types import (
     ArtifactStatus,
     RecoveryArtifact,
     RecoveryState,

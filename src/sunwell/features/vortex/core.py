@@ -20,19 +20,19 @@ if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
 
 from sunwell.models.protocol import GenerateOptions
-from sunwell.vortex.config import VortexConfig
-from sunwell.vortex.locality import (
+from sunwell.features.vortex.config import VortexConfig
+from sunwell.features.vortex.locality import (
     LocalityResult,
     evolve_islands,
     select_best_signal_per_island,
 )
-from sunwell.vortex.primitives import (
+from sunwell.features.vortex.primitives import (
     DialecticResult,
     InterferenceResult,
     dialectic,
     interference,
 )
-from sunwell.vortex.signals import (
+from sunwell.features.vortex.signals import (
     SELECTION_PROMPT,
     SYNTHESIS_PROMPT,
     Signal,

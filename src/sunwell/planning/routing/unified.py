@@ -30,10 +30,10 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from sunwell.models.protocol import ModelProtocol
-from sunwell.routing.decision import RoutingDecision
-from sunwell.routing.exemplars import match_exemplar
-from sunwell.routing.rubric import DEFAULT_RUBRIC
-from sunwell.routing.types import (
+from sunwell.planning.routing.decision import RoutingDecision
+from sunwell.planning.routing.exemplars import match_exemplar
+from sunwell.planning.routing.rubric import DEFAULT_RUBRIC
+from sunwell.planning.routing.types import (
     Complexity,
     ExecutionTier,
     Intent,
@@ -43,8 +43,8 @@ from sunwell.routing.types import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.core.lens import Lens
-    from sunwell.skills.types import Skill
+    from sunwell.foundation.core.lens import Lens
+    from sunwell.planning.skills.types import Skill
 
 
 # Pre-compiled regex pattern for JSON extraction (avoid per-call compilation)

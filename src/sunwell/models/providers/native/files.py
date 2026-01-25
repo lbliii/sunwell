@@ -8,7 +8,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from sunwell.providers.base import FileInfo, FilesProvider
+from sunwell.models.providers.base import FileInfo, FilesProvider
 
 
 class SunwellFiles(FilesProvider):

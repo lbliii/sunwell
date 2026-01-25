@@ -11,8 +11,8 @@ Example:
     >>> print(loop.result.status)  # STABLE or ESCALATED
 """
 
-from sunwell.convergence.loop import ConvergenceLoop
-from sunwell.convergence.types import (
+from sunwell.agent.convergence.loop import ConvergenceLoop
+from sunwell.agent.convergence.types import (
     ConvergenceConfig,
     ConvergenceIteration,
     ConvergenceResult,

@@ -15,7 +15,7 @@ from enum import Enum
 from typing import Any, Literal, Protocol, Self
 
 # Re-export RejectedOption from intelligence for compatibility
-from sunwell.intelligence.decisions import RejectedOption
+from sunwell.knowledge.codebase.decisions import RejectedOption
 
 __all__ = [
     # Protocols

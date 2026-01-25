@@ -121,9 +121,9 @@ async def _scan_async(
     no_detect: bool = False,
 ) -> None:
     """Async implementation of scan command."""
-    from sunwell.analysis import scan_project
-    from sunwell.analysis.source_context import SourceContext
-    from sunwell.analysis.workspace import (
+    from sunwell.knowledge.analysis import scan_project
+    from sunwell.knowledge.analysis.source_context import SourceContext
+    from sunwell.knowledge.analysis.workspace import (
         WorkspaceConfig,
         WorkspaceDetector,
     )
@@ -138,7 +138,7 @@ async def _scan_async(
     lens = None
     if lens_name:
         try:
-            from sunwell.lens.loader import load_lens
+            from sunwell.planning.lens.loader import load_lens
             lens = await load_lens(lens_name)
         except Exception as e:
             console.print(f"[yellow]Warning: Could not load lens '{lens_name}': {e}[/yellow]")
@@ -355,7 +355,7 @@ def _build_tree(parent, dag, root: Path) -> None:
 def _open_in_studio(dag, root: Path) -> None:
     """Open the State DAG in Studio."""
 
-    from sunwell.cli.open_cmd import launch_studio
+    from sunwell.interface.generative.cli.open_cmd import launch_studio
 
     # Save State DAG for Studio to load
     sunwell_dir = root / ".sunwell"
@@ -387,7 +387,7 @@ def _update_environment_from_dag(root: Path, dag, json_output: bool) -> None:
         json_output: If True, suppress non-JSON output.
     """
     try:
-        from sunwell.environment import (
+        from sunwell.knowledge.environment import (
             create_project_entry_from_path,
             load_environment,
             save_environment,

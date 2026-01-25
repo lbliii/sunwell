@@ -20,11 +20,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.types.protocol import Serializable as DictSerializable
+from sunwell.foundation.types.protocol import Serializable as DictSerializable
 
 if TYPE_CHECKING:
-    from sunwell.backlog.goals import Goal
-    from sunwell.backlog.manager import BacklogManager
+    from sunwell.features.backlog.goals import Goal
+    from sunwell.features.backlog.manager import BacklogManager
 
 __all__ = ["DictSerializable", "MilestoneProgress", "MilestoneTracker"]
 

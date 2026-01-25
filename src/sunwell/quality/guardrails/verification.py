@@ -7,14 +7,14 @@ Integrates RFC-047 Deep Verification with guardrails.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sunwell.guardrails.types import (
+from sunwell.quality.guardrails.types import (
     ActionRisk,
     VerificationGateResult,
     VerificationThresholds,
 )
 
 if TYPE_CHECKING:
-    from sunwell.naaru.types import ArtifactSpec
+    from sunwell.planning.naaru.types import ArtifactSpec
     from sunwell.verification import DeepVerificationResult, DeepVerifier
 
 
@@ -195,7 +195,7 @@ class VerificationGate:
 
         if result is None:
             # Verification didn't complete - create minimal result
-            from sunwell.verification.types import DeepVerificationResult
+            from sunwell.quality.verification.types import DeepVerificationResult
 
             result = DeepVerificationResult(
                 passed=False,

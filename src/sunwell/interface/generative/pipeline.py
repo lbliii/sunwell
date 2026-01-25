@@ -37,9 +37,9 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
 
-from sunwell.interface.classifier import ClassificationResult, IntentClassifier
-from sunwell.interface.responder import ResponseGenerator
-from sunwell.interface.types import IntentAnalysis
+from sunwell.interface.generative.classifier import ClassificationResult, IntentClassifier
+from sunwell.interface.generative.responder import ResponseGenerator
+from sunwell.interface.generative.types import IntentAnalysis
 
 
 @dataclass(slots=True)

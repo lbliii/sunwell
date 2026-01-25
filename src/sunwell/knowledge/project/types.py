@@ -8,7 +8,7 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 
-from sunwell.types.protocol import Serializable
+from sunwell.foundation.types.protocol import Serializable
 
 __all__ = ["Serializable", "WorkspaceType", "AgentConfig", "ProjectManifest", "Project"]
 
@@ -203,7 +203,7 @@ class Project:
         manifest = None
         manifest_path = root / ".sunwell" / "project.toml"
         if manifest_path.exists():
-            from sunwell.project.manifest import load_manifest
+            from sunwell.knowledge.project.manifest import load_manifest
 
             manifest = load_manifest(manifest_path)
             workspace_type = WorkspaceType.MANIFEST

@@ -10,7 +10,7 @@ The unified output from the router, replacing:
 from dataclasses import dataclass
 from typing import Any
 
-from sunwell.routing.types import (
+from sunwell.planning.routing.types import (
     Complexity,
     ExecutionTier,
     Intent,

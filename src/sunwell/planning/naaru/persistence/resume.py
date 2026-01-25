@@ -2,8 +2,8 @@
 
 import asyncio
 
-from sunwell.naaru.executor import ArtifactResult, ExecutionResult
-from sunwell.naaru.persistence.saved_execution import SavedExecution
+from sunwell.planning.naaru.executor import ArtifactResult, ExecutionResult
+from sunwell.planning.naaru.persistence.saved_execution import SavedExecution
 
 
 async def resume_execution(

@@ -6,7 +6,7 @@ Executes quick actions from Home blocks.
 from dataclasses import dataclass
 from typing import Any
 
-from sunwell.providers.base import (
+from sunwell.models.providers.base import (
     CalendarProvider,
     HabitsProvider,
     ListProvider,

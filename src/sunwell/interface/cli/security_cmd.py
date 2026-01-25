@@ -77,7 +77,7 @@ def analyze(
         sunwell security analyze --lens my.lens    # Analyze lens file
         sunwell security analyze my-dag --json     # JSON output for CI
     """
-    from sunwell.security.analyzer import PermissionAnalyzer, PermissionScope
+    from sunwell.quality.security.analyzer import PermissionAnalyzer, PermissionScope
 
     analyzer = PermissionAnalyzer()
 
@@ -146,7 +146,7 @@ def analyze(
 
 def _load_skills_from_lens(path: Path) -> list:
     """Load skills from a lens file."""
-    from sunwell.skills.types import Skill, SkillType
+    from sunwell.planning.skills.types import Skill, SkillType
 
     if not path.exists():
         # Try finding in standard locations
@@ -445,8 +445,8 @@ def approve(
 
 def _log_trust_all_approval() -> None:
     """Log trust-all approval to audit."""
-    from sunwell.security.analyzer import PermissionScope
-    from sunwell.security.audit import AuditLogManager, LocalAuditLog
+    from sunwell.quality.security.analyzer import PermissionScope
+    from sunwell.quality.security.audit import AuditLogManager, LocalAuditLog
 
     audit_path = Path.home() / ".sunwell" / "security" / "audit.log"
     audit_path.parent.mkdir(parents=True, exist_ok=True)
@@ -500,7 +500,7 @@ def audit(
         sunwell security audit --since 1d          # Last 24 hours
         sunwell security audit --verify            # Verify integrity
     """
-    from sunwell.security.audit import LocalAuditLog
+    from sunwell.quality.security.audit import LocalAuditLog
 
     audit_path = Path.home() / ".sunwell" / "security" / "audit.log"
 
@@ -646,8 +646,8 @@ def scan(ctx, file_path: str | None, stdin: bool, json_output: bool) -> None:
         cat output.txt | sunwell security scan --stdin
         sunwell security scan --file log.txt --json
     """
-    from sunwell.security.analyzer import PermissionScope
-    from sunwell.security.monitor import SecurityMonitor
+    from sunwell.quality.security.analyzer import PermissionScope
+    from sunwell.quality.security.monitor import SecurityMonitor
 
     monitor = SecurityMonitor()
 
@@ -820,7 +820,7 @@ def diff(ctx, old_lens: str, new_lens: str, json_output: bool) -> None:
         sunwell security diff old.lens new.lens
         sunwell security diff v1.lens v2.lens --json
     """
-    from sunwell.security.analyzer import PermissionAnalyzer
+    from sunwell.quality.security.analyzer import PermissionAnalyzer
 
     analyzer = PermissionAnalyzer()
 
@@ -828,7 +828,7 @@ def diff(ctx, old_lens: str, new_lens: str, json_output: bool) -> None:
     new_skills = _load_skills_from_lens(Path(new_lens))
 
     # Compute permission scopes
-    from sunwell.security.analyzer import PermissionScope
+    from sunwell.quality.security.analyzer import PermissionScope
 
     old_scope = PermissionScope()
     for s in old_skills:

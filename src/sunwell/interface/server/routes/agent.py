@@ -10,9 +10,9 @@ from typing import Any
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
-from sunwell.server.events import BusEvent, EventBus
-from sunwell.server.runs import RunManager, RunState
-from sunwell.server.workspace_manager import get_workspace_manager
+from sunwell.interface.generative.server.events import BusEvent, EventBus
+from sunwell.interface.generative.server.runs import RunManager, RunState
+from sunwell.interface.generative.server.workspace_manager import get_workspace_manager
 
 # Pre-compiled regex for workspace name generation (avoid recompiling per call)
 _RE_NON_WORD = re.compile(r"[^\w\s-]")
@@ -267,15 +267,15 @@ async def _execute_agent(run: RunState, *, use_v2: bool = False) -> AsyncIterato
     """
     from sunwell.agent import Agent
     from sunwell.agent.budget import AdaptiveBudget
-    from sunwell.config import get_config
-    from sunwell.project import (
+    from sunwell.foundation.config import get_config
+    from sunwell.knowledge.project import (
         ProjectResolutionError,
         ProjectValidationError,
         resolve_project,
     )
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust
-    from sunwell.workspace import default_workspace_root
+    from sunwell.knowledge.workspace import default_workspace_root
 
     workspace_path = Path(run.workspace).expanduser().resolve() if run.workspace else None
 
@@ -300,7 +300,7 @@ async def _execute_agent(run: RunState, *, use_v2: bool = False) -> AsyncIterato
     provider = run.provider or (config.model.default_provider if config else "ollama")
     model_name = run.model or (config.model.default_model if config else "gemma3:4b")
 
-    from sunwell.cli.helpers import resolve_model
+    from sunwell.interface.generative.cli.helpers import resolve_model
 
     try:
         synthesis_model = resolve_model(provider, model_name)

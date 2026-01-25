@@ -6,7 +6,7 @@ Tracks and enforces scope limits on autonomous operations.
 from datetime import datetime
 from pathlib import Path
 
-from sunwell.guardrails.types import (
+from sunwell.quality.guardrails.types import (
     FileChange,
     ScopeCheckResult,
     ScopeLimits,

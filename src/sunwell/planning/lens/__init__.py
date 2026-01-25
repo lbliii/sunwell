@@ -9,20 +9,20 @@ RFC-101 adds:
 - Namespace isolation (builtin, user, project)
 """
 
-from sunwell.lens.identity import (
+from sunwell.planning.lens.identity import (
     DictSerializable,
     LensIndexEntry,
     LensLineage,
     LensManifest,
     LensVersionInfo,
 )
-from sunwell.lens.index import (
+from sunwell.planning.lens.index import (
     LensIndex,
     LensIndexManager,
     add_version_to_manifest,
     create_lens_manifest,
 )
-from sunwell.lens.manager import (
+from sunwell.planning.lens.manager import (
     LensLibraryEntry,
     LensManager,
 )

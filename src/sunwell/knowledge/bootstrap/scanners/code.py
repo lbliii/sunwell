@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from sunwell.bootstrap.types import (
+from sunwell.knowledge.bootstrap.types import (
     CodeEvidence,
     DocstringStyle,
     ImportPatterns,

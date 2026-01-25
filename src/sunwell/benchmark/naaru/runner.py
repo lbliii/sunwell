@@ -37,9 +37,9 @@ from sunwell.benchmark.types import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.core.lens import Lens
+    from sunwell.foundation.core.lens import Lens
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.schema.loader import LensLoader
+    from sunwell.foundation.schema.loader import LensLoader
 
 
 @dataclass
@@ -465,7 +465,7 @@ async def create_naaru_runner(
         Configured NaaruBenchmarkRunner
     """
     if model is None:
-        from sunwell.config import get_config
+        from sunwell.foundation.config import get_config
         from sunwell.models.ollama import OllamaModel
 
         cfg = get_config()
@@ -473,7 +473,7 @@ async def create_naaru_runner(
         model = OllamaModel(model=model_name)
 
     if judge_model is None:
-        from sunwell.config import get_config
+        from sunwell.foundation.config import get_config
         from sunwell.models.ollama import OllamaModel
 
         cfg = get_config()
@@ -481,7 +481,7 @@ async def create_naaru_runner(
         judge_model = OllamaModel(model=judge_name)
 
     if lens_loader is None:
-        from sunwell.schema.loader import LensLoader
+        from sunwell.foundation.schema.loader import LensLoader
         lens_loader = LensLoader()
 
     return NaaruBenchmarkRunner(

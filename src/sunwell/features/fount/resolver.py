@@ -10,9 +10,9 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.core.lens import Lens, QualityPolicy
+    from sunwell.foundation.core.lens import Lens, QualityPolicy
     from sunwell.core.types import LensReference
-    from sunwell.schema.loader import LensLoader
+    from sunwell.foundation.schema.loader import LensLoader
 
 # Lazy singleton for default QualityPolicy (avoid per-call allocation)
 _DEFAULT_QUALITY_POLICY: QualityPolicy | None = None
@@ -22,7 +22,7 @@ def _get_default_policy() -> QualityPolicy:
     """Lazy singleton for default QualityPolicy."""
     global _DEFAULT_QUALITY_POLICY
     if _DEFAULT_QUALITY_POLICY is None:
-        from sunwell.core.lens import QualityPolicy
+        from sunwell.foundation.core.lens import QualityPolicy
 
         _DEFAULT_QUALITY_POLICY = QualityPolicy()
     return _DEFAULT_QUALITY_POLICY
@@ -120,7 +120,7 @@ class LensResolver:
         This enables Helm-style global values that can be overridden
         by any lens.
         """
-        from sunwell.config import get_config
+        from sunwell.foundation.config import get_config
         from sunwell.core.types import LensReference
 
         config = get_config()

@@ -5,10 +5,10 @@ Deterministic scanners for extracting evidence from project artifacts.
 
 from typing import Protocol, TypeVar
 
-from sunwell.bootstrap.scanners.code import CodeScanner
-from sunwell.bootstrap.scanners.config import ConfigScanner
-from sunwell.bootstrap.scanners.docs import DocScanner
-from sunwell.bootstrap.scanners.git import GitScanner
+from sunwell.knowledge.bootstrap.scanners.code import CodeScanner
+from sunwell.knowledge.bootstrap.scanners.config import ConfigScanner
+from sunwell.knowledge.bootstrap.scanners.docs import DocScanner
+from sunwell.knowledge.bootstrap.scanners.git import GitScanner
 
 # Type variable for evidence types
 E = TypeVar("E", covariant=True)

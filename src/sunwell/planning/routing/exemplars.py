@@ -6,7 +6,7 @@ and self-verification.
 
 from dataclasses import dataclass
 
-from sunwell.routing.types import Intent
+from sunwell.planning.routing.types import Intent
 
 
 @dataclass(frozen=True, slots=True)

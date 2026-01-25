@@ -3,9 +3,9 @@
 Single entry point for all goal execution.
 """
 
-from sunwell.execution.context import BacklogContext
-from sunwell.execution.emitter import StdoutEmitter
-from sunwell.execution.manager import ExecutionManager, ExecutionResult
+from sunwell.agent.execution.context import BacklogContext
+from sunwell.agent.execution.emitter import StdoutEmitter
+from sunwell.agent.execution.manager import ExecutionManager, ExecutionResult
 
 __all__ = [
     "BacklogContext",

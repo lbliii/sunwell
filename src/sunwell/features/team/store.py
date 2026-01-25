@@ -21,9 +21,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.embedding.protocol import EmbeddingProtocol
+    from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
 
-from sunwell.team.types import (
+from sunwell.features.team.types import (
     RejectedOption,
     TeamDecision,
     TeamFailure,

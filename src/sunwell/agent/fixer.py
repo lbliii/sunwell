@@ -377,7 +377,7 @@ class FixStage:
         """
         # Import vortex components
         try:
-            from sunwell.vortex.pipeline import VortexPipeline
+            from sunwell.features.vortex.pipeline import VortexPipeline
         except ImportError:
             # Fallback to compound eye if vortex not available
             return await self._compound_eye_fix(error, artifact, signals)

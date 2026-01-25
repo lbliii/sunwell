@@ -18,11 +18,11 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 
-from sunwell.indexing.chunkers import ChunkerRegistry
-from sunwell.indexing.metrics import IndexMetrics
-from sunwell.indexing.priority import get_priority_files
-from sunwell.indexing.project_type import ProjectType, detect_project_type
-from sunwell.workspace.indexer import CodebaseIndex, CodeChunk
+from sunwell.knowledge.indexing.chunkers import ChunkerRegistry
+from sunwell.knowledge.indexing.metrics import IndexMetrics
+from sunwell.knowledge.indexing.priority import get_priority_files
+from sunwell.knowledge.indexing.project_type import ProjectType, detect_project_type
+from sunwell.knowledge.workspace.indexer import CodebaseIndex, CodeChunk
 
 
 class IndexState(Enum):

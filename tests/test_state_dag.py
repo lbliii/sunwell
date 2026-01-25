@@ -8,10 +8,10 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.analysis import StateDag, StateDagBuilder, StateDagNode, scan_project
-from sunwell.analysis.scanners.code import CodeScanner
-from sunwell.analysis.scanners.docs import DocsScanner
-from sunwell.analysis.state_dag import HealthProbeResult
+from sunwell.knowledge.analysis import StateDag, StateDagBuilder, StateDagNode, scan_project
+from sunwell.knowledge.analysis.scanners.code import CodeScanner
+from sunwell.knowledge.analysis.scanners.docs import DocsScanner
+from sunwell.knowledge.analysis.state_dag import HealthProbeResult
 
 
 class TestStateDagNode:

@@ -5,15 +5,15 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from sunwell.naaru.artifacts import DEFAULT_LIMITS, ArtifactGraph, ArtifactLimits, artifacts_to_tasks
-from sunwell.naaru.planners.artifact import creation, discovery, events
-from sunwell.naaru.types import Task, TaskMode
+from sunwell.planning.naaru.artifacts import DEFAULT_LIMITS, ArtifactGraph, ArtifactLimits, artifacts_to_tasks
+from sunwell.planning.naaru.planners.artifact import creation, discovery, events
+from sunwell.planning.naaru.types import Task, TaskMode
 
 if TYPE_CHECKING:
     from sunwell.agent.events import AgentEvent
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.project.schema import ProjectSchema
-    from sunwell.routing.unified import UnifiedRouter
+    from sunwell.knowledge.project.schema import ProjectSchema
+    from sunwell.planning.routing.unified import UnifiedRouter
 
 # Pre-compiled regex patterns
 _RE_FILENAME = re.compile(r"(\w+\.(?:py|js|ts|md|txt|json|yaml|yml))")
@@ -128,7 +128,7 @@ class ArtifactPlanner:
         if self.router is not None:
             try:
                 decision = await self.router.route(goal, context)
-                from sunwell.routing.unified import Complexity
+                from sunwell.planning.routing.unified import Complexity
 
                 if decision.complexity == Complexity.TRIVIAL:
                     graph = self._trivial_artifact(goal)

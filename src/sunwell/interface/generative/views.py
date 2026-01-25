@@ -8,8 +8,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from sunwell.interface.types import ViewSpec
-from sunwell.providers.registry import ProviderRegistry
+from sunwell.interface.generative.types import ViewSpec
+from sunwell.models.providers.registry import ProviderRegistry
 
 # =============================================================================
 # FILE EXTENSION CONSTANTS — Avoid recreation per call

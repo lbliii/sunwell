@@ -30,23 +30,23 @@ Configuration:
     >>> fast_vortex = Vortex(model, FAST_CONFIG)
 """
 
-from sunwell.vortex.config import (
+from sunwell.features.vortex.config import (
     FAST_CONFIG,
     QUALITY_CONFIG,
     VortexConfig,
 )
-from sunwell.vortex.core import (
+from sunwell.features.vortex.core import (
     Vortex,
     VortexResult,
     format_result,
     solve,
 )
-from sunwell.vortex.locality import (
+from sunwell.features.vortex.locality import (
     Island,
     LocalityResult,
     evolve_islands,
 )
-from sunwell.vortex.primitives import (
+from sunwell.features.vortex.primitives import (
     DialecticResult,
     GradientResult,
     InterferenceResult,
@@ -57,7 +57,7 @@ from sunwell.vortex.primitives import (
     interference,
     resonance,
 )
-from sunwell.vortex.signals import (
+from sunwell.features.vortex.signals import (
     Signal,
     format_signal,
 )

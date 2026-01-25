@@ -16,14 +16,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
-from sunwell.weakness.cascade import CascadeEngine, CascadeExecution, CascadePreview
-from sunwell.weakness.types import ExtractedContract, WaveConfidence
-from sunwell.weakness.verification import run_mypy, run_pytest, run_ruff
+from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
+from sunwell.quality.weakness.cascade import CascadeEngine, CascadeExecution, CascadePreview
+from sunwell.quality.weakness.types import ExtractedContract, WaveConfidence
+from sunwell.quality.weakness.verification import run_mypy, run_pytest, run_ruff
 
 if TYPE_CHECKING:
     from sunwell.agent.events import AgentEvent
-    from sunwell.naaru.planners.artifact import ArtifactPlanner
+    from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
     from sunwell.tools.executor import ToolExecutor
 
 
@@ -454,12 +454,12 @@ async def create_cascade_executor(
     Returns:
         Configured CascadeExecutor ready to use
     """
-    from sunwell.naaru.planners.artifact import ArtifactPlanner
+    from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
     from sunwell.tools.executor import ToolExecutor
 
     # Create model if not provided
     if model is None:
-        from sunwell.config import get_config
+        from sunwell.foundation.config import get_config
         from sunwell.models.ollama import OllamaModel
 
         config = get_config()
@@ -475,7 +475,7 @@ async def create_cascade_executor(
     planner = ArtifactPlanner(model=model)
 
     # RFC-117: Try to resolve project context
-    from sunwell.project import ProjectResolutionError, resolve_project
+    from sunwell.knowledge.project import ProjectResolutionError, resolve_project
 
     project = None
     try:

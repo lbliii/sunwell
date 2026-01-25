@@ -17,8 +17,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray
 
-from sunwell.core.errors import ErrorCode, SunwellError
-from sunwell.embedding.protocol import EmbeddingResult
+from sunwell.foundation.errors import ErrorCode, SunwellError
+from sunwell.knowledge.embedding.protocol import EmbeddingResult
 
 if TYPE_CHECKING:
     import httpx

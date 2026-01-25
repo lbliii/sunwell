@@ -418,8 +418,8 @@ class ValidationRunner:
         if not artifacts:
             return True, "No artifacts to verify"
 
-        from sunwell.naaru.artifacts import ArtifactSpec
-        from sunwell.verification import create_verifier
+        from sunwell.planning.naaru.artifacts import ArtifactSpec
+        from sunwell.quality.verification import create_verifier
 
         verifier = create_verifier(
             model=self.model,

@@ -22,7 +22,7 @@ class TestCreateModel:
 
     def test_create_model_mock(self) -> None:
         """create_model('mock', ...) returns MockModel."""
-        from sunwell.cli.helpers import create_model
+        from sunwell.interface.cli.helpers import create_model
         from sunwell.models.mock import MockModel
 
         model = create_model("mock", "mock")
@@ -30,7 +30,7 @@ class TestCreateModel:
 
     def test_create_model_ollama(self) -> None:
         """create_model('ollama', 'gemma3:4b') returns OllamaModel."""
-        from sunwell.cli.helpers import create_model
+        from sunwell.interface.cli.helpers import create_model
         from sunwell.models.ollama import OllamaModel
 
         model = create_model("ollama", "gemma3:4b")
@@ -39,7 +39,7 @@ class TestCreateModel:
 
     def test_create_model_openai(self) -> None:
         """create_model('openai', 'gpt-4o') returns OpenAIModel."""
-        from sunwell.cli.helpers import create_model
+        from sunwell.interface.cli.helpers import create_model
         from sunwell.models.openai import OpenAIModel
 
         model = create_model("openai", "gpt-4o")
@@ -48,7 +48,7 @@ class TestCreateModel:
 
     def test_create_model_anthropic(self) -> None:
         """create_model('anthropic', 'claude-sonnet-4-20250514') returns AnthropicModel."""
-        from sunwell.cli.helpers import create_model
+        from sunwell.interface.cli.helpers import create_model
         from sunwell.models.anthropic import AnthropicModel
 
         model = create_model("anthropic", "claude-sonnet-4-20250514")
@@ -57,7 +57,7 @@ class TestCreateModel:
 
     def test_create_model_unknown_provider_exits(self) -> None:
         """create_model with unknown provider exits with error."""
-        from sunwell.cli.helpers import create_model
+        from sunwell.interface.cli.helpers import create_model
 
         with pytest.raises(SystemExit):
             create_model("unknown_provider", "some-model")
@@ -68,7 +68,7 @@ class TestResolveModel:
 
     def test_resolve_model_cli_override_takes_precedence(self) -> None:
         """CLI override takes precedence over config defaults."""
-        from sunwell.cli.helpers import resolve_model
+        from sunwell.interface.cli.helpers import resolve_model
         from sunwell.models.anthropic import AnthropicModel
 
         # Even if config says ollama, CLI override wins
@@ -81,7 +81,7 @@ class TestResolveModel:
 
     def test_resolve_model_uses_config_defaults(self) -> None:
         """resolve_model() with no args uses config.model.default_provider."""
-        from sunwell.cli.helpers import resolve_model
+        from sunwell.interface.cli.helpers import resolve_model
         from sunwell.models.openai import OpenAIModel
 
         # Mock config to return openai as default
@@ -98,7 +98,7 @@ class TestResolveModel:
 
     def test_resolve_model_provider_only_override(self) -> None:
         """Provider override uses provider-specific default model when config model is None."""
-        from sunwell.cli.helpers import resolve_model
+        from sunwell.interface.cli.helpers import resolve_model
         from sunwell.models.anthropic import AnthropicModel
 
         # Mock config with no default model
@@ -115,7 +115,7 @@ class TestResolveModel:
 
     def test_resolve_model_model_only_override(self) -> None:
         """Model override with config provider uses specified model."""
-        from sunwell.cli.helpers import resolve_model
+        from sunwell.interface.cli.helpers import resolve_model
         from sunwell.models.openai import OpenAIModel
 
         # Mock config to return openai as default provider
@@ -131,7 +131,7 @@ class TestResolveModel:
 
     def test_resolve_model_fallback_to_ollama(self) -> None:
         """With no config and no override, fallback to ollama."""
-        from sunwell.cli.helpers import resolve_model
+        from sunwell.interface.cli.helpers import resolve_model
         from sunwell.models.ollama import OllamaModel
 
         # Mock config that has no model settings
@@ -160,7 +160,7 @@ class TestProviderDefaults:
     )
     def test_provider_default_models(self, provider: str, expected_model: str) -> None:
         """Each provider has a sensible default model when config is empty."""
-        from sunwell.cli.helpers import resolve_model
+        from sunwell.interface.cli.helpers import resolve_model
 
         # Mock config with no defaults
         mock_config = MagicMock()

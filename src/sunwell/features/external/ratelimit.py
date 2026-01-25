@@ -8,8 +8,8 @@ from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-from sunwell.external.policy import ExternalGoalPolicy
-from sunwell.external.types import ExternalEvent
+from sunwell.features.external.policy import ExternalGoalPolicy
+from sunwell.features.external.types import ExternalEvent
 
 
 @dataclass(slots=True)

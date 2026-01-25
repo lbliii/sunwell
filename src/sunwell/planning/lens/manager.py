@@ -18,20 +18,20 @@ from pathlib import Path
 
 import yaml
 
-from sunwell.core.identity import SunwellURI, URIParseError, slugify, validate_slug
-from sunwell.core.lens import Lens
+from sunwell.foundation.identity import SunwellURI, URIParseError, slugify, validate_slug
+from sunwell.foundation.core.lens import Lens
 from sunwell.core.types import SemanticVersion
-from sunwell.lens.identity import (
+from sunwell.planning.lens.identity import (
     LensIndexEntry,
     LensManifest,
     LensVersionInfo,
 )
-from sunwell.lens.index import (
+from sunwell.planning.lens.index import (
     LensIndexManager,
     add_version_to_manifest,
     create_lens_manifest,
 )
-from sunwell.schema.loader import LensLoader
+from sunwell.foundation.schema.loader import LensLoader
 
 # Maximum versions to keep per lens (prevents disk bloat)
 MAX_VERSIONS_PER_LENS = 50

@@ -16,7 +16,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
-from sunwell.workflow.types import (
+from sunwell.features.workflow.types import (
     WorkflowChain,
     WorkflowExecution,
     WorkflowStep,
@@ -24,7 +24,7 @@ from sunwell.workflow.types import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.core.lens import Lens
+    from sunwell.foundation.core.lens import Lens
 
 
 class SkillExecutor(Protocol):
@@ -222,7 +222,7 @@ class WorkflowEngine:
         Returns:
             WorkflowResult after resuming
         """
-        from sunwell.workflow.state import WorkflowStateManager
+        from sunwell.features.workflow.state import WorkflowStateManager
 
         manager = WorkflowStateManager(self.state_dir)
         state = await manager.load(execution_id)
@@ -238,7 +238,7 @@ class WorkflowEngine:
             )
 
         # Reconstruct execution from state
-        from sunwell.workflow.types import WORKFLOW_CHAINS
+        from sunwell.features.workflow.types import WORKFLOW_CHAINS
 
         chain = WORKFLOW_CHAINS.get(state.chain_name)
         if chain is None:
@@ -372,7 +372,7 @@ class WorkflowEngine:
 
         Uses atomic write (temp file + rename) for safety.
         """
-        from sunwell.workflow.state import WorkflowStateManager
+        from sunwell.features.workflow.state import WorkflowStateManager
 
         manager = WorkflowStateManager(self.state_dir)
         await manager.save(execution)

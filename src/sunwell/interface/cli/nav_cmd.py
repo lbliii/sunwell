@@ -52,7 +52,7 @@ async def _build_toc(
     """Build ToC with progress reporting."""
     import time
 
-    from sunwell.navigation import GeneratorConfig, ProjectToc, TocGenerator
+    from sunwell.knowledge.navigation import GeneratorConfig, ProjectToc, TocGenerator
 
     cwd = Path.cwd()
     cache_dir = cwd / ".sunwell" / "navigation"
@@ -211,7 +211,7 @@ async def _find_code(
     fallback: bool,
 ) -> None:
     """Navigate to find relevant code."""
-    from sunwell.navigation import (
+    from sunwell.knowledge.navigation import (
         GeneratorConfig,
         NavigationResult,
         ProjectToc,
@@ -262,7 +262,7 @@ async def _find_code(
             console.print("[dim]Using keyword fallback (no LLM)[/dim]\n")
     else:
         try:
-            from sunwell.providers import create_model
+            from sunwell.models.providers import create_model
             model = create_model()
         except Exception as e:
             if json_output:
@@ -389,7 +389,7 @@ async def _find_code(
 @click.option("--json", "json_output", is_flag=True, help="JSON output")
 def show(depth: int, node: str | None, json_output: bool) -> None:
     """Show the ToC structure."""
-    from sunwell.navigation import ProjectToc
+    from sunwell.knowledge.navigation import ProjectToc
 
     cwd = Path.cwd()
 
@@ -463,7 +463,7 @@ def _build_tree(
 @click.option("--json", "json_output", is_flag=True, help="JSON output")
 def stats(json_output: bool) -> None:
     """Show ToC statistics."""
-    from sunwell.navigation import ProjectToc
+    from sunwell.knowledge.navigation import ProjectToc
 
     cwd = Path.cwd()
 

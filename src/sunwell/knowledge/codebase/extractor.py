@@ -9,8 +9,8 @@ import re
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.intelligence.context import ProjectContext
-    from sunwell.simulacrum.hierarchical.chunks import Chunk
+    from sunwell.knowledge.codebase.context import ProjectContext
+    from sunwell.memory.simulacrum.hierarchical.chunks import Chunk
 
 
 # Pre-compiled regex patterns for decision extraction

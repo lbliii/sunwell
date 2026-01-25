@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from sunwell.demo.lens_experiments import (
+from sunwell.benchmark.demo.lens_experiments import (
     STRATEGY_BUILDERS,
     ExperimentResult,
     ExperimentSummary,
@@ -20,8 +20,8 @@ from sunwell.demo.lens_experiments import (
     create_prompt_builder,
     load_default_lens,
 )
-from sunwell.demo.scorer import DemoScorer
-from sunwell.demo.tasks import BUILTIN_TASKS, DemoTask
+from sunwell.benchmark.demo.scorer import DemoScorer
+from sunwell.benchmark.demo.tasks import BUILTIN_TASKS, DemoTask
 
 
 @dataclass(slots=True)

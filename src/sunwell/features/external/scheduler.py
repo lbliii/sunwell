@@ -8,11 +8,11 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sunwell.external.types import EventSource, EventType, ExternalEvent
+from sunwell.features.external.types import EventSource, EventType, ExternalEvent
 
 if TYPE_CHECKING:
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
-    from sunwell.external.processor import EventProcessor
+    from sunwell.features.external.processor import EventProcessor
 
 logger = logging.getLogger(__name__)
 

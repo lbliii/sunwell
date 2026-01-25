@@ -30,7 +30,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
-from sunwell.skills.types import (
+from sunwell.planning.skills.types import (
     Skill,
     SkillDependency,
     SkillMetadata,
@@ -463,7 +463,7 @@ class SkillLibrary:
 
     def _dict_to_skill(self, data: dict, source_path: Path | None = None) -> Skill:
         """Convert dict to Skill."""
-        from sunwell.skills.types import Script, Template
+        from sunwell.planning.skills.types import Script, Template
 
         # Parse dependencies
         depends_on: list[SkillDependency] = []

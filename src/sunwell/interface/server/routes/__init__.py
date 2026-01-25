@@ -15,18 +15,18 @@ Each module defines an APIRouter for a specific domain:
 - misc: Shell, files, health, security, etc.
 """
 
-from sunwell.server.routes.agent import router as agent_router
-from sunwell.server.routes.backlog import router as backlog_router
-from sunwell.server.routes.coordinator import router as coordinator_router
-from sunwell.server.routes.dag import router as dag_router
-from sunwell.server.routes.demo import router as demo_router
-from sunwell.server.routes.lineage import router as lineage_router
-from sunwell.server.routes.memory import router as memory_router
-from sunwell.server.routes.misc import router as misc_router
-from sunwell.server.routes.project import router as project_router
-from sunwell.server.routes.recovery import router as recovery_router
-from sunwell.server.routes.surface import router as surface_router
-from sunwell.server.routes.writer import router as writer_router
+from sunwell.interface.generative.server.routes.agent import router as agent_router
+from sunwell.interface.generative.server.routes.backlog import router as backlog_router
+from sunwell.interface.generative.server.routes.coordinator import router as coordinator_router
+from sunwell.interface.generative.server.routes.dag import router as dag_router
+from sunwell.interface.generative.server.routes.demo import router as demo_router
+from sunwell.interface.generative.server.routes.lineage import router as lineage_router
+from sunwell.interface.generative.server.routes.memory import router as memory_router
+from sunwell.interface.generative.server.routes.misc import router as misc_router
+from sunwell.interface.generative.server.routes.project import router as project_router
+from sunwell.interface.generative.server.routes.recovery import router as recovery_router
+from sunwell.interface.generative.server.routes.surface import router as surface_router
+from sunwell.interface.generative.server.routes.writer import router as writer_router
 
 __all__ = [
     "agent_router",

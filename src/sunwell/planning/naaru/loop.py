@@ -8,10 +8,10 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from sunwell.mirror import MirrorHandler
-from sunwell.naaru.discovery import OpportunityDiscoverer
-from sunwell.naaru.signals import SignalHandler, StopReason, format_stop_reason
-from sunwell.naaru.types import (
+from sunwell.features.mirror import MirrorHandler
+from sunwell.planning.naaru.discovery import OpportunityDiscoverer
+from sunwell.planning.naaru.signals import SignalHandler, StopReason, format_stop_reason
+from sunwell.planning.naaru.types import (
     CompletedTask,
     Opportunity,
     SessionConfig,
@@ -203,7 +203,7 @@ class AutonomousRunner:
                     await self.mirror.handle("submit_proposal", {"proposal_id": proposal_id})
 
                     # For demo purposes, we'll approve it
-                    from sunwell.mirror.proposals import ProposalManager
+                    from sunwell.features.mirror.proposals import ProposalManager
                     manager = ProposalManager(self.storage_path / "mirror" / "proposals")
                     manager.approve_proposal(proposal_id)
 

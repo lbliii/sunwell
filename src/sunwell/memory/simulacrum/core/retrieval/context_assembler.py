@@ -2,12 +2,12 @@
 
 from typing import TYPE_CHECKING, Any
 
-from sunwell.simulacrum.hierarchical.chunks import Chunk, ChunkSummary
+from sunwell.memory.simulacrum.hierarchical.chunks import Chunk, ChunkSummary
 
 if TYPE_CHECKING:
-    from sunwell.simulacrum.core.dag import ConversationDAG
-    from sunwell.simulacrum.core.turn import Turn
-    from sunwell.simulacrum.hierarchical.chunk_manager import ChunkManager
+    from sunwell.memory.simulacrum.core.dag import ConversationDAG
+    from sunwell.memory.simulacrum.core.turn import Turn
+    from sunwell.memory.simulacrum.hierarchical.chunk_manager import ChunkManager
 
 
 class ContextAssembler:
@@ -149,7 +149,7 @@ class ContextAssembler:
 
         # If we have focus, apply weighting
         if self._focus and self._focus.topics:
-            from sunwell.simulacrum.context.focus import FocusFilter
+            from sunwell.memory.simulacrum.context.focus import FocusFilter
             focus_filter = FocusFilter(self._focus)
 
             # Score and reorder by focus relevance

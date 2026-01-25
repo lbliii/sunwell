@@ -37,8 +37,8 @@ from sunwell.models.protocol import GenerateOptions, ModelProtocol
 if TYPE_CHECKING:
     from sunwell.benchmark.types import PrefetchMetrics
     from sunwell.core.heuristic import Heuristic
-    from sunwell.core.lens import Lens
-    from sunwell.schema.loader import LensLoader
+    from sunwell.foundation.core.lens import Lens
+    from sunwell.foundation.schema.loader import LensLoader
 
 
 from sunwell.benchmark.execution import ExecutionRunner
@@ -369,7 +369,7 @@ async def create_runner(
     If router_model is provided, enables the ROUTED condition (RFC-020).
     """
     if model is None:
-        from sunwell.config import get_config
+        from sunwell.foundation.config import get_config
         from sunwell.models.ollama import OllamaModel
 
         cfg = get_config()
@@ -377,7 +377,7 @@ async def create_runner(
         model = OllamaModel(model=model_name)
 
     if lens_loader is None:
-        from sunwell.schema.loader import LensLoader
+        from sunwell.foundation.schema.loader import LensLoader
         lens_loader = LensLoader()
 
     return BenchmarkRunner(

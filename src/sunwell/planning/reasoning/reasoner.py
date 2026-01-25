@@ -34,7 +34,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from sunwell.models.protocol import GenerateOptions, Tool
-from sunwell.reasoning.decisions import (
+from sunwell.planning.reasoning.decisions import (
     APPROVAL_OUTCOMES,
     CONFIDENCE_THRESHOLDS,
     RECOVERY_STRATEGIES,
@@ -43,8 +43,8 @@ from sunwell.reasoning.decisions import (
     ReasonedDecision,
     RecoveryDecision,
 )
-from sunwell.reasoning.enrichment import ContextEnricher
-from sunwell.reasoning.prompts import PromptBuilder
+from sunwell.planning.reasoning.enrichment import ContextEnricher
+from sunwell.planning.reasoning.prompts import PromptBuilder
 
 # Pre-compiled regex patterns
 _MARKDOWN_CODE_BLOCK_RE = re.compile(r"```(?:json)?\s*([\s\S]*?)```")
@@ -277,10 +277,10 @@ def _get_decision_tools() -> dict[DecisionType, tuple[Tool, ...]]:
     }
 
 if TYPE_CHECKING:
-    from sunwell.incremental.cache import ExecutionCache
-    from sunwell.intelligence.context import ProjectContext
+    from sunwell.agent.incremental.cache import ExecutionCache
+    from sunwell.knowledge.codebase.context import ProjectContext
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.naaru.artifacts import ArtifactGraph
+    from sunwell.planning.naaru.artifacts import ArtifactGraph
 
 
 # Type alias for fallback functions

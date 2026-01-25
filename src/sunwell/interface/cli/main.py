@@ -16,9 +16,9 @@ import sys
 from pathlib import Path
 import click
 
-from sunwell.cli.helpers import check_free_threading, load_dotenv
-from sunwell.cli.shortcuts import complete_shortcut, complete_target
-from sunwell.cli.theme import create_sunwell_console
+from sunwell.interface.generative.cli.helpers import check_free_threading, load_dotenv
+from sunwell.interface.generative.cli.shortcuts import complete_shortcut, complete_target
+from sunwell.interface.generative.cli.theme import create_sunwell_console
 
 
 # RFC-131: Holy Light themed console
@@ -43,8 +43,8 @@ def cli_entrypoint() -> None:
         sys.exit(130)
     except Exception as e:
         # Handle SunwellError with nice formatting
-        from sunwell.cli.error_handler import handle_error
-        from sunwell.core.errors import SunwellError
+        from sunwell.interface.generative.cli.error_handler import handle_error
+        from sunwell.foundation.errors import SunwellError
 
         if isinstance(e, SunwellError):
             handle_error(e, json_output=False)
@@ -264,7 +264,7 @@ def main(
 
     # RFC-109: Handle -s/--skill shortcut execution
     if skill_shortcut and ctx.invoked_subcommand is None:
-        from sunwell.cli.shortcuts import run_shortcut
+        from sunwell.interface.generative.cli.shortcuts import run_shortcut
 
         # Get positional target from context (after the shortcut)
         positional_target = ctx.obj.get("_positional_target")
@@ -301,7 +301,7 @@ def main(
 
     # If a goal was provided and no subcommand invoked, run agent
     if goal and ctx.invoked_subcommand is None:
-        from sunwell.cli.commands.goal import run_goal
+        from sunwell.interface.generative.cli.commands.goal import run_goal
 
         ctx.invoke(
             run_goal,
@@ -343,7 +343,7 @@ def _run_goal(
     workspace: str | None,
 ) -> None:
     """Internal command for goal execution (RFC-MEMORY)."""
-    from sunwell.cli.commands.goal import run_agent
+    from sunwell.interface.generative.cli.commands.goal import run_agent
 
     workspace_path = Path(workspace) if workspace else None
     # RFC-MEMORY: Single unified execution path - use modular version
@@ -500,7 +500,7 @@ interface_cmd.interface.hidden = True
 main.add_command(interface_cmd.interface)
 
 # Naaru coordination - Studio: naaru process/convergence
-from sunwell.cli.agent import agent
+from sunwell.interface.generative.cli.agent import agent
 
 agent.hidden = True
 main.add_command(agent)

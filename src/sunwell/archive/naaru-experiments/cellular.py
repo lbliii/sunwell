@@ -10,7 +10,7 @@ Like biological cells:
 - No cell sees the whole picture
 
 Example:
-    >>> from sunwell.naaru.experiments.cellular import cellular_discover
+    >>> from sunwell.archive.naaru-experiments.cellular import cellular_discover
     >>>
     >>> graph = await cellular_discover(
     ...     goal="Build a REST API with auth",
@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
+    from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
 
 
 CELL_PROMPT = """You are ONE CELL in a larger system. Your job is simple:
@@ -106,7 +106,7 @@ async def _fire_cell(
     import time
 
     from sunwell.models.protocol import GenerateOptions
-    from sunwell.naaru.artifacts import ArtifactSpec
+    from sunwell.planning.naaru.artifacts import ArtifactSpec
 
     start = time.perf_counter()
 
@@ -190,7 +190,7 @@ async def cellular_discover(
     """
     import time
 
-    from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
+    from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
 
     start_time = time.perf_counter()
 
@@ -284,7 +284,7 @@ async def cellular_vs_monolithic(
     """
     import time
 
-    from sunwell.naaru.planners.artifact import ArtifactPlanner
+    from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
     # Monolithic discovery
     start = time.perf_counter()

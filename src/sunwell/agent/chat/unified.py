@@ -31,17 +31,17 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.chat.checkpoint import (
+from sunwell.agent.chat.checkpoint import (
     ChatCheckpoint,
     ChatCheckpointType,
     CheckpointResponse,
 )
-from sunwell.chat.intent import Intent, IntentRouter
+from sunwell.agent.chat.intent import Intent, IntentRouter
 
 if TYPE_CHECKING:
     from sunwell.agent import Agent
     from sunwell.agent.events import AgentEvent
-    from sunwell.context.session import SessionContext
+    from sunwell.agent.context.session import SessionContext
     from sunwell.memory.persistent import PersistentMemory
     from sunwell.models.protocol import ModelProtocol
     from sunwell.tools.executor import ToolExecutor
@@ -186,7 +186,7 @@ class UnifiedChatLoop:
         Raises:
             GeneratorExit: On aclose() call
         """
-        from sunwell.context.session import SessionContext
+        from sunwell.agent.context.session import SessionContext
         from sunwell.memory.persistent import PersistentMemory
 
         # Initialize session and memory
@@ -292,7 +292,7 @@ class UnifiedChatLoop:
         """
         from sunwell.agent import Agent
         from sunwell.agent.events import AgentEvent, EventType
-        from sunwell.context.session import SessionContext
+        from sunwell.agent.context.session import SessionContext
 
         self._state = LoopState.PLANNING
 

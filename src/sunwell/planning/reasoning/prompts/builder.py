@@ -3,7 +3,7 @@
 import re
 from typing import Any
 
-from sunwell.reasoning.decisions import DecisionType
+from sunwell.planning.reasoning.decisions import DecisionType
 
 # Pre-compiled regex patterns
 _MARKDOWN_CODE_BLOCK_RE = re.compile(r"```(?:json)?\s*([\s\S]*?)```")

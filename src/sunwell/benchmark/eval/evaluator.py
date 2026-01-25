@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from sunwell.eval.types import FullStackScore, FullStackTask
+from sunwell.benchmark.eval.types import FullStackScore, FullStackTask
 
 logger = logging.getLogger(__name__)
 

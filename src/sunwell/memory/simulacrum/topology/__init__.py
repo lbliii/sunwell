@@ -3,7 +3,7 @@
 RFC-025: Extracted from root simulacrum module.
 """
 
-from sunwell.simulacrum.topology.facets import (
+from sunwell.memory.simulacrum.topology.facets import (
     ConfidenceLevel,
     ContentFacets,
     DiataxisType,
@@ -12,25 +12,25 @@ from sunwell.simulacrum.topology.facets import (
     PersonaType,
     VerificationState,
 )
-from sunwell.simulacrum.topology.memory_node import MemoryNode
-from sunwell.simulacrum.topology.spatial import (
+from sunwell.memory.simulacrum.topology.memory_node import MemoryNode
+from sunwell.memory.simulacrum.topology.spatial import (
     PositionType,
     SpatialContext,
     SpatialQuery,
     spatial_match,
 )
-from sunwell.simulacrum.topology.structural import (
+from sunwell.memory.simulacrum.topology.structural import (
     DocumentSection,
     DocumentTree,
     SectionType,
     infer_section_type,
 )
-from sunwell.simulacrum.topology.topology_base import (
+from sunwell.memory.simulacrum.topology.topology_base import (
     ConceptEdge,
     ConceptGraph,
     RelationType,
 )
-from sunwell.simulacrum.topology.unified_store import UnifiedMemoryStore
+from sunwell.memory.simulacrum.topology.unified_store import UnifiedMemoryStore
 
 __all__ = [
     "SpatialContext",

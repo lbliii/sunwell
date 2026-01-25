@@ -20,7 +20,7 @@ import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
-from sunwell.backlog.goals import Goal, GoalScope
+from sunwell.features.backlog.goals import Goal, GoalScope
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol

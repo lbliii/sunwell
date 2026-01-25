@@ -8,7 +8,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-from sunwell.providers.base import (
+from sunwell.models.providers.base import (
     GitBranch,
     GitCommit,
     GitFileStatus,

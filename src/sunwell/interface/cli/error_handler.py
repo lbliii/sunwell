@@ -12,7 +12,7 @@ import json
 import sys
 from typing import NoReturn
 
-from sunwell.core.errors import SunwellError
+from sunwell.foundation.errors import SunwellError
 
 
 def handle_error(
@@ -30,7 +30,7 @@ def handle_error(
     """
     # Wrap generic exceptions in SunwellError
     if not isinstance(error, SunwellError):
-        from sunwell.core.errors import ErrorCode
+        from sunwell.foundation.errors import ErrorCode
 
         error = SunwellError(
             code=ErrorCode.RUNTIME_STATE_INVALID,
@@ -107,7 +107,7 @@ def format_error_for_json(error: SunwellError | Exception) -> str:
         JSON string representation of the error
     """
     if not isinstance(error, SunwellError):
-        from sunwell.core.errors import ErrorCode
+        from sunwell.foundation.errors import ErrorCode
 
         error = SunwellError(
             code=ErrorCode.RUNTIME_STATE_INVALID,
@@ -138,7 +138,7 @@ def parse_error_from_json(json_str: str) -> SunwellError | None:
         if not all(k in data for k in ("error_id", "code", "message")):
             return None
 
-        from sunwell.core.errors import ErrorCode
+        from sunwell.foundation.errors import ErrorCode
 
         # Try to get ErrorCode from code
         try:

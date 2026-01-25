@@ -44,13 +44,13 @@ Import directly from subpackages for clarity:
 
 ```python
 # Preferred: Explicit subpackage imports
-from sunwell.simulacrum.core import SimulacrumStore, Turn, ConversationDAG
-from sunwell.simulacrum.manager import SimulacrumManager
-from sunwell.simulacrum.topology import UnifiedMemoryStore, MemoryNode
-from sunwell.simulacrum.hierarchical import ChunkManager, Chunk
-from sunwell.simulacrum.context import ContextAssembler, Focus
-from sunwell.simulacrum.extractors import SpatialExtractor
-from sunwell.simulacrum.identity import SessionIndex, SessionIndexManager
+from sunwell.memory.simulacrum.core import SimulacrumStore, Turn, ConversationDAG
+from sunwell.memory.simulacrum.manager import SimulacrumManager
+from sunwell.memory.simulacrum.topology import UnifiedMemoryStore, MemoryNode
+from sunwell.memory.simulacrum.hierarchical import ChunkManager, Chunk
+from sunwell.memory.simulacrum.context import ContextAssembler, Focus
+from sunwell.memory.simulacrum.extractors import SpatialExtractor
+from sunwell.memory.simulacrum.identity import SessionIndex, SessionIndexManager
 ```
 
 **Subpackages:**
@@ -66,7 +66,7 @@ from sunwell.simulacrum.identity import SessionIndex, SessionIndexManager
 # Only export the most commonly used items for convenience
 # All other items should be imported from their subpackages
 
-from sunwell.simulacrum.core import (
+from sunwell.memory.simulacrum.core import (
     ConversationDAG,
     Learning,
     Simulacrum,
@@ -75,7 +75,7 @@ from sunwell.simulacrum.core import (
     Turn,
     TurnType,
 )
-from sunwell.simulacrum.identity import (
+from sunwell.memory.simulacrum.identity import (
     SessionIndex,
     SessionIndexEntry,
     SessionIndexManager,
@@ -84,7 +84,7 @@ from sunwell.simulacrum.identity import (
     create_session_manifest,
     create_session_uri,
 )
-from sunwell.simulacrum.manager import (
+from sunwell.memory.simulacrum.manager import (
     SimulacrumManager,
     SimulacrumMetadata,
 )

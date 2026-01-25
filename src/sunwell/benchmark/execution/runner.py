@@ -20,8 +20,8 @@ from sunwell.models.protocol import GenerateOptions, ModelProtocol
 
 if TYPE_CHECKING:
     from sunwell.benchmark.types import BenchmarkTask, PrefetchMetrics
-    from sunwell.core.lens import Lens
-    from sunwell.schema.loader import LensLoader
+    from sunwell.foundation.core.lens import Lens
+    from sunwell.foundation.schema.loader import LensLoader
 
 
 class ExecutionRunner:
@@ -315,8 +315,8 @@ Please fix these issues and provide an improved response."""
         Returns:
             Tuple of (context_string, retrieval_metrics)
         """
-        from sunwell.embedding import create_embedder
-        from sunwell.embedding.index import InMemoryIndex
+        from sunwell.knowledge.embedding import create_embedder
+        from sunwell.knowledge.embedding.index import InMemoryIndex
 
         start_time = time.perf_counter()
 
@@ -394,10 +394,10 @@ Please fix these issues and provide an improved response."""
         Returns:
             Tuple of (context_string, routing_metrics, retrieval_metrics)
         """
-        from sunwell.embedding import create_embedder
-        from sunwell.embedding.index import InMemoryIndex
-        from sunwell.routing import UnifiedRouter
-        from sunwell.routing.unified import Complexity
+        from sunwell.knowledge.embedding import create_embedder
+        from sunwell.knowledge.embedding.index import InMemoryIndex
+        from sunwell.planning.routing import UnifiedRouter
+        from sunwell.planning.routing.unified import Complexity
 
         # Complexity → retrieval parameters mapping
         COMPLEXITY_PARAMS = {
@@ -520,8 +520,8 @@ Please fix these issues and provide an improved response."""
         Returns:
             Tuple of (ConditionOutput, SelfDirectedMetrics)
         """
-        from sunwell.embedding import create_embedder
-        from sunwell.runtime.retriever import ExpertiseRetriever
+        from sunwell.knowledge.embedding import create_embedder
+        from sunwell.agent.runtime.retriever import ExpertiseRetriever
         from sunwell.tools.builtins import EXPERTISE_TOOLS
         from sunwell.tools.expertise import ExpertiseToolHandler
 
@@ -704,7 +704,7 @@ Please fix these issues and provide an improved response."""
         native tool calling.
         """
         from sunwell.benchmark.types import PrefetchMetrics
-        from sunwell.naaru.tool_shard import ToolOrchestratorShard
+        from sunwell.planning.naaru.tool_shard import ToolOrchestratorShard
 
         start_time = time.perf_counter()
 

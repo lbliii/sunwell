@@ -10,7 +10,7 @@ Unlike naive extraction which can hallucinate,
 squash extraction grounds outputs in document agreement.
 """
 
-from sunwell.extraction.squash import (
+from sunwell.knowledge.extraction.squash import (
     ExtractedFact,
     SquashResult,
     extract_goal_with_squash,

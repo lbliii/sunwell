@@ -17,7 +17,7 @@ from pathlib import Path
 
 import click
 
-from sunwell.cli.theme import create_sunwell_console
+from sunwell.interface.generative.cli.theme import create_sunwell_console
 
 # Pre-compiled regex patterns for context extraction (avoid recompiling per call)
 _RE_CODE_REF = re.compile(r"`([a-z_][a-z0-9_\.]+)`", re.I)
@@ -143,9 +143,9 @@ async def run_shortcut(
         json_output: Output as JSON
         verbose: Show detailed output
     """
-    from sunwell.cli.helpers import resolve_model
-    from sunwell.schema.loader import LensLoader
-    from sunwell.skills.executor import SkillExecutor
+    from sunwell.interface.generative.cli.helpers import resolve_model
+    from sunwell.foundation.schema.loader import LensLoader
+    from sunwell.planning.skills.executor import SkillExecutor
 
     # Normalize shortcut (remove :: prefix if present)
     shortcut_clean = shortcut.lstrip(":")
@@ -217,7 +217,7 @@ async def run_shortcut(
         return
 
     # 7. Create tool executor (RFC-117: with project context if available)
-    from sunwell.project import ProjectResolutionError, resolve_project
+    from sunwell.knowledge.project import ProjectResolutionError, resolve_project
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust
 
@@ -334,7 +334,7 @@ async def run_shortcut(
 async def _resolve_lens(loader, lens_name: str):  # type: ignore[no-untyped-def]
     """Resolve lens by name, checking built-in and local paths."""
     from sunwell.core.types import LensReference
-    from sunwell.fount.resolver import LensResolver
+    from sunwell.features.fount.resolver import LensResolver
 
     resolver = LensResolver(loader=loader)
 
@@ -365,7 +365,7 @@ async def _resolve_lens(loader, lens_name: str):  # type: ignore[no-untyped-def]
 def _detect_workspace() -> Path | None:
     """Detect workspace root directory."""
     try:
-        from sunwell.workspace.detector import WorkspaceDetector
+        from sunwell.knowledge.workspace.detector import WorkspaceDetector
 
         detector = WorkspaceDetector()
         workspace = detector.detect()
@@ -429,7 +429,7 @@ async def _build_skill_context(
 async def _get_semantic_context(target_path: Path, workspace_root: Path) -> str | None:
     """Get semantic code context using SmartContext."""
     try:
-        from sunwell.indexing import create_smart_context
+        from sunwell.knowledge.indexing import create_smart_context
     except ImportError:
         return None
 

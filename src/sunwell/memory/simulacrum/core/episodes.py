@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from sunwell.types.memory import Episode
+from sunwell.foundation.types.memory import Episode
 
 
 class EpisodeManager:

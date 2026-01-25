@@ -40,8 +40,8 @@ from typing import TYPE_CHECKING, Literal
 import yaml
 
 if TYPE_CHECKING:
-    from sunwell.core.lens import Lens
-    from sunwell.skills.types import Skill
+    from sunwell.foundation.core.lens import Lens
+    from sunwell.planning.skills.types import Skill
 
 # Export format types
 ExportFormat = Literal["anthropic", "sunwell", "yaml"]

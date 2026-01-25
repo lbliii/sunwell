@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 _JSON_OBJECT_RE = re.compile(r"\{[\s\S]*\}")
 
 from sunwell.models.protocol import GenerateOptions
-from sunwell.verification.types import (
+from sunwell.quality.verification.types import (
     BehavioralExecutionResult,
     PerspectiveResult,
     Specification,
@@ -22,7 +22,7 @@ from sunwell.verification.types import (
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.naaru.artifacts import ArtifactSpec
+    from sunwell.planning.naaru.artifacts import ArtifactSpec
 
 
 class MultiPerspectiveAnalyzer:

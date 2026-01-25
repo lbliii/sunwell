@@ -24,7 +24,7 @@ _CATEGORY_ECHO_RE = re.compile(r"^[A-Z][a-z]+\s*\(")
 
 if TYPE_CHECKING:
     from sunwell.identity.store import IdentityStore
-    from sunwell.simulacrum.core.dag import ConversationDAG
+    from sunwell.memory.simulacrum.core.dag import ConversationDAG
 
 
 @dataclass(frozen=True, slots=True)

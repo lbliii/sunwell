@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from sunwell.surface.types import SurfaceLayout
+from sunwell.interface.generative.surface.types import SurfaceLayout
 
 # Module-level constant for stop words (avoid per-call set rebuild)
 _STOP_WORDS: frozenset[str] = frozenset({

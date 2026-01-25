@@ -18,14 +18,14 @@ Usage:
 
 from typing import Any, Protocol
 
-from sunwell.routing.decision import RoutingDecision
-from sunwell.routing.exemplars import (
+from sunwell.planning.routing.decision import RoutingDecision
+from sunwell.planning.routing.exemplars import (
     ROUTING_EXEMPLARS,
     RoutingExemplar,
     match_exemplar,
 )
-from sunwell.routing.rubric import DEFAULT_RUBRIC, ConfidenceRubric
-from sunwell.routing.types import (
+from sunwell.planning.routing.rubric import DEFAULT_RUBRIC, ConfidenceRubric
+from sunwell.planning.routing.types import (
     Complexity,
     ExecutionTier,
     Intent,
@@ -34,7 +34,7 @@ from sunwell.routing.types import (
     UserMood,
     determine_tier,
 )
-from sunwell.routing.unified import (
+from sunwell.planning.routing.unified import (
     INTENT_FOCUS_MAP,
     INTENT_LENS_MAP,
     LENS_NAME_MAP,
@@ -42,7 +42,7 @@ from sunwell.routing.unified import (
     UnifiedRouter,
     create_unified_router,
 )
-from sunwell.types.protocol import Serializable
+from sunwell.foundation.types.protocol import Serializable
 
 
 class HasStats(Protocol):

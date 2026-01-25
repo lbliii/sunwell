@@ -85,7 +85,7 @@ Current imports are **mostly correct** (no circular imports detected), but the f
 
 ```python
 # These are all peers, but have very different abstraction levels:
-from sunwell.types import ...        # Tier 0: Base types
+from sunwell.foundation.types import ...        # Tier 0: Base types
 from sunwell.models import ...       # Tier 1: LLM abstraction
 from sunwell.agent import ...        # Tier 5: High-level execution
 from sunwell.vortex import ...       # Feature: Optional capability
@@ -504,7 +504,7 @@ The new structure enforces a clean import hierarchy:
 
 Re-exports from legacy locations for backward compatibility.
 """
-from sunwell.analysis import *
+from sunwell.knowledge.analysis import *
 from sunwell.indexing import *
 from sunwell.workspace import *
 # ...
@@ -554,7 +554,7 @@ During migration, maintain compatibility via re-exports:
 """DEPRECATED: Use sunwell.planning.routing instead."""
 import warnings
 warnings.warn(
-    "sunwell.routing is deprecated. Use sunwell.planning.routing instead.",
+    "sunwell.planning.routing is deprecated. Use sunwell.planning.routing instead.",
     DeprecationWarning,
     stacklevel=2
 )

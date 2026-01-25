@@ -16,7 +16,7 @@ Patterns are pre-compiled at module load time for O(1) matching.
 import re
 from typing import TYPE_CHECKING, Pattern
 
-from sunwell.simulacrum.topology.facets import (
+from sunwell.memory.simulacrum.topology.facets import (
     ConfidenceLevel,
     ContentFacets,
     DiataxisType,
@@ -25,7 +25,7 @@ from sunwell.simulacrum.topology.facets import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.simulacrum.topology.structural import DocumentSection
+    from sunwell.memory.simulacrum.topology.structural import DocumentSection
 
 
 # =============================================================================
@@ -197,7 +197,7 @@ def _detect_diataxis(
     section: DocumentSection | None,
 ) -> DiataxisType | None:
     """Detect Diataxis type from text and section."""
-    from sunwell.simulacrum.topology.structural import SectionType
+    from sunwell.memory.simulacrum.topology.structural import SectionType
 
     # Check section type first (high confidence)
     if section:

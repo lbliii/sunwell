@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 from uuid import uuid4
 
-from sunwell.providers.base import Contact, ContactsProvider
+from sunwell.models.providers.base import Contact, ContactsProvider
 
 # Pre-compiled regex patterns for vCard parsing
 _VCARD_SPLIT_RE = re.compile(r"(?=BEGIN:VCARD)")

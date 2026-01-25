@@ -14,9 +14,9 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.team.store import TeamKnowledgeStore
+    from sunwell.features.team.store import TeamKnowledgeStore
 
-from sunwell.team.types import (
+from sunwell.features.team.types import (
     TeamDecision,
     TeamFailure,
     TeamOwnership,

@@ -19,14 +19,14 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
-from sunwell.core.freethreading import (
+from sunwell.foundation.freethreading import (
     WorkloadType,
     optimal_workers,
 )
 
 if TYPE_CHECKING:
-    from sunwell.embedding.protocol import EmbeddingProtocol
-    from sunwell.workspace.detector import Workspace
+    from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
+    from sunwell.knowledge.workspace.detector import Workspace
 
 
 def _content_hash(content: str) -> str:

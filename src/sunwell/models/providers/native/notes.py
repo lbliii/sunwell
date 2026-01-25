@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
-from sunwell.providers.base import Note, NotesProvider
+from sunwell.models.providers.base import Note, NotesProvider
 
 
 class SunwellNotes(NotesProvider):

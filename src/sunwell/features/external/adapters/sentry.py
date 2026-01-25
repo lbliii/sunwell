@@ -9,8 +9,8 @@ import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sunwell.external.adapters.base import EventAdapter
-from sunwell.external.types import (
+from sunwell.features.external.adapters.base import EventAdapter
+from sunwell.features.external.types import (
     EventCallback,
     EventFeedback,
     EventSource,

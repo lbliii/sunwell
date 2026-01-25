@@ -10,16 +10,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.weakness.types import (
+from sunwell.quality.weakness.types import (
     DeltaPreview,
     ExtractedContract,
     WaveConfidence,
     WeaknessScore,
 )
-from sunwell.weakness.verification import run_mypy, run_pytest, run_ruff
+from sunwell.quality.weakness.verification import run_mypy, run_pytest, run_ruff
 
 if TYPE_CHECKING:
-    from sunwell.naaru.artifacts import ArtifactGraph
+    from sunwell.planning.naaru.artifacts import ArtifactGraph
 
 
 @dataclass(frozen=True, slots=True)

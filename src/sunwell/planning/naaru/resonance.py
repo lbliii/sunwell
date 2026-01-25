@@ -35,7 +35,7 @@ The name "Resonance" comes from the Naaru lore - they resonate with power,
 amplifying and refining through harmonics.
 
 Example:
-    >>> from sunwell.naaru.resonance import Resonance, ResonanceConfig
+    >>> from sunwell.planning.naaru.resonance import Resonance, ResonanceConfig
     >>> resonance = Resonance(model=my_model, config=ResonanceConfig(max_attempts=2))
     >>> refined = await resonance.refine(proposal, rejection)
 """

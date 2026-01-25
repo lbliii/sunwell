@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.embedding.protocol import EmbeddingProtocol
+    from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
 
 
 @dataclass(frozen=True, slots=True)

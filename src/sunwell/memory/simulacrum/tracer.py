@@ -11,7 +11,7 @@ Thread Safety:
     All mutations to TRACER state are protected by locks.
 
 Usage:
-    from sunwell.simulacrum.tracer import TurnTracer, TRACER
+    from sunwell.memory.simulacrum.tracer import TurnTracer, TRACER
 
     # In chat loop
     TRACER.begin_turn(turn_id, user_message)

@@ -8,13 +8,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sunwell.guardrails.classifier import ActionClassifier
-from sunwell.guardrails.config import GuardrailConfig, load_config
-from sunwell.guardrails.escalation import EscalationHandler
-from sunwell.guardrails.recovery import RecoveryManager
-from sunwell.guardrails.scope import ScopeTracker
-from sunwell.guardrails.trust import TrustZoneEvaluator
-from sunwell.guardrails.types import (
+from sunwell.quality.guardrails.classifier import ActionClassifier
+from sunwell.quality.guardrails.config import GuardrailConfig, load_config
+from sunwell.quality.guardrails.escalation import EscalationHandler
+from sunwell.quality.guardrails.recovery import RecoveryManager
+from sunwell.quality.guardrails.scope import ScopeTracker
+from sunwell.quality.guardrails.trust import TrustZoneEvaluator
+from sunwell.quality.guardrails.types import (
     Action,
     ActionClassification,
     ActionRisk,
@@ -26,12 +26,12 @@ from sunwell.guardrails.types import (
     SessionStart,
     ViolationOutcome,
 )
-from sunwell.guardrails.verification import VerificationGate, create_verification_gate
+from sunwell.quality.guardrails.verification import VerificationGate, create_verification_gate
 
 if TYPE_CHECKING:
-    from sunwell.backlog.goals import Goal
-    from sunwell.external.policy import ExternalGoalPolicy
-    from sunwell.external.types import ExternalEvent
+    from sunwell.features.backlog.goals import Goal
+    from sunwell.features.external.policy import ExternalGoalPolicy
+    from sunwell.features.external.types import ExternalEvent
 
 
 @dataclass(slots=True)
@@ -361,7 +361,7 @@ class GuardrailSystem:
         Returns:
             Tuple of (allowed, blocking_reason)
         """
-        from sunwell.guardrails.classifier import SmartActionClassifier
+        from sunwell.quality.guardrails.classifier import SmartActionClassifier
 
         # Use smart classifier if model available
         if self.model is not None and isinstance(self.classifier, SmartActionClassifier):
@@ -441,7 +441,7 @@ class GuardrailSystem:
             is_false_positive: Whether user marked as false positive
             comment: Optional user comment
         """
-        from sunwell.guardrails.classifier import SmartActionClassifier
+        from sunwell.quality.guardrails.classifier import SmartActionClassifier
 
         if not isinstance(self.classifier, SmartActionClassifier):
             return
@@ -462,7 +462,7 @@ class GuardrailSystem:
         Returns:
             List of GuardEvolution suggestions
         """
-        from sunwell.guardrails.classifier import SmartActionClassifier
+        from sunwell.quality.guardrails.classifier import SmartActionClassifier
 
         if not isinstance(self.classifier, SmartActionClassifier):
             return []
@@ -475,7 +475,7 @@ class GuardrailSystem:
         Returns:
             Dict with stats including session stats and violation info
         """
-        from sunwell.guardrails.classifier import SmartActionClassifier
+        from sunwell.quality.guardrails.classifier import SmartActionClassifier
 
         stats = self.get_session_stats()
 
@@ -505,7 +505,7 @@ class GuardrailSystem:
         Returns:
             True if goal can be auto-approved
         """
-        from sunwell.external.types import EventSource, EventType
+        from sunwell.features.external.types import EventSource, EventType
 
         # 1. Check source trust
         trusted_sources = getattr(

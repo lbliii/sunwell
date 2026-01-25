@@ -7,7 +7,7 @@ This module defines the TaskPlanner protocol, PlanningStrategy, and related exce
 from enum import Enum
 from typing import Any, Protocol, runtime_checkable
 
-from sunwell.naaru.types import Task, TaskMode
+from sunwell.planning.naaru.types import Task, TaskMode
 
 
 class PlanningError(Exception):

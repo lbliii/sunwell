@@ -15,7 +15,7 @@ Each gate is slightly smarter. The harder the problem, the further it
 penetrates. 99% of work is done by tiny models.
 
 Example:
-    >>> from sunwell.naaru.experiments import GradientCascade
+    >>> from sunwell.planning.naaru.experiments import GradientCascade
     >>>
     >>> cascade = GradientCascade(
     ...     tiers=[

@@ -2,10 +2,10 @@
 
 from typing import TYPE_CHECKING, Any
 
-from sunwell.naaru.artifacts import ArtifactSpec
+from sunwell.planning.naaru.artifacts import ArtifactSpec
 
 if TYPE_CHECKING:
-    from sunwell.project.schema import ProjectSchema
+    from sunwell.knowledge.project.schema import ProjectSchema
 
 
 def build_discovery_prompt(

@@ -23,7 +23,7 @@ from typing import Any
 
 import yaml
 
-from sunwell.types.config import (
+from sunwell.foundation.types.config import (
     BindingConfig,
     EmbeddingConfig,
     LensConfig,

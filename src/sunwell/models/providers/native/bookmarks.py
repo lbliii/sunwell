@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
-from sunwell.providers.base import Bookmark, BookmarksProvider
+from sunwell.models.providers.base import Bookmark, BookmarksProvider
 
 # Pre-compiled regex for Chrome HTML bookmark parsing
 _CHROME_HTML_LINK_RE = re.compile(r'<A\s+HREF="([^"]+)"[^>]*>([^<]+)</A>', re.IGNORECASE)

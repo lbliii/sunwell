@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.simulacrum.core.turn import Turn
+    from sunwell.memory.simulacrum.core.turn import Turn
 
 
 # =============================================================================

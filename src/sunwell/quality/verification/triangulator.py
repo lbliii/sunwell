@@ -4,7 +4,7 @@ Cross-check verification signals to compute final confidence.
 """
 
 
-from sunwell.verification.types import (
+from sunwell.quality.verification.types import (
     BehavioralExecutionResult,
     DeepVerificationResult,
     GeneratedTest,

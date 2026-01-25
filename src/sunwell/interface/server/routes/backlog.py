@@ -7,8 +7,8 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from sunwell.backlog.goals import Goal, GoalScope
-from sunwell.backlog.manager import BacklogManager
+from sunwell.features.backlog.goals import Goal, GoalScope
+from sunwell.features.backlog.manager import BacklogManager
 
 router = APIRouter(prefix="/api/backlog", tags=["backlog"])
 

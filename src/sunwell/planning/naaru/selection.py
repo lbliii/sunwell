@@ -13,7 +13,7 @@ import asyncio
 from collections import Counter
 from typing import TYPE_CHECKING
 
-from sunwell.naaru.diversity import Candidate
+from sunwell.planning.naaru.diversity import Candidate
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
@@ -126,7 +126,7 @@ async def select_voting(
     Cost: ~500 tokens (vote prompt + N short responses)
     Use when: Harmonic diversity, need quality signal
     """
-    from sunwell.naaru.diversity import HARMONIC_PERSONAS
+    from sunwell.planning.naaru.diversity import HARMONIC_PERSONAS
 
     if not candidates:
         raise ValueError("No candidates provided")

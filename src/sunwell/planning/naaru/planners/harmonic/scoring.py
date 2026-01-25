@@ -3,14 +3,14 @@
 import statistics
 from typing import TYPE_CHECKING
 
-from sunwell.naaru.artifacts import ArtifactGraph
-from sunwell.naaru.planners.metrics import PlanMetrics, PlanMetricsV2
+from sunwell.planning.naaru.artifacts import ArtifactGraph
+from sunwell.planning.naaru.planners.metrics import PlanMetrics, PlanMetricsV2
 
 if TYPE_CHECKING:
-    from sunwell.naaru.planners.harmonic.utils import extract_keywords
+    from sunwell.planning.naaru.planners.harmonic.utils import extract_keywords
 
 # Import here to avoid circular dependency
-from sunwell.naaru.planners.harmonic.utils import extract_keywords as _extract_keywords
+from sunwell.planning.naaru.planners.harmonic.utils import extract_keywords as _extract_keywords
 
 
 def compute_metrics_v1(graph: ArtifactGraph) -> PlanMetrics:

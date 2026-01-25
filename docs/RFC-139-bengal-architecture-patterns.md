@@ -87,7 +87,7 @@ sunwell/protocols/
 ```python
 # BEFORE
 from sunwell.models.protocol import ModelProtocol, Tool, ToolCall, Message
-from sunwell.types.protocol import ToolExecutorProtocol, ConsoleProtocol
+from sunwell.foundation.types.protocol import ToolExecutorProtocol, ConsoleProtocol
 
 # AFTER
 from sunwell.protocols import ModelProtocol, ToolExecutorProtocol, ConsoleProtocol
@@ -100,7 +100,7 @@ from sunwell.models.types import Tool, ToolCall, Message
 |------------|------------|------------|
 | `from sunwell.models.protocol import ModelProtocol` | `from sunwell.protocols import ModelProtocol` | 110 |
 | `from sunwell.models.protocol import Tool, ToolCall, Message, ...` | `from sunwell.models.types import Tool, ToolCall, Message, ...` | 110 |
-| `from sunwell.types.protocol import *Protocol` | `from sunwell.protocols import *Protocol` | ~25 |
+| `from sunwell.foundation.types.protocol import *Protocol` | `from sunwell.protocols import *Protocol` | ~25 |
 | `from sunwell.workflow.types import Serializable` | `from sunwell.protocols import Serializable` | ~5 |
 | `from sunwell.team.types import Serializable` | `from sunwell.protocols import Serializable` | ~3 |
 
@@ -110,8 +110,8 @@ from sunwell.models.types import Tool, ToolCall, Message
 rg -l "from sunwell.models.protocol import" | xargs sed -i '' \
   -e 's/from sunwell.models.protocol import ModelProtocol/from sunwell.protocols import ModelProtocol/g'
 
-rg -l "from sunwell.types.protocol import" | xargs sed -i '' \
-  -e 's/from sunwell.types.protocol import/from sunwell.protocols import/g'
+rg -l "from sunwell.foundation.types.protocol import" | xargs sed -i '' \
+  -e 's/from sunwell.foundation.types.protocol import/from sunwell.protocols import/g'
 ```
 
 ---
@@ -328,7 +328,7 @@ agent/loop/
 - [ ] Create `protocols/capabilities.py` — move TypeGuard protocols
 - [ ] Create `models/types.py` — move `Tool`, `ToolCall`, `Message`, etc. from `models/protocol.py`
 - [ ] Update 110 files: `from sunwell.models.protocol import` → split imports
-- [ ] Update ~25 files: `from sunwell.types.protocol import` → `from sunwell.protocols import`
+- [ ] Update ~25 files: `from sunwell.foundation.types.protocol import` → `from sunwell.protocols import`
 - [ ] Delete `types/protocol.py`
 - [ ] Delete `Serializable` from `workflow/types.py`
 - [ ] Delete `Serializable`, `Embeddable` from `team/types.py`

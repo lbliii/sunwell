@@ -2,8 +2,8 @@
 
 from dataclasses import dataclass
 
-from sunwell.simulacrum.core.turn import Learning
-from sunwell.types.memory import Episode
+from sunwell.memory.simulacrum.core.turn import Learning
+from sunwell.foundation.types.memory import Episode
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,7 +53,7 @@ class PlanningContext:
 
     def to_convergence_slots(self) -> list[Slot]:
         """Convert to Convergence slots for HarmonicPlanner injection."""
-        from sunwell.naaru.convergence import Slot, SlotSource
+        from sunwell.planning.naaru.convergence import Slot, SlotSource
 
         slots: list[Slot] = []
 

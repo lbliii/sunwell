@@ -18,10 +18,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.indexing.service import IndexingService
-    from sunwell.intelligence.codebase import CodebaseGraph
+    from sunwell.knowledge.indexing.service import IndexingService
+    from sunwell.knowledge.codebase.codebase import CodebaseGraph
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.navigation.navigator import TocNavigator
+    from sunwell.knowledge.navigation.navigator import TocNavigator
 
 logger = logging.getLogger(__name__)
 
@@ -621,7 +621,7 @@ def create_smart_context(
     # Load Codebase Graph (RFC-045)
     if auto_load_graph:
         try:
-            from sunwell.intelligence.codebase import CodebaseGraph as Graph
+            from sunwell.knowledge.codebase.codebase import CodebaseGraph as Graph
 
             intelligence_path = workspace_root / SUNWELL_DIR / INTELLIGENCE_DIR
             codebase_graph = Graph.load(intelligence_path)

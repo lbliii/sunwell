@@ -9,7 +9,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from sunwell.binding import BindingManager
+from sunwell.foundation.binding import BindingManager
 
 console = Console()
 
@@ -71,7 +71,7 @@ def bind_create(
 
         sunwell bind create fast-helper --lens helper.lens --tier 0 --set-default
     """
-    from sunwell.config import get_config
+    from sunwell.foundation.config import get_config
 
     cfg = get_config()
 

@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from sunwell.core.lens import Affordances, PrimitiveAffordance
+from sunwell.foundation.core.lens import Affordances, PrimitiveAffordance
 
 
 def parse_affordances(data: dict[str, Any] | None) -> Affordances | None:

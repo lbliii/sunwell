@@ -66,7 +66,7 @@ async def _detect_async(path: str, json_output: bool) -> None:
     """Async implementation of detect command."""
     import json
 
-    from sunwell.analysis.workspace import WorkspaceDetector
+    from sunwell.knowledge.analysis.workspace import WorkspaceDetector
 
     root = Path(path).expanduser().resolve()
     detector = WorkspaceDetector()
@@ -152,7 +152,7 @@ def link(path: str, target: str) -> None:
 
 async def _link_async(path: str, target: str) -> None:
     """Async implementation of link command."""
-    from sunwell.analysis.workspace import (
+    from sunwell.knowledge.analysis.workspace import (
         WorkspaceConfig,
         add_link,
         load_or_detect_workspace,
@@ -201,7 +201,7 @@ def unlink(path: str, target: str) -> None:
 
 async def _unlink_async(path: str, target: str) -> None:
     """Async implementation of unlink command."""
-    from sunwell.analysis.workspace import WorkspaceConfig, remove_link
+    from sunwell.knowledge.analysis.workspace import WorkspaceConfig, remove_link
 
     root = Path(path).expanduser().resolve()
     target_path = Path(target).expanduser().resolve()
@@ -254,7 +254,7 @@ async def _show_async(path: str, json_output: bool) -> None:
     """Async implementation of show command."""
     import json
 
-    from sunwell.analysis.workspace import WorkspaceConfig
+    from sunwell.knowledge.analysis.workspace import WorkspaceConfig
 
     root = Path(path).expanduser().resolve()
     config = WorkspaceConfig(root)
@@ -353,7 +353,7 @@ def clear(path: str, yes: bool) -> None:
     Example:
         sunwell workspace clear ~/my-docs
     """
-    from sunwell.analysis.workspace import WorkspaceConfig
+    from sunwell.knowledge.analysis.workspace import WorkspaceConfig
 
     root = Path(path).expanduser().resolve()
     config = WorkspaceConfig(root)

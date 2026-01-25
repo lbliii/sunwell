@@ -16,22 +16,22 @@ import click
 from rich.markdown import Markdown
 from rich.panel import Panel
 
-from sunwell.binding import BindingManager
-from sunwell.cli.chat import ContextBuilder, ProjectDetector
-from sunwell.cli.helpers import create_model
-from sunwell.cli.theme import create_sunwell_console
-from sunwell.core.errors import SunwellError
+from sunwell.foundation.binding import BindingManager
+from sunwell.interface.generative.cli.chat import ContextBuilder, ProjectDetector
+from sunwell.interface.generative.cli.helpers import create_model
+from sunwell.interface.generative.cli.theme import create_sunwell_console
+from sunwell.foundation.errors import SunwellError
 from sunwell.core.types import LensReference
-from sunwell.embedding import create_embedder
-from sunwell.fount.client import FountClient
-from sunwell.fount.resolver import LensResolver
-from sunwell.schema.loader import LensLoader
-from sunwell.simulacrum.core.dag import ConversationDAG
-from sunwell.simulacrum.core.store import SimulacrumStore
+from sunwell.knowledge.embedding import create_embedder
+from sunwell.features.fount.client import FountClient
+from sunwell.features.fount.resolver import LensResolver
+from sunwell.foundation.schema.loader import LensLoader
+from sunwell.memory.simulacrum.core.dag import ConversationDAG
+from sunwell.memory.simulacrum.core.store import SimulacrumStore
 
 if TYPE_CHECKING:
     from sunwell.agent.events import AgentEvent
-    from sunwell.chat import ChatCheckpoint, UnifiedChatLoop
+    from sunwell.agent.chat import ChatCheckpoint, UnifiedChatLoop
 
 console = create_sunwell_console()
 
@@ -53,7 +53,7 @@ async def _load_workspace_context(cwd: Path) -> tuple[str | None, dict[str, Any]
         Tuple of (formatted_context, workspace_data) or (None, None) if not configured.
     """
     try:
-        from sunwell.analysis.workspace import WorkspaceConfig
+        from sunwell.knowledge.analysis.workspace import WorkspaceConfig
     except ImportError:
         return None, None
 
@@ -91,7 +91,7 @@ async def _load_workspace_context(cwd: Path) -> tuple[str | None, dict[str, Any]
 
     # Try to load source context for symbol awareness
     try:
-        from sunwell.analysis.source_context import SourceContext
+        from sunwell.knowledge.analysis.source_context import SourceContext
 
         for link in workspace.confirmed_links:
             if link.relationship == "source_code":
@@ -178,7 +178,7 @@ async def _build_codebase_index(
 
     RFC-124: Also loads ToC navigation for structural queries.
     """
-    from sunwell.indexing import IndexingService, create_smart_context
+    from sunwell.knowledge.indexing import IndexingService, create_smart_context
 
     stats = {
         "indexed": False,
@@ -284,7 +284,7 @@ async def _retrieve_relevant_code(
         return RAGResult(context="")
 
     # RFC-108: Use SmartContext for codebase context
-    from sunwell.indexing import SmartContext
+    from sunwell.knowledge.indexing import SmartContext
     if isinstance(context_provider, SmartContext):
         result = await context_provider.get_context(query, top_k=top_k)
         references = tuple(
@@ -567,7 +567,7 @@ def chat(
     # Auto-detect advanced features (RFC-015, RFC-020)
     # User flags override auto-detection
     try:
-        from sunwell.indexing import detect_auto_features
+        from sunwell.knowledge.indexing import detect_auto_features
 
         auto_features = detect_auto_features(
             workspace_root=Path.cwd(),
@@ -637,7 +637,7 @@ async def _run_unified_loop(
     - Checkpoints enable user control at key decision points
     - Progress events stream execution status to UI
     """
-    from sunwell.chat import (
+    from sunwell.agent.chat import (
         ChatCheckpoint,
         ChatCheckpointType,
         CheckpointResponse,
@@ -648,7 +648,7 @@ async def _run_unified_loop(
     from sunwell.tools.types import ToolPolicy, ToolTrust
 
     # Set up tool executor
-    from sunwell.project import ProjectResolutionError, resolve_project
+    from sunwell.knowledge.project import ProjectResolutionError, resolve_project
 
     project = None
     workspace_root = workspace
@@ -757,7 +757,7 @@ def _handle_checkpoint(
     Returns:
         CheckpointResponse with user's choice, or None to abort
     """
-    from sunwell.chat import ChatCheckpointType, CheckpointResponse
+    from sunwell.agent.chat import ChatCheckpointType, CheckpointResponse
 
     # Display checkpoint message
     console.print()

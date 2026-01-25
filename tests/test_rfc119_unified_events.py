@@ -442,7 +442,7 @@ class TestServerBridge:
     @pytest.mark.asyncio
     async def test_detect_server_available(self) -> None:
         """detect_server() should return URL when server responds."""
-        from sunwell.cli.server_bridge import detect_server
+        from sunwell.interface.cli.server_bridge import detect_server
 
         with patch("httpx.AsyncClient") as mock_client_class:
             mock_client = MagicMock()
@@ -462,7 +462,7 @@ class TestServerBridge:
         """detect_server() should return None when server not running."""
         import httpx
 
-        from sunwell.cli.server_bridge import detect_server
+        from sunwell.interface.cli.server_bridge import detect_server
 
         with patch("httpx.AsyncClient") as mock_client_class:
             mock_client = MagicMock()
@@ -480,7 +480,7 @@ class TestServerBridge:
         """detect_server() should return None on timeout."""
         import httpx
 
-        from sunwell.cli.server_bridge import detect_server
+        from sunwell.interface.cli.server_bridge import detect_server
 
         with patch("httpx.AsyncClient") as mock_client_class:
             mock_client = MagicMock()

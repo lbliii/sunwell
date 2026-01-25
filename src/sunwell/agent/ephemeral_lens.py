@@ -10,7 +10,7 @@ import json
 import logging
 from typing import TYPE_CHECKING
 
-from sunwell.core.lens import EphemeralLens
+from sunwell.foundation.core.lens import EphemeralLens
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol

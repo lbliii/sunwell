@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sunwell.core.identity import ResourceIdentity, SunwellURI
+from sunwell.foundation.identity import ResourceIdentity, SunwellURI
 
 
 @dataclass(frozen=True, slots=True)

@@ -7,9 +7,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from sunwell.naaru.persistence.hashing import hash_goal
-from sunwell.naaru.persistence.plan_version import PlanDiff, PlanVersion
-from sunwell.naaru.persistence.saved_execution import SavedExecution
+from sunwell.planning.naaru.persistence.hashing import hash_goal
+from sunwell.planning.naaru.persistence.plan_version import PlanDiff, PlanVersion
+from sunwell.planning.naaru.persistence.saved_execution import SavedExecution
 
 DEFAULT_PLANS_DIR = Path(".sunwell/plans")
 

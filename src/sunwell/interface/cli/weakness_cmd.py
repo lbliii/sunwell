@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 import click
 
 if TYPE_CHECKING:
-    from sunwell.naaru.artifacts import ArtifactGraph
+    from sunwell.planning.naaru.artifacts import ArtifactGraph
 
 
 def get_project_root(ctx: click.Context) -> Path:
@@ -41,7 +41,7 @@ def scan(ctx: click.Context, min_severity: float, as_json: bool) -> None:
     project_root = get_project_root(ctx)
 
     async def _scan() -> dict[str, Any]:
-        from sunwell.weakness.analyzer import WeaknessAnalyzer
+        from sunwell.quality.weakness.analyzer import WeaknessAnalyzer
 
         # Build artifact graph from project
         graph = await _build_graph(project_root)
@@ -108,8 +108,8 @@ def preview(ctx: click.Context, artifact_id: str, max_depth: int, as_json: bool)
     project_root = get_project_root(ctx)
 
     async def _preview() -> dict[str, Any]:
-        from sunwell.weakness.analyzer import WeaknessAnalyzer
-        from sunwell.weakness.cascade import CascadeEngine
+        from sunwell.quality.weakness.analyzer import WeaknessAnalyzer
+        from sunwell.quality.weakness.cascade import CascadeEngine
 
         graph = await _build_graph(project_root)
 
@@ -188,12 +188,12 @@ def fix(
     project_root = get_project_root(ctx)
 
     async def _fix() -> dict[str, Any]:
-        from sunwell.naaru.planners.artifact import ArtifactPlanner
+        from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
         from sunwell.tools.executor import ToolExecutor
-        from sunwell.weakness.analyzer import WeaknessAnalyzer
-        from sunwell.weakness.cascade import CascadeEngine
-        from sunwell.weakness.executor import CascadeExecutor
-        from sunwell.weakness.types import WaveConfidence
+        from sunwell.quality.weakness.analyzer import WeaknessAnalyzer
+        from sunwell.quality.weakness.cascade import CascadeEngine
+        from sunwell.quality.weakness.executor import CascadeExecutor
+        from sunwell.quality.weakness.types import WaveConfidence
 
         graph = await _build_graph(project_root)
 
@@ -216,8 +216,8 @@ def fix(
             return result
 
         # Create model and planner using resolve_model()
-        from sunwell.cli.helpers import resolve_model
-        from sunwell.project import ProjectResolutionError, resolve_project
+        from sunwell.interface.generative.cli.helpers import resolve_model
+        from sunwell.knowledge.project import ProjectResolutionError, resolve_project
 
         resolved_model = resolve_model(provider, model)
         planner = ArtifactPlanner(model=resolved_model)
@@ -315,7 +315,7 @@ def extract_contract(ctx: click.Context, artifact_id: str, as_json: bool) -> Non
     project_root = get_project_root(ctx)
 
     async def _extract() -> dict[str, Any]:
-        from sunwell.weakness.cascade import CascadeEngine
+        from sunwell.quality.weakness.cascade import CascadeEngine
 
         graph = await _build_graph(project_root)
         engine = CascadeEngine(graph=graph, project_root=project_root)
@@ -351,7 +351,7 @@ def extract_contract(ctx: click.Context, artifact_id: str, as_json: bool) -> Non
 
 async def _build_graph(project_root: Path) -> ArtifactGraph:
     """Build artifact graph from project files."""
-    from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
+    from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
 
     # Scan for Python files
     graph = ArtifactGraph()

@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from sunwell.intelligence.codebase import CodeLocation
+from sunwell.knowledge.codebase.codebase import CodeLocation
 
 # Pre-compiled regex patterns for performance
 _PYTEST_FAILURE_PATTERN = re.compile(r"FAILED\s+([^:]+)::([^\s]+)")

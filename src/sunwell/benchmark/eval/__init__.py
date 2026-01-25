@@ -11,16 +11,16 @@ Key Components:
 - EvaluationStore: SQLite-backed historical tracking
 """
 
-from sunwell.eval.evaluator import FullStackEvaluator, FullStackScore
-from sunwell.eval.executors import (
+from sunwell.benchmark.eval.evaluator import FullStackEvaluator, FullStackScore
+from sunwell.benchmark.eval.executors import (
     EvaluationError,
     SingleShotExecutor,
     SingleShotResult,
     SunwellFullStackExecutor,
     SunwellResult,
 )
-from sunwell.eval.store import EvaluationRun, EvaluationStats, EvaluationStore
-from sunwell.eval.tasks import FULL_STACK_TASKS, FullStackTask, get_eval_task
+from sunwell.benchmark.eval.store import EvaluationRun, EvaluationStats, EvaluationStore
+from sunwell.benchmark.eval.tasks import FULL_STACK_TASKS, FullStackTask, get_eval_task
 
 __all__ = [
     # Tasks

@@ -19,15 +19,15 @@ Example:
     >>> session = SessionContext.build(Path.cwd(), "add auth", options)
 """
 
-from sunwell.context.constants import (
+from sunwell.agent.context.constants import (
     MAX_CONTEXT_CHARS,
     MAX_INLINE_CHARS,
     MAX_TOTAL_CONTEXT,
 )
-from sunwell.context.ide import IDEContext
-from sunwell.context.reference import ContextReference, ResolvedContext
-from sunwell.context.resolver import ContextResolver
-from sunwell.context.session import SessionContext, workspace_id
+from sunwell.agent.context.ide import IDEContext
+from sunwell.agent.context.reference import ContextReference, ResolvedContext
+from sunwell.agent.context.resolver import ContextResolver
+from sunwell.agent.context.session import SessionContext, workspace_id
 
 __all__ = [
     # Reference system

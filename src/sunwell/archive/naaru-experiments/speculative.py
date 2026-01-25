@@ -7,7 +7,7 @@ With free-threading (Python 3.14t), this is nearly free — we're already paying
 for the slowest model. Speculative execution lets us hedge against slow/bad outputs.
 
 Example:
-    >>> from sunwell.naaru.experiments import speculative_discover
+    >>> from sunwell.planning.naaru.experiments import speculative_discover
     >>>
     >>> artifacts = await speculative_discover(
     ...     goal="Build a REST API",
@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.naaru.artifacts import ArtifactGraph
+    from sunwell.planning.naaru.artifacts import ArtifactGraph
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,8 +80,8 @@ async def speculative_discover(
         asyncio.TimeoutError: If no valid result within timeout
         ValueError: If all candidates fail
     """
-    from sunwell.naaru.artifacts import ArtifactLimits
-    from sunwell.naaru.planners.artifact import ArtifactPlanner
+    from sunwell.planning.naaru.artifacts import ArtifactLimits
+    from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
     # Default temperature spread
     if temperatures is None:

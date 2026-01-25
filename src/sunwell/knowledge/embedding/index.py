@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 from numpy.typing import NDArray
 
-from sunwell.embedding.protocol import SearchResult
+from sunwell.knowledge.embedding.protocol import SearchResult
 
 
 @dataclass(slots=True)

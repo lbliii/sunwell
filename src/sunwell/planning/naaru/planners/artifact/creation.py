@@ -2,8 +2,8 @@
 
 from typing import TYPE_CHECKING, Any
 
-from sunwell.naaru.artifacts import ArtifactSpec, VerificationResult
-from sunwell.naaru.planners.artifact import parsing, prompts
+from sunwell.planning.naaru.artifacts import ArtifactSpec, VerificationResult
+from sunwell.planning.naaru.planners.artifact import parsing, prompts
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol

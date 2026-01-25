@@ -12,14 +12,14 @@ from sunwell.agent import (
     RunOptions,
     create_renderer,
 )
-from sunwell.cli.helpers import extract_project_name, print_event, print_plan_details
-from sunwell.cli.helpers import resolve_model  # type: ignore[attr-defined]  # In helpers.py, not helpers/
-from sunwell.cli.theme import console, print_banner
-from sunwell.cli.workspace_prompt import resolve_workspace_interactive
-from sunwell.config import get_config
-from sunwell.context.session import SessionContext
+from sunwell.interface.generative.cli.helpers import extract_project_name, print_event, print_plan_details
+from sunwell.interface.generative.cli.helpers import resolve_model  # type: ignore[attr-defined]  # In helpers.py, not helpers/
+from sunwell.interface.generative.cli.theme import console, print_banner
+from sunwell.interface.generative.cli.workspace_prompt import resolve_workspace_interactive
+from sunwell.foundation.config import get_config
+from sunwell.agent.context.session import SessionContext
 from sunwell.memory.persistent import PersistentMemory
-from sunwell.project import ProjectResolutionError, resolve_project
+from sunwell.knowledge.project import ProjectResolutionError, resolve_project
 from sunwell.tools.executor import ToolExecutor
 from sunwell.tools.types import ToolPolicy, ToolTrust
 

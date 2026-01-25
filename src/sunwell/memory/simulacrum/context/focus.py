@@ -17,10 +17,10 @@ Benefits over vectors:
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from sunwell.simulacrum.patterns import DOMAIN_PATTERNS, FILE_PATH_PATTERN
+from sunwell.memory.simulacrum.patterns import DOMAIN_PATTERNS, FILE_PATH_PATTERN
 
 if TYPE_CHECKING:
-    from sunwell.simulacrum.core.turn import Learning, Turn
+    from sunwell.memory.simulacrum.core.turn import Learning, Turn
 
 
 # Use shared pre-compiled patterns from patterns.py

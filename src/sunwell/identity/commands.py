@@ -118,7 +118,7 @@ async def handle_identity_command(
     """
     from rich.panel import Panel
 
-    from sunwell.naaru.persona import MURU
+    from sunwell.planning.naaru.persona import MURU
 
     if not arg:
         # Main view: /identity
@@ -180,7 +180,7 @@ async def _handle_rate(
     """Handle /identity rate command."""
     from rich.panel import Panel
 
-    from sunwell.naaru.persona import MURU
+    from sunwell.planning.naaru.persona import MURU
 
     if not identity_store.identity.prompt:
         console.print("[yellow]No identity model to rate yet.[/yellow]")

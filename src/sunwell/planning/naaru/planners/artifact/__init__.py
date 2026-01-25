@@ -3,6 +3,6 @@
 Modularized from artifact.py for better organization.
 """
 
-from sunwell.naaru.planners.artifact.planner import ArtifactPlanner
+from sunwell.planning.naaru.planners.artifact.planner import ArtifactPlanner
 
 __all__ = ["ArtifactPlanner"]

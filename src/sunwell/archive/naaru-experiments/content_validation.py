@@ -15,7 +15,7 @@ import re
 from dataclasses import dataclass
 from enum import Enum, auto
 
-from sunwell.naaru.experiments.signals import Trit, trit_classify
+from sunwell.archive.naaru-experiments.signals import Trit, trit_classify
 
 
 class ContentType(Enum):

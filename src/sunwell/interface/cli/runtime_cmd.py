@@ -6,7 +6,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from sunwell.core.freethreading import runtime_info
+from sunwell.foundation.freethreading import runtime_info
 
 console = Console()
 

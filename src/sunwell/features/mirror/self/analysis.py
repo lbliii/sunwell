@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from sunwell.self.types import (
+from sunwell.features.mirror.self.types import (
     Diagnosis,
     ExecutionEvent,
     FailureReport,

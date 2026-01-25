@@ -20,8 +20,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
 
-from sunwell.interface.types import ActionSpec, InteractionType, ViewSpec
-from sunwell.surface.types import WorkspaceSpec
+from sunwell.interface.generative.types import ActionSpec, InteractionType, ViewSpec
+from sunwell.interface.generative.surface.types import WorkspaceSpec
 
 # =============================================================================
 # PRE-COMPILED PATTERNS — Avoid re-compilation per call

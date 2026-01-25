@@ -4,15 +4,15 @@ import json
 import re
 from typing import TYPE_CHECKING, Any
 
-from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec, CyclicDependencyError, DiscoveryFailedError, GraphExplosionError
-from sunwell.naaru.planners.artifact import dependencies, events, parsing, prompts
+from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec, CyclicDependencyError, DiscoveryFailedError, GraphExplosionError
+from sunwell.planning.naaru.planners.artifact import dependencies, events, parsing, prompts
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from sunwell.agent.events import AgentEvent
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.project.schema import ProjectSchema
+    from sunwell.knowledge.project.schema import ProjectSchema
 
 # Pre-compiled regex patterns
 _RE_FILENAME = re.compile(r"(\w+\.(?:py|js|ts|md|txt|json|yaml|yml))")

@@ -7,10 +7,10 @@ import json
 import logging
 from typing import TYPE_CHECKING
 
-from sunwell.external.types import EventSource
+from sunwell.features.external.types import EventSource
 
 if TYPE_CHECKING:
-    from sunwell.external.processor import EventProcessor
+    from sunwell.features.external.processor import EventProcessor
 
 logger = logging.getLogger(__name__)
 

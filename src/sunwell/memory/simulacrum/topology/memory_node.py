@@ -16,11 +16,11 @@ Part of RFC-014: Multi-Topology Memory.
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from sunwell.simulacrum.hierarchical.chunks import Chunk
-from sunwell.simulacrum.topology.facets import ContentFacets
-from sunwell.simulacrum.topology.spatial import SpatialContext
-from sunwell.simulacrum.topology.structural import DocumentSection
-from sunwell.simulacrum.topology.topology_base import ConceptEdge
+from sunwell.memory.simulacrum.hierarchical.chunks import Chunk
+from sunwell.memory.simulacrum.topology.facets import ContentFacets
+from sunwell.memory.simulacrum.topology.spatial import SpatialContext
+from sunwell.memory.simulacrum.topology.structural import DocumentSection
+from sunwell.memory.simulacrum.topology.topology_base import ConceptEdge
 
 
 @dataclass(slots=True)
@@ -131,14 +131,14 @@ class MemoryNode:
     @classmethod
     def from_dict(cls, data: dict) -> MemoryNode:
         """Deserialize node from storage."""
-        from sunwell.simulacrum.topology.facets import (
+        from sunwell.memory.simulacrum.topology.facets import (
             ConfidenceLevel,
             ContentFacets,
             DiataxisType,
             PersonaType,
             VerificationState,
         )
-        from sunwell.simulacrum.topology.spatial import PositionType, SpatialContext
+        from sunwell.memory.simulacrum.topology.spatial import PositionType, SpatialContext
 
         # Reconstruct spatial
         spatial = None

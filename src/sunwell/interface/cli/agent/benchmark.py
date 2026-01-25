@@ -70,7 +70,7 @@ async def _benchmark_async(
 
     # Load model
     try:
-        from sunwell.config import get_config
+        from sunwell.foundation.config import get_config
         from sunwell.models.ollama import OllamaModel
 
         config = get_config()
@@ -164,7 +164,7 @@ async def _extract_learnings_from_result(
     from datetime import datetime
 
     try:
-        from sunwell.simulacrum.extractors.extractor import auto_extract_learnings
+        from sunwell.memory.simulacrum.extractors.extractor import auto_extract_learnings
     except ImportError:
         # Learning extractor not available
         return 0

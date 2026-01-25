@@ -3,8 +3,8 @@
 import json
 from typing import TYPE_CHECKING, Any
 
-from sunwell.naaru.artifacts import ArtifactSpec
-from sunwell.naaru.planners.artifact.parsing import parse_artifacts
+from sunwell.planning.naaru.artifacts import ArtifactSpec
+from sunwell.planning.naaru.planners.artifact.parsing import parse_artifacts
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol

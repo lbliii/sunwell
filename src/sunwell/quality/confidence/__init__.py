@@ -12,14 +12,14 @@ Confidence Bands:
 - 🔴 Uncertain (<50%): "I don't know" — human must verify
 """
 
-from sunwell.confidence.aggregation import (
+from sunwell.quality.confidence.aggregation import (
     ConfidenceLevel,
     Evidence,
     ModelNode,
     aggregate_confidence,
     score_to_band,
 )
-from sunwell.confidence.calibration import (
+from sunwell.quality.confidence.calibration import (
     CalibrationTracker,
     ConfidenceFeedback,
 )

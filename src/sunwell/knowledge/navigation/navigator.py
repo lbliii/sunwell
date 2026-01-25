@@ -14,7 +14,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sunwell.navigation.toc import ProjectToc
+from sunwell.knowledge.navigation.toc import ProjectToc
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol

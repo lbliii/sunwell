@@ -286,7 +286,7 @@ async def _squash_extract(
     This extracts each question 3x and only keeps what all extractors agree on.
     Much more reliable than single-shot extraction.
     """
-    from sunwell.cli.helpers import resolve_model
+    from sunwell.interface.generative.cli.helpers import resolve_model
 
     path = Path(input_file)
     content = path.read_text()
@@ -303,7 +303,7 @@ async def _squash_extract(
         return f"Implement the following specification:\n\n{_extract_key_sections(content)}"
 
     # Run section-aware squash extraction (finds relevant sections first)
-    from sunwell.extraction.squash import section_aware_extract
+    from sunwell.knowledge.extraction.squash import section_aware_extract
 
     result = await section_aware_extract(
         document=content,
@@ -350,7 +350,7 @@ async def _digest_document(
     
     No truncation - the full document is available via semantic retrieval.
     """
-    from sunwell.simulacrum.core.store import SimulacrumStore
+    from sunwell.memory.simulacrum.core.store import SimulacrumStore
 
     path = Path(input_file)
     content = path.read_text()
@@ -406,7 +406,7 @@ async def _compound_extract(
     
     Synthesizes into a comprehensive goal.
     """
-    from sunwell.cli.helpers import resolve_model
+    from sunwell.interface.generative.cli.helpers import resolve_model
 
     path = Path(input_file)
     content = path.read_text()
@@ -510,11 +510,11 @@ async def _plan_async(
     verbose: bool,
 ) -> None:
     """Generate and display/save the plan."""
-    from sunwell.cli.helpers import resolve_model
-    from sunwell.config import get_config
-    from sunwell.naaru import get_model_distribution
-    from sunwell.naaru.planners import ExpertiseAwareArtifactPlanner
-    from sunwell.routing import UnifiedRouter
+    from sunwell.interface.generative.cli.helpers import resolve_model
+    from sunwell.foundation.config import get_config
+    from sunwell.planning.naaru import get_model_distribution
+    from sunwell.planning.naaru.planners import ExpertiseAwareArtifactPlanner
+    from sunwell.planning.routing import UnifiedRouter
 
     # Load model using resolve_model()
     config = get_config()
@@ -770,7 +770,7 @@ def plan_history(plan_id: str | None, limit: int) -> None:
         sunwell plan history abc123     # Show versions for specific plan
         sunwell plan history --limit 50 # Show more versions
     """
-    from sunwell.naaru.persistence import PlanStore
+    from sunwell.planning.naaru.persistence import PlanStore
 
     store = PlanStore()
 
@@ -853,7 +853,7 @@ def plan_diff(plan_id: str, v1: int, v2: int) -> None:
         sunwell plan diff abc123 1 2
         sunwell plan diff abc123 1 3
     """
-    from sunwell.naaru.persistence import PlanStore
+    from sunwell.planning.naaru.persistence import PlanStore
 
     store = PlanStore()
 
@@ -910,7 +910,7 @@ def plan_show_version(plan_id: str, version: int, output_format: str) -> None:
         sunwell plan show abc123 2
         sunwell plan show abc123 1 --format json
     """
-    from sunwell.naaru.persistence import PlanStore
+    from sunwell.planning.naaru.persistence import PlanStore
 
     store = PlanStore()
     v = store.get_version(plan_id, version)

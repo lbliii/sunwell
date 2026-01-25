@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from sunwell.naaru.persistence.saved_execution import SavedExecution
-from sunwell.naaru.persistence.store import PlanStore
+from sunwell.planning.naaru.persistence.saved_execution import SavedExecution
+from sunwell.planning.naaru.persistence.store import PlanStore
 
 DEFAULT_PLANS_DIR = Path(".sunwell/plans")
 

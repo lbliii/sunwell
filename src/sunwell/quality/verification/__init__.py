@@ -34,12 +34,12 @@ Integration:
 
 # Types
 # Components
-from sunwell.verification.analyzer import MultiPerspectiveAnalyzer
-from sunwell.verification.executor import BehavioralExecutor
-from sunwell.verification.extractor import SpecificationExtractor
-from sunwell.verification.generator import TestGenerator
-from sunwell.verification.triangulator import ConfidenceTriangulator
-from sunwell.verification.types import (
+from sunwell.quality.verification.analyzer import MultiPerspectiveAnalyzer
+from sunwell.quality.verification.executor import BehavioralExecutor
+from sunwell.quality.verification.extractor import SpecificationExtractor
+from sunwell.quality.verification.generator import TestGenerator
+from sunwell.quality.verification.triangulator import ConfidenceTriangulator
+from sunwell.quality.verification.types import (
     QUICK_CONFIG,
     STANDARD_CONFIG,
     THOROUGH_CONFIG,
@@ -55,7 +55,7 @@ from sunwell.verification.types import (
     TestExecutionResult,
     VerificationEvent,
 )
-from sunwell.verification.verifier import DeepVerifier, create_verifier
+from sunwell.quality.verification.verifier import DeepVerifier, create_verifier
 
 __all__ = [
     # Main verifier

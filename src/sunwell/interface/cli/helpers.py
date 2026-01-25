@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from rich.console import Console
 from rich.table import Table
 
-from sunwell.core.freethreading import is_free_threaded
+from sunwell.foundation.freethreading import is_free_threaded
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
@@ -383,7 +383,7 @@ def create_model(provider: str, model_name: str) -> "ModelProtocol":
         )
 
     elif provider == "ollama":
-        from sunwell.config import get_config
+        from sunwell.foundation.config import get_config
         from sunwell.models.ollama import OllamaModel
 
         cfg = get_config()
@@ -413,7 +413,7 @@ def resolve_model(
     Returns:
         Model instance ready for use.
     """
-    from sunwell.config import get_config
+    from sunwell.foundation.config import get_config
 
     cfg = get_config()
 

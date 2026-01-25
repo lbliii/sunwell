@@ -19,18 +19,18 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from sunwell.embedding.index import InMemoryIndex
-from sunwell.simulacrum.topology.facets import FacetedIndex, FacetQuery
-from sunwell.simulacrum.topology.memory_node import MemoryNode
-from sunwell.simulacrum.topology.spatial import (
+from sunwell.knowledge.embedding.index import InMemoryIndex
+from sunwell.memory.simulacrum.topology.facets import FacetedIndex, FacetQuery
+from sunwell.memory.simulacrum.topology.memory_node import MemoryNode
+from sunwell.memory.simulacrum.topology.spatial import (
     SpatialQuery,
     spatial_match,
 )
-from sunwell.simulacrum.topology.structural import DocumentTree
-from sunwell.simulacrum.topology.topology_base import ConceptGraph, RelationType
+from sunwell.memory.simulacrum.topology.structural import DocumentTree
+from sunwell.memory.simulacrum.topology.topology_base import ConceptGraph, RelationType
 
 if TYPE_CHECKING:
-    from sunwell.embedding.protocol import EmbeddingProtocol
+    from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
 
 
 @dataclass(slots=True)

@@ -10,7 +10,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.prompt import Confirm, Prompt
 
-from sunwell.workspace import (
+from sunwell.knowledge.workspace import (
     ResolutionSource,
     WorkspaceResult,
     default_workspace_root,
@@ -77,7 +77,7 @@ def _prompt_workspace_confirmation(
     # Build options
     default_path = default_workspace_root()
     if project_name:
-        from sunwell.workspace.resolver import _slugify
+        from sunwell.knowledge.workspace.resolver import _slugify
         default_path = default_path / _slugify(project_name)
 
     console.print()

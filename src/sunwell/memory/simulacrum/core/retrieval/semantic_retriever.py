@@ -2,16 +2,16 @@
 
 from typing import TYPE_CHECKING
 
-from sunwell.core.freethreading import WorkloadType, optimal_workers, run_parallel
-from sunwell.simulacrum.core.retrieval.similarity import cosine_similarity, keyword_similarity
-from sunwell.types.memory import MemoryRetrievalResult
+from sunwell.foundation.freethreading import WorkloadType, optimal_workers, run_parallel
+from sunwell.memory.simulacrum.core.retrieval.similarity import cosine_similarity, keyword_similarity
+from sunwell.foundation.types.memory import MemoryRetrievalResult
 
 if TYPE_CHECKING:
-    from sunwell.embedding.protocol import EmbeddingProtocol
-    from sunwell.simulacrum.core.dag import ConversationDAG
-    from sunwell.simulacrum.core.turn import Learning, Turn
-    from sunwell.simulacrum.hierarchical.chunk_manager import ChunkManager
-    from sunwell.types.memory import Episode
+    from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
+    from sunwell.memory.simulacrum.core.dag import ConversationDAG
+    from sunwell.memory.simulacrum.core.turn import Learning, Turn
+    from sunwell.memory.simulacrum.hierarchical.chunk_manager import ChunkManager
+    from sunwell.foundation.types.memory import Episode
 
 
 class SemanticRetriever:

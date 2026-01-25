@@ -6,6 +6,6 @@ Available probes:
 - drift: Detect documentation drift from source code (requires workspace linking)
 """
 
-from sunwell.analysis.probes.drift import DriftProbe, DriftResult
+from sunwell.knowledge.analysis.probes.drift import DriftProbe, DriftResult
 
 __all__ = ["DriftProbe", "DriftResult"]

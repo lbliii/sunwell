@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 from typing import Literal
 
-from sunwell.bootstrap.types import ConfigEvidence
+from sunwell.knowledge.bootstrap.types import ConfigEvidence
 
 
 class ConfigScanner:

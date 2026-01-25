@@ -5,7 +5,7 @@ Wrapper for external context when routing through the Adaptive Agent.
 
 from dataclasses import dataclass
 
-from sunwell.external.types import EventSource
+from sunwell.features.external.types import EventSource
 
 
 @dataclass(frozen=True, slots=True)

@@ -17,10 +17,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from sunwell.demo.judge import DemoJudge
-from sunwell.demo.scorer import DemoScorer
-from sunwell.demo.tasks import DemoTask
-from sunwell.naaru.resonance import Resonance, ResonanceConfig
+from sunwell.benchmark.demo.judge import DemoJudge
+from sunwell.benchmark.demo.scorer import DemoScorer
+from sunwell.benchmark.demo.tasks import DemoTask
+from sunwell.planning.naaru.resonance import Resonance, ResonanceConfig
 
 # Type alias for streaming callbacks
 StreamCallback = Callable[[str, str], None]  # (method: "single_shot"|"sunwell", chunk: str)
@@ -129,7 +129,7 @@ class DemoExecutor:
     def _load_lens_v2(self):
         """Load v2 lens (mental model format) for enhanced prompting."""
         try:
-            from sunwell.demo.lens_experiments import LensData
+            from sunwell.benchmark.demo.lens_experiments import LensData
             
             # Prefer v2 python-expert lens, fall back to coder.lens
             lens_paths = [
@@ -153,7 +153,7 @@ class DemoExecutor:
             return None
         
         try:
-            from sunwell.demo.lens_experiments import LensStrategy, create_prompt_builder
+            from sunwell.benchmark.demo.lens_experiments import LensStrategy, create_prompt_builder
             # Use examples_prominent - best performing strategy
             return create_prompt_builder(LensStrategy.EXAMPLES_PROMINENT, self.lens_data)
         except Exception:

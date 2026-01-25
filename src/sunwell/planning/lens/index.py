@@ -23,8 +23,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from types import MappingProxyType
 
-from sunwell.core.identity import ResourceIdentity, SunwellURI
-from sunwell.lens.identity import (
+from sunwell.foundation.identity import ResourceIdentity, SunwellURI
+from sunwell.planning.lens.identity import (
     LensIndexEntry,
     LensLineage,
     LensManifest,

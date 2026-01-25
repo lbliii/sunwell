@@ -17,7 +17,7 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
-from sunwell.core.errors import from_openai_error
+from sunwell.foundation.errors import from_openai_error
 from sunwell.models.protocol import (
     GenerateOptions,
     GenerateResult,
@@ -223,7 +223,7 @@ class OllamaModel:
 
         # Check if model supports native tools - if not, use emulation
         if effective_tools:
-            from sunwell.runtime.model_router import get_model_capability
+            from sunwell.agent.runtime.model_router import get_model_capability
 
             cap = get_model_capability(self.model)
             if cap and not cap.tools:

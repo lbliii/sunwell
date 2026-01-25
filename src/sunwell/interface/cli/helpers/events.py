@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from sunwell.agent.events import AgentEvent
 
-from sunwell.cli.theme import console
+from sunwell.interface.generative.cli.theme import console
 
 
 def print_event(event: AgentEvent, verbose: bool) -> None:

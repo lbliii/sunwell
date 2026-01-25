@@ -25,14 +25,14 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sunwell.simulacrum.hierarchical.chunks import Chunk, ChunkSummary, ChunkType
-from sunwell.simulacrum.hierarchical.config import ChunkConfig
-from sunwell.simulacrum.hierarchical.ctf import CTFDecoder, CTFEncoder
+from sunwell.memory.simulacrum.hierarchical.chunks import Chunk, ChunkSummary, ChunkType
+from sunwell.memory.simulacrum.hierarchical.config import ChunkConfig
+from sunwell.memory.simulacrum.hierarchical.ctf import CTFDecoder, CTFEncoder
 
 if TYPE_CHECKING:
-    from sunwell.embedding.protocol import EmbeddingProtocol
-    from sunwell.simulacrum.core.turn import Turn
-    from sunwell.simulacrum.summarizer import Summarizer
+    from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
+    from sunwell.memory.simulacrum.core.turn import Turn
+    from sunwell.memory.simulacrum.summarizer import Summarizer
 
 
 @dataclass(slots=True)
@@ -507,7 +507,7 @@ class ChunkManager:
         return data
 
     def _deserialize_chunk(self, data: dict) -> Chunk:
-        from sunwell.simulacrum.core.turn import Turn, TurnType
+        from sunwell.memory.simulacrum.core.turn import Turn, TurnType
         turns = tuple(Turn(content=t["content"], turn_type=TurnType(t["turn_type"]), timestamp=t["timestamp"], model=t.get("model")) for t in data.get("turns", [])) if "turns" in data else None
         return Chunk(
             id=data["id"], chunk_type=ChunkType(data["chunk_type"]), turn_range=tuple(data["turn_range"]),

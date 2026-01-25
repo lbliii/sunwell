@@ -9,12 +9,12 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sunwell.verification.analyzer import MultiPerspectiveAnalyzer
-from sunwell.verification.executor import BehavioralExecutor
-from sunwell.verification.extractor import SpecificationExtractor
-from sunwell.verification.generator import TestGenerator
-from sunwell.verification.triangulator import ConfidenceTriangulator
-from sunwell.verification.types import (
+from sunwell.quality.verification.analyzer import MultiPerspectiveAnalyzer
+from sunwell.quality.verification.executor import BehavioralExecutor
+from sunwell.quality.verification.extractor import SpecificationExtractor
+from sunwell.quality.verification.generator import TestGenerator
+from sunwell.quality.verification.triangulator import ConfidenceTriangulator
+from sunwell.quality.verification.types import (
     QUICK_CONFIG,
     STANDARD_CONFIG,
     THOROUGH_CONFIG,
@@ -25,7 +25,7 @@ from sunwell.verification.types import (
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.naaru.artifacts import ArtifactSpec
+    from sunwell.planning.naaru.artifacts import ArtifactSpec
 
 
 class DeepVerifier:

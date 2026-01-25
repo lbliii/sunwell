@@ -24,7 +24,7 @@ def plans_cmd(list_plans: bool, clean: bool, delete_id: str | None, show_id: str
         sunwell agent plans --delete abc123
         sunwell agent plans --clean
     """
-    from sunwell.naaru.persistence import PlanStore
+    from sunwell.planning.naaru.persistence import PlanStore
 
     store = PlanStore()
 

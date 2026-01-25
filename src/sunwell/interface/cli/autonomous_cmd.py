@@ -9,7 +9,7 @@ from pathlib import Path
 import click
 from rich.panel import Panel
 
-from sunwell.cli.theme import create_sunwell_console
+from sunwell.interface.generative.cli.theme import create_sunwell_console
 
 console = create_sunwell_console()
 
@@ -109,7 +109,7 @@ async def _run_autonomous(
     verbose: bool,
 ) -> None:
     """Run autonomous workflow."""
-    from sunwell.autonomous import AutonomousConfig, autonomous_goal
+    from sunwell.features.autonomous import AutonomousConfig, autonomous_goal
 
     config = AutonomousConfig(
         max_duration_hours=max_hours,
@@ -283,8 +283,8 @@ def resume(goal: str, phase: str | None) -> None:
 
 async def _resume_autonomous(goal: str, phase: str | None) -> None:
     """Resume autonomous workflow."""
-    from sunwell.autonomous import AutonomousConfig, autonomous_goal
-    from sunwell.naaru.checkpoint import AgentCheckpoint, CheckpointPhase
+    from sunwell.features.autonomous import AutonomousConfig, autonomous_goal
+    from sunwell.planning.naaru.checkpoint import AgentCheckpoint, CheckpointPhase
 
     workspace = Path.cwd()
 
@@ -357,7 +357,7 @@ def status() -> None:
     # Group by goal
     from collections import defaultdict
 
-    from sunwell.naaru.checkpoint import AgentCheckpoint
+    from sunwell.planning.naaru.checkpoint import AgentCheckpoint
 
     by_goal: dict[str, list[AgentCheckpoint]] = defaultdict(list)
 

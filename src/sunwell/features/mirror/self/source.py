@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from sunwell.self.types import (
+from sunwell.features.mirror.self.types import (
     ArchitectureDiagram,
     Citation,
     Explanation,

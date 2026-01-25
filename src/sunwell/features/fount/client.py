@@ -4,10 +4,10 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from sunwell.core.errors import ErrorCode, SunwellError
+from sunwell.foundation.errors import ErrorCode, SunwellError
 
 if TYPE_CHECKING:
-    from sunwell.fount.cache import FountCache
+    from sunwell.features.fount.cache import FountCache
 
 
 @runtime_checkable

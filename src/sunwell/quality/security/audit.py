@@ -22,7 +22,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal, Protocol
 
-from sunwell.security.analyzer import PermissionScope
+from sunwell.quality.security.analyzer import PermissionScope
 
 # =============================================================================
 # AUDIT ENTRY

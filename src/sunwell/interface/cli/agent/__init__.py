@@ -15,11 +15,11 @@ Provides:
 
 import click
 
-from sunwell.cli.agent.benchmark import agent_benchmark
-from sunwell.cli.agent.illuminate import illuminate
-from sunwell.cli.agent.plans import plans_cmd
-from sunwell.cli.agent.resume import resume
-from sunwell.cli.agent.status import status
+from sunwell.interface.generative.cli.agent.benchmark import agent_benchmark
+from sunwell.interface.generative.cli.agent.illuminate import illuminate
+from sunwell.interface.generative.cli.agent.plans import plans_cmd
+from sunwell.interface.generative.cli.agent.resume import resume
+from sunwell.interface.generative.cli.agent.status import status
 
 
 @click.group()

@@ -54,7 +54,7 @@ def lineage_show(path: str, json_output: bool, workspace: str) -> None:
     """
     import json
 
-    from sunwell.lineage import LineageStore
+    from sunwell.memory.lineage import LineageStore
 
     store = LineageStore(Path(workspace))
     artifact = store.get_by_path(path)
@@ -163,7 +163,7 @@ def lineage_goal(goal_id: str, json_output: bool, workspace: str) -> None:
     """
     import json
 
-    from sunwell.lineage import LineageStore
+    from sunwell.memory.lineage import LineageStore
 
     store = LineageStore(Path(workspace))
     artifacts = store.get_by_goal(goal_id)
@@ -220,7 +220,7 @@ def lineage_deps(path: str, direction: str, json_output: bool, workspace: str) -
     """
     import json
 
-    from sunwell.lineage import LineageStore
+    from sunwell.memory.lineage import LineageStore
 
     store = LineageStore(Path(workspace))
     artifact = store.get_by_path(path)
@@ -275,7 +275,7 @@ def lineage_impact(path: str, json_output: bool, workspace: str) -> None:
     """
     import json
 
-    from sunwell.lineage import LineageStore, get_impact_analysis
+    from sunwell.memory.lineage import LineageStore, get_impact_analysis
 
     store = LineageStore(Path(workspace))
     impact = get_impact_analysis(store, path)
@@ -329,7 +329,7 @@ def lineage_init(scan_existing: bool, workspace: str) -> None:
         sunwell lineage init
         sunwell lineage init --scan
     """
-    from sunwell.lineage import LineageStore
+    from sunwell.memory.lineage import LineageStore
 
     ws_path = Path(workspace)
     store = LineageStore(ws_path)
@@ -365,7 +365,7 @@ def lineage_sync(mark_human: bool, json_output: bool, workspace: str) -> None:
     """
     import json
 
-    from sunwell.lineage import HumanEditDetector, LineageStore
+    from sunwell.memory.lineage import HumanEditDetector, LineageStore
 
     store = LineageStore(Path(workspace))
     detector = HumanEditDetector(store)
@@ -407,7 +407,7 @@ def lineage_stats(json_output: bool, workspace: str) -> None:
     """
     import json
 
-    from sunwell.lineage import LineageStore
+    from sunwell.memory.lineage import LineageStore
 
     store = LineageStore(Path(workspace))
 

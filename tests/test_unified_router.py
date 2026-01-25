@@ -9,12 +9,12 @@ import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from sunwell.routing.unified import (
+from sunwell.planning.routing.unified import (
     UnifiedRouter,
     create_unified_router,
     UNIFIED_ROUTER_PROMPT,
 )
-from sunwell.routing import (
+from sunwell.planning.routing import (
     RoutingDecision,
     Intent,
     Complexity,

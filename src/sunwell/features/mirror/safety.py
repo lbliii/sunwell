@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.mirror.proposals import Proposal
+    from sunwell.features.mirror.proposals import Proposal
 
 
 # Modules that cannot be modified (hardcoded safety)
@@ -161,7 +161,7 @@ class SafetyChecker:
             return False, "Application rate limit exceeded. Wait before applying more proposals."
 
         # Verify the proposal was properly approved
-        from sunwell.mirror.proposals import ProposalStatus
+        from sunwell.features.mirror.proposals import ProposalStatus
         if proposal.status != ProposalStatus.APPROVED:
             return False, f"Proposal must be APPROVED before application. Current: {proposal.status.value}"
 

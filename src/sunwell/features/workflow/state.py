@@ -17,7 +17,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from sunwell.workflow.types import (
+from sunwell.features.workflow.types import (
     WorkflowChain,
     WorkflowExecution,
     WorkflowStepResult,

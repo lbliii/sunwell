@@ -41,7 +41,7 @@ from sunwell.vortex import (
     solve,
     format_result,
 )
-from sunwell.vortex.signals import (
+from sunwell.features.vortex.signals import (
     parse_signal,
     parse_selection,
     generate_signal,
@@ -49,7 +49,7 @@ from sunwell.vortex.signals import (
     SIGNAL_PROMPT,
     REACT_PROMPT,
 )
-from sunwell.vortex.locality import (
+from sunwell.features.vortex.locality import (
     select_best_signal_per_island,
     merge_island_signals,
 )

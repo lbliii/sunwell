@@ -7,7 +7,7 @@ can be previewed.
 import subprocess
 from typing import Any
 
-from sunwell.project.intent_types import (
+from sunwell.knowledge.project.intent_types import (
     Prerequisite,
     PreviewType,
     ProjectAnalysis,

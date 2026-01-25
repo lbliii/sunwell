@@ -8,8 +8,8 @@ if TYPE_CHECKING:
     from sunwell.extractors.topology_extractor import TopologyExtractor
     from sunwell.hierarchical.chunks import Chunk, ChunkSummary
     from sunwell.hierarchical.config import ChunkConfig
-    from sunwell.simulacrum.hierarchical.chunk_manager import ChunkManager
-    from sunwell.simulacrum.topology.unified_store import UnifiedMemoryStore
+    from sunwell.memory.simulacrum.hierarchical.chunk_manager import ChunkManager
+    from sunwell.memory.simulacrum.topology.unified_store import UnifiedMemoryStore
 
 
 def turns_to_text(chunk: "Chunk | ChunkSummary") -> str:

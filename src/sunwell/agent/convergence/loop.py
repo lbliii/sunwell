@@ -33,7 +33,7 @@ from sunwell.agent.events import (
 )
 from sunwell.agent.gates import GateType
 from sunwell.agent.validation import Artifact, ValidationError
-from sunwell.convergence.types import (
+from sunwell.agent.convergence.types import (
     ConvergenceConfig,
     ConvergenceIteration,
     ConvergenceResult,
@@ -508,7 +508,7 @@ class ConvergenceLoop:
         import hashlib
 
         from sunwell.recovery import ArtifactStatus, RecoveryManager, RecoveryState
-        from sunwell.recovery.types import RecoveryArtifact
+        from sunwell.agent.recovery.types import RecoveryArtifact
 
         if not self.goal:
             return  # No goal, can't create recovery

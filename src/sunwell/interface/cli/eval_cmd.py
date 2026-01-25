@@ -199,7 +199,7 @@ def eval_cmd(
 
 def _list_available_tasks() -> None:
     """List available evaluation tasks."""
-    from sunwell.eval.tasks import FULL_STACK_TASKS
+    from sunwell.benchmark.eval.tasks import FULL_STACK_TASKS
 
     console.print("\n[bold]Available Evaluation Tasks:[/bold]\n")
 
@@ -217,7 +217,7 @@ def _list_available_tasks() -> None:
 
 def _show_history(json_output: bool) -> None:
     """Show evaluation history."""
-    from sunwell.eval.store import EvaluationStore
+    from sunwell.benchmark.eval.store import EvaluationStore
 
     store = EvaluationStore()
     summaries = store.load_summaries(limit=20)
@@ -284,7 +284,7 @@ def _show_history(json_output: bool) -> None:
 
 def _show_stats(json_output: bool) -> None:
     """Show aggregate statistics."""
-    from sunwell.eval.store import EvaluationStore
+    from sunwell.benchmark.eval.store import EvaluationStore
 
     store = EvaluationStore()
     stats = store.aggregate_stats()
@@ -366,9 +366,9 @@ async def _run_evaluation(
     """Run evaluation."""
     import sys
 
-    from sunwell.cli.helpers import resolve_model
-    from sunwell.config import get_config
-    from sunwell.eval import (
+    from sunwell.interface.generative.cli.helpers import resolve_model
+    from sunwell.foundation.config import get_config
+    from sunwell.benchmark.eval import (
         EvaluationError,
         EvaluationStore,
         FullStackEvaluator,
@@ -376,9 +376,9 @@ async def _run_evaluation(
         SunwellFullStackExecutor,
         get_eval_task,
     )
-    from sunwell.eval.evaluator import compute_improvement, determine_winner
-    from sunwell.eval.store import EvaluationRun
-    from sunwell.eval.types import EvaluationDetails
+    from sunwell.benchmark.eval.evaluator import compute_improvement, determine_winner
+    from sunwell.benchmark.eval.store import EvaluationRun
+    from sunwell.benchmark.eval.types import EvaluationDetails
 
     # Resolve model
     config = get_config()
@@ -732,15 +732,15 @@ async def _run_evaluation_streaming(
         """Emit NDJSON line."""
         print(json.dumps(data), flush=True)
 
-    from sunwell.cli.helpers import resolve_model
-    from sunwell.config import get_config
-    from sunwell.eval import (
+    from sunwell.interface.generative.cli.helpers import resolve_model
+    from sunwell.foundation.config import get_config
+    from sunwell.benchmark.eval import (
         FullStackEvaluator,
         SingleShotExecutor,
         SunwellFullStackExecutor,
         get_eval_task,
     )
-    from sunwell.eval.evaluator import compute_improvement, determine_winner
+    from sunwell.benchmark.eval.evaluator import compute_improvement, determine_winner
 
     # Resolve model
     config = get_config()

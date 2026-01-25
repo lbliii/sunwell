@@ -3,6 +3,6 @@
 This package contains all CLI commands, organized by functionality.
 """
 
-from sunwell.cli.main import cli_entrypoint, main
+from sunwell.interface.generative.cli.main import cli_entrypoint, main
 
 __all__ = ["cli_entrypoint", "main"]

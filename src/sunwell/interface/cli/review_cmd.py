@@ -18,7 +18,7 @@ from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.table import Table
 
-from sunwell.cli.theme import create_sunwell_console
+from sunwell.interface.generative.cli.theme import create_sunwell_console
 
 console = create_sunwell_console()
 
@@ -102,7 +102,7 @@ def review(
 
 async def _list_recoveries(recovery_dir: Path, verbose: bool) -> None:
     """List all pending recoveries."""
-    from sunwell.recovery import RecoveryManager
+    from sunwell.agent.recovery import RecoveryManager
 
     manager = RecoveryManager(recovery_dir)
     pending = manager.list_pending()
@@ -147,7 +147,7 @@ async def _interactive_review(
     verbose: bool,
 ) -> None:
     """Interactive review of pending recoveries."""
-    from sunwell.recovery import RecoveryManager
+    from sunwell.agent.recovery import RecoveryManager
 
     manager = RecoveryManager(recovery_dir)
     pending = manager.list_pending()
@@ -172,7 +172,7 @@ async def _review_recovery(
     verbose: bool,
 ) -> None:
     """Review a specific recovery with interactive menu."""
-    from sunwell.recovery import RecoveryManager
+    from sunwell.agent.recovery import RecoveryManager
 
     manager = RecoveryManager(recovery_dir)
 
@@ -283,8 +283,8 @@ async def _auto_fix_recovery(
     verbose: bool,
 ) -> None:
     """Retry with agent using healing context."""
-    from sunwell.cli.helpers import resolve_model
-    from sunwell.recovery import RecoveryManager, build_healing_context
+    from sunwell.interface.generative.cli.helpers import resolve_model
+    from sunwell.agent.recovery import RecoveryManager, build_healing_context
 
     manager = RecoveryManager(recovery_dir)
     state = manager.load(recovery_id)
@@ -324,7 +324,7 @@ async def _auto_fix_recovery(
         RunOptions,
         create_renderer,
     )
-    from sunwell.context.session import SessionContext
+    from sunwell.agent.context.session import SessionContext
     from sunwell.memory.persistent import PersistentMemory
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust
@@ -361,7 +361,7 @@ async def _auto_fix_recovery(
 
 async def _skip_recovery(recovery_dir: Path, recovery_id: str, verbose: bool) -> None:
     """Write only passed files, skip failed ones."""
-    from sunwell.recovery import RecoveryManager
+    from sunwell.agent.recovery import RecoveryManager
 
     manager = RecoveryManager(recovery_dir)
     state = manager.load(recovery_id)
@@ -397,7 +397,7 @@ async def _skip_recovery(recovery_dir: Path, recovery_id: str, verbose: bool) ->
 
 async def _abort_recovery(recovery_dir: Path, recovery_id: str) -> None:
     """Delete recovery state."""
-    from sunwell.recovery import RecoveryManager
+    from sunwell.agent.recovery import RecoveryManager
 
     manager = RecoveryManager(recovery_dir)
 
@@ -418,7 +418,7 @@ async def _abort_recovery(recovery_dir: Path, recovery_id: str) -> None:
 
 async def _show_errors(recovery_dir: Path, recovery_id: str) -> None:
     """Show detailed errors for a recovery."""
-    from sunwell.recovery import RecoveryManager
+    from sunwell.agent.recovery import RecoveryManager
 
     manager = RecoveryManager(recovery_dir)
     state = manager.load(recovery_id)
@@ -440,7 +440,7 @@ async def _show_errors(recovery_dir: Path, recovery_id: str) -> None:
 
 async def _show_context(recovery_dir: Path, recovery_id: str) -> None:
     """Show healing context that would be sent to agent."""
-    from sunwell.recovery import RecoveryManager, build_healing_context
+    from sunwell.agent.recovery import RecoveryManager, build_healing_context
 
     manager = RecoveryManager(recovery_dir)
     state = manager.load(recovery_id)

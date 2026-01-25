@@ -10,8 +10,8 @@ to preserve semantic meaning:
 
 from pathlib import Path
 
-from sunwell.indexing.project_type import ProjectType, detect_file_type
-from sunwell.workspace.indexer import CodeChunk
+from sunwell.knowledge.indexing.project_type import ProjectType, detect_file_type
+from sunwell.knowledge.workspace.indexer import CodeChunk
 
 
 class ChunkerRegistry:
@@ -32,7 +32,7 @@ class ChunkerRegistry:
     def python_chunker(self):
         """Get Python AST chunker (lazy-loaded)."""
         if self._python is None:
-            from sunwell.indexing.chunkers.python_ast import PythonASTChunker
+            from sunwell.knowledge.indexing.chunkers.python_ast import PythonASTChunker
 
             self._python = PythonASTChunker()
         return self._python
@@ -41,7 +41,7 @@ class ChunkerRegistry:
     def prose_chunker(self):
         """Get prose chunker (lazy-loaded)."""
         if self._prose is None:
-            from sunwell.indexing.chunkers.prose import ProseChunker
+            from sunwell.knowledge.indexing.chunkers.prose import ProseChunker
 
             self._prose = ProseChunker()
         return self._prose
@@ -50,7 +50,7 @@ class ChunkerRegistry:
     def screenplay_chunker(self):
         """Get screenplay chunker (lazy-loaded)."""
         if self._screenplay is None:
-            from sunwell.indexing.chunkers.screenplay import ScreenplayChunker
+            from sunwell.knowledge.indexing.chunkers.screenplay import ScreenplayChunker
 
             self._screenplay = ScreenplayChunker()
         return self._screenplay

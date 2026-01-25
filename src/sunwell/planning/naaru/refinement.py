@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.naaru.diversity import Candidate
+    from sunwell.planning.naaru.diversity import Candidate
 
 
 @dataclass(frozen=True, slots=True)

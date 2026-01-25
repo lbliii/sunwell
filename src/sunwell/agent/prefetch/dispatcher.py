@@ -102,7 +102,7 @@ async def analyze_briefing_for_prefetch(
         )
 
     # Otherwise, use routing heuristics + memory
-    from sunwell.routing.briefing_router import (
+    from sunwell.planning.routing.briefing_router import (
         predict_skills_from_briefing,
         suggest_lens_from_briefing,
     )

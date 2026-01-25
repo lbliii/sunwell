@@ -7,7 +7,7 @@ When models agree, we're confident. When they disagree, we escalate or
 fall back to a safe default.
 
 Example:
-    >>> from sunwell.naaru.experiments import consensus_classify
+    >>> from sunwell.planning.naaru.experiments import consensus_classify
     >>>
     >>> result = await consensus_classify(
     ...     goal="Build a REST API with auth",
@@ -98,7 +98,7 @@ async def consensus_classify(
         ConsensusResult with classification and vote distribution
     """
     from sunwell.routing import UnifiedRouter
-    from sunwell.routing.unified import Complexity
+    from sunwell.planning.routing.unified import Complexity
 
     router = UnifiedRouter(model=model)
 

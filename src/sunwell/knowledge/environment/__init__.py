@@ -36,23 +36,23 @@ Usage:
     save_environment(env)
 """
 
-from sunwell.environment.discovery import (
+from sunwell.knowledge.environment.discovery import (
     create_project_entry_from_path,
     discover_projects_in_root,
     discover_roots,
 )
-from sunwell.environment.model import (
+from sunwell.knowledge.environment.model import (
     Pattern,
     ProjectEntry,
     ProjectRoot,
     UserEnvironment,
 )
-from sunwell.environment.patterns import (
+from sunwell.knowledge.environment.patterns import (
     extract_patterns,
     get_patterns_for_project,
     suggest_patterns_for_new_project,
 )
-from sunwell.environment.references import (
+from sunwell.knowledge.environment.references import (
     add_reference,
     check_reference_health,
     find_similar_references,
@@ -61,7 +61,7 @@ from sunwell.environment.references import (
     remove_reference,
     suggest_references,
 )
-from sunwell.environment.storage import (
+from sunwell.knowledge.environment.storage import (
     clear_cache,
     environment_exists,
     export_environment,

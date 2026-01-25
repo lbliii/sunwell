@@ -21,8 +21,8 @@ from typing import TYPE_CHECKING
 import click
 from rich.table import Table
 
-from sunwell.backlog.manager import BacklogManager
-from sunwell.cli.theme import create_sunwell_console
+from sunwell.features.backlog.manager import BacklogManager
+from sunwell.interface.generative.cli.theme import create_sunwell_console
 
 if TYPE_CHECKING:
     pass
@@ -212,10 +212,10 @@ async def _run_backlog_goal(
     json_output: bool,
 ) -> None:
     """Execute a specific backlog goal via ExecutionManager (RFC-094)."""
-    from sunwell.cli.helpers import resolve_model
-    from sunwell.config import get_config
-    from sunwell.execution import ExecutionManager, StdoutEmitter
-    from sunwell.naaru.planners import ArtifactPlanner
+    from sunwell.interface.generative.cli.helpers import resolve_model
+    from sunwell.foundation.config import get_config
+    from sunwell.agent.execution import ExecutionManager, StdoutEmitter
+    from sunwell.planning.naaru.planners import ArtifactPlanner
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust
 
@@ -330,7 +330,7 @@ async def _run_backlog_goal(
     planner = ArtifactPlanner(model=synthesis_model)
 
     # RFC-117: Try to resolve project context
-    from sunwell.project import ProjectResolutionError, resolve_project
+    from sunwell.knowledge.project import ProjectResolutionError, resolve_project
 
     project = None
     try:
@@ -407,7 +407,7 @@ def execute(
 async def _execute_parallel(num_workers: int, auto: bool, dry_run: bool) -> None:
     """Execute backlog with parallel workers."""
     # Import here to avoid circular imports
-    from sunwell.cli.workers_cmd import _start_workers
+    from sunwell.interface.generative.cli.workers_cmd import _start_workers
 
     await _start_workers(num_workers, category=None, dry_run=dry_run, auto=auto)
 
@@ -458,7 +458,7 @@ async def _run_autonomous(
     dry_run: bool,
 ) -> None:
     """Run autonomous backlog with guardrails."""
-    from sunwell.guardrails import (
+    from sunwell.quality.guardrails import (
         GuardrailConfig,
         GuardrailSystem,
         ScopeLimits,

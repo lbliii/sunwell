@@ -6,9 +6,9 @@ import json
 import re
 from collections import deque
 
-from sunwell.naaru.core.bus import MessageType, NaaruRegion
-from sunwell.naaru.core.worker import RegionWorker
-from sunwell.types.config import NaaruConfig
+from sunwell.planning.naaru.core.bus import MessageType, NaaruRegion
+from sunwell.planning.naaru.core.worker import RegionWorker
+from sunwell.foundation.types.config import NaaruConfig
 
 
 class ValidationWorker(RegionWorker):
@@ -43,7 +43,7 @@ class ValidationWorker(RegionWorker):
         self._discernment = None
         if self.config.discernment:
             try:
-                from sunwell.naaru.discernment import Discernment
+                from sunwell.planning.naaru.discernment import Discernment
                 self._discernment = Discernment()
             except ImportError:
                 pass
@@ -125,7 +125,7 @@ class ValidationWorker(RegionWorker):
 
     async def _validate_tiered(self, proposal: dict) -> tuple[bool, str, float, list[str]]:
         """Tiered validation: FunctionGemma first, escalate if uncertain."""
-        from sunwell.naaru.discernment import DiscernmentVerdict
+        from sunwell.planning.naaru.discernment import DiscernmentVerdict
 
         result = await self._discernment.evaluate(proposal)
 

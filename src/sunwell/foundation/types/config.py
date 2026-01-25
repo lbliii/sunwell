@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from sunwell.agent.events import AgentEvent
-    from sunwell.types.model_size import ModelSize
+    from sunwell.foundation.types.model_size import ModelSize
 
 
 @dataclass(frozen=True, slots=True)
@@ -456,7 +456,7 @@ class NaaruConfig:
         Returns:
             NaaruConfig tuned for the model size
         """
-        from sunwell.types.model_size import ModelSize
+        from sunwell.foundation.types.model_size import ModelSize
 
         presets: dict[ModelSize, dict[str, Any]] = {
             ModelSize.TINY: {

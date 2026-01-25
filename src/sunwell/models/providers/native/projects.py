@@ -7,7 +7,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from sunwell.providers.base import Project, ProjectsProvider
+from sunwell.models.providers.base import Project, ProjectsProvider
 
 
 class SunwellProjects(ProjectsProvider):

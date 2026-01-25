@@ -9,7 +9,7 @@ from pathlib import Path
 import click
 from rich.table import Table
 
-from sunwell.cli.theme import create_sunwell_console
+from sunwell.interface.generative.cli.theme import create_sunwell_console
 
 console = create_sunwell_console()
 
@@ -50,7 +50,7 @@ def evolve(min_confidence: float, apply: bool) -> None:
 
 async def _evolve_guards(min_confidence: float, apply: bool) -> None:
     """Get and display guard evolution suggestions."""
-    from sunwell.guardrails.classifier import SmartActionClassifier
+    from sunwell.quality.guardrails.classifier import SmartActionClassifier
 
     # Create classifier with learning enabled
     classifier = SmartActionClassifier(
@@ -153,8 +153,8 @@ def feedback(rule_id: str, false_positive: bool, correct: bool, comment: str | N
         console.print("[void.purple]✗ Must specify --false-positive or --correct[/void.purple]")
         return
 
-    from sunwell.guardrails.classifier import SmartActionClassifier
-    from sunwell.guardrails.types import GuardViolation, ViolationOutcome
+    from sunwell.quality.guardrails.classifier import SmartActionClassifier
+    from sunwell.quality.guardrails.types import GuardViolation, ViolationOutcome
 
     classifier = SmartActionClassifier(
         enable_learning=True,
@@ -197,7 +197,7 @@ def stats(as_json: bool) -> None:
         sunwell guard stats
         sunwell guard stats --json
     """
-    from sunwell.guardrails.classifier import SmartActionClassifier
+    from sunwell.quality.guardrails.classifier import SmartActionClassifier
 
     classifier = SmartActionClassifier(
         enable_learning=True,

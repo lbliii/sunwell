@@ -48,12 +48,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from sunwell.mirror import MirrorHandler
-from sunwell.naaru.core import MessageBus, MessageType, NaaruMessage, NaaruRegion, RegionWorker
-from sunwell.naaru.events import NaaruEventEmitter
-from sunwell.naaru.execution import ExecutionCoordinator
-from sunwell.naaru.learnings import LearningExtractor
-from sunwell.naaru.workers import (
+from sunwell.features.mirror import MirrorHandler
+from sunwell.planning.naaru.core import MessageBus, MessageType, NaaruMessage, NaaruRegion, RegionWorker
+from sunwell.planning.naaru.events import NaaruEventEmitter
+from sunwell.planning.naaru.execution import ExecutionCoordinator
+from sunwell.planning.naaru.learnings import LearningExtractor
+from sunwell.planning.naaru.workers import (
     AnalysisWorker,
     CognitiveRoutingWorker,
     ExecutiveWorker,
@@ -62,7 +62,7 @@ from sunwell.naaru.workers import (
     ToolRegionWorker,
     ValidationWorker,
 )
-from sunwell.types.config import NaaruConfig
+from sunwell.foundation.types.config import NaaruConfig
 
 
 @dataclass(frozen=True, slots=True)
@@ -202,7 +202,7 @@ class Naaru:
             return None
 
         if self._integration_verifier is None:
-            from sunwell.integration import IntegrationVerifier
+            from sunwell.features.external.integration import IntegrationVerifier
 
             self._integration_verifier = IntegrationVerifier(
                 project_root=self.workspace,

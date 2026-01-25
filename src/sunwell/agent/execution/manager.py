@@ -17,14 +17,14 @@ from typing import TYPE_CHECKING, Any
 
 from sunwell.agent.events.schemas import EventEmitter
 from sunwell.agent.events import AgentEvent, EventType
-from sunwell.backlog.goals import Goal, GoalResult, GoalScope
-from sunwell.backlog.manager import BacklogManager
-from sunwell.execution.context import BacklogContext
+from sunwell.features.backlog.goals import Goal, GoalResult, GoalScope
+from sunwell.features.backlog.manager import BacklogManager
+from sunwell.agent.execution.context import BacklogContext
 from sunwell.incremental import ExecutionCache, IncrementalExecutor, IncrementalResult
-from sunwell.naaru.persistence import hash_goal
+from sunwell.planning.naaru.persistence import hash_goal
 
 if TYPE_CHECKING:
-    from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
+    from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
 
 
 @dataclass(frozen=True, slots=True)
@@ -472,7 +472,7 @@ class ExecutionManager:
     ) -> int:
         """Extract learnings from execution result."""
         try:
-            from sunwell.simulacrum.extractors.extractor import auto_extract_learnings
+            from sunwell.memory.simulacrum.extractors.extractor import auto_extract_learnings
         except ImportError:
             return 0
 

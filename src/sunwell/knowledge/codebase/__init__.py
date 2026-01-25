@@ -14,27 +14,27 @@ Components:
 See: RFC-045-project-intelligence.md
 """
 
-from sunwell.intelligence.codebase import (
+from sunwell.knowledge.codebase.codebase import (
     CodebaseAnalyzer,
     CodebaseGraph,
     CodeLocation,
     CodePath,
 )
-from sunwell.intelligence.context import (
+from sunwell.knowledge.codebase.context import (
     ProjectContext,
     ProjectIntelligence,
 )
-from sunwell.intelligence.decisions import (
+from sunwell.knowledge.codebase.decisions import (
     Decision,
     DecisionMemory,
     RejectedOption,
 )
-from sunwell.intelligence.extractor import IntelligenceExtractor
-from sunwell.intelligence.failures import (
+from sunwell.knowledge.codebase.extractor import IntelligenceExtractor
+from sunwell.knowledge.codebase.failures import (
     FailedApproach,
     FailureMemory,
 )
-from sunwell.intelligence.patterns import (
+from sunwell.knowledge.codebase.patterns import (
     PatternProfile,
     learn_from_acceptance,
     learn_from_edit,

@@ -5,7 +5,7 @@ Sunwell-native implementations. External integrations (Google Calendar,
 Todoist, Obsidian) can be added later via these interfaces.
 """
 
-from sunwell.providers.base import (
+from sunwell.models.providers.base import (
     Bookmark,
     BookmarksProvider,
     CalendarEvent,
@@ -30,7 +30,7 @@ from sunwell.providers.base import (
     ProjectsProvider,
     Serializable,
 )
-from sunwell.providers.registry import ProviderRegistry
+from sunwell.models.providers.registry import ProviderRegistry
 
 __all__ = [
     # Base interfaces

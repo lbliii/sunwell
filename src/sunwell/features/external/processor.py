@@ -7,12 +7,12 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sunwell.backlog.goals import Goal, GoalScope
-from sunwell.external.context import ExternalContext
-from sunwell.external.policy import ExternalGoalPolicy
-from sunwell.external.ratelimit import RateLimiter
-from sunwell.external.store import ExternalEventStore
-from sunwell.external.types import (
+from sunwell.features.backlog.goals import Goal, GoalScope
+from sunwell.features.external.context import ExternalContext
+from sunwell.features.external.policy import ExternalGoalPolicy
+from sunwell.features.external.ratelimit import RateLimiter
+from sunwell.features.external.store import ExternalEventStore
+from sunwell.features.external.types import (
     EventFeedback,
     EventSource,
     EventType,
@@ -20,8 +20,8 @@ from sunwell.external.types import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.backlog.manager import BacklogManager
-    from sunwell.external.adapters.base import EventAdapter
+    from sunwell.features.backlog.manager import BacklogManager
+    from sunwell.features.external.adapters.base import EventAdapter
 
 logger = logging.getLogger(__name__)
 

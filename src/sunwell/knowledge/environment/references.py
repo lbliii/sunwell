@@ -6,7 +6,7 @@ References are suggested based on health scores and can be manually set.
 
 from pathlib import Path
 
-from sunwell.environment.model import ProjectEntry, UserEnvironment
+from sunwell.knowledge.environment.model import ProjectEntry, UserEnvironment
 
 # =============================================================================
 # Constants

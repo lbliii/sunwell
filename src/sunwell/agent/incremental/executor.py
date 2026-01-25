@@ -25,11 +25,11 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.incremental.cache import ExecutionCache, ExecutionStatus
-from sunwell.incremental.hasher import compute_input_hash, compute_spec_hash
+from sunwell.agent.incremental.cache import ExecutionCache, ExecutionStatus
+from sunwell.agent.incremental.hasher import compute_input_hash, compute_spec_hash
 
 if TYPE_CHECKING:
-    from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
+    from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
 
 # Type alias for artifact creation function
 CreateArtifactFn = Callable[["ArtifactSpec"], Awaitable[str]]

@@ -22,11 +22,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sunwell.backlog.goals import Goal, GoalGenerator, GoalPolicy, GoalResult, GoalScope
-from sunwell.backlog.signals import SignalExtractor
+from sunwell.features.backlog.goals import Goal, GoalGenerator, GoalPolicy, GoalResult, GoalScope
+from sunwell.features.backlog.signals import SignalExtractor
 
 if TYPE_CHECKING:
-    from sunwell.intelligence.context import ProjectContext
+    from sunwell.knowledge.codebase.context import ProjectContext
 
 
 @dataclass(slots=True)

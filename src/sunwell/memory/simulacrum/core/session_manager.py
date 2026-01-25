@@ -6,10 +6,10 @@ from pathlib import Path
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from sunwell.simulacrum.core.dag import ConversationDAG
+from sunwell.memory.simulacrum.core.dag import ConversationDAG
 
 if TYPE_CHECKING:
-    from sunwell.simulacrum.topology.unified_store import UnifiedMemoryStore
+    from sunwell.memory.simulacrum.topology.unified_store import UnifiedMemoryStore
 
 
 class SessionManager:

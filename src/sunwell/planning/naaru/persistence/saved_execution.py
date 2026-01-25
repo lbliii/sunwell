@@ -4,10 +4,10 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from sunwell.naaru.artifacts import ArtifactGraph
-from sunwell.naaru.executor import ArtifactResult, ExecutionResult
-from sunwell.naaru.persistence.hashing import hash_goal
-from sunwell.naaru.persistence.types import ArtifactCompletion, ExecutionStatus
+from sunwell.planning.naaru.artifacts import ArtifactGraph
+from sunwell.planning.naaru.executor import ArtifactResult, ExecutionResult
+from sunwell.planning.naaru.persistence.hashing import hash_goal
+from sunwell.planning.naaru.persistence.types import ArtifactCompletion, ExecutionStatus
 
 
 PERSISTENCE_VERSION = "1.0"
@@ -182,7 +182,7 @@ class SavedExecution:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> SavedExecution:
         """Create from dict."""
-        from sunwell.naaru.artifacts import ArtifactGraph
+        from sunwell.planning.naaru.artifacts import ArtifactGraph
 
         graph = ArtifactGraph.from_dict(data["graph"])
         execution = data.get("execution", {})

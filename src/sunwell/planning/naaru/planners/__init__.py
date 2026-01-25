@@ -27,24 +27,24 @@ RFC-116 Harmonic Scoring v2:
 """
 
 # RFC-067: Integration-Aware Planning (canonical: sunwell.integration)
-from sunwell.integration import (
+from sunwell.features.external.integration import (
     decompose_with_wiring,
 )
-from sunwell.naaru.planners.agent import AgentPlanner
-from sunwell.naaru.planners.artifact import ArtifactPlanner
-from sunwell.naaru.planners.expertise_aware import (
+from sunwell.planning.naaru.planners.agent import AgentPlanner
+from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
+from sunwell.planning.naaru.planners.expertise_aware import (
     ExpertiseAwareArtifactPlanner,
     create_expertise_aware_planner,
 )
-from sunwell.naaru.planners.harmonic import (
+from sunwell.planning.naaru.planners.harmonic import (
     HarmonicPlanner,
     PlanMetrics,
     PlanMetricsV2,
     ScoringVersion,
     VarianceStrategy,
 )
-from sunwell.naaru.planners.protocol import PlanningError, PlanningStrategy, TaskPlanner
-from sunwell.naaru.planners.self_improvement import SelfImprovementPlanner
+from sunwell.planning.naaru.planners.protocol import PlanningError, PlanningStrategy, TaskPlanner
+from sunwell.planning.naaru.planners.self_improvement import SelfImprovementPlanner
 
 __all__ = [
     "TaskPlanner",

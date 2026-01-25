@@ -19,6 +19,9 @@ from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID, uuid4
 
+from sunwell.foundation.utils.strings import slugify
+from sunwell.foundation.utils.validation import validate_slug as _validate_slug
+
 ResourceType = Literal["lens", "binding", "session"]
 Namespace = Literal["builtin", "user", "project", "global"]
 
@@ -303,32 +306,6 @@ class ResourceIdentity:
         )
 
 
-def slugify(name: str) -> str:
-    """Convert a display name to a filesystem-safe slug.
-
-    Args:
-        name: Human-readable name
-
-    Returns:
-        Lowercase slug with hyphens
-    """
-    slug = name.lower().strip()
-    slug = re.sub(r"[^a-z0-9]+", "-", slug)
-    slug = slug.strip("-")
-    return slug or "unnamed"
-
-
-def validate_slug(slug: str) -> None:
-    """Validate a slug for path traversal attacks and format.
-
-    Args:
-        slug: Slug to validate
-
-    Raises:
-        ValueError: If slug is invalid
-    """
-    if ".." in slug or "/" in slug or "\\" in slug or "\x00" in slug:
-        raise ValueError(f"Invalid slug (path traversal): {slug}")
-
-    if not _SLUG_PATTERN.match(slug):
-        raise ValueError(f"Invalid slug format (use lowercase alphanumeric with hyphens): {slug}")
+# Re-export utilities for backward compatibility
+# These are now in foundation.utils but kept here for existing imports
+validate_slug = _validate_slug

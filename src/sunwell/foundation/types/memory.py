@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.simulacrum.core.turn import Learning, Turn
+    from sunwell.memory.simulacrum.core.turn import Learning, Turn
 
 
 @dataclass(frozen=True, slots=True)

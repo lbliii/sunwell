@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sunwell.core.heuristic import Identity as LensIdentity
-    from sunwell.core.lens import Lens
+    from sunwell.foundation.core.lens import Lens
     from sunwell.identity.store import Identity as UserIdentity
     from sunwell.identity.store import IdentityStore
 

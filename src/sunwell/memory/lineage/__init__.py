@@ -23,21 +23,21 @@ Example:
     >>> print(lineage.artifact_id)
 """
 
-from sunwell.lineage.dependencies import (
+from sunwell.memory.lineage.dependencies import (
     detect_imports,
     detect_language,
     get_impact_analysis,
     update_dependency_graph,
 )
-from sunwell.lineage.human_detection import HumanEditDetector
-from sunwell.lineage.listener import LineageEventListener, create_lineage_listener
-from sunwell.lineage.models import (
+from sunwell.memory.lineage.human_detection import HumanEditDetector
+from sunwell.memory.lineage.listener import LineageEventListener, create_lineage_listener
+from sunwell.memory.lineage.models import (
     ArtifactEdit,
     ArtifactLineage,
     compute_content_hash,
     generate_artifact_id,
 )
-from sunwell.lineage.store import LineageStore
+from sunwell.memory.lineage.store import LineageStore
 
 __all__ = [
     # Models

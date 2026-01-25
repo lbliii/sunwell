@@ -7,14 +7,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sunwell.naaru.types import (
+from sunwell.planning.naaru.types import (
     Opportunity,
     OpportunityCategory,
     RiskLevel,
 )
 
 if TYPE_CHECKING:
-    from sunwell.mirror import MirrorHandler
+    from sunwell.features.mirror import MirrorHandler
 
 
 @dataclass
@@ -77,7 +77,7 @@ class OpportunityDiscoverer:
         opportunities = []
 
         # Check what error patterns the FailureAnalyzer already knows
-        from sunwell.mirror.analysis import FailureAnalyzer
+        from sunwell.features.mirror.analysis import FailureAnalyzer
         analyzer = FailureAnalyzer()
         known_patterns = set(analyzer.known_patterns.keys())
 
@@ -182,7 +182,7 @@ class OpportunityDiscoverer:
 
         for module in modules:
             try:
-                from sunwell.mirror.introspection import SourceIntrospector
+                from sunwell.features.mirror.introspection import SourceIntrospector
                 introspector = SourceIntrospector(self.workspace)
                 structure = introspector.get_module_structure(module)
 

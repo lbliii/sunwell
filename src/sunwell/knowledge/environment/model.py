@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from sunwell.types.protocol import DictSerializable
+from sunwell.foundation.types.protocol import DictSerializable
 
 __all__ = ["DictSerializable", "ProjectRoot", "ProjectEntry"]
 

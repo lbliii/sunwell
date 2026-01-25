@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
-from sunwell.core.errors import ErrorCode, SunwellError, from_anthropic_error
+from sunwell.foundation.errors import ErrorCode, SunwellError, from_anthropic_error
 from sunwell.models.protocol import (
     GenerateOptions,
     GenerateResult,

@@ -19,9 +19,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.core.lens import Lens
+    from sunwell.foundation.core.lens import Lens
 
-from sunwell.naaru.expertise.classifier import Domain
+from sunwell.planning.naaru.expertise.classifier import Domain
 
 
 class LensSource(Enum):
@@ -206,9 +206,9 @@ class LensDiscovery:
         """
         try:
             from sunwell.core.types import LensReference
-            from sunwell.fount.client import FountClient
-            from sunwell.fount.resolver import LensResolver
-            from sunwell.schema.loader import LensLoader
+            from sunwell.features.fount.client import FountClient
+            from sunwell.features.fount.resolver import LensResolver
+            from sunwell.foundation.schema.loader import LensLoader
 
             # Create loader chain
             fount = FountClient()

@@ -9,7 +9,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-from sunwell.bootstrap.types import (
+from sunwell.knowledge.bootstrap.types import (
     BlameRegion,
     BranchPatterns,
     CommitInfo,

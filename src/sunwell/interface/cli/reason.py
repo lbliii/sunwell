@@ -95,9 +95,9 @@ async def _decide(
     fast: bool = False,
 ) -> None:
     """Execute the decision."""
-    from sunwell.cli.helpers import resolve_model
-    from sunwell.config import get_config
-    from sunwell.reasoning import DecisionType, Reasoner
+    from sunwell.interface.generative.cli.helpers import resolve_model
+    from sunwell.foundation.config import get_config
+    from sunwell.planning.reasoning import DecisionType, Reasoner
 
     # Validate decision type
     try:
@@ -190,7 +190,7 @@ def calibration(show: bool, decision_type: str | None, output_json: bool) -> Non
         console.print("[yellow]Use --show to display calibration stats[/yellow]")
         return
 
-    from sunwell.reasoning import ConfidenceCalibrator
+    from sunwell.planning.reasoning import ConfidenceCalibrator
 
     # Load calibrator from default path
     calibrator_path = Path.cwd() / ".sunwell" / "reasoning" / "calibration.db"
@@ -275,7 +275,7 @@ def test(signal_type: str, file: str, content: str) -> None:
 @reason.command(name="types")
 def list_types() -> None:
     """List all available decision types."""
-    from sunwell.reasoning import DecisionType
+    from sunwell.planning.reasoning import DecisionType
 
     table = Table(title="Decision Types")
     table.add_column("Type", style="cyan")
@@ -316,7 +316,7 @@ def heuristic(decision_type: str, context: str) -> None:
     Example:
         sunwell reason heuristic severity_assessment -c '{"signal_type": "fixme_comment"}'
     """
-    from sunwell.reasoning import DecisionType
+    from sunwell.planning.reasoning import DecisionType
 
     try:
         dtype = DecisionType(decision_type)
@@ -331,7 +331,7 @@ def heuristic(decision_type: str, context: str) -> None:
         raise SystemExit(1) from None
 
     # Create reasoner without model to use fallbacks
-    from sunwell.reasoning.reasoner import Reasoner
+    from sunwell.planning.reasoning.reasoner import Reasoner
 
     # Create a mock model that always fails
     class NoOpModel:

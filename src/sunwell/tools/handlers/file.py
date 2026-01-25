@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 _MARKDOWN_FENCE_RE = re.compile(r"^```\w*\n", re.MULTILINE)
 
 if TYPE_CHECKING:
-    from sunwell.skills.sandbox import ScriptSandbox
+    from sunwell.planning.skills.sandbox import ScriptSandbox
 
 # Type for file event callbacks (RFC-121 lineage integration)
 FileEventCallback = Callable[[str, str, str, int, int], None]

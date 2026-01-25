@@ -7,7 +7,7 @@ Provides fully autonomous multi-agent workflows with:
 - Memory-informed prefetch for warm starts
 """
 
-from sunwell.autonomous.workflow import (
+from sunwell.features.autonomous.workflow import (
     AutonomousConfig,
     AutonomousState,
     autonomous_goal,

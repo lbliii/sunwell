@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from sunwell.server.routes._models import CamelModel
+from sunwell.interface.generative.server.routes._models import CamelModel
 
 # Pre-compiled regex for slug generation (avoid recompiling per call)
 _RE_SLUG_CHARS = re.compile(r"[^a-z0-9]+")
@@ -80,8 +80,8 @@ async def validate_project_path(request: ProjectPathRequest) -> ValidationResult
 
     Returns structured error with suggestion instead of raising.
     """
-    from sunwell.project.validation import ProjectValidationError, validate_workspace
-    from sunwell.workspace import default_workspace_root
+    from sunwell.knowledge.project.validation import ProjectValidationError, validate_workspace
+    from sunwell.knowledge.workspace import default_workspace_root
 
     path = Path(request.path).expanduser().resolve()
 
@@ -121,8 +121,8 @@ async def list_projects() -> dict[str, list[ProjectInfo]]:
     Returns projects ordered by last_used descending.
     Includes validity check so UI can warn about broken projects.
     """
-    from sunwell.project import ProjectRegistry
-    from sunwell.project.validation import validate_workspace
+    from sunwell.knowledge.project import ProjectRegistry
+    from sunwell.knowledge.project.validation import validate_workspace
 
     registry = ProjectRegistry()
     default_id = registry.default_project_id
@@ -169,9 +169,9 @@ async def create_project(request: CreateProjectRequest) -> CreateProjectResponse
     """
     import re
 
-    from sunwell.project import ProjectRegistry, init_project
-    from sunwell.project.registry import RegistryError
-    from sunwell.workspace import default_workspace_root
+    from sunwell.knowledge.project import ProjectRegistry, init_project
+    from sunwell.knowledge.project.registry import RegistryError
+    from sunwell.knowledge.workspace import default_workspace_root
 
     # Validate name
     name = request.name.strip()
@@ -269,8 +269,8 @@ async def get_default_project() -> dict[str, Any]:
 
     Returns project info if default is set and valid, null otherwise.
     """
-    from sunwell.project import ProjectRegistry
-    from sunwell.project.validation import validate_workspace
+    from sunwell.knowledge.project import ProjectRegistry
+    from sunwell.knowledge.project.validation import validate_workspace
 
     registry = ProjectRegistry()
     default = registry.get_default()
@@ -301,8 +301,8 @@ async def set_default_project(request: SetDefaultRequest) -> dict[str, Any]:
 
     Validates project exists in registry before setting.
     """
-    from sunwell.project import ProjectRegistry
-    from sunwell.project.registry import RegistryError
+    from sunwell.knowledge.project import ProjectRegistry
+    from sunwell.knowledge.project.registry import RegistryError
 
     registry = ProjectRegistry()
 
@@ -442,7 +442,7 @@ async def check_monorepo(request: MonorepoRequest) -> dict[str, Any]:
 async def analyze_project(request: AnalyzeRequest) -> dict[str, Any]:
     """Analyze project structure."""
     try:
-        from sunwell.project import ProjectAnalyzer
+        from sunwell.knowledge.project import ProjectAnalyzer
 
         path = Path(request.path).expanduser().resolve()
         if not path.exists():

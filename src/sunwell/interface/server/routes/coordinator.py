@@ -6,7 +6,7 @@ from typing import Any
 
 from fastapi import APIRouter
 
-from sunwell.server.routes._models import CamelModel
+from sunwell.interface.generative.server.routes._models import CamelModel
 
 router = APIRouter(prefix="/api/coordinator", tags=["coordinator"])
 
@@ -35,8 +35,8 @@ class PauseWorkerRequest(CamelModel):
 @router.get("/state")
 async def get_coordinator_state(path: str) -> dict[str, Any]:
     """Get coordinator state for UI."""
-    from sunwell.parallel.config import MultiInstanceConfig
-    from sunwell.parallel.coordinator import Coordinator
+    from sunwell.agent.parallel.config import MultiInstanceConfig
+    from sunwell.agent.parallel.coordinator import Coordinator
 
     project_path = Path(path).expanduser().resolve()
     if not project_path.exists():
@@ -88,8 +88,8 @@ async def start_workers(request: StartWorkersRequest) -> dict[str, Any]:
     """Start parallel workers."""
     import asyncio
 
-    from sunwell.parallel.config import MultiInstanceConfig
-    from sunwell.parallel.coordinator import Coordinator
+    from sunwell.agent.parallel.config import MultiInstanceConfig
+    from sunwell.agent.parallel.coordinator import Coordinator
 
     project_path = Path(request.project_path).expanduser().resolve()
     if not project_path.exists():
@@ -133,7 +133,7 @@ async def resume_worker(request: PauseWorkerRequest) -> dict[str, Any]:
 async def get_coordinator_state_dag(path: str) -> dict[str, Any]:
     """Get State DAG for brownfield scanning."""
     try:
-        from sunwell.analysis.state_dag import StateDagBuilder
+        from sunwell.knowledge.analysis.state_dag import StateDagBuilder
 
         project_path = Path(path).expanduser().resolve()
         if not project_path.exists():

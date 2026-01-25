@@ -11,7 +11,7 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
-from sunwell.environment.model import UserEnvironment
+from sunwell.knowledge.environment.model import UserEnvironment
 
 logger = logging.getLogger(__name__)
 

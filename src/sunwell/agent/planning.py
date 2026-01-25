@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from sunwell.agent.budget import AdaptiveBudget
     from sunwell.agent.learning import LearningStore
     from sunwell.agent.signals import AdaptiveSignals
-    from sunwell.core.lens import Lens
+    from sunwell.foundation.core.lens import Lens
     from sunwell.memory.briefing import Briefing
     from sunwell.models.protocol import ModelProtocol
 
@@ -105,7 +105,7 @@ async def _harmonic_plan(
         Tuples of (event, task_graph, planning_context)
     """
     try:
-        from sunwell.naaru.planners.harmonic import HarmonicPlanner
+        from sunwell.planning.naaru.planners.harmonic import HarmonicPlanner
 
         # RFC-123: Stream events live using async queue (fixes regression)
         event_queue: asyncio.Queue[AgentEvent | None] = asyncio.Queue()
@@ -220,12 +220,12 @@ async def _single_shot_plan(
         Tuples of (event, task_graph, planning_context)
     """
     try:
-        from sunwell.naaru.planners.artifact import ArtifactPlanner
+        from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
         planner = ArtifactPlanner(model=model)
         graph = await planner.discover_graph(goal, context)
 
-        from sunwell.naaru.artifacts import artifacts_to_tasks
+        from sunwell.planning.naaru.artifacts import artifacts_to_tasks
 
         tasks = artifacts_to_tasks(graph)
 
@@ -267,7 +267,7 @@ async def _single_shot_plan(
         )
 
     except ImportError:
-        from sunwell.naaru.types import Task, TaskMode
+        from sunwell.planning.naaru.types import Task, TaskMode
 
         task = Task(
             id="main",

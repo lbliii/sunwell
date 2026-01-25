@@ -17,7 +17,7 @@ but Naaru is an implementation detail — not an entry point.
 
 Example:
     >>> from sunwell.agent import Agent
-    >>> from sunwell.context.session import SessionContext
+    >>> from sunwell.agent.context.session import SessionContext
     >>> from sunwell.memory.persistent import PersistentMemory
     >>> agent = Agent(model=model, tool_executor=tools)
     >>> session = SessionContext.build(workspace, "Build a REST API", options)
@@ -70,20 +70,20 @@ from sunwell.agent.toolchain import detect_toolchain
 from sunwell.agent.validation import Artifact, ValidationRunner, ValidationStage
 
 if TYPE_CHECKING:
-    from sunwell.core.lens import Lens
+    from sunwell.foundation.core.lens import Lens
     from sunwell.memory.briefing import Briefing, PrefetchedContext
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.naaru import Naaru
-    from sunwell.naaru.types import Task
-    from sunwell.recovery.types import RecoveryState
-    from sunwell.simulacrum.core.planning_context import PlanningContext
-    from sunwell.simulacrum.core.store import SimulacrumStore
+    from sunwell.planning.naaru import Naaru
+    from sunwell.planning.naaru.types import Task
+    from sunwell.agent.recovery.types import RecoveryState
+    from sunwell.memory.simulacrum.core.planning_context import PlanningContext
+    from sunwell.memory.simulacrum.core.store import SimulacrumStore
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.invocation_tracker import InvocationTracker
 
-from sunwell.context.session import SessionContext
+from sunwell.agent.context.session import SessionContext
 from sunwell.memory.persistent import PersistentMemory
-from sunwell.naaru.checkpoint import AgentCheckpoint, CheckpointPhase
+from sunwell.planning.naaru.checkpoint import AgentCheckpoint, CheckpointPhase
 
 
 @dataclass(slots=True)
@@ -228,8 +228,8 @@ class Agent:
 
     def _init_naaru(self) -> None:
         """Initialize internal Naaru for task execution."""
-        from sunwell.naaru import Naaru
-        from sunwell.types.config import NaaruConfig
+        from sunwell.planning.naaru import Naaru
+        from sunwell.foundation.types.config import NaaruConfig
 
         self._naaru = Naaru(
             workspace=self.cwd,
@@ -426,7 +426,7 @@ class Agent:
                 if self._task_graph and self._task_graph.tasks:
                     current = session.current_task
                     if current:
-                        from sunwell.intelligence.failures import FailedApproach
+                        from sunwell.knowledge.codebase.failures import FailedApproach
                         failure = FailedApproach(
                             id="",  # Will be generated
                             description=current.description,
@@ -896,7 +896,7 @@ class Agent:
         Returns:
             PrefetchedContext if successful, None if timeout or error
         """
-        from sunwell.prefetch.dispatcher import (
+        from sunwell.agent.prefetch.dispatcher import (
             analyze_briefing_for_prefetch,
             execute_prefetch,
         )

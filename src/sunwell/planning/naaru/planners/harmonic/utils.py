@@ -2,7 +2,7 @@
 
 import re
 
-from sunwell.naaru.planners.metrics import PlanMetrics, PlanMetricsV2
+from sunwell.planning.naaru.planners.metrics import PlanMetrics, PlanMetricsV2
 
 # Stopwords for keyword extraction (fast, no LLM)
 _STOPWORDS: frozenset[str] = frozenset({

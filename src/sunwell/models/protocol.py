@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from sunwell.skills.types import Skill
+    from sunwell.planning.skills.types import Skill
 
 logger = logging.getLogger(__name__)
 

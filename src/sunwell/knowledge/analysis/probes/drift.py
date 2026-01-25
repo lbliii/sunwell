@@ -20,11 +20,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from sunwell.analysis.state_dag import HealthProbeResult
+from sunwell.knowledge.analysis.state_dag import HealthProbeResult
 
 if TYPE_CHECKING:
-    from sunwell.analysis.source_context import SourceContext
-    from sunwell.analysis.state_dag import StateDagNode
+    from sunwell.knowledge.analysis.source_context import SourceContext
+    from sunwell.knowledge.analysis.state_dag import StateDagNode
 
 logger = logging.getLogger(__name__)
 
@@ -336,7 +336,7 @@ class DriftProbe:
 
         Uses fuzzy matching on the final component of the name.
         """
-        from sunwell.analysis.source_context import SymbolInfo
+        from sunwell.knowledge.analysis.source_context import SymbolInfo
 
         candidates: list[SymbolInfo] = []
 

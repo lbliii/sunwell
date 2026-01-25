@@ -7,12 +7,12 @@ RFC-015: Adaptive Model Selection
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sunwell.core.errors import tools_not_supported
+from sunwell.foundation.errors import tools_not_supported
 from sunwell.core.types import Tier
 from sunwell.models.protocol import ModelProtocol
 
 if TYPE_CHECKING:
-    from sunwell.core.lens import Lens
+    from sunwell.foundation.core.lens import Lens
 
 
 @dataclass(frozen=True, slots=True)

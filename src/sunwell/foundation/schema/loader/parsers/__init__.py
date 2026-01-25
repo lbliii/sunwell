@@ -1,33 +1,33 @@
 """Parser modules for lens schema loading."""
 
-from sunwell.schema.loader.parsers.affordances import parse_affordances
-from sunwell.schema.loader.parsers.framework import parse_framework
-from sunwell.schema.loader.parsers.heuristics import (
+from sunwell.foundation.schema.loader.parsers.affordances import parse_affordances
+from sunwell.foundation.schema.loader.parsers.framework import parse_framework
+from sunwell.foundation.schema.loader.parsers.heuristics import (
     parse_anti_heuristics,
     parse_communication,
     parse_heuristics,
     parse_identity,
 )
-from sunwell.schema.loader.parsers.metadata import parse_lens_reference, parse_metadata
-from sunwell.schema.loader.parsers.personas import parse_personas
-from sunwell.schema.loader.parsers.routing import (
+from sunwell.foundation.schema.loader.parsers.metadata import parse_lens_reference, parse_metadata
+from sunwell.foundation.schema.loader.parsers.personas import parse_personas
+from sunwell.foundation.schema.loader.parsers.routing import (
     parse_provenance,
     parse_quality_policy,
     parse_router,
 )
-from sunwell.schema.loader.parsers.skills import (
+from sunwell.foundation.schema.loader.parsers.skills import (
     load_skill_include,
     parse_skill,
     parse_skill_retry,
     parse_skills,
 )
-from sunwell.schema.loader.parsers.spellbook import parse_spellbook
-from sunwell.schema.loader.parsers.validators import (
+from sunwell.foundation.schema.loader.parsers.spellbook import parse_spellbook
+from sunwell.foundation.schema.loader.parsers.validators import (
     parse_deterministic_validators,
     parse_heuristic_validators,
     parse_schema_validators,
 )
-from sunwell.schema.loader.parsers.workflows import parse_refiners, parse_workflows
+from sunwell.foundation.schema.loader.parsers.workflows import parse_refiners, parse_workflows
 
 __all__ = [
     # Metadata

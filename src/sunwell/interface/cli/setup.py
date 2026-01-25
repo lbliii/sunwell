@@ -16,7 +16,7 @@ from pathlib import Path
 
 import click
 
-from sunwell.cli.theme import create_sunwell_console
+from sunwell.interface.generative.cli.theme import create_sunwell_console
 
 console = create_sunwell_console()
 
@@ -56,8 +56,8 @@ def setup(
         sunwell setup --provider openai  # Use OpenAI
         sunwell setup --minimal          # Just project, no bindings
     """
-    from sunwell.cli.helpers import build_workspace_context
-    from sunwell.config import get_config
+    from sunwell.interface.generative.cli.helpers import build_workspace_context
+    from sunwell.foundation.config import get_config
 
     project_path = Path(path).resolve()
 
@@ -85,7 +85,7 @@ def setup(
         if not quiet:
             console.print("[neutral.dim]✓ Project manifest exists[/neutral.dim]")
     else:
-        from sunwell.project import ProjectValidationError, init_project
+        from sunwell.knowledge.project import ProjectValidationError, init_project
 
         try:
             proj = init_project(
@@ -165,7 +165,7 @@ def setup(
     # Step 4: Lens bindings (optional, skip with --minimal)
     # =========================================================================
     if not minimal:
-        from sunwell.binding import BindingManager
+        from sunwell.foundation.binding import BindingManager
 
         manager = BindingManager()
         default_binding = manager.get_default()

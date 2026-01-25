@@ -22,8 +22,8 @@ Example:
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from sunwell.naaru.experiments.signals import Trit
-from sunwell.naaru.experiments.streams import ChunkSignal, SignalStream
+from sunwell.archive.naaru-experiments.signals import Trit
+from sunwell.archive.naaru-experiments.streams import ChunkSignal, SignalStream
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
@@ -151,7 +151,7 @@ async def escalate_hot_chunks(
     Returns:
         EscalationResult with refined signals
     """
-    from sunwell.naaru.experiments.signals import trit_classify
+    from sunwell.archive.naaru-experiments.signals import trit_classify
 
     # Find chunks that need escalation
     hot_chunks = [c for c in stream.chunks if c.signal >= threshold]
@@ -226,7 +226,7 @@ async def cascade_triage(
     Returns:
         Final SignalStream after cascade refinement
     """
-    from sunwell.naaru.experiments.streams import chunk_by_clause, classify_stream
+    from sunwell.archive.naaru-experiments.streams import chunk_by_clause, classify_stream
 
     if chunker is None:
         chunker = chunk_by_clause
@@ -246,7 +246,7 @@ async def cascade_triage(
     warm_chunks = [c for c in stream.chunks if c.signal >= Trit.MAYBE]
 
     if warm_chunks and len(models) >= 2:
-        from sunwell.naaru.experiments.signals import trit_classify
+        from sunwell.archive.naaru-experiments.signals import trit_classify
 
         refined_warm = {}
         for chunk in warm_chunks:
@@ -274,7 +274,7 @@ async def cascade_triage(
     hot_chunks = [c for c in stream.chunks if c.signal == Trit.YES]
 
     if hot_chunks:
-        from sunwell.naaru.experiments.signals import trit_classify
+        from sunwell.archive.naaru-experiments.signals import trit_classify
 
         refined_hot = {}
         for chunk in hot_chunks:
@@ -394,7 +394,7 @@ async def threshold_scan(
     Returns:
         List of (chunk_index, action_name) pairs that triggered
     """
-    from sunwell.naaru.experiments.streams import chunk_by_clause
+    from sunwell.archive.naaru-experiments.streams import chunk_by_clause
 
     if chunker is None:
         chunker = chunk_by_clause
@@ -408,7 +408,7 @@ async def threshold_scan(
 
     triggers: list[tuple[int, str]] = []
 
-    from sunwell.naaru.experiments.signals import trit_classify
+    from sunwell.archive.naaru-experiments.signals import trit_classify
 
     for i, chunk in enumerate(chunks):
         signal = await trit_classify(chunk, question, model)

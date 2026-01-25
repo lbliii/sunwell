@@ -2,7 +2,7 @@
 
 from sunwell.core.context import AppContext
 from sunwell.core.framework import Framework, FrameworkCategory
-from sunwell.core.freethreading import (
+from sunwell.foundation.freethreading import (
     WorkloadType,
     is_free_threaded,
     optimal_workers,
@@ -12,14 +12,14 @@ from sunwell.core.freethreading import (
     runtime_info,
 )
 from sunwell.core.heuristic import AntiHeuristic, CommunicationStyle, Heuristic
-from sunwell.core.identity import (
+from sunwell.foundation.identity import (
     ResourceIdentity,
     SunwellURI,
     URIParseError,
     slugify,
     validate_slug,
 )
-from sunwell.core.lens import Lens, LensMetadata
+from sunwell.foundation.core.lens import Lens, LensMetadata
 from sunwell.core.persona import Persona
 from sunwell.core.spell import (
     Grimoire,

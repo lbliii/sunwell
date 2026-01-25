@@ -6,7 +6,7 @@ import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from sunwell.naaru.core.bus import MessageBus, MessageType, NaaruMessage, NaaruRegion
+from sunwell.planning.naaru.core.bus import MessageBus, MessageType, NaaruMessage, NaaruRegion
 
 
 class RegionWorker(ABC):

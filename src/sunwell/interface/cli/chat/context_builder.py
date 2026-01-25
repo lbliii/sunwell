@@ -4,7 +4,7 @@ import json
 import time
 from pathlib import Path
 
-from sunwell.cli.chat.project_detector import ProjectDetector
+from sunwell.interface.generative.cli.chat.project_detector import ProjectDetector
 
 
 class ContextBuilder:

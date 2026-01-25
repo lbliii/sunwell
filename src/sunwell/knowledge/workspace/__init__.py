@@ -10,15 +10,15 @@ RFC-043 additions:
 - ensure_workspace_exists: Create workspace directory structure
 """
 
-from sunwell.workspace.detector import (
+from sunwell.knowledge.workspace.detector import (
     DEFAULT_TRUST,
     Workspace,
     WorkspaceConfig,
     WorkspaceDetector,
     resolve_trust_level,
 )
-from sunwell.workspace.indexer import CodebaseIndexer
-from sunwell.workspace.resolver import (
+from sunwell.knowledge.workspace.indexer import CodebaseIndexer
+from sunwell.knowledge.workspace.resolver import (
     ResolutionSource,
     WorkspaceResult,
     default_config_root,

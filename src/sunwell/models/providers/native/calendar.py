@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
-from sunwell.providers.base import CalendarEvent, CalendarProvider
+from sunwell.models.providers.base import CalendarEvent, CalendarProvider
 
 
 class SunwellCalendar(CalendarProvider):

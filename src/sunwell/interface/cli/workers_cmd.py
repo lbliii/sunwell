@@ -73,8 +73,8 @@ async def _start_workers(
     auto: bool,
 ) -> None:
     """Start parallel execution."""
-    from sunwell.backlog.manager import BacklogManager
-    from sunwell.parallel import (
+    from sunwell.features.backlog.manager import BacklogManager
+    from sunwell.agent.parallel import (
         Coordinator,
         GoalDependencyGraph,
         MultiInstanceConfig,
@@ -307,7 +307,7 @@ def merge(ctx, branch: str | None) -> None:
 
 async def _merge_branches(branch: str | None) -> None:
     """Merge worker branches."""
-    from sunwell.parallel.git import (
+    from sunwell.agent.parallel.git import (
         checkout_branch,
         get_current_branch,
         merge_ff_only,
@@ -358,7 +358,7 @@ def conflicts(ctx) -> None:
 
 async def _show_conflicts() -> None:
     """Show conflict details."""
-    from sunwell.parallel.git import run_git
+    from sunwell.agent.parallel.git import run_git
 
     root = Path.cwd()
 
@@ -399,7 +399,7 @@ def resources(ctx) -> None:
 
 async def _show_resources() -> None:
     """Show resource usage."""
-    from sunwell.parallel import ResourceGovernor, ResourceLimits
+    from sunwell.agent.parallel import ResourceGovernor, ResourceLimits
 
     root = Path.cwd()
     governor = ResourceGovernor(ResourceLimits(), root)
@@ -466,7 +466,7 @@ def ui_state(ctx, project: str) -> None:
 
 async def _get_ui_state(project: Path) -> None:
     """Get UI state for coordinator."""
-    from sunwell.parallel import Coordinator, MultiInstanceConfig
+    from sunwell.agent.parallel import Coordinator, MultiInstanceConfig
 
     root = project.resolve()
     config = MultiInstanceConfig()
@@ -477,7 +477,7 @@ async def _get_ui_state(project: Path) -> None:
         console.print(json.dumps(ui_state.to_dict(), indent=2))
     except Exception:
         # Return empty state on error
-        from sunwell.parallel.types import CoordinatorUIState
+        from sunwell.agent.parallel.types import CoordinatorUIState
         empty_state = CoordinatorUIState()
         console.print(json.dumps(empty_state.to_dict(), indent=2))
 

@@ -28,12 +28,12 @@ Example:
 See: RFC-073-reasoned-decisions.md
 """
 
-from sunwell.reasoning.calibration import (
+from sunwell.planning.reasoning.calibration import (
     CalibrationRecord,
     CalibrationStats,
     ConfidenceCalibrator,
 )
-from sunwell.reasoning.decisions import (
+from sunwell.planning.reasoning.decisions import (
     APPROVAL_OUTCOMES,
     CONFIDENCE_THRESHOLDS,
     DISPLAY_VARIANTS,
@@ -43,8 +43,8 @@ from sunwell.reasoning.decisions import (
     ReasonedDecision,
     RecoveryDecision,
 )
-from sunwell.reasoning.enrichment import ContextEnricher
-from sunwell.reasoning.fast_classifier import (
+from sunwell.planning.reasoning.enrichment import ContextEnricher
+from sunwell.planning.reasoning.fast_classifier import (
     BINARY_TEMPLATE,
     COMPLEXITY_TEMPLATE,
     INTENT_TEMPLATE,
@@ -56,8 +56,8 @@ from sunwell.reasoning.fast_classifier import (
     FastClassifier,
     get_recommended_model,
 )
-from sunwell.reasoning.prompts import PromptBuilder
-from sunwell.reasoning.reasoner import Reasoner
+from sunwell.planning.reasoning.prompts import PromptBuilder
+from sunwell.planning.reasoning.reasoner import Reasoner
 
 __all__ = [
     # Core reasoning (complex decisions, tool calling)

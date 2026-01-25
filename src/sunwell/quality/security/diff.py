@@ -14,10 +14,10 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from sunwell.security.analyzer import PermissionAnalyzer, PermissionScope, RiskAssessment
+from sunwell.quality.security.analyzer import PermissionAnalyzer, PermissionScope, RiskAssessment
 
 if TYPE_CHECKING:
-    from sunwell.skills.types import Skill
+    from sunwell.planning.skills.types import Skill
 
 
 # =============================================================================

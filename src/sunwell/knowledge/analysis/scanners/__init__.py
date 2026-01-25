@@ -6,8 +6,8 @@ Each scanner implements the Scanner protocol to:
 3. Run health probes (linting, coverage, drift detection)
 """
 
-from sunwell.analysis.scanners.code import CodeScanner
-from sunwell.analysis.scanners.docs import DocsScanner
+from sunwell.knowledge.analysis.scanners.code import CodeScanner
+from sunwell.knowledge.analysis.scanners.docs import DocsScanner
 
 __all__ = [
     "CodeScanner",

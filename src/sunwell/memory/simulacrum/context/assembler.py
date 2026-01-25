@@ -16,12 +16,12 @@ within model limits while preserving access to full history.
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from sunwell.simulacrum.core.dag import ConversationDAG
-from sunwell.simulacrum.core.turn import Learning, Turn, TurnType
-from sunwell.types.memory import ContextBudget
+from sunwell.memory.simulacrum.core.dag import ConversationDAG
+from sunwell.memory.simulacrum.core.turn import Learning, Turn, TurnType
+from sunwell.foundation.types.memory import ContextBudget
 
 if TYPE_CHECKING:
-    from sunwell.embedding.protocol import EmbeddingProtocol
+    from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
     from sunwell.models.protocol import ModelProtocol
 
 

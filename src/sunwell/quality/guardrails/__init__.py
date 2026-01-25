@@ -42,18 +42,18 @@ Integration:
 
 # Types
 # Components
-from sunwell.guardrails.classifier import (
+from sunwell.quality.guardrails.classifier import (
     ActionClassifier,
     ActionTaxonomy,
     SmartActionClassifier,
 )
-from sunwell.guardrails.config import GuardrailConfig, load_config, save_config
-from sunwell.guardrails.escalation import EscalationHandler
-from sunwell.guardrails.recovery import GuardrailError, RecoveryManager
-from sunwell.guardrails.scope import ScopeTracker
-from sunwell.guardrails.system import GuardrailSystem, execute_with_guardrails
-from sunwell.guardrails.trust import TrustZoneEvaluator, TrustZoneMatch
-from sunwell.guardrails.types import (
+from sunwell.quality.guardrails.config import GuardrailConfig, load_config, save_config
+from sunwell.quality.guardrails.escalation import EscalationHandler
+from sunwell.quality.guardrails.recovery import GuardrailError, RecoveryManager
+from sunwell.quality.guardrails.scope import ScopeTracker
+from sunwell.quality.guardrails.system import GuardrailSystem, execute_with_guardrails
+from sunwell.quality.guardrails.trust import TrustZoneEvaluator, TrustZoneMatch
+from sunwell.quality.guardrails.types import (
     Action,
     ActionClassification,
     ActionRisk,
@@ -72,7 +72,7 @@ from sunwell.guardrails.types import (
     VerificationGateResult,
     VerificationThresholds,
 )
-from sunwell.guardrails.verification import VerificationGate, create_verification_gate
+from sunwell.quality.guardrails.verification import VerificationGate, create_verification_gate
 
 __all__ = [
     # Main system

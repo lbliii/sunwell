@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from sunwell.models.protocol import GenerateOptions, ModelProtocol
 
-from sunwell.vortex.signals import Signal, generate_reaction, generate_signal
+from sunwell.features.vortex.signals import Signal, generate_reaction, generate_signal
 
 
 @dataclass(frozen=True, slots=True)

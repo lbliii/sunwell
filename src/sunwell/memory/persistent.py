@@ -35,11 +35,11 @@ _GENERATION_KEYWORDS: frozenset[str] = frozenset({"generate", "create", "impleme
 """Keywords that indicate generation/creation tasks."""
 
 if TYPE_CHECKING:
-    from sunwell.intelligence.decisions import Decision, DecisionMemory
-    from sunwell.intelligence.failures import FailedApproach, FailureMemory
-    from sunwell.intelligence.patterns import PatternProfile
-    from sunwell.simulacrum.core.store import SimulacrumStore
-    from sunwell.team.store import TeamKnowledgeStore
+    from sunwell.knowledge.codebase.decisions import Decision, DecisionMemory
+    from sunwell.knowledge.codebase.failures import FailedApproach, FailureMemory
+    from sunwell.knowledge.codebase.patterns import PatternProfile
+    from sunwell.memory.simulacrum.core.store import SimulacrumStore
+    from sunwell.features.team.store import TeamKnowledgeStore
 
 logger = logging.getLogger(__name__)
 
@@ -129,9 +129,9 @@ class PersistentMemory:
         intel_path = workspace / ".sunwell" / "intelligence"
 
         # Create minimal stores without loading from disk
-        from sunwell.intelligence.decisions import DecisionMemory
-        from sunwell.intelligence.failures import FailureMemory
-        from sunwell.intelligence.patterns import PatternProfile
+        from sunwell.knowledge.codebase.decisions import DecisionMemory
+        from sunwell.knowledge.codebase.failures import FailureMemory
+        from sunwell.knowledge.codebase.patterns import PatternProfile
 
         instance = cls(
             workspace=workspace,
@@ -649,7 +649,7 @@ class GoalMemory:
 def _load_simulacrum(memory_path: Path) -> SimulacrumStore | None:
     """Load SimulacrumStore, returning None on failure."""
     try:
-        from sunwell.simulacrum.core.store import SimulacrumStore
+        from sunwell.memory.simulacrum.core.store import SimulacrumStore
 
         if memory_path.exists():
             store = SimulacrumStore(memory_path)
@@ -669,7 +669,7 @@ def _load_simulacrum(memory_path: Path) -> SimulacrumStore | None:
 def _load_decisions(intel_path: Path) -> DecisionMemory | None:
     """Load DecisionMemory, returning None on failure."""
     try:
-        from sunwell.intelligence.decisions import DecisionMemory
+        from sunwell.knowledge.codebase.decisions import DecisionMemory
 
         return DecisionMemory(intel_path)
     except Exception as e:
@@ -680,7 +680,7 @@ def _load_decisions(intel_path: Path) -> DecisionMemory | None:
 def _load_failures(intel_path: Path) -> FailureMemory | None:
     """Load FailureMemory, returning None on failure."""
     try:
-        from sunwell.intelligence.failures import FailureMemory
+        from sunwell.knowledge.codebase.failures import FailureMemory
 
         return FailureMemory(intel_path)
     except Exception as e:
@@ -691,7 +691,7 @@ def _load_failures(intel_path: Path) -> FailureMemory | None:
 def _load_patterns(intel_path: Path) -> PatternProfile | None:
     """Load PatternProfile, returning None on failure."""
     try:
-        from sunwell.intelligence.patterns import PatternProfile
+        from sunwell.knowledge.codebase.patterns import PatternProfile
 
         return PatternProfile.load(intel_path)
     except Exception as e:
@@ -705,7 +705,7 @@ def _load_team(team_path: Path) -> TeamKnowledgeStore | None:
         return None
 
     try:
-        from sunwell.team.store import TeamKnowledgeStore
+        from sunwell.features.team.store import TeamKnowledgeStore
 
         config_path = team_path / "config.json"
         if config_path.exists():

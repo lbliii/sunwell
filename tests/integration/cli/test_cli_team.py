@@ -2,7 +2,7 @@
 
 import pytest
 
-from sunwell.cli.team_cmd import team
+from sunwell.interface.cli.team_cmd import team
 
 
 class TestTeamCommandGroup:
@@ -30,13 +30,13 @@ class TestTeamStatusCommand:
 
     def test_status_command_exists(self) -> None:
         """Test status command is registered."""
-        from sunwell.cli.team_cmd import status
+        from sunwell.interface.cli.team_cmd import status
         
         assert status.name == "status"
 
     def test_status_command_has_json_option(self) -> None:
         """Test status command has --json option."""
-        from sunwell.cli.team_cmd import status
+        from sunwell.interface.cli.team_cmd import status
         
         param_names = {getattr(p, "name", "") for p in status.params}
         assert "as_json" in param_names or any("json" in str(p) for p in status.params)

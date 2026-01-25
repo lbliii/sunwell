@@ -30,17 +30,17 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sunwell.simulacrum.core.store import SimulacrumStore, StorageConfig
-from sunwell.simulacrum.manager.metadata import (
+from sunwell.memory.simulacrum.core.store import SimulacrumStore, StorageConfig
+from sunwell.memory.simulacrum.manager.metadata import (
     ArchiveMetadata,
     PendingDomain,
     SimulacrumMetadata,
 )
-from sunwell.simulacrum.manager.policy import LifecyclePolicy, SpawnPolicy
+from sunwell.memory.simulacrum.manager.policy import LifecyclePolicy, SpawnPolicy
 
 if TYPE_CHECKING:
-    from sunwell.embedding.protocol import EmbeddingProtocol
-    from sunwell.simulacrum.topology.memory_node import MemoryNode
+    from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
+    from sunwell.memory.simulacrum.topology.memory_node import MemoryNode
 
 
 @dataclass(slots=True)
@@ -980,7 +980,7 @@ class SimulacrumManager:
 
                 # Keep if high-confidence facets
                 if node.facets and node.facets.confidence:
-                    from sunwell.simulacrum.topology.facets import ConfidenceLevel
+                    from sunwell.memory.simulacrum.topology.facets import ConfidenceLevel
                     if node.facets.confidence in (ConfidenceLevel.HIGH, ConfidenceLevel.VERY_HIGH):
                         continue
 

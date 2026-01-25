@@ -15,7 +15,7 @@ import re
 from typing import TYPE_CHECKING
 
 from sunwell.models.protocol import GenerateOptions
-from sunwell.verification.types import (
+from sunwell.quality.verification.types import (
     InputSpec,
     OutputSpec,
     Specification,
@@ -23,7 +23,7 @@ from sunwell.verification.types import (
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.naaru.artifacts import ArtifactSpec
+    from sunwell.planning.naaru.artifacts import ArtifactSpec
 
 
 # Pre-compiled regex patterns for performance (avoid recompiling per-call)

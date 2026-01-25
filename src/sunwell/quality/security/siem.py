@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.security.audit import AuditEntry
+    from sunwell.quality.security.audit import AuditEntry
 
 
 # =============================================================================

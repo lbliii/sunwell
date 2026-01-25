@@ -12,7 +12,7 @@ Part of RFC-014: Multi-Topology Memory.
 import re
 from pathlib import Path
 
-from sunwell.simulacrum.topology.spatial import PositionType, SpatialContext
+from sunwell.memory.simulacrum.topology.spatial import PositionType, SpatialContext
 
 
 class SpatialExtractor:

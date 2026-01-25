@@ -1,5 +1,5 @@
 """Context enrichment for reasoned decisions."""
 
-from sunwell.reasoning.enrichment.enricher import ContextEnricher
+from sunwell.planning.reasoning.enrichment.enricher import ContextEnricher
 
 __all__ = ["ContextEnricher"]

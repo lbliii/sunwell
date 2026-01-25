@@ -158,7 +158,7 @@ def demo(
 
 def _list_available_tasks() -> None:
     """List available built-in demo tasks."""
-    from sunwell.demo import BUILTIN_TASKS
+    from sunwell.benchmark.demo import BUILTIN_TASKS
 
     console.print("\n[bold]Available Demo Tasks:[/bold]\n")
 
@@ -177,7 +177,7 @@ def _list_available_tasks() -> None:
 
 def _show_history() -> None:
     """Show demo history summary."""
-    from sunwell.demo.history import get_history_summary, load_history
+    from sunwell.benchmark.demo.history import get_history_summary, load_history
 
     summary = get_history_summary()
 
@@ -245,9 +245,9 @@ async def _run_demo(
     save_history: bool,
 ) -> None:
     """Execute the demo."""
-    from sunwell.cli.helpers import resolve_model
-    from sunwell.config import get_config
-    from sunwell.demo import DemoComparison, DemoRunner, get_task
+    from sunwell.interface.generative.cli.helpers import resolve_model
+    from sunwell.foundation.config import get_config
+    from sunwell.benchmark.demo import DemoComparison, DemoRunner, get_task
 
     # Resolve model
     config = get_config()
@@ -381,7 +381,7 @@ async def _run_iterations(
     save_history: bool,
 ) -> None:
     """Run multiple iterations for variance analysis."""
-    from sunwell.demo import DemoComparison
+    from sunwell.benchmark.demo import DemoComparison
 
     single_scores: list[float] = []
     sunwell_scores: list[float] = []
@@ -547,7 +547,7 @@ def _present_iterations_summary(
 def _save_to_history(comparison, model_name: str) -> None:
     """Save comparison to history (silent)."""
     try:
-        from sunwell.demo.history import save_demo_result
+        from sunwell.benchmark.demo.history import save_demo_result
 
         save_demo_result(comparison, model_name)
     except Exception:
@@ -565,7 +565,7 @@ def _present_single_result(
     """Present just the Sunwell result (when --skip-single-shot is used)."""
     from rich.panel import Panel
 
-    from sunwell.demo.scorer import FEATURE_DISPLAY_NAMES
+    from sunwell.benchmark.demo.scorer import FEATURE_DISPLAY_NAMES
 
     console.print()
     console.print(
@@ -630,9 +630,9 @@ async def _run_demo_streaming(
     import json
     import sys
 
-    from sunwell.cli.helpers import resolve_model
-    from sunwell.config import get_config
-    from sunwell.demo import DemoComparison, DemoExecutor, DemoScorer, get_task
+    from sunwell.interface.generative.cli.helpers import resolve_model
+    from sunwell.foundation.config import get_config
+    from sunwell.benchmark.demo import DemoComparison, DemoExecutor, DemoScorer, get_task
     from sunwell.models.protocol import sanitize_llm_content
 
     def emit(data: dict) -> None:

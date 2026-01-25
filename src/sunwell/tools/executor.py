@@ -32,13 +32,13 @@ from sunwell.tools.types import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.mirror.handler import MirrorHandler
+    from sunwell.features.mirror.handler import MirrorHandler
     from sunwell.models.protocol import Tool
-    from sunwell.project import Project
-    from sunwell.simulacrum.manager import SimulacrumToolHandler
-    from sunwell.simulacrum.memory_tools import MemoryToolHandler
-    from sunwell.skills.executor import SkillExecutor
-    from sunwell.skills.sandbox import ScriptSandbox
+    from sunwell.knowledge.project import Project
+    from sunwell.memory.simulacrum.manager import SimulacrumToolHandler
+    from sunwell.memory.simulacrum.memory_tools import MemoryToolHandler
+    from sunwell.planning.skills.executor import SkillExecutor
+    from sunwell.planning.skills.sandbox import ScriptSandbox
     from sunwell.tools.expertise import ExpertiseToolHandler
     from sunwell.tools.sunwell_handlers import SunwellToolHandlers
     from sunwell.tools.web_search import WebSearchHandler
@@ -149,7 +149,7 @@ class ToolExecutor:
 
     def __post_init__(self) -> None:
         """Initialize core tool handlers."""
-        from sunwell.project.validation import (
+        from sunwell.knowledge.project.validation import (
             ProjectValidationError,
             validate_not_sunwell_repo,
         )
@@ -644,8 +644,8 @@ class ToolExecutor:
 
         # RFC-085: Record execution event to Self.analysis for pattern detection
         try:
-            from sunwell.self import Self
-            from sunwell.self.types import ExecutionEvent
+            from sunwell.features.mirror.self import Self
+            from sunwell.features.mirror.self.types import ExecutionEvent
 
             Self.get().analysis.record_execution(ExecutionEvent(
                 tool_name=tool_call.name,

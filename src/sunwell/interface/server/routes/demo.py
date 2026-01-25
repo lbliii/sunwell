@@ -40,7 +40,7 @@ class EvalRunRequest(BaseModel):
 async def list_demo_tasks() -> list[dict[str, Any]]:
     """List available demo tasks."""
     try:
-        from sunwell.demo.tasks import BUILTIN_TASKS
+        from sunwell.benchmark.demo.tasks import BUILTIN_TASKS
 
         return [
             {
@@ -63,10 +63,10 @@ async def run_demo(request: DemoRunRequest) -> dict[str, Any]:
     Use /api/demo/code/{run_id}/{method} to fetch raw code.
     """
     try:
-        from sunwell.cli.helpers import resolve_model
-        from sunwell.config import get_config
-        from sunwell.demo import DemoComparison, DemoExecutor, DemoScorer, get_task
-        from sunwell.demo.files import cleanup_old_demos, save_demo_code
+        from sunwell.interface.generative.cli.helpers import resolve_model
+        from sunwell.foundation.config import get_config
+        from sunwell.benchmark.demo import DemoComparison, DemoExecutor, DemoScorer, get_task
+        from sunwell.benchmark.demo.files import cleanup_old_demos, save_demo_code
 
         config = get_config()
         provider = request.provider or (config.model.default_provider if config else "ollama")
@@ -134,7 +134,7 @@ async def get_demo_code(run_id: str, method: str) -> PlainTextResponse | JSONRes
     Returns:
         Raw code as plain text (not JSON-escaped).
     """
-    from sunwell.demo.files import load_demo_code
+    from sunwell.benchmark.demo.files import load_demo_code
 
     if method not in ("single_shot", "sunwell"):
         return JSONResponse(

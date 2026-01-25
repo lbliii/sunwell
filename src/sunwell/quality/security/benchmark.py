@@ -20,11 +20,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from sunwell.security.analyzer import PermissionAnalyzer, PermissionScope
-from sunwell.security.audit import LocalAuditLog
-from sunwell.security.monitor import SecurityMonitor
-from sunwell.security.sandbox import PermissionAwareSandboxConfig, SecureSandbox
-from sunwell.skills.types import TrustLevel
+from sunwell.quality.security.analyzer import PermissionAnalyzer, PermissionScope
+from sunwell.quality.security.audit import LocalAuditLog
+from sunwell.quality.security.monitor import SecurityMonitor
+from sunwell.quality.security.sandbox import PermissionAwareSandboxConfig, SecureSandbox
+from sunwell.planning.skills.types import TrustLevel
 
 # =============================================================================
 # BENCHMARK RESULTS

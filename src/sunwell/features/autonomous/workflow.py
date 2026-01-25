@@ -135,10 +135,10 @@ async def autonomous_goal(
     from time import time
 
     from sunwell.agent.core import Agent
-    from sunwell.context.session import SessionContext
-    from sunwell.guardrails.system import GuardrailSystem
+    from sunwell.agent.context.session import SessionContext
+    from sunwell.quality.guardrails.system import GuardrailSystem
     from sunwell.memory.persistent import PersistentMemory
-    from sunwell.naaru.checkpoint import AgentCheckpoint
+    from sunwell.planning.naaru.checkpoint import AgentCheckpoint
 
     config = config or AutonomousConfig()
     state = AutonomousState(goal=goal, started_at=time())
@@ -167,7 +167,7 @@ async def autonomous_goal(
     )
     if config.enable_guard_learning:
         # Enable learning in classifier
-        from sunwell.guardrails.classifier import SmartActionClassifier
+        from sunwell.quality.guardrails.classifier import SmartActionClassifier
 
         guardrails.classifier = SmartActionClassifier(
             trust_level=guardrails.config.trust_level,
@@ -305,7 +305,7 @@ async def resume_autonomous(
     Yields:
         AgentEvent for each step of resumed execution
     """
-    from sunwell.naaru.checkpoint import AgentCheckpoint
+    from sunwell.planning.naaru.checkpoint import AgentCheckpoint
 
     checkpoint = AgentCheckpoint.find_latest_for_goal(project_path, goal)
     if not checkpoint:

@@ -7,8 +7,8 @@ from dataclasses import dataclass
 from fnmatch import fnmatch
 from pathlib import Path
 
-from sunwell.guardrails.classifier import DEFAULT_TRUST_ZONES
-from sunwell.guardrails.types import ActionRisk, TrustZone
+from sunwell.quality.guardrails.classifier import DEFAULT_TRUST_ZONES
+from sunwell.quality.guardrails.types import ActionRisk, TrustZone
 
 
 class TrustZoneEvaluator:

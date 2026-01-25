@@ -11,9 +11,9 @@ Part of RFC-014: Multi-Topology Memory.
 import hashlib
 import re
 
-from sunwell.simulacrum.hierarchical.chunks import Chunk, ChunkType
-from sunwell.simulacrum.topology.spatial import PositionType, SpatialContext
-from sunwell.simulacrum.topology.structural import (
+from sunwell.memory.simulacrum.hierarchical.chunks import Chunk, ChunkType
+from sunwell.memory.simulacrum.topology.spatial import PositionType, SpatialContext
+from sunwell.memory.simulacrum.topology.structural import (
     DocumentSection,
     DocumentTree,
     SectionType,

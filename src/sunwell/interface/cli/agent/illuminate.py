@@ -44,9 +44,9 @@ def illuminate(goals: tuple[str, ...], time: int, verbose: bool) -> None:
 
 async def _illuminate(goals: list[str], time: int, verbose: bool) -> None:
     """Run self-improvement mode."""
-    from sunwell.config import get_config
-    from sunwell.naaru import Naaru
-    from sunwell.types.config import NaaruConfig
+    from sunwell.foundation.config import get_config
+    from sunwell.planning.naaru import Naaru
+    from sunwell.foundation.types.config import NaaruConfig
 
     # Load config
     config = get_config()

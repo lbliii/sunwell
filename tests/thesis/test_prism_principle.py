@@ -285,8 +285,8 @@ class TestConfidenceTriangulation:
 
     def test_triangulator_uses_multiple_signals(self):
         """ConfidenceTriangulator must combine multiple evidence sources."""
-        from sunwell.verification.triangulator import ConfidenceTriangulator
-        from sunwell.verification.types import (
+        from sunwell.quality.verification.triangulator import ConfidenceTriangulator
+        from sunwell.quality.verification.types import (
             PerspectiveResult,
             Specification,
             InputSpec,
@@ -339,8 +339,8 @@ class TestConfidenceTriangulation:
 
     def test_triangulator_detects_contradictions(self):
         """Triangulator must detect when perspectives contradict."""
-        from sunwell.verification.triangulator import ConfidenceTriangulator
-        from sunwell.verification.types import (
+        from sunwell.quality.verification.triangulator import ConfidenceTriangulator
+        from sunwell.quality.verification.types import (
             PerspectiveResult,
             Specification,
             OutputSpec,

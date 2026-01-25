@@ -7,7 +7,7 @@ from typing import Any
 
 import click
 
-from sunwell.cli.theme import create_sunwell_console
+from sunwell.interface.generative.cli.theme import create_sunwell_console
 
 console = create_sunwell_console()
 
@@ -95,7 +95,7 @@ async def _resume_agent(
     verbose: bool,
 ) -> None:
     """Resume agent from checkpoint."""
-    from sunwell.cli.helpers import resolve_model
+    from sunwell.interface.generative.cli.helpers import resolve_model
 
     # RFC-130: Goal-based resume takes priority
     if goal:
@@ -105,7 +105,7 @@ async def _resume_agent(
     # RFC-040: Artifact-based resume
     if plan_id or (not checkpoint_path and not goal):
         # Try artifact-based resume first
-        from sunwell.naaru.persistence import PlanStore, get_latest_execution
+        from sunwell.planning.naaru.persistence import PlanStore, get_latest_execution
 
         store = PlanStore()
 
@@ -120,7 +120,7 @@ async def _resume_agent(
         # Fall through to task-based resume
 
     # RFC-032: Task-based resume
-    from sunwell.naaru.checkpoint import AgentCheckpoint, find_latest_checkpoint
+    from sunwell.planning.naaru.checkpoint import AgentCheckpoint, find_latest_checkpoint
 
     # Find checkpoint
     if checkpoint_path:
@@ -163,8 +163,8 @@ async def _resume_agent(
         return
 
     # Resume execution
-    from sunwell.naaru import Naaru
-    from sunwell.project import ProjectResolutionError, resolve_project
+    from sunwell.planning.naaru import Naaru
+    from sunwell.knowledge.project import ProjectResolutionError, resolve_project
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust
 
@@ -223,8 +223,8 @@ async def _resume_from_goal(
 
     Enables intelligent resume from semantic phase boundaries.
     """
-    from sunwell.cli.helpers import resolve_model
-    from sunwell.naaru.checkpoint import AgentCheckpoint, CheckpointPhase
+    from sunwell.interface.generative.cli.helpers import resolve_model
+    from sunwell.planning.naaru.checkpoint import AgentCheckpoint, CheckpointPhase
 
     workspace = Path.cwd()
 
@@ -291,8 +291,8 @@ async def _resume_from_goal(
         return
 
     # Resume execution
-    from sunwell.naaru import Naaru
-    from sunwell.project import ProjectResolutionError, resolve_project
+    from sunwell.planning.naaru import Naaru
+    from sunwell.knowledge.project import ProjectResolutionError, resolve_project
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust
 
@@ -350,8 +350,8 @@ async def _resume_artifact_execution(
     verbose: bool,
 ) -> None:
     """Resume artifact-based execution (RFC-040)."""
-    from sunwell.cli.helpers import resolve_model
-    from sunwell.naaru.persistence import (
+    from sunwell.interface.generative.cli.helpers import resolve_model
+    from sunwell.planning.naaru.persistence import (
         PlanStore,
         resume_execution,
     )
@@ -387,7 +387,7 @@ async def _resume_artifact_execution(
         return
 
     # Create artifact creation function using resolve_model()
-    from sunwell.naaru.planners import ArtifactPlanner
+    from sunwell.planning.naaru.planners import ArtifactPlanner
 
     try:
         model = resolve_model(provider_override, model_override)

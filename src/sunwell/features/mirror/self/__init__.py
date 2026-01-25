@@ -23,9 +23,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.self.analysis import AnalysisKnowledge
-    from sunwell.self.proposals import ProposalManager
-    from sunwell.self.source import SourceKnowledge
+    from sunwell.features.mirror.self.analysis import AnalysisKnowledge
+    from sunwell.features.mirror.self.proposals import ProposalManager
+    from sunwell.features.mirror.self.source import SourceKnowledge
 
 
 @dataclass(slots=True)
@@ -53,21 +53,21 @@ class Self:
     @cached_property
     def source(self) -> SourceKnowledge:
         """Read and understand Sunwell's source code."""
-        from sunwell.self.source import SourceKnowledge
+        from sunwell.features.mirror.self.source import SourceKnowledge
 
         return SourceKnowledge(self._source_root)
 
     @cached_property
     def analysis(self) -> AnalysisKnowledge:
         """Analyze Sunwell's behavior and performance."""
-        from sunwell.self.analysis import AnalysisKnowledge
+        from sunwell.features.mirror.self.analysis import AnalysisKnowledge
 
         return AnalysisKnowledge(self._storage_root / "analysis")
 
     @cached_property
     def proposals(self) -> ProposalManager:
         """Create and manage self-improvement proposals."""
-        from sunwell.self.proposals import ProposalManager
+        from sunwell.features.mirror.self.proposals import ProposalManager
 
         return ProposalManager(
             source_root=self._source_root,

@@ -9,12 +9,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from sunwell.bootstrap.ownership import OwnershipMap
-from sunwell.bootstrap.scanners.code import CodeScanner
-from sunwell.bootstrap.scanners.config import ConfigScanner
-from sunwell.bootstrap.scanners.docs import DocScanner
-from sunwell.bootstrap.scanners.git import GitScanner
-from sunwell.bootstrap.types import (
+from sunwell.knowledge.bootstrap.ownership import OwnershipMap
+from sunwell.knowledge.bootstrap.scanners.code import CodeScanner
+from sunwell.knowledge.bootstrap.scanners.config import ConfigScanner
+from sunwell.knowledge.bootstrap.scanners.docs import DocScanner
+from sunwell.knowledge.bootstrap.scanners.git import GitScanner
+from sunwell.knowledge.bootstrap.types import (
     BootstrapDecision,
     BootstrapPatterns,
     BootstrapResult,
@@ -26,7 +26,7 @@ from sunwell.bootstrap.types import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.intelligence.context import ProjectContext
+    from sunwell.knowledge.codebase.context import ProjectContext
 
 
 class BootstrapOrchestrator:
@@ -396,7 +396,7 @@ class BootstrapOrchestrator:
         patterns: BootstrapPatterns,
     ) -> int:
         """Populate PatternProfile with bootstrapped patterns."""
-        from sunwell.intelligence.patterns import PatternProfile
+        from sunwell.knowledge.codebase.patterns import PatternProfile
 
         bootstrapped_profile = PatternProfile.bootstrap(patterns)
 

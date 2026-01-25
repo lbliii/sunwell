@@ -13,13 +13,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.mirror.analysis import (
+from sunwell.features.mirror.analysis import (
     FailureAnalyzer,
     analyze_errors,
     analyze_latency,
     analyze_tool_usage,
 )
-from sunwell.mirror.introspection import (
+from sunwell.features.mirror.introspection import (
     execution_get_error_summary,
     execution_get_errors,
     execution_get_recent_tool_calls,
@@ -35,10 +35,10 @@ from sunwell.mirror.introspection import (
     simulacrum_get_focus,
     simulacrum_get_learnings,
 )
-from sunwell.mirror.model_tracker import ModelPerformanceTracker
-from sunwell.mirror.proposals import ProposalManager, ProposalStatus
-from sunwell.mirror.router import ModelRouter
-from sunwell.mirror.safety import SafetyChecker
+from sunwell.features.mirror.model_tracker import ModelPerformanceTracker
+from sunwell.features.mirror.proposals import ProposalManager, ProposalStatus
+from sunwell.features.mirror.router import ModelRouter
+from sunwell.features.mirror.safety import SafetyChecker
 from sunwell.self import Self
 
 if TYPE_CHECKING:
@@ -286,7 +286,7 @@ class MirrorHandler:
         diff = args["diff"]
 
         # Safety check the diff
-        from sunwell.mirror.safety import validate_diff_safety
+        from sunwell.features.mirror.safety import validate_diff_safety
         is_safe, reason = validate_diff_safety(diff)
         if not is_safe:
             return {"error": f"Safety check failed: {reason}"}

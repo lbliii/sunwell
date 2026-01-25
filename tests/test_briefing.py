@@ -23,7 +23,7 @@ from sunwell.memory.briefing import (
     briefing_to_learning,
     compress_briefing,
 )
-from sunwell.routing.briefing_router import (
+from sunwell.planning.routing.briefing_router import (
     predict_skills_from_briefing,
     suggest_lens_from_briefing,
 )

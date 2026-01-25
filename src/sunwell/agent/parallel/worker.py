@@ -17,15 +17,15 @@ from multiprocessing import Queue
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.parallel.config import MultiInstanceConfig
-from sunwell.parallel.dependencies import estimate_affected_files
-from sunwell.parallel.git import commit_all, create_branch
-from sunwell.parallel.locks import FileLockManager
-from sunwell.parallel.types import WorkerResult, WorkerState, WorkerStatus
+from sunwell.agent.parallel.config import MultiInstanceConfig
+from sunwell.agent.parallel.dependencies import estimate_affected_files
+from sunwell.agent.parallel.git import commit_all, create_branch
+from sunwell.agent.parallel.locks import FileLockManager
+from sunwell.agent.parallel.types import WorkerResult, WorkerState, WorkerStatus
 
 if TYPE_CHECKING:
-    from sunwell.backlog.goals import Goal
-    from sunwell.backlog.manager import BacklogManager
+    from sunwell.features.backlog.goals import Goal
+    from sunwell.features.backlog.manager import BacklogManager
 
 
 class WorkerProcess:
@@ -238,7 +238,7 @@ class WorkerProcess:
         # Import here to avoid circular imports and allow worker to run in subprocess
         from sunwell.agent import Agent
         from sunwell.agent.request import RunOptions
-        from sunwell.context.session import SessionContext
+        from sunwell.agent.context.session import SessionContext
         from sunwell.memory.persistent import PersistentMemory
         from sunwell.models.ollama import OllamaModel
 
@@ -375,7 +375,7 @@ def worker_entry(
 
     async def _run() -> None:
         # Each worker needs its own instances (fresh per process)
-        from sunwell.backlog.manager import BacklogManager
+        from sunwell.features.backlog.manager import BacklogManager
 
         backlog = BacklogManager(root)
 

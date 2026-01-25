@@ -10,13 +10,13 @@ Each worker handles a specific region of the Naaru architecture:
 - ToolRegionWorker: Tool execution (RFC-032)
 """
 
-from sunwell.naaru.workers.analysis import AnalysisWorker
-from sunwell.naaru.workers.executive import ExecutiveWorker
-from sunwell.naaru.workers.harmonic import HarmonicSynthesisWorker
-from sunwell.naaru.workers.memory import MemoryWorker
-from sunwell.naaru.workers.routing import CognitiveRoutingWorker
-from sunwell.naaru.workers.tool import ToolRegionWorker
-from sunwell.naaru.workers.validation import ValidationWorker
+from sunwell.planning.naaru.workers.analysis import AnalysisWorker
+from sunwell.planning.naaru.workers.executive import ExecutiveWorker
+from sunwell.planning.naaru.workers.harmonic import HarmonicSynthesisWorker
+from sunwell.planning.naaru.workers.memory import MemoryWorker
+from sunwell.planning.naaru.workers.routing import CognitiveRoutingWorker
+from sunwell.planning.naaru.workers.tool import ToolRegionWorker
+from sunwell.planning.naaru.workers.validation import ValidationWorker
 
 __all__ = [
     "AnalysisWorker",

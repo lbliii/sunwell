@@ -8,11 +8,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sunwell.lineage.models import compute_content_hash
+from sunwell.memory.lineage.models import compute_content_hash
 
 if TYPE_CHECKING:
-    from sunwell.lineage.store import LineageStore
-    from sunwell.session.tracker import SessionTracker
+    from sunwell.memory.lineage.store import LineageStore
+    from sunwell.memory.session.tracker import SessionTracker
 
 
 class HumanEditDetector:

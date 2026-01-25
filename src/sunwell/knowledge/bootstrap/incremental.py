@@ -11,11 +11,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sunwell.bootstrap.ownership import OwnershipMap
-from sunwell.bootstrap.scanners.git import GitScanner
+from sunwell.knowledge.bootstrap.ownership import OwnershipMap
+from sunwell.knowledge.bootstrap.scanners.git import GitScanner
 
 if TYPE_CHECKING:
-    from sunwell.intelligence.context import ProjectContext
+    from sunwell.knowledge.codebase.context import ProjectContext
 
 
 @dataclass(frozen=True, slots=True)
@@ -178,8 +178,8 @@ class IncrementalBootstrap:
 
     async def _extract_decisions_from(self, commits: list[dict]) -> list[dict]:
         """Extract decisions from new commits."""
-        from sunwell.bootstrap.orchestrator import BootstrapOrchestrator
-        from sunwell.bootstrap.types import CommitInfo
+        from sunwell.knowledge.bootstrap.orchestrator import BootstrapOrchestrator
+        from sunwell.knowledge.bootstrap.types import CommitInfo
 
         decisions = []
 

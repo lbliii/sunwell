@@ -10,10 +10,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from sunwell.backlog.signals import ObservableSignal
+from sunwell.features.backlog.signals import ObservableSignal
 
 if TYPE_CHECKING:
-    from sunwell.intelligence.context import ProjectContext
+    from sunwell.knowledge.codebase.context import ProjectContext
 
 # Priority weights for goal categories (module-level constants for performance)
 _CATEGORY_WEIGHTS: dict[str, float] = {

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.context.session import SessionContext
+    from sunwell.agent.context.session import SessionContext
     from sunwell.memory.persistent import PersistentMemory
 
 logger = logging.getLogger(__name__)
@@ -147,7 +147,7 @@ class WorkspaceManager:
         Convenience method that combines memory loading with session building.
         """
         from sunwell.agent.request import RunOptions
-        from sunwell.context.session import SessionContext
+        from sunwell.agent.context.session import SessionContext
 
         workspace = workspace.resolve()
 
@@ -177,7 +177,7 @@ class WorkspaceManager:
         Returns both objects ready for Agent.run().
         """
         from sunwell.agent.request import RunOptions
-        from sunwell.context.session import SessionContext
+        from sunwell.agent.context.session import SessionContext
 
         workspace = workspace.resolve()
 

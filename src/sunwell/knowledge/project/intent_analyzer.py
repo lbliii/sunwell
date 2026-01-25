@@ -13,15 +13,15 @@ except ImportError:
     import tomli as tomllib  # type: ignore[import-not-found]
 
 from sunwell.models.protocol import ModelProtocol
-from sunwell.project.cache import (
+from sunwell.knowledge.project.cache import (
     load_cached_analysis,
     save_analysis_cache,
 )
-from sunwell.project.inference import (
+from sunwell.knowledge.project.inference import (
     classify_with_llm,
     infer_goals_from_context,
 )
-from sunwell.project.intent_types import (
+from sunwell.knowledge.project.intent_types import (
     WORKSPACE_PRIMARIES,
     DevCommand,
     InferredGoal,
@@ -32,8 +32,8 @@ from sunwell.project.intent_types import (
     ProjectType,
     SuggestedAction,
 )
-from sunwell.project.monorepo import SubProject, detect_sub_projects, is_monorepo
-from sunwell.project.signals import ProjectSignals, gather_project_signals
+from sunwell.knowledge.project.monorepo import SubProject, detect_sub_projects, is_monorepo
+from sunwell.knowledge.project.signals import ProjectSignals, gather_project_signals
 
 
 async def analyze_project(

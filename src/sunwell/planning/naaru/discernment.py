@@ -42,7 +42,7 @@ Architecture:
     ```
 
 Usage:
-    >>> from sunwell.naaru.discernment import Discernment
+    >>> from sunwell.planning.naaru.discernment import Discernment
     >>> discerner = Discernment()
     >>> result = await discerner.evaluate(proposal)
     >>> if result.confident:

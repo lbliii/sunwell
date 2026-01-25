@@ -17,14 +17,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.bootstrap.ownership import OwnershipMap
-    from sunwell.bootstrap.types import BootstrapStatus
-    from sunwell.intelligence.codebase import CodebaseGraph
-    from sunwell.intelligence.decisions import DecisionMemory
-    from sunwell.intelligence.failures import FailureMemory
-    from sunwell.intelligence.patterns import PatternProfile
-    from sunwell.simulacrum.core.store import SimulacrumStore
-    from sunwell.team import TeamKnowledgeStore, UnifiedIntelligence
+    from sunwell.knowledge.bootstrap.ownership import OwnershipMap
+    from sunwell.knowledge.bootstrap.types import BootstrapStatus
+    from sunwell.knowledge.codebase.codebase import CodebaseGraph
+    from sunwell.knowledge.codebase.decisions import DecisionMemory
+    from sunwell.knowledge.codebase.failures import FailureMemory
+    from sunwell.knowledge.codebase.patterns import PatternProfile
+    from sunwell.memory.simulacrum.core.store import SimulacrumStore
+    from sunwell.features.team import TeamKnowledgeStore, UnifiedIntelligence
 
 
 @dataclass(slots=True)
@@ -82,14 +82,14 @@ class ProjectContext:
         Returns:
             ProjectContext with all intelligence loaded
         """
-        from sunwell.bootstrap.ownership import OwnershipMap
-        from sunwell.intelligence.codebase import CodebaseGraph
-        from sunwell.intelligence.decisions import DecisionMemory
-        from sunwell.intelligence.failures import FailureMemory
-        from sunwell.intelligence.patterns import PatternProfile
-        from sunwell.simulacrum.core.store import SimulacrumStore
-        from sunwell.team import TeamKnowledgeStore, UnifiedIntelligence
-        from sunwell.team.gitignore_template import ensure_sunwell_structure
+        from sunwell.knowledge.bootstrap.ownership import OwnershipMap
+        from sunwell.knowledge.codebase.codebase import CodebaseGraph
+        from sunwell.knowledge.codebase.decisions import DecisionMemory
+        from sunwell.knowledge.codebase.failures import FailureMemory
+        from sunwell.knowledge.codebase.patterns import PatternProfile
+        from sunwell.memory.simulacrum.core.store import SimulacrumStore
+        from sunwell.features.team import TeamKnowledgeStore, UnifiedIntelligence
+        from sunwell.features.team.gitignore_template import ensure_sunwell_structure
 
         # Ensure .sunwell directory structure exists with proper gitignore
         ensure_sunwell_structure(project_root)
@@ -141,7 +141,7 @@ class ProjectContext:
         import json
         from datetime import datetime, timedelta
 
-        from sunwell.bootstrap.types import BootstrapStatus
+        from sunwell.knowledge.bootstrap.types import BootstrapStatus
 
         state_path = project_root / ".sunwell" / "bootstrap_state.json"
         if not state_path.exists():

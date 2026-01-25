@@ -33,7 +33,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sunwell.naaru.experiments.signals import Trit
+from sunwell.archive.naaru-experiments.signals import Trit
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
@@ -155,7 +155,7 @@ async def classify_stream(
     Returns:
         SignalStream with per-chunk signals
     """
-    from sunwell.naaru.experiments.signals import trit_classify
+    from sunwell.archive.naaru-experiments.signals import trit_classify
 
     signals: list[ChunkSignal] = []
 

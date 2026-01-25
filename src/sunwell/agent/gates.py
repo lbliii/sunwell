@@ -28,7 +28,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sunwell.naaru.types import Task
+    from sunwell.planning.naaru.types import Task
 
 
 class GateType(Enum):

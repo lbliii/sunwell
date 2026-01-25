@@ -37,9 +37,9 @@ def get_simulacrum_manager():
         # Double-check after acquiring lock
         if _simulacrum_manager is not None:
             return _simulacrum_manager
-        from sunwell.config import get_config
-        from sunwell.embedding import create_embedder
-        from sunwell.simulacrum.manager import LifecyclePolicy, SimulacrumManager, SpawnPolicy
+        from sunwell.foundation.config import get_config
+        from sunwell.knowledge.embedding import create_embedder
+        from sunwell.memory.simulacrum.manager import LifecyclePolicy, SimulacrumManager, SpawnPolicy
 
         config = get_config()
 

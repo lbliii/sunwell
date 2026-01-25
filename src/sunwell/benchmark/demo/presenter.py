@@ -8,9 +8,9 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from sunwell.demo.executor import DemoComparison, DemoResult
-from sunwell.demo.scorer import FEATURE_DISPLAY_NAMES, DemoScore
-from sunwell.demo.tasks import DemoTask
+from sunwell.benchmark.demo.executor import DemoComparison, DemoResult
+from sunwell.benchmark.demo.scorer import FEATURE_DISPLAY_NAMES, DemoScore
+from sunwell.benchmark.demo.tasks import DemoTask
 
 
 class DemoPresenter:

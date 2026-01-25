@@ -3,6 +3,9 @@
 The Agent is THE execution engine for Sunwell. All entry points
 (CLI, chat, Studio) call Agent.run() with SessionContext and PersistentMemory.
 
+RFC-138: Module Architecture Consolidation - Consolidates context, convergence,
+recovery, prefetch, chat, incremental, execution, runtime, and parallel modules.
+
 Key components:
 - Agent: The brain — analyzes, plans, executes, validates, learns
 - AgentLoop: S-Tier Tool Calling with introspection and learning (RFC-134)

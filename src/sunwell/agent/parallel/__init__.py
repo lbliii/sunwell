@@ -22,13 +22,13 @@ Example:
     result = await coordinator.execute()
 """
 
-from sunwell.parallel.config import MultiInstanceConfig
-from sunwell.parallel.coordinator import Coordinator, CoordinatorResult
-from sunwell.parallel.dependencies import GoalDependencyGraph, estimate_affected_files
-from sunwell.parallel.locks import FileLock, FileLockManager
-from sunwell.parallel.resources import ResourceGovernor, ResourceLimits
-from sunwell.parallel.types import MergeResult, WorkerResult, WorkerState, WorkerStatus
-from sunwell.parallel.worker import WorkerProcess, worker_entry
+from sunwell.agent.parallel.config import MultiInstanceConfig
+from sunwell.agent.parallel.coordinator import Coordinator, CoordinatorResult
+from sunwell.agent.parallel.dependencies import GoalDependencyGraph, estimate_affected_files
+from sunwell.agent.parallel.locks import FileLock, FileLockManager
+from sunwell.agent.parallel.resources import ResourceGovernor, ResourceLimits
+from sunwell.agent.parallel.types import MergeResult, WorkerResult, WorkerState, WorkerStatus
+from sunwell.agent.parallel.worker import WorkerProcess, worker_entry
 
 __all__ = [
     # Types

@@ -9,7 +9,7 @@ from sunwell.models.protocol import Message
 
 if TYPE_CHECKING:
     from sunwell.agent.loop_config import LoopState
-    from sunwell.mirror.handler import MirrorHandler
+    from sunwell.features.mirror.handler import MirrorHandler
 
 logger = logging.getLogger(__name__)
 

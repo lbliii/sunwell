@@ -9,11 +9,11 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-from sunwell.lineage.human_detection import HumanEditDetector
-from sunwell.lineage.store import LineageStore
+from sunwell.memory.lineage.human_detection import HumanEditDetector
+from sunwell.memory.lineage.store import LineageStore
 
 if TYPE_CHECKING:
-    from sunwell.server.events import BusEvent, EventBus
+    from sunwell.interface.server.events import BusEvent, EventBus
 
 
 class LineageEventListener:

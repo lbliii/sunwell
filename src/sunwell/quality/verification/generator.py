@@ -13,11 +13,11 @@ from typing import TYPE_CHECKING
 _JSON_ARRAY_RE = re.compile(r"\[[\s\S]*\]")
 
 from sunwell.models.protocol import GenerateOptions
-from sunwell.verification.types import GeneratedTest, Specification
+from sunwell.quality.verification.types import GeneratedTest, Specification
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.naaru.artifacts import ArtifactSpec
+    from sunwell.planning.naaru.artifacts import ArtifactSpec
 
 
 class TestGenerator:

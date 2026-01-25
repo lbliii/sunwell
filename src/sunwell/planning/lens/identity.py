@@ -6,8 +6,8 @@ and manifest structures for the global index.
 
 from dataclasses import dataclass
 
-from sunwell.core.identity import ResourceIdentity
-from sunwell.types.protocol import DictSerializable
+from sunwell.foundation.identity import ResourceIdentity
+from sunwell.foundation.types.protocol import DictSerializable
 
 __all__ = ["DictSerializable", "LensLineage", "LensVersion", "LensManifest"]
 

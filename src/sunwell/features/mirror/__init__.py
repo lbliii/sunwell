@@ -22,14 +22,14 @@ Example:
     >>> best_model = mirror.select_model_for_task("introspect_source")
 """
 
-from sunwell.mirror.analysis import (
+from sunwell.features.mirror.analysis import (
     FailureAnalyzer,
     analyze_errors,
     analyze_latency,
     analyze_tool_usage,
 )
-from sunwell.mirror.handler import MirrorHandler
-from sunwell.mirror.introspection import (
+from sunwell.features.mirror.handler import MirrorHandler
+from sunwell.features.mirror.introspection import (
     SourceIntrospector,
     # Lens introspection functions
     lens_get_all,
@@ -49,22 +49,22 @@ from sunwell.mirror.introspection import (
     execution_get_recent_tool_calls,
     execution_get_stats,
 )
-from sunwell.mirror.model_tracker import ModelPerformanceEntry, ModelPerformanceTracker
-from sunwell.mirror.proposals import (
+from sunwell.features.mirror.model_tracker import ModelPerformanceEntry, ModelPerformanceTracker
+from sunwell.features.mirror.proposals import (
     Proposal,
     ProposalManager,
     ProposalStatus,
     ProposalType,
 )
-from sunwell.mirror.router import (
+from sunwell.features.mirror.router import (
     TASK_CATEGORY_MAP,
     ModelRouter,
     ModelRoutingConfig,
     get_all_task_categories,
     get_tools_for_category,
 )
-from sunwell.mirror.safety import SafetyChecker, SafetyPolicy, validate_diff_safety
-from sunwell.mirror.tools import MIRROR_TOOL_TRUST, MIRROR_TOOLS, get_mirror_tools_for_trust
+from sunwell.features.mirror.safety import SafetyChecker, SafetyPolicy, validate_diff_safety
+from sunwell.features.mirror.tools import MIRROR_TOOL_TRUST, MIRROR_TOOLS, get_mirror_tools_for_trust
 
 __all__ = [
     # Source Introspection (class - has internal state)

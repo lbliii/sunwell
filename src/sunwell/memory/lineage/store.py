@@ -12,14 +12,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from sunwell.lineage.models import (
+from sunwell.memory.lineage.models import (
     ArtifactEdit,
     ArtifactLineage,
     compute_content_hash,
 )
 
 if TYPE_CHECKING:
-    from sunwell.lineage.identity import ArtifactIdentityResolver
+    from sunwell.memory.lineage.identity import ArtifactIdentityResolver
 
 
 class LineageStore:
@@ -71,7 +71,7 @@ class LineageStore:
     def _get_identity_resolver(self) -> ArtifactIdentityResolver:
         """Lazy-initialize identity resolver to avoid circular import."""
         if self._identity_resolver is None:
-            from sunwell.lineage.identity import ArtifactIdentityResolver
+            from sunwell.memory.lineage.identity import ArtifactIdentityResolver
 
             self._identity_resolver = ArtifactIdentityResolver(self)
         return self._identity_resolver
@@ -486,7 +486,7 @@ class LineageStore:
         Returns:
             New lineage record marked as pre-existing
         """
-        from sunwell.lineage.models import generate_artifact_id
+        from sunwell.memory.lineage.models import generate_artifact_id
 
         artifact_id = generate_artifact_id(path, content)
         lineage = ArtifactLineage(

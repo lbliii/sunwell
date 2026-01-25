@@ -15,7 +15,7 @@ Example:
     >>> project = resolve_project(project_root="/path/to/project")
 """
 
-from sunwell.project.intent_types import (
+from sunwell.knowledge.project.intent_types import (
     WORKSPACE_PRIMARIES,
     DevCommand,
     InferredGoal,
@@ -26,40 +26,40 @@ from sunwell.project.intent_types import (
     ProjectType,
     SuggestedAction,
 )
-from sunwell.project.manifest import (
+from sunwell.knowledge.project.manifest import (
     ManifestError,
     create_manifest,
     load_manifest,
     save_manifest,
 )
-from sunwell.project.monorepo import (
+from sunwell.knowledge.project.monorepo import (
     SubProject,
     detect_sub_projects,
     is_monorepo,
 )
-from sunwell.project.registry import (
+from sunwell.knowledge.project.registry import (
     ProjectRegistry,
     RegistryError,
     init_project,
 )
-from sunwell.project.resolver import (
+from sunwell.knowledge.project.resolver import (
     ProjectResolutionError,
     ProjectResolver,
     resolve_project,
 )
-from sunwell.project.signals import (
+from sunwell.knowledge.project.signals import (
     GitStatus,
     ProjectSignals,
     gather_project_signals,
 )
-from sunwell.project.types import (
+from sunwell.knowledge.project.types import (
     AgentConfig,
     Project,
     ProjectManifest,
     Serializable,
     WorkspaceType,
 )
-from sunwell.project.validation import (
+from sunwell.knowledge.project.validation import (
     ProjectValidationError,
     validate_not_sunwell_repo,
     validate_workspace,

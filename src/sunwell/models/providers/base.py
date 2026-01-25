@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 
-from sunwell.types.protocol import Serializable
+from sunwell.foundation.types.protocol import Serializable
 
 __all__ = ["Serializable", "CalendarEvent", "CalendarProvider", "ListItem", "ListProvider"]
 

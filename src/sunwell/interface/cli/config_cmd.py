@@ -7,7 +7,7 @@ import click
 from rich.console import Console
 from rich.panel import Panel
 
-from sunwell.config import get_config, load_config, save_default_config
+from sunwell.foundation.config import get_config, load_config, save_default_config
 
 console = Console()
 

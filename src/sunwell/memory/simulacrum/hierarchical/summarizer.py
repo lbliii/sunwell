@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.simulacrum.core.turn import Turn
+    from sunwell.memory.simulacrum.core.turn import Turn
 
 
 # Pre-compiled regex patterns for sentence splitting (avoid per-call compilation)

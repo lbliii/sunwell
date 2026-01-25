@@ -44,7 +44,7 @@ def source() -> None:
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 def source_list(as_json: bool) -> None:
     """List all Sunwell modules."""
-    from sunwell.self import Self
+    from sunwell.features.mirror.self import Self
 
     modules = Self.get().source.list_modules()
 
@@ -61,7 +61,7 @@ def source_list(as_json: bool) -> None:
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 def source_read(module: str, as_json: bool) -> None:
     """Read source code for a module."""
-    from sunwell.self import Self
+    from sunwell.features.mirror.self import Self
 
     try:
         source_code = Self.get().source.read_module(module)
@@ -83,7 +83,7 @@ def source_read(module: str, as_json: bool) -> None:
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 def source_find(module: str, symbol: str, as_json: bool) -> None:
     """Find a symbol in a module."""
-    from sunwell.self import Self
+    from sunwell.features.mirror.self import Self
 
     result = Self.get().source.find_symbol(module, symbol)
 
@@ -118,7 +118,7 @@ def source_find(module: str, symbol: str, as_json: bool) -> None:
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 def source_search(query: str, limit: int, as_json: bool) -> None:
     """Semantic search in Sunwell source code."""
-    from sunwell.self import Self
+    from sunwell.features.mirror.self import Self
 
     results = Self.get().source.search(query, limit=limit)
 
@@ -155,7 +155,7 @@ def analysis() -> None:
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 def analysis_patterns(scope: str, as_json: bool) -> None:
     """Analyze tool usage patterns."""
-    from sunwell.self import Self
+    from sunwell.features.mirror.self import Self
 
     report = Self.get().analysis.analyze_patterns()
 
@@ -185,7 +185,7 @@ def analysis_patterns(scope: str, as_json: bool) -> None:
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 def analysis_failures(limit: int, as_json: bool) -> None:
     """Get recent failures."""
-    from sunwell.self import Self
+    from sunwell.features.mirror.self import Self
 
     failures = Self.get().analysis.get_recent_failures(limit=limit)
 
@@ -224,8 +224,8 @@ def proposals() -> None:
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 def proposals_list(status: str | None, as_json: bool) -> None:
     """List all proposals."""
-    from sunwell.self import Self
-    from sunwell.self.types import ProposalStatus
+    from sunwell.features.mirror.self import Self
+    from sunwell.features.mirror.self.types import ProposalStatus
 
     all_proposals = Self.get().proposals.list_proposals()
 
@@ -262,7 +262,7 @@ def proposals_list(status: str | None, as_json: bool) -> None:
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 def proposals_show(proposal_id: str, as_json: bool) -> None:
     """Show details for a proposal."""
-    from sunwell.self import Self
+    from sunwell.features.mirror.self import Self
 
     proposal = Self.get().proposals.get_proposal(proposal_id)
 
@@ -308,7 +308,7 @@ def proposals_show(proposal_id: str, as_json: bool) -> None:
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 def proposals_test(proposal_id: str, as_json: bool) -> None:
     """Test a proposal in the sandbox."""
-    from sunwell.self import Self
+    from sunwell.features.mirror.self import Self
 
     proposal = Self.get().proposals.get_proposal(proposal_id)
     if proposal is None:
@@ -339,7 +339,7 @@ def proposals_test(proposal_id: str, as_json: bool) -> None:
 @click.argument("proposal_id")
 def proposals_approve(proposal_id: str) -> None:
     """Approve a proposal for application."""
-    from sunwell.self import Self
+    from sunwell.features.mirror.self import Self
 
     proposal = Self.get().proposals.approve(proposal_id)
     click.echo(f"✅ Proposal '{proposal.title}' approved")
@@ -350,7 +350,7 @@ def proposals_approve(proposal_id: str) -> None:
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 def proposals_apply(proposal_id: str, as_json: bool) -> None:
     """Apply an approved proposal."""
-    from sunwell.self import Self
+    from sunwell.features.mirror.self import Self
 
     proposal = Self.get().proposals.get_proposal(proposal_id)
     if proposal is None:
@@ -379,7 +379,7 @@ def proposals_apply(proposal_id: str, as_json: bool) -> None:
 @click.argument("proposal_id")
 def proposals_rollback(proposal_id: str) -> None:
     """Rollback an applied proposal."""
-    from sunwell.self import Self
+    from sunwell.features.mirror.self import Self
 
     proposal = Self.get().proposals.get_proposal(proposal_id)
     if proposal is None:
@@ -406,8 +406,8 @@ def proposals_rollback(proposal_id: str) -> None:
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 def summary(as_json: bool) -> None:
     """Get self-knowledge summary for dashboard."""
-    from sunwell.self import Self
-    from sunwell.self.types import ProposalStatus
+    from sunwell.features.mirror.self import Self
+    from sunwell.features.mirror.self.types import ProposalStatus
 
     self_instance = Self.get()
 

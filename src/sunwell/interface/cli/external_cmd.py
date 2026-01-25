@@ -43,10 +43,10 @@ def start(no_server: bool, host: str, port: int) -> None:
 
 async def _start_external(no_server: bool, host: str, port: int) -> None:
     """Start external integration."""
-    from sunwell.backlog.manager import BacklogManager
-    from sunwell.external.policy import ExternalGoalPolicy
-    from sunwell.external.processor import EventProcessor
-    from sunwell.external.scheduler import ExternalScheduler
+    from sunwell.features.backlog.manager import BacklogManager
+    from sunwell.features.external.policy import ExternalGoalPolicy
+    from sunwell.features.external.processor import EventProcessor
+    from sunwell.features.external.scheduler import ExternalScheduler
 
     root = Path.cwd()
 
@@ -94,7 +94,7 @@ async def _start_external(no_server: bool, host: str, port: int) -> None:
 
     if not no_server:
         # Start webhook server
-        from sunwell.external.server import WebhookServer
+        from sunwell.features.external.server import WebhookServer
 
         server = WebhookServer(processor, host, port)
         urls = server.get_webhook_urls()
@@ -126,8 +126,8 @@ async def _setup_adapters(processor: "EventProcessor") -> None:
     """Setup adapters based on environment variables."""
     import os
 
-    from sunwell.external.adapters.github import GitHubAdapter
-    from sunwell.external.processor import EventProcessor
+    from sunwell.features.external.adapters.github import GitHubAdapter
+    from sunwell.features.external.processor import EventProcessor
 
     # GitHub
     github_token = os.environ.get("GITHUB_TOKEN")
@@ -153,7 +153,7 @@ async def _show_status() -> None:
     """Show status of external integration."""
     import os
 
-    from sunwell.external.store import ExternalEventStore
+    from sunwell.features.external.store import ExternalEventStore
 
     root = Path.cwd()
     store = ExternalEventStore(root)
@@ -223,8 +223,8 @@ def events(source: str | None, limit: int) -> None:
 
 async def _list_events(source: str | None, limit: int) -> None:
     """List recent events."""
-    from sunwell.external.store import ExternalEventStore
-    from sunwell.external.types import EventSource
+    from sunwell.features.external.store import ExternalEventStore
+    from sunwell.features.external.types import EventSource
 
     root = Path.cwd()
     store = ExternalEventStore(root)
@@ -279,10 +279,10 @@ def poll(source: str) -> None:
 async def _poll_source(source: str) -> None:
     """Poll a specific source."""
 
-    from sunwell.backlog.manager import BacklogManager
-    from sunwell.external.policy import ExternalGoalPolicy
-    from sunwell.external.processor import EventProcessor
-    from sunwell.external.types import EventSource
+    from sunwell.features.backlog.manager import BacklogManager
+    from sunwell.features.external.policy import ExternalGoalPolicy
+    from sunwell.features.external.processor import EventProcessor
+    from sunwell.features.external.types import EventSource
 
     try:
         source_enum = EventSource(source)
@@ -335,10 +335,10 @@ def schedules() -> None:
 
 async def _list_schedules() -> None:
     """List scheduled jobs."""
-    from sunwell.backlog.manager import BacklogManager
-    from sunwell.external.policy import ExternalGoalPolicy
-    from sunwell.external.processor import EventProcessor
-    from sunwell.external.scheduler import ExternalScheduler
+    from sunwell.features.backlog.manager import BacklogManager
+    from sunwell.features.external.policy import ExternalGoalPolicy
+    from sunwell.features.external.processor import EventProcessor
+    from sunwell.features.external.scheduler import ExternalScheduler
 
     root = Path.cwd()
     backlog_manager = BacklogManager(root)
@@ -386,10 +386,10 @@ def run(name: str) -> None:
 
 async def _run_job(name: str) -> None:
     """Run a scheduled job."""
-    from sunwell.backlog.manager import BacklogManager
-    from sunwell.external.policy import ExternalGoalPolicy
-    from sunwell.external.processor import EventProcessor
-    from sunwell.external.scheduler import ExternalScheduler
+    from sunwell.features.backlog.manager import BacklogManager
+    from sunwell.features.external.policy import ExternalGoalPolicy
+    from sunwell.features.external.processor import EventProcessor
+    from sunwell.features.external.scheduler import ExternalScheduler
 
     root = Path.cwd()
     backlog_manager = BacklogManager(root)

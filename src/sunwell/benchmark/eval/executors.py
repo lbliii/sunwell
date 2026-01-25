@@ -13,7 +13,7 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-from sunwell.eval.types import FullStackTask, SingleShotResult, SunwellResult
+from sunwell.benchmark.eval.types import FullStackTask, SingleShotResult, SunwellResult
 from sunwell.models.protocol import GenerateOptions, ModelProtocol, Tool
 
 logger = logging.getLogger(__name__)
@@ -292,8 +292,8 @@ class SunwellFullStackExecutor:
         Returns:
             SunwellResult with full tracking.
         """
-        from sunwell.demo.judge import DemoJudge
-        from sunwell.surface.lens_detection import get_lens_for_project
+        from sunwell.benchmark.demo.judge import DemoJudge
+        from sunwell.interface.surface.lens_detection import get_lens_for_project
 
         start_time = time.monotonic()
         files_created: list[str] = []

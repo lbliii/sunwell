@@ -4,9 +4,9 @@
 import asyncio
 import json
 
-from sunwell.mirror import MirrorHandler
-from sunwell.naaru.core.bus import MessageType, NaaruRegion
-from sunwell.naaru.core.worker import RegionWorker
+from sunwell.features.mirror import MirrorHandler
+from sunwell.planning.naaru.core.bus import MessageType, NaaruRegion
+from sunwell.planning.naaru.core.worker import RegionWorker
 
 
 class AnalysisWorker(RegionWorker):

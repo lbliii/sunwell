@@ -9,15 +9,15 @@ This module provides:
 - CascadeExecutor for agent-driven code regeneration (RFC-069)
 """
 
-from sunwell.weakness.analyzer import SmartWeaknessAnalyzer, WeaknessAnalyzer
-from sunwell.weakness.cascade import CascadeEngine, CascadeExecution, CascadePreview
-from sunwell.weakness.executor import (
+from sunwell.quality.weakness.analyzer import SmartWeaknessAnalyzer, WeaknessAnalyzer
+from sunwell.quality.weakness.cascade import CascadeEngine, CascadeExecution, CascadePreview
+from sunwell.quality.weakness.executor import (
     CascadeArtifactBuilder,
     CascadeExecutor,
     WaveResult,
     create_cascade_executor,
 )
-from sunwell.weakness.types import (
+from sunwell.quality.weakness.types import (
     CascadeRisk,
     DeltaPreview,
     ExtractedContract,
@@ -26,7 +26,7 @@ from sunwell.weakness.types import (
     WeaknessSignal,
     WeaknessType,
 )
-from sunwell.weakness.verification import run_mypy, run_pytest, run_ruff
+from sunwell.quality.weakness.verification import run_mypy, run_pytest, run_ruff
 
 __all__ = [
     # Types

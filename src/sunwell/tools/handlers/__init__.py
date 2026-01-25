@@ -31,7 +31,7 @@ from sunwell.tools.handlers.git import GitHandlers
 from sunwell.tools.handlers.shell import ShellHandlers
 
 if TYPE_CHECKING:
-    from sunwell.skills.sandbox import ScriptSandbox
+    from sunwell.planning.skills.sandbox import ScriptSandbox
 
 
 class CoreToolHandlers(FileHandlers, GitHandlers, ShellHandlers, EnvHandlers):

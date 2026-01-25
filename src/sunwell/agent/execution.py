@@ -26,9 +26,9 @@ if TYPE_CHECKING:
     from sunwell.agent.gates import ValidationGate
     from sunwell.agent.learning import LearningStore
     from sunwell.agent.metrics import InferenceMetrics
-    from sunwell.core.lens import Lens
+    from sunwell.foundation.core.lens import Lens
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.naaru.types import Task
+    from sunwell.planning.naaru.types import Task
 
 logger = logging.getLogger(__name__)
 
@@ -448,7 +448,7 @@ async def execute_task_with_tools(
     # === CREATE MIRROR HANDLER (for self-reflection) ===
     mirror_handler = None
     try:
-        from sunwell.mirror.handler import MirrorHandler
+        from sunwell.features.mirror.handler import MirrorHandler
 
         mirror_handler = MirrorHandler(
             workspace=cwd,

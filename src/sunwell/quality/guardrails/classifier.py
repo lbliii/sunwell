@@ -10,7 +10,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.guardrails.types import (
+from sunwell.quality.guardrails.types import (
     Action,
     ActionClassification,
     ActionRisk,
@@ -556,7 +556,7 @@ class SmartActionClassifier(ActionClassifier):
     async def _get_classifier(self) -> Any:
         """Lazy-load FastClassifier."""
         if self._classifier is None and self._model is not None:
-            from sunwell.reasoning import FastClassifier
+            from sunwell.planning.reasoning import FastClassifier
 
             self._classifier = FastClassifier(model=self._model)
         return self._classifier

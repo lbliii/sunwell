@@ -5,7 +5,7 @@ import re
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sunwell.naaru.artifacts import ArtifactSpec
+    from sunwell.planning.naaru.artifacts import ArtifactSpec
 
 # Pre-compiled regex patterns for performance (avoid recompiling per-call)
 _RE_JSON_ARRAY = re.compile(r"\[.*\]", re.DOTALL)
@@ -14,7 +14,7 @@ _RE_JSON_CODE_BLOCK = re.compile(r"```(?:json)?\s*(\[.*?\])\s*```", re.DOTALL)
 
 def parse_artifacts(response: str) -> list[ArtifactSpec]:
     """Parse LLM response into ArtifactSpec objects."""
-    from sunwell.naaru.artifacts import ArtifactSpec
+    from sunwell.planning.naaru.artifacts import ArtifactSpec
 
     # Strategy 1: Find JSON array with regex
     json_match = _RE_JSON_ARRAY.search(response)
@@ -39,7 +39,7 @@ def parse_artifacts(response: str) -> list[ArtifactSpec]:
 
 def specs_from_data(data: list[dict[str, Any]]) -> list[ArtifactSpec]:
     """Convert parsed JSON to ArtifactSpec list."""
-    from sunwell.naaru.artifacts import ArtifactSpec
+    from sunwell.planning.naaru.artifacts import ArtifactSpec
 
     artifacts = []
     for item in data:

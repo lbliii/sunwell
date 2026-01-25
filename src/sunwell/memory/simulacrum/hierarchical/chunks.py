@@ -6,7 +6,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.simulacrum.core.turn import Turn
+    from sunwell.memory.simulacrum.core.turn import Turn
 
 
 class ChunkType(Enum):

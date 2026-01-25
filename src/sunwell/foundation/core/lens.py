@@ -14,7 +14,7 @@ from sunwell.core.workflow import Refiner, Workflow
 
 if TYPE_CHECKING:
     from sunwell.core.spell import Spell
-    from sunwell.skills.types import Skill, SkillRetryPolicy
+    from sunwell.planning.skills.types import Skill, SkillRetryPolicy
 
 
 # =============================================================================

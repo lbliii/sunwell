@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.naaru.artifacts import ArtifactGraph
+    from sunwell.planning.naaru.artifacts import ArtifactGraph
 
 
 @dataclass(frozen=True, slots=True)

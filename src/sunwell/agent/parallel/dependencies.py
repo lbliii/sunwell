@@ -11,8 +11,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.backlog.goals import Goal
-    from sunwell.backlog.manager import Backlog
+    from sunwell.features.backlog.goals import Goal
+    from sunwell.features.backlog.manager import Backlog
 
 # Pre-compiled regex patterns for file estimation
 _TEST_PATTERN = re.compile(r"test(?:s)?\s+(?:for\s+)?(\w+)")

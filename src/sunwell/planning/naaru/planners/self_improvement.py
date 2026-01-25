@@ -9,10 +9,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.naaru.types import Task, TaskMode
+from sunwell.planning.naaru.types import Task, TaskMode
 
 if TYPE_CHECKING:
-    from sunwell.mirror import MirrorHandler
+    from sunwell.features.mirror import MirrorHandler
 
 
 @dataclass(slots=True)
@@ -51,7 +51,7 @@ class SelfImprovementPlanner:
         Returns:
             List of Tasks representing improvement opportunities
         """
-        from sunwell.naaru.discovery import OpportunityDiscoverer
+        from sunwell.planning.naaru.discovery import OpportunityDiscoverer
 
         # Use existing discoverer
         discoverer = OpportunityDiscoverer(

@@ -21,7 +21,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
-from sunwell.eval.types import (
+from sunwell.benchmark.eval.types import (
     EvaluationDetails,
     EvaluationRun,
     EvaluationStats,

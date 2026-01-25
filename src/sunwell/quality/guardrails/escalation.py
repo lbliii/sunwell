@@ -8,7 +8,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
 
-from sunwell.guardrails.types import (
+from sunwell.quality.guardrails.types import (
     ActionClassification,
     Escalation,
     EscalationOption,

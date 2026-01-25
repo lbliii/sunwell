@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from sunwell.models.protocol import Tool
 
 if TYPE_CHECKING:
-    from sunwell.core.lens import Lens
+    from sunwell.foundation.core.lens import Lens
 
 logger = logging.getLogger(__name__)
 

@@ -28,10 +28,10 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from sunwell.mirror import MirrorHandler
-from sunwell.naaru.discovery import OpportunityDiscoverer
-from sunwell.naaru.signals import SignalHandler, StopReason, format_stop_reason
-from sunwell.naaru.types import (
+from sunwell.features.mirror import MirrorHandler
+from sunwell.planning.naaru.discovery import OpportunityDiscoverer
+from sunwell.planning.naaru.signals import SignalHandler, StopReason, format_stop_reason
+from sunwell.planning.naaru.types import (
     Opportunity,
     SessionConfig,
     SessionState,

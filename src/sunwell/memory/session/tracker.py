@@ -10,7 +10,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
-from sunwell.session.summary import GoalSummary, SessionSummary
+from sunwell.memory.session.summary import GoalSummary, SessionSummary
 
 # Default session storage location
 DEFAULT_SESSIONS_DIR = Path(".sunwell/sessions")

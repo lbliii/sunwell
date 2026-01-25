@@ -18,13 +18,13 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sunwell.binding.identity import (
+from sunwell.foundation.binding.identity import (
     BindingIndexEntry,
     BindingIndexManager,
     create_binding_identity,
     create_binding_uri,
 )
-from sunwell.core.identity import SunwellURI, slugify
+from sunwell.foundation.identity import SunwellURI, slugify
 
 # Default models per provider (extracted to avoid per-call dict creation)
 _DEFAULT_MODELS: dict[str, str] = {
@@ -165,7 +165,7 @@ class Binding:
         simulacrum = data.get("simulacrum") or data.get("headspace")
 
         # Use config defaults for backwards compatibility with old bindings
-        from sunwell.config import get_config
+        from sunwell.foundation.config import get_config
 
         cfg = get_config()
         default_provider = cfg.model.default_provider if cfg else "ollama"
@@ -290,7 +290,7 @@ class BindingManager:
         Returns:
             Created Binding
         """
-        from sunwell.config import get_config
+        from sunwell.foundation.config import get_config
 
         cfg = get_config()
 
@@ -371,7 +371,7 @@ class BindingManager:
         2. User config: ~/.sunwell/config.yaml -> binding.default
         4. Legacy: Global index is_default flag (deprecated)
         """
-        from sunwell.config import get_config
+        from sunwell.foundation.config import get_config
 
         # Try config first (project-local → user-global)
         try:

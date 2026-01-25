@@ -37,8 +37,8 @@ Naming Rationale:
     Each shard has a specific job that contributes to the greater purpose.
 
 Example:
-    >>> from sunwell.naaru.shards import Shard, ShardPool, ShardType
-    >>> from sunwell.naaru.convergence import Convergence
+    >>> from sunwell.planning.naaru.shards import Shard, ShardPool, ShardType
+    >>> from sunwell.planning.naaru.convergence import Convergence
     >>>
     >>> convergence = Convergence()
     >>> pool = ShardPool(convergence=convergence)
@@ -57,7 +57,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from sunwell.naaru.convergence import Convergence, Slot, SlotSource
+from sunwell.planning.naaru.convergence import Convergence, Slot, SlotSource
 
 
 class ShardType(Enum):

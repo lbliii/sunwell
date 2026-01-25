@@ -10,9 +10,9 @@ from sunwell.agent.learning.learning import Learning
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.naaru.types import Task
-    from sunwell.simulacrum.core.turn import Learning as SimLearning
-    from sunwell.simulacrum.core.turn import TemplateData, TemplateVariable
+    from sunwell.planning.naaru.types import Task
+    from sunwell.memory.simulacrum.core.turn import Learning as SimLearning
+    from sunwell.memory.simulacrum.core.turn import TemplateData, TemplateVariable
 
 # Pre-compiled regex patterns for learning extraction (avoid recompiling per call)
 _RE_API_ROUTE = re.compile(
@@ -285,7 +285,7 @@ PATTERN: Using Flask-SQLAlchemy with create_app pattern"""
         Returns:
             Template Learning if extractable, None otherwise
         """
-        from sunwell.simulacrum.core.turn import (
+        from sunwell.memory.simulacrum.core.turn import (
             Learning as SimLearning,
             TemplateData,
             TemplateVariable,
@@ -389,7 +389,7 @@ For variables, use format: {{"name": "entity", "description": "Model name", "typ
         Returns:
             Heuristic Learning if extractable, None otherwise
         """
-        from sunwell.simulacrum.core.turn import Learning as SimLearning
+        from sunwell.memory.simulacrum.core.turn import Learning as SimLearning
 
         if len(tasks) < 3:
             return None

@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 # RFC-067 types - imported here for Task dataclass fields
-from sunwell.integration.types import (
+from sunwell.features.external.integration.types import (
     IntegrationCheck,
     RequiredIntegration,
     TaskType,

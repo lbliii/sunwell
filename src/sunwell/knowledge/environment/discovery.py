@@ -7,8 +7,8 @@ This module provides multi-project awareness on top of single-project detection.
 from datetime import datetime
 from pathlib import Path
 
-from sunwell.environment.model import ProjectEntry, ProjectRoot
-from sunwell.workspace.detector import WorkspaceDetector
+from sunwell.knowledge.environment.model import ProjectEntry, ProjectRoot
+from sunwell.knowledge.workspace.detector import WorkspaceDetector
 
 # =============================================================================
 # Constants

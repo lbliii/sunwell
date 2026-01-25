@@ -5,10 +5,10 @@ Resolves project context from various sources with explicit precedence.
 
 from pathlib import Path
 
-from sunwell.project.manifest import ManifestError, load_manifest
-from sunwell.project.registry import ProjectRegistry
-from sunwell.project.types import Project, WorkspaceType
-from sunwell.project.validation import ProjectValidationError, validate_workspace
+from sunwell.knowledge.project.manifest import ManifestError, load_manifest
+from sunwell.knowledge.project.registry import ProjectRegistry
+from sunwell.knowledge.project.types import Project, WorkspaceType
+from sunwell.knowledge.project.validation import ProjectValidationError, validate_workspace
 
 
 class ProjectResolutionError(Exception):

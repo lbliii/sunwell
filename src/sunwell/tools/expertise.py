@@ -15,8 +15,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sunwell.core.heuristic import Heuristic
-    from sunwell.core.lens import Lens
-    from sunwell.runtime.retriever import ExpertiseRetriever
+    from sunwell.foundation.core.lens import Lens
+    from sunwell.agent.runtime.retriever import ExpertiseRetriever
 
 
 @dataclass(slots=True)

@@ -10,12 +10,12 @@ enabling easy swapping for testing or alternative implementations.
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from sunwell.config import SunwellConfig, get_config
-from sunwell.embedding import create_embedder
-from sunwell.embedding.protocol import EmbeddingProtocol
+from sunwell.foundation.config import SunwellConfig, get_config
+from sunwell.knowledge.embedding import create_embedder
+from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
 from sunwell.models.protocol import ModelProtocol
-from sunwell.simulacrum.manager import SimulacrumManager
-from sunwell.types.protocol import (
+from sunwell.memory.simulacrum.manager import SimulacrumManager
+from sunwell.foundation.types.protocol import (
     ConsoleProtocol,
     MemoryStoreProtocol,
 )
@@ -83,7 +83,7 @@ class AppContext:
         embedder = create_embedder()
 
         # Create SimulacrumManager
-        from sunwell.simulacrum.manager import LifecyclePolicy, SpawnPolicy
+        from sunwell.memory.simulacrum.manager import LifecyclePolicy, SpawnPolicy
 
         spawn_policy = SpawnPolicy(
             enabled=config.simulacrum.spawn.enabled,
@@ -129,19 +129,19 @@ class AppContext:
         Returns:
             AppContext with test dependencies
         """
-        from sunwell.config import SunwellConfig
+        from sunwell.foundation.config import SunwellConfig
 
         # Minimal config for testing
         config = SunwellConfig()
 
         # In-memory embedder (hash-based, no API calls)
-        from sunwell.embedding.hash import HashEmbedder
+        from sunwell.knowledge.embedding.hash import HashEmbedder
         embedder = HashEmbedder()
 
         # In-memory memory store (no disk I/O)
         import tempfile
 
-        from sunwell.simulacrum.manager import SimulacrumManager
+        from sunwell.memory.simulacrum.manager import SimulacrumManager
 
         # Use a persistent temp directory (not cleaned up immediately)
         tmpdir = tempfile.mkdtemp(prefix="sunwell_test_")
@@ -173,5 +173,5 @@ class AppContext:
         Returns:
             ModelProtocol instance
         """
-        from sunwell.cli.helpers import create_model
+        from sunwell.interface.cli.helpers import create_model
         return create_model(provider, model)

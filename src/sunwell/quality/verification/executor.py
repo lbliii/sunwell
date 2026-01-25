@@ -9,7 +9,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from sunwell.verification.types import (
+from sunwell.quality.verification.types import (
     BehavioralExecutionResult,
     GeneratedTest,
     TestExecutionResult,

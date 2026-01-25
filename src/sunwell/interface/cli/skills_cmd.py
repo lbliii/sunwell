@@ -63,10 +63,10 @@ def learn_skill(
     """
     import asyncio
 
-    from sunwell.config import Config, load_config
-    from sunwell.skills.learner import SkillLearner
-    from sunwell.skills.library import SkillLibrary
-    from sunwell.simulacrum.core.store import SimulacrumStore
+    from sunwell.foundation.config import Config, load_config
+    from sunwell.planning.skills.learner import SkillLearner
+    from sunwell.planning.skills.library import SkillLibrary
+    from sunwell.memory.simulacrum.core.store import SimulacrumStore
 
     # Load config and initialize components
     config = load_config(project)
@@ -108,7 +108,7 @@ def learn_skill(
 
         # Override name if provided
         if name:
-            from sunwell.skills.types import Skill
+            from sunwell.planning.skills.types import Skill
 
             skill = Skill(
                 name=name,
@@ -163,7 +163,7 @@ def list_skills(source: str, project: Path) -> None:
         sunwell skills list
         sunwell skills list --source learned
     """
-    from sunwell.skills.library import SkillLibrary
+    from sunwell.planning.skills.library import SkillLibrary
 
     library = SkillLibrary(project / ".sunwell" / "skills")
 
@@ -232,7 +232,7 @@ def show_skill(name: str, project: Path) -> None:
     Example:
         sunwell skills show audit-api-docs
     """
-    from sunwell.skills.library import SkillLibrary
+    from sunwell.planning.skills.library import SkillLibrary
 
     library = SkillLibrary(project / ".sunwell" / "skills")
     skill = library.load_skill(name)
@@ -315,7 +315,7 @@ def delete_skill(name: str, yes: bool, project: Path) -> None:
     Example:
         sunwell skills delete audit-api-docs
     """
-    from sunwell.skills.library import SkillLibrary
+    from sunwell.planning.skills.library import SkillLibrary
 
     library = SkillLibrary(project / ".sunwell" / "skills")
 
@@ -367,7 +367,7 @@ def import_skill(source: Path, name: str | None, project: Path) -> None:
         sunwell skills import ~/shared-skills/audit-skill/
         sunwell skills import ./external-skill/SKILL.yaml --name my-skill
     """
-    from sunwell.skills.library import SkillLibrary
+    from sunwell.planning.skills.library import SkillLibrary
 
     library = SkillLibrary(project / ".sunwell" / "skills")
 
@@ -407,7 +407,7 @@ def list_sessions(limit: int, project: Path) -> None:
         sunwell skills sessions
         sunwell skills sessions --limit 20
     """
-    from sunwell.simulacrum.core.store import SimulacrumStore
+    from sunwell.memory.simulacrum.core.store import SimulacrumStore
 
     simulacrum_path = project / ".sunwell" / "simulacrum"
 
@@ -485,8 +485,8 @@ def export_skill(
         sunwell skills export my-skill --format anthropic
         sunwell skills export audit-skill --format sunwell -o ~/shared-skills/
     """
-    from sunwell.skills.interop import SkillExporter
-    from sunwell.skills.library import SkillLibrary
+    from sunwell.planning.skills.interop import SkillExporter
+    from sunwell.planning.skills.library import SkillLibrary
 
     library = SkillLibrary(project / ".sunwell" / "skills")
     skill = library.load_skill(name)
@@ -553,8 +553,8 @@ def export_all_skills(
         sunwell skills export-all --format anthropic
         sunwell skills export-all --source learned --format sunwell
     """
-    from sunwell.skills.interop import SkillExporter
-    from sunwell.skills.library import SkillLibrary
+    from sunwell.planning.skills.interop import SkillExporter
+    from sunwell.planning.skills.library import SkillLibrary
 
     library = SkillLibrary(project / ".sunwell" / "skills")
     exporter = SkillExporter()

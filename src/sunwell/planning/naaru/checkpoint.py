@@ -11,7 +11,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from sunwell.naaru.types import Task
+from sunwell.planning.naaru.types import Task
 
 
 class FailurePolicy(Enum):
@@ -252,7 +252,7 @@ class AgentCheckpoint:
 
     def get_remaining_tasks(self) -> list[Task]:
         """Get tasks that haven't been completed."""
-        from sunwell.naaru.types import TaskStatus
+        from sunwell.planning.naaru.types import TaskStatus
 
         return [
             t for t in self.tasks
@@ -262,7 +262,7 @@ class AgentCheckpoint:
 
     def get_progress_summary(self) -> dict[str, Any]:
         """Get a summary of execution progress."""
-        from sunwell.naaru.types import TaskStatus
+        from sunwell.planning.naaru.types import TaskStatus
 
         completed = len(self.completed_ids)
         total = len(self.tasks)

@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from sunwell.bootstrap.types import BootstrapPatterns
+    from sunwell.knowledge.bootstrap.types import BootstrapPatterns
 
 
 # Pre-compiled regex for docstring extraction

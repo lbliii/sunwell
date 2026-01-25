@@ -7,7 +7,7 @@ import asyncio
 from datetime import datetime
 from pathlib import Path
 
-from sunwell.guardrails.types import (
+from sunwell.quality.guardrails.types import (
     FileChange,
     RecoveryOption,
     RollbackResult,

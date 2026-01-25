@@ -301,7 +301,7 @@ async def extract_with_categories(
         return facts, behaviors
     except Exception:
         # Fall back to regex for both
-        from sunwell.simulacrum.extractors.extractor import extract_user_facts
+        from sunwell.memory.simulacrum.extractors.extractor import extract_user_facts
         facts = extract_user_facts(message)
         behaviors = extract_behaviors_regex(message)
         return facts, behaviors

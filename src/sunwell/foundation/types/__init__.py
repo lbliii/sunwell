@@ -4,12 +4,12 @@ This package consolidates duplicate type definitions across the codebase.
 All imports should come from here.
 """
 
-from sunwell.types.config import (
+from sunwell.foundation.types.config import (
     EmbeddingConfig,
     ModelConfig,
     NaaruConfig,
 )
-from sunwell.types.core import (
+from sunwell.foundation.types.core import (
     Confidence,
     IntentCategory,
     LensReference,
@@ -21,12 +21,12 @@ from sunwell.types.core import (
     ValidationExecutionError,
     ValidationMethod,
 )
-from sunwell.types.memory import (
+from sunwell.foundation.types.memory import (
     ContextBudget,
     MemoryRetrievalResult,
 )
-from sunwell.types.model_size import ModelSize
-from sunwell.types.naaru_api import (
+from sunwell.foundation.types.model_size import ModelSize
+from sunwell.foundation.types.naaru_api import (
     CONVERGENCE_SLOTS,
     SLOT_TTL_SECONDS,
     CompositionSpec,
@@ -40,14 +40,14 @@ from sunwell.types.naaru_api import (
     RoutingDecision,
     get_slot_ttl,
 )
-from sunwell.types.protocol import (
+from sunwell.foundation.types.protocol import (
     ChatSessionProtocol,
     ConsoleProtocol,
     MemoryStoreProtocol,
     ParallelExecutorProtocol,
     ToolExecutorProtocol,
 )
-from sunwell.types.routing import (
+from sunwell.foundation.types.routing import (
     RoutingTier,
 )
 

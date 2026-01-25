@@ -6,10 +6,10 @@ This module provides:
 - WorkflowState: State persistence across sessions
 """
 
-from sunwell.workflow.engine import WorkflowEngine, WorkflowResult
-from sunwell.workflow.router import IntentRouter
-from sunwell.workflow.state import WorkflowState, WorkflowStateManager
-from sunwell.workflow.types import (
+from sunwell.features.workflow.engine import WorkflowEngine, WorkflowResult
+from sunwell.features.workflow.router import IntentRouter
+from sunwell.features.workflow.state import WorkflowState, WorkflowStateManager
+from sunwell.features.workflow.types import (
     Intent,
     IntentCategory,
     Serializable,

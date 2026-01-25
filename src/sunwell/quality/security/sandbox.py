@@ -22,12 +22,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-from sunwell.security.analyzer import PermissionScope
-from sunwell.skills.sandbox import ScriptSandbox
-from sunwell.skills.types import TrustLevel
+from sunwell.quality.security.analyzer import PermissionScope
+from sunwell.planning.skills.sandbox import ScriptSandbox
+from sunwell.planning.skills.types import TrustLevel
 
 if TYPE_CHECKING:
-    from sunwell.skills.types import Skill, SkillOutput
+    from sunwell.planning.skills.types import Skill, SkillOutput
 
 
 # =============================================================================
@@ -304,7 +304,7 @@ class SecureSandbox:
             PermissionDeniedError: If skill requests out-of-scope permissions
             SandboxExecutionError: If execution fails
         """
-        from sunwell.skills.types import SkillOutput
+        from sunwell.planning.skills.types import SkillOutput
 
         audit = SecurityAudit(skill_name=skill.name)
 
@@ -366,7 +366,7 @@ class SecureSandbox:
 
         # Convert to PermissionScope if dict
         if isinstance(skill_perms, dict):
-            from sunwell.security.analyzer import PermissionScope
+            from sunwell.quality.security.analyzer import PermissionScope
 
             skill_scope = PermissionScope.from_dict(skill_perms)
         elif isinstance(skill_perms, PermissionScope):

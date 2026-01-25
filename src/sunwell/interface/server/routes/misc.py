@@ -13,8 +13,8 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from sunwell.server.routes._models import CamelModel
-from sunwell.server.routes.agent import get_run_manager
+from sunwell.interface.generative.server.routes._models import CamelModel
+from sunwell.interface.generative.server.routes.agent import get_run_manager
 
 router = APIRouter(prefix="/api", tags=["misc"])
 
@@ -111,7 +111,7 @@ async def get_debug_dump() -> StreamingResponse:
 
     Returns a tar.gz file containing diagnostics for bug reports.
     """
-    from sunwell.cli.debug_cmd import (
+    from sunwell.interface.generative.cli.debug_cmd import (
         _collect_config,
         _collect_events,
         _collect_logs,
@@ -161,7 +161,7 @@ async def get_debug_dump() -> StreamingResponse:
 async def list_lenses() -> list[dict[str, Any]]:
     """List available lenses."""
     try:
-        from sunwell.lens import LensLibrary
+        from sunwell.planning.lens import LensLibrary
 
         library = LensLibrary()
         return [
@@ -181,7 +181,7 @@ async def list_lenses() -> list[dict[str, Any]]:
 async def get_lens(lens_id: str) -> dict[str, Any]:
     """Get lens details."""
     try:
-        from sunwell.lens import LensLibrary
+        from sunwell.planning.lens import LensLibrary
 
         library = LensLibrary()
         lens = library.get(lens_id)

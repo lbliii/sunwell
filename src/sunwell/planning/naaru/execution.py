@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from sunwell.naaru.events import EventEmitter
+from sunwell.planning.naaru.events import EventEmitter
 
 
 class ExecutionCoordinator:
@@ -62,7 +62,7 @@ class ExecutionCoordinator:
         - Groups ready tasks for parallel execution based on resource conflicts
         - Respects parallel_group hints for safe concurrent execution
         """
-        from sunwell.naaru.types import TaskStatus
+        from sunwell.planning.naaru.types import TaskStatus
 
         completed_ids: set[str] = set()
         completed_artifacts: set[str] = set()
@@ -131,7 +131,7 @@ class ExecutionCoordinator:
 
     async def _execute_single_task(self, task: Any) -> None:
         """Execute a single task based on its mode."""
-        from sunwell.naaru.types import TaskMode, TaskStatus
+        from sunwell.planning.naaru.types import TaskMode, TaskStatus
 
         try:
             if task.mode == TaskMode.RESEARCH:
@@ -153,7 +153,7 @@ class ExecutionCoordinator:
 
     async def _research_task(self, task: Any) -> None:
         """Execute a research task."""
-        from sunwell.naaru.types import TaskStatus
+        from sunwell.planning.naaru.types import TaskStatus
 
         if not self._tool_executor:
             task.status = TaskStatus.FAILED
@@ -178,7 +178,7 @@ class ExecutionCoordinator:
 
     async def _execute_command_task(self, task: Any) -> None:
         """Execute a command task."""
-        from sunwell.naaru.types import TaskStatus
+        from sunwell.planning.naaru.types import TaskStatus
 
         if not self._tool_executor:
             task.status = TaskStatus.FAILED
@@ -229,7 +229,7 @@ class ExecutionCoordinator:
 
         Falls back to text generation if no tool executor available.
         """
-        from sunwell.naaru.types import TaskStatus
+        from sunwell.planning.naaru.types import TaskStatus
 
         if not self._synthesis_model:
             task.status = TaskStatus.FAILED
@@ -254,7 +254,7 @@ class ExecutionCoordinator:
     async def _generate_task_with_tools(self, task: Any) -> None:
         """Execute generation via agentic tool loop (preferred path)."""
         from sunwell.agent.loop import AgentLoop, LoopConfig
-        from sunwell.naaru.types import TaskStatus
+        from sunwell.planning.naaru.types import TaskStatus
 
         # Build system prompt for code generation
         system_prompt = (
@@ -310,7 +310,7 @@ class ExecutionCoordinator:
 
     async def _generate_task_text_fallback(self, task: Any) -> None:
         """Fallback: Text generation with markdown fence stripping."""
-        from sunwell.naaru.types import TaskStatus
+        from sunwell.planning.naaru.types import TaskStatus
 
         prompt = f"""Task: {task.description}
 
@@ -341,7 +341,7 @@ Code only, no explanations:"""
 
     async def _validate_generated_files(self, task: Any, file_paths: list[str]) -> None:
         """Validate generated files using judge model."""
-        from sunwell.naaru.types import TaskStatus
+        from sunwell.planning.naaru.types import TaskStatus
 
         if not self._judge_model or not file_paths:
             return
@@ -361,7 +361,7 @@ Code only, no explanations:"""
 
     async def _validate_and_escalate(self, task: Any, code: str) -> None:
         """Validate generated code and escalate if quality is low (RFC-034)."""
-        from sunwell.naaru.types import TaskStatus
+        from sunwell.planning.naaru.types import TaskStatus
 
         if not self._judge_model:
             return
@@ -395,7 +395,7 @@ Respond with ONLY: "APPROVE" or "REJECT" with reason."""
 
     async def _harmonic_generate(self, task: Any) -> None:
         """Use harmonic synthesis for better quality (RFC-034)."""
-        from sunwell.naaru.types import TaskStatus
+        from sunwell.planning.naaru.types import TaskStatus
 
         if not self._synthesis_model:
             return
@@ -423,7 +423,7 @@ Code only:"""
 
     async def _self_improve_task(self, task: Any) -> None:
         """Execute a self-improvement task."""
-        from sunwell.naaru.types import TaskStatus
+        from sunwell.planning.naaru.types import TaskStatus
 
         # Self-improvement requires illuminate() from Naaru
         # This is a placeholder - actual implementation delegates back
@@ -431,7 +431,7 @@ Code only:"""
 
     async def _verify_task(self, task: Any) -> None:
         """Execute a verification task."""
-        from sunwell.naaru.types import TaskStatus
+        from sunwell.planning.naaru.types import TaskStatus
 
         if not self._judge_model:
             task.status = TaskStatus.FAILED

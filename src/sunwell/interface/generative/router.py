@@ -6,9 +6,9 @@ Routes analyzed intent to appropriate handler (workspace, view, action, conversa
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from sunwell.interface.executor import ActionExecutor
-from sunwell.interface.types import IntentAnalysis
-from sunwell.interface.views import ViewRenderer
+from sunwell.interface.generative.executor import ActionExecutor
+from sunwell.interface.generative.types import IntentAnalysis
+from sunwell.interface.generative.views import ViewRenderer
 
 
 class InterfaceOutput(Protocol):
@@ -177,7 +177,7 @@ class InteractionRouter:
         """Render a full workspace via RFC-072."""
         if not analysis.workspace:
             # Fallback to default workspace
-            from sunwell.surface.types import WorkspaceSpec
+            from sunwell.interface.generative.surface.types import WorkspaceSpec
 
             workspace = WorkspaceSpec(
                 primary="CodeEditor",

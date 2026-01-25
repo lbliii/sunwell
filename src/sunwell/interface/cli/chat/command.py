@@ -8,17 +8,17 @@ from pathlib import Path
 import click
 from rich.console import Console
 from rich.panel import Panel
-from sunwell.simulacrum.context.assembler import ContextAssembler
-from sunwell.simulacrum.core.store import SimulacrumStore
+from sunwell.memory.simulacrum.context.assembler import ContextAssembler
+from sunwell.memory.simulacrum.core.store import SimulacrumStore
 
-from sunwell.binding import BindingManager
-from sunwell.cli.helpers import create_model
-from sunwell.core.errors import SunwellError
+from sunwell.foundation.binding import BindingManager
+from sunwell.interface.generative.cli.helpers import create_model
+from sunwell.foundation.errors import SunwellError
 from sunwell.core.types import LensReference
-from sunwell.embedding import create_embedder
-from sunwell.fount.client import FountClient
-from sunwell.fount.resolver import LensResolver
-from sunwell.schema.loader import LensLoader
+from sunwell.knowledge.embedding import create_embedder
+from sunwell.features.fount.client import FountClient
+from sunwell.features.fount.resolver import LensResolver
+from sunwell.foundation.schema.loader import LensLoader
 
 console = Console()
 
@@ -129,7 +129,7 @@ def chat(
     _display_session_info(lens, provider, model, session, tools_enabled, trust_level)
 
     # Import and run chat loop
-    from sunwell.cli.chat.loop import chat_loop
+    from sunwell.interface.generative.cli.chat.loop import chat_loop
 
     asyncio.run(
         chat_loop(

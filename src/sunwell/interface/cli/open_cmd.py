@@ -10,8 +10,8 @@ from pathlib import Path
 
 import click
 
-from sunwell.surface.fallback import get_domain_for_project
-from sunwell.surface.lens_detection import get_lens_for_project, get_mode_for_domain
+from sunwell.interface.generative.surface.fallback import get_domain_for_project
+from sunwell.interface.generative.surface.lens_detection import get_lens_for_project, get_mode_for_domain
 
 
 def launch_studio(

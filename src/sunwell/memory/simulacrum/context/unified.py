@@ -12,18 +12,18 @@ Replaces traditional RAG with a unified query across:
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from sunwell.simulacrum.core.dag import ConversationDAG
-from sunwell.simulacrum.core.turn import Learning, Turn
-from sunwell.simulacrum.topology.facets import DiataxisType, FacetQuery, PersonaType
-from sunwell.simulacrum.topology.memory_node import MemoryNode
-from sunwell.simulacrum.topology.spatial import SpatialQuery
-from sunwell.simulacrum.topology.topology_base import RelationType
-from sunwell.simulacrum.topology.unified_store import UnifiedMemoryStore
-from sunwell.types.memory import ContextBudget
+from sunwell.memory.simulacrum.core.dag import ConversationDAG
+from sunwell.memory.simulacrum.core.turn import Learning, Turn
+from sunwell.memory.simulacrum.topology.facets import DiataxisType, FacetQuery, PersonaType
+from sunwell.memory.simulacrum.topology.memory_node import MemoryNode
+from sunwell.memory.simulacrum.topology.spatial import SpatialQuery
+from sunwell.memory.simulacrum.topology.topology_base import RelationType
+from sunwell.memory.simulacrum.topology.unified_store import UnifiedMemoryStore
+from sunwell.foundation.types.memory import ContextBudget
 
 if TYPE_CHECKING:
-    from sunwell.embedding.protocol import EmbeddingProtocol
-    from sunwell.intelligence.context import ProjectContext
+    from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
+    from sunwell.knowledge.codebase.context import ProjectContext
 
 
 @dataclass(slots=True)

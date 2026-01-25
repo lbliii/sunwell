@@ -57,7 +57,7 @@ def status(as_json: bool) -> None:
 
 async def _show_status(as_json: bool) -> None:
     """Show team knowledge summary."""
-    from sunwell.team import TeamKnowledgeStore, UnifiedIntelligence
+    from sunwell.features.team import TeamKnowledgeStore, UnifiedIntelligence
 
     store = TeamKnowledgeStore(Path.cwd())
     unified = UnifiedIntelligence(team_store=store)
@@ -124,7 +124,7 @@ async def _list_decisions(
     limit: int,
 ) -> None:
     """List team decisions."""
-    from sunwell.team import TeamKnowledgeStore
+    from sunwell.features.team import TeamKnowledgeStore
 
     store = TeamKnowledgeStore(Path.cwd())
     all_decisions = await store.get_decisions(category=category)
@@ -168,7 +168,7 @@ def show(decision_id: str) -> None:
 
 async def _show_decision(decision_id: str) -> None:
     """Show decision details."""
-    from sunwell.team import TeamKnowledgeStore
+    from sunwell.features.team import TeamKnowledgeStore
 
     store = TeamKnowledgeStore(Path.cwd())
     decisions = await store.get_decisions()
@@ -216,7 +216,7 @@ def failures(limit: int) -> None:
 
 async def _list_failures(limit: int) -> None:
     """List team failure patterns."""
-    from sunwell.team import TeamKnowledgeStore
+    from sunwell.features.team import TeamKnowledgeStore
 
     store = TeamKnowledgeStore(Path.cwd())
     all_failures = await store.get_failures()
@@ -250,7 +250,7 @@ def patterns() -> None:
 
 async def _show_patterns() -> None:
     """Show team patterns."""
-    from sunwell.team import TeamKnowledgeStore
+    from sunwell.features.team import TeamKnowledgeStore
 
     store = TeamKnowledgeStore(Path.cwd())
     patterns = await store.get_patterns()
@@ -288,7 +288,7 @@ def ownership() -> None:
 
 async def _show_ownership() -> None:
     """Show ownership map."""
-    from sunwell.team import TeamKnowledgeStore
+    from sunwell.features.team import TeamKnowledgeStore
 
     store = TeamKnowledgeStore(Path.cwd())
     ownership = await store.get_ownership()
@@ -328,7 +328,7 @@ def sync(push: bool) -> None:
 
 async def _sync_team(push: bool) -> None:
     """Sync team knowledge."""
-    from sunwell.team import TeamKnowledgeStore
+    from sunwell.features.team import TeamKnowledgeStore
 
     store = TeamKnowledgeStore(Path.cwd())
 
@@ -374,7 +374,7 @@ def conflicts() -> None:
 
 async def _show_conflicts() -> None:
     """Show conflicts."""
-    from sunwell.team import ConflictResolver, TeamKnowledgeStore
+    from sunwell.features.team import ConflictResolver, TeamKnowledgeStore
 
     store = TeamKnowledgeStore(Path.cwd())
     resolver = ConflictResolver(store)
@@ -416,7 +416,7 @@ def onboard(detailed: bool) -> None:
 
 async def _show_onboarding(detailed: bool) -> None:
     """Show onboarding summary."""
-    from sunwell.team import TeamKnowledgeStore, TeamOnboarding
+    from sunwell.features.team import TeamKnowledgeStore, TeamOnboarding
 
     store = TeamKnowledgeStore(Path.cwd())
     onboarding = TeamOnboarding(store)
@@ -446,7 +446,7 @@ async def _list_contributors() -> None:
     """List contributors."""
     from collections import Counter
 
-    from sunwell.team import TeamKnowledgeStore
+    from sunwell.features.team import TeamKnowledgeStore
 
     store = TeamKnowledgeStore(Path.cwd())
     decisions = await store.get_decisions()
@@ -514,7 +514,7 @@ async def _add_decision(
     tags: list[str],
 ) -> None:
     """Add a team decision."""
-    from sunwell.team import TeamKnowledgeStore
+    from sunwell.features.team import TeamKnowledgeStore
 
     store = TeamKnowledgeStore(Path.cwd())
     author = await store.get_git_user()
@@ -543,7 +543,7 @@ def endorse(decision_id: str) -> None:
 
 async def _endorse_decision(decision_id: str) -> None:
     """Endorse a decision."""
-    from sunwell.team import TeamKnowledgeStore
+    from sunwell.features.team import TeamKnowledgeStore
 
     store = TeamKnowledgeStore(Path.cwd())
     author = await store.get_git_user()
@@ -585,8 +585,8 @@ def migrate(dry_run: bool, migrate_all: bool) -> None:
 
 async def _migrate_decisions(dry_run: bool, migrate_all: bool) -> None:
     """Migrate personal decisions to team."""
-    from sunwell.intelligence.decisions import DecisionMemory
-    from sunwell.team import KnowledgePropagator, TeamKnowledgeStore
+    from sunwell.knowledge.codebase.decisions import DecisionMemory
+    from sunwell.features.team import KnowledgePropagator, TeamKnowledgeStore
 
     intelligence_path = Path.cwd() / ".sunwell" / "intelligence"
     if not intelligence_path.exists():
@@ -675,8 +675,8 @@ def init() -> None:
 
 async def _init_team() -> None:
     """Initialize team intelligence."""
-    from sunwell.team import TeamKnowledgeStore, TeamOnboarding
-    from sunwell.team.gitignore_template import ensure_sunwell_structure
+    from sunwell.features.team import TeamKnowledgeStore, TeamOnboarding
+    from sunwell.features.team.gitignore_template import ensure_sunwell_structure
 
     project_root = Path.cwd()
 

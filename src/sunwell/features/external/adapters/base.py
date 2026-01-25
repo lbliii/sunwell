@@ -5,7 +5,7 @@ Defines the interface for all event source adapters.
 
 from abc import ABC, abstractmethod
 
-from sunwell.external.types import (
+from sunwell.features.external.types import (
     EventCallback,
     EventFeedback,
     EventSource,

@@ -8,7 +8,7 @@ RFC-100 expanded domain coverage from 4 to 12 domains with specialized lenses.
 
 from pathlib import Path
 
-from sunwell.surface.fallback import get_domain_for_project
+from sunwell.interface.generative.surface.fallback import get_domain_for_project
 
 # =============================================================================
 # DOMAIN → LENS MAPPING (RFC-100: Expanded from 4 to 12 domains)

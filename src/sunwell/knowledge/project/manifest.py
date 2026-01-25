@@ -7,7 +7,7 @@ import tomllib
 from datetime import datetime
 from pathlib import Path
 
-from sunwell.project.types import AgentConfig, ProjectManifest
+from sunwell.knowledge.project.types import AgentConfig, ProjectManifest
 
 
 class ManifestError(Exception):

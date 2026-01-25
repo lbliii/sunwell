@@ -4,7 +4,7 @@ import json
 import re
 from typing import TYPE_CHECKING
 
-from sunwell.naaru.artifacts import ArtifactSpec
+from sunwell.planning.naaru.artifacts import ArtifactSpec
 
 if TYPE_CHECKING:
     pass

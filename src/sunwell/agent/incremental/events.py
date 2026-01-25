@@ -4,7 +4,7 @@ These events integrate with the existing RFC-060 event system to provide
 visibility into cache behavior, skip decisions, and execution planning.
 
 Example:
-    >>> from sunwell.incremental.events import ArtifactSkipped, ExecutionPlanComputed
+    >>> from sunwell.agent.incremental.events import ArtifactSkipped, ExecutionPlanComputed
     >>>
     >>> event = ArtifactSkipped(
     ...     artifact_id="UserModel",
@@ -20,7 +20,7 @@ from time import time
 from typing import Any
 
 from sunwell.agent.events import AgentEvent, EventType
-from sunwell.types.protocol import Serializable
+from sunwell.foundation.types.protocol import Serializable
 
 __all__ = ["Serializable", "ArtifactHashComputed", "ArtifactSkipped"]
 

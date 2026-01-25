@@ -9,7 +9,7 @@ from sunwell.fount.client import FountClient
 from sunwell.fount.cache import FountCache
 from sunwell.fount.resolver import LensResolver
 from sunwell.schema.loader import LensLoader
-from sunwell.core.errors import SunwellError
+from sunwell.foundation.errors import SunwellError
 from sunwell.core.types import LensReference
 
 @pytest.fixture

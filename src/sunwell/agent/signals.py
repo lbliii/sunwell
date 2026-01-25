@@ -548,7 +548,7 @@ class FastSignalChecker:
     async def _get_classifier(self) -> Any:
         """Lazy-load FastClassifier."""
         if self._classifier is None:
-            from sunwell.reasoning import FastClassifier
+            from sunwell.planning.reasoning import FastClassifier
 
             self._classifier = FastClassifier(model=self.model)
         return self._classifier

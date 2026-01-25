@@ -65,12 +65,12 @@ async def _process(
     """Process a goal through the generative interface."""
     import contextlib
 
-    from sunwell.cli.helpers import resolve_model
-    from sunwell.interface.pipeline import IntentPipeline
-    from sunwell.interface.executor import ActionExecutor
-    from sunwell.interface.router import InteractionRouter
-    from sunwell.interface.views import ViewRenderer
-    from sunwell.providers.registry import ProviderRegistry
+    from sunwell.interface.generative.cli.helpers import resolve_model
+    from sunwell.interface.generative.pipeline import IntentPipeline
+    from sunwell.interface.generative.executor import ActionExecutor
+    from sunwell.interface.generative.router import InteractionRouter
+    from sunwell.interface.generative.views import ViewRenderer
+    from sunwell.models.providers.registry import ProviderRegistry
 
     # Setup data directory
     data_dir = Path(data_dir_str) if data_dir_str else Path.cwd() / ".sunwell"
@@ -162,7 +162,7 @@ async def _process(
 
 def _print_output(output, analysis, verbose: bool) -> None:
     """Print output in a human-readable format."""
-    from sunwell.interface.router import (
+    from sunwell.interface.generative.router import (
         ActionOutput,
         ConversationOutput,
         HybridOutput,
@@ -308,7 +308,7 @@ async def _demo(data_dir_str: str | None) -> None:
     """Set up demo data and show capabilities."""
     from datetime import datetime, timedelta
 
-    from sunwell.providers.registry import ProviderRegistry
+    from sunwell.models.providers.registry import ProviderRegistry
 
     # Setup data directory
     data_dir = Path(data_dir_str) if data_dir_str else Path.cwd() / ".sunwell"
@@ -331,7 +331,7 @@ async def _demo(data_dir_str: str | None) -> None:
     console.print("  ✓ Created grocery and todo lists")
 
     # Sample events
-    from sunwell.providers.base import CalendarEvent
+    from sunwell.models.providers.base import CalendarEvent
 
     now = datetime.now()
     await providers.calendar.create_event(CalendarEvent(
@@ -377,7 +377,7 @@ async def _demo(data_dir_str: str | None) -> None:
 @click.option("--data-dir", "-d", default=None, help="Data directory path")
 def list_providers(data_dir: str | None) -> None:
     """List configured data providers."""
-    from sunwell.providers.registry import ProviderRegistry
+    from sunwell.models.providers.registry import ProviderRegistry
 
     data_dir_path = Path(data_dir) if data_dir else Path.cwd() / ".sunwell"
     providers = ProviderRegistry.create_default(data_dir_path)
@@ -426,7 +426,7 @@ def compose(user_input: str, page: str, json_output: bool) -> None:
 
 async def _compose(user_input: str, current_page: str, json_output: bool) -> None:
     """Predict UI composition."""
-    from sunwell.interface.compositor import CompositionContext, Compositor
+    from sunwell.interface.generative.compositor import CompositionContext, Compositor
 
     compositor = Compositor()
 
@@ -481,8 +481,8 @@ async def _execute_action(
     json_output: bool,
 ) -> None:
     """Execute a block action."""
-    from sunwell.interface.block_actions import BlockActionExecutor
-    from sunwell.providers.registry import ProviderRegistry
+    from sunwell.interface.generative.block_actions import BlockActionExecutor
+    from sunwell.models.providers.registry import ProviderRegistry
 
     # Setup data directory
     data_dir = Path(data_dir_str) if data_dir_str else Path.cwd() / ".sunwell"

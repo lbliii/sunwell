@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Literal
 
-from sunwell.core.errors import ErrorCode, SunwellError
+from sunwell.foundation.errors import ErrorCode, SunwellError
 
 
 class Severity(Enum):

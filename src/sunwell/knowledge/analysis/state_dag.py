@@ -23,7 +23,7 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
-    from sunwell.lens.loader import Lens
+    from sunwell.planning.lens.loader import Lens
 
 logger = logging.getLogger(__name__)
 
@@ -241,7 +241,7 @@ class StateDagBuilder:
         # dag.nodes contains all discovered artifacts with health scores
 
     RFC-103: Workspace-aware scanning with source context:
-        from sunwell.analysis.source_context import SourceContext
+        from sunwell.knowledge.analysis.source_context import SourceContext
         ctx = await SourceContext.build(Path("~/acme-core"))
         builder = StateDagBuilder(root=docs_path, source_contexts=[ctx])
         dag = await builder.build()
@@ -320,8 +320,8 @@ class StateDagBuilder:
             return self._scanner
 
         # Auto-detect based on project markers
-        from sunwell.analysis.scanners.code import CodeScanner
-        from sunwell.analysis.scanners.docs import DocsScanner
+        from sunwell.knowledge.analysis.scanners.code import CodeScanner
+        from sunwell.knowledge.analysis.scanners.docs import DocsScanner
 
         if self._is_docs_project():
             self._scanner = DocsScanner()

@@ -32,7 +32,7 @@ Naming Rationale:
     The Convergence is where all components share their findings.
 
 Example:
-    >>> from sunwell.naaru.convergence import Convergence, Slot
+    >>> from sunwell.planning.naaru.convergence import Convergence, Slot
     >>>
     >>> convergence = Convergence(capacity=7)
     >>>

@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sunwell.security.analyzer import PermissionAnalyzer, PermissionScope
+from sunwell.quality.security.analyzer import PermissionAnalyzer, PermissionScope
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol

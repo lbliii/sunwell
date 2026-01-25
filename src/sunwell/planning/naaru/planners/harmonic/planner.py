@@ -17,16 +17,16 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from sunwell.naaru.artifacts import (
+from sunwell.planning.naaru.artifacts import (
     DEFAULT_LIMITS,
     ArtifactGraph,
     ArtifactLimits,
     ArtifactSpec,
     artifacts_to_tasks,
 )
-from sunwell.naaru.planners.metrics import CandidateResult, PlanMetrics, PlanMetricsV2
-from sunwell.naaru.planners.variance import VarianceStrategy
-from sunwell.naaru.types import Task, TaskMode
+from sunwell.planning.naaru.planners.metrics import CandidateResult, PlanMetrics, PlanMetricsV2
+from sunwell.planning.naaru.planners.variance import VarianceStrategy
+from sunwell.planning.naaru.types import Task, TaskMode
 
 from .candidate import generate_candidates
 from .refinement import (
@@ -44,10 +44,10 @@ from .utils import (
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.naaru.convergence import Convergence
-    from sunwell.project.schema import ProjectSchema
-    from sunwell.simulacrum.core.planning_context import PlanningContext
-    from sunwell.simulacrum.core.store import SimulacrumStore
+    from sunwell.planning.naaru.convergence import Convergence
+    from sunwell.knowledge.project.schema import ProjectSchema
+    from sunwell.memory.simulacrum.core.planning_context import PlanningContext
+    from sunwell.memory.simulacrum.core.store import SimulacrumStore
 
 
 # =============================================================================
@@ -270,7 +270,7 @@ class HarmonicPlanner:
 
         if not candidates:
             # Fallback: single discovery
-            from sunwell.naaru.planners.artifact import ArtifactPlanner
+            from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
             fallback = ArtifactPlanner(
                 model=self.model,
@@ -448,7 +448,7 @@ class HarmonicPlanner:
         Returns:
             Generated content as a string
         """
-        from sunwell.naaru.planners.artifact import ArtifactPlanner
+        from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
         # Create base planner for artifact creation
         base_planner = ArtifactPlanner(

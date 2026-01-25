@@ -17,11 +17,11 @@ from dataclasses import dataclass, field
 from fnmatch import fnmatch
 from typing import TYPE_CHECKING, Literal
 
-from sunwell.guardrails.types import ActionRisk
+from sunwell.quality.guardrails.types import ActionRisk
 
 if TYPE_CHECKING:
-    from sunwell.skills.graph import SkillGraph
-    from sunwell.skills.types import Skill
+    from sunwell.planning.skills.graph import SkillGraph
+    from sunwell.planning.skills.types import Skill
 
 
 # =============================================================================

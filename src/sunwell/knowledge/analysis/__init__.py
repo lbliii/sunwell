@@ -15,8 +15,8 @@ RFC-103 adds workspace-aware scanning:
 - Cross-reference validation
 """
 
-from sunwell.analysis.source_context import SourceContext, SymbolInfo
-from sunwell.analysis.state_dag import (
+from sunwell.knowledge.analysis.source_context import SourceContext, SymbolInfo
+from sunwell.knowledge.analysis.state_dag import (
     HealthProbeResult,
     StateDag,
     StateDagBuilder,
@@ -24,7 +24,7 @@ from sunwell.analysis.state_dag import (
     StateDagNode,
     scan_project,
 )
-from sunwell.analysis.workspace import (
+from sunwell.knowledge.analysis.workspace import (
     Workspace,
     WorkspaceConfig,
     WorkspaceDetector,

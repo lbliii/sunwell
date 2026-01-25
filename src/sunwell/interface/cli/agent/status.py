@@ -12,8 +12,8 @@ console = Console()
 @click.command()
 def status() -> None:
     """Show agent status and available checkpoints."""
-    from sunwell.naaru.checkpoint import find_latest_checkpoint
-    from sunwell.naaru.persistence import PlanStore
+    from sunwell.planning.naaru.checkpoint import find_latest_checkpoint
+    from sunwell.planning.naaru.persistence import PlanStore
 
     checkpoint_dir = Path.cwd() / ".sunwell" / "checkpoints"
     store = PlanStore()

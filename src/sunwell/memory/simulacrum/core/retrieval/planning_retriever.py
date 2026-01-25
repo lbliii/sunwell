@@ -2,14 +2,14 @@
 
 from typing import TYPE_CHECKING
 
-from sunwell.simulacrum.core.planning_context import PlanningContext
-from sunwell.simulacrum.core.retrieval.similarity import cosine_similarity, keyword_similarity
+from sunwell.memory.simulacrum.core.planning_context import PlanningContext
+from sunwell.memory.simulacrum.core.retrieval.similarity import cosine_similarity, keyword_similarity
 
 if TYPE_CHECKING:
-    from sunwell.embedding.protocol import EmbeddingProtocol
-    from sunwell.simulacrum.core.dag import ConversationDAG
-    from sunwell.simulacrum.core.turn import Learning
-    from sunwell.types.memory import Episode
+    from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
+    from sunwell.memory.simulacrum.core.dag import ConversationDAG
+    from sunwell.memory.simulacrum.core.turn import Learning
+    from sunwell.foundation.types.memory import Episode
 
 
 class PlanningRetriever:

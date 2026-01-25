@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from sunwell.lineage import HumanEditDetector, LineageStore, get_impact_analysis
+from sunwell.memory.lineage import HumanEditDetector, LineageStore, get_impact_analysis
 
 router = APIRouter(prefix="/api/lineage", tags=["lineage"])
 

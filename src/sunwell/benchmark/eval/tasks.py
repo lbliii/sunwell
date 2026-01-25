@@ -10,7 +10,7 @@ Tasks cover different domains:
 - fixture_minimal: Fast CI fixture (single file)
 """
 
-from sunwell.eval.types import FullStackTask
+from sunwell.benchmark.eval.types import FullStackTask
 
 # =============================================================================
 # BUILT-IN TASKS

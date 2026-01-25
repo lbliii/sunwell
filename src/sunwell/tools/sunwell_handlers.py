@@ -12,9 +12,9 @@ from uuid import uuid4
 from sunwell.tools.types import ToolResult
 
 if TYPE_CHECKING:
-    from sunwell.intelligence.context import ProjectContext
-    from sunwell.lineage.store import LineageStore
-    from sunwell.self import Self
+    from sunwell.knowledge.codebase.context import ProjectContext
+    from sunwell.memory.lineage.store import LineageStore
+    from sunwell.features.mirror.self import Self
 
 
 def _result(success: bool, output: str) -> ToolResult:
@@ -133,7 +133,7 @@ class SunwellToolHandlers:
         file_pattern: str | None = None,
     ) -> ToolResult:
         """Semantic search across the codebase."""
-        from sunwell.workspace.indexer import CodebaseIndex
+        from sunwell.knowledge.workspace.indexer import CodebaseIndex
 
         index = CodebaseIndex(self.workspace)
         results = await index.search(query, top_k=top_k)
@@ -229,7 +229,7 @@ class SunwellToolHandlers:
         min_severity: float = 0.3,
     ) -> ToolResult:
         """Scan for code weaknesses."""
-        from sunwell.weakness.analyzer import WeaknessAnalyzer
+        from sunwell.quality.weakness.analyzer import WeaknessAnalyzer
 
         graph = await self._build_artifact_graph(path)
         analyzer = WeaknessAnalyzer(graph=graph, project_root=self.workspace)
@@ -358,7 +358,7 @@ class SunwellToolHandlers:
 
     async def handle_workflow_chains(self) -> ToolResult:
         """List available workflow chains."""
-        from sunwell.workflow.types import WORKFLOW_CHAINS
+        from sunwell.features.workflow.types import WORKFLOW_CHAINS
 
         output = "## Available Workflow Chains\n\n"
 
@@ -376,7 +376,7 @@ class SunwellToolHandlers:
 
     async def handle_workflow_route(self, request: str) -> ToolResult:
         """Route request to appropriate workflow."""
-        from sunwell.workflow.router import IntentRouter
+        from sunwell.features.workflow.router import IntentRouter
 
         router = IntentRouter()
         intent, workflow = router.classify_and_select(request)
@@ -402,7 +402,7 @@ class SunwellToolHandlers:
     async def _get_intel(self) -> ProjectContext:
         """Lazy-load project intelligence."""
         if self._intel is None:
-            from sunwell.intelligence.context import ProjectContext
+            from sunwell.knowledge.codebase.context import ProjectContext
 
             self._intel = await ProjectContext.load(self.workspace)
         return self._intel
@@ -410,7 +410,7 @@ class SunwellToolHandlers:
     def _get_lineage(self) -> LineageStore:
         """Lazy-load lineage store."""
         if self._lineage is None:
-            from sunwell.lineage.store import LineageStore
+            from sunwell.memory.lineage.store import LineageStore
 
             self._lineage = LineageStore(self.workspace)
         return self._lineage
@@ -418,7 +418,7 @@ class SunwellToolHandlers:
     def _get_self(self) -> Self:
         """Lazy-load Self singleton."""
         if self._self is None:
-            from sunwell.self import Self
+            from sunwell.features.mirror.self import Self
 
             self._self = Self.get()
         return self._self
@@ -429,7 +429,7 @@ class SunwellToolHandlers:
         Returns:
             ArtifactGraph populated with Python modules
         """
-        from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
+        from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
 
         graph = ArtifactGraph()
         src_dir = self.workspace / "src" if (self.workspace / "src").exists() else self.workspace

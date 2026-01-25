@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.skills.types import Skill
+    from sunwell.planning.skills.types import Skill
 else:
     Skill = object
 

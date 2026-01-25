@@ -12,9 +12,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.core.lens import Lens
-    from sunwell.naaru.expertise.discovery import LensDiscovery
-    from sunwell.routing.unified import UnifiedRouter
+    from sunwell.foundation.core.lens import Lens
+    from sunwell.planning.naaru.expertise.discovery import LensDiscovery
+    from sunwell.planning.routing.unified import UnifiedRouter
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,7 +52,7 @@ async def resolve_lens_for_goal(
     Returns:
         LensResolution with lens and metadata
     """
-    from sunwell.naaru.expertise.discovery import LensDiscovery
+    from sunwell.planning.naaru.expertise.discovery import LensDiscovery
 
     discovery = LensDiscovery()
 
@@ -111,7 +111,7 @@ async def resolve_lens_for_goal(
 
         # Fallback to domain classification
         try:
-            from sunwell.naaru.expertise.classifier import classify_domain
+            from sunwell.planning.naaru.expertise.classifier import classify_domain
 
             domain = await classify_domain(goal)
             lenses = await discovery.discover(domain, max_lenses=1)
@@ -145,9 +145,9 @@ async def _load_lens(name_or_path: str, discovery: LensDiscovery) -> Lens | None
     import logging
 
     from sunwell.core.types import LensReference
-    from sunwell.fount.client import FountClient
-    from sunwell.fount.resolver import LensResolver
-    from sunwell.schema.loader import LensLoader
+    from sunwell.features.fount.client import FountClient
+    from sunwell.features.fount.resolver import LensResolver
+    from sunwell.foundation.schema.loader import LensLoader
 
     log = logging.getLogger(__name__)
 
@@ -202,7 +202,7 @@ async def list_available_lenses() -> list[dict]:
     Returns:
         List of lens metadata dictionaries
     """
-    from sunwell.naaru.expertise.discovery import LensDiscovery
+    from sunwell.planning.naaru.expertise.discovery import LensDiscovery
 
     discovery = LensDiscovery()
     lenses_data = []
@@ -241,7 +241,7 @@ async def get_lens_detail(name: str) -> dict | None:
     Returns:
         Detailed lens information or None if not found
     """
-    from sunwell.naaru.expertise.discovery import LensDiscovery
+    from sunwell.planning.naaru.expertise.discovery import LensDiscovery
 
     discovery = LensDiscovery()
     lens = await _load_lens(name, discovery)

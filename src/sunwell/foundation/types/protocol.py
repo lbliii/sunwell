@@ -49,7 +49,7 @@ from sunwell.models.protocol import Tool, ToolCall
 from sunwell.tools.types import ToolResult
 
 if TYPE_CHECKING:
-    from sunwell.naaru.core.bus import MessageBus, NaaruRegion
+    from sunwell.planning.naaru.core.bus import MessageBus, NaaruRegion
 
 T = TypeVar("T")
 R = TypeVar("R")

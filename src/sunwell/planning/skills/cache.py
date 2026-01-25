@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sunwell.skills.types import Skill, SkillOutput
+    from sunwell.planning.skills.types import Skill, SkillOutput
 
 
 # =============================================================================

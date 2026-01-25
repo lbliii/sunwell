@@ -12,12 +12,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from sunwell.intelligence.codebase import CodebaseAnalyzer
-    from sunwell.intelligence.decisions import Decision, DecisionMemory
-    from sunwell.intelligence.failures import FailureMemory
-    from sunwell.team.store import TeamKnowledgeStore
+    from sunwell.knowledge.codebase.codebase import CodebaseAnalyzer
+    from sunwell.knowledge.codebase.decisions import Decision, DecisionMemory
+    from sunwell.knowledge.codebase.failures import FailureMemory
+    from sunwell.features.team.store import TeamKnowledgeStore
 
-from sunwell.team.types import (
+from sunwell.features.team.types import (
     TeamDecision,
     TeamPatterns,
 )

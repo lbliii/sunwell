@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
-from sunwell.embedding.protocol import EmbeddingResult
+from sunwell.knowledge.embedding.protocol import EmbeddingResult
 
 # Pre-compiled regex for tokenization (avoid per-call compilation)
 _WORD_PATTERN = re.compile(r"\b\w+\b")

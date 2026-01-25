@@ -1,6 +1,6 @@
 """Utility functions for turn processing."""
 
-from sunwell.simulacrum.core.turn import Turn
+from sunwell.memory.simulacrum.core.turn import Turn
 
 
 def estimate_token_count(turn: Turn) -> Turn:

@@ -12,20 +12,20 @@ Each layer offers multiple strategies with different cost/quality tradeoffs.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
-from sunwell.naaru.diversity import (
+from sunwell.planning.naaru.diversity import (
     Candidate,
     diversity_harmonic,
     diversity_none,
     diversity_rotation,
     diversity_sampling,
 )
-from sunwell.naaru.refinement import (
+from sunwell.planning.naaru.refinement import (
     RefinementResult,
     refine_full,
     refine_none,
     refine_tiered,
 )
-from sunwell.naaru.selection import (
+from sunwell.planning.naaru.selection import (
     select_heuristic,
     select_judge,
     select_passthrough,
@@ -34,7 +34,7 @@ from sunwell.naaru.selection import (
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.types.config import NaaruConfig
+    from sunwell.foundation.types.config import NaaruConfig
 
 
 @dataclass(frozen=True, slots=True)
@@ -351,7 +351,7 @@ async def unified_pipeline(
 # Preset configurations (RFC-033)
 def create_minimal_config() -> NaaruConfig:
     """Minimal cost: single generation, no frills."""
-    from sunwell.types.config import NaaruConfig
+    from sunwell.foundation.types.config import NaaruConfig
 
     return NaaruConfig(
         diversity="none",
@@ -363,7 +363,7 @@ def create_minimal_config() -> NaaruConfig:
 
 def create_cheap_diversity_config() -> NaaruConfig:
     """Cheap diversity: sampling + heuristic."""
-    from sunwell.types.config import NaaruConfig
+    from sunwell.foundation.types.config import NaaruConfig
 
     return NaaruConfig(
         diversity="sampling",
@@ -375,7 +375,7 @@ def create_cheap_diversity_config() -> NaaruConfig:
 
 def create_balanced_config() -> NaaruConfig:
     """Balanced: rotation + heuristic + tiered."""
-    from sunwell.types.config import NaaruConfig
+    from sunwell.foundation.types.config import NaaruConfig
 
     return NaaruConfig(
         diversity="rotation",
@@ -387,7 +387,7 @@ def create_balanced_config() -> NaaruConfig:
 
 def create_quality_config() -> NaaruConfig:
     """Quality: harmonic + voting + full."""
-    from sunwell.types.config import NaaruConfig
+    from sunwell.foundation.types.config import NaaruConfig
 
     return NaaruConfig(
         diversity="harmonic",
@@ -399,7 +399,7 @@ def create_quality_config() -> NaaruConfig:
 
 def create_auto_config() -> NaaruConfig:
     """Auto: Naaru decides everything."""
-    from sunwell.types.config import NaaruConfig
+    from sunwell.foundation.types.config import NaaruConfig
 
     return NaaruConfig(
         diversity="auto",

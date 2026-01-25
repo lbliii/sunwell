@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.skills.types import Skill, SkillDependency, SkillType
+from sunwell.planning.skills.types import Skill, SkillDependency, SkillType
 
 # Pre-compiled regex patterns for performance (avoid recompiling per-call)
 _RE_TOOL_JSON = re.compile(r'"tool"\s*:\s*"([^"]+)"')
@@ -29,9 +29,9 @@ _RE_WORD_BOUNDARY = re.compile(r"\b\w+\b")
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.simulacrum.core.dag import ConversationDAG
-    from sunwell.simulacrum.core.store import SimulacrumStore
-    from sunwell.simulacrum.core.turn import Turn
+    from sunwell.memory.simulacrum.core.dag import ConversationDAG
+    from sunwell.memory.simulacrum.core.store import SimulacrumStore
+    from sunwell.memory.simulacrum.core.turn import Turn
 
 
 @dataclass(frozen=True, slots=True)
@@ -174,7 +174,7 @@ class SkillLearner:
         goal: str,
     ) -> ExecutionPattern | None:
         """Extract pattern from conversation DAG."""
-        from sunwell.simulacrum.core.turn import TurnType
+        from sunwell.memory.simulacrum.core.turn import TurnType
 
         # Collect tool calls in order
         tool_calls: list[str] = []
@@ -270,7 +270,7 @@ class SkillLearner:
 
     def _summarize_steps(self, dag: "ConversationDAG") -> str:
         """Summarize the steps taken in the conversation."""
-        from sunwell.simulacrum.core.turn import TurnType
+        from sunwell.memory.simulacrum.core.turn import TurnType
 
         steps: list[str] = []
         for turn in self._topological_sort(dag):

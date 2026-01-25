@@ -9,7 +9,7 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
-from sunwell.bootstrap.types import BlameRegion
+from sunwell.knowledge.bootstrap.types import BlameRegion
 
 
 @dataclass(frozen=True, slots=True)

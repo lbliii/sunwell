@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sunwell.mirror.model_tracker import ModelPerformanceTracker
+    from sunwell.features.mirror.model_tracker import ModelPerformanceTracker
 
 
 # Default task category mappings for tool classification

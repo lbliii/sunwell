@@ -8,10 +8,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sunwell.lineage.models import compute_content_hash, generate_artifact_id
+from sunwell.memory.lineage.models import compute_content_hash, generate_artifact_id
 
 if TYPE_CHECKING:
-    from sunwell.lineage.store import LineageStore
+    from sunwell.memory.lineage.store import LineageStore
 
 
 class ArtifactIdentityResolver:

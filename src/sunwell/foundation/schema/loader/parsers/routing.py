@@ -1,6 +1,6 @@
 """Routing, provenance, and quality policy parsing."""
 
-from sunwell.core.lens import Provenance, QualityPolicy, Router, RouterTier
+from sunwell.foundation.core.lens import Provenance, QualityPolicy, Router, RouterTier
 from sunwell.core.types import Tier
 
 

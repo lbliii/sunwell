@@ -34,40 +34,40 @@ Usage:
     layout = render_with_fallback(renderer, result.spec)
 """
 
-from sunwell.surface.blocks import (
+from sunwell.interface.generative.surface.blocks import (
     DEFAULT_BLOCKS,
     BlockAction,
     BlockDef,
     BlockRegistry,
 )
-from sunwell.surface.composer import (
+from sunwell.interface.generative.surface.composer import (
     CompositionResult,
     SurfaceComposer,
     compose_surface,
     compose_surface_with_reasoning,
 )
-from sunwell.surface.diataxis import (
+from sunwell.interface.generative.surface.diataxis import (
     DiataxisDetection,
     DiataxisSignal,
     check_diataxis_purity,
     detect_diataxis,
     suggest_diataxis_type,
 )
-from sunwell.surface.fallback import (
+from sunwell.interface.generative.surface.fallback import (
     DEFAULT_LAYOUT,
     DOMAIN_DEFAULTS,
     render_with_fallback,
 )
-from sunwell.surface.intent import IntentSignals, extract_intent
-from sunwell.surface.lens_detection import (
+from sunwell.interface.generative.surface.intent import IntentSignals, extract_intent
+from sunwell.interface.generative.surface.lens_detection import (
     detect_project_context,
     get_lens_for_project,
     get_mode_for_domain,
 )
-from sunwell.surface.registry import PrimitiveRegistry
-from sunwell.surface.renderer import SurfaceRenderer
-from sunwell.surface.scoring import ScoredPrimitive, ScoringContext, ScoringResult
-from sunwell.surface.types import (
+from sunwell.interface.generative.surface.registry import PrimitiveRegistry
+from sunwell.interface.generative.surface.renderer import SurfaceRenderer
+from sunwell.interface.generative.surface.scoring import ScoredPrimitive, ScoringContext, ScoringResult
+from sunwell.interface.generative.surface.types import (
     DEFAULT_SELECTION_ACTIONS,
     DiataxisType,
     PrimitiveDef,

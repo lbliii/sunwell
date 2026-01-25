@@ -13,9 +13,9 @@ Usage:
     result = await orchestrator.bootstrap()
 """
 
-from sunwell.bootstrap.orchestrator import BootstrapOrchestrator
-from sunwell.bootstrap.ownership import OwnershipDomain, OwnershipMap
-from sunwell.bootstrap.types import (
+from sunwell.knowledge.bootstrap.orchestrator import BootstrapOrchestrator
+from sunwell.knowledge.bootstrap.ownership import OwnershipDomain, OwnershipMap
+from sunwell.knowledge.bootstrap.types import (
     BootstrapDecision,
     BootstrapPatterns,
     BootstrapResult,

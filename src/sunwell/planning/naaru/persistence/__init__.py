@@ -12,14 +12,14 @@ This package provides modular persistence support:
 """
 
 # Re-export all public APIs
-from sunwell.naaru.persistence.hashing import hash_content, hash_file, hash_goal
-from sunwell.naaru.persistence.plan_version import PlanDiff, PlanVersion
-from sunwell.naaru.persistence.resume import resume_execution
-from sunwell.naaru.persistence.saved_execution import PERSISTENCE_VERSION, SavedExecution
-from sunwell.naaru.persistence.store import DEFAULT_PLANS_DIR, PlanStore
-from sunwell.naaru.persistence.trace import DEFAULT_PLANS_DIR as TRACE_DEFAULT_PLANS_DIR, TraceLogger
-from sunwell.naaru.persistence.types import ArtifactCompletion, ExecutionStatus
-from sunwell.naaru.persistence.utils import get_latest_execution, save_execution
+from sunwell.planning.naaru.persistence.hashing import hash_content, hash_file, hash_goal
+from sunwell.planning.naaru.persistence.plan_version import PlanDiff, PlanVersion
+from sunwell.planning.naaru.persistence.resume import resume_execution
+from sunwell.planning.naaru.persistence.saved_execution import PERSISTENCE_VERSION, SavedExecution
+from sunwell.planning.naaru.persistence.store import DEFAULT_PLANS_DIR, PlanStore
+from sunwell.planning.naaru.persistence.trace import DEFAULT_PLANS_DIR as TRACE_DEFAULT_PLANS_DIR, TraceLogger
+from sunwell.planning.naaru.persistence.types import ArtifactCompletion, ExecutionStatus
+from sunwell.planning.naaru.persistence.utils import get_latest_execution, save_execution
 
 __all__ = [
     # Types

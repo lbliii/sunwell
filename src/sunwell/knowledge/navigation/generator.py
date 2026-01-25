@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from sunwell.navigation.toc import NodeType, ProjectToc, TocNode, node_id_from_path
+from sunwell.knowledge.navigation.toc import NodeType, ProjectToc, TocNode, node_id_from_path
 
 # Directories to skip during scanning
 SKIP_DIRS: frozenset[str] = frozenset({

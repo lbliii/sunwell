@@ -10,12 +10,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from sunwell.agent.events import checkpoint_saved_event
-from sunwell.naaru.checkpoint import AgentCheckpoint, CheckpointPhase
+from sunwell.planning.naaru.checkpoint import AgentCheckpoint, CheckpointPhase
 
 if TYPE_CHECKING:
     from sunwell.agent.events import AgentEvent
     from sunwell.agent.task_graph import TaskGraph
-    from sunwell.core.lens import Lens
+    from sunwell.foundation.core.lens import Lens
     from sunwell.memory.briefing import Briefing
 
 

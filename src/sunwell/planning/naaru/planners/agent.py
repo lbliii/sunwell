@@ -13,12 +13,12 @@ import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from sunwell.naaru.planners.protocol import PlanningError, PlanningStrategy
-from sunwell.naaru.types import Task, TaskMode, TaskStatus
+from sunwell.planning.naaru.planners.protocol import PlanningError, PlanningStrategy
+from sunwell.planning.naaru.types import Task, TaskMode, TaskStatus
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol, Tool
-    from sunwell.project.schema import ProjectSchema
+    from sunwell.knowledge.project.schema import ProjectSchema
 
 
 # Pre-compiled regex patterns for goal parsing (avoid per-call compilation)

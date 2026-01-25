@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 def _get_naaru_config() -> Any | None:
     """Get Naaru config from centralized config system."""
     try:
-        from sunwell.config import get_config
+        from sunwell.foundation.config import get_config
         return get_config().naaru
     except Exception:
         return None

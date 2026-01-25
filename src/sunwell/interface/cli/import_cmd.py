@@ -13,7 +13,7 @@ import click
 from rich.console import Console
 from rich.prompt import Confirm, Prompt
 
-from sunwell.workspace import default_workspace_root
+from sunwell.knowledge.workspace import default_workspace_root
 
 console = Console()
 

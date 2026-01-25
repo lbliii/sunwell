@@ -29,7 +29,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.recovery.types import (
+from sunwell.agent.recovery.types import (
     ArtifactStatus,
     RecoveryArtifact,
     RecoveryState,
@@ -38,7 +38,7 @@ from sunwell.recovery.types import (
 
 if TYPE_CHECKING:
     from sunwell.agent.validation import Artifact
-    from sunwell.convergence.types import ConvergenceIteration
+    from sunwell.agent.convergence.types import ConvergenceIteration
 
 
 class RecoveryManager:

@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
-from sunwell.providers.base import Habit, HabitEntry, HabitsProvider
+from sunwell.models.providers.base import Habit, HabitEntry, HabitsProvider
 
 
 class SunwellHabits(HabitsProvider):

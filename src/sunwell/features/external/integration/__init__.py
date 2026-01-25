@@ -26,7 +26,7 @@ Example:
     ...     print(f"Orphan detected: {artifact.id}")
 """
 
-from sunwell.integration.decomposer import (
+from sunwell.features.external.integration.decomposer import (
     ArtifactDefinition,
     IntegrationAwareGoal,
     IntegrationDefinition,
@@ -36,7 +36,7 @@ from sunwell.integration.decomposer import (
     create_wire_task,
     decompose_with_wiring,
 )
-from sunwell.integration.types import (
+from sunwell.features.external.integration.types import (
     IntegrationCheck,
     IntegrationCheckType,
     IntegrationResult,
@@ -48,7 +48,7 @@ from sunwell.integration.types import (
     StubDetection,
     TaskType,
 )
-from sunwell.integration.verifier import IntegrationVerifier
+from sunwell.features.external.integration.verifier import IntegrationVerifier
 
 __all__ = [
     # Core Types

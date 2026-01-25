@@ -13,7 +13,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from sunwell.simulacrum.core.store import SimulacrumStore
+from sunwell.memory.simulacrum.core.store import SimulacrumStore
 
 console = Console()
 
@@ -142,7 +142,7 @@ def sessions_summary(session_id: str | None, output_format: str) -> None:
     """
     import json
 
-    from sunwell.session.tracker import SessionTracker
+    from sunwell.memory.session.tracker import SessionTracker
 
     # Try to load session
     if session_id:
@@ -243,7 +243,7 @@ def sessions_history(limit: int) -> None:
         sunwell sessions history
         sunwell sessions history --limit 20
     """
-    from sunwell.session.tracker import SessionTracker
+    from sunwell.memory.session.tracker import SessionTracker
 
     recent = SessionTracker.list_recent(limit=limit)
 

@@ -13,7 +13,7 @@ Patterns:
     4. Positive/Negative - What TO do vs what NOT to do.
 
 Example:
-    >>> from sunwell.naaru.experiments.dialectic import dialectic_decide
+    >>> from sunwell.archive.naaru-experiments.dialectic import dialectic_decide
     >>>
     >>> result = await dialectic_decide(
     ...     question="How should I structure this REST API?",

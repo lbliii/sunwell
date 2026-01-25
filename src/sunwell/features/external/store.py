@@ -8,7 +8,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from sunwell.external.types import EventSource, EventType, ExternalEvent
+from sunwell.features.external.types import EventSource, EventType, ExternalEvent
 
 logger = logging.getLogger(__name__)
 

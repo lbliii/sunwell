@@ -20,7 +20,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.weakness.types import (
+from sunwell.quality.weakness.types import (
     WeaknessScore,
     WeaknessSignal,
     WeaknessType,
@@ -29,7 +29,7 @@ from sunwell.weakness.types import (
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.naaru.artifacts import ArtifactGraph
+    from sunwell.planning.naaru.artifacts import ArtifactGraph
 
 
 @dataclass(slots=True)
@@ -377,7 +377,7 @@ class SmartWeaknessAnalyzer(WeaknessAnalyzer):
     async def _get_classifier(self) -> Any:
         """Lazy-load FastClassifier."""
         if self._classifier is None and self.model is not None:
-            from sunwell.reasoning import FastClassifier
+            from sunwell.planning.reasoning import FastClassifier
 
             self._classifier = FastClassifier(model=self.model)
         return self._classifier

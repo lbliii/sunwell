@@ -6,7 +6,7 @@ with certain project types.
 
 Example:
     ```python
-    from sunwell.project.compatibility import is_lens_compatible
+    from sunwell.knowledge.project.compatibility import is_lens_compatible
 
     # Check if lens can be used with project
     if is_lens_compatible(lens, schema):
@@ -21,10 +21,10 @@ Example:
 
 from typing import TYPE_CHECKING
 
-from sunwell.project.schema import ProjectSchema, ValidatorConfig
+from sunwell.knowledge.project.schema import ProjectSchema, ValidatorConfig
 
 if TYPE_CHECKING:
-    from sunwell.core.lens import Lens
+    from sunwell.foundation.core.lens import Lens
 
 
 def is_lens_compatible(
@@ -110,7 +110,7 @@ def merge_validators(
     Returns:
         Merged tuple of validators
     """
-    from sunwell.project.schema import ValidatorConfig
+    from sunwell.knowledge.project.schema import ValidatorConfig
 
     # Start with schema validators
     validators: list[ValidatorConfig] = list(schema.validators)

@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from sunwell.naaru.events import EventEmitter
+from sunwell.planning.naaru.events import EventEmitter
 
 
 class LearningExtractor:
@@ -47,7 +47,7 @@ class LearningExtractor:
         Returns:
             List of learning dictionaries
         """
-        from sunwell.naaru.types import TaskStatus
+        from sunwell.planning.naaru.types import TaskStatus
 
         learnings: list[dict[str, Any]] = []
 

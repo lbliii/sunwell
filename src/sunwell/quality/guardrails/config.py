@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from sunwell.guardrails.types import (
+from sunwell.quality.guardrails.types import (
     ActionRisk,
     ScopeLimits,
     TrustLevel,

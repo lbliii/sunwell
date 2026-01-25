@@ -143,7 +143,7 @@ def run(
         - resonance: Feedback loop (1.5x tokens)
         - full: Both (4x tokens, best quality)
     """
-    from sunwell.config import get_config
+    from sunwell.foundation.config import get_config
 
     cfg = get_config()
 
@@ -187,7 +187,7 @@ async def _run_benchmark(
     from sunwell.benchmark.runner import BenchmarkRunner
     from sunwell.benchmark.types import NaaruMode, PromptStrategy
     from sunwell.models.ollama import OllamaModel
-    from sunwell.schema.loader import LensLoader
+    from sunwell.foundation.schema.loader import LensLoader
 
     # Convert string options to enums
     prompt_strategy = PromptStrategy(strategy)
@@ -661,7 +661,7 @@ def naaru(
         # Full statistical run (all tasks, all conditions)
         sunwell benchmark naaru --full
     """
-    from sunwell.config import get_config
+    from sunwell.foundation.config import get_config
 
     cfg = get_config()
 
@@ -704,7 +704,7 @@ async def _run_naaru_benchmark(
     """Async Naaru benchmark execution."""
     from sunwell.benchmark.naaru import NaaruBenchmarkRunner, NaaruCondition
     from sunwell.models.ollama import OllamaModel
-    from sunwell.schema.loader import LensLoader
+    from sunwell.foundation.schema.loader import LensLoader
 
     # Parse conditions
     conditions: list[NaaruCondition] | None = None

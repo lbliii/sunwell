@@ -16,7 +16,7 @@ Integration:
 - Integrates with skills.graph.SkillGraph for DAG analysis
 """
 
-from sunwell.security.analyzer import (
+from sunwell.quality.security.analyzer import (
     DetailedSecurityAnalysis,
     PermissionAnalyzer,
     PermissionScope,
@@ -24,26 +24,26 @@ from sunwell.security.analyzer import (
     RiskWeights,
     SkillPermissionBreakdown,
 )
-from sunwell.security.approval_cache import (
+from sunwell.quality.security.approval_cache import (
     ApprovalCacheConfig,
     ApprovalCacheManager,
     ApprovalRecord,
     FileApprovalCache,
     SQLiteApprovalCache,
 )
-from sunwell.security.audit import (
+from sunwell.quality.security.audit import (
     AuditBackend,
     AuditEntry,
     AuditLogManager,
     LocalAuditLog,
     S3ObjectLockBackend,
 )
-from sunwell.security.benchmark import (
+from sunwell.quality.security.benchmark import (
     BenchmarkResult,
     BenchmarkSuite,
     run_benchmark_suite,
 )
-from sunwell.security.diff import (
+from sunwell.quality.security.diff import (
     ChangeType,
     PermissionChange,
     PermissionDiff,
@@ -51,7 +51,7 @@ from sunwell.security.diff import (
     diff_lens_permissions,
     diff_skill_by_name,
 )
-from sunwell.security.executor import (
+from sunwell.quality.security.executor import (
     ApprovalManager,
     ApprovalRequest,
     ApprovalResponse,
@@ -59,12 +59,12 @@ from sunwell.security.executor import (
     SecurityPolicy,
     create_secure_executor,
 )
-from sunwell.security.monitor import (
+from sunwell.quality.security.monitor import (
     SecurityClassification,
     SecurityMonitor,
     SecurityViolation,
 )
-from sunwell.security.policy import (
+from sunwell.quality.security.policy import (
     POLICY_MAX_RISK_THRESHOLD,
     POLICY_MIN_RISK_THRESHOLD,
     POLICY_REQUIRED_FIELDS,
@@ -76,13 +76,13 @@ from sunwell.security.policy import (
     create_example_policy,
     validate_policy,
 )
-from sunwell.security.sandbox import (
+from sunwell.quality.security.sandbox import (
     PermissionAwareSandboxConfig,
     PermissionDeniedError,
     SecureSandbox,
     SecurityAudit,
 )
-from sunwell.security.siem import (
+from sunwell.quality.security.siem import (
     CEFFormatter,
     DatadogFormatter,
     ECSFormatter,

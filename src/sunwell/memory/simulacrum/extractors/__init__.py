@@ -3,16 +3,16 @@
 RFC-025: Extracted from root simulacrum module.
 """
 
-from sunwell.simulacrum.extractors.extractor import (
+from sunwell.memory.simulacrum.extractors.extractor import (
     LearningExtractor,
     auto_extract_learnings,
     extract_user_facts,
     extract_user_facts_with_llm,
 )
-from sunwell.simulacrum.extractors.facet_extractor import FacetExtractor
-from sunwell.simulacrum.extractors.spatial_extractor import SpatialExtractor
-from sunwell.simulacrum.extractors.structural_chunker import StructuralChunker
-from sunwell.simulacrum.extractors.topology_extractor import TopologyExtractor
+from sunwell.memory.simulacrum.extractors.facet_extractor import FacetExtractor
+from sunwell.memory.simulacrum.extractors.spatial_extractor import SpatialExtractor
+from sunwell.memory.simulacrum.extractors.structural_chunker import StructuralChunker
+from sunwell.memory.simulacrum.extractors.topology_extractor import TopologyExtractor
 
 __all__ = [
     "SpatialExtractor",

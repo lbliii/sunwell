@@ -5,7 +5,7 @@ from pathlib import Path
 from click.testing import CliRunner
 import pytest
 
-from sunwell.cli.lineage_cmd import lineage
+from sunwell.interface.cli.lineage_cmd import lineage
 
 
 @pytest.fixture

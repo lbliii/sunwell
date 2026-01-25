@@ -68,7 +68,7 @@ def plan(goal: str | None, force: tuple[str, ...], as_json: bool) -> None:
     import json as json_module
     from datetime import datetime
 
-    from sunwell.incremental import ExecutionCache
+    from sunwell.agent.incremental import ExecutionCache
 
     cache_path = get_cache_path()
 
@@ -202,7 +202,7 @@ def impact(artifact_id: str, depth: int, as_json: bool) -> None:
         sunwell dag impact UserModel --depth 3
         sunwell dag impact UserModel --json
     """
-    from sunwell.incremental import ExecutionCache
+    from sunwell.agent.incremental import ExecutionCache
 
     cache_path = get_cache_path()
 
@@ -292,7 +292,7 @@ def stats(as_json: bool) -> None:
         sunwell dag cache stats
         sunwell dag cache stats --json
     """
-    from sunwell.incremental import ExecutionCache
+    from sunwell.agent.incremental import ExecutionCache
 
     cache_path = get_cache_path()
 
@@ -366,7 +366,7 @@ def clear(artifact: str | None, force: bool) -> None:
         sunwell dag cache clear -a UserModel # Clear specific artifact
         sunwell dag cache clear --force      # Skip confirmation
     """
-    from sunwell.incremental import ExecutionCache
+    from sunwell.agent.incremental import ExecutionCache
 
     cache_path = get_cache_path()
 
@@ -409,7 +409,7 @@ def vacuum() -> None:
     Example:
         sunwell dag cache vacuum
     """
-    from sunwell.incremental import ExecutionCache
+    from sunwell.agent.incremental import ExecutionCache
 
     cache_path = get_cache_path()
 
@@ -458,7 +458,7 @@ def migrate(dry_run: bool, source: str) -> None:
     """
     import json as json_module
 
-    from sunwell.incremental import ExecutionCache, ExecutionStatus
+    from sunwell.agent.incremental import ExecutionCache, ExecutionStatus
 
     source_path = Path(source)
     cache_path = get_cache_path()
@@ -614,7 +614,7 @@ def provenance(artifact_id: str, direction: str, depth: int) -> None:
         sunwell dag provenance UserModel --direction up
         sunwell dag provenance UserModel --direction down --depth 3
     """
-    from sunwell.incremental import ExecutionCache
+    from sunwell.agent.incremental import ExecutionCache
 
     cache_path = get_cache_path()
 

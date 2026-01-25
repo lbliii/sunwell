@@ -41,7 +41,7 @@ def guardrails() -> None:
 @click.pass_context
 def show(ctx, json_output: bool) -> None:
     """Show current guardrail configuration."""
-    from sunwell.guardrails import load_config
+    from sunwell.quality.guardrails import load_config
 
     root = Path.cwd()
     config = load_config(root)
@@ -128,8 +128,8 @@ def check(ctx) -> None:
 
 async def _check_goals() -> None:
     """Check goals against guardrails."""
-    from sunwell.backlog.manager import BacklogManager
-    from sunwell.guardrails import GuardrailSystem
+    from sunwell.features.backlog.manager import BacklogManager
+    from sunwell.quality.guardrails import GuardrailSystem
 
     root = Path.cwd()
     manager = BacklogManager(root=root)
@@ -259,7 +259,7 @@ def rollback(ctx, target: str, goal: bool, force: bool) -> None:
 
 async def _rollback(target: str, is_goal: bool) -> None:
     """Perform rollback."""
-    from sunwell.guardrails import RecoveryManager
+    from sunwell.quality.guardrails import RecoveryManager
 
     root = Path.cwd()
     recovery = RecoveryManager(root)
@@ -294,7 +294,7 @@ def classify(ctx, path: str) -> None:
         sunwell guardrails classify src/auth/login.py
         sunwell guardrails classify tests/test_utils.py
     """
-    from sunwell.guardrails import Action, ActionClassifier
+    from sunwell.quality.guardrails import Action, ActionClassifier
 
     classifier = ActionClassifier()
     result = classifier.classify(

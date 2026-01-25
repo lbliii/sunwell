@@ -41,9 +41,9 @@ async def _list_lenses(path: str | None, json_output: bool) -> None:
     """List available lenses."""
     from pathlib import Path
 
-    from sunwell.core.errors import SunwellError
-    from sunwell.naaru.expertise.discovery import LensDiscovery
-    from sunwell.schema.loader import LensLoader
+    from sunwell.foundation.errors import SunwellError
+    from sunwell.planning.naaru.expertise.discovery import LensDiscovery
+    from sunwell.foundation.schema.loader import LensLoader
 
     discovery = LensDiscovery()
 
@@ -148,7 +148,7 @@ def lens_show(lens_name: str, json_output: bool) -> None:
 async def _show_lens(lens_name: str, json_output: bool) -> None:
     """Show lens details."""
     from sunwell.agent.lens_resolver import _load_lens
-    from sunwell.naaru.expertise.discovery import LensDiscovery
+    from sunwell.planning.naaru.expertise.discovery import LensDiscovery
 
     discovery = LensDiscovery()
     lens_obj = await _load_lens(lens_name, discovery)
@@ -294,7 +294,7 @@ def library(json_output: bool, filter_by: str | None) -> None:
 
 async def _library(json_output: bool, filter_by: str | None) -> None:
     """List all lenses in the library."""
-    from sunwell.lens.manager import LensManager
+    from sunwell.planning.lens.manager import LensManager
 
     manager = LensManager()
     entries = await manager.list_library()
@@ -306,7 +306,7 @@ async def _library(json_output: bool, filter_by: str | None) -> None:
             entries = [e for e in entries if e.lens.metadata.domain == filter_by]
 
     if json_output:
-        from sunwell.lens.usage import get_lens_usage
+        from sunwell.planning.lens.usage import get_lens_usage
 
         data = []
         for e in entries:
@@ -398,7 +398,7 @@ def fork(source_name: str, new_name: str, message: str | None) -> None:
 
 
 async def _fork(source_name: str, new_name: str, message: str | None) -> None:
-    from sunwell.lens.manager import LensManager
+    from sunwell.planning.lens.manager import LensManager
 
     manager = LensManager()
     try:
@@ -436,7 +436,7 @@ def save(name: str, file: str, message: str | None, bump: str) -> None:
 
 
 async def _save(name: str, file: str, message: str | None, bump: str) -> None:
-    from sunwell.lens.manager import LensManager
+    from sunwell.planning.lens.manager import LensManager
 
     manager = LensManager()
     content = Path(file).read_text()
@@ -476,7 +476,7 @@ def delete(name: str, yes: bool, keep_versions: bool) -> None:
 
 
 async def _delete(name: str, keep_versions: bool) -> None:
-    from sunwell.lens.manager import LensManager
+    from sunwell.planning.lens.manager import LensManager
 
     manager = LensManager()
     try:
@@ -500,7 +500,7 @@ def versions(name: str, json_output: bool) -> None:
 
         sunwell lens versions my-team-coder --json
     """
-    from sunwell.lens.manager import LensManager
+    from sunwell.planning.lens.manager import LensManager
 
     manager = LensManager()
     version_list = manager.get_versions(name)
@@ -547,7 +547,7 @@ def rollback(name: str, version: str) -> None:
 
 
 async def _rollback(name: str, version: str) -> None:
-    from sunwell.lens.manager import LensManager
+    from sunwell.planning.lens.manager import LensManager
 
     manager = LensManager()
     try:
@@ -574,7 +574,7 @@ def set_default(name: str | None, clear: bool) -> None:
 
         sunwell lens set-default --clear
     """
-    from sunwell.lens.manager import LensManager
+    from sunwell.planning.lens.manager import LensManager
 
     manager = LensManager()
 
@@ -599,7 +599,7 @@ def record_usage(name: str) -> None:
 
     Internal command used by Studio to track lens usage.
     """
-    from sunwell.lens.usage import record_lens_activation
+    from sunwell.planning.lens.usage import record_lens_activation
     record_lens_activation(name)
 
 
@@ -632,7 +632,7 @@ def export_lens(name: str, output: str | None, fmt: str) -> None:
 async def _export_lens(name: str, output: str | None, fmt: str) -> None:
     """Export a lens to a file."""
     from sunwell.agent.lens_resolver import _load_lens
-    from sunwell.naaru.expertise.discovery import LensDiscovery
+    from sunwell.planning.naaru.expertise.discovery import LensDiscovery
 
     discovery = LensDiscovery()
     lens_obj = await _load_lens(name, discovery)
@@ -721,8 +721,8 @@ def skill_graph(lens_name: str, json_output: bool, mermaid: bool) -> None:
 async def _skill_graph(lens_name: str, json_output: bool, mermaid: bool) -> None:
     """Show skill graph for a lens."""
     from sunwell.agent.lens_resolver import _load_lens
-    from sunwell.naaru.expertise.discovery import LensDiscovery
-    from sunwell.skills.graph import SkillGraph
+    from sunwell.planning.naaru.expertise.discovery import LensDiscovery
+    from sunwell.planning.skills.graph import SkillGraph
 
     discovery = LensDiscovery()
     lens_obj = await _load_lens(lens_name, discovery)
@@ -823,8 +823,8 @@ def skill_plan(lens_name: str, context_hash: str | None, json_output: bool) -> N
 async def _skill_plan(lens_name: str, context_hash: str | None, json_output: bool) -> None:
     """Show execution plan for a lens."""
     from sunwell.agent.lens_resolver import _load_lens
-    from sunwell.naaru.expertise.discovery import LensDiscovery
-    from sunwell.skills.graph import SkillGraph
+    from sunwell.planning.naaru.expertise.discovery import LensDiscovery
+    from sunwell.planning.skills.graph import SkillGraph
 
     discovery = LensDiscovery()
     lens_obj = await _load_lens(lens_name, discovery)
@@ -923,7 +923,7 @@ def lens_skills(lens_name: str, json_output: bool) -> None:
 async def _lens_skills(lens_name: str, json_output: bool) -> None:
     """List skills for a lens."""
     from sunwell.agent.lens_resolver import _load_lens
-    from sunwell.naaru.expertise.discovery import LensDiscovery
+    from sunwell.planning.naaru.expertise.discovery import LensDiscovery
 
     discovery = LensDiscovery()
     lens_obj = await _load_lens(lens_name, discovery)

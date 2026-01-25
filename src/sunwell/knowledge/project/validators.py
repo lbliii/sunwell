@@ -18,7 +18,7 @@ Example:
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from sunwell.project.dsl import (
+from sunwell.knowledge.project.dsl import (
     ConstraintDSL,
     ParsedRule,
     enumerate_bindings,
@@ -26,7 +26,7 @@ from sunwell.project.dsl import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.project.schema import ValidatorConfig
+    from sunwell.knowledge.project.schema import ValidatorConfig
 
 
 @dataclass(frozen=True, slots=True)

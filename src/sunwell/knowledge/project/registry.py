@@ -7,7 +7,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from sunwell.project.types import Project, WorkspaceType
+from sunwell.knowledge.project.types import Project, WorkspaceType
 
 
 class RegistryError(Exception):
@@ -218,8 +218,8 @@ def init_project(
     Raises:
         RegistryError: If project already exists at this path
     """
-    from sunwell.project.manifest import create_manifest, save_manifest
-    from sunwell.project.validation import validate_workspace
+    from sunwell.knowledge.project.manifest import create_manifest, save_manifest
+    from sunwell.knowledge.project.validation import validate_workspace
 
     root = root.resolve()
 

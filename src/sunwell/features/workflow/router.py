@@ -7,7 +7,7 @@ and selects the appropriate workflow chain.
 
 import re
 
-from sunwell.workflow.types import (
+from sunwell.features.workflow.types import (
     WORKFLOW_CHAINS,
     Intent,
     IntentCategory,

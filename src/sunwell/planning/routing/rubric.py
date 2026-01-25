@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from sunwell.routing.types import ExecutionTier
+from sunwell.planning.routing.types import ExecutionTier
 
 # Pre-compiled regex for file extension detection
 _RE_FILE_EXTENSION = re.compile(r'\b\w+\.(py|js|ts|md|yaml|json|go|rs|java|c|cpp|h)\b')

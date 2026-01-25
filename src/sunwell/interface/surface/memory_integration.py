@@ -9,14 +9,14 @@ Integrates with Sunwell's memory system to:
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.surface.memory import (
+from sunwell.interface.generative.surface.memory import (
     InteractionMetrics,
     LayoutMemory,
     create_layout_memory,
     layout_memory_to_learning,
     normalize_goal,
 )
-from sunwell.surface.types import SurfaceLayout
+from sunwell.interface.generative.surface.types import SurfaceLayout
 
 if TYPE_CHECKING:
     pass

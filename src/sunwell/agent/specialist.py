@@ -20,9 +20,9 @@ from sunwell.agent.task_graph import sanitize_code_content
 
 if TYPE_CHECKING:
     from sunwell.agent.learning import LearningStore
-    from sunwell.core.lens import Lens
+    from sunwell.foundation.core.lens import Lens
     from sunwell.memory.briefing import Briefing
-    from sunwell.naaru.types import Task
+    from sunwell.planning.naaru.types import Task
 
 
 async def execute_via_specialist(

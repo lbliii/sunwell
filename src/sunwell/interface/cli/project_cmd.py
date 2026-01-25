@@ -52,7 +52,7 @@ def init_cmd(
         sunwell project init ~/projects/my-app
         sunwell project init . --id my-app --name "My Application"
     """
-    from sunwell.project import (
+    from sunwell.knowledge.project import (
         ProjectValidationError,
         RegistryError,
         init_project,
@@ -89,7 +89,7 @@ def init_cmd(
     console.print()
 
     # Check if bindings are set up
-    from sunwell.binding import BindingManager
+    from sunwell.foundation.binding import BindingManager
 
     manager = BindingManager()
     default_binding = manager.get_default()
@@ -115,7 +115,7 @@ def list_cmd(output_json: bool) -> None:
     Shows all projects in the global registry with their paths
     and last used timestamps.
     """
-    from sunwell.project import ProjectRegistry
+    from sunwell.knowledge.project import ProjectRegistry
 
     registry = ProjectRegistry()
     projects = registry.list_projects()
@@ -172,7 +172,7 @@ def default_cmd(project_id: str | None) -> None:
         sunwell project default          # Show default
         sunwell project default my-app   # Set default
     """
-    from sunwell.project import ProjectRegistry, RegistryError
+    from sunwell.knowledge.project import ProjectRegistry, RegistryError
 
     registry = ProjectRegistry()
 
@@ -210,7 +210,7 @@ def remove_cmd(project_id: str, force: bool) -> None:
         sunwell project remove my-app
         sunwell project remove my-app --force
     """
-    from sunwell.project import ProjectRegistry
+    from sunwell.knowledge.project import ProjectRegistry
 
     registry = ProjectRegistry()
 
@@ -248,7 +248,7 @@ def info_cmd(project_id: str | None) -> None:
         sunwell project info            # Current project
         sunwell project info my-app     # Specific project
     """
-    from sunwell.project import (
+    from sunwell.knowledge.project import (
         ProjectRegistry,
         ProjectResolutionError,
         resolve_project,
@@ -328,8 +328,8 @@ async def _analyze(
     model_name: str | None,
 ) -> None:
     """Run project analysis."""
-    from sunwell.cli.helpers import resolve_model
-    from sunwell.project import analyze_project
+    from sunwell.interface.generative.cli.helpers import resolve_model
+    from sunwell.knowledge.project import analyze_project
 
     # Load model using resolve_model()
     model = resolve_model(provider_override, model_name)
@@ -363,7 +363,7 @@ async def _analyze(
 
 def _display_analysis(analysis) -> None:
     """Display analysis in rich format."""
-    from sunwell.project import ProjectType
+    from sunwell.knowledge.project import ProjectType
 
     # Header
     type_emoji = {
@@ -473,7 +473,7 @@ def signals_cmd(path: str, output_json: bool) -> None:
     Displays all detected signals from the filesystem
     without classification or inference.
     """
-    from sunwell.project import gather_project_signals
+    from sunwell.knowledge.project import gather_project_signals
 
     signals = gather_project_signals(Path(path).resolve())
 
@@ -552,7 +552,7 @@ def monorepo_cmd(path: str, output_json: bool) -> None:
 
     Shows all detected sub-projects with their types.
     """
-    from sunwell.project import detect_sub_projects, is_monorepo
+    from sunwell.knowledge.project import detect_sub_projects, is_monorepo
 
     project_path = Path(path).resolve()
     is_mono = is_monorepo(project_path)
@@ -600,7 +600,7 @@ def cache_cmd(path: str, clear: bool) -> None:
 
     View or clear cached analysis for a project.
     """
-    from sunwell.project import invalidate_cache, load_cached_analysis
+    from sunwell.knowledge.project import invalidate_cache, load_cached_analysis
 
     project_path = Path(path).resolve()
 

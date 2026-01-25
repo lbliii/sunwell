@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.simulacrum.topology.unified_store import UnifiedMemoryStore
+    from sunwell.memory.simulacrum.topology.unified_store import UnifiedMemoryStore
 
 
 async def ingest_document(
@@ -34,10 +34,10 @@ async def ingest_document(
     Returns:
         Number of memory nodes created
     """
-    from sunwell.simulacrum.extractors.facet_extractor import extract_facets_from_text
-    from sunwell.simulacrum.extractors.structural_chunker import StructuralChunker
-    from sunwell.simulacrum.extractors.topology_extractor import TopologyExtractor
-    from sunwell.simulacrum.topology.memory_node import MemoryNode
+    from sunwell.memory.simulacrum.extractors.facet_extractor import extract_facets_from_text
+    from sunwell.memory.simulacrum.extractors.structural_chunker import StructuralChunker
+    from sunwell.memory.simulacrum.extractors.topology_extractor import TopologyExtractor
+    from sunwell.memory.simulacrum.topology.memory_node import MemoryNode
 
     chunker = StructuralChunker()
 

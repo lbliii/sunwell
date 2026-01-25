@@ -12,36 +12,36 @@ Together they create "Capable Lenses" that can both execute tasks AND
 evaluate their own output.
 """
 
-from sunwell.skills.cache import SkillCache, SkillCacheEntry, SkillCacheKey
-from sunwell.skills.compiler import (
+from sunwell.planning.skills.cache import SkillCache, SkillCacheEntry, SkillCacheKey
+from sunwell.planning.skills.compiler import (
     CompiledTaskGraph,
     SkillCompilationCache,
     SkillCompilationError,
     SkillCompiler,
     has_dag_metadata,
 )
-from sunwell.skills.graph import (
+from sunwell.planning.skills.graph import (
     CircularDependencyError,
     MissingDependencyError,
     SkillGraph,
     SkillGraphError,
     UnsatisfiedRequiresError,
 )
-from sunwell.skills.interop import (
+from sunwell.planning.skills.interop import (
     SkillExporter,
     SkillImporter,
     SkillValidationResult,
     validate_skill_folder,
 )
-from sunwell.skills.learner import (
+from sunwell.planning.skills.learner import (
     ExecutionPattern,
     LearnedSkillMetadata,
     SkillLearner,
     SkillLearningResult,
 )
-from sunwell.skills.library import SkillLibrary, SkillProvenance
-from sunwell.skills.sandbox import ScriptResult, ScriptSandbox
-from sunwell.skills.types import (
+from sunwell.planning.skills.library import SkillLibrary, SkillProvenance
+from sunwell.planning.skills.sandbox import ScriptResult, ScriptSandbox
+from sunwell.planning.skills.types import (
     Artifact,
     Resource,
     Script,

@@ -4,21 +4,21 @@ import json
 import re
 from typing import TYPE_CHECKING, Any
 
-from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
-from sunwell.naaru.planners.metrics import PlanMetrics, PlanMetricsV2
+from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
+from sunwell.planning.naaru.planners.metrics import PlanMetrics, PlanMetricsV2
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.naaru.planners.harmonic.parsing import parse_artifacts
-    from sunwell.naaru.planners.harmonic.planner import HarmonicPlanner
-    from sunwell.naaru.planners.harmonic.scoring import compute_metrics_v1, compute_metrics_v2
-    from sunwell.naaru.planners.harmonic.utils import get_effective_score
+    from sunwell.planning.naaru.planners.harmonic.parsing import parse_artifacts
+    from sunwell.planning.naaru.planners.harmonic.planner import HarmonicPlanner
+    from sunwell.planning.naaru.planners.harmonic.scoring import compute_metrics_v1, compute_metrics_v2
+    from sunwell.planning.naaru.planners.harmonic.utils import get_effective_score
 
 # Import here to avoid circular dependency
-from sunwell.naaru.planners.harmonic.parsing import parse_artifacts as _parse_artifacts
-from sunwell.naaru.planners.harmonic.scoring import compute_metrics_v1 as _compute_metrics_v1
-from sunwell.naaru.planners.harmonic.scoring import compute_metrics_v2 as _compute_metrics_v2
-from sunwell.naaru.planners.harmonic.utils import get_effective_score as _get_effective_score
+from sunwell.planning.naaru.planners.harmonic.parsing import parse_artifacts as _parse_artifacts
+from sunwell.planning.naaru.planners.harmonic.scoring import compute_metrics_v1 as _compute_metrics_v1
+from sunwell.planning.naaru.planners.harmonic.scoring import compute_metrics_v2 as _compute_metrics_v2
+from sunwell.planning.naaru.planners.harmonic.utils import get_effective_score as _get_effective_score
 
 
 def identify_improvements(metrics: PlanMetrics | PlanMetricsV2) -> str | None:

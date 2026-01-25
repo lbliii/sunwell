@@ -15,11 +15,11 @@ from sunwell.surface import (
     SurfaceRenderer,
     render_with_fallback,
 )
-from sunwell.surface.memory_integration import (
+from sunwell.interface.generative.surface.memory_integration import (
     load_memory_patterns,
     record_layout_interaction,
 )
-from sunwell.surface.types import SurfaceLayout, SurfacePrimitive
+from sunwell.interface.generative.surface.types import SurfaceLayout, SurfacePrimitive
 
 
 @click.group()
@@ -200,7 +200,7 @@ def analyze(goal: str, json_output: bool) -> None:
 
     Useful for debugging and understanding composition decisions.
     """
-    from sunwell.surface.intent import extract_intent
+    from sunwell.interface.generative.surface.intent import extract_intent
 
     intent = extract_intent(goal)
 
@@ -259,7 +259,7 @@ def patterns(project: str | None) -> None:
 def _load_lens(lens_name: str, project_path: Path):
     """Load a lens by name."""
     try:
-        from sunwell.lens.manager import LensManager
+        from sunwell.planning.lens.manager import LensManager
 
         manager = LensManager()
         return manager.load(lens_name)

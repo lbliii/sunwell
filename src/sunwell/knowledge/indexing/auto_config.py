@@ -133,7 +133,7 @@ def _should_enable_routing(workspace_root: Path) -> bool:
         True if routing should be enabled.
     """
     try:
-        from sunwell.config import get_config
+        from sunwell.foundation.config import get_config
 
         config = get_config()
 
@@ -177,7 +177,7 @@ def _should_enable_smart(workspace_root: Path) -> bool:
         True if smart mode should be enabled.
     """
     try:
-        from sunwell.config import get_config
+        from sunwell.foundation.config import get_config
 
         config = get_config()
 

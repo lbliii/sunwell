@@ -12,9 +12,9 @@ Structure:
 - utils.py: Utility functions (keyword extraction, etc.)
 """
 
-from sunwell.naaru.planners.harmonic.planner import HarmonicPlanner, ScoringVersion
-from sunwell.naaru.planners.metrics import PlanMetrics, PlanMetricsV2
-from sunwell.naaru.planners.variance import VarianceStrategy
+from sunwell.planning.naaru.planners.harmonic.planner import HarmonicPlanner, ScoringVersion
+from sunwell.planning.naaru.planners.metrics import PlanMetrics, PlanMetricsV2
+from sunwell.planning.naaru.planners.variance import VarianceStrategy
 
 # Re-export package exports
 __all__ = [

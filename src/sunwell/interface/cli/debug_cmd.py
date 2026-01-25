@@ -255,7 +255,7 @@ def _collect_runs(dest: Path) -> None:
     dest.mkdir(parents=True, exist_ok=True)
 
     try:
-        from sunwell.server.runs import RunManager
+        from sunwell.interface.generative.server.runs import RunManager
 
         manager = RunManager()
         runs = manager.list_runs()
@@ -292,7 +292,7 @@ def _collect_plans(dest: Path) -> None:
     dest.mkdir(parents=True, exist_ok=True)
 
     try:
-        from sunwell.naaru.persistence import PlanStore
+        from sunwell.planning.naaru.persistence import PlanStore
 
         store = PlanStore()
         plans = store.list_recent(limit=DUMP_LIMITS["runs"])

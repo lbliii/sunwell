@@ -3,15 +3,15 @@
 import asyncio
 from typing import TYPE_CHECKING, Any
 
-from sunwell.naaru.artifacts import ArtifactGraph
-from sunwell.naaru.planners.metrics import CandidateResult
-from sunwell.naaru.planners.variance import apply_variance, get_variance_configs
+from sunwell.planning.naaru.artifacts import ArtifactGraph
+from sunwell.planning.naaru.planners.metrics import CandidateResult
+from sunwell.planning.naaru.planners.variance import apply_variance, get_variance_configs
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
-    from sunwell.naaru.convergence import Convergence
-    from sunwell.naaru.planners.artifact import ArtifactPlanner
-    from sunwell.naaru.planners.harmonic.planner import HarmonicPlanner
+    from sunwell.planning.naaru.convergence import Convergence
+    from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
+    from sunwell.planning.naaru.planners.harmonic.planner import HarmonicPlanner
 
 
 async def generate_candidates(
@@ -24,7 +24,7 @@ async def generate_candidates(
     Returns CandidateResult objects with stable IDs for reliable
     frontend/backend alignment (no index confusion).
     """
-    from sunwell.naaru.planners.artifact import ArtifactPlanner
+    from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
     # Create base planner
     base_planner = ArtifactPlanner(
@@ -106,7 +106,7 @@ async def warm_convergence(
     context: dict[str, Any] | None,
 ) -> None:
     """Pre-populate Convergence with shared context."""
-    from sunwell.naaru.convergence import Slot, SlotSource
+    from sunwell.planning.naaru.convergence import Slot, SlotSource
 
     # Add goal context
     await convergence.add(

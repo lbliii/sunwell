@@ -23,9 +23,9 @@ from rich.panel import Panel
 from rich.progress import BarColumn, Progress, TextColumn
 from rich.table import Table
 
-from sunwell.backlog.manager import BacklogManager
-from sunwell.backlog.tracker import MilestoneTracker
-from sunwell.cli.theme import create_sunwell_console
+from sunwell.features.backlog.manager import BacklogManager
+from sunwell.features.backlog.tracker import MilestoneTracker
+from sunwell.interface.generative.cli.theme import create_sunwell_console
 
 console = create_sunwell_console()
 

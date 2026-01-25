@@ -52,7 +52,7 @@ def run(chain_name: str, target: str | None, dry_run: bool, as_json: bool) -> No
     """
     import json as json_lib
 
-    from sunwell.workflow.types import WORKFLOW_CHAINS
+    from sunwell.features.workflow.types import WORKFLOW_CHAINS
 
     chain = WORKFLOW_CHAINS.get(chain_name)
     if not chain:
@@ -91,9 +91,9 @@ async def _run_workflow(chain_name: str, target: str | None, as_json: bool = Fal
     """Execute a workflow chain."""
     import json as json_lib
 
-    from sunwell.workflow import WorkflowEngine
-    from sunwell.workflow.engine import WriterContext
-    from sunwell.workflow.types import WORKFLOW_CHAINS
+    from sunwell.features.workflow import WorkflowEngine
+    from sunwell.features.workflow.engine import WriterContext
+    from sunwell.features.workflow.types import WORKFLOW_CHAINS
 
     chain = WORKFLOW_CHAINS[chain_name]
     state_dir = Path(".sunwell/state")
@@ -143,7 +143,7 @@ def resume() -> None:
 
 async def _resume_workflow() -> None:
     """Resume a paused workflow."""
-    from sunwell.workflow.state import WorkflowStateManager
+    from sunwell.features.workflow.state import WorkflowStateManager
 
     state_dir = Path(".sunwell/state")
     manager = WorkflowStateManager(state_dir)
@@ -161,7 +161,7 @@ async def _resume_workflow() -> None:
     console.print(f"Progress: step {state.current_step + 1}")
     console.print()
 
-    from sunwell.workflow import WorkflowEngine
+    from sunwell.features.workflow import WorkflowEngine
 
     engine = WorkflowEngine(state_dir=state_dir)
     result = await engine.resume(state.id)
@@ -182,7 +182,7 @@ def list_workflows() -> None:
 
 async def _list_workflows() -> None:
     """List all active workflows."""
-    from sunwell.workflow.state import WorkflowStateManager
+    from sunwell.features.workflow.state import WorkflowStateManager
 
     state_dir = Path(".sunwell/state")
     manager = WorkflowStateManager(state_dir)
@@ -230,7 +230,7 @@ def status(execution_id: str | None) -> None:
 
 async def _show_status(execution_id: str | None) -> None:
     """Show detailed workflow status."""
-    from sunwell.workflow.state import WorkflowStateManager
+    from sunwell.features.workflow.state import WorkflowStateManager
 
     state_dir = Path(".sunwell/state")
     manager = WorkflowStateManager(state_dir)
@@ -271,7 +271,7 @@ def chains(as_json: bool) -> None:
     """List available workflow chains."""
     import json as json_lib
 
-    from sunwell.workflow.types import WORKFLOW_CHAINS
+    from sunwell.features.workflow.types import WORKFLOW_CHAINS
 
     if as_json:
         chains_data = [
@@ -317,7 +317,7 @@ def auto(user_input: tuple[str, ...], as_json: bool) -> None:
     """
     import json as json_lib
 
-    from sunwell.workflow import IntentRouter
+    from sunwell.features.workflow import IntentRouter
 
     router = IntentRouter()
     input_text = " ".join(user_input)

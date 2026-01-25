@@ -8,7 +8,7 @@ Extended in RFC-079 to accept ProjectAnalysis context for project-aware routing.
 DEPRECATED: This class is deprecated. Use IntentPipeline instead.
 
 Usage:
-    >>> from sunwell.interface.pipeline import IntentPipeline
+    >>> from sunwell.interface.generative.pipeline import IntentPipeline
     >>> pipeline = IntentPipeline.create(model)
     >>> analysis = await pipeline.analyze("build a chat app")
 """
@@ -24,12 +24,12 @@ from typing import TYPE_CHECKING, Any
 # Pre-compiled pattern for JSON extraction
 _JSON_EXTRACT_PATTERN = re.compile(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", re.DOTALL)
 
-from sunwell.interface.types import (
+from sunwell.interface.generative.types import (
     ActionSpec,
     IntentAnalysis,
     ViewSpec,
 )
-from sunwell.providers.base import (
+from sunwell.models.providers.base import (
     BookmarksProvider,
     CalendarProvider,
     ContactsProvider,
@@ -40,11 +40,11 @@ from sunwell.providers.base import (
     NotesProvider,
     ProjectsProvider,
 )
-from sunwell.surface.types import WorkspaceSpec
+from sunwell.interface.generative.surface.types import WorkspaceSpec
 
 if TYPE_CHECKING:
-    from sunwell.interface.pipeline import IntentPipeline
-    from sunwell.project.intent_types import ProjectAnalysis
+    from sunwell.interface.generative.pipeline import IntentPipeline
+    from sunwell.knowledge.project.intent_types import ProjectAnalysis
 
 # Prompt is split into parts for readability
 _PROMPT_HEADER = '''Analyze this user goal and determine the best way to help.
@@ -167,7 +167,7 @@ class IntentAnalyzer:
 
     RECOMMENDED: Use IntentPipeline instead for consistent, hallucination-free routing:
 
-        >>> from sunwell.interface.pipeline import IntentPipeline
+        >>> from sunwell.interface.generative.pipeline import IntentPipeline
         >>> pipeline = IntentPipeline.create(model)
         >>> analysis = await pipeline.analyze("build a chat app")
 
@@ -454,7 +454,7 @@ class IntentAnalyzer:
         """
         # Lazy-create pipeline
         if self._pipeline is None:
-            from sunwell.interface.pipeline import IntentPipeline
+            from sunwell.interface.generative.pipeline import IntentPipeline
 
             self._pipeline = IntentPipeline.create(
                 classifier_model=self.model,

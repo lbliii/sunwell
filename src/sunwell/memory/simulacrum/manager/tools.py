@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from sunwell.models.protocol import Tool
 
 if TYPE_CHECKING:
-    from sunwell.simulacrum.manager.manager import SimulacrumManager
+    from sunwell.memory.simulacrum.manager.manager import SimulacrumManager
 
 
 SIMULACRUM_TOOLS: dict[str, Tool] = {

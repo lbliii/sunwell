@@ -3,12 +3,12 @@
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.reasoning.decisions import DecisionType
+from sunwell.planning.reasoning.decisions import DecisionType
 
 if TYPE_CHECKING:
-    from sunwell.naaru.artifacts import ArtifactGraph
-    from sunwell.project.schema import ProjectContext
-    from sunwell.reasoning.cache import ExecutionCache
+    from sunwell.planning.naaru.artifacts import ArtifactGraph
+    from sunwell.knowledge.project.schema import ProjectContext
+    from sunwell.planning.reasoning.cache import ExecutionCache
 
 
 class ContextEnricher:

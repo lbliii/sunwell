@@ -3,7 +3,7 @@
 import yaml
 from pathlib import Path
 
-from sunwell.skills.types import (
+from sunwell.planning.skills.types import (
     Resource,
     Script,
     Skill,

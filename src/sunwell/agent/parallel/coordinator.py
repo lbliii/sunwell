@@ -16,8 +16,8 @@ from datetime import datetime
 from multiprocessing import Process, Queue
 from pathlib import Path
 
-from sunwell.parallel.config import MultiInstanceConfig
-from sunwell.parallel.git import (
+from sunwell.agent.parallel.config import MultiInstanceConfig
+from sunwell.agent.parallel.git import (
     abort_rebase,
     checkout_branch,
     delete_branch,
@@ -27,7 +27,7 @@ from sunwell.parallel.git import (
     merge_ff_only,
     rebase_branch,
 )
-from sunwell.parallel.types import (
+from sunwell.agent.parallel.types import (
     CoordinatorUIState,
     FileConflict,
     MergeResult,
@@ -35,7 +35,7 @@ from sunwell.parallel.types import (
     WorkerState,
     WorkerStatus,
 )
-from sunwell.parallel.worker import worker_entry
+from sunwell.agent.parallel.worker import worker_entry
 
 logger = logging.getLogger(__name__)
 
@@ -254,7 +254,7 @@ class Coordinator:
         Args:
             worker_id: The crashed worker's ID
         """
-        from sunwell.backlog.manager import BacklogManager
+        from sunwell.features.backlog.manager import BacklogManager
 
         try:
             backlog = BacklogManager(self.root)

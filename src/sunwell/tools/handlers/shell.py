@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 from sunwell.tools.handlers.base import BaseHandler
 
 if TYPE_CHECKING:
-    from sunwell.skills.sandbox import ScriptSandbox
+    from sunwell.planning.skills.sandbox import ScriptSandbox
 
 
 class ShellHandlers(BaseHandler):
@@ -30,7 +30,7 @@ class ShellHandlers(BaseHandler):
         timeout = min(args.get("timeout", 30), 300)
 
         if self.sandbox:
-            from sunwell.skills.types import Script
+            from sunwell.planning.skills.types import Script
 
             script = Script(
                 name="cmd.sh",

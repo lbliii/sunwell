@@ -21,7 +21,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from sunwell.self.types import (
+from sunwell.features.mirror.self.types import (
     ApplyResult,
     FileChange,
     ProposalStatus,

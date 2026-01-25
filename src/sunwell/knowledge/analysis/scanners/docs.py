@@ -14,7 +14,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-from sunwell.analysis.state_dag import (
+from sunwell.knowledge.analysis.state_dag import (
     HealthProbeResult,
     Scanner,
     StateDagEdge,
@@ -199,7 +199,7 @@ class DocsScanner(Scanner):
         Returns:
             Dict mapping node ID to list of health probe results
         """
-        from sunwell.analysis.probes.drift import DriftProbe
+        from sunwell.knowledge.analysis.probes.drift import DriftProbe
 
         results: dict[str, list[HealthProbeResult]] = {}
 

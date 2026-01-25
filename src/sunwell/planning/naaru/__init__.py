@@ -87,15 +87,15 @@ Lore:
 # RFC-067: Integration Verification (canonical: sunwell.integration)
 # RFC-074: Incremental Execution v2 (content-addressed cache)
 # Re-export v2 types from sunwell.incremental for convenience
-from sunwell.incremental import (
+from sunwell.agent.incremental import (
     ExecutionCache,
     ExecutionPlan,
     IncrementalResult,
     SkipDecision,
     SkipReason,
 )
-from sunwell.incremental import IncrementalExecutor as IncrementalExecutorV2
-from sunwell.integration import (
+from sunwell.agent.incremental import IncrementalExecutor as IncrementalExecutorV2
+from sunwell.features.external.integration import (
     IntegrationCheck,
     IntegrationCheckType,
     IntegrationResult,
@@ -105,7 +105,7 @@ from sunwell.integration import (
     StubDetection,
     TaskType,
 )
-from sunwell.naaru.analysis import (
+from sunwell.planning.naaru.analysis import (
     ParallelismAnalysis,
     analyze_parallelism,
     format_execution_summary,
@@ -114,7 +114,7 @@ from sunwell.naaru.analysis import (
 )
 
 # RFC-036: Artifact-First Planning
-from sunwell.naaru.artifacts import (
+from sunwell.planning.naaru.artifacts import (
     ArtifactCreationError,
     # Exceptions
     ArtifactError,
@@ -133,7 +133,7 @@ from sunwell.naaru.artifacts import (
 )
 
 # RFC-032: Checkpointing
-from sunwell.naaru.checkpoint import (
+from sunwell.planning.naaru.checkpoint import (
     AgentCheckpoint,
     FailurePolicy,
     ParallelConfig,
@@ -143,20 +143,20 @@ from sunwell.naaru.checkpoint import (
 )
 
 # Convergence - Shared Working Memory
-from sunwell.naaru.convergence import (
+from sunwell.planning.naaru.convergence import (
     Convergence,
     Slot,
     SlotSource,
 )
 
 # The Coordinator
-from sunwell.naaru.coordinator import (
+from sunwell.planning.naaru.coordinator import (
     AgentResult,  # RFC-032
     Naaru,
 )
 
 # Core types
-from sunwell.naaru.core import (
+from sunwell.planning.naaru.core import (
     MessageBus,
     MessageType,
     NaaruMessage,
@@ -164,15 +164,15 @@ from sunwell.naaru.core import (
 )
 
 # Discernment - Tiered Validation
-from sunwell.naaru.discernment import (
+from sunwell.planning.naaru.discernment import (
     Discernment,
     DiscernmentResult,
     DiscernmentVerdict,
 )
-from sunwell.naaru.discovery import OpportunityDiscoverer
+from sunwell.planning.naaru.discovery import OpportunityDiscoverer
 
 # RFC-033: Unified Architecture
-from sunwell.naaru.diversity import (
+from sunwell.planning.naaru.diversity import (
     HARMONIC_PERSONAS,
     Candidate,
     diversity_harmonic,
@@ -182,11 +182,11 @@ from sunwell.naaru.diversity import (
 )
 
 # RFC-076: Modular Components
-from sunwell.naaru.events import EventEmitter, NaaruEventEmitter
-from sunwell.naaru.execution import ExecutionCoordinator
+from sunwell.planning.naaru.events import EventEmitter, NaaruEventEmitter
+from sunwell.planning.naaru.execution import ExecutionCoordinator
 
 # RFC-036: Artifact Execution
-from sunwell.naaru.executor import (
+from sunwell.planning.naaru.executor import (
     ArtifactExecutor,
     ArtifactResult,
     ExecutionEvent,
@@ -194,17 +194,17 @@ from sunwell.naaru.executor import (
     execute_artifact_graph,
     execute_with_discovery,
 )
-from sunwell.naaru.learnings import LearningExtractor
+from sunwell.planning.naaru.learnings import LearningExtractor
 
 # Core runners
-from sunwell.naaru.loop import AutonomousRunner
-from sunwell.naaru.migration import (
+from sunwell.planning.naaru.loop import AutonomousRunner
+from sunwell.planning.naaru.migration import (
     create_rfc019_equivalent_config,
     create_rfc028_equivalent_config,
     migrate_rfc019_to_rfc033,
 )
-from sunwell.naaru.parallel import ParallelAutonomousRunner, WorkerStats
-from sunwell.naaru.persistence import (
+from sunwell.planning.naaru.parallel import ParallelAutonomousRunner, WorkerStats
+from sunwell.planning.naaru.persistence import (
     ArtifactCompletion,
     ExecutionStatus,
     PlanStore,
@@ -219,7 +219,7 @@ from sunwell.naaru.persistence import (
 )
 
 # RFC-032: Task Planners
-from sunwell.naaru.planners import (
+from sunwell.planning.naaru.planners import (
     AgentPlanner,
     # RFC-036: Artifact-First Planner
     ArtifactPlanner,
@@ -228,7 +228,7 @@ from sunwell.naaru.planners import (
     SelfImprovementPlanner,
     TaskPlanner,
 )
-from sunwell.naaru.refinement import (
+from sunwell.planning.naaru.refinement import (
     RefinementResult,
     refine_full,
     refine_none,
@@ -236,14 +236,14 @@ from sunwell.naaru.refinement import (
 )
 
 # Resonance - Feedback Loop
-from sunwell.naaru.resonance import (
+from sunwell.planning.naaru.resonance import (
     RefinementAttempt,
     Resonance,
     ResonanceConfig,
     ResonanceResult,
     create_resonance_handler,
 )
-from sunwell.naaru.selection import (
+from sunwell.planning.naaru.selection import (
     select_heuristic,
     select_judge,
     select_passthrough,
@@ -253,13 +253,13 @@ from sunwell.naaru.selection import (
 # RFC-110: Session management moved to Agent level
 
 # Shards - Parallel Helpers
-from sunwell.naaru.shards import (
+from sunwell.planning.naaru.shards import (
     Shard,
     ShardPool,
     ShardType,
 )
-from sunwell.naaru.signals import SignalHandler, StopReason
-from sunwell.naaru.types import (
+from sunwell.planning.naaru.signals import SignalHandler, StopReason
+from sunwell.planning.naaru.types import (
     Opportunity,
     OpportunityCategory,
     RiskLevel,
@@ -271,7 +271,7 @@ from sunwell.naaru.types import (
     TaskMode,
     TaskStatus,
 )
-from sunwell.naaru.unified import (
+from sunwell.planning.naaru.unified import (
     TaskAnalysis,
     UnifiedResult,
     create_auto_config,
@@ -284,7 +284,7 @@ from sunwell.naaru.unified import (
 )
 
 # Workers
-from sunwell.naaru.workers import (
+from sunwell.planning.naaru.workers import (
     AnalysisWorker,
     CognitiveRoutingWorker,
     ExecutiveWorker,
@@ -295,10 +295,10 @@ from sunwell.naaru.workers import (
 )
 
 # NaaruConfig moved to sunwell.types.config
-from sunwell.types.config import NaaruConfig
+from sunwell.foundation.types.config import NaaruConfig
 
 # ModelSize moved to sunwell.types.model_size
-from sunwell.types.model_size import ModelSize
+from sunwell.foundation.types.model_size import ModelSize
 
 
 __all__ = [

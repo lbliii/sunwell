@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.naaru.types import Task
+    from sunwell.planning.naaru.types import Task
 
 from sunwell.agent.gates import ValidationGate
 
