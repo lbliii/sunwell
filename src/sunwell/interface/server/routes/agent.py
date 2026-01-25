@@ -11,8 +11,17 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from sunwell.interface.server.events import BusEvent, EventBus
-from sunwell.interface.server.runs import RunManager, RunState
+from sunwell.interface.server.routes._models import (
+    RunCancelResponse,
+    RunEventsResponse,
+    RunHistoryItem,
+    RunItem,
+    RunsListResponse,
+    RunStartResponse,
+    RunStatusResponse,
+)
 from sunwell.interface.server.run_store import get_run_store
+from sunwell.interface.server.runs import RunManager, RunState
 from sunwell.interface.server.workspace_manager import get_workspace_manager
 
 # Pre-compiled regex for workspace name generation (avoid recompiling per call)
@@ -65,7 +74,7 @@ class StopRunRequest(BaseModel):
 
 
 @router.post("/run")
-async def start_run(request: RunRequest) -> dict[str, Any]:
+async def start_run(request: RunRequest) -> RunStartResponse:
     """Start an agent run, return run_id for WebSocket connection."""
     run = _run_manager.create_run(
         goal=request.goal,
@@ -79,31 +88,37 @@ async def start_run(request: RunRequest) -> dict[str, Any]:
         source=request.source,
         use_v2=request.use_v2,
     )
-    return {"run_id": run.run_id, "status": run.status, "use_v2": run.use_v2}
+    return RunStartResponse(run_id=run.run_id, status=run.status, use_v2=run.use_v2)
 
 
 @router.get("/run/{run_id}")
-async def get_run(run_id: str) -> dict[str, Any]:
+async def get_run(run_id: str) -> RunStatusResponse:
     """Get run status."""
     run = _run_manager.get_run(run_id)
     if not run:
-        return {"error": "Run not found"}
-    return {
-        "run_id": run.run_id,
-        "status": run.status,
-        "goal": run.goal,
-        "event_count": len(run.events),
-    }
+        return RunStatusResponse(
+            run_id=run_id,
+            status="not_found",
+            goal="",
+            event_count=0,
+            error="Run not found",
+        )
+    return RunStatusResponse(
+        run_id=run.run_id,
+        status=run.status,
+        goal=run.goal,
+        event_count=len(run.events),
+    )
 
 
 @router.delete("/run/{run_id}")
-async def cancel_run(run_id: str) -> dict[str, Any]:
+async def cancel_run(run_id: str) -> RunCancelResponse:
     """Cancel a running agent."""
     run = _run_manager.get_run(run_id)
     if not run:
-        return {"error": "Run not found"}
+        return RunCancelResponse(status="error", error="Run not found")
     run.cancel()
-    return {"status": "cancelled"}
+    return RunCancelResponse(status="cancelled")
 
 
 @router.websocket("/run/{run_id}/events")
@@ -189,13 +204,13 @@ async def list_runs(
     project_id: str | None = None,
     limit: int = 20,
     include_historical: bool = True,
-) -> dict[str, Any]:
+) -> RunsListResponse:
     """List all runs, optionally filtered by project.
 
     Returns runs regardless of origin (CLI, Studio, API).
     Includes both in-memory active runs and historical persisted runs.
     """
-    result_runs: list[dict[str, Any]] = []
+    result_runs: list[RunItem] = []
     seen_ids: set[str] = set()
 
     # First, get active runs from RunManager
@@ -205,15 +220,15 @@ async def list_runs(
 
     for r in active_runs:
         seen_ids.add(r.run_id)
-        result_runs.append({
-            "run_id": r.run_id,
-            "goal": r.goal,
-            "status": r.status,
-            "source": r.source,
-            "started_at": r.started_at.isoformat(),
-            "completed_at": r.completed_at.isoformat() if r.completed_at else None,
-            "event_count": len(r.events),
-        })
+        result_runs.append(RunItem(
+            run_id=r.run_id,
+            goal=r.goal,
+            status=r.status,
+            source=r.source,
+            started_at=r.started_at.isoformat(),
+            completed_at=r.completed_at.isoformat() if r.completed_at else None,
+            event_count=len(r.events),
+        ))
 
     # Then, add historical runs from RunStore (if not already in active)
     if include_historical:
@@ -221,19 +236,19 @@ async def list_runs(
         historical = store.list_runs(limit=limit, project_id=project_id)
         for r in historical:
             if r.run_id not in seen_ids:
-                result_runs.append({
-                    "run_id": r.run_id,
-                    "goal": r.goal,
-                    "status": r.status,
-                    "source": r.source,
-                    "started_at": r.started_at,
-                    "completed_at": r.completed_at,
-                    "event_count": len(r.events),
-                })
+                result_runs.append(RunItem(
+                    run_id=r.run_id,
+                    goal=r.goal,
+                    status=r.status,
+                    source=r.source,
+                    started_at=r.started_at,
+                    completed_at=r.completed_at,
+                    event_count=len(r.events),
+                ))
 
     # Sort by started_at descending and limit
-    result_runs.sort(key=lambda x: x.get("started_at", ""), reverse=True)
-    return {"runs": result_runs[:limit]}
+    result_runs.sort(key=lambda x: x.started_at, reverse=True)
+    return RunsListResponse(runs=result_runs[:limit])
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -242,15 +257,18 @@ async def list_runs(
 
 
 @router.get("/run/active")
-async def get_active_runs() -> list[dict[str, Any]]:
+async def get_active_runs() -> list[RunItem]:
     """Get all active runs."""
     return [
-        {
-            "run_id": run.run_id,
-            "goal": run.goal,
-            "status": run.status,
-            "event_count": len(run.events),
-        }
+        RunItem(
+            run_id=run.run_id,
+            goal=run.goal,
+            status=run.status,
+            source=run.source,
+            started_at=run.started_at.isoformat() if run.started_at else "",
+            completed_at=run.completed_at.isoformat() if run.completed_at else None,
+            event_count=len(run.events),
+        )
         for run in _run_manager.list_runs()
         if run.status in ("pending", "running")
     ]
@@ -260,7 +278,7 @@ async def get_active_runs() -> list[dict[str, Any]]:
 async def get_run_history(
     limit: int = 20,
     project_id: str | None = None,
-) -> list[dict[str, Any]]:
+) -> list[RunHistoryItem]:
     """Get run history from persistent storage.
 
     Returns historical runs that have been persisted to disk.
@@ -268,24 +286,24 @@ async def get_run_history(
     store = get_run_store()
     runs = store.list_runs(limit=limit, project_id=project_id)
     return [
-        {
-            "run_id": run.run_id,
-            "goal": run.goal,
-            "status": run.status,
-            "source": run.source,
-            "started_at": run.started_at,
-            "completed_at": run.completed_at,
-            "event_count": len(run.events),
-            "workspace": run.workspace,
-            "lens": run.lens,
-            "model": run.model,
-        }
+        RunHistoryItem(
+            run_id=run.run_id,
+            goal=run.goal,
+            status=run.status,
+            source=run.source,
+            started_at=run.started_at,
+            completed_at=run.completed_at,
+            event_count=len(run.events),
+            workspace=run.workspace,
+            lens=run.lens,
+            model=run.model,
+        )
         for run in runs
     ]
 
 
 @router.get("/run/{run_id}/events")
-async def get_run_events(run_id: str) -> dict[str, Any]:
+async def get_run_events(run_id: str) -> RunEventsResponse:
     """Get all events for a run (RFC-112 Observatory).
 
     First checks active runs in memory, then falls back to persistent storage.
@@ -293,15 +311,15 @@ async def get_run_events(run_id: str) -> dict[str, Any]:
     # Check active runs first
     run = _run_manager.get_run(run_id)
     if run:
-        return {"run_id": run_id, "events": run.events}
+        return RunEventsResponse(run_id=run_id, events=run.events)
 
     # Fall back to persistent storage
     store = get_run_store()
     events = store.get_events(run_id)
     if events:
-        return {"run_id": run_id, "events": events}
+        return RunEventsResponse(run_id=run_id, events=list(events))
 
-    return {"run_id": run_id, "events": [], "error": "Run not found"}
+    return RunEventsResponse(run_id=run_id, events=[], error="Run not found")
 
 
 @router.get("/observatory/data/{run_id}")
@@ -349,9 +367,9 @@ async def get_observatory_data(run_id: str) -> dict[str, Any]:
 
 
 @router.post("/run/stop")
-async def stop_run(request: StopRunRequest) -> dict[str, Any]:
+async def stop_run(request: StopRunRequest) -> RunCancelResponse:
     """Stop a run."""
-    return {"status": "stopped"}
+    return RunCancelResponse(status="stopped")
 
 
 # ═══════════════════════════════════════════════════════════════

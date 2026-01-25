@@ -340,8 +340,8 @@
             }
           },
           "required": [
-            "fact",
-            "category"
+            "category",
+            "fact"
           ],
           "additionalProperties": true
         },
@@ -948,8 +948,8 @@
           },
           "required": [
             "total_candidates",
-            "candidate_id",
-            "artifact_count"
+            "artifact_count",
+            "candidate_id"
           ],
           "additionalProperties": true
         },
@@ -1031,9 +1031,9 @@
             }
           },
           "required": [
-            "score",
+            "total_candidates",
             "candidate_id",
-            "total_candidates"
+            "score"
           ],
           "additionalProperties": true
         },
@@ -1103,8 +1103,8 @@
             }
           },
           "required": [
-            "round",
-            "total_rounds"
+            "total_rounds",
+            "round"
           ],
           "additionalProperties": true
         },
@@ -1265,8 +1265,8 @@
             }
           },
           "required": [
-            "phase",
-            "artifacts_discovered"
+            "artifacts_discovered",
+            "phase"
           ],
           "additionalProperties": true
         },
@@ -1299,8 +1299,8 @@
             }
           },
           "required": [
-            "gate_type",
-            "gate_id"
+            "gate_id",
+            "gate_type"
           ],
           "additionalProperties": true
         },
@@ -1450,8 +1450,8 @@
             }
           },
           "required": [
-            "task_id",
-            "description"
+            "description",
+            "task_id"
           ],
           "additionalProperties": true
         },
@@ -1589,8 +1589,8 @@
             }
           },
           "required": [
-            "task_id",
-            "error"
+            "error",
+            "task_id"
           ],
           "additionalProperties": true
         },
@@ -1696,8 +1696,8 @@
             }
           },
           "required": [
-            "error_type",
-            "message"
+            "message",
+            "error_type"
           ],
           "additionalProperties": true
         },
@@ -2167,8 +2167,8 @@
             }
           },
           "required": [
-            "recovery_id",
-            "reason"
+            "reason",
+            "recovery_id"
           ],
           "additionalProperties": true
         },
@@ -2280,9 +2280,9 @@
           },
           "required": [
             "target_artifact",
-            "source_artifact",
+            "edge_id",
             "check_type",
-            "edge_id"
+            "source_artifact"
           ],
           "additionalProperties": true
         },
@@ -2318,8 +2318,8 @@
             }
           },
           "required": [
-            "check_type",
-            "edge_id"
+            "edge_id",
+            "check_type"
           ],
           "additionalProperties": true
         },
@@ -2361,10 +2361,10 @@
             }
           },
           "required": [
-            "expected",
-            "actual",
             "check_type",
-            "edge_id"
+            "edge_id",
+            "expected",
+            "actual"
           ],
           "additionalProperties": true
         },
@@ -2403,10 +2403,10 @@
             }
           },
           "required": [
-            "stub_type",
-            "artifact_id",
             "file_path",
-            "location"
+            "location",
+            "stub_type",
+            "artifact_id"
           ],
           "additionalProperties": true
         },
@@ -2439,8 +2439,8 @@
             }
           },
           "required": [
-            "artifact_id",
-            "file_path"
+            "file_path",
+            "artifact_id"
           ],
           "additionalProperties": true
         },
@@ -2480,8 +2480,8 @@
           },
           "required": [
             "integration_type",
-            "task_id",
             "target_artifact",
+            "task_id",
             "source_artifact"
           ],
           "additionalProperties": true
@@ -2704,8 +2704,8 @@
             }
           },
           "required": [
-            "model",
-            "provider"
+            "provider",
+            "model"
           ],
           "additionalProperties": true
         },
@@ -2873,10 +2873,10 @@
             }
           },
           "required": [
-            "content_hash",
+            "lens_name",
             "skill_count",
-            "wave_count",
-            "lens_name"
+            "content_hash",
+            "wave_count"
           ],
           "additionalProperties": true
         },
@@ -2916,9 +2916,9 @@
             }
           },
           "required": [
+            "skills",
             "wave_index",
-            "total_waves",
-            "skills"
+            "total_waves"
           ],
           "additionalProperties": true
         },
@@ -2960,9 +2960,9 @@
           },
           "required": [
             "duration_ms",
-            "wave_index",
             "failed",
-            "succeeded"
+            "succeeded",
+            "wave_index"
           ],
           "additionalProperties": true
         },
@@ -2998,9 +2998,9 @@
             }
           },
           "required": [
-            "saved_ms",
             "cache_key",
-            "skill_name"
+            "skill_name",
+            "saved_ms"
           ],
           "additionalProperties": true
         },
@@ -3047,10 +3047,10 @@
             }
           },
           "required": [
-            "requires",
-            "skill_name",
+            "context_keys_available",
             "wave_index",
-            "context_keys_available"
+            "requires",
+            "skill_name"
           ],
           "additionalProperties": true
         },
@@ -3102,11 +3102,11 @@
             }
           },
           "required": [
-            "skill_name",
             "cached",
-            "duration_ms",
             "produces",
-            "success"
+            "success",
+            "duration_ms",
+            "skill_name"
           ],
           "additionalProperties": true
         },
@@ -3172,9 +3172,9 @@
             }
           },
           "required": [
-            "duration_ms",
+            "lens_name",
             "skill_count",
-            "lens_name"
+            "duration_ms"
           ],
           "additionalProperties": true
         },
@@ -3237,8 +3237,8 @@
             }
           },
           "required": [
-            "skill_name",
-            "subgraph_size"
+            "subgraph_size",
+            "skill_name"
           ],
           "additionalProperties": true
         },
@@ -3288,12 +3288,12 @@
             }
           },
           "required": [
-            "risk_score",
+            "flags",
+            "dag_id",
             "skill_count",
             "dag_name",
-            "dag_id",
             "risk_level",
-            "flags"
+            "risk_score"
           ],
           "additionalProperties": true
         },
@@ -3378,11 +3378,11 @@
             }
           },
           "required": [
-            "detection_method",
-            "skill_name",
-            "evidence",
             "violation_type",
-            "action_taken"
+            "evidence",
+            "action_taken",
+            "detection_method",
+            "skill_name"
           ],
           "additionalProperties": true
         },
@@ -3421,8 +3421,8 @@
             }
           },
           "required": [
-            "output_length",
             "violations_found",
+            "output_length",
             "method",
             "scan_duration_ms"
           ],
@@ -3466,9 +3466,9 @@
             }
           },
           "required": [
-            "action",
+            "risk_level",
             "skill_name",
-            "risk_level"
+            "action"
           ],
           "additionalProperties": true
         },
@@ -4029,8 +4029,8 @@
             }
           },
           "required": [
-            "iteration",
-            "errors_to_fix"
+            "errors_to_fix",
+            "iteration"
           ],
           "additionalProperties": true
         },
@@ -4187,8 +4187,8 @@
             }
           },
           "required": [
-            "budget_ms",
-            "elapsed_ms"
+            "elapsed_ms",
+            "budget_ms"
           ],
           "additionalProperties": true
         },
