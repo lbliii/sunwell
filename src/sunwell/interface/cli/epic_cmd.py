@@ -15,7 +15,6 @@ Examples:
 """
 
 import asyncio
-import json
 from pathlib import Path
 
 import click
@@ -23,6 +22,7 @@ from rich.panel import Panel
 from rich.progress import BarColumn, Progress, TextColumn
 from rich.table import Table
 
+from sunwell.foundation.utils import safe_json_dumps
 from sunwell.features.backlog.manager import BacklogManager
 from sunwell.features.backlog.tracker import MilestoneTracker
 from sunwell.interface.generative.cli.theme import create_sunwell_console
@@ -72,7 +72,7 @@ async def _show_status(epic_id: str | None, json_output: bool) -> None:
 
     if not epic_id:
         if json_output:
-            console.print(json.dumps({"error": "No active epic", "epics": []}))
+            console.print(safe_json_dumps({"error": "No active epic", "epics": []}))
         else:
             console.print("[neutral.dim]≡ No active epic[/neutral.dim]")
             # Show available epics
@@ -94,13 +94,13 @@ async def _show_status(epic_id: str | None, json_output: bool) -> None:
 
     if not progress:
         if json_output:
-            console.print(json.dumps({"error": f"Epic not found: {epic_id}"}))
+            console.print(safe_json_dumps({"error": f"Epic not found: {epic_id}"}))
         else:
             console.print(f"[void.purple]✗ Epic not found: {epic_id}[/void.purple]")
         return
 
     if json_output:
-        console.print(json.dumps(progress.to_dict(), indent=2))
+        console.print(safe_json_dumps(progress.to_dict(), indent=2))
         return
 
     # Human-readable display (RFC-131: Holy Light)
@@ -171,7 +171,7 @@ async def _show_milestones(epic_id: str | None, json_output: bool) -> None:
 
     if not epic_id:
         if json_output:
-            console.print(json.dumps({"error": "No active epic"}))
+            console.print(safe_json_dumps({"error": "No active epic"}))
         else:
             console.print("[void.purple]✗ No active epic.[/void.purple]")
             console.print("[neutral.dim]Provide epic_id or run epic first.[/neutral.dim]")
@@ -182,13 +182,13 @@ async def _show_milestones(epic_id: str | None, json_output: bool) -> None:
 
     if not timeline:
         if json_output:
-            console.print(json.dumps({"error": f"No milestones found for: {epic_id}"}))
+            console.print(safe_json_dumps({"error": f"No milestones found for: {epic_id}"}))
         else:
             console.print(f"[void.purple]✗ No milestones for: {epic_id}[/void.purple]")
         return
 
     if json_output:
-        console.print(json.dumps({"milestones": timeline}, indent=2))
+        console.print(safe_json_dumps({"milestones": timeline}, indent=2))
         return
 
     # Human-readable table
@@ -252,7 +252,7 @@ async def _skip_milestone(json_output: bool) -> None:
 
     if not manager.backlog.active_milestone:
         if json_output:
-            console.print(json.dumps({"error": "No active milestone to skip"}))
+            console.print(safe_json_dumps({"error": "No active milestone to skip"}))
         else:
             console.print("[void.purple]✗ No active milestone to skip[/void.purple]")
         return
@@ -262,7 +262,7 @@ async def _skip_milestone(json_output: bool) -> None:
 
     if json_output:
         console.print(
-            json.dumps(
+            safe_json_dumps(
                 {
                     "skipped": current.id if current else None,
                     "next": next_milestone.id if next_milestone else None,
@@ -302,7 +302,7 @@ async def _replan_milestone(json_output: bool) -> None:
 
     if not manager.backlog.active_milestone:
         if json_output:
-            console.print(json.dumps({"error": "No active milestone to replan"}))
+            console.print(safe_json_dumps({"error": "No active milestone to replan"}))
         else:
             console.print("[void.purple]✗ No active milestone to replan[/void.purple]")
         return
@@ -310,7 +310,7 @@ async def _replan_milestone(json_output: bool) -> None:
     milestone = manager.backlog.get_current_milestone()
     if not milestone:
         if json_output:
-            console.print(json.dumps({"error": "Could not find active milestone"}))
+            console.print(safe_json_dumps({"error": "Could not find active milestone"}))
         else:
             console.print("[void.purple]✗ Could not find active milestone[/void.purple]")
         return
@@ -319,7 +319,7 @@ async def _replan_milestone(json_output: bool) -> None:
     epic_id = milestone.parent_goal_id
     if not epic_id:
         if json_output:
-            console.print(json.dumps({"error": "Milestone has no parent epic"}))
+            console.print(safe_json_dumps({"error": "Milestone has no parent epic"}))
         else:
             console.print("[void.purple]✗ Milestone has no parent epic[/void.purple]")
         return
@@ -328,7 +328,7 @@ async def _replan_milestone(json_output: bool) -> None:
 
     if json_output:
         console.print(
-            json.dumps(
+            safe_json_dumps(
                 {
                     "milestone_id": milestone.id,
                     "milestone_title": milestone.title,
@@ -375,7 +375,7 @@ async def _list_epics(json_output: bool) -> None:
             }
             for e in epics
         ]
-        console.print(json.dumps({"epics": data}, indent=2))
+        console.print(safe_json_dumps({"epics": data}, indent=2))
         return
 
     if not epics:

@@ -340,10 +340,7 @@ class Grimoire:
 
     def _load_yaml(self, path: Path) -> dict[str, Spell]:
         """Load spells from a YAML spellbook."""
-        import yaml
-
-        with open(path) as f:
-            data = yaml.safe_load(f)
+        data = safe_yaml_load(path)
 
         spells = {}
         for spell_data in data.get("spellbook", []):

@@ -15,8 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import yaml
-
+from sunwell.foundation.utils import safe_yaml_load
 from sunwell.benchmark.types import (
     BenchmarkResults,
     BenchmarkTask,
@@ -304,8 +303,7 @@ class BenchmarkRunner:
     def _load_task_file(self, path: Path) -> BenchmarkTask | None:
         """Load a single task from a YAML file."""
         try:
-            with open(path) as f:
-                data = yaml.safe_load(f)
+            data = safe_yaml_load(path)
 
             if not data or "task" not in data:
                 return None

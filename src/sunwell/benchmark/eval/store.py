@@ -12,7 +12,6 @@ Follows patterns from:
 - security/approval_cache.py (SQLiteApprovalCache)
 """
 
-import json
 import sqlite3
 import threading
 from contextlib import contextmanager
@@ -21,6 +20,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
+from sunwell.foundation.utils import safe_json_loads
 from sunwell.benchmark.eval.types import (
     EvaluationDetails,
     EvaluationRun,
@@ -495,7 +495,7 @@ class EvaluationStore:
 
     def _row_to_run(self, row: sqlite3.Row) -> EvaluationRun:
         """Convert database row to EvaluationRun."""
-        details = json.loads(row["details_json"])
+        details = safe_json_loads(row["details_json"])
 
         single_shot_data = details["single_shot_result"]
         sunwell_data = details["sunwell_result"]

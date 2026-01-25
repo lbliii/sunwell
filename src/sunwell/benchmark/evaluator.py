@@ -7,7 +7,6 @@ Three-tier evaluation system:
 """
 
 
-import json
 import random
 import re
 import subprocess
@@ -16,6 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from sunwell.foundation.utils import safe_json_loads
 from sunwell.benchmark.types import (
     AggregatedVerdict,
     BenchmarkTask,
@@ -325,17 +325,17 @@ class BenchmarkEvaluator:
             if json_match:
                 response = json_match.group(1)
 
-            data = json.loads(response)
-        except json.JSONDecodeError:
+            data = safe_json_loads(response)
+        except ValueError:
             # Fallback: try to find JSON-like structure
             try:
                 json_start = response.find('{')
                 json_end = response.rfind('}') + 1
                 if json_start >= 0 and json_end > json_start:
-                    data = json.loads(response[json_start:json_end])
+                    data = safe_json_loads(response[json_start:json_end])
                 else:
                     raise ValueError("No JSON found")
-            except (json.JSONDecodeError, ValueError):
+            except ValueError:
                 # Default to TIE if parsing fails
                 return JudgeVerdict(
                     winner=Verdict.TIE,

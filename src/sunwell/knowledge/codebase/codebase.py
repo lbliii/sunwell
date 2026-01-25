@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from sunwell.knowledge.utils import extract_class_defs, is_python_file, parse_python_file
+
 if TYPE_CHECKING:
     from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
 
@@ -129,31 +131,26 @@ class CodebaseAnalyzer:
 
         # Build call graph and import graph
         for file_path in python_files:
-            try:
-                with open(file_path) as f:
-                    content = f.read()
-
-                tree = ast.parse(content, filename=str(file_path))
-
-                # Extract imports
-                module_name = self._get_module_name(file_path, root)
-                imports = self._extract_imports(tree)
-                graph.import_graph[module_name] = imports
-
-                # Extract function calls
-                calls = self._extract_calls(tree, module_name)
-                for func, called_funcs in calls.items():
-                    if func not in graph.call_graph:
-                        graph.call_graph[func] = []
-                    graph.call_graph[func].extend(called_funcs)
-
-                # Extract class hierarchy
-                classes = self._extract_classes(tree, module_name)
-                for class_name, bases in classes.items():
-                    graph.class_hierarchy[class_name] = bases
-
-            except (SyntaxError, OSError):
+            tree = parse_python_file(file_path)
+            if tree is None:
                 continue
+
+            # Extract imports
+            module_name = self._get_module_name(file_path, root)
+            imports = self._extract_imports(tree)
+            graph.import_graph[module_name] = imports
+
+            # Extract function calls
+            calls = self._extract_calls(tree, module_name)
+            for func, called_funcs in calls.items():
+                if func not in graph.call_graph:
+                    graph.call_graph[func] = []
+                graph.call_graph[func].extend(called_funcs)
+
+            # Extract class hierarchy
+            classes = self._extract_classes(tree, module_name)
+            for class_name, bases in classes.items():
+                graph.class_hierarchy[class_name] = bases
 
         return graph
 
@@ -206,14 +203,13 @@ class CodebaseAnalyzer:
     def _extract_classes(self, tree: ast.AST, module: str) -> dict[str, list[str]]:
         """Extract class hierarchy from AST."""
         classes: dict[str, list[str]] = {}
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ClassDef):
-                class_name = f"{module}.{node.name}"
-                bases = [
-                    base.id if isinstance(base, ast.Name) else str(base)
-                    for base in node.bases
-                ]
-                classes[class_name] = bases
+        for node in extract_class_defs(tree):
+            class_name = f"{module}.{node.name}"
+            bases = [
+                base.id if isinstance(base, ast.Name) else str(base)
+                for base in node.bases
+            ]
+            classes[class_name] = bases
         return classes
 
     async def incremental_update(
@@ -234,27 +230,23 @@ class CodebaseAnalyzer:
         """
         # Re-scan changed files and update graph
         for file_path in changed_files:
-            if not file_path.suffix == ".py":
+            if not is_python_file(file_path):
                 continue
 
-            try:
-                with open(file_path) as f:
-                    content = f.read()
-
-                tree = ast.parse(content, filename=str(file_path))
-                module_name = self._get_module_name(file_path, root)
-
-                # Update imports
-                imports = self._extract_imports(tree)
-                graph.import_graph[module_name] = imports
-
-                # Update calls
-                calls = self._extract_calls(tree, module_name)
-                for func, called_funcs in calls.items():
-                    graph.call_graph[func] = called_funcs
-
-            except (SyntaxError, OSError):
+            tree = parse_python_file(file_path)
+            if tree is None:
                 continue
+
+            module_name = self._get_module_name(file_path, root)
+
+            # Update imports
+            imports = self._extract_imports(tree)
+            graph.import_graph[module_name] = imports
+
+            # Update calls
+            calls = self._extract_calls(tree, module_name)
+            for func, called_funcs in calls.items():
+                graph.call_graph[func] = called_funcs
 
         return graph
 

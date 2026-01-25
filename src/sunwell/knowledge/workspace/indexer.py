@@ -23,6 +23,7 @@ from sunwell.foundation.freethreading import (
     WorkloadType,
     optimal_workers,
 )
+from sunwell.knowledge.utils import extract_class_defs, extract_function_defs, parse_python_file
 
 if TYPE_CHECKING:
     from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
@@ -413,35 +414,35 @@ class CodebaseIndexer:
         - More accurate than regex (understands syntax)
         - Handles edge cases (multiline strings, decorators, etc.)
         """
-        import ast
-
         chunks: list[CodeChunk] = []
 
-        try:
-            tree = ast.parse(content)
-        except SyntaxError:
+        tree = parse_python_file(file_path)
+        if tree is None:
             # Invalid Python, fall back to block chunking
             return self._chunk_by_blocks(file_path, lines)
 
         # Extract top-level definitions using AST
         definitions: list[tuple[int, int, str, str]] = []  # (start, end, type, name)
 
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ClassDef):
-                definitions.append((
-                    node.lineno,
-                    node.end_lineno or node.lineno,
-                    "class",
-                    node.name,
-                ))
-            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                # Skip nested functions (only top-level or class methods)
-                definitions.append((
-                    node.lineno,
-                    node.end_lineno or node.lineno,
-                    "function",
-                    node.name,
-                ))
+        # Extract classes
+        classes = extract_class_defs(tree)
+        for node in classes:
+            definitions.append((
+                node.lineno,
+                node.end_lineno or node.lineno,
+                "class",
+                node.name,
+            ))
+
+        # Extract functions
+        functions = extract_function_defs(tree)
+        for node in functions:
+            definitions.append((
+                node.lineno,
+                node.end_lineno or node.lineno,
+                "function",
+                node.name,
+            ))
 
         if not definitions:
             # No functions/classes, chunk whole file

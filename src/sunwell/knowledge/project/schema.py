@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import yaml
+from sunwell.foundation.utils import safe_yaml_load
 
 
 @dataclass(frozen=True, slots=True)
@@ -196,8 +196,7 @@ class ProjectSchema:
         if not schema_path.exists():
             raise FileNotFoundError(f"Schema not found: {schema_path}")
 
-        with open(schema_path) as f:
-            data = yaml.safe_load(f)
+        data = safe_yaml_load(schema_path)
 
         return cls._parse(data, project_root)
 

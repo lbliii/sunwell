@@ -11,6 +11,7 @@ import ast
 from dataclasses import dataclass
 from pathlib import Path
 
+from sunwell.knowledge.utils import extract_class_defs, extract_function_defs, parse_python_file
 from sunwell.knowledge.workspace.indexer import CodeChunk, _content_hash
 
 
@@ -61,26 +62,32 @@ class PythonASTChunker:
         Returns:
             List of PythonChunk objects.
         """
+        tree = parse_python_file(file_path)
+        if tree is None:
+            return []  # Invalid Python, skip
+
         try:
             content = file_path.read_text()
-            tree = ast.parse(content)
-        except (SyntaxError, UnicodeDecodeError):
-            return []  # Invalid Python, skip
+        except (UnicodeDecodeError, OSError):
+            return []
 
         lines = content.split("\n")
         chunks: list[CodeChunk] = []
 
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ClassDef):
-                chunk = self._chunk_class(node, file_path, lines)
+        # Extract classes
+        classes = extract_class_defs(tree)
+        for node in classes:
+            chunk = self._chunk_class(node, file_path, lines)
+            if chunk:
+                chunks.append(chunk)
+
+        # Extract functions (skip methods, handled by class chunker)
+        functions = extract_function_defs(tree)
+        for node in functions:
+            if not self._is_method(node, tree):
+                chunk = self._chunk_function(node, file_path, lines)
                 if chunk:
                     chunks.append(chunk)
-            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                # Skip methods (handled by class chunker)
-                if not self._is_method(node, tree):
-                    chunk = self._chunk_function(node, file_path, lines)
-                    if chunk:
-                        chunks.append(chunk)
 
         # If no definitions found, chunk the whole module
         if not chunks and len(lines) >= self.MIN_LINES:

@@ -3,11 +3,11 @@
 E: RESONANCE - Harmonic + feedback loop (full judge)
 """
 
-import json
 import re
 import time
 from typing import TYPE_CHECKING
 
+from sunwell.foundation.utils import safe_json_loads
 from sunwell.benchmark.naaru.conditions.harmonic import run_harmonic
 from sunwell.benchmark.naaru.types import NaaruCondition, NaaruConditionOutput, ResonanceMetrics
 from sunwell.models.protocol import GenerateOptions
@@ -65,7 +65,7 @@ Respond with ONLY JSON:
 
         json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
         if json_match:
-            judge_result = json.loads(json_match.group())
+            judge_result = safe_json_loads(json_match.group())
             return (
                 judge_result.get("verdict", "reject"),
                 float(judge_result.get("score", 5)),

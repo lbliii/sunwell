@@ -19,6 +19,8 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Literal
 
+from sunwell.knowledge.utils import extract_class_defs, extract_function_defs, parse_python_file
+
 logger = logging.getLogger(__name__)
 
 # ═══════════════════════════════════════════════════════════════
@@ -271,52 +273,60 @@ async def _index_python(root: Path) -> tuple[dict[str, SymbolInfo], int]:
         if any(skip in py_file.parts for skip in _SKIP_DIRS_PYTHON):
             continue
 
-        try:
-            content = py_file.read_text(encoding="utf-8", errors="ignore")
-            tree = ast.parse(content, filename=str(py_file))
-            file_count += 1
+        tree = parse_python_file(py_file)
+        if tree is None:
+            continue
 
-            # Calculate module name from path
-            rel_path = py_file.relative_to(root)
-            if rel_path.name == "__init__.py":
-                module_name = ".".join(rel_path.parent.parts)
-            else:
-                module_name = ".".join(rel_path.with_suffix("").parts)
+        file_count += 1
 
-            # Add module itself as a symbol
-            if module_name:
-                symbols[module_name] = SymbolInfo(
-                    name=module_name,
-                    kind="module",
-                    file=py_file,
-                    line=1,
-                )
+        # Calculate module name from path
+        rel_path = py_file.relative_to(root)
+        if rel_path.name == "__init__.py":
+            module_name = ".".join(rel_path.parent.parts)
+        else:
+            module_name = ".".join(rel_path.with_suffix("").parts)
 
-            # Extract symbols from AST
-            for node in ast.walk(tree):
-                if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-                    symbol = _extract_function(node, module_name, py_file)
-                    if symbol:
-                        symbols[symbol.name] = symbol
+        # Add module itself as a symbol
+        if module_name:
+            symbols[module_name] = SymbolInfo(
+                name=module_name,
+                kind="module",
+                file=py_file,
+                line=1,
+            )
 
-                elif isinstance(node, ast.ClassDef):
-                    class_symbol = _extract_class(node, module_name, py_file)
-                    if class_symbol:
-                        symbols[class_symbol.name] = class_symbol
+        # Extract symbols from AST
+        # Extract top-level functions
+        functions = extract_function_defs(tree)
+        # Filter to only top-level functions (not methods)
+        module_children = list(ast.iter_child_nodes(tree))
+        top_level_functions = [f for f in functions if f in module_children]
+        
+        for node in top_level_functions:
+            symbol = _extract_function(node, module_name, py_file)
+            if symbol:
+                symbols[symbol.name] = symbol
 
-                    # Extract methods
-                    for item in node.body:
-                        if isinstance(item, ast.FunctionDef | ast.AsyncFunctionDef):
-                            method_symbol = _extract_function(
-                                item,
-                                f"{module_name}.{node.name}" if module_name else node.name,
-                                py_file,
-                            )
-                            if method_symbol:
-                                # Mark as method
-                                symbols[method_symbol.name] = SymbolInfo(
-                                    name=method_symbol.name,
-                                    kind="method",
+        # Extract classes and their methods
+        classes = extract_class_defs(tree)
+        for node in classes:
+            class_symbol = _extract_class(node, module_name, py_file)
+            if class_symbol:
+                symbols[class_symbol.name] = class_symbol
+
+            # Extract methods
+            for item in node.body:
+                if isinstance(item, ast.FunctionDef | ast.AsyncFunctionDef):
+                    method_symbol = _extract_function(
+                        item,
+                        f"{module_name}.{node.name}" if module_name else node.name,
+                        py_file,
+                    )
+                    if method_symbol:
+                        # Mark as method
+                        symbols[method_symbol.name] = SymbolInfo(
+                            name=method_symbol.name,
+                            kind="method",
                                     file=method_symbol.file,
                                     line=method_symbol.line,
                                     signature=method_symbol.signature,

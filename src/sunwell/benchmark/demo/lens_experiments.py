@@ -26,7 +26,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-import yaml
+from sunwell.foundation.utils import safe_yaml_load
 
 
 class LensStrategy(Enum):
@@ -72,8 +72,7 @@ class LensData:
     @classmethod
     def from_yaml(cls, path: Path) -> "LensData":
         """Load lens data from YAML file."""
-        with open(path) as f:
-            data = yaml.safe_load(f)
+        data = safe_yaml_load(path)
 
         lens = data.get("lens", {})
         metadata = lens.get("metadata", {})

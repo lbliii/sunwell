@@ -7,6 +7,8 @@ from pathlib import Path
 import click
 from rich.console import Console
 
+from sunwell.foundation.utils import safe_json_dumps
+
 console = Console()
 
 
@@ -222,6 +224,6 @@ async def _extract_learnings_from_result(
         learnings_file = intel_path / "learnings.jsonl"
         with open(learnings_file, "a") as f:
             for learning in learnings:
-                f.write(json.dumps(learning) + "\n")
+                f.write(safe_json_dumps(learning) + "\n")
 
     return len(learnings)

@@ -17,8 +17,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-import yaml
-
+from sunwell.foundation.utils import safe_yaml_load
 from sunwell.planning.naaru import AgentResult, Naaru, Task
 from sunwell.planning.naaru.planners import AgentPlanner
 from sunwell.tools.executor import ToolExecutor
@@ -45,8 +44,7 @@ class AgentTaskDefinition:
     @classmethod
     def from_yaml(cls, path: Path) -> AgentTaskDefinition:
         """Load task definition from YAML file."""
-        with open(path) as f:
-            data = yaml.safe_load(f)
+        data = safe_yaml_load(path)
 
         task = data.get("task", data)
         return cls(

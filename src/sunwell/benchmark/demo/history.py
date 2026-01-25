@@ -4,10 +4,11 @@ Saves demo results to .sunwell/demo_history/ for tracking improvements
 and sharing results.
 """
 
-import json
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
+
+from sunwell.foundation.utils import safe_json_loads
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,9 +123,9 @@ def load_history(limit: int = 10) -> list[DemoHistoryEntry]:
     entries = []
     for file_path in files:
         try:
-            data = json.loads(file_path.read_text())
+            data = safe_json_loads(file_path.read_text())
             entries.append(DemoHistoryEntry.from_dict(data))
-        except (json.JSONDecodeError, TypeError, KeyError):
+        except (ValueError, TypeError, KeyError):
             # Skip corrupted files
             continue
 

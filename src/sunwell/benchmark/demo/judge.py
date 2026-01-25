@@ -4,10 +4,11 @@ A single-LLM-call judge optimized for speed and clarity rather than
 benchmark-grade accuracy. Generates feedback for Resonance refinement.
 """
 
-import json
 import logging
 from dataclasses import dataclass
 from typing import Any
+
+from sunwell.foundation.utils import safe_json_loads
 
 logger = logging.getLogger(__name__)
 
@@ -150,8 +151,8 @@ list all missing features.
         if start != -1 and end > start:
             json_text = text[start:end]
             try:
-                return json.loads(json_text)
-            except json.JSONDecodeError:
+                return safe_json_loads(json_text)
+            except ValueError:
                 pass
 
         # Fallback: return empty dict

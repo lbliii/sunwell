@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from sunwell.knowledge.utils import extract_class_defs, extract_function_defs, parse_python_file
 from sunwell.knowledge.bootstrap.types import (
     CodeEvidence,
     DocstringStyle,
@@ -114,66 +115,76 @@ class CodeScanner:
         parsed: list[ParsedFile] = []
 
         for file_path in files:
+            tree = parse_python_file(file_path)
+            if tree is None:
+                continue
+
             try:
                 content = file_path.read_text(encoding="utf-8", errors="replace")
-                tree = ast.parse(content)
+            except OSError:
+                continue
 
-                function_names: list[str] = []
-                class_names: list[str] = []
-                constant_names: list[str] = []
-                private_names: list[str] = []
-                docstrings: list[str] = []
-                has_type_hints = False
-                uses_modern_types = False
-                import_lines: list[str] = []
+            function_names: list[str] = []
+            class_names: list[str] = []
+            constant_names: list[str] = []
+            private_names: list[str] = []
+            docstrings: list[str] = []
+            has_type_hints = False
+            uses_modern_types = False
+            import_lines: list[str] = []
 
-                for node in ast.walk(tree):
-                    if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-                        function_names.append(node.name)
-                        if node.name.startswith("_"):
-                            private_names.append(node.name)
+            # Extract functions
+            functions = extract_function_defs(tree)
+            for node in functions:
+                function_names.append(node.name)
+                if node.name.startswith("_"):
+                    private_names.append(node.name)
 
-                        # Check for type hints
-                        if node.returns or any(arg.annotation for arg in node.args.args):
-                            has_type_hints = True
+                # Check for type hints
+                if node.returns or any(arg.annotation for arg in node.args.args):
+                    has_type_hints = True
 
-                        # Check for docstring
-                        if (node.body and isinstance(node.body[0], ast.Expr) and
-                                isinstance(node.body[0].value, ast.Constant) and
-                                isinstance(node.body[0].value.value, str)):
-                            docstrings.append(node.body[0].value.value)
+                # Check for docstring
+                if (node.body and isinstance(node.body[0], ast.Expr) and
+                        isinstance(node.body[0].value, ast.Constant) and
+                        isinstance(node.body[0].value.value, str)):
+                    docstrings.append(node.body[0].value.value)
 
-                    elif isinstance(node, ast.ClassDef):
-                        class_names.append(node.name)
+            # Extract classes
+            classes = extract_class_defs(tree)
+            for node in classes:
+                class_names.append(node.name)
 
-                        # Check class docstring
-                        if (node.body and isinstance(node.body[0], ast.Expr) and
-                                isinstance(node.body[0].value, ast.Constant) and
-                                isinstance(node.body[0].value.value, str)):
-                            docstrings.append(node.body[0].value.value)
+                # Check class docstring
+                if (node.body and isinstance(node.body[0], ast.Expr) and
+                        isinstance(node.body[0].value, ast.Constant) and
+                        isinstance(node.body[0].value.value, str)):
+                    docstrings.append(node.body[0].value.value)
 
-                    elif isinstance(node, ast.Assign):
-                        for target in node.targets:
-                            if isinstance(target, ast.Name):
-                                name = target.id
-                                if name.isupper() and "_" in name:
-                                    constant_names.append(name)
+            # Still need to walk for constants and imports (not covered by extraction utilities)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Assign):
+                    for target in node.targets:
+                        if isinstance(target, ast.Name):
+                            name = target.id
+                            if name.isupper() and "_" in name:
+                                constant_names.append(name)
 
-                    elif isinstance(node, ast.Import | ast.ImportFrom):
-                        import_lines.append(ast.unparse(node))
+                elif isinstance(node, ast.Import | ast.ImportFrom):
+                    import_lines.append(ast.unparse(node))
 
-                    # Check for modern type syntax (list[] vs List[])
-                    elif isinstance(node, ast.Subscript):
-                        is_builtin = (
-                            isinstance(node.value, ast.Name) and
-                            node.value.id in ("list", "dict", "set", "tuple")
-                        )
-                        if is_builtin:
-                            uses_modern_types = True
-
-                    # Check for union syntax (X | Y)
-                    elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+                # Check for modern type syntax (list[] vs List[])
+                elif isinstance(node, ast.Subscript):
+                    is_builtin = (
+                        isinstance(node.value, ast.Name) and
+                        node.value.id in ("list", "dict", "set", "tuple")
+                    )
+                    if is_builtin:
                         uses_modern_types = True
+
+                # Check for union syntax (X | Y)
+                elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+                    uses_modern_types = True
 
                 parsed.append(ParsedFile(
                     path=file_path,

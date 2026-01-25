@@ -13,6 +13,11 @@ from datetime import datetime
 from pathlib import Path
 
 from sunwell.knowledge.navigation.toc import NodeType, ProjectToc, TocNode, node_id_from_path
+from sunwell.knowledge.utils import (
+    extract_class_defs,
+    extract_function_defs,
+    parse_python_file,
+)
 
 # Directories to skip during scanning
 SKIP_DIRS: frozenset[str] = frozenset({
@@ -421,10 +426,14 @@ class TocGenerator:
             toc: ProjectToc to populate.
             file_path: Python file to parse.
         """
+        tree = parse_python_file(file_path)
+        if tree is None:
+            return
+
+        # Read content for line count
         try:
             content = file_path.read_text(errors="ignore")
-            tree = ast.parse(content, filename=str(file_path))
-        except (SyntaxError, OSError):
+        except OSError:
             return
 
         try:
@@ -453,11 +462,22 @@ class TocGenerator:
         toc.add_node(module_node)
 
         # Extract classes and top-level functions
-        for node in ast.iter_child_nodes(tree):
-            if isinstance(node, ast.ClassDef):
-                self._extract_class(toc, node, module_id, rel_path)
-            elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-                self._extract_function(toc, node, module_id, rel_path, is_method=False)
+        # Only get direct children of the module (top-level only)
+        module_children = list(ast.iter_child_nodes(tree))
+        
+        # Get all classes and functions, then filter to top-level only
+        all_classes = extract_class_defs(tree)
+        all_functions = extract_function_defs(tree)
+        
+        # Filter to only direct children of the module
+        top_level_classes = [c for c in all_classes if c in module_children]
+        top_level_functions = [f for f in all_functions if f in module_children]
+        
+        for node in top_level_functions:
+            self._extract_function(toc, node, module_id, rel_path, is_method=False)
+        
+        for node in top_level_classes:
+            self._extract_class(toc, node, module_id, rel_path)
 
     def _extract_class(
         self,

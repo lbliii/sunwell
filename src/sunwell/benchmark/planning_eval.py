@@ -26,7 +26,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
-import yaml
+from sunwell.foundation.utils import safe_yaml_load
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,8 +164,7 @@ class PlanningEvaluator:
     def from_task(cls, task_path: str | Path) -> PlanningEvaluator:
         """Load evaluator from task YAML file."""
         path = Path(task_path)
-        with open(path) as f:
-            task = yaml.safe_load(f)
+        task = safe_yaml_load(path)
 
         # Extract weights
         grading = task.get("grading", {})

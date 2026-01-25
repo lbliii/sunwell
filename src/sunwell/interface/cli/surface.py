@@ -151,7 +151,7 @@ def record(
         completed=completed,
     )
 
-    click.echo(json.dumps(result))
+    click.echo(safe_json_dumps(result))
 
 
 @surface.command("registry")
