@@ -22,7 +22,6 @@ from sunwell.simulacrum.topology import (
     MemoryNode, UnifiedMemoryStore,
 )
 from sunwell.simulacrum.extractors.spatial_extractor import SpatialExtractor
-from sunwell.simulacrum.extractors.facet_extractor import FacetExtractor
 from sunwell.simulacrum.extractors.structural_chunker import StructuralChunker
 
 
@@ -455,34 +454,34 @@ class TestFacetExtractor:
     
     def test_detect_diataxis_type(self):
         """Diataxis type detection works."""
-        extractor = FacetExtractor()
+        from sunwell.simulacrum.extractors.facet_extractor import extract_facets_from_text
         
         tutorial_text = "In this tutorial, you will learn step by step how to..."
-        facets = extractor.extract_from_text(tutorial_text)
+        facets = extract_facets_from_text(tutorial_text)
         assert facets.diataxis_type == DiataxisType.TUTORIAL
         
         reference_text = "The API specification defines the following parameters..."
-        facets = extractor.extract_from_text(reference_text)
+        facets = extract_facets_from_text(reference_text)
         assert facets.diataxis_type == DiataxisType.REFERENCE
     
     def test_detect_persona(self):
         """Persona detection works."""
-        extractor = FacetExtractor()
+        from sunwell.simulacrum.extractors.facet_extractor import extract_facets_from_text
         
         beginner_text = "This beginner introduction covers the basic concepts..."
-        facets = extractor.extract_from_text(beginner_text)
+        facets = extract_facets_from_text(beginner_text)
         assert facets.primary_persona == PersonaType.NOVICE
         
         expert_text = "This advanced deep dive covers performance optimization..."
-        facets = extractor.extract_from_text(expert_text)
+        facets = extract_facets_from_text(expert_text)
         assert facets.primary_persona == PersonaType.EXPERT
     
     def test_detect_domains(self):
         """Domain tag detection works."""
-        extractor = FacetExtractor()
+        from sunwell.simulacrum.extractors.facet_extractor import extract_facets_from_text
         
         cli_text = "Run the following command in your terminal..."
-        facets = extractor.extract_from_text(cli_text)
+        facets = extract_facets_from_text(cli_text)
         assert "cli" in facets.domain_tags
 
 

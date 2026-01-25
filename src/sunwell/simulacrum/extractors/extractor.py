@@ -48,10 +48,6 @@ _LEARNING_PATTERNS: dict[str, tuple[Pattern[str], ...]] = {
     ),
 }
 
-# Backwards compatibility: string patterns for external consumers
-LEARNING_PATTERNS: dict[str, list[str]] = {
-    k: [p.pattern for p in v] for k, v in _LEARNING_PATTERNS.items()
-}
 
 # Patterns for user-stated facts (personal info, preferences, context)
 _USER_FACT_PATTERNS: dict[str, tuple[Pattern[str], ...]] = {
@@ -82,10 +78,6 @@ _USER_FACT_PATTERNS: dict[str, tuple[Pattern[str], ...]] = {
     ),
 }
 
-# Backwards compatibility
-USER_FACT_PATTERNS: dict[str, list[str]] = {
-    k: [p.pattern for p in v] for k, v in _USER_FACT_PATTERNS.items()
-}
 
 # THINKING TOKEN patterns - more informal, reasoning-style language
 _THINKING_PATTERNS: dict[str, tuple[Pattern[str], ...]] = {
@@ -116,10 +108,6 @@ _THINKING_PATTERNS: dict[str, tuple[Pattern[str], ...]] = {
     ),
 }
 
-# Backwards compatibility
-THINKING_PATTERNS: dict[str, list[str]] = {
-    k: [p.pattern for p in v] for k, v in _THINKING_PATTERNS.items()
-}
 
 
 @dataclass(frozen=True, slots=True)

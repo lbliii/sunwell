@@ -8,9 +8,8 @@ ToolExecutor dispatches tool calls to appropriate handlers:
 - Learned tools → LearnedToolHandler (Phase 6 - future)
 
 RFC-117: Project-centric workspace isolation
-- Prefer passing `project` parameter instead of raw `workspace` path
-- Project provides validated root path and configuration
-- Direct `workspace` parameter still supported for backward compatibility
+- Uses `project` parameter for validated workspace context
+- Workspace is derived from `project.root`
 """
 
 
@@ -114,6 +113,7 @@ class ToolExecutor:
     RFC-117: Project-centric workspace isolation
     - Uses `project` parameter for validated workspace context
     - Validates workspace is not Sunwell's own repo
+    - Workspace is derived from `project.root`
 
     Args:
         project: Project instance with validated root (RFC-117, required)

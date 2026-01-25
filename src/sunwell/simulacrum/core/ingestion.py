@@ -34,13 +34,12 @@ async def ingest_document(
     Returns:
         Number of memory nodes created
     """
-    from sunwell.simulacrum.extractors.facet_extractor import FacetExtractor
+    from sunwell.simulacrum.extractors.facet_extractor import extract_facets_from_text
     from sunwell.simulacrum.extractors.structural_chunker import StructuralChunker
     from sunwell.simulacrum.extractors.topology_extractor import TopologyExtractor
     from sunwell.simulacrum.topology.memory_node import MemoryNode
 
     chunker = StructuralChunker()
-    facet_extractor = FacetExtractor() if extract_facets else None
 
     # Chunk the document structurally
     chunks = chunker.chunk_document(file_path, content)
@@ -49,8 +48,8 @@ async def ingest_document(
     for chunk, spatial, section in chunks:
         # Extract facets if enabled
         facets = None
-        if facet_extractor and section:
-            facets = facet_extractor.extract_from_text(
+        if extract_facets and section:
+            facets = extract_facets_from_text(
                 chunk.summary or chunk.turns[0].content if chunk.turns else "",
                 section=section,
                 source_type="docs",

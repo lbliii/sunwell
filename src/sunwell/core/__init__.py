@@ -16,7 +16,6 @@ from sunwell.core.identity import (
     ResourceIdentity,
     SunwellURI,
     URIParseError,
-    parse_legacy_name,
     slugify,
     validate_slug,
 )
@@ -99,7 +98,6 @@ __all__ = [
     "SunwellURI",
     "ResourceIdentity",
     "URIParseError",
-    "parse_legacy_name",
     "slugify",
     "validate_slug",
 ]

@@ -145,21 +145,6 @@ _LOW_CERTAINTY_PATTERNS: tuple[Pattern[str], ...] = (
     re.compile(r"\bgenerally\b", re.IGNORECASE),
 )
 
-# =============================================================================
-# Backwards compatibility: string patterns for external consumers
-# =============================================================================
-
-DIATAXIS_PATTERNS: dict[DiataxisType, list[str]] = {
-    k: [p.pattern for p in v] for k, v in _DIATAXIS_PATTERNS.items()
-}
-
-PERSONA_PATTERNS: dict[PersonaType, list[str]] = {
-    k: [p.pattern for p in v] for k, v in _PERSONA_PATTERNS.items()
-}
-
-DOMAIN_KEYWORDS: dict[str, list[str]] = {
-    k: [p.pattern for p in v] for k, v in _DOMAIN_PATTERNS.items()
-}
 
 
 # =============================================================================
@@ -278,48 +263,3 @@ def _infer_confidence(text: str) -> ConfidenceLevel:
     return ConfidenceLevel.MODERATE
 
 
-# =============================================================================
-# Backwards compatibility: FacetExtractor class wrapper
-# =============================================================================
-
-
-class FacetExtractor:
-    """Extract facets from content using heuristics and patterns.
-
-    Note: This is a backwards-compatibility wrapper around module-level functions.
-    For new code, use extract_facets_from_text() directly.
-    """
-
-    # Expose patterns as class attributes for compatibility
-    DIATAXIS_PATTERNS = DIATAXIS_PATTERNS
-    PERSONA_PATTERNS = PERSONA_PATTERNS
-    DOMAIN_KEYWORDS = DOMAIN_KEYWORDS
-
-    def extract_from_text(
-        self,
-        text: str,
-        section: DocumentSection | None = None,
-        source_type: str = "docs",
-    ) -> ContentFacets:
-        """Extract facets from text content."""
-        return extract_facets_from_text(text, section, source_type)
-
-    def _detect_diataxis(
-        self,
-        text: str,
-        section: DocumentSection | None,
-    ) -> DiataxisType | None:
-        """Detect Diataxis type from text and section."""
-        return _detect_diataxis(text, section)
-
-    def _detect_persona(self, text: str) -> PersonaType | None:
-        """Detect target persona from text."""
-        return _detect_persona(text)
-
-    def _detect_domains(self, text: str) -> list[str]:
-        """Detect domain tags from text."""
-        return _detect_domains(text)
-
-    def _infer_confidence(self, text: str) -> ConfidenceLevel:
-        """Infer confidence level from uncertainty markers."""
-        return _infer_confidence(text)

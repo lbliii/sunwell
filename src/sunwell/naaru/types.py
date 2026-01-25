@@ -158,8 +158,6 @@ class Task:
     """A unit of work for Naaru to execute (RFC-032, RFC-034, RFC-067).
 
     Generalizes Opportunity to support any task type.
-    The original Opportunity class remains unchanged for backward compatibility.
-    Use Task.from_opportunity() and Task.to_opportunity() for conversion.
 
     Key additions over Opportunity:
     - mode: How to execute (generate, modify, execute, etc.)
@@ -325,46 +323,6 @@ class Task:
         """Check if this task has verification checks that need to run (RFC-067)."""
         return len(self.verification_checks) > 0
 
-    def to_opportunity(self) -> Opportunity:
-        """Convert to legacy Opportunity type for backward compatibility.
-
-        Use this when interfacing with code that expects the original
-        Opportunity type from RFC-019.
-        """
-        # Map category string to OpportunityCategory
-        try:
-            category = OpportunityCategory(self.category)
-        except ValueError:
-            category = OpportunityCategory.OTHER
-
-        return Opportunity(
-            id=self.id,
-            category=category,
-            description=self.description,
-            target_module=self.target_path or "",
-            priority=self.priority,
-            estimated_effort=self.estimated_effort,
-            risk_level=self.risk_level,
-            details=self.details,
-        )
-
-    @classmethod
-    def from_opportunity(cls, opp: Opportunity) -> Task:
-        """Create Task from legacy Opportunity.
-
-        Use this to upgrade existing Opportunity objects to Tasks.
-        """
-        return cls(
-            id=opp.id,
-            description=opp.description,
-            mode=TaskMode.SELF_IMPROVE,
-            target_path=opp.target_module,
-            category=opp.category.value if hasattr(opp.category, "value") else str(opp.category),
-            priority=opp.priority,
-            estimated_effort=opp.estimated_effort,
-            risk_level=opp.risk_level,
-            details=opp.details,
-        )
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""

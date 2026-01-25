@@ -1,7 +1,7 @@
 """Self-improvement planner for RFC-032 Agent Mode.
 
 This wraps the RFC-019 OpportunityDiscoverer as a TaskPlanner,
-providing backward compatibility while enabling agent mode.
+converting Opportunities to Tasks for agent mode execution.
 """
 
 
@@ -62,7 +62,20 @@ class SelfImprovementPlanner:
         # Discover opportunities
         opportunities = await discoverer.discover(goals)
 
-        # Convert to Tasks
-        tasks = [Task.from_opportunity(opp) for opp in opportunities]
+        # Convert to Tasks directly (no conversion method needed)
+        tasks = [
+            Task(
+                id=opp.id,
+                description=opp.description,
+                mode=TaskMode.SELF_IMPROVE,
+                target_path=opp.target_module,
+                category=opp.category.value if hasattr(opp.category, "value") else str(opp.category),
+                priority=opp.priority,
+                estimated_effort=opp.estimated_effort,
+                risk_level=opp.risk_level,
+                details=opp.details,
+            )
+            for opp in opportunities
+        ]
 
         return tasks

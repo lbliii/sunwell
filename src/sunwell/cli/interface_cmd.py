@@ -6,6 +6,7 @@ Commands for the LLM-driven interaction routing system.
 import asyncio
 import json
 from pathlib import Path
+from typing import Any
 
 import click
 from rich.console import Console
@@ -62,8 +63,10 @@ async def _process(
     verbose: bool,
 ) -> None:
     """Process a goal through the generative interface."""
+    import contextlib
+
     from sunwell.cli.helpers import resolve_model
-    from sunwell.interface.analyzer import IntentAnalyzer
+    from sunwell.interface.pipeline import IntentPipeline
     from sunwell.interface.executor import ActionExecutor
     from sunwell.interface.router import InteractionRouter
     from sunwell.interface.views import ViewRenderer
@@ -90,13 +93,39 @@ async def _process(
             console.print(f"[red]Failed to load model: {e}[/red]")
         return
 
-    # Build analyzer
-    analyzer = IntentAnalyzer(
-        model=model,
-        calendar=providers.calendar,
-        lists=providers.lists,
-        notes=providers.notes,
-    )
+    # Gather context from providers
+    context: dict[str, Any] = {}
+    lists: list[str] = []
+    if providers.lists:
+        with contextlib.suppress(Exception):
+            lists = await providers.lists.get_lists()
+    
+    event_count = 0
+    if providers.calendar:
+        with contextlib.suppress(Exception):
+            events = await providers.calendar.get_upcoming(days=7)
+            event_count = len(events)
+    
+    notes_count = 0
+    if providers.notes:
+        with contextlib.suppress(Exception):
+            recent_notes = await providers.notes.get_recent(limit=10)
+            notes_count = len(recent_notes)
+    
+    context = {
+        "lists": lists,
+        "event_count": event_count,
+        "notes_count": notes_count,
+        "projects_available": providers.projects is not None,
+        "files_accessible": providers.files is not None,
+        "git_available": providers.git is not None,
+        "bookmarks_count": 0,
+        "habits_count": 0,
+        "contacts_count": 0,
+    }
+
+    # Build pipeline
+    pipeline = IntentPipeline.create(classifier_model=model, responder_model=model)
 
     # Analyze intent (with conversation history for context)
     if verbose and not json_output:
@@ -104,7 +133,7 @@ async def _process(
         if history:
             console.print(f"[dim]With {len(history)} prior messages[/dim]")
 
-    analysis = await analyzer.analyze(goal, conversation_history=history)
+    analysis = await pipeline.analyze(goal, context=context, history=history)
 
     if verbose and not json_output:
         confidence = f"{analysis.confidence:.0%}"

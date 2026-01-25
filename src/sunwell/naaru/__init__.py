@@ -300,21 +300,6 @@ from sunwell.types.config import NaaruConfig
 # ModelSize moved to sunwell.types.model_size
 from sunwell.types.model_size import ModelSize
 
-# RFC-083: Unified API Types (re-exported from types)
-from sunwell.types.naaru_api import (
-    CONVERGENCE_SLOTS,
-    SLOT_TTL_SECONDS,
-    CompositionSpec,
-    ConversationMessage,
-    NaaruError,
-    NaaruEvent,
-    NaaruEventType,
-    ProcessInput,
-    ProcessMode,
-    ProcessOutput,
-    RoutingDecision,
-    get_slot_ttl,
-)
 
 __all__ = [
     # Core Types
@@ -510,18 +495,4 @@ __all__ = [
     "LearningExtractor",
 
     # RFC-110: Session management moved to Agent level
-
-    # RFC-083: Unified API Types (kept for backwards compatibility)
-    "ProcessInput",
-    "ProcessOutput",
-    "ProcessMode",
-    "NaaruEvent",
-    "NaaruEventType",
-    "NaaruError",
-    "CompositionSpec",
-    "RoutingDecision",
-    "ConversationMessage",
-    "CONVERGENCE_SLOTS",
-    "SLOT_TTL_SECONDS",
-    "get_slot_ttl",
 ]

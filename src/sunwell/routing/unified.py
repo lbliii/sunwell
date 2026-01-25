@@ -15,7 +15,6 @@ Benefits:
 - One model config, one loaded model, one inference per request
 - Thread-safe O(1) LRU cache for repeated queries (RFC-094)
 - Graceful fallback to heuristics if model fails
-- Backward-compatible adapter for CognitiveRouter consumers
 - RFC-070: Automatic skill discovery via trigger matching
 
 See: RFC-030-unified-router.md, RFC-070-dori-lens-migration.md, RFC-094

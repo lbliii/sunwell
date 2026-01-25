@@ -14,7 +14,6 @@ Examples:
 """
 
 import re
-import warnings
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Literal
@@ -302,48 +301,6 @@ class ResourceIdentity:
             uri=uri,
             created_at=self.created_at,
         )
-
-
-def parse_legacy_name(
-    name: str,
-    resource_type: ResourceType,
-    check_user_exists: bool | None = None,
-) -> SunwellURI:
-    """Convert bare slug to full URI with deprecation warning.
-
-    Resolution order for lenses: user -> builtin
-    Resolution order for bindings: project -> global
-
-    Args:
-        name: Bare slug (e.g., "tech-writer")
-        resource_type: Type of resource
-        check_user_exists: Optional callback to check if user version exists
-
-    Returns:
-        Fully-qualified SunwellURI
-    """
-    warnings.warn(
-        f"Bare slug '{name}' is deprecated. Use full URI: sunwell:{resource_type}/...",
-        DeprecationWarning,
-        stacklevel=3,
-    )
-
-    if resource_type == "lens":
-        # Legacy behavior: user shadows builtin
-        # Without filesystem check, default to user namespace for backwards compat
-        namespace = "user"
-        return SunwellURI.for_lens(namespace, name)
-
-    elif resource_type == "binding":
-        # Bindings default to global if no project context
-        return SunwellURI.for_binding("global", name)
-
-    elif resource_type == "session":
-        # Sessions default to a generic project namespace
-        return SunwellURI.for_session("default", name)
-
-    # Should not reach here due to type checking
-    raise URIParseError(f"Unknown resource type: {resource_type}")
 
 
 def slugify(name: str) -> str:

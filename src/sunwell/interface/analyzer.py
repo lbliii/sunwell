@@ -5,18 +5,12 @@ Analyzes user goals and determines the appropriate interaction type.
 
 Extended in RFC-079 to accept ProjectAnalysis context for project-aware routing.
 
-REFACTORED: Now supports two-step pipeline (IntentClassifier + ResponseGenerator)
-for consistent, hallucination-free routing. The legacy single-prompt approach
-is preserved for backward compatibility but deprecated.
+DEPRECATED: This class is deprecated. Use IntentPipeline instead.
 
-Usage (recommended):
+Usage:
     >>> from sunwell.interface.pipeline import IntentPipeline
     >>> pipeline = IntentPipeline.create(model)
     >>> analysis = await pipeline.analyze("build a chat app")
-
-Legacy usage (deprecated):
-    >>> analyzer = IntentAnalyzer(model=model)
-    >>> analysis = await analyzer.analyze("build a chat app")
 """
 
 
@@ -177,8 +171,7 @@ class IntentAnalyzer:
         >>> pipeline = IntentPipeline.create(model)
         >>> analysis = await pipeline.analyze("build a chat app")
 
-    This class is preserved for backward compatibility. Set `use_pipeline=True`
-    to use the two-step approach within this interface.
+    DEPRECATED: This class is deprecated. Use IntentPipeline instead.
     """
 
     model: Any  # OllamaModel or similar
