@@ -16,7 +16,7 @@ from sunwell.naaru.planners.harmonic.planner import HarmonicPlanner, ScoringVers
 from sunwell.naaru.planners.metrics import PlanMetrics, PlanMetricsV2
 from sunwell.naaru.planners.variance import VarianceStrategy
 
-# Re-export for backward compatibility
+# Re-export package exports
 __all__ = [
     "HarmonicPlanner",
     "ScoringVersion",

@@ -25,7 +25,7 @@ from sunwell.self.types import (
     FailureSeverity,
     FileChange,
     ProposalStatus,
-    ProposalTestCase,
+    ProposalTestSpec,
     ProposalType,
     is_path_blocked,
 )
@@ -324,7 +324,7 @@ class TestProposalManager:
                 )
             ],
             tests=[
-                ProposalTestCase(
+                ProposalTestSpec(
                     name="test_passes",
                     code="def test_passes():\n    assert True",
                 )

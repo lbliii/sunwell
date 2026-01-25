@@ -216,8 +216,6 @@ class ProposalTestSpec:
     expected_outcome: str = "pass"
 
 
-# Alias for backwards compatibility
-ProposalTestCase = ProposalTestSpec  # Alias for backward compatibility
 
 
 @dataclass(slots=True)

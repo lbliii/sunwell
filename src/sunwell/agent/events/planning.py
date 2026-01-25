@@ -34,7 +34,7 @@ def plan_winner_event(
         task_list: Optional list of task summaries for display
         gate_list: Optional list of gate summaries for display
     """
-    from sunwell.agent.event_schema import create_validated_event
+    from sunwell.agent.events.schemas import create_validated_event
 
     data: dict[str, Any] = {
         "tasks": tasks,

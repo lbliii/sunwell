@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from sunwell.schema.loader import LensLoader
-from sunwell.core.types import SunwellError
+from sunwell.core.errors import SunwellError
 
 
 class TestLensLoader:

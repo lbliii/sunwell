@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.agent.event_schema import REQUIRED_FIELDS, validate_event_data
+from sunwell.agent.events.schemas import REQUIRED_FIELDS, validate_event_data
 from sunwell.agent.events import AgentEvent, EventType
 
 
@@ -184,7 +184,7 @@ def test_incremental_events_compatible() -> None:
 
 def test_rfc059_all_events_have_schemas() -> None:
     """Test that all EventType values have schemas (RFC-059 Phase 1)."""
-    from sunwell.agent.event_schema import EVENT_SCHEMAS
+    from sunwell.agent.events.schemas import EVENT_SCHEMAS
 
     for event_type in EventType:
         assert event_type in EVENT_SCHEMAS, f"Missing schema for {event_type.value}"
@@ -227,7 +227,7 @@ def test_rfc059_discovery_progress_event() -> None:
 
 def test_rfc059_error_context_fields() -> None:
     """Test that error events support phase/context (RFC-059 Phase 3)."""
-    from sunwell.agent.event_schema import ErrorData
+    from sunwell.agent.events.schemas import ErrorData
 
     # Verify ErrorData has all the RFC-059 fields
     annotations = ErrorData.__annotations__
@@ -271,7 +271,7 @@ def test_rfc059_all_harmonic_events_have_schemas() -> None:
         EventType.PLAN_REFINE_FINAL,
     ]
 
-    from sunwell.agent.event_schema import EVENT_SCHEMAS
+    from sunwell.agent.events.schemas import EVENT_SCHEMAS
 
     for event_type in harmonic_events:
         assert event_type in EVENT_SCHEMAS, f"Missing schema for {event_type.value}"
@@ -282,7 +282,7 @@ def test_rfc059_all_harmonic_events_have_schemas() -> None:
 
 def test_rfc059_required_fields_defined() -> None:
     """Test that all events with required fields are properly defined."""
-    from sunwell.agent.event_schema import EVENT_SCHEMAS
+    from sunwell.agent.events.schemas import EVENT_SCHEMAS
 
     for event_type, required in REQUIRED_FIELDS.items():
         schema = EVENT_SCHEMAS.get(event_type)

@@ -259,8 +259,6 @@ DEFAULT_UI_HINTS: dict[str, EventUIHints] = {
     "goal_paused": EventUIHints(icon="◈", severity="info"),
 }
 
-# Backward compatibility alias
-_DEFAULT_UI_HINTS = DEFAULT_UI_HINTS
 
 
 # =============================================================================

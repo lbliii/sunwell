@@ -53,7 +53,7 @@ MODEL_REGISTRY: dict[str, ModelCapability] = {
     "claude-3-haiku-20240307": ModelCapability("claude-3-haiku", Tier.STANDARD, tools=True, context_window=200000, cost_index=1),
 
     # ==========================================================================
-    # LEGACY: Kept for backwards compatibility (not recommended for new setups)
+    # Deprecated models (not recommended for new setups)
     # ==========================================================================
     "gemma3:4b": ModelCapability("gemma3:4b", Tier.STANDARD, tools=False, context_window=128000, cost_index=0),
     "gemma3:12b": ModelCapability("gemma3:12b", Tier.DEEP_LENS, tools=False, context_window=128000, cost_index=0),

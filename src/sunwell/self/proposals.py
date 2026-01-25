@@ -25,7 +25,7 @@ from sunwell.self.types import (
     ApplyResult,
     FileChange,
     ProposalStatus,
-    ProposalTestCase,
+    ProposalTestSpec,
     ProposalType,
     PullRequest,
     TestResult,
@@ -46,7 +46,7 @@ class Proposal:
     title: str
     description: str
     changes: list[FileChange]
-    tests: list[ProposalTestCase]
+    tests: list[ProposalTestSpec]
     status: ProposalStatus = ProposalStatus.DRAFT
     created_at: datetime = field(default_factory=datetime.now)
     applied_at: datetime | None = None
@@ -112,7 +112,7 @@ class Proposal:
                 for c in data.get("changes", [])
             ],
             tests=[
-                ProposalTestCase(
+                ProposalTestSpec(
                     name=t["name"],
                     code=t["code"],
                     expected_outcome=t.get("expected_outcome", "pass"),
@@ -167,7 +167,7 @@ class ProposalManager:
         title: str,
         description: str,
         changes: list[FileChange],
-        tests: list[ProposalTestCase] | None = None,
+        tests: list[ProposalTestSpec] | None = None,
     ) -> Proposal:
         """Create a self-improvement proposal.
 

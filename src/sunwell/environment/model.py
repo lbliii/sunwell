@@ -17,10 +17,7 @@ from pathlib import Path
 
 from sunwell.types.protocol import DictSerializable
 
-# Re-export for backwards compatibility
-Serializable = DictSerializable
-
-__all__ = ["Serializable", "DictSerializable", "ProjectRoot", "ProjectEntry"]
+__all__ = ["DictSerializable", "ProjectRoot", "ProjectEntry"]
 
 
 @dataclass(frozen=True, slots=True)

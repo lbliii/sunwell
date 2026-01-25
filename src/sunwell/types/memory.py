@@ -146,5 +146,3 @@ class MemoryRetrievalResult:
         return "\n".join(parts)
 
 
-# Alias for backward compatibility during migration
-RetrievalResult = MemoryRetrievalResult

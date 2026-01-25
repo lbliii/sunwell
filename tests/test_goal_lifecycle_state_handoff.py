@@ -26,7 +26,7 @@ import tempfile
 import pytest
 
 from sunwell.agent.events import AgentEvent, EventType
-from sunwell.agent.event_schema import REQUIRED_FIELDS, validate_event_data
+from sunwell.agent.events.schemas import REQUIRED_FIELDS, validate_event_data
 
 
 # =============================================================================

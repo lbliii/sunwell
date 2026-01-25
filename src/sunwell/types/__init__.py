@@ -24,7 +24,6 @@ from sunwell.types.core import (
 from sunwell.types.memory import (
     ContextBudget,
     MemoryRetrievalResult,
-    RetrievalResult,  # Alias for backward compatibility
 )
 from sunwell.types.model_size import ModelSize
 from sunwell.types.naaru_api import (
@@ -72,7 +71,6 @@ __all__ = [
     # Memory types
     "ContextBudget",
     "MemoryRetrievalResult",
-    "RetrievalResult",  # Alias for backward compatibility
     # Routing types
     "RoutingTier",
     # Protocols (RFC-025)

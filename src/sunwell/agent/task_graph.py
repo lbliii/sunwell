@@ -41,8 +41,6 @@ def sanitize_code_content(content: str) -> str:
     return "\n".join(lines)
 
 
-# Backward compatibility alias
-_sanitize_code_content = sanitize_code_content
 
 
 @dataclass(slots=True)

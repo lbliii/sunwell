@@ -13,7 +13,7 @@ from typing import Any
 import pytest
 
 from sunwell.agent.events import AgentEvent, EventType
-from sunwell.agent.event_schema import (
+from sunwell.agent.events.schemas import (
     EVENT_SCHEMAS,
     REQUIRED_FIELDS,
     PlanWinnerData,

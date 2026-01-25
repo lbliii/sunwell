@@ -1,6 +1,6 @@
 # Legacy Code Removal Plan
 
-**Status**: Phase 1-3 Complete, Phase 4 Pending  
+**Status**: Phase 1-4 Complete  
 **Created**: 2026-01-25  
 **Last Updated**: 2026-01-25  
 **Goal**: Remove all legacy code, deprecated features, and backward-compatibility shims per `.cursor/rules/compatibility.mdc`
@@ -33,9 +33,25 @@
 - Updated workspace detector comments (still used, just cleaned up)
 - Cleaned up Naaru execution method comments
 
-🔄 **Remaining (Phase 4)**:
-- Type aliases and module re-exports (requires external audit)
-- CSS legacy aliases (deferred - 200+ references)
+✅ **Phase 4 Complete**:
+- Removed `RetrievalResult` alias (replaced with `MemoryRetrievalResult`)
+- Removed `ProposalTestCase` alias (replaced with `ProposalTestSpec` in 3 files)
+- Removed unused backward compatibility function aliases:
+  - `_sanitize_code_content` from task_graph.py
+  - `_match_exemplar` from routing/exemplars.py
+  - `_determine_tier` from routing/types.py
+  - `_DEFAULT_UI_HINTS` from agent/events/types.py and __init__.py
+- Removed unused `TOPIC_PATTERNS` alias from simulacrum/context/focus.py
+- Removed `Serializable` alias from environment/model.py
+- Removed `SunwellError`/`ErrorCode` re-export from core/types.py (updated 2 tests)
+- Fixed all broken imports from deleted `event_schema.py`:
+  - Updated 8 source files
+  - Updated 2 scripts
+  - Updated 5 test files
+- Cleaned up backward compatibility comments in 6 files
+
+🔄 **Deferred**:
+- CSS legacy aliases (200+ references, requires separate migration task)
 
 ---
 
@@ -427,12 +443,23 @@ If external code uses removed features:
 
 ## Success Criteria
 
-- [ ] All legacy code removed
-- [ ] All tests passing
-- [ ] No backward-compatibility shims remaining
-- [ ] Documentation updated
-- [ ] Migration guide provided (if needed)
-- [ ] Codebase is cleaner and easier to maintain
+- [x] All legacy code removed (except CSS aliases - deferred)
+- [ ] All tests passing (requires test run)
+- [x] No backward-compatibility shims remaining (except CSS - deferred)
+- [x] Documentation updated
+- [x] Migration guide provided (in plan document)
+- [x] Codebase is cleaner and easier to maintain
+
+## Final Summary
+
+**Total Legacy Code Removed**: ~500+ lines  
+**Files Modified**: 25+  
+**Systems Cleaned**: 10 major legacy systems  
+**Import Fixes**: 15 files updated for deleted `event_schema.py`
+
+**Remaining Work**:
+- CSS legacy aliases (200+ references) - requires separate migration task
+- Test suite verification (recommended before merging)
 
 ---
 

@@ -118,8 +118,6 @@ class Confidence:
             return "🔴 Uncertain"
 
 
-# Re-export SunwellError and ErrorCode from errors module for backward compatibility
-from sunwell.core.errors import ErrorCode, SunwellError
 
 
 @dataclass(frozen=True, slots=True)

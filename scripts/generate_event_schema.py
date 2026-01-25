@@ -17,7 +17,7 @@ from typing import Any
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from sunwell.agent.event_schema import EVENT_SCHEMAS, REQUIRED_FIELDS
+from sunwell.agent.events.schemas import EVENT_SCHEMAS, REQUIRED_FIELDS
 from sunwell.agent.events import EventType
 
 

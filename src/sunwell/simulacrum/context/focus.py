@@ -26,8 +26,6 @@ if TYPE_CHECKING:
 # Use shared pre-compiled patterns from patterns.py
 _TOPIC_PATTERNS = DOMAIN_PATTERNS
 
-# Backwards compatibility alias
-TOPIC_PATTERNS = {k: v.pattern for k, v in _TOPIC_PATTERNS.items()}
 
 # Use shared pre-compiled pattern for file path detection
 _RE_FILE_PATH = FILE_PATH_PATTERN

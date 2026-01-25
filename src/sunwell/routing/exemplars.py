@@ -182,5 +182,3 @@ def match_exemplar(
     return best_match, min(1.0, best_score)
 
 
-# Backward compatibility alias
-_match_exemplar = match_exemplar

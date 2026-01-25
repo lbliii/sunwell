@@ -134,5 +134,3 @@ def determine_tier(confidence: float, has_shortcut: bool) -> ExecutionTier:
         return ExecutionTier.FULL
 
 
-# Backward compatibility alias
-_determine_tier = determine_tier

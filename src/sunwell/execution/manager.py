@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.agent.event_schema import EventEmitter
+from sunwell.agent.events.schemas import EventEmitter
 from sunwell.agent.events import AgentEvent, EventType
 from sunwell.backlog.goals import Goal, GoalResult, GoalScope
 from sunwell.backlog.manager import BacklogManager

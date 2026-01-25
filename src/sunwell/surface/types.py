@@ -228,7 +228,7 @@ class ValidationWarning:
 
 
 # NOTE: DiataxisSignal and DiataxisDetection are defined in diataxis.py
-# They are re-exported from __init__.py for backwards compatibility
+# They are re-exported from __init__.py
 
 
 @dataclass(frozen=True, slots=True)

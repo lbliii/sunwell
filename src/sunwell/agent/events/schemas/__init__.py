@@ -1,8 +1,7 @@
 """Event schemas - modular TypedDict definitions for type-safe events.
 
 This package provides TypedDict schemas for each event type, organized by domain.
-All schemas are re-exported here for backward compatibility with the old
-`event_schema.py` module.
+All schemas are re-exported here for convenient access.
 
 Structure:
 - base.py: Common events (PlanStartData, TaskStartData, etc.)
@@ -30,7 +29,7 @@ Structure:
 - protocols.py: EventEmitter protocols
 """
 
-# Re-export all schemas for backward compatibility
+# Re-export all schemas
 from .base import (
     CompleteData,
     ErrorData,

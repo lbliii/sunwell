@@ -25,7 +25,7 @@ def task_start_event(task_id: str, description: str, **kwargs: Any) -> AgentEven
     """Create a task start event.
 
     For type-safe version with validation, use:
-    from sunwell.agent.event_schema import validated_task_start_event
+    from sunwell.agent.events.schemas import validated_task_start_event
     """
     return AgentEvent(
         EventType.TASK_START,

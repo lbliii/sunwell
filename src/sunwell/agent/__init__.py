@@ -8,7 +8,7 @@ Key components:
 - AgentLoop: S-Tier Tool Calling with introspection and learning (RFC-134)
 - SessionContext: Session state (goal, workspace, options)
 - PersistentMemory: Unified memory facade (decisions, failures, patterns)
-- Events: Streaming progress updates (see event_schema for TypedDict schemas)
+- Events: Streaming progress updates (see events.schemas for TypedDict schemas)
 - Signals: Goal analysis for routing decisions
 - Gates: Validation checkpoints in task graphs
 - Ephemeral Lens: Smart-to-dumb model delegation (RFC-137)
@@ -61,7 +61,7 @@ from sunwell.agent.composer import (
 )
 from sunwell.agent.core import Agent
 from sunwell.agent.ephemeral_lens import create_ephemeral_lens, should_use_delegation
-from sunwell.agent.event_schema import (
+from sunwell.agent.events.schemas import (
     EVENT_SCHEMAS,
     REQUIRED_FIELDS,
     EventEmitter,

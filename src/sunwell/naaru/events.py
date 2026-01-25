@@ -51,7 +51,7 @@ class NaaruEventEmitter:
         if self._callback is None:
             return
 
-        from sunwell.agent.event_schema import create_validated_event
+        from sunwell.agent.events.schemas import create_validated_event
         from sunwell.agent.events import EventType
 
         try:
@@ -94,7 +94,7 @@ class NaaruEventEmitter:
         if self._callback is None:
             return
 
-        from sunwell.agent.event_schema import validated_plan_winner_event
+        from sunwell.agent.events.schemas import validated_plan_winner_event
 
         event = validated_plan_winner_event(tasks=tasks, artifact_count=artifact_count)
         self._callback(event)

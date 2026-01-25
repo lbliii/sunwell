@@ -13,9 +13,9 @@ Event categories:
 - Tool Calling: S-Tier tool loop events (RFC-134)
 - Delegation: Smart-to-dumb model delegation (RFC-137)
 
-Relationship with event_schema.py:
+Relationship with schemas package:
 - This module provides simple event factory functions (e.g., `task_start_event`)
-- event_schema.py provides TypedDict schemas and validated versions
+- schemas/ provides TypedDict schemas and validated versions
 - Use simple factories for quick event creation
 - Use validated versions (e.g., `validated_task_start_event`) when schema
   compliance is critical or for contract enforcement with frontends
@@ -171,7 +171,6 @@ from sunwell.agent.events.tool import (
     tool_start_event,
 )
 from sunwell.agent.events.types import (
-    _DEFAULT_UI_HINTS,
     DEFAULT_UI_HINTS,
     AgentEvent,
     EventType,
@@ -188,7 +187,6 @@ __all__ = [
     "TaskSummary",
     "GateSummary",
     "DEFAULT_UI_HINTS",
-    "_DEFAULT_UI_HINTS",
     # Lifecycle
     "signal_event",
     "task_start_event",
