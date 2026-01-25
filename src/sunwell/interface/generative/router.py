@@ -177,7 +177,7 @@ class InteractionRouter:
         """Render a full workspace via RFC-072."""
         if not analysis.workspace:
             # Fallback to default workspace
-            from sunwell.interface.generative.surface.types import WorkspaceSpec
+            from sunwell.interface.surface.types import WorkspaceSpec
 
             workspace = WorkspaceSpec(
                 primary="CodeEditor",

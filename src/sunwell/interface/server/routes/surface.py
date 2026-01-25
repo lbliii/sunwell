@@ -5,7 +5,7 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from sunwell.interface.generative.server.routes._models import CamelModel
+from sunwell.interface.server.routes._models import CamelModel
 
 router = APIRouter(prefix="/api", tags=["surface"])
 

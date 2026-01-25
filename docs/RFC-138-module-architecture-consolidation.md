@@ -689,24 +689,24 @@ planning/
 
 ## Implementation Checklist
 
-- [ ] Create domain directories with `__init__.py`
-- [ ] Add re-exports for backward compatibility
-- [ ] Move `foundation/` modules
-- [ ] Move `models/` and merge `providers/`
-- [ ] Consolidate `knowledge/` modules
-- [ ] Consolidate `memory/` modules
-- [ ] Consolidate `planning/` modules
-- [ ] Consolidate `agent/` modules
-- [ ] Consolidate `quality/` modules
-- [ ] Consolidate `interface/` modules
-- [ ] Consolidate `features/` modules
-- [ ] Merge `benchmark/`, `demo/`, `eval/`
-- [ ] Archive `naaru/experiments/`
+- [x] Create domain directories with `__init__.py`
+- [x] Add re-exports for backward compatibility
+- [x] Move `foundation/` modules
+- [x] Move `models/` and merge `providers/`
+- [x] Consolidate `knowledge/` modules
+- [x] Consolidate `memory/` modules
+- [x] Consolidate `planning/` modules
+- [x] Consolidate `agent/` modules
+- [x] Consolidate `quality/` modules
+- [x] Consolidate `interface/` modules
+- [x] Consolidate `features/` modules
+- [x] Merge `benchmark/`, `demo/`, `eval/`
+- [x] Archive `naaru/experiments/`
 - [ ] Update all tests
 - [ ] Update CLI commands
-- [ ] Add deprecation warnings
+- [x] Add deprecation warnings
 - [ ] Update documentation
-- [ ] Remove deprecated re-exports (final phase)
+- [x] Remove deprecated re-exports (final phase) ← **Completed 2026-01-25**
 
 ---
 

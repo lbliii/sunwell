@@ -15,11 +15,11 @@ from sunwell.interface.surface import (
     SurfaceRenderer,
     render_with_fallback,
 )
-from sunwell.interface.generative.surface.memory_integration import (
+from sunwell.interface.surface.memory_integration import (
     load_memory_patterns,
     record_layout_interaction,
 )
-from sunwell.interface.generative.surface.types import SurfaceLayout, SurfacePrimitive
+from sunwell.interface.surface.types import SurfaceLayout, SurfacePrimitive
 
 
 @click.group()
@@ -200,7 +200,7 @@ def analyze(goal: str, json_output: bool) -> None:
 
     Useful for debugging and understanding composition decisions.
     """
-    from sunwell.interface.generative.surface.intent import extract_intent
+    from sunwell.interface.surface.intent import extract_intent
 
     intent = extract_intent(goal)
 

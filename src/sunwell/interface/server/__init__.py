@@ -15,7 +15,7 @@ Benefits:
     - 12,932 fewer lines of code
 """
 
-from sunwell.interface.generative.server.main import create_app
-from sunwell.interface.generative.server.workspace_manager import WorkspaceManager, get_workspace_manager
+from sunwell.interface.server.main import create_app
+from sunwell.interface.server.workspace_manager import WorkspaceManager, get_workspace_manager
 
 __all__ = ["create_app", "WorkspaceManager", "get_workspace_manager"]

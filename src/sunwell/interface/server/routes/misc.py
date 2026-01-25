@@ -13,8 +13,8 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from sunwell.interface.generative.server.routes._models import CamelModel
-from sunwell.interface.generative.server.routes.agent import get_run_manager
+from sunwell.interface.server.routes._models import CamelModel
+from sunwell.interface.server.routes.agent import get_run_manager
 
 router = APIRouter(prefix="/api", tags=["misc"])
 

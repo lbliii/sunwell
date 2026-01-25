@@ -31,7 +31,7 @@ def sanitize_filename(name: str) -> str:
     """Make filename filesystem-safe (remove invalid chars).
 
     Removes or replaces characters that are invalid in filenames:
-    - Path separators (/ \)
+    - Path separators (/ \\)
     - Null bytes
     - Control characters
     - Reserved names (CON, PRN, etc. on Windows)

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from sunwell.foundation.types.protocol import Serializable
 
 if TYPE_CHECKING:
-    from sunwell.interface.generative.surface.types import WorkspaceSpec
+    from sunwell.interface.surface.types import WorkspaceSpec
 
 InteractionType = Literal["workspace", "view", "action", "conversation", "hybrid"]
 
@@ -154,7 +154,7 @@ class IntentAnalysis:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> IntentAnalysis:
         """Deserialize from dictionary."""
-        from sunwell.interface.generative.surface.types import WorkspaceSpec
+        from sunwell.interface.surface.types import WorkspaceSpec
 
         action = ActionSpec.from_dict(data["action"]) if data.get("action") else None
         view = ViewSpec.from_dict(data["view"]) if data.get("view") else None

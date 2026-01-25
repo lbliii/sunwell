@@ -7,10 +7,10 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
-from sunwell.interface.generative.surface.types import SurfaceLayout, SurfacePrimitive, WorkspaceSpec
+from sunwell.interface.surface.types import SurfaceLayout, SurfacePrimitive, WorkspaceSpec
 
 if TYPE_CHECKING:
-    from sunwell.interface.generative.surface.renderer import SurfaceRenderer
+    from sunwell.interface.surface.renderer import SurfaceRenderer
 
 # Empty props constant (avoid creating new MappingProxyType each time)
 _EMPTY_PROPS: MappingProxyType[str, object] = MappingProxyType({})

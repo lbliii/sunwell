@@ -15,11 +15,11 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 from sunwell.foundation.core.lens import Affordances
-from sunwell.interface.generative.surface.fallback import get_domain_for_project
-from sunwell.interface.generative.surface.intent import IntentSignals, extract_intent
-from sunwell.interface.generative.surface.registry import PrimitiveRegistry
-from sunwell.interface.generative.surface.scoring import ScoringContext, score_primitives, select_primitives
-from sunwell.interface.generative.surface.types import SurfaceArrangement, WorkspaceSpec
+from sunwell.interface.surface.fallback import get_domain_for_project
+from sunwell.interface.surface.intent import IntentSignals, extract_intent
+from sunwell.interface.surface.registry import PrimitiveRegistry
+from sunwell.interface.surface.scoring import ScoringContext, score_primitives, select_primitives
+from sunwell.interface.surface.types import SurfaceArrangement, WorkspaceSpec
 
 if TYPE_CHECKING:
     from sunwell.foundation.core.lens import Lens

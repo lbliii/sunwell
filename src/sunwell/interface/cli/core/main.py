@@ -424,13 +424,7 @@ main.add_command(review_cmd.review)
 # Interactive REPL mode
 from sunwell.interface.cli.chat import chat
 
-main.add_command(click.Command(
-    name="chat",
-    callback=chat.chat.callback,
-    params=chat.chat.params,
-    help=chat.chat.help,
-    hidden=True,  # RFC-109: Deprioritized but retained
-))
+main.add_command(chat)
 
 # Benchmark suite
 from sunwell.benchmark.cli import benchmark
@@ -526,8 +520,8 @@ main.add_command(self_cmd.self_cmd, name="self")
 # Surface Primitives & Layout (RFC-072) - Studio: surface registry
 from sunwell.interface.cli.surface import surface
 
-surface.surface.hidden = True
-main.add_command(surface.surface)
+surface.hidden = True
+main.add_command(surface)
 
 # Weakness Cascade (RFC-063) - Studio: weakness scan/preview/extract-contract
 from sunwell.interface.cli.commands import weakness_cmd

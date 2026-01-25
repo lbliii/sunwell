@@ -10,8 +10,8 @@ Scores and ranks primitives for surface composition based on:
 from dataclasses import dataclass, field
 
 from sunwell.foundation.core.lens import Affordances
-from sunwell.interface.generative.surface.intent import IntentSignals, match_triggers
-from sunwell.interface.generative.surface.registry import PrimitiveRegistry
+from sunwell.interface.surface.intent import IntentSignals, match_triggers
+from sunwell.interface.surface.registry import PrimitiveRegistry
 
 
 @dataclass(frozen=True, slots=True)

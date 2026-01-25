@@ -15,6 +15,7 @@ import shutil
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import yaml
 
@@ -41,7 +42,9 @@ from sunwell.planning.lens.index import (
     add_version_to_manifest,
     create_lens_manifest,
 )
-from sunwell.foundation.schema.loader import LensLoader
+
+if TYPE_CHECKING:
+    from sunwell.foundation.schema.loader import LensLoader
 
 # Maximum versions to keep per lens (prevents disk bloat)
 MAX_VERSIONS_PER_LENS = 50
@@ -102,7 +105,7 @@ class LensManager:
         default_factory=lambda: Path.home() / ".sunwell" / "config.yaml"
     )
 
-    _loader: LensLoader = field(default_factory=LensLoader, init=False)
+    _loader: "LensLoader | None" = field(default=None, init=False)
     _index_manager: LensIndexManager = field(init=False)
 
     def __post_init__(self) -> None:
@@ -114,6 +117,15 @@ class LensManager:
             user_lens_dir=self.user_lens_dir,
             builtin_lens_dir=self.builtin_lens_dir,
         )
+
+    @property
+    def loader(self) -> "LensLoader":
+        """Lazy-load LensLoader to break circular import."""
+        if self._loader is None:
+            from sunwell.foundation.schema.loader import LensLoader
+
+            object.__setattr__(self, "_loader", LensLoader())
+        return self._loader
 
     # =========================================================================
     # RFC-101: URI Resolution
@@ -758,7 +770,7 @@ class LensManager:
     def _load_lens_sync(self, path: Path) -> Lens | None:
         """Load a lens from path synchronously."""
         try:
-            return self._loader.load(path)
+            return self.loader.load(path)
         except Exception:
             return None
 

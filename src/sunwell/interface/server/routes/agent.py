@@ -10,9 +10,9 @@ from typing import Any
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
-from sunwell.interface.generative.server.events import BusEvent, EventBus
-from sunwell.interface.generative.server.runs import RunManager, RunState
-from sunwell.interface.generative.server.workspace_manager import get_workspace_manager
+from sunwell.interface.server.events import BusEvent, EventBus
+from sunwell.interface.server.runs import RunManager, RunState
+from sunwell.interface.server.workspace_manager import get_workspace_manager
 
 # Pre-compiled regex for workspace name generation (avoid recompiling per call)
 _RE_NON_WORD = re.compile(r"[^\w\s-]")

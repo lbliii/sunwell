@@ -8,17 +8,20 @@ Subpackages:
 - surface/: UI primitives (sunwell.interface.surface)
 - generative/: LLM-driven interaction routing (sunwell.interface.generative)
 
-Import from subpackages for most use cases:
-    from sunwell.interface.cli import main
-    from sunwell.interface.server import create_app
-    from sunwell.interface.surface import SurfaceComposer
-    from sunwell.interface.generative import IntentPipeline
+Example:
+    from sunwell.interface import main, create_app, IntentPipeline
 """
 
-# Essential entry points only - import from subpackages for detailed APIs
+# CLI entry points
 from sunwell.interface.cli import cli_entrypoint, main
+
+# Server
 from sunwell.interface.server import create_app
+
+# Generative interface
 from sunwell.interface.generative import IntentPipeline, analyze_with_pipeline
+
+# Surface composition
 from sunwell.interface.surface import SurfaceComposer, compose_surface
 
 __all__ = [

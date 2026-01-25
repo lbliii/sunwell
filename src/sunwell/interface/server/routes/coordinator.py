@@ -6,7 +6,7 @@ from typing import Any
 
 from fastapi import APIRouter
 
-from sunwell.interface.generative.server.routes._models import CamelModel
+from sunwell.interface.server.routes._models import CamelModel
 
 router = APIRouter(prefix="/api/coordinator", tags=["coordinator"])
 

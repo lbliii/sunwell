@@ -663,6 +663,10 @@ def create_sunwell_console() -> Console:
     return Console(theme=SUNWELL_THEME)
 
 
+# Module-level console instance for convenience
+console = create_sunwell_console()
+
+
 def create_sunwell_progress(console: Console | None = None) -> Progress:
     """Create Sunwell-branded progress display."""
     console = console or create_sunwell_console()

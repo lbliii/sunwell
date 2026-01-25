@@ -3,7 +3,7 @@
 Central registry of all available UI primitives with their definitions.
 """
 
-from sunwell.interface.generative.surface.types import PrimitiveDef
+from sunwell.interface.surface.types import PrimitiveDef
 
 
 class PrimitiveRegistry:

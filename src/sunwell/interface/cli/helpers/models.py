@@ -1,0 +1,79 @@
+"""Model creation utilities."""
+
+import os
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sunwell.models import ModelProtocol
+
+
+def create_model(provider: str, model_name: str) -> "ModelProtocol":
+    """Create model instance based on provider."""
+    from sunwell.interface.cli.core.theme import console
+
+    if provider == "mock":
+        from sunwell.models import MockModel
+
+        return MockModel()
+
+    elif provider == "anthropic":
+        from sunwell.models import AnthropicModel
+
+        return AnthropicModel(
+            model=model_name,
+            api_key=os.environ.get("ANTHROPIC_API_KEY"),
+        )
+
+    elif provider == "openai":
+        from sunwell.models import OpenAIModel
+
+        return OpenAIModel(
+            model=model_name,
+            api_key=os.environ.get("OPENAI_API_KEY"),
+        )
+
+    elif provider == "ollama":
+        from sunwell.foundation.config import get_config
+        from sunwell.models import OllamaModel
+
+        cfg = get_config()
+        return OllamaModel(
+            model=model_name,
+            use_native_api=cfg.naaru.use_native_ollama_api,
+        )
+
+    else:
+        console.print(f"[red]Unknown provider:[/red] {provider}")
+        console.print("Available: anthropic, openai, ollama, mock")
+        import sys
+
+        sys.exit(1)
+
+
+def resolve_model(
+    provider_override: str | None = None,
+    model_override: str | None = None,
+) -> "ModelProtocol":
+    """Resolve model from CLI overrides or config defaults.
+
+    Priority:
+    1. CLI overrides (--provider, --model)
+    2. Config defaults (model.default_provider, model.default_model)
+    3. Hardcoded fallbacks (ollama, gemma3:4b)
+
+    Args:
+        provider_override: Provider from CLI --provider flag
+        model_override: Model name from CLI --model flag
+
+    Returns:
+        Configured model instance
+    """
+    from sunwell.foundation.config import get_config
+
+    cfg = get_config()
+
+    # Priority 1: CLI overrides
+    provider = provider_override or cfg.model.default_provider or "ollama"
+    model_name = model_override or cfg.model.default_model or "gemma3:4b"
+
+    return create_model(provider, model_name)

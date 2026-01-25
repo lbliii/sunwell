@@ -2,8 +2,10 @@
 
 from sunwell.interface.cli.chat.context_builder import ContextBuilder
 from sunwell.interface.cli.chat.project_detector import ProjectDetector
+from sunwell.interface.cli.chat.command import chat
 
 __all__ = [
     "ContextBuilder",
     "ProjectDetector",
+    "chat",
 ]

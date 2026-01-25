@@ -40,7 +40,7 @@ def serve(port: int, host: str, open_browser: bool, dev: bool) -> None:
         console.print("Run: uv sync")
         raise SystemExit(1)
 
-    from sunwell.server import create_app
+    from sunwell.interface.server import create_app
 
     # Find static directory (Svelte build)
     static_dir = _find_static_dir()

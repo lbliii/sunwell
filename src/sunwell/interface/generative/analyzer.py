@@ -40,7 +40,7 @@ from sunwell.models.providers.base import (
     NotesProvider,
     ProjectsProvider,
 )
-from sunwell.interface.generative.surface.types import WorkspaceSpec
+from sunwell.interface.surface.types import WorkspaceSpec
 
 if TYPE_CHECKING:
     from sunwell.interface.generative.pipeline import IntentPipeline

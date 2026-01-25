@@ -7,7 +7,7 @@ Blocks share the same registry pattern as RFC-072 PrimitiveDef.
 
 from dataclasses import dataclass
 
-from sunwell.interface.generative.surface.types import PrimitiveSize
+from sunwell.interface.surface.types import PrimitiveSize
 
 
 @dataclass(frozen=True, slots=True)

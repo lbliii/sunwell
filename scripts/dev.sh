@@ -19,9 +19,11 @@ echo ""
 cleanup() {
     echo ""
     echo -e "${YELLOW}Shutting down...${NC}"
-    # Kill all background jobs
-    jobs -p | xargs -r kill 2>/dev/null || true
-    wait 2>/dev/null
+    # Kill all background jobs (macOS compatible)
+    jobs -p | while read -r pid; do
+        kill "$pid" 2>/dev/null || true
+    done
+    wait 2>/dev/null || true
     echo -e "${GREEN}✨ Clean exit${NC}"
 }
 trap cleanup EXIT INT TERM
@@ -39,7 +41,7 @@ if [ ! -d "studio/node_modules" ]; then
 fi
 
 echo -e "${CYAN}🐍 Starting Python API server (port 8080)...${NC}"
-sunwell serve --dev &
+uv run sunwell serve --dev &
 API_PID=$!
 
 # Wait a moment for the API to start

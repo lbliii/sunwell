@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from sunwell.models import ModelProtocol
 
 from sunwell.interface.generative.types import ActionSpec, InteractionType, ViewSpec
-from sunwell.interface.generative.surface.types import WorkspaceSpec
+from sunwell.interface.surface.types import WorkspaceSpec
 
 # =============================================================================
 # PRE-COMPILED PATTERNS — Avoid re-compilation per call

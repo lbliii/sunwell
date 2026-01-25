@@ -6,8 +6,8 @@ Renders workspace layouts from WorkspaceSpec specifications.
 from types import MappingProxyType
 from typing import Any
 
-from sunwell.interface.generative.surface.registry import PrimitiveRegistry
-from sunwell.interface.generative.surface.types import (
+from sunwell.interface.surface.registry import PrimitiveRegistry
+from sunwell.interface.surface.types import (
     PrimitiveSize,
     SurfaceArrangement,
     SurfaceLayout,

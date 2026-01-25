@@ -15,7 +15,7 @@ from sunwell.agent import (
 from sunwell.foundation.utils import safe_json_dumps
 from sunwell.interface.cli.helpers.project import extract_project_name
 from sunwell.interface.cli.helpers.events import print_event, print_plan_details
-from sunwell.interface.cli.helpers import resolve_model  # type: ignore[attr-defined]  # In helpers.py, not helpers/
+from sunwell.interface.cli.helpers import resolve_model
 from sunwell.interface.cli.core.theme import console, print_banner
 from sunwell.interface.cli.workspace_prompt import resolve_workspace_interactive
 from sunwell.foundation.config import get_config

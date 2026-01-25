@@ -58,6 +58,15 @@ from sunwell.core.types import (
     ValidationMethod,
 )
 
+# Identity utilities (re-exported for convenience)
+from sunwell.foundation.identity import (
+    ResourceIdentity,
+    SunwellURI,
+    URIParseError,
+    validate_slug,
+)
+from sunwell.foundation.utils import slugify
+
 __all__ = [
     # === Heuristics ===
     "Heuristic",
@@ -103,4 +112,10 @@ __all__ = [
     "Confidence",
     # === Context ===
     "AppContext",
+    # === Identity (RFC-101) ===
+    "ResourceIdentity",
+    "SunwellURI",
+    "URIParseError",
+    "slugify",
+    "validate_slug",
 ]

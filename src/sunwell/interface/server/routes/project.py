@@ -8,7 +8,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from sunwell.foundation.utils import normalize_path
-from sunwell.interface.generative.server.routes._models import CamelModel
+from sunwell.interface.server.routes._models import CamelModel
 
 # Pre-compiled regex for slug generation (avoid recompiling per call)
 _RE_SLUG_CHARS = re.compile(r"[^a-z0-9]+")
@@ -123,7 +123,7 @@ async def list_projects() -> dict[str, list[ProjectInfo]]:
     Includes validity check so UI can warn about broken projects.
     """
     from sunwell.knowledge import ProjectRegistry
-    from sunwell.knowledge import validate_workspace
+    from sunwell.knowledge.project import validate_workspace
 
     registry = ProjectRegistry()
     default_id = registry.default_project_id
@@ -271,7 +271,7 @@ async def get_default_project() -> dict[str, Any]:
     Returns project info if default is set and valid, null otherwise.
     """
     from sunwell.knowledge import ProjectRegistry
-    from sunwell.knowledge import validate_workspace
+    from sunwell.knowledge.project import validate_workspace
 
     registry = ProjectRegistry()
     default = registry.get_default()

@@ -24,7 +24,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from sunwell.interface.generative.server.routes import (
+from sunwell.interface.server.routes import (
     agent_router,
     backlog_router,
     coordinator_router,
@@ -73,6 +73,7 @@ def create_app(*, dev_mode: bool = False, static_dir: Path | None = None) -> Fas
 
     if dev_mode:
         # Development: CORS for Vite dev server (port 1420 is Tauri default)
+        # Also allow localhost variants for flexibility
         app.add_middleware(
             CORSMiddleware,
             allow_origins=[
@@ -86,6 +87,20 @@ def create_app(*, dev_mode: bool = False, static_dir: Path | None = None) -> Fas
             allow_headers=["*"],
         )
     else:
+        # Production: Still enable CORS for localhost (common in dev/prod hybrid setups)
+        # This allows frontend dev server to work even without --dev flag
+        import os
+        if os.getenv("SUNWELL_ENABLE_CORS", "").lower() in ("1", "true", "yes"):
+            app.add_middleware(
+                CORSMiddleware,
+                allow_origins=[
+                    "http://localhost:5173",
+                    "http://127.0.0.1:5173",
+                ],
+                allow_credentials=True,
+                allow_methods=["*"],
+                allow_headers=["*"],
+            )
         # Production: Serve Svelte static build
         if static_dir and static_dir.exists():
             _mount_static(app, static_dir)
