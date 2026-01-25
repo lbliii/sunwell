@@ -947,9 +947,9 @@
             }
           },
           "required": [
-            "artifact_count",
+            "total_candidates",
             "candidate_id",
-            "total_candidates"
+            "artifact_count"
           ],
           "additionalProperties": true
         },
@@ -1103,8 +1103,8 @@
             }
           },
           "required": [
-            "total_rounds",
-            "round"
+            "round",
+            "total_rounds"
           ],
           "additionalProperties": true
         },
@@ -1299,8 +1299,8 @@
             }
           },
           "required": [
-            "gate_id",
-            "gate_type"
+            "gate_type",
+            "gate_id"
           ],
           "additionalProperties": true
         },
@@ -1339,9 +1339,9 @@
             }
           },
           "required": [
+            "passed",
             "step",
-            "gate_id",
-            "passed"
+            "gate_id"
           ],
           "additionalProperties": true
         },
@@ -1529,8 +1529,8 @@
             }
           },
           "required": [
-            "task_id",
-            "duration_ms"
+            "duration_ms",
+            "task_id"
           ],
           "additionalProperties": true
         },
@@ -1696,8 +1696,8 @@
             }
           },
           "required": [
-            "message",
-            "error_type"
+            "error_type",
+            "message"
           ],
           "additionalProperties": true
         },
@@ -2064,8 +2064,8 @@
             }
           },
           "required": [
-            "artifact_ids",
-            "recovery_id"
+            "recovery_id",
+            "artifact_ids"
           ],
           "additionalProperties": true
         },
@@ -2099,8 +2099,8 @@
             }
           },
           "required": [
-            "artifact_ids",
-            "recovery_id"
+            "recovery_id",
+            "artifact_ids"
           ],
           "additionalProperties": true
         },
@@ -2133,8 +2133,8 @@
             }
           },
           "required": [
-            "artifacts_passed",
-            "recovery_id"
+            "recovery_id",
+            "artifacts_passed"
           ],
           "additionalProperties": true
         },
@@ -2167,8 +2167,8 @@
             }
           },
           "required": [
-            "reason",
-            "recovery_id"
+            "recovery_id",
+            "reason"
           ],
           "additionalProperties": true
         },
@@ -2279,10 +2279,10 @@
             }
           },
           "required": [
-            "check_type",
-            "edge_id",
+            "target_artifact",
             "source_artifact",
-            "target_artifact"
+            "check_type",
+            "edge_id"
           ],
           "additionalProperties": true
         },
@@ -2361,10 +2361,10 @@
             }
           },
           "required": [
+            "expected",
             "actual",
-            "edge_id",
             "check_type",
-            "expected"
+            "edge_id"
           ],
           "additionalProperties": true
         },
@@ -2403,9 +2403,9 @@
             }
           },
           "required": [
-            "file_path",
-            "artifact_id",
             "stub_type",
+            "artifact_id",
+            "file_path",
             "location"
           ],
           "additionalProperties": true
@@ -2439,8 +2439,8 @@
             }
           },
           "required": [
-            "file_path",
-            "artifact_id"
+            "artifact_id",
+            "file_path"
           ],
           "additionalProperties": true
         },
@@ -2479,10 +2479,10 @@
             }
           },
           "required": [
+            "integration_type",
             "task_id",
-            "source_artifact",
             "target_artifact",
-            "integration_type"
+            "source_artifact"
           ],
           "additionalProperties": true
         },
@@ -2606,8 +2606,8 @@
             }
           },
           "required": [
-            "sources_loaded",
-            "duration_ms"
+            "duration_ms",
+            "sources_loaded"
           ],
           "additionalProperties": true
         },
@@ -2873,9 +2873,9 @@
             }
           },
           "required": [
-            "wave_count",
-            "skill_count",
             "content_hash",
+            "skill_count",
+            "wave_count",
             "lens_name"
           ],
           "additionalProperties": true
@@ -2916,8 +2916,8 @@
             }
           },
           "required": [
-            "total_waves",
             "wave_index",
+            "total_waves",
             "skills"
           ],
           "additionalProperties": true
@@ -2961,8 +2961,8 @@
           "required": [
             "duration_ms",
             "wave_index",
-            "succeeded",
-            "failed"
+            "failed",
+            "succeeded"
           ],
           "additionalProperties": true
         },
@@ -3047,10 +3047,10 @@
             }
           },
           "required": [
-            "context_keys_available",
-            "wave_index",
             "requires",
-            "skill_name"
+            "skill_name",
+            "wave_index",
+            "context_keys_available"
           ],
           "additionalProperties": true
         },
@@ -3102,11 +3102,11 @@
             }
           },
           "required": [
+            "skill_name",
             "cached",
             "duration_ms",
             "produces",
-            "success",
-            "skill_name"
+            "success"
           ],
           "additionalProperties": true
         },
@@ -3237,8 +3237,8 @@
             }
           },
           "required": [
-            "subgraph_size",
-            "skill_name"
+            "skill_name",
+            "subgraph_size"
           ],
           "additionalProperties": true
         },
@@ -3288,12 +3288,12 @@
             }
           },
           "required": [
+            "risk_score",
             "skill_count",
             "dag_name",
-            "flags",
+            "dag_id",
             "risk_level",
-            "risk_score",
-            "dag_id"
+            "flags"
           ],
           "additionalProperties": true
         },
@@ -3332,8 +3332,8 @@
             }
           },
           "required": [
-            "approved",
-            "dag_id"
+            "dag_id",
+            "approved"
           ],
           "additionalProperties": true
         },
@@ -3421,9 +3421,9 @@
             }
           },
           "required": [
+            "output_length",
             "violations_found",
             "method",
-            "output_length",
             "scan_duration_ms"
           ],
           "additionalProperties": true
@@ -3467,8 +3467,8 @@
           },
           "required": [
             "action",
-            "risk_level",
-            "skill_name"
+            "skill_name",
+            "risk_level"
           ],
           "additionalProperties": true
         },
@@ -3501,8 +3501,8 @@
             }
           },
           "required": [
-            "title",
-            "goal_id"
+            "goal_id",
+            "title"
           ],
           "additionalProperties": true
         },
@@ -3995,8 +3995,8 @@
             }
           },
           "required": [
-            "errors_found",
-            "iteration"
+            "iteration",
+            "errors_found"
           ],
           "additionalProperties": true
         },
@@ -4029,8 +4029,8 @@
             }
           },
           "required": [
-            "errors_to_fix",
-            "iteration"
+            "iteration",
+            "errors_to_fix"
           ],
           "additionalProperties": true
         },
@@ -4187,8 +4187,8 @@
             }
           },
           "required": [
-            "elapsed_ms",
-            "budget_ms"
+            "budget_ms",
+            "elapsed_ms"
           ],
           "additionalProperties": true
         },

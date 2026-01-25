@@ -47,22 +47,55 @@ class MemoryStatsResponse(CamelModel):
     concept_edges: int
 
 
-class ChunkItem(CamelModel):
-    """A memory chunk item."""
+class MemoryResponse(CamelModel):
+    """Current session memory state."""
+
+    learnings: list[dict[str, str | int | float]]
+    dead_ends: list[dict[str, str | int | float]]
+    session_count: int
+    error: str | None = None
+
+
+class MemoryCheckpointResponse(CamelModel):
+    """Result of memory checkpoint save."""
+
+    status: str
+    error: str | None = None
+
+
+class HotChunkItem(CamelModel):
+    """A hot tier memory chunk item."""
 
     id: str
-    content: str | None = None
-    summary: str | None = None
-    token_count: int = 0
+    type: str
     timestamp: str | None = None
+    content_preview: str
+    session: str
+
+
+class WarmChunkItem(CamelModel):
+    """A warm tier memory shard."""
+
+    date: str
+    file: str
+    turn_count: int
+
+
+class ColdChunkItem(CamelModel):
+    """A cold tier memory archive."""
+
+    date: str
+    file: str
+    compressed: bool
+    size_bytes: int
 
 
 class MemoryChunksResponse(CamelModel):
     """Memory chunks organized by tier."""
 
-    hot: list[ChunkItem]
-    warm: list[ChunkItem]
-    cold: list[ChunkItem]
+    hot: list[HotChunkItem]
+    warm: list[WarmChunkItem]
+    cold: list[ColdChunkItem]
     message: str | None = None
     error: str | None = None
 
@@ -72,9 +105,15 @@ class MemoryGraphNode(CamelModel):
 
     id: str
     type: str
-    label: str
-    content: str | None = None
     timestamp: str | None = None
+    content_preview: str | None = None
+    is_dead_end: bool = False
+    is_head: bool = False
+    tags: list[str] | None = None
+    # Learning-specific fields
+    fact: str | None = None
+    confidence: float | None = None
+    category: str | None = None
 
 
 class MemoryGraphEdge(CamelModel):
@@ -85,14 +124,91 @@ class MemoryGraphEdge(CamelModel):
     type: str
 
 
+class MemoryGraphStats(CamelModel):
+    """Statistics for the memory graph."""
+
+    total_nodes: int
+    total_edges: int
+    turn_count: int
+    learning_count: int
+
+
 class MemoryGraphResponse(CamelModel):
     """Memory graph structure."""
 
     nodes: list[MemoryGraphNode]
     edges: list[MemoryGraphEdge]
-    stats: dict[str, int] | None = None
+    stats: MemoryGraphStats | None = None
     message: str | None = None
     error: str | None = None
+
+
+# ═══════════════════════════════════════════════════════════════
+# SESSION RESPONSE MODELS (RFC-120)
+# ═══════════════════════════════════════════════════════════════
+
+
+class SessionSummaryResponse(CamelModel):
+    """Session activity summary."""
+
+    session_id: str
+    started_at: str
+    goals_completed: int
+    goals_started: int
+    files_modified: int
+    files_created: int
+    total_duration_seconds: float
+    error: str | None = None
+
+
+class SessionHistoryItem(CamelModel):
+    """A session in the history list."""
+
+    session_id: str
+    started_at: str
+    goals_completed: int
+    goals_started: int
+    files_modified: int
+    total_duration_seconds: float
+
+
+class SessionHistoryResponse(CamelModel):
+    """List of recent sessions."""
+
+    sessions: list[SessionHistoryItem]
+    count: int
+
+
+# ═══════════════════════════════════════════════════════════════
+# PLAN VERSIONING RESPONSE MODELS (RFC-120)
+# ═══════════════════════════════════════════════════════════════
+
+
+class PlanVersionsResponse(CamelModel):
+    """Plan version history."""
+
+    plan_id: str
+    versions: list[dict[str, str | int | float]]
+    count: int
+
+
+class RecentPlanItem(CamelModel):
+    """A plan in the recent plans list."""
+
+    plan_id: str
+    goal: str
+    status: str
+    created_at: str
+    updated_at: str
+    version_count: int
+    progress_percent: float
+
+
+class RecentPlansResponse(CamelModel):
+    """List of recent plans."""
+
+    plans: list[RecentPlanItem]
+    count: int
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -242,7 +358,7 @@ class FixAllResponse(CamelModel):
 
 
 # ═══════════════════════════════════════════════════════════════
-# DAG RESPONSE MODELS
+# DAG RESPONSE MODELS (RFC-105)
 # ═══════════════════════════════════════════════════════════════
 
 
@@ -254,6 +370,9 @@ class DagNode(CamelModel):
     label: str
     status: str | None = None
     phase: str | None = None
+    progress: float | None = None
+    created_at: str | None = None
+    parent_plan: str | None = None
 
 
 class DagEdge(CamelModel):
@@ -264,11 +383,22 @@ class DagEdge(CamelModel):
     type: str
 
 
+class DagCheckpointInfo(CamelModel):
+    """Checkpoint information in DAG metadata."""
+
+    goal: str
+    phase: str
+    tasks_total: int
+    tasks_completed: int
+    checkpoint_at: str | None = None
+
+
 class DagMetadata(CamelModel):
     """Metadata for a DAG."""
 
     path: str | None = None
     checkpoint: dict[str, int | str] | None = None
+    latest_checkpoint: DagCheckpointInfo | None = None
 
 
 class DagResponse(CamelModel):
@@ -286,13 +416,117 @@ class DagPlanTask(CamelModel):
     description: str
 
 
+class DagPlanCheckpoint(CamelModel):
+    """Checkpoint information in execution plan."""
+
+    goal: str
+    phase: str
+    checkpoint_at: str
+
+
 class DagPlanResponse(CamelModel):
     """Incremental execution plan."""
 
     to_execute: list[DagPlanTask]
     to_skip: list[DagPlanTask]
     reason: str
-    checkpoint: dict[str, str | int] | None = None
+    checkpoint: DagPlanCheckpoint | None = None
+
+
+class DagGoalItem(CamelModel):
+    """A goal in the DAG index."""
+
+    id: str
+    goal: str
+    status: str
+    progress: float
+    created_at: str | None = None
+    updated_at: str | None = None
+    task_count: int
+
+
+class DagMilestone(CamelModel):
+    """A milestone (completed goal)."""
+
+    id: str
+    label: str
+    completed_at: str
+
+
+class DagIndexResponse(CamelModel):
+    """DAG index with goals and milestones."""
+
+    project_path: str
+    goals: list[DagGoalItem]
+    milestones: list[DagMilestone]
+    total_goals: int
+    completed_goals: int
+    in_progress_goals: int
+
+
+class DagGoalTaskItem(CamelModel):
+    """A task within a goal."""
+
+    id: str
+    description: str
+
+
+class DagGoalResponse(CamelModel):
+    """A specific goal from the DAG."""
+
+    id: str
+    goal: str
+    status: str
+    progress: float
+    created_at: str
+    updated_at: str
+    tasks: list[DagGoalTaskItem]
+
+
+class WorkspaceProjectItem(CamelModel):
+    """A project in the workspace DAG."""
+
+    id: str
+    name: str
+    path: str
+    goal_count: int
+    latest_goal: str | None = None
+
+
+class WorkspaceDagResponse(CamelModel):
+    """Workspace-level DAG response."""
+
+    workspace_path: str
+    projects: list[WorkspaceProjectItem]
+    total_projects: int
+
+
+class EnvironmentWorkspace(CamelModel):
+    """A workspace in the environment."""
+
+    path: str
+    name: str
+    project_count: int
+
+
+class EnvironmentDagResponse(CamelModel):
+    """Environment-level DAG response."""
+
+    workspaces: list[EnvironmentWorkspace]
+    total_workspaces: int
+
+
+class DagExecuteResponse(CamelModel):
+    """Result of executing a DAG node."""
+
+    status: str
+    node_id: str
+
+
+class DagAppendResponse(CamelModel):
+    """Result of appending a goal to the DAG."""
+
+    status: str
 
 
 # ═══════════════════════════════════════════════════════════════
