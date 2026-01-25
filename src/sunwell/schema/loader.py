@@ -11,7 +11,7 @@ import yaml
 
 from sunwell.core.errors import ErrorCode, SunwellError, lens_error
 from sunwell.core.framework import Framework, FrameworkCategory
-from sunwell.core.heuristic import AntiHeuristic, CommunicationStyle, Example, Heuristic
+from sunwell.core.heuristic import AntiHeuristic, CommunicationStyle, Example, Heuristic, Identity
 from sunwell.core.lens import (
     Affordances,
     Lens,
@@ -182,6 +182,48 @@ class LensLoader:
         lens = self._parse_lens(data, source_path=path)
         return lens
 
+    def resolve_lens_path(self, ref: str) -> Path | None:
+        """Resolve a lens reference to an actual file path (RFC-131).
+
+        Searches for lens files in configured search paths, trying:
+        1. Exact path as given
+        2. With .lens extension added
+        3. In each search path directory
+
+        Args:
+            ref: Lens reference (e.g., "base/muru", "coder-v2")
+
+        Returns:
+            Resolved Path or None if not found
+        """
+        from sunwell.config import get_config
+
+        config = get_config()
+        search_paths = config.lens.search_paths
+
+        # Candidates to try
+        candidates = [ref, f"{ref}.lens"]
+
+        # Try exact path first
+        for candidate in candidates:
+            p = Path(candidate)
+            if p.exists():
+                return p
+
+        # Try each search path
+        for search_dir in search_paths:
+            # Expand ~ to home directory
+            search_path = Path(search_dir).expanduser()
+            if not search_path.exists():
+                continue
+
+            for candidate in candidates:
+                p = search_path / candidate
+                if p.exists():
+                    return p
+
+        return None
+
     def load_string(self, content: str, source_path: Path | None = None) -> Lens:
         """Load a lens from a YAML string."""
         try:
@@ -197,17 +239,28 @@ class LensLoader:
         return self._parse_lens(data, source_path=source_path)
 
     async def load_ref(self, ref: LensReference) -> Lens:
-        """Load a lens from a reference (local path or fount)."""
-        if ref.is_fount:
-            if not self.fount:
-                raise SunwellError(
-                    code=ErrorCode.LENS_FOUNT_UNAVAILABLE,
-                    context={"lens": ref.source},
-                )
+        """Load a lens from a reference (local path or fount).
+
+        RFC-131: Try local resolution first (via search paths), then fount.
+        This enables references like "base/muru" to resolve to
+        "lenses/base/muru.lens" without requiring "./" prefix.
+        """
+        # RFC-131: Always try local resolution first
+        resolved = self.resolve_lens_path(ref.source)
+        if resolved is not None:
+            return self.load(resolved)
+
+        # Fall back to fount if available
+        if self.fount and ref.is_fount:
             content = await self.fount.fetch(ref.source, ref.version)
             return self.load_string(content)
-        else:
-            return self.load(ref.source)
+
+        # Not found locally and no fount available
+        raise lens_error(
+            code=ErrorCode.LENS_NOT_FOUND,
+            lens=ref.source,
+            path=ref.source,
+        )
 
     def _parse_lens(self, data: dict[str, Any], source_path: Path | None = None) -> Lens:
         """Parse raw dict into Lens dataclass."""
@@ -443,10 +496,36 @@ class LensLoader:
         )
 
     def _parse_communication(self, data: dict) -> CommunicationStyle:
-        """Parse communication style."""
+        """Parse communication style.
+
+        RFC-131: Also parses identity for agent persona configuration.
+        """
+        identity = None
+        if "identity" in data:
+            identity = self._parse_identity(data["identity"])
+
         return CommunicationStyle(
             tone=tuple(data.get("tone", [])),
             structure=data.get("structure"),
+            identity=identity,
+        )
+
+    def _parse_identity(self, data: dict) -> Identity:
+        """Parse identity configuration (RFC-131).
+
+        Example YAML:
+            identity:
+              name: "M'uru"
+              nature: "A Naaru — a being of light and wisdom"
+              style: "Helpful, warm, genuinely interested in assisting"
+              prohibitions:
+                - "Do NOT start responses with 'My name is M'uru' unless asked"
+        """
+        return Identity(
+            name=data["name"],
+            nature=data.get("nature"),
+            style=data.get("style"),
+            prohibitions=tuple(data.get("prohibitions", [])),
         )
 
     def _parse_framework(self, data: dict) -> Framework:

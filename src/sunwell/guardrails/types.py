@@ -210,9 +210,12 @@ class ScopeCheckResult:
 # =============================================================================
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class TrustZone:
-    """A path pattern with associated trust level."""
+    """A path pattern with associated trust level.
+
+    RFC-130: Now supports adaptive learning from violations.
+    """
 
     pattern: str
     """Glob pattern for matching paths."""
@@ -225,6 +228,34 @@ class TrustZone:
 
     reason: str = ""
     """Why this zone has special treatment."""
+
+    # RFC-130: Adaptive learning fields
+    learn_from_violations: bool = False
+    """Whether to learn from violations to reduce false positives.
+
+    When enabled, the system tracks violations in this zone and
+    suggests rule refinements after reaching thresholds.
+    """
+
+    violation_history_path: str | None = None
+    """Path to store violation history for learning (default: .sunwell/guard-violations/).
+
+    If None, violations are not persisted. Set to enable cross-session learning.
+    """
+
+    false_positive_threshold: int = 3
+    """Number of false positives before suggesting rule refinement.
+
+    When users override a block this many times for similar patterns,
+    suggest an evolution to reduce friction.
+    """
+
+    override_threshold: int = 5
+    """Number of user overrides before auto-relaxing in this zone.
+
+    After this many approvals for similar patterns, the system may
+    suggest permanently allowing the pattern.
+    """
 
 
 # =============================================================================
@@ -416,3 +447,163 @@ class VerificationGateResult:
 
     confidence: float | None = None
     """Confidence score if verification ran."""
+
+
+# =============================================================================
+# RFC-130: Adaptive Guards Types
+# =============================================================================
+
+
+class ViolationOutcome(Enum):
+    """Outcome of a guardrail violation."""
+
+    BLOCKED = "blocked"
+    """Action was blocked and user agreed."""
+
+    OVERRIDDEN = "overridden"
+    """Action was blocked but user overrode."""
+
+    FALSE_POSITIVE = "false_positive"
+    """User marked as false positive (shouldn't have blocked)."""
+
+
+class EvolutionType(Enum):
+    """Types of guard evolution suggestions."""
+
+    ADD_EXCEPTION = "add_exception"
+    """Add an exception pattern to allow specific cases."""
+
+    REFINE_PATTERN = "refine_pattern"
+    """Make pattern more specific to reduce false positives."""
+
+    ELEVATE_TRUST = "elevate_trust"
+    """Elevate trust level for this zone (user has proven trustworthy)."""
+
+    REDUCE_SENSITIVITY = "reduce_sensitivity"
+    """Reduce sensitivity for this rule type."""
+
+    DEPRECATE_RULE = "deprecate_rule"
+    """Suggest deprecating/removing the rule (too many overrides)."""
+
+
+@dataclass(slots=True)
+class GuardViolation:
+    """Record of a guardrail violation for learning.
+
+    RFC-130: Violations are tracked to enable adaptive learning.
+    After enough false positives or overrides, the system can
+    suggest rule refinements.
+
+    Example:
+        >>> violation = GuardViolation(
+        ...     action_type="file_write",
+        ...     path="tests/conftest.py",
+        ...     blocking_rule="protected_path:tests/**",
+        ...     outcome=ViolationOutcome.OVERRIDDEN,
+        ...     user_comment="This is a test file, should be allowed",
+        ... )
+        >>> classifier.record_violation(violation)
+    """
+
+    action_type: str
+    """Type of action that was blocked."""
+
+    path: str | None
+    """File path if applicable."""
+
+    blocking_rule: str
+    """Which rule blocked the action."""
+
+    outcome: ViolationOutcome
+    """How the violation was resolved."""
+
+    user_comment: str | None = None
+    """Optional user comment explaining why they overrode."""
+
+    timestamp: datetime = field(default_factory=datetime.now)
+    """When the violation occurred."""
+
+    context: dict = field(default_factory=dict)
+    """Additional context (goal, action details, etc.)."""
+
+    similarity_hash: str | None = None
+    """Hash for grouping similar violations."""
+
+    def to_dict(self) -> dict:
+        """Convert to JSON-serializable dict."""
+        return {
+            "action_type": self.action_type,
+            "path": self.path,
+            "blocking_rule": self.blocking_rule,
+            "outcome": self.outcome.value,
+            "user_comment": self.user_comment,
+            "timestamp": self.timestamp.isoformat(),
+            "context": self.context,
+            "similarity_hash": self.similarity_hash,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "GuardViolation":
+        """Create from dict."""
+        return cls(
+            action_type=data["action_type"],
+            path=data.get("path"),
+            blocking_rule=data["blocking_rule"],
+            outcome=ViolationOutcome(data["outcome"]),
+            user_comment=data.get("user_comment"),
+            timestamp=datetime.fromisoformat(data["timestamp"]),
+            context=data.get("context", {}),
+            similarity_hash=data.get("similarity_hash"),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class GuardEvolution:
+    """A suggested evolution to a guardrail rule.
+
+    RFC-130: Generated by SmartActionClassifier.suggest_evolutions()
+    based on accumulated violation patterns.
+
+    Example:
+        >>> evolutions = classifier.suggest_evolutions()
+        >>> for evo in evolutions:
+        ...     if evo.confidence > 0.8:
+        ...         print(f"High-confidence suggestion: {evo.description}")
+    """
+
+    rule_id: str
+    """ID of the rule to evolve."""
+
+    evolution_type: EvolutionType
+    """Type of evolution suggested."""
+
+    description: str
+    """Human-readable description of the change."""
+
+    reason: str
+    """Why this evolution is suggested (evidence summary)."""
+
+    confidence: float
+    """Confidence in this suggestion (0.0-1.0)."""
+
+    supporting_violations: int
+    """Number of violations supporting this evolution."""
+
+    new_pattern: str | None = None
+    """New pattern if evolution_type is REFINE_PATTERN or ADD_EXCEPTION."""
+
+    new_trust_level: ActionRisk | None = None
+    """New trust level if evolution_type is ELEVATE_TRUST."""
+
+    def to_dict(self) -> dict:
+        """Convert to JSON-serializable dict."""
+        return {
+            "rule_id": self.rule_id,
+            "evolution_type": self.evolution_type.value,
+            "description": self.description,
+            "reason": self.reason,
+            "confidence": self.confidence,
+            "supporting_violations": self.supporting_violations,
+            "new_pattern": self.new_pattern,
+            "new_trust_level": self.new_trust_level.value if self.new_trust_level else None,
+        }

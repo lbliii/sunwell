@@ -133,6 +133,62 @@ class PersistentMemory:
         instance._initialized = True
         return instance
 
+    @classmethod
+    async def load_async(cls, workspace: Path) -> PersistentMemory:
+        """Load all memory for workspace asynchronously.
+
+        Loads stores in parallel using asyncio.to_thread for I/O-bound operations.
+        Each store loads independently — failure in one doesn't block others.
+
+        Args:
+            workspace: Root workspace path
+
+        Returns:
+            PersistentMemory with all available stores loaded
+        """
+        import asyncio
+
+        workspace = Path(workspace).resolve()
+        intel_path = workspace / ".sunwell" / "intelligence"
+        memory_path = workspace / ".sunwell" / "memory"
+        team_path = workspace / ".sunwell" / "team"
+
+        # Load each component in parallel using asyncio.to_thread
+        async def load_simulacrum() -> SimulacrumStore | None:
+            return await asyncio.to_thread(_load_simulacrum, memory_path)
+
+        async def load_decisions() -> DecisionMemory | None:
+            return await asyncio.to_thread(_load_decisions, intel_path)
+
+        async def load_failures() -> FailureMemory | None:
+            return await asyncio.to_thread(_load_failures, intel_path)
+
+        async def load_patterns() -> PatternProfile | None:
+            return await asyncio.to_thread(_load_patterns, intel_path)
+
+        async def load_team() -> TeamKnowledgeStore | None:
+            return await asyncio.to_thread(_load_team, team_path)
+
+        # Load all in parallel
+        simulacrum, decisions, failures, patterns, team = await asyncio.gather(
+            load_simulacrum(),
+            load_decisions(),
+            load_failures(),
+            load_patterns(),
+            load_team(),
+        )
+
+        instance = cls(
+            workspace=workspace,
+            simulacrum=simulacrum,
+            decisions=decisions,
+            failures=failures,
+            patterns=patterns,
+            team=team,
+        )
+        instance._initialized = True
+        return instance
+
     async def get_relevant(self, goal: str, top_k: int = 5) -> MemoryContext:
         """Get all relevant memory for a goal.
 
@@ -453,6 +509,126 @@ class PersistentMemory:
         if self.failures:
             return len(self.failures._failures)
         return 0
+
+    # =========================================================================
+    # RFC-130: Memory-Informed Prefetch
+    # =========================================================================
+
+    async def find_similar_goals(
+        self,
+        goal: str,
+        limit: int = 3,
+    ) -> list[GoalMemory]:
+        """Find similar past goals for memory-informed prefetch.
+
+        RFC-130: Searches memory stores for goals similar to the current one.
+        Returns context from successful past executions to inform prefetch
+        and guide execution strategy.
+
+        Args:
+            goal: Natural language goal description
+            limit: Maximum number of similar goals to return
+
+        Returns:
+            List of GoalMemory objects from similar past goals
+        """
+        similar_goals: list[GoalMemory] = []
+
+        # Search SimulacrumStore for similar conversations
+        if self.simulacrum:
+            try:
+                # Get planning context which includes similar learnings
+                planning_ctx = await self.simulacrum.retrieve_for_planning(goal, limit)
+
+                # Extract goal-level info from learnings
+                for learning in planning_ctx.all_learnings[:limit]:
+                    if hasattr(learning, "original_goal"):
+                        similar_goals.append(GoalMemory(
+                            goal=learning.original_goal,
+                            success=learning.success,
+                            hot_files=tuple(getattr(learning, "files_touched", [])),
+                            learnings=tuple(getattr(learning, "related_learnings", [])),
+                            skills_used=tuple(getattr(learning, "skills_used", [])),
+                            lens_used=getattr(learning, "lens_used", None),
+                            success_pattern=getattr(learning, "success_pattern", None),
+                            similarity_score=getattr(learning, "relevance_score", 0.5),
+                        ))
+            except Exception as e:
+                logger.warning(f"Failed to find similar goals in simulacrum: {e}")
+
+        # Search DecisionMemory for goals with relevant decisions
+        if self.decisions and len(similar_goals) < limit:
+            try:
+                relevant_decisions = await self.decisions.find_relevant_decisions(
+                    goal, top_k=limit
+                )
+                for decision in relevant_decisions:
+                    if decision.context and "goal:" in decision.context.lower():
+                        # Extract goal from context
+                        goal_from_decision = decision.context.split("goal:")[-1].strip()[:100]
+                        if goal_from_decision:
+                            similar_goals.append(GoalMemory(
+                                goal=goal_from_decision,
+                                success=True,  # Assume success if decision exists
+                                hot_files=(),
+                                learnings=(),
+                                skills_used=(),
+                                lens_used=None,
+                                success_pattern=f"Decision: {decision.choice}",
+                                similarity_score=0.3,
+                            ))
+            except Exception as e:
+                logger.warning(f"Failed to find similar goals in decisions: {e}")
+
+        # Deduplicate and sort by similarity
+        seen_goals: set[str] = set()
+        unique_goals: list[GoalMemory] = []
+        for gm in sorted(similar_goals, key=lambda g: g.similarity_score, reverse=True):
+            goal_key = gm.goal[:50].lower()
+            if goal_key not in seen_goals:
+                seen_goals.add(goal_key)
+                unique_goals.append(gm)
+                if len(unique_goals) >= limit:
+                    break
+
+        return unique_goals
+
+
+# =============================================================================
+# RFC-130: Goal Memory Type
+# =============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class GoalMemory:
+    """Memory from a past goal execution (RFC-130).
+
+    Used by memory-informed prefetch to provide context from similar past goals.
+    """
+
+    goal: str
+    """The goal description."""
+
+    success: bool
+    """Whether the goal succeeded."""
+
+    hot_files: tuple[str, ...]
+    """Files that were important for this goal."""
+
+    learnings: tuple[str, ...]
+    """Learnings extracted during/after execution."""
+
+    skills_used: tuple[str, ...]
+    """Skills that were used."""
+
+    lens_used: str | None
+    """Lens that was used (if any)."""
+
+    success_pattern: str | None
+    """Pattern that made this goal succeed (if known)."""
+
+    similarity_score: float = 0.0
+    """How similar this goal is to the query (0.0-1.0)."""
 
 
 # =============================================================================

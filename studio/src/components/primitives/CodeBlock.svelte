@@ -142,7 +142,7 @@
     overflow: hidden;
     font-family: var(--font-mono);
     font-size: var(--text-sm);
-    line-height: 1.6;
+    line-height: 1.4;
   }
 
   .code-header {
@@ -195,7 +195,7 @@
   .line-number {
     color: var(--text-tertiary);
     font-size: var(--text-xs);
-    line-height: 1.6;
+    line-height: 1.4;
   }
 
   /* Shiki output styling */
@@ -213,7 +213,7 @@
 
   .highlighted :global(.line) {
     display: block;
-    min-height: 1.6em;
+    min-height: 1.4em;
   }
 
   /* Plain text fallback */

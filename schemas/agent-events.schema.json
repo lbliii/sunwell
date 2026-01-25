@@ -1918,6 +1918,346 @@
         "data",
         "timestamp"
       ]
+    },
+    {
+      "type": "object",
+      "description": "RFC-130: Specialist agent spawned for sub-task",
+      "properties": {
+        "type": {
+          "const": "specialist_spawned",
+          "description": "Event type: specialist_spawned"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "specialist_id": { "type": "string" },
+            "goal": { "type": "string" },
+            "role": { "type": "string" },
+            "parent_task_id": { "type": ["string", "null"] },
+            "depth": { "type": "integer" }
+          },
+          "required": ["specialist_id", "goal", "role"],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": ["type", "data", "timestamp"]
+    },
+    {
+      "type": "object",
+      "description": "RFC-130: Specialist agent completed",
+      "properties": {
+        "type": {
+          "const": "specialist_completed",
+          "description": "Event type: specialist_completed"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "specialist_id": { "type": "string" },
+            "goal": { "type": "string" },
+            "status": { "type": "string", "enum": ["completed", "failed", "cancelled"] },
+            "error": { "type": ["string", "null"] },
+            "duration_ms": { "type": "integer" }
+          },
+          "required": ["specialist_id", "status"],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": ["type", "data", "timestamp"]
+    },
+    {
+      "type": "object",
+      "description": "RFC-130: Previous checkpoint found for goal",
+      "properties": {
+        "type": {
+          "const": "checkpoint_found",
+          "description": "Event type: checkpoint_found"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "goal": { "type": "string" },
+            "checkpoint_path": { "type": "string" },
+            "phase": { "type": "string" },
+            "summary": { "type": "object", "additionalProperties": true }
+          },
+          "required": ["goal", "phase"],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": ["type", "data", "timestamp"]
+    },
+    {
+      "type": "object",
+      "description": "RFC-130: Semantic checkpoint saved",
+      "properties": {
+        "type": {
+          "const": "checkpoint_saved",
+          "description": "Event type: checkpoint_saved"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "goal": { "type": "string" },
+            "phase": { "type": "string" },
+            "path": { "type": "string" },
+            "tasks_completed": { "type": "integer" },
+            "tasks_remaining": { "type": "integer" }
+          },
+          "required": ["phase"],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": ["type", "data", "timestamp"]
+    },
+    {
+      "type": "object",
+      "description": "RFC-130: Agent state restored from checkpoint",
+      "properties": {
+        "type": {
+          "const": "checkpoint_restored",
+          "description": "Event type: checkpoint_restored"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "goal": { "type": "string" },
+            "checkpoint_path": { "type": "string" },
+            "phase": { "type": "string" },
+            "tasks_resumed": { "type": "integer" }
+          },
+          "required": ["goal", "phase"],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": ["type", "data", "timestamp"]
+    },
+    {
+      "type": "object",
+      "description": "RFC-130: Execution phase completed",
+      "properties": {
+        "type": {
+          "const": "phase_complete",
+          "description": "Event type: phase_complete"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "phase": { "type": "string" },
+            "summary": { "type": "string" },
+            "next_phase": { "type": ["string", "null"] },
+            "duration_ms": { "type": "integer" }
+          },
+          "required": ["phase"],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": ["type", "data", "timestamp"]
+    },
+    {
+      "type": "object",
+      "description": "RFC-130: Autonomous action blocked by guardrails",
+      "properties": {
+        "type": {
+          "const": "autonomous_action_blocked",
+          "description": "Event type: autonomous_action_blocked"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "action_type": { "type": "string" },
+            "path": { "type": "string" },
+            "risk_level": { "type": "string" },
+            "reason": { "type": "string" },
+            "escalation_required": { "type": "boolean" }
+          },
+          "required": ["action_type", "reason"],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": ["type", "data", "timestamp"]
+    },
+    {
+      "type": "object",
+      "description": "RFC-130: Guardrail evolution suggested based on patterns",
+      "properties": {
+        "type": {
+          "const": "guard_evolution_suggested",
+          "description": "Event type: guard_evolution_suggested"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "rule_id": { "type": "string" },
+            "description": { "type": "string" },
+            "suggested_change": { "type": "string" },
+            "confidence": { "type": "number" },
+            "source_violations_count": { "type": "integer" }
+          },
+          "required": ["rule_id", "description"],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": ["type", "data", "timestamp"]
+    },
+    {
+      "type": "object",
+      "description": "RFC-130: Autonomous session started",
+      "properties": {
+        "type": {
+          "const": "autonomous_session_start",
+          "description": "Event type: autonomous_session_start"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "session_id": { "type": "string" },
+            "goal": { "type": "string" },
+            "trust_level": { "type": "string" },
+            "max_hours": { "type": "number" },
+            "git_tag": { "type": "string" }
+          },
+          "required": ["session_id", "goal"],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": ["type", "data", "timestamp"]
+    },
+    {
+      "type": "object",
+      "description": "RFC-130: Autonomous session completed",
+      "properties": {
+        "type": {
+          "const": "autonomous_session_complete",
+          "description": "Event type: autonomous_session_complete"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "session_id": { "type": "string" },
+            "success": { "type": "boolean" },
+            "duration_s": { "type": "number" },
+            "tasks_completed": { "type": "integer" },
+            "specialists_spawned": { "type": "integer" },
+            "checkpoints_saved": { "type": "integer" }
+          },
+          "required": ["success"],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": ["type", "data", "timestamp"]
+    },
+    {
+      "type": "object",
+      "description": "RFC-130: Memory-informed prefetch started",
+      "properties": {
+        "type": {
+          "const": "prefetch_start",
+          "description": "Event type: prefetch_start"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "goal": { "type": "string" },
+            "similar_goals_found": { "type": "integer" }
+          },
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": ["type", "data", "timestamp"]
+    },
+    {
+      "type": "object",
+      "description": "RFC-130: Memory-informed prefetch completed",
+      "properties": {
+        "type": {
+          "const": "prefetch_complete",
+          "description": "Event type: prefetch_complete"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "files_count": { "type": "integer" },
+            "learnings_count": { "type": "integer" },
+            "skills_count": { "type": "integer" },
+            "lens": { "type": ["string", "null"] },
+            "memory_hints": { "type": "array", "items": { "type": "string" } }
+          },
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": ["type", "data", "timestamp"]
+    },
+    {
+      "type": "object",
+      "description": "RFC-130: Memory-informed prefetch timed out",
+      "properties": {
+        "type": {
+          "const": "prefetch_timeout",
+          "description": "Event type: prefetch_timeout"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "timeout_ms": { "type": "integer" },
+            "partial_results": { "type": "boolean" }
+          },
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": ["type", "data", "timestamp"]
     }
   ]
 }

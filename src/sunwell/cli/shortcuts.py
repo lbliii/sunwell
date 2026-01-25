@@ -16,9 +16,10 @@ import subprocess
 from pathlib import Path
 
 import click
-from rich.console import Console
 
-console = Console()
+from sunwell.cli.theme import create_sunwell_console
+
+console = create_sunwell_console()
 
 
 # ============================================================================
@@ -268,18 +269,18 @@ async def run_shortcut(
         args_preview = ", ".join(
             f"{k}={repr(v)[:30]}" for k, v in list(args.items())[:2]
         )
-        console.print(f"  [cyan]⚡ {tool_name}[/cyan] [dim]({args_preview})[/dim]")
+        console.print(f"  [holy.radiant]✧ {tool_name}[/] [neutral.dim]({args_preview})[/]")
 
     def on_tool_result(tool_name: str, success: bool, output: str) -> None:
         if success:
             preview = output.replace("\n", " ")[:80]
-            console.print(f"    [green]✓[/green] [dim]{preview}...[/dim]")
+            console.print(f"    [holy.success]✓[/] [neutral.dim]{preview}...[/]")
         else:
-            console.print(f"    [red]✗[/red] {output[:100]}")
+            console.print(f"    [void.purple]✗[/] {output[:100]}")
 
     if not json_output:
-        console.print("[bold cyan]🤖 Executing...[/bold cyan]")
-        console.print("[dim]Agent can read files, search code, and iterate.[/dim]\n")
+        console.print("[holy.radiant]◎ Executing...[/holy.radiant]")
+        console.print("[neutral.dim]Agent can read files, search code, and iterate.[/]\n")
 
     result = await executor.execute(
         context=exec_context,
@@ -307,10 +308,10 @@ async def run_shortcut(
         click.echo(json_module.dumps(output, indent=2))
     else:
         if verbose:
-            console.print("\n[cyan]Execution:[/cyan]")
+            console.print("\n[holy.radiant]Execution:[/holy.radiant]")
             console.print(f"  Time: {result.execution_time_ms}ms")
-            validation_icon = "✅" if result.validation_passed else "⚠️"
-            console.print(f"  Validation: {validation_icon} ({result.confidence:.0%})")
+            v_icon = "★" if result.validation_passed else "△"
+            console.print(f"  Validation: {v_icon} ({result.confidence:.0%})")
             if result.scripts_run:
                 console.print(f"  Scripts: {', '.join(result.scripts_run)}")
             if result.refinement_count:
@@ -541,34 +542,34 @@ def _show_execution_plan(
     console.print()
     console.print(
         Panel(
-            f"[bold cyan]⚡ Execution Plan: {shortcut}[/bold cyan]",
-            subtitle=f"[dim]{skill_name}[/dim]",
-            border_style="cyan",
+            f"[holy.radiant]✧ Execution Plan: {shortcut}[/holy.radiant]",
+            subtitle=f"[neutral.dim]{skill_name}[/neutral.dim]",
+            border_style="holy.gold",
         )
     )
 
     info_table = Table(show_header=False, box=None, padding=(0, 2))
-    info_table.add_column("Key", style="bold")
+    info_table.add_column("Key", style="sunwell.heading")
     info_table.add_column("Value")
 
-    info_table.add_row("Skill", f"[green]{skill_name}[/green]")
+    info_table.add_row("Skill", f"[holy.success]{skill_name}[/holy.success]")
     info_table.add_row("Description", skill.description)
     info_table.add_row("Lens", f"{lens.metadata.name} v{lens.metadata.version}")
-    info_table.add_row("Trust Level", f"[yellow]{skill.trust.value}[/yellow]")
+    info_table.add_row("Trust Level", f"[holy.gold]{skill.trust.value}[/holy.gold]")
 
     if skill.allowed_tools:
         tools = ", ".join(skill.allowed_tools)
-        info_table.add_row("Tools", f"[dim]{tools}[/dim]")
+        info_table.add_row("Tools", f"[neutral.dim]{tools}[/neutral.dim]")
 
     if skill.preset:
-        info_table.add_row("Preset", f"[magenta]{skill.preset}[/magenta]")
+        info_table.add_row("Preset", f"[void.purple]{skill.preset}[/void.purple]")
 
     console.print(info_table)
     console.print()
 
-    console.print("[bold]📁 Context Injection:[/bold]")
+    console.print("[sunwell.heading]▢ Context Injection:[/sunwell.heading]")
     ctx_table = Table(show_header=False, box=None, padding=(0, 2))
-    ctx_table.add_column("Key", style="cyan")
+    ctx_table.add_column("Key", style="holy.radiant")
     ctx_table.add_column("Value")
 
     if target:
@@ -581,20 +582,20 @@ def _show_execution_plan(
         ctx_table.add_row("File Type", context["file_type"])
 
     if context.get("diataxis_type"):
-        ctx_table.add_row("Diataxis Type", f"[green]{context['diataxis_type']}[/green]")
+        ctx_table.add_row("Diataxis", f"[holy.success]{context['diataxis_type']}[/]")
 
     if context.get("related_files"):
         related = context["related_files"]
         for i, rf in enumerate(related[:3]):
             label = "Related" if i == 0 else ""
             rel_type = rf.get("relation", "")
-            ctx_table.add_row(label, f"[dim]{rf['path']}[/dim] ({rel_type})")
+            ctx_table.add_row(label, f"[neutral.dim]{rf['path']}[/] ({rel_type})")
         if len(related) > 3:
-            ctx_table.add_row("", f"[dim]... and {len(related) - 3} more[/dim]")
+            ctx_table.add_row("", f"[neutral.dim]... and {len(related) - 3} more[/]")
 
     if context.get("uncommitted_changes"):
         diff_lines = context["uncommitted_changes"].count("\n")
-        ctx_table.add_row("Git Diff", f"[yellow]{diff_lines} lines of uncommitted changes[/yellow]")
+        ctx_table.add_row("Git Diff", f"[holy.gold]{diff_lines} uncommitted lines[/]")
 
     if context.get("file_content"):
         lines = context["file_content"].count("\n")
@@ -604,19 +605,19 @@ def _show_execution_plan(
     console.print()
 
     if skill.instructions and verbose:
-        console.print("[bold]📜 Skill Instructions:[/bold]")
+        console.print("[sunwell.heading]≡ Skill Instructions:[/sunwell.heading]")
         console.print(Panel(
             Markdown(skill.instructions),
-            border_style="dim",
-            title="[dim]What the AI will do[/dim]",
+            border_style="neutral.dim",
+            title="[neutral.dim]What the AI will do[/neutral.dim]",
             title_align="left",
         ))
         console.print()
 
     if skill.validate_with:
-        console.print("[bold]✅ Validation:[/bold]")
+        console.print("[sunwell.heading]★ Validation:[/sunwell.heading]")
         val_table = Table(show_header=False, box=None, padding=(0, 2))
-        val_table.add_column("Key", style="dim")
+        val_table.add_column("Key", style="neutral.dim")
         val_table.add_column("Value")
 
         if skill.validate_with.validators:

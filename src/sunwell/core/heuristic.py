@@ -4,6 +4,59 @@
 from dataclasses import dataclass, field
 
 
+# =============================================================================
+# RFC-131: Lens Composition — Identity dataclass
+# =============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class Identity:
+    """Agent identity/persona configuration (RFC-131).
+
+    Defines how the agent presents itself. Identity is NOT merged during
+    lens composition — if a child lens specifies identity, it fully replaces
+    the parent's identity.
+
+    Example in YAML:
+        communication:
+          identity:
+            name: "M'uru"
+            nature: "A Naaru — a being of light and wisdom"
+            style: "Helpful, warm, genuinely interested in assisting"
+            prohibitions:
+              - "Do NOT start responses with 'My name is M'uru' unless asked"
+    """
+
+    name: str
+    """Name the agent uses (e.g., "M'uru", "Jarvis")."""
+
+    nature: str | None = None
+    """What the agent is (e.g., "A Naaru — a being of light")."""
+
+    style: str | None = None
+    """Communication style (e.g., "Helpful, warm, genuinely interested")."""
+
+    prohibitions: tuple[str, ...] = ()
+    """Things the agent should NOT do/claim."""
+
+    def to_prompt_fragment(self) -> str:
+        """Convert to system prompt section."""
+        lines = [f"You are {self.name}."]
+
+        if self.nature:
+            lines.append(f"Nature: {self.nature}")
+
+        if self.style:
+            lines.append(f"Style: {self.style}")
+
+        if self.prohibitions:
+            lines.append("\nIMPORTANT:")
+            for prohibition in self.prohibitions:
+                lines.append(f"- {prohibition}")
+
+        return "\n".join(lines)
+
+
 @dataclass(frozen=True, slots=True)
 class Example:
     """Good/bad example for a heuristic."""
@@ -91,10 +144,14 @@ class AntiHeuristic:
 
 @dataclass(frozen=True, slots=True)
 class CommunicationStyle:
-    """Communication/tone configuration."""
+    """Communication/tone configuration.
+
+    RFC-131: Added identity field for agent persona configuration.
+    """
 
     tone: tuple[str, ...] = ()  # e.g., ("professional", "concise")
     structure: str | None = None  # Output structure pattern
+    identity: Identity | None = None  # RFC-131: Agent identity/persona
 
     def to_prompt_fragment(self) -> str:
         """Convert to prompt injection format."""
@@ -103,4 +160,7 @@ class CommunicationStyle:
             lines.append(f"**Tone**: {', '.join(self.tone)}")
         if self.structure:
             lines.append(f"**Structure**: {self.structure}")
+        if self.identity:
+            lines.append("\n## Your Identity\n")
+            lines.append(self.identity.to_prompt_fragment())
         return "\n".join(lines)

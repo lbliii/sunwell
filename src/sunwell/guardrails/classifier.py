@@ -13,8 +13,12 @@ from sunwell.guardrails.types import (
     Action,
     ActionClassification,
     ActionRisk,
+    EvolutionType,
+    GuardEvolution,
+    GuardViolation,
     TrustLevel,
     TrustZone,
+    ViolationOutcome,
 )
 
 if TYPE_CHECKING:
@@ -483,18 +487,36 @@ class ActionClassifier:
 
 
 class SmartActionClassifier(ActionClassifier):
-    """Action classifier with LLM fallback for edge cases (RFC-077).
+    """Action classifier with LLM fallback for edge cases (RFC-077, RFC-130).
 
     Uses FastClassifier to handle cases that pattern matching misses:
     - Novel action types not in taxonomy
     - Ambiguous paths that don't match trust zones
     - Context-dependent risk assessment
 
+    RFC-130 adds adaptive learning:
+    - Track violations to identify false positive patterns
+    - Suggest guard evolutions based on user feedback
+    - Learn from override patterns to reduce friction
+
     Example:
-        classifier = SmartActionClassifier(model=small_model)
+        classifier = SmartActionClassifier(model=small_model, enable_learning=True)
 
         # Pattern match first, LLM fallback for unknowns
         classification = await classifier.classify_smart(action)
+
+        # Record user feedback
+        if user_overrode:
+            classifier.record_violation(GuardViolation(
+                action_type="file_write",
+                path="src/utils/helpers.py",
+                blocking_rule="trust_zone",
+                outcome=ViolationOutcome.OVERRIDDEN,
+                user_comment="This is a utility file, not auth code",
+            ))
+
+        # Get evolution suggestions
+        evolutions = await classifier.suggest_evolutions()
     """
 
     def __init__(
@@ -503,6 +525,8 @@ class SmartActionClassifier(ActionClassifier):
         trust_level: TrustLevel = TrustLevel.GUARDED,
         trust_zones: tuple[TrustZone, ...] | None = None,
         custom_forbidden_patterns: tuple[str, ...] = (),
+        enable_learning: bool = False,
+        violation_store_path: Path | None = None,
     ):
         """Initialize smart classifier.
 
@@ -511,10 +535,18 @@ class SmartActionClassifier(ActionClassifier):
             trust_level: Overall trust level for this session
             trust_zones: Custom trust zones (extends defaults)
             custom_forbidden_patterns: Additional forbidden patterns
+            enable_learning: Enable RFC-130 adaptive learning
+            violation_store_path: Path to store violations (default: .sunwell/guard-violations/)
         """
         super().__init__(trust_level, trust_zones, custom_forbidden_patterns)
         self._model = model
         self._classifier: Any = None
+
+        # RFC-130: Adaptive learning
+        self._enable_learning = enable_learning
+        self._violation_store_path = violation_store_path or Path(".sunwell/guard-violations")
+        self._violations: list[GuardViolation] = []
+        self._loaded_violations = False
 
     async def _get_classifier(self) -> Any:
         """Lazy-load FastClassifier."""
@@ -624,3 +656,292 @@ class SmartActionClassifier(ActionClassifier):
         for action in actions:
             results.append(await self.classify_smart(action))
         return results
+
+    # =========================================================================
+    # RFC-130: Adaptive Learning
+    # =========================================================================
+
+    def record_violation(self, violation: GuardViolation) -> None:
+        """Record a guardrail violation for learning.
+
+        RFC-130: Violations are tracked to enable adaptive rule evolution.
+        After enough false positives, the system suggests refinements.
+
+        Args:
+            violation: The violation to record
+        """
+        if not self._enable_learning:
+            return
+
+        # Compute similarity hash for grouping
+        violation.similarity_hash = self._compute_similarity_hash(violation)
+
+        self._violations.append(violation)
+
+        # Persist to disk
+        self._persist_violations()
+
+    def record_user_feedback(
+        self,
+        action: Action,
+        classification: ActionClassification,
+        approved: bool,
+        is_false_positive: bool = False,
+        comment: str | None = None,
+    ) -> None:
+        """Record user feedback on a classification decision.
+
+        RFC-130: Simplified API for recording feedback after escalation.
+
+        Args:
+            action: The action that was classified
+            classification: The classification result
+            approved: Whether the user approved the action
+            is_false_positive: Whether user marked this as false positive
+            comment: Optional user comment
+        """
+        if not self._enable_learning:
+            return
+
+        outcome = ViolationOutcome.FALSE_POSITIVE if is_false_positive else (
+            ViolationOutcome.OVERRIDDEN if approved else ViolationOutcome.BLOCKED
+        )
+
+        violation = GuardViolation(
+            action_type=action.action_type,
+            path=action.path,
+            blocking_rule=classification.blocking_rule or "unknown",
+            outcome=outcome,
+            user_comment=comment,
+            context={
+                "classification_risk": classification.risk.value,
+                "classification_reason": classification.reason,
+            },
+        )
+
+        self.record_violation(violation)
+
+    async def suggest_evolutions(self) -> list[GuardEvolution]:
+        """Suggest guard evolutions based on accumulated violations.
+
+        RFC-130: Analyzes violation patterns to suggest rule refinements
+        that reduce false positives while maintaining security.
+
+        Returns:
+            List of suggested evolutions, sorted by confidence
+        """
+        if not self._enable_learning:
+            return []
+
+        self._load_violations()
+
+        # Group violations by similarity
+        groups = self._group_violations_by_pattern()
+
+        evolutions: list[GuardEvolution] = []
+
+        for rule_id, violations in groups.items():
+            # Count outcomes
+            false_positives = sum(
+                1 for v in violations if v.outcome == ViolationOutcome.FALSE_POSITIVE
+            )
+            overrides = sum(
+                1 for v in violations if v.outcome == ViolationOutcome.OVERRIDDEN
+            )
+            total = len(violations)
+
+            # Check thresholds for suggestions
+            if false_positives >= 3:
+                evolutions.append(self._suggest_exception_pattern(rule_id, violations))
+
+            if overrides >= 5:
+                evolutions.append(self._suggest_trust_elevation(rule_id, violations))
+
+            if total >= 10 and (false_positives + overrides) / total > 0.7:
+                evolutions.append(self._suggest_pattern_refinement(rule_id, violations))
+
+        # Sort by confidence
+        evolutions.sort(key=lambda e: e.confidence, reverse=True)
+
+        return evolutions
+
+    def _compute_similarity_hash(self, violation: GuardViolation) -> str:
+        """Compute hash for grouping similar violations."""
+        import hashlib
+
+        parts = [
+            violation.action_type,
+            violation.blocking_rule,
+        ]
+
+        # Group by path pattern (e.g., "src/utils/*.py")
+        if violation.path:
+            path = Path(violation.path)
+            # Use parent + extension as grouping key
+            parts.append(str(path.parent))
+            parts.append(path.suffix)
+
+        key = "|".join(parts)
+        return hashlib.sha256(key.encode()).hexdigest()[:16]
+
+    def _group_violations_by_pattern(self) -> dict[str, list[GuardViolation]]:
+        """Group violations by blocking rule."""
+        groups: dict[str, list[GuardViolation]] = {}
+
+        for violation in self._violations:
+            key = violation.blocking_rule
+            if key not in groups:
+                groups[key] = []
+            groups[key].append(violation)
+
+        return groups
+
+    def _suggest_exception_pattern(
+        self, rule_id: str, violations: list[GuardViolation]
+    ) -> GuardEvolution:
+        """Suggest adding an exception pattern."""
+        # Find common path patterns in violations
+        paths = [v.path for v in violations if v.path]
+        common_pattern = self._find_common_pattern(paths)
+
+        return GuardEvolution(
+            rule_id=rule_id,
+            evolution_type=EvolutionType.ADD_EXCEPTION,
+            description=f"Add exception for {common_pattern}",
+            reason=f"{len(violations)} false positives for similar paths",
+            confidence=min(0.9, 0.5 + (len(violations) * 0.1)),
+            supporting_violations=len(violations),
+            new_pattern=common_pattern,
+        )
+
+    def _suggest_trust_elevation(
+        self, rule_id: str, violations: list[GuardViolation]
+    ) -> GuardEvolution:
+        """Suggest elevating trust for this zone."""
+        return GuardEvolution(
+            rule_id=rule_id,
+            evolution_type=EvolutionType.ELEVATE_TRUST,
+            description=f"Elevate trust level for {rule_id}",
+            reason=f"{len(violations)} user overrides indicate trustworthy zone",
+            confidence=min(0.85, 0.4 + (len(violations) * 0.05)),
+            supporting_violations=len(violations),
+            new_trust_level=ActionRisk.MODERATE,
+        )
+
+    def _suggest_pattern_refinement(
+        self, rule_id: str, violations: list[GuardViolation]
+    ) -> GuardEvolution:
+        """Suggest refining the pattern to be more specific."""
+        paths = [v.path for v in violations if v.path]
+        refined_pattern = self._find_specific_pattern(paths)
+
+        return GuardEvolution(
+            rule_id=rule_id,
+            evolution_type=EvolutionType.REFINE_PATTERN,
+            description=f"Refine pattern to {refined_pattern}",
+            reason="High override rate suggests pattern is too broad",
+            confidence=0.7,
+            supporting_violations=len(violations),
+            new_pattern=refined_pattern,
+        )
+
+    def _find_common_pattern(self, paths: list[str | None]) -> str:
+        """Find common glob pattern across paths."""
+        valid_paths = [p for p in paths if p]
+        if not valid_paths:
+            return "**/*"
+
+        # Find common directory
+        path_objects = [Path(p) for p in valid_paths]
+        parents = [p.parent for p in path_objects]
+
+        if parents:
+            common_parent = parents[0]
+            for p in parents[1:]:
+                while common_parent != p and common_parent.parts:
+                    common_parent = common_parent.parent
+                    if str(p).startswith(str(common_parent)):
+                        break
+
+            # Find common extension
+            extensions = {p.suffix for p in path_objects if p.suffix}
+            if len(extensions) == 1:
+                return f"{common_parent}/*{extensions.pop()}"
+            return f"{common_parent}/**"
+
+        return "**/*"
+
+    def _find_specific_pattern(self, paths: list[str | None]) -> str:
+        """Find a more specific pattern to reduce false positives."""
+        valid_paths = [p for p in paths if p]
+        if not valid_paths:
+            return "**/*"
+
+        # Use the most common directory as the specific pattern
+        directories = [str(Path(p).parent) for p in valid_paths]
+        if directories:
+            from collections import Counter
+            most_common = Counter(directories).most_common(1)
+            if most_common:
+                return f"{most_common[0][0]}/*"
+
+        return "**/*"
+
+    def _persist_violations(self) -> None:
+        """Persist violations to disk."""
+        import json
+
+        self._violation_store_path.mkdir(parents=True, exist_ok=True)
+        violations_file = self._violation_store_path / "violations.jsonl"
+
+        with open(violations_file, "a") as f:
+            # Append only the latest violation
+            if self._violations:
+                f.write(json.dumps(self._violations[-1].to_dict()) + "\n")
+
+    def _load_violations(self) -> None:
+        """Load violations from disk."""
+        import json
+
+        if self._loaded_violations:
+            return
+
+        violations_file = self._violation_store_path / "violations.jsonl"
+        if violations_file.exists():
+            with open(violations_file) as f:
+                for line in f:
+                    if line.strip():
+                        data = json.loads(line)
+                        violation = GuardViolation.from_dict(data)
+                        if violation not in self._violations:
+                            self._violations.append(violation)
+
+        self._loaded_violations = True
+
+    def get_violation_stats(self) -> dict[str, Any]:
+        """Get statistics about accumulated violations.
+
+        Returns:
+            Dict with violation counts, rule breakdown, and learning progress
+        """
+        self._load_violations()
+
+        stats: dict[str, Any] = {
+            "total_violations": len(self._violations),
+            "by_outcome": {},
+            "by_rule": {},
+            "learning_enabled": self._enable_learning,
+        }
+
+        for outcome in ViolationOutcome:
+            stats["by_outcome"][outcome.value] = sum(
+                1 for v in self._violations if v.outcome == outcome
+            )
+
+        for violation in self._violations:
+            rule = violation.blocking_rule
+            if rule not in stats["by_rule"]:
+                stats["by_rule"][rule] = 0
+            stats["by_rule"][rule] += 1
+
+        return stats

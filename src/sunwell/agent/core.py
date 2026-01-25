@@ -39,6 +39,8 @@ from sunwell.agent.events import (
     GateSummary,
     TaskSummary,
     briefing_loaded_event,
+    checkpoint_found_event,
+    checkpoint_saved_event,
     complete_event,
     failure_recorded_event,
     lens_selected_event,
@@ -48,8 +50,11 @@ from sunwell.agent.events import (
     model_thinking_event,
     model_tokens_event,
     orient_event,
+    phase_complete_event,
     plan_winner_event,
     signal_event,
+    specialist_completed_event,
+    specialist_spawned_event,
     task_complete_event,
     task_start_event,
 )
@@ -65,12 +70,13 @@ from sunwell.agent.validation import Artifact, ValidationRunner, ValidationStage
 
 if TYPE_CHECKING:
     from sunwell.core.lens import Lens
-    from sunwell.memory.briefing import Briefing
+    from sunwell.memory.briefing import Briefing, PrefetchedContext
     from sunwell.models.protocol import ModelProtocol
     from sunwell.naaru.types import Task
 
 from sunwell.context.session import SessionContext
 from sunwell.memory.persistent import PersistentMemory
+from sunwell.naaru.checkpoint import AgentCheckpoint, CheckpointPhase
 
 
 @dataclass
@@ -178,6 +184,25 @@ class Agent:
     _simulacrum: Any = field(default=None, init=False)
     """SimulacrumStore from PersistentMemory (set during run())."""
 
+    # RFC-130: Agent Constellation — Specialist spawning
+    _spawned_specialist_ids: list[str] = field(default_factory=list, init=False)
+    """IDs of specialists spawned during this run."""
+
+    _specialist_count: int = field(default=0, init=False)
+    """Count of specialists spawned in this run."""
+
+    # RFC-130: Semantic checkpointing
+    _user_decisions: list[str] = field(default_factory=list, init=False)
+    """User decisions recorded during this run."""
+
+    _checkpoint_count: int = field(default=0, init=False)
+    """Number of checkpoints saved in this run."""
+
+    _current_phase: CheckpointPhase = field(
+        default=CheckpointPhase.ORIENT_COMPLETE, init=False
+    )
+    """Current semantic phase of execution."""
+
     def __post_init__(self) -> None:
         if self.cwd is None:
             self.cwd = Path.cwd()
@@ -251,6 +276,32 @@ class Agent:
 
         # RFC-126: Store workspace context for task execution
         self._workspace_context = session.to_planning_prompt()
+
+        # ─── PHASE 0: PREFETCH (RFC-130) ───
+        # Memory-informed prefetch to warm context before main execution
+        if session.briefing:
+            prefetched = await self._run_memory_informed_prefetch(
+                session.briefing, memory
+            )
+            if prefetched:
+                self._prefetched_context = prefetched
+                # If prefetch suggests a lens, use it (unless explicitly set)
+                if prefetched.lens and not session.lens:
+                    from sunwell.lenses.loader import load_lens_by_name
+                    try:
+                        suggested_lens = load_lens_by_name(
+                            prefetched.lens, session.cwd
+                        )
+                        if suggested_lens:
+                            self.lens = suggested_lens
+                            yield lens_selected_event(
+                                name=suggested_lens.metadata.name,
+                                source="memory_prefetch",
+                                confidence=0.75,
+                                reason="Lens from similar past goal",
+                            )
+                    except Exception:
+                        pass  # Use default lens resolution
 
         # ─── PHASE 1: ORIENT ───
         # What do we know? What should we avoid?
@@ -775,7 +826,10 @@ class Agent:
             )
 
     async def _execute_with_gates(self, options: RunOptions) -> AsyncIterator[AgentEvent]:
-        """Execute tasks with validation gates and inference visibility."""
+        """Execute tasks with validation gates and inference visibility.
+
+        RFC-130: Now supports specialist spawning for complex tasks.
+        """
         if not self._task_graph:
             return
 
@@ -792,6 +846,13 @@ class Agent:
                 return
 
             for task in ready:
+                # RFC-130: Check if task should be delegated to specialist
+                if self._should_spawn_specialist(task):
+                    async for event in self._execute_via_specialist(task):
+                        yield event
+                    self._task_graph.mark_complete(task)
+                    continue
+
                 yield task_start_event(task.id, task.description)
 
                 start = time()
@@ -1112,6 +1173,303 @@ Respond directly and helpfully:"""
 
         async for event in self._fix_stage.fix_errors(errors, artifacts_dict):
             yield event
+
+    # =========================================================================
+    # RFC-130: Agent Constellation — Specialist Spawning
+    # =========================================================================
+
+    def _should_spawn_specialist(self, task: Task) -> bool:
+        """Decide if task should be delegated to a specialist.
+
+        Spawning is triggered when:
+        1. Lens has can_spawn enabled
+        2. Task complexity exceeds threshold (estimated_complexity > 0.8)
+        3. OR task requires tools not in current lens
+        4. AND we haven't exceeded max_children
+
+        Args:
+            task: The task to evaluate
+
+        Returns:
+            True if task should be delegated to specialist
+        """
+        # Check if spawning is enabled
+        if not self.lens or not self.lens.can_spawn:
+            return False
+
+        # Check spawn limit
+        if self._specialist_count >= self.lens.max_children:
+            return False
+
+        # Check Naaru is available
+        if not self._naaru:
+            return False
+
+        # Check task complexity (if available)
+        estimated_complexity = getattr(task, "estimated_complexity", 0.0)
+        if estimated_complexity > 0.8:
+            return True
+
+        # Check if task requires specialized tools
+        required_tools = set(getattr(task, "required_tools", []))
+        if required_tools:
+            available_tools = set(self.lens.skills) if self.lens.skills else set()
+            if not required_tools.issubset(available_tools):
+                return True
+
+        return False
+
+    async def _execute_via_specialist(self, task: Task) -> AsyncIterator[AgentEvent]:
+        """Execute task by delegating to a spawned specialist.
+
+        Args:
+            task: The task to delegate
+
+        Yields:
+            Events for spawn, execution, and completion
+        """
+        from sunwell.agent.spawn import SpawnRequest
+
+        # Determine specialist role based on task
+        role = self._determine_specialist_role(task)
+
+        # Create spawn request
+        spawn_request = SpawnRequest(
+            parent_id="agent-main",
+            role=role,
+            focus=task.description,
+            reason=f"Task complexity or requirements exceed current lens capabilities",
+            tools=tuple(getattr(task, "required_tools", [])),
+            context_keys=("goal", "learnings", "workspace_context"),
+            budget_tokens=min(
+                self.lens.spawn_budget_tokens // max(1, self.lens.max_children),
+                5_000,
+            ) if self.lens else 5_000,
+        )
+
+        # Get context snapshot
+        context = self._get_context_snapshot()
+
+        # Spawn specialist
+        specialist_id = await self._naaru.spawn_specialist(spawn_request, context)
+        self._spawned_specialist_ids.append(specialist_id)
+        self._specialist_count += 1
+
+        # Emit spawn event
+        yield specialist_spawned_event(
+            specialist_id=specialist_id,
+            task_id=task.id,
+            parent_id="agent-main",
+            role=role,
+            focus=task.description,
+            budget_tokens=spawn_request.budget_tokens,
+        )
+
+        # Wait for specialist to complete
+        result = await self._naaru.wait_specialist(specialist_id)
+
+        # Emit completion event
+        yield specialist_completed_event(
+            specialist_id=specialist_id,
+            success=result.success,
+            summary=result.summary,
+            tokens_used=result.tokens_used,
+            duration_seconds=result.duration_seconds,
+        )
+
+        # If specialist produced output and task has target, write it
+        if result.success and result.output and task.target_path:
+            path = self.cwd / task.target_path
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(str(result.output))
+            self._files_changed_this_run.append(task.target_path)
+
+    def _determine_specialist_role(self, task: Task) -> str:
+        """Determine the appropriate specialist role for a task.
+
+        Args:
+            task: The task to analyze
+
+        Returns:
+            Role name (e.g., "code_reviewer", "architect", "debugger")
+        """
+        description_lower = task.description.lower()
+
+        # Match patterns to roles
+        if any(kw in description_lower for kw in ["review", "audit", "check"]):
+            return "code_reviewer"
+        if any(kw in description_lower for kw in ["design", "architect", "structure"]):
+            return "architect"
+        if any(kw in description_lower for kw in ["debug", "fix", "investigate"]):
+            return "debugger"
+        if any(kw in description_lower for kw in ["test", "verify", "validate"]):
+            return "tester"
+        if any(kw in description_lower for kw in ["document", "explain", "describe"]):
+            return "documentarian"
+        if any(kw in description_lower for kw in ["security", "auth", "encrypt"]):
+            return "security_specialist"
+        if any(kw in description_lower for kw in ["optimize", "performance", "speed"]):
+            return "optimizer"
+
+        # Default
+        return "specialist"
+
+    def _get_context_snapshot(self) -> dict[str, Any]:
+        """Get current context snapshot to pass to specialist.
+
+        Returns:
+            Dict with relevant context keys
+        """
+        context: dict[str, Any] = {
+            "goal": self._current_goal,
+        }
+
+        # Add learnings context
+        learnings_context = self._learning_store.format_for_prompt()
+        if learnings_context:
+            context["learnings"] = learnings_context
+
+        # Add workspace context
+        if self._workspace_context:
+            context["workspace_context"] = self._workspace_context
+
+        # Add lens context
+        if self.lens:
+            context["lens_context"] = self.lens.to_context()
+
+        # Add briefing context
+        if self._briefing:
+            context["briefing"] = self._briefing.to_prompt()
+
+        return context
+
+    # =========================================================================
+    # RFC-130: Memory-Informed Prefetch
+    # =========================================================================
+
+    async def _run_memory_informed_prefetch(
+        self,
+        briefing: Briefing,
+        memory: PersistentMemory,
+    ) -> PrefetchedContext | None:
+        """Run memory-informed prefetch before main execution.
+
+        RFC-130: Uses PersistentMemory to find similar past goals and
+        pre-load context that was useful in those executions.
+
+        Args:
+            briefing: Current briefing with hints
+            memory: PersistentMemory to query for similar goals
+
+        Returns:
+            PrefetchedContext if successful, None if timeout or error
+        """
+        from sunwell.prefetch.dispatcher import (
+            analyze_briefing_for_prefetch,
+            execute_prefetch,
+        )
+
+        try:
+            # Analyze briefing with memory integration
+            plan = await analyze_briefing_for_prefetch(
+                briefing=briefing,
+                memory=memory,
+            )
+
+            # Execute prefetch with timeout
+            return await execute_prefetch(
+                plan=plan,
+                project_path=self.cwd,
+                timeout=2.0,  # Don't block for too long
+            )
+        except Exception:
+            # Prefetch failure shouldn't block execution
+            return None
+
+    # =========================================================================
+    # RFC-130: Semantic Checkpointing
+    # =========================================================================
+
+    async def _save_phase_checkpoint(
+        self,
+        phase: CheckpointPhase,
+        phase_summary: str,
+    ) -> AgentEvent:
+        """Save checkpoint at semantic phase boundary.
+
+        RFC-130: Enables intelligent resume from meaningful workflow points.
+
+        Args:
+            phase: The phase being completed
+            phase_summary: Human-readable summary of progress
+
+        Returns:
+            CheckpointSaved event
+        """
+        from datetime import datetime
+
+        # Build checkpoint
+        checkpoint = AgentCheckpoint(
+            goal=self._current_goal,
+            started_at=datetime.now(),  # Would track actual start in production
+            checkpoint_at=datetime.now(),
+            tasks=self._task_graph.tasks if self._task_graph else [],
+            completed_ids=self._task_graph.completed_ids if self._task_graph else set(),
+            artifacts=[Path(f) for f in self._files_changed_this_run],
+            working_directory=str(self.cwd),
+            context=self._get_context_snapshot(),
+            phase=phase,
+            phase_summary=phase_summary,
+            user_decisions=tuple(self._user_decisions),
+            spawned_specialists=tuple(self._spawned_specialist_ids),
+        )
+
+        # Save to disk
+        checkpoint_dir = self.cwd / ".sunwell" / "checkpoints"
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+        # Use phase-based filename for easier discovery
+        import uuid
+        checkpoint_id = uuid.uuid4().hex[:8]
+        checkpoint_path = checkpoint_dir / f"agent-{phase.value}-{checkpoint_id}.json"
+        checkpoint.save(checkpoint_path)
+
+        self._checkpoint_count += 1
+        self._current_phase = phase
+
+        # Return event
+        return checkpoint_saved_event(
+            phase=phase.value,
+            summary=phase_summary,
+            tasks_completed=len(self._task_graph.completed_ids) if self._task_graph else 0,
+        )
+
+    async def _check_for_resumable_checkpoint(
+        self,
+        goal: str,
+    ) -> AgentCheckpoint | None:
+        """Check for existing checkpoint for this goal.
+
+        RFC-130: Enables crash recovery and session resume.
+
+        Args:
+            goal: The current goal
+
+        Returns:
+            Checkpoint if found, None otherwise
+        """
+        checkpoint = AgentCheckpoint.find_latest_for_goal(self.cwd, goal)
+        return checkpoint
+
+    def record_user_decision(self, decision: str) -> None:
+        """Record a user decision for checkpoint tracking.
+
+        RFC-130: User decisions are preserved in checkpoints for resume context.
+
+        Args:
+            decision: Description of the user's decision
+        """
+        self._user_decisions.append(decision)
 
     # =========================================================================
     # RFC-122: Compound Learning Loop

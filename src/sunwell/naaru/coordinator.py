@@ -156,6 +156,19 @@ class Naaru:
     _event_emitter: NaaruEventEmitter | None = field(default=None, init=False)
     _integration_verifier: Any = field(default=None, init=False)
 
+    # RFC-130: Agent Constellation — Specialist spawning
+    _spawned_specialists: dict[str, Any] = field(default_factory=dict, init=False)
+    """Registry of spawned specialists by ID."""
+
+    _spawn_depth: int = field(default=0, init=False)
+    """Current spawn depth (0 = main agent level)."""
+
+    _max_spawn_depth: int = 3
+    """Maximum spawn depth to prevent infinite recursion."""
+
+    _specialist_futures: dict[str, asyncio.Future[Any]] = field(default_factory=dict, init=False)
+    """Futures for awaiting specialist completion."""
+
     def __post_init__(self) -> None:
         if self.judge_model is None:
             self.judge_model = self.synthesis_model
@@ -195,6 +208,253 @@ class Naaru:
                 project_root=self.workspace,
             )
         return self._integration_verifier
+
+    # =========================================================================
+    # RFC-130: Agent Constellation — Specialist Spawning
+    # =========================================================================
+
+    def _generate_specialist_id(self, role: str) -> str:
+        """Generate a unique specialist ID."""
+        import uuid
+        short_id = uuid.uuid4().hex[:8]
+        return f"specialist-{role}-{short_id}"
+
+    async def spawn_specialist(
+        self,
+        request: Any,  # SpawnRequest
+        parent_context: dict[str, Any],
+    ) -> str:
+        """Spawn a specialist worker for a focused subtask.
+
+        When the agent encounters a complex subtask, it can spawn a specialist
+        instead of struggling alone. Specialists run with focused context and
+        limited token budget.
+
+        Uses existing HarmonicSynthesisWorker pool — no new infrastructure.
+
+        Args:
+            request: SpawnRequest with role, focus, and budget
+            parent_context: Context snapshot from parent to pass to specialist
+
+        Returns:
+            Specialist ID for tracking and result collection
+
+        Raises:
+            SpawnDepthExceeded: If max spawn depth is reached
+        """
+        from sunwell.agent.spawn import SpawnDepthExceeded, SpecialistState
+
+        # Check spawn depth limit
+        if self._spawn_depth >= self._max_spawn_depth:
+            raise SpawnDepthExceeded(self._spawn_depth, self._max_spawn_depth)
+
+        # Generate unique ID
+        specialist_id = self._generate_specialist_id(request.role)
+
+        # Create specialist state for tracking
+        specialist_state = SpecialistState(
+            id=specialist_id,
+            parent_id=request.parent_id,
+            focus=request.focus,
+            depth=self._spawn_depth + 1,
+        )
+        self._spawned_specialists[specialist_id] = specialist_state
+
+        # Create future for result collection
+        loop = asyncio.get_event_loop()
+        future: asyncio.Future[Any] = loop.create_future()
+        self._specialist_futures[specialist_id] = future
+
+        # Emit spawn event
+        if self._event_emitter:
+            self._event_emitter.emit_specialist_spawned(
+                specialist_id=specialist_id,
+                parent_id=request.parent_id,
+                role=request.role,
+                focus=request.focus,
+            )
+
+        # Execute specialist task using existing worker pool
+        asyncio.create_task(
+            self._execute_specialist(
+                specialist_id=specialist_id,
+                request=request,
+                parent_context=parent_context,
+                future=future,
+            )
+        )
+
+        return specialist_id
+
+    async def _execute_specialist(
+        self,
+        specialist_id: str,
+        request: Any,  # SpawnRequest
+        parent_context: dict[str, Any],
+        future: asyncio.Future[Any],
+    ) -> None:
+        """Execute specialist task in background.
+
+        Uses existing synthesis workers with a focused prompt and limited budget.
+        """
+        from sunwell.agent.spawn import SpecialistResult
+
+        start_time = datetime.now()
+        tokens_used = 0
+        learnings: list[str] = []
+
+        try:
+            # Build focused prompt for specialist
+            specialist_prompt = self._build_specialist_prompt(request, parent_context)
+
+            # Use first available synthesis worker (they're equivalent)
+            if self._synthesis_workers:
+                worker = self._synthesis_workers[0]
+                # Execute via worker's model
+                result = await worker.model.generate(
+                    specialist_prompt,
+                    max_tokens=min(request.budget_tokens, 4000),
+                )
+                output = result.text if hasattr(result, "text") else str(result)
+                tokens_used = len(output) // 4  # Rough estimate
+            else:
+                # Fallback: use synthesis_model directly
+                result = await self.synthesis_model.generate(
+                    specialist_prompt,
+                    max_tokens=min(request.budget_tokens, 4000),
+                )
+                output = result.text if hasattr(result, "text") else str(result)
+                tokens_used = len(output) // 4
+
+            # Mark specialist complete
+            specialist_state = self._spawned_specialists.get(specialist_id)
+            if specialist_state:
+                specialist_state.mark_complete(output, tokens_used)
+
+            # Create result
+            duration = (datetime.now() - start_time).total_seconds()
+            specialist_result = SpecialistResult(
+                specialist_id=specialist_id,
+                success=True,
+                output=output,
+                summary=f"Completed: {request.focus[:50]}...",
+                tokens_used=tokens_used,
+                duration_seconds=duration,
+                learnings=tuple(learnings),
+            )
+
+            # Emit completion event
+            if self._event_emitter:
+                self._event_emitter.emit_specialist_completed(
+                    specialist_id=specialist_id,
+                    success=True,
+                    summary=specialist_result.summary,
+                    tokens_used=tokens_used,
+                )
+
+            # Resolve future
+            future.set_result(specialist_result)
+
+        except Exception as e:
+            # Mark as failed
+            specialist_state = self._spawned_specialists.get(specialist_id)
+            if specialist_state:
+                specialist_state.mark_complete(None, tokens_used)
+
+            # Create failure result
+            duration = (datetime.now() - start_time).total_seconds()
+            specialist_result = SpecialistResult(
+                specialist_id=specialist_id,
+                success=False,
+                output=None,
+                summary=f"Failed: {e!s}",
+                tokens_used=tokens_used,
+                duration_seconds=duration,
+            )
+
+            # Emit completion event
+            if self._event_emitter:
+                self._event_emitter.emit_specialist_completed(
+                    specialist_id=specialist_id,
+                    success=False,
+                    summary=specialist_result.summary,
+                    tokens_used=tokens_used,
+                )
+
+            # Resolve future with failure result (don't raise)
+            future.set_result(specialist_result)
+
+    def _build_specialist_prompt(
+        self,
+        request: Any,  # SpawnRequest
+        parent_context: dict[str, Any],
+    ) -> str:
+        """Build focused prompt for specialist."""
+        prompt_parts = [
+            f"You are a specialist with role: {request.role}",
+            f"",
+            f"TASK: {request.focus}",
+            f"",
+            f"REASON YOU WERE SPAWNED: {request.reason}",
+            f"",
+        ]
+
+        # Add relevant context from parent
+        if parent_context:
+            prompt_parts.append("CONTEXT FROM PARENT:")
+            for key in request.context_keys:
+                if key in parent_context:
+                    prompt_parts.append(f"  {key}: {parent_context[key]}")
+            prompt_parts.append("")
+
+        prompt_parts.extend([
+            "INSTRUCTIONS:",
+            "1. Focus ONLY on the specified task",
+            "2. Be concise — you have limited token budget",
+            "3. Provide actionable output the parent agent can use",
+            "",
+            "OUTPUT:",
+        ])
+
+        return "\n".join(prompt_parts)
+
+    async def wait_specialist(self, specialist_id: str) -> Any:
+        """Wait for specialist to complete and return result.
+
+        Args:
+            specialist_id: ID of the specialist to wait for
+
+        Returns:
+            SpecialistResult with success/failure status and output
+
+        Raises:
+            KeyError: If specialist ID is not found
+        """
+        if specialist_id not in self._specialist_futures:
+            raise KeyError(f"Unknown specialist: {specialist_id}")
+
+        future = self._specialist_futures[specialist_id]
+        result = await future
+
+        # Clean up
+        del self._specialist_futures[specialist_id]
+
+        return result
+
+    def get_specialist_state(self, specialist_id: str) -> Any | None:
+        """Get current state of a specialist.
+
+        Args:
+            specialist_id: ID of the specialist
+
+        Returns:
+            SpecialistState or None if not found
+        """
+        return self._spawned_specialists.get(specialist_id)
+
+    def get_all_specialists(self) -> list[Any]:
+        """Get all spawned specialists (running and completed)."""
+        return list(self._spawned_specialists.values())
 
     # =========================================================================
     # illuminate() - Self-improvement mode (RFC-085)

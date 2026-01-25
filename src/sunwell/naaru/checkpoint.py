@@ -23,6 +23,44 @@ class FailurePolicy(Enum):
     REPLAN = "replan"         # Re-plan remaining tasks
 
 
+class CheckpointPhase(Enum):
+    """Semantic phases for workflow checkpoints (RFC-130).
+
+    Phases represent meaningful workflow stages that enable intelligent resume.
+    Instead of just tracking task IDs, we track semantic progress.
+
+    Example:
+        >>> cp = AgentCheckpoint.find_latest_for_goal(workspace, "Add OAuth")
+        >>> if cp and cp.phase == CheckpointPhase.DESIGN_APPROVED:
+        ...     # Skip planning, user already approved approach
+        ...     resume_from_implementation(cp)
+    """
+
+    ORIENT_COMPLETE = "orient_complete"
+    """Memory loaded, constraints identified. Ready for exploration."""
+
+    EXPLORATION_COMPLETE = "exploration_complete"
+    """Codebase analyzed, signals extracted. Ready for planning."""
+
+    PLAN_COMPLETE = "plan_complete"
+    """Plan generated. Awaiting user approval or auto-proceeding."""
+
+    DESIGN_APPROVED = "design_approved"
+    """User approved approach. Ready for implementation."""
+
+    IMPLEMENTATION_COMPLETE = "implementation_complete"
+    """Code written. Ready for validation."""
+
+    REVIEW_COMPLETE = "review_complete"
+    """Quality checked. Ready for completion."""
+
+    USER_CHECKPOINT = "user_checkpoint"
+    """Manual checkpoint by user request."""
+
+    TASK_COMPLETE = "task_complete"
+    """Individual task completed (backward compatible)."""
+
+
 @dataclass
 class TaskExecutionConfig:
     """Configuration for task execution (RFC-032)."""
@@ -86,7 +124,7 @@ class ParallelConfig:
 
 @dataclass
 class AgentCheckpoint:
-    """Saved state for resuming agent execution (RFC-032).
+    """Saved state for resuming agent execution (RFC-032, RFC-130).
 
     Long-running tasks (>60 seconds) checkpoint progress to enable recovery.
     Checkpoints are saved:
@@ -94,6 +132,7 @@ class AgentCheckpoint:
     - After each task completes
     - On timeout or graceful shutdown
     - On unrecoverable error
+    - RFC-130: At semantic phase boundaries
 
     Example:
         >>> checkpoint = AgentCheckpoint(
@@ -105,6 +144,11 @@ class AgentCheckpoint:
         >>> # Later, resume:
         >>> cp = AgentCheckpoint.load(checkpoint_path)
         >>> remaining = cp.get_remaining_tasks()
+        >>>
+        >>> # RFC-130: Resume by goal
+        >>> cp = AgentCheckpoint.find_latest_for_goal(workspace, "Build a React app")
+        >>> if cp:
+        ...     print(f"Resume from {cp.phase.value}: {cp.phase_summary}")
     """
 
     goal: str
@@ -121,6 +165,22 @@ class AgentCheckpoint:
     # Configuration
     execution_config: TaskExecutionConfig = field(default_factory=TaskExecutionConfig)
     parallel_config: ParallelConfig = field(default_factory=ParallelConfig)
+
+    # RFC-130: Semantic phase tracking
+    phase: CheckpointPhase = CheckpointPhase.TASK_COMPLETE
+    """Current semantic phase (enables phase-based resume)."""
+
+    phase_summary: str = ""
+    """Human-readable summary of what was accomplished at this phase."""
+
+    user_decisions: tuple[str, ...] = ()
+    """User decisions recorded during execution (e.g., 'Approved approach: minimal')."""
+
+    spawned_specialists: tuple[str, ...] = ()
+    """IDs of specialists spawned (for constellation tracking)."""
+
+    memory_snapshot_path: str | None = None
+    """Path to memory snapshot (for memory-informed resume)."""
 
     def save(self, path: Path) -> None:
         """Save checkpoint to disk."""
@@ -147,12 +207,25 @@ class AgentCheckpoint:
             "context": self.context,
             "execution_config": self.execution_config.to_dict(),
             "parallel_config": self.parallel_config.to_dict(),
+            # RFC-130: Semantic phase fields
+            "phase": self.phase.value,
+            "phase_summary": self.phase_summary,
+            "user_decisions": list(self.user_decisions),
+            "spawned_specialists": list(self.spawned_specialists),
+            "memory_snapshot_path": self.memory_snapshot_path,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> AgentCheckpoint:
         """Create from dict."""
         tasks = [Task.from_dict(t) for t in data.get("tasks", [])]
+
+        # RFC-130: Parse phase with backwards compatibility
+        phase_value = data.get("phase", "task_complete")
+        try:
+            phase = CheckpointPhase(phase_value)
+        except ValueError:
+            phase = CheckpointPhase.TASK_COMPLETE
 
         return cls(
             goal=data["goal"],
@@ -169,6 +242,12 @@ class AgentCheckpoint:
             parallel_config=ParallelConfig.from_dict(
                 data.get("parallel_config", {})
             ),
+            # RFC-130: Semantic phase fields
+            phase=phase,
+            phase_summary=data.get("phase_summary", ""),
+            user_decisions=tuple(data.get("user_decisions", [])),
+            spawned_specialists=tuple(data.get("spawned_specialists", [])),
+            memory_snapshot_path=data.get("memory_snapshot_path"),
         )
 
     def get_remaining_tasks(self) -> list[Task]:
@@ -199,7 +278,84 @@ class AgentCheckpoint:
             "started_at": self.started_at.isoformat(),
             "checkpoint_at": self.checkpoint_at.isoformat(),
             "duration_seconds": (self.checkpoint_at - self.started_at).total_seconds(),
+            # RFC-130: Include phase info
+            "phase": self.phase.value,
+            "phase_summary": self.phase_summary,
         }
+
+    def get_resume_phase(self) -> CheckpointPhase:
+        """Get the phase to resume from.
+
+        RFC-130: Returns the current phase for intelligent resume.
+        """
+        return self.phase
+
+    @classmethod
+    def find_latest_for_goal(
+        cls,
+        workspace: Path,
+        goal: str,
+    ) -> "AgentCheckpoint | None":
+        """Find the most recent checkpoint for a specific goal.
+
+        RFC-130: Enables goal-based resume for autonomous recovery.
+
+        Args:
+            workspace: Project workspace directory
+            goal: The goal to find checkpoints for
+
+        Returns:
+            The most recent checkpoint for this goal, or None if not found
+        """
+        checkpoint_dir = workspace / ".sunwell" / "checkpoints"
+        if not checkpoint_dir.exists():
+            return None
+
+        matching: list[AgentCheckpoint] = []
+        for path in checkpoint_dir.glob("*.json"):
+            try:
+                cp = cls.load(path)
+                # Match by exact goal or goal prefix (for slightly rephrased goals)
+                if cp.goal == goal or cp.goal.startswith(goal[:50]):
+                    matching.append(cp)
+            except Exception:
+                continue  # Skip corrupted checkpoints
+
+        if not matching:
+            return None
+
+        # Return most recent by checkpoint_at
+        return max(matching, key=lambda c: c.checkpoint_at)
+
+    @classmethod
+    def find_all_for_goal(
+        cls,
+        workspace: Path,
+        goal: str,
+    ) -> list["AgentCheckpoint"]:
+        """Find all checkpoints for a specific goal, sorted by time.
+
+        Args:
+            workspace: Project workspace directory
+            goal: The goal to find checkpoints for
+
+        Returns:
+            List of checkpoints, most recent first
+        """
+        checkpoint_dir = workspace / ".sunwell" / "checkpoints"
+        if not checkpoint_dir.exists():
+            return []
+
+        matching: list[AgentCheckpoint] = []
+        for path in checkpoint_dir.glob("*.json"):
+            try:
+                cp = cls.load(path)
+                if cp.goal == goal or cp.goal.startswith(goal[:50]):
+                    matching.append(cp)
+            except Exception:
+                continue
+
+        return sorted(matching, key=lambda c: c.checkpoint_at, reverse=True)
 
 
 def find_latest_checkpoint(

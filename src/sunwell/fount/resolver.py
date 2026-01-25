@@ -1,4 +1,9 @@
-"""Logic for resolving lens inheritance and composition graphs."""
+"""Logic for resolving lens inheritance and composition graphs.
+
+RFC-131: Added default composition support via `apply_defaults` parameter.
+Default lenses (from config.lens.default_compose) are prepended to the
+resolution chain, providing global base layers like M'uru identity.
+"""
 
 
 from dataclasses import dataclass, field
@@ -12,23 +17,53 @@ if TYPE_CHECKING:
 
 @dataclass
 class LensResolver:
-    """Resolves and merges nested lens dependencies."""
+    """Resolves and merges nested lens dependencies.
+
+    RFC-131: Supports Helm-style layering with default composition.
+    Resolution order:
+    1. defaults.yaml default_compose → Implicit base layers
+    2. lens.extends → Single inheritance
+    3. lens.compose[] → Mixin layers (ordered)
+    4. lens fields → Root overrides
+    """
 
     loader: LensLoader
     _resolution_stack: list[str] = field(default_factory=list)
 
-    async def resolve(self, ref: LensReference) -> Lens:
+    async def resolve(
+        self,
+        ref: LensReference,
+        *,
+        apply_defaults: bool = True,
+    ) -> Lens:
         """Resolve a lens and all its dependencies recursively.
 
         Args:
             ref: Reference to the root lens to resolve
+            apply_defaults: Whether to apply global default_compose lenses (RFC-131)
 
         Returns:
             A fully resolved and merged Lens object
         """
+        # Resolve the lens tree first (without defaults)
+        resolved = await self._resolve_internal(ref)
+
+        # RFC-131: Apply default composition if enabled
+        if apply_defaults:
+            resolved = await self._apply_default_composition(resolved)
+
+        return resolved
+
+    async def _resolve_internal(self, ref: LensReference) -> Lens:
+        """Internal resolution without default composition.
+
+        This is the original resolution logic, now separated so we can
+        apply defaults at the end of the full resolution chain.
+        """
         # 1. Prevent circular dependencies
         if ref.source in self._resolution_stack:
             from sunwell.core.types import LensResolutionError
+
             raise LensResolutionError.create(
                 lens_name=ref.source,
                 error_type="circular_dependency",
@@ -44,11 +79,11 @@ class LensResolver:
             # Fetch all dependent lenses
             extended_lens = None
             if lens.extends:
-                extended_lens = await self.resolve(lens.extends)
+                extended_lens = await self._resolve_internal(lens.extends)
 
             composed_lenses = []
             for comp_ref in lens.compose:
-                composed_lenses.append(await self.resolve(comp_ref))
+                composed_lenses.append(await self._resolve_internal(comp_ref))
 
             # 4. Merge all lenses
             # Order: Extended lens (base) -> Composed lenses (in order) -> Root lens (overrides)
@@ -64,6 +99,42 @@ class LensResolver:
 
         finally:
             self._resolution_stack.pop()
+
+    async def _apply_default_composition(self, lens: Lens) -> Lens:
+        """Apply default_compose lenses from config (RFC-131).
+
+        Default lenses are prepended so the root lens overrides them.
+        This enables Helm-style global values that can be overridden
+        by any lens.
+        """
+        from sunwell.config import get_config
+        from sunwell.core.types import LensReference
+
+        config = get_config()
+        default_compose = config.lens.default_compose
+
+        if not default_compose:
+            return lens
+
+        # Resolve default lenses (without applying defaults again to avoid recursion)
+        default_lenses = []
+        for source in default_compose:
+            # Skip if lens already has this default in its compose chain
+            # (prevents duplicates when lens explicitly composes a default)
+            try:
+                default_ref = LensReference(source=source)
+                default_lens = await self._resolve_internal(default_ref)
+                default_lenses.append(default_lens)
+            except Exception:
+                # Default lens not found - skip silently
+                # This allows graceful degradation if base lens is missing
+                pass
+
+        if not default_lenses:
+            return lens
+
+        # Merge: defaults first (so root lens overrides them)
+        return self._merge_lenses(lens, default_lenses)
 
     def _merge_lenses(self, root: Lens, bases: list[Lens]) -> Lens:
         """Merge root lens with its base/composed lenses.

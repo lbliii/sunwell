@@ -369,40 +369,69 @@ class TestInjection:
         system_prompt = build_system_prompt_with_identity(
             "You are a helpful assistant.",
             identity,
+            lens=self._make_lens_with_identity(),
         )
         
         assert "You are a helpful assistant." in system_prompt
         assert "User Interaction Style" in system_prompt
         assert "User prefers casual interaction." in system_prompt
-        # M'uru identity should also be present
+        # Lens identity should be present
         assert "M'uru" in system_prompt
         assert "Your Identity" in system_prompt
     
+    def _make_lens_with_identity(self):
+        """Create a lens with M'uru identity for testing."""
+        from sunwell.core.lens import Lens, LensMetadata
+        from sunwell.core.heuristic import CommunicationStyle, Identity as LensIdentity
+        
+        return Lens(
+            metadata=LensMetadata(name="test"),
+            communication=CommunicationStyle(
+                identity=LensIdentity(
+                    name="M'uru",
+                    nature="A test Naaru",
+                )
+            ),
+        )
+    
     def test_injection_without_identity(self):
+        """RFC-131: No lens = no agent identity (clean design)."""
         system_prompt = build_system_prompt_with_identity(
             "You are a helpful assistant.",
             None,
         )
         
-        # Should still have M'uru identity
+        # RFC-131: Without lens, no identity is injected
         assert "You are a helpful assistant." in system_prompt
-        assert "M'uru" in system_prompt
-        # But no user identity section
+        assert "Your Identity" not in system_prompt
         assert "User Interaction Style" not in system_prompt
     
-    def test_injection_without_muru_identity(self):
-        """Can disable M'uru identity injection."""
+    def test_injection_with_lens_identity(self):
+        """RFC-131: Lens with identity gets injected."""
         system_prompt = build_system_prompt_with_identity(
             "You are a helpful assistant.",
             None,
-            include_muru_identity=False,
+            lens=self._make_lens_with_identity(),
+        )
+        
+        assert "You are a helpful assistant." in system_prompt
+        assert "M'uru" in system_prompt
+        assert "Your Identity" in system_prompt
+    
+    def test_injection_disabled(self):
+        """Can disable agent identity injection entirely."""
+        system_prompt = build_system_prompt_with_identity(
+            "You are a helpful assistant.",
+            None,
+            lens=self._make_lens_with_identity(),
+            include_agent_identity=False,
         )
         
         assert system_prompt == "You are a helpful assistant."
         assert "M'uru" not in system_prompt
     
     def test_injection_low_confidence(self):
-        """Low confidence identity should not be injected."""
+        """Low confidence user identity should not be injected."""
         identity = Identity(
             prompt="User prefers something.",
             confidence=0.5,  # Below threshold
@@ -411,10 +440,11 @@ class TestInjection:
         system_prompt = build_system_prompt_with_identity(
             "You are a helpful assistant.",
             identity,
+            lens=self._make_lens_with_identity(),
         )
         
         assert "User Interaction Style" not in system_prompt
-        # M'uru identity should still be present
+        # Lens identity should still be present
         assert "M'uru" in system_prompt
     
     def test_injection_truncation(self):

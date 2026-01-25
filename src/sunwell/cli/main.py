@@ -1,10 +1,11 @@
-"""Main CLI entry point - Goal-first interface (RFC-037, RFC-109).
+"""Main CLI entry point - Goal-first interface (RFC-037, RFC-109, RFC-131).
 
 The primary interface is now simply:
     sunwell "Build a REST API with auth"
     sunwell -s a-2 docs/api.md
 
 RFC-109: CLI simplified to 5 primary commands.
+RFC-131: Holy Light CLI aesthetic with branded styling.
 All other commands are progressive disclosure or hidden for Studio.
 """
 
@@ -14,16 +15,17 @@ import sys
 from pathlib import Path
 
 import click
-from rich.console import Console
 
 from sunwell.cli.helpers import check_free_threading, load_dotenv
 from sunwell.cli.shortcuts import complete_shortcut, complete_target
+from sunwell.cli.theme import create_sunwell_console
 
-console = Console()
+# RFC-131: Holy Light themed console
+console = create_sunwell_console()
 
 
 def cli_entrypoint() -> None:
-    """Wrapped entrypoint with global error handling.
+    """Wrapped entrypoint with global error handling (RFC-131).
 
     This catches SunwellError and displays it nicely instead of ugly tracebacks.
     Called from pyproject.toml [project.scripts].
@@ -35,8 +37,8 @@ def cli_entrypoint() -> None:
         e.show()
         sys.exit(e.exit_code)
     except click.Abort:
-        # User cancelled (Ctrl+C)
-        console.print("\n[dim]Aborted.[/dim]")
+        # RFC-131: Holy Light styled interrupt message
+        console.print("\n  [neutral.dim]◈ Paused[/]")
         sys.exit(130)
     except Exception as e:
         # Handle SunwellError with nice formatting
@@ -193,7 +195,7 @@ def _show_all_commands(ctx: click.Context) -> None:
               help="Maximum convergence iterations")
 @click.option("--all-commands", is_flag=True, hidden=True,
               help="Show all commands including hidden")
-@click.version_option(version="0.2.0")
+@click.version_option(version="0.3.0")  # RFC-131: Version bump
 @click.pass_context
 def main(
     ctx,
@@ -215,22 +217,20 @@ def main(
     converge_max: int,
     all_commands: bool,
 ) -> None:
-    """Sunwell — AI agent for software tasks.
+    """✦ Sunwell — AI agent for software tasks.
 
     \b
     USAGE:
-        sunwell [OPTIONS] [GOAL]
-        sunwell -s <SHORTCUT> [TARGET]
-        sunwell <COMMAND>
+        sunwell [GOAL]           Run a goal
+        sunwell -s [SHORTCUT]    Quick skills
+        sunwell [COMMAND]        Subcommands
 
     \b
     EXAMPLES:
         sunwell "Build a REST API with auth"
         sunwell -s a-2 docs/api.md
-        sunwell -s a-2 docs/api.md "focus on the migration section"
         sunwell -s p docs/cli.md
         sunwell config model
-        sunwell project ~/myapp
 
     \b
     SHORTCUTS (use with -s):
@@ -246,9 +246,7 @@ def main(
         sunwell chat
 
     \b
-    For all commands (including hidden):
-
-        sunwell --all-commands
+    The light illuminates the path. ✧
     """
     load_dotenv()
     check_free_threading(quiet=quiet)
@@ -370,7 +368,7 @@ async def _run_agent(
     *,
     json_output: bool = False,
 ) -> None:
-    """Execute goal with Agent (RFC-MEMORY).
+    """Execute goal with Agent (RFC-MEMORY, RFC-131).
 
     This is THE unified entry point using:
     - SessionContext: All session state in one object
@@ -393,6 +391,7 @@ async def _run_agent(
         create_renderer,
     )
     from sunwell.cli.helpers import resolve_model
+    from sunwell.cli.theme import print_banner
     from sunwell.cli.workspace_prompt import resolve_workspace_interactive
     from sunwell.config import get_config
     from sunwell.context.session import SessionContext
@@ -400,8 +399,12 @@ async def _run_agent(
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust
 
-    # Load config
-    config = get_config()
+    # RFC-131: Show Holy Light banner (except in JSON mode)
+    if not json_output:
+        print_banner(console, version="0.3.0", small=True)
+
+    # Load config (currently unused but needed for future config access)
+    _ = get_config()
 
     # Resolve workspace
     project_name = _extract_project_name(goal)
@@ -416,13 +419,17 @@ async def _run_agent(
     try:
         synthesis_model = resolve_model(provider_override, model_override)
     except Exception as e:
-        console.print(f"[red]Failed to load model: {e}[/red]")
+        # RFC-131: Holy Light error styling
+        console.print(f"  [void.purple]✗[/] [sunwell.error]Failed to load model:[/] {e}")
         return
 
     # Create tool executor
-    trust_level = {"read_only": ToolTrust.READ_ONLY, "workspace": ToolTrust.WORKSPACE, "shell": ToolTrust.SHELL}.get(
-        trust, ToolTrust.WORKSPACE
-    )
+    trust_map = {
+        "read_only": ToolTrust.READ_ONLY,
+        "workspace": ToolTrust.WORKSPACE,
+        "shell": ToolTrust.SHELL,
+    }
+    trust_level = trust_map.get(trust, ToolTrust.WORKSPACE)
     policy = ToolPolicy(trust_level=trust_level)
     tool_executor = ToolExecutor(workspace=workspace, policy=policy)
 
@@ -442,15 +449,22 @@ async def _run_agent(
     session = SessionContext.build(workspace, goal, options)
     memory = PersistentMemory.load(workspace)
 
+    # RFC-131: Holy Light styled verbose output
     if verbose:
-        console.print(f"[dim]Session: {session.session_id}[/dim]")
-        console.print(f"[dim]Project: {session.project_type} ({session.framework or 'no framework'})[/dim]")
-        console.print(f"[dim]Memory: {memory.learning_count} learnings, {memory.decision_count} decisions, {memory.failure_count} failures[/dim]")
+        console.print(f"  [neutral.dim]· Session: {session.session_id}[/]")
+        fw = session.framework or "no framework"
+        console.print(f"  [neutral.dim]· Project: {session.project_type} ({fw})[/]")
+        learn = memory.learning_count
+        dec = memory.decision_count
+        fail = memory.failure_count
+        console.print(f"  [neutral.dim]· Memory: {learn}L / {dec}D / {fail}F[/]")
+        console.print()
 
     # Dry run: just plan
     if dry_run:
         if not json_output:
-            console.print("[yellow]Dry run mode - planning only[/yellow]\n")
+            # RFC-131: Holy Light styled dry run message
+            console.print("  [void.indigo]◇[/] [sunwell.warning]Dry run mode — planning only[/]\n")
 
         plan_data = None
         async for event in agent.plan(session, memory):
@@ -479,20 +493,22 @@ async def _run_agent(
         if json_output:
             print('{"type": "error", "data": {"message": "Interrupted by user"}}')
         else:
-            console.print("\n[yellow]Interrupted by user[/yellow]")
+            # RFC-131: Holy Light styled interrupt
+            console.print("\n  [neutral.dim]◈ Paused by user[/]")
     except Exception as e:
         if json_output:
             import json as json_module
             print(json_module.dumps({"type": "error", "data": {"message": str(e)}}))
         else:
-            console.print(f"\n[red]Error: {e}[/red]")
+            # RFC-131: Holy Light error styling
+            console.print(f"\n  [void.purple]✗[/] [sunwell.error]Error:[/] {e}")
             if verbose:
                 import traceback
-                console.print(traceback.format_exc())
+                console.print(f"[neutral.dim]{traceback.format_exc()}[/]")
 
 
 def _print_event(event, verbose: bool) -> None:
-    """Print an agent event to console."""
+    """Print an agent event to console with Holy Light styling (RFC-131)."""
     from sunwell.agent import EventType
 
     if event.type == EventType.PLAN_WINNER:
@@ -500,76 +516,79 @@ def _print_event(event, verbose: bool) -> None:
         tasks = data.get("tasks", 0)
         gates = data.get("gates", 0)
         technique = data.get("technique", "unknown")
-        console.print(f"\n[bold]Plan ready[/bold] ({technique})")
-        console.print(f"  • {tasks} tasks, {gates} validation gates")
+        console.print(f"\n[holy.success]★[/] [sunwell.heading]Plan ready[/] ({technique})")
+        console.print(f"  [holy.gold]├─[/] {tasks} tasks")
+        console.print(f"  [holy.gold]└─[/] {gates} validation gates")
     elif event.type == EventType.ERROR:
-        console.print(f"[red]Error: {event.data}[/red]")
+        console.print(f"  [void.purple]✗[/] [sunwell.error]Error:[/] {event.data}")
     elif verbose:
-        console.print(f"[dim]{event.type.value}: {event.data}[/dim]")
+        console.print(f"  [neutral.dim]· {event.type.value}: {event.data}[/]")
 
 
 def _print_plan_details(data: dict, verbose: bool, goal: str) -> None:
-    """Print rich plan details with truncation (RFC-090)."""
+    """Print rich plan details with truncation (RFC-090, RFC-131)."""
     technique = data.get("technique", "unknown")
     tasks = data.get("tasks", 0)
     gates = data.get("gates", 0)
     task_list = data.get("task_list", [])
     gate_list = data.get("gate_list", [])
 
-    # Header
-    console.print(f"[bold]Plan ready[/bold] ({technique})")
-    console.print(f"  • {tasks} tasks, {gates} validation gates\n")
+    # RFC-131: Holy Light styled header
+    console.print(f"[holy.success]★[/] [sunwell.heading]Plan ready[/] ({technique})")
+    console.print(f"  [holy.gold]├─[/] {tasks} tasks")
+    console.print(f"  [holy.gold]└─[/] {gates} validation gates\n")
 
     # Task list with truncation
     if task_list:
-        console.print("[bold]📋 Tasks[/bold]")
+        console.print("[sunwell.heading]✦ Tasks[/]")
         display_limit = len(task_list) if verbose else 10
         for i, task in enumerate(task_list[:display_limit], 1):
             deps = ""
             if task.get("depends_on"):
                 if verbose:
                     # Show IDs with --verbose
-                    deps = f" (←{','.join(task['depends_on'][:3])})"
+                    deps = f" [neutral.dim](←{','.join(task['depends_on'][:3])})[/]"
                 else:
                     # Show numbers by default
                     dep_nums = [
                         str(j + 1) for j, t in enumerate(task_list)
                         if t["id"] in task["depends_on"]
                     ]
-                    deps = f" (←{','.join(dep_nums)})" if dep_nums else ""
+                    deps = f" [neutral.dim](←{','.join(dep_nums)})[/]" if dep_nums else ""
 
             produces = ""
             if task.get("produces"):
-                produces = f" → {task['produces'][0]}"
+                produces = f" [green]→[/] {task['produces'][0]}"
 
             # Format: index. [id] description deps produces
             task_id = task["id"][:12].ljust(12)
             desc = task["description"][:35].ljust(35)
-            console.print(f"  {i:2}. [{task_id}] {desc}{deps}{produces}")
+            console.print(f"  {i:2}. [holy.gold.dim][{task_id}][/] {desc}{deps}{produces}")
 
         # Truncation notice
         if not verbose and len(task_list) > 10:
             remaining = len(task_list) - 10
-            console.print(f"  [dim]... and {remaining} more tasks (use --verbose to see all)[/dim]")
+            console.print(f"  [neutral.dim]... and {remaining} more (use --verbose)[/]")
         console.print()
 
     # Gate list
     if gate_list:
-        console.print("[bold]🔒 Validation Gates[/bold]")
+        console.print("[sunwell.heading]✦ Validation Gates[/]")
         for gate in gate_list:
             after = ", ".join(gate.get("after_tasks", [])[:3])
-            gate_type = gate.get("type", "unknown").ljust(12)
-            console.print(f"  • [{gate['id']}] {gate_type} after: {after}")
+            gtype = gate.get("type", "unknown").ljust(12)
+            gid = gate["id"]
+            console.print(f"  [holy.gold]├─[/] [{gid}] {gtype} [neutral.dim]after: {after}[/]")
         console.print()
 
-    # Next steps
-    console.print("━" * 50)
-    console.print("[bold]💡 Next steps:[/bold]")
+    # Next steps with Holy Light styling
+    console.print(f"[holy.gold]{'━' * 54}[/]")
+    console.print("[sunwell.heading]✧ Next steps:[/]")
     # Escape the goal for display (avoid rich markup issues)
     safe_goal = goal.replace("[", "\\[").replace("]", "\\]")
-    console.print(f'  • sunwell "{safe_goal}" [dim]Run now[/dim]')
-    console.print(f'  • sunwell "{safe_goal}" --plan --open [dim]Open in Studio[/dim]')
-    console.print('  • sunwell plan "..." -o . [dim]Save plan[/dim]')
+    console.print(f'  [holy.gold]›[/] sunwell "{safe_goal}" [neutral.dim]— Run[/]')
+    console.print(f'  [holy.gold]›[/] sunwell "{safe_goal}" --plan --open [neutral.dim]— Studio[/]')
+    console.print('  [holy.gold]›[/] sunwell plan "..." -o . [neutral.dim]— Save[/]')
 
 
 def _open_plan_in_studio(plan_data: dict, goal: str, workspace: Path) -> None:
@@ -1029,3 +1048,8 @@ from sunwell.cli import epic_cmd
 
 main.add_command(epic_cmd.epic)
 
+# RFC-130: Agent Constellation (autonomous and guard commands)
+from sunwell.cli import autonomous_cmd, guard_cmd
+
+main.add_command(autonomous_cmd.autonomous)
+main.add_command(guard_cmd.guard)

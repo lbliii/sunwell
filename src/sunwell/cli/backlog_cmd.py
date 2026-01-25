@@ -19,15 +19,15 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import click
-from rich.console import Console
 from rich.table import Table
 
 from sunwell.backlog.manager import BacklogManager
+from sunwell.cli.theme import create_sunwell_console
 
 if TYPE_CHECKING:
     pass
 
-console = Console()
+console = create_sunwell_console()
 
 
 @click.group()
@@ -91,24 +91,29 @@ async def _show_backlog(json_output: bool, mermaid: bool) -> None:
         console.print(backlog.to_mermaid())
         return
 
-    # Human-readable table
-    table = Table(title="📋 Project Backlog")
-    table.add_column("ID", style="cyan")
-    table.add_column("Title", style="white")
+    # Human-readable table (RFC-131: Holy Light styling)
+    table = Table(title="≡ Project Backlog")
+    table.add_column("ID", style="holy.radiant")
+    table.add_column("Title")
     table.add_column("Priority", justify="right")
-    table.add_column("Category", style="yellow")
-    table.add_column("Complexity", style="green")
-    table.add_column("Status", style="magenta")
+    table.add_column("Category", style="holy.gold")
+    table.add_column("Complexity", style="holy.success")
+    table.add_column("Status")
 
     execution_order = backlog.execution_order()
     if not execution_order:
-        console.print("📋 No goals in backlog")
+        console.print("[neutral.dim]≡ No goals in backlog[/neutral.dim]")
         return
 
     for goal in execution_order[:20]:  # Show top 20
-        status = "✓" if goal.id in backlog.completed else "⏳" if goal.id == backlog.in_progress else "□"
-        if goal.id in backlog.blocked:
-            status = "🚫"
+        if goal.id in backlog.completed:
+            status = "[holy.success]★[/]"
+        elif goal.id == backlog.in_progress:
+            status = "[holy.radiant]◎[/]"
+        elif goal.id in backlog.blocked:
+            status = "[void.purple]✗[/]"
+        else:
+            status = "[neutral.dim]◇[/]"
 
         table.add_row(
             goal.id[:8],
@@ -254,7 +259,7 @@ async def _run_backlog_goal(
                 "timestamp": __import__("time").time(),
             }))
         else:
-            console.print(f"[yellow]⚠️  Goal already completed: {goal_id}[/yellow]")
+            console.print(f"[holy.gold]△ Goal already completed: {goal_id}[/holy.gold]")
         return
 
     # Check if blocked
@@ -268,7 +273,7 @@ async def _run_backlog_goal(
                 "timestamp": __import__("time").time(),
             }))
         else:
-            console.print(f"[yellow]🚫 Goal is blocked: {reason}[/yellow]")
+            console.print(f"[void.purple]✗ Goal is blocked: {reason}[/void.purple]")
         return
 
     # Check dependencies
@@ -282,11 +287,11 @@ async def _run_backlog_goal(
                     "timestamp": __import__("time").time(),
                 }))
             else:
-                console.print(f"[yellow]⏳ Dependency not met: {dep_id}[/yellow]")
+                console.print(f"[holy.gold]◇ Dependency not met: {dep_id}[/holy.gold]")
             return
 
     if not json_output:
-        console.print(f"\n🎯 [bold]Running goal:[/bold] {goal.title}")
+        console.print(f"\n[sunwell.heading]◆ Running goal:[/] {goal.title}")
         console.print(f"   ID: {goal_id}")
         console.print(f"   Category: {goal.category}")
         console.print(f"   Complexity: {goal.estimated_complexity}")

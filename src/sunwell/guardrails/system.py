@@ -21,8 +21,10 @@ from sunwell.guardrails.types import (
     EscalationReason,
     EscalationResolution,
     FileChange,
+    GuardViolation,
     ScopeCheckResult,
     SessionStart,
+    ViolationOutcome,
 )
 from sunwell.guardrails.verification import VerificationGate, create_verification_gate
 
@@ -337,6 +339,150 @@ class GuardrailSystem:
             List of classifications
         """
         return self.classifier.classify_all(actions)
+
+    # =========================================================================
+    # RFC-130: Autonomous Action Checking
+    # =========================================================================
+
+    async def check_autonomous_action(
+        self,
+        action: Action,
+        emit_event: callable | None = None,
+    ) -> tuple[bool, str | None]:
+        """Check if an action is allowed in autonomous mode.
+
+        RFC-130: Pre-action check for autonomous operation.
+        Uses SmartActionClassifier with LLM fallback for edge cases.
+
+        Args:
+            action: The action to check
+            emit_event: Optional callback to emit events
+
+        Returns:
+            Tuple of (allowed, blocking_reason)
+        """
+        from sunwell.guardrails.classifier import SmartActionClassifier
+
+        # Use smart classifier if model available
+        if self.model is not None and isinstance(self.classifier, SmartActionClassifier):
+            classification = await self.classifier.classify_smart(action)
+        else:
+            classification = self.classifier.classify(action)
+
+        # Check if action is allowed
+        if classification.risk == ActionRisk.FORBIDDEN:
+            if emit_event:
+                from sunwell.agent.events import autonomous_action_blocked_event
+                event = autonomous_action_blocked_event(
+                    action_type=action.action_type,
+                    path=action.path,
+                    reason="Action is forbidden",
+                    blocking_rule=classification.blocking_rule or "forbidden",
+                    risk_level="forbidden",
+                )
+                emit_event(event)
+            return False, f"Forbidden: {classification.reason}"
+
+        if classification.risk == ActionRisk.DANGEROUS:
+            # Check if trust level allows dangerous actions
+            if self.config.trust_level.value in ("conservative", "guarded"):
+                if emit_event:
+                    from sunwell.agent.events import autonomous_action_blocked_event
+                    event = autonomous_action_blocked_event(
+                        action_type=action.action_type,
+                        path=action.path,
+                        reason="Dangerous action requires approval",
+                        blocking_rule=classification.blocking_rule or "dangerous",
+                        risk_level="dangerous",
+                    )
+                    emit_event(event)
+                return False, f"Dangerous (requires approval): {classification.reason}"
+
+        # Check scope limits
+        if action.path:
+            from pathlib import Path as PathLib
+            changes = [FileChange(
+                path=PathLib(action.path),
+                lines_added=len(action.content.splitlines()) if action.content else 10,
+                lines_removed=0,
+            )]
+            scope_check = self.scope_tracker.check_goal(changes, "autonomous")
+            if not scope_check.passed:
+                if emit_event:
+                    from sunwell.agent.events import autonomous_action_blocked_event
+                    event = autonomous_action_blocked_event(
+                        action_type=action.action_type,
+                        path=action.path,
+                        reason=scope_check.reason,
+                        blocking_rule=f"scope:{scope_check.limit_type}",
+                        risk_level="moderate",
+                    )
+                    emit_event(event)
+                return False, f"Scope exceeded: {scope_check.reason}"
+
+        return True, None
+
+    def record_autonomous_violation(
+        self,
+        action: Action,
+        classification: ActionClassification,
+        user_approved: bool,
+        is_false_positive: bool = False,
+        comment: str | None = None,
+    ) -> None:
+        """Record a violation from autonomous mode.
+
+        RFC-130: Records violations for adaptive learning.
+
+        Args:
+            action: The blocked action
+            classification: The classification that blocked it
+            user_approved: Whether user approved after escalation
+            is_false_positive: Whether user marked as false positive
+            comment: Optional user comment
+        """
+        from sunwell.guardrails.classifier import SmartActionClassifier
+
+        if not isinstance(self.classifier, SmartActionClassifier):
+            return
+
+        self.classifier.record_user_feedback(
+            action=action,
+            classification=classification,
+            approved=user_approved,
+            is_false_positive=is_false_positive,
+            comment=comment,
+        )
+
+    async def get_guard_evolutions(self) -> list:
+        """Get suggested guard evolutions.
+
+        RFC-130: Returns evolution suggestions based on violation patterns.
+
+        Returns:
+            List of GuardEvolution suggestions
+        """
+        from sunwell.guardrails.classifier import SmartActionClassifier
+
+        if not isinstance(self.classifier, SmartActionClassifier):
+            return []
+
+        return await self.classifier.suggest_evolutions()
+
+    def get_guard_stats(self) -> dict:
+        """Get guardrail statistics including violations.
+
+        Returns:
+            Dict with stats including session stats and violation info
+        """
+        from sunwell.guardrails.classifier import SmartActionClassifier
+
+        stats = self.get_session_stats()
+
+        if isinstance(self.classifier, SmartActionClassifier):
+            stats["violations"] = self.classifier.get_violation_stats()
+
+        return stats
 
     async def can_auto_approve_external(
         self,

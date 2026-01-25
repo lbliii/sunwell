@@ -14,12 +14,13 @@ import asyncio
 from pathlib import Path
 
 import click
-from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.table import Table
 
-console = Console()
+from sunwell.cli.theme import create_sunwell_console
+
+console = create_sunwell_console()
 
 
 @click.group(invoke_without_command=True)
@@ -107,18 +108,18 @@ async def _list_recoveries(recovery_dir: Path, verbose: bool) -> None:
     pending = manager.list_pending()
 
     if not pending:
-        console.print("[dim]No pending recoveries.[/dim]")
+        console.print("[neutral.dim]No pending recoveries.[/neutral.dim]")
         console.print(
-            "\n[dim]Recoveries are created when agent runs fail with partial progress.[/dim]"
+            "\n[neutral.dim]Recoveries are created when agent runs fail.[/neutral.dim]"
         )
         return
 
-    table = Table(title="🔄 Pending Recoveries", show_header=True)
-    table.add_column("ID", style="cyan")
+    table = Table(title="↻ Pending Recoveries", show_header=True)
+    table.add_column("ID", style="holy.radiant")
     table.add_column("Goal", max_width=50)
-    table.add_column("✅", style="green", justify="right")
-    table.add_column("⚠️", style="yellow", justify="right")
-    table.add_column("⏸️", style="dim", justify="right")
+    table.add_column("★", style="holy.success", justify="right")  # passed
+    table.add_column("△", style="holy.gold", justify="right")      # failed
+    table.add_column("◇", style="neutral.dim", justify="right")    # waiting
     table.add_column("Age")
 
     for summary in pending:
@@ -132,8 +133,8 @@ async def _list_recoveries(recovery_dir: Path, verbose: bool) -> None:
         )
 
     console.print(table)
-    console.print(f"\n[dim]Total: {len(pending)} pending recoveries[/dim]")
-    console.print("\n[bold]Commands:[/bold]")
+    console.print(f"\n[neutral.dim]Total: {len(pending)} pending recoveries[/neutral.dim]")
+    console.print("\n[sunwell.heading]Commands:[/sunwell.heading]")
     console.print("  sunwell review <id>           # Review specific recovery")
     console.print("  sunwell review <id> --auto-fix  # Retry with agent")
     console.print("  sunwell review <id> --skip      # Write passed files only")
@@ -152,13 +153,13 @@ async def _interactive_review(
     pending = manager.list_pending()
 
     if not pending:
-        console.print("[dim]No pending recoveries to review.[/dim]")
+        console.print("[neutral.dim]No pending recoveries to review.[/neutral.dim]")
         return
 
     # Show first recovery
     summary = pending[0]
-    console.print(f"\n[bold]Recovery: {summary.goal_hash[:8]}[/bold] ({summary.age_str})")
-    console.print(f"[dim]{summary.goal_preview}[/dim]\n")
+    console.print(f"\n[sunwell.heading]Recovery: {summary.goal_hash[:8]}[/] ({summary.age_str})")
+    console.print(f"[neutral.dim]{summary.goal_preview}[/neutral.dim]\n")
 
     await _review_recovery(recovery_dir, summary.goal_hash, provider, model, verbose)
 
@@ -184,23 +185,23 @@ async def _review_recovery(
         if len(matches) == 1:
             state = manager.load(matches[0].goal_hash)
         elif len(matches) > 1:
-            console.print(f"[yellow]Multiple matches for '{recovery_id}':[/yellow]")
+            console.print(f"[holy.gold]△ Multiple matches for '{recovery_id}':[/holy.gold]")
             for m in matches:
                 console.print(f"  {m.goal_hash[:8]} - {m.goal_preview[:40]}")
             return
         else:
-            console.print(f"[red]Recovery not found: {recovery_id}[/red]")
+            console.print(f"[void.purple]✗ Recovery not found: {recovery_id}[/void.purple]")
             return
 
     if not state:
-        console.print(f"[red]Recovery not found: {recovery_id}[/red]")
+        console.print(f"[void.purple]✗ Recovery not found: {recovery_id}[/void.purple]")
         return
 
     # Display recovery state
     _display_recovery_state(state)
 
     # Interactive menu
-    console.print("\n[bold]Actions:[/bold]")
+    console.print("\n[sunwell.heading]Actions:[/sunwell.heading]")
     console.print("  [a] Auto-fix with agent")
     console.print("  [e] Edit failed file in $EDITOR")
     console.print("  [h] Give agent a hint")
@@ -231,46 +232,46 @@ async def _review_recovery(
 
 
 def _display_recovery_state(state) -> None:
-    """Display recovery state in a nice format."""
+    """Display recovery state in a nice format (RFC-131: Holy Light)."""
     # Header
     console.print(Panel(
-        f"[bold]{state.goal}[/bold]\n\n"
+        f"[sunwell.heading]{state.goal}[/sunwell.heading]\n\n"
         f"Run ID: {state.run_id}\n"
         f"Reason: {state.failure_reason}",
-        title="🔄 Recovery State",
-        border_style="yellow",
+        title="↻ Recovery State",
+        border_style="holy.gold",
     ))
 
     # Artifact status table
-    table = Table(show_header=True, header_style="bold")
+    table = Table(show_header=True, header_style="sunwell.heading")
     table.add_column("Status")
     table.add_column("File")
     table.add_column("Details", max_width=50)
 
     for artifact in state.passed_artifacts:
         table.add_row(
-            "[green]✅ passed[/green]",
+            "[holy.success]★ passed[/holy.success]",
             str(artifact.path),
-            "[dim]All gates passed[/dim]",
+            "[neutral.dim]All gates passed[/neutral.dim]",
         )
 
     for artifact in state.failed_artifacts:
-        error_preview = artifact.errors[0][:50] if artifact.errors else "Unknown error"
+        err = artifact.errors[0][:50] if artifact.errors else "Unknown error"
         table.add_row(
-            "[yellow]⚠️ failed[/yellow]",
+            "[holy.gold]△ failed[/holy.gold]",
             str(artifact.path),
-            f"[red]{error_preview}...[/red]" if len(artifact.errors) > 0 else "",
+            f"[void.purple]{err}...[/void.purple]" if len(artifact.errors) > 0 else "",
         )
 
     for artifact in state.waiting_artifacts:
         table.add_row(
-            "[dim]⏸️ waiting[/dim]",
+            "[neutral.dim]◇ waiting[/neutral.dim]",
             str(artifact.path),
-            "[dim]Blocked on failed dependency[/dim]",
+            "[neutral.dim]Blocked on failed dependency[/neutral.dim]",
         )
 
     console.print(table)
-    console.print(f"\n[dim]Summary: {state.summary}[/dim]")
+    console.print(f"\n[neutral.dim]Summary: {state.summary}[/neutral.dim]")
 
 
 async def _auto_fix_recovery(
@@ -352,10 +353,10 @@ async def _auto_fix_recovery(
         await renderer.render(agent.run(session, memory))
         # If successful, mark resolved
         manager.mark_resolved(recovery_id)
-        console.print("\n[green]✅ Recovery completed! Artifacts fixed.[/green]")
+        console.print("\n[holy.success]★ Recovery completed! Artifacts fixed.[/holy.success]")
     except Exception as e:
-        console.print(f"\n[yellow]Fix attempt failed: {e}[/yellow]")
-        console.print("[dim]Recovery state preserved for another attempt.[/dim]")
+        console.print(f"\n[holy.gold]△ Fix attempt failed: {e}[/holy.gold]")
+        console.print("[neutral.dim]Recovery state preserved for another attempt.[/neutral.dim]")
 
 
 async def _skip_recovery(recovery_dir: Path, recovery_id: str, verbose: bool) -> None:
@@ -366,15 +367,15 @@ async def _skip_recovery(recovery_dir: Path, recovery_id: str, verbose: bool) ->
     state = manager.load(recovery_id)
 
     if not state:
-        console.print(f"[red]Recovery not found: {recovery_id}[/red]")
+        console.print(f"[void.purple]✗ Recovery not found: {recovery_id}[/void.purple]")
         return
 
     passed = state.passed_artifacts
     if not passed:
-        console.print("[yellow]No passed artifacts to write.[/yellow]")
+        console.print("[holy.gold]◇ No passed artifacts to write.[/holy.gold]")
         return
 
-    console.print(f"[cyan]Writing {len(passed)} passed artifacts...[/cyan]")
+    console.print(f"[holy.radiant]Writing {len(passed)} passed artifacts...[/holy.radiant]")
 
     written = 0
     for artifact in passed:
@@ -383,15 +384,15 @@ async def _skip_recovery(recovery_dir: Path, recovery_id: str, verbose: bool) ->
             artifact.path.write_text(artifact.content)
             written += 1
             if verbose:
-                console.print(f"  ✅ {artifact.path}")
+                console.print(f"  [holy.success]★[/] {artifact.path}")
         except Exception as e:
-            console.print(f"  [red]❌ {artifact.path}: {e}[/red]")
+            console.print(f"  [void.purple]✗ {artifact.path}: {e}[/void.purple]")
 
-    console.print(f"\n[green]Written {written}/{len(passed)} files.[/green]")
+    console.print(f"\n[holy.success]Written {written}/{len(passed)} files.[/holy.success]")
 
     # Mark resolved
     manager.mark_resolved(recovery_id)
-    console.print("[dim]Recovery marked as resolved (skipped failed artifacts).[/dim]")
+    console.print("[neutral.dim]Recovery marked as resolved.[/neutral.dim]")
 
 
 async def _abort_recovery(recovery_dir: Path, recovery_id: str) -> None:
@@ -408,11 +409,11 @@ async def _abort_recovery(recovery_dir: Path, recovery_id: str) -> None:
     )
 
     if confirm != "y":
-        console.print("[dim]Aborted.[/dim]")
+        console.print("[neutral.dim]Aborted.[/neutral.dim]")
         return
 
     manager.delete(recovery_id)
-    console.print(f"[green]Recovery {recovery_id[:8]} deleted.[/green]")
+    console.print(f"[holy.success]✓ Recovery {recovery_id[:8]} deleted.[/holy.success]")
 
 
 async def _show_errors(recovery_dir: Path, recovery_id: str) -> None:
@@ -423,17 +424,18 @@ async def _show_errors(recovery_dir: Path, recovery_id: str) -> None:
     state = manager.load(recovery_id)
 
     if not state:
-        console.print(f"[red]Recovery not found: {recovery_id}[/red]")
+        console.print(f"[void.purple]✗ Recovery not found: {recovery_id}[/void.purple]")
         return
 
     console.print(Panel(
-        "\n".join(state.error_details[:30]) or "[dim]No error details[/dim]",
+        "\n".join(state.error_details[:30]) or "[neutral.dim]No error details[/neutral.dim]",
         title="Error Details",
-        border_style="red",
+        border_style="void.purple",
     ))
 
     if len(state.error_details) > 30:
-        console.print(f"[dim]... and {len(state.error_details) - 30} more errors[/dim]")
+        remain = len(state.error_details) - 30
+        console.print(f"[neutral.dim]... and {remain} more errors[/neutral.dim]")
 
 
 async def _show_context(recovery_dir: Path, recovery_id: str) -> None:
@@ -444,11 +446,11 @@ async def _show_context(recovery_dir: Path, recovery_id: str) -> None:
     state = manager.load(recovery_id)
 
     if not state:
-        console.print(f"[red]Recovery not found: {recovery_id}[/red]")
+        console.print(f"[void.purple]✗ Recovery not found: {recovery_id}[/void.purple]")
         return
 
     context = build_healing_context(state)
-    console.print(Panel(context, title="Healing Context", border_style="cyan"))
+    console.print(Panel(context, title="Healing Context", border_style="holy.radiant"))
 
 
 async def _edit_failed_file(state) -> None:
@@ -458,7 +460,7 @@ async def _edit_failed_file(state) -> None:
 
     failed = state.failed_artifacts
     if not failed:
-        console.print("[dim]No failed artifacts to edit.[/dim]")
+        console.print("[neutral.dim]No failed artifacts to edit.[/neutral.dim]")
         return
 
     # Pick first failed file
@@ -471,11 +473,11 @@ async def _edit_failed_file(state) -> None:
     # Get editor
     editor = os.environ.get("EDITOR", "vim")
 
-    console.print(f"[cyan]Opening {artifact.path} in {editor}...[/cyan]")
+    console.print(f"[holy.radiant]Opening {artifact.path} in {editor}...[/holy.radiant]")
 
     try:
         subprocess.run([editor, str(artifact.path)])
-        console.print("[green]File edited. Re-run validation with:[/green]")
+        console.print("[holy.success]★ File edited. Re-run validation:[/holy.success]")
         console.print(f"  sunwell review {state.goal_hash[:8]} --auto-fix")
     except Exception as e:
-        console.print(f"[red]Could not open editor: {e}[/red]")
+        console.print(f"[void.purple]✗ Could not open editor: {e}[/void.purple]")

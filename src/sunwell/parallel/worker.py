@@ -237,6 +237,9 @@ class WorkerProcess:
         """
         # Import here to avoid circular imports and allow worker to run in subprocess
         from sunwell.agent import Agent
+        from sunwell.agent.request import RunOptions
+        from sunwell.context.session import SessionContext
+        from sunwell.memory.persistent import PersistentMemory
         from sunwell.models.ollama import OllamaModel
 
         # Create model (each worker gets its own model instance)
@@ -252,8 +255,13 @@ class WorkerProcess:
             cwd=self.root,
         )
 
+        # RFC-MEMORY: Build SessionContext and load PersistentMemory
+        options = RunOptions(trust="workspace")
+        session = SessionContext.build(self.root, goal.description, options)
+        memory = PersistentMemory.load(self.root)
+
         # Run the agent
-        async for event in agent.run(goal.description):
+        async for event in agent.run(session, memory):
             # Handle events (logging, status updates)
             await self._handle_agent_event(event)
 

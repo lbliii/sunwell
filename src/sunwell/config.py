@@ -26,6 +26,7 @@ import yaml
 from sunwell.types.config import (
     BindingConfig,
     EmbeddingConfig,
+    LensConfig,
     LifecycleConfig,
     ModelConfig,
     NaaruConfig,
@@ -47,6 +48,7 @@ def _get_dataclass_defaults() -> dict[str, dict[str, Any]]:
     naaru = NaaruConfig()
     embedding = EmbeddingConfig()
     ollama = OllamaConfig()
+    lens = LensConfig()
 
     # Convert to dicts, filtering out non-serializable fields
     def to_serializable(obj: object) -> dict[str, Any]:
@@ -65,6 +67,7 @@ def _get_dataclass_defaults() -> dict[str, dict[str, Any]]:
         "naaru": to_serializable(naaru),
         "embedding": to_serializable(embedding),
         "ollama": to_serializable(ollama),
+        "lens": to_serializable(lens),
     }
 
 
@@ -89,6 +92,9 @@ class SunwellConfig:
 
     ollama: OllamaConfig = field(default_factory=OllamaConfig)
     """Ollama server parallelism configuration."""
+
+    lens: LensConfig = field(default_factory=LensConfig)
+    """Lens configuration (RFC-131: default composition, search paths)."""
 
     verbose: bool = False
     """Enable verbose output by default."""
@@ -243,6 +249,7 @@ def _dict_to_config(data: dict) -> SunwellConfig:
     model_config = ModelConfig(**data.get("model", {}))
     naaru_config = NaaruConfig(**data.get("naaru", {}))
     ollama_config = OllamaConfig(**data.get("ollama", {}))
+    lens_config = LensConfig(**data.get("lens", {}))
 
     return SunwellConfig(
         binding=binding_config,
@@ -251,6 +258,7 @@ def _dict_to_config(data: dict) -> SunwellConfig:
         model=model_config,
         naaru=naaru_config,
         ollama=ollama_config,
+        lens=lens_config,
         verbose=data.get("verbose", False),
     )
 
@@ -284,6 +292,7 @@ def load_config(path: str | Path | None = None) -> SunwellConfig:
         "model": dataclass_defaults["model"],
         "naaru": dataclass_defaults["naaru"],
         "ollama": dataclass_defaults["ollama"],
+        "lens": dataclass_defaults["lens"],
         "verbose": False,
     }
 

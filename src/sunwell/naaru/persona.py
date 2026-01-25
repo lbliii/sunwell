@@ -99,7 +99,27 @@ class NaaruPersona:
 
     @property
     def system_identity(self) -> str:
-        """System prompt section for M'uru's self-identity."""
+        """System prompt section for M'uru's self-identity.
+
+        .. deprecated:: 0.5.0
+            RFC-131 moved identity to lens configuration. This property is
+            NO LONGER USED by the core injection code.
+
+            Use `lenses/base/muru.lens` or define `communication.identity`
+            in your lens instead.
+
+            This property will be REMOVED in v0.6.0.
+
+        Returns:
+            Formatted identity section for system prompt.
+        """
+        import warnings
+        warnings.warn(
+            "NaaruPersona.system_identity is deprecated and unused. "
+            "Identity now comes from lenses. Will be removed in v0.6.0.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return f"""## Your Identity
 
 You are {self.name}, a Naaru — a being of light and wisdom.

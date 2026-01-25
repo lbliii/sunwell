@@ -1,15 +1,14 @@
-"""CLI renderer for Adaptive Agent streaming (RFC-042).
+"""CLI renderer for Adaptive Agent streaming (RFC-042, RFC-131).
 
-Uses Rich library for beautiful, real-time terminal output.
-Shows:
-- Signal extraction and routing decisions
-- Plan candidates and selection
-- Task progress with progress bars
-- Gate validation cascade
-- Fix attempts and outcomes
+Uses Rich library for beautiful, real-time terminal output with
+Holy Light aesthetic (RFC-131):
+- Branded Unicode spinners (mote, spiral, radiant)
+- Holy/Void color spectrum
+- Sparkle animations for key moments
+- Consistent visual indicators
 
 Modes:
-- Interactive: Full Rich rendering (default)
+- Interactive: Full Rich rendering with Holy Light theme (default)
 - Quiet: Minimal output for CI/scripts
 - JSON: Newline-delimited JSON events
 """
@@ -39,28 +38,45 @@ class RendererConfig:
     verbose: bool = False
     """Show detailed routing decisions."""
 
+    # RFC-131: Holy Light options
+    enable_sparkles: bool = True
+    """Enable sparkle animations for key events."""
+
+    reduced_motion: bool = False
+    """Disable animations for accessibility."""
+
 
 # =============================================================================
-# Rich Renderer (Interactive Mode)
+# Rich Renderer (Interactive Mode) — Holy Light Theme (RFC-131)
 # =============================================================================
 
 
 class RichRenderer:
-    """Rich-based renderer for interactive terminal output.
+    """Rich-based renderer with Holy Light aesthetic (RFC-131).
 
-    Renders events in real-time with progress bars, spinners,
-    and colored status indicators.
+    Renders events in real-time with:
+    - Branded mote spinners (✦ ✧ · ✧ ✦)
+    - Holy/Void color spectrum
+    - Phase headers (Understanding → Illuminating → Crafting → Verifying)
+    - Sparkle animations for key moments
     """
 
     def __init__(self, config: RendererConfig | None = None):
         self.config = config or RendererConfig()
 
-        # Try to import Rich
+        # Try to import Rich with Holy Light theme
         try:
             from rich.console import Console
 
-            self.console = Console()
+            from sunwell.cli.theme import SUNWELL_THEME, should_reduce_motion
+
+            self.console = Console(theme=SUNWELL_THEME)
             self.rich_available = True
+
+            # Auto-detect reduced motion
+            if should_reduce_motion():
+                self.config.reduced_motion = True
+                self.config.enable_sparkles = False
         except ImportError:
             self.rich_available = False
             self.console = None
@@ -73,9 +89,11 @@ class RichRenderer:
         self._current_gate = ""
         self._errors: list[str] = []
         self._learnings: list[str] = []
+        self._files_created: list[str] = []
+        self._files_modified: list[str] = []
 
     async def render(self, events: AsyncIterator[AgentEvent]) -> None:
-        """Render events as they stream in.
+        """Render events as they stream in with Holy Light aesthetic.
 
         Args:
             events: Async iterator of agent events
@@ -89,10 +107,15 @@ class RichRenderer:
         from rich.live import Live
         from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 
+        # RFC-131: Holy Light branded progress with mote spinner
         progress = Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
+            SpinnerColumn(spinner_name="dots", style="holy.gold"),
+            TextColumn("[sunwell.phase]{task.description}"),
+            BarColumn(
+                complete_style="sunwell.progress.complete",
+                finished_style="holy.radiant",
+                pulse_style="holy.gold",
+            ),
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
             console=self.console,
         )
@@ -104,9 +127,13 @@ class RichRenderer:
                 self._update_state(event)
 
                 match event.type:
+                    # RFC-131: Holy Light phase headers
                     case EventType.SIGNAL:
                         if event.data.get("status") == "extracting":
-                            task_id = progress.add_task("🎯 Understanding goal...", total=None)
+                            task_id = progress.add_task(
+                                "[holy.radiant]✦[/] Understanding goal...",
+                                total=None
+                            )
                         elif event.data.get("signals"):
                             if task_id is not None:
                                 progress.update(task_id, completed=100, total=100)
@@ -114,7 +141,10 @@ class RichRenderer:
 
                     case EventType.PLAN_START:
                         technique = event.data.get("technique", "unknown")
-                        task_id = progress.add_task(f"📋 Planning ({technique})...", total=None)
+                        task_id = progress.add_task(
+                            f"[holy.radiant]✦[/] Illuminating ({technique})...",
+                            total=None
+                        )
 
                     case EventType.PLAN_WINNER:
                         if task_id is not None:
@@ -152,27 +182,30 @@ class RichRenderer:
                     case EventType.GATE_FAIL:
                         self._render_gate_fail(event.data)
 
+                    # RFC-131: Holy Light fix styling
                     case EventType.FIX_START:
-                        self.console.print("\n🔧 [yellow]Auto-fixing...[/yellow]")
+                        self.console.print("\n  [void.indigo]⚙[/] Auto-fixing...")
 
                     case EventType.FIX_PROGRESS:
                         self._render_fix_progress(event.data)
 
                     case EventType.FIX_COMPLETE:
-                        self.console.print("   └─ [green]Fix applied[/green]")
+                        self.console.print("   └─ [holy.success]✓[/] Fix applied")
 
+                    # RFC-131: Learning with Holy Light styling
                     case EventType.MEMORY_LEARNING:
                         if self.config.show_learnings:
                             fact = event.data.get("fact", "")
-                            self.console.print(f"   📚 [dim]Learned: {fact[:50]}...[/dim]")
+                            self._learnings.append(fact)
+                            self.console.print(f"   [holy.gold.dim]≡[/] Learned: {fact[:50]}...")
 
-                    # RFC-081: Inference visibility events
+                    # RFC-081, RFC-131: Inference visibility with Holy Light styling
                     case EventType.MODEL_START:
                         model = event.data.get("model", "model")
                         # Store model task ID separately - don't overwrite task_id
                         # which is used for TASK_START/TASK_COMPLETE tracking
                         self._model_task_id = progress.add_task(
-                            f"[cyan]🧠 {model}[/cyan]",
+                            f"[holy.gold]◎ {model}[/]",
                             total=None,  # Indeterminate
                         )
                         self._model_start_time = event.timestamp
@@ -184,11 +217,11 @@ class RichRenderer:
                             tps_str = f" ({tps:.1f} tok/s)" if tps else ""
                             progress.update(
                                 self._model_task_id,
-                                description=f"[cyan]🧠 {token_count} tokens{tps_str}[/cyan]",
+                                description=f"[holy.gold]◎ {token_count} tokens{tps_str}[/]",
                             )
 
                     case EventType.MODEL_THINKING:
-                        # Show thinking in dimmed panel
+                        # RFC-131: Show thinking with spiral indicator (Uzumaki)
                         content = event.data.get("content", "")
                         phase = event.data.get("phase", "thinking")
                         is_complete = event.data.get("is_complete", False)
@@ -196,7 +229,7 @@ class RichRenderer:
                             # Truncate for display
                             display = content[:200] + "..." if len(content) > 200 else content
                             self.console.print(
-                                f"   💭 [dim]{phase}: {display}[/dim]"
+                                f"   [neutral.dim]◜ {phase}: {display}[/]"
                             )
 
                     case EventType.MODEL_COMPLETE:
@@ -211,7 +244,7 @@ class RichRenderer:
 
                         ttft_str = f", TTFT: {ttft}ms" if ttft else ""
                         self.console.print(
-                            f"   [green]✓[/green] Generated {total} tokens "
+                            f"   [holy.success]✓[/] Generated {total} tokens "
                             f"in {duration:.1f}s ({tps:.1f} tok/s{ttft_str})"
                         )
 
@@ -234,129 +267,180 @@ class RichRenderer:
             self._errors.append(event.data.get("message", ""))
 
     def _render_signals(self, signals: dict) -> None:
-        """Render signal extraction results."""
-        self.console.print("\n🎯 [bold]Understanding goal...[/bold]")
-        self.console.print(f"   ├─ complexity: {signals.get('complexity', '?')}")
-        self.console.print(f"   ├─ needs_tools: {signals.get('needs_tools', '?')}")
-        self.console.print(f"   ├─ confidence: {signals.get('effective_confidence', 0):.0%}")
-        self.console.print(f"   └─ route: {signals.get('planning_route', '?')}")
+        """Render signal extraction results with Holy Light styling (RFC-131)."""
+        self.console.print("\n[holy.radiant]✦ Understanding goal...[/]")
+        self.console.print(f"   [holy.gold]├─[/] complexity: {signals.get('complexity', '?')}")
+        self.console.print(f"   [holy.gold]├─[/] needs_tools: {signals.get('needs_tools', '?')}")
+        conf = signals.get("effective_confidence", 0)
+        self.console.print(f"   [holy.gold]├─[/] confidence: {conf:.0%}")
+        self.console.print(f"   [holy.gold]└─[/] route: {signals.get('planning_route', '?')}")
 
     def _render_plan(self, data: dict) -> None:
-        """Render plan selection."""
+        """Render plan selection with Holy Light styling (RFC-131)."""
         tasks = data.get("tasks", 0)
         gates = data.get("gates", 0)
         technique = data.get("technique", "unknown")
-        self.console.print(f"\n📋 [bold]Plan ready[/bold] ({technique})")
-        self.console.print(f"   ├─ {tasks} tasks")
-        self.console.print(f"   └─ {gates} validation gates")
+        self.console.print(f"\n[holy.success]★[/] [sunwell.heading]Plan ready[/] ({technique})")
+        self.console.print(f"   [holy.gold]├─[/] {tasks} tasks")
+        self.console.print(f"   [holy.gold]└─[/] {gates} validation gates")
 
     def _render_gate_header(self, gate_id: str) -> None:
-        """Render gate header."""
-        self.console.print(f"\n{'═' * 50}")
-        self.console.print(f"[bold]GATE: {gate_id}[/bold]")
-        self.console.print("═" * 50)
+        """Render gate header with Holy Light styling (RFC-131)."""
+        self.console.print(f"\n  [holy.gold]{'═' * 54}[/]")
+        self.console.print(f"  [sunwell.phase]GATE: {gate_id}[/]")
+        self.console.print(f"  [holy.gold]{'═' * 54}[/]")
 
     def _render_gate_step(self, data: dict) -> None:
-        """Render a gate validation step."""
+        """Render a gate validation step with Holy Light styling (RFC-131)."""
         step = data.get("step", "?")
         passed = data.get("passed", False)
         message = data.get("message", "")
         auto_fixed = data.get("auto_fixed", 0)
 
-        icon = "✅" if passed else "❌"
-        color = "green" if passed else "red"
+        # RFC-131: Character-map shapes only
+        icon = "✧" if passed else "✗"
+        color = "holy.success" if passed else "void.purple"
 
-        line = f"   ├─ {step.ljust(10)} [{color}]{icon}[/{color}]"
+        line = f"    ├─ {step.ljust(12)} [{color}]{icon}[/]"
         if auto_fixed:
-            line += f" [dim](auto-fixed {auto_fixed})[/dim]"
+            line += f" [neutral.dim](auto-fixed {auto_fixed})[/]"
         if message and not passed:
-            line += f" [dim]{message[:40]}[/dim]"
+            line += f" [neutral.dim]{message[:40]}[/]"
 
         self.console.print(line)
 
     def _render_gate_pass(self, data: dict) -> None:
-        """Render gate pass."""
+        """Render gate pass with Holy Light styling (RFC-131)."""
         duration = data.get("duration_ms", 0)
-        self.console.print(f"   └─ [green]PASSED[/green] ({duration}ms)")
+        self.console.print(f"    └─ [holy.success]✧ PASSED[/] ({duration}ms)")
 
     def _render_gate_fail(self, data: dict) -> None:
-        """Render gate failure."""
+        """Render gate failure with Holy Light styling (RFC-131)."""
         failed_step = data.get("failed_step", "unknown")
-        self.console.print(f"   └─ [red]FAILED[/red] at {failed_step}")
+        self.console.print(f"    └─ [void.purple]✗ FAILED[/] at {failed_step}")
 
     def _render_fix_progress(self, data: dict) -> None:
-        """Render fix progress."""
+        """Render fix progress with Holy Light styling (RFC-131)."""
         stage = data.get("stage", "?")
         detail = data.get("detail", "")
-        self.console.print(f"   ├─ {stage}: {detail}")
+        self.console.print(f"   [holy.gold]├─[/] {stage}: {detail}")
 
     def _render_escalate(self, data: dict) -> None:
-        """Render escalation to user."""
+        """Render escalation to user with Holy Light styling (RFC-131)."""
         reason = data.get("reason", "unknown")
         message = data.get("message", "")
-        self.console.print("\n⚠️  [bold yellow]Escalating to user[/bold yellow]")
-        self.console.print(f"   Reason: {reason}")
+        self.console.print("\n  [void.indigo]△[/] [sunwell.warning]Escalating to user[/]")
+        self.console.print(f"    Reason: {reason}")
         if message:
-            self.console.print(f"   {message}")
+            self.console.print(f"    {message}")
 
     def _render_complete(self, data: dict) -> None:
-        """Render completion summary."""
+        """Render completion summary with Holy Light styling (RFC-131)."""
         tasks = data.get("tasks_completed", 0)
-        gates = data.get("gates_passed", 0)
         duration = data.get("duration_s", 0)
         learnings = data.get("learnings", 0)
 
-        self.console.print("\n" + "═" * 50)
-        self.console.print("[bold green]✨ Complete[/bold green]")
-        self.console.print(f"   ├─ {tasks} tasks executed")
-        self.console.print(f"   ├─ {gates} gates passed")
-        self.console.print(f"   ├─ {learnings} learnings extracted")
-        self.console.print(f"   └─ {duration:.1f}s total time")
-        self.console.print("═" * 50)
+        # RFC-131: Holy Light phase header
+        self.console.print()
+        self.console.print(f"┌{'─' * 53}┐")
+        self.console.print(f"│  [holy.success]★ Complete[/]{'':44}│")
+        self.console.print(f"└{'─' * 53}┘")
+
+        self.console.print()
+        self.console.print(f"  [holy.radiant]✦[/] {tasks} tasks completed in {duration:.1f}s")
+        self.console.print()
+
+        # Show created/modified files if tracked
+        if self._files_created:
+            self.console.print("  Files created:")
+            for f in self._files_created[:10]:
+                self.console.print(f"    [green]+[/] {f}")
+            if len(self._files_created) > 10:
+                extra = len(self._files_created) - 10
+                self.console.print(f"    [neutral.dim]... and {extra} more[/]")
+            self.console.print()
+
+        if self._files_modified:
+            self.console.print("  Files modified:")
+            for f in self._files_modified[:10]:
+                self.console.print(f"    [yellow]~[/] {f}")
+            if len(self._files_modified) > 10:
+                extra = len(self._files_modified) - 10
+                self.console.print(f"    [neutral.dim]... and {extra} more[/]")
+            self.console.print()
+
+        if learnings > 0 or self._learnings:
+            count = learnings or len(self._learnings)
+            self.console.print(f"  [holy.gold.dim]≡[/] Extracted {count} learnings")
+            self.console.print()
+
+        self.console.print("  [holy.radiant]✦✧✦[/] Goal achieved")
+        self.console.print()
 
     def _render_error(self, data: dict) -> None:
-        """Render error."""
+        """Render error with Holy Light styling (RFC-131)."""
         message = data.get("message", "Unknown error")
-        self.console.print(f"\n[bold red]❌ Error: {message}[/bold red]")
+        self.console.print(f"\n  [void.purple]✗[/] [sunwell.error]Error:[/] {message}")
 
     def _render_simple(self, event: AgentEvent) -> None:
-        """Simple fallback rendering without Rich."""
+        """Simple fallback rendering without Rich (RFC-131: character shapes)."""
         match event.type:
             case EventType.SIGNAL:
                 if event.data.get("signals"):
-                    print(f"Signals: {event.data['signals']}")
+                    signals = event.data["signals"]
+                    print(f"✦ Understanding: complexity={signals.get('complexity', '?')}, "
+                          f"route={signals.get('planning_route', '?')}")
             case EventType.PLAN_WINNER:
                 tasks = event.data.get('tasks', 0)
                 gates = event.data.get('gates', 0)
-                print(f"Plan: {tasks} tasks, {gates} gates")
+                technique = event.data.get('technique', 'unknown')
+                print(f"★ Plan ready ({technique}): {tasks} tasks, {gates} gates")
             case EventType.TASK_START:
-                print(f"Task: {event.data.get('task_id', 'task')}")
+                print(f"✧ Task: {event.data.get('task_id', 'task')}")
             case EventType.TASK_COMPLETE:
-                print(f"  Done ({event.data.get('duration_ms', 0)}ms)")
+                print(f"  ✓ Done ({event.data.get('duration_ms', 0)}ms)")
             case EventType.GATE_PASS:
-                print(f"Gate passed: {event.data.get('gate_id', 'gate')}")
+                print(f"✧ Gate passed: {event.data.get('gate_id', 'gate')}")
             case EventType.GATE_FAIL:
-                print(f"Gate failed: {event.data.get('gate_id', 'gate')}")
-            # RFC-081: Inference visibility events
+                print(f"✗ Gate failed: {event.data.get('gate_id', 'gate')}")
+            # RFC-081, RFC-131: Inference visibility with character shapes
             case EventType.MODEL_START:
                 model = event.data.get('model', 'model')
-                print(f"🧠 Generating with {model}...")
+                print(f"◎ Generating with {model}...")
             case EventType.MODEL_TOKENS:
                 tokens = event.data.get('token_count', 0)
                 tps = event.data.get('tokens_per_second')
                 tps_str = f" ({tps:.1f} tok/s)" if tps else ""
-                print(f"  {tokens} tokens{tps_str}", end='\r')
+                print(f"  ◎ {tokens} tokens{tps_str}", end='\r')
+            case EventType.MODEL_THINKING:
+                content = event.data.get('content', '')
+                phase = event.data.get('phase', 'thinking')
+                is_complete = event.data.get('is_complete', False)
+                if content and is_complete:
+                    display = content[:80] + "..." if len(content) > 80 else content
+                    print(f"  ◜ {phase}: {display}")
             case EventType.MODEL_COMPLETE:
                 total = event.data.get('total_tokens', 0)
                 duration = event.data.get('duration_s', 0)
                 tps = event.data.get('tokens_per_second', 0)
                 print(f"  ✓ {total} tokens in {duration:.1f}s ({tps:.1f} tok/s)")
+            case EventType.FIX_START:
+                print("⚙ Auto-fixing...")
+            case EventType.FIX_COMPLETE:
+                print("  ✓ Fix applied")
+            case EventType.MEMORY_LEARNING:
+                fact = event.data.get('fact', '')
+                print(f"  ≡ Learned: {fact[:50]}...")
             case EventType.COMPLETE:
                 tasks = event.data.get('tasks_completed', 0)
                 dur = event.data.get('duration_s', 0)
-                print(f"Complete: {tasks} tasks in {dur:.1f}s")
+                print(f"★ Complete: {tasks} tasks in {dur:.1f}s")
+                print("✦✧✦ Goal achieved")
             case EventType.ERROR:
-                print(f"Error: {event.data.get('message', 'Unknown')}")
+                print(f"✗ Error: {event.data.get('message', 'Unknown')}")
+            case EventType.ESCALATE:
+                reason = event.data.get('reason', 'unknown')
+                print(f"△ Escalating: {reason}")
 
 
 # =============================================================================
@@ -365,7 +449,7 @@ class RichRenderer:
 
 
 class QuietRenderer:
-    """Minimal renderer for CI/scripts.
+    """Minimal renderer for CI/scripts (RFC-131 character shapes).
 
     Only outputs:
     - Final status (success/failure)
@@ -377,7 +461,7 @@ class QuietRenderer:
         self.output = output or sys.stdout
 
     async def render(self, events: AsyncIterator[AgentEvent]) -> None:
-        """Render minimal output."""
+        """Render minimal output with Holy Light character shapes."""
         errors: list[str] = []
         tasks_completed = 0
         success = True
@@ -393,12 +477,13 @@ class QuietRenderer:
                 success = False
             elif event.type == EventType.COMPLETE:
                 duration = event.data.get("duration_s", 0)
-                print(f"✓ Complete: {tasks_completed} tasks in {duration:.1f}s", file=self.output)
+                # RFC-131: Holy Light character shapes
+                print(f"★ Complete: {tasks_completed} tasks in {duration:.1f}s", file=self.output)
 
         if not success:
             print("✗ Failed", file=self.output)
             for error in errors:
-                print(f"  - {error}", file=self.output)
+                print(f"  ✗ {error}", file=self.output)
 
 
 # =============================================================================
@@ -423,27 +508,35 @@ class JSONRenderer:
 
 
 # =============================================================================
-# Renderer Factory
+# Renderer Factory (RFC-131)
 # =============================================================================
 
 
 def create_renderer(
     mode: str = "interactive",
     verbose: bool = False,
+    enable_sparkles: bool = True,
+    reduced_motion: bool = False,
 ) -> RichRenderer | QuietRenderer | JSONRenderer:
     """Create appropriate renderer based on mode.
 
     Args:
         mode: "interactive", "quiet", or "json"
         verbose: Show detailed output
+        enable_sparkles: Enable sparkle animations (RFC-131)
+        reduced_motion: Disable animations for accessibility (RFC-131)
 
     Returns:
-        Renderer instance
+        Renderer instance with Holy Light styling
     """
     if mode == "quiet":
         return QuietRenderer()
     elif mode == "json":
         return JSONRenderer()
     else:
-        config = RendererConfig(verbose=verbose)
+        config = RendererConfig(
+            verbose=verbose,
+            enable_sparkles=enable_sparkles,
+            reduced_motion=reduced_motion,
+        )
         return RichRenderer(config)

@@ -1165,6 +1165,147 @@ export function handleAgentEvent(event: AgentEvent): void {
       break;
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // RFC-130: AGENT CONSTELLATION (AUTONOMOUS) EVENTS
+    // ═══════════════════════════════════════════════════════════════
+
+    // Dynamic Agent Spawning
+    case 'specialist_spawned': {
+      const specialistId = (data.specialist_id as string) ?? '';
+      const role = (data.role as string) ?? '';
+      const goal = (data.goal as string) ?? '';
+      _state = {
+        ..._state,
+        learnings: [..._state.learnings, `🌟 Spawned specialist: ${role} → "${goal.slice(0, 50)}..."`],
+      };
+      console.debug(`[Sunwell] Specialist spawned: ${specialistId} (${role})`);
+      break;
+    }
+
+    case 'specialist_completed': {
+      const specialistId = (data.specialist_id as string) ?? '';
+      const status = (data.status as string) ?? '';
+      const statusIcon = status === 'completed' ? '✅' : status === 'failed' ? '❌' : '⚠️';
+      _state = {
+        ..._state,
+        learnings: [..._state.learnings, `${statusIcon} Specialist ${specialistId} ${status}`],
+      };
+      break;
+    }
+
+    // Semantic Checkpoints
+    case 'checkpoint_found': {
+      const phase = (data.phase as string) ?? '';
+      _state = {
+        ..._state,
+        learnings: [..._state.learnings, `📍 Found checkpoint at phase: ${phase}`],
+      };
+      break;
+    }
+
+    case 'checkpoint_saved': {
+      const phase = (data.phase as string) ?? '';
+      _state = {
+        ..._state,
+        learnings: [..._state.learnings, `💾 Checkpoint saved: ${phase}`],
+      };
+      break;
+    }
+
+    case 'checkpoint_restored': {
+      const phase = (data.phase as string) ?? '';
+      _state = {
+        ..._state,
+        learnings: [..._state.learnings, `🔄 Resumed from checkpoint: ${phase}`],
+      };
+      break;
+    }
+
+    case 'phase_complete': {
+      const phase = (data.phase as string) ?? '';
+      const summary = (data.summary as string) ?? '';
+      _state = {
+        ..._state,
+        learnings: [..._state.learnings, `✅ Phase ${phase} complete${summary ? `: ${summary}` : ''}`],
+      };
+      break;
+    }
+
+    // Adaptive Guardrails
+    case 'autonomous_action_blocked': {
+      const action = (data.action_type as string) ?? '';
+      const reason = (data.reason as string) ?? '';
+      _state = {
+        ..._state,
+        learnings: [..._state.learnings, `🛡️ Blocked: ${action} — ${reason}`],
+      };
+      break;
+    }
+
+    case 'guard_evolution_suggested': {
+      const ruleId = (data.rule_id as string) ?? '';
+      const description = (data.description as string) ?? '';
+      _state = {
+        ..._state,
+        learnings: [..._state.learnings, `💡 Guard evolution: ${ruleId} — ${description}`],
+      };
+      break;
+    }
+
+    // Autonomous Session Lifecycle
+    case 'autonomous_session_start': {
+      const sessionId = (data.session_id as string) ?? '';
+      const goal = (data.goal as string) ?? '';
+      _state = {
+        ..._state,
+        learnings: [..._state.learnings, `🚀 Autonomous session: ${goal.slice(0, 60)}...`],
+      };
+      console.debug(`[Sunwell] Autonomous session started: ${sessionId}`);
+      break;
+    }
+
+    case 'autonomous_session_complete': {
+      const success = (data.success as boolean) ?? false;
+      const durationS = (data.duration_s as number) ?? 0;
+      const icon = success ? '✅' : '⚠️';
+      _state = {
+        ..._state,
+        learnings: [..._state.learnings, `${icon} Autonomous session complete (${durationS.toFixed(1)}s)`],
+      };
+      break;
+    }
+
+    // Memory-Informed Prefetch
+    case 'prefetch_start': {
+      _state = {
+        ..._state,
+        learnings: [..._state.learnings, '🔮 Loading context from memory...'],
+      };
+      break;
+    }
+
+    case 'prefetch_complete': {
+      const filesCount = (data.files_count as number) ?? 0;
+      const learningsCount = (data.learnings_count as number) ?? 0;
+      const lens = (data.lens as string) ?? '';
+      _state = {
+        ..._state,
+        learnings: [
+          ..._state.learnings,
+          `📦 Prefetch: ${filesCount} files, ${learningsCount} learnings${lens ? `, lens: ${lens}` : ''}`,
+        ],
+      };
+      break;
+    }
+
+    case 'prefetch_timeout': {
+      _state = {
+        ..._state,
+        learnings: [..._state.learnings, '⏱️ Prefetch timed out, continuing...'],
+      };
+      break;
+    }
+
     default: {
       // Log unhandled events so we catch future drift
       console.warn(`[Sunwell] Unhandled event type: ${type}`, data);

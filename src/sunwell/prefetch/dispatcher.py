@@ -1,4 +1,4 @@
-"""Briefing-Driven Prefetch Dispatcher (RFC-071).
+"""Briefing-Driven Prefetch Dispatcher (RFC-071, RFC-130).
 
 Uses the briefing as a dispatch signal to pre-load context before the main
 agent starts. A tiny/fast model analyzes the briefing and generates a prefetch
@@ -7,6 +7,9 @@ plan, which is then executed in parallel with timeout protection.
 Key insight: The briefing is tiny (~300 tokens), so a cheap model can read it
 instantly and tell the system what to pre-load. This transforms cold starts
 into warm starts.
+
+RFC-130: Now integrates with PersistentMemory to prefetch context from
+similar past goals, enabling "memory-informed" warm starts.
 """
 
 
@@ -18,6 +21,7 @@ from sunwell.memory.briefing import Briefing, PrefetchedContext, PrefetchPlan
 
 if TYPE_CHECKING:
     from sunwell.agent.learning import Learning
+    from sunwell.memory.persistent import PersistentMemory
 
 # Default prefetch timeout (seconds)
 PREFETCH_TIMEOUT = 2.0
@@ -26,48 +30,94 @@ PREFETCH_TIMEOUT = 2.0
 async def analyze_briefing_for_prefetch(
     briefing: Briefing,
     router_model: str = "gpt-4o-mini",
+    memory: PersistentMemory | None = None,
 ) -> PrefetchPlan:
     """Use cheap model to analyze briefing and plan prefetch.
 
     This runs BEFORE the main agent, using a tiny model to:
     1. Parse the briefing signals
     2. Predict what context will be needed
-    3. Return a prefetch plan
+    3. RFC-130: Query memory for similar past goals
+    4. Return a prefetch plan
 
     The main agent then starts with warm context.
 
     Args:
         briefing: The current briefing to analyze
         router_model: Model to use for dispatch (should be fast/cheap)
+        memory: RFC-130 - PersistentMemory for goal similarity lookup
 
     Returns:
         PrefetchPlan with what to pre-load
     """
-    # If briefing already has dispatch hints, use them directly
-    if briefing.predicted_skills or briefing.suggested_lens:
-        return PrefetchPlan(
-            files_to_read=briefing.hot_files,
-            learnings_to_load=briefing.related_learnings,
-            skills_needed=briefing.predicted_skills,
-            dag_nodes_to_fetch=(briefing.goal_hash,) if briefing.goal_hash else (),
-            suggested_lens=briefing.suggested_lens,
+    # Start with briefing-based hints
+    files_to_read = list(briefing.hot_files)
+    learnings_to_load = list(briefing.related_learnings)
+    skills_needed: list[str] = []
+    suggested_lens = briefing.suggested_lens
+    memory_hints: dict[str, Any] = {}
+
+    # RFC-130: Query memory for similar past goals
+    if memory is not None and briefing.next_action:
+        similar_goals = await memory.find_similar_goals(
+            briefing.next_action,
+            limit=3,
         )
 
-    # Otherwise, use routing heuristics
+        if similar_goals:
+            # Extract context from similar past goals
+            for goal_memory in similar_goals:
+                # Add files that were useful in similar goals
+                files_to_read.extend(goal_memory.hot_files[:5])
+
+                # Add learnings from similar goals
+                learnings_to_load.extend(goal_memory.learnings[:3])
+
+                # Track what worked in similar goals
+                if goal_memory.skills_used:
+                    skills_needed.extend(goal_memory.skills_used)
+
+                # Use lens from successful similar goal if none specified
+                if not suggested_lens and goal_memory.lens_used:
+                    suggested_lens = goal_memory.lens_used
+
+            # Store memory hints for agent
+            memory_hints = {
+                "similar_goals": [g.goal for g in similar_goals],
+                "patterns": [g.success_pattern for g in similar_goals if g.success_pattern],
+            }
+
+    # If briefing already has dispatch hints, enhance with memory
+    if briefing.predicted_skills or suggested_lens:
+        skills = list(briefing.predicted_skills) + skills_needed
+
+        return PrefetchPlan(
+            files_to_read=tuple(dict.fromkeys(files_to_read)),  # Dedupe
+            learnings_to_load=tuple(dict.fromkeys(learnings_to_load)),  # Dedupe
+            skills_needed=tuple(dict.fromkeys(skills)),  # Dedupe
+            dag_nodes_to_fetch=(briefing.goal_hash,) if briefing.goal_hash else (),
+            suggested_lens=suggested_lens,
+            memory_hints=memory_hints,
+        )
+
+    # Otherwise, use routing heuristics + memory
     from sunwell.routing.briefing_router import (
         predict_skills_from_briefing,
         suggest_lens_from_briefing,
     )
 
-    skills = predict_skills_from_briefing(briefing)
-    lens = suggest_lens_from_briefing(briefing)
+    heuristic_skills = predict_skills_from_briefing(briefing)
+    heuristic_lens = suggest_lens_from_briefing(briefing)
+
+    all_skills = list(heuristic_skills) + skills_needed
 
     return PrefetchPlan(
-        files_to_read=briefing.hot_files,
-        learnings_to_load=briefing.related_learnings,
-        skills_needed=tuple(skills),
+        files_to_read=tuple(dict.fromkeys(files_to_read)),
+        learnings_to_load=tuple(dict.fromkeys(learnings_to_load)),
+        skills_needed=tuple(dict.fromkeys(all_skills)),
         dag_nodes_to_fetch=(briefing.goal_hash,) if briefing.goal_hash else (),
-        suggested_lens=lens,
+        suggested_lens=suggested_lens or heuristic_lens,
+        memory_hints=memory_hints,
     )
 
 

@@ -416,6 +416,16 @@ class PrefetchPlan:
     suggested_lens: str | None
     """Lens that best matches the work type."""
 
+    # RFC-130: Memory-informed hints
+    memory_hints: dict[str, Any] = field(default_factory=dict)
+    """Hints from similar past goals.
+
+    May contain:
+    - similar_goals: List of similar past goal descriptions
+    - patterns: Success patterns from similar goals
+    - user_preferences: Learned user preferences
+    """
+
 
 @dataclass(frozen=True, slots=True)
 class PrefetchedContext:

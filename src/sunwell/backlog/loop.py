@@ -1,9 +1,10 @@
-"""Autonomous Loop for Autonomous Backlog (RFC-046 Phase 4).
+"""Autonomous Loop for Autonomous Backlog (RFC-046 Phase 4, RFC-MEMORY).
 
 Main execution loop for autonomous backlog operation.
 Integrates with:
 - RFC-047 (Deep Verification) for confidence-based auto-approval
 - RFC-048 (Autonomy Guardrails) for safe unsupervised operation
+- RFC-MEMORY: Uses SessionContext and PersistentMemory
 """
 
 
@@ -18,7 +19,7 @@ from sunwell.backlog.goals import Goal, GoalResult
 from sunwell.backlog.manager import BacklogManager
 
 if TYPE_CHECKING:
-    from sunwell.agent.agent import Agent
+    from sunwell.agent.core import Agent
     from sunwell.guardrails import GuardrailSystem
     from sunwell.models.protocol import ModelProtocol
     from sunwell.naaru.planners.artifact import ArtifactPlanner
@@ -238,9 +239,18 @@ class AutonomousLoop:
                     data={"goal": goal, "artifacts": artifact_graph},
                 )
 
-                # Execute with adaptive agent (RFC-042)
-                # Agent.run() takes goal string and handles planning internally
-                async for event in self.agent.run(goal.description):
+                # Execute with adaptive agent (RFC-042, RFC-MEMORY)
+                # Agent.run() takes SessionContext and PersistentMemory
+                from sunwell.agent.request import RunOptions
+                from sunwell.context.session import SessionContext
+                from sunwell.memory.persistent import PersistentMemory
+
+                workspace = self.backlog_manager.root
+                options = RunOptions(trust="workspace")
+                session = SessionContext.build(workspace, goal.description, options)
+                memory = PersistentMemory.load(workspace)
+
+                async for event in self.agent.run(session, memory):
                     yield LoopEvent(
                         event_type="execution_event",
                         data={"goal": goal, "event": event},

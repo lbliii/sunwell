@@ -15,14 +15,15 @@ import sys
 from pathlib import Path
 
 import click
-from rich.console import Console
 
-console = Console()
+from sunwell.cli.theme import create_sunwell_console
+
+console = create_sunwell_console()
 
 
 @click.command()
 @click.argument("path", type=click.Path(), default=".", required=False)
-@click.option("--provider", "-p", default=None, help="LLM provider (default: from config or ollama)")
+@click.option("--provider", "-p", default=None, help="LLM provider (default: config/ollama)")
 @click.option("--model", "-m", default=None, help="Model name (auto-selected based on provider)")
 @click.option("--trust", type=click.Choice(["read_only", "workspace", "shell"]),
               default="workspace", help="Default tool trust level")
@@ -63,12 +64,12 @@ def setup(
     # Ensure directory exists
     if not project_path.exists():
         if not quiet:
-            console.print(f"[red]Directory not found:[/red] {project_path}")
-            console.print("[dim]Create it first or specify an existing directory.[/dim]")
+            console.print(f"[void.purple]✗ Not found:[/void.purple] {project_path}")
+            console.print("[neutral.dim]Create the directory first.[/neutral.dim]")
         sys.exit(1)
 
     if not quiet:
-        console.print(f"\n[bold]Setting up Sunwell[/bold] in {project_path.name}/")
+        console.print(f"\n[sunwell.heading]✦ Setting up Sunwell[/] in {project_path.name}/")
         console.print()
 
     # Track what we did
@@ -82,7 +83,7 @@ def setup(
 
     if manifest_path.exists() and not force:
         if not quiet:
-            console.print("[dim]✓ Project manifest exists[/dim]")
+            console.print("[neutral.dim]✓ Project manifest exists[/neutral.dim]")
     else:
         from sunwell.project import ProjectValidationError, init_project
 
@@ -95,14 +96,14 @@ def setup(
                 register=True,
             )
             if not quiet:
-                console.print(f"[green]✓[/green] Initialized project: [bold]{proj.id}[/bold]")
+                console.print(f"[holy.success]✓[/] Initialized: {proj.id}")
             actions.append("project_init")
         except ProjectValidationError as e:
             if "already initialized" in str(e).lower():
                 if not quiet:
-                    console.print("[dim]✓ Project already initialized[/dim]")
+                    console.print("[neutral.dim]✓ Project already initialized[/neutral.dim]")
             else:
-                console.print(f"[red]Error:[/red] {e}")
+                console.print(f"[void.purple]✗ Error:[/void.purple] {e}")
                 sys.exit(1)
 
     # =========================================================================
@@ -122,17 +123,17 @@ def setup(
                 type_str = ptype.title()
                 if framework:
                     type_str += f" ({framework})"
-                console.print(f"[green]✓[/green] Detected: {type_str}")
+                console.print(f"[holy.success]✓[/holy.success] Detected: {type_str}")
                 if ctx.get("key_files"):
                     files = [kf[0] for kf in ctx["key_files"][:3]]
-                    console.print(f"[dim]  Key files: {', '.join(files)}[/dim]")
+                    console.print(f"[neutral.dim]  Key files: {', '.join(files)}[/neutral.dim]")
             actions.append("context_cache")
         except Exception as e:
             if not quiet:
-                console.print(f"[yellow]⚠[/yellow] Could not build context: {e}")
+                console.print(f"[holy.gold]△[/holy.gold] Could not build context: {e}")
     else:
         if not quiet:
-            console.print("[dim]✓ Workspace context cached[/dim]")
+            console.print("[neutral.dim]✓ Workspace context cached[/neutral.dim]")
 
     # =========================================================================
     # Step 3: Resolve model configuration
@@ -158,7 +159,7 @@ def setup(
         }.get(resolved_provider, "gemma3:4b")
 
     if not quiet:
-        console.print(f"[dim]  Model: {resolved_provider}:{resolved_model}[/dim]")
+        console.print(f"[neutral.dim]  Model: {resolved_provider}:{resolved_model}[/neutral.dim]")
 
     # =========================================================================
     # Step 4: Lens bindings (optional, skip with --minimal)
@@ -171,7 +172,7 @@ def setup(
 
         if default_binding and not force:
             if not quiet:
-                console.print(f"[dim]✓ Default binding: {default_binding.name}[/dim]")
+                console.print(f"[neutral.dim]✓ Default: {default_binding.name}[/neutral.dim]")
         else:
             # Find lenses directory
             lens_candidates = [
@@ -187,12 +188,13 @@ def setup(
 
             if lens_path:
                 bindings_created = _setup_default_bindings(
-                    manager, lens_path, resolved_provider, resolved_model, force, quiet, project_path
+                    manager, lens_path, resolved_provider, resolved_model,
+                    force, quiet, project_path,
                 )
                 if bindings_created:
                     actions.append("bindings")
             elif not quiet:
-                console.print("[dim]  No lenses directory found, skipping bindings[/dim]")
+                console.print("[neutral.dim]  No lenses found, skipping bindings[/neutral.dim]")
 
     # =========================================================================
     # Step 5: Create .gitignore entries
@@ -216,19 +218,19 @@ cache/
             pass
 
     # =========================================================================
-    # Summary
+    # Summary (RFC-131: Holy Light styling)
     # =========================================================================
     if not quiet:
         console.print()
         if actions:
-            console.print("[bold green]✓ Setup complete[/bold green]")
+            console.print("[holy.success]★ Setup complete[/holy.success]")
         else:
-            console.print("[bold]✓ Already configured[/bold]")
+            console.print("[sunwell.heading]✓ Already configured[/sunwell.heading]")
 
         console.print()
-        console.print("[bold]Get started:[/bold]")
-        console.print(f'  sunwell "what is this project?"')
-        console.print(f'  sunwell "add tests for the main module"')
+        console.print("[sunwell.heading]Get started:[/sunwell.heading]")
+        console.print('  sunwell "what is this project?"')
+        console.print('  sunwell "add tests for the main module"')
 
 
 def _setup_default_bindings(
@@ -241,7 +243,6 @@ def _setup_default_bindings(
     project_path: Path,
 ) -> bool:
     """Set up default lens bindings. Returns True if any created."""
-    import yaml
 
     # Default bindings - minimal set
     default_bindings = [
@@ -299,7 +300,7 @@ def _setup_default_bindings(
         _update_global_config_default(default_binding_name)
 
     if created and not quiet:
-        console.print(f"[green]✓[/green] Created bindings: {', '.join(created)}")
+        console.print(f"[holy.success]✓[/holy.success] Created bindings: {', '.join(created)}")
 
     return bool(created)
 

@@ -118,3 +118,53 @@ class NaaruEventEmitter:
     def emit_learning(self, **learning_data: Any) -> None:
         """Emit learning event."""
         self.emit("learning", **learning_data)
+
+    # =========================================================================
+    # RFC-130: Agent Constellation Events
+    # =========================================================================
+
+    def emit_specialist_spawned(
+        self,
+        specialist_id: str,
+        parent_id: str,
+        role: str,
+        focus: str,
+    ) -> None:
+        """Emit specialist_spawned event (RFC-130).
+
+        Args:
+            specialist_id: Unique specialist ID
+            parent_id: ID of the parent agent/specialist
+            role: Specialist role (e.g., "code_reviewer")
+            focus: What the specialist is working on
+        """
+        self.emit(
+            "specialist_spawned",
+            specialist_id=specialist_id,
+            parent_id=parent_id,
+            role=role,
+            focus=focus,
+        )
+
+    def emit_specialist_completed(
+        self,
+        specialist_id: str,
+        success: bool,
+        summary: str,
+        tokens_used: int,
+    ) -> None:
+        """Emit specialist_completed event (RFC-130).
+
+        Args:
+            specialist_id: Unique specialist ID
+            success: Whether the specialist succeeded
+            summary: Brief summary of what was accomplished
+            tokens_used: Tokens consumed by the specialist
+        """
+        self.emit(
+            "specialist_completed",
+            specialist_id=specialist_id,
+            success=success,
+            summary=summary,
+            tokens_used=tokens_used,
+        )

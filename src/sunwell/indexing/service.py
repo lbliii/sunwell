@@ -87,6 +87,9 @@ class IndexingService:
     workspace_root: Path
     cache_dir: Path = field(init=False)
 
+    # Optional injected embedder (if None, creates one internally)
+    embedder: object | None = None
+
     # Configuration
     debounce_ms: int = 500
     max_file_size: int = 100_000
@@ -276,7 +279,7 @@ class IndexingService:
         self._update_status(state=IndexState.BUILDING, progress=0)
 
         try:
-            self._embedder = await self._create_embedder()
+            self._embedder = self.embedder or await self._create_embedder()
 
             if self._embedder:
                 # Phase 1: Priority files (fast)
@@ -579,7 +582,7 @@ class IndexingService:
                 last_updated=datetime.fromisoformat(meta.get("updated_at", "")),
             )
 
-            self._embedder = await self._create_embedder()
+            self._embedder = self.embedder or await self._create_embedder()
             return True
         except Exception:
             return False

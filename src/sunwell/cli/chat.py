@@ -1459,6 +1459,7 @@ async def _chat_loop(
                     identity_store=identity_store,
                     tiny_model=tiny_model,
                     system_prompt=system_prompt,
+                    lens=lens,  # RFC-131: Pass lens for identity
                 )
                 if cmd_result == "quit":
                     break
@@ -1483,13 +1484,13 @@ async def _chat_loop(
                 continue
 
             # RFC-023: Inject identity into system prompt
-            # Always inject M'uru's identity; user identity only if usable
+            # RFC-131: Use lens identity if available, fallback to M'uru
             from sunwell.identity.injection import build_system_prompt_with_identity
             user_identity = None
             if identity_store and identity_store.identity.is_usable():
                 user_identity = identity_store.identity
             effective_system_prompt = build_system_prompt_with_identity(
-                system_prompt, user_identity, include_muru_identity=True
+                system_prompt, user_identity, lens=lens, include_agent_identity=True
             )
 
             # RFC-013: Assemble context using hierarchical chunking (hot/warm/cold tiers)
@@ -1709,6 +1710,7 @@ async def _handle_chat_command(
     identity_store=None,  # RFC-023: Identity store
     tiny_model=None,  # RFC-023: For identity refresh
     system_prompt: str = "",  # Base system prompt from lens
+    lens=None,  # RFC-131: Lens for identity resolution
 ) -> str | None:
     """Handle chat commands. Returns 'quit' to exit."""
     parts = command.split(maxsplit=1)
@@ -1963,12 +1965,13 @@ async def _handle_chat_command(
         # Debug commands for troubleshooting
         if arg == "prompt" or arg == "system":
             # Show the effective system prompt
+            # RFC-131: Pass lens for identity resolution
             from sunwell.identity.injection import build_system_prompt_with_identity
             user_identity = None
             if identity_store and identity_store.identity.is_usable():
                 user_identity = identity_store.identity
             effective_prompt = build_system_prompt_with_identity(
-                system_prompt, user_identity, include_muru_identity=True
+                system_prompt, user_identity, lens=lens, include_agent_identity=True
             )
             console.print("[bold]Effective System Prompt:[/bold]")
             console.print("─" * 60)

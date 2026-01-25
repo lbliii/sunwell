@@ -250,6 +250,35 @@ class Lens:
     affordances: Affordances | None = None
     """UI primitives this lens surfaces. None = use domain defaults."""
 
+    # RFC-130: Agent Constellation — Specialist spawning
+    can_spawn: bool = False
+    """Whether agent using this lens can spawn specialist sub-agents.
+
+    When True, the agent can delegate complex subtasks to specialists
+    instead of struggling alone. Specialists run with focused context
+    and limited token budget.
+
+    Example:
+        A 'senior-engineer' lens might enable spawning for:
+        - code_reviewer: Security review of auth changes
+        - architect: Design review for new modules
+        - debugger: Deep investigation of tricky bugs
+    """
+
+    max_children: int = 3
+    """Maximum specialist spawns allowed per execution.
+
+    Prevents runaway spawning. After max_children specialists are spawned,
+    the agent must complete work directly or request user guidance.
+    """
+
+    spawn_budget_tokens: int = 10_000
+    """Token budget allocated to spawned specialists (total, not per-spawn).
+
+    Budget is split across spawned specialists. Parent keeps 80% of its
+    budget, specialists share the remaining 20%.
+    """
+
     # Source tracking
     source_path: Path | None = None
 

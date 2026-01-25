@@ -137,6 +137,51 @@ class BindingConfig:
 
 
 @dataclass
+class LensConfig:
+    """Lens-related configuration (RFC-131: Helm-style layering).
+
+    Enables global lens defaults that are applied to all sessions,
+    similar to Helm's values.yaml pattern.
+
+    Configure in ~/.sunwell/defaults.yaml or .sunwell/config.yaml:
+        lens:
+          default_compose:
+            - sunwell/base/muru
+          search_paths:
+            - ./lenses
+            - ~/.sunwell/lenses
+    """
+
+    default_compose: list[str] = field(default_factory=lambda: ["base/muru"])
+    """Base lenses applied to ALL sessions (RFC-131).
+
+    These lenses are composed (prepended) to every resolved lens,
+    providing global defaults like M'uru identity. Paths are resolved
+    via search_paths (default: ./lenses, ~/.sunwell/lenses).
+
+    Default: ["base/muru"] → resolves to lenses/base/muru.lens
+
+    To use a different identity:
+        default_compose:
+          - my-custom-identity
+
+    To disable identity entirely:
+        default_compose: []
+    """
+
+    search_paths: list[str] = field(
+        default_factory=lambda: ["./lenses", "~/.sunwell/lenses"]
+    )
+    """Paths to search for lens files.
+
+    Paths are searched in order. Supports:
+    - Relative paths (from current directory)
+    - Home directory (~)
+    - Absolute paths
+    """
+
+
+@dataclass
 class ModelConfig:
     """Configuration for model defaults (local-first)."""
 
