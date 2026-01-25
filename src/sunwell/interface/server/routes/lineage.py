@@ -4,9 +4,9 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter
-from pydantic import BaseModel
 
 from sunwell.interface.server.routes.models import (
+    CamelModel,
     DependencyGraphResponse,
     FileDependenciesResponse,
     ImpactAnalysisResponse,
@@ -27,7 +27,7 @@ router = APIRouter(prefix="/api/lineage", tags=["lineage"])
 # ═══════════════════════════════════════════════════════════════
 
 
-class SyncLineageRequest(BaseModel):
+class SyncLineageRequest(CamelModel):
     workspace: str | None = None
     mark_as_human: bool = True
 

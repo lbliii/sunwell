@@ -6,10 +6,10 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 from sunwell.foundation.utils import safe_yaml_load
-from fastapi.responses import JSONResponse, PlainTextResponse
-from pydantic import BaseModel
+from sunwell.interface.server.routes.models import CamelModel
 
 router = APIRouter(prefix="/api", tags=["demo"])
 
@@ -19,13 +19,13 @@ router = APIRouter(prefix="/api", tags=["demo"])
 # ═══════════════════════════════════════════════════════════════
 
 
-class DemoRunRequest(BaseModel):
+class DemoRunRequest(CamelModel):
     task: str | None = None
     model: str | None = None
     provider: str | None = None
 
 
-class EvalRunRequest(BaseModel):
+class EvalRunRequest(CamelModel):
     task: str | None = None
     model: str | None = None
     provider: str | None = None

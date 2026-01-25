@@ -4,7 +4,6 @@ import hashlib
 from pathlib import Path
 
 from fastapi import APIRouter
-from pydantic import BaseModel
 
 from sunwell.features.backlog.goals import Goal, GoalScope
 from sunwell.features.backlog.manager import BacklogManager
@@ -13,6 +12,7 @@ from sunwell.interface.server.routes.models import (
     BacklogGoalItem,
     BacklogRefreshResponse,
     BacklogResponse,
+    CamelModel,
     GoalAddResponse,
     SuccessResponse,
 )
@@ -25,7 +25,7 @@ router = APIRouter(prefix="/api/backlog", tags=["backlog"])
 # ═══════════════════════════════════════════════════════════════
 
 
-class AddGoalRequest(BaseModel):
+class AddGoalRequest(CamelModel):
     title: str
     description: str | None = None
     category: str = "add"
@@ -33,19 +33,19 @@ class AddGoalRequest(BaseModel):
     path: str | None = None
 
 
-class UpdateGoalRequest(BaseModel):
+class UpdateGoalRequest(CamelModel):
     title: str | None = None
     description: str | None = None
     priority: float | None = None
     path: str | None = None
 
 
-class ReorderGoalsRequest(BaseModel):
+class ReorderGoalsRequest(CamelModel):
     order: list[str]
     path: str | None = None
 
 
-class RefreshBacklogRequest(BaseModel):
+class RefreshBacklogRequest(CamelModel):
     path: str | None = None
 
 

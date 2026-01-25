@@ -11,7 +11,6 @@ from typing import Any
 
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
 
 from sunwell.interface.server.routes.models import (
     BriefingClearResponse,
@@ -33,45 +32,45 @@ router = APIRouter(prefix="/api", tags=["misc"])
 # ═══════════════════════════════════════════════════════════════
 
 
-class ShellRequest(BaseModel):
+class ShellRequest(CamelModel):
     path: str
 
 
-class WriteFileRequest(BaseModel):
+class WriteFileRequest(CamelModel):
     path: str
     content: str
 
 
-class SecurityScanRequest(BaseModel):
+class SecurityScanRequest(CamelModel):
     content: str
 
 
-class WeaknessScanRequest(BaseModel):
+class WeaknessScanRequest(CamelModel):
     path: str
 
 
-class WeaknessPreviewRequest(BaseModel):
+class WeaknessPreviewRequest(CamelModel):
     path: str
     artifact_id: str
 
 
-class WeaknessExecuteRequest(BaseModel):
+class WeaknessExecuteRequest(CamelModel):
     path: str
     artifact_id: str
     auto_approve: bool = False
     confidence_threshold: float = 0.7
 
 
-class InterfaceProcessRequest(BaseModel):
+class InterfaceProcessRequest(CamelModel):
     goal: str
     data_dir: str | None = None
 
 
-class IndexingStartRequest(BaseModel):
+class IndexingStartRequest(CamelModel):
     workspace_path: str
 
 
-class IndexingQueryRequest(BaseModel):
+class IndexingQueryRequest(CamelModel):
     text: str
     top_k: int = 10
 
@@ -82,15 +81,15 @@ class LensConfigRequest(CamelModel):
     auto_select: bool = True
 
 
-class SavePromptRequest(BaseModel):
+class SavePromptRequest(CamelModel):
     prompt: str
 
 
-class RemovePromptRequest(BaseModel):
+class RemovePromptRequest(CamelModel):
     prompt: str
 
 
-class ClearBriefingRequest(BaseModel):
+class ClearBriefingRequest(CamelModel):
     path: str
 
 

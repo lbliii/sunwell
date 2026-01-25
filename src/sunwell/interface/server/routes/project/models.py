@@ -1,7 +1,6 @@
 """Shared request/response models for project routes."""
 
 import re
-from pydantic import BaseModel
 
 from sunwell.interface.server.routes.models import CamelModel
 
@@ -9,7 +8,7 @@ from sunwell.interface.server.routes.models import CamelModel
 _RE_SLUG_CHARS = re.compile(r"[^a-z0-9]+")
 
 
-class ProjectPathRequest(BaseModel):
+class ProjectPathRequest(CamelModel):
     """Request with a project path."""
 
     path: str
@@ -36,7 +35,7 @@ class ProjectInfo(CamelModel):
     last_used: str | None
 
 
-class CreateProjectRequest(BaseModel):
+class CreateProjectRequest(CamelModel):
     """Request to create a new project."""
 
     name: str
@@ -54,19 +53,19 @@ class CreateProjectResponse(CamelModel):
     message: str | None = None
 
 
-class SetDefaultRequest(BaseModel):
+class SetDefaultRequest(CamelModel):
     """Request to set default project."""
 
     project_id: str
 
 
-class MonorepoRequest(BaseModel):
+class MonorepoRequest(CamelModel):
     """Request to check monorepo."""
 
     path: str
 
 
-class AnalyzeRequest(BaseModel):
+class AnalyzeRequest(CamelModel):
     """Request to analyze project."""
 
     path: str
@@ -95,14 +94,14 @@ class StopRunRequest(CamelModel):
     session_id: str | None = None
 
 
-class IterateProjectRequest(BaseModel):
+class IterateProjectRequest(CamelModel):
     """Request to iterate a project."""
 
     path: str
     new_goal: str | None = None
 
 
-class SwitchProjectRequest(BaseModel):
+class SwitchProjectRequest(CamelModel):
     """Request to switch project context."""
 
     project_id: str

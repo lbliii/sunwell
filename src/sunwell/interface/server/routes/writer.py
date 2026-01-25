@@ -5,10 +5,10 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter
-from pydantic import BaseModel
 
 from sunwell.interface.server.routes.models import (
     ActiveWorkflowsResponse,
+    CamelModel,
     DiataxisDetection,
     DiataxisResponse,
     DiataxisScores,
@@ -31,40 +31,40 @@ router = APIRouter(prefix="/api", tags=["writer"])
 # ═══════════════════════════════════════════════════════════════
 
 
-class DiataxisRequest(BaseModel):
+class DiataxisRequest(CamelModel):
     content: str
     file_path: str | None = None
 
 
-class ValidateRequest(BaseModel):
+class ValidateRequest(CamelModel):
     content: str
     file_path: str | None = None
     lens_name: str = "tech-writer"
 
 
-class FixAllRequest(BaseModel):
+class FixAllRequest(CamelModel):
     content: str
     warnings: list[dict[str, Any]]
     lens_name: str
 
 
-class ExecuteSkillRequest(BaseModel):
+class ExecuteSkillRequest(CamelModel):
     skill_id: str
     content: str
     file_path: str | None = None
     lens_name: str
 
 
-class RouteIntentRequest(BaseModel):
+class RouteIntentRequest(CamelModel):
     user_input: str
 
 
-class StartWorkflowRequest(BaseModel):
+class StartWorkflowRequest(CamelModel):
     chain_name: str
     target_file: str | None = None
 
 
-class WorkflowIdRequest(BaseModel):
+class WorkflowIdRequest(CamelModel):
     execution_id: str
 
 

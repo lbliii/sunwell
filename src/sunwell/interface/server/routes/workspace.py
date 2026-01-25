@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
 
 from sunwell.foundation.utils import normalize_path
 from sunwell.interface.server.routes.models import CamelModel
@@ -23,7 +22,7 @@ router = APIRouter(prefix="/api/workspace", tags=["workspace"])
 # ═══════════════════════════════════════════════════════════════
 
 
-class SwitchWorkspaceRequest(BaseModel):
+class SwitchWorkspaceRequest(CamelModel):
     """Request to switch workspace."""
 
     workspace_id: str | None = None

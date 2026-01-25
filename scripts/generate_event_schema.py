@@ -286,10 +286,10 @@ def generate_api_types() -> str:
 
     from pydantic import BaseModel
 
-    from sunwell.interface.server.routes._models import CamelModel
+    from sunwell.interface.server.routes.models import CamelModel
 
     # Import all response models
-    import sunwell.interface.server.routes._models as models_module
+    import sunwell.interface.server.routes.models as models_module
 
     # Build set of known CamelModel class names for reference
     known_models = {

@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
-from pydantic import BaseModel
+from typing import Any
+
+from sunwell.interface.server.routes.models import CamelModel
 
 router = APIRouter(prefix="/api/recovery", tags=["recovery"])
 
@@ -17,13 +19,13 @@ router = APIRouter(prefix="/api/recovery", tags=["recovery"])
 # ═══════════════════════════════════════════════════════════════
 
 
-class AutoFixRequest(BaseModel):
+class AutoFixRequest(CamelModel):
     """Request to trigger auto-fix for a recovery."""
 
     hint: str | None = None
 
 
-class RecoverySummaryResponse(BaseModel):
+class RecoverySummaryResponse(CamelModel):
     """Summary of a pending recovery."""
 
     goal_hash: str
@@ -35,7 +37,7 @@ class RecoverySummaryResponse(BaseModel):
     timestamp: str
 
 
-class RecoveryArtifactResponse(BaseModel):
+class RecoveryArtifactResponse(CamelModel):
     """Single artifact in recovery state."""
 
     path: str
@@ -45,7 +47,7 @@ class RecoveryArtifactResponse(BaseModel):
     original_error: str | None = None
 
 
-class RecoveryStateResponse(BaseModel):
+class RecoveryStateResponse(CamelModel):
     """Full recovery state."""
 
     goal_hash: str
@@ -61,7 +63,7 @@ class RecoveryStateResponse(BaseModel):
     iterations: list[dict[str, Any]] | None = None
 
 
-class PendingRecoveriesResponse(BaseModel):
+class PendingRecoveriesResponse(CamelModel):
     """List of pending recoveries."""
 
     recoveries: list[RecoverySummaryResponse]

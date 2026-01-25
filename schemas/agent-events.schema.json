@@ -340,8 +340,8 @@
             }
           },
           "required": [
-            "fact",
-            "category"
+            "category",
+            "fact"
           ],
           "additionalProperties": true
         },
@@ -804,8 +804,8 @@
             }
           },
           "required": [
-            "selected_candidate_id",
-            "tasks"
+            "tasks",
+            "selected_candidate_id"
           ],
           "additionalProperties": true
         },
@@ -1031,8 +1031,8 @@
             }
           },
           "required": [
-            "candidate_id",
             "score",
+            "candidate_id",
             "total_candidates"
           ],
           "additionalProperties": true
@@ -1103,8 +1103,8 @@
             }
           },
           "required": [
-            "round",
-            "total_rounds"
+            "total_rounds",
+            "round"
           ],
           "additionalProperties": true
         },
@@ -1339,9 +1339,9 @@
             }
           },
           "required": [
-            "gate_id",
+            "step",
             "passed",
-            "step"
+            "gate_id"
           ],
           "additionalProperties": true
         },
@@ -1589,8 +1589,8 @@
             }
           },
           "required": [
-            "task_id",
-            "error"
+            "error",
+            "task_id"
           ],
           "additionalProperties": true
         },
@@ -1796,8 +1796,8 @@
             }
           },
           "required": [
-            "stage",
-            "progress"
+            "progress",
+            "stage"
           ],
           "additionalProperties": true
         },
@@ -2133,8 +2133,8 @@
             }
           },
           "required": [
-            "artifacts_passed",
-            "recovery_id"
+            "recovery_id",
+            "artifacts_passed"
           ],
           "additionalProperties": true
         },
@@ -2167,8 +2167,8 @@
             }
           },
           "required": [
-            "reason",
-            "recovery_id"
+            "recovery_id",
+            "reason"
           ],
           "additionalProperties": true
         },
@@ -2279,10 +2279,10 @@
             }
           },
           "required": [
-            "edge_id",
-            "check_type",
             "source_artifact",
-            "target_artifact"
+            "edge_id",
+            "target_artifact",
+            "check_type"
           ],
           "additionalProperties": true
         },
@@ -2361,10 +2361,10 @@
             }
           },
           "required": [
+            "actual",
             "edge_id",
-            "check_type",
             "expected",
-            "actual"
+            "check_type"
           ],
           "additionalProperties": true
         },
@@ -2404,9 +2404,9 @@
           },
           "required": [
             "stub_type",
-            "artifact_id",
             "location",
-            "file_path"
+            "file_path",
+            "artifact_id"
           ],
           "additionalProperties": true
         },
@@ -2439,8 +2439,8 @@
             }
           },
           "required": [
-            "artifact_id",
-            "file_path"
+            "file_path",
+            "artifact_id"
           ],
           "additionalProperties": true
         },
@@ -2479,10 +2479,10 @@
             }
           },
           "required": [
-            "task_id",
-            "integration_type",
             "source_artifact",
-            "target_artifact"
+            "task_id",
+            "target_artifact",
+            "integration_type"
           ],
           "additionalProperties": true
         },
@@ -2704,8 +2704,8 @@
             }
           },
           "required": [
-            "provider",
-            "model"
+            "model",
+            "provider"
           ],
           "additionalProperties": true
         },
@@ -2874,9 +2874,9 @@
           },
           "required": [
             "skill_count",
-            "lens_name",
+            "wave_count",
             "content_hash",
-            "wave_count"
+            "lens_name"
           ],
           "additionalProperties": true
         },
@@ -2959,10 +2959,10 @@
             }
           },
           "required": [
-            "duration_ms",
-            "succeeded",
+            "wave_index",
             "failed",
-            "wave_index"
+            "duration_ms",
+            "succeeded"
           ],
           "additionalProperties": true
         },
@@ -3048,9 +3048,9 @@
           },
           "required": [
             "skill_name",
+            "requires",
             "context_keys_available",
-            "wave_index",
-            "requires"
+            "wave_index"
           ],
           "additionalProperties": true
         },
@@ -3102,11 +3102,11 @@
             }
           },
           "required": [
-            "success",
             "duration_ms",
             "produces",
+            "cached",
             "skill_name",
-            "cached"
+            "success"
           ],
           "additionalProperties": true
         },
@@ -3173,8 +3173,8 @@
           },
           "required": [
             "skill_count",
-            "lens_name",
-            "duration_ms"
+            "duration_ms",
+            "lens_name"
           ],
           "additionalProperties": true
         },
@@ -3288,12 +3288,12 @@
             }
           },
           "required": [
-            "flags",
+            "skill_count",
             "dag_name",
             "risk_level",
+            "risk_score",
             "dag_id",
-            "skill_count",
-            "risk_score"
+            "flags"
           ],
           "additionalProperties": true
         },
@@ -3332,8 +3332,8 @@
             }
           },
           "required": [
-            "dag_id",
-            "approved"
+            "approved",
+            "dag_id"
           ],
           "additionalProperties": true
         },
@@ -3378,11 +3378,11 @@
             }
           },
           "required": [
-            "skill_name",
             "violation_type",
-            "action_taken",
             "evidence",
-            "detection_method"
+            "detection_method",
+            "skill_name",
+            "action_taken"
           ],
           "additionalProperties": true
         },
@@ -3421,10 +3421,10 @@
             }
           },
           "required": [
-            "method",
-            "output_length",
             "violations_found",
-            "scan_duration_ms"
+            "method",
+            "scan_duration_ms",
+            "output_length"
           ],
           "additionalProperties": true
         },
@@ -3466,8 +3466,8 @@
             }
           },
           "required": [
-            "risk_level",
             "action",
+            "risk_level",
             "skill_name"
           ],
           "additionalProperties": true
@@ -3501,8 +3501,8 @@
             }
           },
           "required": [
-            "title",
-            "goal_id"
+            "goal_id",
+            "title"
           ],
           "additionalProperties": true
         },
@@ -3595,8 +3595,8 @@
             }
           },
           "required": [
-            "error",
-            "goal_id"
+            "goal_id",
+            "error"
           ],
           "additionalProperties": true
         },
@@ -3995,8 +3995,8 @@
             }
           },
           "required": [
-            "errors_found",
-            "iteration"
+            "iteration",
+            "errors_found"
           ],
           "additionalProperties": true
         },
@@ -4029,8 +4029,8 @@
             }
           },
           "required": [
-            "errors_to_fix",
-            "iteration"
+            "iteration",
+            "errors_to_fix"
           ],
           "additionalProperties": true
         },
@@ -4123,8 +4123,8 @@
             }
           },
           "required": [
-            "persistent_errors",
-            "iterations"
+            "iterations",
+            "persistent_errors"
           ],
           "additionalProperties": true
         },
@@ -4187,8 +4187,8 @@
             }
           },
           "required": [
-            "elapsed_ms",
-            "budget_ms"
+            "budget_ms",
+            "elapsed_ms"
           ],
           "additionalProperties": true
         },

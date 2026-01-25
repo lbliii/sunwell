@@ -3,10 +3,10 @@
 from typing import Any
 
 from fastapi import APIRouter
-from pydantic import BaseModel
 
 from sunwell.foundation.utils import normalize_path
 from sunwell.interface.server.routes.models import (
+    CamelModel,
     DagAppendResponse,
     DagCheckpointInfo,
     DagEdge,
@@ -36,16 +36,16 @@ router = APIRouter(prefix="/api/dag", tags=["dag"])
 # ═══════════════════════════════════════════════════════════════
 
 
-class RefreshWorkspaceDagRequest(BaseModel):
+class RefreshWorkspaceDagRequest(CamelModel):
     path: str
 
 
-class DagAppendRequest(BaseModel):
+class DagAppendRequest(CamelModel):
     path: str
     goal: dict[str, Any]
 
 
-class DagExecuteRequest(BaseModel):
+class DagExecuteRequest(CamelModel):
     path: str
     node_id: str
 

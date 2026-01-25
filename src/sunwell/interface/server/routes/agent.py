@@ -8,10 +8,10 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel
 
 from sunwell.interface.server.events import BusEvent, EventBus
 from sunwell.interface.server.routes.models import (
+    CamelModel,
     RunCancelResponse,
     RunEventsResponse,
     RunHistoryItem,
@@ -50,7 +50,7 @@ def get_event_bus() -> EventBus:
 # ═══════════════════════════════════════════════════════════════
 
 
-class RunRequest(BaseModel):
+class RunRequest(CamelModel):
     goal: str
     workspace: str | None = None
     project_id: str | None = None
@@ -64,7 +64,7 @@ class RunRequest(BaseModel):
     """Use new SessionContext + PersistentMemory architecture."""
 
 
-class StopRunRequest(BaseModel):
+class StopRunRequest(CamelModel):
     session_id: str | None = None
 
 
