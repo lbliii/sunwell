@@ -4,7 +4,7 @@ import pytest
 from pathlib import Path
 
 from sunwell.tools.sunwell import SunwellToolHandlers
-from sunwell.tools.sunwell_tools import (
+from sunwell.tools.definitions.sunwell import (
     SUNWELL_TOOLS,
     SUNWELL_WORKSPACE_TOOLS,
     SUNWELL_READ_ONLY_TOOLS,
@@ -195,7 +195,7 @@ class TestTrustLevelIntegration:
 
     def test_workspace_tools_in_trust_levels(self) -> None:
         """Workspace tools should be in WORKSPACE trust level."""
-        from sunwell.tools.types import TRUST_LEVEL_TOOLS, ToolTrust
+        from sunwell.tools.core.types import TRUST_LEVEL_TOOLS, ToolTrust
 
         workspace_allowed = TRUST_LEVEL_TOOLS[ToolTrust.WORKSPACE]
         for tool in SUNWELL_WORKSPACE_TOOLS:
@@ -203,7 +203,7 @@ class TestTrustLevelIntegration:
 
     def test_read_only_tools_in_trust_levels(self) -> None:
         """Read-only tools should be in READ_ONLY trust level."""
-        from sunwell.tools.types import TRUST_LEVEL_TOOLS, ToolTrust
+        from sunwell.tools.core.types import TRUST_LEVEL_TOOLS, ToolTrust
 
         read_only_allowed = TRUST_LEVEL_TOOLS[ToolTrust.READ_ONLY]
         for tool in SUNWELL_READ_ONLY_TOOLS:
@@ -211,7 +211,7 @@ class TestTrustLevelIntegration:
 
     def test_all_sunwell_tools_in_full_level(self) -> None:
         """All Sunwell tools should be available at FULL trust level."""
-        from sunwell.tools.types import TRUST_LEVEL_TOOLS, ToolTrust
+        from sunwell.tools.core.types import TRUST_LEVEL_TOOLS, ToolTrust
 
         full_allowed = TRUST_LEVEL_TOOLS[ToolTrust.FULL]
         for tool in SUNWELL_TOOLS:

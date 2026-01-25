@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.tools.run_analyzer import (
+from sunwell.tools.tracking.analyzer import (
     CommandValidationError,
     Prerequisite,
     RunAnalysis,

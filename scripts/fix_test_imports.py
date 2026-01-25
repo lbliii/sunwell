@@ -70,6 +70,52 @@ IMPORT_MAPPINGS = [
     
     # Identity store - special case
     (r"from sunwell\.identity\.store import Identity", "from sunwell.core.models.heuristic import Identity"),
+    
+    # Identity modules
+    (r"from sunwell\.identity\.extractor import", "from sunwell.identity.extraction.extractor import"),
+    
+    # Agent modules (additional)
+    (r"from sunwell\.agent\.thinking import", "from sunwell.agent.utils.thinking import"),
+    (r"from sunwell\.agent\.budget import", "from sunwell.agent.utils.budget import"),
+    (r"from sunwell\.agent\.fixer import", "from sunwell.agent.execution.fixer import"),
+    (r"from sunwell\.agent\.spawn import", "from sunwell.agent.utils.spawn import"),
+    
+    # Interface modules (additional)
+    (r"from sunwell\.interface\.executor import", "from sunwell.interface.generative.executor import"),
+    (r"from sunwell\.interface\.views import", "from sunwell.interface.generative.views import"),
+    (r"from sunwell\.interface\.router import", "from sunwell.interface.generative.router import"),
+    
+    # Tools modules
+    (r"from sunwell\.tools\.types import", "from sunwell.tools.core.types import"),
+    (r"from sunwell\.tools\.sunwell_tools import", "from sunwell.tools.definitions.sunwell import"),
+    (r"from sunwell\.tools\.run_analyzer import", "from sunwell.tools.tracking.analyzer import"),
+    (r"from sunwell\.tools\.web_search import", "from sunwell.tools.providers.web_search import"),
+    (r"from sunwell\.tools\.invocation_tracker import", "from sunwell.tools.tracking.tracker import"),
+    
+    # Feature modules (additional)
+    (r"from sunwell\.team import", "from sunwell.features.team import"),
+    (r"from sunwell\.team\.", "from sunwell.features.team."),
+    
+    # Chat modules
+    (r"from sunwell\.chat import", "from sunwell.interface.cli.chat import"),
+    (r"from sunwell\.chat\.", "from sunwell.interface.cli.chat."),
+    
+    # Convergence modules
+    (r"from sunwell\.convergence import", "from sunwell.planning.naaru.convergence import"),
+    (r"from sunwell\.convergence\.", "from sunwell.planning.naaru.convergence."),
+    
+    # Memory modules (additional)
+    (r"from sunwell\.memory\.persistent import", "from sunwell.memory.facade.persistent import"),
+    (r"from sunwell\.memory\.types import", "from sunwell.memory.core.types import"),
+    
+    # Project modules
+    (r"from sunwell\.project\.", "from sunwell.knowledge.project."),
+    
+    # Workflow modules
+    (r"from sunwell\.workflow\.", "from sunwell.features.workflow."),
+    
+    # Server modules
+    (r"from sunwell\.server\.", "from sunwell.interface.server."),
 ]
 
 def fix_imports_in_file(file_path: Path) -> bool:

@@ -12,6 +12,7 @@ from sunwell.agent.validation.introspection import IntrospectionResult, introspe
 from sunwell.agent.validation.validation_runner import (
     Artifact,
     ValidationError,
+    ValidationResult,
     ValidationRunner,
     ValidationStage,
 )
@@ -25,6 +26,7 @@ __all__ = [
     "is_runnable_milestone",
     "Artifact",
     "ValidationError",
+    "ValidationResult",
     "ValidationRunner",
     "ValidationStage",
     "IntrospectionResult",

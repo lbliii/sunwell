@@ -196,9 +196,15 @@ async def autonomous_goal(
     )
 
     # Create agent with spawning enabled
-    from sunwell.lenses.loader import resolve_lens_for_workspace
+    from sunwell.agent.utils.lens import resolve_lens_for_goal
 
-    lens = await resolve_lens_for_workspace(project_path)
+    resolution = await resolve_lens_for_goal(
+        goal="",  # Empty goal for workspace default
+        explicit_lens=None,
+        project_path=project_path,
+        auto_select=False,
+    )
+    lens = resolution.lens
     if lens and config.enable_spawning:
         # Enable spawning on lens
         lens.can_spawn = True

@@ -25,7 +25,7 @@ from sunwell.agent.learning import (
 )
 from sunwell.models.core.protocol import ToolCall
 from sunwell.tools.progressive import ProgressivePolicy
-from sunwell.tools.types import ToolTrust
+from sunwell.tools.core.types import ToolTrust
 
 
 # =============================================================================

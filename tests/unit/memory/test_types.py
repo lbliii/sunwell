@@ -5,7 +5,7 @@ Tests for MemoryContext and TaskMemoryContext data classes.
 
 import pytest
 
-from sunwell.memory.types import MemoryContext, TaskMemoryContext
+from sunwell.memory.core.types import MemoryContext, TaskMemoryContext
 
 
 class TestMemoryContext:

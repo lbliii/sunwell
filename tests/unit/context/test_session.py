@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from sunwell.context.session import SessionContext
+from sunwell.agent.context.session import SessionContext
 
 
 class TestSessionContextProperties:

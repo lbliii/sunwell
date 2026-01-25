@@ -7,6 +7,7 @@ from sunwell.agent.signals.signals import (
     TaskSignals,
     classify_error,
     extract_signals,
+    parse_signals,
 )
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "extract_signals",
     "FastSignalChecker",
     "TaskSignals",
+    "parse_signals",
 ]

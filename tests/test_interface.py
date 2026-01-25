@@ -6,9 +6,9 @@ from pathlib import Path
 import tempfile
 
 from sunwell.interface.generative.types import ActionSpec, ViewSpec, IntentAnalysis
-from sunwell.interface.executor import ActionExecutor, ActionResult
-from sunwell.interface.views import ViewRenderer
-from sunwell.interface.router import (
+from sunwell.interface.generative.executor import ActionExecutor, ActionResult
+from sunwell.interface.generative.views import ViewRenderer
+from sunwell.interface.generative.router import (
     InteractionRouter,
     ActionOutput,
     ViewOutput,

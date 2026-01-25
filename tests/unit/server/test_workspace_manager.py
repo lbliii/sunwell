@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from sunwell.server.workspace_manager import (
+from sunwell.interface.server.workspace_manager import (
     CachedWorkspace,
     WorkspaceManager,
     get_workspace_manager,

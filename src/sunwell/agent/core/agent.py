@@ -289,11 +289,10 @@ class Agent:
                 self._prefetched_context = prefetched
                 # If prefetch suggests a lens, use it (unless explicitly set)
                 if prefetched.lens and not session.lens:
-                    from sunwell.lenses.loader import load_lens_by_name
+                    from sunwell.planning.lens.manager import LensManager
                     try:
-                        suggested_lens = load_lens_by_name(
-                            prefetched.lens, session.cwd
-                        )
+                        manager = LensManager()
+                        suggested_lens = manager.load(prefetched.lens)
                         if suggested_lens:
                             self.lens = suggested_lens
                             yield lens_selected_event(

@@ -7,8 +7,8 @@ import pytest
 
 from sunwell.agent.events import EventType
 from sunwell.agent.validation.gates import GateType
-from sunwell.convergence.loop import ConvergenceLoop
-from sunwell.convergence.types import ConvergenceConfig, ConvergenceStatus
+from sunwell.agent.convergence.loop import ConvergenceLoop
+from sunwell.agent.convergence.types import ConvergenceConfig, ConvergenceStatus
 
 
 @pytest.fixture

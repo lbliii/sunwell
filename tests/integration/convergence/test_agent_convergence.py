@@ -58,7 +58,7 @@ class TestToolExecutorHook:
     async def test_hook_callback_structure(self, tmp_path: Path):
         """Hook callback should receive Path."""
         from sunwell.tools.executor import ToolExecutor
-        from sunwell.tools.types import ToolPolicy, ToolTrust
+        from sunwell.tools.core.types import ToolPolicy, ToolTrust
 
         # Create executor with mock callback
         called_with: list[Path] = []
@@ -170,7 +170,7 @@ class TestConvergenceModuleImports:
     @pytest.mark.integration
     def test_convergence_module_exports(self):
         """Convergence module should export expected types."""
-        from sunwell.convergence import (
+        from sunwell.planning.naaru.convergence import (
             ConvergenceConfig,
             ConvergenceIteration,
             ConvergenceLoop,

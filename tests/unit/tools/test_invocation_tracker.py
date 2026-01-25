@@ -2,7 +2,7 @@
 
 import pytest
 
-from sunwell.tools.invocation_tracker import (
+from sunwell.tools.tracking.tracker import (
     InvocationTracker,
     ToolCategory,
     TOOL_CATEGORIES,

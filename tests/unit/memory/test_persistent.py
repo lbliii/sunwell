@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sunwell.memory.persistent import PersistentMemory
-from sunwell.memory.types import MemoryContext, SyncResult, TaskMemoryContext
+from sunwell.memory.facade.persistent import PersistentMemory
+from sunwell.memory.core.types import MemoryContext, SyncResult, TaskMemoryContext
 
 
 class TestSyncResult:

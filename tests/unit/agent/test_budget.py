@@ -5,7 +5,7 @@ Tests token budget management and technique routing.
 
 import pytest
 
-from sunwell.agent.budget import (
+from sunwell.agent.utils.budget import (
     DEFAULT_TECHNIQUE_MULTIPLIERS,
     AdaptiveBudget,
     CostEstimate,

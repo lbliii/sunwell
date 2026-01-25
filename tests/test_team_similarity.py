@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.team.store import TeamKnowledgeStore
+from sunwell.features.team.store import TeamKnowledgeStore
 
 
 class TestSimilarityMatching:

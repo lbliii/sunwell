@@ -5,7 +5,7 @@ Verifies intent classification for chat-agent routing.
 
 import pytest
 
-from sunwell.chat.intent import Intent, IntentClassification, IntentRouter
+from sunwell.agent.chat.intent import Intent, IntentClassification, IntentRouter
 
 
 class TestIntentClassification:

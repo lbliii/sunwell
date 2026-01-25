@@ -14,7 +14,7 @@ from sunwell.features.workflow import (
     WorkflowExecution,
     WorkflowTier,
 )
-from sunwell.workflow.engine import WriterContext
+from sunwell.features.workflow.engine import WriterContext
 
 
 class TestWorkflowEngine:

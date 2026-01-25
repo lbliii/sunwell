@@ -3,7 +3,7 @@
 import pytest
 
 from sunwell.agent.validation.gates import GateType
-from sunwell.convergence.types import (
+from sunwell.agent.convergence.types import (
     ConvergenceConfig,
     ConvergenceIteration,
     ConvergenceResult,

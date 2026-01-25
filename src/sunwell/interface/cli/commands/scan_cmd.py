@@ -138,8 +138,9 @@ async def _scan_async(
     lens = None
     if lens_name:
         try:
-            from sunwell.planning.lens.loader import load_lens
-            lens = await load_lens(lens_name)
+            from sunwell.planning.lens.manager import LensManager
+            manager = LensManager()
+            lens = await manager.get_lens_detail(lens_name)
         except Exception as e:
             console.print(f"[yellow]Warning: Could not load lens '{lens_name}': {e}[/yellow]")
 

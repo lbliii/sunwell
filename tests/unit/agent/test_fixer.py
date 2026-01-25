@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sunwell.agent.fixer import FixAttempt, FixResult, FixStage
+from sunwell.agent.execution.fixer import FixAttempt, FixResult, FixStage
 from sunwell.agent.validation import Artifact, ValidationError
 
 

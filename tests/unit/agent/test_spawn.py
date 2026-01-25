@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from sunwell.agent.spawn import (
+from sunwell.agent.utils.spawn import (
     SpawnDepthExceeded,
     SpawnRequest,
     SpecialistResult,

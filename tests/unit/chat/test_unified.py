@@ -7,13 +7,13 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from pathlib import Path
 
-from sunwell.chat.checkpoint import (
+from sunwell.agent.chat.checkpoint import (
     ChatCheckpoint,
     ChatCheckpointType,
     CheckpointResponse,
 )
-from sunwell.chat.intent import Intent, IntentClassification
-from sunwell.chat.unified import LoopState, UnifiedChatLoop
+from sunwell.agent.chat.intent import Intent, IntentClassification
+from sunwell.interface.cli.chat.unified import LoopState, UnifiedChatLoop
 
 
 class TestLoopState:

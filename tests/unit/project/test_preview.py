@@ -4,14 +4,14 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.project.intent_types import (
+from sunwell.knowledge.project.intent_types import (
     DevCommand,
     Prerequisite,
     PreviewType,
     ProjectAnalysis,
     ProjectType,
 )
-from sunwell.project.prereq_check import (
+from sunwell.knowledge.project.prereq_check import (
     can_preview,
     check_prerequisites,
     get_preview_status,

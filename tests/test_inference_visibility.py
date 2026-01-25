@@ -22,7 +22,7 @@ from sunwell.agent.utils.metrics import (
     recommend_model,
     save_profiles_to_disk,
 )
-from sunwell.agent.thinking import ThinkingDetector
+from sunwell.agent.utils.thinking import ThinkingDetector
 
 
 # =============================================================================

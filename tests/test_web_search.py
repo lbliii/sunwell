@@ -4,16 +4,16 @@ import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from pathlib import Path
 
-from sunwell.tools.web_search import (
+from sunwell.tools.providers.web_search import (
     WebSearchResult,
     WebFetchResult,
     WebSearchHandler,
     OllamaWebSearch,
     create_web_search_provider,
 )
-from sunwell.tools.executor import ToolExecutor
-from sunwell.tools.types import ToolPolicy, ToolTrust
-from sunwell.tools.builtins import CORE_TOOLS
+from sunwell.tools.execution.executor import ToolExecutor
+from sunwell.tools.core.types import ToolPolicy, ToolTrust
+from sunwell.tools.definitions.builtins import CORE_TOOLS
 from sunwell.models.core.protocol import ToolCall
 
 

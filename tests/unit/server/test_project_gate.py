@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
-from sunwell.server.routes.project import (
+from sunwell.interface.server.routes.project import (
     CreateProjectRequest,
     ProjectPathRequest,
     SetDefaultRequest,
@@ -51,7 +51,7 @@ class TestValidateProjectPath:
     @pytest.mark.asyncio
     async def test_validate_sunwell_repo_error(self, tmp_path: Path) -> None:
         """Validation returns sunwell_repo error for Sunwell's own repo."""
-        from sunwell.project.validation import ProjectValidationError
+        from sunwell.knowledge.project.validation import ProjectValidationError
 
         project_dir = tmp_path / "sunwell"
         project_dir.mkdir()
