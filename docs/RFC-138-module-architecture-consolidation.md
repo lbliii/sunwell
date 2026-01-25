@@ -120,16 +120,21 @@ Some are tested via integration tests, but coverage is unclear.
 | `config.py` | `foundation/config.py` |
 | `core/errors.py` | `foundation/errors.py` |
 | `core/identity.py` | `foundation/identity.py` |
+| `core/freethreading.py` | `foundation/freethreading.py` |
 | `schema/` | `foundation/schema/` |
 | `binding/` | `foundation/binding/` |
+| (new) | `foundation/utils/` — Generic utilities |
 
 **Import rule**: Only stdlib + third-party. Everything else imports from here.
+
+**Utilities**: Generic utilities (string manipulation, validation, generic hashing) belong in `foundation/utils/`. Domain-specific utilities stay in their domains (e.g., `agent/incremental/hasher.py` for artifact hashing). See `RFC-138-UTILS-ANALYSIS.md` for detailed rationale.
 
 ```python
 # foundation/__init__.py
 from foundation.types import ...
 from foundation.config import SunwellConfig, get_config
 from foundation.errors import SunwellError, ErrorCode
+from foundation.utils import slugify, validate_slug  # Generic utilities
 ```
 
 ---
@@ -647,6 +652,8 @@ Make `features/` truly pluggable with entry points.
 
 4. **CLI command reorganization**: Should CLI commands mirror the new domain structure?
 
+5. ~~**Utility organization**~~: **RESOLVED** — See `RFC-138-UTILS-ANALYSIS.md`. Generic utilities go in `foundation/utils/`, domain-specific utilities stay in their domains.
+
 ---
 
 ## Lens Module Split (Resolved)
@@ -842,5 +849,6 @@ graph TD
 
 - RFC-110: Agent Simplification
 - RFC-135: Unified Chat-Agent Experience
+- RFC-138-UTILS-ANALYSIS: Systems, Subsystems, and Utility Organization
 - [Python Packaging User Guide](https://packaging.python.org/)
 - [Google Python Style Guide - Imports](https://google.github.io/styleguide/pyguide.html#22-imports)

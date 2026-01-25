@@ -43,6 +43,7 @@ from sunwell.reasoning.decisions import (
     ReasonedDecision,
     RecoveryDecision,
 )
+from sunwell.reasoning.enrichment import ContextEnricher
 from sunwell.reasoning.fast_classifier import (
     BINARY_TEMPLATE,
     COMPLEXITY_TEMPLATE,
@@ -55,6 +56,7 @@ from sunwell.reasoning.fast_classifier import (
     FastClassifier,
     get_recommended_model,
 )
+from sunwell.reasoning.prompts import PromptBuilder
 from sunwell.reasoning.reasoner import Reasoner
 
 __all__ = [
@@ -63,6 +65,10 @@ __all__ = [
     "ReasonedDecision",
     "RecoveryDecision",
     "Reasoner",
+    # Context enrichment
+    "ContextEnricher",
+    # Prompt building
+    "PromptBuilder",
     # Fast classification (simple decisions, JSON output)
     "FastClassifier",
     "ClassificationResult",

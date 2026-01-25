@@ -40,9 +40,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from sunwell.simulacrum.core.auto_wiring import (
+    extract_topology_batch,
+    maybe_demote_warm_to_cold,
+    turns_to_text,
+)
 from sunwell.simulacrum.core.config import StorageConfig
 from sunwell.simulacrum.core.dag import ConversationDAG
 from sunwell.simulacrum.core.episodes import EpisodeManager
+from sunwell.simulacrum.core.ingestion import ingest_codebase, ingest_document
 from sunwell.simulacrum.core.planning_context import PlanningContext
 from sunwell.simulacrum.core.retrieval import (
     ContextAssembler,
@@ -52,6 +58,7 @@ from sunwell.simulacrum.core.retrieval import (
 from sunwell.simulacrum.core.session_manager import SessionManager
 from sunwell.simulacrum.core.tier_manager import TierManager
 from sunwell.simulacrum.core.turn import Learning, Turn, TurnType
+from sunwell.simulacrum.core.turn_utils import estimate_token_count
 from sunwell.simulacrum.hierarchical.chunks import Chunk, ChunkSummary
 from sunwell.simulacrum.hierarchical.config import ChunkConfig
 
@@ -522,7 +529,7 @@ class SimulacrumStore:
 
         # Update token count if not set
         if turn.token_count == 0:
-            turn = self._estimate_token_count(turn)
+            turn = estimate_token_count(turn)
 
         # Feed to chunk manager for hierarchical processing (RFC-013)
         if self._chunk_manager:
@@ -560,7 +567,7 @@ class SimulacrumStore:
 
         # Update token count if not set
         if turn.token_count == 0:
-            turn = self._estimate_token_count(turn)
+            turn = estimate_token_count(turn)
 
         # RFC-084: Update focus based on content
         if self._focus:
@@ -581,38 +588,20 @@ class SimulacrumStore:
         # RFC-084: Auto-extract topology every N turns
         turn_count = len(self._hot_dag.turns)
         if self.config.auto_topology and turn_count % self.config.topology_interval == 0:
-            await self._extract_topology_batch()
+            if self._chunk_manager and self._topology_extractor and self._unified_store:
+                await extract_topology_batch(
+                    self._chunk_manager,
+                    self._topology_extractor,
+                    self._unified_store,
+                    self._topology_extracted_chunks,
+                )
 
         # RFC-084: Auto-demote warm chunks to cold
-        if self.config.auto_cold_demotion:
-            self._maybe_demote_warm_to_cold()
+        if self.config.auto_cold_demotion and self._chunk_manager:
+            maybe_demote_warm_to_cold(self._chunk_manager, self.config)
 
         return turn_id
 
-    def _estimate_token_count(self, turn: Turn) -> Turn:
-        """Estimate token count for a turn.
-
-        Args:
-            turn: Turn to estimate
-
-        Returns:
-            Turn with token_count populated
-        """
-        # Rough estimate: ~1.3 tokens per word
-        word_count = len(turn.content.split())
-        estimated = max(1, int(word_count * 1.3))
-
-        return Turn(
-            content=turn.content,
-            turn_type=turn.turn_type,
-            timestamp=turn.timestamp,
-            parent_ids=turn.parent_ids,
-            source=turn.source,
-            token_count=estimated,
-            model=turn.model,
-            confidence=turn.confidence,
-            tags=turn.tags,
-        )
 
     def add_user(self, content: str, **kwargs) -> str:
         """Convenience: add user message.
@@ -932,90 +921,7 @@ class SimulacrumStore:
         return self._context_assembler.assemble_messages(query, system_prompt, max_tokens)
 
     # === RFC-084: Auto-Wiring Methods ===
-
-    async def _extract_topology_batch(self) -> None:
-        """Extract relationships from recent chunks (RFC-084 auto-topology)."""
-        if not self._chunk_manager or not self._topology_extractor:
-            return
-
-        recent_chunks = self._chunk_manager._get_recent_chunks(limit=5)
-        if len(recent_chunks) < 2:
-            return
-
-        for chunk in recent_chunks:
-            if chunk.id in self._topology_extracted_chunks:
-                continue
-
-            # Get text for this chunk
-            source_text = chunk.summary or self._turns_to_text(chunk)
-
-            # Get candidate chunks (excluding self)
-            candidates = [c for c in recent_chunks if c.id != chunk.id]
-            candidate_ids = [c.id for c in candidates]
-            candidate_texts = [c.summary or self._turns_to_text(c) for c in candidates]
-
-            if not candidate_ids:
-                continue
-
-            # Extract relationships using heuristics
-            edges = self._topology_extractor.extract_heuristic_relationships(
-                source_id=chunk.id,
-                source_text=source_text,
-                candidate_ids=candidate_ids,
-                candidate_texts=candidate_texts,
-            )
-
-            # Add edges to the concept graph
-            if self._unified_store and edges:
-                for edge in edges:
-                    self._unified_store._concept_graph.add_edge(edge)
-
-            self._topology_extracted_chunks.add(chunk.id)
-
-        # Persist the graph
-        if self._unified_store:
-            self._unified_store.save()
-
-    def _turns_to_text(self, chunk: Any) -> str:
-        """Convert chunk turns to text for topology extraction."""
-        if chunk.turns:
-            return "\n".join(f"{t.turn_type.value}: {t.content[:500]}" for t in chunk.turns)
-        return chunk.summary or ""
-
-    def _maybe_demote_warm_to_cold(self) -> None:
-        """Demote old warm chunks to cold tier (RFC-084 auto-cold-demotion)."""
-        if not self._chunk_manager:
-            return
-
-        import time
-
-        warm_chunks = self._chunk_manager._get_warm_chunks()
-        if not warm_chunks:
-            return
-
-        now = time.time()
-
-        # By age: older than config threshold
-        for chunk in warm_chunks:
-            if not chunk.timestamp_end:
-                continue
-            try:
-                # Parse ISO timestamp
-                from datetime import datetime
-                chunk_time = datetime.fromisoformat(chunk.timestamp_end).timestamp()
-                age_days = (now - chunk_time) / 86400
-                if age_days > self.config.warm_retention_days:
-                    self._chunk_manager.demote_to_cold(chunk.id)
-            except (ValueError, OSError):
-                continue
-
-        # By count: keep only max_warm_chunks
-        warm_chunks = self._chunk_manager._get_warm_chunks()  # Refresh after age-based demotion
-        warm_chunks.sort(key=lambda c: c.turn_range[0])  # Sort by turn range (oldest first)
-
-        while len(warm_chunks) > self.config.max_warm_chunks:
-            oldest = warm_chunks.pop(0)
-            self._chunk_manager.demote_to_cold(oldest.id)
+    # (Implementation moved to auto_wiring.py module)
 
     @property
     def focus(self) -> Any:
@@ -1131,63 +1037,13 @@ class SimulacrumStore:
         """
         if not self._unified_store:
             return 0
-
-        from sunwell.simulacrum.extractors.facet_extractor import FacetExtractor
-        from sunwell.simulacrum.extractors.structural_chunker import StructuralChunker
-        from sunwell.simulacrum.extractors.topology_extractor import TopologyExtractor
-        from sunwell.simulacrum.topology.memory_node import MemoryNode
-
-        chunker = StructuralChunker()
-        facet_extractor = FacetExtractor() if extract_facets else None
-
-        # Chunk the document structurally
-        chunks = chunker.chunk_document(file_path, content)
-
-        nodes: list[MemoryNode] = []
-        for chunk, spatial, section in chunks:
-            # Extract facets if enabled
-            facets = None
-            if facet_extractor and section:
-                facets = facet_extractor.extract_from_text(
-                    chunk.summary or chunk.turns[0].content if chunk.turns else "",
-                    section=section,
-                    source_type="docs",
-                )
-
-            # Create memory node
-            node = MemoryNode(
-                id=chunk.id,
-                content=chunk.summary or (chunk.turns[0].content if chunk.turns else ""),
-                chunk=chunk,
-                spatial=spatial,
-                section=section,
-                facets=facets,
-            )
-            nodes.append(node)
-            self._unified_store.add_node(node)
-
-        # Extract topology relationships if enabled
-        if extract_topology and len(nodes) > 1:
-            topology_extractor = TopologyExtractor()
-            for i, node in enumerate(nodes):
-                candidates = nodes[:i] + nodes[i+1:]  # All other nodes
-                if len(candidates) > 10:
-                    candidates = candidates[:10]  # Limit for performance
-
-                edges = topology_extractor.extract_heuristic_relationships(
-                    source_id=node.id,
-                    source_text=node.content,
-                    candidate_ids=[c.id for c in candidates],
-                    candidate_texts=[c.content for c in candidates],
-                )
-
-                for edge in edges:
-                    self._unified_store._concept_graph.add_edge(edge)
-
-        # Save the store
-        self._unified_store.save()
-
-        return len(nodes)
+        return await ingest_document(
+            self._unified_store,
+            file_path,
+            content,
+            extract_facets=extract_facets,
+            extract_topology=extract_topology,
+        )
 
     async def ingest_codebase(
         self,
@@ -1203,29 +1059,9 @@ class SimulacrumStore:
         Returns:
             Number of memory nodes created
         """
-        from pathlib import Path
-
         if not self._unified_store:
             return 0
-
-        patterns = file_patterns or ["*.py", "*.md", "*.rst", "*.yaml", "*.json"]
-        root = Path(root_path)
-        total_nodes = 0
-
-        for pattern in patterns:
-            for file_path in root.rglob(pattern):
-                if file_path.is_file():
-                    try:
-                        content = file_path.read_text()
-                        nodes = await self.ingest_document(
-                            str(file_path.relative_to(root)),
-                            content,
-                        )
-                        total_nodes += nodes
-                    except (UnicodeDecodeError, OSError):
-                        continue  # Skip binary/unreadable files
-
-        return total_nodes
+        return await ingest_codebase(self._unified_store, root_path, file_patterns)
 
     # === Stats & Cleanup ===
 
