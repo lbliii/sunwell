@@ -18,12 +18,31 @@ Usage:
 
 from typing import Any, Protocol
 
+from sunwell.routing.decision import RoutingDecision
+from sunwell.routing.exemplars import (
+    ROUTING_EXEMPLARS,
+    RoutingExemplar,
+    match_exemplar,
+)
+from sunwell.routing.rubric import DEFAULT_RUBRIC, ConfidenceRubric
+from sunwell.routing.types import (
+    Complexity,
+    ExecutionTier,
+    Intent,
+    TierBehavior,
+    UserExpertise,
+    UserMood,
+    determine_tier,
+)
+from sunwell.routing.unified import (
+    INTENT_FOCUS_MAP,
+    INTENT_LENS_MAP,
+    LENS_NAME_MAP,
+    UNIFIED_ROUTER_PROMPT,
+    UnifiedRouter,
+    create_unified_router,
+)
 from sunwell.types.protocol import Serializable
-
-
-# =============================================================================
-# Protocols for routing components
-# =============================================================================
 
 
 class HasStats(Protocol):
@@ -35,40 +54,32 @@ class HasStats(Protocol):
     def get_stats(self) -> dict[str, Any]: ...
 
 
-# RFC-030: Unified Router
-from sunwell.routing.unified import (
-    Complexity,
-    Intent,
-    RoutingDecision,
-    UnifiedRouter,
-    UserExpertise,
-    UserMood,
-    create_unified_router,
-)
-
-# RFC-022 Enhancement: Deterministic confidence and tiered execution
-from sunwell.routing.unified import (
-    ConfidenceRubric,
-    ExecutionTier,
-    RoutingExemplar,
-    TierBehavior,
-)
-
 __all__ = [
     # Protocols
     "HasStats",
     "Serializable",
-    # RFC-030: Unified Router
-    "UnifiedRouter",
-    "RoutingDecision",
+    # Types (RFC-030)
     "Intent",
     "Complexity",
     "UserMood",
     "UserExpertise",
-    "create_unified_router",
-    # RFC-022 Enhancement: Confidence & Tiers
-    "ConfidenceRubric",
     "ExecutionTier",
     "TierBehavior",
+    "determine_tier",
+    # Confidence Rubric (RFC-022)
+    "ConfidenceRubric",
+    "DEFAULT_RUBRIC",
+    # Exemplars (RFC-022)
     "RoutingExemplar",
+    "ROUTING_EXEMPLARS",
+    "match_exemplar",
+    # Decision (RFC-030)
+    "RoutingDecision",
+    # Router (RFC-030)
+    "UnifiedRouter",
+    "create_unified_router",
+    "UNIFIED_ROUTER_PROMPT",
+    "LENS_NAME_MAP",
+    "INTENT_LENS_MAP",
+    "INTENT_FOCUS_MAP",
 ]

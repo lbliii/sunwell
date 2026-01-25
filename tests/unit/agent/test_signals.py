@@ -32,7 +32,7 @@ class TestAdaptiveSignals:
         """Memory boost increases effective confidence."""
         signals = AdaptiveSignals(confidence=0.7, memory_boost=0.1)
 
-        assert signals.effective_confidence == 0.8
+        assert signals.effective_confidence == pytest.approx(0.8)
 
     def test_effective_confidence_capped_at_1(self) -> None:
         """Effective confidence doesn't exceed 1.0."""
