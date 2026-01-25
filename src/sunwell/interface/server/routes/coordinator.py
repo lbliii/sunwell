@@ -133,7 +133,7 @@ async def resume_worker(request: PauseWorkerRequest) -> dict[str, Any]:
 async def get_coordinator_state_dag(path: str) -> dict[str, Any]:
     """Get State DAG for brownfield scanning."""
     try:
-        from sunwell.knowledge.analysis.state_dag import StateDagBuilder
+        from sunwell.knowledge import StateDagBuilder
 
         project_path = Path(path).expanduser().resolve()
         if not project_path.exists():

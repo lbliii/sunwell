@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from sunwell.agent.signals import AdaptiveSignals
     from sunwell.foundation.core.lens import Lens
     from sunwell.memory.briefing import Briefing
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 
 async def plan_with_signals(

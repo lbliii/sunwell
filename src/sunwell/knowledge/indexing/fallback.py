@@ -21,7 +21,7 @@ from sunwell.foundation.utils import safe_json_loads
 if TYPE_CHECKING:
     from sunwell.knowledge.indexing.service import IndexingService
     from sunwell.knowledge.codebase.codebase import CodebaseGraph
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.knowledge.navigation.navigator import TocNavigator
 
 logger = logging.getLogger(__name__)
@@ -606,7 +606,7 @@ def create_smart_context(
                     logger.debug("ToC navigator created with LLM support")
                 else:
                     # Create with mock model - will use keyword fallback
-                    from sunwell.models.mock import MockModel
+                    from sunwell.models import MockModel
 
                     navigator = Navigator(
                         toc=toc,

@@ -31,7 +31,7 @@ from sunwell.benchmark.types import (
     TaskEvaluation,
     TaskResult,
 )
-from sunwell.models.protocol import GenerateOptions, ModelProtocol
+from sunwell.models import GenerateOptions, ModelProtocol
 
 if TYPE_CHECKING:
     from sunwell.benchmark.types import PrefetchMetrics
@@ -368,7 +368,7 @@ async def create_runner(
     """
     if model is None:
         from sunwell.foundation.config import get_config
-        from sunwell.models.ollama import OllamaModel
+        from sunwell.models import OllamaModel
 
         cfg = get_config()
         model_name = cfg.model.default_model if cfg else "gemma3:4b"

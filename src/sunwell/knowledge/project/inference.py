@@ -6,7 +6,7 @@ Infer reasonable goals from project context when no backlog exists.
 import json
 import re
 
-from sunwell.models.protocol import GenerateOptions, ModelProtocol, sanitize_llm_content
+from sunwell.models import GenerateOptions, ModelProtocol, sanitize_llm_content
 from sunwell.knowledge.project.intent_types import InferredGoal, ProjectType
 from sunwell.knowledge.project.signals import ProjectSignals, format_dir_tree, format_recent_commits
 

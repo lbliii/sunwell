@@ -13,7 +13,7 @@ from sunwell.agent.events import (
 if TYPE_CHECKING:
     from sunwell.agent.loop.config import LoopConfig
     from sunwell.foundation.core.lens import Lens
-    from sunwell.models.protocol import ModelProtocol, Tool
+    from sunwell.models import ModelProtocol, Tool
     from sunwell.tools.executor import ToolExecutor
 
 logger = logging.getLogger(__name__)

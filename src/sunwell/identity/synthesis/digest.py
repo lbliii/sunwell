@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sunwell.identity.core.models import Identity
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 from sunwell.identity.core.constants import (
     MAX_IDENTITY_PROMPT_LENGTH,
@@ -105,7 +105,7 @@ async def digest_identity(
         Updated Identity with synthesized prompt and confidence
     """
     from sunwell.identity.core.models import Identity
-    from sunwell.models.protocol import Message
+    from sunwell.models import Message
 
     if not observations:
         return current_identity or Identity()

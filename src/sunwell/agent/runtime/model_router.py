@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 from sunwell.foundation.errors import tools_not_supported
 from sunwell.core.types.types import Tier
-from sunwell.models.protocol import ModelProtocol
+from sunwell.models import ModelProtocol
 
 if TYPE_CHECKING:
     from sunwell.foundation.core.lens import Lens

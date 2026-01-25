@@ -420,7 +420,7 @@ class ExecutionManager:
         tool_executor: Any,
     ) -> str:
         """Create a single artifact."""
-        from sunwell.models.protocol import ToolCall
+        from sunwell.models import ToolCall
 
         self._emit(EventType.TASK_START, {
             "task_id": spec.id,

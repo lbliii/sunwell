@@ -33,10 +33,10 @@ from difflib import SequenceMatcher
 from itertools import chain
 from typing import TYPE_CHECKING
 
-from sunwell.models.protocol import GenerateOptions
+from sunwell.models import GenerateOptions
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 # Pre-compiled patterns for extraction parsing
 _FACT_PATTERN = re.compile(r"FACT:\s*(.+?)(?=QUOTE:|$)", re.DOTALL | re.IGNORECASE)

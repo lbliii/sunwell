@@ -12,11 +12,11 @@ import re
 from typing import TYPE_CHECKING
 
 from sunwell.agent.loop.routing import interference_generate, vortex_generate
-from sunwell.models.protocol import GenerateOptions, Message, ToolCall
+from sunwell.models import GenerateOptions, Message, ToolCall
 
 if TYPE_CHECKING:
     from sunwell.agent.learning import LearningStore
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 logger = logging.getLogger(__name__)
 

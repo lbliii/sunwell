@@ -55,7 +55,7 @@ def status() -> None:
     # Check for models
     console.print("\n[bold]Model Status:[/bold]")
     try:
-        from sunwell.models.ollama import OllamaModel
+        from sunwell.models import OllamaModel
         _ = OllamaModel(model="gemma3:1b")  # noqa: F841
         console.print("  [green]✓[/green] Ollama available")
     except Exception:

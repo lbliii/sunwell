@@ -10,7 +10,7 @@ vs ~40% without. Enable by default for reliable tool calling.
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
-from sunwell.models.protocol import Tool
+from sunwell.models.core.protocol import Tool
 
 
 class SchemaAdapter(Protocol):

@@ -121,11 +121,11 @@ async def _scan_async(
     no_detect: bool = False,
 ) -> None:
     """Async implementation of scan command."""
-    from sunwell.knowledge.analysis import scan_project
-    from sunwell.knowledge.analysis.source_context import SourceContext
-    from sunwell.knowledge.analysis.workspace import (
+    from sunwell.knowledge import (
+        SourceContext,
         WorkspaceConfig,
         WorkspaceDetector,
+        scan_project,
     )
 
     root = Path(path).expanduser().resolve()

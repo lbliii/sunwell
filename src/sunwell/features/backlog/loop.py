@@ -21,7 +21,7 @@ from sunwell.features.backlog.manager import BacklogManager
 if TYPE_CHECKING:
     from sunwell.agent import Agent
     from sunwell.quality.guardrails import GuardrailSystem
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
 
@@ -247,7 +247,7 @@ class AutonomousLoop:
                 # Agent.run() takes SessionContext and PersistentMemory
                 from sunwell.agent.utils.request import RunOptions
                 from sunwell.agent.context.session import SessionContext
-                from sunwell.memory.persistent import PersistentMemory
+                from sunwell.memory import PersistentMemory
 
                 workspace = self.backlog_manager.root
                 options = RunOptions(trust="workspace")

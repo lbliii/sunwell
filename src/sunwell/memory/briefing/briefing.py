@@ -13,18 +13,15 @@ coordinates expensive operations. A tiny model reads the briefing and pre-loads 
 skills, and DAG context before the main agent starts.
 """
 
-
 import json
-from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sunwell.agent.learning import Learning
+    pass
 
 
 class BriefingStatus(Enum):
@@ -225,11 +222,6 @@ class Briefing:
         )
 
 
-# =============================================================================
-# Execution Summary (for briefing generation)
-# =============================================================================
-
-
 @dataclass(frozen=True, slots=True)
 class ExecutionSummary:
     """Summary of what happened during agent execution.
@@ -303,179 +295,3 @@ class ExecutionSummary:
             new_hazards=(),  # Populated by agent
             resolved_hazards=(),  # Populated by agent
         )
-
-
-# =============================================================================
-# Compression Function
-# =============================================================================
-
-
-def compress_briefing(
-    old_briefing: Briefing | None,
-    summary: ExecutionSummary,
-    new_status: BriefingStatus,
-    blockers: list[str] | None = None,
-    predicted_skills: list[str] | None = None,
-    suggested_lens: str | None = None,
-    complexity_estimate: str | None = None,
-) -> Briefing:
-    """Create new briefing by compressing old state + session work.
-
-    This is the "telephone game" compression function.
-    Each call produces a fresh briefing that captures current state.
-
-    Args:
-        old_briefing: Previous briefing (or None for first session)
-        summary: Execution summary from this session
-        new_status: Current status after this session
-        blockers: Current blockers (replaces old)
-        predicted_skills: Skills predicted for next session
-        suggested_lens: Lens suggested for next session
-        complexity_estimate: Complexity estimate for remaining work
-
-    Returns:
-        New briefing that overwrites the old one
-    """
-    # Start with old briefing or defaults
-    if old_briefing:
-        mission = old_briefing.mission
-        goal_hash = old_briefing.goal_hash
-        session_id = old_briefing.session_id
-
-        # Carry forward hazards, removing resolved ones
-        old_hazards = set(old_briefing.hazards)
-        if summary.resolved_hazards:
-            old_hazards -= set(summary.resolved_hazards)
-        hazards = list(old_hazards)
-
-        # Carry forward learnings
-        old_learning_ids = list(old_briefing.related_learnings)
-    else:
-        mission = "Unknown mission"
-        goal_hash = None
-        session_id = ""
-        hazards = []
-        old_learning_ids = []
-
-    # Add new hazards (keep max 3 most recent)
-    if summary.new_hazards:
-        hazards = (list(summary.new_hazards) + hazards)[:3]
-
-    # Update learning references (keep max 5 most recent)
-    learning_ids = list(summary.new_learnings) + old_learning_ids
-    learning_ids = learning_ids[:5]
-
-    # Construct progress summary
-    if new_status == BriefingStatus.COMPLETE:
-        progress = f"Complete. {summary.last_action}"
-    elif new_status == BriefingStatus.BLOCKED:
-        progress = f"Blocked. {summary.last_action}"
-    else:
-        progress = summary.last_action
-
-    return Briefing(
-        mission=mission,
-        status=new_status,
-        progress=progress,
-        last_action=summary.last_action,
-        next_action=summary.next_action,
-        hazards=tuple(hazards),
-        blockers=tuple(blockers or []),
-        hot_files=tuple(summary.modified_files[:5]),
-        goal_hash=goal_hash,
-        related_learnings=tuple(learning_ids),
-        # Dispatch hints
-        predicted_skills=tuple(predicted_skills or []),
-        suggested_lens=suggested_lens,
-        complexity_estimate=complexity_estimate,
-        estimated_files_touched=len(summary.modified_files) if summary.modified_files else None,
-        # Metadata
-        session_id=session_id,
-    )
-
-
-# =============================================================================
-# Prefetch Types
-# =============================================================================
-
-
-@dataclass(frozen=True, slots=True)
-class PrefetchPlan:
-    """What to pre-load based on briefing signals."""
-
-    files_to_read: tuple[str, ...]
-    """Code files to pre-read into context."""
-
-    learnings_to_load: tuple[str, ...]
-    """Learning IDs to retrieve."""
-
-    skills_needed: tuple[str, ...]
-    """Skills/heuristics to activate."""
-
-    dag_nodes_to_fetch: tuple[str, ...]
-    """DAG node IDs to pre-traverse."""
-
-    suggested_lens: str | None
-    """Lens that best matches the work type."""
-
-    # RFC-130: Memory-informed hints
-    memory_hints: Mapping[str, Any] | None = None
-    """Hints from similar past goals.
-
-    May contain:
-    - similar_goals: List of similar past goal descriptions
-    - patterns: Success patterns from similar goals
-    - user_preferences: Learned user preferences
-    """
-
-
-@dataclass(frozen=True, slots=True)
-class PrefetchedContext:
-    """Pre-loaded context ready for main agent.
-
-    Result of executing a PrefetchPlan. Contains all the
-    context that was pre-loaded before the main agent starts.
-    """
-
-    files: MappingProxyType[str, str]
-    """Map of file path → file content (immutable)."""
-
-    learnings: tuple[Any, ...]  # tuple[Learning, ...] at runtime
-    """Pre-loaded learnings from memory store."""
-
-    dag_context: tuple[Any, ...]  # tuple[Turn, ...] at runtime
-    """Pre-fetched DAG nodes for conversation history."""
-
-    active_skills: tuple[str, ...]
-    """Skills that have been activated."""
-
-    lens: str | None
-    """Lens that was selected (or None for default)."""
-
-
-# =============================================================================
-# Learning Bridge
-# =============================================================================
-
-
-def briefing_to_learning(briefing: Briefing) -> Learning | None:
-    """Generate a learning from a completed briefing.
-
-    When a mission completes, we extract a summary learning that
-    persists in the unified memory store. This bridges the transient
-    briefing with the accumulated learning system.
-
-    Returns:
-        Learning if briefing is complete, None otherwise
-    """
-    if briefing.status != BriefingStatus.COMPLETE:
-        return None
-
-    from sunwell.agent.learning import Learning
-
-    return Learning(
-        fact=f"Completed: {briefing.mission}. {briefing.progress}",
-        category="task_completion",
-        confidence=1.0,  # Briefing completions are high confidence
-        source_file=briefing.goal_hash,
-    )

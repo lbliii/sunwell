@@ -277,7 +277,7 @@ async def _find_code(
 
     # For fallback mode, use mock model (navigator uses _fallback_navigate internally)
     if not model:
-        from sunwell.models.mock import MockModel
+        from sunwell.models import MockModel
         model = MockModel()
 
     navigator = TocNavigator(toc=toc, model=model, workspace_root=cwd)

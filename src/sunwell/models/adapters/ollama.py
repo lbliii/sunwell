@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
 from sunwell.foundation.errors import from_openai_error
-from sunwell.models.protocol import (
+from sunwell.models.core.protocol import (
     GenerateOptions,
     GenerateResult,
     Message,
@@ -228,7 +228,7 @@ class OllamaModel:
             cap = get_model_capability(self.model)
             if cap and not cap.tools:
                 # Use JSON emulation for tool calling
-                from sunwell.models.tool_emulator import ToolEmulatorModel
+                from sunwell.models.emulation.tool_emulator import ToolEmulatorModel
 
                 emulator = ToolEmulatorModel(inner_model=self)
                 # Delegate to emulator (but don't pass tools to avoid recursion)

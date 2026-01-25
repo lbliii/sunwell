@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from sunwell.convergence import ConvergenceConfig
     from sunwell.foundation.core.lens import Lens
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 
 @dataclass(frozen=True, slots=True)

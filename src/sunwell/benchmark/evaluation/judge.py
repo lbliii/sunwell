@@ -16,7 +16,7 @@ from sunwell.benchmark.types import (
     JudgeVerdict,
     Verdict,
 )
-from sunwell.models.protocol import GenerateOptions, ModelProtocol
+from sunwell.models import GenerateOptions, ModelProtocol
 
 if TYPE_CHECKING:
     pass

@@ -12,7 +12,7 @@ from rich.table import Table
 from sunwell.foundation.threading import is_free_threaded
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 console = Console()
 # RFC-053: Separate stderr console for warnings (keeps stdout clean for NDJSON)
@@ -365,18 +365,18 @@ def load_dotenv() -> None:
 def create_model(provider: str, model_name: str) -> "ModelProtocol":
     """Create model instance based on provider."""
     if provider == "mock":
-        from sunwell.models.mock import MockModel
+        from sunwell.models import MockModel
         return MockModel()
 
     elif provider == "anthropic":
-        from sunwell.models.anthropic import AnthropicModel
+        from sunwell.models import AnthropicModel
         return AnthropicModel(
             model=model_name,
             api_key=os.environ.get("ANTHROPIC_API_KEY"),
         )
 
     elif provider == "openai":
-        from sunwell.models.openai import OpenAIModel
+        from sunwell.models import OpenAIModel
         return OpenAIModel(
             model=model_name,
             api_key=os.environ.get("OPENAI_API_KEY"),
@@ -384,7 +384,7 @@ def create_model(provider: str, model_name: str) -> "ModelProtocol":
 
     elif provider == "ollama":
         from sunwell.foundation.config import get_config
-        from sunwell.models.ollama import OllamaModel
+        from sunwell.models import OllamaModel
 
         cfg = get_config()
         return OllamaModel(

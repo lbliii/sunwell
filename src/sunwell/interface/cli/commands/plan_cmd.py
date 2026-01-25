@@ -303,7 +303,7 @@ async def _squash_extract(
         return f"Implement the following specification:\n\n{_extract_key_sections(content)}"
 
     # Run section-aware squash extraction (finds relevant sections first)
-    from sunwell.knowledge.extraction.squash import section_aware_extract
+    from sunwell.knowledge import section_aware_extract
 
     result = await section_aware_extract(
         document=content,
@@ -432,7 +432,7 @@ async def _compound_extract(
     ]
 
     # Run document through each perspective
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     extracted = {}
     for name, question in perspectives:

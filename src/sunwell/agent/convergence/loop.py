@@ -43,7 +43,7 @@ from sunwell.agent.convergence.types import (
 
 if TYPE_CHECKING:
     from sunwell.agent.execution.fixer import FixStage
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 
 @dataclass(slots=True)

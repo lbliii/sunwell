@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sunwell.agent.context.session import SessionContext
-    from sunwell.memory.persistent import PersistentMemory
+    from sunwell.memory import PersistentMemory
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class WorkspaceManager:
 
     def get_memory(self, workspace: Path) -> PersistentMemory:
         """Get or load PersistentMemory for workspace (sync version)."""
-        from sunwell.memory.persistent import PersistentMemory
+        from sunwell.memory import PersistentMemory
 
         workspace = workspace.resolve()
 
@@ -96,7 +96,7 @@ class WorkspaceManager:
 
     async def get_memory_async(self, workspace: Path) -> PersistentMemory:
         """Get or load PersistentMemory for workspace (async version)."""
-        from sunwell.memory.persistent import PersistentMemory
+        from sunwell.memory import PersistentMemory
 
         workspace = workspace.resolve()
 

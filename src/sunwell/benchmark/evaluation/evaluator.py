@@ -16,7 +16,7 @@ from sunwell.benchmark.types import (
     TaskResult,
     Verdict,
 )
-from sunwell.models.protocol import ModelProtocol
+from sunwell.models import ModelProtocol
 
 from sunwell.benchmark.evaluation.deterministic import evaluate_deterministic
 from sunwell.benchmark.evaluation.judge import evaluate_with_judge

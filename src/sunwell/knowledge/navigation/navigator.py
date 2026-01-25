@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 from sunwell.knowledge.navigation.toc import ProjectToc
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 logger = logging.getLogger(__name__)
 

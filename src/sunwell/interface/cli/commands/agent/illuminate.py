@@ -56,7 +56,7 @@ async def _illuminate(goals: list[str], time: int, verbose: bool) -> None:
     judge_model = None
 
     try:
-        from sunwell.models.ollama import OllamaModel
+        from sunwell.models import OllamaModel
 
         if config and hasattr(config, "naaru"):
             voice = getattr(config.naaru, "voice", "gemma3:1b")

@@ -35,7 +35,7 @@ def build(json_output: bool, progress: bool, force: bool) -> None:
 
 async def _build_index(json_output: bool, progress: bool, force: bool) -> None:
     """Build index with progress reporting."""
-    from sunwell.knowledge.indexing.service import IndexingService, IndexState
+    from sunwell.knowledge import IndexingService, IndexState
 
     cwd = Path.cwd()
 
@@ -120,7 +120,7 @@ async def _query_index(query_text: str, top_k: int, json_output: bool) -> None:
     """Query the index."""
     import time
 
-    from sunwell.knowledge.indexing.service import IndexingService
+    from sunwell.knowledge import IndexingService
 
     cwd = Path.cwd()
     service = IndexingService(workspace_root=cwd)
@@ -239,7 +239,7 @@ def metrics(json_output: bool) -> None:
 
 async def _show_metrics(json_output: bool) -> None:
     """Show index metrics."""
-    from sunwell.knowledge.indexing.service import IndexingService
+    from sunwell.knowledge import IndexingService
 
     cwd = Path.cwd()
     service = IndexingService(workspace_root=cwd)

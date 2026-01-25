@@ -10,7 +10,7 @@ import json
 import re
 from dataclasses import dataclass
 
-from sunwell.models.protocol import ToolCall
+from sunwell.models.core.protocol import ToolCall
 
 
 @dataclass(frozen=True, slots=True)

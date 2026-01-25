@@ -16,7 +16,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from sunwell.models.protocol import ToolCall
+from sunwell.models import ToolCall
 
 # Pre-compiled regex patterns for detection
 _RE_MARKDOWN_FENCE = re.compile(r"^```(?:\w+)?\s*\n(.*?)\n```$", re.DOTALL)

@@ -22,7 +22,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
-from sunwell.memory.types import MemoryContext, SyncResult, TaskMemoryContext
+from sunwell.memory.core.types import MemoryContext, SyncResult, TaskMemoryContext
 
 # =============================================================================
 # Module-Level Constants (avoid per-call allocation)
@@ -129,9 +129,7 @@ class PersistentMemory:
         intel_path = workspace / ".sunwell" / "intelligence"
 
         # Create minimal stores without loading from disk
-        from sunwell.knowledge.codebase.decisions import DecisionMemory
-        from sunwell.knowledge.codebase.failures import FailureMemory
-        from sunwell.knowledge.codebase.patterns import PatternProfile
+        from sunwell.knowledge import DecisionMemory, FailureMemory, PatternProfile
 
         instance = cls(
             workspace=workspace,
@@ -669,7 +667,7 @@ def _load_simulacrum(memory_path: Path) -> SimulacrumStore | None:
 def _load_decisions(intel_path: Path) -> DecisionMemory | None:
     """Load DecisionMemory, returning None on failure."""
     try:
-        from sunwell.knowledge.codebase.decisions import DecisionMemory
+        from sunwell.knowledge import DecisionMemory
 
         return DecisionMemory(intel_path)
     except Exception as e:
@@ -680,7 +678,7 @@ def _load_decisions(intel_path: Path) -> DecisionMemory | None:
 def _load_failures(intel_path: Path) -> FailureMemory | None:
     """Load FailureMemory, returning None on failure."""
     try:
-        from sunwell.knowledge.codebase.failures import FailureMemory
+        from sunwell.knowledge import FailureMemory
 
         return FailureMemory(intel_path)
     except Exception as e:
@@ -691,7 +689,7 @@ def _load_failures(intel_path: Path) -> FailureMemory | None:
 def _load_patterns(intel_path: Path) -> PatternProfile | None:
     """Load PatternProfile, returning None on failure."""
     try:
-        from sunwell.knowledge.codebase.patterns import PatternProfile
+        from sunwell.knowledge import PatternProfile
 
         return PatternProfile.load(intel_path)
     except Exception as e:

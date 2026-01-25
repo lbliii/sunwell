@@ -20,7 +20,7 @@ from sunwell.interface.cli.core.theme import console, print_banner
 from sunwell.interface.cli.workspace_prompt import resolve_workspace_interactive
 from sunwell.foundation.config import get_config
 from sunwell.agent.context.session import SessionContext
-from sunwell.memory.persistent import PersistentMemory
+from sunwell.memory import PersistentMemory
 from sunwell.knowledge.project import ProjectResolutionError, resolve_project
 from sunwell.tools.executor import ToolExecutor
 from sunwell.tools.types import ToolPolicy, ToolTrust

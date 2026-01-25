@@ -365,7 +365,7 @@ async def _resolve_lens(loader, lens_name: str):  # type: ignore[no-untyped-def]
 def _detect_workspace() -> Path | None:
     """Detect workspace root directory."""
     try:
-        from sunwell.knowledge.workspace.detector import WorkspaceDetector
+        from sunwell.knowledge import WorkspaceDetector
 
         detector = WorkspaceDetector()
         workspace = detector.detect()

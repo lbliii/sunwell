@@ -13,7 +13,7 @@ Key features:
 from dataclasses import dataclass
 
 from sunwell.models.capability.registry import ModelCapability
-from sunwell.models.protocol import Tool
+from sunwell.models.core.protocol import Tool
 
 
 def format_tool_descriptions(tools: tuple[Tool, ...], compact: bool = False) -> str:

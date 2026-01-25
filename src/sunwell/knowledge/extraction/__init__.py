@@ -14,6 +14,7 @@ from sunwell.knowledge.extraction.squash import (
     ExtractedFact,
     SquashResult,
     extract_goal_with_squash,
+    section_aware_extract,
     squash_extract,
 )
 
@@ -21,5 +22,6 @@ __all__ = [
     "ExtractedFact",
     "SquashResult",
     "extract_goal_with_squash",
+    "section_aware_extract",
     "squash_extract",
 ]

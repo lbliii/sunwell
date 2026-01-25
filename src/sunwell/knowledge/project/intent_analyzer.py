@@ -12,7 +12,7 @@ try:
 except ImportError:
     import tomli as tomllib  # type: ignore[import-not-found]
 
-from sunwell.models.protocol import ModelProtocol
+from sunwell.models import ModelProtocol
 from sunwell.knowledge.project.cache import (
     load_cached_analysis,
     save_analysis_cache,

@@ -3,7 +3,7 @@
 import logging
 from typing import TYPE_CHECKING
 
-from sunwell.models.protocol import Tool
+from sunwell.models import Tool
 
 if TYPE_CHECKING:
     from sunwell.foundation.core.lens import Lens

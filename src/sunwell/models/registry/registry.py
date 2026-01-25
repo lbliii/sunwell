@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models.core.protocol import ModelProtocol
 
 # Default model aliases for common delegation patterns
 DEFAULT_ALIASES: dict[str, str] = {
@@ -162,7 +162,7 @@ class ModelRegistry:
 
         try:
             if provider == "anthropic":
-                from sunwell.models.anthropic import AnthropicModel
+                from sunwell.models.adapters.anthropic import AnthropicModel
 
                 return AnthropicModel(
                     model=model_name,
@@ -170,7 +170,7 @@ class ModelRegistry:
                 )
 
             elif provider == "openai":
-                from sunwell.models.openai import OpenAIModel
+                from sunwell.models.adapters.openai import OpenAIModel
 
                 return OpenAIModel(
                     model=model_name,
@@ -178,12 +178,12 @@ class ModelRegistry:
                 )
 
             elif provider == "ollama":
-                from sunwell.models.ollama import OllamaModel
+                from sunwell.models.adapters.ollama import OllamaModel
 
                 return OllamaModel(model=model_name)
 
             elif provider == "mock":
-                from sunwell.models.mock import MockModel
+                from sunwell.models.adapters.mock import MockModel
 
                 return MockModel()
 

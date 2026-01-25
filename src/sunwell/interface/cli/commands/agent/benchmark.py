@@ -73,7 +73,7 @@ async def _benchmark_async(
     # Load model
     try:
         from sunwell.foundation.config import get_config
-        from sunwell.models.ollama import OllamaModel
+        from sunwell.models import OllamaModel
 
         config = get_config()
 

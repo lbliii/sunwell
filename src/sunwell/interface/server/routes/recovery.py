@@ -232,7 +232,7 @@ async def _run_auto_fix(state: Any, hint: str | None) -> None:
     from sunwell.agent import AdaptiveBudget, Agent, RunOptions
     from sunwell.interface.generative.cli.helpers import resolve_model
     from sunwell.agent.context.session import SessionContext
-    from sunwell.memory.persistent import PersistentMemory
+    from sunwell.memory import PersistentMemory
     from sunwell.agent.recovery import RecoveryManager, build_healing_context
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust

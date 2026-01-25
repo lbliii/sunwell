@@ -160,7 +160,7 @@ class ExecutionCoordinator:
             task.error = "No tool executor available"
             return
 
-        from sunwell.models.protocol import ToolCall
+        from sunwell.models import ToolCall
 
         tool_call = ToolCall(
             id=task.id,
@@ -192,7 +192,7 @@ class ExecutionCoordinator:
             task.error = "Empty command"
             return
 
-        from sunwell.models.protocol import ToolCall
+        from sunwell.models import ToolCall
 
         tool_call = ToolCall(
             id=task.id,
@@ -319,7 +319,7 @@ Generate the code to accomplish this task.
 Code only, no explanations:"""
 
         try:
-            from sunwell.models.protocol import GenerateOptions
+            from sunwell.models import GenerateOptions
 
             result = await self._synthesis_model.generate(
                 prompt,
@@ -376,7 +376,7 @@ Code only, no explanations:"""
 Respond with ONLY: "APPROVE" or "REJECT" with reason."""
 
         try:
-            from sunwell.models.protocol import GenerateOptions
+            from sunwell.models import GenerateOptions
 
             result = await self._judge_model.generate(
                 validate_prompt,
@@ -407,7 +407,7 @@ Generate HIGH QUALITY code. Focus on correctness, safety, and best practices.
 Code only:"""
 
         try:
-            from sunwell.models.protocol import GenerateOptions
+            from sunwell.models import GenerateOptions
 
             result = await self._synthesis_model.generate(
                 prompt,
@@ -444,7 +444,7 @@ Code only:"""
 Respond with "PASS" or "FAIL" with reason."""
 
         try:
-            from sunwell.models.protocol import GenerateOptions
+            from sunwell.models import GenerateOptions
 
             result = await self._judge_model.generate(
                 verify_prompt,

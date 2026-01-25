@@ -28,7 +28,7 @@ from sunwell.planning.skills.graph import SkillGraph
 from sunwell.planning.skills.types import Skill, SkillDependency, SkillMetadata, SkillType
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 # Pre-compiled regex for skill name extraction
 _RE_SKILL_NAME = re.compile(r"'([a-z-]+)'")

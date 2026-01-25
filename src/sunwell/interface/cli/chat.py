@@ -54,7 +54,7 @@ async def _load_workspace_context(cwd: Path) -> tuple[str | None, dict[str, Any]
         Tuple of (formatted_context, workspace_data) or (None, None) if not configured.
     """
     try:
-        from sunwell.knowledge.analysis.workspace import WorkspaceConfig
+        from sunwell.knowledge import WorkspaceConfig
     except ImportError:
         return None, None
 
@@ -92,7 +92,7 @@ async def _load_workspace_context(cwd: Path) -> tuple[str | None, dict[str, Any]
 
     # Try to load source context for symbol awareness
     try:
-        from sunwell.knowledge.analysis.source_context import SourceContext
+        from sunwell.knowledge import SourceContext
 
         for link in workspace.confirmed_links:
             if link.relationship == "source_code":
@@ -299,18 +299,6 @@ async def _retrieve_relevant_code(
         )
 
     # Fallback if not SmartContext (should not happen)
-    return RAGResult(context="")
-            references = tuple(
-                (chunk.reference, retrieval.relevance_scores.get(chunk.id, 0.0))
-                for chunk in retrieval.chunks
-            )
-            return RAGResult(
-                context=retrieval.to_prompt_context(max_chunks=top_k),
-                references=references,
-            )
-    except Exception:
-        pass
-
     return RAGResult(context="")
 
 

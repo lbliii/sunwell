@@ -30,7 +30,7 @@ from sunwell.agent.signals import ErrorSignals, classify_error
 from sunwell.agent.validation import Artifact, ValidationError
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 # Pre-compiled regex for code block extraction (avoid recompiling per call)
 _RE_CODE_BLOCK = re.compile(r"```(?:python)?\s*\n(.*?)\n```", re.DOTALL)
@@ -280,7 +280,7 @@ class FixStage:
         Uses deterministic tools (ruff --fix) first,
         then LLM for remaining issues.
         """
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         # Try ruff --fix for lint errors
         if signals.error_type == "lint":
@@ -319,7 +319,7 @@ class FixStage:
 
         For type/import errors where we need to find the exact region.
         """
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         # Find the error region
         lines = artifact.content.split("\n")
@@ -534,7 +534,7 @@ class StaticAnalysisFixer:
         type_errors: list,
     ) -> None:
         """Use LLM to fix errors in an artifact."""
-        from sunwell.models.protocol import GenerateOptions
+        from sunwell.models import GenerateOptions
 
         if not lint_errors and not type_errors:
             return

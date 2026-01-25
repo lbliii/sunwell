@@ -18,7 +18,7 @@ but Naaru is an implementation detail — not an entry point.
 Example:
     >>> from sunwell.agent import Agent
     >>> from sunwell.agent.context.session import SessionContext
-    >>> from sunwell.memory.persistent import PersistentMemory
+    >>> from sunwell.memory import PersistentMemory
     >>> agent = Agent(model=model, tool_executor=tools)
     >>> session = SessionContext.build(workspace, "Build a REST API", options)
     >>> memory = PersistentMemory.load(workspace)
@@ -72,7 +72,7 @@ from sunwell.agent.validation.gates import ValidationGate
 if TYPE_CHECKING:
     from sunwell.foundation.core.lens import Lens
     from sunwell.memory.briefing import Briefing, PrefetchedContext
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.planning.naaru import Naaru
     from sunwell.planning.naaru.types import Task
     from sunwell.agent.recovery.types import RecoveryState
@@ -82,7 +82,7 @@ if TYPE_CHECKING:
     from sunwell.tools.invocation_tracker import InvocationTracker
 
 from sunwell.agent.context.session import SessionContext
-from sunwell.memory.persistent import PersistentMemory
+from sunwell.memory import PersistentMemory
 from sunwell.planning.naaru.checkpoint import AgentCheckpoint, CheckpointPhase
 
 
@@ -426,7 +426,7 @@ class Agent:
                 if self._task_graph and self._task_graph.tasks:
                     current = session.current_task
                     if current:
-                        from sunwell.knowledge.codebase.failures import FailedApproach
+                        from sunwell.knowledge import FailedApproach
                         failure = FailedApproach(
                             id="",  # Will be generated
                             description=current.description,

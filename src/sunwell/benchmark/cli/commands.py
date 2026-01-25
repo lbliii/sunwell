@@ -186,7 +186,7 @@ async def _run_benchmark(
     from sunwell.benchmark.evaluation.evaluator import BenchmarkEvaluator
     from sunwell.benchmark.reporting.reporter import BenchmarkReporter
     from sunwell.benchmark.types import NaaruMode, PromptStrategy
-    from sunwell.models.ollama import OllamaModel
+    from sunwell.models import OllamaModel
     from sunwell.foundation.schema.loader import LensLoader
 
     # Convert string options to enums
@@ -703,7 +703,7 @@ async def _run_naaru_benchmark(
 ) -> None:
     """Async Naaru benchmark execution."""
     from sunwell.benchmark.naaru import NaaruBenchmarkRunner, NaaruCondition
-    from sunwell.models.ollama import OllamaModel
+    from sunwell.models import OllamaModel
     from sunwell.foundation.schema.loader import LensLoader
 
     # Parse conditions

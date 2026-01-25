@@ -10,7 +10,7 @@ tool call success rate by 40%+ (LangGraph patterns).
 import json
 from dataclasses import dataclass
 
-from sunwell.models.protocol import Tool, ToolCall
+from sunwell.models.core.protocol import Tool, ToolCall
 
 
 @dataclass(frozen=True, slots=True)

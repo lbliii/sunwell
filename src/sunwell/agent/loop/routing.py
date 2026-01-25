@@ -11,10 +11,10 @@ This is a KEY DIFFERENTIATOR - competitors always use single-shot.
 import logging
 from typing import TYPE_CHECKING, Literal
 
-from sunwell.models.protocol import GenerateOptions, GenerateResult, Message
+from sunwell.models import GenerateOptions, GenerateResult, Message
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol, Tool
+    from sunwell.models import ModelProtocol, Tool
 
 logger = logging.getLogger(__name__)
 

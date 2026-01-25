@@ -11,7 +11,7 @@ Key principles:
 
 from dataclasses import dataclass
 
-from sunwell.models.protocol import Tool
+from sunwell.models.core.protocol import Tool
 
 
 @dataclass(frozen=True, slots=True)

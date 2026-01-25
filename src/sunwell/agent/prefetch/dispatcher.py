@@ -22,7 +22,7 @@ from sunwell.memory.briefing import Briefing, PrefetchedContext, PrefetchPlan
 
 if TYPE_CHECKING:
     from sunwell.agent.learning import Learning
-    from sunwell.memory.persistent import PersistentMemory
+    from sunwell.memory import PersistentMemory
 
 # Default prefetch timeout (seconds)
 PREFETCH_TIMEOUT = 2.0

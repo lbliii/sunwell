@@ -11,7 +11,7 @@ import re
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 from sunwell.identity.extraction.patterns import (
     BEHAVIOR_EXTRACTION_PROMPT,
@@ -86,7 +86,7 @@ async def extract_behaviors(
     Returns:
         List of (behavior_text, confidence) tuples.
     """
-    from sunwell.models.protocol import Message
+    from sunwell.models import Message
 
     prompt = BEHAVIOR_EXTRACTION_PROMPT.format(message=message)
 
@@ -151,7 +151,7 @@ async def extract_with_categories(
         - facts: list of (fact_text, category, confidence) - includes interests
         - behaviors: list of (behavior_text, confidence)
     """
-    from sunwell.models.protocol import Message
+    from sunwell.models import Message
 
     prompt = TWO_TIER_EXTRACTION_PROMPT.format(message=message)
 

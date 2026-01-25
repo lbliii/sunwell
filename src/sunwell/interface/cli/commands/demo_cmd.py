@@ -633,7 +633,7 @@ async def _run_demo_streaming(
     from sunwell.interface.cli.helpers import resolve_model
     from sunwell.foundation.config import get_config
     from sunwell.benchmark.demo import DemoComparison, DemoExecutor, DemoScorer, get_task
-    from sunwell.models.protocol import sanitize_llm_content
+    from sunwell.models import sanitize_llm_content
 
     def emit(data: dict) -> None:
         """Emit NDJSON line (newline-delimited JSON)."""

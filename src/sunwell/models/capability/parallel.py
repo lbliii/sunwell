@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from sunwell.models.capability.registry import ModelCapability
-from sunwell.models.protocol import Tool, ToolCall
+from sunwell.models.core.protocol import Tool, ToolCall
 
 
 class ToolCategory(Enum):

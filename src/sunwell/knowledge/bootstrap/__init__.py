@@ -13,6 +13,7 @@ Usage:
     result = await orchestrator.bootstrap()
 """
 
+from sunwell.knowledge.bootstrap.incremental import IncrementalBootstrap
 from sunwell.knowledge.bootstrap.orchestrator import BootstrapOrchestrator
 from sunwell.knowledge.bootstrap.ownership import OwnershipDomain, OwnershipMap
 from sunwell.knowledge.bootstrap.types import (
@@ -29,6 +30,8 @@ from sunwell.knowledge.bootstrap.types import (
 __all__ = [
     # Orchestrator
     "BootstrapOrchestrator",
+    # Incremental
+    "IncrementalBootstrap",
     # Result types
     "BootstrapResult",
     "BootstrapStatus",

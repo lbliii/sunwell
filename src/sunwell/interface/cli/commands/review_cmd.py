@@ -325,7 +325,7 @@ async def _auto_fix_recovery(
         create_renderer,
     )
     from sunwell.agent.context.session import SessionContext
-    from sunwell.memory.persistent import PersistentMemory
+    from sunwell.memory import PersistentMemory
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust
 

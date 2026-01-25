@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from sunwell.foundation.core.lens import EphemeralLens
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ async def create_ephemeral_lens(
         >>> # Now use lens with cheaper model
         >>> loop = AgentLoop(model=haiku, ...)
     """
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     prompt = _GENERATION_PROMPT.format(
         task=task,

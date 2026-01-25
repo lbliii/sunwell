@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from sunwell.agent import Agent
     from sunwell.agent.events import AgentEvent
     from sunwell.agent.context.session import SessionContext
-    from sunwell.memory.persistent import PersistentMemory
+    from sunwell.memory import PersistentMemory
     from sunwell.models.protocol import ModelProtocol
     from sunwell.tools.executor import ToolExecutor
 
@@ -187,7 +187,7 @@ class UnifiedChatLoop:
             GeneratorExit: On aclose() call
         """
         from sunwell.agent.context.session import SessionContext
-        from sunwell.memory.persistent import PersistentMemory
+        from sunwell.memory import PersistentMemory
 
         # Initialize session and memory
         self.session = SessionContext.build(self.workspace, "", None)

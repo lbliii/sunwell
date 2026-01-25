@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
 from sunwell.agent.events import AgentEvent, signal_event
-from sunwell.models.protocol import Message
+from sunwell.models import Message
 
 if TYPE_CHECKING:
     from sunwell.agent.loop.config import LoopState

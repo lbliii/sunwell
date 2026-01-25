@@ -24,7 +24,7 @@ from sunwell.planning.skills.graph import SkillGraph
 from sunwell.planning.skills.types import Skill, SkillDependency, SkillMetadata, SkillType
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 
 # =============================================================================

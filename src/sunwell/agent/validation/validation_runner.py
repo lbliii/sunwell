@@ -38,7 +38,7 @@ from sunwell.agent.utils.toolchain import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
 
 
 @dataclass(frozen=True, slots=True)

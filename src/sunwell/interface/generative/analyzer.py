@@ -44,7 +44,7 @@ from sunwell.interface.generative.surface.types import WorkspaceSpec
 
 if TYPE_CHECKING:
     from sunwell.interface.generative.pipeline import IntentPipeline
-    from sunwell.knowledge.project.intent_types import ProjectAnalysis
+    from sunwell.knowledge import ProjectAnalysis
 
 # Prompt is split into parts for readability
 _PROMPT_HEADER = '''Analyze this user goal and determine the best way to help.

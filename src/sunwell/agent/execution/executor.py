@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from sunwell.agent.learning import LearningStore
     from sunwell.agent.utils.metrics import InferenceMetrics
     from sunwell.foundation.core.lens import Lens
-    from sunwell.models.protocol import ModelProtocol
+    from sunwell.models import ModelProtocol
     from sunwell.planning.naaru.types import Task
 
 logger = logging.getLogger(__name__)
@@ -59,7 +59,7 @@ async def execute_task_streaming_fallback(
     Yields:
         Tuples of (event, result_text) where result_text is set on final yield
     """
-    from sunwell.models.protocol import GenerateOptions
+    from sunwell.models import GenerateOptions
 
     learnings_context = learning_store.format_for_prompt(5)
 
@@ -462,7 +462,7 @@ async def execute_task_with_tools(
         pass  # Mirror is optional enhancement
 
     # === RESOLVE DELEGATION MODELS (RFC-137) ===
-    from sunwell.models.registry import resolve_model
+    from sunwell.models import resolve_model
 
     smart_model_resolved = None
     delegation_model_resolved = None

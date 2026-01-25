@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Literal
 
-from sunwell.models.protocol import (
+from sunwell.models.core.protocol import (
     GenerateOptions,
     GenerateResult,
     Message,

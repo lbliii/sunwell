@@ -29,8 +29,10 @@ from sunwell.knowledge.analysis.workspace import (
     WorkspaceConfig,
     WorkspaceDetector,
     WorkspaceLink,
+    add_link,
     build_workspace,
     load_or_detect_workspace,
+    remove_link,
 )
 
 __all__ = [
@@ -46,8 +48,10 @@ __all__ = [
     "WorkspaceConfig",
     "WorkspaceDetector",
     "WorkspaceLink",
+    "add_link",
     "build_workspace",
     "load_or_detect_workspace",
+    "remove_link",
     # Source Context (RFC-103)
     "SourceContext",
     "SymbolInfo",

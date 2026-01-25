@@ -264,7 +264,7 @@ def scan(project_root: str, force: bool) -> None:
             return
 
         console.print("[bold]Scanning codebase...[/bold]")
-        from sunwell.knowledge.codebase.codebase import CodebaseAnalyzer
+        from sunwell.knowledge import CodebaseAnalyzer
 
         analyzer = CodebaseAnalyzer()
         graph = await analyzer.full_scan(project_path)
