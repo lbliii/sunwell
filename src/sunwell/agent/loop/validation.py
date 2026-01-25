@@ -44,7 +44,7 @@ async def run_validation_gates(
     )
 
     from sunwell.agent.validation import Artifact
-    from sunwell.agent.gates import ValidationGate
+    from sunwell.agent.validation.gates import ValidationGate
 
     # Create artifacts for validation
     artifacts = [

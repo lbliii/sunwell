@@ -11,7 +11,7 @@ from sunwell.agent.events import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.agent.loop_config import LoopConfig
+    from sunwell.agent.loop.config import LoopConfig
     from sunwell.foundation.core.lens import Lens
     from sunwell.models.protocol import ModelProtocol, Tool
     from sunwell.tools.executor import ToolExecutor
@@ -41,8 +41,8 @@ async def run_with_delegation(
     Yields:
         AgentEvent for progress tracking
     """
-    from sunwell.agent.ephemeral_lens import create_ephemeral_lens
-    from sunwell.agent.loop_routing import estimate_output_tokens
+    from sunwell.agent.utils.ephemeral_lens import create_ephemeral_lens
+    from sunwell.agent.loop.routing import estimate_output_tokens
 
     # Must have both smart and delegation models
     smart_model = loop_instance.smart_model

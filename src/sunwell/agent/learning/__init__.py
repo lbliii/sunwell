@@ -21,7 +21,7 @@ can be converted to simulacrum.Learning when saving to memory.
 """
 
 from sunwell.agent.learning.dead_end import DeadEnd
-from sunwell.agent.learning.execution import learn_from_execution
+from sunwell.agent.learning.execution import learn_from_execution  # From learning.py
 from sunwell.agent.learning.extractor import LearningExtractor
 from sunwell.agent.learning.learning import Learning
 from sunwell.agent.learning.patterns import ToolPattern, classify_task_type

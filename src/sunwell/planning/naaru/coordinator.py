@@ -242,7 +242,7 @@ class Naaru:
         Raises:
             SpawnDepthExceeded: If max spawn depth is reached
         """
-        from sunwell.agent.spawn import SpawnDepthExceeded, SpecialistState
+        from sunwell.agent.utils.spawn import SpawnDepthExceeded, SpecialistState
 
         # Check spawn depth limit
         if self._spawn_depth >= self._max_spawn_depth:
@@ -297,7 +297,7 @@ class Naaru:
 
         Uses existing synthesis workers with a focused prompt and limited budget.
         """
-        from sunwell.agent.spawn import SpecialistResult
+        from sunwell.agent.utils.spawn import SpecialistResult
 
         start_time = datetime.now()
         tokens_used = 0

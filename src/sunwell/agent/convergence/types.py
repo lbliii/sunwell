@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
-from sunwell.agent.gates import GateType
+from sunwell.agent.validation.gates import GateType
 
 
 class ConvergenceStatus(Enum):

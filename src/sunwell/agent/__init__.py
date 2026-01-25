@@ -52,18 +52,18 @@ Example:
     ... )
 """
 
-from sunwell.agent.budget import AdaptiveBudget, CostEstimate
-from sunwell.agent.checkpoint_manager import CheckpointManager
+from sunwell.agent.utils.budget import AdaptiveBudget, CostEstimate
+from sunwell.agent.utils.checkpoint_manager import CheckpointManager
 
 # RFC-111: Skill composition and planning
-from sunwell.agent.composer import (
+from sunwell.agent.planning.composer import (
     CapabilityAnalysis,
     CompositionResult,
     CompositionType,
     SkillComposer,
 )
-from sunwell.agent.core import Agent
-from sunwell.agent.ephemeral_lens import create_ephemeral_lens, should_use_delegation
+from sunwell.agent.core.agent import Agent
+from sunwell.agent.utils.ephemeral_lens import create_ephemeral_lens, should_use_delegation
 from sunwell.agent.events.schemas import (
     EVENT_SCHEMAS,
     REQUIRED_FIELDS,
@@ -116,36 +116,27 @@ from sunwell.agent.execution import (
     execute_task_streaming_fallback,
     execute_task_with_tools,
     execute_with_convergence,
+    execute_via_specialist,
+    get_context_snapshot,
     select_lens_for_task,
     should_spawn_specialist,
     validate_gate,
 )
-from sunwell.agent.learning import learn_from_execution
+from sunwell.agent.execution.fixer import FixResult, FixStage
+from sunwell.agent.learning import Learning, LearningExtractor, LearningStore, learn_from_execution
 from sunwell.agent.planning import plan_with_signals
-from sunwell.agent.recovery import execute_with_convergence_recovery, resume_from_recovery
-from sunwell.agent.specialist import execute_via_specialist, get_context_snapshot
-from sunwell.agent.fixer import FixResult, FixStage
-from sunwell.agent.gates import (
-    GateResult,
-    GateStepResult,
-    GateType,
-    ValidationGate,
-    detect_gates,
-    is_runnable_milestone,
-)
-from sunwell.agent.introspection import IntrospectionResult, introspect_tool_call
-from sunwell.agent.learning import Learning, LearningExtractor, LearningStore
-from sunwell.agent.lens import resolve_lens_for_goal
-from sunwell.agent.loop import AgentLoop, LoopConfig, LoopState, run_tool_loop
-from sunwell.agent.metrics import InferenceMetrics, InferenceSample, ModelPerformanceProfile
-from sunwell.agent.planner import (
+from sunwell.agent.planning.planner import (
     SHORTCUT_SKILL_MAP,
     CapabilityGap,
     CapabilityMatch,
     GoalPlanner,
     get_skills_for_shortcut,
 )
-from sunwell.agent.renderer import (
+from sunwell.agent.recovery import execute_with_convergence_recovery, resume_from_recovery
+from sunwell.agent.core.loop import AgentLoop, run_tool_loop
+from sunwell.agent.loop.config import LoopConfig, LoopState
+from sunwell.agent.utils.metrics import InferenceMetrics, InferenceSample, ModelPerformanceProfile
+from sunwell.agent.utils.renderer import (
     JSONRenderer,
     QuietRenderer,
     Renderer,
@@ -153,7 +144,7 @@ from sunwell.agent.renderer import (
     RichRenderer,
     create_renderer,
 )
-from sunwell.agent.request import RunOptions
+from sunwell.agent.utils.request import RunOptions
 from sunwell.agent.signals import (
     AdaptiveSignals,
     ErrorSignals,
@@ -162,16 +153,29 @@ from sunwell.agent.signals import (
     classify_error,
     extract_signals,
 )
-from sunwell.agent.spawn import (
+from sunwell.agent.utils.spawn import (
     SpawnDepthExceeded,
     SpawnRequest,
     SpecialistResult,
     SpecialistState,
 )
-from sunwell.agent.task_graph import TaskGraph, sanitize_code_content
-from sunwell.agent.thinking import ThinkingBlock, ThinkingDetector, ThinkingPhase
-from sunwell.agent.toolchain import LanguageToolchain, detect_toolchain
-from sunwell.agent.validation import Artifact, ValidationRunner, ValidationStage
+from sunwell.agent.core.task_graph import TaskGraph, sanitize_code_content
+from sunwell.agent.utils.thinking import ThinkingBlock, ThinkingDetector, ThinkingPhase
+from sunwell.agent.utils.toolchain import LanguageToolchain, detect_toolchain
+from sunwell.agent.utils.lens import resolve_lens_for_goal
+from sunwell.agent.validation import (
+    Artifact,
+    GateResult,
+    GateStepResult,
+    GateType,
+    IntrospectionResult,
+    ValidationGate,
+    ValidationRunner,
+    ValidationStage,
+    detect_gates,
+    introspect_tool_call,
+    is_runnable_milestone,
+)
 
 __all__ = [
     # Agent

@@ -4,7 +4,7 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.agent.loop_config import LoopState
+    from sunwell.agent.loop.config import LoopState
     from sunwell.models.protocol import ToolCall
     from sunwell.agent.recovery.manager import RecoveryManager
 

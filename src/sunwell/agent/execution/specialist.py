@@ -48,7 +48,7 @@ async def execute_via_specialist(
     Yields:
         Tuples of (event, specialist_id) where specialist_id is set on spawn
     """
-    from sunwell.agent.execution.executor import determine_specialist_role
+    from sunwell.agent.execution import determine_specialist_role
 
     # Determine specialist role based on task
     role = determine_specialist_role(task)

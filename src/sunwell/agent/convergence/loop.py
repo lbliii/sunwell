@@ -31,7 +31,7 @@ from sunwell.agent.events import (
     convergence_stuck_event,
     convergence_timeout_event,
 )
-from sunwell.agent.gates import GateType
+from sunwell.agent.validation.gates import GateType
 from sunwell.agent.validation import Artifact, ValidationError
 from sunwell.agent.convergence.types import (
     ConvergenceConfig,
@@ -42,7 +42,7 @@ from sunwell.agent.convergence.types import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.agent.fixer import FixStage
+    from sunwell.agent.execution.fixer import FixStage
     from sunwell.models.protocol import ModelProtocol
 
 
@@ -93,7 +93,7 @@ class ConvergenceLoop:
 
     def __post_init__(self) -> None:
         """Initialize fix stage."""
-        from sunwell.agent.fixer import FixStage
+        from sunwell.agent.execution.fixer import FixStage
 
         self._fixer = FixStage(
             self.model,

@@ -266,7 +266,7 @@ async def _execute_agent(run: RunState, *, use_v2: bool = False) -> AsyncIterato
         use_v2: Deprecated, always uses SessionContext + PersistentMemory.
     """
     from sunwell.agent import Agent
-    from sunwell.agent.budget import AdaptiveBudget
+    from sunwell.agent.utils.budget import AdaptiveBudget
     from sunwell.foundation.config import get_config
     from sunwell.knowledge.project import (
         ProjectResolutionError,

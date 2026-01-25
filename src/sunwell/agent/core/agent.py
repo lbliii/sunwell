@@ -61,13 +61,13 @@ from sunwell.agent.execution import (
 from sunwell.agent.execution.fixer import FixStage
 from sunwell.agent.learning import LearningExtractor, LearningStore, learn_from_execution
 from sunwell.agent.planning import plan_with_signals
-from sunwell.agent.validation.gates import ValidationGate
 from sunwell.agent.utils.metrics import InferenceMetrics
 from sunwell.agent.utils.request import RunOptions
 from sunwell.agent.signals import AdaptiveSignals, extract_signals
 from sunwell.agent.core.task_graph import TaskGraph, sanitize_code_content
 from sunwell.agent.utils.toolchain import detect_toolchain
 from sunwell.agent.validation import Artifact, ValidationRunner, ValidationStage
+from sunwell.agent.validation.gates import ValidationGate
 
 if TYPE_CHECKING:
     from sunwell.foundation.core.lens import Lens

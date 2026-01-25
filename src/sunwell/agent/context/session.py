@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sunwell.agent.request import RunOptions
+    from sunwell.agent.utils.request import RunOptions
     from sunwell.foundation.core.lens import Lens
     from sunwell.memory.briefing import Briefing
     from sunwell.planning.naaru.types import Task
@@ -137,7 +137,7 @@ class SessionContext:
 
         # Set defaults if options not provided
         if options is None:
-            from sunwell.agent.request import RunOptions
+            from sunwell.agent.utils.request import RunOptions
             options = RunOptions()
 
         # Detect project type and framework

@@ -25,6 +25,10 @@ Example:
 
 from sunwell.agent.recovery.context import build_healing_context
 from sunwell.agent.recovery.manager import RecoveryManager
+from sunwell.agent.recovery.recovery_helpers import (
+    execute_with_convergence_recovery,
+    resume_from_recovery,
+)
 from sunwell.agent.recovery.types import (
     ArtifactStatus,
     RecoveryArtifact,
@@ -39,4 +43,6 @@ __all__ = [
     "RecoveryState",
     "RecoverySummary",
     "build_healing_context",
+    "execute_with_convergence_recovery",
+    "resume_from_recovery",
 ]
