@@ -4,7 +4,38 @@ Core types for the surface composition system.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from types import MappingProxyType
+from typing import Any, Literal, Protocol, TypeVar
+
+# TypeVar for generic registry protocol
+_T = TypeVar("_T")
+
+
+class RegistryProtocol(Protocol[_T]):
+    """Protocol for registries with lookup by ID.
+
+    Both PrimitiveRegistry and BlockRegistry implement this interface.
+    """
+
+    def __contains__(self, item_id: str) -> bool:
+        """Check if an item ID exists in registry."""
+        ...
+
+    def __getitem__(self, item_id: str) -> _T:
+        """Get an item by ID. Raises KeyError if not found."""
+        ...
+
+    def get(self, item_id: str) -> _T | None:
+        """Get an item by ID, or None if not found."""
+        ...
+
+    def list_all(self) -> list[_T]:
+        """Get all items."""
+        ...
+
+    def list_by_category(self, category: str) -> list[_T]:
+        """Get items by category."""
+        ...
 
 # Type aliases for clarity
 PrimitiveSize = Literal["full", "split", "panel", "sidebar", "widget", "floating", "bottom"]
@@ -67,8 +98,10 @@ class SurfacePrimitive:
     size: PrimitiveSize
     """Size mode: "full", "split", "panel", "sidebar", "widget", "floating", "bottom"."""
 
-    props: dict[str, Any] = field(default_factory=dict)
-    """Component props (file path, initial state, etc.)."""
+    props: MappingProxyType[str, Any] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
+    """Component props (file path, initial state, etc.). Immutable mapping."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,35 +227,8 @@ class ValidationWarning:
     """Optional fix suggestion."""
 
 
-@dataclass(frozen=True, slots=True)
-class DiataxisSignal:
-    """A signal contributing to Diataxis type detection (RFC-086)."""
-
-    dtype: DiataxisType
-    """The Diataxis type this signal indicates."""
-
-    weight: float
-    """Signal weight (0.0-1.0)."""
-
-    reason: str
-    """Why this signal was detected."""
-
-
-@dataclass(frozen=True, slots=True)
-class DiataxisDetection:
-    """Result of Diataxis content type detection (RFC-086)."""
-
-    detected_type: DiataxisType | None
-    """Detected content type, or None if unclear."""
-
-    confidence: float
-    """Confidence score (0.0-1.0)."""
-
-    signals: tuple[DiataxisSignal, ...]
-    """Signals that contributed to detection."""
-
-    scores: dict[str, float] = field(default_factory=dict)
-    """Per-type scores for mixed content detection."""
+# NOTE: DiataxisSignal and DiataxisDetection are defined in diataxis.py
+# They are re-exported from __init__.py for backwards compatibility
 
 
 @dataclass(frozen=True, slots=True)

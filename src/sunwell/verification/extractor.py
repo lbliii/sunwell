@@ -26,6 +26,28 @@ if TYPE_CHECKING:
     from sunwell.naaru.artifacts import ArtifactSpec
 
 
+# Pre-compiled regex patterns for performance (avoid recompiling per-call)
+_EDGE_CASE_PATTERNS = (
+    re.compile(r"handle[s]?\s+(.+?)(?:edge case|case)", re.I),
+    re.compile(r"edge case[s]?:\s*(.+?)(?:\.|$)", re.I),
+    re.compile(r"should handle\s+(.+?)(?:\.|$)", re.I),
+)
+_PRECONDITION_PATTERNS = (
+    re.compile(r"requires?\s+(.+?)(?:\.|$)", re.I),
+    re.compile(r"must have\s+(.+?)(?:\.|$)", re.I),
+    re.compile(r"assuming\s+(.+?)(?:\.|$)", re.I),
+)
+_POSTCONDITION_PATTERNS = (
+    re.compile(r"returns?\s+(.+?)(?:\.|$)", re.I),
+    re.compile(r"produces?\s+(.+?)(?:\.|$)", re.I),
+    re.compile(r"outputs?\s+(.+?)(?:\.|$)", re.I),
+)
+_PARAM_RE = re.compile(r"(\w+)\s*(?:\(([^)]+)\))?\s*:\s*(.+)")
+_RETURN_RE = re.compile(r"(?:(\w+)\s*:\s*)?(.+)")
+_RAISES_RE = re.compile(r"(\w+)\s*:\s*(.+)")
+_JSON_EXTRACT_RE = re.compile(r"\{[\s\S]*\}")
+
+
 class SpecificationExtractor:
     """Extract specifications from multiple sources.
 
@@ -100,35 +122,20 @@ class SpecificationExtractor:
 
         # Extract any mentioned edge cases
         edge_cases: list[str] = []
-        edge_case_patterns = [
-            r"handle[s]?\s+(.+?)(?:edge case|case)",
-            r"edge case[s]?:\s*(.+?)(?:\.|$)",
-            r"should handle\s+(.+?)(?:\.|$)",
-        ]
-        for pattern in edge_case_patterns:
-            matches = re.findall(pattern, contract, re.IGNORECASE)
+        for pattern in _EDGE_CASE_PATTERNS:
+            matches = pattern.findall(contract)
             edge_cases.extend(matches)
 
         # Extract preconditions
         preconditions: list[str] = []
-        precondition_patterns = [
-            r"requires?\s+(.+?)(?:\.|$)",
-            r"must have\s+(.+?)(?:\.|$)",
-            r"assuming\s+(.+?)(?:\.|$)",
-        ]
-        for pattern in precondition_patterns:
-            matches = re.findall(pattern, contract, re.IGNORECASE)
+        for pattern in _PRECONDITION_PATTERNS:
+            matches = pattern.findall(contract)
             preconditions.extend(matches)
 
         # Extract postconditions
         postconditions: list[str] = []
-        postcondition_patterns = [
-            r"returns?\s+(.+?)(?:\.|$)",
-            r"produces?\s+(.+?)(?:\.|$)",
-            r"outputs?\s+(.+?)(?:\.|$)",
-        ]
-        for pattern in postcondition_patterns:
-            matches = re.findall(pattern, contract, re.IGNORECASE)
+        for pattern in _POSTCONDITION_PATTERNS:
+            matches = pattern.findall(contract)
             postconditions.extend(matches)
 
         return Specification(
@@ -238,9 +245,7 @@ class SpecificationExtractor:
                     section_content.append(stripped)
                 elif current_section == "args" and stripped:
                     # Parse parameter: "param (type): description" or "param: description"
-                    match = re.match(
-                        r"(\w+)\s*(?:\(([^)]+)\))?\s*:\s*(.+)", stripped
-                    )
+                    match = _PARAM_RE.match(stripped)
                     if match:
                         param_name, param_type, param_desc = match.groups()
                         result["inputs"].append(
@@ -253,7 +258,7 @@ class SpecificationExtractor:
                         )
                 elif current_section == "returns" and stripped:
                     # Parse return: "type: description" or just "description"
-                    match = re.match(r"(?:(\w+)\s*:\s*)?(.+)", stripped)
+                    match = _RETURN_RE.match(stripped)
                     if match:
                         ret_type, ret_desc = match.groups()
                         result["outputs"].append(
@@ -268,7 +273,7 @@ class SpecificationExtractor:
                             result["postconditions"].append(ret_desc)
                 elif current_section == "raises" and stripped:
                     # Raises section indicates preconditions/edge cases
-                    match = re.match(r"(\w+)\s*:\s*(.+)", stripped)
+                    match = _RAISES_RE.match(stripped)
                     if match:
                         exc_type, exc_desc = match.groups()
                         result["edge_cases"].append(f"{exc_type}: {exc_desc}")
@@ -519,7 +524,7 @@ Output JSON:
     def _parse_inferred_spec(self, response: str) -> Specification | None:
         """Parse LLM response into Specification."""
         # Extract JSON from response
-        json_match = re.search(r"\{[\s\S]*\}", response)
+        json_match = _JSON_EXTRACT_RE.search(response)
         if not json_match:
             return None
 

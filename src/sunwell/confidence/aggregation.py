@@ -97,7 +97,7 @@ class Evidence:
         }
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ModelNode:
     """A node in the project mental model with confidence scoring.
 
@@ -119,8 +119,8 @@ class ModelNode:
     children: tuple[ModelNode, ...] = ()
     """Child nodes in the hierarchy."""
 
-    metadata: dict[str, Any] = field(default_factory=dict)
-    """Additional node-specific metadata."""
+    metadata: tuple[tuple[str, Any], ...] = ()
+    """Additional node-specific metadata as (key, value) pairs."""
 
     @property
     def level(self) -> ConfidenceLevel:

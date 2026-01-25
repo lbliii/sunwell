@@ -56,7 +56,7 @@ warnings.warn(
 )
 
 
-@dataclass
+@dataclass(slots=True)
 class Simulacrum:
     """Your complete problem-solving context.
 

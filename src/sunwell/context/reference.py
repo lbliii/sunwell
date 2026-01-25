@@ -92,7 +92,7 @@ class ContextReference:
         return self.raw
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ResolvedContext:
     """Result of resolving a context reference."""
 

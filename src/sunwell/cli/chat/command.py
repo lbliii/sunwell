@@ -8,8 +8,8 @@ from pathlib import Path
 import click
 from rich.console import Console
 from rich.panel import Panel
-from sunwell.spectrum.simulacrum.context.assembler import ContextAssembler
-from sunwell.spectrum.simulacrum.core.store import SimulacrumStore
+from sunwell.simulacrum.context.assembler import ContextAssembler
+from sunwell.simulacrum.core.store import SimulacrumStore
 
 from sunwell.binding import BindingManager
 from sunwell.cli.helpers import create_model

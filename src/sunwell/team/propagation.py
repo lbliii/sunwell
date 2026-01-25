@@ -29,6 +29,11 @@ from sunwell.team.types import (
 
 __all__ = ["KnowledgePropagator"]
 
+# Categories that indicate architecture-related decisions worth sharing team-wide
+_ARCHITECTURE_CATEGORIES: frozenset[str] = frozenset({
+    "database", "auth", "framework", "architecture", "api"
+})
+
 
 class KnowledgePropagator:
     """Propagates knowledge between layers.
@@ -232,8 +237,7 @@ class KnowledgePropagator:
             return True
 
         # Architecture-related decisions are usually team-wide
-        architecture_categories = {"database", "auth", "framework", "architecture", "api"}
-        if decision.category.lower() in architecture_categories:
+        if decision.category.lower() in _ARCHITECTURE_CATEGORIES:
             return True
 
         # Decisions with rejected alternatives show real trade-offs

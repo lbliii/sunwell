@@ -9,6 +9,9 @@ import re
 import uuid
 from typing import TYPE_CHECKING
 
+# Pre-compiled regex for JSON array extraction
+_JSON_ARRAY_RE = re.compile(r"\[[\s\S]*\]")
+
 from sunwell.models.protocol import GenerateOptions
 from sunwell.verification.types import GeneratedTest, Specification
 
@@ -347,7 +350,7 @@ Output as JSON array:
         tests: list[GeneratedTest] = []
 
         # Extract JSON array from response
-        json_match = re.search(r"\[[\s\S]*\]", response)
+        json_match = _JSON_ARRAY_RE.search(response)
         if not json_match:
             return tests
 

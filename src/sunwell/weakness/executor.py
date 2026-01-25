@@ -10,8 +10,6 @@ Key components:
 - WaveResult: Result of executing a single wave
 """
 
-
-import subprocess
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -21,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 from sunwell.naaru.artifacts import ArtifactGraph, ArtifactSpec
 from sunwell.weakness.cascade import CascadeEngine, CascadeExecution, CascadePreview
 from sunwell.weakness.types import ExtractedContract, WaveConfidence
+from sunwell.weakness.verification import run_mypy, run_pytest, run_ruff
 
 if TYPE_CHECKING:
     from sunwell.agent.events import AgentEvent
@@ -385,9 +384,9 @@ class CascadeExecutor:
         contracts: dict[str, ExtractedContract],
     ) -> WaveConfidence:
         """Run verification suite and compute confidence."""
-        test_result = await self._run_tests()
-        type_result = await self._run_type_check()
-        lint_result = await self._run_lint()
+        test_result = await run_pytest(self.project_root)
+        type_result = await run_mypy(self.project_root)
+        lint_result = await run_ruff(self.project_root)
         contract_result = await self._verify_contracts(contracts, wave)
 
         return WaveConfidence.compute(
@@ -398,45 +397,6 @@ class CascadeExecutor:
             lint_result=lint_result,
             contract_result=contract_result,
         )
-
-    async def _run_tests(self) -> bool:
-        """Run pytest and return success status."""
-        try:
-            result = subprocess.run(
-                ["pytest", "--tb=short", "-q"],
-                cwd=self.project_root,
-                capture_output=True,
-                timeout=300,
-            )
-            return result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            return True  # Assume pass if can't run
-
-    async def _run_type_check(self) -> bool:
-        """Run mypy and return success status."""
-        try:
-            result = subprocess.run(
-                ["mypy", "src/"],
-                cwd=self.project_root,
-                capture_output=True,
-                timeout=120,
-            )
-            return result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            return True
-
-    async def _run_lint(self) -> bool:
-        """Run ruff and return success status."""
-        try:
-            result = subprocess.run(
-                ["ruff", "check", "src/"],
-                cwd=self.project_root,
-                capture_output=True,
-                timeout=60,
-            )
-            return result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            return True
 
     async def _verify_contracts(
         self,

@@ -6,7 +6,11 @@ RFC-075 will extend this with LLM-based intent analysis.
 
 import re
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import Literal
+
+# Pre-compiled regex for tokenization (avoid per-call compilation)
+_RE_WORD_TOKEN = re.compile(r"\b[a-z]+\b")
 
 # Domain type
 Domain = Literal["code", "planning", "writing", "data", "universal"]
@@ -22,8 +26,10 @@ class IntentSignals:
     primary_domain: Domain
     """Most likely domain based on keywords."""
 
-    domain_scores: dict[Domain, float] = field(default_factory=dict)
-    """Score for each domain (0.0-1.0)."""
+    domain_scores: MappingProxyType[Domain, float] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
+    """Score for each domain (0.0-1.0). Immutable mapping."""
 
     triggered_primitives: tuple[str, ...] = ()
     """Primitive IDs triggered by keywords."""
@@ -203,12 +209,12 @@ def extract_intent(goal: str) -> IntentSignals:
 
 def _tokenize(text: str) -> list[str]:
     """Tokenize text into words."""
-    # Split on non-alphanumeric, filter short words
-    words = re.findall(r"\b[a-z]+\b", text)
+    # Split on non-alphanumeric, filter short words (uses pre-compiled regex)
+    words = _RE_WORD_TOKEN.findall(text)
     return [w for w in words if len(w) > 2]
 
 
-def _score_domains(words: list[str]) -> dict[Domain, float]:
+def _score_domains(words: list[str]) -> MappingProxyType[Domain, float]:
     """Score each domain based on keyword matches."""
     scores: dict[Domain, float] = {
         "code": 0.0,
@@ -229,7 +235,7 @@ def _score_domains(words: list[str]) -> dict[Domain, float]:
         for domain in scores:
             scores[domain] /= total
 
-    return scores
+    return MappingProxyType(scores)
 
 
 def _find_triggered_primitives(goal_lower: str) -> tuple[str, ...]:

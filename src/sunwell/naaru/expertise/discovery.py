@@ -87,7 +87,7 @@ DEFAULT_DORI_PATHS = [
 ]
 
 
-@dataclass
+@dataclass(slots=True)
 class LensDiscovery:
     """Discover and load lenses for a domain.
 

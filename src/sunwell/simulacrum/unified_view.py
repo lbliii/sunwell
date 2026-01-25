@@ -15,15 +15,19 @@ Example:
 """
 
 
+import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
+
+# Pre-compiled regex pattern for performance
+_CATEGORY_ECHO_RE = re.compile(r"^[A-Z][a-z]+\s*\(")
 
 if TYPE_CHECKING:
     from sunwell.identity.store import IdentityStore
     from sunwell.simulacrum.core.dag import ConversationDAG
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class Fact:
     """A fact extracted from memory."""
 
@@ -32,10 +36,10 @@ class Fact:
     confidence: float
     source: str = "dag"
     quality_score: float | None = None
-    issues: list[str] = field(default_factory=list)
+    issues: tuple[str, ...] = ()
 
 
-@dataclass
+@dataclass(slots=True)
 class UnifiedMemoryView:
     """Aggregates all memory sources into single view.
 
@@ -79,14 +83,16 @@ class UnifiedMemoryView:
         if dag:
             view.turns_count = len(dag.turns)
             for learning in dag.get_active_learnings():
+                # Quality scoring
+                quality_score, issues = score_fact_quality(learning.fact, learning.confidence)
                 fact = Fact(
                     content=learning.fact,
                     category=learning.category,
                     confidence=learning.confidence,
                     source="dag",
+                    quality_score=quality_score,
+                    issues=tuple(issues),
                 )
-                # Quality scoring
-                fact.quality_score, fact.issues = score_fact_quality(learning.fact, learning.confidence)
                 view.facts.append(fact)
 
         # Load identity
@@ -191,8 +197,6 @@ def score_fact_quality(fact: str, confidence: float) -> tuple[float, list[str]]:
     Returns:
         Tuple of (quality_score, list_of_issues)
     """
-    import re
-
     issues = []
     score = confidence
 
@@ -202,12 +206,12 @@ def score_fact_quality(fact: str, confidence: float) -> tuple[float, list[str]]:
         issues.append("very short")
 
     # Looks like category echo (extraction bug pattern)
-    if re.match(r"^[A-Z][a-z]+\s*\(", fact):
+    if _CATEGORY_ECHO_RE.match(fact):
         score -= 0.3
         issues.append("looks like category echo")
 
     # Too generic
-    generic_patterns = ["user is back", "none", "nothing", "n/a", "unknown"]
+    generic_patterns = {"user is back", "none", "nothing", "n/a", "unknown"}
     if fact.lower().strip() in generic_patterns:
         score -= 0.4
         issues.append("too generic")

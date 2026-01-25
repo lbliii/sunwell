@@ -4,12 +4,32 @@ Ensures the surface is NEVER empty, even on invalid specs.
 """
 
 from pathlib import Path
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from sunwell.surface.types import SurfaceLayout, SurfacePrimitive, WorkspaceSpec
 
 if TYPE_CHECKING:
     from sunwell.surface.renderer import SurfaceRenderer
+
+# Empty props constant (avoid creating new MappingProxyType each time)
+_EMPTY_PROPS: MappingProxyType[str, object] = MappingProxyType({})
+
+# Module-level constant for project markers (shared by both functions)
+_PROJECT_MARKERS: dict[str, str] = {
+    "pyproject.toml": "software",
+    "package.json": "software",
+    "Cargo.toml": "software",
+    "go.mod": "software",
+    "setup.py": "software",
+    "requirements.txt": "software",
+    "docs": "documentation",
+    "mkdocs.yml": "documentation",
+    "conf.py": "documentation",
+    ".kanban": "planning",
+    "backlog.md": "planning",
+    "ROADMAP.md": "planning",
+}
 
 # =============================================================================
 # DEFAULT LAYOUTS
@@ -21,8 +41,9 @@ DEFAULT_LAYOUT = SurfaceLayout(
         id="CodeEditor",
         category="code",
         size="full",
+        props=_EMPTY_PROPS,
     ),
-    secondary=(SurfacePrimitive(id="FileTree", category="code", size="sidebar"),),
+    secondary=(SurfacePrimitive(id="FileTree", category="code", size="sidebar", props=_EMPTY_PROPS),),
     contextual=(),
     arrangement="standard",
 )
@@ -30,26 +51,26 @@ DEFAULT_LAYOUT = SurfaceLayout(
 # Domain-specific defaults
 DOMAIN_DEFAULTS: dict[str, SurfaceLayout] = {
     "software": SurfaceLayout(
-        primary=SurfacePrimitive(id="CodeEditor", category="code", size="full"),
-        secondary=(SurfacePrimitive(id="FileTree", category="code", size="sidebar"),),
+        primary=SurfacePrimitive(id="CodeEditor", category="code", size="full", props=_EMPTY_PROPS),
+        secondary=(SurfacePrimitive(id="FileTree", category="code", size="sidebar", props=_EMPTY_PROPS),),
         contextual=(),
         arrangement="standard",
     ),
     "documentation": SurfaceLayout(
-        primary=SurfacePrimitive(id="ProseEditor", category="writing", size="full"),
-        secondary=(SurfacePrimitive(id="Outline", category="writing", size="sidebar"),),
+        primary=SurfacePrimitive(id="ProseEditor", category="writing", size="full", props=_EMPTY_PROPS),
+        secondary=(SurfacePrimitive(id="Outline", category="writing", size="sidebar", props=_EMPTY_PROPS),),
         contextual=(),
         arrangement="standard",
     ),
     "planning": SurfaceLayout(
-        primary=SurfacePrimitive(id="Kanban", category="planning", size="full"),
-        secondary=(SurfacePrimitive(id="GoalTree", category="planning", size="sidebar"),),
+        primary=SurfacePrimitive(id="Kanban", category="planning", size="full", props=_EMPTY_PROPS),
+        secondary=(SurfacePrimitive(id="GoalTree", category="planning", size="sidebar", props=_EMPTY_PROPS),),
         contextual=(),
         arrangement="standard",
     ),
     "data": SurfaceLayout(
-        primary=SurfacePrimitive(id="DataTable", category="data", size="full"),
-        secondary=(SurfacePrimitive(id="Chart", category="data", size="panel"),),
+        primary=SurfacePrimitive(id="DataTable", category="data", size="full", props=_EMPTY_PROPS),
+        secondary=(SurfacePrimitive(id="Chart", category="data", size="panel", props=_EMPTY_PROPS),),
         contextual=(),
         arrangement="standard",
     ),
@@ -117,23 +138,7 @@ def _get_domain_default(project_path: Path) -> SurfaceLayout | None:
     Returns:
         Domain-specific default layout, or None if no markers found
     """
-    # Marker files → domain mapping
-    markers: dict[str, str] = {
-        "pyproject.toml": "software",
-        "package.json": "software",
-        "Cargo.toml": "software",
-        "go.mod": "software",
-        "setup.py": "software",
-        "requirements.txt": "software",
-        "docs": "documentation",
-        "mkdocs.yml": "documentation",
-        "conf.py": "documentation",
-        ".kanban": "planning",
-        "backlog.md": "planning",
-        "ROADMAP.md": "planning",
-    }
-
-    for marker, domain in markers.items():
+    for marker, domain in _PROJECT_MARKERS.items():
         marker_path = project_path / marker
         if marker_path.exists():
             return DOMAIN_DEFAULTS.get(domain)
@@ -150,19 +155,7 @@ def get_domain_for_project(project_path: Path) -> str:
     Returns:
         Domain string: "software", "documentation", "planning", "data", or "software" (default)
     """
-    # Marker files → domain mapping
-    markers: dict[str, str] = {
-        "pyproject.toml": "software",
-        "package.json": "software",
-        "Cargo.toml": "software",
-        "go.mod": "software",
-        "docs": "documentation",
-        "mkdocs.yml": "documentation",
-        ".kanban": "planning",
-        "backlog.md": "planning",
-    }
-
-    for marker, domain in markers.items():
+    for marker, domain in _PROJECT_MARKERS.items():
         if (project_path / marker).exists():
             return domain
 

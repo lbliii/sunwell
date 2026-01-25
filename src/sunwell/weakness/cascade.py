@@ -16,6 +16,7 @@ from sunwell.weakness.types import (
     WaveConfidence,
     WeaknessScore,
 )
+from sunwell.weakness.verification import run_mypy, run_pytest, run_ruff
 
 if TYPE_CHECKING:
     from sunwell.naaru.artifacts import ArtifactGraph
@@ -252,6 +253,16 @@ class CascadeEngine:
         remaining = impacted | {weak_id}
         completed: set[str] = set()
 
+        # Pre-compute cascade-relevant deps for each artifact (O(n) total)
+        cascade_scope = impacted | {weak_id}
+        deps_in_cascade: dict[str, set[str]] = {}
+        for aid in remaining:
+            if aid in self.graph:
+                artifact = self.graph[aid]
+                deps_in_cascade[aid] = set(artifact.requires) & cascade_scope
+            else:
+                deps_in_cascade[aid] = set()
+
         # Wave 0: the weak node itself
         waves.append((weak_id,))
         completed.add(weak_id)
@@ -259,13 +270,7 @@ class CascadeEngine:
 
         # Subsequent waves: nodes whose deps are all completed
         while remaining:
-            wave: list[str] = []
-            for aid in remaining:
-                if aid in self.graph:
-                    artifact = self.graph[aid]
-                    deps_in_cascade = set(artifact.requires) & (impacted | {weak_id})
-                    if deps_in_cascade <= completed:
-                        wave.append(aid)
+            wave = [aid for aid in remaining if deps_in_cascade[aid] <= completed]
 
             if not wave:
                 # Circular dependency or unreachable - add remaining
@@ -523,20 +528,20 @@ class CascadeEngine:
             auto_approve=auto_approve,
         )
 
+        # Convert tuple of tuples to dict for contract verification
+        contracts_dict = dict(preview.extracted_contracts)
+
         for wave_num, wave in enumerate(preview.waves):
             execution.current_wave = wave_num
 
             # Execute wave (would call agent here in real implementation)
             # ... agent execution ...
 
-            # Verify wave completion
-            test_result = await self._run_tests()
-            type_result = await self._run_type_check()
-            lint_result = await self._run_lint()
-            contract_result = await self._verify_contracts(
-                preview.extracted_contracts,
-                wave,
-            )
+            # Verify wave completion using shared functions
+            test_result = await run_pytest(self.project_root)
+            type_result = await run_mypy(self.project_root)
+            lint_result = await run_ruff(self.project_root)
+            contract_result = await self._verify_contracts(contracts_dict, wave)
 
             confidence = WaveConfidence.compute(
                 wave_num=wave_num,
@@ -564,51 +569,6 @@ class CascadeEngine:
                 break
 
         return execution
-
-    async def _run_tests(self) -> bool:
-        """Run pytest and return success status."""
-        import subprocess
-
-        try:
-            result = subprocess.run(
-                ["pytest", "--tb=short", "-q"],
-                cwd=self.project_root,
-                capture_output=True,
-                timeout=300,
-            )
-            return result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            return True  # Assume pass if can't run
-
-    async def _run_type_check(self) -> bool:
-        """Run mypy and return success status."""
-        import subprocess
-
-        try:
-            result = subprocess.run(
-                ["mypy", "src/"],
-                cwd=self.project_root,
-                capture_output=True,
-                timeout=120,
-            )
-            return result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            return True
-
-    async def _run_lint(self) -> bool:
-        """Run ruff and return success status."""
-        import subprocess
-
-        try:
-            result = subprocess.run(
-                ["ruff", "check", "src/"],
-                cwd=self.project_root,
-                capture_output=True,
-                timeout=60,
-            )
-            return result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            return True
 
     async def _verify_contracts(
         self,

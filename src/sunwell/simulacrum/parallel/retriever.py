@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     )
 
 
-@dataclass
+@dataclass(slots=True)
 class ParallelRetriever:
     """Retrieve from all memory types in parallel.
 

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ChunkConfig:
     """Configuration for hierarchical conversation chunking.
 

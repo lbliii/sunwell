@@ -24,6 +24,11 @@ from sunwell.team.types import (
 
 __all__ = ["UnifiedIntelligence", "ApproachCheck", "ApproachWarning", "FileContext"]
 
+# Category keywords to check for contradicting team decisions
+_CATEGORY_KEYWORDS: tuple[str, ...] = (
+    "architecture", "database", "auth", "framework", "api", "pattern"
+)
+
 
 @dataclass(frozen=True, slots=True)
 class ApproachWarning:
@@ -214,8 +219,7 @@ class UnifiedIntelligence:
 
         # Check for contradicting team decisions
         # Try to infer category from approach description
-        categories = ["architecture", "database", "auth", "framework", "api", "pattern"]
-        for category in categories:
+        for category in _CATEGORY_KEYWORDS:
             if category in proposed_approach.lower():
                 team_decision = await self.team.check_contradiction(
                     proposed_approach, category

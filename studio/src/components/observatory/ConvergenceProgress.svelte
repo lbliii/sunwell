@@ -21,6 +21,13 @@
   const hasData = $derived(observatory.hasConvergence);
   const isActive = $derived(convergence.isActive);
   
+  // Build gate result lookup map for O(1) access
+  const latestGateMap = $derived.by(() => {
+    const latestIter = convergence.iterations[convergence.iterations.length - 1];
+    if (!latestIter) return new Map<string, ConvergenceGate>();
+    return new Map(latestIter.gates.map(g => [g.name, g]));
+  });
+  
   // Progress bar spring animation
   const progressSpring = spring(0, { stiffness: 0.1, damping: 0.5 });
   $effect(() => {
@@ -105,9 +112,8 @@
   <div class="gates-overview">
     <h3>Gates</h3>
     <div class="gates-list">
-      {#each convergence.enabledGates as gate}
-        {@const latestIter = convergence.iterations[convergence.iterations.length - 1]}
-        {@const gateResult = latestIter?.gates.find(g => g.name === gate)}
+      {#each convergence.enabledGates as gate (gate)}
+        {@const gateResult = latestGateMap.get(gate)}
         <div 
           class="gate-chip"
           class:passed={gateResult?.passed}
@@ -131,7 +137,7 @@
   <div class="iterations-timeline">
     <h3>Iterations</h3>
     <div class="iterations-list">
-      {#each convergence.iterations as iter, i}
+      {#each convergence.iterations as iter, i (iter.iteration)}
         <div 
           class="iteration-row"
           class:passed={iter.allPassed}
@@ -152,7 +158,7 @@
           </div>
           
           <div class="iteration-gates">
-            {#each iter.gates as gate}
+            {#each iter.gates as gate (gate.name)}
               <span 
                 class="gate-result"
                 class:passed={gate.passed}

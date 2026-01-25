@@ -401,11 +401,11 @@ class BootstrapDecision:
         return "architecture"
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class BootstrapPatterns:
     """Patterns inferred from bootstrap for PatternProfile.bootstrap()."""
 
-    naming_conventions: dict[str, str] = field(default_factory=dict)
+    naming_conventions: tuple[tuple[str, str], ...] = ()
     """{'function': 'snake_case', 'class': 'PascalCase', ...}"""
 
     import_style: Literal["absolute", "relative", "mixed"] = "absolute"

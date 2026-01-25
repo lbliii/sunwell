@@ -11,9 +11,12 @@ Performance optimizations:
 import asyncio
 import fnmatch
 import hashlib
+import re
+from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from sunwell.core.freethreading import (
@@ -96,7 +99,7 @@ class CodeChunk:
         return f"{header}\n```\n{self.content}\n```"
 
 
-@dataclass
+@dataclass(slots=True)
 class CodebaseIndex:
     """Index of codebase chunks for retrieval."""
 
@@ -120,8 +123,8 @@ class RetrievedContext:
     chunks: tuple[CodeChunk, ...]
     """Retrieved code chunks."""
 
-    relevance_scores: dict[str, float]
-    """Chunk ID -> relevance score."""
+    relevance_scores: Mapping[str, float]
+    """Chunk ID -> relevance score (immutable view)."""
 
     def to_prompt_context(self, max_chunks: int = 5) -> str:
         """Format as context for prompt injection."""
@@ -206,6 +209,12 @@ class CodebaseIndexer:
         self.embedder = embedder
         self.max_file_size = max_file_size
         self.include_patterns = include_patterns
+        # Pre-compile include patterns for O(1) matching per pattern
+        self._include_re: tuple[re.Pattern[str], ...] | None = None
+        if include_patterns:
+            self._include_re = tuple(
+                re.compile(fnmatch.translate(p)) for p in include_patterns
+            )
         self._index: CodebaseIndex | None = None
         self._vector_index: dict[str, list[float]] = {}
 
@@ -291,7 +300,7 @@ class CodebaseIndexer:
             Retrieved context with relevance scores.
         """
         if not self._index or not self._index.chunks:
-            return RetrievedContext(chunks=(), relevance_scores={})
+            return RetrievedContext(chunks=(), relevance_scores=MappingProxyType({}))
 
         # Embed query
         result = await self.embedder.embed([query])
@@ -312,7 +321,7 @@ class CodebaseIndexer:
 
         return RetrievedContext(
             chunks=tuple(c for c, _ in top_chunks),
-            relevance_scores={c.id: s for c, s in top_chunks},
+            relevance_scores=MappingProxyType({c.id: s for c, s in top_chunks}),
         )
 
     def _iter_code_files(self, workspace: Workspace) -> list[Path]:
@@ -336,25 +345,38 @@ class CodebaseIndexer:
                 continue
 
             # Check extension
-            if self.include_patterns:
-                if any(fnmatch.fnmatch(str(rel_path), p) for p in self.include_patterns):
+            if self._include_re:
+                # Use pre-compiled patterns for O(patterns) instead of O(patterns × compile)
+                rel_str = str(rel_path)
+                if any(r.match(rel_str) for r in self._include_re):
                     files.append(path)
             elif path.suffix in self.CODE_EXTENSIONS:
                 files.append(path)
 
         return files
 
+    # Cache for compiled ignore patterns: pattern -> compiled regex
+    _ignore_cache: dict[str, re.Pattern[str]] = {}
+
     def _is_ignored(self, path: str, patterns: tuple[str, ...]) -> bool:
-        """Check if path matches any ignore pattern."""
+        """Check if path matches any ignore pattern.
+
+        Uses cached compiled patterns for O(1) per-pattern matching.
+        """
         parts = path.split("/")
 
         for pattern in patterns:
+            # Get or compile pattern (cached at class level)
+            if pattern not in self._ignore_cache:
+                self._ignore_cache[pattern] = re.compile(fnmatch.translate(pattern))
+            compiled = self._ignore_cache[pattern]
+
             # Check each path component
             for part in parts:
-                if fnmatch.fnmatch(part, pattern):
+                if compiled.match(part):
                     return True
             # Check full path
-            if fnmatch.fnmatch(path, pattern):
+            if compiled.match(path):
                 return True
 
         return False

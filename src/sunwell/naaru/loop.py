@@ -20,7 +20,7 @@ from sunwell.naaru.types import (
 )
 
 
-@dataclass
+@dataclass(slots=True)
 class AutonomousRunner:
     """Main runner for autonomous mode.
 

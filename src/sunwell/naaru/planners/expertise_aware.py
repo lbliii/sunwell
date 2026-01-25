@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from sunwell.naaru.expertise.discovery import LensDiscovery
 
 
-@dataclass
+@dataclass(slots=True)
 class ExpertiseAwareArtifactPlanner(ArtifactPlanner):
     """Artifact planner with automatic expertise injection (RFC-039).
 

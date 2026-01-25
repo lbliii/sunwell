@@ -29,92 +29,100 @@ if TYPE_CHECKING:
     from sunwell.simulacrum.core.turn import Turn
 
 
+# =============================================================================
+# Pre-compiled patterns for learning extraction
+# Compiled once at module load, avoiding per-call regex compilation overhead.
+# =============================================================================
+
+from typing import Pattern
+
 # Patterns that indicate a learning (from final responses)
-LEARNING_PATTERNS = {
-    # Facts
-    "fact": [
-        r"(?:the |it )(?:is|has|takes|uses|requires) (\d+[^\.,]*)",  # "it takes 5 seconds"
-        r"(?:must|should|need to) (?:be |use |have )([^\.]+)",  # "must be authenticated"
-        r"(?:always|never) ([^\.]+)",  # "always returns JSON"
-        r"(?:default|defaults to) ([^\.]+)",  # "defaults to 1000"
-        r"timeout (?:is|of) (\d+[^\.,]*)",  # "timeout is 5s"
-        r"limit (?:is|of) (\d+[^\.,]*)",  # "limit is 100"
-    ],
+_LEARNING_PATTERNS: dict[str, tuple[Pattern[str], ...]] = {
+    "fact": (
+        re.compile(r"(?:the |it )(?:is|has|takes|uses|requires) (\d+[^\.,]*)", re.IGNORECASE),
+        re.compile(r"(?:must|should|need to) (?:be |use |have )([^\.]+)", re.IGNORECASE),
+        re.compile(r"(?:always|never) ([^\.]+)", re.IGNORECASE),
+        re.compile(r"(?:default|defaults to) ([^\.]+)", re.IGNORECASE),
+        re.compile(r"timeout (?:is|of) (\d+[^\.,]*)", re.IGNORECASE),
+        re.compile(r"limit (?:is|of) (\d+[^\.,]*)", re.IGNORECASE),
+    ),
+}
+
+# Backwards compatibility: string patterns for external consumers
+LEARNING_PATTERNS: dict[str, list[str]] = {
+    k: [p.pattern for p in v] for k, v in _LEARNING_PATTERNS.items()
 }
 
 # Patterns for user-stated facts (personal info, preferences, context)
-USER_FACT_PATTERNS = {
-    "fact": [
-        r"(?:my name is|i'm called|call me) ([a-zA-Z][a-zA-Z0-9_\- ]{1,30})",  # "my name is lb"
-        r"(?:i am|i'm) (?:a |an )?([a-zA-Z][a-zA-Z0-9_\- ]{2,40})",  # "i am a developer"
-        r"(?:i work (?:at|for|on)) ([^\.]{3,50})",  # "i work at google"
-        r"(?:i(?:'m| am) (?:using|working with|building)) ([^\.]{3,50})",  # "i'm using python"
-        r"(?:my (?:project|app|team|company) is) ([^\.]{3,50})",  # "my project is sunwell"
-        r"(?:i prefer|i like|i use) ([^\.]{3,50})",  # "i prefer typescript"
-    ],
+_USER_FACT_PATTERNS: dict[str, tuple[Pattern[str], ...]] = {
+    "fact": (
+        re.compile(r"(?:my name is|i'm called|call me) ([a-zA-Z][a-zA-Z0-9_\- ]{1,30})", re.IGNORECASE),
+        re.compile(r"(?:i am|i'm) (?:a |an )?([a-zA-Z][a-zA-Z0-9_\- ]{2,40})", re.IGNORECASE),
+        re.compile(r"(?:i work (?:at|for|on)) ([^\.]{3,50})", re.IGNORECASE),
+        re.compile(r"(?:i(?:'m| am) (?:using|working with|building)) ([^\.]{3,50})", re.IGNORECASE),
+        re.compile(r"(?:my (?:project|app|team|company) is) ([^\.]{3,50})", re.IGNORECASE),
+        re.compile(r"(?:i prefer|i like|i use) ([^\.]{3,50})", re.IGNORECASE),
+    ),
+    "constraint": (
+        re.compile(r"(?:cannot|can't|won't|doesn't) ([^\.]+)", re.IGNORECASE),
+        re.compile(r"(?:blocked by|prevented by|limited by) ([^\.]+)", re.IGNORECASE),
+        re.compile(r"(?:requires?|needs?) ([^\.]+?) (?:to|before|first)", re.IGNORECASE),
+        re.compile(r"(?:only works|only valid) (?:with|when|if) ([^\.]+)", re.IGNORECASE),
+    ),
+    "dead_end": (
+        re.compile(r"(?:tried|attempted) ([^\.]+?) (?:but|however|didn't|failed)", re.IGNORECASE),
+        re.compile(r"(?:doesn't|won't|can't) work (?:because|due to|since) ([^\.]+)", re.IGNORECASE),
+        re.compile(r"(?:this approach|that method|this solution) (?:won't|doesn't|failed)", re.IGNORECASE),
+        re.compile(r"dead.?end|doesn't help|no luck|didn't work", re.IGNORECASE),
+    ),
+    "pattern": (
+        re.compile(r"(?:whenever|every time|each time) ([^\.]+)", re.IGNORECASE),
+        re.compile(r"(?:pattern|trend|consistently) ([^\.]+)", re.IGNORECASE),
+        re.compile(r"(?:seems to|appears to|tends to) ([^\.]+)", re.IGNORECASE),
+    ),
+}
 
-    # Constraints
-    "constraint": [
-        r"(?:cannot|can't|won't|doesn't) ([^\.]+)",  # "can't exceed 1000"
-        r"(?:blocked by|prevented by|limited by) ([^\.]+)",  # "blocked by firewall"
-        r"(?:requires?|needs?) ([^\.]+?) (?:to|before|first)",  # "requires auth to access"
-        r"(?:only works|only valid) (?:with|when|if) ([^\.]+)",  # "only works with v2"
-    ],
-
-    # Dead ends
-    "dead_end": [
-        r"(?:tried|attempted) ([^\.]+?) (?:but|however|didn't|failed)",  # "tried X but failed"
-        r"(?:doesn't|won't|can't) work (?:because|due to|since) ([^\.]+)",  # "doesn't work because Y"
-        r"(?:this approach|that method|this solution) (?:won't|doesn't|failed)",
-        r"dead.?end|doesn't help|no luck|didn't work",
-    ],
-
-    # Patterns
-    "pattern": [
-        r"(?:whenever|every time|each time) ([^\.]+)",  # "whenever X happens"
-        r"(?:pattern|trend|consistently) ([^\.]+)",  # "pattern of failures"
-        r"(?:seems to|appears to|tends to) ([^\.]+)",  # "seems to timeout"
-    ],
+# Backwards compatibility
+USER_FACT_PATTERNS: dict[str, list[str]] = {
+    k: [p.pattern for p in v] for k, v in _USER_FACT_PATTERNS.items()
 }
 
 # THINKING TOKEN patterns - more informal, reasoning-style language
-THINKING_PATTERNS = {
-    # Facts discovered during reasoning
-    "fact": [
-        r"(?:I notice|I see|looking at|checking) .{0,20}(\d+[^\.,\n]*)",  # "I see it's 5 seconds"
-        r"(?:it looks like|apparently|it seems) ([^,\n]+)",  # "it looks like the limit is 100"
-        r"(?:the .{0,30}) (?:is|are|has|have) (\d+[^\n,]*)",  # "the timeout is 5s"
-        r"(?:found|discovered|noticed) (?:that )?([^,\n]+)",  # "found that auth is required"
-    ],
+_THINKING_PATTERNS: dict[str, tuple[Pattern[str], ...]] = {
+    "fact": (
+        re.compile(r"(?:I notice|I see|looking at|checking) .{0,20}(\d+[^\.,\n]*)", re.IGNORECASE),
+        re.compile(r"(?:it looks like|apparently|it seems) ([^,\n]+)", re.IGNORECASE),
+        re.compile(r"(?:the .{0,30}) (?:is|are|has|have) (\d+[^\n,]*)", re.IGNORECASE),
+        re.compile(r"(?:found|discovered|noticed) (?:that )?([^,\n]+)", re.IGNORECASE),
+    ),
+    "dead_end": (
+        re.compile(r"(?:but |however |although )(?:that |this )(?:won't|wouldn't|can't|couldn't) ([^\n,]+)", re.IGNORECASE),
+        re.compile(r"(?:I considered|I thought about|maybe) .{0,30}(?:but|however) ([^\n]+)", re.IGNORECASE),
+        re.compile(r"(?:this won't work|that's not going to work|can't do that) (?:because|since|as) ([^\n]+)", re.IGNORECASE),
+        re.compile(r"(?:ruled out|rejected|dismissed|discarded) ([^\n,]+)", re.IGNORECASE),
+        re.compile(r"(?:too |overly )(?:slow|expensive|complex|risky)([^\n,]*)", re.IGNORECASE),
+        re.compile(r"(?:not viable|not feasible|not practical|won't scale)([^\n,]*)", re.IGNORECASE),
+    ),
+    "constraint": (
+        re.compile(r"(?:assuming|given that|since|because) ([^\n,]+?) (?:we|I|this)", re.IGNORECASE),
+        re.compile(r"(?:we need to|I need to|must) (?:ensure|make sure|guarantee) ([^\n,]+)", re.IGNORECASE),
+        re.compile(r"(?:the constraint|limitation|restriction) (?:is|here is) ([^\n,]+)", re.IGNORECASE),
+        re.compile(r"(?:can only|must only|should only) ([^\n,]+)", re.IGNORECASE),
+    ),
+    "uncertainty": (
+        re.compile(r"(?:I'm not sure|not certain|unclear|might be wrong) ([^\n,]+)", re.IGNORECASE),
+        re.compile(r"(?:probably|likely|possibly|maybe) ([^\n,]+?) (?:but|though|however)", re.IGNORECASE),
+        re.compile(r"(?:need to verify|should check|worth confirming) ([^\n,]+)", re.IGNORECASE),
+    ),
+}
 
-    # Rejected alternatives (GOLD for dead ends!)
-    "dead_end": [
-        r"(?:but |however |although )(?:that |this )(?:won't|wouldn't|can't|couldn't) ([^\n,]+)",
-        r"(?:I considered|I thought about|maybe) .{0,30}(?:but|however) ([^\n]+)",  # "I thought about X but..."
-        r"(?:this won't work|that's not going to work|can't do that) (?:because|since|as) ([^\n]+)",
-        r"(?:ruled out|rejected|dismissed|discarded) ([^\n,]+)",  # "ruled out caching"
-        r"(?:too |overly )(?:slow|expensive|complex|risky)([^\n,]*)",  # "too slow for production"
-        r"(?:not viable|not feasible|not practical|won't scale)([^\n,]*)",
-    ],
-
-    # Constraints/assumptions
-    "constraint": [
-        r"(?:assuming|given that|since|because) ([^\n,]+?) (?:we|I|this)",  # "assuming auth is required..."
-        r"(?:we need to|I need to|must) (?:ensure|make sure|guarantee) ([^\n,]+)",
-        r"(?:the constraint|limitation|restriction) (?:is|here is) ([^\n,]+)",
-        r"(?:can only|must only|should only) ([^\n,]+)",
-    ],
-
-    # Uncertainty signals (lower confidence)
-    "uncertainty": [
-        r"(?:I'm not sure|not certain|unclear|might be wrong) ([^\n,]+)",
-        r"(?:probably|likely|possibly|maybe) ([^\n,]+?) (?:but|though|however)",
-        r"(?:need to verify|should check|worth confirming) ([^\n,]+)",
-    ],
+# Backwards compatibility
+THINKING_PATTERNS: dict[str, list[str]] = {
+    k: [p.pattern for p in v] for k, v in _THINKING_PATTERNS.items()
 }
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ExtractedLearning:
     """A learning extracted from conversation."""
 
@@ -134,7 +142,7 @@ class ExtractedLearning:
     """Which pattern triggered this extraction."""
 
 
-@dataclass
+@dataclass(slots=True)
 class LearningExtractor:
     """Extracts learnings from conversation automatically.
 
@@ -152,18 +160,17 @@ class LearningExtractor:
     """LLM to use for extraction if use_llm=True."""
 
     def extract_from_text(self, text: str) -> list[ExtractedLearning]:
-        """Extract learnings from text using pattern matching.
+        """Extract learnings from text using pre-compiled pattern matching.
 
         Returns list of extracted learnings, sorted by confidence.
         """
         learnings = []
         text_lower = text.lower()
 
-        for category, patterns in LEARNING_PATTERNS.items():
+        for category, patterns in _LEARNING_PATTERNS.items():
             for pattern in patterns:
-                matches = re.finditer(pattern, text_lower, re.IGNORECASE)
-
-                for match in matches:
+                # Use pre-compiled pattern's finditer method directly
+                for match in pattern.finditer(text_lower):
                     # Get the captured group or full match
                     learning_text = match.group(1) if match.groups() else match.group(0)
                     learning_text = learning_text.strip()
@@ -174,7 +181,7 @@ class LearningExtractor:
 
                     # Calculate confidence based on pattern specificity
                     confidence = self._calculate_confidence(
-                        learning_text, pattern, category, text
+                        learning_text, pattern.pattern, category, text
                     )
 
                     if confidence >= self.min_confidence:
@@ -183,7 +190,7 @@ class LearningExtractor:
                             category=category,
                             confidence=confidence,
                             source_text=text[:500],
-                            pattern_matched=pattern,
+                            pattern_matched=pattern.pattern,
                         ))
 
         # Deduplicate similar learnings
@@ -331,7 +338,7 @@ def extract_user_facts(
     user_message: str,
     min_confidence: float = 0.7,
 ) -> list[tuple[str, str, float]]:
-    """Extract facts stated by user using regex patterns (fallback).
+    """Extract facts stated by user using pre-compiled regex patterns (fallback).
 
     Returns list of (fact_text, category, confidence) tuples.
 
@@ -340,11 +347,10 @@ def extract_user_facts(
     learnings = []
     text_lower = user_message.lower()
 
-    for category, patterns in USER_FACT_PATTERNS.items():
+    for category, patterns in _USER_FACT_PATTERNS.items():
         for pattern in patterns:
-            matches = re.finditer(pattern, text_lower, re.IGNORECASE)
-
-            for match in matches:
+            # Use pre-compiled pattern's finditer method directly
+            for match in pattern.finditer(text_lower):
                 fact_text = match.group(1).strip() if match.groups() else match.group(0).strip()
 
                 # Skip very short extractions
@@ -355,13 +361,14 @@ def extract_user_facts(
                 confidence = 0.9
 
                 # Format nicely based on pattern
-                if "name" in pattern:
+                pattern_str = pattern.pattern
+                if "name" in pattern_str:
                     fact_text = f"User's name is {fact_text}"
-                elif "work" in pattern:
+                elif "work" in pattern_str:
                     fact_text = f"User works at/on {fact_text}"
-                elif "using" in pattern or "building" in pattern:
+                elif "using" in pattern_str or "building" in pattern_str:
                     fact_text = f"User is working with {fact_text}"
-                elif "prefer" in pattern or "like" in pattern:
+                elif "prefer" in pattern_str or "like" in pattern_str:
                     fact_text = f"User prefers {fact_text}"
 
                 learnings.append((fact_text, category, confidence))

@@ -247,17 +247,20 @@ class ConfidenceTriangulator:
         issues: list[SemanticIssue],
     ) -> list[str]:
         """Collect and prioritize recommendations."""
+        seen: set[str] = set()
         recommendations: list[str] = []
 
         # From perspectives
         for perspective in perspectives:
             for rec in perspective.recommendations:
-                if rec not in recommendations:
+                if rec not in seen:
+                    seen.add(rec)
                     recommendations.append(rec)
 
         # From issues (suggested fixes)
         for issue in issues:
-            if issue.suggested_fix and issue.suggested_fix not in recommendations:
+            if issue.suggested_fix and issue.suggested_fix not in seen:
+                seen.add(issue.suggested_fix)
                 recommendations.append(issue.suggested_fix)
 
         # Add generic recommendations based on issue categories

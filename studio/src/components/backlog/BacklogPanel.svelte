@@ -51,7 +51,7 @@
   let epicProgress = $derived(backlogStore.epicProgress);
   
   // Filter goals based on hierarchy mode
-  let displayGoals = $derived(() => {
+  let displayedGoals = $derived.by(() => {
     const allGoals = showCompleted
       ? backlogStore.goals
       : backlogStore.goals.filter((g) => g.status !== 'completed' && g.status !== 'skipped');
@@ -84,7 +84,6 @@
   let currentMilestoneTitle = $derived(
     epicProgress?.current_milestone_title ?? null
   );
-  let displayedGoals = $derived(displayGoals());
 
   onMount(() => {
     setBacklogProjectPath(projectPath);

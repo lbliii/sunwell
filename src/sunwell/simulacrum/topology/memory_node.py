@@ -23,7 +23,7 @@ from sunwell.simulacrum.topology.structural import DocumentSection
 from sunwell.simulacrum.topology.topology_base import ConceptEdge
 
 
-@dataclass
+@dataclass(slots=True)
 class MemoryNode:
     """Unified memory node combining all topology dimensions.
 

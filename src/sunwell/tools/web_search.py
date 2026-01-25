@@ -86,7 +86,7 @@ class WebSearchProvider(Protocol):
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class OllamaWebSearch:
     """Web search via Ollama's free API.
 
@@ -200,7 +200,7 @@ class OllamaWebSearch:
 # =============================================================================
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class WebSearchHandler:
     """Handler for web search tools. Routes to configured provider.
 

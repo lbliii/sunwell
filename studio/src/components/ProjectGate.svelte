@@ -188,7 +188,7 @@
       <div class="section">
         <h3 class="section-title">Your Projects</h3>
         <ul class="project-list">
-          {#each projects as proj}
+          {#each projects as proj (proj.id)}
             <li>
               <button 
                 class="project-item"

@@ -58,25 +58,25 @@ export type GoalType = 'epic' | 'milestone' | 'task';
  * See: src/sunwell/backlog/goals.py:60-103
  */
 export interface Goal {
-  id: string;
-  title: string;
-  description: string;
-  priority: number;           // 0-1 float (backend), UI displays as percentage
-  category: GoalCategory;
-  estimated_complexity: GoalComplexity;
-  auto_approvable: boolean;
-  requires: string[];         // IDs of blocking goals
+  readonly id: string;
+  readonly title: string;
+  readonly description: string;
+  readonly priority: number;           // 0-1 float (backend), UI displays as percentage
+  readonly category: GoalCategory;
+  readonly estimated_complexity: GoalComplexity;
+  readonly auto_approvable: boolean;
+  readonly requires: readonly string[];         // IDs of blocking goals
 
   // UI-derived fields (computed from Backlog state)
-  status: GoalStatus;
-  created_at: string | null;
-  claimed_by?: number;        // Worker ID if claimed
+  readonly status: GoalStatus;
+  readonly created_at: string | null;
+  readonly claimed_by?: number;        // Worker ID if claimed
 
   // RFC-115: Hierarchy fields
-  goal_type?: GoalType;           // 'epic' | 'milestone' | 'task'
-  parent_goal_id?: string | null; // Parent epic/milestone ID
-  milestone_produces?: string[];  // Artifacts this milestone creates
-  milestone_index?: number | null; // Order within parent
+  readonly goal_type?: GoalType;           // 'epic' | 'milestone' | 'task'
+  readonly parent_goal_id?: string | null; // Parent epic/milestone ID
+  readonly milestone_produces?: readonly string[];  // Artifacts this milestone creates
+  readonly milestone_index?: number | null; // Order within parent
 }
 
 /**
@@ -84,14 +84,14 @@ export interface Goal {
  * RFC-115: Hierarchical Goal Decomposition
  */
 export interface MilestoneSummary {
-  id: string;
-  title: string;
-  description: string;
-  produces: string[];
-  status: 'pending' | 'active' | 'completed' | 'blocked';
-  index: number;
-  tasks_completed: number;
-  tasks_total: number;
+  readonly id: string;
+  readonly title: string;
+  readonly description: string;
+  readonly produces: readonly string[];
+  readonly status: 'pending' | 'active' | 'completed' | 'blocked';
+  readonly index: number;
+  readonly tasks_completed: number;
+  readonly tasks_total: number;
 }
 
 /**
@@ -426,15 +426,19 @@ export async function reorderGoals(goalIds: string[]): Promise<void> {
   }
 
   try {
-    // Optimistic update: reorder local state
+    // Optimistic update: reorder local state (O(n) with index)
+    const goalMap = new Map(_state.goals.map(g => [g.id, g]));
+    const goalIdSet = new Set(goalIds);
     const reordered: Goal[] = [];
+    
+    // Add goals in requested order
     for (const id of goalIds) {
-      const goal = _state.goals.find((g) => g.id === id);
+      const goal = goalMap.get(id);
       if (goal) reordered.push(goal);
     }
-    // Add any goals not in the reorder list
+    // Add remaining goals not in the reorder list
     for (const goal of _state.goals) {
-      if (!goalIds.includes(goal.id)) {
+      if (!goalIdSet.has(goal.id)) {
         reordered.push(goal);
       }
     }

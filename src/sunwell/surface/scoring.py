@@ -45,7 +45,7 @@ class ScoringResult:
     """Top candidates for contextual widgets (sorted by score)."""
 
 
-@dataclass
+@dataclass(slots=True)
 class ScoringContext:
     """Context for scoring primitives."""
 

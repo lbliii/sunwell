@@ -8,6 +8,11 @@ import ast
 import re
 from dataclasses import dataclass
 
+# Pre-compiled regex patterns for performance (avoid recompiling per-call)
+_MARKDOWN_CODE_BLOCK_RE = re.compile(r"```(?:python)?\n(.*?)```", re.DOTALL)
+_TYPE_HINTS_FALLBACK_RE = re.compile(r"(def \w+\([^)]*:\s*\w+|:\s*\w+\s*=)")
+_RECURSION_DETECTION_RE = re.compile(r"def (\w+)\(.*\).*\1\(", re.DOTALL)
+
 
 @dataclass(frozen=True, slots=True)
 class DemoScore:
@@ -95,8 +100,7 @@ class DemoScorer:
 
     def _extract_code(self, text: str) -> str:
         """Extract code from markdown code blocks if present."""
-        # Pattern: ```python\n...code...\n```
-        match = re.search(r"```(?:python)?\n(.*?)```", text, re.DOTALL)
+        match = _MARKDOWN_CODE_BLOCK_RE.search(text)
         if match:
             return match.group(1).strip()
         return text.strip()
@@ -124,7 +128,7 @@ class DemoScorer:
             return False
         except SyntaxError:
             # Fallback to regex for malformed code
-            return bool(re.search(r"(def \w+\([^)]*:\s*\w+|:\s*\w+\s*=)", code))
+            return bool(_TYPE_HINTS_FALLBACK_RE.search(code))
 
     def _has_docstring(self, code: str) -> bool:
         """Check for docstring using AST.
@@ -239,7 +243,7 @@ class DemoScorer:
         has_loop = "for " in code or "while " in code
 
         # If it has recursion, check if it's also using memoization
-        has_recursion = re.search(r"def (\w+)\(.*\).*\1\(", code, re.DOTALL)
+        has_recursion = _RECURSION_DETECTION_RE.search(code)
 
         if has_recursion:
             return has_cache

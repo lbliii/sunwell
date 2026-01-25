@@ -186,7 +186,7 @@
   
   <!-- Celebration motes (complete only) -->
   {#if status === 'complete' && celebrate}
-    {#each motes as mote}
+    {#each motes as mote (mote.delay)}
       <circle
         cx={x + mote.x}
         cy={nodeY - 10}

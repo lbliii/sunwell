@@ -18,7 +18,7 @@ Example:
 """
 
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -84,7 +84,7 @@ class HeuristicSummary:
         return "\n".join(parts)
 
 
-@dataclass
+@dataclass(slots=True)
 class ExpertiseContext:
     """Container for extracted expertise to inject into planning.
 
@@ -99,11 +99,11 @@ class ExpertiseContext:
         source_lenses: Names of lenses that contributed expertise
     """
 
-    heuristics: list[HeuristicSummary] = field(default_factory=list)
-    validators: list[Validator] = field(default_factory=list)
+    heuristics: tuple[HeuristicSummary, ...] = ()
+    validators: tuple[Validator, ...] = ()
     domain: str = "general"
     domain_context: str = ""
-    source_lenses: list[str] = field(default_factory=list)
+    source_lenses: tuple[str, ...] = ()
 
     @property
     def has_expertise(self) -> bool:
@@ -215,7 +215,7 @@ class ExpertiseContext:
                 merged_validators.append(v)
 
         # Combine source lenses
-        merged_sources = list(dict.fromkeys(self.source_lenses + other.source_lenses))
+        merged_sources = list(dict.fromkeys(list(self.source_lenses) + list(other.source_lenses)))
 
         # Domain: prefer more specific (non-general)
         domain = self.domain if self.domain != "general" else other.domain
@@ -224,11 +224,11 @@ class ExpertiseContext:
         domain_context = "\n\n".join(filter(None, [self.domain_context, other.domain_context]))
 
         return ExpertiseContext(
-            heuristics=merged_heuristics,
-            validators=merged_validators,
+            heuristics=tuple(merged_heuristics),
+            validators=tuple(merged_validators),
             domain=domain,
             domain_context=domain_context,
-            source_lenses=merged_sources,
+            source_lenses=tuple(merged_sources),
         )
 
 

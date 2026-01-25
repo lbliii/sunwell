@@ -31,7 +31,7 @@ from sunwell.naaru.expertise.context import (
 )
 
 
-@dataclass
+@dataclass(slots=True)
 class ExpertiseExtractor:
     """Extract relevant expertise from lenses for a goal.
 
@@ -98,7 +98,7 @@ class ExpertiseExtractor:
         if not all_heuristics:
             return ExpertiseContext(
                 domain="general",
-                source_lenses=[self._get_lens_name(l) for l in self.lenses],
+                source_lenses=tuple(self._get_lens_name(l) for l in self.lenses),
             )
 
         # Score heuristics by relevance
@@ -140,10 +140,10 @@ class ExpertiseExtractor:
         domain = self._detect_domain_from_lenses()
 
         return ExpertiseContext(
-            heuristics=heuristic_summaries,
-            validators=validators,
+            heuristics=tuple(heuristic_summaries),
+            validators=tuple(validators),
             domain=domain,
-            source_lenses=source_lenses,
+            source_lenses=tuple(source_lenses),
         )
 
     def _keyword_score(

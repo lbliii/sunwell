@@ -37,9 +37,9 @@ class SkillExecutor(Protocol):
         ...
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class WriterContext:
-    """Context for workflow execution (RFC-086)."""
+    """Context for workflow execution (RFC-086, immutable)."""
 
     lens: Lens | None
     """Active lens providing expertise."""
@@ -53,8 +53,15 @@ class WriterContext:
     content: str | None = None
     """Current document content."""
 
-    extra: dict[str, Any] = field(default_factory=dict)
-    """Additional context data."""
+    extra: tuple[tuple[str, Any], ...] = ()
+    """Additional context data as key-value pairs (immutable)."""
+
+    def get_extra(self, key: str, default: Any = None) -> Any:
+        """Get extra context value by key."""
+        for k, v in self.extra:
+            if k == key:
+                return v
+        return default
 
 
 @dataclass(frozen=True, slots=True)
@@ -276,6 +283,7 @@ class WorkflowEngine:
         try:
             # Execute with timeout
             if self.skill_executor:
+                extra_dict = dict(context.extra)
                 output = await asyncio.wait_for(
                     self.skill_executor.execute(
                         step.skill,
@@ -285,7 +293,7 @@ class WorkflowEngine:
                             "content": context.content,
                             "working_dir": str(context.working_dir),
                             "previous_steps": [s.to_dict() for s in execution.completed_steps],
-                            **context.extra,
+                            **extra_dict,
                         },
                     ),
                     timeout=step.timeout_s,

@@ -12,6 +12,7 @@ from sunwell.workflow.state import WorkflowState, WorkflowStateManager
 from sunwell.workflow.types import (
     Intent,
     IntentCategory,
+    Serializable,
     WorkflowChain,
     WorkflowExecution,
     WorkflowStep,
@@ -31,6 +32,7 @@ __all__ = [
     # Types
     "Intent",
     "IntentCategory",
+    "Serializable",
     "WorkflowChain",
     "WorkflowExecution",
     "WorkflowStep",

@@ -275,7 +275,7 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
 }
 
 
-@dataclass
+@dataclass(slots=True)
 class SimulacrumToolHandler:
     """Handles simulacrum management tool calls."""
 

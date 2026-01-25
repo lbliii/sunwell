@@ -351,6 +351,53 @@ class PermissionDiffCalculator:
 # =============================================================================
 
 
+def _aggregate_scopes(skills: list[Skill], calculator: PermissionDiffCalculator) -> PermissionScope:
+    """Aggregate permission scopes from skills in O(n) time.
+
+    Args:
+        skills: Skills to aggregate
+        calculator: Calculator for scope extraction
+
+    Returns:
+        Combined PermissionScope
+    """
+    # Use mutable sets for O(n) aggregation instead of repeated frozenset unions
+    fs_read: set[str] = set()
+    fs_write: set[str] = set()
+    net_allow: set[str] = set()
+    net_deny: set[str] | None = None  # Special handling: intersection
+    shell_allow: set[str] = set()
+    shell_deny: set[str] = set()
+    env_read: set[str] = set()
+    env_write: set[str] = set()
+
+    for skill in skills:
+        scope = calculator._extract_scope(skill)
+        fs_read.update(scope.filesystem_read)
+        fs_write.update(scope.filesystem_write)
+        net_allow.update(scope.network_allow)
+        # network_deny uses intersection (more restrictive)
+        if net_deny is None:
+            net_deny = set(scope.network_deny)
+        else:
+            net_deny &= scope.network_deny
+        shell_allow.update(scope.shell_allow)
+        shell_deny.update(scope.shell_deny)
+        env_read.update(scope.env_read)
+        env_write.update(scope.env_write)
+
+    return PermissionScope(
+        filesystem_read=frozenset(fs_read),
+        filesystem_write=frozenset(fs_write),
+        network_allow=frozenset(net_allow),
+        network_deny=frozenset(net_deny) if net_deny else frozenset(["*"]),
+        shell_allow=frozenset(shell_allow),
+        shell_deny=frozenset(shell_deny),
+        env_read=frozenset(env_read),
+        env_write=frozenset(env_write),
+    )
+
+
 def diff_lens_permissions(
     old_skills: list[Skill],
     new_skills: list[Skill],
@@ -364,19 +411,11 @@ def diff_lens_permissions(
     Returns:
         PermissionDiff of total permissions
     """
-    # Aggregate permissions from each lens
-    old_total = PermissionScope()
-    new_total = PermissionScope()
-
     calculator = PermissionDiffCalculator()
 
-    for skill in old_skills:
-        scope = calculator._extract_scope(skill)
-        old_total = old_total.merge_with(scope)
-
-    for skill in new_skills:
-        scope = calculator._extract_scope(skill)
-        new_total = new_total.merge_with(scope)
+    # O(n) aggregation instead of O(n²) repeated merge_with
+    old_total = _aggregate_scopes(old_skills, calculator)
+    new_total = _aggregate_scopes(new_skills, calculator)
 
     return calculator.diff_scopes(old_total, new_total)
 

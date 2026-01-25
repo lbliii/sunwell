@@ -4,10 +4,10 @@ Core types for weakness detection and cascade regeneration.
 These are frozen dataclasses for thread-safety in Python 3.14t.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, Mapping
 
 
 class WeaknessType(str, Enum):
@@ -26,6 +26,11 @@ class WeaknessType(str, Enum):
 CascadeRisk = Literal["low", "medium", "high", "critical"]
 
 
+def _freeze_evidence(data: Mapping[str, Any]) -> tuple[tuple[str, Any], ...]:
+    """Convert evidence dict to immutable tuple of tuples."""
+    return tuple(sorted(data.items()))
+
+
 @dataclass(frozen=True, slots=True)
 class WeaknessSignal:
     """A detected weakness in the codebase."""
@@ -34,7 +39,7 @@ class WeaknessSignal:
     file_path: Path
     weakness_type: WeaknessType
     severity: float  # 0.0 - 1.0
-    evidence: dict[str, Any] = field(default_factory=dict)
+    evidence: tuple[tuple[str, Any], ...] = ()  # Immutable evidence
 
     @property
     def is_critical(self) -> bool:

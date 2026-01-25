@@ -154,7 +154,7 @@ NEGATIVE_SIGNALS: dict[Domain, dict[str, float]] = {
 }
 
 
-@dataclass
+@dataclass(slots=True)
 class DomainClassifier:
     """Classify goals into domains for expertise selection.
 

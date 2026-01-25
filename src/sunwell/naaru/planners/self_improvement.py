@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from sunwell.mirror import MirrorHandler
 
 
-@dataclass
+@dataclass(slots=True)
 class SelfImprovementPlanner:
     """Plans self-improvement tasks for Sunwell (RFC-032).
 

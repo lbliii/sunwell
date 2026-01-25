@@ -21,6 +21,19 @@ _RE_TABLES = re.compile(r"\|[^|]+\|[^|]+\|")
 _RE_QA_PATTERN = re.compile(r"\*\*(why|what|how)\b.*\?\*\*", re.IGNORECASE)
 _RE_NOTES_PATTERN = re.compile(r"^(?:note|warning|tip|important):", re.MULTILINE | re.IGNORECASE)
 
+# Pattern cache for word boundary matching (lazy-initialized)
+_WORD_BOUNDARY_CACHE: dict[str, re.Pattern[str]] = {}
+
+
+def _get_word_boundary_pattern(pattern: str) -> re.Pattern[str]:
+    """Get or create a cached word boundary regex pattern.
+
+    This avoids O(n) regex compilation per pattern per call.
+    """
+    if pattern not in _WORD_BOUNDARY_CACHE:
+        _WORD_BOUNDARY_CACHE[pattern] = re.compile(rf"\b{re.escape(pattern)}\b")
+    return _WORD_BOUNDARY_CACHE[pattern]
+
 
 @dataclass(frozen=True, slots=True)
 class DiataxisSignal:
@@ -206,8 +219,8 @@ def detect_diataxis(content: str, file_path: Path | None = None) -> DiataxisDete
 
         # Check structure patterns in full content (lower weight)
         for pattern in structure:  # type: ignore
-            # Use word boundary matching
-            if re.search(rf"\b{re.escape(pattern)}\b", content_lower):
+            # Use cached word boundary pattern (avoids O(n) regex compilation)
+            if _get_word_boundary_pattern(pattern).search(content_lower):
                 scores[dtype] += 0.1
                 signals.append(DiataxisSignal(dtype, 0.1, f"'{pattern}' structure detected"))
 

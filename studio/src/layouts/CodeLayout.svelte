@@ -28,7 +28,7 @@
   
   {#snippet sidebar()}
     <div class="file-list">
-      {#each files as file}
+      {#each files as file (file.name)}
         <button class="file-item">
           <span class="file-icon">{file.icon}</span>
           <span class="file-name">{file.name}</span>

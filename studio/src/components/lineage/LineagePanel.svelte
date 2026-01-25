@@ -196,7 +196,7 @@
             <div class="dep-section">
               <h4>Imports ({deps.imports.length})</h4>
               <ul class="dep-list">
-                {#each deps.imports as imp}
+                {#each deps.imports as imp (imp)}
                   <li class="dep-item">
                     <span class="icon">{getLanguageIcon(imp)}</span>
                     <span class="path">{imp}</span>
@@ -210,7 +210,7 @@
             <div class="dep-section">
               <h4>Imported By ({deps.imported_by.length})</h4>
               <ul class="dep-list">
-                {#each deps.imported_by as imp}
+                {#each deps.imported_by as imp (imp)}
                   <li class="dep-item">
                     <span class="icon">{getLanguageIcon(imp)}</span>
                     <span class="path">{imp}</span>
@@ -256,7 +256,7 @@
             <div class="affected-files">
               <h4>Affected Files</h4>
               <ul class="file-list">
-                {#each impact.affected_files.slice(0, 20) as file}
+                {#each impact.affected_files.slice(0, 20) as file (file)}
                   <li class="file-item">
                     <span class="icon">{getLanguageIcon(file)}</span>
                     <span class="path">{file}</span>

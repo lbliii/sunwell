@@ -18,17 +18,15 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any
+
+from sunwell.types.protocol import Serializable as DictSerializable
 
 if TYPE_CHECKING:
     from sunwell.backlog.goals import Goal
     from sunwell.backlog.manager import BacklogManager
 
-
-class DictSerializable(Protocol):
-    """Protocol for objects that can serialize to dict."""
-
-    def to_dict(self) -> dict[str, Any]: ...
+__all__ = ["DictSerializable", "MilestoneProgress", "MilestoneTracker"]
 
 
 @dataclass(frozen=True, slots=True)

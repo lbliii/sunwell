@@ -357,7 +357,7 @@
         </div>
       {:else}
         <div class="file-categories">
-          {#each Object.entries(categorizedFiles) as [category, files]}
+          {#each Object.entries(categorizedFiles) as [category, files] (category)}
             {#if files.length > 0}
               <div class="category-group">
                 <button 
@@ -372,7 +372,7 @@
                 
                 {#if expandedCategories.has(category)}
                   <div class="category-files" in:fly={{ y: -5, duration: 150 }}>
-                    {#each files.slice(0, 10) as { entry }}
+                    {#each files.slice(0, 10) as { entry } (entry.path)}
                       <button 
                         class="file-item"
                         onclick={() => handleFileClick(entry)}
@@ -433,7 +433,7 @@
         <span>{agent.learnings.length} learnings</span>
       </summary>
       <ul class="learnings-list">
-        {#each agent.learnings.slice(-5) as learning}
+        {#each agent.learnings.slice(-5) as learning, i (i)}
           <li class="learning-item">{learning}</li>
         {/each}
         {#if agent.learnings.length > 5}
@@ -446,7 +446,7 @@
   <!-- Concepts Tags -->
   {#if agent.concepts.length > 0}
     <div class="concepts" in:fade={{ duration: 200, delay: 400 }}>
-      {#each agent.concepts.slice(0, 6) as concept}
+      {#each agent.concepts.slice(0, 6) as concept (concept.id)}
         <span class="concept-tag">{concept.label}</span>
       {/each}
       {#if agent.concepts.length > 6}

@@ -12,7 +12,7 @@ import os
 import re
 import subprocess
 import tempfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -63,9 +63,9 @@ def _get_git_branch() -> str:
         return "main"
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class WorkflowState:
-    """Serializable workflow state for persistence.
+    """Serializable workflow state for persistence (immutable).
 
     This is the on-disk format stored in `.sunwell/state/{branch}/{topic}.json`.
     """
@@ -91,10 +91,10 @@ class WorkflowState:
     updated_at: str = ""
     """ISO timestamp of last update."""
 
-    completed_steps: list[dict[str, Any]] = field(default_factory=list)
+    completed_steps: tuple[dict[str, Any], ...] = ()
     """Serialized completed step results."""
 
-    pending_steps: list[str] = field(default_factory=list)
+    pending_steps: tuple[str, ...] = ()
     """Skill names of pending steps."""
 
     # Context
@@ -120,8 +120,8 @@ class WorkflowState:
             "currentStep": self.current_step,
             "startedAt": self.started_at,
             "updatedAt": self.updated_at,
-            "completedSteps": self.completed_steps,
-            "pendingSteps": self.pending_steps,
+            "completedSteps": list(self.completed_steps),
+            "pendingSteps": list(self.pending_steps),
             "context": {
                 "lens": self.lens,
                 "target_file": self.target_file,
@@ -142,8 +142,8 @@ class WorkflowState:
             current_step=data.get("currentStep", 0),
             started_at=data.get("startedAt", ""),
             updated_at=data.get("updatedAt", ""),
-            completed_steps=data.get("completedSteps", []),
-            pending_steps=data.get("pendingSteps", []),
+            completed_steps=tuple(data.get("completedSteps", [])),
+            pending_steps=tuple(data.get("pendingSteps", [])),
             lens=context.get("lens"),
             target_file=context.get("target_file"),
             working_dir=context.get("working_dir", ""),
@@ -161,10 +161,10 @@ class WorkflowState:
         Returns:
             WorkflowState ready for persistence
         """
-        pending_skills = [
+        pending_skills = tuple(
             step.skill
             for step in execution.chain.steps[execution.current_step + 1:]
-        ]
+        )
 
         return cls(
             id=execution.id,
@@ -173,7 +173,7 @@ class WorkflowState:
             current_step=execution.current_step,
             started_at=execution.started_at.isoformat(),
             updated_at=execution.updated_at.isoformat(),
-            completed_steps=[s.to_dict() for s in execution.completed_steps],
+            completed_steps=tuple(s.to_dict() for s in execution.completed_steps),
             pending_steps=pending_skills,
             lens=execution.context.get("lens"),
             target_file=execution.context.get("target_file"),

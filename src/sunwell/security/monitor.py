@@ -125,6 +125,9 @@ class SecurityMonitor:
     # Deterministic patterns for common violations
     PATH_TRAVERSAL_PATTERN = re.compile(r"\.\.\/|\.\.\\|%2e%2e|%252e")
 
+    # Pre-compiled pattern for JSON extraction in LLM responses
+    _JSON_EXTRACT_PATTERN = re.compile(r"\{[^}]+\}")
+
     SHELL_INJECTION_PATTERNS = [
         re.compile(r"`[^`]+`"),  # Backtick execution
         re.compile(r"\$\([^)]+\)"),  # $() subshell
@@ -352,7 +355,7 @@ Respond with JSON: {{"classification": "safe|<type>", "evidence": "brief explana
 
         try:
             # Try to extract JSON from response
-            json_match = re.search(r"\{[^}]+\}", response)
+            json_match = self._JSON_EXTRACT_PATTERN.search(response)
             if json_match:
                 data = json.loads(json_match.group())
                 classification = data.get("classification", "safe")

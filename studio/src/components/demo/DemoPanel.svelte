@@ -343,7 +343,7 @@
                   <div class="card-field">
                     <span class="field-label">Heuristics</span>
                     <div class="field-tags">
-                      {#each breakdown.lens.heuristics_applied.slice(0, 3) as h}
+                      {#each breakdown.lens.heuristics_applied.slice(0, 3) as h (h)}
                         <span class="tag">{h}</span>
                       {/each}
                       {#if breakdown.lens.heuristics_applied.length > 3}
@@ -366,7 +366,7 @@
                 <div class="card-field">
                   <span class="field-label">Requirements Added</span>
                   <div class="field-list">
-                    {#each breakdown.prompt.requirements_added.slice(0, 4) as req}
+                    {#each breakdown.prompt.requirements_added.slice(0, 4) as req (req)}
                       <div class="list-item">• {req}</div>
                     {/each}
                     {#if breakdown.prompt.requirements_added.length > 4}
@@ -397,7 +397,7 @@
                   <div class="card-field">
                     <span class="field-label">Issues Found</span>
                     <div class="field-list issues">
-                      {#each breakdown.judge.issues.slice(0, 3) as issue}
+                      {#each breakdown.judge.issues.slice(0, 3) as issue (issue)}
                         <div class="list-item issue">⚠️ {issue}</div>
                       {/each}
                     </div>
@@ -428,7 +428,7 @@
                   <div class="card-field">
                     <span class="field-label">Improvements Made</span>
                     <div class="field-tags improvements">
-                      {#each breakdown.resonance.improvements as imp}
+                      {#each breakdown.resonance.improvements as imp (imp)}
                         <span class="tag success">{formatFeature(imp)}</span>
                       {/each}
                     </div>

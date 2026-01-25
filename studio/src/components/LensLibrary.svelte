@@ -165,6 +165,16 @@
     featuredLenses.length > 0
   );
   
+  // Computed: Similar lenses for detail view (O(n) once, not O(n²) in template)
+  const similarLenses = $derived.by(() => {
+    if (!lensLibrary.detail) return [];
+    const detailName = lensLibrary.detail.name;
+    const detailDomain = lensLibrary.detail.domain;
+    return lensLibrary.entries
+      .filter(e => e.name !== detailName && e.domain === detailDomain)
+      .slice(0, 4);
+  });
+  
   // Keyboard navigation handler
   function handleKeydown(e: KeyboardEvent) {
     if (lensLibrary.view !== 'library') return;
@@ -384,7 +394,7 @@
         
         {#if showSuggestions && searchSuggestions.length > 0}
           <div class="search-suggestions" in:fly={{ y: -8, duration: 100 }}>
-            {#each searchSuggestions as suggestion}
+            {#each searchSuggestions as suggestion (suggestion)}
               <button 
                 class="suggestion"
                 onmousedown={(e) => { e.preventDefault(); setFilter({ search: suggestion }); }}
@@ -661,11 +671,11 @@
         {/if}
         
         <!-- Similar lenses -->
-        {#if lensLibrary.entries.filter(e => e.name !== lensLibrary.detail?.name && (e.domain === lensLibrary.detail?.domain || e.tags.some(t => lensLibrary.detail?.heuristics.some(h => h.name.toLowerCase().includes(t.toLowerCase()))))).length > 0}
+        {#if similarLenses.length > 0}
           <section class="detail-section similar-section">
             <h3>Similar Expertise</h3>
             <div class="similar-grid">
-              {#each lensLibrary.entries.filter(e => e.name !== lensLibrary.detail?.name && e.domain === lensLibrary.detail?.domain).slice(0, 4) as similar}
+              {#each similarLenses as similar (similar.path)}
                 <button 
                   class="mini-lens-card"
                   onclick={() => handleSelectLens(similar)}

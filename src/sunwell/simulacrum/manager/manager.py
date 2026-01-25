@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from sunwell.simulacrum.topology.memory_node import MemoryNode
 
 
-@dataclass
+@dataclass(slots=True)
 class SimulacrumManager:
     """Manages multiple simulacrums with switching and cross-query capabilities.
 

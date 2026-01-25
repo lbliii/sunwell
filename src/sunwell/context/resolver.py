@@ -14,7 +14,7 @@ from sunwell.context.ide import IDEContext
 from sunwell.context.reference import ContextReference, ResolvedContext
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ExpandedTask:
     """Task with expanded context references."""
 
@@ -24,7 +24,7 @@ class ExpandedTask:
     expanded: str
     """Task with inline references replaced/summarized."""
 
-    context_blocks: list[ResolvedContext]
+    context_blocks: tuple[ResolvedContext, ...]
     """Large contexts that couldn't be inlined."""
 
     total_context_chars: int
@@ -331,7 +331,7 @@ async def preprocess_task(
         return ExpandedTask(
             original=task,
             expanded=task,
-            context_blocks=[],
+            context_blocks=(),
             total_context_chars=0,
         )
 
@@ -368,7 +368,7 @@ async def preprocess_task(
     return ExpandedTask(
         original=task,
         expanded=expanded,
-        context_blocks=context_blocks,
+        context_blocks=tuple(context_blocks),
         total_context_chars=total_chars,
     )
 

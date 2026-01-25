@@ -218,7 +218,7 @@ class SessionIndex:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class SessionIndexManager:
     """Manages the global session index.
 

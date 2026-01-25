@@ -10,6 +10,11 @@ from typing import Any
 
 from sunwell.surface.types import SurfaceLayout
 
+# Module-level constant for stop words (avoid per-call set rebuild)
+_STOP_WORDS: frozenset[str] = frozenset({
+    "a", "an", "the", "for", "with", "to", "in", "on", "of", "and", "or"
+})
+
 
 @dataclass(frozen=True, slots=True)
 class LayoutMemory:
@@ -98,10 +103,9 @@ def normalize_goal(goal: str) -> str:
     # Lowercase
     normalized = goal.lower()
 
-    # Remove common words
-    stop_words = {"a", "an", "the", "for", "with", "to", "in", "on", "of", "and", "or"}
+    # Remove common words (uses module-level frozenset for O(1) lookup)
     words = normalized.split()
-    keywords = [w for w in words if w not in stop_words and len(w) > 2]
+    keywords = [w for w in words if w not in _STOP_WORDS and len(w) > 2]
 
     return " ".join(sorted(keywords))
 

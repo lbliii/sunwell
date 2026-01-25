@@ -3,6 +3,7 @@
 Renders workspace layouts from WorkspaceSpec specifications.
 """
 
+from types import MappingProxyType
 from typing import Any
 
 from sunwell.surface.registry import PrimitiveRegistry
@@ -13,6 +14,14 @@ from sunwell.surface.types import (
     SurfacePrimitive,
     WorkspaceSpec,
 )
+
+# Module-level constant for arrangement → size mapping (avoid per-call rebuild)
+_ARRANGEMENT_SIZE_MAP: dict[str, PrimitiveSize] = {
+    "standard": "full",
+    "focused": "full",
+    "split": "split",
+    "dashboard": "split",
+}
 
 
 class SurfaceRenderer:
@@ -120,7 +129,7 @@ class SurfaceRenderer:
             id=primitive_id,
             category=defn.category,
             size=size,
-            props=props,
+            props=MappingProxyType(props),
         )
 
     def _primary_size_for_arrangement(self, arrangement: SurfaceArrangement) -> PrimitiveSize:
@@ -132,13 +141,7 @@ class SurfaceRenderer:
         Returns:
             Appropriate size for primary primitive
         """
-        size_map: dict[str, PrimitiveSize] = {
-            "standard": "full",
-            "focused": "full",
-            "split": "split",
-            "dashboard": "split",
-        }
-        return size_map.get(arrangement, "full")
+        return _ARRANGEMENT_SIZE_MAP.get(arrangement, "full")
 
     def _secondary_size(self, primitive_id: str, arrangement: SurfaceArrangement) -> PrimitiveSize:
         """Determine secondary primitive size.
@@ -176,5 +179,5 @@ class SurfaceRenderer:
             id=primitive.id,
             category=primitive.category,
             size=primitive.size,
-            props={**primitive.props, "seed": seed},
+            props=MappingProxyType({**primitive.props, "seed": seed}),
         )

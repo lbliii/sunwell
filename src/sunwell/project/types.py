@@ -7,15 +7,10 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Protocol
 
+from sunwell.types.protocol import Serializable
 
-class Serializable(Protocol):
-    """Protocol for objects that can be serialized to dict."""
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to JSON-serializable dict."""
-        ...
+__all__ = ["Serializable", "WorkspaceType", "AgentConfig", "ProjectManifest", "Project"]
 
 
 class WorkspaceType(Enum):

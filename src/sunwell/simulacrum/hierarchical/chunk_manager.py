@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from sunwell.simulacrum.summarizer import Summarizer
 
 
-@dataclass
+@dataclass(slots=True)
 class ChunkManager:
     """Orchestrates the lifecycle of conversation chunks across tiers.
 

@@ -241,7 +241,7 @@
                     Goals ({dag.projectIndex.summary.completedGoals}/{dag.projectIndex.summary.totalGoals})
                   </h3>
                   <ul class="goals-list">
-                    {#each getSortedGoals() as goal}
+                    {#each getSortedGoals() as goal (goal.id)}
                       <li class="goal-item" class:complete={goal.status === 'complete'}>
                         <button class="goal-btn" onclick={() => handleGoalClick(goal.id)}>
                           <span class="goal-status">

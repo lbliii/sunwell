@@ -9,6 +9,48 @@
 	import Toast from './ui/Toast.svelte';
 	import Panel from './Panel.svelte';
 	import type { InterfaceOutput } from '../stores/interface.svelte';
+	import type { SurfaceArrangement } from '../stores/surface.svelte';
+
+	// Type definitions for view data
+	interface CalendarEvent {
+		readonly id?: string;
+		readonly start: string;
+		readonly end?: string;
+		readonly title: string;
+		readonly location?: string;
+	}
+
+	interface ListItem {
+		readonly id?: string;
+		readonly text: string;
+		readonly completed: boolean;
+	}
+
+	interface Note {
+		readonly id?: string;
+		readonly title: string;
+		readonly content?: string;
+		readonly tags?: readonly string[];
+	}
+
+	interface SearchResult {
+		readonly id?: string;
+		readonly type: 'note' | 'list_item' | 'event';
+		readonly title?: string;
+		readonly text?: string;
+		readonly list?: string;
+	}
+
+	interface ViewData {
+		readonly mode?: string;
+		readonly events?: readonly CalendarEvent[];
+		readonly list_name?: string;
+		readonly items?: readonly ListItem[];
+		readonly notes?: readonly Note[];
+		readonly query?: string;
+		readonly results?: readonly SearchResult[];
+		readonly view?: ViewData;
+	}
 
 	interface Props {
 		output: InterfaceOutput | null;
@@ -43,12 +85,12 @@
 		if (output?.type === 'workspace' && output.workspace_spec) {
 			const spec = output.workspace_spec;
 			// Compose surface with the workspace spec
-			composeSurface(output.response || 'Workspace', undefined, undefined, spec.arrangement as any);
+			composeSurface(output.response || 'Workspace', undefined, undefined, spec.arrangement as SurfaceArrangement);
 			onWorkspaceReady?.();
 		}
 	});
 
-	function formatCalendarEvent(event: any): string {
+	function formatCalendarEvent(event: CalendarEvent): string {
 		const start = new Date(event.start);
 		return `${start.toLocaleDateString()} ${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${event.title}`;
 	}
@@ -96,15 +138,15 @@
 					<div class="view-response">{output.response}</div>
 				{/if}
 
-				{#if output.data}
-					{@const data = output.data as Record<string, any>}
+			{#if output.data}
+				{@const data = output.data as ViewData}
 
-					{#if output.view_type === 'calendar'}
-						<div class="calendar-view">
-							{#if data.events?.length > 0}
-								<div class="event-list">
-									{#each data.events.slice(0, 10) as event}
-										<div class="event-item">
+				{#if output.view_type === 'calendar'}
+					<div class="calendar-view">
+						{#if data.events?.length}
+							<div class="event-list">
+								{#each data.events.slice(0, 10) as event, i (event.id ?? i)}
+									<div class="event-item">
 											<span class="event-date">
 												{new Date(event.start).toLocaleDateString('en-US', {
 													weekday: 'short',
@@ -132,10 +174,10 @@
 					{:else if output.view_type === 'list'}
 						<div class="list-view">
 							<div class="list-header">{data.list_name || 'List'}</div>
-							{#if data.items?.length > 0}
-								<div class="item-list">
-									{#each data.items as item}
-										<div class="list-item" class:completed={item.completed}>
+					{#if data.items?.length}
+							<div class="item-list">
+								{#each data.items as item, i (item.id ?? i)}
+									<div class="list-item" class:completed={item.completed}>
 											<span class="item-check">{item.completed ? '✓' : '○'}</span>
 											<span class="item-text">{item.text}</span>
 										</div>
@@ -147,18 +189,18 @@
 						</div>
 					{:else if output.view_type === 'notes'}
 						<div class="notes-view">
-							{#if data.notes?.length > 0}
-								<div class="notes-list">
-									{#each data.notes as note}
-										<div class="note-item">
-											<div class="note-title">{note.title}</div>
-											<div class="note-preview">
-												{note.content?.slice(0, 150)}{note.content?.length > 150 ? '...' : ''}
-											</div>
-											{#if note.tags?.length > 0}
-												<div class="note-tags">
-													{#each note.tags as tag}
-														<span class="tag">{tag}</span>
+						{#if data.notes?.length}
+							<div class="notes-list">
+								{#each data.notes as note, i (note.id ?? i)}
+									<div class="note-item">
+										<div class="note-title">{note.title}</div>
+										<div class="note-preview">
+											{note.content?.slice(0, 150)}{(note.content?.length ?? 0) > 150 ? '...' : ''}
+										</div>
+										{#if note.tags?.length}
+											<div class="note-tags">
+												{#each note.tags as tag (tag)}
+													<span class="tag">{tag}</span>
 													{/each}
 												</div>
 											{/if}
@@ -172,9 +214,9 @@
 					{:else if output.view_type === 'search'}
 						<div class="search-view">
 							<div class="search-query">Results for "{data.query}"</div>
-							{#if data.results?.length > 0}
-								<div class="results-list">
-									{#each data.results.slice(0, 15) as result}
+						{#if data.results?.length}
+							<div class="results-list">
+								{#each data.results.slice(0, 15) as result, i (result.id ?? i)}
 										<div class="result-item result-{result.type}">
 											<span class="result-icon">
 												{result.type === 'note'
@@ -218,7 +260,7 @@
 			</div>
 		{:else if output.type === 'hybrid'}
 			<!-- Hybrid shows both action toast (handled above) and view -->
-			{@const viewData = output.data?.view as Record<string, any> | undefined}
+			{@const viewData = (output.data as ViewData | undefined)?.view}
 			{#if viewData}
 				<div class="view">
 					<div class="view-header">

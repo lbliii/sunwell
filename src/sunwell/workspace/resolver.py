@@ -9,9 +9,15 @@ Provides unified workspace resolution logic for both CLI and Desktop:
 
 
 import os
+import re
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+
+# Pre-compiled regex patterns for slugify (avoid recompiling per-call)
+_RE_SPACES_UNDERSCORES = re.compile(r"[\s_]+")
+_RE_NON_ALNUM_HYPHEN = re.compile(r"[^a-z0-9-]")
+_RE_MULTIPLE_HYPHENS = re.compile(r"-+")
 
 
 class ResolutionSource(Enum):
@@ -228,19 +234,17 @@ def _slugify(name: str) -> str:
         "My REST API" → "my-rest-api"
         "The Lighthouse Keeper" → "the-lighthouse-keeper"
     """
-    import re
-
     # Lowercase
     slug = name.lower()
 
     # Replace spaces and underscores with hyphens
-    slug = re.sub(r"[\s_]+", "-", slug)
+    slug = _RE_SPACES_UNDERSCORES.sub("-", slug)
 
     # Remove non-alphanumeric except hyphens
-    slug = re.sub(r"[^a-z0-9-]", "", slug)
+    slug = _RE_NON_ALNUM_HYPHEN.sub("", slug)
 
     # Collapse multiple hyphens
-    slug = re.sub(r"-+", "-", slug)
+    slug = _RE_MULTIPLE_HYPHENS.sub("-", slug)
 
     # Strip leading/trailing hyphens
     slug = slug.strip("-")

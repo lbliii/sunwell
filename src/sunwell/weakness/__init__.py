@@ -26,6 +26,7 @@ from sunwell.weakness.types import (
     WeaknessSignal,
     WeaknessType,
 )
+from sunwell.weakness.verification import run_mypy, run_pytest, run_ruff
 
 __all__ = [
     # Types
@@ -48,4 +49,8 @@ __all__ = [
     "CascadeExecutor",
     # Factory functions
     "create_cascade_executor",
+    # Verification utilities
+    "run_pytest",
+    "run_mypy",
+    "run_ruff",
 ]

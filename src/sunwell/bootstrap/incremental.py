@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from sunwell.intelligence.context import ProjectContext
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class BootstrapUpdate:
     """Result of incremental bootstrap update."""
 

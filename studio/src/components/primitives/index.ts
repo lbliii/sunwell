@@ -46,8 +46,11 @@ export { default as ParticleStream } from './ParticleStream.svelte';
 // Types
 export type { PrimitiveProps, CodePrimitiveProps, WritingPrimitiveProps, PlanningPrimitiveProps, DataPrimitiveProps } from './types';
 
+/** Dynamic import function type for lazy-loaded Svelte components */
+type ComponentImport = () => Promise<{ default: typeof import('*.svelte').default }>;
+
 // Component map for dynamic rendering
-export const componentMap: Record<string, any> = {
+export const componentMap: Record<string, ComponentImport> = {
   // Code
   CodeBlock: () => import('./CodeBlock.svelte'),  // RFC-097
   CodeEditor: () => import('./CodeEditor.svelte'),

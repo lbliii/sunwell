@@ -78,6 +78,12 @@
 		}
 	});
 
+	// Cleanup any lingering event listeners on unmount
+	onDestroy(() => {
+		window.removeEventListener('mousemove', handleMouseMove);
+		window.removeEventListener('mouseup', handleMouseUp);
+	});
+
 	/**
 	 * Navigate to a specific area.
 	 */

@@ -21,7 +21,7 @@ from sunwell.types.protocol import (
 )
 
 
-@dataclass
+@dataclass(slots=True)
 class AppContext:
     """Application context with all dependencies.
 

@@ -4,7 +4,7 @@
   Shows which goals block others with an interactive graph view.
 -->
 <script lang="ts">
-  import type { Goal } from '../../stores/backlog.svelte';
+  import type { Goal, GoalStatus } from '../../stores/backlog.svelte';
   import { getStatusInfo } from '../../stores/backlog.svelte';
 
   interface Props {
@@ -158,7 +158,7 @@
     >
       <!-- Edges -->
       <g class="edges">
-        {#each graphData.edges as edge}
+        {#each graphData.edges as edge (edge.from + '-' + edge.to)}
           {@const fromPos = getNodePosition(edge.from)}
           {@const toPos = getNodePosition(edge.to)}
           {#if fromPos && toPos}
@@ -182,7 +182,7 @@
 
       <!-- Nodes -->
       <g class="nodes">
-        {#each graphData.nodes as node}
+        {#each graphData.nodes as node (node.id)}
           <g
             class="node"
             class:selected={selectedGoalId === node.id}
@@ -212,7 +212,7 @@
               class="node-status"
               style="fill: {getStatusColor(node.status)}"
             >
-              {getStatusInfo(node.status as any).emoji} {node.status}
+              {getStatusInfo(node.status as GoalStatus).emoji} {node.status as GoalStatus}
             </text>
           </g>
         {/each}

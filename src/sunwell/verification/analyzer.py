@@ -10,6 +10,9 @@ import json
 import re
 from typing import TYPE_CHECKING
 
+# Pre-compiled regex for JSON object extraction
+_JSON_OBJECT_RE = re.compile(r"\{[\s\S]*\}")
+
 from sunwell.models.protocol import GenerateOptions
 from sunwell.verification.types import (
     BehavioralExecutionResult,
@@ -330,7 +333,7 @@ Output JSON:
     ) -> PerspectiveResult:
         """Parse LLM response into PerspectiveResult."""
         # Extract JSON from response
-        json_match = re.search(r"\{[\s\S]*\}", response)
+        json_match = _JSON_OBJECT_RE.search(response)
 
         # Default values if parsing fails
         default = PerspectiveResult(

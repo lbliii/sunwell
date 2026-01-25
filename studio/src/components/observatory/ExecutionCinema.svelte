@@ -58,14 +58,14 @@
     return result;
   });
   
-  // Get task by ID
+  // Get task by ID - O(1) lookup via Map
   function getTask(id: string): CinemaTask | undefined {
-    return tasks.find(t => t.id === id);
+    return taskMap.get(id);
   }
   
-  // Get position by ID
+  // Get position by ID - O(1) lookup via Map
   function getPosition(id: string): TaskPosition | undefined {
-    return taskPositions.find(p => p.id === id);
+    return positionMap.get(id);
   }
   
   // Generate edge path
@@ -83,24 +83,41 @@
     return from?.status === 'complete' && to?.status !== 'complete';
   }
   
+  // Build task lookup maps once for O(1) access
+  const taskMap = $derived(new Map(tasks.map(t => [t.id, t])));
+  const positionMap = $derived(new Map(taskPositions.map(p => [p.id, p])));
+  
+  // Calculate task counts once (O(n) total instead of O(4n) in template)
+  const taskCounts = $derived.by(() => {
+    const counts = { complete: 0, active: 0, pending: 0, failed: 0 };
+    for (const t of tasks) {
+      if (t.status in counts) {
+        counts[t.status as keyof typeof counts]++;
+      }
+    }
+    return counts;
+  });
+  
   // Calculate overall progress
   const progress = $derived(
     tasks.length > 0
-      ? Math.round((tasks.filter(t => t.status === 'complete').length / tasks.length) * 100)
+      ? Math.round((taskCounts.complete / tasks.length) * 100)
       : 0
   );
   
   // Live feed messages
   const liveFeed = $derived.by(() => {
     const messages: string[] = [];
-    const activeTask = tasks.find(t => t.status === 'active');
-    if (activeTask) {
-      messages.push(`Working on: ${activeTask.label}`);
-      messages.push(`Progress: ${Math.round(activeTask.progress * 100)}%`);
+    // Use the task map to find active task
+    for (const t of tasks) {
+      if (t.status === 'active') {
+        messages.push(`Working on: ${t.label}`);
+        messages.push(`Progress: ${Math.round(t.progress * 100)}%`);
+        break;
+      }
     }
-    const completed = tasks.filter(t => t.status === 'complete').length;
-    if (completed > 0) {
-      messages.push(`Completed: ${completed}/${tasks.length} tasks`);
+    if (taskCounts.complete > 0) {
+      messages.push(`Completed: ${taskCounts.complete}/${tasks.length} tasks`);
     }
     return messages;
   });
@@ -144,7 +161,7 @@
       </defs>
       
       <!-- Edges with particle streams -->
-      {#each edges as edge}
+      {#each edges as edge (edge.from + '-' + edge.to)}
         {@const from = getPosition(edge.from)}
         {@const to = getPosition(edge.to)}
         {@const fromTask = getTask(edge.from)}
@@ -175,7 +192,7 @@
       {/each}
       
       <!-- Task nodes using GlowingNode primitive -->
-      {#each tasks as task, i}
+      {#each tasks as task, i (task.id)}
         {@const pos = taskPositions[i]}
         {#if pos}
           <g in:fly={{ y: 30, delay: i * 100, duration: 300 }}>
@@ -203,7 +220,7 @@
         {/if}
       </div>
       <ul class="feed-messages">
-        {#each liveFeed as message, i}
+        {#each liveFeed as message, i (message + i)}
           <li class="feed-message" in:fly={{ y: 10, delay: i * 50, duration: 200 }}>
             {message}
           </li>
@@ -212,22 +229,22 @@
         {/each}
       </ul>
       
-      <!-- Task status summary -->
+      <!-- Task status summary - uses precomputed counts -->
       <div class="task-summary">
         <div class="summary-item">
-          <span class="summary-count complete">{tasks.filter(t => t.status === 'complete').length}</span>
+          <span class="summary-count complete">{taskCounts.complete}</span>
           <span class="summary-label">Complete</span>
         </div>
         <div class="summary-item">
-          <span class="summary-count active">{tasks.filter(t => t.status === 'active').length}</span>
+          <span class="summary-count active">{taskCounts.active}</span>
           <span class="summary-label">Active</span>
         </div>
         <div class="summary-item">
-          <span class="summary-count pending">{tasks.filter(t => t.status === 'pending').length}</span>
+          <span class="summary-count pending">{taskCounts.pending}</span>
           <span class="summary-label">Pending</span>
         </div>
         <div class="summary-item">
-          <span class="summary-count failed">{tasks.filter(t => t.status === 'failed').length}</span>
+          <span class="summary-count failed">{taskCounts.failed}</span>
           <span class="summary-label">Failed</span>
         </div>
       </div>

@@ -28,7 +28,7 @@ from sunwell.self.types import (
 )
 
 
-@dataclass
+@dataclass(slots=True)
 class SourceKnowledge:
     """Understand Sunwell's source code.
 

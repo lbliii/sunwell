@@ -42,7 +42,7 @@ class Attempt:
     learning: str | None = None
     """What was learned from this attempt."""
 
-    code_refs: list[str] = field(default_factory=list)
+    code_refs: tuple[str, ...] = ()
     """Code files/lines that were examined."""
 
 
@@ -106,7 +106,7 @@ class HandoffState:
             description=description,
             outcome=outcome,
             learning=learning,
-            code_refs=code_refs or [],
+            code_refs=tuple(code_refs) if code_refs else (),
         ))
         if learning:
             self.learnings.append(learning)
@@ -134,8 +134,16 @@ class HandoffState:
         with open(path) as f:
             data = json.load(f)
 
-        # Reconstruct Attempt objects
-        data["attempts"] = [Attempt(**a) for a in data.get("attempts", [])]
+        # Reconstruct Attempt objects (convert code_refs list to tuple)
+        data["attempts"] = [
+            Attempt(
+                description=a["description"],
+                outcome=a["outcome"],
+                learning=a.get("learning"),
+                code_refs=tuple(a.get("code_refs", ())),
+            )
+            for a in data.get("attempts", [])
+        ]
 
         return cls(**data)
 

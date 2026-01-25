@@ -65,12 +65,16 @@ from sunwell.security.monitor import (
     SecurityViolation,
 )
 from sunwell.security.policy import (
+    POLICY_MAX_RISK_THRESHOLD,
+    POLICY_MIN_RISK_THRESHOLD,
+    POLICY_REQUIRED_FIELDS,
+    POLICY_VALID_ENFORCEMENTS,
     PolicyEnforcer,
     PolicyRule,
     PolicyValidationError,
-    PolicyValidator,
     SecurityPolicyConfig,
     create_example_policy,
+    validate_policy,
 )
 from sunwell.security.sandbox import (
     PermissionAwareSandboxConfig,
@@ -125,10 +129,14 @@ __all__ = [
     # Policy
     "SecurityPolicyConfig",
     "PolicyRule",
-    "PolicyValidator",
     "PolicyValidationError",
     "PolicyEnforcer",
     "create_example_policy",
+    "validate_policy",
+    "POLICY_REQUIRED_FIELDS",
+    "POLICY_VALID_ENFORCEMENTS",
+    "POLICY_MAX_RISK_THRESHOLD",
+    "POLICY_MIN_RISK_THRESHOLD",
     # SIEM
     "SIEMFormatter",
     "CEFFormatter",

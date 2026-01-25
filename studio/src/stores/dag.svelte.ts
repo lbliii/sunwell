@@ -75,6 +75,13 @@ let _isLoadingEnvironment = $state<boolean>(false);
 let _environmentError = $state<string | null>(null);
 
 // ═══════════════════════════════════════════════════════════════
+// NODE INDEX (O(1) lookups)
+// ═══════════════════════════════════════════════════════════════
+
+/** Derived node index for O(1) lookups by ID */
+let _nodeIndex = $derived(new Map(_graph.nodes.map(n => [n.id, n])));
+
+// ═══════════════════════════════════════════════════════════════
 // LAYOUT COMPUTATION
 // ═══════════════════════════════════════════════════════════════
 
@@ -104,11 +111,11 @@ function computeLayout(graph: DagGraph): DagGraph {
 function getLayoutedGraph(): DagGraph { return computeLayout(_graph); }
 
 function getSelectedNode(): DagNode | null {
-  return _viewState.selectedNodeId ? _graph.nodes.find(n => n.id === _viewState.selectedNodeId) ?? null : null;
+  return _viewState.selectedNodeId ? _nodeIndex.get(_viewState.selectedNodeId) ?? null : null;
 }
 
 function getHoveredNode(): DagNode | null {
-  return _viewState.hoveredNodeId ? _graph.nodes.find(n => n.id === _viewState.hoveredNodeId) ?? null : null;
+  return _viewState.hoveredNodeId ? _nodeIndex.get(_viewState.hoveredNodeId) ?? null : null;
 }
 
 function getWouldUnblock(): DagNode[] {
@@ -126,7 +133,7 @@ function getCriticalPath(): Set<string> {
   const memo = new Map<string, string[]>();
   function longestPath(nodeId: string): string[] {
     if (memo.has(nodeId)) return memo.get(nodeId)!;
-    const node = _graph.nodes.find(n => n.id === nodeId);
+    const node = _nodeIndex.get(nodeId);
     if (!node || node.status === DagNodeStatus.COMPLETE) return [];
     const dependents = _graph.nodes.filter(n => n.dependsOn.includes(nodeId) && n.status !== DagNodeStatus.COMPLETE);
     if (dependents.length === 0) { const result = [nodeId]; memo.set(nodeId, result); return result; }
@@ -147,7 +154,7 @@ function getBottlenecks(): Set<string> {
   for (const node of _graph.nodes) {
     if (node.status === DagNodeStatus.COMPLETE) continue;
     for (const depId of node.dependsOn) {
-      const depNode = _graph.nodes.find(n => n.id === depId);
+      const depNode = _nodeIndex.get(depId);
       if (depNode && depNode.status !== DagNodeStatus.COMPLETE) blockedCount.set(depId, (blockedCount.get(depId) ?? 0) + 1);
     }
   }

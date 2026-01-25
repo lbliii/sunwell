@@ -23,10 +23,10 @@ Example JSON format:
 
 import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
-@dataclass
+@dataclass(slots=True)
 class IDEContext:
     """Context from IDE extension.
 
@@ -48,13 +48,13 @@ class IDEContext:
     cursor_position: tuple[int, int] | None = None
     """Cursor position as (line, column), 0-indexed."""
 
-    open_files: list[str] = field(default_factory=list)
+    open_files: tuple[str, ...] = ()
     """All open file paths."""
 
     visible_range: tuple[int, int] | None = None
     """Visible line range as (start, end)."""
 
-    diagnostics: list[dict] | None = None
+    diagnostics: tuple[dict, ...] | None = None
     """Linter errors/warnings from IDE.
 
     Each diagnostic dict has:
@@ -63,7 +63,7 @@ class IDEContext:
     - severity: int - severity level
     """
 
-    workspace_folders: list[str] = field(default_factory=list)
+    workspace_folders: tuple[str, ...] = ()
     """Workspace folders from IDE (multi-root support)."""
 
     @classmethod
@@ -76,14 +76,15 @@ class IDEContext:
         Returns:
             IDEContext instance
         """
+        diagnostics = data.get("diagnostics")
         return cls(
             focused_file=data.get("focused_file"),
             selection=data.get("selection"),
             cursor_position=tuple(data["cursor_position"]) if data.get("cursor_position") else None,
-            open_files=data.get("open_files", []),
+            open_files=tuple(data.get("open_files", [])),
             visible_range=tuple(data["visible_range"]) if data.get("visible_range") else None,
-            diagnostics=data.get("diagnostics"),
-            workspace_folders=data.get("workspace_folders", []),
+            diagnostics=tuple(diagnostics) if diagnostics else None,
+            workspace_folders=tuple(data.get("workspace_folders", [])),
         )
 
     @classmethod
@@ -128,10 +129,10 @@ class IDEContext:
             "focused_file": self.focused_file,
             "selection": self.selection,
             "cursor_position": list(self.cursor_position) if self.cursor_position else None,
-            "open_files": self.open_files,
+            "open_files": list(self.open_files),
             "visible_range": list(self.visible_range) if self.visible_range else None,
-            "diagnostics": self.diagnostics,
-            "workspace_folders": self.workspace_folders,
+            "diagnostics": list(self.diagnostics) if self.diagnostics else None,
+            "workspace_folders": list(self.workspace_folders),
         }
 
     def has_selection(self) -> bool:

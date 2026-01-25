@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from sunwell.runtime.retriever import ExpertiseRetriever
 
 
-@dataclass
+@dataclass(slots=True)
 class ExpertiseToolHandler:
     """Handler for expertise retrieval tools.
 

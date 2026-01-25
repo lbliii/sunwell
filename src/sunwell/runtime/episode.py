@@ -51,17 +51,17 @@ class EpisodeSnapshot:
     # Input
     prompt: str
 
-    # Retrieved expertise
-    retrieved_heuristics: list[str] = field(default_factory=list)
-    retrieved_code: list[str] = field(default_factory=list)
+    # Retrieved expertise (tuples for immutability in frozen dataclass)
+    retrieved_heuristics: tuple[str, ...] = ()
+    retrieved_code: tuple[str, ...] = ()
 
     # Execution
     tier: str = "STANDARD"
     refinement_count: int = 0
 
-    # Validation results
-    validation_results: list[dict] = field(default_factory=list)
-    persona_results: list[dict] = field(default_factory=list)
+    # Validation results (tuples for immutability in frozen dataclass)
+    validation_results: tuple[dict, ...] = ()
+    persona_results: tuple[dict, ...] = ()
 
     # Output
     final_content: str = ""
@@ -69,10 +69,10 @@ class EpisodeSnapshot:
     confidence_level: str = "unknown"
 
     # Metadata
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    timestamp: str = ""
     duration_ms: float = 0.0
     model: str = ""
-    token_usage: dict = field(default_factory=dict)
+    token_usage: tuple[tuple[str, int], ...] = ()
 
     @classmethod
     def from_result(
@@ -94,16 +94,16 @@ class EpisodeSnapshot:
             # Input
             prompt=prompt,
 
-            # Retrieved
-            retrieved_heuristics=list(result.retrieved_components),
-            retrieved_code=retrieved_code or [],
+            # Retrieved (tuples for frozen dataclass)
+            retrieved_heuristics=tuple(result.retrieved_components),
+            retrieved_code=tuple(retrieved_code) if retrieved_code else (),
 
             # Execution
             tier=result.tier.name,
             refinement_count=result.refinement_count,
 
-            # Validation
-            validation_results=[
+            # Validation (tuples for frozen dataclass)
+            validation_results=tuple(
                 {
                     "name": v.validator_name,
                     "passed": v.passed,
@@ -111,15 +111,15 @@ class EpisodeSnapshot:
                     "confidence": v.confidence,
                 }
                 for v in result.validation_results
-            ],
-            persona_results=[
+            ),
+            persona_results=tuple(
                 {
                     "name": p.persona_name,
                     "approved": p.approved,
                     "feedback": p.feedback[:500] if p.feedback else None,
                 }
                 for p in result.persona_results
-            ],
+            ),
 
             # Output
             final_content=result.content,
@@ -127,12 +127,13 @@ class EpisodeSnapshot:
             confidence_level=result.confidence.level,
 
             # Metadata
+            timestamp=datetime.now().isoformat(),
             model=model,
             duration_ms=duration_ms,
-            token_usage={
-                "prompt": result.token_usage.prompt_tokens if result.token_usage else 0,
-                "completion": result.token_usage.completion_tokens if result.token_usage else 0,
-            },
+            token_usage=(
+                ("prompt", result.token_usage.prompt_tokens if result.token_usage else 0),
+                ("completion", result.token_usage.completion_tokens if result.token_usage else 0),
+            ),
         )
 
     def save(self, path: Path) -> None:
@@ -172,6 +173,16 @@ class EpisodeSnapshot:
             except ImportError:
                 data["final_content"] = "[compression library not available]"
             del data["final_content_compressed"]
+
+        # Convert lists to tuples for frozen dataclass
+        data["retrieved_heuristics"] = tuple(data.get("retrieved_heuristics", ()))
+        data["retrieved_code"] = tuple(data.get("retrieved_code", ()))
+        data["validation_results"] = tuple(data.get("validation_results", ()))
+        data["persona_results"] = tuple(data.get("persona_results", ()))
+        # Convert token_usage dict to tuple of tuples
+        token_usage = data.get("token_usage", {})
+        if isinstance(token_usage, dict):
+            data["token_usage"] = tuple(token_usage.items())
 
         return cls(**data)
 
@@ -215,7 +226,18 @@ class EpisodeChain:
         """Load chain from JSON file."""
         with open(path) as f:
             data = json.load(f)
-        return cls(episodes=[EpisodeSnapshot(**e) for e in data["episodes"]])
+        # Use EpisodeSnapshot.load logic for each episode to handle tuple conversion
+        episodes = []
+        for e in data["episodes"]:
+            e["retrieved_heuristics"] = tuple(e.get("retrieved_heuristics", ()))
+            e["retrieved_code"] = tuple(e.get("retrieved_code", ()))
+            e["validation_results"] = tuple(e.get("validation_results", ()))
+            e["persona_results"] = tuple(e.get("persona_results", ()))
+            token_usage = e.get("token_usage", {})
+            if isinstance(token_usage, dict):
+                e["token_usage"] = tuple(token_usage.items())
+            episodes.append(EpisodeSnapshot(**e))
+        return cls(episodes=episodes)
 
     @property
     def latest(self) -> EpisodeSnapshot | None:

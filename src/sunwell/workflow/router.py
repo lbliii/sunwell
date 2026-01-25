@@ -68,6 +68,15 @@ INTENT_SIGNALS: dict[IntentCategory, tuple[str, ...]] = {
     ),
 }
 
+# Pre-compiled regex patterns for O(1) matching per signal
+# Maps category -> tuple of (signal_text, compiled_pattern)
+_SIGNAL_PATTERNS: dict[IntentCategory, tuple[tuple[str, re.Pattern[str]], ...]] = {
+    category: tuple(
+        (sig, re.compile(rf"\b{re.escape(sig)}\b")) for sig in signals
+    )
+    for category, signals in INTENT_SIGNALS.items()
+}
+
 # Intent category → default workflow chain
 INTENT_WORKFLOWS: dict[IntentCategory, str] = {
     IntentCategory.CREATION: "feature-docs",
@@ -145,18 +154,16 @@ class IntentRouter:
                     tier=self._determine_tier(input_lower),
                 )
 
-        # Score each category
+        # Score each category using pre-compiled patterns
         scores: dict[IntentCategory, float] = {}
         found_signals: dict[IntentCategory, list[str]] = {}
 
-        for category, signals in self.signals.items():
+        for category, signal_patterns in _SIGNAL_PATTERNS.items():
             score = 0.0
             matches: list[str] = []
 
-            for signal in signals:
-                # Check for word boundary match
-                pattern = rf"\b{re.escape(signal)}\b"
-                if re.search(pattern, input_lower):
+            for signal, pattern in signal_patterns:
+                if pattern.search(input_lower):
                     score += 1.0
                     matches.append(signal)
 

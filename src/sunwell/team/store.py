@@ -256,6 +256,9 @@ class TeamKnowledgeStore:
             result = await self._embedder.embed([query])
             query_vec = result.vectors[0].tolist()
 
+            # Build superseded set once before loop
+            superseded_ids = {d.supersedes for d in self._decisions.values() if d.supersedes}
+
             # Calculate similarities
             scores: list[tuple[TeamDecision, float]] = []
             for decision_id, decision_embedding in self._embeddings.items():
@@ -265,7 +268,6 @@ class TeamKnowledgeStore:
                 decision = self._decisions[decision_id]
 
                 # Skip superseded decisions
-                superseded_ids = {d.supersedes for d in self._decisions.values() if d.supersedes}
                 if decision.id in superseded_ids:
                     continue
 

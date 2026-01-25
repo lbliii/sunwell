@@ -295,97 +295,96 @@ class PolicyValidationError:
     """Error severity."""
 
 
-class PolicyValidator:
-    """Validates security policy configurations."""
+# Module-level constants for policy validation
+POLICY_REQUIRED_FIELDS: tuple[str, ...] = ("version",)
+POLICY_VALID_ENFORCEMENTS: frozenset[str] = frozenset({"strict", "warn", "audit"})
+POLICY_MAX_RISK_THRESHOLD: float = 1.0
+POLICY_MIN_RISK_THRESHOLD: float = 0.0
 
-    REQUIRED_FIELDS = ["version"]
-    VALID_ENFORCEMENTS = ["strict", "warn", "audit"]
-    MAX_RISK_THRESHOLD = 1.0
-    MIN_RISK_THRESHOLD = 0.0
 
-    def validate(self, config: SecurityPolicyConfig) -> list[PolicyValidationError]:
-        """Validate a policy configuration.
+def validate_policy(config: SecurityPolicyConfig) -> list[PolicyValidationError]:
+    """Validate a policy configuration.
 
-        Args:
-            config: Policy to validate
+    Args:
+        config: Policy to validate
 
-        Returns:
-            List of validation errors (empty if valid)
-        """
-        errors: list[PolicyValidationError] = []
+    Returns:
+        List of validation errors (empty if valid)
+    """
+    errors: list[PolicyValidationError] = []
 
-        # Version check
-        if not config.version:
-            errors.append(
-                PolicyValidationError("version", "Missing required field 'version'")
+    # Version check
+    if not config.version:
+        errors.append(
+            PolicyValidationError("version", "Missing required field 'version'")
+        )
+
+    # Enforcement mode check
+    if config.default_enforcement not in POLICY_VALID_ENFORCEMENTS:
+        errors.append(
+            PolicyValidationError(
+                "default_enforcement",
+                f"Invalid enforcement mode. Must be one of: {sorted(POLICY_VALID_ENFORCEMENTS)}",
             )
+        )
 
-        # Enforcement mode check
-        if config.default_enforcement not in self.VALID_ENFORCEMENTS:
+    # Risk threshold checks
+    thresholds = [
+        ("auto_approve_risk_below", config.auto_approve_risk_below),
+        ("require_approval_risk_above", config.require_approval_risk_above),
+        ("block_risk_above", config.block_risk_above),
+    ]
+
+    for name, value in thresholds:
+        if not POLICY_MIN_RISK_THRESHOLD <= value <= POLICY_MAX_RISK_THRESHOLD:
             errors.append(
                 PolicyValidationError(
-                    "default_enforcement",
-                    f"Invalid enforcement mode. Must be one of: {self.VALID_ENFORCEMENTS}",
+                    name,
+                    f"Risk threshold must be between {POLICY_MIN_RISK_THRESHOLD} and {POLICY_MAX_RISK_THRESHOLD}",
                 )
             )
 
-        # Risk threshold checks
-        thresholds = [
-            ("auto_approve_risk_below", config.auto_approve_risk_below),
-            ("require_approval_risk_above", config.require_approval_risk_above),
-            ("block_risk_above", config.block_risk_above),
-        ]
+    # Threshold ordering
+    if config.auto_approve_risk_below > config.require_approval_risk_above:
+        errors.append(
+            PolicyValidationError(
+                "risk_thresholds",
+                "auto_approve_risk_below must be <= require_approval_risk_above",
+                severity="warning",
+            )
+        )
 
-        for name, value in thresholds:
-            if not self.MIN_RISK_THRESHOLD <= value <= self.MAX_RISK_THRESHOLD:
+    if config.require_approval_risk_above > config.block_risk_above:
+        errors.append(
+            PolicyValidationError(
+                "risk_thresholds",
+                "require_approval_risk_above must be <= block_risk_above",
+                severity="warning",
+            )
+        )
+
+    # Rule validation
+    for i, rule in enumerate(config.rules):
+        if not rule.name:
+            errors.append(
+                PolicyValidationError(
+                    f"rules[{i}].name",
+                    "Rule must have a name",
+                )
+            )
+
+        # Check for overly broad deny patterns
+        for pattern in rule.deny_filesystem:
+            if pattern in ("*", "**", "/"):
                 errors.append(
                     PolicyValidationError(
-                        name,
-                        f"Risk threshold must be between {self.MIN_RISK_THRESHOLD} and {self.MAX_RISK_THRESHOLD}",
+                        f"rules[{i}].deny.filesystem",
+                        f"Overly broad filesystem deny pattern: {pattern}",
+                        severity="warning",
                     )
                 )
 
-        # Threshold ordering
-        if config.auto_approve_risk_below > config.require_approval_risk_above:
-            errors.append(
-                PolicyValidationError(
-                    "risk_thresholds",
-                    "auto_approve_risk_below must be <= require_approval_risk_above",
-                    severity="warning",
-                )
-            )
-
-        if config.require_approval_risk_above > config.block_risk_above:
-            errors.append(
-                PolicyValidationError(
-                    "risk_thresholds",
-                    "require_approval_risk_above must be <= block_risk_above",
-                    severity="warning",
-                )
-            )
-
-        # Rule validation
-        for i, rule in enumerate(config.rules):
-            if not rule.name:
-                errors.append(
-                    PolicyValidationError(
-                        f"rules[{i}].name",
-                        "Rule must have a name",
-                    )
-                )
-
-            # Check for overly broad deny patterns
-            for pattern in rule.deny_filesystem:
-                if pattern in ("*", "**", "/"):
-                    errors.append(
-                        PolicyValidationError(
-                            f"rules[{i}].deny.filesystem",
-                            f"Overly broad filesystem deny pattern: {pattern}",
-                            severity="warning",
-                        )
-                    )
-
-        return errors
+    return errors
 
 
 # =============================================================================

@@ -3,7 +3,15 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
+
+
+class Serializable(Protocol):
+    """Protocol for JSON-serializable workflow objects."""
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to serializable dictionary."""
+        ...
 
 
 class WorkflowTier(Enum):

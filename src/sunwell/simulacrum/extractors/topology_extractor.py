@@ -9,15 +9,50 @@ Part of RFC-014: Multi-Topology Memory.
 RFC-084: Enhanced with Jaccard similarity for RELATES_TO detection.
 """
 
-
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Pattern
 
 from sunwell.simulacrum.topology.topology_base import ConceptEdge, RelationType
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
+
+
+# =============================================================================
+# Pre-compiled patterns for relationship detection
+# Compiled once at module load, avoiding per-call regex compilation overhead.
+# =============================================================================
+
+_ELABORATION_PATTERNS: tuple[Pattern[str], ...] = (
+    re.compile(r"(?:specifically|in particular|for example)", re.IGNORECASE),
+    re.compile(r"(?:this means|in other words|that is)", re.IGNORECASE),
+    re.compile(r"(?:to clarify|more precisely)", re.IGNORECASE),
+    re.compile(r"(?:expanding on|to elaborate|in detail)", re.IGNORECASE),
+)
+
+_CONTRADICTION_PATTERNS: tuple[Pattern[str], ...] = (
+    re.compile(r"(?:actually|however|but|instead)", re.IGNORECASE),
+    re.compile(r"(?:not|never|don't|doesn't|won't)", re.IGNORECASE),
+    re.compile(r"(?:wrong|incorrect|false|mistake)", re.IGNORECASE),
+    re.compile(r"(?:in contrast|unlike|contrary to)", re.IGNORECASE),
+)
+
+_DEPENDENCY_PATTERNS: tuple[Pattern[str], ...] = (
+    re.compile(r"\brequires?\b", re.IGNORECASE),
+    re.compile(r"\bdepends? on\b", re.IGNORECASE),
+    re.compile(r"\bbuilding on\b", re.IGNORECASE),
+    re.compile(r"\bneeds?\b.*\bfirst\b", re.IGNORECASE),
+    re.compile(r"\bprerequisite\b", re.IGNORECASE),
+)
+
+_SUMMARY_PATTERNS: tuple[Pattern[str], ...] = (
+    re.compile(r"\bin summary\b", re.IGNORECASE),
+    re.compile(r"\bto summarize\b", re.IGNORECASE),
+    re.compile(r"\bin short\b", re.IGNORECASE),
+    re.compile(r"\boverall\b", re.IGNORECASE),
+    re.compile(r"\bin conclusion\b", re.IGNORECASE),
+)
 
 
 class TopologyExtractor:
@@ -228,14 +263,8 @@ Relationships:"""
 
     def _is_elaboration(self, source: str, target: str) -> bool:
         """Check if source elaborates on target."""
-        patterns = [
-            r"(?:specifically|in particular|for example)",
-            r"(?:this means|in other words|that is)",
-            r"(?:to clarify|more precisely)",
-            r"(?:expanding on|to elaborate|in detail)",
-        ]
         source_lower = source.lower()
-        has_signal = any(re.search(p, source_lower) for p in patterns)
+        has_signal = any(p.search(source_lower) for p in _ELABORATION_PATTERNS)
         if not has_signal:
             return False
         # Check topic overlap
@@ -245,14 +274,8 @@ Relationships:"""
 
     def _is_contradiction(self, source: str, target: str) -> bool:
         """Check if source contradicts target."""
-        patterns = [
-            r"(?:actually|however|but|instead)",
-            r"(?:not|never|don't|doesn't|won't)",
-            r"(?:wrong|incorrect|false|mistake)",
-            r"(?:in contrast|unlike|contrary to)",
-        ]
         source_lower = source.lower()
-        has_signal = any(re.search(p, source_lower) for p in patterns)
+        has_signal = any(p.search(source_lower) for p in _CONTRADICTION_PATTERNS)
         if not has_signal:
             return False
         # Check topic overlap
@@ -262,15 +285,8 @@ Relationships:"""
 
     def _is_dependency(self, source: str, target: str) -> bool:
         """Check if source depends on target."""
-        patterns = [
-            r"\brequires?\b",
-            r"\bdepends? on\b",
-            r"\bbuilding on\b",
-            r"\bneeds?\b.*\bfirst\b",
-            r"\bprerequisite\b",
-        ]
         source_lower = source.lower()
-        has_signal = any(re.search(p, source_lower) for p in patterns)
+        has_signal = any(p.search(source_lower) for p in _DEPENDENCY_PATTERNS)
         if not has_signal:
             return False
         return self._jaccard_similarity(
@@ -279,15 +295,8 @@ Relationships:"""
 
     def _is_summary(self, source: str, target: str) -> bool:
         """Check if source summarizes target."""
-        patterns = [
-            r"\bin summary\b",
-            r"\bto summarize\b",
-            r"\bin short\b",
-            r"\boverall\b",
-            r"\bin conclusion\b",
-        ]
         source_lower = source.lower()
-        has_signal = any(re.search(p, source_lower) for p in patterns)
+        has_signal = any(p.search(source_lower) for p in _SUMMARY_PATTERNS)
         if not has_signal:
             return False
         return self._jaccard_similarity(

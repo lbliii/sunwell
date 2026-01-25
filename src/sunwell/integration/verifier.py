@@ -191,7 +191,7 @@ class DefinitionVisitor(ast.NodeVisitor):
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class IntegrationVerifier:
     """Verify that artifacts are actually wired together.
 

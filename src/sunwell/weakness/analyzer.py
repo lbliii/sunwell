@@ -20,14 +20,19 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.weakness.types import WeaknessScore, WeaknessSignal, WeaknessType
+from sunwell.weakness.types import (
+    WeaknessScore,
+    WeaknessSignal,
+    WeaknessType,
+    _freeze_evidence,
+)
 
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
     from sunwell.naaru.artifacts import ArtifactGraph
 
 
-@dataclass
+@dataclass(slots=True)
 class WeaknessAnalyzer:
     """Analyzes codebase for weak points using DAG structure."""
 
@@ -91,7 +96,9 @@ class WeaknessAnalyzer:
                             file_path=file_path,
                             weakness_type=WeaknessType.LOW_COVERAGE,
                             severity=(self.coverage_threshold - cov) / self.coverage_threshold,
-                            evidence={"coverage": cov, "threshold": self.coverage_threshold},
+                            evidence=_freeze_evidence(
+                                {"coverage": cov, "threshold": self.coverage_threshold}
+                            ),
                         )
                     )
 
@@ -105,10 +112,10 @@ class WeaknessAnalyzer:
                             file_path=file_path,
                             weakness_type=WeaknessType.HIGH_COMPLEXITY,
                             severity=min(1.0, (complexity - self.complexity_threshold) / 10),
-                            evidence={
+                            evidence=_freeze_evidence({
                                 "complexity": complexity,
                                 "threshold": self.complexity_threshold,
-                            },
+                            }),
                         )
                     )
 
@@ -120,7 +127,7 @@ class WeaknessAnalyzer:
                         file_path=file_path,
                         weakness_type=WeaknessType.LINT_ERRORS,
                         severity=min(1.0, lint_map[artifact_id] / 10),
-                        evidence={"error_count": lint_map[artifact_id]},
+                        evidence=_freeze_evidence({"error_count": lint_map[artifact_id]}),
                     )
                 )
 
@@ -140,11 +147,11 @@ class WeaknessAnalyzer:
                             file_path=file_path,
                             weakness_type=WeaknessType.STALE_CODE,
                             severity=min(1.0, (months_stale / 12) * (fan_out / 10)),
-                            evidence={
+                            evidence=_freeze_evidence({
                                 "months_stale": months_stale,
                                 "fan_out": fan_out,
                                 "coverage": coverage,
-                            },
+                            }),
                         )
                     )
 
@@ -156,7 +163,7 @@ class WeaknessAnalyzer:
                         file_path=file_path,
                         weakness_type=WeaknessType.MISSING_TYPES,
                         severity=min(1.0, type_errors[artifact_id] / 5),
-                        evidence={"type_errors": type_errors[artifact_id]},
+                        evidence=_freeze_evidence({"type_errors": type_errors[artifact_id]}),
                     )
                 )
 
@@ -345,7 +352,7 @@ class WeaknessAnalyzer:
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class SmartWeaknessAnalyzer(WeaknessAnalyzer):
     """Weakness analyzer with LLM-based severity prioritization (RFC-077).
 

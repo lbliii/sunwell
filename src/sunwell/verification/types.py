@@ -9,7 +9,8 @@ This module focuses on behavioral/semantic correctness verification.
 """
 
 from dataclasses import dataclass, field
-from typing import Literal
+from types import MappingProxyType
+from typing import Any, Literal
 
 # =============================================================================
 # Specification Types
@@ -274,7 +275,9 @@ class VerificationEvent:
     ]
 
     message: str = ""
-    data: dict = field(default_factory=dict)
+    data: MappingProxyType[str, Any] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
 
 
 # =============================================================================

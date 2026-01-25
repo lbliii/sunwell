@@ -168,15 +168,17 @@ class TeamOnboarding:
             decisions_by_category[d.category].append(d)
 
         # Find high-occurrence failures
-        critical_failures = sorted(failures, key=lambda f: -f.occurrences)[:5]
+        critical_failures = tuple(sorted(failures, key=lambda f: -f.occurrences)[:5])
 
         return OnboardingSummary(
             total_decisions=len(decisions),
-            decisions_by_category=decisions_by_category,
+            decisions_by_category=MappingProxyType({
+                cat: tuple(decs) for cat, decs in decisions_by_category.items()
+            }),
             critical_failures=critical_failures,
             patterns=patterns,
-            ownership_summary=self._summarize_ownership(ownership),
-            top_contributors=self._get_top_contributors(decisions),
+            ownership_summary=MappingProxyType(self._summarize_ownership(ownership)),
+            top_contributors=tuple(self._get_top_contributors(decisions)),
         )
 
     def _summarize_ownership(self, ownership: TeamOwnership) -> dict[str, str]:
@@ -193,17 +195,17 @@ class TeamOnboarding:
             summary[path] = f"Owned by: {', '.join(owners)}"
         return summary
 
-    def _get_top_contributors(self, decisions: list[TeamDecision]) -> list[str]:
+    def _get_top_contributors(self, decisions: list[TeamDecision]) -> tuple[str, ...]:
         """Get team members who contributed most decisions.
 
         Args:
             decisions: List of team decisions
 
         Returns:
-            List of top contributor identifiers
+            Tuple of top contributor identifiers
         """
         author_counts = Counter(d.author for d in decisions)
-        return [author for author, _ in author_counts.most_common(5)]
+        return tuple(author for author, _ in author_counts.most_common(5))
 
     async def check_onboarding_needed(self) -> bool:
         """Check if onboarding summary should be shown.

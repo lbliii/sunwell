@@ -405,14 +405,17 @@ export function clearStateDag(): void {
 }
 
 /**
- * Get a node by ID from the State DAG.
+ * Get a node by ID from the State DAG - O(1) lookup via Map.
  */
 export function getStateDagNode(nodeId: string): StateDagNode | undefined {
-  return _stateDag?.nodes.find((n) => n.id === nodeId);
+  if (!_stateDag) return undefined;
+  // Build map lazily for O(1) lookup
+  const nodeMap = new Map(_stateDag.nodes.map(n => [n.id, n]));
+  return nodeMap.get(nodeId);
 }
 
 /**
- * Get nodes connected to a given node.
+ * Get nodes connected to a given node - O(n) edges with O(1) node lookups.
  */
 export function getConnectedNodes(nodeId: string): {
   parents: StateDagNode[];
@@ -420,16 +423,18 @@ export function getConnectedNodes(nodeId: string): {
 } {
   if (!_stateDag) return { parents: [], children: [] };
 
+  // Build node map once for O(1) lookups
+  const nodeMap = new Map(_stateDag.nodes.map(n => [n.id, n]));
   const parents: StateDagNode[] = [];
   const children: StateDagNode[] = [];
 
   for (const edge of _stateDag.edges) {
     if (edge.target === nodeId) {
-      const parent = _stateDag.nodes.find((n) => n.id === edge.source);
+      const parent = nodeMap.get(edge.source);
       if (parent) parents.push(parent);
     }
     if (edge.source === nodeId) {
-      const child = _stateDag.nodes.find((n) => n.id === edge.target);
+      const child = nodeMap.get(edge.target);
       if (child) children.push(child);
     }
   }

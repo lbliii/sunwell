@@ -15,7 +15,8 @@
     setProjectPath, 
     startPolling, 
     stopPolling,
-    startWorkers
+    startWorkers,
+    type FileConflict
   } from '../../stores/coordinator.svelte';
   import { backlogStore } from '../../stores/backlog.svelte';
   import WorkerCard from './WorkerCard.svelte';
@@ -54,7 +55,13 @@
     }
   }
   
-  function handleConflictResolve(conflict: any, resolution: string) {
+  interface MergeConflict {
+    readonly path: string;
+    readonly type: 'content' | 'rename' | 'delete';
+    readonly branches: readonly string[];
+  }
+
+  function handleConflictResolve(conflict: MergeConflict, resolution: string) {
     console.log('Resolving conflict:', conflict.path, resolution);
     // TODO: Implement resolution via Tauri command
   }
@@ -161,7 +168,7 @@
       </div>
     {:else}
       <div class="workers-grid">
-        {#each coordinatorStore.workers as worker}
+        {#each coordinatorStore.workers as worker (worker.id)}
           <WorkerCard {worker} />
         {/each}
       </div>

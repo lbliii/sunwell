@@ -17,6 +17,12 @@ if TYPE_CHECKING:
     from sunwell.models.protocol import GenerateOptions, ModelProtocol
 
 
+# Pre-compiled regex patterns for gradient parsing
+_SUBTASK_RE = re.compile(r"SUBTASK:\s*(.+?)(?:\||$)", re.IGNORECASE)
+_DIFFICULTY_RE = re.compile(r"DIFFICULTY:\s*([\d.]+)", re.IGNORECASE)
+_DEPENDS_RE = re.compile(r"DEPENDS:\s*(.+?)(?:\||$)", re.IGNORECASE)
+
+
 
 # =============================================================================
 # Data Structures
@@ -339,9 +345,9 @@ async def gradient(
 
     for i, line in enumerate(lines):
         # Parse SUBTASK: ... | DIFFICULTY: ... | DEPENDS: ...
-        subtask_match = re.search(r"SUBTASK:\s*(.+?)(?:\||$)", line, re.IGNORECASE)
-        diff_match = re.search(r"DIFFICULTY:\s*([\d.]+)", line, re.IGNORECASE)
-        deps_match = re.search(r"DEPENDS:\s*(.+?)(?:\||$)", line, re.IGNORECASE)
+        subtask_match = _SUBTASK_RE.search(line)
+        diff_match = _DIFFICULTY_RE.search(line)
+        deps_match = _DEPENDS_RE.search(line)
 
         if subtask_match:
             desc = subtask_match.group(1).strip()

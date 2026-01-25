@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from sunwell.embedding.protocol import EmbeddingProtocol
 
 
-@dataclass
+@dataclass(slots=True)
 class UnifiedMemoryStore:
     """Unified store supporting all memory topologies.
 

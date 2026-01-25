@@ -24,6 +24,19 @@ from sunwell.surface.types import SurfaceArrangement, WorkspaceSpec
 if TYPE_CHECKING:
     from sunwell.core.lens import Lens
 
+# Module-level constants (avoid per-call dict/set rebuilds)
+_DOMAIN_DEFAULT_PRIMARY: dict[str, str] = {
+    "code": "CodeEditor",
+    "planning": "Kanban",
+    "writing": "ProseEditor",
+    "data": "DataTable",
+    "universal": "CodeEditor",
+}
+
+_VALID_ARRANGEMENTS: frozenset[SurfaceArrangement] = frozenset({
+    "standard", "focused", "split", "dashboard"
+})
+
 
 @dataclass(frozen=True, slots=True)
 class CompositionResult:
@@ -237,19 +250,11 @@ class SurfaceComposer:
 
     def _get_domain_default_primary(self, domain: str) -> str:
         """Get default primary primitive for a domain."""
-        defaults = {
-            "code": "CodeEditor",
-            "planning": "Kanban",
-            "writing": "ProseEditor",
-            "data": "DataTable",
-            "universal": "CodeEditor",
-        }
-        return defaults.get(domain, "CodeEditor")
+        return _DOMAIN_DEFAULT_PRIMARY.get(domain, "CodeEditor")
 
     def _validate_arrangement(self, arrangement: str) -> SurfaceArrangement:
         """Validate and return a valid arrangement."""
-        valid: set[SurfaceArrangement] = {"standard", "focused", "split", "dashboard"}
-        if arrangement in valid:
+        if arrangement in _VALID_ARRANGEMENTS:
             return arrangement  # type: ignore[return-value]
         return "standard"
 

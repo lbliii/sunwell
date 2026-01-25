@@ -101,7 +101,7 @@
     <div class="header-center">
       <!-- RFC-105: View level tabs -->
       <div class="view-level-tabs">
-        {#each viewLevels as level}
+        {#each viewLevels as level (level.id)}
           <button 
             class="level-tab" 
             class:active={dag.viewLevel === level.id}
@@ -121,7 +121,7 @@
         </span>
       {:else}
         <span class="node-count">
-          {dag.nodes.filter(n => n.status === 'complete').length}/{dag.nodes.length} tasks
+          {dag.nodes.filter((n: { status: string }) => n.status === 'complete').length}/{dag.nodes.length} tasks
         </span>
       {/if}
     </div>
@@ -137,7 +137,7 @@
           <aside class="goals-sidebar">
             <h3 class="sidebar-title">Goals ({dag.projectIndex.summary.totalGoals})</h3>
             <ul class="goals-list">
-              {#each getSortedGoals() as goal}
+              {#each getSortedGoals() as goal (goal.id)}
                 <li class="goal-item" class:complete={goal.status === 'complete'}>
                   <button class="goal-btn" onclick={() => handleGoalClick(goal)}>
                     <span class="goal-status">
@@ -167,7 +167,7 @@
           <div class="loading-state">Loading workspace...</div>
         {:else if dag.workspaceIndex}
           <div class="projects-grid">
-            {#each dag.workspaceIndex.projects as proj}
+            {#each dag.workspaceIndex.projects as proj (proj.path)}
               <div class="project-card">
                 <h4 class="project-name">{proj.name}</h4>
                 <div class="project-progress">
@@ -182,7 +182,7 @@
                   </span>
                 </div>
                 <div class="project-stack">
-                  {#each proj.techStack as tech}
+                  {#each proj.techStack as tech (tech)}
                     <span class="tech-badge">{tech}</span>
                   {/each}
                 </div>

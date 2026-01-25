@@ -21,19 +21,19 @@ from sunwell.bootstrap.types import (
 )
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ParsedFile:
     """Parsed Python file with extracted names."""
 
     path: Path
-    function_names: list[str]
-    class_names: list[str]
-    constant_names: list[str]
-    private_names: list[str]
-    docstrings: list[str]
+    function_names: tuple[str, ...]
+    class_names: tuple[str, ...]
+    constant_names: tuple[str, ...]
+    private_names: tuple[str, ...]
+    docstrings: tuple[str, ...]
     has_type_hints: bool
     uses_modern_types: bool
-    import_lines: list[str]
+    import_lines: tuple[str, ...]
 
 
 class CodeScanner:
@@ -177,14 +177,14 @@ class CodeScanner:
 
                 parsed.append(ParsedFile(
                     path=file_path,
-                    function_names=function_names,
-                    class_names=class_names,
-                    constant_names=constant_names,
-                    private_names=private_names,
-                    docstrings=docstrings,
+                    function_names=tuple(function_names),
+                    class_names=tuple(class_names),
+                    constant_names=tuple(constant_names),
+                    private_names=tuple(private_names),
+                    docstrings=tuple(docstrings),
                     has_type_hints=has_type_hints,
                     uses_modern_types=uses_modern_types,
-                    import_lines=import_lines,
+                    import_lines=tuple(import_lines),
                 ))
 
             except (SyntaxError, UnicodeDecodeError, OSError):

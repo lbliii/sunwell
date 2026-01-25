@@ -18,7 +18,7 @@ from sunwell.bootstrap.types import (
 )
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class MarkdownSection:
     """A parsed markdown section."""
 

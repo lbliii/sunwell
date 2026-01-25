@@ -30,6 +30,19 @@
   const edges = $derived(latticeState.edges);
   const hasData = $derived(nodes.length > 0);
   
+  // Build node lookup map for O(1) access
+  const nodeMap = $derived(new Map(nodes.map(n => [n.id, n])));
+  
+  // Pre-calculate connection counts for O(1) access
+  const connectionCounts = $derived.by(() => {
+    const counts = new Map<string, number>();
+    for (const e of edges) {
+      counts.set(e.source, (counts.get(e.source) ?? 0) + 1);
+      counts.set(e.target, (counts.get(e.target) ?? 0) + 1);
+    }
+    return counts;
+  });
+  
   let selectedNode = $state<string | null>(null);
   let hoveredNode = $state<string | null>(null);
   
@@ -74,12 +87,14 @@
     }
   }
   
+  // O(1) lookup via Map
   function getNodeById(id: string): LatticeNode | undefined {
-    return nodes.find(n => n.id === id);
+    return nodeMap.get(id);
   }
   
+  // O(1) lookup via pre-calculated counts
   function getConnections(nodeId: string): number {
-    return edges.filter(e => e.source === nodeId || e.target === nodeId).length;
+    return connectionCounts.get(nodeId) ?? 0;
   }
   
   function getCategoryCounts() {
@@ -131,7 +146,7 @@
       </defs>
       
       <!-- Edges -->
-      {#each edges as edge}
+      {#each edges as edge (edge.source + '-' + edge.target)}
         {@const source = getNodeById(edge.source)}
         {@const target = getNodeById(edge.target)}
         {#if source && target}
@@ -149,7 +164,7 @@
       {/each}
       
       <!-- Nodes -->
-      {#each nodes as node, i}
+      {#each nodes as node, i (node.id)}
         <g
           class="node"
           transform="translate({node.x}, {node.y})"

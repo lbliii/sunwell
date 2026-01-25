@@ -148,7 +148,7 @@
         <div class="section">
           <h4>Top Files</h4>
           <div class="top-files">
-            {#each session.top_files.slice(0, 5) as [path, count]}
+            {#each session.top_files.slice(0, 5) as [path, count] (path)}
               <div class="file-item">
                 <span class="file-path">{path.split('/').pop()}</span>
                 <span class="file-count">{count}</span>
@@ -162,7 +162,7 @@
         <div class="section">
           <h4>Timeline</h4>
           <div class="timeline">
-            {#each session.goals.slice(-8) as goal}
+            {#each session.goals.slice(-8) as goal (goal.started_at)}
               <div class="timeline-item" class:completed={goal.status === 'completed'} class:failed={goal.status === 'failed'}>
                 <span class="timeline-time">{formatTime(goal.started_at)}</span>
                 <span class="timeline-icon">{getStatusIcon(goal.status)}</span>

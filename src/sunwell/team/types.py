@@ -12,12 +12,16 @@ Key distinction:
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Literal
+from typing import Any, Literal, Protocol, Self
 
 # Re-export RejectedOption from intelligence for compatibility
 from sunwell.intelligence.decisions import RejectedOption
 
 __all__ = [
+    # Protocols
+    "Serializable",
+    "Embeddable",
+    # Types
     "KnowledgeScope",
     "RejectedOption",
     "TeamDecision",
@@ -27,6 +31,21 @@ __all__ = [
     "TeamKnowledgeContext",
     "TeamKnowledgeUpdate",
 ]
+
+
+class Serializable(Protocol):
+    """Protocol for types that can be serialized to/from dict."""
+
+    def to_dict(self) -> dict[str, Any]: ...
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Self: ...
+
+
+class Embeddable(Protocol):
+    """Protocol for types that can be converted to text for embedding/search."""
+
+    def to_text(self) -> str: ...
 
 
 class KnowledgeScope(Enum):

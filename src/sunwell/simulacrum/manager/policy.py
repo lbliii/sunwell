@@ -7,7 +7,7 @@ RFC-025: Extracted from manager.py to slim it down.
 from dataclasses import dataclass
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class SpawnPolicy:
     """Policy for automatic simulacrum spawning."""
 
@@ -30,7 +30,7 @@ class SpawnPolicy:
     """Auto-generate simulacrum names from detected topics."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class LifecyclePolicy:
     """Policy for simulacrum lifecycle management (archival, cleanup, shrinking)."""
 

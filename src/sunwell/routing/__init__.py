@@ -22,6 +22,8 @@ RFC-030 Migration:
 
 from typing import Any, Protocol
 
+from sunwell.types.protocol import Serializable
+
 
 # =============================================================================
 # Protocols for routing components
@@ -37,13 +39,8 @@ class HasStats(Protocol):
     def get_stats(self) -> dict[str, Any]: ...
 
 
-class Serializable(Protocol):
-    """Protocol for classes that serialize to dict.
-
-    Implemented by: RoutingDecision (both), AttunementResult
-    """
-
-    def to_dict(self) -> dict[str, Any]: ...
+# Re-export Serializable for backwards compatibility
+__all__ = ["HasStats", "Serializable"]
 
 # RFC-030: Unified Router (recommended)
 # RFC-020: Cognitive Router (deprecated - use UnifiedRouter)

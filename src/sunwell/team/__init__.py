@@ -31,8 +31,10 @@ from sunwell.team.onboarding import OnboardingSummary, TeamOnboarding
 from sunwell.team.propagation import KnowledgePropagator
 from sunwell.team.store import SyncResult, TeamKnowledgeStore
 from sunwell.team.types import (
+    Embeddable,
     KnowledgeScope,
     RejectedOption,
+    Serializable,
     TeamDecision,
     TeamFailure,
     TeamKnowledgeContext,
@@ -43,6 +45,9 @@ from sunwell.team.types import (
 from sunwell.team.unified import ApproachCheck, ApproachWarning, FileContext, UnifiedIntelligence
 
 __all__ = [
+    # Protocols
+    "Serializable",
+    "Embeddable",
     # Types
     "KnowledgeScope",
     "RejectedOption",

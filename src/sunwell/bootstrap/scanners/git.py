@@ -21,24 +21,30 @@ from sunwell.bootstrap.types import (
 class GitScanner:
     """Extract intelligence from git history."""
 
-    # Decision signal patterns in commit messages
-    DECISION_PATTERNS = [
-        r"\b(decided|chose|selected|picked|switched to|moved to)\b",
-        r"\b(instead of|over|rather than|not|rejected)\b",
-        r"\b(because|since|due to|in order to|so that)\b",
-        r"^(feat|refactor|chore|BREAKING)(\(.+\))?:",  # Conventional commits
-    ]
+    # Decision signal patterns in commit messages (pre-compiled)
+    DECISION_PATTERNS = tuple(
+        re.compile(p, re.IGNORECASE) for p in [
+            r"\b(decided|chose|selected|picked|switched to|moved to)\b",
+            r"\b(instead of|over|rather than|not|rejected)\b",
+            r"\b(because|since|due to|in order to|so that)\b",
+            r"^(feat|refactor|chore|BREAKING)(\(.+\))?:",  # Conventional commits
+        ]
+    )
 
-    FIX_PATTERNS = [
-        r"^fix(\(.+\))?:",
-        r"\b(fix|bugfix|hotfix|patch)\b",
-        r"\b(resolve|close|closes)\s+#\d+",
-    ]
+    FIX_PATTERNS = tuple(
+        re.compile(p) for p in [
+            r"^fix(\(.+\))?:",
+            r"\b(fix|bugfix|hotfix|patch)\b",
+            r"\b(resolve|close|closes)\s+#\d+",
+        ]
+    )
 
-    REFACTOR_PATTERNS = [
-        r"^refactor(\(.+\))?:",
-        r"\b(refactor|restructure|reorganize|cleanup|clean up)\b",
-    ]
+    REFACTOR_PATTERNS = tuple(
+        re.compile(p) for p in [
+            r"^refactor(\(.+\))?:",
+            r"\b(refactor|restructure|reorganize|cleanup|clean up)\b",
+        ]
+    )
 
     def __init__(
         self,
@@ -177,20 +183,17 @@ class GitScanner:
     def _detect_decision(self, message: str) -> bool:
         """Detect if commit message contains decision language."""
         message_lower = message.lower()
-        for pattern in self.DECISION_PATTERNS:
-            if re.search(pattern, message_lower, re.IGNORECASE):
-                return True
-        return False
+        return any(p.search(message_lower) for p in self.DECISION_PATTERNS)
 
     def _detect_fix(self, message: str) -> bool:
         """Detect if commit is a fix."""
         message_lower = message.lower()
-        return any(re.search(p, message_lower) for p in self.FIX_PATTERNS)
+        return any(p.search(message_lower) for p in self.FIX_PATTERNS)
 
     def _detect_refactor(self, message: str) -> bool:
         """Detect if commit is a refactor."""
         message_lower = message.lower()
-        return any(re.search(p, message_lower) for p in self.REFACTOR_PATTERNS)
+        return any(p.search(message_lower) for p in self.REFACTOR_PATTERNS)
 
     def _extract_file_mentions(self, message: str) -> tuple[str, ...]:
         """Extract file/module names mentioned in commit message."""

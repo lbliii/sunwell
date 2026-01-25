@@ -71,6 +71,7 @@ from sunwell.surface.types import (
     DEFAULT_SELECTION_ACTIONS,
     DiataxisType,
     PrimitiveDef,
+    RegistryProtocol,
     SelectionAction,
     SelectionContext,
     SurfaceLayout,
@@ -88,6 +89,7 @@ __all__ = [
     "SurfacePrimitive",
     "SurfaceLayout",
     "WorkspaceSpec",
+    "RegistryProtocol",
     # RFC-086: Writer types
     "ViewMode",
     "DiataxisType",

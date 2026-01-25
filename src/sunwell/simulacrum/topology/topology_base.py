@@ -101,7 +101,7 @@ class ConceptEdge:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class ConceptGraph:
     """Graph of concept relationships for topological retrieval.
 

@@ -37,7 +37,7 @@ class Workspace:
     """Patterns to ignore when scanning files."""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class WorkspaceConfig:
     """Extended workspace configuration with trust suggestions (RFC-024).
 

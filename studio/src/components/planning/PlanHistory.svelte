@@ -213,7 +213,7 @@
           <div class="diff-section added">
             <span class="diff-label">+ Added ({diff.added.length})</span>
             <ul>
-              {#each diff.added as artifact}
+              {#each diff.added as artifact (artifact)}
                 <li>{artifact}</li>
               {/each}
             </ul>
@@ -224,7 +224,7 @@
           <div class="diff-section removed">
             <span class="diff-label">- Removed ({diff.removed.length})</span>
             <ul>
-              {#each diff.removed as artifact}
+              {#each diff.removed as artifact (artifact)}
                 <li>{artifact}</li>
               {/each}
             </ul>
@@ -235,7 +235,7 @@
           <div class="diff-section modified">
             <span class="diff-label">~ Modified ({diff.modified.length})</span>
             <ul>
-              {#each diff.modified as artifact}
+              {#each diff.modified as artifact (artifact)}
                 <li>{artifact}</li>
               {/each}
             </ul>

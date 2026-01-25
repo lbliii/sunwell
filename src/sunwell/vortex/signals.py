@@ -9,6 +9,15 @@ if TYPE_CHECKING:
     from sunwell.models.protocol import GenerateOptions, ModelProtocol
 
 
+# Pre-compiled regex patterns for signal parsing
+_CLAIM_RE = re.compile(r"CLAIM:\s*(.+?)(?:\n|CONF:|$)", re.IGNORECASE)
+_CONF_RE = re.compile(r"CONF:\s*([\d.]+)", re.IGNORECASE)
+_TAGS_RE = re.compile(r"TAGS:\s*(.+?)(?:\n|$)", re.IGNORECASE)
+_AGREE_RE = re.compile(r"AGREE:\s*(\d+)", re.IGNORECASE)
+_PICK_RE = re.compile(r"PICK:\s*(\d+)", re.IGNORECASE)
+_WHY_RE = re.compile(r"WHY:\s*(.+?)(?:\n|$)", re.IGNORECASE | re.DOTALL)
+
+
 @dataclass(frozen=True, slots=True)
 class Signal:
     """A compressed thought signal.
@@ -101,10 +110,10 @@ def parse_signal(
     generation: int = 0,
 ) -> Signal:
     """Parse a compressed signal from model output."""
-    claim_match = re.search(r"CLAIM:\s*(.+?)(?:\n|CONF:|$)", text, re.IGNORECASE)
-    conf_match = re.search(r"CONF:\s*([\d.]+)", text, re.IGNORECASE)
-    tags_match = re.search(r"TAGS:\s*(.+?)(?:\n|$)", text, re.IGNORECASE)
-    agree_match = re.search(r"AGREE:\s*(\d+)", text, re.IGNORECASE)
+    claim_match = _CLAIM_RE.search(text)
+    conf_match = _CONF_RE.search(text)
+    tags_match = _TAGS_RE.search(text)
+    agree_match = _AGREE_RE.search(text)
 
     claim = claim_match.group(1).strip()[:80] if claim_match else text[:80]
 
@@ -131,8 +140,8 @@ def parse_signal(
 
 def parse_selection(text: str) -> tuple[int, str]:
     """Parse selection result (pick number and reason)."""
-    pick_match = re.search(r"PICK:\s*(\d+)", text, re.IGNORECASE)
-    why_match = re.search(r"WHY:\s*(.+?)(?:\n|$)", text, re.IGNORECASE | re.DOTALL)
+    pick_match = _PICK_RE.search(text)
+    why_match = _WHY_RE.search(text)
 
     pick = int(pick_match.group(1)) - 1 if pick_match else 0
     reason = why_match.group(1).strip() if why_match else "Selected as best candidate."

@@ -48,6 +48,58 @@ if TYPE_CHECKING:
 # Type alias for tool handlers
 ToolHandler = Callable[[dict], Awaitable[str]]
 
+# =============================================================================
+# Tool Category Constants (O(1) lookup, no per-instance rebuilding)
+# =============================================================================
+
+# RFC-014: Memory tools (always available regardless of trust level)
+_MEMORY_TOOLS: frozenset[str] = frozenset({
+    "search_memory", "recall_user_info", "find_related",
+    "find_contradictions", "add_learning", "mark_dead_end",
+})
+
+# RFC-014: Simulacrum management tools (always available)
+_SIMULACRUM_TOOLS: frozenset[str] = frozenset({
+    "list_headspaces", "switch_headspace", "create_headspace",
+    "suggest_headspace", "query_all_headspaces", "current_headspace",
+    "route_query", "spawn_status",  # Auto-spawning tools
+    "headspace_health", "archive_headspace", "restore_headspace",  # Lifecycle tools
+    "list_archived", "cleanup_headspaces", "shrink_headspace",
+})
+
+# Web search tools (require FULL trust level)
+_WEB_TOOLS: frozenset[str] = frozenset({
+    "web_search", "web_fetch",
+})
+
+# RFC-015: Mirror neuron tools (self-introspection and self-improvement)
+_MIRROR_TOOLS: frozenset[str] = frozenset({
+    # Introspection (DISCOVERY trust)
+    "introspect_source", "introspect_lens", "introspect_headspace",
+    "introspect_execution",
+    # Analysis (READ_ONLY trust)
+    "analyze_patterns", "analyze_failures", "analyze_model_performance",
+    # Proposals (READ_ONLY trust)
+    "propose_improvement", "propose_model_routing", "list_proposals",
+    "get_proposal", "submit_proposal",
+    # Application (WORKSPACE trust)
+    "approve_proposal", "apply_proposal", "rollback_proposal",
+})
+
+# RFC-027: Expertise tools (self-directed expertise retrieval)
+_EXPERTISE_TOOLS: frozenset[str] = frozenset({
+    "get_expertise", "verify_against_expertise", "list_expertise_areas",
+})
+
+# RFC-125: Sunwell self-access tools
+_SUNWELL_TOOLS: frozenset[str] = frozenset({
+    "sunwell_intel_decisions", "sunwell_intel_failures", "sunwell_intel_patterns",
+    "sunwell_search_semantic", "sunwell_lineage_file", "sunwell_lineage_impact",
+    "sunwell_weakness_scan", "sunwell_weakness_preview",
+    "sunwell_self_modules", "sunwell_self_search", "sunwell_self_read",
+    "sunwell_workflow_chains", "sunwell_workflow_route",
+})
+
 
 @dataclass(slots=True)
 class ToolExecutor:
@@ -97,54 +149,6 @@ class ToolExecutor:
     _core_handlers: CoreToolHandlers | None = field(default=None, init=False)
     _rate_limits: ToolRateLimits = field(default_factory=ToolRateLimits, init=False)
     _audit_entries: list[ToolAuditEntry] = field(default_factory=list, init=False)
-
-    # RFC-014: Memory tools (always available regardless of trust level)
-    _memory_tools: set[str] = field(default_factory=lambda: {
-        "search_memory", "recall_user_info", "find_related",
-        "find_contradictions", "add_learning", "mark_dead_end",
-    }, init=False)
-
-    # RFC-014: Simulacrum management tools (always available)
-    _simulacrum_tools: set[str] = field(default_factory=lambda: {
-        "list_headspaces", "switch_headspace", "create_headspace",
-        "suggest_headspace", "query_all_headspaces", "current_headspace",
-        "route_query", "spawn_status",  # Auto-spawning tools
-        "headspace_health", "archive_headspace", "restore_headspace",  # Lifecycle tools
-        "list_archived", "cleanup_headspaces", "shrink_headspace",
-    }, init=False)
-
-    # Web search tools (require FULL trust level)
-    _web_tools: set[str] = field(default_factory=lambda: {
-        "web_search", "web_fetch",
-    }, init=False)
-
-    # RFC-015: Mirror neuron tools (self-introspection and self-improvement)
-    _mirror_tools: set[str] = field(default_factory=lambda: {
-        # Introspection (DISCOVERY trust)
-        "introspect_source", "introspect_lens", "introspect_headspace",
-        "introspect_execution",
-        # Analysis (READ_ONLY trust)
-        "analyze_patterns", "analyze_failures", "analyze_model_performance",
-        # Proposals (READ_ONLY trust)
-        "propose_improvement", "propose_model_routing", "list_proposals",
-        "get_proposal", "submit_proposal",
-        # Application (WORKSPACE trust)
-        "approve_proposal", "apply_proposal", "rollback_proposal",
-    }, init=False)
-
-    # RFC-027: Expertise tools (self-directed expertise retrieval)
-    _expertise_tools: set[str] = field(default_factory=lambda: {
-        "get_expertise", "verify_against_expertise", "list_expertise_areas",
-    }, init=False)
-
-    # RFC-125: Sunwell self-access tools
-    _sunwell_tools: set[str] = field(default_factory=lambda: {
-        "sunwell_intel_decisions", "sunwell_intel_failures", "sunwell_intel_patterns",
-        "sunwell_search_semantic", "sunwell_lineage_file", "sunwell_lineage_impact",
-        "sunwell_weakness_scan", "sunwell_weakness_preview",
-        "sunwell_self_modules", "sunwell_self_search", "sunwell_self_read",
-        "sunwell_workflow_chains", "sunwell_workflow_route",
-    }, init=False)
 
     def __post_init__(self) -> None:
         """Initialize core tool handlers."""
@@ -341,7 +345,7 @@ class ToolExecutor:
         start = time.monotonic()
 
         # RFC-014: Route memory tools to memory handler
-        if tool_call.name in self._memory_tools:
+        if tool_call.name in _MEMORY_TOOLS:
             if self.memory_handler:
                 try:
                     output = await self.memory_handler.handle(
@@ -372,7 +376,7 @@ class ToolExecutor:
                 )
 
         # RFC-014: Route headspace tools to headspace handler
-        if tool_call.name in self._simulacrum_tools:
+        if tool_call.name in _SIMULACRUM_TOOLS:
             if self.headspace_handler:
                 try:
                     output = await self.headspace_handler.handle(
@@ -403,7 +407,7 @@ class ToolExecutor:
                 )
 
         # RFC-015: Route mirror tools to mirror handler
-        if tool_call.name in self._mirror_tools:
+        if tool_call.name in _MIRROR_TOOLS:
             if self.mirror_handler:
                 try:
                     output = await self.mirror_handler.handle(
@@ -434,7 +438,7 @@ class ToolExecutor:
                 )
 
         # RFC-027: Route expertise tools to expertise handler
-        if tool_call.name in self._expertise_tools:
+        if tool_call.name in _EXPERTISE_TOOLS:
             if self.expertise_handler:
                 try:
                     output = await self.expertise_handler.handle(
@@ -465,7 +469,7 @@ class ToolExecutor:
                 )
 
         # RFC-125: Route Sunwell self-access tools to sunwell handler
-        if tool_call.name in self._sunwell_tools:
+        if tool_call.name in _SUNWELL_TOOLS:
             if self.sunwell_handler:
                 try:
                     result = await self._execute_sunwell_tool(tool_call)

@@ -14,16 +14,13 @@ Composes with existing types:
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Protocol, Self
 
+from sunwell.types.protocol import DictSerializable
 
-class Serializable(Protocol):
-    """Protocol for types that can be serialized to/from dict."""
+# Re-export for backwards compatibility
+Serializable = DictSerializable
 
-    def to_dict(self) -> dict: ...
-
-    @classmethod
-    def from_dict(cls, data: dict) -> Self: ...
+__all__ = ["Serializable", "DictSerializable", "ProjectRoot", "ProjectEntry"]
 
 
 @dataclass(frozen=True, slots=True)

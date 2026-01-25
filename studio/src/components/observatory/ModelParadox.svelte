@@ -181,7 +181,7 @@
       {/if}
       
       <!-- Data lines for each comparison -->
-      {#each comparisons.slice(0, springValues.length) as comp, i}
+      {#each comparisons.slice(0, springValues.length) as comp, i (comp.model + comp.params)}
         {@const color = colors[i % colors.length]}
         {@const rawY = scoreToY(springValues[i].raw)}
         {@const sunwellY = scoreToY(springValues[i].sunwell)}
@@ -247,7 +247,7 @@
     
     <!-- Stats cards -->
     <div class="stats-row">
-      {#each comparisons.slice(0, 2) as comp, i}
+      {#each comparisons.slice(0, 2) as comp, i (comp.model + comp.params)}
         <div class="stat-card" in:fly={{ y: 20, delay: i * 100, duration: 300 }}>
           <div class="stat-header">
             <span class="stat-model">{comp.model}</span>

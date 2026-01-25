@@ -17,15 +17,12 @@ Example:
 
 from dataclasses import dataclass, field
 from time import time
-from typing import Any, Protocol
+from typing import Any
 
 from sunwell.agent.events import AgentEvent, EventType
+from sunwell.types.protocol import Serializable
 
-
-class Serializable(Protocol):
-    """Protocol for objects that can be serialized to dict."""
-
-    def to_dict(self) -> dict[str, Any]: ...
+__all__ = ["Serializable", "ArtifactHashComputed", "ArtifactSkipped"]
 
 # =============================================================================
 # Event Data Classes

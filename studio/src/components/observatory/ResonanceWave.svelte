@@ -215,7 +215,7 @@
         {/if}
         
         <!-- Round markers -->
-        {#each iterations as iter, i}
+        {#each iterations as iter, i (iter.round)}
           {@const x = padding + (i / Math.max(iterations.length - 1, 1)) * (svgWidth - padding * 2)}
           {@const y = svgHeight - padding - ((iter.score / 10) * (svgHeight - padding * 2))}
           <circle
@@ -245,7 +245,7 @@
       
       <!-- Round scrubber -->
       <div class="round-scrubber">
-        {#each iterations as iter, i}
+        {#each iterations as iter, i (iter.round)}
           <button 
             class="round-marker" 
             class:active={i === displayRound}
@@ -280,7 +280,7 @@
         </div>
         <ul class="improvements-list">
           {#if currentIteration?.improvements?.length}
-            {#each currentIteration.improvements as improvement, i}
+            {#each currentIteration.improvements as improvement, i (improvement + i)}
               <li class="improvement-item" in:fly={{ y: 10, delay: i * 50, duration: 200 }}>
                 <span class="improvement-icon">✨</span>
                 {improvement}
@@ -321,7 +321,7 @@
           </button>
           
           <div class="speed-controls">
-            {#each [0.5, 1, 2] as speed}
+            {#each [0.5, 1, 2] as speed (speed)}
               <button 
                 class="speed-btn"
                 class:active={playback.speed === speed}

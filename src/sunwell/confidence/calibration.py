@@ -75,7 +75,7 @@ class ConfidenceFeedback:
         )
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class CalibrationMetrics:
     """Metrics for evaluating confidence calibration."""
 
@@ -94,8 +94,8 @@ class CalibrationMetrics:
     brier_score: float = 0.0
     """Brier score (lower is better, 0.0 is perfect)."""
 
-    accuracy_by_band: dict[str, float] = field(default_factory=dict)
-    """Accuracy breakdown by confidence band."""
+    accuracy_by_band: tuple[tuple[str, float], ...] = ()
+    """Accuracy breakdown by confidence band as (band, accuracy) pairs."""
 
     override_rate: float = 0.0
     """Rate at which users override/dispute claims."""
@@ -108,7 +108,7 @@ class CalibrationMetrics:
             "incorrect_count": self.incorrect_count,
             "partial_count": self.partial_count,
             "brier_score": self.brier_score,
-            "accuracy_by_band": self.accuracy_by_band,
+            "accuracy_by_band": dict(self.accuracy_by_band),
             "override_rate": self.override_rate,
         }
 
@@ -206,10 +206,10 @@ class CalibrationTracker:
             ]
             bands[band].append(score)
 
-        accuracy_by_band = {
-            band: sum(scores) / len(scores) if scores else 0.0
+        accuracy_by_band = tuple(
+            (band, sum(scores) / len(scores) if scores else 0.0)
             for band, scores in bands.items()
-        }
+        )
 
         # Override rate (incorrect + partial) / total
         override_rate = (incorrect + partial) / len(feedback) if feedback else 0.0

@@ -11,6 +11,40 @@ from collections.abc import Callable, Coroutine
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, TypeVar, runtime_checkable
 
+
+# =============================================================================
+# SHARED PROTOCOLS (consolidated from multiple modules)
+# =============================================================================
+
+
+class Serializable(Protocol):
+    """Protocol for objects that can serialize to dict.
+
+    Consolidated from: routing, project/types, providers/base,
+    interface/types, incremental/events, backlog/tracker.
+    """
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to JSON-serializable dict."""
+        ...
+
+
+class DictSerializable(Protocol):
+    """Protocol for types that serialize to/from dicts (bidirectional).
+
+    Consolidated from: lens/identity, environment/model.
+    Use this when you need both serialization AND deserialization.
+    """
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Any:
+        """Create instance from dictionary representation."""
+        ...
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary representation."""
+        ...
+
 from sunwell.models.protocol import Tool, ToolCall
 from sunwell.tools.types import ToolResult
 
