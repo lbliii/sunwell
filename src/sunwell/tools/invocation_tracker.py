@@ -1,6 +1,0 @@
-"""Backward compatibility stub - use sunwell.tools.tracking instead."""
-
-# Re-export if needed
-# from sunwell.tools.tracking.tracker import InvocationTracker
-
-__all__: list[str] = []

@@ -376,7 +376,7 @@ async def execute_task_with_tools(
     from sunwell.agent.core.task_graph import sanitize_code_content
     from sunwell.agent.validation import ValidationStage
     from sunwell.agent.events import AgentEvent, EventType, lens_selected_event
-    from sunwell.tools.invocation_tracker import InvocationTracker
+    from sunwell.tools.tracking import InvocationTracker
 
     # === LENS ROTATION: Select best lens for this specific task ===
     task_lens = await select_lens_for_task(task, cwd, auto_lens)

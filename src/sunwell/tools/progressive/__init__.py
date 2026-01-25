@@ -1,6 +1,5 @@
 """Progressive tool enablement."""
 
-# Re-export if needed
-# from sunwell.tools.progressive.enablement import ...
+from sunwell.tools.progressive.enablement import ProgressivePolicy
 
-__all__: list[str] = []
+__all__ = ["ProgressivePolicy"]

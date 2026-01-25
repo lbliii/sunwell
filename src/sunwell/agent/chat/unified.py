@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from sunwell.agent.context.session import SessionContext
     from sunwell.memory import PersistentMemory
     from sunwell.models import ModelProtocol
-    from sunwell.tools.executor import ToolExecutor
+    from sunwell.tools.execution import ToolExecutor
 
 logger = logging.getLogger(__name__)
 

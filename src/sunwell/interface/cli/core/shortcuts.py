@@ -218,8 +218,8 @@ async def run_shortcut(
 
     # 7. Create tool executor (RFC-117: with project context if available)
     from sunwell.knowledge.project import ProjectResolutionError, resolve_project
-    from sunwell.tools.executor import ToolExecutor
-    from sunwell.tools.types import ToolPolicy, ToolTrust
+    from sunwell.tools.execution import ToolExecutor
+    from sunwell.tools.core.types import ToolPolicy, ToolTrust
 
     workspace = workspace_root or Path.cwd()
     project = None

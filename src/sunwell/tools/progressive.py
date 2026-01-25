@@ -1,6 +1,0 @@
-"""Backward compatibility stub - use sunwell.tools.progressive instead."""
-
-# Re-export if needed
-# from sunwell.tools.progressive.enablement import ...
-
-__all__: list[str] = []

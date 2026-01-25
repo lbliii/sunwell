@@ -522,8 +522,8 @@ Please fix these issues and provide an improved response."""
         """
         from sunwell.knowledge.embedding import create_embedder
         from sunwell.agent.runtime.retriever import ExpertiseRetriever
-        from sunwell.tools.builtins import EXPERTISE_TOOLS
-        from sunwell.tools.expertise import ExpertiseToolHandler
+        from sunwell.tools.definitions import EXPERTISE_TOOLS
+        from sunwell.tools.providers.expertise import ExpertiseToolHandler
 
         start_time = time.perf_counter()
         total_tool_latency_ms = 0

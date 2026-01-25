@@ -22,8 +22,8 @@ from sunwell.foundation.config import get_config
 from sunwell.agent.context.session import SessionContext
 from sunwell.memory import PersistentMemory
 from sunwell.knowledge.project import ProjectResolutionError, resolve_project
-from sunwell.tools.executor import ToolExecutor
-from sunwell.tools.types import ToolPolicy, ToolTrust
+from sunwell.tools.execution import ToolExecutor
+from sunwell.tools.core.types import ToolPolicy, ToolTrust
 
 
 @click.command(name="_run", hidden=True)

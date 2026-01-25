@@ -216,8 +216,8 @@ async def _run_backlog_goal(
     from sunwell.foundation.config import get_config
     from sunwell.agent.execution import ExecutionManager, StdoutEmitter
     from sunwell.planning.naaru.planners import ArtifactPlanner
-    from sunwell.tools.executor import ToolExecutor
-    from sunwell.tools.types import ToolPolicy, ToolTrust
+    from sunwell.tools.execution import ToolExecutor
+    from sunwell.tools.core.types import ToolPolicy, ToolTrust
 
     root = Path.cwd()
     emitter = StdoutEmitter(json_output=json_output)

@@ -42,7 +42,7 @@ from sunwell.features.mirror.safety import SafetyChecker
 from sunwell.features.mirror.self import Self
 
 if TYPE_CHECKING:
-    from sunwell.tools.executor import ToolExecutor
+    from sunwell.tools.execution import ToolExecutor
 
 
 @dataclass(slots=True)

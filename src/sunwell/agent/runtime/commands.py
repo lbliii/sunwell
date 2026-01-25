@@ -302,7 +302,7 @@ Skills: {len(session.lens.skills) if hasattr(session.lens, 'skills') else 0}"""
 @commands.register("tools", "List available tools")
 async def cmd_tools(args: str, session: ChatSession) -> str:
     """List available tools."""
-    from sunwell.tools.builtins import CORE_TOOLS
+    from sunwell.tools.definitions import CORE_TOOLS
 
     lines = ["Available tools:"]
     for name, tool in CORE_TOOLS.items():

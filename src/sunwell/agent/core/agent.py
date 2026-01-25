@@ -78,8 +78,8 @@ if TYPE_CHECKING:
     from sunwell.agent.recovery.types import RecoveryState
     from sunwell.memory.simulacrum.core.planning_context import PlanningContext
     from sunwell.memory.simulacrum.core.store import SimulacrumStore
-    from sunwell.tools.executor import ToolExecutor
-    from sunwell.tools.invocation_tracker import InvocationTracker
+    from sunwell.tools.execution import ToolExecutor
+    from sunwell.tools.tracking import InvocationTracker
 
 from sunwell.agent.context.session import SessionContext
 from sunwell.memory import PersistentMemory

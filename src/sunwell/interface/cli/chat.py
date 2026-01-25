@@ -632,8 +632,8 @@ async def _run_unified_loop(
         UnifiedChatLoop,
     )
     from sunwell.agent.events import AgentEvent, EventType
-    from sunwell.tools.executor import ToolExecutor
-    from sunwell.tools.types import ToolPolicy, ToolTrust
+    from sunwell.tools.execution import ToolExecutor
+    from sunwell.tools.core.types import ToolPolicy, ToolTrust
 
     # Set up tool executor
     from sunwell.knowledge.project import ProjectResolutionError, resolve_project

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sunwell.tools.executor import ToolExecutor
+    from sunwell.tools.execution import ToolExecutor
 
 
 def _get_sunwell_source_root() -> Path:

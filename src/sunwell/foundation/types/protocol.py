@@ -46,7 +46,7 @@ class DictSerializable(Protocol):
         ...
 
 from sunwell.models import Tool, ToolCall
-from sunwell.tools.types import ToolResult
+from sunwell.tools.core.types import ToolResult
 
 if TYPE_CHECKING:
     from sunwell.planning.naaru.core.bus import MessageBus, NaaruRegion

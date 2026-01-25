@@ -273,8 +273,8 @@ async def _execute_agent(run: RunState, *, use_v2: bool = False) -> AsyncIterato
         ProjectValidationError,
         resolve_project,
     )
-    from sunwell.tools.executor import ToolExecutor
-    from sunwell.tools.types import ToolPolicy, ToolTrust
+    from sunwell.tools.execution import ToolExecutor
+    from sunwell.tools.core.types import ToolPolicy, ToolTrust
     from sunwell.knowledge.workspace import default_workspace_root
 
     workspace_path = Path(run.workspace).expanduser().resolve() if run.workspace else None

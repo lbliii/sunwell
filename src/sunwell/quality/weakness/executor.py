@@ -24,7 +24,7 @@ from sunwell.quality.weakness.verification import run_mypy, run_pytest, run_ruff
 if TYPE_CHECKING:
     from sunwell.agent.events import AgentEvent
     from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
-    from sunwell.tools.executor import ToolExecutor
+    from sunwell.tools.execution import ToolExecutor
 
 
 @dataclass(frozen=True, slots=True)
@@ -455,7 +455,7 @@ async def create_cascade_executor(
         Configured CascadeExecutor ready to use
     """
     from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
-    from sunwell.tools.executor import ToolExecutor
+    from sunwell.tools.execution import ToolExecutor
 
     # Create model if not provided
     if model is None:

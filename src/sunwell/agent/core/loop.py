@@ -62,7 +62,7 @@ if TYPE_CHECKING:
     from sunwell.features.mirror.handler import MirrorHandler
     from sunwell.models import ModelProtocol
     from sunwell.agent.recovery.manager import RecoveryManager
-    from sunwell.tools.executor import ToolExecutor
+    from sunwell.tools.execution import ToolExecutor
     from sunwell.tools.progressive import ProgressivePolicy
 
 logger = logging.getLogger(__name__)
@@ -155,7 +155,7 @@ class AgentLoop:
         # RFC-134: Initialize progressive tool policy if enabled
         if self.config.enable_progressive_tools:
             from sunwell.tools.progressive import ProgressivePolicy
-            from sunwell.tools.types import ToolTrust
+            from sunwell.tools.core.types import ToolTrust
 
             # Get base trust from executor policy or default to WORKSPACE
             base_trust = ToolTrust.WORKSPACE

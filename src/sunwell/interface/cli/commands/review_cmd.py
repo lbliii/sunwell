@@ -326,8 +326,8 @@ async def _auto_fix_recovery(
     )
     from sunwell.agent.context.session import SessionContext
     from sunwell.memory import PersistentMemory
-    from sunwell.tools.executor import ToolExecutor
-    from sunwell.tools.types import ToolPolicy, ToolTrust
+    from sunwell.tools.execution import ToolExecutor
+    from sunwell.tools.core.types import ToolPolicy, ToolTrust
 
     cwd = Path.cwd()
     tool_executor = ToolExecutor(

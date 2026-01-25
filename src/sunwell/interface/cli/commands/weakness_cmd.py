@@ -189,7 +189,7 @@ def fix(
 
     async def _fix() -> dict[str, Any]:
         from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
-        from sunwell.tools.executor import ToolExecutor
+        from sunwell.tools.execution import ToolExecutor
         from sunwell.quality.weakness.analyzer import WeaknessAnalyzer
         from sunwell.quality.weakness.cascade import CascadeEngine
         from sunwell.quality.weakness.executor import CascadeExecutor

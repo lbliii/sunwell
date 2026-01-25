@@ -20,8 +20,8 @@ from typing import Any
 from sunwell.foundation.utils import safe_yaml_load
 from sunwell.planning.naaru import AgentResult, Naaru, Task
 from sunwell.planning.naaru.planners import AgentPlanner
-from sunwell.tools.executor import ToolExecutor
-from sunwell.tools.types import ToolPolicy, ToolTrust
+from sunwell.tools.execution import ToolExecutor
+from sunwell.tools.core.types import ToolPolicy, ToolTrust
 
 # =============================================================================
 # Agent Benchmark Types

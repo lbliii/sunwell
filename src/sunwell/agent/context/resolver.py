@@ -284,7 +284,7 @@ class ContextResolver:
 
     def _resolve_env(self, name: str | None) -> str:
         """Resolve @env:NAME with security restrictions."""
-        from sunwell.tools.builtins import ENV_ALLOWLIST, ENV_BLOCKLIST_PATTERNS
+        from sunwell.tools.definitions import ENV_ALLOWLIST, ENV_BLOCKLIST_PATTERNS
         from sunwell.tools.handlers import _is_env_blocked
 
         if not name:
