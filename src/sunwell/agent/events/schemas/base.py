@@ -25,10 +25,10 @@ class PlanWinnerData(TypedDict, total=False):
     # RFC-058: Harmonic planning fields
     selected_candidate_id: str  # REQUIRED - ID of selected candidate (e.g., 'candidate-0')
     total_candidates: int  # How many candidates were generated
-    metrics: dict[str, Any]  # PlanMetrics as dict (score, depth, width, etc.)
+    metrics: dict[str, int | float | bool | list[int]]  # PlanMetrics as dict (score, depth, width, etc.)
     selection_reason: str  # Human-readable selection reason
     variance_strategy: str  # "prompting" | "temperature" | "constraints" | "mixed"
-    variance_config: dict[str, Any]  # Variance config used for selected candidate
+    variance_config: dict[str, str | int | float | bool]  # Variance config used for selected candidate
     refinement_rounds: int  # How many refinement rounds were run
     final_score_improvement: float  # Total score improvement from refinement
     score: float  # CANONICAL - top-level score (same as metrics.score)

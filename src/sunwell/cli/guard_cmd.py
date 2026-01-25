@@ -15,7 +15,7 @@ console = create_sunwell_console()
 
 
 @click.group()
-def guard():
+def guard() -> None:
     """Manage guardrails and adaptive learning (RFC-130)."""
     pass
 

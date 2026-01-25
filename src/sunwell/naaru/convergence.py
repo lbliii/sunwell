@@ -129,7 +129,7 @@ class Convergence:
     # Statistics
     _stats: dict = field(default_factory=dict, init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self._stats = {
             "adds": 0,
             "evictions": 0,

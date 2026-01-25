@@ -1,7 +1,6 @@
 """Utility functions for harmonic planning."""
 
 import re
-from typing import Any
 
 from sunwell.naaru.planners.metrics import PlanMetrics, PlanMetricsV2
 
@@ -49,7 +48,7 @@ def get_effective_score(metrics: PlanMetrics | PlanMetricsV2) -> float:
     return metrics.score
 
 
-def metrics_to_dict(metrics: PlanMetrics | PlanMetricsV2) -> dict[str, Any]:
+def metrics_to_dict(metrics: PlanMetrics | PlanMetricsV2) -> dict[str, int | float | bool | list[int]]:
     """Convert metrics to dict for event emission."""
     base = {
         "depth": metrics.depth,

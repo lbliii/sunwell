@@ -18,6 +18,7 @@ import random
 import sys
 from dataclasses import dataclass
 from enum import Enum
+from collections.abc import Iterator
 from typing import Any
 
 from rich.console import Console
@@ -372,7 +373,7 @@ class SpiralSpinner:
         self._index = (self._index + 1) % len(self.frames)
         return frame
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return self
 
 

@@ -13,6 +13,9 @@ Configure in ~/.sunwell/config.yaml or .sunwell/config.yaml:
       titles:
         - "M'uru"
         - "The Naaru"
+"""
+
+from typing import Any
       alternate_titles: true
 """
 
@@ -20,7 +23,7 @@ Configure in ~/.sunwell/config.yaml or .sunwell/config.yaml:
 from dataclasses import dataclass, field
 
 
-def _get_naaru_config():
+def _get_naaru_config() -> Any | None:
     """Get Naaru config from centralized config system."""
     try:
         from sunwell.config import get_config

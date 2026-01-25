@@ -15,7 +15,7 @@ console = create_sunwell_console()
 
 
 @click.group()
-def autonomous():
+def autonomous() -> None:
     """Run fully autonomous multi-agent workflows (RFC-130)."""
     pass
 

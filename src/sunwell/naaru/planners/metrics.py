@@ -4,8 +4,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any
-
     from sunwell.naaru.artifacts import ArtifactGraph
 
 
@@ -157,7 +155,7 @@ class CandidateResult:
     graph: "ArtifactGraph"
     """The artifact graph for this candidate."""
 
-    variance_config: dict[str, Any]
+    variance_config: dict[str, str | int | float | bool]
     """Configuration used to generate this candidate."""
 
     score: PlanMetrics | PlanMetricsV2 | None = None

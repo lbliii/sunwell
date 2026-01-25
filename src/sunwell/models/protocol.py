@@ -53,7 +53,7 @@ def sanitize_llm_content(text: str | None) -> str | None:
     return sanitized
 
 
-def _sanitize_dict_values(d: dict) -> dict:
+def _sanitize_dict_values(d: dict[str, str | dict[str, str | dict[str, str | list[str]]] | list[str | dict[str, str]]]]) -> dict[str, str | None | dict[str, str | None | dict[str, str | None | list[str | None]]] | list[str | None | dict[str, str | None]]]]]:
     """Recursively sanitize string values in a dict.
 
     Used for sanitizing tool call arguments which may contain control characters.
@@ -192,7 +192,7 @@ class TokenUsage:
 class GenerateResult:
     """Result from model generation.
 
-    Migration note: `content` is now `Optional[str]` to support
+    Migration note: `content` is now `str | None` to support
     tool-only responses. Use the `.text` property for backward
     compatibility with existing code.
     """

@@ -14,19 +14,12 @@ import asyncio
 import re
 import sys
 from pathlib import Path
-
 import click
 
 from sunwell.cli.helpers import check_free_threading, load_dotenv
 from sunwell.cli.shortcuts import complete_shortcut, complete_target
 from sunwell.cli.theme import create_sunwell_console
 
-# Pre-compiled patterns for project name extraction (avoid recompiling per call)
-_RE_PROJECT_NAME_PATTERNS = (
-    re.compile(r"(?:build|create|make|write)\s+(?:a\s+)?(.+?)\s+(?:app|api|tool|site|website|service)"),
-    re.compile(r"(?:build|create|make|write)\s+(?:a\s+)?(.+?)\s+(?:with|using)"),
-    re.compile(r"(?:build|create|make)\s+(?:a\s+)?(.+?)$"),
-)
 
 # RFC-131: Holy Light themed console
 console = create_sunwell_console()
@@ -69,7 +62,7 @@ class GoalFirstGroup(click.Group):
     - `sunwell .` or `sunwell ~/path` - Project opening (RFC-086)
     """
 
-    def parse_args(self, ctx, args):
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
         """Override to handle goal-first, shortcut, and path patterns."""
         # If no args, proceed normally
         if not args:
@@ -308,8 +301,10 @@ def main(
 
     # If a goal was provided and no subcommand invoked, run agent
     if goal and ctx.invoked_subcommand is None:
+        from sunwell.cli.commands.goal import run_goal
+
         ctx.invoke(
-            _run_goal,
+            run_goal,
             goal=goal,
             dry_run=plan,
             open_studio=open_studio,
@@ -356,372 +351,14 @@ def _run_goal(
     converge_max: int,
 ) -> None:
     """Internal command for goal execution (RFC-MEMORY)."""
+    from sunwell.cli.commands.goal import run_agent
+
     workspace_path = Path(workspace) if workspace else None
-    # RFC-MEMORY: Single unified execution path
-    asyncio.run(_run_agent(
+    # RFC-MEMORY: Single unified execution path - use modular version
+    asyncio.run(run_agent(
         goal, time, trust, dry_run, verbose, provider, model, workspace_path,
         json_output=json_output,
     ))
-
-
-async def _run_agent(
-    goal: str,
-    time: int,
-    trust: str,
-    dry_run: bool,
-    verbose: bool,
-    provider_override: str | None,
-    model_override: str | None,
-    workspace_path: Path | None = None,
-    *,
-    json_output: bool = False,
-) -> None:
-    """Execute goal with Agent (RFC-MEMORY, RFC-131).
-
-    This is THE unified entry point using:
-    - SessionContext: All session state in one object
-    - PersistentMemory: Unified access to all memory stores
-    - Agent.run(session, memory): Memory flows through, not around
-
-    The Agent automatically:
-    - Orients using persistent memory (decisions, failures, patterns)
-    - Extracts signals to select techniques
-    - Uses Harmonic planning with memory constraints
-    - Validates at gates with fail-fast
-    - Auto-fixes errors with Compound Eye
-    - Persists learnings via PersistentMemory
-    """
-    from sunwell.agent import (
-        AdaptiveBudget,
-        Agent,
-        EventType,
-        RunOptions,
-        create_renderer,
-    )
-    from sunwell.cli.helpers import resolve_model
-    from sunwell.cli.theme import print_banner
-    from sunwell.cli.workspace_prompt import resolve_workspace_interactive
-    from sunwell.config import get_config
-    from sunwell.context.session import SessionContext
-    from sunwell.memory.persistent import PersistentMemory
-    from sunwell.tools.executor import ToolExecutor
-    from sunwell.tools.types import ToolPolicy, ToolTrust
-
-    # RFC-131: Show Holy Light banner (except in JSON mode)
-    if not json_output:
-        print_banner(console, version="0.3.0", small=True)
-
-    # Load config (currently unused but needed for future config access)
-    _ = get_config()
-
-    # Resolve workspace
-    project_name = _extract_project_name(goal)
-    workspace = resolve_workspace_interactive(
-        explicit=workspace_path,
-        project_name=project_name,
-        quiet=not verbose,
-    )
-
-    # Create model
-    synthesis_model = None
-    try:
-        synthesis_model = resolve_model(provider_override, model_override)
-    except Exception as e:
-        # RFC-131: Holy Light error styling
-        console.print(f"  [void.purple]✗[/] [sunwell.error]Failed to load model:[/] {e}")
-        return
-
-    # Create tool executor
-    trust_map = {
-        "read_only": ToolTrust.READ_ONLY,
-        "workspace": ToolTrust.WORKSPACE,
-        "shell": ToolTrust.SHELL,
-    }
-    trust_level = trust_map.get(trust, ToolTrust.WORKSPACE)
-    policy = ToolPolicy(trust_level=trust_level)
-    tool_executor = ToolExecutor(workspace=workspace, policy=policy)
-
-    # Create agent
-    agent = Agent(
-        model=synthesis_model,
-        tool_executor=tool_executor,
-        cwd=workspace,
-        budget=AdaptiveBudget(total_budget=50_000),
-    )
-
-    # RFC-MEMORY: Build SessionContext and load PersistentMemory
-    options = RunOptions(
-        trust=trust,
-        timeout_seconds=time,
-    )
-    session = SessionContext.build(workspace, goal, options)
-    memory = PersistentMemory.load(workspace)
-
-    # RFC-131: Holy Light styled verbose output
-    if verbose:
-        console.print(f"  [neutral.dim]· Session: {session.session_id}[/]")
-        fw = session.framework or "no framework"
-        console.print(f"  [neutral.dim]· Project: {session.project_type} ({fw})[/]")
-        learn = memory.learning_count
-        dec = memory.decision_count
-        fail = memory.failure_count
-        console.print(f"  [neutral.dim]· Memory: {learn}L / {dec}D / {fail}F[/]")
-        console.print()
-
-    # Dry run: just plan
-    if dry_run:
-        if not json_output:
-            # RFC-131: Holy Light styled dry run message
-            console.print("  [void.indigo]◇[/] [sunwell.warning]Dry run mode — planning only[/]\n")
-
-        plan_data = None
-        async for event in agent.plan(session, memory):
-            if event.type == EventType.PLAN_WINNER:
-                plan_data = event.data
-            elif event.type == EventType.ERROR and not json_output:
-                _print_event(event, verbose)
-
-        if plan_data:
-            if json_output:
-                import json
-                click.echo(json.dumps(plan_data, indent=2))
-                return
-            _print_plan_details(plan_data, verbose, goal)
-        return
-
-    # Create renderer
-    renderer_mode = "json" if json_output else "interactive"
-    renderer = create_renderer(mode=renderer_mode, verbose=verbose)
-
-    # RFC-MEMORY: Full execution with new architecture
-    try:
-        await renderer.render(agent.run(session, memory))
-
-    except KeyboardInterrupt:
-        if json_output:
-            print('{"type": "error", "data": {"message": "Interrupted by user"}}')
-        else:
-            # RFC-131: Holy Light styled interrupt
-            console.print("\n  [neutral.dim]◈ Paused by user[/]")
-    except Exception as e:
-        if json_output:
-            import json as json_module
-            print(json_module.dumps({"type": "error", "data": {"message": str(e)}}))
-        else:
-            # RFC-131: Holy Light error styling
-            console.print(f"\n  [void.purple]✗[/] [sunwell.error]Error:[/] {e}")
-            if verbose:
-                import traceback
-                console.print(f"[neutral.dim]{traceback.format_exc()}[/]")
-
-
-def _print_event(event, verbose: bool) -> None:
-    """Print an agent event to console with Holy Light styling (RFC-131)."""
-    from sunwell.agent import EventType
-
-    if event.type == EventType.PLAN_WINNER:
-        data = event.data or {}
-        tasks = data.get("tasks", 0)
-        gates = data.get("gates", 0)
-        technique = data.get("technique", "unknown")
-        console.print(f"\n[holy.success]★[/] [sunwell.heading]Plan ready[/] ({technique})")
-        console.print(f"  [holy.gold]├─[/] {tasks} tasks")
-        console.print(f"  [holy.gold]└─[/] {gates} validation gates")
-    elif event.type == EventType.ERROR:
-        console.print(f"  [void.purple]✗[/] [sunwell.error]Error:[/] {event.data}")
-    elif verbose:
-        console.print(f"  [neutral.dim]· {event.type.value}: {event.data}[/]")
-
-
-def _print_plan_details(data: dict, verbose: bool, goal: str) -> None:
-    """Print rich plan details with truncation (RFC-090, RFC-131)."""
-    technique = data.get("technique", "unknown")
-    tasks = data.get("tasks", 0)
-    gates = data.get("gates", 0)
-    task_list = data.get("task_list", [])
-    gate_list = data.get("gate_list", [])
-
-    # RFC-131: Holy Light styled header
-    console.print(f"[holy.success]★[/] [sunwell.heading]Plan ready[/] ({technique})")
-    console.print(f"  [holy.gold]├─[/] {tasks} tasks")
-    console.print(f"  [holy.gold]└─[/] {gates} validation gates\n")
-
-    # Task list with truncation
-    if task_list:
-        console.print("[sunwell.heading]✦ Tasks[/]")
-        display_limit = len(task_list) if verbose else 10
-        for i, task in enumerate(task_list[:display_limit], 1):
-            deps = ""
-            if task.get("depends_on"):
-                if verbose:
-                    # Show IDs with --verbose
-                    deps = f" [neutral.dim](←{','.join(task['depends_on'][:3])})[/]"
-                else:
-                    # Show numbers by default
-                    dep_nums = [
-                        str(j + 1) for j, t in enumerate(task_list)
-                        if t["id"] in task["depends_on"]
-                    ]
-                    deps = f" [neutral.dim](←{','.join(dep_nums)})[/]" if dep_nums else ""
-
-            produces = ""
-            if task.get("produces"):
-                produces = f" [green]→[/] {task['produces'][0]}"
-
-            # Format: index. [id] description deps produces
-            task_id = task["id"][:12].ljust(12)
-            desc = task["description"][:35].ljust(35)
-            console.print(f"  {i:2}. [holy.gold.dim][{task_id}][/] {desc}{deps}{produces}")
-
-        # Truncation notice
-        if not verbose and len(task_list) > 10:
-            remaining = len(task_list) - 10
-            console.print(f"  [neutral.dim]... and {remaining} more (use --verbose)[/]")
-        console.print()
-
-    # Gate list
-    if gate_list:
-        console.print("[sunwell.heading]✦ Validation Gates[/]")
-        for gate in gate_list:
-            after = ", ".join(gate.get("after_tasks", [])[:3])
-            gtype = gate.get("type", "unknown").ljust(12)
-            gid = gate["id"]
-            console.print(f"  [holy.gold]├─[/] [{gid}] {gtype} [neutral.dim]after: {after}[/]")
-        console.print()
-
-    # Next steps with Holy Light styling
-    console.print(f"[holy.gold]{'━' * 54}[/]")
-    console.print("[sunwell.heading]✧ Next steps:[/]")
-    # Escape the goal for display (avoid rich markup issues)
-    safe_goal = goal.replace("[", "\\[").replace("]", "\\]")
-    console.print(f'  [holy.gold]›[/] sunwell "{safe_goal}" [neutral.dim]— Run[/]')
-    console.print(f'  [holy.gold]›[/] sunwell "{safe_goal}" --plan --open [neutral.dim]— Studio[/]')
-    console.print('  [holy.gold]›[/] sunwell plan "..." -o . [neutral.dim]— Save[/]')
-
-
-def _open_plan_in_studio(plan_data: dict, goal: str, workspace: Path) -> None:
-    """Save plan and open in Studio (RFC-090)."""
-    import json
-    from datetime import datetime
-
-    from sunwell.cli.open_cmd import launch_studio
-
-    # Ensure .sunwell directory exists
-    plan_dir = workspace / ".sunwell"
-    plan_dir.mkdir(exist_ok=True)
-
-    # Save plan with goal context
-    plan_file = plan_dir / "current-plan.json"
-    plan_data["goal"] = goal
-    plan_data["created_at"] = datetime.now().isoformat()
-    plan_file.write_text(json.dumps(plan_data, indent=2))
-
-    console.print("\n[cyan]Opening plan in Studio...[/cyan]")
-
-    # Launch Studio in planning mode with plan file
-    launch_studio(
-        project=str(workspace),
-        lens="coder",
-        mode="planning",
-        plan_file=str(plan_file),
-    )
-
-
-def _extract_project_name(goal: str) -> str | None:
-    """Extract a project name hint from a goal.
-
-    Simple heuristic extraction - looks for common patterns like
-    "build a X app" or "create X".
-
-    Args:
-        goal: Natural language goal
-
-    Returns:
-        Extracted project name or None if unclear
-    """
-    goal_lower = goal.lower()
-
-    # Pattern: "build/create/make a X app/api/tool/site"
-    for pattern in _RE_PROJECT_NAME_PATTERNS:
-        match = pattern.search(goal_lower)
-        if match:
-            name = match.group(1).strip()
-            # Filter out very short or generic results
-            if len(name) > 2 and name not in ("a", "an", "the", "new", "simple"):
-                return name
-
-    return None
-
-
-async def _artifact_dry_run(goal: str, planner, verbose: bool) -> None:
-    """Dry run for artifact-first planning (RFC-036, RFC-039)."""
-    from rich.table import Table
-
-    from sunwell.naaru import get_model_distribution
-
-    console.print("[yellow]Planning only (--plan)[/yellow]\n")
-
-    try:
-        graph = await planner.discover_graph(goal, {"cwd": str(Path.cwd())})
-    except Exception as e:
-        console.print(f"[red]Discovery failed: {e}[/red]")
-        return
-
-    # RFC-039: Show expertise info if available
-    if hasattr(planner, "get_expertise_summary"):
-        summary = planner.get_expertise_summary()
-        if summary.get("loaded"):
-            console.print(f"[cyan]Expertise:[/cyan] {summary.get('domain', 'unknown')} domain")
-            if verbose:
-                heuristics = ", ".join(summary.get("heuristics", []))
-                sources = ", ".join(summary.get("source_lenses", []))
-                console.print(f"[dim]  Heuristics: {heuristics}[/dim]")
-                console.print(f"[dim]  Sources: {sources}[/dim]")
-            console.print()
-
-    console.print(f"[bold]Plan for:[/bold] {goal}\n")
-
-    # Show artifact table
-    table = Table(title="Discovered Artifacts")
-    table.add_column("ID", style="cyan")
-    table.add_column("Description")
-    table.add_column("Type", style="magenta")
-    table.add_column("File", style="green")
-    table.add_column("Requires", style="dim")
-
-    waves = graph.execution_waves()
-    for _wave_num, wave in enumerate(waves):
-        for artifact_id in wave:
-            artifact = graph[artifact_id]
-            requires = ", ".join(artifact.requires) if artifact.requires else "-"
-            table.add_row(
-                artifact_id,
-                artifact.description[:40] + ("..." if len(artifact.description) > 40 else ""),
-                artifact.domain_type or "-",
-                artifact.produces_file or "-",
-                requires,
-            )
-
-    console.print(table)
-
-    # Show execution waves
-    console.print("\n[bold]Execution Waves (parallel):[/bold]")
-    for i, wave in enumerate(waves, 1):
-        console.print(f"  Wave {i}: {', '.join(wave)}")
-
-    # Show model distribution
-    dist = get_model_distribution(graph)
-    console.print("\n[bold]Model Distribution:[/bold]")
-    console.print(f"  Small (leaves):  {dist['small']} artifacts")
-    console.print(f"  Medium:          {dist['medium']} artifacts")
-    console.print(f"  Large (complex): {dist['large']} artifacts")
-
-    # Show graph if verbose
-    if verbose:
-        console.print("\n[bold]Dependency Graph (Mermaid):[/bold]")
-        console.print("```mermaid")
-        console.print(graph.to_mermaid())
-        console.print("```")
 
 
 # =============================================================================

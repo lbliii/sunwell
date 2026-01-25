@@ -4,11 +4,15 @@
 import json
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from rich.console import Console
 from rich.table import Table
 
 from sunwell.core.freethreading import is_free_threaded
+
+if TYPE_CHECKING:
+    from sunwell.models.protocol import ModelProtocol
 
 console = Console()
 # RFC-053: Separate stderr console for warnings (keeps stdout clean for NDJSON)
@@ -20,7 +24,7 @@ stderr_console = Console(stderr=True)
 # =============================================================================
 
 
-def build_workspace_context(cwd: Path | None = None, use_cache: bool = True) -> dict:
+def build_workspace_context(cwd: Path | None = None, use_cache: bool = True) -> dict[str, str | list[tuple[str, str]] | list[str]]:
     """Build workspace context dict for agent orientation.
 
     Returns a dict with:
@@ -83,7 +87,7 @@ def build_workspace_context(cwd: Path | None = None, use_cache: bool = True) -> 
     return context
 
 
-def format_workspace_context(ctx: dict) -> str:
+def format_workspace_context(ctx: dict[str, str | list[tuple[str, str]] | list[str]]) -> str:
     """Format context dict into markdown for system prompt / agent context."""
     lines = [
         "## Workspace Context",
@@ -327,7 +331,7 @@ def check_free_threading(quiet: bool = False) -> bool:
     return False
 
 
-def format_args(args: dict) -> str:
+def format_args(args: dict[str, str | int | float | bool | None]) -> str:
     """Format tool call arguments for display."""
     parts = []
     for k, v in args.items():
@@ -358,7 +362,7 @@ def load_dotenv() -> None:
             pass
 
 
-def create_model(provider: str, model_name: str):
+def create_model(provider: str, model_name: str) -> "ModelProtocol":
     """Create model instance based on provider."""
     if provider == "mock":
         from sunwell.models.mock import MockModel
@@ -398,7 +402,7 @@ def create_model(provider: str, model_name: str):
 def resolve_model(
     provider_override: str | None = None,
     model_override: str | None = None,
-):
+) -> "ModelProtocol":
     """Resolve model from CLI overrides or config defaults.
 
     Priority:

@@ -5,7 +5,6 @@ Commands for managing external event sources, webhooks, and scheduled jobs.
 
 import asyncio
 from pathlib import Path
-from typing import Any
 
 import click
 from rich.console import Console
@@ -15,7 +14,7 @@ console = Console()
 
 
 @click.group()
-def external():
+def external() -> None:
     """External integration commands.
 
     Manage CI/CD, Git, Issue Tracker, and Production Monitoring integrations.
@@ -33,7 +32,7 @@ def external():
 @click.option("--no-server", is_flag=True, help="Polling only (no webhook server)")
 @click.option("--host", default="0.0.0.0", help="Webhook server host")
 @click.option("--port", default=8080, type=int, help="Webhook server port")
-def start(no_server: bool, host: str, port: int):
+def start(no_server: bool, host: str, port: int) -> None:
     """Start external integration.
 
     Starts the webhook server (unless --no-server) and begins polling
@@ -123,11 +122,12 @@ async def _start_external(no_server: bool, host: str, port: int) -> None:
     scheduler.stop()
 
 
-async def _setup_adapters(processor: Any) -> None:
+async def _setup_adapters(processor: "EventProcessor") -> None:
     """Setup adapters based on environment variables."""
     import os
 
     from sunwell.external.adapters.github import GitHubAdapter
+    from sunwell.external.processor import EventProcessor
 
     # GitHub
     github_token = os.environ.get("GITHUB_TOKEN")
@@ -144,7 +144,7 @@ async def _setup_adapters(processor: Any) -> None:
 
 
 @external.command()
-def status():
+def status() -> None:
     """Show external integration status."""
     asyncio.run(_show_status())
 
@@ -216,7 +216,7 @@ async def _show_status() -> None:
 @external.command()
 @click.option("--source", help="Filter by source (github, linear, sentry)")
 @click.option("--limit", default=20, help="Number of events to show")
-def events(source: str | None, limit: int):
+def events(source: str | None, limit: int) -> None:
     """List recent external events."""
     asyncio.run(_list_events(source, limit))
 
@@ -268,7 +268,7 @@ async def _list_events(source: str | None, limit: int) -> None:
 
 @external.command()
 @click.argument("source")
-def poll(source: str):
+def poll(source: str) -> None:
     """Force poll a specific source now.
 
     SOURCE: github, gitlab, etc.
@@ -328,7 +328,7 @@ async def _poll_source(source: str) -> None:
 
 
 @external.command()
-def schedules():
+def schedules() -> None:
     """List scheduled jobs."""
     asyncio.run(_list_schedules())
 
@@ -376,7 +376,7 @@ async def _list_schedules() -> None:
 
 @external.command()
 @click.argument("name")
-def run(name: str):
+def run(name: str) -> None:
     """Run a scheduled job immediately.
 
     NAME: Job name (e.g., nightly_backlog, weekly_security)
@@ -384,7 +384,7 @@ def run(name: str):
     asyncio.run(_run_job(name))
 
 
-async def _run_job(name: str):
+async def _run_job(name: str) -> None:
     """Run a scheduled job."""
     from sunwell.backlog.manager import BacklogManager
     from sunwell.external.policy import ExternalGoalPolicy
@@ -409,7 +409,7 @@ async def _run_job(name: str):
 
 
 @external.command()
-def webhook():
+def webhook() -> None:
     """Show webhook URLs for configuration."""
     console.print("\n[bold]Webhook URLs[/bold]\n")
     console.print("Configure these URLs in your external services:\n")

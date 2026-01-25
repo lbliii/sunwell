@@ -73,7 +73,13 @@ if TYPE_CHECKING:
     from sunwell.core.lens import Lens
     from sunwell.memory.briefing import Briefing, PrefetchedContext
     from sunwell.models.protocol import ModelProtocol
+    from sunwell.naaru import Naaru
     from sunwell.naaru.types import Task
+    from sunwell.recovery.types import RecoveryState
+    from sunwell.simulacrum.core.planning_context import PlanningContext
+    from sunwell.simulacrum.core.store import SimulacrumStore
+    from sunwell.tools.executor import ToolExecutor
+    from sunwell.tools.invocation_tracker import InvocationTracker
 
 from sunwell.context.session import SessionContext
 from sunwell.memory.persistent import PersistentMemory
@@ -150,7 +156,7 @@ class Agent:
     _learning_extractor: LearningExtractor = field(default_factory=LearningExtractor, init=False)
     _validation_runner: ValidationRunner | None = field(default=None, init=False)
     _fix_stage: FixStage | None = field(default=None, init=False)
-    _naaru: Any = field(default=None, init=False)
+    _naaru: "Naaru | None" = field(default=None, init=False)
     _inference_metrics: InferenceMetrics = field(default_factory=InferenceMetrics, init=False)
     _task_graph: TaskGraph | None = field(default=None, init=False)
 
@@ -161,12 +167,12 @@ class Agent:
     _briefing: Briefing | None = field(default=None, init=False)
     _workspace_context: str | None = field(default=None, init=False)
     _files_changed_this_run: list[str] = field(default_factory=list, init=False)
-    _last_planning_context: Any = field(default=None, init=False)
-    _prefetched_context: Any = field(default=None, init=False)
+    _last_planning_context: "PlanningContext | None" = field(default=None, init=False)
+    _prefetched_context: "PrefetchedContext | None" = field(default=None, init=False)
     """Prefetched context from briefing (files, hints)."""
 
     # RFC-MEMORY: Reference to memory stores for planning and execution
-    _simulacrum: Any = field(default=None, init=False)
+    _simulacrum: "SimulacrumStore | None" = field(default=None, init=False)
     """SimulacrumStore from PersistentMemory (set during run())."""
 
     _memory: PersistentMemory | None = field(default=None, init=False)
@@ -177,7 +183,7 @@ class Agent:
     """IDs of specialists spawned during this run."""
 
     # Tool invocation tracking for verification and self-correction
-    _invocation_tracker: Any = field(default=None, init=False)
+    _invocation_tracker: "InvocationTracker | None" = field(default=None, init=False)
     """Tracks tool invocations for verification and self-correction."""
 
     _specialist_count: int = field(default=0, init=False)
@@ -216,7 +222,7 @@ class Agent:
             self._init_naaru()
 
     @property
-    def simulacrum(self) -> Any:
+    def simulacrum(self) -> "SimulacrumStore | None":
         """Get SimulacrumStore from current run context (RFC-MEMORY)."""
         return self._simulacrum
 
@@ -466,7 +472,7 @@ class Agent:
 
     async def resume_from_recovery(
         self,
-        recovery_state: Any,
+        recovery_state: "RecoveryState",
         user_hint: str | None = None,
     ) -> AsyncIterator[AgentEvent]:
         """Resume execution from a recovery state (RFC-125).

@@ -7,8 +7,9 @@ import asyncio
 import hashlib
 import json
 import pickle
-from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from collections.abc import Callable, Iterator
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sunwell.embedding import EmbeddingProtocol
@@ -54,7 +55,7 @@ class IndexStatus:
     priority_complete: bool = False
     estimated_time_ms: int | None = None
 
-    def to_json(self) -> dict:
+    def to_json(self) -> dict[str, str | int | bool | None]:
         """Export status as JSON-serializable dict."""
         return {
             "state": self.state.value,
@@ -536,7 +537,7 @@ class IndexingService:
 
         await self._save_cache()
 
-    async def _create_embedder(self) -> Any | None:
+    async def _create_embedder(self) -> "EmbeddingProtocol | None":
         """Create embedder with graceful fallback."""
         try:
             from sunwell.embedding import create_embedder
@@ -545,7 +546,7 @@ class IndexingService:
         except Exception:
             return None
 
-    def _iter_indexable_files(self):
+    def _iter_indexable_files(self) -> Iterator[Path]:
         """Iterate over files to index."""
         ignore_dirs = {
             ".git",

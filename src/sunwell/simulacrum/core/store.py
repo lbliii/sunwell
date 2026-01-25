@@ -38,7 +38,7 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from sunwell.simulacrum.core.auto_wiring import (
     extract_topology_batch,
@@ -63,9 +63,10 @@ from sunwell.simulacrum.hierarchical.chunks import Chunk, ChunkSummary
 from sunwell.simulacrum.hierarchical.config import ChunkConfig
 
 if TYPE_CHECKING:
-    from typing import Any
-
+    from sunwell.context.focus import Focus
     from sunwell.embedding.protocol import EmbeddingProtocol
+    from sunwell.extractors.topology_extractor import TopologyExtractor
+    from sunwell.intelligence.extractor import IntelligenceExtractor
     from sunwell.naaru.convergence import Slot
     from sunwell.simulacrum.hierarchical.chunk_manager import ChunkManager
     from sunwell.simulacrum.hierarchical.summarizer import Summarizer
@@ -143,17 +144,17 @@ class SimulacrumStore:
     _embedder: EmbeddingProtocol | None = field(default=None, init=False)
     """Embedder for semantic retrieval."""
 
-    _intelligence_extractor: Any | None = field(default=None, init=False)
+    _intelligence_extractor: "IntelligenceExtractor | None" = field(default=None, init=False)
     """RFC-045: Intelligence extractor for project intelligence."""
 
     # RFC-084: Auto-wiring state
-    _topology_extractor: Any | None = field(default=None, init=False)
+    _topology_extractor: "TopologyExtractor | None" = field(default=None, init=False)
     """Topology extractor for relationship detection."""
 
     _topology_extracted_chunks: set[str] = field(default_factory=set)
     """Chunk IDs that have had topology extracted."""
 
-    _focus: Any | None = field(default=None, init=False)
+    _focus: "Focus | None" = field(default=None, init=False)
     """Focus mechanism for weighted topic tracking (RFC-084)."""
 
     # Modular managers
@@ -172,7 +173,7 @@ class SimulacrumStore:
     _context_assembler: ContextAssembler | None = field(default=None, init=False)
     """Context assembler for prompt building."""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.base_path = Path(self.base_path)
         self._ensure_dirs()
         self._init_chunk_manager()
@@ -334,7 +335,7 @@ class SimulacrumStore:
                 logger = logging.getLogger(__name__)
                 logger.debug(f"Intelligence extraction failed for chunk {chunk.id}: {e}")
 
-    def set_intelligence_extractor(self, extractor: Any) -> None:
+    def set_intelligence_extractor(self, extractor: "IntelligenceExtractor") -> None:
         """Set the intelligence extractor for RFC-045.
 
         Args:
@@ -855,7 +856,7 @@ class SimulacrumStore:
     # (Implementation moved to auto_wiring.py module)
 
     @property
-    def focus(self) -> Any:
+    def focus(self) -> "Focus | None":
         """Get the focus mechanism (RFC-084)."""
         return self._focus
 

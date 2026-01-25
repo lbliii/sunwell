@@ -27,7 +27,6 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from sunwell.mirror import MirrorHandler
 from sunwell.naaru.discovery import OpportunityDiscoverer
@@ -49,7 +48,7 @@ class WorkerStats:
     proposals_created: int = 0
     total_time_ms: int = 0
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, int]:
         return {
             "worker_id": self.worker_id,
             "tasks_completed": self.tasks_completed,
@@ -66,7 +65,7 @@ class ParallelSessionState(SessionState):
     num_workers: int = 1
     worker_stats: list[WorkerStats] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, int | list[dict[str, int]]]:
         base = super().to_dict()
         base["num_workers"] = self.num_workers
         base["worker_stats"] = [w.to_dict() for w in self.worker_stats]
@@ -105,7 +104,7 @@ class ParallelAutonomousRunner:
     _executor: ThreadPoolExecutor = field(init=False)
     signals: SignalHandler = field(init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.storage_path is None:
             self.storage_path = self.workspace / ".sunwell" / "autonomous"
         self.storage_path.mkdir(parents=True, exist_ok=True)
@@ -239,7 +238,7 @@ class ParallelAutonomousRunner:
         worker_id: int,
         mirror: MirrorHandler,
         opp: Opportunity,
-    ) -> dict[str, Any]:
+    ) -> dict[str, str | int]:
         """Process a single opportunity (runs in worker thread)."""
         import asyncio
 

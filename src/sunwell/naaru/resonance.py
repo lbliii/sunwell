@@ -44,14 +44,14 @@ Example:
 import asyncio
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 
 @runtime_checkable
 class GenerativeModel(Protocol):
     """Protocol for models that can generate text."""
 
-    async def generate(self, prompt: str, **kwargs) -> Any:
+    async def generate(self, prompt: str, **kwargs) -> str:
         """Generate text from a prompt."""
         ...
 
@@ -123,13 +123,13 @@ class Resonance:
         ...     print(result.refined_code)
     """
 
-    model: Any  # GenerativeModel
+    model: GenerativeModel
     config: ResonanceConfig = field(default_factory=ResonanceConfig)
 
     # Statistics
     _stats: dict = field(default_factory=dict, init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self._stats = {
             "refinements_attempted": 0,
             "refinements_successful": 0,
@@ -306,7 +306,7 @@ Code only, no explanations:"""
         self,
         proposal: dict,
         rejection: dict,
-        validator: Any,
+        validator: "ValidatorProtocol",
     ) -> tuple[ResonanceResult, dict | None]:
         """Refine and validate in a loop until success or max attempts.
 
@@ -410,7 +410,7 @@ Code only, no explanations:"""
 
 
 async def create_resonance_handler(
-    model: Any,
+    model: GenerativeModel,
     config: ResonanceConfig | None = None,
 ) -> Resonance:
     """Create a Resonance handler for use with Naaru.
@@ -440,7 +440,7 @@ async def demo() -> None:
 
     # Mock model for demo
     class MockModel:
-        async def generate(self, prompt: str, options: Any | None = None) -> Any:
+        async def generate(self, prompt: str, options: dict[str, str | int | float] | None = None) -> str:  # type: ignore[empty-body]
             class MockResult:
                 content = '''def example(x: int) -> int:
     """Example function with proper docstring.

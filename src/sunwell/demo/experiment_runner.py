@@ -8,6 +8,7 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from sunwell.demo.lens_experiments import (
     STRATEGY_BUILDERS,
@@ -349,7 +350,7 @@ async def run_quick_comparison(model) -> dict[LensStrategy, ExperimentSummary]:
 
     runner = ExperimentRunner(model, config=config)
 
-    def on_progress(**kwargs):
+    def on_progress(**kwargs: Any) -> None:
         print(f"  Running {kwargs['strategy'].value} on {kwargs['task']}...")
 
     summaries = await runner.run_all(on_progress=on_progress)
@@ -370,7 +371,7 @@ async def run_full_evaluation(model) -> dict[LensStrategy, ExperimentSummary]:
 
     runner = ExperimentRunner(model, config=config)
 
-    def on_progress(**kwargs):
+    def on_progress(**kwargs: Any) -> None:
         pct = kwargs["current"] / kwargs["total"] * 100
         print(f"  [{pct:5.1f}%] {kwargs['strategy'].value} / {kwargs['task']} (run {kwargs['run_idx']})")
 

@@ -20,10 +20,10 @@ import hashlib
 import json
 import math
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from sunwell.simulacrum.hierarchical.chunks import Chunk, ChunkSummary, ChunkType
 from sunwell.simulacrum.hierarchical.config import ChunkConfig
@@ -187,7 +187,7 @@ class ChunkManager:
 
         return chunk_id
 
-    def set_demotion_callback(self, callback: Any) -> None:
+    def set_demotion_callback(self, callback: "Callable[[Chunk, str], None]") -> None:
         """Set callback for chunk demotion (RFC-045).
 
         Args:

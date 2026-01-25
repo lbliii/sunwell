@@ -3,12 +3,13 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from sunwell.simulacrum.core.dag import ConversationDAG
 
 if TYPE_CHECKING:
-    from typing import Any
+    from sunwell.simulacrum.topology.unified_store import UnifiedMemoryStore
 
 
 class SessionManager:
@@ -19,7 +20,7 @@ class SessionManager:
         base_path: Path,
         hot_dag_getter: Callable[[], ConversationDAG],
         hot_dag_setter: Callable[[ConversationDAG], None],
-        unified_store: Any | None = None,
+        unified_store: "UnifiedMemoryStore | None" = None,
     ) -> None:
         """Initialize session manager.
 
