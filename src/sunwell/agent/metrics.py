@@ -18,7 +18,7 @@ from statistics import mean, stdev
 from typing import Any, Literal
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class InferenceSample:
     """A single inference sample."""
 
@@ -28,7 +28,7 @@ class InferenceSample:
     ttft_ms: int | None = None
 
 
-@dataclass
+@dataclass(slots=True)
 class InferenceMetrics:
     """Track inference performance metrics.
 
@@ -212,7 +212,7 @@ class InferenceMetrics:
         return count
 
 
-@dataclass
+@dataclass(slots=True)
 class ModelPerformanceProfile:
     """Accumulated performance profile for a model on this hardware.
 

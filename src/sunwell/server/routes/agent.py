@@ -4,13 +4,10 @@ import contextlib
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
-
-if TYPE_CHECKING:
-    from sunwell.agent import Agent
 
 from sunwell.server.events import BusEvent, EventBus
 from sunwell.server.runs import RunManager, RunState
@@ -267,9 +264,14 @@ async def _execute_agent(run: RunState, *, use_v2: bool = False) -> AsyncIterato
     from sunwell.agent import Agent
     from sunwell.agent.budget import AdaptiveBudget
     from sunwell.config import get_config
-    from sunwell.project import ProjectResolutionError, resolve_project
+    from sunwell.project import (
+        ProjectResolutionError,
+        ProjectValidationError,
+        resolve_project,
+    )
     from sunwell.tools.executor import ToolExecutor
     from sunwell.tools.types import ToolPolicy, ToolTrust
+    from sunwell.workspace import default_workspace_root
 
     workspace_path = Path(run.workspace).expanduser().resolve() if run.workspace else None
 
@@ -280,6 +282,13 @@ async def _execute_agent(run: RunState, *, use_v2: bool = False) -> AsyncIterato
             project_root=workspace_path,
         )
         workspace = project.root
+    except ProjectValidationError:
+        # Workspace is invalid (e.g., Sunwell's own repo) - auto-create in default location
+        workspace = _create_default_workspace(run.goal, default_workspace_root())
+        yield {
+            "type": "info",
+            "data": {"message": f"Created project workspace: {workspace}"},
+        }
     except ProjectResolutionError:
         workspace = workspace_path or Path.cwd()
 
@@ -343,3 +352,32 @@ async def _execute_agent(run: RunState, *, use_v2: bool = False) -> AsyncIterato
         yield event_dict
 
     run.complete()
+
+
+def _create_default_workspace(goal: str, default_root: Path) -> Path:
+    """Create a workspace in the default location based on goal.
+
+    Args:
+        goal: User's goal text (used to derive project name)
+        default_root: Default workspace root (e.g., ~/Sunwell/projects/)
+
+    Returns:
+        Path to created workspace
+    """
+    import re
+    import time
+
+    # Extract a name from the goal
+    # Take first few words, remove special chars
+    words = re.sub(r"[^\w\s-]", "", goal.lower()).split()[:3]
+    name = "-".join(words) if words else "project"
+
+    # Ensure unique name
+    workspace = default_root / name
+    if workspace.exists():
+        workspace = default_root / f"{name}-{int(time.time()) % 10000}"
+
+    # Create the directory
+    workspace.mkdir(parents=True, exist_ok=True)
+
+    return workspace

@@ -57,7 +57,7 @@ class FixAttempt:
     """Error message if fix failed."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class FixResult:
     """Result of fix stage."""
 

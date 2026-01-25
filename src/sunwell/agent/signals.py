@@ -23,6 +23,16 @@ from typing import TYPE_CHECKING, Any, Literal
 if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
 
+# Pre-compiled regex patterns for signal extraction (avoid recompiling per call)
+_COMPLEXITY_RE = re.compile(r"COMPLEXITY:\s*(YES|NO|MAYBE)", re.IGNORECASE)
+_NEEDS_TOOLS_RE = re.compile(r"NEEDS_TOOLS:\s*(YES|NO)", re.IGNORECASE)
+_IS_AMBIGUOUS_RE = re.compile(r"IS_AMBIGUOUS:\s*(YES|NO|MAYBE)", re.IGNORECASE)
+_IS_DANGEROUS_RE = re.compile(r"IS_DANGEROUS:\s*(YES|NO)", re.IGNORECASE)
+_IS_EPIC_RE = re.compile(r"IS_EPIC:\s*(YES|NO|MAYBE)", re.IGNORECASE)
+_CONFIDENCE_RE = re.compile(r"CONFIDENCE:\s*([\d.]+)", re.IGNORECASE)
+_DOMAIN_RE = re.compile(r"DOMAIN:\s*(\w+)", re.IGNORECASE)
+_COMPONENTS_RE = re.compile(r"COMPONENTS:\s*(.+?)(?:\n|$)", re.IGNORECASE)
+
 
 @dataclass(frozen=True, slots=True)
 class AdaptiveSignals:
@@ -189,35 +199,35 @@ Rules:
 
 
 def parse_signals(text: str) -> AdaptiveSignals:
-    """Parse signal extraction response."""
+    """Parse signal extraction response using pre-compiled patterns."""
 
-    def extract(pattern: str, default: str) -> str:
-        match = re.search(pattern, text, re.IGNORECASE)
+    def extract(pattern: re.Pattern[str], default: str) -> str:
+        match = pattern.search(text)
         return match.group(1).strip() if match else default
 
-    def extract_list(pattern: str) -> tuple[str, ...]:
-        match = re.search(pattern, text, re.IGNORECASE)
+    def extract_list(pattern: re.Pattern[str]) -> tuple[str, ...]:
+        match = pattern.search(text)
         if match:
             items = [s.strip() for s in match.group(1).split(",") if s.strip()]
             return tuple(items)
         return ()
 
-    complexity_raw = extract(r"COMPLEXITY:\s*(YES|NO|MAYBE)", "MAYBE")
-    needs_tools_raw = extract(r"NEEDS_TOOLS:\s*(YES|NO)", "NO")
-    is_ambiguous_raw = extract(r"IS_AMBIGUOUS:\s*(YES|NO|MAYBE)", "NO")
-    is_dangerous_raw = extract(r"IS_DANGEROUS:\s*(YES|NO)", "NO")
-    is_epic_raw = extract(r"IS_EPIC:\s*(YES|NO|MAYBE)", "NO")  # RFC-115
+    complexity_raw = extract(_COMPLEXITY_RE, "MAYBE")
+    needs_tools_raw = extract(_NEEDS_TOOLS_RE, "NO")
+    is_ambiguous_raw = extract(_IS_AMBIGUOUS_RE, "NO")
+    is_dangerous_raw = extract(_IS_DANGEROUS_RE, "NO")
+    is_epic_raw = extract(_IS_EPIC_RE, "NO")  # RFC-115
 
     # Parse confidence
-    conf_match = re.search(r"CONFIDENCE:\s*([\d.]+)", text, re.IGNORECASE)
+    conf_match = _CONFIDENCE_RE.search(text)
     try:
         confidence = float(conf_match.group(1)) if conf_match else 0.5
         confidence = min(1.0, max(0.0, confidence))
     except ValueError:
         confidence = 0.5
 
-    domain = extract(r"DOMAIN:\s*(\w+)", "general")
-    components = extract_list(r"COMPONENTS:\s*(.+?)(?:\n|$)")
+    domain = extract(_DOMAIN_RE, "general")
+    components = extract_list(_COMPONENTS_RE)
 
     return AdaptiveSignals(
         complexity=complexity_raw.upper(),  # type: ignore
@@ -509,7 +519,7 @@ def classify_error(
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class FastSignalChecker:
     """Quick individual signal checks using FastClassifier (RFC-077).
 

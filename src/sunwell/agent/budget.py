@@ -12,6 +12,18 @@ maximizing technique power within constraints.
 from dataclasses import dataclass
 from typing import Literal
 
+# Default cost multipliers (relative to single-shot) — single source of truth
+DEFAULT_TECHNIQUE_MULTIPLIERS: dict[str, float] = {
+    "single_shot": 1.0,
+    "interference": 3.0,
+    "harmonic_3": 3.5,
+    "harmonic_5": 6.0,
+    "vortex": 15.0,
+    "compound_eye": 5.0,
+    "lateral_only": 2.0,
+    "resonance": 2.0,
+}
+
 
 @dataclass
 class AdaptiveBudget:
@@ -128,18 +140,23 @@ class AdaptiveBudget:
         return int(base_cost * multiplier)
 
     def _get_multiplier(self, technique: str) -> float:
-        """Get cost multiplier for a technique."""
-        multipliers = {
+        """Get cost multiplier for a technique.
+
+        Uses instance-configured multipliers, falling back to defaults.
+        """
+        # Instance-specific overrides (configurable per-budget)
+        instance_multipliers = {
             "single_shot": self.single_shot,
             "interference": self.interference,
             "harmonic_3": self.harmonic_3,
             "harmonic_5": self.harmonic_5,
             "vortex": self.vortex,
             "compound_eye": self.compound_eye,
-            "lateral_only": 2.0,
             "resonance": self.resonance_per_loop,
         }
-        return multipliers.get(technique, 1.0)
+        return instance_multipliers.get(
+            technique, DEFAULT_TECHNIQUE_MULTIPLIERS.get(technique, 1.0)
+        )
 
     def to_dict(self) -> dict:
         """Convert to dict for serialization."""
@@ -195,15 +212,8 @@ def estimate_task_cost(
     words = len(task_description.split())
     base_tokens = (words * 2) + 500
 
-    # Technique multipliers
-    multipliers = {
-        "single_shot": 1.0,
-        "interference": 3.0,
-        "harmonic_3": 3.5,
-        "harmonic_5": 6.0,
-        "vortex": 15.0,
-    }
-    multiplier = multipliers.get(technique, 1.0)
+    # Use shared technique multipliers
+    multiplier = DEFAULT_TECHNIQUE_MULTIPLIERS.get(technique, 1.0)
 
     tokens = int(base_tokens * multiplier)
 

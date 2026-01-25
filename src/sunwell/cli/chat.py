@@ -8,13 +8,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import click
-from rich.console import Console
 from rich.live import Live
 from rich.markdown import Markdown
 from rich.panel import Panel
 
 from sunwell.binding import BindingManager
 from sunwell.cli.helpers import create_model
+from sunwell.cli.theme import create_sunwell_console
 from sunwell.core.errors import SunwellError
 from sunwell.core.types import LensReference
 from sunwell.embedding import create_embedder
@@ -30,7 +30,7 @@ from sunwell.simulacrum.core.turn import Learning
 if TYPE_CHECKING:
     from sunwell.naaru.shards import ShardPool
 
-console = Console()
+console = create_sunwell_console()
 
 
 # =============================================================================
@@ -920,8 +920,8 @@ def chat(
             # It's a lens path
             lens_path = binding_or_lens
         else:
-            console.print(f"[red]Not found:[/red] '{binding_or_lens}' is neither a binding nor a lens file")
-            console.print("[dim]List bindings: sunwell bind list[/dim]")
+            console.print(f"[void.purple]✗ Not found:[/] '{binding_or_lens}'")
+            console.print("[neutral.dim]List bindings: sunwell bind list[/neutral.dim]")
             sys.exit(1)
     else:
         # Try default binding
@@ -970,7 +970,7 @@ def chat(
         ref = LensReference(source=source)
         lens = asyncio.run(resolver.resolve(ref))
     except SunwellError as e:
-        console.print(f"[red]Error loading/resolving lens:[/red] {e.message}")
+        console.print(f"[void.purple]✗ Error loading lens:[/] {e.message}")
         sys.exit(1)
 
     # Initialize memory store
@@ -980,16 +980,16 @@ def chat(
     if session:
         try:
             dag = store.load_session(session)
-            console.print(f"[green]✓ Resumed session:[/green] {session}")
-            console.print(f"[dim]  {len(dag.turns)} turns, {len(dag.learnings)} learnings[/dim]")
+            console.print(f"[holy.success]★ Resumed session:[/] {session}")
+            console.print(f"[neutral.dim]  {len(dag.turns)} turns, {len(dag.learnings)} learnings[/neutral.dim]")
         except FileNotFoundError:
             store.new_session(session)
             dag = store.get_dag()
-            console.print(f"[green]✓ Created new session:[/green] {session}")
+            console.print(f"[holy.success]★ Created session:[/] {session}")
     else:
         session = store.new_session()
         dag = store.get_dag()
-        console.print(f"[green]✓ New session:[/green] {session}")
+        console.print(f"[holy.success]★ New session:[/] {session}")
 
     # Create model
     llm = create_model(provider, model)
@@ -1219,9 +1219,9 @@ async def _generate_with_tools(
             # Show result status
             if tool_result.success:
                 output_preview = tool_result.output[:100] + "..." if len(tool_result.output) > 100 else tool_result.output
-                console.print(f"[green]✓[/green] [dim]{output_preview}[/dim]")
+                console.print(f"[holy.success]✓[/] [neutral.dim]{output_preview}[/neutral.dim]")
             else:
-                console.print(f"[red]✗[/red] {tool_result.error}")
+                console.print(f"[void.purple]✗[/] {tool_result.error}")
 
             # Add tool result to conversation
             conversation.append(Message(
@@ -1671,7 +1671,7 @@ async def _chat_loop(
             break
         except SunwellError as e:
             # Structured error with recovery hints
-            console.print(f"\n[red]Error {e.error_id}:[/red] {e.message}")
+            console.print(f"\n[void.purple]✗ Error {e.error_id}:[/void.purple] {e.message}")
             if e.recovery_hints:
                 console.print("[yellow]Recovery options:[/yellow]")
                 for i, hint in enumerate(e.recovery_hints, 1):
@@ -1681,7 +1681,7 @@ async def _chat_loop(
             continue
         except Exception as e:
             # Unexpected error - log and continue
-            console.print(f"\n[red]Unexpected error:[/red] {e}")
+            console.print(f"\n[void.purple]✗ Unexpected error:[/void.purple] {e}")
             console.print("[dim]Type /quit to exit or continue with your next message.[/dim]")
             continue
 
@@ -1699,7 +1699,7 @@ async def _chat_loop(
 
     if state.models_used:
         console.print(f"[dim]Models used: {' → '.join(state.models_used + [state.model_name])}[/dim]")
-    console.print("[green]✓ Session saved[/green]")
+    console.print("[holy.success]★ Session saved[/holy.success]")
 
 
 async def _handle_chat_command(
@@ -1723,7 +1723,7 @@ async def _handle_chat_command(
     elif cmd == "/switch":
         # Switch to a different model mid-conversation
         if not arg:
-            console.print("[red]Usage: /switch <provider>:<model>[/red]")
+            console.print("[void.purple]Usage: /switch <provider>:<model>[/void.purple]")
             console.print("  Examples: /switch anthropic:claude-sonnet-4-20250514")
             console.print("            /switch openai:gpt-4o")
             console.print("            /switch openai:o1-preview")
@@ -1740,10 +1740,10 @@ async def _handle_chat_command(
                 old_name = state.model_name
                 state.switch_model(new_llm, f"{new_provider}:{new_model}")
 
-                console.print(f"[green]✓ Switched model:[/green] {old_name} → {state.model_name}")
-                console.print("[dim]Your headspace (learnings, history, dead ends) is preserved.[/dim]")
+                console.print(f"[holy.success]★ Switched model:[/] {old_name} → {state.model_name}")
+                console.print("[neutral.dim]Headspace (learnings, history, dead ends) is preserved.[/neutral.dim]")
             except Exception as e:
-                console.print(f"[red]Failed to switch: {e}[/red]")
+                console.print(f"[void.purple]✗ Failed to switch: {e}[/void.purple]")
 
     elif cmd == "/models":
         # Show model history
@@ -1784,12 +1784,12 @@ async def _handle_chat_command(
                     policy=policy,
                 )
             state.tools_enabled = True
-            console.print(f"[green]✓ Tools enabled[/green] ({state.trust_level})")
+            console.print(f"[holy.success]★ Tools enabled[/] ({state.trust_level})")
         elif arg.lower() in ("off", "disable", "no"):
             state.tools_enabled = False
-            console.print("[yellow]✓ Tools disabled[/yellow]")
+            console.print("[holy.gold]◇ Tools disabled[/holy.gold]")
         else:
-            console.print(f"[red]Unknown: /tools {arg}[/red]")
+            console.print(f"[void.purple]Unknown: /tools {arg}[/void.purple]")
             console.print("  Usage: /tools on|off")
 
     elif cmd == "/context":
@@ -1875,7 +1875,7 @@ async def _handle_chat_command(
             else:
                 console.print("[yellow]No code files found to index[/yellow]")
         except Exception as e:
-            console.print(f"[red]Failed to rebuild index: {e}[/red]")
+            console.print(f"[void.purple]✗ Failed to rebuild index: {e}[/void.purple]")
 
     elif cmd == "/search":
         # Manual code search (Phase 4: Visible RAG)
@@ -1897,19 +1897,19 @@ async def _handle_chat_command(
                 else:
                     console.print(f"[dim]No relevant code found for: {arg}[/dim]")
             except Exception as e:
-                console.print(f"[red]Search failed: {e}[/red]")
+                console.print(f"[void.purple]✗ Search failed: {e}[/void.purple]")
 
     elif cmd == "/rag":
         # Toggle RAG (Phase 4)
         if arg.lower() == "on":
             if state.codebase_indexer:
                 state.rag_enabled = True
-                console.print("[green]✓ RAG enabled[/green]")
+                console.print("[holy.success]★ RAG enabled[/holy.success]")
             else:
                 console.print("[yellow]No codebase index. Run /index first.[/yellow]")
         elif arg.lower() == "off":
             state.rag_enabled = False
-            console.print("[green]✓ RAG disabled[/green]")
+            console.print("[holy.gold]◇ RAG disabled[/holy.gold]")
         else:
             status = "[green]enabled[/green]" if state.rag_enabled else "[dim]disabled[/dim]"
             chunks = state.rag_stats.get("chunk_count", 0) if state.rag_stats else 0
@@ -1918,7 +1918,7 @@ async def _handle_chat_command(
 
     elif cmd == "/save":
         store.save_session()
-        console.print("[green]✓ Session saved[/green]")
+        console.print("[holy.success]★ Session saved[/holy.success]")
 
     elif cmd == "/write":
         # Write last response to a file

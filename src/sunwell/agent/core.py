@@ -79,7 +79,7 @@ from sunwell.memory.persistent import PersistentMemory
 from sunwell.naaru.checkpoint import AgentCheckpoint, CheckpointPhase
 
 
-@dataclass
+@dataclass(slots=True)
 class TaskGraph:
     """A graph of tasks with execution state."""
 
@@ -119,7 +119,7 @@ class TaskGraph:
         return f"{len(self.completed_ids)}/{len(self.tasks)} tasks"
 
 
-@dataclass
+@dataclass(slots=True)
 class Agent:
     """THE execution engine for Sunwell (RFC-MEMORY).
 

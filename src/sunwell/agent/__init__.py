@@ -63,6 +63,7 @@ from sunwell.agent.metrics import InferenceMetrics, InferenceSample, ModelPerfor
 from sunwell.agent.renderer import (
     JSONRenderer,
     QuietRenderer,
+    Renderer,
     RendererConfig,
     RichRenderer,
     create_renderer,
@@ -160,6 +161,7 @@ __all__ = [
     # Lens
     "resolve_lens_for_goal",
     # Renderer
+    "Renderer",
     "RichRenderer",
     "QuietRenderer",
     "JSONRenderer",

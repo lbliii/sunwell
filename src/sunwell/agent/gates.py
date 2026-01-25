@@ -170,8 +170,8 @@ class GateResult:
     checkpoint_hash: str = ""
     """Hash of all artifacts at this point."""
 
-    artifacts_snapshot: dict[str, str] = field(default_factory=dict)
-    """path → content hash for resume verification."""
+    artifacts_snapshot: tuple[tuple[str, str], ...] = ()
+    """(path, content_hash) pairs for resume verification."""
 
     # For debugging
     commands_run: tuple[str, ...] = ()
@@ -191,7 +191,7 @@ class GateResult:
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class GateDetector:
     """Detects natural validation boundaries in task graph.
 

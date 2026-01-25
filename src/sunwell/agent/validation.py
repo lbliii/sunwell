@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     from sunwell.models.protocol import ModelProtocol
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class Artifact:
     """A generated artifact to validate."""
 
@@ -58,7 +58,7 @@ class Artifact:
     """Language of the artifact."""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ValidationError:
     """A validation error with context."""
 
@@ -92,7 +92,7 @@ class ValidationError:
         }
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ValidationResult:
     """Result of validation run."""
 

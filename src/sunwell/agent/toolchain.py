@@ -174,7 +174,7 @@ class TypeCheckError:
     severity: str = "error"
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ToolchainResult:
     """Result from running toolchain commands."""
 
@@ -513,7 +513,7 @@ class ToolchainRunner:
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class StaticAnalysisCascade:
     """Runs the full static analysis cascade at gates.
 

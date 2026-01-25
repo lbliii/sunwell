@@ -17,12 +17,28 @@ import json
 import sys
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import TextIO
+from typing import Protocol, TextIO
 
 from sunwell.agent.events import AgentEvent, EventType
 
 
-@dataclass
+class Renderer(Protocol):
+    """Protocol for agent event renderers.
+
+    All renderers must implement an async render method that consumes
+    an async iterator of AgentEvent and displays them appropriately.
+    """
+
+    async def render(self, events: AsyncIterator[AgentEvent]) -> None:
+        """Render events to output.
+
+        Args:
+            events: Async iterator of agent events to render
+        """
+        ...
+
+
+@dataclass(frozen=True, slots=True)
 class RendererConfig:
     """Configuration for the renderer."""
 
@@ -517,7 +533,7 @@ def create_renderer(
     verbose: bool = False,
     enable_sparkles: bool = True,
     reduced_motion: bool = False,
-) -> RichRenderer | QuietRenderer | JSONRenderer:
+) -> Renderer:
     """Create appropriate renderer based on mode.
 
     Args:

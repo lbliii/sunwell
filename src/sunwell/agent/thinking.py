@@ -24,7 +24,7 @@ THINKING_PATTERNS: dict[ThinkingPhase, tuple[str, str]] = {
 }
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ThinkingBlock:
     """A detected thinking block from model output."""
 
@@ -33,7 +33,7 @@ class ThinkingBlock:
     is_complete: bool
 
 
-@dataclass
+@dataclass(slots=True)
 class ThinkingDetector:
     """Detects thinking blocks in streaming output.
 

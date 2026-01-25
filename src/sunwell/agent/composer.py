@@ -95,7 +95,7 @@ class CapabilityAnalysis:
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class SkillComposer:
     """Dynamically compose and generate skills (RFC-111 Phase 4).
 

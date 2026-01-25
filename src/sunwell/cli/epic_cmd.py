@@ -19,15 +19,15 @@ import json
 from pathlib import Path
 
 import click
-from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
-from rich.progress import Progress, BarColumn, TextColumn
+from rich.progress import BarColumn, Progress, TextColumn
+from rich.table import Table
 
 from sunwell.backlog.manager import BacklogManager
 from sunwell.backlog.tracker import MilestoneTracker
+from sunwell.cli.theme import create_sunwell_console
 
-console = Console()
+console = create_sunwell_console()
 
 
 @click.group()
@@ -74,19 +74,18 @@ async def _show_status(epic_id: str | None, json_output: bool) -> None:
         if json_output:
             console.print(json.dumps({"error": "No active epic", "epics": []}))
         else:
-            console.print("📋 No active epic")
+            console.print("[neutral.dim]≡ No active epic[/neutral.dim]")
             # Show available epics
             epics = [g for g in manager.backlog.goals.values() if g.goal_type == "epic"]
             if epics:
-                console.print("\n[dim]Available epics:[/dim]")
+                console.print("\n[neutral.dim]Available epics:[/neutral.dim]")
                 for e in epics:
-                    status_icon = (
-                        "✅"
-                        if e.id in manager.backlog.completed
-                        else "🔄"
-                        if e.id == manager.backlog.active_epic
-                        else "⏳"
-                    )
+                    if e.id in manager.backlog.completed:
+                        status_icon = "[holy.success]★[/]"
+                    elif e.id == manager.backlog.active_epic:
+                        status_icon = "[holy.radiant]◎[/]"
+                    else:
+                        status_icon = "[neutral.dim]◇[/]"
                     console.print(f"  {status_icon} {e.id[:12]}  {e.title[:50]}")
         return
 
@@ -97,20 +96,21 @@ async def _show_status(epic_id: str | None, json_output: bool) -> None:
         if json_output:
             console.print(json.dumps({"error": f"Epic not found: {epic_id}"}))
         else:
-            console.print(f"❌ Epic not found: {epic_id}")
+            console.print(f"[void.purple]✗ Epic not found: {epic_id}[/void.purple]")
         return
 
     if json_output:
         console.print(json.dumps(progress.to_dict(), indent=2))
         return
 
-    # Human-readable display
+    # Human-readable display (RFC-131: Holy Light)
     console.print()
     console.print(
         Panel(
-            f"[bold]🎯 {progress.epic_title}[/bold]\n"
-            f"[dim]ID: {progress.epic_id}[/dim]",
+            f"[sunwell.heading]◆ {progress.epic_title}[/sunwell.heading]\n"
+            f"[neutral.dim]ID: {progress.epic_id}[/neutral.dim]",
             expand=False,
+            border_style="holy.gold",
         )
     )
 
@@ -133,7 +133,7 @@ async def _show_status(epic_id: str | None, json_output: bool) -> None:
     if progress.current_milestone_id:
         console.print()
         console.print(
-            f"[cyan]Current:[/cyan] {progress.current_milestone_title}"
+            f"[holy.radiant]Current:[/] {progress.current_milestone_title}"
         )
         if progress.current_milestone_tasks_total > 0:
             task_pct = (
@@ -141,11 +141,11 @@ async def _show_status(epic_id: str | None, json_output: bool) -> None:
                 / progress.current_milestone_tasks_total
                 * 100
             )
-            console.print(
-                f"  Tasks: {progress.current_milestone_tasks_completed}/{progress.current_milestone_tasks_total} ({task_pct:.0f}%)"
-            )
+            done = progress.current_milestone_tasks_completed
+            total = progress.current_milestone_tasks_total
+            console.print(f"  Tasks: {done}/{total} ({task_pct:.0f}%)")
     else:
-        console.print("\n[green]✅ Epic completed![/green]")
+        console.print("\n[holy.success]★ Epic completed![/holy.success]")
 
     console.print()
 
@@ -173,7 +173,8 @@ async def _show_milestones(epic_id: str | None, json_output: bool) -> None:
         if json_output:
             console.print(json.dumps({"error": "No active epic"}))
         else:
-            console.print("❌ No active epic. Provide an epic_id or run an epic first.")
+            console.print("[void.purple]✗ No active epic.[/void.purple]")
+            console.print("[neutral.dim]Provide epic_id or run epic first.[/neutral.dim]")
         return
 
     # Get timeline
@@ -183,7 +184,7 @@ async def _show_milestones(epic_id: str | None, json_output: bool) -> None:
         if json_output:
             console.print(json.dumps({"error": f"No milestones found for: {epic_id}"}))
         else:
-            console.print(f"❌ No milestones found for: {epic_id}")
+            console.print(f"[void.purple]✗ No milestones for: {epic_id}[/void.purple]")
         return
 
     if json_output:
@@ -195,18 +196,18 @@ async def _show_milestones(epic_id: str | None, json_output: bool) -> None:
     epic_title = epic.title if epic else epic_id
 
     console.print()
-    console.print(f"[bold]🎯 {epic_title}[/bold]")
+    console.print(f"[sunwell.heading]◆ {epic_title}[/sunwell.heading]")
     console.print()
 
     for m in timeline:
-        # Status icon
+        # Status icon (RFC-131: Holy Light)
         status_icons = {
-            "completed": "✅",
-            "active": "🔄",
-            "blocked": "⏭",
-            "pending": "⏳",
+            "completed": "[holy.success]★[/]",
+            "active": "[holy.radiant]◎[/]",
+            "blocked": "[holy.gold]△[/]",
+            "pending": "[neutral.dim]◇[/]",
         }
-        icon = status_icons.get(m["status"], "⏳")
+        icon = status_icons.get(m["status"], "[neutral.dim]◇[/]")
 
         # Progress indicator for active milestone
         task_progress = ""
@@ -215,15 +216,16 @@ async def _show_milestones(epic_id: str | None, json_output: bool) -> None:
 
         # Style based on status
         title_style = {
-            "completed": "dim strike",
-            "active": "cyan bold",
-            "blocked": "dim",
+            "completed": "neutral.dim strike",
+            "active": "holy.radiant bold",
+            "blocked": "neutral.dim",
             "pending": "white",
         }.get(m["status"], "white")
 
         # Index
         idx = m.get("index", 0)
-        console.print(f"  {icon} [dim]M{idx + 1}[/dim] [{title_style}]{m['title']}[/{title_style}]{task_progress}")
+        title = m["title"]
+        console.print(f"  {icon} [dim]M{idx + 1}[/] [{title_style}]{title}[/]{task_progress}")
 
         # Produces (artifacts)
         if m["produces"]:
@@ -252,7 +254,7 @@ async def _skip_milestone(json_output: bool) -> None:
         if json_output:
             console.print(json.dumps({"error": "No active milestone to skip"}))
         else:
-            console.print("❌ No active milestone to skip")
+            console.print("[void.purple]✗ No active milestone to skip[/void.purple]")
         return
 
     current = manager.backlog.get_current_milestone()
@@ -270,12 +272,12 @@ async def _skip_milestone(json_output: bool) -> None:
         return
 
     if current:
-        console.print(f"⏭ Skipped: {current.title}")
+        console.print(f"[neutral.dim]◇ Skipped: {current.title}[/neutral.dim]")
 
     if next_milestone:
-        console.print(f"▶ Next: {next_milestone.title}")
+        console.print(f"[holy.radiant]◆ Next: {next_milestone.title}[/holy.radiant]")
     else:
-        console.print("[green]✅ Epic complete (no more milestones)[/green]")
+        console.print("[holy.success]★ Epic complete (no more milestones)[/holy.success]")
 
 
 @epic.command()
@@ -302,7 +304,7 @@ async def _replan_milestone(json_output: bool) -> None:
         if json_output:
             console.print(json.dumps({"error": "No active milestone to replan"}))
         else:
-            console.print("❌ No active milestone to replan")
+            console.print("[void.purple]✗ No active milestone to replan[/void.purple]")
         return
 
     milestone = manager.backlog.get_current_milestone()
@@ -310,7 +312,7 @@ async def _replan_milestone(json_output: bool) -> None:
         if json_output:
             console.print(json.dumps({"error": "Could not find active milestone"}))
         else:
-            console.print("❌ Could not find active milestone")
+            console.print("[void.purple]✗ Could not find active milestone[/void.purple]")
         return
 
     # Get context for replanning
@@ -319,7 +321,7 @@ async def _replan_milestone(json_output: bool) -> None:
         if json_output:
             console.print(json.dumps({"error": "Milestone has no parent epic"}))
         else:
-            console.print("❌ Milestone has no parent epic")
+            console.print("[void.purple]✗ Milestone has no parent epic[/void.purple]")
         return
 
     context = tracker.get_context_for_next(epic_id)
@@ -337,14 +339,14 @@ async def _replan_milestone(json_output: bool) -> None:
         )
         return
 
-    console.print(f"🔄 Re-planning milestone: {milestone.title}")
+    console.print(f"[holy.radiant]↻ Re-planning milestone: {milestone.title}[/holy.radiant]")
     console.print()
-    console.print("[dim]Context built from:[/dim]")
-    console.print(f"  • {len(context.get('completed_milestones', []))} completed milestones")
-    console.print(f"  • {len(context.get('completed_artifacts', []))} artifacts available")
-    console.print(f"  • {len(context.get('learnings', []))} learnings extracted")
+    console.print("[neutral.dim]Context built from:[/neutral.dim]")
+    console.print(f"  · {len(context.get('completed_milestones', []))} completed milestones")
+    console.print(f"  · {len(context.get('completed_artifacts', []))} artifacts available")
+    console.print(f"  · {len(context.get('learnings', []))} learnings extracted")
     console.print()
-    console.print("[yellow]Run `sunwell run` to execute the replanned milestone[/yellow]")
+    console.print("[holy.gold]Run `sunwell run` to execute replanned milestone[/holy.gold]")
 
 
 @epic.command()
@@ -377,24 +379,24 @@ async def _list_epics(json_output: bool) -> None:
         return
 
     if not epics:
-        console.print("📋 No epics in backlog")
+        console.print("[neutral.dim]≡ No epics in backlog[/neutral.dim]")
         console.print()
-        console.print("[dim]Submit an ambitious goal to create an epic:[/dim]")
+        console.print("[neutral.dim]Submit an ambitious goal to create an epic:[/neutral.dim]")
         console.print('  sunwell run "build an RTS game"')
         return
 
-    table = Table(title="🎯 Epics")
+    table = Table(title="◆ Epics")
     table.add_column("Status", width=3)
-    table.add_column("ID", style="cyan")
-    table.add_column("Title", style="white")
+    table.add_column("ID", style="holy.radiant")
+    table.add_column("Title")
 
     for e in epics:
         if e.id in manager.backlog.completed:
-            status = "✅"
+            status = "[holy.success]★[/]"
         elif e.id == manager.backlog.active_epic:
-            status = "🔄"
+            status = "[holy.radiant]◎[/]"
         else:
-            status = "⏳"
+            status = "[neutral.dim]◇[/]"
 
         table.add_row(
             status,

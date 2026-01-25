@@ -99,7 +99,7 @@ class SpawnRequest:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class SpecialistState:
     """Tracking state for a spawned specialist.
 

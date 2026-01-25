@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from sunwell.core.lens import Lens
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class RunOptions:
     """Execution options for Agent.run().
 

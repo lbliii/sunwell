@@ -302,7 +302,7 @@ async def _run_backlog_goal(
 
     if dry_run:
         if not json_output:
-            console.print(f"[yellow]Dry run - would execute: {goal_text}[/yellow]")
+            console.print(f"[holy.gold]Dry run - would execute: {goal_text}[/holy.gold]")
         return
 
     # Load config and create agent
@@ -323,7 +323,7 @@ async def _run_backlog_goal(
                 "timestamp": __import__("time").time(),
             }))
         else:
-            console.print(f"[red]❌ Failed to load model: {e}[/red]")
+            console.print(f"[void.purple]✗ Failed to load model: {e}[/void.purple]")
         return
 
     # Create planner
@@ -357,7 +357,7 @@ async def _run_backlog_goal(
         )
 
         if not result.success and not json_output:
-            console.print(f"[red]❌ Failed: {result.error}[/red]")
+            console.print(f"[void.purple]✗ Failed: {result.error}[/void.purple]")
 
     except Exception as e:
         if json_output:
@@ -368,7 +368,7 @@ async def _run_backlog_goal(
                 "timestamp": __import__("time").time(),
             }))
         else:
-            console.print(f"[red]❌ Execution failed: {e}[/red]")
+            console.print(f"[void.purple]✗ Execution failed: {e}[/void.purple]")
 
 
 @backlog.command()
@@ -399,9 +399,9 @@ def execute(
         # Delegate to parallel workers command
         asyncio.run(_execute_parallel(num_workers or 4, auto, dry_run))
     else:
-        console.print("⚠️  Full execution loop requires model/agent setup")
-        console.print("For parallel execution, use: sunwell backlog execute --workers 4")
-        console.print("For single goals, use: sunwell agent run <goal>")
+        console.print("[holy.gold]△ Full execution loop requires model/agent setup[/holy.gold]")
+        console.print("For parallel execution: sunwell backlog execute --workers 4")
+        console.print("For single goals: sunwell agent run <goal>")
 
 
 async def _execute_parallel(num_workers: int, auto: bool, dry_run: bool) -> None:
@@ -514,7 +514,7 @@ async def _run_autonomous(
     goals = backlog.execution_order()
 
     if not goals:
-        console.print("\n📋 No goals in backlog")
+        console.print("\n[neutral.dim]≡ No goals in backlog[/neutral.dim]")
         return
 
     # Categorize goals
@@ -526,16 +526,16 @@ async def _run_autonomous(
         else:
             escalate_count += 1
 
-    console.print(f"\n📋 [bold]Backlog:[/bold] {len(goals)} goals found")
-    console.print(f"   ✅ {auto_count} auto-approvable (safe + simple)")
-    console.print(f"   ⚠️ {escalate_count} require approval (complex or protected paths)")
+    console.print(f"\n[sunwell.heading]≡ Backlog:[/] {len(goals)} goals found")
+    console.print(f"   [holy.success]★[/] {auto_count} auto-approvable (safe + simple)")
+    console.print(f"   [holy.gold]△[/] {escalate_count} require approval")
 
     if dry_run:
-        console.print("\n[yellow]Dry run - no changes will be made[/yellow]")
+        console.print("\n[holy.gold]Dry run - no changes will be made[/holy.gold]")
 
         # Show what would happen
         table = Table(title="Goals that would be processed")
-        table.add_column("ID", style="cyan")
+        table.add_column("ID", style="holy.radiant")
         table.add_column("Title")
         table.add_column("Auto")
 
@@ -544,7 +544,7 @@ async def _run_autonomous(
             table.add_row(
                 goal.id[:8],
                 goal.title[:50],
-                "✅" if can_auto else "⚠️",
+                "[holy.success]★[/]" if can_auto else "[holy.gold]△[/]",
             )
 
         console.print(table)
@@ -553,9 +553,9 @@ async def _run_autonomous(
     # Start session
     try:
         session = await guardrails.start_session()
-        console.print(f"\n🏷️ Session tagged: [cyan]{session.tag}[/cyan]")
+        console.print(f"\n[sunwell.heading]◆ Session tagged:[/] {session.tag}")
     except Exception as e:
-        console.print(f"\n[red]❌ Cannot start session: {e}[/red]")
+        console.print(f"\n[void.purple]✗ Cannot start session: {e}[/void.purple]")
         return
 
     console.print("\n" + "━" * 60 + "\n")
@@ -565,18 +565,18 @@ async def _run_autonomous(
     skipped = 0
 
     for i, goal in enumerate(goals, 1):
-        console.print(f"[{i}/{len(goals)}] [bold]{goal.title}[/bold]")
+        console.print(f"[{i}/{len(goals)}] [sunwell.heading]{goal.title}[/]")
         console.print(f"      Category: {goal.category} | Complexity: {goal.estimated_complexity}")
 
         can_auto = await guardrails.can_auto_approve(goal)
 
         if can_auto:
-            console.print("      ✅ Auto-approved")
+            console.print("      [holy.success]★ Auto-approved[/holy.success]")
             # In a real implementation, we'd execute the goal here
-            console.print("      [dim]Execution not yet wired up[/dim]")
+            console.print("      [neutral.dim]Execution not yet wired up[/neutral.dim]")
             completed += 1
         else:
-            console.print("      ⚠️ Requires approval - skipping in demo")
+            console.print("      [holy.gold]△ Requires approval - skipping in demo[/holy.gold]")
             skipped += 1
 
         console.print()
@@ -584,13 +584,13 @@ async def _run_autonomous(
         # Check if we can continue
         can_continue = guardrails.can_continue()
         if not can_continue.passed:
-            console.print(f"[yellow]Session limit reached: {can_continue.reason}[/yellow]")
+            console.print(f"[holy.gold]Session limit: {can_continue.reason}[/holy.gold]")
             break
 
     # Session complete
     console.print("━" * 60)
     stats = guardrails.get_session_stats()
-    console.print("\n📊 [bold]Session Complete[/bold]")
+    console.print("\n[sunwell.heading]◆ Session Complete[/sunwell.heading]")
     console.print(f"   Goals: {completed} completed, {skipped} skipped")
     console.print(f"   Duration: {stats['duration_minutes']:.1f} minutes")
     console.print(f"\n   To rollback: sunwell guardrails rollback {session.tag}")
@@ -608,9 +608,9 @@ async def _refresh_backlog() -> None:
     root = Path.cwd()
     manager = BacklogManager(root=root)
 
-    console.print("🔄 Refreshing backlog from signals...")
+    console.print("[holy.radiant]↻ Refreshing backlog from signals...[/holy.radiant]")
     backlog = await manager.refresh()
-    console.print(f"✅ Found {len(backlog.goals)} goals")
+    console.print(f"[holy.success]★ Found {len(backlog.goals)} goals[/holy.success]")
 
 
 @backlog.command()
@@ -637,7 +637,7 @@ async def _add_goal(goal: str) -> None:
         # Add to backlog
         manager.backlog.goals[goals[0].id] = goals[0]
         manager._save()
-        console.print(f"✅ Added goal: {goals[0].title}")
+        console.print(f"[holy.success]★ Added goal: {goals[0].title}[/holy.success]")
 
 
 @backlog.command()
@@ -650,9 +650,9 @@ def skip(ctx, goal_id: str) -> None:
 
     if goal_id in manager.backlog.goals:
         asyncio.run(manager.block_goal(goal_id, "User skipped"))
-        console.print(f"⏭️  Skipped goal: {goal_id}")
+        console.print(f"[neutral.dim]◇ Skipped goal: {goal_id}[/neutral.dim]")
     else:
-        console.print(f"❌ Goal not found: {goal_id}")
+        console.print(f"[void.purple]✗ Goal not found: {goal_id}[/void.purple]")
 
 
 @backlog.command()
@@ -666,9 +666,9 @@ def block(ctx, goal_id: str, reason: str) -> None:
 
     if goal_id in manager.backlog.goals:
         asyncio.run(manager.block_goal(goal_id, reason))
-        console.print(f"🚫 Blocked goal: {goal_id} - {reason}")
+        console.print(f"[void.purple]✗ Blocked goal: {goal_id} - {reason}[/void.purple]")
     else:
-        console.print(f"❌ Goal not found: {goal_id}")
+        console.print(f"[void.purple]✗ Goal not found: {goal_id}[/void.purple]")
 
 
 @backlog.command()
@@ -679,14 +679,14 @@ def history(ctx) -> None:
     history_path = root / ".sunwell" / "backlog" / "completed.jsonl"
 
     if not history_path.exists():
-        console.print("No completed goals yet")
+        console.print("[neutral.dim]No completed goals yet[/neutral.dim]")
         return
 
-    table = Table(title="📜 Completed Goals")
-    table.add_column("Goal ID", style="cyan")
-    table.add_column("Success", style="green")
+    table = Table(title="≡ Completed Goals")
+    table.add_column("Goal ID", style="holy.radiant")
+    table.add_column("Success", style="holy.success")
     table.add_column("Duration", justify="right")
-    table.add_column("Files Changed", style="yellow")
+    table.add_column("Files Changed", style="holy.gold")
 
     with history_path.open() as f:
         for line in f:
@@ -694,7 +694,7 @@ def history(ctx) -> None:
                 entry = json.loads(line)
                 table.add_row(
                     entry.get("goal_id", "")[:8],
-                    "✓" if entry.get("success") else "✗",
+                    "★" if entry.get("success") else "✗",
                     f"{entry.get('duration_seconds', 0):.1f}s",
                     str(len(entry.get("files_changed", []))),
                 )

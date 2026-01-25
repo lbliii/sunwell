@@ -2,6 +2,7 @@
   App — Root component (Svelte 5)
   
   Handles routing between screens and initializes the app.
+  RFC-132: ProjectGate ensures valid project before showing app.
 -->
 <script lang="ts">
   import { untrack, onMount } from 'svelte';
@@ -17,6 +18,7 @@
   import Gallery from './routes/Gallery.svelte';  // RFC-097
   import Evaluation from './routes/Evaluation.svelte';  // RFC-098
   import Observatory from './routes/Observatory.svelte';  // RFC-112
+  import ProjectGate from './components/ProjectGate.svelte';  // RFC-132
   import { app, setInitialized, navigate, goToWriter } from './stores/app.svelte';
   import { Route } from '$lib/constants';
   import { setupInferenceListeners } from '$lib/inference';
@@ -76,33 +78,37 @@
   });
 </script>
 
-<div class="app-container">
-  {#if app.route === Route.HOME}
-    <Home />
-  {:else if app.route === Route.PROJECT}
-    <Project />
-  {:else if app.route === Route.PROJECTS}
-    <Projects />
-  {:else if app.route === Route.PREVIEW}
-    <Preview />
-  {:else if app.route === Route.PLANNING}
-    <Planning />
-  {:else if app.route === Route.LIBRARY}
-    <Library />
-  {:else if app.route === Route.INTERFACE}
-    <Interface />
-  {:else if app.route === Route.WRITER}
-    <Writer />
-  {:else if app.route === Route.DEMO}
-    <Demo />
-  {:else if app.route === Route.GALLERY}
-    <Gallery />
-  {:else if app.route === Route.EVALUATION}
-    <Evaluation />
-  {:else if app.route === Route.OBSERVATORY}
-    <Observatory />
-  {/if}
-</div>
+<ProjectGate>
+  {#snippet children()}
+    <div class="app-container">
+      {#if app.route === Route.HOME}
+        <Home />
+      {:else if app.route === Route.PROJECT}
+        <Project />
+      {:else if app.route === Route.PROJECTS}
+        <Projects />
+      {:else if app.route === Route.PREVIEW}
+        <Preview />
+      {:else if app.route === Route.PLANNING}
+        <Planning />
+      {:else if app.route === Route.LIBRARY}
+        <Library />
+      {:else if app.route === Route.INTERFACE}
+        <Interface />
+      {:else if app.route === Route.WRITER}
+        <Writer />
+      {:else if app.route === Route.DEMO}
+        <Demo />
+      {:else if app.route === Route.GALLERY}
+        <Gallery />
+      {:else if app.route === Route.EVALUATION}
+        <Evaluation />
+      {:else if app.route === Route.OBSERVATORY}
+        <Observatory />
+      {/if}
+    </div>
+  {/snippet}
+</ProjectGate>
 
 <style>
   .app-container { min-height: 100vh; display: flex; flex-direction: column; }

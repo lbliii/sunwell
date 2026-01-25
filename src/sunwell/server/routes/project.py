@@ -1,4 +1,4 @@
-"""Project management routes (RFC-113, RFC-117)."""
+"""Project management routes (RFC-113, RFC-117, RFC-132)."""
 
 from pathlib import Path
 from typing import Any
@@ -12,12 +12,312 @@ router = APIRouter(prefix="/api", tags=["project"])
 
 
 # ═══════════════════════════════════════════════════════════════
-# REQUEST MODELS
+# REQUEST/RESPONSE MODELS
 # ═══════════════════════════════════════════════════════════════
 
 
 class ProjectPathRequest(BaseModel):
     path: str
+
+
+# RFC-132: Project Gate validation models
+class ValidationResult(CamelModel):
+    """Result of workspace validation."""
+
+    valid: bool
+    error_code: str | None = None
+    error_message: str | None = None
+    suggestion: str | None = None
+
+
+class ProjectInfo(CamelModel):
+    """Project info for listing."""
+
+    id: str
+    name: str
+    root: str
+    valid: bool
+    is_default: bool
+    last_used: str | None
+
+
+class CreateProjectRequest(BaseModel):
+    """Request to create a new project."""
+
+    name: str
+    path: str | None = None
+
+
+class CreateProjectResponse(CamelModel):
+    """Response from project creation."""
+
+    project: dict[str, str]
+    path: str
+    is_new: bool
+    is_default: bool
+    error: str | None = None
+    message: str | None = None
+
+
+class SetDefaultRequest(BaseModel):
+    """Request to set default project."""
+
+    project_id: str
+
+
+# ═══════════════════════════════════════════════════════════════
+# RFC-132: PROJECT GATE ENDPOINTS
+# ═══════════════════════════════════════════════════════════════
+
+
+@router.post("/project/validate")
+async def validate_project_path(request: ProjectPathRequest) -> ValidationResult:
+    """Validate a workspace path before using it (RFC-132).
+
+    Returns structured error with suggestion instead of raising.
+    """
+    from sunwell.project.validation import ProjectValidationError, validate_workspace
+    from sunwell.workspace import default_workspace_root
+
+    path = Path(request.path).expanduser().resolve()
+
+    if not path.exists():
+        return ValidationResult(
+            valid=False,
+            error_code="not_found",
+            error_message=f"Path does not exist: {path}",
+        )
+
+    try:
+        validate_workspace(path)
+        return ValidationResult(valid=True)
+    except ProjectValidationError as e:
+        # Determine error type for structured response
+        error_msg = str(e)
+
+        if "sunwell" in error_msg.lower() and "repository" in error_msg.lower():
+            return ValidationResult(
+                valid=False,
+                error_code="sunwell_repo",
+                error_message="Cannot use Sunwell's own repository as project workspace",
+                suggestion=str(default_workspace_root()),
+            )
+
+        return ValidationResult(
+            valid=False,
+            error_code="invalid_workspace",
+            error_message=error_msg,
+        )
+
+
+@router.get("/project/list")
+async def list_projects() -> dict[str, list[ProjectInfo]]:
+    """List all registered projects with validity status (RFC-132).
+
+    Returns projects ordered by last_used descending.
+    Includes validity check so UI can warn about broken projects.
+    """
+    from sunwell.project import ProjectRegistry
+    from sunwell.project.validation import validate_workspace
+
+    registry = ProjectRegistry()
+    default_id = registry.default_project_id
+    projects = []
+
+    for project in registry.list_projects():
+        # Check if still valid
+        valid = True
+        try:
+            if not project.root.exists():
+                valid = False
+            else:
+                validate_workspace(project.root)
+        except Exception:
+            valid = False
+
+        # Get last_used from registry entry
+        entry = registry.projects.get(project.id, {})
+        last_used = entry.get("last_used")
+
+        projects.append(
+            ProjectInfo(
+                id=project.id,
+                name=project.name,
+                root=str(project.root),
+                valid=valid,
+                is_default=(project.id == default_id),
+                last_used=last_used,
+            )
+        )
+
+    # Sort by last_used descending (most recent first)
+    projects.sort(key=lambda p: p.last_used or "", reverse=True)
+
+    return {"projects": projects}
+
+
+@router.post("/project/create")
+async def create_project(request: CreateProjectRequest) -> CreateProjectResponse:
+    """Create a new project in the specified or default location (RFC-132).
+
+    If path is not provided, creates in ~/Sunwell/projects/{slugified_name}.
+    Auto-sets as default if no default project exists.
+    """
+    import re
+
+    from sunwell.project import ProjectRegistry, init_project
+    from sunwell.project.registry import RegistryError
+    from sunwell.workspace import default_workspace_root
+
+    # Validate name
+    name = request.name.strip()
+    if not name:
+        return CreateProjectResponse(
+            project={},
+            path="",
+            is_new=False,
+            is_default=False,
+            error="invalid_name",
+            message="Project name cannot be empty",
+        )
+    if len(name) > 64:
+        return CreateProjectResponse(
+            project={},
+            path="",
+            is_new=False,
+            is_default=False,
+            error="invalid_name",
+            message="Project name too long (max 64 chars)",
+        )
+    if "/" in name or "\\" in name:
+        return CreateProjectResponse(
+            project={},
+            path="",
+            is_new=False,
+            is_default=False,
+            error="invalid_name",
+            message="Project name cannot contain path separators",
+        )
+
+    # Determine path
+    if request.path:
+        project_path = Path(request.path).expanduser().resolve()
+    else:
+        # Default location with slugified name
+        slug = name.lower()
+        slug = re.sub(r"[^a-z0-9]+", "-", slug).strip("-") or "project"
+        project_path = default_workspace_root() / slug
+
+    # Ensure parent exists
+    project_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Create directory
+    is_new = not project_path.exists()
+    project_path.mkdir(parents=True, exist_ok=True)
+
+    # Generate slug for project ID
+    slug = name.lower()
+    slug = re.sub(r"[^a-z0-9]+", "-", slug).strip("-") or "project"
+
+    # Initialize project
+    try:
+        project = init_project(
+            root=project_path,
+            project_id=slug,
+            name=name,
+            trust="workspace",
+            register=True,
+        )
+    except RegistryError as e:
+        if "already initialized" in str(e).lower():
+            return CreateProjectResponse(
+                project={},
+                path=str(project_path),
+                is_new=False,
+                is_default=False,
+                error="already_exists",
+                message=str(e),
+            )
+        raise
+
+    # Auto-set as default if no default exists
+    registry = ProjectRegistry()
+    became_default = False
+    if registry.get_default() is None:
+        registry.set_default(project.id)
+        became_default = True
+
+    return CreateProjectResponse(
+        project={
+            "id": project.id,
+            "name": project.name,
+            "root": str(project.root),
+        },
+        path=str(project_path),
+        is_new=is_new,
+        is_default=became_default,
+    )
+
+
+@router.get("/project/default")
+async def get_default_project() -> dict[str, Any]:
+    """Get the default project (RFC-132).
+
+    Returns project info if default is set and valid, null otherwise.
+    """
+    from sunwell.project import ProjectRegistry
+    from sunwell.project.validation import validate_workspace
+
+    registry = ProjectRegistry()
+    default = registry.get_default()
+
+    if not default:
+        return {"project": None}
+
+    # Verify default is still valid
+    try:
+        if not default.root.exists():
+            return {"project": None, "warning": "Default project no longer exists"}
+        validate_workspace(default.root)
+    except Exception:
+        return {"project": None, "warning": "Default project is no longer valid"}
+
+    return {
+        "project": {
+            "id": default.id,
+            "name": default.name,
+            "root": str(default.root),
+        }
+    }
+
+
+@router.put("/project/default")
+async def set_default_project(request: SetDefaultRequest) -> dict[str, Any]:
+    """Set the default project (RFC-132).
+
+    Validates project exists in registry before setting.
+    """
+    from sunwell.project import ProjectRegistry
+    from sunwell.project.registry import RegistryError
+
+    registry = ProjectRegistry()
+
+    # Validate project exists
+    project = registry.get(request.project_id)
+    if not project:
+        available = [p.id for p in registry.list_projects()]
+        return {
+            "error": "not_found",
+            "message": f"Project not found: {request.project_id}",
+            "available_projects": available,
+        }
+
+    try:
+        registry.set_default(request.project_id)
+    except RegistryError as e:
+        return {"error": "registry_error", "message": str(e)}
+
+    return {"success": True, "default_project": request.project_id}
 
 
 class MonorepoRequest(BaseModel):

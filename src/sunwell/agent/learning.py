@@ -83,7 +83,7 @@ class DeadEnd:
     """Gate where this failed."""
 
 
-@dataclass
+@dataclass(slots=True)
 class LearningExtractor:
     """Extracts learnings from generated code and fix attempts.
 
@@ -519,7 +519,7 @@ For variables, use format: {{"name": "entity", "description": "Model name", "typ
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class LearningStore:
     """In-memory store for learnings during a session.
 
@@ -535,15 +535,19 @@ class LearningStore:
     dead_ends: list[DeadEnd] = field(default_factory=list)
     """Dead ends encountered."""
 
+    # O(1) deduplication index
+    _learning_ids: set[str] = field(default_factory=set, init=False)
+    """Set of learning IDs for O(1) deduplication."""
+
     # RFC-122: Thread-safe lock for mutable operations (3.14t)
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False)
     """Lock for thread-safe mutations."""
 
     def add_learning(self, learning: Learning) -> None:
-        """Add a learning, deduplicating by ID (thread-safe)."""
+        """Add a learning, deduplicating by ID (thread-safe, O(1))."""
         with self._lock:
-            existing_ids = {lrn.id for lrn in self.learnings}
-            if learning.id not in existing_ids:
+            if learning.id not in self._learning_ids:
+                self._learning_ids.add(learning.id)
                 self.learnings.append(learning)
 
     def add_dead_end(self, dead_end: DeadEnd) -> None:
