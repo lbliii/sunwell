@@ -279,8 +279,146 @@ def generate_typescript_types() -> str:
     return "\n".join(lines)
 
 
+def generate_api_types() -> str:
+    """Generate TypeScript types from CamelModel response classes."""
+    import types
+    from typing import Literal, Union, get_args, get_origin
+
+    from pydantic import BaseModel
+
+    from sunwell.interface.server.routes._models import CamelModel
+
+    # Import all response models
+    import sunwell.interface.server.routes._models as models_module
+
+    # Build set of known CamelModel class names for reference
+    known_models = {
+        name for name in dir(models_module)
+        if isinstance(getattr(models_module, name), type)
+        and issubclass(getattr(models_module, name), CamelModel)
+        and name != "CamelModel"
+    }
+
+    def to_camel(name: str) -> str:
+        """Convert snake_case to camelCase."""
+        parts = name.split("_")
+        return parts[0] + "".join(word.capitalize() for word in parts[1:])
+
+    def python_type_to_ts(python_type: type | str) -> str:
+        """Convert Python type annotation to TypeScript type."""
+        # Handle None
+        if python_type is type(None):
+            return "null"
+
+        # Get origin and args for generic types
+        origin = get_origin(python_type)
+        args = get_args(python_type)
+
+        # Handle Literal types
+        if origin is Literal:
+            return " | ".join(f"'{a}'" if isinstance(a, str) else str(a) for a in args)
+
+        # Handle Union types (X | Y or Optional[X])
+        if origin is Union or origin is types.UnionType:
+            ts_parts = [python_type_to_ts(arg) for arg in args]
+            return " | ".join(ts_parts)
+
+        # Handle list types
+        if origin is list:
+            if args:
+                inner_type = python_type_to_ts(args[0])
+                return f"{inner_type}[]"
+            return "unknown[]"
+
+        # Handle dict types
+        if origin is dict:
+            if len(args) >= 2:
+                key_type = python_type_to_ts(args[0])
+                val_type = python_type_to_ts(args[1])
+                return f"Record<{key_type}, {val_type}>"
+            return "Record<string, unknown>"
+
+        # Handle basic types
+        if python_type is str:
+            return "string"
+        if python_type is int:
+            return "number"
+        if python_type is float:
+            return "number"
+        if python_type is bool:
+            return "boolean"
+
+        # Handle our own CamelModel classes by name
+        if hasattr(python_type, "__name__"):
+            name = python_type.__name__
+            if name in known_models:
+                return name
+
+        # Fallback for string representations
+        type_str = str(python_type)
+        if "str" in type_str and "list" not in type_str:
+            return "string"
+        if "int" in type_str and "list" not in type_str:
+            return "number"
+        if "float" in type_str and "list" not in type_str:
+            return "number"
+        if "bool" in type_str and "list" not in type_str:
+            return "boolean"
+
+        return "unknown"
+
+    lines = [
+        "// Auto-generated from Python CamelModel response classes",
+        "// DO NOT EDIT MANUALLY - Run: python scripts/generate_event_schema.py",
+        "//",
+        "// These types match the API response shapes with automatic camelCase conversion.",
+        "",
+        "// ═══════════════════════════════════════════════════════════════",
+        "// API RESPONSE TYPES",
+        "// ═══════════════════════════════════════════════════════════════",
+        "",
+    ]
+
+    # Find all CamelModel subclasses
+    camel_models: list[tuple[str, type[BaseModel]]] = []
+    for name in dir(models_module):
+        obj = getattr(models_module, name)
+        if (
+            isinstance(obj, type)
+            and issubclass(obj, CamelModel)
+            and obj is not CamelModel
+        ):
+            camel_models.append((name, obj))
+
+    # Sort by name for consistent output
+    camel_models.sort(key=lambda x: x[0])
+
+    for class_name, model_class in camel_models:
+        lines.append(f"export interface {class_name} {{")
+
+        # Get field definitions from Pydantic model
+        for field_name, field_info in model_class.model_fields.items():
+            camel_name = to_camel(field_name)
+            annotation = field_info.annotation
+
+            ts_type = python_type_to_ts(annotation)
+
+            # Check if field is optional (has default or is None-able)
+            is_optional = field_info.default is not None or "None" in str(annotation) or "null" in ts_type
+
+            if is_optional and "null" not in ts_type:
+                lines.append(f"  {camel_name}?: {ts_type};")
+            else:
+                lines.append(f"  {camel_name}: {ts_type};")
+
+        lines.append("}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
 def main() -> None:
-    """Generate both JSON Schema and TypeScript types."""
+    """Generate JSON Schema, TypeScript types, and API types."""
     root = Path(__file__).parent.parent
 
     # Generate JSON Schema
@@ -290,18 +428,23 @@ def main() -> None:
     schema_path.write_text(json.dumps(schema, indent=2))
     print(f"✅ Generated JSON Schema: {schema_path}")
 
-    # Generate TypeScript types
+    # Generate TypeScript event types
     ts_code = generate_typescript_types()
     ts_path = root / "studio" / "src" / "lib" / "agent-events.ts"
     ts_path.parent.mkdir(exist_ok=True)
     ts_path.write_text(ts_code)
-    print(f"✅ Generated TypeScript types: {ts_path}")
+    print(f"✅ Generated TypeScript event types: {ts_path}")
+
+    # Generate TypeScript API response types
+    api_types = generate_api_types()
+    api_types_path = root / "studio" / "src" / "lib" / "api-types.ts"
+    api_types_path.write_text(api_types)
+    print(f"✅ Generated TypeScript API types: {api_types_path}")
 
     print("\n📝 Next steps:")
     print("  1. Review generated files")
-    print("  2. Update imports in studio/src/stores/agent.ts")
-    print("  3. Add schema validation to Rust bridge (optional)")
-    print("  4. Commit generated files to git")
+    print("  2. Update imports in studio/src/lib/types.ts to use generated types")
+    print("  3. Run TypeScript compiler to verify type compatibility")
 
 
 if __name__ == "__main__":

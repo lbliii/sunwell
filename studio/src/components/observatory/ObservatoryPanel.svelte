@@ -12,8 +12,10 @@
   - Export to PNG/GIF/JSON
   - Shareable URLs
   - Mobile-responsive layout
+  - Run history selector (view past runs)
 -->
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { fade, fly, scale } from 'svelte/transition';
   import ResonanceWave from './ResonanceWave.svelte';
   import PrismFracture from './PrismFracture.svelte';
@@ -30,7 +32,15 @@
     type ExportProgress,
   } from '$lib/export';
   import {
+    listRuns,
+    getObservatoryData,
+    type RunInfo,
+    type ObservatoryData,
+  } from '$lib/socket';
+  import {
     observatory,
+    loadHistoricalRun,
+    clearHistoricalRun,
     type ResonanceWaveState,
     type PrismFractureState,
     type ExecutionCinemaState,
@@ -50,6 +60,76 @@
   
   let activeViz = $state<Viz>('resonance');
   let isLive = $state(true);
+  
+  // Run selector state
+  let availableRuns = $state<RunInfo[]>([]);
+  let selectedRunId = $state<string | null>(null);
+  let isLoadingRuns = $state(false);
+  let isLoadingData = $state(false);
+  let showRunSelector = $state(false);
+  
+  // Load available runs on mount
+  onMount(async () => {
+    await refreshRuns();
+  });
+  
+  async function refreshRuns() {
+    isLoadingRuns = true;
+    try {
+      const result = await listRuns(undefined, 50);
+      availableRuns = result.runs;
+    } catch (e) {
+      console.error('Failed to load runs:', e);
+    } finally {
+      isLoadingRuns = false;
+    }
+  }
+  
+  async function selectRun(runId: string) {
+    if (runId === selectedRunId) return;
+    
+    selectedRunId = runId;
+    isLive = false;
+    isLoadingData = true;
+    showRunSelector = false;
+    
+    try {
+      const data = await getObservatoryData(runId);
+      loadHistoricalRun(data);
+    } catch (e) {
+      console.error('Failed to load run data:', e);
+    } finally {
+      isLoadingData = false;
+    }
+  }
+  
+  function goLive() {
+    isLive = true;
+    selectedRunId = null;
+    clearHistoricalRun();
+  }
+  
+  function formatRunTime(timestamp: string): string {
+    const date = new Date(timestamp);
+    const now = Date.now();
+    const diffMs = now - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+    return date.toLocaleDateString();
+  }
+  
+  function getStatusIcon(status: string): string {
+    switch (status) {
+      case 'running': return '⚡';
+      case 'complete': return '✅';
+      case 'error': return '❌';
+      case 'cancelled': return '⏹️';
+      default: return '⏳';
+    }
+  }
   
   // Export modal state
   let showExportModal = $state(false);
@@ -167,8 +247,58 @@
     </div>
     
     <div class="controls">
+      <!-- Run Selector -->
+      <div class="run-selector-container">
+        <button 
+          class="control-btn run-selector-btn"
+          onclick={() => { showRunSelector = !showRunSelector; refreshRuns(); }}
+          title="Select a run to view"
+        >
+          📊 {isLive ? 'Live' : (selectedRunId ? selectedRunId.slice(0, 8) + '...' : 'Select Run')}
+          <span class="dropdown-arrow">{showRunSelector ? '▲' : '▼'}</span>
+        </button>
+        
+        {#if showRunSelector}
+          <div class="run-selector-dropdown" in:fly={{ y: -10, duration: 150 }}>
+            <button 
+              class="run-option live-option"
+              class:selected={isLive}
+              onclick={goLive}
+            >
+              <span class="run-status">⚡</span>
+              <span class="run-goal">Live Mode</span>
+              <span class="run-meta">Current activity</span>
+            </button>
+            
+            <div class="run-divider"></div>
+            
+            {#if isLoadingRuns}
+              <div class="run-loading">Loading runs...</div>
+            {:else if availableRuns.length === 0}
+              <div class="run-empty">No runs yet</div>
+            {:else}
+              {#each availableRuns.slice(0, 20) as run (run.run_id)}
+                <button 
+                  class="run-option"
+                  class:selected={selectedRunId === run.run_id}
+                  onclick={() => selectRun(run.run_id)}
+                >
+                  <span class="run-status">{getStatusIcon(run.status)}</span>
+                  <span class="run-goal" title={run.goal}>
+                    {run.goal.length > 40 ? run.goal.slice(0, 40) + '...' : run.goal}
+                  </span>
+                  <span class="run-meta">
+                    {formatRunTime(run.started_at)} · {run.event_count} events
+                  </span>
+                </button>
+              {/each}
+            {/if}
+          </div>
+        {/if}
+      </div>
+      
       <label class="live-toggle">
-        <input type="checkbox" bind:checked={isLive} />
+        <input type="checkbox" bind:checked={isLive} onchange={() => { if (isLive) goLive(); }} />
         <span class="toggle-label">Live</span>
         <span class="toggle-indicator" class:active={isLive}></span>
       </label>
@@ -181,6 +311,12 @@
         📹 Export
       </button>
     </div>
+    
+    {#if isLoadingData}
+      <div class="loading-overlay" in:fade={{ duration: 150 }}>
+        <div class="loading-spinner">Loading run data...</div>
+      </div>
+    {/if}
   </header>
   
   <nav class="viz-tabs">
@@ -476,6 +612,112 @@
   .share-btn:hover {
     color: var(--info);
     border-color: var(--info);
+  }
+  
+  /* Run Selector Styles */
+  .run-selector-container {
+    position: relative;
+  }
+  
+  .run-selector-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  
+  .dropdown-arrow {
+    font-size: var(--text-xs);
+    opacity: 0.6;
+  }
+  
+  .run-selector-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: var(--space-2);
+    min-width: 320px;
+    max-height: 400px;
+    overflow-y: auto;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    z-index: 50;
+  }
+  
+  .run-option {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    text-align: left;
+  }
+  
+  .run-option:hover {
+    background: var(--bg-tertiary);
+  }
+  
+  .run-option.selected {
+    background: var(--ui-gold-15);
+    border-left: 3px solid var(--ui-gold);
+  }
+  
+  .run-option.live-option {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  
+  .run-status {
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-1);
+  }
+  
+  .run-goal {
+    font-size: var(--text-sm);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+  }
+  
+  .run-meta {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+  }
+  
+  .run-divider {
+    height: 1px;
+    background: var(--border-subtle);
+    margin: var(--space-2) 0;
+  }
+  
+  .run-loading,
+  .run-empty {
+    padding: var(--space-4);
+    text-align: center;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+  
+  /* Loading Overlay */
+  .loading-overlay {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: var(--space-2) var(--space-4);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+  }
+  
+  .loading-spinner {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-gold);
   }
   
   .viz-tabs {

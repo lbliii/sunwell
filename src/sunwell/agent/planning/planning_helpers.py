@@ -4,11 +4,16 @@ Contains task planning logic including:
 - Signal-based technique selection
 - Harmonic planning (multi-candidate)
 - Single-shot planning (simple path)
+
+RFC-112: Debug logging added for Observatory event flow verification.
 """
 
 import asyncio
+import logging
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any
+
+logger = logging.getLogger(__name__)
 
 from sunwell.agent.events import (
     AgentEvent,
@@ -75,12 +80,17 @@ async def plan_with_signals(
     if briefing:
         planning_context["briefing"] = briefing.to_prompt()
 
+    # RFC-112: Log planning route decision for Observatory debugging
+    logger.debug(f"[Observatory] Planning route selected: {signals.planning_route}")
+
     if signals.planning_route == "HARMONIC":
+        logger.debug("[Observatory] Starting harmonic planning (multi-candidate)")
         async for result in _harmonic_plan(
             goal, planning_context, model, budget, simulacrum
         ):
             yield result
     else:
+        logger.debug("[Observatory] Starting single-shot planning (simple path)")
         async for result in _single_shot_plan(goal, planning_context, model):
             yield result
 
@@ -126,9 +136,16 @@ async def _harmonic_plan(
             event_queue.put_nowait(event)
 
         candidates = 5 if not budget.is_low else 3
+        # RFC-112: Explicit refinement_rounds for Observatory ResonanceWave visualization
+        refinement_rounds = 2 if not budget.is_low else 1
+        logger.debug(
+            f"[Observatory] Creating HarmonicPlanner: candidates={candidates}, "
+            f"refinement_rounds={refinement_rounds}, event_callback=SET"
+        )
         planner = HarmonicPlanner(
             model=model,
             candidates=candidates,
+            refinement_rounds=refinement_rounds,
             event_callback=queue_event,
             # RFC-122: Connect to SimulacrumStore for knowledge retrieval
             simulacrum=simulacrum,

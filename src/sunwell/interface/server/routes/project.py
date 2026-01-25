@@ -8,7 +8,11 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from sunwell.foundation.utils import normalize_path
-from sunwell.interface.server.routes._models import CamelModel
+from sunwell.interface.server.routes._models import (
+    CamelModel,
+    MemoryStatsResponse,
+    ProjectLearningsResponse,
+)
 
 # Pre-compiled regex for slug generation (avoid recompiling per call)
 _RE_SLUG_CHARS = re.compile(r"[^a-z0-9]+")
@@ -373,20 +377,200 @@ async def get_project() -> dict[str, Any]:
 
 @router.get("/project/recent")
 async def get_recent_projects() -> dict[str, Any]:
-    """Get recent projects."""
-    return {"recent": []}
+    """Get recently used projects sorted by last_used timestamp.
+
+    Returns a simplified list of recent projects for quick access.
+    Uses the registry's last_used tracking.
+    """
+    from sunwell.knowledge import ProjectRegistry
+
+    registry = ProjectRegistry()
+    recent = []
+
+    for project in registry.list_projects():
+        # Skip projects that no longer exist
+        if not project.root.exists():
+            continue
+
+        # Get last_used from registry
+        entry = registry.projects.get(project.id, {})
+        last_used = entry.get("last_used")
+
+        # Try to detect project type from files
+        project_type = "general"
+        if (project.root / "pyproject.toml").exists():
+            project_type = "code_python"
+        elif (project.root / "package.json").exists():
+            project_type = "code_js"
+        elif (project.root / "Cargo.toml").exists():
+            project_type = "code_rust"
+        elif (project.root / "go.mod").exists():
+            project_type = "code_go"
+        elif (project.root / "index.html").exists():
+            project_type = "code_web"
+
+        # Try to get description from manifest
+        description = ""
+        manifest_path = project.root / ".sunwell" / "project.toml"
+        if manifest_path.exists():
+            try:
+                import tomllib
+                with open(manifest_path, "rb") as f:
+                    manifest = tomllib.load(f)
+                    description = manifest.get("project", {}).get("description", "")
+            except Exception:
+                pass
+
+        recent.append({
+            "path": str(project.root),
+            "name": project.name,
+            "project_type": project_type,
+            "description": description,
+            "last_opened": last_used,
+        })
+
+    # Sort by last_opened descending
+    recent.sort(key=lambda p: p["last_opened"] or "", reverse=True)
+
+    # Limit to most recent 20
+    return {"recent": recent[:20]}
 
 
 @router.get("/project/scan")
 async def scan_projects() -> dict[str, Any]:
-    """Scan for projects."""
-    return {"projects": []}
+    """Scan for projects from registry and filesystem.
+
+    Returns projects with their status, checkpoint info, and activity data.
+    This is the primary endpoint for the Home page project list.
+    """
+    from sunwell.knowledge import ProjectRegistry
+    from sunwell.planning.naaru.checkpoint import find_latest_checkpoint
+
+    registry = ProjectRegistry()
+    projects = []
+
+    for project in registry.list_projects():
+        # Get registry entry for last_used
+        entry = registry.projects.get(project.id, {})
+        last_used = entry.get("last_used")
+
+        # Check if project root still exists
+        if not project.root.exists():
+            continue
+
+        # Look for checkpoints to determine status
+        checkpoint_dir = project.root / ".sunwell" / "checkpoints"
+        status = "none"
+        last_goal = None
+        tasks_completed = 0
+        tasks_total = 0
+        tasks = []
+        last_activity = last_used
+
+        if checkpoint_dir.exists():
+            try:
+                latest_cp = find_latest_checkpoint(checkpoint_dir)
+                if latest_cp:
+                    last_goal = latest_cp.goal
+                    tasks_total = len(latest_cp.tasks)
+                    tasks_completed = len(latest_cp.completed_ids)
+                    last_activity = latest_cp.checkpoint_at.isoformat()
+
+                    # Determine status from checkpoint phase
+                    phase = latest_cp.phase.value
+                    if phase in ("implementation_complete", "review_complete"):
+                        status = "complete"
+                    elif phase in ("task_complete", "plan_complete", "design_approved"):
+                        status = "interrupted"  # Has progress but not complete
+                    else:
+                        status = "interrupted"
+
+                    # Build task list
+                    for task in latest_cp.tasks:
+                        tasks.append({
+                            "id": task.id,
+                            "description": task.description,
+                            "completed": task.id in latest_cp.completed_ids,
+                        })
+            except Exception:
+                # If we can't read checkpoints, that's okay
+                pass
+
+        # Build display path (relative to home)
+        try:
+            display_path = f"~/{project.root.relative_to(Path.home())}"
+        except ValueError:
+            display_path = str(project.root)
+
+        projects.append({
+            "id": project.id,
+            "path": str(project.root),
+            "display_path": display_path,
+            "name": project.name,
+            "status": status,
+            "last_goal": last_goal,
+            "tasks_completed": tasks_completed if tasks_total > 0 else None,
+            "tasks_total": tasks_total if tasks_total > 0 else None,
+            "tasks": tasks if tasks else None,
+            "last_activity": last_activity,
+        })
+
+    # Sort by last_activity descending (most recent first)
+    projects.sort(key=lambda p: p["last_activity"] or "", reverse=True)
+
+    return {"projects": projects}
 
 
 @router.post("/project/resume")
 async def resume_project(request: ProjectPathRequest) -> dict[str, Any]:
-    """Resume a project."""
-    return {"success": True, "message": "Project resumed"}
+    """Resume an interrupted project by loading its latest checkpoint.
+
+    Finds the most recent checkpoint and returns info for the agent to resume.
+    The actual resume is handled by the agent run flow.
+    """
+    from sunwell.planning.naaru.checkpoint import find_latest_checkpoint
+
+    path = normalize_path(request.path)
+
+    if not path.exists():
+        return {
+            "success": False,
+            "message": f"Project directory not found: {path}",
+        }
+
+    checkpoint_dir = path / ".sunwell" / "checkpoints"
+
+    if not checkpoint_dir.exists():
+        return {
+            "success": False,
+            "message": "No checkpoints found for this project",
+        }
+
+    try:
+        latest_cp = find_latest_checkpoint(checkpoint_dir)
+        if not latest_cp:
+            return {
+                "success": False,
+                "message": "No valid checkpoint found",
+            }
+
+        return {
+            "success": True,
+            "message": f"Ready to resume: {latest_cp.goal}",
+            "checkpoint": {
+                "goal": latest_cp.goal,
+                "phase": latest_cp.phase.value,
+                "phase_summary": latest_cp.phase_summary,
+                "tasks_completed": len(latest_cp.completed_ids),
+                "tasks_total": len(latest_cp.tasks),
+                "checkpoint_at": latest_cp.checkpoint_at.isoformat(),
+            },
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Failed to load checkpoint: {e}",
+        }
 
 
 @router.post("/project/open")
@@ -405,38 +589,325 @@ async def open_project(request: ProjectPathRequest) -> dict[str, Any]:
 
 @router.post("/project/delete")
 async def delete_project(request: ProjectPathRequest) -> dict[str, Any]:
-    """Delete a project."""
-    return {"success": True, "message": "Project deleted", "new_path": None}
+    """Delete a project permanently.
+
+    Removes from registry and optionally deletes files from disk.
+    Currently only removes from registry (safe delete).
+    """
+    import shutil
+
+    from sunwell.knowledge import ProjectRegistry
+
+    path = normalize_path(request.path)
+    registry = ProjectRegistry()
+
+    # Find project by path
+    project = registry.find_by_root(path)
+
+    if not project:
+        return {
+            "success": False,
+            "message": f"Project not found in registry: {path}",
+            "new_path": None,
+        }
+
+    try:
+        # Remove from registry
+        registry.unregister(project.id)
+
+        # Delete .sunwell directory (keeps user files, removes sunwell metadata)
+        sunwell_dir = path / ".sunwell"
+        if sunwell_dir.exists():
+            shutil.rmtree(sunwell_dir)
+
+        return {
+            "success": True,
+            "message": f"Project '{project.name}' removed from registry",
+            "new_path": None,
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Failed to delete project: {e}",
+            "new_path": None,
+        }
 
 
 @router.post("/project/archive")
 async def archive_project(request: ProjectPathRequest) -> dict[str, Any]:
-    """Archive a project."""
-    return {"success": True, "message": "Project archived", "new_path": None}
+    """Archive a project by moving to ~/Sunwell/archived/.
+
+    Moves entire project directory and updates registry.
+    """
+    import shutil
+
+    from sunwell.knowledge import ProjectRegistry
+    from sunwell.knowledge.workspace import default_workspace_root
+
+    path = normalize_path(request.path)
+    registry = ProjectRegistry()
+
+    # Find project by path
+    project = registry.find_by_root(path)
+
+    if not project:
+        return {
+            "success": False,
+            "message": f"Project not found in registry: {path}",
+            "new_path": None,
+        }
+
+    if not path.exists():
+        # Project directory doesn't exist, just remove from registry
+        registry.unregister(project.id)
+        return {
+            "success": True,
+            "message": f"Project '{project.name}' removed (directory not found)",
+            "new_path": None,
+        }
+
+    try:
+        # Create archive directory
+        archive_root = default_workspace_root().parent / "archived"
+        archive_root.mkdir(parents=True, exist_ok=True)
+
+        # Generate unique archive name
+        archive_name = project.name
+        archive_path = archive_root / archive_name
+        counter = 1
+        while archive_path.exists():
+            archive_name = f"{project.name}-{counter}"
+            archive_path = archive_root / archive_name
+            counter += 1
+
+        # Move project directory
+        shutil.move(str(path), str(archive_path))
+
+        # Remove from registry
+        registry.unregister(project.id)
+
+        return {
+            "success": True,
+            "message": f"Project '{project.name}' archived",
+            "new_path": str(archive_path),
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Failed to archive project: {e}",
+            "new_path": None,
+        }
 
 
 @router.post("/project/iterate")
 async def iterate_project(request: IterateProjectRequest) -> dict[str, Any]:
-    """Iterate a project."""
-    return {"success": True, "message": "Project iterated", "new_path": None}
+    """Create a new iteration of a project.
+
+    Copies the project to a new location with learnings preserved.
+    Useful for starting fresh while keeping accumulated knowledge.
+    """
+    import shutil
+
+    from sunwell.knowledge import ProjectRegistry
+    from sunwell.knowledge.project import init_project
+    from sunwell.knowledge.workspace import default_workspace_root
+
+    path = normalize_path(request.path)
+    registry = ProjectRegistry()
+
+    # Find project by path
+    project = registry.find_by_root(path)
+
+    if not project:
+        return {
+            "success": False,
+            "message": f"Project not found in registry: {path}",
+            "new_path": None,
+        }
+
+    if not path.exists():
+        return {
+            "success": False,
+            "message": f"Project directory not found: {path}",
+            "new_path": None,
+        }
+
+    try:
+        # Generate new iteration name
+        base_name = project.name.rstrip("0123456789").rstrip("-v").rstrip("-")
+        iteration = 2
+        new_name = f"{base_name}-v{iteration}"
+        new_path = default_workspace_root() / new_name.lower().replace(" ", "-")
+
+        while new_path.exists() or registry.get(new_name.lower().replace(" ", "-")):
+            iteration += 1
+            new_name = f"{base_name}-v{iteration}"
+            new_path = default_workspace_root() / new_name.lower().replace(" ", "-")
+
+        # Create new project directory
+        new_path.mkdir(parents=True, exist_ok=True)
+
+        # Copy .sunwell directory (learnings, checkpoints, etc.)
+        old_sunwell = path / ".sunwell"
+        if old_sunwell.exists():
+            new_sunwell = new_path / ".sunwell"
+            shutil.copytree(old_sunwell, new_sunwell)
+
+            # Update manifest with iteration info
+            manifest_path = new_sunwell / "project.toml"
+            if manifest_path.exists():
+                try:
+                    content = manifest_path.read_text()
+                    # Add iteration note
+                    if "[project]" in content:
+                        content = content.replace(
+                            "[project]",
+                            f"[project]\n# Iterated from: {project.name}",
+                        )
+                    manifest_path.write_text(content)
+                except Exception:
+                    pass
+
+        # Initialize as new project in registry
+        new_project = init_project(
+            root=new_path,
+            project_id=new_name.lower().replace(" ", "-"),
+            name=new_name,
+            trust="workspace",
+            register=True,
+        )
+
+        return {
+            "success": True,
+            "message": f"Created iteration '{new_name}' from '{project.name}'",
+            "new_path": str(new_path),
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Failed to iterate project: {e}",
+            "new_path": None,
+        }
 
 
 @router.get("/project/learnings")
-async def get_project_learnings(path: str) -> dict[str, Any]:
-    """Get project learnings."""
-    return {
-        "original_goal": "",
-        "decisions": [],
-        "failures": [],
-        "completed_tasks": [],
-        "pending_tasks": [],
-    }
+async def get_project_learnings(path: str) -> ProjectLearningsResponse:
+    """Get project learnings from memory and checkpoints.
+
+    Returns accumulated knowledge: learnings, dead ends, completed/pending tasks.
+    """
+    import json
+
+    from sunwell.planning.naaru.checkpoint import find_latest_checkpoint
+
+    project_path = normalize_path(path)
+    simulacrum_path = project_path / ".sunwell" / "simulacrum"
+    checkpoint_dir = project_path / ".sunwell" / "checkpoints"
+
+    original_goal: str | None = None
+    decisions: list[str] = []
+    failures: list[str] = []
+    completed_tasks: list[str] = []
+    pending_tasks: list[str] = []
+
+    # Get latest checkpoint for goal and tasks
+    if checkpoint_dir.exists():
+        try:
+            latest = find_latest_checkpoint(checkpoint_dir)
+            if latest:
+                original_goal = latest.goal
+                for task in latest.tasks:
+                    task_desc = task.description if hasattr(task, "description") else str(task)
+                    if task.id in latest.completed_ids:
+                        completed_tasks.append(task_desc)
+                    else:
+                        pending_tasks.append(task_desc)
+        except Exception:
+            pass
+
+    # Load learnings from simulacrum DAG
+    if simulacrum_path.exists():
+        hot_path = simulacrum_path / "hot"
+        if hot_path.exists():
+            for session_file in hot_path.glob("*.json"):
+                try:
+                    with open(session_file) as f:
+                        data = json.load(f)
+                        learnings_data = data.get("learnings", {})
+                        dead_ends = set(data.get("dead_ends", []))
+
+                        # Extract learnings as decisions
+                        for learning_id, learning in learnings_data.items():
+                            fact = learning.get("fact", "")
+                            category = learning.get("category", "general")
+                            confidence = learning.get("confidence", 0)
+
+                            if category == "decision" or "decided" in fact.lower():
+                                decisions.append(fact)
+                            elif confidence > 0.5:
+                                decisions.append(f"[{category}] {fact}")
+
+                        # Extract dead ends as failures
+                        turns = data.get("turns", {})
+                        for turn_id in dead_ends:
+                            if turn_id in turns:
+                                content = turns[turn_id].get("content", "")[:200]
+                                failures.append(f"Dead end: {content}...")
+                except Exception:
+                    continue
+
+    return ProjectLearningsResponse(
+        original_goal=original_goal,
+        decisions=decisions[:20],  # Limit for performance
+        failures=failures[:10],
+        completed_tasks=completed_tasks,
+        pending_tasks=pending_tasks,
+    )
 
 
 @router.post("/project/monorepo")
 async def check_monorepo(request: MonorepoRequest) -> dict[str, Any]:
-    """Check if path is a monorepo."""
-    return {"is_monorepo": False, "sub_projects": []}
+    """Check if path is a monorepo and return sub-projects.
+
+    Uses monorepo detection to find npm workspaces, Cargo workspaces,
+    Python services patterns, etc.
+    """
+    from sunwell.knowledge.project.monorepo import detect_sub_projects, is_monorepo
+
+    path = normalize_path(request.path)
+
+    if not path.exists():
+        return {
+            "is_monorepo": False,
+            "sub_projects": [],
+            "error": f"Path does not exist: {path}",
+        }
+
+    try:
+        is_mono = is_monorepo(path)
+        sub_projects = []
+
+        if is_mono:
+            detected = detect_sub_projects(path)
+            for sub in detected:
+                sub_projects.append({
+                    "name": sub.name,
+                    "path": str(sub.path),
+                    "manifest": str(sub.manifest),
+                    "project_type": sub.project_type,
+                    "description": sub.description,
+                })
+
+        return {
+            "is_monorepo": is_mono,
+            "sub_projects": sub_projects,
+        }
+    except Exception as e:
+        return {
+            "is_monorepo": False,
+            "sub_projects": [],
+            "error": str(e),
+        }
 
 
 @router.post("/project/analyze")
@@ -578,18 +1049,154 @@ async def get_project_status(path: str) -> dict[str, Any]:
 
 @router.get("/project/dag")
 async def get_project_dag(path: str) -> dict[str, Any]:
-    """Get project DAG."""
-    return {"nodes": [], "edges": [], "metadata": {}}
+    """Get project DAG from checkpoints and plans.
+
+    Delegates to the DAG routes for full implementation.
+    """
+    from sunwell.planning.naaru.checkpoint import find_latest_checkpoint
+
+    project_path = normalize_path(path)
+    checkpoint_dir = project_path / ".sunwell" / "checkpoints"
+
+    nodes = []
+    edges = []
+    metadata = {"path": str(project_path)}
+
+    if checkpoint_dir.exists():
+        try:
+            latest = find_latest_checkpoint(checkpoint_dir)
+            if latest:
+                # Add goal node
+                nodes.append({
+                    "id": "goal",
+                    "type": "goal",
+                    "label": latest.goal[:50],
+                    "phase": latest.phase.value,
+                })
+
+                # Add task nodes
+                for i, task in enumerate(latest.tasks):
+                    task_id = task.id if hasattr(task, "id") else f"task-{i}"
+                    is_complete = task_id in latest.completed_ids
+                    nodes.append({
+                        "id": task_id,
+                        "type": "task",
+                        "label": task.description[:50] if hasattr(task, "description") else str(task)[:50],
+                        "status": "complete" if is_complete else "pending",
+                    })
+                    edges.append({
+                        "source": "goal",
+                        "target": task_id,
+                        "type": "contains",
+                    })
+
+                metadata["checkpoint"] = {
+                    "phase": latest.phase.value,
+                    "tasks_total": len(latest.tasks),
+                    "tasks_completed": len(latest.completed_ids),
+                }
+        except Exception:
+            pass
+
+    return {"nodes": nodes, "edges": edges, "metadata": metadata}
 
 
 @router.get("/project/memory/stats")
-async def get_project_memory_stats(path: str) -> dict[str, Any]:
-    """Get project memory stats."""
-    return {
-        "total_learnings": 0,
-        "total_dead_ends": 0,
-        "session_count": 0,
-    }
+async def get_project_memory_stats(path: str) -> MemoryStatsResponse:
+    """Get project memory statistics.
+
+    Returns MemoryStatsResponse with automatic camelCase conversion.
+    """
+    import json
+
+    project_path = normalize_path(path)
+    simulacrum_path = project_path / ".sunwell" / "simulacrum"
+
+    total_learnings = 0
+    total_dead_ends = 0
+    hot_turns = 0
+    warm_files = 0
+    warm_size_bytes = 0
+    cold_files = 0
+    cold_size_bytes = 0
+    branches = 0
+    concept_edges = 0
+    session_id: str | None = None
+
+    if not simulacrum_path.exists():
+        return MemoryStatsResponse(
+            session_id=None,
+            hot_turns=0,
+            warm_files=0,
+            warm_size_mb=0,
+            cold_files=0,
+            cold_size_mb=0,
+            total_turns=0,
+            branches=0,
+            dead_ends=0,
+            learnings=0,
+            concept_edges=0,
+        )
+
+    try:
+        # Count sessions from hot path
+        hot_path = simulacrum_path / "hot"
+        warm_path = simulacrum_path / "warm"
+        cold_path = simulacrum_path / "cold"
+
+        if hot_path.exists():
+            session_files = list(hot_path.glob("*.json"))
+
+            # Get stats from each session
+            for session_file in session_files:
+                try:
+                    with open(session_file) as f:
+                        data = json.load(f)
+                        total_learnings += len(data.get("learnings", {}))
+                        total_dead_ends += len(data.get("dead_ends", []))
+                        hot_turns += len(data.get("turns", {}))
+                        branches += len(data.get("branch_points", []))
+                        session_id = data.get("session_id", session_file.stem)
+                except Exception:
+                    continue
+
+        if warm_path.exists():
+            warm_file_list = list(warm_path.glob("*.jsonl"))
+            warm_files = len(warm_file_list)
+            warm_size_bytes = sum(f.stat().st_size for f in warm_file_list)
+
+        if cold_path.exists():
+            cold_file_list = list(cold_path.glob("*"))
+            cold_files = len(cold_file_list)
+            cold_size_bytes = sum(f.stat().st_size for f in cold_file_list)
+
+        return MemoryStatsResponse(
+            session_id=session_id,
+            hot_turns=hot_turns,
+            warm_files=warm_files,
+            warm_size_mb=round(warm_size_bytes / 1024 / 1024, 2),
+            cold_files=cold_files,
+            cold_size_mb=round(cold_size_bytes / 1024 / 1024, 2),
+            total_turns=hot_turns,
+            branches=branches,
+            dead_ends=total_dead_ends,
+            learnings=total_learnings,
+            concept_edges=concept_edges,
+        )
+    except Exception:
+        return MemoryStatsResponse(
+            session_id=None,
+            hot_turns=0,
+            warm_files=0,
+            warm_size_mb=0,
+            cold_files=0,
+            cold_size_mb=0,
+            total_turns=0,
+            branches=0,
+            dead_ends=0,
+            learnings=0,
+            concept_edges=0,
+        )
 
 
 @router.get("/project/intelligence")

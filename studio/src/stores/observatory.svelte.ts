@@ -2,11 +2,13 @@
  * Observatory Store — aggregates agent events for cinematic visualizations (RFC-112)
  *
  * Consumes events from agent store and transforms them into visualization-ready data.
+ * Supports both live data from current runs and historical data from persisted runs.
  */
 
 import { agent } from './agent.svelte';
 import { evaluation } from './evaluation.svelte';
 import type { RefinementRound, PlanCandidate, Task } from '$lib/types';
+import type { ObservatoryData } from '$lib/socket';
 import { PlanningPhase } from '$lib/constants';
 
 // ═══════════════════════════════════════════════════════════════
@@ -211,6 +213,10 @@ let _playback = $state<PlaybackState>({
 // Event history for replay (stores snapshots)
 let _eventHistory = $state<ResonanceIteration[]>([]);
 
+// Historical run data (when viewing a past run)
+let _historicalData = $state<ObservatoryData | null>(null);
+let _isViewingHistorical = $state(false);
+
 // ═══════════════════════════════════════════════════════════════
 // COMPUTED STATE (derives from agent store)
 // ═══════════════════════════════════════════════════════════════
@@ -338,6 +344,55 @@ function transformRounds(rounds: readonly RefinementRound[]): ResonanceIteration
 }
 
 // ═══════════════════════════════════════════════════════════════
+// HISTORICAL DATA HELPERS
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Transform historical resonance data to ResonanceIteration format
+ */
+function transformHistoricalResonance(data: ObservatoryData): ResonanceIteration[] {
+  return data.resonance_iterations.map((r, i) => ({
+    round: r.round,
+    score: r.new_score ?? r.current_score ?? 0,
+    delta: (r.new_score ?? 0) - (r.current_score ?? 0),
+    improvements: r.improvements_identified ? [r.improvements_identified] : [],
+    improved: r.improved ?? false,
+    reason: r.reason,
+    timestamp: Date.now() - (data.resonance_iterations.length - i) * 1000,
+  }));
+}
+
+/**
+ * Transform historical candidates to PrismCandidate format
+ */
+function transformHistoricalCandidates(data: ObservatoryData): PrismCandidate[] {
+  return data.prism_candidates.map((c, index) => ({
+    id: c.id,
+    index,
+    artifactCount: c.artifact_count,
+    score: c.score,
+    color: PRISM_COLORS[index % PRISM_COLORS.length],
+    varianceConfig: c.variance_config ? {
+      promptStyle: c.variance_config.prompt_style,
+      temperature: c.variance_config.temperature,
+      constraint: c.variance_config.constraint,
+    } : undefined,
+  }));
+}
+
+/**
+ * Transform historical tasks to CinemaTask format
+ */
+function transformHistoricalTasks(data: ObservatoryData): CinemaTask[] {
+  return data.tasks.map(t => ({
+    id: t.id,
+    label: t.description,
+    status: t.status === 'running' ? 'active' : t.status as CinemaTaskStatus,
+    progress: t.progress / 100,
+  }));
+}
+
+// ═══════════════════════════════════════════════════════════════
 // EXPORTS
 // ═══════════════════════════════════════════════════════════════
 
@@ -352,8 +407,49 @@ export const observatory = {
     return _eventHistory;
   },
 
-  // Resonance wave state (derived from agent store)
+  // Whether viewing historical data
+  get isViewingHistorical() {
+    return _isViewingHistorical;
+  },
+
+  // Historical run ID if viewing historical
+  get historicalRunId() {
+    return _historicalData?.run_id ?? null;
+  },
+
+  // Resonance wave state (derived from agent store OR historical data)
   get resonanceWave(): ResonanceWaveState {
+    // Return historical data if available
+    if (_isViewingHistorical && _historicalData) {
+      const iterations = transformHistoricalResonance(_historicalData);
+      
+      if (iterations.length === 0) {
+        return {
+          iterations: [],
+          isActive: false,
+          finalScore: 0,
+          initialScore: 0,
+          totalImprovement: 0,
+          improvementPct: 0,
+        };
+      }
+
+      const initialScore = iterations[0].score - iterations[0].delta;
+      const finalScore = iterations[iterations.length - 1].score;
+      const totalImprovement = finalScore - initialScore;
+      const improvementPct = initialScore > 0 ? ((finalScore / initialScore) - 1) * 100 : 0;
+
+      return {
+        iterations,
+        isActive: false, // Historical data is never "active"
+        finalScore,
+        initialScore,
+        totalImprovement,
+        improvementPct,
+      };
+    }
+
+    // Live data from agent store
     const rounds = agent.refinementRounds;
     const iterations = transformRounds(rounds);
 
@@ -385,6 +481,7 @@ export const observatory = {
 
   // Is resonance currently happening?
   get isRefining() {
+    if (_isViewingHistorical) return false;
     return agent.planningProgress?.phase === 'refining';
   },
 
@@ -405,8 +502,35 @@ export const observatory = {
   // PRISM FRACTURE STATE
   // ═══════════════════════════════════════════════════════════════
 
-  // Prism fracture state (derived from agent store)
+  // Prism fracture state (derived from agent store OR historical data)
   get prismFracture(): PrismFractureState {
+    // Return historical data if available
+    if (_isViewingHistorical && _historicalData) {
+      const candidates = transformHistoricalCandidates(_historicalData);
+      const selected = _historicalData.selected_candidate;
+      
+      let winner: PrismCandidate | null = null;
+      if (selected) {
+        winner = candidates.find(c => c.id === selected.id) ?? {
+          id: selected.id,
+          index: 0,
+          artifactCount: selected.artifact_count,
+          score: selected.score,
+          color: PRISM_COLORS[0],
+        };
+      }
+
+      return {
+        candidates,
+        winner,
+        selectionReason: selected?.selection_reason ?? '',
+        phase: candidates.length > 0 ? 'complete' : 'idle',
+        totalCandidates: candidates.length,
+        currentProgress: candidates.length,
+      };
+    }
+
+    // Live data from agent store
     const candidates = transformCandidates(agent.planningCandidates);
     const selected = agent.selectedCandidate;
     const progress = agent.planningProgress;
@@ -437,6 +561,7 @@ export const observatory = {
 
   // Is prism generation active?
   get isPrismActive() {
+    if (_isViewingHistorical) return false;
     const phase = agent.planningProgress?.phase;
     return phase === PlanningPhase.GENERATING || phase === PlanningPhase.SCORING;
   },
@@ -445,8 +570,25 @@ export const observatory = {
   // EXECUTION CINEMA STATE
   // ═══════════════════════════════════════════════════════════════
 
-  // Execution cinema state (derived from agent store)
+  // Execution cinema state (derived from agent store OR historical data)
   get executionCinema(): ExecutionCinemaState {
+    // Return historical data if available
+    if (_isViewingHistorical && _historicalData) {
+      const tasks = transformHistoricalTasks(_historicalData);
+      const completedTasks = tasks.filter(t => t.status === 'complete').length;
+      const failedTasks = tasks.filter(t => t.status === 'failed').length;
+
+      return {
+        tasks,
+        currentTaskIndex: tasks.length - 1,
+        totalTasks: tasks.length,
+        completedTasks,
+        failedTasks,
+        isExecuting: false,
+      };
+    }
+
+    // Live data from agent store
     const tasks = transformTasks(agent.tasks);
     const currentIdx = agent.currentTaskIndex;
 
@@ -462,6 +604,7 @@ export const observatory = {
 
   // Is execution active?
   get isExecuting() {
+    if (_isViewingHistorical) return false;
     return agent.isRunning;
   },
 
@@ -469,8 +612,35 @@ export const observatory = {
   // MEMORY LATTICE STATE
   // ═══════════════════════════════════════════════════════════════
 
-  // Memory lattice state (derived from agent store)
+  // Memory lattice state (derived from agent store OR historical data)
   get memoryLattice(): MemoryLatticeState {
+    // Return historical data if available
+    if (_isViewingHistorical && _historicalData) {
+      const learnings = _historicalData.learnings;
+      
+      // Generate simple nodes from learnings
+      const nodes: LatticeNode[] = learnings.map((l, i) => {
+        const angle = (i / Math.max(learnings.length, 1)) * 2 * Math.PI;
+        const radius = 150 + Math.random() * 50;
+        return {
+          id: `learning-${i}`,
+          label: l.slice(0, 50),
+          category: 'fact' as LatticeNodeCategory,
+          x: 350 + Math.cos(angle) * radius,
+          y: 225 + Math.sin(angle) * radius,
+        };
+      });
+
+      return {
+        nodes,
+        edges: [],
+        factCount: learnings.length,
+        conceptCount: 0,
+        totalLearnings: learnings.length,
+      };
+    }
+
+    // Live data from agent store
     const learnings = agent.learnings;
     const concepts = agent.concepts;
 
@@ -513,6 +683,9 @@ export const observatory = {
 
   // Has memory data?
   get hasMemory() {
+    if (_isViewingHistorical && _historicalData) {
+      return _historicalData.learnings.length > 0;
+    }
     return agent.learnings.length > 0 || agent.concepts.length > 0;
   },
 
@@ -576,8 +749,32 @@ export const observatory = {
   // CONVERGENCE LOOP STATE (RFC-123)
   // ═══════════════════════════════════════════════════════════════
 
-  // Convergence visualization state (derived from agent store)
+  // Convergence visualization state (derived from agent store OR historical data)
   get convergence(): ConvergenceVizState {
+    // Return historical data if available
+    if (_isViewingHistorical && _historicalData) {
+      const iterations: ConvergenceIterationViz[] = _historicalData.convergence_iterations.map(iter => ({
+        iteration: iter.iteration,
+        allPassed: iter.all_passed,
+        totalErrors: iter.total_errors,
+        gates: iter.gate_results.map(g => ({
+          name: g.gate,
+          passed: g.passed,
+          errorCount: g.errors,
+        })),
+      }));
+
+      return {
+        status: (_historicalData.convergence_status as ConvergenceVizState['status']) ?? 'idle',
+        iterations,
+        maxIterations: iterations.length > 0 ? iterations.length : 5,
+        currentIteration: iterations.length,
+        enabledGates: iterations[0]?.gates.map(g => g.name) ?? [],
+        isActive: false,
+      };
+    }
+
+    // Live data from agent store
     const conv = agent.convergence;
 
     if (!conv) {
@@ -617,11 +814,15 @@ export const observatory = {
 
   // Is convergence currently running?
   get isConverging() {
+    if (_isViewingHistorical) return false;
     return agent.convergence?.status === 'running';
   },
 
   // Has convergence data?
   get hasConvergence() {
+    if (_isViewingHistorical && _historicalData) {
+      return _historicalData.convergence_iterations.length > 0;
+    }
     return agent.convergence !== null;
   },
 };
@@ -730,6 +931,41 @@ export function snapshotHistory(): void {
 /** Clear event history */
 export function clearHistory(): void {
   _eventHistory = [];
+  _playback = {
+    isPlaying: false,
+    isPaused: false,
+    currentRound: 0,
+    speed: 1,
+    mode: 'live',
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HISTORICAL DATA ACTIONS (RFC-112)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Load historical run data for viewing in Observatory.
+ * Switches from live mode to historical viewing mode.
+ */
+export function loadHistoricalRun(data: ObservatoryData): void {
+  _historicalData = data;
+  _isViewingHistorical = true;
+  _playback = {
+    isPlaying: false,
+    isPaused: false,
+    currentRound: 0,
+    speed: 1,
+    mode: 'replay',
+  };
+}
+
+/**
+ * Clear historical data and return to live mode.
+ */
+export function clearHistoricalRun(): void {
+  _historicalData = null;
+  _isViewingHistorical = false;
   _playback = {
     isPlaying: false,
     isPaused: false,

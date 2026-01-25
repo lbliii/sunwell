@@ -145,11 +145,11 @@
       >
         <span class="section-icon">[D]</span>
         <span class="section-title">Decisions</span>
-        <span class="section-count">{intelligence.totalDecisions}</span>
+        <span class="section-count">{intelligence.totalDecisions ?? 0}</span>
         <span class="section-toggle">{sectionsOpen.decisions ? '▾' : '▸'}</span>
       </button>
       
-      {#if sectionsOpen.decisions && intelligence.decisions.length > 0}
+      {#if sectionsOpen.decisions && (intelligence.decisions?.length ?? 0) > 0}
         <ul class="item-list" role="list">
           {#each intelligence.decisions as decision (decision.id)}
             <li class="item-card decision">
@@ -184,11 +184,11 @@
       >
         <span class="section-icon">[✗]</span>
         <span class="section-title">Failed Approaches</span>
-        <span class="section-count">{intelligence.totalFailures}</span>
+        <span class="section-count">{intelligence.totalFailures ?? 0}</span>
         <span class="section-toggle">{sectionsOpen.failures ? '▾' : '▸'}</span>
       </button>
       
-      {#if sectionsOpen.failures && intelligence.failures.length > 0}
+      {#if sectionsOpen.failures && (intelligence.failures?.length ?? 0) > 0}
         <ul class="item-list" role="list">
           {#each intelligence.failures as failure (failure.id)}
             <li class="item-card failure">
@@ -220,11 +220,11 @@
       >
         <span class="section-icon">[✓]</span>
         <span class="section-title">Learnings</span>
-        <span class="section-count">{intelligence.totalLearnings}</span>
+        <span class="section-count">{intelligence.totalLearnings ?? 0}</span>
         <span class="section-toggle">{sectionsOpen.learnings ? '▾' : '▸'}</span>
       </button>
       
-      {#if sectionsOpen.learnings && intelligence.learnings.length > 0}
+      {#if sectionsOpen.learnings && (intelligence.learnings?.length ?? 0) > 0}
         <ul class="item-list" role="list">
           {#each intelligence.learnings as learning (learning.id)}
             <li class="item-card learning">
@@ -261,11 +261,11 @@
       >
         <span class="section-icon">[⊘]</span>
         <span class="section-title">Dead Ends</span>
-        <span class="section-count">{intelligence.totalDeadEnds}</span>
+        <span class="section-count">{intelligence.totalDeadEnds ?? 0}</span>
         <span class="section-toggle">{sectionsOpen.deadEnds ? '▾' : '▸'}</span>
       </button>
       
-      {#if sectionsOpen.deadEnds && intelligence.deadEnds.length > 0}
+      {#if sectionsOpen.deadEnds && (intelligence.deadEnds?.length ?? 0) > 0}
         <ul class="item-list" role="list">
           {#each intelligence.deadEnds as deadEnd, i (deadEnd.approach + i)}
             <li class="item-card dead-end">

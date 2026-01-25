@@ -1,4 +1,4 @@
-"""Agent execution and event streaming routes (RFC-119)."""
+"""Agent execution and event streaming routes (RFC-119, RFC-112 Observatory)."""
 
 import contextlib
 import re
@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from sunwell.interface.server.events import BusEvent, EventBus
 from sunwell.interface.server.runs import RunManager, RunState
+from sunwell.interface.server.run_store import get_run_store
 from sunwell.interface.server.workspace_manager import get_workspace_manager
 
 # Pre-compiled regex for workspace name generation (avoid recompiling per call)
@@ -136,18 +137,18 @@ async def stream_events(websocket: WebSocket, run_id: str) -> None:
 
                 if run.is_cancelled:
                     await websocket.send_json({"type": "cancelled", "data": {}})
-                    run.status = "cancelled"
+                    _run_manager.complete_run(run.run_id, "cancelled")
                     break
 
             if run.status == "running":
-                run.status = "complete"
+                _run_manager.complete_run(run.run_id, "complete")
 
         except WebSocketDisconnect:
             pass  # Client disconnected, run continues buffering
         except Exception as e:
-            run.status = "error"
             error_event = {"type": "error", "data": {"message": str(e)}}
             run.events.append(error_event)
+            _run_manager.complete_run(run.run_id, "error")
             with contextlib.suppress(Exception):
                 await websocket.send_json(error_event)
         finally:
@@ -184,30 +185,55 @@ async def global_events(websocket: WebSocket, project_id: str | None = None) -> 
 
 
 @router.get("/runs")
-async def list_runs(project_id: str | None = None, limit: int = 20) -> dict[str, Any]:
+async def list_runs(
+    project_id: str | None = None,
+    limit: int = 20,
+    include_historical: bool = True,
+) -> dict[str, Any]:
     """List all runs, optionally filtered by project.
 
     Returns runs regardless of origin (CLI, Studio, API).
+    Includes both in-memory active runs and historical persisted runs.
     """
-    runs = _run_manager.list_runs()
+    result_runs: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
 
+    # First, get active runs from RunManager
+    active_runs = _run_manager.list_runs()
     if project_id:
-        runs = [r for r in runs if r.project_id == project_id]
+        active_runs = [r for r in active_runs if r.project_id == project_id]
 
-    return {
-        "runs": [
-            {
-                "run_id": r.run_id,
-                "goal": r.goal,
-                "status": r.status,
-                "source": r.source,
-                "started_at": r.started_at.isoformat(),
-                "completed_at": r.completed_at.isoformat() if r.completed_at else None,
-                "event_count": len(r.events),
-            }
-            for r in runs[-limit:]
-        ]
-    }
+    for r in active_runs:
+        seen_ids.add(r.run_id)
+        result_runs.append({
+            "run_id": r.run_id,
+            "goal": r.goal,
+            "status": r.status,
+            "source": r.source,
+            "started_at": r.started_at.isoformat(),
+            "completed_at": r.completed_at.isoformat() if r.completed_at else None,
+            "event_count": len(r.events),
+        })
+
+    # Then, add historical runs from RunStore (if not already in active)
+    if include_historical:
+        store = get_run_store()
+        historical = store.list_runs(limit=limit, project_id=project_id)
+        for r in historical:
+            if r.run_id not in seen_ids:
+                result_runs.append({
+                    "run_id": r.run_id,
+                    "goal": r.goal,
+                    "status": r.status,
+                    "source": r.source,
+                    "started_at": r.started_at,
+                    "completed_at": r.completed_at,
+                    "event_count": len(r.events),
+                })
+
+    # Sort by started_at descending and limit
+    result_runs.sort(key=lambda x: x.get("started_at", ""), reverse=True)
+    return {"runs": result_runs[:limit]}
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -231,18 +257,95 @@ async def get_active_runs() -> list[dict[str, Any]]:
 
 
 @router.get("/run/history")
-async def get_run_history(limit: int = 20) -> list[dict[str, Any]]:
-    """Get run history."""
-    runs = _run_manager.list_runs()
+async def get_run_history(
+    limit: int = 20,
+    project_id: str | None = None,
+) -> list[dict[str, Any]]:
+    """Get run history from persistent storage.
+
+    Returns historical runs that have been persisted to disk.
+    """
+    store = get_run_store()
+    runs = store.list_runs(limit=limit, project_id=project_id)
     return [
         {
             "run_id": run.run_id,
             "goal": run.goal,
             "status": run.status,
+            "source": run.source,
+            "started_at": run.started_at,
+            "completed_at": run.completed_at,
             "event_count": len(run.events),
+            "workspace": run.workspace,
+            "lens": run.lens,
+            "model": run.model,
         }
-        for run in runs[-limit:]
+        for run in runs
     ]
+
+
+@router.get("/run/{run_id}/events")
+async def get_run_events(run_id: str) -> dict[str, Any]:
+    """Get all events for a run (RFC-112 Observatory).
+
+    First checks active runs in memory, then falls back to persistent storage.
+    """
+    # Check active runs first
+    run = _run_manager.get_run(run_id)
+    if run:
+        return {"run_id": run_id, "events": run.events}
+
+    # Fall back to persistent storage
+    store = get_run_store()
+    events = store.get_events(run_id)
+    if events:
+        return {"run_id": run_id, "events": events}
+
+    return {"run_id": run_id, "events": [], "error": "Run not found"}
+
+
+@router.get("/observatory/data/{run_id}")
+async def get_observatory_data(run_id: str) -> dict[str, Any]:
+    """Get pre-computed Observatory visualization data for a run (RFC-112).
+
+    Returns extracted state for each visualization:
+    - ResonanceWave: refinement iterations
+    - PrismFracture: candidate generation/scoring
+    - ExecutionCinema: task execution
+    - MemoryLattice: learnings
+    - ConvergenceProgress: convergence loop
+    """
+    store = get_run_store()
+
+    # Try to get from persistent storage first
+    snapshot = store.get_observatory_snapshot(run_id)
+    if snapshot:
+        return snapshot.to_dict()
+
+    # Try active run (build snapshot from current events)
+    run = _run_manager.get_run(run_id)
+    if run:
+        # Import here to avoid circular imports
+        from sunwell.interface.server.run_store import StoredRun, _extract_observatory_snapshot
+
+        # Build a temporary StoredRun from active run
+        temp_run = StoredRun(
+            run_id=run.run_id,
+            goal=run.goal,
+            status=run.status,
+            source=run.source,
+            started_at=run.started_at.isoformat() if run.started_at else "",
+            completed_at=run.completed_at.isoformat() if run.completed_at else None,
+            workspace=run.workspace,
+            project_id=run.project_id,
+            lens=run.lens,
+            model=run.model,
+            events=tuple(run.events),
+        )
+        snapshot = _extract_observatory_snapshot(temp_run)
+        return snapshot.to_dict()
+
+    return {"error": "Run not found", "run_id": run_id}
 
 
 @router.post("/run/stop")
@@ -368,7 +471,8 @@ async def _execute_agent(run: RunState, *, use_v2: bool = False) -> AsyncIterato
 
         yield event_dict
 
-    run.complete()
+    # Mark complete and persist to RunStore
+    _run_manager.complete_run(run.run_id)
 
 
 def _create_default_workspace(goal: str, default_root: Path) -> Path:

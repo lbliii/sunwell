@@ -544,3 +544,72 @@ export const listRuns = (projectId?: string, limit = 20) => {
 	params.set('limit', String(limit));
 	return apiGet<{ runs: RunInfo[] }>(`/api/runs?${params.toString()}`);
 };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// OBSERVATORY API (RFC-112)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Observatory snapshot data for a run */
+export interface ObservatoryData {
+	run_id: string;
+	resonance_iterations: Array<{
+		round: number;
+		current_score?: number;
+		new_score?: number;
+		improved?: boolean;
+		improvements_identified?: string;
+		reason?: string;
+	}>;
+	prism_candidates: Array<{
+		id: string;
+		artifact_count: number;
+		score?: number;
+		variance_config?: {
+			prompt_style?: string;
+			temperature?: number;
+			constraint?: string;
+		};
+	}>;
+	selected_candidate: {
+		id: string;
+		artifact_count: number;
+		score?: number;
+		selection_reason?: string;
+	} | null;
+	tasks: Array<{
+		id: string;
+		description: string;
+		status: string;
+		progress: number;
+	}>;
+	learnings: string[];
+	convergence_iterations: Array<{
+		iteration: number;
+		all_passed: boolean;
+		total_errors: number;
+		gate_results: Array<{
+			gate: string;
+			passed: boolean;
+			errors: number;
+		}>;
+	}>;
+	convergence_status: string | null;
+}
+
+/**
+ * Get Observatory visualization data for a run.
+ * 
+ * @param runId - The run ID
+ */
+export const getObservatoryData = (runId: string) => {
+	return apiGet<ObservatoryData>(`/api/observatory/data/${runId}`);
+};
+
+/**
+ * Get all events for a run (for replay).
+ * 
+ * @param runId - The run ID
+ */
+export const getRunEvents = (runId: string) => {
+	return apiGet<{ run_id: string; events: Array<Record<string, unknown>> }>(`/api/run/${runId}/events`);
+};

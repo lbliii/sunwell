@@ -13,7 +13,16 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from sunwell.interface.server.routes._models import CamelModel
+from sunwell.interface.server.routes._models import (
+    BriefingClearResponse,
+    BriefingResponse,
+    CamelModel,
+    IndexChunk,
+    IndexQueryResponse,
+    PromptActionResponse,
+    SavedPromptItem,
+    SavedPromptsResponse,
+)
 from sunwell.interface.server.routes.agent import get_run_manager
 
 router = APIRouter(prefix="/api", tags=["misc"])
@@ -358,21 +367,64 @@ async def write_file_contents(request: WriteFileRequest) -> dict[str, Any]:
 
 
 @router.get("/briefing")
-async def get_briefing(path: str) -> dict[str, Any]:
-    """Get briefing for a project."""
-    return {"briefing": None}
+async def get_briefing(path: str) -> dict[str, BriefingResponse | None]:
+    """Get briefing for a project.
+
+    Returns BriefingResponse with automatic camelCase conversion.
+    """
+    from sunwell.memory.briefing import Briefing
+
+    project_path = normalize_path(path)
+    briefing = Briefing.load(project_path)
+
+    if briefing is None:
+        return {"briefing": None}
+
+    # Convert domain model to response model (CamelModel handles camelCase)
+    return {
+        "briefing": BriefingResponse(
+            mission=briefing.mission,
+            status=briefing.status.value,
+            progress=briefing.progress,
+            last_action=briefing.last_action,
+            next_action=briefing.next_action,
+            hazards=list(briefing.hazards),
+            blockers=list(briefing.blockers),
+            hot_files=list(briefing.hot_files),
+            goal_hash=briefing.goal_hash,
+            related_learnings=list(briefing.related_learnings),
+            predicted_skills=list(briefing.predicted_skills) if briefing.predicted_skills else None,
+            suggested_lens=briefing.suggested_lens,
+            complexity_estimate=briefing.complexity_estimate,
+            estimated_files_touched=briefing.estimated_files_touched,
+            updated_at=briefing.updated_at,
+            session_id=briefing.session_id,
+        )
+    }
 
 
 @router.get("/briefing/exists")
-async def briefing_exists(path: str) -> dict[str, Any]:
-    """Check if briefing exists."""
-    return {"exists": False}
+async def briefing_exists(path: str) -> dict[str, bool]:
+    """Check if briefing exists for a project."""
+    project_path = normalize_path(path)
+    briefing_path = project_path / ".sunwell" / "memory" / "briefing.json"
+    return {"exists": briefing_path.exists()}
 
 
 @router.post("/briefing/clear")
-async def clear_briefing(request: ClearBriefingRequest) -> dict[str, Any]:
-    """Clear briefing for a project."""
-    return {"success": True}
+async def clear_briefing(request: ClearBriefingRequest) -> BriefingClearResponse:
+    """Clear briefing for a project.
+
+    Removes the briefing.json file to reset project state.
+    """
+    project_path = normalize_path(request.path)
+    briefing_path = project_path / ".sunwell" / "memory" / "briefing.json"
+
+    if briefing_path.exists():
+        briefing_path.unlink()
+        return BriefingClearResponse(success=True, message="Briefing cleared")
+
+    return BriefingClearResponse(success=True, message="No briefing to clear")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -380,22 +432,95 @@ async def clear_briefing(request: ClearBriefingRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
+def _get_prompts_path() -> Path:
+    """Get the path to saved prompts file."""
+    from sunwell.knowledge.workspace import default_workspace_root
+
+    prompts_path = default_workspace_root() / "prompts.json"
+    return prompts_path
+
+
+def _load_prompts() -> list[dict[str, Any]]:
+    """Load saved prompts from disk.
+
+    Returns list of {text: str, last_used: int} matching frontend SavedPrompt interface.
+    """
+    import json
+
+    prompts_path = _get_prompts_path()
+    if not prompts_path.exists():
+        return []
+
+    try:
+        with open(prompts_path) as f:
+            data = json.load(f)
+            prompts = data.get("prompts", [])
+            # Handle legacy format (plain strings)
+            if prompts and isinstance(prompts[0], str):
+                return [{"text": p, "last_used": 0} for p in prompts]
+            return prompts
+    except Exception:
+        return []
+
+
+def _save_prompts(prompts: list[dict[str, Any]]) -> None:
+    """Save prompts to disk."""
+    import json
+
+    prompts_path = _get_prompts_path()
+    prompts_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(prompts_path, "w") as f:
+        json.dump({"prompts": prompts}, f, indent=2)
+
+
 @router.get("/prompts")
-async def get_saved_prompts() -> dict[str, Any]:
-    """Get saved prompts."""
-    return {"prompts": []}
+async def get_saved_prompts() -> SavedPromptsResponse:
+    """Get saved prompts from persistent storage.
+
+    Returns SavedPromptsResponse with prompts as SavedPromptItem list.
+    """
+    prompts = _load_prompts()
+    return SavedPromptsResponse(
+        prompts=[SavedPromptItem(text=p["text"], last_used=p["last_used"]) for p in prompts]
+    )
 
 
 @router.post("/prompts")
-async def save_prompt(request: SavePromptRequest) -> dict[str, Any]:
-    """Save a prompt."""
-    return {"status": "saved"}
+async def save_prompt(request: SavePromptRequest) -> PromptActionResponse:
+    """Save a prompt to persistent storage.
+
+    Adds the prompt to the list if not already present, or updates last_used.
+    """
+    import time
+
+    prompts = _load_prompts()
+    now = int(time.time() * 1000)  # JavaScript timestamp (ms)
+
+    # Check if prompt already exists
+    existing = next((p for p in prompts if p["text"] == request.prompt), None)
+    if existing:
+        existing["last_used"] = now
+    else:
+        prompts.append({"text": request.prompt, "last_used": now})
+
+    _save_prompts(prompts)
+    return PromptActionResponse(status="saved", total=len(prompts))
 
 
 @router.post("/prompts/remove")
-async def remove_prompt(request: RemovePromptRequest) -> dict[str, Any]:
-    """Remove a saved prompt."""
-    return {"status": "removed"}
+async def remove_prompt(request: RemovePromptRequest) -> PromptActionResponse:
+    """Remove a saved prompt from persistent storage."""
+    prompts = _load_prompts()
+    original_len = len(prompts)
+
+    prompts = [p for p in prompts if p["text"] != request.prompt]
+
+    if len(prompts) < original_len:
+        _save_prompts(prompts)
+        return PromptActionResponse(status="removed", total=len(prompts))
+
+    return PromptActionResponse(status="not_found", total=len(prompts))
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -557,9 +682,125 @@ async def stop_indexing() -> dict[str, Any]:
 
 
 @router.post("/indexing/query")
-async def query_index(request: IndexingQueryRequest) -> dict[str, Any]:
-    """Query the index."""
-    return {"results": [], "query": request.text}
+async def query_index(request: IndexingQueryRequest) -> IndexQueryResponse:
+    """Query the index for relevant code/content.
+
+    Returns IndexQueryResponse with automatic camelCase conversion.
+    """
+    import os
+    import time
+    import uuid
+
+    start_time = time.perf_counter()
+
+    # Try to get workspace from current context (or use cwd)
+    workspace_path = Path.cwd()
+
+    # Simple text-based search fallback
+    chunks: list[IndexChunk] = []
+    query_lower = request.text.lower()
+    query_words = set(query_lower.split())
+    total_searched = 0
+
+    # File extensions to search
+    extensions = {".py", ".ts", ".js", ".md", ".yaml", ".yml", ".json", ".toml"}
+
+    try:
+        # Walk the workspace looking for matches
+        for root, _, files in os.walk(workspace_path):
+            # Skip common non-source directories
+            if any(skip in root for skip in [
+                "node_modules", "__pycache__", ".git", ".venv", "venv", "target", "dist", "build"
+            ]):
+                continue
+
+            for filename in files:
+                if not any(filename.endswith(ext) for ext in extensions):
+                    continue
+
+                file_path = Path(root) / filename
+
+                # Skip large files
+                try:
+                    if file_path.stat().st_size > 100_000:
+                        continue
+                except OSError:
+                    continue
+
+                try:
+                    content = file_path.read_text(encoding="utf-8", errors="ignore")
+                    content_lower = content.lower()
+                    total_searched += 1
+
+                    # Score by word matches
+                    score = sum(1 for word in query_words if word in content_lower)
+                    if score == 0:
+                        continue
+
+                    # Find matching lines and build chunks
+                    lines = content.split("\n")
+                    for i, line in enumerate(lines):
+                        if any(word in line.lower() for word in query_words):
+                            # Compute relative path
+                            try:
+                                rel_path = str(file_path.relative_to(workspace_path))
+                            except ValueError:
+                                rel_path = str(file_path)
+
+                            # Determine chunk type based on extension
+                            ext = file_path.suffix
+                            chunk_type: str = "block"
+                            if ext == ".md":
+                                chunk_type = "prose"
+                            elif ext == ".py":
+                                chunk_type = "function"
+
+                            # Build chunk with context (3 lines before/after)
+                            chunk_start = max(0, i - 2)
+                            chunk_end = min(len(lines), i + 3)
+                            chunk_content = "\n".join(lines[chunk_start:chunk_end])
+
+                            chunks.append(IndexChunk(
+                                id=str(uuid.uuid4())[:8],
+                                file_path=rel_path,
+                                start_line=chunk_start + 1,
+                                end_line=chunk_end,
+                                content=chunk_content[:500],
+                                chunk_type=chunk_type,  # type: ignore[arg-type]
+                                score=min(1.0, score / len(query_words)) if query_words else 0,
+                            ))
+
+                            if len(chunks) >= request.top_k * 2:
+                                break
+
+                except Exception:
+                    continue
+
+            # Limit total results scanned
+            if len(chunks) >= request.top_k * 2:
+                break
+
+        # Sort by score and limit
+        chunks.sort(key=lambda c: c.score, reverse=True)
+        chunks = chunks[:request.top_k]
+
+    except Exception as e:
+        return IndexQueryResponse(
+            chunks=[],
+            fallback_used=True,
+            query_time_ms=int((time.perf_counter() - start_time) * 1000),
+            total_chunks_searched=0,
+            error=str(e),
+        )
+
+    query_time_ms = int((time.perf_counter() - start_time) * 1000)
+
+    return IndexQueryResponse(
+        chunks=chunks,
+        fallback_used=True,
+        query_time_ms=query_time_ms,
+        total_chunks_searched=total_searched,
+    )
 
 
 @router.post("/indexing/rebuild")

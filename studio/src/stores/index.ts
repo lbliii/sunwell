@@ -470,6 +470,9 @@ export {
   goLive,
   snapshotHistory,
   clearHistory as clearObservatoryHistory,
+  // RFC-112: Historical run support
+  loadHistoricalRun,
+  clearHistoricalRun,
   type ResonanceIteration,
   type ResonanceWaveState,
   type PlaybackState,

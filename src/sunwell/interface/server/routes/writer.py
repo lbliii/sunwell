@@ -7,6 +7,12 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from sunwell.interface.server.routes._models import (
+    FixAllResponse,
+    ValidationResponse,
+    ValidationWarning,
+)
+
 router = APIRouter(prefix="/api", tags=["writer"])
 
 
@@ -86,15 +92,120 @@ async def detect_diataxis(request: DiataxisRequest) -> dict[str, Any]:
 
 
 @router.post("/writer/validate")
-async def validate_document(request: ValidateRequest) -> dict[str, Any]:
-    """Validate document."""
-    return {"warnings": []}
+async def validate_document(request: ValidateRequest) -> ValidationResponse:
+    """Validate document content for common issues.
+
+    Performs basic linting checks including:
+    - Trailing whitespace
+    - Multiple blank lines
+    - Missing headers
+    - Broken links (relative only)
+    - Long lines
+
+    Returns ValidationResponse with warnings (auto-converted to camelCase).
+    """
+    import re
+
+    content = request.content
+    lines = content.split("\n")
+    warnings: list[ValidationWarning] = []
+
+    for i, line in enumerate(lines, 1):
+        # Trailing whitespace
+        if line.rstrip() != line and line.strip():
+            warnings.append(ValidationWarning(
+                line=i,
+                rule="trailing_whitespace",
+                message="Line has trailing whitespace",
+                severity="warning",
+                suggestion="Remove trailing whitespace",
+            ))
+
+        # Long lines (>120 chars)
+        if len(line) > 120 and not line.strip().startswith("```"):
+            warnings.append(ValidationWarning(
+                line=i,
+                rule="long_line",
+                message=f"Line exceeds 120 characters ({len(line)})",
+                severity="info",
+            ))
+
+        # Multiple consecutive blank lines
+        if i > 1 and not line.strip() and not lines[i - 2].strip():
+            warnings.append(ValidationWarning(
+                line=i,
+                rule="multiple_blank_lines",
+                message="Multiple consecutive blank lines",
+                severity="warning",
+                suggestion="Collapse to single blank line",
+            ))
+
+    # Check for broken relative links (markdown only)
+    if request.file_path and request.file_path.endswith(".md"):
+        link_pattern = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+        for match in link_pattern.finditer(content):
+            link_text, link_target = match.groups()
+            if not link_target.startswith(("http://", "https://", "#", "mailto:")):
+                # Relative link - check if file exists
+                if request.file_path:
+                    file_dir = Path(request.file_path).parent
+                    target_path = file_dir / link_target
+                    if not target_path.exists():
+                        line_num = content[:match.start()].count("\n") + 1
+                        warnings.append(ValidationWarning(
+                            line=line_num,
+                            rule="broken_link",
+                            message=f"Broken relative link: {link_target}",
+                            severity="error",
+                        ))
+
+    # Check for missing title (first H1)
+    if not any(line.strip().startswith("# ") for line in lines[:10]):
+        warnings.append(ValidationWarning(
+            line=1,
+            rule="missing_title",
+            message="Document is missing a title (H1 header)",
+            severity="warning",
+        ))
+
+    return ValidationResponse(warnings=warnings)
 
 
 @router.post("/writer/fix-all")
-async def fix_all_issues(request: FixAllRequest) -> dict[str, Any]:
-    """Fix all fixable issues."""
-    return {"content": request.content, "fixed": 0}
+async def fix_all_issues(request: FixAllRequest) -> FixAllResponse:
+    """Fix all fixable issues in the document.
+
+    Currently supports:
+    - Removing trailing whitespace
+    - Collapsing multiple blank lines
+    """
+    import re
+
+    content = request.content
+    fixed_count = 0
+
+    # Track which rules to fix (use 'rule' field from ValidationWarning)
+    fixable_rules = {w.get("rule") for w in request.warnings}
+
+    # Fix trailing whitespace
+    if "trailing_whitespace" in fixable_rules:
+        lines = content.split("\n")
+        new_lines = []
+        for line in lines:
+            stripped = line.rstrip()
+            if stripped != line and line.strip():
+                fixed_count += 1
+            new_lines.append(stripped)
+        content = "\n".join(new_lines)
+
+    # Fix multiple blank lines (collapse to single)
+    if "multiple_blank_lines" in fixable_rules:
+        original_len = len(content)
+        content = re.sub(r"\n{3,}", "\n\n", content)
+        if len(content) != original_len:
+            fixed_count += 1
+
+    return FixAllResponse(content=content, fixed=fixed_count)
 
 
 @router.post("/writer/execute-skill")

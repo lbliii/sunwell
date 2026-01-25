@@ -5,13 +5,20 @@ Tracks active agent runs with:
 - Cancellation support
 - Thread-safe access
 - Source tracking for CLI/Studio visibility (RFC-119)
+- Automatic persistence to RunStore (RFC-112 Observatory)
 """
 
+import logging
 import threading
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
+
+if TYPE_CHECKING:
+    from sunwell.interface.server.run_store import RunStore
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -65,17 +72,20 @@ class RunManager:
     - Create new runs
     - Track active runs by ID
     - Cleanup completed runs
+    - Persist completed runs to RunStore (RFC-112 Observatory)
     """
 
-    def __init__(self, max_runs: int = 100) -> None:
+    def __init__(self, max_runs: int = 100, run_store: "RunStore | None" = None) -> None:
         """Initialize run manager.
 
         Args:
             max_runs: Maximum concurrent runs to track (prevents memory leak).
+            run_store: Optional RunStore for persistence. If None, uses global instance.
         """
         self._runs: dict[str, RunState] = {}
         self._lock = threading.Lock()
         self._max_runs = max_runs
+        self._run_store = run_store
 
     def create_run(
         self,
@@ -151,10 +161,43 @@ class RunManager:
         """
         return list(self._runs.values())
 
+    def _get_store(self) -> "RunStore | None":
+        """Get the run store, lazily initializing from global if needed."""
+        if self._run_store is None:
+            try:
+                from sunwell.interface.server.run_store import get_run_store
+                self._run_store = get_run_store()
+            except Exception as e:
+                logger.warning(f"Failed to get run store: {e}")
+        return self._run_store
+
+    def complete_run(self, run_id: str, status: str = "complete") -> None:
+        """Mark a run as complete and persist to storage.
+
+        Args:
+            run_id: The run ID to complete.
+            status: Final status ("complete", "error", "cancelled").
+        """
+        run = self._runs.get(run_id)
+        if run is None:
+            return
+
+        run.complete(status)
+
+        # Persist to RunStore
+        store = self._get_store()
+        if store:
+            try:
+                store.save_run(run)
+                logger.debug(f"Persisted run {run_id} to storage")
+            except Exception as e:
+                logger.error(f"Failed to persist run {run_id}: {e}")
+
     def _cleanup_completed(self) -> None:
         """Remove completed runs to free memory.
 
         Called when at capacity. Removes oldest completed runs first.
+        Runs are already persisted to RunStore before removal.
         """
         completed = [
             run_id

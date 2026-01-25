@@ -107,6 +107,7 @@ class ToolExecutor:
     _core_handlers: CoreToolHandlers | None = field(default=None, init=False)
     _rate_limits: ToolRateLimits = field(default_factory=ToolRateLimits, init=False)
     _audit_entries: list[ToolAuditEntry] = field(default_factory=list, init=False)
+    _resolved_workspace: Path | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         """Initialize core tool handlers."""

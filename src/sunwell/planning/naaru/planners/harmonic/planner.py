@@ -162,8 +162,12 @@ class HarmonicPlanner:
 
         RFC-060: Uses create_validated_event() for schema validation.
         Validation mode controlled by SUNWELL_EVENT_VALIDATION env var.
+        RFC-112: Debug logging for Observatory event flow verification.
         """
+        self._logger.debug(f"[Observatory] Emitting event: {event_type} (callback={'set' if self.event_callback else 'NOT SET'})")
+
         if self.event_callback is None:
+            self._logger.debug(f"[Observatory] Event {event_type} dropped - no callback configured")
             return
 
         try:
@@ -173,9 +177,10 @@ class HarmonicPlanner:
             # RFC-060: Validate event data against schema
             event = create_validated_event(EventType(event_type), data)
             self.event_callback(event)
+            self._logger.debug(f"[Observatory] Event {event_type} delivered successfully")
         except ValueError as e:
             # Invalid event type or validation failure (strict mode)
-            logging.warning(f"Event validation failed for '{event_type}': {e}")
+            self._logger.warning(f"Event validation failed for '{event_type}': {e}")
         except Exception as e:
             # Other errors - log but don't break planning
             logging.warning(f"Event emission failed for '{event_type}': {e}")

@@ -158,7 +158,15 @@ class TestToolExecutor:
     
     @pytest.fixture
     def executor(self, workspace: Path) -> ToolExecutor:
-        project = Project(root=workspace, id="test-project", name="Test Project")
+        from datetime import datetime
+        from sunwell.knowledge.project import WorkspaceType
+        project = Project(
+            root=workspace,
+            id="test-project",
+            name="Test Project",
+            workspace_type=WorkspaceType.TEMPORARY,
+            created_at=datetime.now(),
+        )
         return ToolExecutor(project=project)
     
     @pytest.mark.asyncio
@@ -196,9 +204,17 @@ class TestToolExecutor:
     @pytest.mark.asyncio
     async def test_rate_limiting(self, workspace: Path) -> None:
         """Test that rate limiting works."""
+        from datetime import datetime
+        from sunwell.knowledge.project import WorkspaceType
         limits = ToolRateLimits(max_tool_calls_per_minute=2)
         policy = ToolPolicy(rate_limits=limits)
-        project = Project(root=workspace, id="test-project", name="Test Project")
+        project = Project(
+            root=workspace,
+            id="test-project",
+            name="Test Project",
+            workspace_type=WorkspaceType.TEMPORARY,
+            created_at=datetime.now(),
+        )
         executor = ToolExecutor(project=project, policy=policy)
         
         # First two calls should succeed

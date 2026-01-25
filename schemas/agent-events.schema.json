@@ -9,6 +9,236 @@
       "type": "object",
       "properties": {
         "type": {
+          "const": "session_start",
+          "description": "Event type: session_start"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "session_ready",
+          "description": "Event type: session_ready"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "session_end",
+          "description": "Event type: session_end"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "session_crash",
+          "description": "Event type: session_crash"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "goal_received",
+          "description": "Event type: goal_received"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "goal_analyzing",
+          "description": "Event type: goal_analyzing"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "goal_ready",
+          "description": "Event type: goal_ready"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "goal_complete",
+          "description": "Event type: goal_complete"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "goal_failed",
+          "description": "Event type: goal_failed"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "goal_paused",
+          "description": "Event type: goal_paused"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
           "const": "memory_load",
           "description": "Event type: memory_load"
         },
@@ -110,8 +340,8 @@
             }
           },
           "required": [
-            "category",
-            "fact"
+            "fact",
+            "category"
           ],
           "additionalProperties": true
         },
@@ -209,6 +439,167 @@
               "type": "integer"
             }
           },
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "orient",
+          "description": "Event type: orient"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "learning_added",
+          "description": "Event type: learning_added"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "decision_made",
+          "description": "Event type: decision_made"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "failure_recorded",
+          "description": "Event type: failure_recorded"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "briefing_updated",
+          "description": "Event type: briefing_updated"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "knowledge_retrieved",
+          "description": "Event type: knowledge_retrieved"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "template_matched",
+          "description": "Event type: template_matched"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
           "additionalProperties": true
         },
         "timestamp": {
@@ -329,8 +720,8 @@
         "data": {
           "type": "object",
           "properties": {
-            "candidate_index": {
-              "type": "integer"
+            "candidate_id": {
+              "type": "string"
             },
             "artifact_count": {
               "type": "integer"
@@ -374,8 +765,8 @@
             "technique": {
               "type": "string"
             },
-            "selected_index": {
-              "type": "integer"
+            "selected_candidate_id": {
+              "type": "string"
             },
             "total_candidates": {
               "type": "integer"
@@ -402,9 +793,18 @@
             },
             "score": {
               "type": "number"
+            },
+            "task_list": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "gate_list": {
+              "type": "object",
+              "additionalProperties": true
             }
           },
           "required": [
+            "selected_candidate_id",
             "tasks"
           ],
           "additionalProperties": true
@@ -529,8 +929,8 @@
         "data": {
           "type": "object",
           "properties": {
-            "candidate_index": {
-              "type": "integer"
+            "candidate_id": {
+              "type": "string"
             },
             "artifact_count": {
               "type": "integer"
@@ -548,7 +948,7 @@
           },
           "required": [
             "artifact_count",
-            "candidate_index",
+            "candidate_id",
             "total_candidates"
           ],
           "additionalProperties": true
@@ -613,8 +1013,8 @@
         "data": {
           "type": "object",
           "properties": {
-            "candidate_index": {
-              "type": "integer"
+            "candidate_id": {
+              "type": "string"
             },
             "score": {
               "type": "number"
@@ -632,7 +1032,7 @@
           },
           "required": [
             "score",
-            "candidate_index",
+            "candidate_id",
             "total_candidates"
           ],
           "additionalProperties": true
@@ -703,8 +1103,8 @@
             }
           },
           "required": [
-            "round",
-            "total_rounds"
+            "total_rounds",
+            "round"
           ],
           "additionalProperties": true
         },
@@ -865,8 +1265,8 @@
             }
           },
           "required": [
-            "artifacts_discovered",
-            "phase"
+            "phase",
+            "artifacts_discovered"
           ],
           "additionalProperties": true
         },
@@ -899,8 +1299,8 @@
             }
           },
           "required": [
-            "gate_type",
-            "gate_id"
+            "gate_id",
+            "gate_type"
           ],
           "additionalProperties": true
         },
@@ -939,9 +1339,9 @@
             }
           },
           "required": [
+            "step",
             "gate_id",
-            "passed",
-            "step"
+            "passed"
           ],
           "additionalProperties": true
         },
@@ -1050,8 +1450,8 @@
             }
           },
           "required": [
-            "description",
-            "task_id"
+            "task_id",
+            "description"
           ],
           "additionalProperties": true
         },
@@ -1129,9 +1529,32 @@
             }
           },
           "required": [
-            "duration_ms",
-            "task_id"
+            "task_id",
+            "duration_ms"
           ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "task_output",
+          "description": "Event type: task_output"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
           "additionalProperties": true
         },
         "timestamp": {
@@ -1166,8 +1589,8 @@
             }
           },
           "required": [
-            "error",
-            "task_id"
+            "task_id",
+            "error"
           ],
           "additionalProperties": true
         },
@@ -1273,8 +1696,8 @@
             }
           },
           "required": [
-            "error_type",
-            "message"
+            "message",
+            "error_type"
           ],
           "additionalProperties": true
         },
@@ -1373,8 +1796,8 @@
             }
           },
           "required": [
-            "progress",
-            "stage"
+            "stage",
+            "progress"
           ],
           "additionalProperties": true
         },
@@ -1621,44 +2044,28 @@
     },
     {
       "type": "object",
-      "description": "RFC-115: Epic decomposed into milestones",
       "properties": {
         "type": {
-          "const": "epic_decomposed",
-          "description": "Event type: epic_decomposed"
+          "const": "recovery_saved",
+          "description": "Event type: recovery_saved"
         },
         "data": {
           "type": "object",
           "properties": {
-            "epic_id": {
+            "recovery_id": {
               "type": "string"
             },
-            "epic_title": {
-              "type": "string"
-            },
-            "milestones": {
+            "artifact_ids": {
               "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "id": { "type": "string" },
-                  "title": { "type": "string" },
-                  "produces": { "type": "array", "items": { "type": "string" } },
-                  "index": { "type": "integer" }
-                }
-              }
+              "items": {}
             },
-            "total_milestones": {
-              "type": "integer"
-            },
-            "domain": {
+            "reason": {
               "type": "string"
             }
           },
           "required": [
-            "epic_id",
-            "epic_title",
-            "total_milestones"
+            "artifact_ids",
+            "recovery_id"
           ],
           "additionalProperties": true
         },
@@ -1675,41 +2082,25 @@
     },
     {
       "type": "object",
-      "description": "RFC-115: Milestone started execution",
       "properties": {
         "type": {
-          "const": "milestone_started",
-          "description": "Event type: milestone_started"
+          "const": "recovery_loaded",
+          "description": "Event type: recovery_loaded"
         },
         "data": {
           "type": "object",
           "properties": {
-            "epic_id": {
+            "recovery_id": {
               "type": "string"
             },
-            "milestone_id": {
-              "type": "string"
-            },
-            "milestone_title": {
-              "type": "string"
-            },
-            "milestone_index": {
-              "type": "integer"
-            },
-            "total_milestones": {
-              "type": "integer"
-            },
-            "produces": {
+            "artifact_ids": {
               "type": "array",
-              "items": { "type": "string" }
+              "items": {}
             }
           },
           "required": [
-            "epic_id",
-            "milestone_id",
-            "milestone_title",
-            "milestone_index",
-            "total_milestones"
+            "artifact_ids",
+            "recovery_id"
           ],
           "additionalProperties": true
         },
@@ -1726,35 +2117,24 @@
     },
     {
       "type": "object",
-      "description": "RFC-115: Milestone task progress update",
       "properties": {
         "type": {
-          "const": "milestone_progress",
-          "description": "Event type: milestone_progress"
+          "const": "recovery_resolved",
+          "description": "Event type: recovery_resolved"
         },
         "data": {
           "type": "object",
           "properties": {
-            "epic_id": {
+            "recovery_id": {
               "type": "string"
             },
-            "milestone_id": {
-              "type": "string"
-            },
-            "tasks_completed": {
+            "artifacts_passed": {
               "type": "integer"
-            },
-            "tasks_total": {
-              "type": "integer"
-            },
-            "current_task": {
-              "type": "string"
             }
           },
           "required": [
-            "milestone_id",
-            "tasks_completed",
-            "tasks_total"
+            "artifacts_passed",
+            "recovery_id"
           ],
           "additionalProperties": true
         },
@@ -1771,88 +2151,24 @@
     },
     {
       "type": "object",
-      "description": "RFC-115: Milestone completed successfully",
       "properties": {
         "type": {
-          "const": "milestone_completed",
-          "description": "Event type: milestone_completed"
+          "const": "recovery_aborted",
+          "description": "Event type: recovery_aborted"
         },
         "data": {
           "type": "object",
           "properties": {
-            "epic_id": {
-              "type": "string"
-            },
-            "milestone_id": {
-              "type": "string"
-            },
-            "milestone_title": {
-              "type": "string"
-            },
-            "artifacts_produced": {
-              "type": "array",
-              "items": { "type": "string" }
-            },
-            "learnings_extracted": {
-              "type": "integer"
-            },
-            "next_milestone_id": {
-              "type": ["string", "null"]
-            },
-            "next_milestone_title": {
-              "type": ["string", "null"]
-            },
-            "milestones_remaining": {
-              "type": "integer"
-            }
-          },
-          "required": [
-            "epic_id",
-            "milestone_id"
-          ],
-          "additionalProperties": true
-        },
-        "timestamp": {
-          "type": "number",
-          "description": "Unix timestamp (seconds since epoch)"
-        }
-      },
-      "required": [
-        "type",
-        "data",
-        "timestamp"
-      ]
-    },
-    {
-      "type": "object",
-      "description": "RFC-115: Milestone was skipped",
-      "properties": {
-        "type": {
-          "const": "milestone_skipped",
-          "description": "Event type: milestone_skipped"
-        },
-        "data": {
-          "type": "object",
-          "properties": {
-            "epic_id": {
-              "type": "string"
-            },
-            "milestone_id": {
-              "type": "string"
-            },
-            "milestone_title": {
+            "recovery_id": {
               "type": "string"
             },
             "reason": {
               "type": "string"
-            },
-            "next_milestone_id": {
-              "type": ["string", "null"]
             }
           },
           "required": [
-            "epic_id",
-            "milestone_id"
+            "reason",
+            "recovery_id"
           ],
           "additionalProperties": true
         },
@@ -1869,42 +2185,26 @@
     },
     {
       "type": "object",
-      "description": "RFC-115: Epic completed all milestones",
       "properties": {
         "type": {
-          "const": "epic_completed",
-          "description": "Event type: epic_completed"
+          "const": "lens_selected",
+          "description": "Event type: lens_selected"
         },
         "data": {
           "type": "object",
           "properties": {
-            "epic_id": {
+            "name": {
               "type": "string"
             },
-            "epic_title": {
+            "version": {
               "type": "string"
             },
-            "milestones_completed": {
-              "type": "integer"
-            },
-            "milestones_skipped": {
-              "type": "integer"
-            },
-            "total_tasks_completed": {
-              "type": "integer"
-            },
-            "total_artifacts_produced": {
-              "type": "array",
-              "items": { "type": "string" }
-            },
-            "duration_s": {
-              "type": "number"
+            "source": {
+              "type": "string"
             }
           },
           "required": [
-            "epic_id",
-            "epic_title",
-            "milestones_completed"
+            "name"
           ],
           "additionalProperties": true
         },
@@ -1921,22 +2221,27 @@
     },
     {
       "type": "object",
-      "description": "RFC-130: Specialist agent spawned for sub-task",
       "properties": {
         "type": {
-          "const": "specialist_spawned",
-          "description": "Event type: specialist_spawned"
+          "const": "lens_changed",
+          "description": "Event type: lens_changed"
         },
         "data": {
           "type": "object",
           "properties": {
-            "specialist_id": { "type": "string" },
-            "goal": { "type": "string" },
-            "role": { "type": "string" },
-            "parent_task_id": { "type": ["string", "null"] },
-            "depth": { "type": "integer" }
+            "old_lens": {
+              "type": "string"
+            },
+            "new_lens": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
           },
-          "required": ["specialist_id", "goal", "role"],
+          "required": [
+            "new_lens"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -1944,26 +2249,41 @@
           "description": "Unix timestamp (seconds since epoch)"
         }
       },
-      "required": ["type", "data", "timestamp"]
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
     },
     {
       "type": "object",
-      "description": "RFC-130: Specialist agent completed",
       "properties": {
         "type": {
-          "const": "specialist_completed",
-          "description": "Event type: specialist_completed"
+          "const": "integration_check_start",
+          "description": "Event type: integration_check_start"
         },
         "data": {
           "type": "object",
           "properties": {
-            "specialist_id": { "type": "string" },
-            "goal": { "type": "string" },
-            "status": { "type": "string", "enum": ["completed", "failed", "cancelled"] },
-            "error": { "type": ["string", "null"] },
-            "duration_ms": { "type": "integer" }
+            "edge_id": {
+              "type": "string"
+            },
+            "check_type": {
+              "type": "string"
+            },
+            "source_artifact": {
+              "type": "string"
+            },
+            "target_artifact": {
+              "type": "string"
+            }
           },
-          "required": ["specialist_id", "status"],
+          "required": [
+            "check_type",
+            "edge_id",
+            "source_artifact",
+            "target_artifact"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -1971,25 +2291,36 @@
           "description": "Unix timestamp (seconds since epoch)"
         }
       },
-      "required": ["type", "data", "timestamp"]
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
     },
     {
       "type": "object",
-      "description": "RFC-130: Previous checkpoint found for goal",
       "properties": {
         "type": {
-          "const": "checkpoint_found",
-          "description": "Event type: checkpoint_found"
+          "const": "integration_check_pass",
+          "description": "Event type: integration_check_pass"
         },
         "data": {
           "type": "object",
           "properties": {
-            "goal": { "type": "string" },
-            "checkpoint_path": { "type": "string" },
-            "phase": { "type": "string" },
-            "summary": { "type": "object", "additionalProperties": true }
+            "edge_id": {
+              "type": "string"
+            },
+            "check_type": {
+              "type": "string"
+            },
+            "verification_method": {
+              "type": "string"
+            }
           },
-          "required": ["goal", "phase"],
+          "required": [
+            "check_type",
+            "edge_id"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -1997,26 +2328,44 @@
           "description": "Unix timestamp (seconds since epoch)"
         }
       },
-      "required": ["type", "data", "timestamp"]
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
     },
     {
       "type": "object",
-      "description": "RFC-130: Semantic checkpoint saved",
       "properties": {
         "type": {
-          "const": "checkpoint_saved",
-          "description": "Event type: checkpoint_saved"
+          "const": "integration_check_fail",
+          "description": "Event type: integration_check_fail"
         },
         "data": {
           "type": "object",
           "properties": {
-            "goal": { "type": "string" },
-            "phase": { "type": "string" },
-            "path": { "type": "string" },
-            "tasks_completed": { "type": "integer" },
-            "tasks_remaining": { "type": "integer" }
+            "edge_id": {
+              "type": "string"
+            },
+            "check_type": {
+              "type": "string"
+            },
+            "expected": {
+              "type": "string"
+            },
+            "actual": {
+              "type": "string"
+            },
+            "suggested_fix": {
+              "type": "string"
+            }
           },
-          "required": ["phase"],
+          "required": [
+            "actual",
+            "edge_id",
+            "check_type",
+            "expected"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -2024,25 +2373,41 @@
           "description": "Unix timestamp (seconds since epoch)"
         }
       },
-      "required": ["type", "data", "timestamp"]
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
     },
     {
       "type": "object",
-      "description": "RFC-130: Agent state restored from checkpoint",
       "properties": {
         "type": {
-          "const": "checkpoint_restored",
-          "description": "Event type: checkpoint_restored"
+          "const": "stub_detected",
+          "description": "Event type: stub_detected"
         },
         "data": {
           "type": "object",
           "properties": {
-            "goal": { "type": "string" },
-            "checkpoint_path": { "type": "string" },
-            "phase": { "type": "string" },
-            "tasks_resumed": { "type": "integer" }
+            "artifact_id": {
+              "type": "string"
+            },
+            "file_path": {
+              "type": "string"
+            },
+            "stub_type": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            }
           },
-          "required": ["goal", "phase"],
+          "required": [
+            "file_path",
+            "artifact_id",
+            "stub_type",
+            "location"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -2050,25 +2415,33 @@
           "description": "Unix timestamp (seconds since epoch)"
         }
       },
-      "required": ["type", "data", "timestamp"]
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
     },
     {
       "type": "object",
-      "description": "RFC-130: Execution phase completed",
       "properties": {
         "type": {
-          "const": "phase_complete",
-          "description": "Event type: phase_complete"
+          "const": "orphan_detected",
+          "description": "Event type: orphan_detected"
         },
         "data": {
           "type": "object",
           "properties": {
-            "phase": { "type": "string" },
-            "summary": { "type": "string" },
-            "next_phase": { "type": ["string", "null"] },
-            "duration_ms": { "type": "integer" }
+            "artifact_id": {
+              "type": "string"
+            },
+            "file_path": {
+              "type": "string"
+            }
           },
-          "required": ["phase"],
+          "required": [
+            "file_path",
+            "artifact_id"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -2076,26 +2449,41 @@
           "description": "Unix timestamp (seconds since epoch)"
         }
       },
-      "required": ["type", "data", "timestamp"]
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
     },
     {
       "type": "object",
-      "description": "RFC-130: Autonomous action blocked by guardrails",
       "properties": {
         "type": {
-          "const": "autonomous_action_blocked",
-          "description": "Event type: autonomous_action_blocked"
+          "const": "wire_task_generated",
+          "description": "Event type: wire_task_generated"
         },
         "data": {
           "type": "object",
           "properties": {
-            "action_type": { "type": "string" },
-            "path": { "type": "string" },
-            "risk_level": { "type": "string" },
-            "reason": { "type": "string" },
-            "escalation_required": { "type": "boolean" }
+            "task_id": {
+              "type": "string"
+            },
+            "source_artifact": {
+              "type": "string"
+            },
+            "target_artifact": {
+              "type": "string"
+            },
+            "integration_type": {
+              "type": "string"
+            }
           },
-          "required": ["action_type", "reason"],
+          "required": [
+            "task_id",
+            "source_artifact",
+            "target_artifact",
+            "integration_type"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -2103,26 +2491,29 @@
           "description": "Unix timestamp (seconds since epoch)"
         }
       },
-      "required": ["type", "data", "timestamp"]
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
     },
     {
       "type": "object",
-      "description": "RFC-130: Guardrail evolution suggested based on patterns",
       "properties": {
         "type": {
-          "const": "guard_evolution_suggested",
-          "description": "Event type: guard_evolution_suggested"
+          "const": "briefing_loaded",
+          "description": "Event type: briefing_loaded"
         },
         "data": {
           "type": "object",
           "properties": {
-            "rule_id": { "type": "string" },
-            "description": { "type": "string" },
-            "suggested_change": { "type": "string" },
-            "confidence": { "type": "number" },
-            "source_violations_count": { "type": "integer" }
+            "path": {
+              "type": "string"
+            }
           },
-          "required": ["rule_id", "description"],
+          "required": [
+            "path"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -2130,26 +2521,29 @@
           "description": "Unix timestamp (seconds since epoch)"
         }
       },
-      "required": ["type", "data", "timestamp"]
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
     },
     {
       "type": "object",
-      "description": "RFC-130: Autonomous session started",
       "properties": {
         "type": {
-          "const": "autonomous_session_start",
-          "description": "Event type: autonomous_session_start"
+          "const": "briefing_saved",
+          "description": "Event type: briefing_saved"
         },
         "data": {
           "type": "object",
           "properties": {
-            "session_id": { "type": "string" },
-            "goal": { "type": "string" },
-            "trust_level": { "type": "string" },
-            "max_hours": { "type": "number" },
-            "git_tag": { "type": "string" }
+            "path": {
+              "type": "string"
+            }
           },
-          "required": ["session_id", "goal"],
+          "required": [
+            "path"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -2157,39 +2551,14 @@
           "description": "Unix timestamp (seconds since epoch)"
         }
       },
-      "required": ["type", "data", "timestamp"]
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
     },
     {
       "type": "object",
-      "description": "RFC-130: Autonomous session completed",
-      "properties": {
-        "type": {
-          "const": "autonomous_session_complete",
-          "description": "Event type: autonomous_session_complete"
-        },
-        "data": {
-          "type": "object",
-          "properties": {
-            "session_id": { "type": "string" },
-            "success": { "type": "boolean" },
-            "duration_s": { "type": "number" },
-            "tasks_completed": { "type": "integer" },
-            "specialists_spawned": { "type": "integer" },
-            "checkpoints_saved": { "type": "integer" }
-          },
-          "required": ["success"],
-          "additionalProperties": true
-        },
-        "timestamp": {
-          "type": "number",
-          "description": "Unix timestamp (seconds since epoch)"
-        }
-      },
-      "required": ["type", "data", "timestamp"]
-    },
-    {
-      "type": "object",
-      "description": "RFC-130: Memory-informed prefetch started",
       "properties": {
         "type": {
           "const": "prefetch_start",
@@ -2198,9 +2567,14 @@
         "data": {
           "type": "object",
           "properties": {
-            "goal": { "type": "string" },
-            "similar_goals_found": { "type": "integer" }
+            "sources": {
+              "type": "array",
+              "items": {}
+            }
           },
+          "required": [
+            "sources"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -2208,11 +2582,14 @@
           "description": "Unix timestamp (seconds since epoch)"
         }
       },
-      "required": ["type", "data", "timestamp"]
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
     },
     {
       "type": "object",
-      "description": "RFC-130: Memory-informed prefetch completed",
       "properties": {
         "type": {
           "const": "prefetch_complete",
@@ -2221,12 +2598,17 @@
         "data": {
           "type": "object",
           "properties": {
-            "files_count": { "type": "integer" },
-            "learnings_count": { "type": "integer" },
-            "skills_count": { "type": "integer" },
-            "lens": { "type": ["string", "null"] },
-            "memory_hints": { "type": "array", "items": { "type": "string" } }
+            "duration_ms": {
+              "type": "integer"
+            },
+            "sources_loaded": {
+              "type": "integer"
+            }
           },
+          "required": [
+            "sources_loaded",
+            "duration_ms"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -2234,11 +2616,14 @@
           "description": "Unix timestamp (seconds since epoch)"
         }
       },
-      "required": ["type", "data", "timestamp"]
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
     },
     {
       "type": "object",
-      "description": "RFC-130: Memory-informed prefetch timed out",
       "properties": {
         "type": {
           "const": "prefetch_timeout",
@@ -2247,9 +2632,13 @@
         "data": {
           "type": "object",
           "properties": {
-            "timeout_ms": { "type": "integer" },
-            "partial_results": { "type": "boolean" }
+            "timeout_ms": {
+              "type": "integer"
+            }
           },
+          "required": [
+            "timeout_ms"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -2257,7 +2646,1769 @@
           "description": "Unix timestamp (seconds since epoch)"
         }
       },
-      "required": ["type", "data", "timestamp"]
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "lens_suggested",
+          "description": "Event type: lens_suggested"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "suggested": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "reason",
+            "suggested"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "model_start",
+          "description": "Event type: model_start"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "provider": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "model",
+            "provider"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "model_tokens",
+          "description": "Event type: model_tokens"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "tokens": {
+              "type": "integer"
+            },
+            "cumulative": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "tokens"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "model_thinking",
+          "description": "Event type: model_thinking"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "content": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "content"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "model_complete",
+          "description": "Event type: model_complete"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "duration_ms": {
+              "type": "integer"
+            },
+            "input_tokens": {
+              "type": "integer"
+            },
+            "output_tokens": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "duration_ms"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "model_heartbeat",
+          "description": "Event type: model_heartbeat"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "elapsed_ms": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "elapsed_ms"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "skill_graph_resolved",
+          "description": "Event type: skill_graph_resolved"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "lens_name": {
+              "type": "string"
+            },
+            "skill_count": {
+              "type": "integer"
+            },
+            "wave_count": {
+              "type": "integer"
+            },
+            "content_hash": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "wave_count",
+            "skill_count",
+            "content_hash",
+            "lens_name"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "skill_wave_start",
+          "description": "Event type: skill_wave_start"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "wave_index": {
+              "type": "integer"
+            },
+            "total_waves": {
+              "type": "integer"
+            },
+            "skills": {
+              "type": "array",
+              "items": {}
+            },
+            "parallel": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "total_waves",
+            "wave_index",
+            "skills"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "skill_wave_complete",
+          "description": "Event type: skill_wave_complete"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "wave_index": {
+              "type": "integer"
+            },
+            "duration_ms": {
+              "type": "integer"
+            },
+            "succeeded": {
+              "type": "array",
+              "items": {}
+            },
+            "failed": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "duration_ms",
+            "wave_index",
+            "succeeded",
+            "failed"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "skill_cache_hit",
+          "description": "Event type: skill_cache_hit"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "skill_name": {
+              "type": "string"
+            },
+            "cache_key": {
+              "type": "string"
+            },
+            "saved_ms": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "saved_ms",
+            "cache_key",
+            "skill_name"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "skill_execute_start",
+          "description": "Event type: skill_execute_start"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "skill_name": {
+              "type": "string"
+            },
+            "wave_index": {
+              "type": "integer"
+            },
+            "requires": {
+              "type": "array",
+              "items": {}
+            },
+            "context_keys_available": {
+              "type": "array",
+              "items": {}
+            },
+            "risk_level": {
+              "type": "string"
+            },
+            "has_permissions": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "context_keys_available",
+            "wave_index",
+            "requires",
+            "skill_name"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "skill_execute_complete",
+          "description": "Event type: skill_execute_complete"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "skill_name": {
+              "type": "string"
+            },
+            "duration_ms": {
+              "type": "integer"
+            },
+            "produces": {
+              "type": "array",
+              "items": {}
+            },
+            "cached": {
+              "type": "boolean"
+            },
+            "success": {
+              "type": "boolean"
+            },
+            "error": {
+              "type": "string"
+            },
+            "risk_level": {
+              "type": "string"
+            },
+            "violations_detected": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "cached",
+            "duration_ms",
+            "produces",
+            "success",
+            "skill_name"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "skill_compile_start",
+          "description": "Event type: skill_compile_start"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "lens_name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "lens_name"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "skill_compile_complete",
+          "description": "Event type: skill_compile_complete"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "lens_name": {
+              "type": "string"
+            },
+            "skill_count": {
+              "type": "integer"
+            },
+            "duration_ms": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "duration_ms",
+            "skill_count",
+            "lens_name"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "skill_compile_cache_hit",
+          "description": "Event type: skill_compile_cache_hit"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "lens_name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "lens_name"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "skill_subgraph_extracted",
+          "description": "Event type: skill_subgraph_extracted"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "skill_name": {
+              "type": "string"
+            },
+            "subgraph_size": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "subgraph_size",
+            "skill_name"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "security_approval_requested",
+          "description": "Event type: security_approval_requested"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "dag_id": {
+              "type": "string"
+            },
+            "dag_name": {
+              "type": "string"
+            },
+            "skill_count": {
+              "type": "integer"
+            },
+            "risk_level": {
+              "type": "string"
+            },
+            "risk_score": {
+              "type": "number"
+            },
+            "flags": {
+              "type": "array",
+              "items": {}
+            },
+            "permissions": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "required": [
+            "skill_count",
+            "dag_name",
+            "flags",
+            "risk_level",
+            "risk_score",
+            "dag_id"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "security_approval_received",
+          "description": "Event type: security_approval_received"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "dag_id": {
+              "type": "string"
+            },
+            "approved": {
+              "type": "boolean"
+            },
+            "modified": {
+              "type": "boolean"
+            },
+            "remembered": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "approved",
+            "dag_id"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "security_violation",
+          "description": "Event type: security_violation"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "skill_name": {
+              "type": "string"
+            },
+            "violation_type": {
+              "type": "string"
+            },
+            "evidence": {
+              "type": "string"
+            },
+            "detection_method": {
+              "type": "string"
+            },
+            "action_taken": {
+              "type": "string"
+            },
+            "position": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "detection_method",
+            "skill_name",
+            "evidence",
+            "violation_type",
+            "action_taken"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "security_scan_complete",
+          "description": "Event type: security_scan_complete"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "output_length": {
+              "type": "integer"
+            },
+            "violations_found": {
+              "type": "integer"
+            },
+            "scan_duration_ms": {
+              "type": "integer"
+            },
+            "method": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "violations_found",
+            "method",
+            "output_length",
+            "scan_duration_ms"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "audit_log_entry",
+          "description": "Event type: audit_log_entry"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "skill_name": {
+              "type": "string"
+            },
+            "action": {
+              "type": "string"
+            },
+            "risk_level": {
+              "type": "string"
+            },
+            "details": {
+              "type": "string"
+            },
+            "dag_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "action",
+            "risk_level",
+            "skill_name"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "backlog_goal_added",
+          "description": "Event type: backlog_goal_added"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "goal_id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "title",
+            "goal_id"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "backlog_goal_started",
+          "description": "Event type: backlog_goal_started"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "goal_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "goal_id"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "backlog_goal_completed",
+          "description": "Event type: backlog_goal_completed"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "goal_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "goal_id"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "backlog_goal_failed",
+          "description": "Event type: backlog_goal_failed"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "goal_id": {
+              "type": "string"
+            },
+            "error": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "goal_id",
+            "error"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "backlog_refreshed",
+          "description": "Event type: backlog_refreshed"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "goal_count": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "goal_count"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "tool_start",
+          "description": "Event type: tool_start"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "tool_complete",
+          "description": "Event type: tool_complete"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "tool_error",
+          "description": "Event type: tool_error"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "tool_loop_start",
+          "description": "Event type: tool_loop_start"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "tool_loop_turn",
+          "description": "Event type: tool_loop_turn"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "tool_loop_complete",
+          "description": "Event type: tool_loop_complete"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "tool_repair",
+          "description": "Event type: tool_repair"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "tool_blocked",
+          "description": "Event type: tool_blocked"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "tool_retry",
+          "description": "Event type: tool_retry"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "tool_escalate",
+          "description": "Event type: tool_escalate"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "tool_pattern_learned",
+          "description": "Event type: tool_pattern_learned"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "progressive_unlock",
+          "description": "Event type: progressive_unlock"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "convergence_start",
+          "description": "Event type: convergence_start"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "max_iterations": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "max_iterations"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "convergence_iteration_start",
+          "description": "Event type: convergence_iteration_start"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "iteration": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "iteration"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "convergence_iteration_complete",
+          "description": "Event type: convergence_iteration_complete"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "iteration": {
+              "type": "integer"
+            },
+            "errors_found": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "errors_found",
+            "iteration"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "convergence_fixing",
+          "description": "Event type: convergence_fixing"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "iteration": {
+              "type": "integer"
+            },
+            "errors_to_fix": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "errors_to_fix",
+            "iteration"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "convergence_stable",
+          "description": "Event type: convergence_stable"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "iterations": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "iterations"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "convergence_timeout",
+          "description": "Event type: convergence_timeout"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "elapsed_ms": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "elapsed_ms"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "convergence_stuck",
+          "description": "Event type: convergence_stuck"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "iterations": {
+              "type": "integer"
+            },
+            "persistent_errors": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "persistent_errors",
+            "iterations"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "convergence_max_iterations",
+          "description": "Event type: convergence_max_iterations"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "max_iterations": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "max_iterations"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "convergence_budget_exceeded",
+          "description": "Event type: convergence_budget_exceeded"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "budget_ms": {
+              "type": "integer"
+            },
+            "elapsed_ms": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "elapsed_ms",
+            "budget_ms"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "delegation_started",
+          "description": "Event type: delegation_started"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "ephemeral_lens_created",
+          "description": "Event type: ephemeral_lens_created"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "specialist_spawned",
+          "description": "Event type: specialist_spawned"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "specialist_completed",
+          "description": "Event type: specialist_completed"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "checkpoint_found",
+          "description": "Event type: checkpoint_found"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "checkpoint_saved",
+          "description": "Event type: checkpoint_saved"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "phase_complete",
+          "description": "Event type: phase_complete"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "autonomous_action_blocked",
+          "description": "Event type: autonomous_action_blocked"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "guard_evolution_suggested",
+          "description": "Event type: guard_evolution_suggested"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
     }
   ]
 }

@@ -44,14 +44,158 @@ async def checkpoint_memory() -> dict[str, Any]:
 
 @router.get("/memory/chunks")
 async def get_memory_chunks(path: str) -> dict[str, Any]:
-    """Get chunk hierarchy for a project."""
-    return {"hot": [], "warm": [], "cold": []}
+    """Get chunk hierarchy for a project's memory storage.
+
+    Returns hot (in-memory), warm (disk), and cold (archived) tier data.
+    """
+    import json
+
+    project_path = Path(path).expanduser().resolve()
+    simulacrum_path = project_path / ".sunwell" / "simulacrum"
+
+    if not simulacrum_path.exists():
+        return {"hot": [], "warm": [], "cold": [], "message": "No memory data found"}
+
+    hot_items = []
+    warm_items = []
+    cold_items = []
+
+    try:
+        # Hot tier: recent turns in memory (from hot/*.json files)
+        hot_path = simulacrum_path / "hot"
+        if hot_path.exists():
+            for session_file in hot_path.glob("*.json"):
+                try:
+                    with open(session_file) as f:
+                        data = json.load(f)
+                        turns = data.get("turns", {})
+                        for turn_id, turn_data in list(turns.items())[-20:]:  # Last 20
+                            hot_items.append({
+                                "id": turn_id,
+                                "type": turn_data.get("turn_type", "unknown"),
+                                "timestamp": turn_data.get("timestamp"),
+                                "content_preview": turn_data.get("content", "")[:100],
+                                "session": session_file.stem,
+                            })
+                except Exception:
+                    continue
+
+        # Warm tier: date-sharded JSONL files
+        warm_path = simulacrum_path / "warm"
+        if warm_path.exists():
+            for shard_file in sorted(warm_path.glob("*.jsonl"), reverse=True)[:10]:
+                try:
+                    line_count = sum(1 for _ in open(shard_file))
+                    warm_items.append({
+                        "date": shard_file.stem,
+                        "file": str(shard_file),
+                        "turn_count": line_count,
+                    })
+                except Exception:
+                    continue
+
+        # Cold tier: compressed archives
+        cold_path = simulacrum_path / "cold"
+        if cold_path.exists():
+            for archive in sorted(cold_path.glob("*.jsonl*"), reverse=True)[:10]:
+                cold_items.append({
+                    "date": archive.stem.split(".")[0],
+                    "file": str(archive),
+                    "compressed": archive.suffix in (".gz", ".zst"),
+                    "size_bytes": archive.stat().st_size,
+                })
+
+        return {
+            "hot": hot_items,
+            "warm": warm_items,
+            "cold": cold_items,
+        }
+    except Exception as e:
+        return {"hot": [], "warm": [], "cold": [], "error": str(e)}
 
 
 @router.get("/memory/graph")
 async def get_memory_graph(path: str) -> dict[str, Any]:
-    """Get concept graph for a project."""
-    return {"edges": []}
+    """Get conversation graph structure for a project.
+
+    Returns nodes (turns) and edges (parent-child relationships) from the DAG.
+    """
+    import json
+
+    project_path = Path(path).expanduser().resolve()
+    simulacrum_path = project_path / ".sunwell" / "simulacrum"
+
+    if not simulacrum_path.exists():
+        return {"nodes": [], "edges": [], "message": "No memory data found"}
+
+    nodes = []
+    edges = []
+
+    try:
+        # Load from hot tier session files
+        hot_path = simulacrum_path / "hot"
+        if hot_path.exists():
+            for session_file in hot_path.glob("*.json"):
+                try:
+                    with open(session_file) as f:
+                        data = json.load(f)
+                        turns = data.get("turns", {})
+                        learnings = data.get("learnings", {})
+                        dead_ends = set(data.get("dead_ends", []))
+                        heads = set(data.get("heads", []))
+
+                        # Build nodes from turns
+                        for turn_id, turn_data in turns.items():
+                            nodes.append({
+                                "id": turn_id,
+                                "type": turn_data.get("turn_type", "unknown"),
+                                "timestamp": turn_data.get("timestamp"),
+                                "content_preview": turn_data.get("content", "")[:50],
+                                "is_dead_end": turn_id in dead_ends,
+                                "is_head": turn_id in heads,
+                                "tags": turn_data.get("tags", []),
+                            })
+
+                            # Build edges from parent_ids
+                            for parent_id in turn_data.get("parent_ids", []):
+                                edges.append({
+                                    "source": parent_id,
+                                    "target": turn_id,
+                                    "type": "follows",
+                                })
+
+                        # Add learning nodes
+                        for learning_id, learning_data in learnings.items():
+                            nodes.append({
+                                "id": learning_id,
+                                "type": "learning",
+                                "fact": learning_data.get("fact", "")[:100],
+                                "confidence": learning_data.get("confidence", 0),
+                                "category": learning_data.get("category", "general"),
+                            })
+
+                            # Connect learnings to source turns
+                            for source_turn in learning_data.get("source_turns", []):
+                                edges.append({
+                                    "source": source_turn,
+                                    "target": learning_id,
+                                    "type": "produces_learning",
+                                })
+                except Exception:
+                    continue
+
+        return {
+            "nodes": nodes,
+            "edges": edges,
+            "stats": {
+                "total_nodes": len(nodes),
+                "total_edges": len(edges),
+                "turn_count": len([n for n in nodes if n.get("type") != "learning"]),
+                "learning_count": len([n for n in nodes if n.get("type") == "learning"]),
+            },
+        }
+    except Exception as e:
+        return {"nodes": [], "edges": [], "error": str(e)}
 
 
 # ═══════════════════════════════════════════════════════════════
