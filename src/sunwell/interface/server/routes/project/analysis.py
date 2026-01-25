@@ -77,27 +77,32 @@ async def analyze_project(request: AnalyzeRequest) -> ProjectAnalysisResponse:
         path = normalize_path(request.path)
         if not path.exists():
             return ProjectAnalysisResponse(
+                name=path.name,
+                path=str(path),
                 project_type=None,
-                language=None,
-                framework=None,
                 confidence=0.0,
             )
 
         analyzer = ProjectAnalyzer(path)
         analysis = analyzer.analyze()
-        analysis_dict = analysis.to_dict() if hasattr(analysis, "to_dict") else {}
+        analysis_dict = analysis.to_cache_dict()
 
         return ProjectAnalysisResponse(
+            name=analysis_dict.get("name", path.name),
+            path=analysis_dict.get("path", str(path)),
             project_type=analysis_dict.get("project_type"),
-            language=analysis_dict.get("language"),
-            framework=analysis_dict.get("framework"),
+            project_subtype=analysis_dict.get("project_subtype"),
             confidence=analysis_dict.get("confidence", 0.0),
+            confidence_level=analysis_dict.get("confidence_level", "low"),
+            detection_signals=analysis_dict.get("detection_signals", []),
+            analyzed_at=analysis_dict.get("analyzed_at", ""),
+            classification_source=analysis_dict.get("classification_source", "heuristic"),
         )
     except Exception:
         return ProjectAnalysisResponse(
+            name=request.path.split("/")[-1] if "/" in request.path else request.path,
+            path=request.path,
             project_type=None,
-            language=None,
-            framework=None,
             confidence=0.0,
         )
 

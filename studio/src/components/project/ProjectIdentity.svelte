@@ -35,7 +35,7 @@
   </span>
 </header>
 
-{#if analysis.detection_signals.length > 0}
+{#if analysis.detection_signals?.length > 0}
   <details class="signals">
     <summary>Detection signals ({analysis.detection_signals.length})</summary>
     <div class="signal-tags">

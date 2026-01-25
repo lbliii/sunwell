@@ -820,3 +820,392 @@ def workspace_info(workspace_id: str, json_output: bool) -> None:
         console.print(f"  Trust level: {info.project.trust_level}")
         console.print(f"  Protected paths: {', '.join(info.project.protected_paths) or 'None'}")
 
+
+# ═══════════════════════════════════════════════════════════════
+# RFC-141: Workspace Lifecycle Commands
+# ═══════════════════════════════════════════════════════════════
+
+
+@workspace.command("unregister")
+@click.argument("workspace_id")
+@click.option(
+    "--yes",
+    "-y",
+    is_flag=True,
+    help="Skip confirmation prompt",
+)
+def unregister_workspace(workspace_id: str, yes: bool) -> None:
+    """Unregister a workspace from the registry (RFC-141).
+
+    Removes the workspace from the registry but keeps all files intact.
+    This is the least destructive deletion mode.
+
+    \b
+    Examples:
+        sunwell workspace unregister my-app
+        sunwell workspace unregister my-app --yes
+    """
+    from sunwell.knowledge.workspace import WorkspaceManager
+
+    manager = WorkspaceManager()
+
+    # Check if workspace exists
+    from sunwell.knowledge.project import ProjectRegistry
+    registry = ProjectRegistry()
+    project = registry.get(workspace_id)
+
+    if not project:
+        console.print(f"[red]Workspace not registered:[/red] {workspace_id}")
+        raise SystemExit(1)
+
+    if not yes:
+        console.print(f"[bold]Unregistering workspace:[/bold] {workspace_id}")
+        console.print(f"  Path: {project.root}")
+        console.print()
+        console.print("[dim]This will remove the workspace from the registry but keep all files.[/dim]")
+        if not click.confirm("Continue?"):
+            console.print("[dim]Cancelled[/dim]")
+            return
+
+    try:
+        result = manager.unregister(workspace_id)
+        console.print(f"[green]✓[/green] Workspace unregistered: [cyan]{workspace_id}[/cyan]")
+        if result.was_current:
+            console.print("[dim]Note: This was the current workspace. Current workspace cleared.[/dim]")
+    except ValueError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from None
+
+
+@workspace.command("purge")
+@click.argument("workspace_id")
+@click.option(
+    "--confirm",
+    is_flag=True,
+    help="Confirm purge operation",
+)
+@click.option(
+    "--delete-runs",
+    is_flag=True,
+    help="Also delete associated runs",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Force purge even if runs are active",
+)
+def purge_workspace(workspace_id: str, confirm: bool, delete_runs: bool, force: bool) -> None:
+    """Purge Sunwell data from a workspace (RFC-141).
+
+    Removes the workspace from the registry and deletes the .sunwell/
+    directory, but keeps source code and other files intact.
+
+    \b
+    Examples:
+        sunwell workspace purge my-app --confirm
+        sunwell workspace purge my-app --confirm --delete-runs
+    """
+    from sunwell.knowledge.workspace import WorkspaceManager
+
+    manager = WorkspaceManager()
+
+    # Check if workspace exists
+    from sunwell.knowledge.project import ProjectRegistry
+    registry = ProjectRegistry()
+    project = registry.get(workspace_id)
+
+    if not project:
+        console.print(f"[red]Workspace not registered:[/red] {workspace_id}")
+        raise SystemExit(1)
+
+    # Show what will be purged
+    sunwell_dir = project.root / ".sunwell"
+    console.print(f"[bold]Purging workspace:[/bold] {workspace_id}")
+    console.print(f"  Path: {project.root}")
+    console.print()
+    console.print("[yellow]This will DELETE the following:[/yellow]")
+    console.print(f"  - Registry entry")
+    console.print(f"  - {sunwell_dir}/ (all Sunwell data)")
+    if delete_runs:
+        console.print("  - Associated runs in ~/.sunwell/runs/")
+    console.print()
+    console.print("[green]This will KEEP:[/green]")
+    console.print("  - Source code and other project files")
+
+    if not confirm:
+        console.print()
+        console.print("[red]Use --confirm to proceed with purge.[/red]")
+        raise SystemExit(1)
+
+    # Check for active runs
+    active_runs = manager.has_active_runs(workspace_id)
+    if active_runs and not force:
+        console.print()
+        console.print(f"[red]Error:[/red] Workspace has {len(active_runs)} active run(s):")
+        for run_id in active_runs[:5]:
+            console.print(f"  - {run_id}")
+        if len(active_runs) > 5:
+            console.print(f"  ... and {len(active_runs) - 5} more")
+        console.print()
+        console.print("[dim]Use --force to purge anyway (runs will be marked as orphaned).[/dim]")
+        raise SystemExit(1)
+
+    try:
+        result = manager.purge(workspace_id, delete_runs=delete_runs, force=force)
+        console.print()
+        console.print(f"[green]✓[/green] Workspace purged: [cyan]{workspace_id}[/cyan]")
+        if result.deleted_dirs:
+            console.print(f"  Deleted directories: {len(result.deleted_dirs)}")
+        if result.deleted_files:
+            console.print(f"  Deleted files: {len(result.deleted_files)}")
+        if result.runs_deleted > 0:
+            console.print(f"  Runs deleted: {result.runs_deleted}")
+        if result.failed_items:
+            console.print(f"  [yellow]Failed to delete: {len(result.failed_items)}[/yellow]")
+            for item in result.failed_items:
+                console.print(f"    - {item}")
+        if result.was_current:
+            console.print("[dim]Note: This was the current workspace. Current workspace cleared.[/dim]")
+    except (ValueError, RuntimeError) as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from None
+
+
+@workspace.command("remove")
+@click.argument("workspace_id")
+@click.option(
+    "--confirm-full-delete",
+    is_flag=True,
+    help="Confirm full deletion (required)",
+)
+@click.option(
+    "--delete-runs",
+    is_flag=True,
+    help="Also delete associated runs",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Force delete even if runs are active",
+)
+def remove_workspace(workspace_id: str, confirm_full_delete: bool, delete_runs: bool, force: bool) -> None:
+    """Fully delete a workspace (RFC-141).
+
+    WARNING: This is destructive and cannot be undone.
+
+    Removes the workspace from the registry and DELETES the entire
+    workspace directory including all source code.
+
+    \b
+    Examples:
+        sunwell workspace remove my-app --confirm-full-delete
+    """
+    from sunwell.knowledge.workspace import WorkspaceManager, has_nested_workspaces
+
+    manager = WorkspaceManager()
+
+    # Check if workspace exists
+    from sunwell.knowledge.project import ProjectRegistry
+    registry = ProjectRegistry()
+    project = registry.get(workspace_id)
+
+    if not project:
+        console.print(f"[red]Workspace not registered:[/red] {workspace_id}")
+        raise SystemExit(1)
+
+    # Check for nested workspaces
+    nested = has_nested_workspaces(project.root, registry.projects)
+    if nested:
+        console.print(f"[red]Error:[/red] Workspace contains nested workspaces:")
+        for nested_id in nested:
+            console.print(f"  - {nested_id}")
+        console.print()
+        console.print("[dim]Delete or unregister nested workspaces first.[/dim]")
+        raise SystemExit(1)
+
+    # Show what will be deleted
+    console.print(f"[bold red]FULL DELETE:[/bold red] {workspace_id}")
+    console.print(f"  Path: {project.root}")
+    console.print()
+    console.print("[red]This will PERMANENTLY DELETE:[/red]")
+    console.print(f"  - Registry entry")
+    console.print(f"  - ENTIRE workspace directory: {project.root}")
+    console.print("  - All source code and files within")
+    if delete_runs:
+        console.print("  - Associated runs in ~/.sunwell/runs/")
+    console.print()
+    console.print("[yellow]THIS CANNOT BE UNDONE![/yellow]")
+
+    if not confirm_full_delete:
+        console.print()
+        console.print("[red]Use --confirm-full-delete to proceed with full deletion.[/red]")
+        raise SystemExit(1)
+
+    # Double-confirm by typing workspace name
+    console.print()
+    typed_name = click.prompt(
+        f"Type '{workspace_id}' to confirm full deletion",
+        default="",
+    )
+    if typed_name != workspace_id:
+        console.print("[dim]Cancelled - name did not match[/dim]")
+        raise SystemExit(1)
+
+    # Check for active runs
+    active_runs = manager.has_active_runs(workspace_id)
+    if active_runs and not force:
+        console.print()
+        console.print(f"[red]Error:[/red] Workspace has {len(active_runs)} active run(s):")
+        for run_id in active_runs[:5]:
+            console.print(f"  - {run_id}")
+        console.print()
+        console.print("[dim]Use --force to delete anyway.[/dim]")
+        raise SystemExit(1)
+
+    try:
+        result = manager.delete(workspace_id, delete_runs=delete_runs, force=force)
+        console.print()
+        console.print(f"[green]✓[/green] Workspace deleted: [cyan]{workspace_id}[/cyan]")
+        if result.runs_deleted > 0:
+            console.print(f"  Runs deleted: {result.runs_deleted}")
+        if result.runs_orphaned > 0:
+            console.print(f"  Runs orphaned: {result.runs_orphaned}")
+        if result.failed_items:
+            console.print(f"  [yellow]Failed to delete: {len(result.failed_items)}[/yellow]")
+            for item in result.failed_items:
+                console.print(f"    - {item}")
+    except (ValueError, RuntimeError) as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from None
+
+
+@workspace.command("rename")
+@click.argument("workspace_id")
+@click.argument("new_id")
+@click.option(
+    "--name",
+    help="New display name (defaults to new_id)",
+)
+def rename_workspace(workspace_id: str, new_id: str, name: str | None) -> None:
+    """Rename a workspace (RFC-141).
+
+    Changes the workspace ID and optionally the display name.
+    Updates all references including runs.
+
+    \b
+    Examples:
+        sunwell workspace rename old-name new-name
+        sunwell workspace rename my-app my-awesome-app --name "My Awesome App"
+    """
+    from sunwell.knowledge.workspace import WorkspaceManager
+
+    manager = WorkspaceManager()
+
+    try:
+        result = manager.rename(workspace_id, new_id=new_id, new_name=name)
+        console.print(f"[green]✓[/green] Workspace renamed: [cyan]{result.old_id}[/cyan] → [cyan]{result.new_id}[/cyan]")
+        if result.runs_updated > 0:
+            console.print(f"  Runs updated: {result.runs_updated}")
+    except ValueError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from None
+
+
+@workspace.command("move")
+@click.argument("workspace_id")
+@click.argument("new_path", type=click.Path(exists=True, file_okay=False))
+def move_workspace(workspace_id: str, new_path: str) -> None:
+    """Update workspace path after manual move (RFC-141).
+
+    Call this AFTER manually moving a workspace directory to update
+    the registry and current workspace state.
+
+    \b
+    Examples:
+        # First: mv ~/old-location/my-app ~/new-location/my-app
+        sunwell workspace move my-app ~/new-location/my-app
+    """
+    from pathlib import Path
+
+    from sunwell.knowledge.workspace import WorkspaceManager
+
+    manager = WorkspaceManager()
+    new_path_resolved = Path(new_path).resolve()
+
+    try:
+        result = manager.move(workspace_id, new_path_resolved)
+        console.print(f"[green]✓[/green] Workspace path updated: [cyan]{workspace_id}[/cyan]")
+        console.print(f"  Old path: {result.old_path}")
+        console.print(f"  New path: {result.new_path}")
+    except ValueError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from None
+
+
+@workspace.command("cleanup")
+@click.option(
+    "--dry-run/--no-dry-run",
+    default=True,
+    help="Only report what would be cleaned (default: dry-run)",
+)
+@click.option(
+    "--confirm",
+    is_flag=True,
+    help="Actually perform cleanup (same as --no-dry-run)",
+)
+def cleanup_workspace(dry_run: bool, confirm: bool) -> None:
+    """Find and clean up orphaned data (RFC-141).
+
+    Finds:
+    - Runs that reference non-existent workspaces
+    - Registry entries with missing workspace paths
+
+    \b
+    Examples:
+        sunwell workspace cleanup              # Dry run
+        sunwell workspace cleanup --confirm    # Actually clean up
+        sunwell workspace cleanup --no-dry-run # Same as --confirm
+    """
+    from sunwell.knowledge.workspace import WorkspaceManager
+
+    manager = WorkspaceManager()
+
+    # --confirm overrides dry_run
+    if confirm:
+        dry_run = False
+
+    result = manager.cleanup_orphaned(dry_run=dry_run)
+
+    console.print()
+    if dry_run:
+        console.print("[bold]Cleanup Report (dry run):[/bold]")
+    else:
+        console.print("[bold]Cleanup Report:[/bold]")
+
+    console.print()
+    console.print(f"[bold]Orphaned runs:[/bold] {len(result.orphaned_runs)}")
+    if result.orphaned_runs:
+        for run_id in result.orphaned_runs[:10]:
+            console.print(f"  - {run_id}")
+        if len(result.orphaned_runs) > 10:
+            console.print(f"  ... and {len(result.orphaned_runs) - 10} more")
+
+    console.print()
+    console.print(f"[bold]Invalid registrations:[/bold] {len(result.invalid_registrations)}")
+    if result.invalid_registrations:
+        for ws_id in result.invalid_registrations[:10]:
+            console.print(f"  - {ws_id}")
+        if len(result.invalid_registrations) > 10:
+            console.print(f"  ... and {len(result.invalid_registrations) - 10} more")
+
+    if dry_run:
+        console.print()
+        if result.orphaned_runs or result.invalid_registrations:
+            console.print("[dim]Use --confirm to clean up orphaned data.[/dim]")
+        else:
+            console.print("[green]No orphaned data found.[/green]")
+    else:
+        console.print()
+        console.print(f"[green]Cleaned runs:[/green] {result.cleaned_runs}")
+        console.print(f"[green]Cleaned registrations:[/green] {result.cleaned_registrations}")
+

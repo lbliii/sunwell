@@ -1,5 +1,5 @@
 /**
- * Workspace Components (RFC-103, RFC-140)
+ * Workspace Components (RFC-103, RFC-140, RFC-141)
  *
  * RFC-103: Workspace-aware scanning:
  * - WorkspaceToast: Non-blocking setup notification
@@ -12,6 +12,9 @@
  * - WorkspaceList: Unified workspace listing
  * - WorkspaceStatusBadge: Current workspace badge
  * - CurrentWorkspaceIndicator: Header workspace indicator
+ *
+ * RFC-141: Workspace lifecycle:
+ * - WorkspaceDeleteDialog: Multi-step deletion dialog with mode selection
  */
 
 export { default as WorkspaceToast } from './WorkspaceToast.svelte';
@@ -22,3 +25,4 @@ export { default as WorkspaceDiscovery } from './WorkspaceDiscovery.svelte';
 export { default as WorkspaceList } from './WorkspaceList.svelte';
 export { default as WorkspaceStatusBadge } from './WorkspaceStatusBadge.svelte';
 export { default as CurrentWorkspaceIndicator } from './CurrentWorkspaceIndicator.svelte';
+export { default as WorkspaceDeleteDialog } from './WorkspaceDeleteDialog.svelte';

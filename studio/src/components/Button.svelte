@@ -11,7 +11,7 @@
   import Spinner from './ui/Spinner.svelte';
   
   interface Props {
-    variant?: 'primary' | 'secondary' | 'ghost';
+    variant?: 'primary' | 'secondary' | 'ghost' | 'destructive';
     size?: 'sm' | 'md' | 'lg';
     disabled?: boolean;
     loading?: boolean;
@@ -196,6 +196,29 @@
   
   .ghost:focus-visible {
     outline: 2px solid var(--border-emphasis);
+    outline-offset: 2px;
+  }
+  
+  /* ═══════════════════════════════════════════════════════════════
+     DESTRUCTIVE VARIANT — Red/danger actions
+     ═══════════════════════════════════════════════════════════════ */
+  .destructive {
+    background: var(--error);
+    color: white;
+    border: 1px solid var(--error);
+  }
+  
+  .destructive:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--error) 85%, black);
+    border-color: color-mix(in srgb, var(--error) 85%, black);
+  }
+  
+  .destructive:active:not(:disabled) {
+    background: color-mix(in srgb, var(--error) 70%, black);
+  }
+  
+  .destructive:focus-visible {
+    outline: 2px solid var(--error);
     outline-offset: 2px;
   }
   

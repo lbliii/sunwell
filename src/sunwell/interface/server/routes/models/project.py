@@ -131,12 +131,24 @@ class MonorepoCheckResponse(CamelModel):
 
 
 class ProjectAnalysisResponse(CamelModel):
-    """Project analysis results."""
+    """Project analysis results (RFC-079)."""
 
+    # Identity
+    name: str
+    path: str
+
+    # Classification
     project_type: str | None
-    language: str | None = None
-    framework: str | None = None
+    project_subtype: str | None = None
+
+    # Confidence
     confidence: float
+    confidence_level: str = "low"
+    detection_signals: list[str] = []
+
+    # Metadata
+    analyzed_at: str = ""
+    classification_source: str = "heuristic"
 
 
 class ProjectFileEntry(CamelModel):

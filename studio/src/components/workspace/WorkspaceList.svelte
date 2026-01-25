@@ -1,23 +1,28 @@
 <!--
-  WorkspaceList — Unified workspace listing (RFC-140)
+  WorkspaceList — Unified workspace listing (RFC-140, RFC-141)
   
   Shows registered + discovered workspaces grouped by status.
-  Actions: switch, register, remove
+  Actions: switch, register, remove, delete
 -->
 <script lang="ts">
   import Button from '../Button.svelte';
-  import { workspaceManager, switchWorkspace, discoverWorkspaces } from '../../stores/workspaceManager.svelte';
+  import WorkspaceDeleteDialog from './WorkspaceDeleteDialog.svelte';
+  import { workspaceManager, switchWorkspace, discoverWorkspaces, loadWorkspaces } from '../../stores/workspaceManager.svelte';
   import type { WorkspaceInfo } from '../../stores/workspaceManager.svelte';
 
   interface Props {
     workspaces?: WorkspaceInfo[];
     onSwitch?: (workspaceId: string) => void;
     onRegister?: (path: string) => void;
+    onDelete?: (workspaceId: string) => void;
   }
 
-  let { workspaces, onSwitch, onRegister }: Props = $props();
+  let { workspaces, onSwitch, onRegister, onDelete }: Props = $props();
 
   const displayWorkspaces = $derived(workspaces || workspaceManager.workspaces);
+
+  // Delete dialog state
+  let deleteDialogWorkspace = $state<WorkspaceInfo | null>(null);
 
   // Group workspaces by status
   const grouped = $derived(() => {
@@ -63,6 +68,21 @@
       console.error('Failed to register workspace:', e);
     }
   }
+
+  function openDeleteDialog(workspace: WorkspaceInfo) {
+    deleteDialogWorkspace = workspace;
+  }
+
+  function closeDeleteDialog() {
+    deleteDialogWorkspace = null;
+  }
+
+  async function handleDeleted() {
+    // Reload workspace list after deletion
+    await loadWorkspaces();
+    onDelete?.(deleteDialogWorkspace?.id ?? '');
+    closeDeleteDialog();
+  }
 </script>
 
 <div class="workspace-list">
@@ -90,6 +110,9 @@
                   Switch
                 </Button>
               {/if}
+              <Button variant="ghost" size="sm" onclick={() => openDeleteDialog(workspace)}>
+                Delete
+              </Button>
             </div>
           </div>
         {/each}
@@ -169,6 +192,14 @@
     </div>
   {/if}
 </div>
+
+{#if deleteDialogWorkspace}
+  <WorkspaceDeleteDialog
+    workspace={deleteDialogWorkspace}
+    onClose={closeDeleteDialog}
+    onDeleted={handleDeleted}
+  />
+{/if}
 
 <style>
   .workspace-list {

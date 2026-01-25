@@ -1,10 +1,11 @@
-"""Workspace management for RFC-140.
+"""Workspace management for RFC-140 and RFC-141.
 
-Unified workspace discovery, switching, and status tracking.
+Unified workspace discovery, switching, status tracking, and lifecycle management.
 """
 
 import fcntl
 import json
+import logging
 import re
 import sys
 import tempfile
@@ -21,7 +22,16 @@ from sunwell.knowledge.project.validation import ProjectValidationError, validat
 from sunwell.knowledge.workspace.resolver import PROJECT_MARKERS, default_workspace_root
 
 if TYPE_CHECKING:
-    pass
+    from sunwell.knowledge.workspace.lifecycle import (
+        CleanupResult,
+        DeleteResult,
+        DeletionMode,
+        MoveResult,
+        PurgeResult,
+        RenameResult,
+    )
+
+logger = logging.getLogger(__name__)
 
 # Constants
 MAX_PATH_LENGTH = 260 if sys.platform == "win32" else 4096
@@ -602,6 +612,481 @@ class WorkspaceManager:
             last_used=last_used,
             project=project,
         )
+
+    # ═══════════════════════════════════════════════════════════════
+    # LIFECYCLE OPERATIONS (RFC-141)
+    # ═══════════════════════════════════════════════════════════════
+
+    def unregister(self, workspace_id: str) -> DeleteResult:
+        """Unregister a workspace from the registry.
+
+        Removes the workspace from the registry but keeps all files intact.
+        This is the least destructive deletion mode.
+
+        Args:
+            workspace_id: The workspace ID to unregister.
+
+        Returns:
+            DeleteResult with operation outcome.
+
+        Raises:
+            ValueError: If workspace not found.
+        """
+        from sunwell.knowledge.workspace.lifecycle import DeleteResult, DeletionMode
+
+        # Find workspace
+        project = self._registry.get(workspace_id)
+        if not project:
+            raise ValueError(f"Workspace not registered: {workspace_id}")
+
+        workspace_path = project.root.resolve()
+
+        # Check if current workspace
+        current = self.get_current()
+        was_current = current is not None and current.id == workspace_id
+
+        # Clear current workspace if this is it
+        if was_current:
+            _clear_current_workspace()
+
+        # Unregister from registry
+        self._registry.unregister(workspace_id)
+
+        return DeleteResult(
+            success=True,
+            mode=DeletionMode.UNREGISTER,
+            workspace_id=workspace_id,
+            workspace_path=workspace_path,
+            deleted_items=("registry_entry",),
+            failed_items=(),
+            runs_deleted=0,
+            runs_orphaned=0,
+            was_current=was_current,
+        )
+
+    def purge(
+        self,
+        workspace_id: str,
+        *,
+        delete_runs: bool = False,
+        force: bool = False,
+    ) -> PurgeResult:
+        """Purge Sunwell data from a workspace.
+
+        Removes the workspace from the registry and deletes the .sunwell/
+        directory, but keeps the source code and other files intact.
+
+        Args:
+            workspace_id: The workspace ID to purge.
+            delete_runs: Whether to delete associated runs (default: False).
+            force: Whether to force deletion even if runs are active.
+
+        Returns:
+            PurgeResult with operation outcome.
+
+        Raises:
+            ValueError: If workspace not found.
+            RuntimeError: If active runs exist and force=False.
+        """
+        from sunwell.knowledge.workspace.lifecycle import (
+            PurgeResult,
+            WorkspaceLifecycle,
+        )
+
+        # Find workspace
+        project = self._registry.get(workspace_id)
+        if not project:
+            raise ValueError(f"Workspace not registered: {workspace_id}")
+
+        workspace_path = project.root.resolve()
+
+        # Check for active runs
+        if not force:
+            active_runs = self.has_active_runs(workspace_id)
+            if active_runs:
+                raise RuntimeError(
+                    f"Workspace has active runs: {active_runs}. "
+                    "Use force=True to proceed."
+                )
+
+        # Check if current workspace
+        current = self.get_current()
+        was_current = current is not None and current.id == workspace_id
+
+        # Clear current workspace if this is it
+        if was_current:
+            _clear_current_workspace()
+
+        # Initialize lifecycle handler
+        lifecycle = WorkspaceLifecycle()
+
+        # Handle runs
+        runs_deleted = 0
+        if delete_runs:
+            run_ids = lifecycle.list_workspace_runs(workspace_id)
+            runs_deleted = lifecycle.delete_runs(run_ids)
+        else:
+            # Mark runs as orphaned
+            run_ids = lifecycle.list_workspace_runs(workspace_id)
+            lifecycle.mark_runs_orphaned(run_ids)
+
+        # Delete .sunwell/ directory
+        deleted_items, failed_items = lifecycle.delete_sunwell_data(workspace_path)
+
+        # Unregister from registry
+        self._registry.unregister(workspace_id)
+
+        # Separate dirs and files for reporting
+        deleted_dirs = tuple(d for d in deleted_items if d.endswith("/"))
+        deleted_files = tuple(f for f in deleted_items if not f.endswith("/"))
+
+        return PurgeResult(
+            success=len(failed_items) == 0,
+            workspace_id=workspace_id,
+            workspace_path=workspace_path,
+            deleted_dirs=deleted_dirs,
+            deleted_files=deleted_files,
+            failed_items=tuple(failed_items),
+            runs_deleted=runs_deleted,
+            was_current=was_current,
+            error=f"Failed to delete: {failed_items}" if failed_items else None,
+        )
+
+    def delete(
+        self,
+        workspace_id: str,
+        *,
+        delete_runs: bool = False,
+        force: bool = False,
+    ) -> DeleteResult:
+        """Fully delete a workspace.
+
+        Removes the workspace from the registry and deletes the entire
+        workspace directory including all source code.
+
+        WARNING: This is destructive and cannot be undone.
+
+        Args:
+            workspace_id: The workspace ID to delete.
+            delete_runs: Whether to delete associated runs (default: False).
+            force: Whether to force deletion even if runs are active.
+
+        Returns:
+            DeleteResult with operation outcome.
+
+        Raises:
+            ValueError: If workspace not found or has nested workspaces.
+            RuntimeError: If active runs exist and force=False.
+        """
+        from sunwell.knowledge.workspace.lifecycle import (
+            DeleteResult,
+            DeletionMode,
+            WorkspaceLifecycle,
+            has_nested_workspaces,
+        )
+
+        # Find workspace
+        project = self._registry.get(workspace_id)
+        if not project:
+            raise ValueError(f"Workspace not registered: {workspace_id}")
+
+        workspace_path = project.root.resolve()
+
+        # Check for nested workspaces
+        nested = has_nested_workspaces(workspace_path, self._registry.projects)
+        if nested:
+            raise ValueError(
+                f"Workspace contains nested workspaces: {nested}. "
+                "Delete or unregister nested workspaces first."
+            )
+
+        # Check for active runs
+        if not force:
+            active_runs = self.has_active_runs(workspace_id)
+            if active_runs:
+                raise RuntimeError(
+                    f"Workspace has active runs: {active_runs}. "
+                    "Use force=True to proceed."
+                )
+
+        # Check if current workspace
+        current = self.get_current()
+        was_current = current is not None and current.id == workspace_id
+
+        # Clear current workspace if this is it
+        if was_current:
+            _clear_current_workspace()
+
+        # Initialize lifecycle handler
+        lifecycle = WorkspaceLifecycle()
+
+        # Handle runs
+        runs_deleted = 0
+        runs_orphaned = 0
+        run_ids = lifecycle.list_workspace_runs(workspace_id)
+        if delete_runs:
+            runs_deleted = lifecycle.delete_runs(run_ids)
+        else:
+            runs_orphaned = lifecycle.mark_runs_orphaned(run_ids)
+
+        # Delete workspace directory
+        deleted_items, failed_items = lifecycle.delete_workspace_directory(workspace_path)
+
+        # Unregister from registry (even if deletion failed)
+        self._registry.unregister(workspace_id)
+
+        return DeleteResult(
+            success=len(failed_items) == 0,
+            mode=DeletionMode.FULL,
+            workspace_id=workspace_id,
+            workspace_path=workspace_path,
+            deleted_items=tuple(deleted_items),
+            failed_items=tuple(failed_items),
+            runs_deleted=runs_deleted,
+            runs_orphaned=runs_orphaned,
+            was_current=was_current,
+            error=f"Failed to delete: {failed_items}" if failed_items else None,
+        )
+
+    def rename(
+        self,
+        workspace_id: str,
+        new_id: str,
+        new_name: str | None = None,
+    ) -> RenameResult:
+        """Rename a workspace.
+
+        Changes the workspace ID and optionally the display name.
+        Updates all references including runs.
+
+        Args:
+            workspace_id: The current workspace ID.
+            new_id: The new workspace ID.
+            new_name: The new display name (defaults to new_id).
+
+        Returns:
+            RenameResult with operation outcome.
+
+        Raises:
+            ValueError: If workspace not found or new_id conflicts.
+        """
+        from sunwell.knowledge.workspace.lifecycle import RenameResult, WorkspaceLifecycle
+
+        # Validate new ID
+        new_id = sanitize_workspace_id(new_id)
+        if not new_id:
+            raise ValueError("Invalid new workspace ID")
+
+        # Find workspace
+        project = self._registry.get(workspace_id)
+        if not project:
+            raise ValueError(f"Workspace not registered: {workspace_id}")
+
+        # Check for conflicts
+        if new_id != workspace_id and self._registry.get(new_id):
+            raise ValueError(f"Workspace ID already exists: {new_id}")
+
+        workspace_path = project.root.resolve()
+        new_name = new_name or new_id
+
+        # Update manifest if exists
+        manifest_path = workspace_path / ".sunwell" / "project.toml"
+        if manifest_path.exists():
+            try:
+                import tomllib
+                with manifest_path.open("rb") as f:
+                    manifest_data = tomllib.load(f)
+
+                manifest_data["project"]["id"] = new_id
+                manifest_data["project"]["name"] = new_name
+
+                # Write back (use tomli_w if available, else manual)
+                try:
+                    import tomli_w
+                    manifest_path.write_bytes(tomli_w.dumps(manifest_data))
+                except ImportError:
+                    # Fallback: just update the lines we need
+                    content = manifest_path.read_text()
+                    content = re.sub(
+                        r'^id\s*=\s*"[^"]*"',
+                        f'id = "{new_id}"',
+                        content,
+                        flags=re.MULTILINE,
+                    )
+                    content = re.sub(
+                        r'^name\s*=\s*"[^"]*"',
+                        f'name = "{new_name}"',
+                        content,
+                        flags=re.MULTILINE,
+                    )
+                    manifest_path.write_text(content)
+            except Exception as e:
+                logger.warning(f"Failed to update manifest: {e}")
+
+        # Update registry
+        self._registry.unregister(workspace_id)
+        new_project = Project(
+            id=new_id,
+            name=new_name,
+            root=project.root,
+            workspace_type=project.workspace_type,
+            created_at=project.created_at,
+            manifest=project.manifest,
+        )
+        self._registry.register(new_project)
+
+        # Update current workspace if this is it
+        current = self.get_current()
+        if current and current.id == workspace_id:
+            _save_current_workspace(new_id, workspace_path)
+
+        # Update runs
+        lifecycle = WorkspaceLifecycle()
+        runs_updated = lifecycle.update_runs_workspace_id(workspace_id, new_id)
+
+        return RenameResult(
+            success=True,
+            old_id=workspace_id,
+            new_id=new_id,
+            runs_updated=runs_updated,
+        )
+
+    def move(self, workspace_id: str, new_path: Path) -> MoveResult:
+        """Update workspace path after manual move.
+
+        Call this after manually moving a workspace directory to update
+        the registry and current workspace state.
+
+        Args:
+            workspace_id: The workspace ID.
+            new_path: The new workspace path.
+
+        Returns:
+            MoveResult with operation outcome.
+
+        Raises:
+            ValueError: If workspace not found, new path doesn't exist,
+                       or new path is already a registered workspace.
+        """
+        from sunwell.knowledge.workspace.lifecycle import MoveResult
+
+        # Find workspace
+        project = self._registry.get(workspace_id)
+        if not project:
+            raise ValueError(f"Workspace not registered: {workspace_id}")
+
+        old_path = project.root.resolve()
+        new_path = new_path.resolve()
+
+        # Validate new path
+        if not new_path.exists():
+            raise ValueError(f"New path does not exist: {new_path}")
+
+        if not new_path.is_dir():
+            raise ValueError(f"New path is not a directory: {new_path}")
+
+        # Check for conflicts
+        existing = self._registry.find_by_root(new_path)
+        if existing and existing.id != workspace_id:
+            raise ValueError(f"Path already registered as workspace: {existing.id}")
+
+        # Update registry
+        self._registry.unregister(workspace_id)
+        new_project = Project(
+            id=workspace_id,
+            name=project.name,
+            root=new_path,
+            workspace_type=project.workspace_type,
+            created_at=project.created_at,
+            manifest=project.manifest,
+        )
+        self._registry.register(new_project)
+
+        # Update current workspace if this is it
+        current = self.get_current()
+        if current and current.id == workspace_id:
+            _save_current_workspace(workspace_id, new_path)
+
+        return MoveResult(
+            success=True,
+            workspace_id=workspace_id,
+            old_path=old_path,
+            new_path=new_path,
+        )
+
+    def cleanup_orphaned(self, *, dry_run: bool = True) -> CleanupResult:
+        """Find and optionally clean up orphaned data.
+
+        Finds:
+        - Runs that reference non-existent workspaces
+        - Registry entries with missing workspace paths
+
+        Args:
+            dry_run: If True, only report what would be cleaned.
+
+        Returns:
+            CleanupResult with findings and actions taken.
+        """
+        from sunwell.knowledge.workspace.lifecycle import CleanupResult, WorkspaceLifecycle
+
+        lifecycle = WorkspaceLifecycle()
+
+        # Find orphaned runs
+        registered_ids = set(self._registry.projects.keys())
+        orphaned_runs = lifecycle.find_orphaned_runs(registered_ids)
+
+        # Find invalid registrations
+        invalid_registrations = lifecycle.find_invalid_registrations(
+            self._registry.projects
+        )
+
+        cleaned_runs = 0
+        cleaned_registrations = 0
+
+        if not dry_run:
+            # Clean up orphaned runs (mark as deleted, don't actually delete)
+            cleaned_runs = lifecycle.mark_runs_orphaned(orphaned_runs)
+
+            # Clean up invalid registrations
+            for workspace_id in invalid_registrations:
+                self._registry.unregister(workspace_id)
+                cleaned_registrations += 1
+
+        return CleanupResult(
+            dry_run=dry_run,
+            orphaned_runs=tuple(orphaned_runs),
+            invalid_registrations=tuple(invalid_registrations),
+            cleaned_runs=cleaned_runs,
+            cleaned_registrations=cleaned_registrations,
+        )
+
+    def has_active_runs(self, workspace_id: str) -> list[str]:
+        """Check for active runs in a workspace.
+
+        Args:
+            workspace_id: The workspace ID to check.
+
+        Returns:
+            List of active run IDs.
+        """
+        import json
+
+        runs_dir = Path.home() / ".sunwell" / "runs"
+        if not runs_dir.exists():
+            return []
+
+        active: list[str] = []
+        for run_file in runs_dir.glob("*.json"):
+            try:
+                data = json.loads(run_file.read_text())
+                if data.get("project_id") == workspace_id:
+                    status = data.get("status", "")
+                    if status in ("running", "pending", "initializing"):
+                        active.append(data.get("run_id", run_file.stem))
+            except (json.JSONDecodeError, OSError):
+                continue
+
+        return active
 
 
 def sanitize_workspace_id(name: str) -> str:

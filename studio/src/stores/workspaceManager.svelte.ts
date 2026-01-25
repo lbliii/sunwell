@@ -188,3 +188,192 @@ export async function getWorkspaceInfo(path: string): Promise<WorkspaceInfo> {
     throw e;
   }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// LIFECYCLE ACTIONS (RFC-141)
+// ═══════════════════════════════════════════════════════════════
+
+export type DeletionMode = 'unregister' | 'purge' | 'full';
+
+export interface DeleteWorkspaceResult {
+  status: string;
+  mode: string;
+  workspaceId: string;
+  deletedItems: string[];
+  failedItems: string[];
+  runsDeleted: number;
+  runsOrphaned: number;
+  wasCurrent: boolean;
+  error?: string;
+}
+
+export interface ActiveRunsResult {
+  workspaceId: string;
+  activeRuns: string[];
+  hasActiveRuns: boolean;
+}
+
+export interface CleanupResult {
+  dryRun: boolean;
+  orphanedRuns: string[];
+  invalidRegistrations: string[];
+  cleanedRuns: number;
+  cleanedRegistrations: number;
+}
+
+/**
+ * Check for active runs in a workspace.
+ */
+export async function checkActiveRuns(workspaceId: string): Promise<ActiveRunsResult> {
+  try {
+    const result = await apiGet<ActiveRunsResult>(
+      `/api/workspace/${encodeURIComponent(workspaceId)}/active-runs`
+    );
+    return result;
+  } catch (e) {
+    _error = e instanceof Error ? e.message : String(e);
+    throw e;
+  }
+}
+
+/**
+ * Delete (unregister, purge, or fully delete) a workspace.
+ */
+export async function deleteWorkspace(
+  workspaceId: string,
+  options: {
+    mode: DeletionMode;
+    confirm?: boolean;
+    deleteRuns?: boolean;
+    force?: boolean;
+  }
+): Promise<DeleteWorkspaceResult> {
+  try {
+    _error = null;
+
+    const params = new URLSearchParams({
+      mode: options.mode,
+      confirm: String(options.confirm ?? false),
+      delete_runs: String(options.deleteRuns ?? false),
+      force: String(options.force ?? false),
+    });
+
+    const result = await apiDelete<DeleteWorkspaceResult>(
+      `/api/workspace/${encodeURIComponent(workspaceId)}?${params}`
+    );
+
+    // Reload workspaces to reflect changes
+    await loadWorkspaces();
+
+    return result;
+  } catch (e) {
+    _error = e instanceof Error ? e.message : String(e);
+    throw e;
+  }
+}
+
+/**
+ * Rename a workspace.
+ */
+export async function renameWorkspace(
+  workspaceId: string,
+  newId: string,
+  newName?: string
+): Promise<WorkspaceInfo | null> {
+  try {
+    _error = null;
+
+    const result = await apiPatch<{
+      status: string;
+      workspace: WorkspaceInfo | null;
+      runsUpdated: number;
+    }>(`/api/workspace/${encodeURIComponent(workspaceId)}`, {
+      id: newId,
+      name: newName,
+    });
+
+    // Reload workspaces to reflect changes
+    await loadWorkspaces();
+
+    return result.workspace;
+  } catch (e) {
+    _error = e instanceof Error ? e.message : String(e);
+    throw e;
+  }
+}
+
+/**
+ * Update workspace path after manual move.
+ */
+export async function moveWorkspace(
+  workspaceId: string,
+  newPath: string
+): Promise<WorkspaceInfo | null> {
+  try {
+    _error = null;
+
+    const result = await apiPatch<{
+      status: string;
+      workspace: WorkspaceInfo | null;
+    }>(`/api/workspace/${encodeURIComponent(workspaceId)}`, {
+      path: newPath,
+    });
+
+    // Reload workspaces to reflect changes
+    await loadWorkspaces();
+
+    return result.workspace;
+  } catch (e) {
+    _error = e instanceof Error ? e.message : String(e);
+    throw e;
+  }
+}
+
+/**
+ * Find and clean up orphaned data.
+ */
+export async function cleanupOrphaned(dryRun: boolean = true): Promise<CleanupResult> {
+  try {
+    _error = null;
+
+    const result = await apiPost<CleanupResult>('/api/workspace/cleanup', {
+      dryRun,
+    });
+
+    // Reload workspaces to reflect changes
+    if (!dryRun) {
+      await loadWorkspaces();
+    }
+
+    return result;
+  } catch (e) {
+    _error = e instanceof Error ? e.message : String(e);
+    throw e;
+  }
+}
+
+// Helper functions for HTTP methods
+async function apiDelete<T>(url: string): Promise<T> {
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: response.statusText }));
+    throw new Error(error.detail || 'Request failed');
+  }
+  return response.json();
+}
+
+async function apiPatch<T>(url: string, body: object): Promise<T> {
+  const response = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: response.statusText }));
+    throw new Error(error.detail || 'Request failed');
+  }
+  return response.json();
+}

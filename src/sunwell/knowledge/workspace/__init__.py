@@ -8,6 +8,10 @@ RFC-043 additions:
 - WorkspaceResult: Resolution result with confidence scoring
 - resolve_workspace: Unified resolution for CLI and Desktop
 - ensure_workspace_exists: Create workspace directory structure
+
+RFC-141 additions:
+- Lifecycle management: deletion, rename, move, cleanup operations
+- Cascade behavior for workspace child data
 """
 
 from sunwell.knowledge.workspace.detector import (
@@ -18,6 +22,16 @@ from sunwell.knowledge.workspace.detector import (
     resolve_trust_level,
 )
 from sunwell.knowledge.workspace.indexer import CodebaseIndexer
+from sunwell.knowledge.workspace.lifecycle import (
+    CleanupResult,
+    DeleteResult,
+    DeletionMode,
+    MoveResult,
+    PurgeResult,
+    RenameResult,
+    WorkspaceLifecycle,
+    has_nested_workspaces,
+)
 from sunwell.knowledge.workspace.manager import (
     WorkspaceInfo,
     WorkspaceManager,
@@ -56,4 +70,13 @@ __all__ = [
     "WorkspaceInfo",
     "WorkspaceStatus",
     "sanitize_workspace_id",
+    # Lifecycle (RFC-141)
+    "WorkspaceLifecycle",
+    "DeletionMode",
+    "DeleteResult",
+    "PurgeResult",
+    "RenameResult",
+    "MoveResult",
+    "CleanupResult",
+    "has_nested_workspaces",
 ]

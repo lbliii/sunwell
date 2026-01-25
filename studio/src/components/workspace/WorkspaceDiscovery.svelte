@@ -206,10 +206,6 @@
     align-items: center;
   }
 
-  .controls-row > :first-child:is(input) {
-    flex: 1;
-  }
-
   .discovery-error {
     padding: var(--space-3) var(--space-4);
     background: var(--error-bg);
