@@ -162,7 +162,64 @@ class RichRenderer:
                             total=None
                         )
 
+                    # RFC-058: Harmonic planning candidate visibility
+                    case EventType.PLAN_CANDIDATE_START:
+                        total_candidates = event.data.get("total_candidates", 5)
+                        variance = event.data.get("variance_strategy", "prompting")
+                        # Create a sub-progress for candidate generation
+                        self._candidate_task_id = progress.add_task(
+                            f"   [holy.gold]◇[/] Generating {total_candidates} candidates ({variance})...",
+                            total=total_candidates
+                        )
+
+                    case EventType.PLAN_CANDIDATE_GENERATED:
+                        candidate_id = event.data.get("candidate_id", "?")
+                        artifact_count = event.data.get("artifact_count", 0)
+                        prog = event.data.get("progress", 1)
+                        total = event.data.get("total_candidates", 5)
+                        style = event.data.get("variance_config", {}).get("prompt_style", "?")
+
+                        if hasattr(self, "_candidate_task_id") and self._candidate_task_id is not None:
+                            progress.update(
+                                self._candidate_task_id,
+                                completed=prog,
+                                description=f"   [holy.gold]◇[/] [{prog}/{total}] {style}: {artifact_count} artifacts"
+                            )
+
+                    case EventType.PLAN_CANDIDATES_COMPLETE:
+                        if hasattr(self, "_candidate_task_id") and self._candidate_task_id is not None:
+                            total = event.data.get("total_candidates", 5)
+                            successful = event.data.get("successful_candidates", total)
+                            progress.update(
+                                self._candidate_task_id,
+                                completed=total,
+                                description=f"   [holy.success]◆[/] {successful} candidates generated"
+                            )
+
+                    case EventType.PLAN_CANDIDATE_SCORED:
+                        candidate_id = event.data.get("candidate_id", "?")
+                        score = event.data.get("score", 0)
+                        prog = event.data.get("progress", 1)
+                        total = event.data.get("total_candidates", 5)
+
+                        if hasattr(self, "_candidate_task_id") and self._candidate_task_id is not None:
+                            progress.update(
+                                self._candidate_task_id,
+                                description=f"   [holy.gold]·[/] Scoring [{prog}/{total}]: {score:.1f}"
+                            )
+
                     case EventType.PLAN_WINNER:
+                        # Clean up candidate progress bar
+                        if hasattr(self, "_candidate_task_id") and self._candidate_task_id is not None:
+                            selected = event.data.get("selected_candidate_id", "?")
+                            score = event.data.get("score", 0)
+                            progress.update(
+                                self._candidate_task_id,
+                                completed=event.data.get("total_candidates", 5),
+                                description=f"   [holy.success]★[/] Selected: {selected} (score: {score:.1f})"
+                            )
+                            # Keep it visible briefly, it will be cleaned up naturally
+                            self._candidate_task_id = None
                         if task_id is not None:
                             progress.update(task_id, completed=100, total=100)
                         self._render_plan(event.data)
@@ -184,6 +241,10 @@ class RichRenderer:
                         if content:
                             self.console.print()
                             self.console.print(content)
+
+                    case EventType.TOOL_COMPLETE:
+                        # Show tool completion, especially self-corrections
+                        self._render_tool_complete(event.data)
 
                     case EventType.GATE_START:
                         gate_id = event.data.get("gate_id", "gate")
@@ -335,6 +396,35 @@ class RichRenderer:
         failed_step = data.get("failed_step", "unknown")
         self.console.print(f"    └─ [void.purple]✗ FAILED[/] at {failed_step}")
 
+    def _render_tool_complete(self, data: dict) -> None:
+        """Render tool completion, highlighting self-corrections."""
+        tool_name = data.get("tool_name", "tool")
+        success = data.get("success", False)
+        self_corrected = data.get("self_corrected", False)
+
+        # Only show notable events (self-corrections or failures)
+        if self_corrected:
+            output = data.get("output", "")
+            self.console.print(
+                f"   [holy.gold]⚡[/] [sunwell.accent]Self-corrected[/]: {tool_name}"
+            )
+            if output:
+                self.console.print(f"      [neutral.dim]{output[:60]}[/]")
+
+            # Show invocation summary if available
+            summary = data.get("invocation_summary")
+            if summary and self.config.verbose:
+                total = summary.get("total", 0)
+                corrected = summary.get("self_corrected", 0)
+                self.console.print(
+                    f"      [neutral.dim]({total} tools called, {corrected} self-corrected)[/]"
+                )
+        elif not success:
+            error = data.get("error", "unknown error")
+            self.console.print(
+                f"   [void.purple]✗[/] {tool_name} failed: {error[:50]}"
+            )
+
     def _render_fix_progress(self, data: dict) -> None:
         """Render fix progress with Holy Light styling (RFC-131)."""
         stage = data.get("stage", "?")
@@ -406,6 +496,24 @@ class RichRenderer:
                     signals = event.data["signals"]
                     print(f"✦ Understanding: complexity={signals.get('complexity', '?')}, "
                           f"route={signals.get('planning_route', '?')}")
+            case EventType.PLAN_CANDIDATE_START:
+                total = event.data.get('total_candidates', 5)
+                variance = event.data.get('variance_strategy', 'prompting')
+                print(f"◇ Generating {total} candidates ({variance})...")
+            case EventType.PLAN_CANDIDATE_GENERATED:
+                prog = event.data.get('progress', 1)
+                total = event.data.get('total_candidates', 5)
+                style = event.data.get('variance_config', {}).get('prompt_style', '?')
+                artifacts = event.data.get('artifact_count', 0)
+                print(f"  ✧ [{prog}/{total}] {style}: {artifacts} artifacts")
+            case EventType.PLAN_CANDIDATES_COMPLETE:
+                successful = event.data.get('successful_candidates', 0)
+                print(f"◆ {successful} candidates generated, scoring...")
+            case EventType.PLAN_CANDIDATE_SCORED:
+                prog = event.data.get('progress', 1)
+                total = event.data.get('total_candidates', 5)
+                score = event.data.get('score', 0)
+                print(f"  · Scored [{prog}/{total}]: {score:.1f}", end='\r')
             case EventType.PLAN_WINNER:
                 tasks = event.data.get('tasks', 0)
                 gates = event.data.get('gates', 0)
@@ -415,6 +523,12 @@ class RichRenderer:
                 print(f"✧ Task: {event.data.get('task_id', 'task')}")
             case EventType.TASK_COMPLETE:
                 print(f"  ✓ Done ({event.data.get('duration_ms', 0)}ms)")
+            case EventType.TOOL_COMPLETE:
+                # Show self-corrections prominently
+                if event.data.get('self_corrected'):
+                    tool = event.data.get('tool_name', 'tool')
+                    output = event.data.get('output', '')
+                    print(f"  ⚡ Self-corrected: {tool} - {output[:50]}")
             case EventType.GATE_PASS:
                 print(f"✧ Gate passed: {event.data.get('gate_id', 'gate')}")
             case EventType.GATE_FAIL:

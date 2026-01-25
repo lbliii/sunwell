@@ -1,23 +1,19 @@
 """Cognitive routing for intent-aware retrieval.
 
-The routing module contains:
-- UnifiedRouter (RFC-030): Single-model routing for all decisions (RECOMMENDED)
-- CognitiveRouter (RFC-020): Intent-aware routing with tiny LLMs (DEPRECATED)
-- TieredAttunement (RFC-022): Enhanced routing with DORI-inspired techniques (DEPRECATED)
+The routing module provides:
+- UnifiedRouter (RFC-030): Single-model routing for all decisions
 
-RFC-030 Migration:
-    UnifiedRouter replaces CognitiveRouter, TieredAttunement, Discernment,
-    and model routing with a single tiny model that handles ALL decisions
-    in one inference call.
+UnifiedRouter handles ALL pre-processing decisions in one inference call:
+- Intent Classification — What kind of task is this?
+- Complexity Assessment — How complex is this task?
+- Lens Selection — Which lens should handle it?
+- Tool Prediction — What tools might be needed?
+- User Mood Detection — What's the user's emotional state?
+- Expertise Level — What's the user's technical level?
 
-    Old: router = CognitiveRouter(model, lenses)
-         decision = await router.route(task)
-
-    New: router = UnifiedRouter(model)
-         decision = await router.route(request)
-
-    The new RoutingDecision includes intent, complexity, lens, tools,
-    mood, expertise, and confidence - all in one call.
+Usage:
+    router = UnifiedRouter(model)
+    decision = await router.route(request)
 """
 
 from typing import Any, Protocol
@@ -33,83 +29,46 @@ from sunwell.types.protocol import Serializable
 class HasStats(Protocol):
     """Protocol for classes that provide statistics.
 
-    Implemented by: CognitiveRouter, HybridRouter, UnifiedRouter, TieredAttunement
+    Implemented by: UnifiedRouter
     """
 
     def get_stats(self) -> dict[str, Any]: ...
 
 
-# Re-export Serializable for backwards compatibility
-__all__ = ["HasStats", "Serializable"]
-
-# RFC-030: Unified Router (recommended)
-# RFC-020: Cognitive Router (deprecated - use UnifiedRouter)
-from sunwell.routing.cognitive_router import (
-    CognitiveRouter,
+# RFC-030: Unified Router
+from sunwell.routing.unified import (
     Complexity,
-    HybridRouter,
     Intent,
-    IntentTaxonomy,
     RoutingDecision,
-)
-
-# RFC-022: Tiered Attunement (deprecated - use UnifiedRouter)
-from sunwell.routing.tiered_attunement import (
-    ROUTING_EXEMPLARS,
-    AttunementResult,
-    ConfidenceRubric,
-    RoutingExemplar,
-    Tier,
-    TierBehavior,
-    TieredAttunement,
-    VerificationResult,
-    create_tiered_attunement,
-)
-from sunwell.routing.unified import (
-    Complexity as UnifiedComplexity,
-)
-from sunwell.routing.unified import (
-    Intent as UnifiedIntent,
-)
-from sunwell.routing.unified import (
-    LegacyRoutingAdapter,
     UnifiedRouter,
     UserExpertise,
     UserMood,
     create_unified_router,
 )
+
+# RFC-022 Enhancement: Deterministic confidence and tiered execution
 from sunwell.routing.unified import (
-    RoutingDecision as UnifiedRoutingDecision,
+    ConfidenceRubric,
+    ExecutionTier,
+    RoutingExemplar,
+    TierBehavior,
 )
 
 __all__ = [
     # Protocols
     "HasStats",
     "Serializable",
-    # RFC-030: Unified Router (recommended)
+    # RFC-030: Unified Router
     "UnifiedRouter",
-    "UnifiedRoutingDecision",
-    "UnifiedIntent",
-    "UnifiedComplexity",
-    "UserMood",
-    "UserExpertise",
-    "LegacyRoutingAdapter",
-    "create_unified_router",
-    # RFC-020: Cognitive Router (deprecated)
-    "CognitiveRouter",
     "RoutingDecision",
-    "IntentTaxonomy",
     "Intent",
     "Complexity",
-    "HybridRouter",
-    # RFC-022: Tiered Attunement (deprecated)
-    "TieredAttunement",
-    "AttunementResult",
-    "Tier",
+    "UserMood",
+    "UserExpertise",
+    "create_unified_router",
+    # RFC-022 Enhancement: Confidence & Tiers
+    "ConfidenceRubric",
+    "ExecutionTier",
     "TierBehavior",
     "RoutingExemplar",
-    "ConfidenceRubric",
-    "VerificationResult",
-    "ROUTING_EXEMPLARS",
-    "create_tiered_attunement",
 ]

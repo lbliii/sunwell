@@ -208,7 +208,8 @@ class TestHarmonicPlanner:
         assert configs[0]["prompt_style"] == "parallel_first"
         assert configs[1]["prompt_style"] == "minimal"
         assert configs[2]["prompt_style"] == "thorough"
-        assert configs[3]["prompt_style"] == "balanced"
+        assert configs[3]["prompt_style"] == "modular"
+        assert configs[4]["prompt_style"] == "risk_aware"
 
     def test_variance_configs_temperature(self, mock_model):
         """Test temperature variance configuration generation."""

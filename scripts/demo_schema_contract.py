@@ -15,12 +15,12 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from sunwell.adaptive.event_schema import (
+from sunwell.agent.event_schema import (
     REQUIRED_FIELDS,
     create_validated_event,
     validate_event_data,
 )
-from sunwell.adaptive.events import AgentEvent, EventType
+from sunwell.agent.events import AgentEvent, EventType
 
 
 def main() -> None:

@@ -72,228 +72,11 @@ class ModelCapability:
     """Maximum context window size."""
 
 
-# Comprehensive model capability registry
-# Keys are model name prefixes (matched case-insensitively)
-MODEL_CAPABILITIES: dict[str, ModelCapability] = {
-    # OpenAI models
-    "gpt-4o": ModelCapability(
-        native_tools=True,
-        parallel_tools=True,
-        tool_streaming=True,
-        json_mode=True,
-        max_output_tokens=16384,
-        context_window=128000,
-    ),
-    "gpt-4o-mini": ModelCapability(
-        native_tools=True,
-        parallel_tools=True,
-        tool_streaming=True,
-        json_mode=True,
-        max_output_tokens=16384,
-        context_window=128000,
-    ),
-    "gpt-4-turbo": ModelCapability(
-        native_tools=True,
-        parallel_tools=True,
-        json_mode=True,
-        max_output_tokens=4096,
-        context_window=128000,
-    ),
-    "gpt-4": ModelCapability(
-        native_tools=True,
-        parallel_tools=True,
-        max_output_tokens=8192,
-        context_window=8192,
-    ),
-    "gpt-3.5-turbo": ModelCapability(
-        native_tools=True,
-        parallel_tools=True,
-        json_mode=True,
-        max_output_tokens=4096,
-        context_window=16385,
-    ),
-    "o1": ModelCapability(
-        native_tools=True,
-        parallel_tools=True,
-        reasoning=True,
-        max_output_tokens=100000,
-        context_window=200000,
-    ),
-    "o3": ModelCapability(
-        native_tools=True,
-        parallel_tools=True,
-        reasoning=True,
-        max_output_tokens=100000,
-        context_window=200000,
-    ),
-
-    # Anthropic models
-    "claude-4": ModelCapability(
-        native_tools=True,
-        parallel_tools=True,
-        tool_streaming=True,
-        json_mode=True,
-        reasoning=True,
-        max_output_tokens=64000,
-        context_window=200000,
-    ),
-    "claude-3.5-sonnet": ModelCapability(
-        native_tools=True,
-        parallel_tools=True,
-        tool_streaming=True,
-        json_mode=True,
-        max_output_tokens=8192,
-        context_window=200000,
-    ),
-    "claude-3.5-haiku": ModelCapability(
-        native_tools=True,
-        parallel_tools=True,
-        tool_streaming=True,
-        json_mode=True,
-        max_output_tokens=8192,
-        context_window=200000,
-    ),
-    "claude-3-opus": ModelCapability(
-        native_tools=True,
-        parallel_tools=True,
-        max_output_tokens=4096,
-        context_window=200000,
-    ),
-    "claude-3-sonnet": ModelCapability(
-        native_tools=True,
-        parallel_tools=True,
-        max_output_tokens=4096,
-        context_window=200000,
-    ),
-    "claude-3-haiku": ModelCapability(
-        native_tools=True,
-        parallel_tools=True,
-        max_output_tokens=4096,
-        context_window=200000,
-    ),
-
-    # Llama models (via Ollama or cloud providers)
-    "llama3.3": ModelCapability(
-        native_tools=True,
-        parallel_tools=False,
-        json_mode=True,
-        max_output_tokens=8192,
-        context_window=128000,
-    ),
-    "llama3.2": ModelCapability(
-        native_tools=True,
-        parallel_tools=False,
-        json_mode=True,
-        max_output_tokens=8192,
-        context_window=128000,
-    ),
-    "llama3.1": ModelCapability(
-        native_tools=True,
-        parallel_tools=False,
-        json_mode=True,
-        max_output_tokens=8192,
-        context_window=128000,
-    ),
-    "llama3": ModelCapability(
-        native_tools=True,
-        parallel_tools=False,
-        max_output_tokens=4096,
-        context_window=8192,
-    ),
-
-    # Qwen models
-    "qwen2.5": ModelCapability(
-        native_tools=True,
-        parallel_tools=False,
-        json_mode=True,
-        max_output_tokens=8192,
-        context_window=32768,
-    ),
-    "qwen3": ModelCapability(
-        native_tools=True,
-        parallel_tools=True,
-        json_mode=True,
-        reasoning=True,
-        max_output_tokens=8192,
-        context_window=128000,
-    ),
-
-    # Mistral models
-    "mistral-large": ModelCapability(
-        native_tools=True,
-        parallel_tools=True,
-        json_mode=True,
-        max_output_tokens=8192,
-        context_window=128000,
-    ),
-    "mistral": ModelCapability(
-        native_tools=True,
-        parallel_tools=False,
-        max_output_tokens=4096,
-        context_window=32768,
-    ),
-    "mixtral": ModelCapability(
-        native_tools=True,
-        parallel_tools=False,
-        max_output_tokens=4096,
-        context_window=32768,
-    ),
-
-    # Google models
-    "gemini-2": ModelCapability(
-        native_tools=True,
-        parallel_tools=True,
-        tool_streaming=True,
-        json_mode=True,
-        reasoning=True,
-        max_output_tokens=8192,
-        context_window=1000000,
-    ),
-    "gemini-1.5-pro": ModelCapability(
-        native_tools=True,
-        parallel_tools=True,
-        json_mode=True,
-        max_output_tokens=8192,
-        context_window=1000000,
-    ),
-    "gemini-1.5-flash": ModelCapability(
-        native_tools=True,
-        parallel_tools=True,
-        json_mode=True,
-        max_output_tokens=8192,
-        context_window=1000000,
-    ),
-
-    # DeepSeek models
-    "deepseek-r1": ModelCapability(
-        native_tools=True,
-        parallel_tools=False,
-        json_mode=True,
-        reasoning=True,
-        max_output_tokens=8192,
-        context_window=64000,
-    ),
-    "deepseek-v3": ModelCapability(
-        native_tools=True,
-        parallel_tools=False,
-        json_mode=True,
-        max_output_tokens=8192,
-        context_window=64000,
-    ),
-
-    # Models that DON'T support native tools (need emulation)
-    "gemma": ModelCapability(native_tools=False),
-    "phi": ModelCapability(native_tools=False),
-    "codellama": ModelCapability(native_tools=False),
-    "starcoder": ModelCapability(native_tools=False),
-}
-
-
 def get_model_capability(model_id: str) -> ModelCapability:
     """Get capabilities for a model.
 
-    Matches model_id against known prefixes (case-insensitive).
-    Returns default (no capabilities) if model is unknown.
+    Uses the new RFC-136 capability system with structured model parsing
+    and version-aware capability matching.
 
     Args:
         model_id: The model identifier (e.g., "gpt-4o", "claude-3.5-sonnet")
@@ -301,15 +84,21 @@ def get_model_capability(model_id: str) -> ModelCapability:
     Returns:
         ModelCapability for the model
     """
-    model_lower = model_id.lower()
+    # Use new RFC-136 capability system
+    from sunwell.models.capability.registry import get_capability as _get_capability
 
-    # Check exact match first, then prefix matches (longest first)
-    for key in sorted(MODEL_CAPABILITIES.keys(), key=len, reverse=True):
-        if key.lower() in model_lower:
-            return MODEL_CAPABILITIES[key]
+    new_cap = _get_capability(model_id)
 
-    # Unknown model - assume no native tools
-    return ModelCapability()
+    # Convert to local ModelCapability (compatible fields)
+    return ModelCapability(
+        native_tools=new_cap.native_tools,
+        parallel_tools=new_cap.parallel_tools,
+        tool_streaming=new_cap.tool_streaming,
+        json_mode=new_cap.json_mode,
+        reasoning=new_cap.reasoning,
+        max_output_tokens=new_cap.max_output_tokens,
+        context_window=new_cap.context_window,
+    )
 
 
 def has_native_tools(model_id: str) -> bool:
@@ -320,14 +109,12 @@ def has_native_tools(model_id: str) -> bool:
     return get_model_capability(model_id).native_tools
 
 
-# Legacy: Keep old frozenset for backward compatibility
-_NATIVE_TOOL_MODELS: frozenset[str] = frozenset(
-    key for key, cap in MODEL_CAPABILITIES.items() if cap.native_tools
-)
-
 # System prompt that teaches the model to use tools via JSON
 # Note: Double braces {{ }} are escaped for .format() - they become single braces
-TOOL_EMULATION_PROMPT = """You have access to tools. When you need to use a tool, output a JSON block:
+# Based on Google's function calling guidance for non-native tool models
+TOOL_EMULATION_PROMPT = """You have access to tools. You MUST use them to complete tasks.
+
+When you need to use a tool, output ONLY a JSON block in this exact format:
 
 ```json
 {{"tool": "tool_name", "arguments": {{"arg1": "value1", "arg2": "value2"}}}}
@@ -336,11 +123,12 @@ TOOL_EMULATION_PROMPT = """You have access to tools. When you need to use a tool
 Available tools:
 {tool_descriptions}
 
-IMPORTANT:
-- Output ONLY the JSON block when calling a tool, nothing else
-- After receiving tool results, continue your response
-- You can call multiple tools by outputting multiple JSON blocks
-- When you're done and have your final answer, just output text normally (no JSON)
+CRITICAL RULES:
+1. When calling a tool, output ONLY the JSON block - no other text
+2. For code generation tasks, you MUST use the write_file tool
+3. Do NOT output code directly in your response - always use write_file
+4. After tool execution, you will receive the result and can continue
+5. You can call multiple tools by outputting multiple JSON blocks
 """
 
 
@@ -363,15 +151,75 @@ def format_tool_descriptions(tools: tuple[Tool, ...]) -> str:
     return "\n".join(lines)
 
 
-def parse_tool_calls_from_text(text: str) -> tuple[list[ToolCall], str]:
+def _looks_like_code(text: str) -> bool:
+    """Detect if text looks like code output (not tool call JSON).
+
+    Used to catch when models output code directly instead of calling write_file.
+    """
+    # Strip markdown fences if present
+    content = text.strip()
+    if content.startswith("```"):
+        # Has markdown fence - definitely looks like code
+        return True
+
+    # Check for common code patterns
+    code_indicators = [
+        "def ",       # Python function
+        "class ",     # Python/JS class
+        "import ",    # Python import
+        "from ",      # Python from import
+        "function ",  # JS function
+        "const ",     # JS const
+        "let ",       # JS let
+        "export ",    # JS/TS export
+        "async ",     # Async function
+        "if __name__",  # Python main guard
+        "#!/",        # Shebang
+    ]
+
+    # Check first 500 chars for code patterns
+    sample = content[:500]
+    return any(indicator in sample for indicator in code_indicators)
+
+
+def _extract_code_from_markdown(text: str) -> str:
+    """Extract code content from markdown fences if present."""
+    content = text.strip()
+
+    # Match ```language\ncode\n``` pattern
+    fence_pattern = re.compile(r'^```\w*\n(.*?)```', re.DOTALL)
+    match = fence_pattern.match(content)
+    if match:
+        return match.group(1).strip()
+
+    # No fence, return as-is
+    return content
+
+
+def parse_tool_calls_from_text(
+    text: str,
+    expected_tool: str | None = None,
+    target_path: str | None = None,
+) -> tuple[list[ToolCall], str]:
     """Parse tool calls from model output.
+
+    Enhanced with code detection fallback: if no tool calls are found but
+    the output looks like code and we expected write_file, auto-construct
+    the tool call. This handles models that ignore tool-calling instructions.
+
+    Args:
+        text: Model output text to parse
+        expected_tool: If set and no tool calls found, check if we should
+                       auto-construct a call (e.g., "write_file")
+        target_path: Target path for auto-constructed write_file calls
 
     Returns:
         (tool_calls, remaining_text) - tool calls found and text after them
     """
-    tool_calls = []
+    tool_calls: list[ToolCall] = []
     remaining = text
 
+    # Try to parse explicit tool call JSON
     for match in _TOOL_JSON_PATTERN.finditer(text):
         json_str = match.group(1) or match.group(2)
         try:
@@ -388,6 +236,24 @@ def parse_tool_calls_from_text(text: str) -> tuple[list[ToolCall], str]:
                 remaining = remaining.replace(match.group(0), "", 1)
         except json.JSONDecodeError:
             continue
+
+    # CODE DETECTION FALLBACK:
+    # If no tool calls found, model might have output code directly.
+    # Auto-construct a write_file call if it looks like code.
+    if not tool_calls and expected_tool == "write_file" and _looks_like_code(text):
+        code_content = _extract_code_from_markdown(text)
+        if code_content:
+            tool_calls.append(
+                ToolCall(
+                    id="auto_write_fallback",
+                    name="write_file",
+                    arguments={
+                        "path": target_path or "generated_code.py",
+                        "content": code_content,
+                    },
+                )
+            )
+            remaining = ""  # Consumed by the auto-constructed call
 
     return tool_calls, remaining.strip()
 
@@ -451,9 +317,16 @@ class ToolEmulatorModel:
         # Generate without passing tools (model doesn't support them)
         result = await self.inner_model.generate(prompt, options=enhanced_opts)  # type: ignore
 
-        # Parse tool calls from the text
+        # Check if write_file is one of the tools (for code detection fallback)
+        has_write_file = any(t.name == "write_file" for t in tools)
+        expected_tool = "write_file" if has_write_file else None
+
+        # Parse tool calls from the text (with code detection fallback)
         if result.content:
-            tool_calls, remaining_text = parse_tool_calls_from_text(result.content)
+            tool_calls, remaining_text = parse_tool_calls_from_text(
+                result.content,
+                expected_tool=expected_tool,
+            )
             if tool_calls:
                 return GenerateResult(
                     content=remaining_text or None,

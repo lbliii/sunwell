@@ -21,7 +21,7 @@ class Condition(str, Enum):
     BARE = "bare"           # No system prompt
     FLAT = "flat"           # Full lens context injected
     SELECTIVE = "selective" # Sunwell selective retrieval
-    ROUTED = "routed"       # CognitiveRouter + selective retrieval
+    ROUTED = "routed"       # UnifiedRouter + selective retrieval
     SELF_DIRECTED = "self_directed"  # RFC-027: Model calls expertise tools during generation
     PREFETCH = "prefetch"   # RFC-031: Tool Orchestrator Shard pre-fetches expertise
     COMPETITOR = "competitor"  # Optional competitor baseline
@@ -158,7 +158,7 @@ class RetrievalMetrics:
 
 @dataclass(slots=True)
 class RoutingMetrics:
-    """Metrics for CognitiveRouter performance (RFC-020)."""
+    """Metrics for UnifiedRouter performance (RFC-030)."""
 
     intent: str                 # Classified intent
     lens_selected: str          # Lens chosen by router
@@ -278,7 +278,7 @@ class TaskResult:
     task_id: str
     outputs: dict[str, ConditionOutput]  # Condition name → output
     retrieval_metrics: RetrievalMetrics | None = None
-    routing_metrics: RoutingMetrics | None = None  # RFC-020: CognitiveRouter metrics
+    routing_metrics: RoutingMetrics | None = None  # RFC-030: UnifiedRouter metrics
     self_directed_metrics: SelfDirectedMetrics | None = None  # RFC-027: Self-directed metrics
     prefetch_metrics: PrefetchMetrics | None = None  # RFC-031: Tool Orchestrator Shard
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())

@@ -1,0 +1,255 @@
+{
+  "metadata": {
+    "timestamp": "2026-01-24T23:54:21.180201",
+    "model": "gemma3:4b",
+    "goals_tested": 3,
+    "total_candidates": 15
+  },
+  "summary": {
+    "v1_v2_agreement_rate": 0.6666666666666666,
+    "avg_diversity": 0.5299173277873627,
+    "avg_time_ms": 121994.54786066781
+  },
+  "prompt_styles": {
+    "parallel_first": {
+      "total_runs": 3,
+      "win_rate_v1": 0.6666666666666666,
+      "win_rate_v2": 0.3333333333333333,
+      "mean_depth": 3.3333333333333335,
+      "mean_artifacts": 8,
+      "mean_parallelism": 0.4054232804232804,
+      "mean_score_v1": 70.38359788359789,
+      "mean_score_v2": 124.25505068567067,
+      "mean_keyword_coverage": 0.7354497354497355
+    },
+    "minimal": {
+      "total_runs": 3,
+      "win_rate_v1": 0.0,
+      "win_rate_v2": 0.0,
+      "mean_depth": 2.6666666666666665,
+      "mean_artifacts": 6,
+      "mean_parallelism": 0.3888888888888889,
+      "mean_score_v1": 65.0,
+      "mean_score_v2": 110.19261373341695,
+      "mean_keyword_coverage": 0.6126984126984126
+    },
+    "thorough": {
+      "total_runs": 3,
+      "win_rate_v1": 0.0,
+      "win_rate_v2": 0.0,
+      "mean_depth": 5,
+      "mean_artifacts": 10.666666666666666,
+      "mean_parallelism": 0.2777777777777778,
+      "mean_score_v1": 45.11111111111111,
+      "mean_score_v2": 106.94592553656365,
+      "mean_keyword_coverage": 0.8571428571428571
+    },
+    "modular": {
+      "total_runs": 3,
+      "win_rate_v1": 0.0,
+      "win_rate_v2": 0.0,
+      "mean_depth": 3.6666666666666665,
+      "mean_artifacts": 7,
+      "mean_parallelism": 0.2757936507936508,
+      "mean_score_v1": 45.75396825396825,
+      "mean_score_v2": 99.55824360958424,
+      "mean_keyword_coverage": 0.7724867724867724
+    },
+    "risk_aware": {
+      "total_runs": 3,
+      "win_rate_v1": 0.3333333333333333,
+      "win_rate_v2": 0.6666666666666666,
+      "mean_depth": 3.3333333333333335,
+      "mean_artifacts": 7.666666666666667,
+      "mean_parallelism": 0.3888888888888889,
+      "mean_score_v1": 64.72222222222221,
+      "mean_score_v2": 117.49236012511689,
+      "mean_keyword_coverage": 0.7724867724867724
+    }
+  },
+  "goals": [
+    {
+      "id": "rest-api",
+      "name": "REST API",
+      "winner_v1": "parallel_first",
+      "winner_v2": "risk_aware",
+      "v1_v2_agree": false,
+      "diversity": 0.4576817214693614,
+      "time_ms": 141039.2269580043,
+      "candidates": [
+        {
+          "style": "parallel_first",
+          "depth": 4,
+          "width": 5,
+          "artifacts": 9,
+          "parallelism": 0.5555555555555556,
+          "score_v1": 74.72222222222223,
+          "score_v2": 114.58570173636288,
+          "keyword_coverage": 1.0
+        },
+        {
+          "style": "minimal",
+          "depth": 3,
+          "width": 3,
+          "artifacts": 6,
+          "parallelism": 0.5,
+          "score_v1": 66.66666666666666,
+          "score_v2": 99.83333333333334,
+          "keyword_coverage": 0.6
+        },
+        {
+          "style": "thorough",
+          "depth": 5,
+          "width": 4,
+          "artifacts": 12,
+          "parallelism": 0.3333333333333333,
+          "score_v1": 51.33333333333333,
+          "score_v2": 115.92280956059263,
+          "keyword_coverage": 1.0
+        },
+        {
+          "style": "modular",
+          "depth": 4,
+          "width": 3,
+          "artifacts": 8,
+          "parallelism": 0.375,
+          "score_v1": 52.5,
+          "score_v2": 107.2786404500042,
+          "keyword_coverage": 1.0
+        },
+        {
+          "style": "risk_aware",
+          "depth": 4,
+          "width": 3,
+          "artifacts": 9,
+          "parallelism": 0.3333333333333333,
+          "score_v1": 50.83333333333333,
+          "score_v2": 116.44466578219749,
+          "keyword_coverage": 1.0
+        }
+      ]
+    },
+    {
+      "id": "cli-tool",
+      "name": "CLI Tool",
+      "winner_v1": "parallel_first",
+      "winner_v2": "parallel_first",
+      "v1_v2_agree": true,
+      "diversity": 0.6384325745064179,
+      "time_ms": 109340.5407909886,
+      "candidates": [
+        {
+          "style": "parallel_first",
+          "depth": 2,
+          "width": 4,
+          "artifacts": 8,
+          "parallelism": 0.375,
+          "score_v1": 95.0,
+          "score_v2": 162.05167733262766,
+          "keyword_coverage": 0.42857142857142855
+        },
+        {
+          "style": "minimal",
+          "depth": 2,
+          "width": 3,
+          "artifacts": 6,
+          "parallelism": 0.3333333333333333,
+          "score_v1": 78.33333333333333,
+          "score_v2": 128.57142857142856,
+          "keyword_coverage": 0.5714285714285714
+        },
+        {
+          "style": "thorough",
+          "depth": 5,
+          "width": 3,
+          "artifacts": 10,
+          "parallelism": 0.2,
+          "score_v1": 40.0,
+          "score_v2": 101.74319781026345,
+          "keyword_coverage": 0.5714285714285714
+        },
+        {
+          "style": "modular",
+          "depth": 3,
+          "width": 2,
+          "artifacts": 6,
+          "parallelism": 0.16666666666666666,
+          "score_v1": 43.33333333333333,
+          "score_v2": 93.60165072406039,
+          "keyword_coverage": 0.42857142857142855
+        },
+        {
+          "style": "risk_aware",
+          "depth": 2,
+          "width": 3,
+          "artifacts": 6,
+          "parallelism": 0.3333333333333333,
+          "score_v1": 78.33333333333333,
+          "score_v2": 131.42857142857144,
+          "keyword_coverage": 0.42857142857142855
+        }
+      ]
+    },
+    {
+      "id": "file-upload",
+      "name": "File Upload",
+      "winner_v1": "risk_aware",
+      "winner_v2": "risk_aware",
+      "v1_v2_agree": true,
+      "diversity": 0.4936376873863088,
+      "time_ms": 115603.87583301053,
+      "candidates": [
+        {
+          "style": "parallel_first",
+          "depth": 4,
+          "width": 2,
+          "artifacts": 7,
+          "parallelism": 0.2857142857142857,
+          "score_v1": 41.42857142857143,
+          "score_v2": 96.12777298802145,
+          "keyword_coverage": 0.7777777777777778
+        },
+        {
+          "style": "minimal",
+          "depth": 3,
+          "width": 2,
+          "artifacts": 6,
+          "parallelism": 0.3333333333333333,
+          "score_v1": 49.99999999999999,
+          "score_v2": 102.17307929548896,
+          "keyword_coverage": 0.6666666666666666
+        },
+        {
+          "style": "thorough",
+          "depth": 5,
+          "width": 3,
+          "artifacts": 10,
+          "parallelism": 0.3,
+          "score_v1": 44.0,
+          "score_v2": 103.17176923883488,
+          "keyword_coverage": 1.0
+        },
+        {
+          "style": "modular",
+          "depth": 4,
+          "width": 2,
+          "artifacts": 7,
+          "parallelism": 0.2857142857142857,
+          "score_v1": 41.42857142857143,
+          "score_v2": 97.7944396546881,
+          "keyword_coverage": 0.8888888888888888
+        },
+        {
+          "style": "risk_aware",
+          "depth": 4,
+          "width": 4,
+          "artifacts": 8,
+          "parallelism": 0.5,
+          "score_v1": 65.0,
+          "score_v2": 104.60384316458175,
+          "keyword_coverage": 0.8888888888888888
+        }
+      ]
+    }
+  ]
+}

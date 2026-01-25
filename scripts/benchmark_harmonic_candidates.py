@@ -366,7 +366,7 @@ def print_results(
     )
     print("-" * 80)
 
-    for style in ["parallel_first", "minimal", "thorough", "balanced", "default"]:
+    for style in ["parallel_first", "minimal", "thorough", "modular", "risk_aware", "default"]:
         if style not in stats:
             continue
         s = stats[style]
@@ -395,7 +395,7 @@ def print_results(
     print("\n\n🔍 PROMPT STYLE ANALYSIS")
     print("-" * 80)
 
-    for style in ["parallel_first", "minimal", "thorough", "balanced", "default"]:
+    for style in ["parallel_first", "minimal", "thorough", "modular", "risk_aware", "default"]:
         if style not in stats:
             continue
         s = stats[style]
@@ -427,14 +427,23 @@ def print_results(
                 print(f"   ⚠️ NOT achieving {expected}: coverage={s.mean_keyword_coverage():.2f}")
                 print("   💡 Consider: Emphasize completeness over structure")
 
-        elif style == "balanced":
-            expected = "consistent depth across branches"
-            if s.wave_variances and statistics.mean(s.wave_variances) < 2.0:
-                print(f"   ✅ Achieving {expected}: wave_variance={statistics.mean(s.wave_variances):.2f}")
+        elif style == "modular":
+            expected = "clean separation of concerns"
+            # Modular should have moderate depth and good parallelism from isolation
+            if s.mean_parallelism() > 0.3 and s.mean_keyword_coverage() > 0.6:
+                print(f"   ✅ Achieving {expected}: parallelism={s.mean_parallelism():.2f}, coverage={s.mean_keyword_coverage():.2f}")
             else:
-                var = statistics.mean(s.wave_variances) if s.wave_variances else "N/A"
-                print(f"   ⚠️ NOT achieving {expected}: wave_variance={var}")
-                print("   💡 Consider: Add explicit balance constraints")
+                print(f"   ⚠️ Needs work: parallelism={s.mean_parallelism():.2f}, coverage={s.mean_keyword_coverage():.2f}")
+                print("   💡 Consider: Emphasize module isolation and testability")
+
+        elif style == "risk_aware":
+            expected = "fail-fast risk identification"
+            # Risk-aware should have risks as leaves (high parallelism) and good coverage
+            if s.mean_parallelism() > 0.35 and s.mean_keyword_coverage() > 0.6:
+                print(f"   ✅ Achieving {expected}: parallelism={s.mean_parallelism():.2f}, coverage={s.mean_keyword_coverage():.2f}")
+            else:
+                print(f"   ⚠️ Needs work: parallelism={s.mean_parallelism():.2f}, coverage={s.mean_keyword_coverage():.2f}")
+                print("   💡 Consider: Emphasize putting risky artifacts first")
 
         elif style == "default":
             print(f"   📊 Baseline: depth={s.mean_depth():.1f}, artifacts={s.mean_artifacts():.1f}")

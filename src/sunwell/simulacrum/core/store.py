@@ -56,6 +56,9 @@ if TYPE_CHECKING:
     from sunwell.simulacrum.memory_tools import MemoryToolHandler
     from sunwell.simulacrum.topology.unified_store import UnifiedMemoryStore
 
+# RFC-022 Enhancement: Episode tracking
+from sunwell.types.memory import Episode
+
 
 @dataclass(frozen=True, slots=True)
 class StorageConfig:
@@ -105,6 +108,9 @@ class PlanningContext:
     Structured context for HarmonicPlanner that categorizes retrieved
     learnings for injection via Convergence slots.
 
+    RFC-022 Enhancement: Now includes episode tracking for learning from
+    past sessions and avoiding dead ends.
+
     Example:
         >>> context = await store.retrieve_for_planning("Build CRUD API")
         >>> print(context.best_template.template_data.name)
@@ -132,6 +138,13 @@ class PlanningContext:
 
     goal: str
     """The planning goal this context was retrieved for."""
+
+    # RFC-022 Enhancement: Episode tracking
+    episodes: tuple[Episode, ...] = ()
+    """Past sessions with their outcomes and learnings."""
+
+    dead_end_summaries: tuple[str, ...] = ()
+    """Summary strings from failed episodes for quick injection."""
 
     def to_convergence_slots(self) -> list[Slot]:
         """Convert to Convergence slots for HarmonicPlanner injection."""
@@ -187,6 +200,15 @@ class PlanningContext:
                 source=SlotSource.MEMORY_FETCHER,
             ))
 
+        # RFC-022: Episode-based dead ends from past sessions
+        if self.dead_end_summaries:
+            slots.append(Slot(
+                id="knowledge:episode_dead_ends",
+                content=[f"❌ [Past session] {s}" for s in self.dead_end_summaries],
+                relevance=0.92,  # High priority to avoid past mistakes
+                source=SlotSource.MEMORY_FETCHER,
+            ))
+
         return slots
 
     def to_prompt_section(self) -> str:
@@ -220,6 +242,12 @@ class PlanningContext:
             sections.append("\n## Heuristics")
             for h in self.heuristics[:5]:
                 sections.append(f"- 💡 {h.fact}")
+
+        # RFC-022: Episode-based dead ends
+        if self.dead_end_summaries:
+            sections.append("\n## Past Session Dead Ends")
+            for s in self.dead_end_summaries[:5]:
+                sections.append(f"- ❌ {s}")
 
         return "\n".join(sections)
 
@@ -323,12 +351,17 @@ class SimulacrumStore:
     _focus: Any | None = field(default=None, init=False)
     """Focus mechanism for weighted topic tracking (RFC-084)."""
 
+    # RFC-022 Enhancement: Episode tracking for learning from past sessions
+    _episodes: list[Episode] = field(default_factory=list, init=False)
+    """Past problem-solving episodes with outcomes and learnings."""
+
     def __post_init__(self):
         self.base_path = Path(self.base_path)
         self._ensure_dirs()
         self._init_chunk_manager()
         self._init_unified_store()
         self._init_auto_wiring()  # RFC-084
+        self._load_episodes()  # RFC-022
 
     def _ensure_dirs(self) -> None:
         """Create storage directories."""
@@ -338,6 +371,7 @@ class SimulacrumStore:
         (self.base_path / "sessions").mkdir(parents=True, exist_ok=True)
         (self.base_path / "chunks").mkdir(parents=True, exist_ok=True)
         (self.base_path / "unified").mkdir(parents=True, exist_ok=True)  # RFC-014
+        (self.base_path / "episodes").mkdir(parents=True, exist_ok=True)  # RFC-022
 
     def _init_chunk_manager(self) -> None:
         """Initialize the hierarchical chunk manager (RFC-013)."""
@@ -837,6 +871,123 @@ class SimulacrumStore:
         """Get the current conversation DAG."""
         return self._hot_dag
 
+    # === RFC-022 Enhancement: Episode Tracking ===
+
+    def _load_episodes(self) -> None:
+        """Load episodes from disk."""
+        episodes_file = self.base_path / "episodes" / "episodes.json"
+        if episodes_file.exists():
+            try:
+                with open(episodes_file) as f:
+                    data = json.load(f)
+                self._episodes = [
+                    Episode(
+                        id=ep["id"],
+                        summary=ep["summary"],
+                        outcome=ep["outcome"],
+                        timestamp=ep.get("timestamp", ""),
+                        learnings_extracted=tuple(ep.get("learnings_extracted", [])),
+                        models_used=tuple(ep.get("models_used", [])),
+                        turn_count=ep.get("turn_count", 0),
+                    )
+                    for ep in data
+                ]
+            except (json.JSONDecodeError, KeyError):
+                self._episodes = []
+
+    def _save_episodes(self) -> None:
+        """Save episodes to disk."""
+        episodes_file = self.base_path / "episodes" / "episodes.json"
+        data = [
+            {
+                "id": ep.id,
+                "summary": ep.summary,
+                "outcome": ep.outcome,
+                "timestamp": ep.timestamp,
+                "learnings_extracted": list(ep.learnings_extracted),
+                "models_used": list(ep.models_used),
+                "turn_count": ep.turn_count,
+            }
+            for ep in self._episodes
+        ]
+        with open(episodes_file, "w") as f:
+            json.dump(data, f, indent=2)
+
+    def add_episode(
+        self,
+        summary: str,
+        outcome: str,  # succeeded, failed, partial, abandoned
+        learnings_extracted: tuple[str, ...] = (),
+        models_used: tuple[str, ...] = (),
+    ) -> str:
+        """Add an episode tracking past problem-solving attempt.
+
+        Episodes help avoid repeating dead ends and learn from past sessions.
+
+        Args:
+            summary: Brief description of what was attempted
+            outcome: 'succeeded', 'failed', 'partial', or 'abandoned'
+            learnings_extracted: Key insights from this episode
+            models_used: Models that were used during the episode
+
+        Returns:
+            Episode ID
+        """
+        from datetime import datetime
+
+        episode = Episode(
+            id=f"ep_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{len(self._episodes)}",
+            summary=summary,
+            outcome=outcome,
+            learnings_extracted=learnings_extracted,
+            models_used=models_used,
+            turn_count=sum(1 for _ in self._hot_dag.iter_all_turns()),
+        )
+        self._episodes.append(episode)
+        self._save_episodes()
+        return episode.id
+
+    def get_episodes(self, limit: int = 50) -> list[Episode]:
+        """Get recent episodes.
+
+        Args:
+            limit: Maximum episodes to return
+
+        Returns:
+            List of episodes, most recent first
+        """
+        return self._episodes[-limit:][::-1]  # Most recent first
+
+    def get_dead_ends(self) -> list[Episode]:
+        """Get failed episodes to avoid repeating mistakes.
+
+        Returns:
+            List of episodes with 'failed' outcome
+        """
+        return [ep for ep in self._episodes if ep.outcome == "failed"]
+
+    def get_successful_patterns(self) -> list[Episode]:
+        """Get successful episodes for learning what works.
+
+        Returns:
+            List of episodes with 'succeeded' outcome
+        """
+        return [ep for ep in self._episodes if ep.outcome == "succeeded"]
+
+    def get_episode_by_id(self, episode_id: str) -> Episode | None:
+        """Get a specific episode by ID.
+
+        Args:
+            episode_id: The episode ID
+
+        Returns:
+            Episode if found, None otherwise
+        """
+        for ep in self._episodes:
+            if ep.id == episode_id:
+                return ep
+        return None
+
     # === RFC-122: Knowledge Retrieval for Planning ===
 
     async def retrieve_for_planning(
@@ -913,6 +1064,10 @@ class SimulacrumStore:
             elif learning.category == "pattern" and len(patterns) < limit_per_category:
                 patterns.append(learning)
 
+        # RFC-022: Include episodes for learning from past sessions
+        failed_episodes = self.get_dead_ends()[:limit_per_category]
+        dead_end_summaries = tuple(ep.summary for ep in failed_episodes)
+
         return PlanningContext(
             facts=tuple(facts),
             constraints=tuple(constraints),
@@ -921,6 +1076,8 @@ class SimulacrumStore:
             heuristics=tuple(heuristics),
             patterns=tuple(patterns),
             goal=goal,
+            episodes=tuple(failed_episodes),
+            dead_end_summaries=dead_end_summaries,
         )
 
     @staticmethod
@@ -945,6 +1102,130 @@ class SimulacrumStore:
         if not query_words:
             return 0.0
         return overlap / len(query_words)
+
+    # === RFC-022: Parallel Retrieval ===
+
+    async def retrieve_parallel(
+        self,
+        query: str,
+        include_learnings: bool = True,
+        include_episodes: bool = True,
+        include_recent_turns: bool = True,
+        include_chunks: bool = True,
+        limit_per_type: int = 10,
+    ) -> "MemoryRetrievalResult":
+        """Parallel retrieval across memory types with free-threading awareness.
+
+        Uses ThreadPoolExecutor with adaptive worker count based on GIL state
+        for true parallel retrieval when running on Python 3.13+ free-threaded.
+
+        Args:
+            query: Query string for semantic matching
+            include_learnings: Include learnings from DAG
+            include_episodes: Include episodes (past sessions)
+            include_recent_turns: Include recent conversation turns
+            include_chunks: Include warm/cold chunks
+            limit_per_type: Max items per memory type
+
+        Returns:
+            MemoryRetrievalResult with all retrieved items
+        """
+        from sunwell.core.freethreading import WorkloadType, optimal_workers, run_parallel
+        from sunwell.types.memory import MemoryRetrievalResult
+
+        # Compute query embedding once
+        query_embedding: tuple[float, ...] | None = None
+        if self._embedder:
+            try:
+                result = await self._embedder.embed([query])
+                query_embedding = tuple(result[0])
+            except Exception:
+                query_embedding = None
+
+        # Define retrieval tasks as sync functions
+        def get_learnings() -> list[tuple["Learning", float]]:
+            """Retrieve and score learnings."""
+            if not include_learnings:
+                return []
+
+            learnings = self._hot_dag.get_active_learnings()
+            scored: list[tuple[Learning, float]] = []
+
+            for learning in learnings:
+                if query_embedding and learning.embedding:
+                    score = self._cosine_similarity(query_embedding, learning.embedding)
+                else:
+                    score = self._keyword_similarity(query, learning.fact)
+
+                if score > 0.3:
+                    scored.append((learning, score))
+
+            scored.sort(key=lambda x: -x[1])
+            return scored[:limit_per_type]
+
+        def get_episodes() -> list[tuple[Episode, float]]:
+            """Retrieve and score episodes."""
+            if not include_episodes:
+                return []
+
+            scored: list[tuple[Episode, float]] = []
+            for ep in self._episodes:
+                # Simple keyword match for episodes
+                score = self._keyword_similarity(query, ep.summary)
+                if score > 0.2 or ep.outcome == "failed":  # Always include dead ends
+                    # Boost failed episodes to avoid dead ends
+                    if ep.outcome == "failed":
+                        score += 0.3
+                    scored.append((ep, min(1.0, score)))
+
+            scored.sort(key=lambda x: -x[1])
+            return scored[:limit_per_type]
+
+        def get_recent_turns() -> list[tuple[Turn, float]]:
+            """Retrieve recent turns."""
+            if not include_recent_turns:
+                return []
+
+            turns = self._hot_dag.get_recent_turns(limit_per_type)
+            # Recent turns get relevance based on recency
+            return [(turn, 1.0 - (i * 0.05)) for i, turn in enumerate(turns)]
+
+        def get_chunks() -> list[tuple[str, float]]:
+            """Retrieve relevant chunks."""
+            if not include_chunks or not self._chunk_manager:
+                return []
+
+            # Get all chunks and score them
+            all_chunks = self._chunk_manager.get_all_chunks()
+            scored: list[tuple[str, float]] = []
+
+            for chunk in all_chunks:
+                if chunk.summary:
+                    score = self._keyword_similarity(query, chunk.summary.main_points)
+                    if score > 0.2:
+                        content = chunk.summary.main_points
+                        scored.append((content, score))
+
+            scored.sort(key=lambda x: -x[1])
+            return scored[:limit_per_type]
+
+        # Get optimal worker count based on GIL state
+        workers = optimal_workers(WorkloadType.IO_BOUND)
+
+        # Run all retrieval tasks in parallel
+        tasks = [get_learnings, get_episodes, get_recent_turns, get_chunks]
+        results, stats = await run_parallel(tasks, WorkloadType.IO_BOUND, max_workers=workers)
+
+        # Unpack results
+        learnings_result, episodes_result, turns_result, chunks_result = results
+
+        return MemoryRetrievalResult(
+            learnings=learnings_result,
+            episodes=episodes_result,
+            turns=turns_result,
+            code_chunks=chunks_result,
+            focus_topics=query.split()[:3],
+        )
 
     # === Context Retrieval (RFC-013) ===
 

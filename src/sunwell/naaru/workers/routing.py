@@ -35,21 +35,19 @@ class CognitiveRoutingWorker(RegionWorker):
         self.available_lenses = available_lenses or []
         self.cache_size = cache_size
         self._router = None
-        self._legacy_adapter = None
         # Bounded deque to prevent memory leak (keeps last 5000 routing decisions)
         self._routing_history: deque[dict] = deque(maxlen=5000)
 
     async def _ensure_router(self):
         """Lazily initialize the UnifiedRouter."""
         if self._router is None and self.router_model is not None:
-            from sunwell.routing import LegacyRoutingAdapter, UnifiedRouter
+            from sunwell.routing import UnifiedRouter
 
             self._router = UnifiedRouter(
                 model=self.router_model,
                 cache_size=self.cache_size,
                 available_lenses=self.available_lenses,
             )
-            self._legacy_adapter = LegacyRoutingAdapter(self._router)
 
     async def process(self) -> None:
         """Process routing requests."""
@@ -92,12 +90,7 @@ class CognitiveRoutingWorker(RegionWorker):
         try:
             decision = await self._router.route(task, context)
             result = decision.to_dict()
-            # Add legacy-compatible fields via adapter
-            legacy = await self._legacy_adapter.to_cognitive_router_decision(task, context)
-            result.update({
-                "top_k": legacy["top_k"],
-                "threshold": legacy["threshold"],
-            })
+            # top_k and threshold are now included via to_dict()
 
             self._routing_history.append({
                 "task": task[:100],
@@ -118,34 +111,38 @@ class CognitiveRoutingWorker(RegionWorker):
         # Simple keyword matching
         if any(kw in task_lower for kw in ["security", "vulnerability", "injection"]):
             return {
-                "intent": "code_review",
+                "intent": "review",
                 "lens": "code-reviewer",
                 "focus": ["security", "vulnerability"],
                 "top_k": 5,
+                "threshold": 0.3,
                 "confidence": 0.3,
             }
         elif any(kw in task_lower for kw in ["test", "coverage", "unittest"]):
             return {
-                "intent": "testing",
+                "intent": "code",
                 "lens": "team-qa",
                 "focus": ["testing", "edge cases"],
                 "top_k": 5,
+                "threshold": 0.3,
                 "confidence": 0.3,
             }
         elif any(kw in task_lower for kw in ["document", "readme", "explain"]):
             return {
-                "intent": "documentation",
+                "intent": "explain",
                 "lens": "tech-writer",
                 "focus": ["clarity", "examples"],
                 "top_k": 5,
+                "threshold": 0.3,
                 "confidence": 0.3,
             }
         else:
             return {
-                "intent": "unknown",
+                "intent": "code",
                 "lens": "helper",
                 "focus": [],
                 "top_k": 5,
+                "threshold": 0.3,
                 "confidence": 0.1,
             }
 

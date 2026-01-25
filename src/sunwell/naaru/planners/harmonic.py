@@ -345,28 +345,49 @@ Use when the goal is complex or production-readiness matters.
 
 Ask: "What could go wrong? What's missing for production-ready?"
 """,
-    "balanced": """
-OPTIMIZATION GOAL: FAT WAVES - MAXIMIZE PARALLEL WORK PER LEVEL
+    "modular": """
+OPTIMIZATION GOAL: INDEPENDENT MODULES - MAXIMIZE PARALLEL WORK THROUGH ISOLATION
 
 CRITICAL RULES:
-1. Keep depth SHALLOW (2-3 levels max) to avoid score penalties
-2. Make each wave FAT (3+ artifacts per level)
-3. Every goal keyword MUST appear in artifact descriptions (maintain coverage)
-4. Distribute work evenly - no thin waves with only 1-2 artifacts
+1. Create artifacts that have NO dependencies on each other (maximize leaves)
+2. Each artifact should be self-contained and testable in isolation
+3. Prefer MANY SMALL independent artifacts over FEW LARGE coupled ones
+4. Every goal keyword MUST appear in artifact descriptions
 
-Structural Metrics to Optimize:
-- avg_wave_width should be HIGH (artifacts / waves)
-- parallel_work_ratio should be HIGH (work done per wave transition)
-- wave_variance should be LOW (consistent wave sizes)
+Structural Pattern (aim for depth ≤ 3):
+- Wave 1: 3-5 independent module artifacts (data layer, logic, interface, config)
+- Wave 2: Integration artifacts that combine modules
+- Final: Root artifact that ties everything together
 
-Pattern: Instead of deep balanced branches, create WIDE shallow layers:
-- Wave 1: 3-5 leaf artifacts covering core concepts
-- Wave 2: 2-3 integration artifacts 
-- Wave 3: 1 final root artifact (if needed)
+Key Insight: True modularity = high parallelism. 
+If modules are truly independent, they can execute in parallel.
+Target: parallelism_factor > 0.4
 
-AVOID creating depth to "balance" branches - that hurts scores!
+Ask: "Can this be split into independent pieces? Does this NEED that dependency?"
+""",
+    "risk_aware": """
+OPTIMIZATION GOAL: FAIL-FAST - IDENTIFY RISKS EARLY
 
-Ask: "Can this be done in fewer levels? Does each level have multiple artifacts?"
+CRITICAL RULES:
+1. Put highest-risk/uncertainty artifacts FIRST (as leaves)
+2. Validate risky assumptions before building dependent artifacts
+3. Critical path should surface failures early, not late
+4. Every goal keyword MUST appear in artifact descriptions
+
+Risk Categories (do these first):
+- External dependencies (APIs, databases, third-party services)
+- Novel/unfamiliar technology
+- Performance-critical components
+- Security-sensitive operations
+
+Structural Pattern:
+- Wave 1: Spike/validate risky components
+- Wave 2: Core implementation (risks already validated)
+- Wave 3: Integration and polish
+
+This produces plans where failures happen early when they're cheap to fix.
+
+Ask: "What could fail? What's uncertain? Should we validate that first?"
 """,
     "default": """
 Discover artifacts naturally based on the goal.
@@ -1048,14 +1069,23 @@ IMPORTANT: Return ONLY the JSON object, no other text."""
         return candidates
 
     def _get_variance_configs(self) -> list[dict]:
-        """Get variance configurations based on strategy."""
+        """Get variance configurations based on strategy.
+
+        Available prompt styles:
+        - parallel_first: Maximize parallelism, shallow depth
+        - minimal: Essential artifacts only, fast planning
+        - thorough: Complete production-ready coverage
+        - modular: Clean separation of concerns
+        - risk_aware: Fail-fast, validate risks early
+        - default: Natural discovery baseline
+        """
         if self.variance == VarianceStrategy.PROMPTING:
             configs = [
                 {"prompt_style": "parallel_first"},
                 {"prompt_style": "minimal"},
                 {"prompt_style": "thorough"},
-                {"prompt_style": "balanced"},
-                {"prompt_style": "default", "temperature": 0.5},
+                {"prompt_style": "modular"},
+                {"prompt_style": "risk_aware"},
             ]
             return configs[: self.candidates]
 
@@ -1075,10 +1105,10 @@ IMPORTANT: Return ONLY the JSON object, no other text."""
         elif self.variance == VarianceStrategy.MIXED:
             return [
                 {"prompt_style": "parallel_first"},
-                {"prompt_style": "minimal", "temperature": 0.4},
-                {"prompt_style": "balanced"},
-                {"prompt_style": "default", "temperature": 0.6},
-                {"prompt_style": "thorough", "temperature": 0.3},
+                {"prompt_style": "thorough", "temperature": 0.4},
+                {"prompt_style": "modular"},
+                {"prompt_style": "risk_aware", "temperature": 0.3},
+                {"prompt_style": "minimal", "temperature": 0.5},
             ][: self.candidates]
 
         else:

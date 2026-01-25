@@ -279,7 +279,7 @@ class BenchmarkRunner:
                 condition=Condition.SELECTIVE,
             )
 
-        # Condition D: Routed retrieval (RFC-020 CognitiveRouter)
+        # Condition D: Routed retrieval (RFC-030 UnifiedRouter)
         routing_metrics: RoutingMetrics | None = None
         if Condition.ROUTED not in skip_conditions and self.router_model is not None:
             routed_context, routing_metrics, routed_retrieval = await self._routed_retrieve(
@@ -666,10 +666,10 @@ Please fix these issues and provide an improved response."""
         self,
         task: BenchmarkTask,
     ) -> tuple[str, RoutingMetrics, RetrievalMetrics]:
-        """Perform routed retrieval using CognitiveRouter (RFC-020).
+        """Perform routed retrieval using UnifiedRouter (RFC-030).
 
         1. Router classifies intent and selects lens
-        2. Router adjusts top_k based on complexity
+        2. Top_k derived from complexity level
         3. Retrieval is boosted with focus terms
 
         Returns:
@@ -677,12 +677,20 @@ Please fix these issues and provide an improved response."""
         """
         from sunwell.embedding import create_embedder
         from sunwell.embedding.index import InMemoryIndex
-        from sunwell.routing import CognitiveRouter
+        from sunwell.routing import UnifiedRouter
+        from sunwell.routing.unified import Complexity
+
+        # Complexity → retrieval parameters mapping
+        COMPLEXITY_PARAMS = {
+            Complexity.TRIVIAL: {"top_k": 3, "threshold": 0.4},
+            Complexity.STANDARD: {"top_k": 5, "threshold": 0.3},
+            Complexity.COMPLEX: {"top_k": 8, "threshold": 0.2},
+        }
 
         # Initialize router
         available_lenses = [p.stem for p in self.lens_dir.glob("*.lens")]
-        router = CognitiveRouter(
-            router_model=self.router_model,
+        router = UnifiedRouter(
+            model=self.router_model,
             available_lenses=available_lenses,
         )
 
@@ -702,8 +710,10 @@ Please fix these issues and provide an improved response."""
             lens_path = self.lens_dir / task.lens
             lens = self.lens_loader.load(lens_path)
 
-        # Use router's top_k (adjusted by complexity)
-        top_k = routing.top_k
+        # Derive top_k and threshold from complexity
+        params = COMPLEXITY_PARAMS.get(routing.complexity, COMPLEXITY_PARAMS[Complexity.STANDARD])
+        top_k = params["top_k"]
+        threshold = params["threshold"]
 
         # Build boosted query with focus terms
         boosted_query = f"{task.prompt} {' '.join(routing.focus)}"
@@ -734,7 +744,7 @@ Please fix these issues and provide an improved response."""
 
             # Embed boosted query and retrieve
             query_vector = await embedder.embed_single(boosted_query)
-            search_results = index.search(query_vector, top_k=top_k, threshold=routing.threshold)
+            search_results = index.search(query_vector, top_k=top_k, threshold=threshold)
 
             # Build context from retrieved heuristics
             retrieved_texts = [r.metadata["text"] for r in search_results]

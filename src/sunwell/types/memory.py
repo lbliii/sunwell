@@ -2,11 +2,28 @@
 
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.simulacrum.core.memory import Episode
     from sunwell.simulacrum.core.turn import Learning, Turn
+
+
+@dataclass(frozen=True, slots=True)
+class Episode:
+    """A past problem-solving attempt or session.
+
+    Used by episodic memory to track what was tried before,
+    what worked, and what failed (to avoid repeating mistakes).
+    """
+
+    id: str
+    summary: str
+    outcome: str  # succeeded, failed, partial, abandoned
+    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    learnings_extracted: tuple[str, ...] = ()
+    models_used: tuple[str, ...] = ()
+    turn_count: int = 0
 
 
 @dataclass(slots=True)

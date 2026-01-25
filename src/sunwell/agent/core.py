@@ -143,7 +143,7 @@ class TaskGraph:
 
 @dataclass(slots=True)
 class Agent:
-    """THE execution engine for Sunwell (RFC-MEMORY).
+    """THE execution engine for Sunwell (RFC-MEMORY, RFC-137).
 
     This is the single point of intelligence. All entry points
     (CLI, chat, Studio) call Agent.run() with SessionContext and PersistentMemory.
@@ -151,15 +151,22 @@ class Agent:
     Agent uses Naaru internally for parallel task execution,
     but Naaru is an implementation detail — not an entry point.
 
+    RFC-137 adds smart-to-dumb model delegation for cost optimization:
+    - Configure smart_model + delegation_model at construction
+    - Enable via RunOptions.enable_delegation
+    - Large tasks auto-delegate to cheaper model with ephemeral lens
+
     Attributes:
-        model: LLM for generation
+        model: Primary LLM for generation
+        smart_model: Optional smart model for lens creation (RFC-137)
+        delegation_model: Optional cheap model for delegated execution (RFC-137)
         tool_executor: Executor for tools (file I/O, commands, etc.)
         cwd: Working directory (default: Path.cwd())
         budget: Token budget configuration
     """
 
     model: ModelProtocol
-    """Model for generation."""
+    """Primary model for generation."""
 
     tool_executor: Any = None
     """Tool executor for file I/O, commands, etc."""
@@ -169,6 +176,21 @@ class Agent:
 
     budget: AdaptiveBudget = field(default_factory=AdaptiveBudget)
     """Token budget with auto-economization."""
+
+    # RFC-137: Model delegation
+    smart_model: ModelProtocol | None = None
+    """Smart model for ephemeral lens creation (RFC-137).
+
+    Used during delegation to analyze the task and create guidance.
+    If None, uses the primary model for lens creation.
+    """
+
+    delegation_model: ModelProtocol | None = None
+    """Cheap model for delegated task execution (RFC-137).
+
+    Used for actual code generation/execution after lens creation.
+    If None, delegation is disabled even with enable_delegation=True.
+    """
 
     # Lens configuration
     lens: Lens | None = None
@@ -195,6 +217,8 @@ class Agent:
 
     # Run state (set by run() method)
     _current_goal: str = field(default="", init=False)
+    _current_options: RunOptions | None = field(default=None, init=False)
+    """Current RunOptions for this execution (RFC-137 delegation config)."""
     _briefing: Briefing | None = field(default=None, init=False)
     _workspace_context: str | None = field(default=None, init=False)
     _files_changed_this_run: list[str] = field(default_factory=list, init=False)
@@ -212,6 +236,10 @@ class Agent:
     # RFC-130: Agent Constellation — Specialist spawning
     _spawned_specialist_ids: list[str] = field(default_factory=list, init=False)
     """IDs of specialists spawned during this run."""
+
+    # Tool invocation tracking for verification and self-correction
+    _invocation_tracker: Any = field(default=None, init=False)
+    """Tracks tool invocations for verification and self-correction."""
 
     _specialist_count: int = field(default=0, init=False)
     """Count of specialists spawned in this run."""
@@ -428,15 +456,21 @@ class Agent:
             session.tasks = self._task_graph.tasks
 
         # ─── PHASE 4: EXECUTE ───
-        # Build run options from session
+        # Use session options if available, otherwise build defaults
         from sunwell.agent.request import RunOptions
-        options = RunOptions(
-            trust=session.trust,
-            timeout_seconds=session.timeout,
-            validate=True,
-            persist_learnings=True,
-            auto_fix=True,
-        )
+        if session.options is not None:
+            options = session.options
+        else:
+            options = RunOptions(
+                trust=session.trust,
+                timeout_seconds=session.timeout,
+                validate=True,
+                persist_learnings=True,
+                auto_fix=True,
+            )
+
+        # Store current options for task execution (RFC-137 delegation)
+        self._current_options = options
 
         execution_success = True
         async for event in self._execute_with_gates(options):
@@ -699,12 +733,16 @@ class Agent:
             # RFC-123: Stream events live using async queue (fixes regression)
             event_queue: asyncio.Queue[AgentEvent | None] = asyncio.Queue()
             selected_candidate_id = "candidate-0"
+            winner_score: float = 0.0
+            winner_metrics: dict[str, Any] | None = None
 
             def queue_event(event: AgentEvent) -> None:
-                # Track the winner ID as events come in
-                nonlocal selected_candidate_id
+                # Track the winner info as events come in
+                nonlocal selected_candidate_id, winner_score, winner_metrics
                 if event.type == EventType.PLAN_WINNER:
                     selected_candidate_id = event.data.get("selected_candidate_id", "candidate-0")
+                    winner_score = event.data.get("score", 0.0)
+                    winner_metrics = event.data.get("metrics")
                 event_queue.put_nowait(event)
 
             candidates = 5 if not self.budget.is_low else 3
@@ -774,6 +812,8 @@ class Agent:
                 selected_candidate_id=selected_candidate_id,
                 task_list=task_list,
                 gate_list=gate_list,
+                score=winner_score,
+                metrics=winner_metrics,
             )
 
         except ImportError:
@@ -1137,6 +1177,13 @@ class Agent:
         )
 
         # === CREATE LOOP CONFIG ===
+        # Get delegation settings from current options (RFC-137)
+        enable_delegation = False
+        delegation_threshold = 2000
+        if self._current_options:
+            enable_delegation = self._current_options.enable_delegation
+            delegation_threshold = self._current_options.delegation_threshold_tokens
+
         config = LoopConfig(
             max_turns=15,
             temperature=0.3,
@@ -1144,6 +1191,9 @@ class Agent:
             enable_learning_injection=True,
             enable_validation_gates=True,  # Run lint/syntax after file writes
             enable_recovery=True,  # Save state on failures
+            # RFC-137: Smart-to-dumb model delegation
+            enable_delegation=enable_delegation,
+            delegation_threshold_tokens=delegation_threshold,
         )
 
         # === CREATE VALIDATION STAGE (for inner-loop validation) ===
@@ -1164,6 +1214,33 @@ class Agent:
         except Exception:
             pass  # Mirror is optional enhancement
 
+        # === RESOLVE DELEGATION MODELS (RFC-137) ===
+        # Priority: Agent fields > RunOptions > None
+        from sunwell.models.registry import resolve_model
+
+        smart_model_resolved = None
+        delegation_model_resolved = None
+
+        if enable_delegation:
+            # Resolve smart model: Agent field → RunOptions → primary model
+            if self.smart_model is not None:
+                smart_model_resolved = self.smart_model
+            elif self._current_options and self._current_options.smart_model:
+                smart_model_resolved = resolve_model(
+                    self._current_options.smart_model,
+                    fallback=self.model,
+                )
+            else:
+                smart_model_resolved = self.model  # Use primary as smart
+
+            # Resolve delegation model: Agent field → RunOptions → None
+            if self.delegation_model is not None:
+                delegation_model_resolved = self.delegation_model
+            elif self._current_options and self._current_options.delegation_model:
+                delegation_model_resolved = resolve_model(
+                    self._current_options.delegation_model,
+                )
+
         # === CREATE AND RUN THE LOOP ===
         loop = AgentLoop(
             model=self.model,
@@ -1173,10 +1250,19 @@ class Agent:
             validation_stage=validation_stage,
             lens=active_lens,  # For expertise injection
             mirror_handler=mirror_handler,  # For self-reflection
+            # RFC-137: Model delegation
+            smart_model=smart_model_resolved,
+            delegation_model=delegation_model_resolved,
         )
+
+        # Initialize invocation tracker for this task
+        from sunwell.tools.invocation_tracker import InvocationTracker
+
+        tracker = InvocationTracker(task_id=task.id)
 
         start_time = time()
         tool_results: list[str] = []
+        model_text_output: list[str] = []  # Capture text in case we need to self-correct
 
         async for event in loop.run(
             task_description=task.description,
@@ -1185,12 +1271,27 @@ class Agent:
         ):
             yield event
 
-            # Track successful file writes for result
+            # Track ALL tool invocations via the tracker
             if event.type.value == "tool_complete":
                 data = event.data
-                if data.get("tool_name") in ("write_file", "edit_file"):
-                    if data.get("success"):
-                        tool_results.append(data.get("output", ""))
+                tool_name = data.get("tool_name", "unknown")
+                tracker.record(
+                    tool_name=tool_name,
+                    arguments=data.get("arguments", {}),
+                    result=data.get("output"),
+                    success=data.get("success", False),
+                    error=data.get("error"),
+                )
+
+                # Track successful file writes for result
+                if tool_name in ("write_file", "edit_file") and data.get("success"):
+                    tool_results.append(data.get("output", ""))
+
+            # Capture model's text output (for self-correction if needed)
+            if event.type.value == "tool_loop_complete":
+                final_response = event.data.get("final_response")
+                if final_response:
+                    model_text_output.append(final_response)
 
         duration = time() - start_time
 
@@ -1199,6 +1300,82 @@ class Agent:
             self._last_task_result = "\n".join(tool_results)
         else:
             self._last_task_result = ""
+
+        # Store tracker for potential later analysis
+        self._invocation_tracker = tracker
+
+        # SELF-CORRECTION: Verify expected outcomes based on task type
+        # If tool wasn't called but model output text, self-correct
+        import logging
+        logger = logging.getLogger(__name__)
+
+        if task.target_path:
+            expected_path = self.cwd / task.target_path
+
+            # Check if write_file was actually called
+            write_file_called = tracker.was_called("write_file") or tracker.was_called("edit_file")
+
+            if not expected_path.exists() and not write_file_called:
+                # Tool wasn't called - check if model output something we can use
+                text_output = "\n".join(model_text_output).strip()
+
+                if text_output:
+                    # Self-correct: model output code in text, write it ourselves
+                    logger.info(
+                        "Self-correcting: Task %s - write_file not called, using text output for %s",
+                        task.id,
+                        task.target_path,
+                    )
+
+                    # Sanitize and write the file
+                    expected_path.parent.mkdir(parents=True, exist_ok=True)
+                    sanitized = _sanitize_code_content(text_output)
+                    expected_path.write_text(sanitized)
+                    self._last_task_result = sanitized
+
+                    # Track for learning
+                    self._files_changed_this_run.append(task.target_path)
+
+                    # Record the self-correction in the tracker
+                    tracker.record(
+                        tool_name="write_file",
+                        arguments={"path": task.target_path, "content": sanitized[:100] + "..."},
+                        result="Self-corrected",
+                        success=True,
+                        self_corrected=True,
+                    )
+
+                    # Emit self-correction event
+                    yield AgentEvent(
+                        type=EventType.TOOL_COMPLETE,
+                        data={
+                            "tool_name": "write_file",
+                            "success": True,
+                            "output": f"Self-corrected: wrote {task.target_path}",
+                            "self_corrected": True,
+                            "invocation_summary": tracker.summary(),
+                        },
+                    )
+                else:
+                    # No text output either - this is a real failure
+                    logger.warning(
+                        "Task %s: write_file not called and no text output for %s",
+                        task.id,
+                        task.target_path,
+                    )
+                    yield AgentEvent(
+                        type=EventType.VALIDATE_ERROR,
+                        data={
+                            "message": f"Expected file {task.target_path} was not created",
+                            "task_id": task.id,
+                            "step": "file_creation",
+                            "invocation_summary": tracker.summary(),
+                        },
+                    )
+                    # Raise to trigger fallback
+                    raise RuntimeError(
+                        f"Task {task.id} did not create expected file {task.target_path}"
+                    )
 
         # Record metrics
         model_id = getattr(self.model, "model_id", "unknown")

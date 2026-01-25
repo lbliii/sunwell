@@ -20,6 +20,16 @@ RFC-122: Compound Learning Extensions:
 - template: Structural task patterns (extracted by extract_template())
 - heuristic: Ordering/strategy hints (extracted by extract_heuristic())
 - Thread-safe LearningStore with record_usage() for 3.14t
+
+NOTE: Two Learning Classes:
+- `sunwell.agent.learning.Learning`: Simple in-memory dataclass for extraction.
+  Used during agent execution for collecting facts. Lightweight, no persistence.
+- `sunwell.simulacrum.core.turn.Learning`: Full-featured dataclass with
+  template_data field for persistence to simulacrum memory. Use this when
+  storing learnings long-term or when you need template-based reasoning.
+
+The LearningExtractor in this module creates agent.Learning instances, which
+can be converted to simulacrum.Learning when saving to memory.
 """
 
 

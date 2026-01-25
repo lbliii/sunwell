@@ -70,7 +70,7 @@ subsystems:
 ### Step 4: Order by Dependencies
 
 ```
-Types → Implementation → Integration → Tests
+Types → Implementation → Integration Wiring → Verification
 ```
 
 ### Step 5: Pre-Draft Commits
@@ -159,28 +159,50 @@ git add -A && git commit -m "core: implement [Component] logic"
 
 ---
 
-## Phase 3: Orchestration
+## Phase 3: Integration Wiring
 
-### Task 3.1: Add [Component] to Build Pipeline
+**CRITICAL**: This phase ensures new code is actually reachable from user entry points.
+Every new component MUST have at least one integration task with explicit call sites.
 
-**Subsystem**: Orchestration
-**File**: `bengal/orchestration/[orchestrator].py`
+### Task 3.1: Wire [Component] into [Caller]
+
+**Subsystem**: [Orchestration/CLI/etc]
+**Call Site**: `path/to/file.py:method_name()` (line ~N)
+**Caller**: `ClassName.method()` or `module.function()`
 **Depends on**: 2.1
 
-**Changes**:
-- Import new component
-- Add processing step
+**Current Code** (before):
+```python
+# Exact code being modified
+result = await self._execute_tool(tool_call)
+```
 
-**Tests**: `tests/integration/test_[feature].py`
+**New Code** (after):
+```python
+# Exact code after modification
+result = await self.tool_emulator.execute(tool_call)
+```
+
+**Integration Checklist**:
+- [ ] Import added at top of file
+- [ ] Method/function is called (not just defined)
+- [ ] Can trace from CLI entry → this call site → new component
+- [ ] No dead code paths
 
 **Commit**:
 ```bash
-git add -A && git commit -m "orchestration: integrate [Component] into build"
+git add -A && git commit -m "<scope>: wire [Component] into [caller]"
 ```
 
 ---
 
-## Phase 4: Integration & Polish
+### Task 3.2: [Additional wiring if multiple entry points]
+
+[Same structure - one task per call site that needs wiring]
+
+---
+
+## Phase 4: Verification
 
 ### Task 4.1: Add Integration Tests
 
@@ -189,7 +211,7 @@ git add -A && git commit -m "orchestration: integrate [Component] into build"
 **Depends on**: 3.1
 
 **Tests**:
-- `test_end_to_end_[feature]`
+- `test_end_to_end_[feature]` - Full path from entry to exit
 - `test_[feature]_with_edge_cases`
 
 **Test Root**: `tests/roots/test-[feature]/` (if new fixture needed)
@@ -201,13 +223,40 @@ git add -A && git commit -m "tests: add integration tests for [feature]"
 
 ---
 
+### Task 4.2: Verify Wiring is Reachable
+
+**Validation Steps**:
+```bash
+# 1. Grep for the new component - is it imported?
+grep -rn "from.*import.*NewComponent" src/
+
+# 2. Grep for call sites - is it actually called?
+grep -rn "new_component\." src/
+
+# 3. Trace from CLI to new code
+# Document the path: cli/main.py → agent/core.py → new_component.py
+```
+
+**Reachability Proof** (REQUIRED):
+```
+Entry: cli/chat.py:main()
+  → agent/core.py:Agent.run()
+    → agent/core.py:Agent._handle_tool()
+      → [NEW] tools/emulator.py:ToolEmulator.execute()
+```
+
+**Gate**: Plan is INCOMPLETE if any new component lacks a reachability proof.
+
+---
+
 ## Dependencies
 
 ```mermaid
 graph TD
     1.1[1.1 Type Contract] --> 2.1[2.1 Implementation]
-    2.1 --> 3.1[3.1 Orchestration]
+    2.1 --> 3.1[3.1 Integration Wiring]
     3.1 --> 4.1[4.1 Integration Tests]
+    4.1 --> 4.2[4.2 Reachability Proof]
 ```
 
 ---
@@ -218,7 +267,7 @@ graph TD
 |-------|-----------|---------------------|
 | 1 | Core | 90% |
 | 2 | Core | 90% |
-| 3 | Orchestration | 90% |
+| 3 | Integration | 90% |
 | 4 | Tests | 85% |
 
 ---
@@ -231,6 +280,8 @@ graph TD
 - [ ] Type contracts come first
 - [ ] Core tasks require 90% confidence
 - [ ] Integration tests defined
+- [ ] **Phase 3 has explicit call sites (file:line)**
+- [ ] **Phase 4 has reachability proof**
 ```
 
 ---
@@ -242,6 +293,7 @@ graph TD
 3. **Ordered** - Dependencies explicit
 4. **Testable** - Each task has verification criteria
 5. **Committable** - Each task = one atomic commit
+6. **Wired** - Every component has explicit integration points
 
 ---
 
@@ -267,6 +319,5 @@ Status: Ready
 - `commands/rfc` - RFC drafting
 - `commands/rfc-eval` - RFC evaluation
 - `commands/implement` - Execute tasks
+- `commands/coverage-analysis` - Journey mapping (run before RFC)
 - `modules/types-as-contracts` - Type-first philosophy
-
-

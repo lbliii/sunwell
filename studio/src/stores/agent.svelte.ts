@@ -640,6 +640,31 @@ export function handleAgentEvent(event: AgentEvent): void {
       break;
     }
 
+    case 'tool_complete': {
+      // Track tool invocations, especially self-corrections
+      const toolName = data.tool_name as string;
+      const selfCorrected = data.self_corrected as boolean;
+      const success = data.success as boolean;
+
+      if (selfCorrected) {
+        console.info(`[Sunwell] Self-corrected: ${toolName}`);
+        // Store self-correction for display in Observatory
+        const selfCorrections = _state.selfCorrections ?? [];
+        _state = {
+          ..._state,
+          selfCorrections: [...selfCorrections, {
+            tool: toolName,
+            output: (data.output as string) ?? '',
+            timestamp: Date.now(),
+            invocationSummary: data.invocation_summary as Record<string, unknown> | undefined,
+          }],
+        };
+      } else if (!success) {
+        console.warn(`[Sunwell] Tool failed: ${toolName}`, data.error);
+      }
+      break;
+    }
+
     case 'memory_learning': {
       const fact = (data.fact as string) ?? '';
       if (fact) {

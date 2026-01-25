@@ -95,6 +95,402 @@ class UserExpertise(str, Enum):
 
 
 # =============================================================================
+# Confidence Rubric (RFC-022 Enhancement)
+# =============================================================================
+
+# Pre-compiled regex for file extension detection
+_RE_FILE_EXTENSION = re.compile(r'\b\w+\.(py|js|ts|md|yaml|json|go|rs|java|c|cpp|h)\b')
+
+
+@dataclass(frozen=True, slots=True)
+class ConfidenceRubric:
+    """Deterministic confidence scoring rubric.
+
+    Replaces "LLM vibes" with explicit scoring rules.
+    Each signal adds or subtracts from a base score of 50.
+    """
+
+    base_score: int = 50
+
+    # Positive signals (add points)
+    explicit_shortcut: int = 20      # ::command patterns
+    clear_action_verb: int = 15      # review, test, document
+    single_file_target: int = 15     # Explicit file mentioned
+    file_state_match: int = 10       # File exists/doesn't as expected
+    exemplar_match_high: int = 10    # >0.85 similarity to exemplar
+    exemplar_match_mod: int = 5      # >0.7 similarity to exemplar
+
+    # Negative signals (subtract points)
+    no_file_context: int = -20       # No file mentioned or focused
+    ambiguous_verb: int = -15        # fix, help, improve
+    multi_file_scope: int = -15      # Multiple files mentioned
+    conflicting_signals: int = -10   # Contradictory hints
+    no_exemplar_match: int = -10     # <0.5 similarity to any exemplar
+
+    # Action verb sets
+    CLEAR_VERBS: frozenset[str] = frozenset({
+        "review", "audit", "check", "validate",
+        "test", "write", "create", "add",
+        "document", "explain", "describe",
+        "refactor", "extract", "rename",
+        "debug", "trace", "profile",
+    })
+
+    AMBIGUOUS_VERBS: frozenset[str] = frozenset({
+        "fix", "help", "improve", "update", "change", "modify",
+        "look", "handle", "deal", "work",
+    })
+
+    def calculate(
+        self,
+        task: str,
+        context: dict[str, Any] | None,
+        exemplar_similarity: float | None,
+    ) -> tuple[int, str]:
+        """Calculate confidence score with explanation.
+
+        Args:
+            task: The user's request
+            context: Optional context (file info, etc.)
+            exemplar_similarity: Similarity to best matching exemplar (0-1)
+
+        Returns:
+            Tuple of (score 0-100, explanation string)
+        """
+        score = self.base_score
+        reasons: list[str] = []
+
+        task_lower = task.lower()
+        words = task_lower.split()
+
+        # Check for explicit shortcut
+        if task.strip().startswith("::"):
+            score += self.explicit_shortcut
+            reasons.append(f"+{self.explicit_shortcut} explicit shortcut")
+
+        # Check for clear action verb
+        if any(verb in words for verb in self.CLEAR_VERBS):
+            score += self.clear_action_verb
+            reasons.append(f"+{self.clear_action_verb} clear action verb")
+
+        # Check for ambiguous verb
+        if any(verb in words for verb in self.AMBIGUOUS_VERBS):
+            score += self.ambiguous_verb  # Negative
+            reasons.append(f"{self.ambiguous_verb} ambiguous verb")
+
+        # Check file context
+        has_file = context and (context.get("file") or context.get("focused_file"))
+        file_in_task = bool(_RE_FILE_EXTENSION.search(task))
+
+        if has_file or file_in_task:
+            score += self.single_file_target
+            reasons.append(f"+{self.single_file_target} file target")
+        elif not has_file and not file_in_task:
+            score += self.no_file_context  # Negative
+            reasons.append(f"{self.no_file_context} no file context")
+
+        # Check multi-file scope
+        file_matches = _RE_FILE_EXTENSION.findall(task)
+        if len(file_matches) > 1:
+            score += self.multi_file_scope  # Negative
+            reasons.append(f"{self.multi_file_scope} multi-file scope")
+
+        # Check exemplar similarity
+        if exemplar_similarity is not None:
+            if exemplar_similarity > 0.85:
+                score += self.exemplar_match_high
+                reasons.append(f"+{self.exemplar_match_high} high exemplar match ({exemplar_similarity:.2f})")
+            elif exemplar_similarity > 0.7:
+                score += self.exemplar_match_mod
+                reasons.append(f"+{self.exemplar_match_mod} moderate exemplar match ({exemplar_similarity:.2f})")
+            elif exemplar_similarity < 0.5:
+                score += self.no_exemplar_match  # Negative
+                reasons.append(f"{self.no_exemplar_match} low exemplar match ({exemplar_similarity:.2f})")
+
+        # Clamp to 0-100
+        score = max(0, min(100, score))
+
+        explanation = f"Base {self.base_score}: " + ", ".join(reasons) if reasons else f"Base {self.base_score}"
+        return score, explanation
+
+    def to_confidence_level(self, score: int) -> str:
+        """Convert score to confidence level string."""
+        if score >= 80:
+            return "HIGH"
+        elif score >= 60:
+            return "MEDIUM"
+        else:
+            return "LOW"
+
+    def score_to_tier(self, score: int, has_shortcut: bool) -> "ExecutionTier":
+        """Determine execution tier from confidence score."""
+        if has_shortcut or score >= 85:
+            return ExecutionTier.FAST
+        elif score >= 60:
+            return ExecutionTier.LIGHT
+        else:
+            return ExecutionTier.FULL
+
+
+# =============================================================================
+# Execution Tiers (RFC-022 Enhancement)
+# =============================================================================
+
+
+class ExecutionTier(int, Enum):
+    """Execution tiers for adaptive response depth.
+
+    Higher confidence → faster, lighter response.
+    Lower confidence → more reasoning, possible confirmation.
+    """
+
+    FAST = 0    # No analysis, direct dispatch, ~50ms
+    LIGHT = 1   # Brief acknowledgment, auto-proceed, ~200ms
+    FULL = 2    # Full CoT reasoning, confirmation required, ~500ms
+
+
+@dataclass(frozen=True, slots=True)
+class TierBehavior:
+    """Behavior configuration for each execution tier.
+
+    Affects how the agent responds based on routing confidence.
+    """
+
+    show_reasoning: bool
+    """Whether to show chain-of-thought reasoning."""
+
+    require_confirmation: bool
+    """Whether to ask for confirmation before proceeding."""
+
+    output_format: str  # "compact" | "standard" | "detailed"
+    """Verbosity of the response."""
+
+    @classmethod
+    def for_tier(cls, tier: ExecutionTier) -> "TierBehavior":
+        """Get behavior configuration for a tier."""
+        behaviors = {
+            ExecutionTier.FAST: cls(
+                show_reasoning=False,
+                require_confirmation=False,
+                output_format="compact",
+            ),
+            ExecutionTier.LIGHT: cls(
+                show_reasoning=False,
+                require_confirmation=False,
+                output_format="standard",
+            ),
+            ExecutionTier.FULL: cls(
+                show_reasoning=True,
+                require_confirmation=True,
+                output_format="detailed",
+            ),
+        }
+        return behaviors[tier]
+
+
+def _determine_tier(confidence: float, has_shortcut: bool) -> ExecutionTier:
+    """Determine execution tier from confidence score.
+
+    Args:
+        confidence: 0.0-1.0 confidence score
+        has_shortcut: Whether request is an explicit shortcut (::command)
+
+    Returns:
+        ExecutionTier for the given confidence level
+    """
+    if has_shortcut or confidence >= 0.85:
+        return ExecutionTier.FAST
+    elif confidence >= 0.60:
+        return ExecutionTier.LIGHT
+    else:
+        return ExecutionTier.FULL
+
+
+# =============================================================================
+# Routing Exemplars (RFC-022 Enhancement)
+# =============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class RoutingExemplar:
+    """Gold-standard routing example for pattern matching.
+
+    Exemplars teach the router what good routing looks like.
+    Used for confidence calibration and self-verification.
+    """
+
+    input: str                     # User request pattern
+    context_hints: tuple[str, ...] # Expected context signals
+    reasoning: str                 # Why this routing is correct
+    intent: Intent                 # Correct intent
+    lens: str                      # Correct lens
+    focus: tuple[str, ...]         # Correct focus terms
+    confidence: str                # HIGH | MEDIUM | LOW
+    tags: tuple[str, ...]          # For retrieval matching
+
+
+# Gold-standard exemplar bank
+ROUTING_EXEMPLARS: tuple[RoutingExemplar, ...] = (
+    # --- CODE REVIEW ---
+    RoutingExemplar(
+        input="review auth.py for security",
+        context_hints=("file exists", "has auth code"),
+        reasoning="Goal: security review | Scope: single file | Clear intent",
+        intent=Intent.REVIEW,
+        lens="code-reviewer",
+        focus=("security", "authentication", "injection"),
+        confidence="HIGH",
+        tags=("security", "review", "auth"),
+    ),
+    RoutingExemplar(
+        input="check this for bugs",
+        context_hints=("recently edited",),
+        reasoning="Goal: find bugs | Scope: single file | AMBIGUOUS - bugs could mean logic, security, edge cases",
+        intent=Intent.REVIEW,
+        lens="code-reviewer",
+        focus=("logic", "edge_cases", "error_handling"),
+        confidence="MEDIUM",
+        tags=("bugs", "review", "check"),
+    ),
+    RoutingExemplar(
+        input="::review @auth.py --security",
+        context_hints=("explicit command",),
+        reasoning="Explicit shortcut with target - deterministic routing",
+        intent=Intent.REVIEW,
+        lens="code-reviewer",
+        focus=("security",),
+        confidence="HIGH",
+        tags=("command", "review", "security"),
+    ),
+
+    # --- CODE GENERATION ---
+    RoutingExemplar(
+        input="write a retry decorator",
+        context_hints=(),
+        reasoning="Goal: create code | Scope: single function | Clear intent",
+        intent=Intent.CODE,
+        lens="helper",
+        focus=("retry", "decorator", "error_handling"),
+        confidence="HIGH",
+        tags=("write", "create", "decorator"),
+    ),
+    RoutingExemplar(
+        input="add tests for the user service",
+        context_hints=("no test file exists",),
+        reasoning="Goal: create tests | Scope: single module | Clear intent",
+        intent=Intent.CODE,
+        lens="team-qa",
+        focus=("unit_tests", "coverage", "edge_cases"),
+        confidence="HIGH",
+        tags=("test", "write", "create"),
+    ),
+
+    # --- EXPLANATION ---
+    RoutingExemplar(
+        input="explain how this works",
+        context_hints=("code selected",),
+        reasoning="Goal: understand code | Scope: selection | Clear intent",
+        intent=Intent.EXPLAIN,
+        lens="helper",
+        focus=("explanation", "understanding"),
+        confidence="HIGH",
+        tags=("explain", "understand", "how"),
+    ),
+    RoutingExemplar(
+        input="document this function",
+        context_hints=("cursor on function",),
+        reasoning="Goal: add docs | Scope: single function | Clear target",
+        intent=Intent.CODE,
+        lens="tech-writer",
+        focus=("docstring", "parameters", "examples"),
+        confidence="HIGH",
+        tags=("document", "docstring", "function"),
+    ),
+
+    # --- DEBUG ---
+    RoutingExemplar(
+        input="why is this failing",
+        context_hints=("error visible", "test failing"),
+        reasoning="Goal: diagnose failure | Clear debug intent",
+        intent=Intent.DEBUG,
+        lens="debugger",
+        focus=("error", "failure", "diagnosis"),
+        confidence="HIGH",
+        tags=("debug", "error", "failing"),
+    ),
+    RoutingExemplar(
+        input="fix this",
+        context_hints=(),
+        reasoning="Goal: fix something | AMBIGUOUS - no target specified",
+        intent=Intent.DEBUG,
+        lens="helper",
+        focus=("fix",),
+        confidence="LOW",
+        tags=("fix", "ambiguous"),
+    ),
+
+    # --- SEARCH ---
+    RoutingExemplar(
+        input="where is authentication implemented",
+        context_hints=(),
+        reasoning="Goal: find code | Exploration intent",
+        intent=Intent.SEARCH,
+        lens="helper",
+        focus=("authentication", "location", "find"),
+        confidence="HIGH",
+        tags=("where", "find", "search"),
+    ),
+
+    # --- CHAT ---
+    RoutingExemplar(
+        input="hello",
+        context_hints=(),
+        reasoning="Greeting - casual conversation",
+        intent=Intent.CHAT,
+        lens="helper",
+        focus=(),
+        confidence="HIGH",
+        tags=("greeting", "hello", "chat"),
+    ),
+)
+
+
+def _match_exemplar(task: str, exemplars: tuple[RoutingExemplar, ...] = ROUTING_EXEMPLARS) -> tuple[RoutingExemplar | None, float]:
+    """Find best matching exemplar for a task.
+
+    Uses simple keyword overlap scoring. Returns (best_exemplar, similarity).
+    """
+    task_lower = task.lower()
+    task_words = set(task_lower.split())
+
+    best_match: RoutingExemplar | None = None
+    best_score = 0.0
+
+    for exemplar in exemplars:
+        # Score based on tag overlap
+        exemplar_words = set(exemplar.tags)
+        overlap = len(task_words & exemplar_words)
+        total = len(task_words | exemplar_words)
+
+        if total > 0:
+            score = overlap / total
+
+            # Boost if input pattern is similar
+            if any(word in task_lower for word in exemplar.input.lower().split()[:3]):
+                score += 0.2
+
+            if score > best_score:
+                best_score = score
+                best_match = exemplar
+
+    return best_match, min(1.0, best_score)
+
+
+# Default rubric instance
+DEFAULT_RUBRIC = ConfidenceRubric()
+
+
+# =============================================================================
 # Routing Decision (RFC-030)
 # =============================================================================
 
@@ -121,7 +517,7 @@ class RoutingDecision:
     confidence: float                   # 0.0-1.0 routing confidence
     reasoning: str                      # One-sentence explanation
 
-    # Legacy compatibility fields (computed, not from model)
+    # Retrieval hints (derived from intent)
     focus: tuple[str, ...] = ()         # Keywords for retrieval boosting
     secondary_lenses: tuple[str, ...] = ()
 
@@ -131,6 +527,43 @@ class RoutingDecision:
 
     skill_confidence: float = 0.0
     """Confidence in skill suggestions (0.0-1.0)."""
+
+    # RFC-022 Enhancement: Deterministic confidence
+    confidence_breakdown: str = ""
+    """Explanation of how confidence was calculated."""
+
+    matched_exemplar: str | None = None
+    """Name of matched routing exemplar, if any."""
+
+    rubric_confidence: float | None = None
+    """Confidence from deterministic rubric (0-1), if calculated."""
+
+    # RFC-022 Enhancement: Tiered execution
+    tier: ExecutionTier = ExecutionTier.LIGHT
+    """Execution tier based on confidence."""
+
+    @property
+    def behavior(self) -> TierBehavior:
+        """Get behavior configuration for this decision's tier."""
+        return TierBehavior.for_tier(self.tier)
+
+    @property
+    def top_k(self) -> int:
+        """Retrieval depth based on complexity."""
+        return {
+            Complexity.TRIVIAL: 3,
+            Complexity.STANDARD: 5,
+            Complexity.COMPLEX: 8,
+        }.get(self.complexity, 5)
+
+    @property
+    def threshold(self) -> float:
+        """Retrieval threshold based on complexity."""
+        return {
+            Complexity.TRIVIAL: 0.4,
+            Complexity.STANDARD: 0.3,
+            Complexity.COMPLEX: 0.2,
+        }.get(self.complexity, 0.3)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -147,6 +580,12 @@ class RoutingDecision:
             "secondary_lenses": list(self.secondary_lenses),
             "suggested_skills": list(self.suggested_skills),
             "skill_confidence": self.skill_confidence,
+            "confidence_breakdown": self.confidence_breakdown,
+            "matched_exemplar": self.matched_exemplar,
+            "rubric_confidence": self.rubric_confidence,
+            "tier": self.tier.value,
+            "top_k": self.top_k,
+            "threshold": self.threshold,
         }
 
     @classmethod
@@ -165,6 +604,10 @@ class RoutingDecision:
             secondary_lenses=tuple(data.get("secondary_lenses", [])),
             suggested_skills=tuple(data.get("suggested_skills", [])),
             skill_confidence=float(data.get("skill_confidence", 0.0)),
+            confidence_breakdown=data.get("confidence_breakdown", ""),
+            matched_exemplar=data.get("matched_exemplar"),
+            rubric_confidence=data.get("rubric_confidence"),
+            tier=ExecutionTier(data.get("tier", 1)),
         )
 
 
@@ -363,6 +806,10 @@ class UnifiedRouter:
                 reasoning=f"Shortcut '{request_stripped}' → skill '{skill_name}'",
                 suggested_skills=(skill_name,),
                 skill_confidence=1.0,
+                # RFC-022: Shortcuts are deterministic, highest confidence
+                confidence_breakdown="Explicit shortcut: +20 (deterministic)",
+                rubric_confidence=1.0,
+                tier=ExecutionTier.FAST,
             )
 
         return None
@@ -408,9 +855,23 @@ class UnifiedRouter:
         request: str,
         context: dict[str, Any] | None,
     ) -> RoutingDecision:
-        """Compute routing decision via model inference."""
+        """Compute routing decision via model inference.
+
+        RFC-022 Enhancement: Also calculates deterministic rubric confidence
+        and matches against exemplars for calibration.
+        """
         from sunwell.models.protocol import GenerateOptions
 
+        # Step 1: Match exemplar for confidence calibration
+        matched_exemplar, exemplar_similarity = _match_exemplar(request)
+
+        # Step 2: Calculate rubric-based confidence
+        rubric_score, confidence_breakdown = DEFAULT_RUBRIC.calculate(
+            request, context, exemplar_similarity
+        )
+        rubric_confidence = rubric_score / 100.0  # Normalize to 0-1
+
+        # Step 3: Get LLM routing decision
         prompt = UNIFIED_ROUTER_PROMPT.format(
             request=request,
             context=json.dumps(context) if context else "{}",
@@ -421,7 +882,24 @@ class UnifiedRouter:
             options=GenerateOptions(temperature=self.temperature),
         )
 
-        return self._parse_decision(result.content or "", request)
+        decision = self._parse_decision(result.content or "", request)
+
+        # Step 4: Enhance decision with rubric scoring
+        # Use higher of: LLM confidence, rubric confidence
+        final_confidence = max(decision.confidence, rubric_confidence)
+
+        # Step 5: Determine execution tier based on confidence
+        has_shortcut = request.strip().startswith("::")
+        tier = _determine_tier(final_confidence, has_shortcut)
+
+        return dataclasses.replace(
+            decision,
+            confidence=final_confidence,
+            confidence_breakdown=confidence_breakdown,
+            matched_exemplar=matched_exemplar.input if matched_exemplar else None,
+            rubric_confidence=rubric_confidence,
+            tier=tier,
+        )
 
     def _parse_decision(self, content: str, request: str) -> RoutingDecision:
         """Parse JSON response into RoutingDecision.
@@ -646,71 +1124,6 @@ class UnifiedRouter:
                 "intent_distribution": intent_counts,
                 "mood_distribution": mood_counts,
             }
-
-
-# =============================================================================
-# Legacy Adapter (RFC-030 Phase 1)
-# =============================================================================
-
-
-class LegacyRoutingAdapter:
-    """Adapter to convert UnifiedRouter decisions to legacy formats.
-
-    Provides backward compatibility during migration from:
-    - CognitiveRouter's RoutingDecision
-    - TieredAttunement's AttunementResult
-
-    Usage:
-        router = UnifiedRouter(model=model)
-        adapter = LegacyRoutingAdapter(router)
-
-        # Get legacy CognitiveRouter-style decision
-        legacy = await adapter.to_cognitive_router_decision("fix bug in auth.py")
-    """
-
-    def __init__(self, router: UnifiedRouter):
-        self.router = router
-
-    async def to_cognitive_router_decision(
-        self,
-        request: str,
-        context: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """Convert to CognitiveRouter RoutingDecision format.
-
-        Returns dict matching cognitive_router.RoutingDecision.to_dict()
-        """
-        decision = await self.router.route(request, context)
-
-        # Map unified intent to cognitive router intent
-        intent_map = {
-            Intent.CODE: "code_generation",
-            Intent.EXPLAIN: "explanation",
-            Intent.DEBUG: "debugging",
-            Intent.CHAT: "unknown",
-            Intent.SEARCH: "analysis",
-            Intent.REVIEW: "code_review",
-        }
-
-        # Compute top_k and threshold from complexity
-        complexity_params = {
-            Complexity.TRIVIAL: {"top_k": 3, "threshold": 0.4},
-            Complexity.STANDARD: {"top_k": 5, "threshold": 0.3},
-            Complexity.COMPLEX: {"top_k": 8, "threshold": 0.2},
-        }
-        params = complexity_params.get(decision.complexity, {"top_k": 5, "threshold": 0.3})
-
-        return {
-            "intent": intent_map.get(decision.intent, "unknown"),
-            "lens": decision.lens or "helper",
-            "secondary_lenses": list(decision.secondary_lenses),
-            "focus": list(decision.focus),
-            "complexity": decision.complexity.value,
-            "top_k": params["top_k"],
-            "threshold": params["threshold"],
-            "confidence": decision.confidence,
-            "reasoning": decision.reasoning,
-        }
 
 
 # =============================================================================

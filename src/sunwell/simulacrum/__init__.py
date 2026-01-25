@@ -50,17 +50,15 @@ from sunwell.simulacrum.topology import UnifiedMemoryStore, MemoryNode
 from sunwell.simulacrum.hierarchical import ChunkManager, Chunk
 from sunwell.simulacrum.context import ContextAssembler, Focus
 from sunwell.simulacrum.extractors import SpatialExtractor
-from sunwell.simulacrum.parallel import ParallelRetriever
 from sunwell.simulacrum.identity import SessionIndex, SessionIndexManager
 ```
 
 **Subpackages:**
-- `core/` - Core abstractions (store, dag, turn, memory, Simulacrum)
+- `core/` - Core abstractions (store, dag, turn, Simulacrum)
 - `hierarchical/` - RFC-013 hierarchical memory (chunks, chunk_manager, ctf, summarizer)
 - `topology/` - RFC-014 multi-topology memory (spatial, structural, facets, unified_store)
 - `extractors/` - Memory extractors (spatial, topology, structural, facet, learning)
 - `context/` - Context assembly and focus management
-- `parallel/` - Parallel retrieval across multiple memory stores
 - `manager/` - Multi-simulacrum management (spawning, lifecycle, archiving)
 - `identity/` - RFC-101 session identity (SessionIndex, SessionManifest)
 """

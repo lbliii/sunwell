@@ -90,6 +90,9 @@ class SessionContext:
     lens: Lens | None = None
     """Active lens for expertise injection."""
 
+    options: "RunOptions | None" = None
+    """Full execution options (RFC-137: includes delegation config)."""
+
     # === EXECUTION STATE (updated during run) ===
     tasks: list[Task] = field(default_factory=list)
     """Tasks in the current plan."""
@@ -167,6 +170,7 @@ class SessionContext:
             timeout=options.timeout_seconds,
             model_name="default",  # Resolved later
             lens=lens,
+            options=options,  # RFC-137: Full options for delegation config
         )
 
     # === PROMPTS ===

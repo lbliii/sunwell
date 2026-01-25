@@ -1,0 +1,207 @@
+---
+description: Map actors, journeys, integration points, and edge cases before RFC finalization
+alwaysApply: false
+globs: ["plan/**/*.md"]
+---
+
+# Coverage Analysis
+
+Map all actors, journeys, integration points, and edge cases to ensure nothing is missed.
+
+**Shortcut**: `::coverage`, `::journeys`
+
+**Position in workflow**: After `::research`, before `::rfc`
+
+```
+::research → ::coverage → ::rfc → ::plan → ::implement
+              ^^^^^^^^
+              YOU ARE HERE
+```
+
+---
+
+## When to Use
+
+- **REQUIRED** before finalizing any RFC (part of `::workflow-feature`)
+- When auditing existing features for gaps
+- During design reviews
+- When a feature feels "incomplete"
+
+---
+
+## Process
+
+### Step 1: Actor Identification
+
+**Internal Actors** (system components):
+```markdown
+| Actor | Role | Entry Points | Exit Points |
+|-------|------|--------------|-------------|
+| CLI | User entry | `cli/main.py:main()` | stdout/stderr |
+| Agent | Orchestration | `agent/core.py:run()` | events |
+| ... | ... | ... | ... |
+```
+
+**External Actors** (human users):
+```markdown
+| Actor | Goals | Context | Constraints |
+|-------|-------|---------|-------------|
+| Developer | Run agents | IDE/terminal | Fast feedback |
+| ... | ... | ... | ... |
+```
+
+**Discovery prompts**:
+- What code modules touch this?
+- Who initiates this feature?
+- Who observes the results?
+- What upstream/downstream services?
+
+---
+
+### Step 2: Journey Mapping
+
+For each actor, map their complete journey:
+
+**Happy Path Journeys** — Normal flows when everything works
+**Configuration Journeys** — Setup, customization, changes
+**Error Recovery Journeys** — What happens when things fail
+**Edge Case Journeys** — Unusual but valid use cases
+
+**Journey format**:
+```markdown
+| ID | Journey | Actor | Steps | Success Outcome | Failure Modes |
+|----|---------|-------|-------|-----------------|---------------|
+| HP1 | Basic usage | User | 1. Start → 2. Configure → 3. Run | Output generated | Timeout, invalid config |
+```
+
+**Discovery prompts**:
+- What's the most common way to use this?
+- What if the network is down?
+- What if data is corrupted?
+- What if the input is empty/maximum/invalid?
+
+---
+
+### Step 3: Integration Point Inventory
+
+**CRITICAL**: This is what prevents dead code.
+
+For each new component, identify WHERE it connects:
+
+```markdown
+| Component | Caller | Call Site | Line | Method |
+|-----------|--------|-----------|------|--------|
+| ToolEmulator | Agent | `agent/core.py` | ~847 | `_handle_tool()` |
+| NewParser | Renderer | `render/engine.py` | ~123 | `parse()` |
+```
+
+**Discovery prompts**:
+- Where will this be instantiated?
+- Where will this be called?
+- What existing code needs modification?
+- Is there a path from CLI → this component?
+
+**Gate**: Every new component MUST have at least one integration point.
+
+---
+
+### Step 4: Edge Case Extraction
+
+**Input Edge Cases**: Empty, minimal, maximum, boundary, overflow, invalid type, malformed, unicode, injection
+
+**State Edge Cases**: Uninitialized, mid-operation, post-failure, concurrent, stale, locked
+
+**Environment Edge Cases**: No network, slow network, no disk, no memory, no permissions, wrong version, clock skew
+
+**Timing Edge Cases**: Timeout, race, interrupt, retry, idempotent
+
+**Format**:
+```markdown
+| ID | Category | Condition | Expected Behavior | Test |
+|----|----------|-----------|-------------------|------|
+| EC1 | Input | Empty input | Return empty result | `test_empty_input` |
+```
+
+---
+
+### Step 5: Feature Matrix
+
+```markdown
+| Feature | Description | Journeys Covered | Integration Points | Status |
+|---------|-------------|------------------|-------------------|--------|
+| F1 | [What it does] | HP1, HP2, EC3 | `core.py:45` | ✅ |
+| F2 | [What it does] | HP3, ER1 | - | ⚠️ No integration |
+| F3 | [What it does] | - | - | ❌ Missing |
+```
+
+---
+
+### Step 6: Gap Analysis
+
+**Discovery questions**:
+- Are there actors we haven't considered?
+- Are there journeys that can't be recovered?
+- **Are there components without integration points?**
+- What would a security auditor ask about?
+
+**Gap format**:
+```markdown
+| Gap ID | Description | Impact | Resolution |
+|--------|-------------|--------|------------|
+| G1 | No error handling for timeout | High | Add timeout handler |
+```
+
+---
+
+## Output Format
+
+```markdown
+## 📍 Coverage Analysis: [Feature Name]
+
+### Actors
+| Type | Count | Entry Points Mapped |
+|------|-------|---------------------|
+| Internal | X | X |
+| External | X | X |
+
+### Journey Summary
+| Category | Total | Covered | Gap |
+|----------|-------|---------|-----|
+| Happy Path | X | X | 0 |
+| Error Recovery | X | X | 0 |
+| Edge Cases | X | X | X |
+
+### Integration Points (CRITICAL)
+| Component | Caller | Call Site | Status |
+|-----------|--------|-----------|--------|
+| [New] | [Existing] | `file:line` | ✅ Identified |
+
+### Gaps Identified
+| Gap | Impact | Resolution |
+|-----|--------|------------|
+
+### Verdict
+✅ Coverage Complete (or ⚠️ Gaps Remain)
+
+**Ready for RFC**: [Yes/No - must have all integration points mapped]
+```
+
+---
+
+## Quick Commands
+
+- `::coverage full` — Run complete 6-phase analysis
+- `::coverage actors` — Just actor identification
+- `::coverage journeys` — Just journey mapping
+- `::coverage integration` — Just integration point inventory
+- `::coverage edges` — Just edge case extraction
+- `::coverage gaps` — Just gap analysis
+
+---
+
+## Related
+
+- `commands/research` - Gather evidence first
+- `commands/rfc` - Draft RFC after coverage
+- `commands/plan` - Plan uses integration points for Phase 3
+- `workflows/feature` - Full feature workflow includes coverage

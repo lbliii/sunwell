@@ -14,6 +14,7 @@ Sunwell differentiators:
 - Automatic retry with strategy escalation (RFC-134)
 - Tool usage learning (RFC-134)
 - Progressive tool enablement (RFC-134)
+- Smart-to-dumb model delegation (RFC-137)
 """
 
 import logging
@@ -24,6 +25,9 @@ from typing import TYPE_CHECKING, Literal
 
 from sunwell.agent.events import (
     AgentEvent,
+    delegation_started_event,
+    ephemeral_lens_created_event,
+    signal_event,
     tool_complete_event,
     tool_error_event,
     tool_loop_complete_event,
@@ -45,7 +49,7 @@ if TYPE_CHECKING:
     from sunwell.agent.learning import LearningStore
     from sunwell.agent.signals import AdaptiveSignals
     from sunwell.agent.validation import ValidationStage
-    from sunwell.core.lens import Lens
+    from sunwell.core.lens import EphemeralLens, Lens, LensLike
     from sunwell.mirror.handler import MirrorHandler
     from sunwell.models.protocol import ModelProtocol
     from sunwell.recovery.manager import RecoveryManager
@@ -108,6 +112,22 @@ class LoopConfig:
     # RFC-134: Progressive tool enablement
     enable_progressive_tools: bool = False
     """Start with read-only tools and unlock write tools as trust builds."""
+
+    # RFC-137: Smart-to-dumb model delegation
+    enable_delegation: bool = False
+    """Enable smart-to-dumb model delegation for cost optimization.
+
+    When enabled and delegation criteria are met, the loop will:
+    1. Use a smart model to create an EphemeralLens
+    2. Execute the task with a cheaper delegation model using the lens
+    """
+
+    delegation_threshold_tokens: int = 2000
+    """Minimum expected output tokens to trigger delegation.
+
+    Tasks expected to generate more than this many tokens will use
+    delegation if enabled. Lower values = more aggressive delegation.
+    """
 
 
 @dataclass(slots=True)
@@ -179,6 +199,16 @@ class AgentLoop:
     progressive_policy: ProgressivePolicy | None = field(default=None, init=False)
     """Dynamic tool availability based on turn/trust (RFC-134)."""
 
+    # RFC-137: Model delegation
+    smart_model: ModelProtocol | None = None
+    """Smart model for lens creation (delegation)."""
+
+    delegation_model: ModelProtocol | None = None
+    """Cheap model for delegated execution (delegation)."""
+
+    # Internal flag to prevent delegation recursion
+    _in_delegation: bool = field(default=False, init=False)
+
     def __post_init__(self) -> None:
         """Initialize workspace from executor if not provided."""
         if self.workspace is None and hasattr(self.executor, "_resolved_workspace"):
@@ -211,6 +241,49 @@ class AgentLoop:
         # DIFFERENTIATOR: Enhance tools with lens expertise
         tools = self._enhance_tools_with_expertise(tools)
 
+        # RFC-134: Initialize progressive tool policy if enabled
+        if self.config.enable_progressive_tools:
+            from sunwell.tools.progressive import ProgressivePolicy
+            from sunwell.tools.types import ToolTrust
+
+            # Get base trust from executor policy or default to WORKSPACE
+            base_trust = ToolTrust.WORKSPACE
+            if hasattr(self.executor, "policy") and self.executor.policy:
+                base_trust = self.executor.policy.trust_level
+
+            self.progressive_policy = ProgressivePolicy(base_trust=base_trust)
+            logger.info(
+                "Progressive tools enabled: starting with %d tools",
+                len(self.progressive_policy.get_available_tools()),
+            )
+
+        # RFC-137: Check if delegation should be used (skip if already in delegation)
+        if (
+            self.config.enable_delegation
+            and self.delegation_model is not None
+            and not self._in_delegation
+        ):
+            from sunwell.agent.ephemeral_lens import should_use_delegation
+
+            # Estimate tokens based on task complexity
+            estimated_tokens = self._estimate_output_tokens(task_description)
+
+            if await should_use_delegation(
+                task_description,
+                estimated_tokens,
+                budget_remaining=50_000,  # TODO: Get from budget tracker
+            ):
+                logger.info(
+                    "Delegation triggered: %d estimated tokens > threshold %d",
+                    estimated_tokens,
+                    self.config.delegation_threshold_tokens,
+                )
+                async for event in self._run_with_delegation(
+                    task_description, tools, system_prompt, context
+                ):
+                    yield event
+                return
+
         # Initialize state
         state = LoopState()
 
@@ -240,6 +313,14 @@ class AgentLoop:
             differentiators_active.append("self_reflection")
         if self.config.enable_recovery and self.recovery_manager:
             differentiators_active.append("recovery")
+        if self.config.enable_introspection:
+            differentiators_active.append("tool_introspection")
+        if self.config.enable_strategy_escalation:
+            differentiators_active.append("strategy_escalation")
+        if self.config.enable_tool_learning:
+            differentiators_active.append("tool_learning")
+        if self.config.enable_progressive_tools:
+            differentiators_active.append("progressive_tools")
 
         # Emit differentiators event if any are active
         if differentiators_active:
@@ -267,11 +348,27 @@ class AgentLoop:
         while state.turn < self.config.max_turns:
             state.turn += 1
 
+            # RFC-134: Advance progressive policy turn
+            if self.progressive_policy:
+                self.progressive_policy.advance_turn()
+
+            # RFC-134: Filter tools based on progressive policy
+            available_tools = tools
+            if self.progressive_policy:
+                available_tools = self.progressive_policy.filter_tools(tools)
+                if len(available_tools) != len(tools):
+                    logger.debug(
+                        "Progressive tools: %d/%d tools available at turn %d",
+                        len(available_tools),
+                        len(tools),
+                        state.turn,
+                    )
+
             # Generate with tools (first turn uses task_description for routing)
             routing_task = task_description if state.turn == 1 else None
             result = await self._generate_with_routing(
                 state.messages,
-                tools,
+                available_tools,
                 task_description=routing_task,
             )
 
@@ -321,6 +418,21 @@ class AgentLoop:
                 # Track if validation failed
                 if event.type.value in ("gate_fail", "validate_error"):
                     validation_passed = False
+
+        # RFC-134: Update progressive policy with validation outcome
+        if self.progressive_policy:
+            if validation_passed and state.file_writes:
+                self.progressive_policy.record_validation_pass()
+                logger.debug(
+                    "Progressive policy: validation passed, %d passes total",
+                    self.progressive_policy.validation_passes,
+                )
+            elif not validation_passed:
+                self.progressive_policy.record_validation_failure()
+                logger.debug(
+                    "Progressive policy: validation failed, %d failures total",
+                    self.progressive_policy.validation_failures,
+                )
 
         # RFC-134: Record tool sequence for learning
         if (
@@ -1245,6 +1357,149 @@ Provide the corrected arguments as a JSON object."""
         except Exception as e:
             logger.debug("Self-reflection failed (non-fatal): %s", e)
             # Self-reflection is enhancement, not critical path
+
+    def _estimate_output_tokens(self, task_description: str) -> int:
+        """Estimate expected output tokens based on task description.
+
+        Uses simple heuristics to estimate output size. More sophisticated
+        estimation could use a classifier or historical data.
+
+        Args:
+            task_description: The task to estimate
+
+        Returns:
+            Estimated token count for the task output
+        """
+        # Base estimate: longer descriptions usually mean more complex tasks
+        word_count = len(task_description.split())
+        base_tokens = word_count * 10  # Rough multiplier
+
+        # Indicators of larger output
+        large_indicators = (
+            "multiple files",
+            "all endpoints",
+            "full implementation",
+            "complete",
+            "crud",
+            "scaffold",
+            "generate",
+        )
+        for indicator in large_indicators:
+            if indicator in task_description.lower():
+                base_tokens *= 2
+                break
+
+        # Cap at reasonable range
+        return max(500, min(base_tokens, 20_000))
+
+    async def _run_with_delegation(
+        self,
+        task_description: str,
+        tools: tuple[Tool, ...],
+        system_prompt: str | None = None,
+        context: str | None = None,
+    ) -> AsyncIterator[AgentEvent]:
+        """Execute task with smart-to-dumb delegation (RFC-137).
+
+        Uses a smart model to create an EphemeralLens, then executes
+        with a cheaper model using that lens for guidance.
+
+        Args:
+            task_description: What to accomplish
+            tools: Available tools
+            system_prompt: Optional system prompt
+            context: Additional context
+
+        Yields:
+            AgentEvent for progress tracking
+        """
+        from sunwell.agent.ephemeral_lens import create_ephemeral_lens
+
+        # Must have both smart and delegation models
+        if self.smart_model is None:
+            self.smart_model = self.model  # Use primary as smart model
+        if self.delegation_model is None:
+            logger.warning("Delegation requested but no delegation_model set")
+            # Fall through to normal execution
+            async for event in self.run(task_description, tools, system_prompt, context):
+                yield event
+            return
+
+        smart_model_id = getattr(self.smart_model, "model_id", "unknown")
+        delegation_model_id = getattr(self.delegation_model, "model_id", "unknown")
+
+        # Emit delegation started event
+        yield delegation_started_event(
+            task_description=task_description,
+            smart_model=smart_model_id,
+            delegation_model=delegation_model_id,
+            reason="Task exceeds delegation threshold",
+            estimated_tokens=self._estimate_output_tokens(task_description),
+        )
+
+        logger.info(
+            "◈ DELEGATION → Creating lens with %s for execution by %s",
+            smart_model_id,
+            delegation_model_id,
+        )
+
+        # Create ephemeral lens using smart model
+        context_summary = context[:2000] if context else ""
+        ephemeral_lens = await create_ephemeral_lens(
+            model=self.smart_model,
+            task=task_description,
+            context=context_summary,
+        )
+
+        # Emit lens created event
+        yield ephemeral_lens_created_event(
+            task_scope=ephemeral_lens.task_scope,
+            heuristics_count=len(ephemeral_lens.heuristics),
+            patterns_count=len(ephemeral_lens.patterns),
+            anti_patterns_count=len(ephemeral_lens.anti_patterns),
+            constraints_count=len(ephemeral_lens.constraints),
+            generated_by=ephemeral_lens.generated_by,
+        )
+
+        logger.info(
+            "◐ LENS CREATED → %s: %d heuristics, %d patterns",
+            ephemeral_lens.task_scope[:50],
+            len(ephemeral_lens.heuristics),
+            len(ephemeral_lens.patterns),
+        )
+
+        # Store original model and lens
+        original_model = self.model
+        original_lens = self.lens
+
+        # Switch to delegation model and ephemeral lens
+        self.model = self.delegation_model
+        self.lens = ephemeral_lens  # type: ignore[assignment]  # LensLike union
+
+        # Inject lens context into system prompt
+        lens_context = ephemeral_lens.to_context()
+        enhanced_system = system_prompt or ""
+        if lens_context:
+            enhanced_system = f"{lens_context}\n\n{enhanced_system}" if enhanced_system else lens_context
+
+        try:
+            # Set flag to prevent recursion
+            self._in_delegation = True
+
+            # Run the loop with delegation model
+            async for event in self.run(
+                task_description=task_description,
+                tools=tools,
+                system_prompt=enhanced_system,
+                context=context,
+            ):
+                yield event
+
+        finally:
+            # Restore original model and lens
+            self.model = original_model
+            self.lens = original_lens
+            self._in_delegation = False
 
 
 # =============================================================================

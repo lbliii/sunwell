@@ -1,30 +1,73 @@
-"""Agent — Unified Execution Engine (RFC-110, RFC-MEMORY).
+"""Agent — Unified Execution Engine (RFC-110, RFC-MEMORY, RFC-134, RFC-137).
 
 The Agent is THE execution engine for Sunwell. All entry points
 (CLI, chat, Studio) call Agent.run() with SessionContext and PersistentMemory.
 
 Key components:
 - Agent: The brain — analyzes, plans, executes, validates, learns
+- AgentLoop: S-Tier Tool Calling with introspection and learning (RFC-134)
 - SessionContext: Session state (goal, workspace, options)
 - PersistentMemory: Unified memory facade (decisions, failures, patterns)
-- Events: Streaming progress updates
+- Events: Streaming progress updates (see event_schema for TypedDict schemas)
 - Signals: Goal analysis for routing decisions
 - Gates: Validation checkpoints in task graphs
+- Ephemeral Lens: Smart-to-dumb model delegation (RFC-137)
+
+S-Tier Tool Calling (RFC-134):
+- Tool call introspection and repair via `introspect_tool_call()`
+- Progressive tool enablement
+- Automatic retry with strategy escalation
+- Tool usage pattern learning
+
+Smart-to-Dumb Model Delegation (RFC-137):
+- Use `should_use_delegation()` to decide when to delegate
+- Use `create_ephemeral_lens()` to generate lens with smart model
+- Execute with cheap model using the ephemeral lens
 
 Example:
-    >>> from sunwell.agent import Agent
-    >>> from sunwell.context.session import SessionContext
-    >>> from sunwell.memory.persistent import PersistentMemory
+    >>> from sunwell.agent import Agent, AgentLoop, LoopConfig
+    >>> from sunwell.agent import create_ephemeral_lens, should_use_delegation
+    >>> from sunwell.agent import create_validated_event, EventType
+    >>>
+    >>> # Basic agent usage
     >>> agent = Agent(model=my_model, tool_executor=tools)
-    >>> session = SessionContext.build(workspace, "Build a Flask forum app", options)
-    >>> memory = PersistentMemory.load(workspace)
     >>> async for event in agent.run(session, memory):
     ...     print(event)
+    >>>
+    >>> # S-Tier tool loop
+    >>> loop = AgentLoop(model=model, executor=executor, config=LoopConfig())
+    >>> async for event in loop.run("Implement user auth"):
+    ...     print(event)
+    >>>
+    >>> # With delegation
+    >>> loop = AgentLoop(
+    ...     model=haiku,
+    ...     executor=executor,
+    ...     config=LoopConfig(enable_delegation=True),
+    ...     smart_model=opus,
+    ...     delegation_model=haiku,
+    ... )
 """
 
 from sunwell.agent.budget import AdaptiveBudget, CostEstimate
 from sunwell.agent.core import Agent, TaskGraph
+from sunwell.agent.ephemeral_lens import create_ephemeral_lens, should_use_delegation
+from sunwell.agent.event_schema import (
+    EVENT_SCHEMAS,
+    REQUIRED_FIELDS,
+    EventEmitter,
+    ValidatedEventEmitter,
+    create_validated_event,
+    validate_event_data,
+)
+from sunwell.agent.introspection import IntrospectionResult, introspect_tool_call
 from sunwell.agent.loop import AgentLoop, LoopConfig, LoopState, run_tool_loop
+from sunwell.agent.spawn import (
+    SpawnDepthExceeded,
+    SpawnRequest,
+    SpecialistResult,
+    SpecialistState,
+)
 from sunwell.agent.events import (
     AgentEvent,
     EventType,
@@ -35,6 +78,8 @@ from sunwell.agent.events import (
     briefing_saved_event,
     complete_event,
     decision_made_event,
+    delegation_started_event,
+    ephemeral_lens_created_event,
     failure_recorded_event,
     gate_start_event,
     gate_step_event,
@@ -124,6 +169,13 @@ __all__ = [
     # Budget
     "AdaptiveBudget",
     "CostEstimate",
+    # Event Schema (type-safe event handling)
+    "EVENT_SCHEMAS",
+    "REQUIRED_FIELDS",
+    "EventEmitter",
+    "ValidatedEventEmitter",
+    "create_validated_event",
+    "validate_event_data",
     # Events
     "AgentEvent",
     "EventType",
@@ -163,6 +215,20 @@ __all__ = [
     "learning_added_event",
     "decision_made_event",
     "failure_recorded_event",
+    # RFC-137: Delegation event factories
+    "delegation_started_event",
+    "ephemeral_lens_created_event",
+    # RFC-137: Ephemeral Lens (smart-to-dumb delegation)
+    "create_ephemeral_lens",
+    "should_use_delegation",
+    # RFC-134: Tool introspection
+    "IntrospectionResult",
+    "introspect_tool_call",
+    # RFC-130: Agent Constellation (specialist spawning)
+    "SpawnDepthExceeded",
+    "SpawnRequest",
+    "SpecialistResult",
+    "SpecialistState",
     # Thinking
     "ThinkingBlock",
     "ThinkingDetector",

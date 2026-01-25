@@ -1,5 +1,5 @@
 ---
-description: Full feature development workflow - research → RFC → plan (ready for implementation)
+description: Full feature development workflow - research → coverage → RFC → plan (ready for implementation)
 alwaysApply: false
 ---
 
@@ -29,20 +29,25 @@ Full feature development flow from research through planning.
    Input: Feature description
    Output: Evidence-backed understanding of current state
 
-2. ::rfc (15-20 min)
+2. ::coverage (10-15 min)
    Input: Research findings
+   Output: Actors, journeys, integration points identified
+   Gate: All entry/exit points mapped
+
+3. ::rfc (15-20 min)
+   Input: Research + Coverage findings
    Output: RFC with design options and recommendation
 
-3. Review checkpoint
+4. Review checkpoint
    Action: User reviews RFC
    Gate: Confidence ≥ 85%
 
-4. ::plan (10 min)
-   Input: Approved RFC
-   Output: Actionable task list with commits
+5. ::plan (10 min)
+   Input: Approved RFC + Coverage analysis
+   Output: Actionable task list with explicit integration wiring
 ```
 
-**Total time**: 35-45 minutes
+**Total time**: 45-60 minutes
 
 ---
 
@@ -64,7 +69,26 @@ output:
   - Confidence scores
 ```
 
-### Phase 2: RFC
+### Phase 2: Coverage Analysis
+
+```yaml
+command: ::coverage
+focus:
+  - Who/what initiates this feature? (actors)
+  - What are all the ways to use it? (journeys)
+  - Where does it connect to existing code? (integration points)
+  - What can go wrong? (error paths)
+
+output:
+  - Actor table (internal + external)
+  - Journey map (happy path, error, edge cases)
+  - Integration point inventory
+  - Edge case catalog
+
+gate: Every new component must have at least one integration point identified
+```
+
+### Phase 3: RFC
 
 ```yaml
 command: ::rfc
@@ -75,13 +99,14 @@ sections:
   - Design Options (at least 2)
   - Recommended Approach
   - Architecture Impact
+  - **Integration Points** (from coverage analysis)
   - Risks and Mitigations
   - Implementation Plan outline
 
 gate: Confidence ≥ 85%
 ```
 
-### Phase 3: User Review
+### Phase 4: User Review
 
 ```markdown
 ## 📋 RFC Review Checkpoint
@@ -93,6 +118,7 @@ Please review:
 - [ ] Problem statement accurate?
 - [ ] Goals align with your needs?
 - [ ] Recommended approach acceptable?
+- [ ] **Integration points complete?**
 - [ ] Risks understood?
 
 **Options**:
@@ -101,7 +127,7 @@ Please review:
 - "Need more research on [Y]" → Additional research
 ```
 
-### Phase 4: Plan
+### Phase 5: Plan
 
 ```yaml
 command: ::plan
@@ -109,6 +135,8 @@ output:
   - Task breakdown by subsystem
   - Dependency order
   - Pre-drafted commit messages
+  - **Explicit integration wiring tasks (file:line)**
+  - **Reachability proofs**
   - Test requirements per task
   - Estimated effort
 ```
@@ -119,15 +147,23 @@ output:
 
 At the end of this workflow, you have:
 
-1. **RFC document** in `plan/drafted/rfc-[name].md`
+1. **Coverage analysis** (may be inline or separate doc)
+   - Actors and journeys mapped
+   - Integration points identified
+   - Edge cases cataloged
+
+2. **RFC document** in `plan/drafted/rfc-[name].md`
    - Evidence-backed problem statement
    - Analyzed design options
    - Clear recommendation
    - Architecture impact documented
+   - **Integration points section**
 
-2. **Plan document** in `plan/drafted/plan-[name].md`
+3. **Plan document** in `plan/drafted/plan-[name].md`
    - Atomic tasks
    - Ordered by dependency
+   - **Phase 3: Integration Wiring with explicit call sites**
+   - **Phase 4: Verification with reachability proofs**
    - Ready for `::implement`
 
 ---
@@ -144,24 +180,36 @@ AI:
     - Found: Similar pattern in taxonomy_index.py
     - Confidence: 88%
 
-  Phase 2 - RFC (18 min):
+  Phase 2 - Coverage (10 min):
+    - Actors: CLI user, template author, build system
+    - Happy path: User configures pagination → build generates pages
+    - Integration points:
+      - bengal/orchestration/build.py:build_collections() (line 234)
+      - bengal/rendering/helpers.py:paginate() (new)
+      - cli/build.py:main() (existing entry)
+    - Edge cases: Empty collection, 1 item, exact page boundary
+
+  Phase 3 - RFC (18 min):
     - Problem: Large collections hurt build time and page load
     - Option A: Client-side pagination
     - Option B: Build-time pagination (recommended)
     - Option C: Hybrid approach
+    - Integration: build_collections() will call new paginator
     - Architecture impact: New PaginatedCollection type
     - Confidence: 91%
 
   Checkpoint:
     "RFC ready for review. Confidence 91%. Proceed with planning?"
 
-  Phase 3 - Plan (8 min):
+  Phase 4 - Plan (8 min):
     - Task 1.1: Define PaginatedPage type
     - Task 1.2: Add pagination config to bengal.toml schema
     - Task 2.1: Implement PaginationOrchestrator
     - Task 2.2: Add pagination template helpers
-    - Task 3.1: Add unit tests
-    - Task 3.2: Add integration tests
+    - Task 3.1: Wire paginator into build_collections() at line 234
+    - Task 3.2: Wire pagination helpers into template context
+    - Task 4.1: Add integration tests
+    - Task 4.2: Reachability proof: cli → build → paginator → helpers
 ```
 
 ---
@@ -183,6 +231,7 @@ follow_up:
 ## Related
 
 - `commands/research` - Evidence extraction
+- `commands/coverage-analysis` - Actor/journey mapping
 - `commands/rfc` - RFC drafting
 - `commands/plan` - Task breakdown
 - `workflows/fix` - Simpler workflow for fixes
