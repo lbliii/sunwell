@@ -55,6 +55,34 @@
   const validationWarnings = $derived(writerState.validationWarnings);
   const workflow = $derived(workflowState.execution);
 
+  // Pre-compute outline items for O(1) rendering (avoids filter/split in template)
+  interface OutlineItem {
+    level: number;
+    text: string;
+    lineNumber: number;
+    paddingLeft: number;
+  }
+  const outlineItems = $derived.by((): OutlineItem[] => {
+    const lines = content.split('\n');
+    const items: OutlineItem[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.startsWith('#')) {
+        const match = line.match(/^(#+)\s*(.*)/);
+        if (match) {
+          items.push({
+            level: match[1].length,
+            text: match[2] || 'Untitled',
+            lineNumber: i + 1,
+            paddingLeft: (match[1].length - 1) * 12 + 8,
+          });
+        }
+      }
+    }
+    return items;
+  });
+  const hasOutlineItems = $derived(outlineItems.length > 0);
+
   // Load document on mount
   onMount(async () => {
     if (filePath) {
@@ -157,19 +185,17 @@
         <div class="sidebar-section">
           <h3 class="sidebar-title">Outline</h3>
           <div class="outline-content">
-            <!-- Extract headers from content -->
-            {#each content.split('\n').filter((l) => l.startsWith('#')) as header, i}
-              {@const level = header.match(/^#+/)?.[0].length ?? 1}
-              {@const text = header.replace(/^#+\s*/, '')}
+            <!-- Outline from pre-computed items (O(1) render vs O(n) filter) -->
+            {#each outlineItems as item (item.lineNumber)}
               <button
                 class="outline-item"
-                style="padding-left: {(level - 1) * 12 + 8}px"
-                onclick={() => handleNavigateToLine(i + 1)}
+                style="padding-left: {item.paddingLeft}px"
+                onclick={() => handleNavigateToLine(item.lineNumber)}
               >
-                {text || 'Untitled'}
+                {item.text}
               </button>
             {/each}
-            {#if !content.split('\n').some((l) => l.startsWith('#'))}
+            {#if !hasOutlineItems}
               <p class="outline-empty">No headings found</p>
             {/if}
           </div>

@@ -208,7 +208,7 @@
             <dt>Key Facts</dt>
             <dd>
               <ul class="facts-list">
-                {#each selectedChunk.keyFacts as fact}
+                {#each selectedChunk.keyFacts as fact, i (`fact-${i}`)}
                   <li>{fact}</li>
                 {/each}
               </ul>
@@ -218,7 +218,7 @@
           {#if selectedChunk.themes.length > 0}
             <dt>Themes</dt>
             <dd class="themes-list">
-              {#each selectedChunk.themes as theme}
+              {#each selectedChunk.themes as theme (theme)}
                 <span class="theme-tag">{theme}</span>
               {/each}
             </dd>

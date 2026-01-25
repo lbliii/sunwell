@@ -24,7 +24,7 @@
   }: Props = $props();
   
   // Infer content type from file path or URL if not specified
-  let inferredContentType = $derived(() => {
+  const inferredContentType = $derived.by(() => {
     if (contentType !== 'text') return contentType;
     
     const path = filePath || url || '';
@@ -50,7 +50,7 @@
   });
   
   // Get language from file extension for code highlighting
-  let inferredLanguage = $derived(() => {
+  const inferredLanguage = $derived.by(() => {
     if (language !== 'text') return language;
     
     const path = filePath || url || '';
@@ -144,7 +144,7 @@
   }
   
   // Get display name from path
-  let displayName = $derived(() => {
+  const displayName = $derived.by(() => {
     if (filePath) {
       return filePath.split('/').pop() || filePath;
     }
@@ -164,29 +164,29 @@
     <span>👁️ Preview</span>
     <div class="preview-info">
       {#if filePath || url}
-        <span class="preview-path" title={filePath || url}>{displayName()}</span>
+        <span class="preview-path" title={filePath || url}>{displayName}</span>
       {/if}
-      <span class="content-type">{inferredContentType()}</span>
+      <span class="content-type">{inferredContentType}</span>
     </div>
   </div>
   <div class="preview-content">
-    {#if url && inferredContentType() === 'html'}
+    {#if url && inferredContentType === 'html'}
       <!-- HTML iframe preview -->
       <iframe 
         src={url} 
         title="Preview"
         sandbox="allow-scripts allow-same-origin"
       ></iframe>
-    {:else if inferredContentType() === 'image'}
+    {:else if inferredContentType === 'image'}
       <!-- Image preview -->
       <div class="image-container">
         <img 
           src={url || `data:image/*;base64,${content}`} 
-          alt={displayName()} 
+          alt={displayName} 
           loading="lazy"
         />
       </div>
-    {:else if inferredContentType() === 'pdf'}
+    {:else if inferredContentType === 'pdf'}
       <!-- PDF preview -->
       {#if url}
         <iframe 
@@ -197,16 +197,16 @@
       {:else}
         <p class="placeholder">PDF preview requires a URL</p>
       {/if}
-    {:else if inferredContentType() === 'markdown' && content}
+    {:else if inferredContentType === 'markdown' && content}
       <!-- Markdown preview -->
       <div class="markdown-content">
         {@html renderMarkdown(content)}
       </div>
-    {:else if inferredContentType() === 'code' && content}
+    {:else if inferredContentType === 'code' && content}
       <!-- Code preview with syntax highlighting -->
-      <div class="code-content" data-language={inferredLanguage()}>
+      <div class="code-content" data-language={inferredLanguage}>
         <div class="code-header">
-          <span class="language-badge">{inferredLanguage()}</span>
+          <span class="language-badge">{inferredLanguage}</span>
         </div>
         <pre><code>{@html addLineNumbers(content)}</code></pre>
       </div>

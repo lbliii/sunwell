@@ -32,6 +32,9 @@
   let showSunwell = $state(false);
   let animationPlayed = $state(false);
   
+  // Track animation timeouts for cleanup
+  let animationTimeouts: ReturnType<typeof setTimeout>[] = [];
+  
   // Spring values as state (reactive)
   let springValues = $state([
     { raw: 0, sunwell: 0 },
@@ -55,20 +58,30 @@
     spring(0, { stiffness: 0.03, damping: 0.3 }),
   ];
   
-  // Subscribe to spring updates
-  rawSprings.forEach((s, i) => {
-    s.subscribe(v => {
-      springValues[i] = { ...springValues[i], raw: v };
+  // Subscribe to spring updates with proper cleanup
+  $effect(() => {
+    const unsubscribers: (() => void)[] = [];
+    
+    rawSprings.forEach((s, i) => {
+      unsubscribers.push(s.subscribe(v => {
+        springValues[i] = { ...springValues[i], raw: v };
+      }));
     });
-  });
-  
-  sunwellSprings.forEach((s, i) => {
-    s.subscribe(v => {
-      springValues[i] = { ...springValues[i], sunwell: v };
+    
+    sunwellSprings.forEach((s, i) => {
+      unsubscribers.push(s.subscribe(v => {
+        springValues[i] = { ...springValues[i], sunwell: v };
+      }));
     });
+    
+    return () => unsubscribers.forEach(unsub => unsub());
   });
   
   function playAnimation() {
+    // Clear any existing timeouts
+    animationTimeouts.forEach(clearTimeout);
+    animationTimeouts = [];
+    
     showSunwell = false;
     animationPlayed = true;
     
@@ -77,35 +90,44 @@
     sunwellSprings.forEach(s => s.set(0, { hard: true }));
     
     // Animate raw scores first
-    setTimeout(() => {
+    animationTimeouts.push(setTimeout(() => {
       comparisons.forEach((comp, i) => {
         if (i < rawSprings.length) {
           rawSprings[i].set(comp.rawScore);
         }
       });
-    }, 500);
+    }, 500));
     
     // Show Sunwell activation flash
-    setTimeout(() => {
+    animationTimeouts.push(setTimeout(() => {
       showSunwell = true;
-    }, 2000);
+    }, 2000));
     
     // Animate Sunwell scores
-    setTimeout(() => {
+    animationTimeouts.push(setTimeout(() => {
       comparisons.forEach((comp, i) => {
         if (i < sunwellSprings.length) {
           sunwellSprings[i].set(comp.sunwellScore);
         }
       });
-    }, 2500);
+    }, 2500));
   }
   
   function reset() {
+    // Clear any pending timeouts
+    animationTimeouts.forEach(clearTimeout);
+    animationTimeouts = [];
+    
     showSunwell = false;
     animationPlayed = false;
     rawSprings.forEach(s => s.set(0, { hard: true }));
     sunwellSprings.forEach(s => s.set(0, { hard: true }));
   }
+  
+  // Cleanup timeouts on component destroy
+  $effect(() => {
+    return () => animationTimeouts.forEach(clearTimeout);
+  });
   
   // SVG dimensions
   const width = 600;
@@ -143,7 +165,7 @@
   <div class="paradox-content">
     <svg viewBox="0 0 {width} {height}" class="chart-svg">
       <!-- Grid lines -->
-      {#each [2, 4, 6, 8, 10] as score}
+      {#each [2, 4, 6, 8, 10] as score (score)}
         <line 
           x1={padding.left}
           y1={scoreToY(score)}

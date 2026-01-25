@@ -13,23 +13,23 @@ import type { LensSummary, LensDetail, ProjectLensConfig, LensSelection } from '
 
 interface LensState {
   /** All available lenses */
-  available: LensSummary[];
+  readonly available: readonly LensSummary[];
   
   /** Currently selected lens for next run */
-  selection: LensSelection;
+  readonly selection: LensSelection;
   
   /** Active lens during execution (from agent events) */
-  activeLens: string | null;
+  readonly activeLens: string | null;
   
   /** Lens detail being previewed */
-  previewLens: LensDetail | null;
+  readonly previewLens: LensDetail | null;
   
   /** Loading states */
-  isLoading: boolean;
-  isLoadingDetail: boolean;
+  readonly isLoading: boolean;
+  readonly isLoadingDetail: boolean;
   
   /** Error state */
-  error: string | null;
+  readonly error: string | null;
 }
 
 function createLensState(): LensState {

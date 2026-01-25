@@ -73,6 +73,18 @@ export interface TaskStats {
   single_shot_avg_score: number;
 }
 
+// Type guard for EvaluationRun
+function isEvaluationRun(data: unknown): data is EvaluationRun {
+  if (typeof data !== 'object' || data === null) return false;
+  const d = data as Record<string, unknown>;
+  return typeof d.id === 'string' &&
+    typeof d.timestamp === 'string' &&
+    typeof d.model === 'string' &&
+    typeof d.task_id === 'string' &&
+    typeof d.task_prompt === 'string' &&
+    typeof d.improvement_percent === 'number';
+}
+
 export interface EvalStats {
   total_runs: number;
   avg_improvement: number;
@@ -282,7 +294,15 @@ export async function runEvaluation(): Promise<void> {
           _sunwellFiles = [..._sunwellFiles, path];
         }
       } else if (event.type === 'eval_complete') {
-        _currentRun = event.data as unknown as EvaluationRun;
+        if (isEvaluationRun(event.data)) {
+          _currentRun = event.data;
+        } else {
+          console.error('Invalid eval_complete data:', event.data);
+          _error = 'Invalid response format';
+          _phase = 'error';
+          unsubscribe();
+          return;
+        }
         _phase = 'complete';
         _progress = 100;
         _message = 'Evaluation complete!';

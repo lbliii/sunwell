@@ -133,10 +133,10 @@
       {:else if lens.error}
         <div class="error-state">{lens.error}</div>
       {:else}
-        {#each [...groupedLenses] as [domain, lenses]}
+        {#each [...groupedLenses] as [domain, lenses] (domain)}
           <div class="domain-group">
             <div class="domain-header">{domain}</div>
-            {#each lenses as l}
+            {#each lenses as l (l.name)}
               <button
                 class="lens-option"
                 class:selected={selectedLens === l.name}
@@ -174,7 +174,7 @@
           <div class="preview-section">
             <h4>Heuristics</h4>
             <ul class="heuristics-list">
-              {#each lens.previewLens.heuristics.slice(0, 3) as h}
+              {#each lens.previewLens.heuristics.slice(0, 3) as h (h.name)}
                 <li>
                   <strong>{h.name}</strong>
                   <span>{h.rule}</span>

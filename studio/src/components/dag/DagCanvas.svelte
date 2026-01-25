@@ -27,7 +27,9 @@
     return { minX: minX - padding, minY: minY - padding, maxX: maxX + padding, maxY: maxY + padding, width: maxX - minX + padding * 2, height: maxY - minY + padding * 2 };
   }
   
-  function getNode(id: string): DagNodeType | undefined { return dag.layouted.nodes.find(n => n.id === id); }
+  // O(1) node lookup via Map instead of O(n) find per edge
+  const nodeMap = $derived(new Map(dag.layouted.nodes.map(n => [n.id, n])));
+  function getNode(id: string): DagNodeType | undefined { return nodeMap.get(id); }
   
   function isEdgeHighlighted(sourceId: string, targetId: string): boolean {
     const hovered = dag.hoveredNodeId;
@@ -59,8 +61,8 @@
       for (const entry of entries) { containerWidth = entry.contentRect.width; containerHeight = entry.contentRect.height; }
     });
     if (svgElement?.parentElement) resizeObserver.observe(svgElement.parentElement);
-    setTimeout(fitToView, 100);
-    return () => resizeObserver.disconnect();
+    const timeoutId = setTimeout(fitToView, 100);
+    return () => { resizeObserver.disconnect(); clearTimeout(timeoutId); };
   });
 </script>
 

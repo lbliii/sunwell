@@ -24,17 +24,19 @@
   interface Node {
     id: string;
     title: string;
-    status: string;
+    status: GoalStatus;
     x: number;
     y: number;
     level: number;
   }
 
+  // Build goal lookup map for O(1) access
+  const goalMap = $derived(new Map(goals.map(g => [g.id, g])));
+
   // Compute graph layout
   let graphData = $derived.by(() => {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
-    const goalMap = new Map(goals.map(g => [g.id, g]));
 
     // Build edges
     for (const goal of goals) {
@@ -113,20 +115,21 @@
     const width = (maxLevel + 1) * (nodeWidth + levelGap) + 40;
     const height = 200;
 
-    return { nodes, edges, width, height, nodeWidth, nodeHeight };
+    // Build node position map for O(1) access
+    const nodePositions = new Map(nodes.map(n => [n.id, { x: n.x, y: n.y }]));
+    return { nodes, edges, width, height, nodeWidth, nodeHeight, nodePositions };
   });
 
   function getNodePosition(nodeId: string): { x: number; y: number } | null {
-    const node = graphData.nodes.find(n => n.id === nodeId);
-    return node ? { x: node.x, y: node.y } : null;
+    return graphData.nodePositions.get(nodeId) ?? null;
   }
 
   function handleNodeClick(nodeId: string) {
     onSelectGoal?.(nodeId);
   }
 
-  function getStatusColor(status: string): string {
-    const colors: Record<string, string> = {
+  function getStatusColor(status: GoalStatus): string {
+    const colors: Record<GoalStatus, string> = {
       pending: 'var(--text-tertiary)',
       blocked: 'var(--warning)',
       claimed: 'var(--accent)',
@@ -135,7 +138,7 @@
       failed: 'var(--error)',
       skipped: 'var(--text-tertiary)',
     };
-    return colors[status] || 'var(--text-tertiary)';
+    return colors[status];
   }
 </script>
 
@@ -212,7 +215,7 @@
               class="node-status"
               style="fill: {getStatusColor(node.status)}"
             >
-              {getStatusInfo(node.status as GoalStatus).emoji} {node.status as GoalStatus}
+              {getStatusInfo(node.status).emoji} {node.status}
             </text>
           </g>
         {/each}

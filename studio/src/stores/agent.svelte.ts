@@ -3,7 +3,7 @@
  */
 
 import { AgentStatus, TaskStatus, PlanningPhase } from '$lib/constants';
-import type { AgentState, AgentEvent, Task, Concept, ConceptCategory, PlanCandidate } from '$lib/types';
+import type { AgentState, AgentEvent, Task, Concept, ConceptCategory, PlanCandidate, RefinementRound } from '$lib/types';
 import { updateNode, completeNode, reloadDag, loadProjectDagIndex } from './dag.svelte';
 import { reloadFiles } from './files.svelte';
 import { runGoal as apiRunGoal, stopAgent as apiStopAgent, onAgentEvent } from '$lib/api';
@@ -92,20 +92,36 @@ function deduplicateConcepts(concepts: Concept[]): Concept[] {
 
 const RUNNING_STATUSES: AgentStatus[] = [AgentStatus.STARTING, AgentStatus.PLANNING, AgentStatus.RUNNING];
 
+// Pre-compute task counts once for O(n) total instead of O(4n) per access
+function getTaskCounts(): { complete: number; failed: number; total: number } {
+  let complete = 0;
+  let failed = 0;
+  for (const t of _state.tasks) {
+    if (t.status === TaskStatus.COMPLETE) complete++;
+    else if (t.status === TaskStatus.FAILED) failed++;
+  }
+  return { complete, failed, total: _state.tasks.length };
+}
+
 export const agent = {
   get status() { return _state.status; },
   get goal() { return _state.goal; },
-  get tasks() { return _state.tasks; },
+  /** Tasks array (frozen to prevent external mutation) */
+  get tasks(): readonly Task[] { return Object.freeze([..._state.tasks]); },
   get currentTaskIndex() { return _state.currentTaskIndex; },
   get totalTasks() { return _state.totalTasks; },
   get startTime() { return _state.startTime; },
   get endTime() { return _state.endTime; },
   get error() { return _state.error; },
-  get learnings() { return _state.learnings; },
-  get concepts() { return _state.concepts; },
-  get planningCandidates() { return _state.planningCandidates; },
+  /** Learnings array (frozen to prevent external mutation) */
+  get learnings(): readonly string[] { return Object.freeze([..._state.learnings]); },
+  /** Concepts array (frozen to prevent external mutation) */
+  get concepts(): readonly Concept[] { return Object.freeze([..._state.concepts]); },
+  /** Planning candidates array (frozen to prevent external mutation) */
+  get planningCandidates(): readonly PlanCandidate[] { return Object.freeze([..._state.planningCandidates]); },
   get selectedCandidate() { return _state.selectedCandidate; },
-  get refinementRounds() { return _state.refinementRounds; },
+  /** Refinement rounds array (frozen to prevent external mutation) */
+  get refinementRounds(): readonly RefinementRound[] { return Object.freeze([..._state.refinementRounds]); },
   get planningProgress() { return _state.planningProgress; },
   get convergence() { return _state.convergence; },
   // Computed
@@ -116,17 +132,15 @@ export const agent = {
   get progress() {
     // Progress based on actual tasks seen, not planned total
     // This handles incremental builds where fewer tasks run
-    const completed = _state.tasks.filter(t => t.status === TaskStatus.COMPLETE).length;
-    const failed = _state.tasks.filter(t => t.status === TaskStatus.FAILED).length;
-    const total = _state.tasks.length;
-    if (total === 0) return _state.status === AgentStatus.DONE ? 100 : 0;
-    return Math.round(((completed + failed) / total) * 100);
+    const counts = getTaskCounts();
+    if (counts.total === 0) return _state.status === AgentStatus.DONE ? 100 : 0;
+    return Math.round(((counts.complete + counts.failed) / counts.total) * 100);
   },
   get duration() {
     return !_state.startTime ? 0 : Math.round(((_state.endTime ?? Date.now()) - _state.startTime) / 1000);
   },
-  get completedTasks() { return _state.tasks.filter(t => t.status === TaskStatus.COMPLETE).length; },
-  get failedTasks() { return _state.tasks.filter(t => t.status === TaskStatus.FAILED).length; },
+  get completedTasks() { return getTaskCounts().complete; },
+  get failedTasks() { return getTaskCounts().failed; },
   /** Number of planned artifacts that were skipped (incremental builds) */
   get skippedTasks() { return Math.max(0, _state.totalTasks - _state.tasks.length); },
 };
@@ -158,7 +172,7 @@ export async function runGoal(
     console.warn('Agent already running, ignoring runGoal call');
     return null;
   }
-  
+
   if (DEMO_MODE) {
     const success = await runDemoGoal(goal);
     return success ? `/demo/${goal.slice(0, 20).replace(/\s+/g, '-')}` : null;
@@ -167,7 +181,7 @@ export async function runGoal(
   try {
     _state = { ...initialState, status: AgentStatus.STARTING, goal, startTime: Date.now() };
     await setupEventListeners();
-    
+
     // RFC-113: Use unified API layer (works with both Tauri and HTTP)
     // RFC-117: Pass project_id if provided
     const result = await apiRunGoal({
@@ -178,13 +192,13 @@ export async function runGoal(
       autoLens: autoLens ?? true,
       provider: provider ?? null,
     });
-    
+
     if (!result.success) { _state = { ..._state, status: AgentStatus.ERROR, error: result.message }; return null; }
     _state = { ..._state, status: AgentStatus.PLANNING };
-    
+
     // RFC-105: Track project path for DAG updates
     _currentProjectPath = result.workspace_path;
-    
+
     return result.workspace_path;
   } catch (e) {
     _state = { ..._state, status: AgentStatus.ERROR, error: e instanceof Error ? e.message : String(e) };
@@ -226,7 +240,7 @@ async function appendCompletedGoalToDag(
   partial: boolean
 ): Promise<void> {
   if (!_currentProjectPath) return;
-  
+
   try {
     // Build task nodes from current agent state
     const tasks: TaskNodeDetail[] = _state.tasks.map(t => ({
@@ -238,7 +252,7 @@ async function appendCompletedGoalToDag(
       dependsOn: [],
       contentHash: undefined,
     }));
-    
+
     // Construct the GoalNode
     const now = new Date().toISOString();
     const goalNode: GoalNode = {
@@ -256,17 +270,17 @@ async function appendCompletedGoalToDag(
         tasksSkipped: Math.max(0, _state.totalTasks - _state.tasks.length),
       },
     };
-    
+
     // RFC-113: Use HTTP API
     const { apiPost } = await import('$lib/socket');
     await apiPost('/api/dag/append', {
       path: _currentProjectPath,
       goal: goalNode,
     });
-    
+
     // Reload the project DAG index to reflect changes
     await loadProjectDagIndex(_currentProjectPath);
-    
+
     console.log(`RFC-105: Goal ${goalId} appended to DAG`);
   } catch (e) {
     console.error('RFC-105: Failed to append goal to DAG:', e);
@@ -474,21 +488,21 @@ export function handleAgentEvent(event: AgentEvent): void {
         totalTasks: (data.tasks as number) ?? (data.artifact_count as number) ?? 0,
         selectedCandidate: selected
           ? {
-              ...selected,
-              selection_reason: selectionReason,
-              score: score ?? selected.score,
-              metrics: metrics ?? selected.metrics,
-              variance_config: varianceConfig ?? selected.variance_config,
-            }
+            ...selected,
+            selection_reason: selectionReason,
+            score: score ?? selected.score,
+            metrics: metrics ?? selected.metrics,
+            variance_config: varianceConfig ?? selected.variance_config,
+          }
           : {
-              // Candidate wasn't tracked (shouldn't happen) - create minimal entry
-              id: selectedId,
-              artifact_count: (data.artifact_count as number) ?? 0,
-              score,
-              metrics,
-              selection_reason: selectionReason,
-              variance_config: varianceConfig,
-            },
+            // Candidate wasn't tracked (shouldn't happen) - create minimal entry
+            id: selectedId,
+            artifact_count: (data.artifact_count as number) ?? 0,
+            score,
+            metrics,
+            selection_reason: selectionReason,
+            variance_config: varianceConfig,
+          },
       };
       break;
     }
@@ -593,7 +607,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       const message = (data.message as string) ?? '';
       const fixed = (data.fixed as number) ?? 0;
       const errors = (data.errors as string[]) ?? [];
-      
+
       // Build a user-friendly error with context
       let errorMsg = message || `Escalated: ${reason}`;
       if (errors.length > 0) {
@@ -602,7 +616,7 @@ export function handleAgentEvent(event: AgentEvent): void {
       if (fixed > 0) {
         errorMsg += `\n\n(${fixed} errors were auto-fixed)`;
       }
-      
+
       _state = { ..._state, status: AgentStatus.ERROR, error: errorMsg };
       break;
     }
@@ -839,19 +853,19 @@ export function handleAgentEvent(event: AgentEvent): void {
       const artifacts = (data.artifacts as string[]) ?? [];
       const failed = (data.failed as string[]) ?? [];
       const partial = (data.partial as boolean) ?? false;
-      const statusMsg = partial 
+      const statusMsg = partial
         ? `⚠️ Goal completed (partial): ${artifacts.length} created, ${failed.length} failed`
         : `✅ Goal completed: ${artifacts.length} artifacts created`;
       _state = {
         ..._state,
         learnings: [..._state.learnings, statusMsg],
       };
-      
+
       // RFC-105: Append completed goal to hierarchical DAG
       if (_currentProjectPath) {
         appendCompletedGoalToDag(goalId, goalTitle, artifacts, failed, partial);
       }
-      
+
       reloadDag();
       reloadFiles(); // Refresh file tree when goal completes
       break;

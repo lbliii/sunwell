@@ -12,7 +12,7 @@
 </script>
 
 <div class="skeleton-grid">
-  {#each Array(count) as _, i}
+  {#each Array(count) as _, i (i)}
     <div class="skeleton-card" style="--index: {i}">
       <div class="skeleton-header">
         <div class="skeleton-icon shimmer"></div>

@@ -67,8 +67,8 @@
   const barWidth = $derived(data.length > 0 ? Math.max(8, (chartWidth / data.length) * 0.7) : 20);
   const barGap = $derived(data.length > 0 ? (chartWidth - (barWidth * data.length)) / (data.length + 1) : 10);
   
-  // Line path for line/area charts
-  const linePath = $derived(() => {
+  // Line path for line/area charts - computed once when dependencies change
+  const linePath = $derived.by(() => {
     if (data.length === 0) return '';
     return data.map((d, i) => {
       const x = scaleX(i);
@@ -78,12 +78,11 @@
   });
   
   // Area path (line + bottom fill)
-  const areaPath = $derived(() => {
+  const areaPath = $derived.by(() => {
     if (data.length === 0) return '';
-    const line = linePath();
     const lastX = scaleX(data.length - 1);
     const firstX = scaleX(0);
-    return `${line} L ${lastX} ${chartHeight} L ${firstX} ${chartHeight} Z`;
+    return `${linePath} L ${lastX} ${chartHeight} L ${firstX} ${chartHeight} Z`;
   });
   
   // Holy Light chart colors
@@ -103,8 +102,8 @@
   // Hover state
   let hoveredIndex = $state<number | null>(null);
   
-  // Y-axis ticks
-  const yTicks = $derived(() => {
+  // Y-axis ticks - use $derived.by for computed blocks
+  const yTicks = $derived.by(() => {
     const tickCount = 5;
     const ticks: number[] = [];
     for (let i = 0; i <= tickCount; i++) {
@@ -165,7 +164,7 @@
         
         <g transform="translate({padding.left}, {padding.top})">
           <!-- Y-axis grid lines -->
-          {#each yTicks() as tick}
+          {#each yTicks as tick (tick)}
             <line 
               x1="0" 
               y1={scaleY(tick)} 
@@ -187,7 +186,7 @@
           
           <!-- Bar chart -->
           {#if chartType === 'bar'}
-            {#each data as point, i}
+            {#each data as point, i (point.label + i)}
               {@const barHeight = Math.max(2, ((point.value - minValue) / valueRange) * chartHeight)}
               {@const x = barGap + (i * (barWidth + barGap))}
               {@const y = chartHeight - barHeight}
@@ -263,7 +262,7 @@
           <!-- Line chart -->
           {#if chartType === 'line' || chartType === 'sparkline'}
             <path 
-              d={linePath()}
+              d={linePath}
               fill="none"
               stroke="var(--ui-gold)"
               stroke-width="2"
@@ -274,7 +273,7 @@
             
             <!-- Data points -->
             {#if chartType === 'line'}
-              {#each data as point, i}
+              {#each data as point, i (point.label + i)}
                 <circle
                   cx={scaleX(i)}
                   cy={scaleY(point.value)}
@@ -318,19 +317,19 @@
           <!-- Area chart -->
           {#if chartType === 'area'}
             <path 
-              d={areaPath()}
+              d={areaPath}
               fill="url(#areaGradient)"
               class="area"
             />
             <path 
-              d={linePath()}
+              d={linePath}
               fill="none"
               stroke="var(--ui-gold)"
               stroke-width="2"
               class="line"
             />
             
-            {#each data as point, i}
+            {#each data as point, i (point.label + i)}
               <circle
                 cx={scaleX(i)}
                 cy={scaleY(point.value)}

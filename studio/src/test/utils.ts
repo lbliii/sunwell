@@ -10,6 +10,10 @@ import type { AgentEventType, AgentEvent } from '$lib/agent-events';
 
 /**
  * Render a component with default props and optional overrides
+ * 
+ * Note: The `any` cast is required due to Svelte 5's Component type not being
+ * directly assignable to testing-library's expected SvelteComponent type.
+ * This is a known limitation of @testing-library/svelte's Svelte 5 support.
  */
 export function renderComponent<Props extends Record<string, unknown>>(
   component: Component<Props>,
@@ -21,16 +25,27 @@ export function renderComponent<Props extends Record<string, unknown>>(
 }
 
 /**
- * Create a mock writable store
+ * Mock store interface with proper types
  */
-export function mockStore<T>(initialValue: T) {
+interface MockStore<T> {
+  subscribe: (run: (value: T) => void) => () => void;
+  set: ReturnType<typeof vi.fn<[T], void>> & ((value: T) => void);
+  update: ReturnType<typeof vi.fn<[(value: T) => T], void>> & ((updater: (value: T) => T) => void);
+}
+
+/**
+ * Create a mock writable store with spy methods
+ */
+export function mockStore<T>(initialValue: T): MockStore<T> {
   const store = writable(initialValue);
+
+  const setFn = vi.fn((value: T) => store.set(value));
+  const updateFn = vi.fn((updater: (value: T) => T) => store.update(updater));
+
   return {
     subscribe: store.subscribe,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    set: vi.fn((value: T) => store.set(value)) as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    update: vi.fn((updater: (value: T) => T) => store.update(updater)) as any,
+    set: setFn as MockStore<T>['set'],
+    update: updateFn as MockStore<T>['update'],
   };
 }
 

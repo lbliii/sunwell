@@ -49,7 +49,7 @@
   let tooltipPosition = $state({ x: 0, y: 0 });
   
   // Compute date range from events if not provided
-  let dateRange = $derived(() => {
+  const dateRange = $derived.by(() => {
     if (startDate && endDate) {
       return { start: startDate, end: endDate };
     }
@@ -75,15 +75,26 @@
   });
   
   // Compute tracks from events if not provided
-  let computedTracks = $derived(() => {
+  const computedTracks = $derived.by(() => {
     if (tracks && tracks.length > 0) return tracks;
     const trackSet = new Set(events.map(e => e.track));
     return Array.from(trackSet).sort();
   });
   
+  // Index events by track for O(1) lookup in template (avoids O(n) filter per track)
+  const eventsByTrack = $derived.by(() => {
+    const map = new Map<string, TimelineEvent[]>();
+    for (const e of events) {
+      const arr = map.get(e.track) ?? [];
+      arr.push(e);
+      map.set(e.track, arr);
+    }
+    return map;
+  });
+  
   // Generate time labels based on zoom level
-  let timeLabels = $derived(() => {
-    const { start, end } = dateRange();
+  const timeLabels = $derived.by(() => {
+    const { start, end } = dateRange;
     const config = ZOOM_CONFIG[currentZoom];
     const labels: { date: Date; label: string; isMajor: boolean }[] = [];
     
@@ -121,7 +132,7 @@
   
   // Calculate event position and width
   function getEventStyle(event: TimelineEvent): string {
-    const { start, end } = dateRange();
+    const { start, end } = dateRange;
     const totalDuration = end.getTime() - start.getTime();
     
     const eventStart = event.start.getTime();
@@ -227,7 +238,7 @@
       <div class="time-scale">
         <div class="track-label-spacer"></div>
         <div class="time-labels">
-          {#each timeLabels() as label}
+          {#each timeLabels as label (label.date.getTime())}
             <div 
               class="time-label" 
               class:major={label.isMajor}
@@ -241,7 +252,7 @@
       
       <!-- Tracks -->
       <div class="tracks-container">
-        {#each computedTracks() as track}
+        {#each computedTracks as track (track)}
           <div class="track">
             <div class="track-label" style="--track-color: {getTrackColor(track)}">
               <span class="track-name">{track}</span>
@@ -249,7 +260,7 @@
             <div class="track-content">
               <!-- Grid lines -->
               <div class="grid-lines">
-                {#each timeLabels() as label}
+                {#each timeLabels as label (label.date.getTime())}
                   <div 
                     class="grid-line" 
                     class:major={label.isMajor}
@@ -259,7 +270,7 @@
               </div>
               
               <!-- Events -->
-              {#each events.filter(e => e.track === track) as event}
+              {#each eventsByTrack.get(track) ?? [] as event (event.id)}
                 <div 
                   class="event"
                   style="{getEventStyle(event)} background: {event.color || getTrackColor(track)};"
@@ -279,15 +290,15 @@
       <!-- Today marker -->
       {#if (() => {
         const now = new Date();
-        const { start, end } = dateRange();
+        const { start, end } = dateRange;
         return now >= start && now <= end;
       })()}
         <div 
           class="today-marker"
           style="left: calc(100px + {
-            ((new Date().getTime() - dateRange().start.getTime()) / 
-            (dateRange().end.getTime() - dateRange().start.getTime())) * 
-            (timeLabels().length * ZOOM_CONFIG[currentZoom].cellWidth)
+            ((new Date().getTime() - dateRange.start.getTime()) / 
+            (dateRange.end.getTime() - dateRange.start.getTime())) * 
+            (timeLabels.length * ZOOM_CONFIG[currentZoom].cellWidth)
           }px);"
         >
           <div class="today-line"></div>

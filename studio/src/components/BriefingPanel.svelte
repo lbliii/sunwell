@@ -71,7 +71,7 @@
       <section class="hazards" class:pulse={hazardPulse}>
         <h3>⚠️ Hazards</h3>
         <ul>
-          {#each briefing.current.hazards as hazard}
+          {#each briefing.current.hazards as hazard, i (`hazard-${i}`)}
             <li>{hazard}</li>
           {/each}
         </ul>
@@ -82,7 +82,7 @@
       <section class="blockers">
         <h3>🚫 Blockers</h3>
         <ul>
-          {#each briefing.current.blockers as blocker}
+          {#each briefing.current.blockers as blocker, i (`blocker-${i}`)}
             <li>{blocker}</li>
           {/each}
         </ul>
@@ -93,7 +93,7 @@
       <section class="hot-files">
         <h3>Focus Files</h3>
         <div class="file-list">
-          {#each briefing.current.hotFiles as file}
+          {#each briefing.current.hotFiles as file (file)}
             <code class="file">{file}</code>
           {/each}
         </div>

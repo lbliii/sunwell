@@ -39,7 +39,7 @@
   <details class="signals">
     <summary>Detection signals ({analysis.detection_signals.length})</summary>
     <div class="signal-tags">
-      {#each analysis.detection_signals as signal}
+      {#each analysis.detection_signals as signal (signal)}
         <span class="signal">{signal}</span>
       {/each}
     </div>

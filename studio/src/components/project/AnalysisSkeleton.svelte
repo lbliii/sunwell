@@ -18,7 +18,7 @@
   <section class="skeleton-pipeline">
     <div class="skeleton-title" style="width: 100px;"></div>
     <div class="skeleton-steps">
-      {#each Array(3) as _}
+      {#each Array(3) as _, i (i)}
         <div class="skeleton-step">
           <span class="skeleton-icon"></span>
           <span class="skeleton-text" style="width: 180px;"></span>

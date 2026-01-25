@@ -122,7 +122,7 @@
         </div>
 
         <div class="results-list">
-          {#each results as result}
+          {#each results as result, i (result.title + i)}
             <div class="result-item" class:success={result.success} class:fail={!result.success}>
               <span class="result-icon">{result.success ? '✓' : '✕'}</span>
               <span class="result-title">{result.title}</span>
@@ -174,7 +174,7 @@ Update documentation"
           <div class="form-group">
             <label for="batch-category">Default Category</label>
             <select id="batch-category" bind:value={category}>
-              {#each categories as cat}
+              {#each categories as cat (cat)}
                 {@const info = getCategoryInfo(cat)}
                 <option value={cat}>{info.emoji} {info.label}</option>
               {/each}

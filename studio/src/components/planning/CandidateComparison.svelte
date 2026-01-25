@@ -7,8 +7,8 @@
   import type { PlanCandidate } from '$lib/types';
   
   interface Props {
-    candidates?: PlanCandidate[];
-    selected?: PlanCandidate | null;
+    readonly candidates?: readonly PlanCandidate[];
+    readonly selected?: PlanCandidate | null;
   }
   
   let { candidates = [], selected = null }: Props = $props();
@@ -46,7 +46,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each validCandidates as candidate}
+          {#each validCandidates as candidate (candidate.id)}
             {@const isSelected = selected?.id === candidate.id}
             <tr class:selected={isSelected}>
               <td>{getDisplayNumber(candidate.id)}</td>

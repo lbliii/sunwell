@@ -13,7 +13,7 @@
   import CodeBlock from '../components/primitives/CodeBlock.svelte';
   import ThinkingBlock from '../components/blocks/ThinkingBlock.svelte';
   
-  // Component categories with their status
+  // Component categories with their status (readonly to prevent mutation)
   const categories = [
     { 
       name: 'Code', 
@@ -81,21 +81,24 @@
         { name: 'Planning', status: 'good' },
       ]
     },
-  ];
+  ] as const;
   
   let activeCategory = $state(categories[0]);
   let activeComponent = $state(categories[0].components[0]);
   
-  // Quality rubric checklist
+  // Quality rubric checklist (readonly to prevent mutation)
   const rubric = [
     { id: 'tokens', label: 'Token Compliance', desc: 'Uses CSS variables, no hardcoded colors' },
     { id: 'hierarchy', label: 'Visual Hierarchy', desc: 'Clear primary/secondary/tertiary levels' },
     { id: 'interactions', label: 'Micro-Interactions', desc: 'Hover, focus, active states' },
     { id: 'motion', label: 'Motion', desc: 'Entrance animations, feedback' },
     { id: 'typography', label: 'Typography', desc: 'Correct font families and scale' },
-  ];
+  ] as const;
   
   let checks = $state<Record<string, boolean>>({});
+  
+  // Computed pass count - avoid recalculating in template
+  const passedChecksCount = $derived(Object.values(checks).filter(Boolean).length);
   
   // Status badge colors
   function getStatusColor(status: string): string {
@@ -135,7 +138,7 @@ class Config:
     </header>
     
     <nav class="categories">
-      {#each categories as category, i}
+      {#each categories as category, i (category.name)}
         <div class="category" in:fly={{ x: -20, delay: i * 50, duration: 200 }}>
           <button 
             class="category-header"
@@ -149,7 +152,7 @@ class Config:
           
           {#if activeCategory === category}
             <div class="component-list" in:fly={{ y: -10, duration: 150 }}>
-              {#each category.components as component}
+              {#each category.components as component (component.name)}
                 <button 
                   class="component-btn"
                   class:active={activeComponent === component}
@@ -234,7 +237,7 @@ class Config:
     <section class="quality-section">
       <h3>Quality Rubric</h3>
       <div class="rubric-grid">
-        {#each rubric as item}
+        {#each rubric as item (item.id)}
           <label class="rubric-item">
             <input 
               type="checkbox" 
@@ -250,7 +253,7 @@ class Config:
       
       <div class="score">
         <span class="score-label">Score:</span>
-        <span class="score-value">{Object.values(checks).filter(Boolean).length}</span>
+        <span class="score-value">{passedChecksCount}</span>
         <span class="score-total">/ {rubric.length}</span>
       </div>
     </section>

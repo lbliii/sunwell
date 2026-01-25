@@ -11,10 +11,10 @@ import { apiGet, apiPost } from '$lib/socket';
 import { DagNodeStatus, DagViewMode } from '$lib/constants';
 import type { DagNodeStatus as DagNodeStatusType, DagViewMode as DagViewModeType } from '$lib/constants';
 import { debounce } from '$lib/debounce';
-import type { 
-  DagGraph, 
-  DagNode, 
-  DagViewState, 
+import type {
+  DagGraph,
+  DagNode,
+  DagViewState,
   IncrementalPlan,
   IncrementalStatus,
   // RFC-105: Hierarchical DAG types
@@ -227,14 +227,14 @@ export const dag = {
   get executeSet() { return getExecuteSet(); },
   get skipPercentage() { return getSkipPercentage(); },
   getNodeIncrementalStatus,
-  
+
   // ═══════════════════════════════════════════════════════════════
   // RFC-105: Hierarchical DAG state
   // ═══════════════════════════════════════════════════════════════
-  
+
   /** Current view level (project | workspace | environment) */
   get viewLevel() { return _viewLevel; },
-  
+
   // Project level (fast index)
   /** Project DAG index for fast loading */
   get projectIndex() { return _projectIndex; },
@@ -243,18 +243,18 @@ export const dag = {
   get expandedGoals() { return _expandedGoals; },
   get isLoadingProjectIndex() { return _isLoadingProjectIndex; },
   get projectIndexError() { return _projectIndexError; },
-  
+
   // Workspace level (aggregated)
   get workspaceIndex() { return _workspaceIndex; },
   get workspacePath() { return _workspacePath; },
   get isLoadingWorkspace() { return _isLoadingWorkspace; },
   get workspaceError() { return _workspaceError; },
-  
+
   // Environment level (overview)
   get environmentDag() { return _environmentDag; },
   get isLoadingEnvironment() { return _isLoadingEnvironment; },
   get environmentError() { return _environmentError; },
-  
+
   // RFC-105: Computed helpers for hierarchical views
   /** Get total goals across all projects in workspace */
   get workspaceTotalGoals(): number {
@@ -329,10 +329,10 @@ export function loadDemoGraph(): void {
   setGraph(demoGraph);
 }
 
-export function clearGraph(): void { 
-  _graph = initialGraph; 
-  _viewState = initialViewState; 
-  _incrementalPlan = null; 
+export function clearGraph(): void {
+  _graph = initialGraph;
+  _viewState = initialViewState;
+  _incrementalPlan = null;
   _planError = null;
   _isLoading = false;
   _loadError = null;
@@ -353,7 +353,7 @@ export function setProjectPath(path: string | null): void {
     clearGraph();
     _currentProjectPath = path;
     _loadError = null;
-    
+
     // If we have a new path, trigger a reload
     if (path) {
       reloadDagInternal();
@@ -372,7 +372,7 @@ async function reloadDagInternal(): Promise<void> {
 
   _isLoading = true;
   _loadError = null;
-  
+
   try {
     const graph = await apiGet<DagGraph>(`/api/dag?path=${encodeURIComponent(_currentProjectPath)}`);
     if (graph) setGraph(graph);
@@ -395,16 +395,16 @@ export const reloadDag = debounce(reloadDagInternal, 100);
 export const reloadDagImmediate = reloadDagInternal;
 
 // RFC-074: Incremental execution actions
-export function setIncrementalPlan(plan: IncrementalPlan | null): void { 
+export function setIncrementalPlan(plan: IncrementalPlan | null): void {
   _incrementalPlan = plan;
   _planError = null;
 }
 
-export function setPlanLoading(loading: boolean): void { 
-  _isPlanLoading = loading; 
+export function setPlanLoading(loading: boolean): void {
+  _isPlanLoading = loading;
 }
 
-export function setPlanError(error: string | null): void { 
+export function setPlanError(error: string | null): void {
   _planError = error;
   _isPlanLoading = false;
 }
@@ -434,18 +434,18 @@ export function setViewLevel(level: DagViewLevel): void {
  */
 export async function loadProjectDagIndex(path: string): Promise<void> {
   if (_isLoadingProjectIndex) return;
-  
+
   // Clear stale data if switching projects
   if (path !== _projectPath) {
     _projectIndex = null;
     _expandedGoals = new Map();
     _projectIndexError = null;
   }
-  
+
   _projectPath = path;
   _isLoadingProjectIndex = true;
   _projectIndexError = null;
-  
+
   try {
     const index = await apiGet<DagIndex>(`/api/dag/index?path=${encodeURIComponent(path)}`);
     if (index) _projectIndex = index;
@@ -464,15 +464,15 @@ export async function loadProjectDagIndex(path: string): Promise<void> {
  */
 export async function expandGoal(goalId: string): Promise<GoalNode | null> {
   if (!_projectPath) return null;
-  
+
   // Check if already loaded
   const existing = _expandedGoals.get(goalId);
   if (existing) return existing;
-  
+
   try {
     const goal = await apiGet<GoalNode>(`/api/dag/goal/${goalId}?path=${encodeURIComponent(_projectPath)}`);
     if (!goal) return null;
-    
+
     // Update expanded goals map
     _expandedGoals = new Map(_expandedGoals).set(goalId, goal);
     return goal;
@@ -498,11 +498,11 @@ export function collapseGoal(goalId: string): void {
  */
 export async function loadWorkspaceDag(path: string): Promise<void> {
   if (_isLoadingWorkspace) return;
-  
+
   _workspacePath = path;
   _isLoadingWorkspace = true;
   _workspaceError = null;
-  
+
   try {
     const index = await apiGet<WorkspaceDagIndex>(`/api/dag/workspace?path=${encodeURIComponent(path)}`);
     if (index) _workspaceIndex = index;
@@ -519,10 +519,10 @@ export async function loadWorkspaceDag(path: string): Promise<void> {
  */
 export async function refreshWorkspaceIndex(): Promise<void> {
   if (!_workspacePath || _isLoadingWorkspace) return;
-  
+
   _isLoadingWorkspace = true;
   _workspaceError = null;
-  
+
   try {
     const index = await apiPost<WorkspaceDagIndex>('/api/dag/workspace/refresh', { path: _workspacePath });
     if (index) _workspaceIndex = index;
@@ -539,10 +539,10 @@ export async function refreshWorkspaceIndex(): Promise<void> {
  */
 export async function loadEnvironmentDag(): Promise<void> {
   if (_isLoadingEnvironment) return;
-  
+
   _isLoadingEnvironment = true;
   _environmentError = null;
-  
+
   try {
     const env = await apiGet<EnvironmentDag>('/api/dag/environment');
     if (env) _environmentDag = env;
@@ -585,7 +585,7 @@ export function getGoalSummary(goalId: string): GoalSummary | undefined {
  */
 export function getSortedGoals(): GoalSummary[] {
   if (!_projectIndex) return [];
-  
+
   const statusOrder: Record<string, number> = {
     'running': 0,
     'in_progress': 1,
@@ -594,7 +594,7 @@ export function getSortedGoals(): GoalSummary[] {
     'complete': 4,
     'failed': 5,
   };
-  
+
   return [..._projectIndex.goals].sort((a, b) => {
     const orderA = statusOrder[a.status] ?? 10;
     const orderB = statusOrder[b.status] ?? 10;

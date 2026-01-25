@@ -109,6 +109,20 @@ export interface DemoInput {
 export type DemoPhase = 'ready' | 'generating' | 'judging' | 'refining' | 'revealed' | 'error';
 
 // ═══════════════════════════════════════════════════════════════
+// TYPE GUARDS
+// ═══════════════════════════════════════════════════════════════
+
+function isDemoComparison(data: unknown): data is DemoComparison {
+  if (typeof data !== 'object' || data === null) return false;
+  const d = data as Record<string, unknown>;
+  return typeof d.model === 'string' &&
+    typeof d.task === 'object' &&
+    typeof d.single_shot === 'object' &&
+    typeof d.sunwell === 'object' &&
+    typeof d.improvement_percent === 'number';
+}
+
+// ═══════════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════════
 
@@ -284,7 +298,15 @@ export async function runDemo(): Promise<void> {
           _progress = 75;
         }
       } else if (event.type === 'demo_complete') {
-        _comparison = event.data as unknown as DemoComparison;
+        if (isDemoComparison(event.data)) {
+          _comparison = event.data;
+        } else {
+          console.error('Invalid demo_complete data:', event.data);
+          _error = 'Invalid response format';
+          _phase = 'error';
+          unsubscribe();
+          return;
+        }
         _progress = 95;
         _message = 'Loading code...';
         // Load code from files BEFORE revealing

@@ -52,7 +52,7 @@
       <div class="recovery-hints">
         <strong>What you can do:</strong>
         <ol>
-          {#each error.recovery_hints ?? [] as hint}
+          {#each error.recovery_hints ?? [] as hint, i (i)}
             <li>{hint}</li>
           {/each}
         </ol>

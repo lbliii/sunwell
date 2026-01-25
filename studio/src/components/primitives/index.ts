@@ -60,7 +60,7 @@ export const componentMap: Record<string, ComponentImport> = {
   DiffView: () => import('./DiffView.svelte'),
   Preview: () => import('./Preview.svelte'),
   Dependencies: () => import('./Dependencies.svelte'),
-  
+
   // Planning
   KanbanBoard: () => import('./KanbanBoard.svelte'),
   Timeline: () => import('./Timeline.svelte'),
@@ -68,25 +68,25 @@ export const componentMap: Record<string, ComponentImport> = {
   TaskList: () => import('./TaskList.svelte'),
   Calendar: () => import('./Calendar.svelte'),
   Metrics: () => import('./Metrics.svelte'),
-  
+
   // Writing
   ProseEditor: () => import('./ProseEditor.svelte'),
   Outline: () => import('./Outline.svelte'),
   References: () => import('./References.svelte'),
   WordCount: () => import('./WordCount.svelte'),
-  
+
   // Data
   DataTable: () => import('./DataTable.svelte'),
   Chart: () => import('./Chart.svelte'),
   QueryBuilder: () => import('./QueryBuilder.svelte'),
   Summary: () => import('./Summary.svelte'),
-  
+
   // Universal
   MemoryPane: () => import('./MemoryPane.svelte'),
   InputBar: () => import('../InputBar.svelte'),
   DAGView: () => import('./DAGView.svelte'),
   BriefingCard: () => import('./BriefingCard.svelte'),
-  
+
   // Animation (RFC-112)
   AnimatedPath: () => import('./AnimatedPath.svelte'),
   GlowingNode: () => import('./GlowingNode.svelte'),

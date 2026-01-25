@@ -46,7 +46,11 @@
 
   let collapsed = $state(false);
 
-  const groupedSkills = $derived(() => {
+  // O(1) skill lookup index
+  const skillsById = $derived(new Map(skills.map(s => [s.id, s])));
+
+  // Group skills by category in a single pass
+  const groupedSkills = $derived.by(() => {
     const groups: Record<string, Skill[]> = {};
     for (const skill of skills) {
       if (!groups[skill.category]) groups[skill.category] = [];
@@ -55,11 +59,12 @@
     return groups;
   });
 
+  // Use Map for O(1) lookups instead of O(n) find
   const recent = $derived(
     recentSkills
-      .map((id) => skills.find((s) => s.id === id))
-      .filter(Boolean)
-      .slice(0, 3) as Skill[]
+      .map((id) => skillsById.get(id))
+      .filter((s): s is Skill => s !== undefined)
+      .slice(0, 3)
   );
 
   const categoryLabels: Record<string, string> = {
@@ -88,7 +93,7 @@
         <div class="recent-section">
           <span class="label">Recent:</span>
           <div class="recent-skills">
-            {#each recent as skill}
+            {#each recent as skill (skill.id)}
               <button
                 class="skill-chip"
                 onclick={() => handleSkillClick(skill)}
@@ -102,11 +107,11 @@
       {/if}
 
       <div class="categories">
-        {#each Object.entries(groupedSkills()) as [category, categorySkills]}
+        {#each Object.entries(groupedSkills) as [category, categorySkills] (category)}
           <div class="category">
             <div class="category-name">{categoryLabels[category] || category}</div>
             <div class="category-skills">
-              {#each categorySkills as skill}
+              {#each categorySkills as skill (skill.id)}
                 <button
                   class="skill-row"
                   onclick={() => handleSkillClick(skill)}

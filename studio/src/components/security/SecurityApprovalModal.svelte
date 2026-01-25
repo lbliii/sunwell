@@ -27,21 +27,24 @@
   let isSubmitting = $state(false);
   let showBreakdown = $state(false);
 
-  const riskColors: Record<RiskLevel, string> = {
+  // O(1) lookup Set for template (avoids O(n) .includes() in each iteration)
+  const acknowledgedRisksSet = $derived(new Set(acknowledgedRisks));
+
+  const riskColors: Readonly<Record<RiskLevel, string>> = {
     low: 'bg-green-500/20 text-green-400 border-green-500/50',
     medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50',
     high: 'bg-orange-500/20 text-orange-400 border-orange-500/50',
     critical: 'bg-red-500/20 text-red-400 border-red-500/50',
   };
 
-  const riskBgColors: Record<RiskLevel, string> = {
+  const riskBgColors: Readonly<Record<RiskLevel, string>> = {
     low: 'bg-green-500/10',
     medium: 'bg-yellow-500/10',
     high: 'bg-orange-500/10',
     critical: 'bg-red-500/10',
   };
 
-  const contributionColors: Record<string, string> = {
+  const contributionColors: Readonly<Record<string, string>> = {
     none: 'text-zinc-400',
     low: 'text-green-400',
     medium: 'text-yellow-400',
@@ -50,7 +53,7 @@
 
   const allRisksAcknowledged = $derived(
     approval.risk.flags.length === 0 ||
-      acknowledgedRisks.length >= approval.risk.flags.length
+      acknowledgedRisksSet.size >= approval.risk.flags.length
   );
 
   async function handleApprove() {
@@ -94,7 +97,7 @@
   }
 
   function toggleRiskAcknowledgment(flag: string) {
-    if (acknowledgedRisks.includes(flag)) {
+    if (acknowledgedRisksSet.has(flag)) {
       acknowledgedRisks = acknowledgedRisks.filter((f) => f !== flag);
     } else {
       acknowledgedRisks = [...acknowledgedRisks, flag];
@@ -153,7 +156,7 @@
             Skill Breakdown
           </h3>
           <div class="space-y-2">
-            {#each approval.skillBreakdown as skill, i}
+            {#each approval.skillBreakdown as skill, i (skill.skillName)}
               <div
                 class={`p-3 rounded-lg border ${
                   skill.skillName === approval.highestRiskSkill
@@ -218,7 +221,7 @@
               <span class="font-medium">Filesystem Read</span>
             </div>
             <ul class="space-y-1 pl-6">
-              {#each approval.permissions.filesystemRead as path}
+              {#each approval.permissions.filesystemRead as path (path)}
                 <li class="text-sm text-zinc-400">
                   <code class="text-emerald-400">{path}</code>
                 </li>
@@ -234,7 +237,7 @@
               <span class="font-medium">Filesystem Write</span>
             </div>
             <ul class="space-y-1 pl-6">
-              {#each approval.permissions.filesystemWrite as path}
+              {#each approval.permissions.filesystemWrite as path (path)}
                 <li class="text-sm text-zinc-400">
                   <code class="text-amber-400">{path}</code>
                 </li>
@@ -250,7 +253,7 @@
               <span class="font-medium">Network</span>
             </div>
             <ul class="space-y-1 pl-6">
-              {#each approval.permissions.networkAllow as host}
+              {#each approval.permissions.networkAllow as host (host)}
                 <li class="text-sm text-zinc-400">
                   <code class="text-blue-400">{host}</code>
                 </li>
@@ -266,7 +269,7 @@
               <span class="font-medium">Shell Commands</span>
             </div>
             <ul class="space-y-1 pl-6">
-              {#each approval.permissions.shellAllow as cmd}
+              {#each approval.permissions.shellAllow as cmd (cmd)}
                 <li class="text-sm text-zinc-400">
                   <code class="text-purple-400">{cmd}</code>
                 </li>
@@ -282,7 +285,7 @@
               <span class="font-medium">Environment Variables</span>
             </div>
             <ul class="space-y-1 pl-6">
-              {#each approval.permissions.envRead as env}
+              {#each approval.permissions.envRead as env (env)}
                 <li class="text-sm text-zinc-400">
                   <code class="text-cyan-400">{env}</code>
                 </li>
@@ -299,13 +302,13 @@
             ⚠️ Risk Flags
           </h3>
           <div class="space-y-2">
-            {#each approval.risk.flags as flag}
+            {#each approval.risk.flags as flag (flag)}
               <label
                 class="flex items-start gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/30 cursor-pointer hover:bg-red-500/20 transition-colors"
               >
                 <input
                   type="checkbox"
-                  checked={acknowledgedRisks.includes(flag)}
+                  checked={acknowledgedRisksSet.has(flag)}
                   onchange={() => toggleRiskAcknowledgment(flag)}
                   class="mt-0.5 rounded border-zinc-600 bg-zinc-800 text-red-500 focus:ring-red-500"
                 />
@@ -326,7 +329,7 @@
             💡 Recommendations
           </h3>
           <ul class="space-y-2">
-            {#each approval.risk.recommendations as rec}
+            {#each approval.risk.recommendations as rec, i (i)}
               <li class="flex items-start gap-2 text-sm text-zinc-400">
                 <span class="text-blue-400">•</span>
                 <span>{rec}</span>

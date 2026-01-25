@@ -11,8 +11,21 @@
   import Button from '../Button.svelte';
   
   let node = $derived(dag.selectedNode);
-  let dependencyNodes = $derived(node ? dag.layouted.nodes.filter(n => node.dependsOn.includes(n.id)) : []);
-  let dependentNodes = $derived(node ? dag.layouted.nodes.filter(n => n.dependsOn.includes(node.id)) : []);
+  
+  // O(1) lookup sets instead of O(n²) filter+includes
+  const dependsOnSet = $derived(new Set(node?.dependsOn ?? []));
+  let dependencyNodes = $derived(node ? dag.layouted.nodes.filter(n => dependsOnSet.has(n.id)) : []);
+  
+  // Build reverse dependency index once
+  const dependentNodeIds = $derived.by(() => {
+    if (!node) return new Set<string>();
+    const ids = new Set<string>();
+    for (const n of dag.layouted.nodes) {
+      if (n.dependsOn.includes(node.id)) ids.add(n.id);
+    }
+    return ids;
+  });
+  let dependentNodes = $derived(dag.layouted.nodes.filter(n => dependentNodeIds.has(n.id)));
   
   let isExecuting = $state(false);
   let executeError = $state<SunwellError | null>(null);
@@ -105,7 +118,7 @@
       <section class="detail-section">
         <h3 class="section-title">Dependencies ({dependencyNodes.length})</h3>
         <ul class="node-list">
-          {#each dependencyNodes as dep}
+          {#each dependencyNodes as dep (dep.id)}
             <li class="node-list-item" class:complete={dep.status === 'complete'}>
               <span class="node-status-icon">{dep.status === 'complete' ? '✓' : dep.status === 'running' ? '◐' : '○'}</span>
               <span class="node-name">{dep.title}</span>
@@ -119,7 +132,7 @@
       <section class="detail-section">
         <h3 class="section-title">Blocks ({dependentNodes.length})</h3>
         <ul class="node-list">
-          {#each dependentNodes as dep}
+          {#each dependentNodes as dep (dep.id)}
             <li class="node-list-item">
               <span class="node-status-icon">{dep.status === 'blocked' ? '⏸' : '○'}</span>
               <span class="node-name">{dep.title}</span>

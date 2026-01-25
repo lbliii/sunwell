@@ -99,16 +99,16 @@ export interface MilestoneSummary {
  * RFC-115: Hierarchical Goal Decomposition
  */
 export interface EpicProgress {
-  epic_id: string;
-  epic_title: string;
-  total_milestones: number;
-  completed_milestones: number;
-  current_milestone_id: string | null;
-  current_milestone_title: string | null;
-  current_milestone_tasks_total: number;
-  current_milestone_tasks_completed: number;
-  percent_complete: number;
-  milestones: MilestoneSummary[];
+  readonly epic_id: string;
+  readonly epic_title: string;
+  readonly total_milestones: number;
+  readonly completed_milestones: number;
+  readonly current_milestone_id: string | null;
+  readonly current_milestone_title: string | null;
+  readonly current_milestone_tasks_total: number;
+  readonly current_milestone_tasks_completed: number;
+  readonly percent_complete: number;
+  readonly milestones: readonly MilestoneSummary[];
 }
 
 export interface BacklogState {
@@ -122,6 +122,24 @@ export interface BacklogState {
   active_milestone: string | null;
   epic_progress: EpicProgress | null;
 }
+
+// ═══════════════════════════════════════════════════════════════
+// EVENT TYPES (Discriminated Unions for type safety)
+// ═══════════════════════════════════════════════════════════════
+
+export type BacklogEvent =
+  | { readonly type: 'backlog_goal_added'; readonly data: { readonly goal_id?: string; readonly title?: string } }
+  | { readonly type: 'backlog_goal_started'; readonly data: { readonly goal_id: string; readonly worker_id?: number } }
+  | { readonly type: 'backlog_goal_completed'; readonly data: { readonly goal_id: string } }
+  | { readonly type: 'backlog_goal_failed'; readonly data: { readonly goal_id: string; readonly error?: string } }
+  | { readonly type: 'backlog_refreshed'; readonly data: Record<string, never> }
+  | { readonly type: 'backlog_goal_claimed'; readonly data: { readonly goal_id: string; readonly worker_id: number } }
+  | { readonly type: 'epic_decomposed'; readonly data: { readonly epic_id: string; readonly epic_title: string; readonly total_milestones: number; readonly milestones?: readonly MilestoneSummary[] } }
+  | { readonly type: 'milestone_started'; readonly data: { readonly milestone_id: string; readonly milestone_title: string } }
+  | { readonly type: 'milestone_progress'; readonly data: { readonly tasks_completed: number; readonly tasks_total: number } }
+  | { readonly type: 'milestone_completed'; readonly data: { readonly milestone_id: string; readonly next_milestone_id: string | null; readonly next_milestone_title: string | null } }
+  | { readonly type: 'milestone_skipped'; readonly data: { readonly milestone_id: string; readonly next_milestone_id: string | null } }
+  | { readonly type: 'epic_completed'; readonly data: { readonly milestones_completed: number } };
 
 // ═══════════════════════════════════════════════════════════════
 // STATE
@@ -145,24 +163,75 @@ let _pollingInterval = $state<number | null>(null);
 // COMPUTED
 // ═══════════════════════════════════════════════════════════════
 
+// Compute all goal categorizations in a single pass for O(n) total
+interface GoalCategories {
+  pending: Goal[];
+  blocked: Goal[];
+  executing: Goal[];
+  completed: Goal[];
+  goalMap: Map<string, Goal>;
+}
+
+function categorizeGoals(): GoalCategories {
+  const pending: Goal[] = [];
+  const blocked: Goal[] = [];
+  const executing: Goal[] = [];
+  const completed: Goal[] = [];
+  const goalMap = new Map<string, Goal>();
+
+  for (const g of _state.goals) {
+    goalMap.set(g.id, g);
+    switch (g.status) {
+      case 'pending':
+        pending.push(g);
+        break;
+      case 'blocked':
+        blocked.push(g);
+        break;
+      case 'executing':
+      case 'claimed':
+        executing.push(g);
+        break;
+      case 'completed':
+        completed.push(g);
+        break;
+    }
+  }
+
+  return { pending, blocked, executing, completed, goalMap };
+}
+
+// Memoize the categorization
+let _cachedCategories: GoalCategories | null = null;
+let _cachedGoalsRef: Goal[] | null = null;
+
+function getCategories(): GoalCategories {
+  // Invalidate cache when goals array changes
+  if (_cachedGoalsRef !== _state.goals) {
+    _cachedCategories = categorizeGoals();
+    _cachedGoalsRef = _state.goals;
+  }
+  return _cachedCategories!;
+}
+
 function getPendingGoals(): Goal[] {
-  return _state.goals.filter((g) => g.status === 'pending');
+  return getCategories().pending;
 }
 
 function getBlockedGoals(): Goal[] {
-  return _state.goals.filter((g) => g.status === 'blocked');
+  return getCategories().blocked;
 }
 
 function getExecutingGoals(): Goal[] {
-  return _state.goals.filter((g) => g.status === 'executing' || g.status === 'claimed');
+  return getCategories().executing;
 }
 
 function getCompletedGoals(): Goal[] {
-  return _state.goals.filter((g) => g.status === 'completed');
+  return getCategories().completed;
 }
 
 function getGoalById(id: string): Goal | undefined {
-  return _state.goals.find((g) => g.id === id);
+  return getCategories().goalMap.get(id);
 }
 
 function getTotalCount(): number {
@@ -170,11 +239,12 @@ function getTotalCount(): number {
 }
 
 function getPendingCount(): number {
-  return getPendingGoals().length + getBlockedGoals().length;
+  const cats = getCategories();
+  return cats.pending.length + cats.blocked.length;
 }
 
 function getCompletedCount(): number {
-  return getCompletedGoals().length;
+  return getCategories().completed.length;
 }
 
 // RFC-115: Epic/Milestone helpers
@@ -215,9 +285,9 @@ function hasActiveEpic(): boolean {
 // ═══════════════════════════════════════════════════════════════
 
 export const backlogStore = {
-  // Raw state
-  get state() {
-    return _state;
+  // Raw state (frozen to prevent external mutation)
+  get state(): Readonly<BacklogState> {
+    return Object.freeze({ ..._state, goals: Object.freeze([..._state.goals]) });
   },
   get isLoading() {
     return _state.is_loading;
@@ -229,21 +299,21 @@ export const backlogStore = {
     return _projectPath;
   },
 
-  // Goals
-  get goals() {
-    return _state.goals;
+  // Goals (all return frozen arrays to prevent external mutation)
+  get goals(): readonly Goal[] {
+    return Object.freeze([..._state.goals]);
   },
-  get pendingGoals() {
-    return getPendingGoals();
+  get pendingGoals(): readonly Goal[] {
+    return Object.freeze(getPendingGoals());
   },
-  get blockedGoals() {
-    return getBlockedGoals();
+  get blockedGoals(): readonly Goal[] {
+    return Object.freeze(getBlockedGoals());
   },
-  get executingGoals() {
-    return getExecutingGoals();
+  get executingGoals(): readonly Goal[] {
+    return Object.freeze(getExecutingGoals());
   },
-  get completedGoals() {
-    return getCompletedGoals();
+  get completedGoals(): readonly Goal[] {
+    return Object.freeze(getCompletedGoals());
   },
 
   // Counts
@@ -273,17 +343,21 @@ export const backlogStore = {
   get hasActiveEpic() {
     return hasActiveEpic();
   },
-  get epicProgress() {
-    return _state.epic_progress;
+  get epicProgress(): Readonly<EpicProgress> | null {
+    return _state.epic_progress ? Object.freeze({ ..._state.epic_progress }) : null;
   },
-  get epics() {
-    return getEpics();
+  get epics(): readonly Goal[] {
+    return Object.freeze(getEpics());
   },
 
-  // Helpers
+  // Helpers (wrapped to return frozen arrays)
   getGoalById,
-  getMilestones,
-  getTasksForMilestone,
+  getMilestones(epicId?: string): readonly Goal[] {
+    return Object.freeze(getMilestones(epicId));
+  },
+  getTasksForMilestone(milestoneId: string): readonly Goal[] {
+    return Object.freeze(getTasksForMilestone(milestoneId));
+  },
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -302,12 +376,11 @@ export function setBacklogProjectPath(path: string): void {
  */
 export async function loadBacklog(): Promise<void> {
   if (!_projectPath) {
-    _state.error = 'No project path set';
+    _state = { ..._state, error: 'No project path set' };
     return;
   }
 
-  _state.is_loading = true;
-  _state.error = null;
+  _state = { ..._state, is_loading: true, error: null };
 
   try {
     const data = await apiGet<{ goals: Goal[]; total: number; error?: string }>(
@@ -315,16 +388,15 @@ export async function loadBacklog(): Promise<void> {
     );
 
     if (data?.error) {
-      _state.error = data.error;
+      _state = { ..._state, error: data.error };
     } else if (data?.goals) {
-      _state.goals = data.goals;
-      _state.last_refresh = new Date().toISOString();
+      _state = { ..._state, goals: data.goals, last_refresh: new Date().toISOString() };
     }
   } catch (e) {
-    _state.error = e instanceof Error ? e.message : String(e);
+    _state = { ..._state, error: e instanceof Error ? e.message : String(e) };
     console.error('Failed to load backlog:', e);
   } finally {
-    _state.is_loading = false;
+    _state = { ..._state, is_loading: false };
   }
 }
 
@@ -360,7 +432,7 @@ export async function addGoal(
     // Reload backlog to get updated state
     await loadBacklog();
   } catch (e) {
-    _state.error = e instanceof Error ? e.message : String(e);
+    _state = { ..._state, error: e instanceof Error ? e.message : String(e) };
     throw e;
   }
 }
@@ -383,9 +455,9 @@ export async function removeGoal(goalId: string): Promise<void> {
     }
 
     // Optimistic update: remove from local state
-    _state.goals = _state.goals.filter((g) => g.id !== goalId);
+    _state = { ..._state, goals: _state.goals.filter((g) => g.id !== goalId) };
   } catch (e) {
-    _state.error = e instanceof Error ? e.message : String(e);
+    _state = { ..._state, error: e instanceof Error ? e.message : String(e) };
     // Reload to sync state on error
     await loadBacklog();
     throw e;
@@ -412,7 +484,7 @@ export async function skipGoal(goalId: string): Promise<void> {
 
     await loadBacklog();
   } catch (e) {
-    _state.error = e instanceof Error ? e.message : String(e);
+    _state = { ..._state, error: e instanceof Error ? e.message : String(e) };
     throw e;
   }
 }
@@ -430,7 +502,7 @@ export async function reorderGoals(goalIds: string[]): Promise<void> {
     const goalMap = new Map(_state.goals.map(g => [g.id, g]));
     const goalIdSet = new Set(goalIds);
     const reordered: Goal[] = [];
-    
+
     // Add goals in requested order
     for (const id of goalIds) {
       const goal = goalMap.get(id);
@@ -442,7 +514,7 @@ export async function reorderGoals(goalIds: string[]): Promise<void> {
         reordered.push(goal);
       }
     }
-    _state.goals = reordered;
+    _state = { ..._state, goals: reordered };
 
     // Send to backend
     const result = await apiPost<{ status: string; error?: string }>(
@@ -457,7 +529,7 @@ export async function reorderGoals(goalIds: string[]): Promise<void> {
       throw new Error(result.error);
     }
   } catch (e) {
-    _state.error = e instanceof Error ? e.message : String(e);
+    _state = { ..._state, error: e instanceof Error ? e.message : String(e) };
     // Reload to sync state on error
     await loadBacklog();
     throw e;
@@ -472,7 +544,7 @@ export async function refreshBacklog(): Promise<void> {
     throw new Error('No project path set');
   }
 
-  _state.is_loading = true;
+  _state = { ..._state, is_loading: true };
 
   try {
     const result = await apiPost<{ status: string; goal_count?: number; error?: string }>(
@@ -486,10 +558,10 @@ export async function refreshBacklog(): Promise<void> {
 
     await loadBacklog();
   } catch (e) {
-    _state.error = e instanceof Error ? e.message : String(e);
+    _state = { ..._state, error: e instanceof Error ? e.message : String(e) };
     throw e;
   } finally {
-    _state.is_loading = false;
+    _state = { ..._state, is_loading: false };
   }
 }
 
@@ -524,7 +596,7 @@ export function stopBacklogPolling(): void {
  */
 export function clearBacklogState(): void {
   stopBacklogPolling();
-  _state = emptyState;
+  _state = { ...emptyState };
   _projectPath = null;
 }
 
@@ -541,9 +613,12 @@ export async function updateGoalPriority(goalId: string, priority: number): Prom
 
   try {
     // Optimistic update
-    _state.goals = _state.goals.map((g) =>
-      g.id === goalId ? { ...g, priority: clampedPriority } : g
-    );
+    _state = {
+      ..._state,
+      goals: _state.goals.map((g) =>
+        g.id === goalId ? { ...g, priority: clampedPriority } : g
+      ),
+    };
 
     const result = await apiPost<{ status: string; error?: string }>(
       `/api/backlog/goals/${goalId}`,
@@ -557,7 +632,7 @@ export async function updateGoalPriority(goalId: string, priority: number): Prom
       throw new Error(result.error);
     }
   } catch (e) {
-    _state.error = e instanceof Error ? e.message : String(e);
+    _state = { ..._state, error: e instanceof Error ? e.message : String(e) };
     // Reload to sync state on error
     await loadBacklog();
     throw e;
@@ -572,7 +647,7 @@ export async function updateGoalPriority(goalId: string, priority: number): Prom
  * Handle backlog events from WebSocket/agent events.
  * These events come from the agent execution pipeline.
  */
-export function handleBacklogEvent(event: { type: string; data: Record<string, unknown> }): void {
+export function handleBacklogEvent(event: BacklogEvent): void {
   switch (event.type) {
     case 'backlog_goal_added': {
       // A new goal was added to the backlog
@@ -581,29 +656,37 @@ export function handleBacklogEvent(event: { type: string; data: Record<string, u
     }
     case 'backlog_goal_started': {
       // A goal execution started
-      const goalId = event.data.goal_id as string;
-      const workerId = event.data.worker_id as number | undefined;
-      _state.goals = _state.goals.map((g) =>
-        g.id === goalId
-          ? { ...g, status: 'executing' as GoalStatus, claimed_by: workerId }
-          : g
-      );
+      const { goal_id: goalId, worker_id: workerId } = event.data;
+      _state = {
+        ..._state,
+        goals: _state.goals.map((g) =>
+          g.id === goalId
+            ? { ...g, status: 'executing' as GoalStatus, claimed_by: workerId }
+            : g
+        ),
+      };
       break;
     }
     case 'backlog_goal_completed': {
       // A goal was completed successfully
-      const goalId = event.data.goal_id as string;
-      _state.goals = _state.goals.map((g) =>
-        g.id === goalId ? { ...g, status: 'completed' as GoalStatus } : g
-      );
+      const { goal_id: goalId } = event.data;
+      _state = {
+        ..._state,
+        goals: _state.goals.map((g) =>
+          g.id === goalId ? { ...g, status: 'completed' as GoalStatus } : g
+        ),
+      };
       break;
     }
     case 'backlog_goal_failed': {
       // A goal execution failed
-      const goalId = event.data.goal_id as string;
-      _state.goals = _state.goals.map((g) =>
-        g.id === goalId ? { ...g, status: 'failed' as GoalStatus } : g
-      );
+      const { goal_id: goalId } = event.data;
+      _state = {
+        ..._state,
+        goals: _state.goals.map((g) =>
+          g.id === goalId ? { ...g, status: 'failed' as GoalStatus } : g
+        ),
+      };
       break;
     }
     case 'backlog_refreshed': {
@@ -613,36 +696,38 @@ export function handleBacklogEvent(event: { type: string; data: Record<string, u
     }
     case 'backlog_goal_claimed': {
       // A worker claimed a goal
-      const goalId = event.data.goal_id as string;
-      const workerId = event.data.worker_id as number;
-      _state.goals = _state.goals.map((g) =>
-        g.id === goalId
-          ? { ...g, status: 'claimed' as GoalStatus, claimed_by: workerId }
-          : g
-      );
+      const { goal_id: goalId, worker_id: workerId } = event.data;
+      _state = {
+        ..._state,
+        goals: _state.goals.map((g) =>
+          g.id === goalId
+            ? { ...g, status: 'claimed' as GoalStatus, claimed_by: workerId }
+            : g
+        ),
+      };
       break;
     }
 
     // RFC-115: Epic/Milestone hierarchy events
     case 'epic_decomposed': {
       // An epic was decomposed into milestones
-      const epicId = event.data.epic_id as string;
-      const epicTitle = event.data.epic_title as string;
-      const totalMilestones = event.data.total_milestones as number;
-      const milestones = event.data.milestones as MilestoneSummary[] | undefined;
+      const { epic_id: epicId, epic_title: epicTitle, total_milestones: totalMilestones, milestones } = event.data;
 
-      _state.active_epic = epicId;
-      _state.epic_progress = {
-        epic_id: epicId,
-        epic_title: epicTitle,
-        total_milestones: totalMilestones,
-        completed_milestones: 0,
-        current_milestone_id: null,
-        current_milestone_title: null,
-        current_milestone_tasks_total: 0,
-        current_milestone_tasks_completed: 0,
-        percent_complete: 0,
-        milestones: milestones || [],
+      _state = {
+        ..._state,
+        active_epic: epicId,
+        epic_progress: {
+          epic_id: epicId,
+          epic_title: epicTitle,
+          total_milestones: totalMilestones,
+          completed_milestones: 0,
+          current_milestone_id: null,
+          current_milestone_title: null,
+          current_milestone_tasks_total: 0,
+          current_milestone_tasks_completed: 0,
+          percent_complete: 0,
+          milestones: milestones ? [...milestones] : [],
+        },
       };
       loadBacklog();
       break;
@@ -650,12 +735,12 @@ export function handleBacklogEvent(event: { type: string; data: Record<string, u
 
     case 'milestone_started': {
       // A milestone started execution
-      const milestoneId = event.data.milestone_id as string;
-      const milestoneTitle = event.data.milestone_title as string;
+      const { milestone_id: milestoneId, milestone_title: milestoneTitle } = event.data;
 
-      _state.active_milestone = milestoneId;
-      if (_state.epic_progress) {
-        _state.epic_progress = {
+      _state = {
+        ..._state,
+        active_milestone: milestoneId,
+        epic_progress: _state.epic_progress ? {
           ..._state.epic_progress,
           current_milestone_id: milestoneId,
           current_milestone_title: milestoneTitle,
@@ -664,21 +749,23 @@ export function handleBacklogEvent(event: { type: string; data: Record<string, u
           milestones: _state.epic_progress.milestones.map((m) =>
             m.id === milestoneId ? { ...m, status: 'active' as const } : m
           ),
-        };
-      }
+        } : null,
+      };
       break;
     }
 
     case 'milestone_progress': {
       // Update milestone task progress
-      const tasksCompleted = event.data.tasks_completed as number;
-      const tasksTotal = event.data.tasks_total as number;
+      const { tasks_completed: tasksCompleted, tasks_total: tasksTotal } = event.data;
 
       if (_state.epic_progress) {
-        _state.epic_progress = {
-          ..._state.epic_progress,
-          current_milestone_tasks_completed: tasksCompleted,
-          current_milestone_tasks_total: tasksTotal,
+        _state = {
+          ..._state,
+          epic_progress: {
+            ..._state.epic_progress,
+            current_milestone_tasks_completed: tasksCompleted,
+            current_milestone_tasks_total: tasksTotal,
+          },
         };
       }
       break;
@@ -686,77 +773,86 @@ export function handleBacklogEvent(event: { type: string; data: Record<string, u
 
     case 'milestone_completed': {
       // A milestone completed successfully
-      const milestoneId = event.data.milestone_id as string;
-      const nextMilestoneId = event.data.next_milestone_id as string | null;
-      const nextMilestoneTitle = event.data.next_milestone_title as string | null;
+      const { milestone_id: milestoneId, next_milestone_id: nextMilestoneId, next_milestone_title: nextMilestoneTitle } = event.data;
 
       if (_state.epic_progress) {
         const completedCount = _state.epic_progress.completed_milestones + 1;
         const percent = (completedCount / _state.epic_progress.total_milestones) * 100;
 
-        _state.epic_progress = {
-          ..._state.epic_progress,
-          completed_milestones: completedCount,
-          current_milestone_id: nextMilestoneId,
-          current_milestone_title: nextMilestoneTitle,
-          current_milestone_tasks_total: 0,
-          current_milestone_tasks_completed: 0,
-          percent_complete: Math.round(percent * 10) / 10,
-          milestones: _state.epic_progress.milestones.map((m) =>
-            m.id === milestoneId
-              ? { ...m, status: 'completed' as const }
-              : m.id === nextMilestoneId
-                ? { ...m, status: 'active' as const }
-                : m
-          ),
+        _state = {
+          ..._state,
+          active_milestone: nextMilestoneId,
+          epic_progress: {
+            ..._state.epic_progress,
+            completed_milestones: completedCount,
+            current_milestone_id: nextMilestoneId,
+            current_milestone_title: nextMilestoneTitle,
+            current_milestone_tasks_total: 0,
+            current_milestone_tasks_completed: 0,
+            percent_complete: Math.round(percent * 10) / 10,
+            milestones: _state.epic_progress.milestones.map((m) =>
+              m.id === milestoneId
+                ? { ...m, status: 'completed' as const }
+                : m.id === nextMilestoneId
+                  ? { ...m, status: 'active' as const }
+                  : m
+            ),
+          },
         };
       }
-      _state.active_milestone = nextMilestoneId;
       loadBacklog();
       break;
     }
 
     case 'milestone_skipped': {
       // A milestone was skipped
-      const milestoneId = event.data.milestone_id as string;
-      const nextMilestoneId = event.data.next_milestone_id as string | null;
+      const { milestone_id: milestoneId, next_milestone_id: nextMilestoneId } = event.data;
 
       if (_state.epic_progress) {
-        _state.epic_progress = {
-          ..._state.epic_progress,
-          current_milestone_id: nextMilestoneId,
-          milestones: _state.epic_progress.milestones.map((m) =>
-            m.id === milestoneId ? { ...m, status: 'blocked' as const } : m
-          ),
+        _state = {
+          ..._state,
+          active_milestone: nextMilestoneId,
+          epic_progress: {
+            ..._state.epic_progress,
+            current_milestone_id: nextMilestoneId,
+            milestones: _state.epic_progress.milestones.map((m) =>
+              m.id === milestoneId ? { ...m, status: 'blocked' as const } : m
+            ),
+          },
         };
       }
-      _state.active_milestone = nextMilestoneId;
       break;
     }
 
     case 'epic_completed': {
       // An epic completed all milestones
-      const milestonesCompleted = event.data.milestones_completed as number;
+      const { milestones_completed: milestonesCompleted } = event.data;
 
-      if (_state.epic_progress) {
-        _state.epic_progress = {
+      _state = {
+        ..._state,
+        active_epic: null,
+        active_milestone: null,
+        epic_progress: _state.epic_progress ? {
           ..._state.epic_progress,
           completed_milestones: milestonesCompleted,
           current_milestone_id: null,
           current_milestone_title: null,
           percent_complete: 100,
-        };
-      }
-      _state.active_epic = null;
-      _state.active_milestone = null;
+        } : null,
+      };
       loadBacklog();
       break;
     }
-
-    default:
-      // Unknown event type, ignore
-      break;
   }
+}
+
+/** Check if event is a valid BacklogEvent type */
+function isBacklogEvent(event: { type: string; data: Record<string, unknown> }): event is BacklogEvent {
+  return (
+    event.type.startsWith('backlog_') ||
+    event.type.startsWith('epic_') ||
+    event.type.startsWith('milestone_')
+  );
 }
 
 /**
@@ -768,11 +864,7 @@ export function subscribeToBacklogEvents(
 ): () => void {
   return onEvent((event) => {
     // Filter for backlog-related events and RFC-115 epic/milestone events
-    if (
-      event.type.startsWith('backlog_') ||
-      event.type.startsWith('epic_') ||
-      event.type.startsWith('milestone_')
-    ) {
+    if (isBacklogEvent(event)) {
       handleBacklogEvent(event);
     }
   });

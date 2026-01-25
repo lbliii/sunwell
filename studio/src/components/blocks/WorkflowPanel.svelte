@@ -75,7 +75,7 @@
   const hasError = $derived(workflow?.status === 'error');
 
   // Parse step error into structured format
-  const stepError = $derived(() => {
+  const stepError = $derived.by(() => {
     if (!hasError || !workflow) return null;
     const errorStep = workflow.steps.find((s) => s.error);
     return errorStep?.error ? parseError(errorStep.error) : null;
@@ -144,7 +144,7 @@
         <div class="description">{workflow.description}</div>
 
         <div class="steps">
-          {#each workflow.steps as step, i}
+          {#each workflow.steps as step, i (step.skill)}
             <div class="step" class:current={i === workflow.current_step}>
               <span class="step-icon">{getStepIcon(step.status)}</span>
               <span class="step-skill">{step.skill}</span>
@@ -156,9 +156,9 @@
           {/each}
         </div>
 
-        {#if hasError && stepError()}
+        {#if hasError && stepError}
           <div class="error-container">
-            <ErrorDisplay error={stepError()} compact onRetry={handleResume} />
+            <ErrorDisplay error={stepError} compact onRetry={handleResume} />
           </div>
         {/if}
 

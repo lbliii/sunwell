@@ -5,6 +5,7 @@
   Real comparison, real metrics, real transparency.
 -->
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { fade, fly, scale } from 'svelte/transition';
   import { spring } from 'svelte/motion';
   import {
@@ -37,11 +38,13 @@
     }
   });
   
-  // Load data on mount
+  // Load data on mount (untrack to prevent re-running on state changes)
   $effect(() => {
-    loadEvalTasks();
-    loadEvalHistory();
-    loadEvalStats();
+    untrack(() => {
+      if (evaluation.availableTasks.length === 0) loadEvalTasks();
+      if (evaluation.history.length === 0) loadEvalHistory();
+      if (!evaluation.stats) loadEvalStats();
+    });
   });
   
   async function startEvaluation() {
@@ -59,20 +62,8 @@
     return 'var(--color-error)';
   }
   
-  // Derived state
-  const phase = $derived(evaluation.phase);
-  const progress = $derived(evaluation.progress);
-  const message = $derived(evaluation.message);
-  const task = $derived(evaluation.currentTask);
-  const model = $derived(evaluation.currentModel);
-  const error = $derived(evaluation.error);
-  const stats = $derived(evaluation.stats);
-  const history = $derived(evaluation.history);
-  const singleShotFiles = $derived(evaluation.singleShotFiles);
-  const sunwellFiles = $derived(evaluation.sunwellFiles);
-  const singleShotScore = $derived(evaluation.singleShotScore);
-  const sunwellScore = $derived(evaluation.sunwellScore);
-  const sunwellWins = $derived(evaluation.sunwellWins);
+  // Pre-computed slices to avoid array creation in template
+  const recentHistory = $derived(evaluation.history.slice(0, 5));
 </script>
 
 <div class="evaluation-route">
@@ -91,27 +82,27 @@
     </header>
     
     <!-- Ready State -->
-    {#if phase === 'ready'}
+    {#if evaluation.phase === 'ready'}
       <div class="eval-ready" in:fade={{ duration: 300 }}>
         <!-- Stats Overview (if available) -->
-        {#if stats && stats.total_runs > 0}
+        {#if evaluation.stats && evaluation.stats.total_runs > 0}
           <div class="stats-overview">
             <div class="stat-card">
-              <span class="stat-value">{stats.total_runs}</span>
+              <span class="stat-value">{evaluation.stats.total_runs}</span>
               <span class="stat-label">Total Runs</span>
             </div>
             <div class="stat-card">
               <span class="stat-value" style="color: var(--color-success)">
-                +{stats.avg_improvement.toFixed(0)}%
+                +{evaluation.stats.avg_improvement.toFixed(0)}%
               </span>
               <span class="stat-label">Avg Improvement</span>
             </div>
             <div class="stat-card">
-              <span class="stat-value">{stats.sunwell_wins}</span>
+              <span class="stat-value">{evaluation.stats.sunwell_wins}</span>
               <span class="stat-label">Sunwell Wins</span>
             </div>
             <div class="stat-card">
-              <span class="stat-value">{stats.single_shot_wins}</span>
+              <span class="stat-value">{evaluation.stats.single_shot_wins}</span>
               <span class="stat-label">Single-Shot Wins</span>
             </div>
           </div>
@@ -121,10 +112,10 @@
         <div class="task-selection">
           <h2>Select Task</h2>
           <div class="task-grid">
-            {#each evaluation.availableTasks as evalTask}
+            {#each evaluation.availableTasks as evalTask (evalTask.id)}
               <button
                 class="task-card"
-                class:selected={task?.id === evalTask.id}
+                class:selected={evaluation.currentTask?.id === evalTask.id}
                 onclick={() => setEvalTask(evalTask)}
               >
                 <span class="task-name">{evalTask.name}</span>
@@ -135,25 +126,25 @@
         </div>
         
         <!-- Run Button -->
-        <button class="run-cta" onclick={startEvaluation} disabled={!task}>
+        <button class="run-cta" onclick={startEvaluation} disabled={!evaluation.currentTask}>
           <span>Run Evaluation</span>
           <span class="run-icon">▶</span>
         </button>
         
         <div class="context-meta">
-          <span>Model: {model}</span>
+          <span>Model: {evaluation.currentModel}</span>
           <span class="dot">•</span>
-          <span>Task: {task?.name ?? 'None selected'}</span>
+          <span>Task: {evaluation.currentTask?.name ?? 'None selected'}</span>
         </div>
       </div>
     {/if}
     
     <!-- Error State -->
-    {#if phase === 'error'}
+    {#if evaluation.phase === 'error'}
       <div class="eval-error" in:fade={{ duration: 300 }}>
         <div class="error-icon">⚠️</div>
         <h2>Evaluation Failed</h2>
-        <p class="error-message">{error}</p>
+        <p class="error-message">{evaluation.error}</p>
         <button class="action-secondary" onclick={resetEvaluation}>
           Try Again ↻
         </button>
@@ -161,46 +152,46 @@
     {/if}
     
     <!-- Running State -->
-    {#if phase !== 'ready' && phase !== 'complete' && phase !== 'error'}
+    {#if evaluation.phase !== 'ready' && evaluation.phase !== 'complete' && evaluation.phase !== 'error'}
       <div class="eval-running" in:fade={{ duration: 300 }}>
-        <h2>{message}</h2>
+        <h2>{evaluation.message}</h2>
         
         <div class="progress-bar">
-          <div class="progress-fill" style="width: {progress}%"></div>
+          <div class="progress-fill" style="width: {evaluation.progress}%"></div>
         </div>
         
         <div class="running-grid">
           <!-- Single-Shot Column -->
-          <div class="method-column" class:active={phase === 'running_single'}>
+          <div class="method-column" class:active={evaluation.phase === 'running_single'}>
             <div class="method-header">
               <span class="method-icon">⚫</span>
               <span>Single-Shot</span>
             </div>
             <div class="file-list">
-              {#each singleShotFiles as file}
+              {#each evaluation.singleShotFiles as file (file)}
                 <div class="file-item" in:fly={{ y: 10, duration: 200 }}>
                   📄 {file}
                 </div>
               {/each}
-              {#if singleShotFiles.length === 0 && phase === 'running_single'}
+              {#if evaluation.singleShotFiles.length === 0 && evaluation.phase === 'running_single'}
                 <div class="waiting">Generating...</div>
               {/if}
             </div>
           </div>
           
           <!-- Sunwell Column -->
-          <div class="method-column" class:active={phase === 'running_sunwell'}>
+          <div class="method-column" class:active={evaluation.phase === 'running_sunwell'}>
             <div class="method-header">
               <span class="method-icon">🔮</span>
               <span>Sunwell</span>
             </div>
             <div class="file-list">
-              {#each sunwellFiles as file}
+              {#each evaluation.sunwellFiles as file (file)}
                 <div class="file-item" in:fly={{ y: 10, duration: 200 }}>
                   📄 {file}
                 </div>
               {/each}
-              {#if sunwellFiles.length === 0 && phase === 'running_sunwell'}
+              {#if evaluation.sunwellFiles.length === 0 && evaluation.phase === 'running_sunwell'}
                 <div class="waiting">Generating with Lens + Judge + Resonance...</div>
               {/if}
             </div>
@@ -210,11 +201,11 @@
     {/if}
     
     <!-- Complete State -->
-    {#if phase === 'complete'}
+    {#if evaluation.phase === 'complete'}
       <div class="eval-complete" in:fade={{ duration: 300 }}>
         <!-- Winner Banner -->
-        <div class="winner-banner" class:sunwell-wins={sunwellWins}>
-          {#if sunwellWins}
+        <div class="winner-banner" class:sunwell-wins={evaluation.sunwellWins}>
+          {#if evaluation.sunwellWins}
             <span class="winner-icon">🏆</span>
             <span class="winner-text">Sunwell wins by +{$improvementDisplay.toFixed(0)}%</span>
           {:else}
@@ -230,26 +221,26 @@
               <span class="score-icon">⚫</span>
               <span>Single-Shot</span>
             </div>
-            <div class="score-value" style="color: {scoreColor(singleShotScore?.total ?? 0)}">
-              {formatScore(singleShotScore)}
+            <div class="score-value" style="color: {scoreColor(evaluation.singleShotScore?.total ?? 0)}">
+              {formatScore(evaluation.singleShotScore)}
             </div>
-            {#if singleShotScore}
+            {#if evaluation.singleShotScore}
               <div class="score-breakdown">
                 <div class="breakdown-row">
                   <span>Structure</span>
-                  <span>{(singleShotScore.structure * 100).toFixed(0)}%</span>
+                  <span>{(evaluation.singleShotScore.structure * 100).toFixed(0)}%</span>
                 </div>
                 <div class="breakdown-row">
                   <span>Runnable</span>
-                  <span>{(singleShotScore.runnable * 100).toFixed(0)}%</span>
+                  <span>{(evaluation.singleShotScore.runnable * 100).toFixed(0)}%</span>
                 </div>
                 <div class="breakdown-row">
                   <span>Features</span>
-                  <span>{(singleShotScore.features * 100).toFixed(0)}%</span>
+                  <span>{(evaluation.singleShotScore.features * 100).toFixed(0)}%</span>
                 </div>
                 <div class="breakdown-row">
                   <span>Quality</span>
-                  <span>{(singleShotScore.quality * 100).toFixed(0)}%</span>
+                  <span>{(evaluation.singleShotScore.quality * 100).toFixed(0)}%</span>
                 </div>
               </div>
             {/if}
@@ -262,26 +253,26 @@
               <span class="score-icon">🔮</span>
               <span>Sunwell</span>
             </div>
-            <div class="score-value" style="color: {scoreColor(sunwellScore?.total ?? 0)}">
-              {formatScore(sunwellScore)}
+            <div class="score-value" style="color: {scoreColor(evaluation.sunwellScore?.total ?? 0)}">
+              {formatScore(evaluation.sunwellScore)}
             </div>
-            {#if sunwellScore}
+            {#if evaluation.sunwellScore}
               <div class="score-breakdown">
                 <div class="breakdown-row">
                   <span>Structure</span>
-                  <span>{(sunwellScore.structure * 100).toFixed(0)}%</span>
+                  <span>{(evaluation.sunwellScore.structure * 100).toFixed(0)}%</span>
                 </div>
                 <div class="breakdown-row">
                   <span>Runnable</span>
-                  <span>{(sunwellScore.runnable * 100).toFixed(0)}%</span>
+                  <span>{(evaluation.sunwellScore.runnable * 100).toFixed(0)}%</span>
                 </div>
                 <div class="breakdown-row">
                   <span>Features</span>
-                  <span>{(sunwellScore.features * 100).toFixed(0)}%</span>
+                  <span>{(evaluation.sunwellScore.features * 100).toFixed(0)}%</span>
                 </div>
                 <div class="breakdown-row">
                   <span>Quality</span>
-                  <span>{(sunwellScore.quality * 100).toFixed(0)}%</span>
+                  <span>{(evaluation.sunwellScore.quality * 100).toFixed(0)}%</span>
                 </div>
               </div>
             {/if}
@@ -317,11 +308,11 @@
     {/if}
     
     <!-- History (always shown at bottom) -->
-    {#if history.length > 0}
+    {#if evaluation.history.length > 0}
       <div class="history-section">
         <h3>Recent Evaluations</h3>
         <div class="history-list">
-          {#each history.slice(0, 5) as run}
+          {#each recentHistory as run (run.id)}
             <div class="history-item">
               <span class="history-task">{run.task_id}</span>
               <span class="history-model">{run.model}</span>

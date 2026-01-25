@@ -85,13 +85,16 @@
 
 			// Animate through a slight scale down then up
 			inputScale.set(0.95);
-			setTimeout(() => inputScale.set(1), 100);
+			const timeoutId = setTimeout(() => inputScale.set(1), 100);
 
 			// Animate width and padding
 			inputWidth.set(modeWidths[mode]);
 			inputPadding.set(modePaddings[mode]);
 
 			previousMode = mode;
+
+			// Cleanup timeout on unmount or re-run
+			return () => clearTimeout(timeoutId);
 		}
 	});
 

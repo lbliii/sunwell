@@ -23,6 +23,7 @@
   // Generate varied positions and timings for natural feel
   let particles = $derived(
     Array(count).fill(null).map((_, i) => ({
+      id: i,
       left: 5 + (i * (90 / count)) + (Math.sin(i * 1.5) * 5),
       delay: i * 0.4 + (Math.sin(i * 2) * 0.2),
       duration: 3 + (i % 4) * 0.5,
@@ -40,7 +41,7 @@
     class:intense={intensity === 'intense'}
     aria-hidden="true"
   >
-    {#each particles as particle}
+    {#each particles as particle (particle.id)}
       <span 
         class="mote"
         class:alt={particle.isAlt}

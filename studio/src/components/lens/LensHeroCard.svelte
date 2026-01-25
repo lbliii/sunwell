@@ -71,7 +71,7 @@
   
   {#if lens.tags.length > 0}
     <div class="hero-tags">
-      {#each lens.tags.slice(0, 3) as tag}
+      {#each lens.tags.slice(0, 3) as tag (tag)}
         <span class="tag">{tag}</span>
       {/each}
     </div>

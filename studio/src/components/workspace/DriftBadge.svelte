@@ -109,7 +109,7 @@
 				</div>
 			{:else if drift.issues.length > 0}
 				<ul class="drift-issues">
-					{#each drift.issues.slice(0, 5) as issue}
+					{#each drift.issues.slice(0, 5) as issue, i (`issue-${i}`)}
 						<li class="drift-issue">{issue}</li>
 					{/each}
 					{#if drift.issues.length > 5}

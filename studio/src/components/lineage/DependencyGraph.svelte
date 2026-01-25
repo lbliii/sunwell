@@ -45,12 +45,19 @@
   // Derived
   const graph = $derived(lineageState.graph);
   const loading = $derived(lineageState.loading);
+  
+  // Node lookup map for O(1) access in tooltip (avoids .find() in template)
+  const nodeByIdMap = $derived.by(() => {
+    if (!graph) return new Map<string, DependencyNode>();
+    return new Map(graph.nodes.map(n => [n.id, n]));
+  });
 
   // Layout calculation (simple force-directed simulation)
+  type LayoutNode = DependencyNode & { x: number; y: number };
   const layout = $derived.by(() => {
-    if (!graph || graph.nodes.length === 0) return { nodes: [], edges: [] };
+    if (!graph || graph.nodes.length === 0) return { nodes: [] as LayoutNode[], edges: [] as Array<DependencyEdge & { sourceNode: LayoutNode; targetNode: LayoutNode }> };
 
-    const nodes = graph.nodes.map((node, i) => {
+    const nodes: LayoutNode[] = graph.nodes.map((node, i) => {
       // Simple circular layout for now
       const angle = (2 * Math.PI * i) / graph.nodes.length;
       const radius = Math.min(width, height) * 0.35;
@@ -73,6 +80,10 @@
 
     return { nodes, edges };
   });
+
+  // O(1) node lookup via Map (avoids O(n) .find() in tooltip)
+  const nodeMap = $derived(new Map(layout.nodes.map(n => [n.id, n])));
+  const hoveredNodeData = $derived(hoveredNode ? nodeMap.get(hoveredNode) : null);
 
   // Handlers
   function handleNodeClick(node: DependencyNode & { x: number; y: number }) {
@@ -206,35 +217,32 @@
       </g>
     </svg>
 
-    <!-- Tooltip -->
-    {#if hoveredNode}
-      {@const node = layout.nodes.find(n => n.id === hoveredNode)}
-      {#if node}
-        <div class="tooltip" style="left: {node.x * transform.scale + transform.x + 20}px; top: {node.y * transform.scale + transform.y}px;">
-          <div class="tooltip-header">
-            <span class="icon">{getLanguageIcon(node.id)}</span>
-            <span class="path">{node.id}</span>
-          </div>
-          <div class="tooltip-body">
-            <div class="tooltip-row">
-              <span class="label">Edits:</span>
-              <span class="value">{node.edit_count}</span>
-            </div>
-            {#if node.created_by_goal}
-              <div class="tooltip-row">
-                <span class="label">Goal:</span>
-                <span class="value">{node.created_by_goal.slice(0, 8)}</span>
-              </div>
-            {/if}
-            {#if node.model}
-              <div class="tooltip-row">
-                <span class="label">Model:</span>
-                <span class="value">{node.model}</span>
-              </div>
-            {/if}
-          </div>
+    <!-- Tooltip (uses pre-computed hoveredNodeData for O(1) lookup) -->
+    {#if hoveredNodeData}
+      <div class="tooltip" style="left: {hoveredNodeData.x * transform.scale + transform.x + 20}px; top: {hoveredNodeData.y * transform.scale + transform.y}px;">
+        <div class="tooltip-header">
+          <span class="icon">{getLanguageIcon(hoveredNodeData.id)}</span>
+          <span class="path">{hoveredNodeData.id}</span>
         </div>
-      {/if}
+        <div class="tooltip-body">
+          <div class="tooltip-row">
+            <span class="label">Edits:</span>
+            <span class="value">{hoveredNodeData.edit_count}</span>
+          </div>
+          {#if hoveredNodeData.created_by_goal}
+            <div class="tooltip-row">
+              <span class="label">Goal:</span>
+              <span class="value">{hoveredNodeData.created_by_goal.slice(0, 8)}</span>
+            </div>
+          {/if}
+          {#if hoveredNodeData.model}
+            <div class="tooltip-row">
+              <span class="label">Model:</span>
+              <span class="value">{hoveredNodeData.model}</span>
+            </div>
+          {/if}
+        </div>
+      </div>
     {/if}
   {/if}
 </div>

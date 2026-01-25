@@ -165,7 +165,7 @@
     <div class="chart-container">
       <svg viewBox="0 0 {svgWidth} {svgHeight}" class="wave-chart">
         <!-- Grid lines -->
-        {#each [2, 4, 6, 8, 10] as score}
+        {#each [2, 4, 6, 8, 10] as score (score)}
           {@const y = svgHeight - padding - ((score / 10) * (svgHeight - padding * 2))}
           <line 
             x1={padding} 

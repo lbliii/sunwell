@@ -29,7 +29,14 @@
     downloadBlob,
     type ExportProgress,
   } from '$lib/export';
-  import { observatory } from '../../stores';
+  import {
+    observatory,
+    type ResonanceWaveState,
+    type PrismFractureState,
+    type ExecutionCinemaState,
+    type MemoryLatticeState,
+    type ModelParadoxState,
+  } from '../../stores';
   
   type Viz = 'resonance' | 'prism' | 'lattice' | 'cinema' | 'paradox';
   
@@ -103,7 +110,14 @@
     }
   }
   
-  function getVisualizationData(): unknown {
+  type VisualizationData = 
+    | ResonanceWaveState 
+    | PrismFractureState 
+    | ExecutionCinemaState 
+    | MemoryLatticeState 
+    | ModelParadoxState;
+  
+  function getVisualizationData(): VisualizationData {
     switch (activeViz) {
       case 'resonance':
         return observatory.resonanceWave;
@@ -115,8 +129,6 @@
         return observatory.memoryLattice;
       case 'paradox':
         return observatory.modelParadox;
-      default:
-        return {};
     }
   }
   
@@ -172,7 +184,7 @@
   </header>
   
   <nav class="viz-tabs">
-    {#each visualizations as viz, i}
+    {#each visualizations as viz, i (viz.id)}
       <button
         class="viz-tab"
         class:active={activeViz === viz.id}

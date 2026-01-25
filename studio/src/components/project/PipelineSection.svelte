@@ -30,7 +30,7 @@
     <span class="completion">{Math.round(completionPercent * 100)}% done</span>
   </h3>
   <div class="pipeline">
-    {#each pipeline as step}
+    {#each pipeline as step (step.id)}
       <div 
         class="step" 
         class:current={step.id === currentStep}

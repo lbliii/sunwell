@@ -108,9 +108,9 @@
 </script>
 
 <div class="sparkle-field" style="--width: {width}ch; --height: {height}lh;">
-  {#each grid as row, y}
+  {#each grid as row, y (y)}
     <div class="row">
-      {#each row as char}
+      {#each row as char, x (x)}
         <span class="cell {char !== ' ' ? getOpacityClass(y) : ''}">{char}</span>
       {/each}
     </div>

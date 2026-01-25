@@ -113,7 +113,7 @@
           <div class="form-group">
             <label for="goal-category">Category</label>
             <select id="goal-category" bind:value={category}>
-              {#each categories as cat}
+              {#each categories as cat (cat)}
                 {@const info = getCategoryInfo(cat)}
                 <option value={cat}>{info.emoji} {info.label}</option>
               {/each}
@@ -123,7 +123,7 @@
           <div class="form-group">
             <label for="goal-complexity">Complexity</label>
             <select id="goal-complexity" bind:value={complexity}>
-              {#each complexities as comp}
+              {#each complexities as comp (comp)}
                 {@const info = getComplexityInfo(comp)}
                 <option value={comp}>{info.emoji} {info.label}</option>
               {/each}

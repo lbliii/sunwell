@@ -20,67 +20,67 @@ export type InputMode = 'hero' | 'chat' | 'command' | 'search';
  * Used to render UI skeleton before full content is ready.
  */
 export interface CompositionSpec {
-	page_type: PageType;
-	panels: Array<{
-		panel_type: string;
-		title?: string;
-		data?: Record<string, unknown>;
+	readonly page_type: PageType;
+	readonly panels: ReadonlyArray<{
+		readonly panel_type: string;
+		readonly title?: string;
+		readonly data?: Readonly<Record<string, unknown>>;
 	}>;
-	input_mode: InputMode;
-	suggested_tools: string[];
-	confidence: number;
-	source: 'regex' | 'fast_model' | 'large_model';
+	readonly input_mode: InputMode;
+	readonly suggested_tools: readonly string[];
+	readonly confidence: number;
+	readonly source: 'regex' | 'fast_model' | 'large_model';
 }
 
 export interface ViewResponse {
-	route: 'view';
-	view_type: string;
-	view_data: Record<string, unknown>;
-	response?: string;
+	readonly route: 'view';
+	readonly view_type: string;
+	readonly view_data: Readonly<Record<string, unknown>>;
+	readonly response?: string;
 }
 
 export interface ActionResponse {
-	route: 'action';
-	action_type: string;
-	success: boolean;
-	response: string;
-	data?: Record<string, unknown>;
+	readonly route: 'action';
+	readonly action_type: string;
+	readonly success: boolean;
+	readonly response: string;
+	readonly data?: Readonly<Record<string, unknown>>;
 }
 
 export interface AuxiliaryPanel {
-	panel_type: string;
-	title?: string;
-	data?: Record<string, unknown>;
+	readonly panel_type: string;
+	readonly title?: string;
+	readonly data?: Readonly<Record<string, unknown>>;
 }
 
 export interface ConversationResponse {
-	route: 'conversation';
-	response: string;
-	conversation_mode?: 'informational' | 'empathetic' | 'collaborative';
-	auxiliary_panels?: AuxiliaryPanel[];
-	suggested_tools?: string[];
+	readonly route: 'conversation';
+	readonly response: string;
+	readonly conversation_mode?: 'informational' | 'empathetic' | 'collaborative';
+	readonly auxiliary_panels?: readonly AuxiliaryPanel[];
+	readonly suggested_tools?: readonly string[];
 }
 
 export interface WorkspaceResponse {
-	route: 'workspace';
-	layout_id: string;
-	response?: string;
-	workspace_spec?: {
-		primary: string;
-		secondary: string[];
-		contextual: string[];
-		arrangement: string;
-		seed_content?: Record<string, unknown>;
+	readonly route: 'workspace';
+	readonly layout_id: string;
+	readonly response?: string;
+	readonly workspace_spec?: {
+		readonly primary: string;
+		readonly secondary: readonly string[];
+		readonly contextual: readonly string[];
+		readonly arrangement: string;
+		readonly seed_content?: Readonly<Record<string, unknown>>;
 	};
 }
 
 export interface HybridResponse {
-	route: 'hybrid';
-	action_type: string;
-	success: boolean;
-	response: string;
-	view_type: string;
-	view_data: Record<string, unknown>;
+	readonly route: 'hybrid';
+	readonly action_type: string;
+	readonly success: boolean;
+	readonly response: string;
+	readonly view_type: string;
+	readonly view_data: Readonly<Record<string, unknown>>;
 }
 
 export type HomeResponse =

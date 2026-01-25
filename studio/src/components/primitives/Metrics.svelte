@@ -42,23 +42,47 @@
   // Reactive state for animated values (keyed by metric id)
   let animatedState: Record<string, number> = $state({});
   
-  // Spring stores (created once, updated reactively)
+  // Spring stores and their cleanup functions
   const springs = new Map<string, ReturnType<typeof spring<number>>>();
+  const subscriptions = new Map<string, () => void>();
   
-  // Update springs when metrics change
+  // Update springs when metrics change - with proper cleanup
   $effect(() => {
+    const currentIds = new Set(metrics.map(m => m.id));
+    
+    // Create or update springs for current metrics
     for (const metric of metrics) {
       if (!springs.has(metric.id)) {
         const s = spring(metric.value, { stiffness: 0.08, damping: 0.5 });
         springs.set(metric.id, s);
-        // Subscribe to update state
-        s.subscribe((v) => {
+        // Subscribe and track cleanup
+        const unsub = s.subscribe((v) => {
           animatedState[metric.id] = v;
         });
+        subscriptions.set(metric.id, unsub);
       } else {
         springs.get(metric.id)!.set(metric.value);
       }
     }
+    
+    // Cleanup removed metrics
+    for (const [id, unsub] of subscriptions) {
+      if (!currentIds.has(id)) {
+        unsub();
+        subscriptions.delete(id);
+        springs.delete(id);
+        delete animatedState[id];
+      }
+    }
+    
+    // Return cleanup for when component unmounts
+    return () => {
+      for (const unsub of subscriptions.values()) {
+        unsub();
+      }
+      subscriptions.clear();
+      springs.clear();
+    };
   });
   
   // Get animated value for a metric (reads from reactive state)

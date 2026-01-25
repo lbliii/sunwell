@@ -32,7 +32,7 @@
   
   {#if topHeuristics.length > 0}
     <ul class="preview-heuristics">
-      {#each topHeuristics.slice(0, 3) as h}
+      {#each topHeuristics.slice(0, 3) as h (h.name)}
         <li>
           <span 
             class="priority-dot" 

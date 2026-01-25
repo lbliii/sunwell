@@ -114,7 +114,7 @@
 
       <!-- Action buttons -->
       <div class="actions">
-        {#each actions as action}
+        {#each actions as action (action.id)}
           <button
             class="action-btn"
             onclick={() => handleAction(action.id)}

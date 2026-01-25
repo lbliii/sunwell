@@ -34,7 +34,8 @@
         "@use-gesture/vanilla": "^10.3.1",
         "dagre": "^0.8.5",
         "html2canvas": "^1.4.1",
-        "shiki": "^1.0.0"
+        "shiki": "^1.0.0",
+        "zod": "^3.23.0"
     },
     "optionalDependencies": {
         "@codemirror/lang-yaml": "^6.0.0",

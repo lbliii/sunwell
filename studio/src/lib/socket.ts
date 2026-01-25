@@ -66,13 +66,43 @@ let _reconnectAttempts = 0;
 let _reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 const _listeners: Set<EventListener> = new Set();
 
-// Stats for debugging (plain object, not reactive)
+// Stats for debugging (encapsulated for immutability)
+interface SocketStats {
+	readonly connected: boolean;
+	readonly reconnects: number;
+	readonly totalEvents: number;
+	readonly droppedEvents: number;
+	readonly lastLatency: number;
+}
+
+function createSocketStats() {
+	let _stats: SocketStats = Object.freeze({
+		connected: false,
+		reconnects: 0,
+		totalEvents: 0,
+		droppedEvents: 0,
+		lastLatency: 0,
+	});
+
+	return {
+		get current(): SocketStats {
+			return _stats;
+		},
+		update(partial: Partial<SocketStats>): void {
+			_stats = Object.freeze({ ..._stats, ...partial });
+		},
+	};
+}
+
+const _socketStats = createSocketStats();
+
+/** Read-only stats accessor */
 export const stats = {
-	connected: false,
-	reconnects: 0,
-	totalEvents: 0,
-	droppedEvents: 0,
-	lastLatency: 0,
+	get connected() { return _socketStats.current.connected; },
+	get reconnects() { return _socketStats.current.reconnects; },
+	get totalEvents() { return _socketStats.current.totalEvents; },
+	get droppedEvents() { return _socketStats.current.droppedEvents; },
+	get lastLatency() { return _socketStats.current.lastLatency; },
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -98,13 +128,13 @@ function connectWebSocket(runId: string): void {
 
 	_ws.onopen = () => {
 		console.log('[socket] Connected');
-		stats.connected = true;
+		_socketStats.update({ connected: true });
 		_reconnectAttempts = 0;
 	};
 
 	_ws.onclose = (event) => {
 		console.log(`[socket] Disconnected (code: ${event.code})`);
-		stats.connected = false;
+		_socketStats.update({ connected: false });
 
 		// Don't reconnect if closed normally or run is done
 		if (event.code === 1000 || event.code === 4004) {
@@ -116,7 +146,7 @@ function connectWebSocket(runId: string): void {
 		if (_currentRunId) {
 			const delay = Math.min(1000 * Math.pow(2, _reconnectAttempts), 10000);
 			_reconnectAttempts++;
-			stats.reconnects++;
+			_socketStats.update({ reconnects: _socketStats.current.reconnects + 1 });
 
 			console.log(`[socket] Reconnecting in ${delay}ms...`);
 			_reconnectTimer = setTimeout(() => {
@@ -134,7 +164,7 @@ function connectWebSocket(runId: string): void {
 	_ws.onmessage = (msg) => {
 		try {
 			const event = JSON.parse(msg.data) as AgentEvent;
-			stats.totalEvents++;
+			_socketStats.update({ totalEvents: _socketStats.current.totalEvents + 1 });
 
 			// Dispatch to all listeners
 			for (const listener of _listeners) {
@@ -168,7 +198,7 @@ export function disconnect(): void {
 		_ws = null;
 	}
 	_currentRunId = null;
-	stats.connected = false;
+	_socketStats.update({ connected: false });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -357,11 +387,37 @@ let _globalReconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let _globalReconnectAttempts = 0;
 const _globalListeners: Set<GlobalEventListener> = new Set();
 
-/** Global event stream stats */
+/** Global event stream stats (encapsulated for immutability) */
+interface GlobalSocketStats {
+	readonly connected: boolean;
+	readonly reconnects: number;
+	readonly totalEvents: number;
+}
+
+function createGlobalSocketStats() {
+	let _stats: GlobalSocketStats = Object.freeze({
+		connected: false,
+		reconnects: 0,
+		totalEvents: 0,
+	});
+
+	return {
+		get current(): GlobalSocketStats {
+			return _stats;
+		},
+		update(partial: Partial<GlobalSocketStats>): void {
+			_stats = Object.freeze({ ..._stats, ...partial });
+		},
+	};
+}
+
+const _globalSocketStats = createGlobalSocketStats();
+
+/** Read-only global stats accessor */
 export const globalStats = {
-	connected: false,
-	reconnects: 0,
-	totalEvents: 0,
+	get connected() { return _globalSocketStats.current.connected; },
+	get reconnects() { return _globalSocketStats.current.reconnects; },
+	get totalEvents() { return _globalSocketStats.current.totalEvents; },
 };
 
 /**
@@ -393,19 +449,19 @@ export function subscribeToGlobalEvents(projectId?: string): () => void {
 
 	_globalWs.onopen = () => {
 		console.log('[socket] Global event stream connected');
-		globalStats.connected = true;
+		_globalSocketStats.update({ connected: true });
 		_globalReconnectAttempts = 0;
 	};
 
 	_globalWs.onclose = (event) => {
 		console.log(`[socket] Global event stream disconnected (code: ${event.code})`);
-		globalStats.connected = false;
+		_globalSocketStats.update({ connected: false });
 
 		// Auto-reconnect unless explicitly closed
 		if (event.code !== 1000) {
 			const delay = Math.min(1000 * Math.pow(2, _globalReconnectAttempts), 10000);
 			_globalReconnectAttempts++;
-			globalStats.reconnects++;
+			_globalSocketStats.update({ reconnects: _globalSocketStats.current.reconnects + 1 });
 
 			console.log(`[socket] Global stream reconnecting in ${delay}ms...`);
 			_globalReconnectTimer = setTimeout(() => {
@@ -421,7 +477,7 @@ export function subscribeToGlobalEvents(projectId?: string): () => void {
 	_globalWs.onmessage = (msg) => {
 		try {
 			const event = JSON.parse(msg.data) as GlobalEvent;
-			globalStats.totalEvents++;
+			_globalSocketStats.update({ totalEvents: _globalSocketStats.current.totalEvents + 1 });
 
 			// Dispatch to all listeners
 			for (const listener of _globalListeners) {
@@ -446,7 +502,7 @@ export function subscribeToGlobalEvents(projectId?: string): () => void {
 			_globalWs.close();
 			_globalWs = null;
 		}
-		globalStats.connected = false;
+		_globalSocketStats.update({ connected: false });
 	};
 }
 
@@ -473,7 +529,7 @@ export function disconnectGlobal(): void {
 		_globalWs.close();
 		_globalWs = null;
 	}
-	globalStats.connected = false;
+	_globalSocketStats.update({ connected: false });
 }
 
 /**

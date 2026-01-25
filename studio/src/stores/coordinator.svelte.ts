@@ -16,71 +16,71 @@ import { debounce } from '$lib/debounce';
 // ═══════════════════════════════════════════════════════════════
 
 export interface WorkerStatus {
-  id: number;
-  goal: string;
-  status: string;
-  progress: number;
-  current_file: string | null;
-  branch: string;
-  goals_completed: number;
-  goals_failed: number;
-  last_heartbeat: string;
+  readonly id: number;
+  readonly goal: string;
+  readonly status: string;
+  readonly progress: number;
+  readonly current_file: string | null;
+  readonly branch: string;
+  readonly goals_completed: number;
+  readonly goals_failed: number;
+  readonly last_heartbeat: string;
 }
 
 export interface FileConflict {
-  path: string;
-  worker_a: number;
-  worker_b: number;
-  conflict_type: string;
-  resolution: string | null;
-  detected_at: string;
+  readonly path: string;
+  readonly worker_a: number;
+  readonly worker_b: number;
+  readonly conflict_type: string;
+  readonly resolution: string | null;
+  readonly detected_at: string;
 }
 
 export interface CoordinatorState {
-  workers: WorkerStatus[];
-  conflicts: FileConflict[];
-  total_progress: number;
-  merged_branches: string[];
-  pending_merges: string[];
-  is_running: boolean;
-  started_at: string | null;
-  last_update: string;
+  readonly workers: readonly WorkerStatus[];
+  readonly conflicts: readonly FileConflict[];
+  readonly total_progress: number;
+  readonly merged_branches: readonly string[];
+  readonly pending_merges: readonly string[];
+  readonly is_running: boolean;
+  readonly started_at: string | null;
+  readonly last_update: string;
 }
 
 export interface StateDagNode {
-  id: string;
-  path: string;
-  artifact_type: string;
-  title: string;
-  health_score: number;
-  confidence_band: string;
-  health_probes: Array<{
-    probe_name: string;
-    score: number;
-    issues: string[];
+  readonly id: string;
+  readonly path: string;
+  readonly artifact_type: string;
+  readonly title: string;
+  readonly health_score: number;
+  readonly confidence_band: string;
+  readonly health_probes: ReadonlyArray<{
+    readonly probe_name: string;
+    readonly score: number;
+    readonly issues: readonly string[];
   }>;
-  last_modified: string | null;
-  line_count: number | null;
+  readonly last_modified: string | null;
+  readonly line_count: number | null;
 }
 
 export interface StateDagEdge {
-  source: string;
-  target: string;
-  edge_type: string;
+  readonly source: string;
+  readonly target: string;
+  readonly edge_type: string;
 }
 
 export interface StateDag {
-  root: string;
-  scanned_at: string;
-  lens_name: string | null;
-  overall_health: number;
-  node_count: number;
-  edge_count: number;
-  unhealthy_count: number;
-  critical_count: number;
-  nodes: StateDagNode[];
-  edges: StateDagEdge[];
-  metadata: Record<string, unknown>;
+  readonly root: string;
+  readonly scanned_at: string;
+  readonly lens_name: string | null;
+  readonly overall_health: number;
+  readonly node_count: number;
+  readonly edge_count: number;
+  readonly unhealthy_count: number;
+  readonly critical_count: number;
+  readonly nodes: readonly StateDagNode[];
+  readonly edges: readonly StateDagEdge[];
+  readonly metadata: Readonly<Record<string, unknown>>;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -108,6 +108,19 @@ let _pollingInterval = $state<number | null>(null);
 let _stateDag = $state<StateDag | null>(null);
 let _stateDagLoading = $state<boolean>(false);
 let _stateDagError = $state<string | null>(null);
+
+// Cached node index for O(1) lookups
+let _nodeMapCache: Map<string, StateDagNode> | null = null;
+let _nodeMapCacheRef: readonly StateDagNode[] | null = null;
+
+function getNodeMap(): Map<string, StateDagNode> {
+  if (!_stateDag) return new Map();
+  if (_nodeMapCacheRef !== _stateDag.nodes) {
+    _nodeMapCache = new Map(_stateDag.nodes.map(n => [n.id, n]));
+    _nodeMapCacheRef = _stateDag.nodes;
+  }
+  return _nodeMapCache!;
+}
 
 // ═══════════════════════════════════════════════════════════════
 // COMPUTED
@@ -405,13 +418,10 @@ export function clearStateDag(): void {
 }
 
 /**
- * Get a node by ID from the State DAG - O(1) lookup via Map.
+ * Get a node by ID from the State DAG - O(1) lookup via cached Map.
  */
 export function getStateDagNode(nodeId: string): StateDagNode | undefined {
-  if (!_stateDag) return undefined;
-  // Build map lazily for O(1) lookup
-  const nodeMap = new Map(_stateDag.nodes.map(n => [n.id, n]));
-  return nodeMap.get(nodeId);
+  return getNodeMap().get(nodeId);
 }
 
 /**
@@ -423,8 +433,7 @@ export function getConnectedNodes(nodeId: string): {
 } {
   if (!_stateDag) return { parents: [], children: [] };
 
-  // Build node map once for O(1) lookups
-  const nodeMap = new Map(_stateDag.nodes.map(n => [n.id, n]));
+  const nodeMap = getNodeMap();
   const parents: StateDagNode[] = [];
   const children: StateDagNode[] = [];
 

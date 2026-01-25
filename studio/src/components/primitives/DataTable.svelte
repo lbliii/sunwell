@@ -19,8 +19,10 @@
     editable = false,
   }: Props = $props();
   
+  type ColumnType = 'text' | 'number' | 'date' | 'boolean';
+
   // Infer columns from first row if not provided
-  let inferredColumns = $derived(() => {
+  let inferredColumns = $derived.by(() => {
     if (columns && columns.length > 0) return columns;
     if (data && data.length > 0) {
       const first = data[0] as Record<string, unknown>;
@@ -28,7 +30,34 @@
     }
     return [];
   });
-  
+
+  // Precompute column types once (O(m) instead of O(n*m) in template)
+  const columnTypes = $derived.by(() => {
+    const types: Record<string, ColumnType> = {};
+    if (!data || data.length === 0) {
+      for (const col of inferredColumns) {
+        types[col] = 'text';
+      }
+      return types;
+    }
+    const first = data[0] as Record<string, unknown>;
+    for (const col of inferredColumns) {
+      const value = first[col];
+      if (typeof value === 'number') {
+        types[col] = 'number';
+      } else if (typeof value === 'boolean') {
+        types[col] = 'boolean';
+      } else if (value instanceof Date) {
+        types[col] = 'date';
+      } else if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+        types[col] = 'date';
+      } else {
+        types[col] = 'text';
+      }
+    }
+    return types;
+  });
+
   // Sort state
   let sortColumn: string | null = $state(null);
   let sortDirection: 'asc' | 'desc' = $state('asc');
@@ -42,7 +71,7 @@
   let editValue: string = $state('');
   
   // Filtered and sorted data
-  let processedData = $derived(() => {
+  let processedData = $derived.by(() => {
     if (!data || data.length === 0) return [];
     
     let result = [...data] as Record<string, unknown>[];
@@ -101,7 +130,7 @@
   function startEdit(rowIndex: number, column: string) {
     if (!editable) return;
     editingCell = { row: rowIndex, column };
-    const row = processedData()[rowIndex] as Record<string, unknown>;
+    const row = processedData[rowIndex] as Record<string, unknown>;
     editValue = String(row[column] ?? '');
   }
   
@@ -124,23 +153,11 @@
     if (typeof value === 'object') return JSON.stringify(value);
     return String(value);
   }
-  
-  function inferColumnType(column: string): 'text' | 'number' | 'date' | 'boolean' {
-    if (!data || data.length === 0) return 'text';
-    const first = data[0] as Record<string, unknown>;
-    const value = first[column];
-    if (typeof value === 'number') return 'number';
-    if (typeof value === 'boolean') return 'boolean';
-    if (value instanceof Date) return 'date';
-    // Check if string looks like a date
-    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return 'date';
-    return 'text';
-  }
-  
+
   function exportToCsv() {
-    const cols = inferredColumns();
+    const cols = inferredColumns;
     const header = cols.join(',');
-    const rows = processedData().map(row => 
+    const rows = processedData.map(row => 
       cols.map(col => {
         const value = (row as Record<string, unknown>)[col];
         const str = formatCellValue(value);
@@ -174,7 +191,7 @@
       <button class="icon-btn" onclick={exportToCsv} title="Export CSV">
         📥
       </button>
-      <span class="row-count">{processedData().length} rows</span>
+      <span class="row-count">{processedData.length} rows</span>
     </div>
   </div>
   
@@ -186,7 +203,7 @@
         <table>
           <thead>
             <tr>
-              {#each inferredColumns() as column}
+              {#each inferredColumns as column (column)}
                 <th 
                   class:sorted={sortColumn === column}
                   onclick={() => handleSort(column)}
@@ -200,7 +217,7 @@
             </tr>
             {#if showFilters}
               <tr class="filter-row">
-                {#each inferredColumns() as column}
+                {#each inferredColumns as column (`filter-${column}`)}
                   <th>
                     <input 
                       type="text"
@@ -215,11 +232,11 @@
             {/if}
           </thead>
           <tbody>
-            {#each processedData() as row, rowIndex}
+            {#each processedData as row, rowIndex (rowIndex)}
               <tr>
-                {#each inferredColumns() as column}
+                {#each inferredColumns as column (`${rowIndex}-${column}`)}
                   <td 
-                    class={inferColumnType(column)}
+                    class={columnTypes[column]}
                     class:editable
                     ondblclick={() => startEdit(rowIndex, column)}
                   >

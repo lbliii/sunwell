@@ -7,8 +7,8 @@
 
 	interface Note { id: string; title: string; content: string; tags?: string[]; modified?: string; }
 	interface Props {
-		data: { notes: Note[]; mode?: string; };
-		onAction?: (actionId: string, noteId?: string) => void;
+		readonly data: Readonly<{ notes: readonly Note[]; mode?: string }>;
+		readonly onAction?: (actionId: string, noteId?: string) => void;
 	}
 
 	let { data, onAction }: Props = $props();
@@ -36,7 +36,7 @@
 					<span class="note-preview">{getPreview(note.content)}</span>
 					{#if note.tags && note.tags.length > 0}
 						<div class="note-tags">
-							{#each note.tags.slice(0, 3) as tag}
+							{#each note.tags.slice(0, 3) as tag (tag)}
 								<span class="tag">{tag}</span>
 							{/each}
 						</div>

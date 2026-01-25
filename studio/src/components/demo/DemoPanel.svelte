@@ -71,6 +71,14 @@
   const hasCode = $derived(
     demo.comparison?.single_shot?.code && demo.comparison?.sunwell?.code
   );
+
+  // Pre-compute feature entries for O(1) template access (avoids Object.entries() on every render)
+  const singleShotFeatureEntries = $derived(
+    Object.entries(singleShotScore?.features ?? {}) as [string, boolean][]
+  );
+  const sunwellFeatureEntries = $derived(
+    Object.entries(sunwellScore?.features ?? {}) as [string, boolean][]
+  );
 </script>
 
 <div class="demo-panel" data-phase={phase}>
@@ -244,7 +252,7 @@
                 {/if}
               </div>
               <div class="feature-list eval-features">
-                {#each Object.entries(singleShotScore?.features ?? {}) as [feature, present], i}
+                {#each singleShotFeatureEntries as [feature, present], i (feature)}
                   <div 
                     class="feature" 
                     class:present 
@@ -301,7 +309,7 @@
                 {/if}
               </div>
               <div class="feature-list eval-features">
-                {#each Object.entries(sunwellScore?.features ?? {}) as [feature, present], i}
+                {#each sunwellFeatureEntries as [feature, present], i (feature)}
                   <div 
                     class="feature" 
                     class:present 

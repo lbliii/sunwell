@@ -71,7 +71,7 @@
       {#if devCommand.prerequisites.length > 0}
         <p><strong>Prerequisites:</strong></p>
         <ul>
-          {#each devCommand.prerequisites as prereq}
+          {#each devCommand.prerequisites as prereq (prereq.command)}
             <li>{prereq.description} — <code>{prereq.command}</code></li>
           {/each}
         </ul>

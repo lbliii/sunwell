@@ -152,12 +152,12 @@
     return lcs;
   }
   
-  // Computed diff
-  let diffLines = $derived(() => computeDiff(leftContent, rightContent));
+  // Computed diff - memoized, only recalculates when inputs change
+  const diffLinesResult = $derived(computeDiff(leftContent, rightContent));
   
-  // Stats
-  let stats = $derived(() => {
-    const lines = diffLines();
+  // Stats - computed from memoized diff
+  const stats = $derived.by(() => {
+    const lines = diffLinesResult;
     const added = lines.filter(l => l.type === 'added').length;
     const removed = lines.filter(l => l.type === 'removed').length;
     const unchanged = lines.filter(l => l.type === 'unchanged').length;
@@ -213,7 +213,7 @@
         <div class="diff-pane left">
           <div class="pane-header">{leftLabel}</div>
           <div class="pane-content">
-            {#each diffLines() as line}
+            {#each diffLinesResult as line, i (i)}
               <div class="diff-line" class:removed={line.type === 'removed'} class:unchanged={line.type === 'unchanged'}>
                 <span class="line-num">{formatLineNum(line.leftLine)}</span>
                 <span class="line-text">{line.leftText !== null ? escapeHtml(line.leftText) : ''}</span>
@@ -224,7 +224,7 @@
         <div class="diff-pane right">
           <div class="pane-header">{rightLabel}</div>
           <div class="pane-content">
-            {#each diffLines() as line}
+            {#each diffLinesResult as line, i (i)}
               <div class="diff-line" class:added={line.type === 'added'} class:unchanged={line.type === 'unchanged'}>
                 <span class="line-num">{formatLineNum(line.rightLine)}</span>
                 <span class="line-text">{line.rightText !== null ? escapeHtml(line.rightText) : ''}</span>
@@ -240,7 +240,7 @@
           <span class="file-label">{leftLabel} → {rightLabel}</span>
         </div>
         <div class="inline-content">
-          {#each diffLines() as line}
+          {#each diffLinesResult as line, i (i)}
             <div 
               class="diff-line" 
               class:added={line.type === 'added'}

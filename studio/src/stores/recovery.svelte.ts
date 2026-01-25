@@ -17,46 +17,46 @@ export type ArtifactStatus = 'passed' | 'failed' | 'fixed' | 'skipped' | 'waitin
 
 /** An artifact being tracked for recovery */
 export interface RecoveryArtifact {
-  path: string;
-  status: ArtifactStatus;
-  content?: string;
-  errors?: string[];
-  original_error?: string;
+  readonly path: string;
+  readonly status: ArtifactStatus;
+  readonly content?: string;
+  readonly errors?: readonly string[];
+  readonly original_error?: string;
 }
 
 /** Summary of a pending recovery (for list view) */
 export interface RecoverySummary {
-  goalHash: string;
-  goalPreview: string;
-  passed: number;
-  failed: number;
-  waiting: number;
-  ageStr: string;
-  timestamp: string;
+  readonly goalHash: string;
+  readonly goalPreview: string;
+  readonly passed: number;
+  readonly failed: number;
+  readonly waiting: number;
+  readonly ageStr: string;
+  readonly timestamp: string;
 }
 
 /** Full recovery state */
 export interface RecoveryState {
-  goalHash: string;
-  goal: string;
-  runId: string;
-  artifacts: RecoveryArtifact[];
-  passedCount: number;
-  failedCount: number;
-  waitingCount: number;
-  failureReason: string;
-  errorDetails: string[];
-  createdAt: string;
-  iterations?: RecoveryIteration[];
+  readonly goalHash: string;
+  readonly goal: string;
+  readonly runId: string;
+  readonly artifacts: readonly RecoveryArtifact[];
+  readonly passedCount: number;
+  readonly failedCount: number;
+  readonly waitingCount: number;
+  readonly failureReason: string;
+  readonly errorDetails: readonly string[];
+  readonly createdAt: string;
+  readonly iterations?: readonly RecoveryIteration[];
 }
 
 /** Single iteration in recovery history */
 export interface RecoveryIteration {
-  iteration: number;
-  action: 'auto_fix' | 'manual_edit' | 'skip' | 'retry';
-  result: 'improved' | 'fixed' | 'failed' | 'aborted';
-  artifactsFixed: number;
-  timestamp: string;
+  readonly iteration: number;
+  readonly action: 'auto_fix' | 'manual_edit' | 'skip' | 'retry';
+  readonly result: 'improved' | 'fixed' | 'failed' | 'aborted';
+  readonly artifactsFixed: number;
+  readonly timestamp: string;
 }
 
 /** Recovery panel display state */
@@ -73,45 +73,86 @@ let _isLoading = $state<boolean>(false);
 let _autoFixInProgress = $state<boolean>(false);
 let _lastError = $state<string | null>(null);
 
+// Cached derived values for O(1) getter access (computed once per state change)
+const _passedArtifacts = $derived(
+  Object.freeze(_activeRecovery?.artifacts.filter(a => a.status === 'passed') ?? [])
+);
+const _failedArtifacts = $derived(
+  Object.freeze(_activeRecovery?.artifacts.filter(a => a.status === 'failed') ?? [])
+);
+const _waitingArtifacts = $derived(
+  Object.freeze(_activeRecovery?.artifacts.filter(a => a.status === 'waiting') ?? [])
+);
+
+// ═══════════════════════════════════════════════════════════════
+// TYPE GUARDS
+// ═══════════════════════════════════════════════════════════════
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+function isNumber(value: unknown): value is number {
+  return typeof value === 'number';
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(isString);
+}
+
+function isArtifactStatus(value: unknown): value is ArtifactStatus {
+  return isString(value) && ['passed', 'failed', 'fixed', 'skipped', 'waiting'].includes(value);
+}
+
 // ═══════════════════════════════════════════════════════════════
 // INTERNAL HELPERS
 // ═══════════════════════════════════════════════════════════════
 
 function transformApiResponse(data: unknown): RecoveryState {
-  const d = data as Record<string, unknown>;
-  const artifacts = (d.artifacts as Array<Record<string, unknown>>) ?? [];
-  
+  if (!isRecord(data)) {
+    throw new Error('Invalid recovery response: expected object');
+  }
+
+  const artifacts = Array.isArray(data.artifacts) ? data.artifacts : [];
+
   return {
-    goalHash: d.goal_hash as string,
-    goal: d.goal as string,
-    runId: d.run_id as string,
-    artifacts: artifacts.map(a => ({
-      path: a.path as string,
-      status: a.status as ArtifactStatus,
-      content: a.content as string | undefined,
-      errors: a.errors as string[] | undefined,
-      original_error: a.original_error as string | undefined,
+    goalHash: isString(data.goal_hash) ? data.goal_hash : '',
+    goal: isString(data.goal) ? data.goal : '',
+    runId: isString(data.run_id) ? data.run_id : '',
+    artifacts: artifacts.filter(isRecord).map(a => ({
+      path: isString(a.path) ? a.path : '',
+      status: isArtifactStatus(a.status) ? a.status : 'waiting',
+      content: isString(a.content) ? a.content : undefined,
+      errors: isStringArray(a.errors) ? a.errors : undefined,
+      original_error: isString(a.original_error) ? a.original_error : undefined,
     })),
-    passedCount: d.passed_count as number,
-    failedCount: d.failed_count as number,
-    waitingCount: d.waiting_count as number,
-    failureReason: d.failure_reason as string,
-    errorDetails: d.error_details as string[],
-    createdAt: d.created_at as string,
-    iterations: d.iterations as RecoveryIteration[] | undefined,
+    passedCount: isNumber(data.passed_count) ? data.passed_count : 0,
+    failedCount: isNumber(data.failed_count) ? data.failed_count : 0,
+    waitingCount: isNumber(data.waiting_count) ? data.waiting_count : 0,
+    failureReason: isString(data.failure_reason) ? data.failure_reason : '',
+    errorDetails: isStringArray(data.error_details) ? data.error_details : [],
+    createdAt: isString(data.created_at) ? data.created_at : '',
+    iterations: Array.isArray(data.iterations) ? data.iterations as RecoveryIteration[] : undefined,
   };
 }
 
 function transformSummary(data: unknown): RecoverySummary {
-  const d = data as Record<string, unknown>;
+  if (!isRecord(data)) {
+    throw new Error('Invalid recovery summary: expected object');
+  }
+
   return {
-    goalHash: d.goal_hash as string,
-    goalPreview: d.goal_preview as string,
-    passed: d.passed as number,
-    failed: d.failed as number,
-    waiting: d.waiting as number,
-    ageStr: d.age_str as string,
-    timestamp: d.timestamp as string,
+    goalHash: isString(data.goal_hash) ? data.goal_hash : '',
+    goalPreview: isString(data.goal_preview) ? data.goal_preview : '',
+    passed: isNumber(data.passed) ? data.passed : 0,
+    failed: isNumber(data.failed) ? data.failed : 0,
+    waiting: isNumber(data.waiting) ? data.waiting : 0,
+    ageStr: isString(data.age_str) ? data.age_str : '',
+    timestamp: isString(data.timestamp) ? data.timestamp : '',
   };
 }
 
@@ -120,51 +161,54 @@ function transformSummary(data: unknown): RecoverySummary {
 // ═══════════════════════════════════════════════════════════════
 
 export const recovery = {
-  // State getters
-  get pendingRecoveries() { return _pendingRecoveries; },
-  get activeRecovery() { return _activeRecovery; },
+  // State getters (return frozen copies to prevent external mutation)
+  get pendingRecoveries(): readonly RecoverySummary[] { return Object.freeze([..._pendingRecoveries]); },
+  get activeRecovery(): Readonly<RecoveryState> | null { return _activeRecovery ? Object.freeze({ ..._activeRecovery }) : null; },
   get panelState() { return _panelState; },
   get isLoading() { return _isLoading; },
   get autoFixInProgress() { return _autoFixInProgress; },
   get lastError() { return _lastError; },
-  
+
   // Derived state
   get hasPendingRecoveries() {
     return _pendingRecoveries.length > 0;
   },
-  
+
   get totalPending() {
     return _pendingRecoveries.length;
   },
-  
-  get passedArtifacts() {
-    return _activeRecovery?.artifacts.filter(a => a.status === 'passed') ?? [];
+
+  /** Returns cached frozen array (computed once per state change) */
+  get passedArtifacts(): readonly RecoveryArtifact[] {
+    return _passedArtifacts;
   },
-  
-  get failedArtifacts() {
-    return _activeRecovery?.artifacts.filter(a => a.status === 'failed') ?? [];
+
+  /** Returns cached frozen array (computed once per state change) */
+  get failedArtifacts(): readonly RecoveryArtifact[] {
+    return _failedArtifacts;
   },
-  
-  get waitingArtifacts() {
-    return _activeRecovery?.artifacts.filter(a => a.status === 'waiting') ?? [];
+
+  /** Returns cached frozen array (computed once per state change) */
+  get waitingArtifacts(): readonly RecoveryArtifact[] {
+    return _waitingArtifacts;
   },
 
   // ═══════════════════════════════════════════════════════════════
   // PANEL CONTROLS
   // ═══════════════════════════════════════════════════════════════
-  
+
   showPanel() {
     _panelState = 'expanded';
   },
-  
+
   hidePanel() {
     _panelState = 'hidden';
   },
-  
+
   minimizePanel() {
     _panelState = 'minimized';
   },
-  
+
   togglePanel() {
     if (_panelState === 'expanded') {
       _panelState = 'minimized';
@@ -176,19 +220,21 @@ export const recovery = {
   // ═══════════════════════════════════════════════════════════════
   // DATA OPERATIONS
   // ═══════════════════════════════════════════════════════════════
-  
+
   /**
    * Fetch list of pending recoveries from server
    */
   async fetchPendingRecoveries() {
     _isLoading = true;
     _lastError = null;
-    
+
     try {
       const response = await api.get('/api/recovery/pending');
-      const data = response as { recoveries: unknown[] };
-      _pendingRecoveries = data.recoveries.map(transformSummary);
-      
+      if (!isRecord(response) || !Array.isArray(response.recoveries)) {
+        throw new Error('Invalid response format');
+      }
+      _pendingRecoveries = response.recoveries.map(transformSummary);
+
       // Auto-show panel if there are pending recoveries
       if (_pendingRecoveries.length > 0 && _panelState === 'hidden') {
         _panelState = 'minimized';
@@ -200,14 +246,14 @@ export const recovery = {
       _isLoading = false;
     }
   },
-  
+
   /**
    * Load a specific recovery for review
    */
   async loadRecovery(goalHash: string) {
     _isLoading = true;
     _lastError = null;
-    
+
     try {
       const response = await api.get(`/api/recovery/${goalHash}`);
       _activeRecovery = transformApiResponse(response);
@@ -219,7 +265,7 @@ export const recovery = {
       _isLoading = false;
     }
   },
-  
+
   /**
    * Clear the active recovery (go back to list view)
    */
@@ -230,16 +276,16 @@ export const recovery = {
   // ═══════════════════════════════════════════════════════════════
   // RECOVERY ACTIONS
   // ═══════════════════════════════════════════════════════════════
-  
+
   /**
    * Trigger auto-fix for a recovery
    */
   async autoFix(goalHash: string, hint?: string) {
     if (_autoFixInProgress) return;
-    
+
     _autoFixInProgress = true;
     _lastError = null;
-    
+
     try {
       await api.post(`/api/recovery/${goalHash}/auto-fix`, { hint });
       // Agent will emit events — we'll track progress via agent store
@@ -250,14 +296,14 @@ export const recovery = {
       _autoFixInProgress = false;
     }
   },
-  
+
   /**
    * Skip failed artifacts and write only passed ones
    */
   async skipFailed(goalHash: string) {
     _isLoading = true;
     _lastError = null;
-    
+
     try {
       await api.post(`/api/recovery/${goalHash}/skip`);
       // Refresh pending list
@@ -270,14 +316,14 @@ export const recovery = {
       _isLoading = false;
     }
   },
-  
+
   /**
    * Abort a recovery entirely
    */
   async abortRecovery(goalHash: string) {
     _isLoading = true;
     _lastError = null;
-    
+
     try {
       await api.delete(`/api/recovery/${goalHash}`);
       await this.fetchPendingRecoveries();
@@ -293,52 +339,52 @@ export const recovery = {
   // ═══════════════════════════════════════════════════════════════
   // EVENT HANDLERS (called by agent store on event)
   // ═══════════════════════════════════════════════════════════════
-  
+
   /**
    * Handle recovery_saved event from agent
    */
   handleRecoverySaved(data: unknown) {
-    const d = data as Record<string, unknown>;
-    
+    if (!isRecord(data)) return;
+
     // Add to pending list
     _pendingRecoveries = [
       {
-        goalHash: d.goal_hash as string,
-        goalPreview: d.goal_preview as string,
-        passed: d.passed as number,
-        failed: d.failed as number,
-        waiting: d.waiting as number,
+        goalHash: isString(data.goal_hash) ? data.goal_hash : '',
+        goalPreview: isString(data.goal_preview) ? data.goal_preview : '',
+        passed: isNumber(data.passed) ? data.passed : 0,
+        failed: isNumber(data.failed) ? data.failed : 0,
+        waiting: isNumber(data.waiting) ? data.waiting : 0,
         ageStr: 'just now',
         timestamp: new Date().toISOString(),
       },
       ..._pendingRecoveries,
     ];
-    
+
     // Show panel
     _panelState = 'minimized';
   },
-  
+
   /**
    * Handle recovery_resolved event from agent
    */
   handleRecoveryResolved(data: unknown) {
-    const d = data as Record<string, unknown>;
-    const goalHash = d.goal_hash as string;
-    
+    if (!isRecord(data)) return;
+    const goalHash = isString(data.goal_hash) ? data.goal_hash : '';
+
     // Remove from pending list
     _pendingRecoveries = _pendingRecoveries.filter(r => r.goalHash !== goalHash);
-    
+
     // Clear active if it matches
     if (_activeRecovery?.goalHash === goalHash) {
       _activeRecovery = null;
     }
-    
+
     // Hide panel if no more pending
     if (_pendingRecoveries.length === 0) {
       _panelState = 'hidden';
     }
   },
-  
+
   /**
    * Reset all state
    */

@@ -22,6 +22,7 @@
 	interface Message {
 		role: 'user' | 'assistant';
 		content: string;
+		timestamp?: number;  // Unique key for stable DOM reconciliation
 	}
 
 	interface Props {
@@ -54,6 +55,30 @@
 	let hasPanels = $derived(auxiliaryPanels.length > 0);
 	let hasTools = $derived(suggestedTools.length > 0);
 	let hasMessages = $derived(messages.length > 0 || currentResponse);
+
+	// Pre-compute calendar events by day for O(1) lookup instead of O(n) filter in template
+	type CalendarEvent = Record<string, string>;
+	const calendarEventsByDay = $derived.by(() => {
+		const map = new Map<string, CalendarEvent[]>();
+		for (const panel of auxiliaryPanels) {
+			if (panel.panel_type === 'calendar' && panel.data?.events) {
+				for (const e of panel.data.events as CalendarEvent[]) {
+					const day = e.day;
+					if (!map.has(day)) map.set(day, []);
+					map.get(day)!.push(e);
+				}
+			}
+		}
+		return map;
+	});
+
+	function getEventsForDay(day: string): CalendarEvent[] {
+		return calendarEventsByDay.get(day) ?? [];
+	}
+
+	function hasEventsForDay(day: string): boolean {
+		return calendarEventsByDay.has(day);
+	}
 
 	function getModeEmoji(m: string): string {
 		switch (m) {
@@ -120,7 +145,7 @@
 
 		<!-- Message thread with staggered spring animations -->
 		<div class="messages-container">
-			{#each messages as msg, i (msg.content)}
+			{#each messages as msg, i (msg.timestamp ?? `${msg.role}-${i}`)}
 				<div
 					class="message message-{msg.role}"
 					transition:fly={{
@@ -162,7 +187,7 @@
 		<!-- Suggested tools (inline with input area) -->
 		{#if hasTools}
 			<div class="tool-suggestions" transition:slide={{ duration: 200 }}>
-				{#each suggestedTools as tool}
+				{#each suggestedTools as tool (tool)}
 					<button
 						class="tool-chip"
 						onclick={() => onAction?.('use_tool', { tool })}
@@ -188,7 +213,7 @@
 	<!-- Auxiliary panels area with spring stagger -->
 	{#if hasPanels}
 		<aside class="auxiliary-panels" transition:fly={{ x: 80, duration: 350, easing: cubicOut }}>
-			{#each auxiliaryPanels as panel, i (i)}
+			{#each auxiliaryPanels as panel, i (`${panel.panel_type}-${i}`)}
 				<div
 					class="panel panel-{panel.panel_type}"
 					transition:fly={{
@@ -209,14 +234,12 @@
 							<!-- Calendar panel -->
 							<div class="calendar-panel">
 								<div class="calendar-week">
-									{#each ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as day}
-										<div class="calendar-day" class:has-event={panel.data?.events?.some((e: Record<string, string>) => e.day === day)}>
+									{#each ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as day (day)}
+										<div class="calendar-day" class:has-event={hasEventsForDay(day)}>
 											<span class="day-name">{day}</span>
-											{#if panel.data?.events}
-												{#each panel.data.events.filter((e: Record<string, string>) => e.day === day) as event}
-													<div class="calendar-event">{event.title}</div>
-												{/each}
-											{/if}
+											{#each getEventsForDay(day) as event (event.title)}
+												<div class="calendar-event">{event.title}</div>
+											{/each}
 										</div>
 									{/each}
 								</div>
@@ -228,7 +251,7 @@
 							<!-- Task list panel -->
 							<div class="tasks-panel">
 								{#if panel.data?.items}
-									{#each panel.data.items as task}
+									{#each panel.data.items as task, taskIdx (`task-${task.text}-${taskIdx}`)}
 										<label class="task-item">
 											<input type="checkbox" checked={task.done} onchange={() => handlePanelAction('tasks', 'toggle')} />
 											<span class:done={task.done}>{task.text}</span>
@@ -286,7 +309,7 @@
 							<!-- Product list panel -->
 							<div class="products-panel">
 								{#if panel.data?.items}
-									{#each panel.data.items as product}
+									{#each panel.data.items as product, prodIdx (`product-${product.name}-${prodIdx}`)}
 										<div class="product-item">
 											<span class="product-name">{product.name}</span>
 											<span class="product-rating">{'⭐'.repeat(Math.floor(product.rating || 4))}</span>
@@ -307,7 +330,7 @@
 							<!-- Links/resources panel -->
 							<div class="links-panel">
 								{#if panel.data?.resources}
-									{#each panel.data.resources as link}
+									{#each panel.data.resources as link (link.url)}
 										<a href={link.url} target="_blank" rel="noopener noreferrer" class="resource-link">
 											<span class="link-icon">{link.icon || '🔗'}</span>
 											<span class="link-title">{link.title}</span>

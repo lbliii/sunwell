@@ -11,10 +11,10 @@
   import Spinner from './ui/Spinner.svelte';
   
   interface Props {
-    tasks?: Task[];
-    currentIndex?: number;
-    showAll?: boolean;
-    totalExpected?: number;
+    readonly tasks?: readonly Task[];
+    readonly currentIndex?: number;
+    readonly showAll?: boolean;
+    readonly totalExpected?: number;
     showMotes?: boolean;
   }
   
@@ -59,7 +59,7 @@
   role="list" 
   aria-label="Task progress"
 >
-  {#each visibleTasks as task, i}
+  {#each visibleTasks as task, i (task.id)}
     {@const isLast = i === tasks.length - 1 && placeholders.length === 0}
     {@const isRunning = task.status === TaskStatus.RUNNING}
     <div 
@@ -106,7 +106,7 @@
   {/each}
   
   <!-- Placeholder rows for expected tasks not yet received -->
-  {#each visiblePlaceholders as placeholder, i}
+  {#each visiblePlaceholders as placeholder, i (placeholder.index)}
     {@const isLast = i === visiblePlaceholders.length - 1}
     <div class="task-row placeholder" role="listitem" aria-label="Queued task">
       <span class="task-prefix" aria-hidden="true">

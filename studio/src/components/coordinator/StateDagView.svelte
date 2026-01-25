@@ -21,8 +21,8 @@
   } from '../../stores/coordinator.svelte';
   
   interface Props {
-    projectPath: string;
-    onNodeClick?: (node: StateDagNode) => void;
+    readonly projectPath: string;
+    readonly onNodeClick?: (node: StateDagNode) => void;
   }
   
   let { projectPath, onNodeClick }: Props = $props();
@@ -82,8 +82,15 @@
     intentInput = '';
   }
   
+  // Pre-sort nodes by health score (ascending) for O(1) render instead of O(n log n) per render
+  const sortedNodes = $derived(
+    coordinatorStore.stateDag?.nodes
+      ? [...coordinatorStore.stateDag.nodes].sort((a, b) => a.health_score - b.health_score)
+      : []
+  );
+
   // Transform State DAG to DAG canvas format
-  let dagNodes = $derived(
+  const dagNodes = $derived(
     coordinatorStore.stateDag?.nodes.map(node => ({
       id: node.id,
       title: node.title,
@@ -99,7 +106,7 @@
     })) ?? []
   );
   
-  let dagEdges = $derived(
+  const dagEdges = $derived(
     coordinatorStore.stateDag?.edges.map((edge, i) => ({
       id: `e-${i}`,
       source: edge.source,
@@ -169,7 +176,7 @@
       <div class="node-list">
         <h3>Files & Modules</h3>
         
-        {#each coordinatorStore.stateDag.nodes.sort((a, b) => a.health_score - b.health_score) as node}
+        {#each sortedNodes as node (node.id)}
           <button 
             class="node-item"
             class:selected={selectedNodeId === node.id}
@@ -209,7 +216,7 @@
           {#if selectedNode.health_probes.length > 0}
             <div class="probes">
               <h4>Health Probes</h4>
-              {#each selectedNode.health_probes as probe}
+              {#each selectedNode.health_probes as probe (probe.probe_name)}
                 <div class="probe" class:failing={probe.score < 0.7}>
                   <span class="probe-icon">{probe.score >= 0.7 ? '✓' : '✗'}</span>
                   <span class="probe-name">{probe.probe_name.replace('_', ' ')}</span>
@@ -217,7 +224,7 @@
                 </div>
                 {#if probe.issues.length > 0}
                   <ul class="probe-issues">
-                    {#each probe.issues.slice(0, 3) as issue}
+                    {#each probe.issues.slice(0, 3) as issue, i (`${probe.probe_name}-issue-${i}`)}
                       <li>{issue}</li>
                     {/each}
                   </ul>

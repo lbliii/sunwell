@@ -38,8 +38,11 @@
   let isEditing = $derived(isEditingOverride ?? !readonly);
   let textareaRef = $state<HTMLTextAreaElement | null>(null);
   
+  // Pre-compute lines for O(1) template access (avoids .split() on every render)
+  const contentLines = $derived(content.split('\n'));
+  
   // Detect language from file extension if not provided
-  const detectedLanguage = $derived(() => {
+  const detectedLanguage = $derived.by(() => {
     if (language) return language;
     if (!file) return 'text';
     const ext = file.split('.').pop()?.toLowerCase();
@@ -115,7 +118,7 @@
       <span class="file-name">{file ?? 'Untitled'}</span>
     </div>
     <div class="header-right">
-      <span class="language">{detectedLanguage()}</span>
+      <span class="language">{detectedLanguage}</span>
       {#if !readonly}
         <button 
           class="mode-toggle"
@@ -134,7 +137,7 @@
       <div class="edit-mode" in:fade={{ duration: 100 }}>
         {#if showLineNumbers}
           <div class="line-numbers">
-            {#each content.split('\n') as _, i}
+            {#each contentLines as _, i (i)}
               <span class="line-number">{i + 1}</span>
             {/each}
           </div>
@@ -162,7 +165,7 @@
       >
         <CodeBlock 
           code={content}
-          language={detectedLanguage()}
+          language={detectedLanguage}
           showLineNumbers={showLineNumbers}
         />
       </div>

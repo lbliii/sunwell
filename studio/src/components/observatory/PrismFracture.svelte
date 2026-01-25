@@ -10,6 +10,7 @@
   - Supports animation playback
 -->
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { fade, fly, scale } from 'svelte/transition';
   import { AnimatedPath } from '../primitives';
   import EmptyState from './EmptyState.svelte';
@@ -37,6 +38,13 @@
   let visibleCandidates = $state<number[]>([]);
   let scoredCandidates = $state<number[]>([]);
   
+  // O(1) lookup sets for template (avoids .includes() in each iteration)
+  const visibleCandidatesSet = $derived(new Set(visibleCandidates));
+  const scoredCandidatesSet = $derived(new Set(scoredCandidates));
+  
+  // Track animation timeouts for cleanup
+  let animationTimeouts: ReturnType<typeof setTimeout>[] = [];
+  
   // Sync phase with live data
   $effect(() => {
     if (isPrismActive) {
@@ -55,45 +63,55 @@
     }
   });
   
+  function clearAnimationTimeouts() {
+    animationTimeouts.forEach(clearTimeout);
+    animationTimeouts = [];
+  }
+
   function playAnimation() {
+    clearAnimationTimeouts();
     phase = 'ready';
     visibleCandidates = [];
     scoredCandidates = [];
     
-    setTimeout(() => {
+    animationTimeouts.push(setTimeout(() => {
       phase = 'refracting';
       // Stagger candidate appearances
       candidates.forEach((_, i) => {
-        setTimeout(() => {
+        animationTimeouts.push(setTimeout(() => {
           visibleCandidates = [...visibleCandidates, i];
-        }, i * 300);
+        }, i * 300));
       });
-    }, 500);
+    }, 500));
     
-    setTimeout(() => {
+    animationTimeouts.push(setTimeout(() => {
       phase = 'scoring';
       // Stagger score reveals
       candidates.forEach((_, i) => {
-        setTimeout(() => {
+        animationTimeouts.push(setTimeout(() => {
           scoredCandidates = [...scoredCandidates, i];
-        }, i * 200);
+        }, i * 200));
       });
-    }, 2500);
+    }, 2500));
     
-    setTimeout(() => {
+    animationTimeouts.push(setTimeout(() => {
       phase = 'converging';
-    }, 4000);
+    }, 4000));
     
-    setTimeout(() => {
+    animationTimeouts.push(setTimeout(() => {
       phase = 'complete';
-    }, 5000);
+    }, 5000));
   }
   
   function reset() {
+    clearAnimationTimeouts();
     phase = 'ready';
     visibleCandidates = [];
     scoredCandidates = [];
   }
+  
+  // Cleanup on destroy
+  onDestroy(clearAnimationTimeouts);
   
   // Get persona label from variance config
   function getPersona(candidate: PrismCandidate): string {
@@ -176,11 +194,11 @@
       {/if}
       
       <!-- Refracted beams -->
-      {#each candidates as candidate, i}
+      {#each candidates as candidate, i (candidate.id)}
         {@const endX = 550 + (i * 8)}
         {@const endY = 60 + (i * 70)}
         
-        {#if visibleCandidates.includes(i)}
+        {#if visibleCandidatesSet.has(i)}
           <g in:fly={{ x: -100, duration: 500 }}>
             <!-- Beam line using AnimatedPath -->
             <AnimatedPath
@@ -218,7 +236,7 @@
                 {candidate.artifactCount} artifacts
               </text>
               
-              {#if scoredCandidates.includes(i) && candidate.score !== undefined}
+              {#if scoredCandidatesSet.has(i) && candidate.score !== undefined}
                 <text x="125" y="-5" class="candidate-score" in:scale={{ duration: 300 }}>
                   {candidate.score.toFixed(0)}
                 </text>

@@ -154,7 +154,7 @@
 
 			{#if composition.suggested_tools.length > 0}
 				<div class="suggested-tools" transition:fly={{ y: 10, duration: 200, delay: 300 }}>
-					{#each composition.suggested_tools as tool, i}
+					{#each composition.suggested_tools as tool, i (tool)}
 						<button
 							class="tool-chip"
 							style:animation-delay="{staggerDelay(i, 50)}ms"
@@ -183,7 +183,7 @@
 
 					<div class="panel-content">
 						<!-- Skeleton lines for panel -->
-						{#each Array(getSkeletonLineCount(panel.panel_type)) as _, lineIdx}
+						{#each Array(getSkeletonLineCount(panel.panel_type)) as _, lineIdx (lineIdx)}
 							<div
 								class="skeleton-line"
 								class:w-100={lineIdx % 3 === 0}
@@ -196,7 +196,7 @@
 						<!-- Panel-specific skeleton elements -->
 						{#if panel.panel_type === 'calendar'}
 							<div class="skeleton-calendar">
-								{#each ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as day}
+								{#each ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as day, i (i)}
 									<div class="calendar-day-skeleton">
 										<span>{day}</span>
 									</div>

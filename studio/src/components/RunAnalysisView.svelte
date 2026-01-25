@@ -115,7 +115,7 @@
     <div class="prerequisites">
       <h4 class="prereq-title">Prerequisites</h4>
       <ul class="prereq-list">
-        {#each analysis.prerequisites as prereq}
+        {#each analysis.prerequisites as prereq (prereq.command)}
           <li class="prereq-item" class:satisfied={prereq.satisfied} class:required={prereq.required}>
             <span class="prereq-status" aria-hidden="true">
               {prereq.satisfied ? '✓' : '⚠️'}

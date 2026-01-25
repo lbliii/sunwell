@@ -16,9 +16,13 @@
   } from '../stores';
   import { app } from '../stores/app.svelte';
 
-  // Get params from navigation
-  const filePath = $derived(app.params?.filePath as string | undefined);
-  const lensName = $derived((app.params?.lens as string) ?? 'tech-writer');
+  // Get params from navigation (type-safe without assertions)
+  const filePath = $derived(
+    typeof app.params?.filePath === 'string' ? app.params.filePath : undefined
+  );
+  const lensName = $derived(
+    typeof app.params?.lens === 'string' ? app.params.lens : 'tech-writer'
+  );
 
   onMount(async () => {
     // Load workflow chains

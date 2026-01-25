@@ -186,7 +186,7 @@
       </div>
     {:else}
       <div class="divide-y divide-zinc-800">
-        {#each securityState.auditEntries as entry}
+        {#each securityState.auditEntries as entry (entry.timestamp)}
           <div
             class="p-4 hover:bg-zinc-800/50 transition-colors {entry.action === 'violation'
               ? 'bg-red-500/5'

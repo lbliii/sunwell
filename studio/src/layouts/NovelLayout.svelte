@@ -33,7 +33,7 @@
   
   <svelte:fragment slot="sidebar">
     <div class="chapter-list">
-      {#each chapters as chapter, i}
+      {#each chapters as chapter, i (chapter.name)}
         <button class="chapter-item" class:active={i === 2}>
           <span class="chapter-status">
             {chapter.complete ? '✓' : '○'}
@@ -73,7 +73,7 @@
     <aside class="right-panel">
       <Panel title="Characters" icon="👥">
         <div class="character-list">
-          {#each characters as char}
+          {#each characters as char (char.name)}
             <div class="character-item">
               <span class="character-name">{char.name}</span>
               <span class="character-role">({char.role})</span>

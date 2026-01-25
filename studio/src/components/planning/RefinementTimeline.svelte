@@ -21,7 +21,7 @@
     <h4>Refinement Rounds ({validRounds.length})</h4>
     
     <div class="timeline" role="list" aria-label="Refinement rounds">
-      {#each validRounds as round}
+      {#each validRounds as round (round.round)}
         <div class="timeline-item" role="listitem">
           <div class="round-number">Round {round.round}</div>
           <div class="round-content">

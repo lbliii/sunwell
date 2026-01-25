@@ -422,7 +422,7 @@
         onchange={(e) => setFilter({ domain: e.currentTarget.value || null })}
       >
         <option value="">All Domains</option>
-        {#each availableDomains as domain}
+        {#each availableDomains as domain (domain)}
           <option value={domain}>{domain}</option>
         {/each}
       </select>
@@ -532,7 +532,7 @@
               
               {#if entry.tags.length > 0}
                 <div class="lens-tags">
-                  {#each entry.tags.slice(0, 3) as tag}
+                  {#each entry.tags.slice(0, 3) as tag (tag)}
                     <span class="tag">{tag}</span>
                   {/each}
                 </div>
@@ -636,7 +636,7 @@
           <section class="detail-section">
             <h3>Heuristics ({lensLibrary.detail.heuristics.length})</h3>
             <ul class="heuristic-list">
-              {#each lensLibrary.detail.heuristics as h, i}
+              {#each lensLibrary.detail.heuristics as h, i (h.name)}
                 <li in:fly={{ y: 8, delay: i * 30 }}>
                   <div class="heuristic-header">
                     <span 
@@ -656,7 +656,7 @@
           <section class="detail-section">
             <h3>Skills ({lensLibrary.detail.skills.length})</h3>
             <ul class="skill-list">
-              {#each lensLibrary.detail.skills as skill}
+              {#each lensLibrary.detail.skills as skill (skill)}
                 <li>{skill}</li>
               {/each}
             </ul>
@@ -728,7 +728,7 @@
         <div class="empty-state">No version history available</div>
       {:else}
         <div class="version-list">
-          {#each [...lensLibrary.versions].reverse() as v, i}
+          {#each [...lensLibrary.versions].reverse() as v, i (v.version)}
             <div 
               class="version-item" 
               class:is-current={i === 0}

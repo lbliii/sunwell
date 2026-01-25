@@ -41,9 +41,8 @@
   import { WriterSurface } from './writer';
   
   // Component registry for dynamic rendering
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  type SvelteComponent = typeof import('*.svelte').default;
-  const components: Record<string, SvelteComponent> = {
+  import type { Component } from 'svelte';
+  const components: Record<string, Component> = {
     CodeEditor,
     FileTree,
     Terminal,

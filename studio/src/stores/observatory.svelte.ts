@@ -15,32 +15,32 @@ import { PlanningPhase } from '$lib/constants';
 
 /** A single resonance iteration for visualization */
 export interface ResonanceIteration {
-  round: number;
-  score: number;
-  delta: number;
-  improvements: string[];
-  improved: boolean;
-  reason?: string;
-  timestamp?: number;
+  readonly round: number;
+  readonly score: number;
+  readonly delta: number;
+  readonly improvements: readonly string[];
+  readonly improved: boolean;
+  readonly reason?: string;
+  readonly timestamp?: number;
 }
 
 /** Resonance wave visualization state */
 export interface ResonanceWaveState {
-  iterations: ResonanceIteration[];
-  isActive: boolean;
-  finalScore: number;
-  initialScore: number;
-  totalImprovement: number;
-  improvementPct: number;
+  readonly iterations: readonly ResonanceIteration[];
+  readonly isActive: boolean;
+  readonly finalScore: number;
+  readonly initialScore: number;
+  readonly totalImprovement: number;
+  readonly improvementPct: number;
 }
 
 /** Playback state for animations */
 export interface PlaybackState {
-  isPlaying: boolean;
-  isPaused: boolean;
-  currentRound: number;
-  speed: number; // 0.5x, 1x, 2x
-  mode: 'live' | 'replay';
+  readonly isPlaying: boolean;
+  readonly isPaused: boolean;
+  readonly currentRound: number;
+  readonly speed: number; // 0.5x, 1x, 2x
+  readonly mode: 'live' | 'replay';
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -49,26 +49,26 @@ export interface PlaybackState {
 
 /** A candidate perspective in the prism visualization */
 export interface PrismCandidate {
-  id: string;
-  index: number;
-  artifactCount: number;
-  score?: number;
-  color: string;
-  varianceConfig?: {
-    promptStyle?: string;
-    temperature?: number;
-    constraint?: string;
+  readonly id: string;
+  readonly index: number;
+  readonly artifactCount: number;
+  readonly score?: number;
+  readonly color: string;
+  readonly varianceConfig?: {
+    readonly promptStyle?: string;
+    readonly temperature?: number;
+    readonly constraint?: string;
   };
 }
 
 /** Prism fracture visualization state */
 export interface PrismFractureState {
-  candidates: PrismCandidate[];
-  winner: PrismCandidate | null;
-  selectionReason: string;
-  phase: 'idle' | 'generating' | 'scoring' | 'complete';
-  totalCandidates: number;
-  currentProgress: number;
+  readonly candidates: readonly PrismCandidate[];
+  readonly winner: PrismCandidate | null;
+  readonly selectionReason: string;
+  readonly phase: 'idle' | 'generating' | 'scoring' | 'complete';
+  readonly totalCandidates: number;
+  readonly currentProgress: number;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -80,20 +80,20 @@ export type CinemaTaskStatus = 'pending' | 'active' | 'complete' | 'failed';
 
 /** A task node for execution cinema */
 export interface CinemaTask {
-  id: string;
-  label: string;
-  status: CinemaTaskStatus;
-  progress: number;
+  readonly id: string;
+  readonly label: string;
+  readonly status: CinemaTaskStatus;
+  readonly progress: number;
 }
 
 /** Execution cinema visualization state */
 export interface ExecutionCinemaState {
-  tasks: CinemaTask[];
-  currentTaskIndex: number;
-  totalTasks: number;
-  completedTasks: number;
-  failedTasks: number;
-  isExecuting: boolean;
+  readonly tasks: readonly CinemaTask[];
+  readonly currentTaskIndex: number;
+  readonly totalTasks: number;
+  readonly completedTasks: number;
+  readonly failedTasks: number;
+  readonly isExecuting: boolean;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -105,28 +105,28 @@ export type LatticeNodeCategory = 'fact' | 'decision' | 'dead_end' | 'pattern' |
 
 /** A node in the memory lattice */
 export interface LatticeNode {
-  id: string;
-  label: string;
-  category: LatticeNodeCategory;
-  x: number;
-  y: number;
-  timestamp?: number;
+  readonly id: string;
+  readonly label: string;
+  readonly category: LatticeNodeCategory;
+  readonly x: number;
+  readonly y: number;
+  readonly timestamp?: number;
 }
 
 /** An edge in the memory lattice */
 export interface LatticeEdge {
-  source: string;
-  target: string;
-  relation: string;
+  readonly source: string;
+  readonly target: string;
+  readonly relation: string;
 }
 
 /** Memory lattice visualization state */
 export interface MemoryLatticeState {
-  nodes: LatticeNode[];
-  edges: LatticeEdge[];
-  factCount: number;
-  conceptCount: number;
-  totalLearnings: number;
+  readonly nodes: readonly LatticeNode[];
+  readonly edges: readonly LatticeEdge[];
+  readonly factCount: number;
+  readonly conceptCount: number;
+  readonly totalLearnings: number;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -135,12 +135,12 @@ export interface MemoryLatticeState {
 
 /** A model comparison entry for the paradox visualization */
 export interface ParadoxComparison {
-  model: string;
-  params: string;
-  cost: string;
-  rawScore: number;
-  sunwellScore: number;
-  improvement: number;
+  readonly model: string;
+  readonly params: string;
+  readonly cost: string;
+  readonly rawScore: number;
+  readonly sunwellScore: number;
+  readonly improvement: number;
 }
 
 /** Model paradox visualization state */
@@ -392,11 +392,11 @@ export const observatory = {
   get currentIteration(): ResonanceIteration | null {
     const iterations = this.resonanceWave.iterations;
     if (iterations.length === 0) return null;
-    
+
     if (_playback.mode === 'replay') {
       return iterations[Math.min(_playback.currentRound, iterations.length - 1)] ?? null;
     }
-    
+
     // In live mode, show the latest
     return iterations[iterations.length - 1];
   },
@@ -449,7 +449,7 @@ export const observatory = {
   get executionCinema(): ExecutionCinemaState {
     const tasks = transformTasks(agent.tasks);
     const currentIdx = agent.currentTaskIndex;
-    
+
     return {
       tasks,
       currentTaskIndex: currentIdx,
@@ -527,7 +527,7 @@ export const observatory = {
 
     // Group runs by model and compute averages
     const modelGroups: Map<string, { raw: number[]; sunwell: number[] }> = new Map();
-    
+
     for (const run of history) {
       if (!modelGroups.has(run.model)) {
         modelGroups.set(run.model, { raw: [], sunwell: [] });
@@ -579,7 +579,7 @@ export const observatory = {
   // Convergence visualization state (derived from agent store)
   get convergence(): ConvergenceVizState {
     const conv = agent.convergence;
-    
+
     if (!conv) {
       return {
         status: 'idle',

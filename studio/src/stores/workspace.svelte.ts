@@ -15,22 +15,22 @@ import { apiGet, apiPost } from '$lib/socket';
 // ═══════════════════════════════════════════════════════════════
 
 export interface WorkspaceLink {
-  source: string;
-  target: string;
-  relationship: string;
-  confidence: number;
-  evidence: string;
-  language: string | null;
-  confirmed: boolean;
+  readonly source: string;
+  readonly target: string;
+  readonly relationship: string;
+  readonly confidence: number;
+  readonly evidence: string;
+  readonly language: string | null;
+  readonly confirmed: boolean;
 }
 
 export interface Workspace {
-  id: string;
-  primary: string;
-  topology: string;
-  links: WorkspaceLink[];
-  created_at: string;
-  updated_at: string;
+  readonly id: string;
+  readonly primary: string;
+  readonly topology: string;
+  readonly links: readonly WorkspaceLink[];
+  readonly created_at: string;
+  readonly updated_at: string;
 }
 
 export type ToastState = 'hidden' | 'detecting' | 'showing' | 'linking' | 'dismissed';

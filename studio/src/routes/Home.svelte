@@ -49,10 +49,35 @@
 	// Chat history sidebar state
 	let showChatHistory = $state(false);
 
+	// Pre-computed messages for ConversationLayout (avoids .map() in template)
+	const conversationMessages = $derived(
+		homeState.conversationHistory.slice(0, -1).map(m => ({
+			role: m.role,
+			content: m.content
+		}))
+	);
+
 	// Lens picker state (for workspace intents)
 	let showLensPicker = $state(false);
 	let pendingGoal = $state<string | null>(null);
 	let pendingWorkspaceSpec = $state<Record<string, unknown> | null>(null);
+
+	// Type guard for tool action data
+	function isToolData(data: unknown): data is { tool: string } {
+		return typeof data === 'object' && data !== null && 'tool' in data && typeof (data as Record<string, unknown>).tool === 'string';
+	}
+
+	// Project lookup map for O(1) access
+	const projectsByPath = $derived(
+		new Map(project.discovered.map(p => [p.path, p]))
+	);
+
+	// Handler for inline ProjectManager (avoid recreating arrow function)
+	async function handleInlineOpenProject(path: string) {
+		await openProject(path);
+		analyzeProject(path);
+		goToProject();
+	}
 
 	// Action toast state
 	let actionToast = $state<{
@@ -202,9 +227,9 @@
 		}
 
 		// Handle use_tool: insert tool reference into input (client-side only)
-		if (actionId === 'use_tool' && data && typeof data === 'object' && 'tool' in data) {
+		if (actionId === 'use_tool' && isToolData(data)) {
 			// TODO: Insert tool into input when that feature is implemented
-			console.log('Tool selected:', (data as { tool: string }).tool);
+			console.log('Tool selected:', data.tool);
 			return;
 		}
 
@@ -230,7 +255,7 @@
 			return;
 		}
 		if (actionId === 'archive' && itemId) {
-			const proj = project.discovered.find((p) => p.path === itemId);
+			const proj = projectsByPath.get(itemId);
 			if (proj) showConfirm('archive', proj);
 			return;
 		}
@@ -346,10 +371,7 @@
 							/>
 						{:else if isConversationResponse(homeState.response)}
 							<ConversationLayout
-								messages={homeState.conversationHistory.slice(0, -1).map(m => ({
-									role: m.role,
-									content: m.content
-								}))}
+								messages={conversationMessages}
 								currentResponse={homeState.response.response}
 								mode={homeState.response.conversation_mode}
 								auxiliaryPanels={homeState.response.auxiliary_panels}
@@ -375,11 +397,7 @@
 					<section class="contextual-blocks">
 						<ProjectManager 
 							mode="inline"
-							onOpenProject={async (path) => {
-								await openProject(path);
-								analyzeProject(path);
-								goToProject();
-							}}
+							onOpenProject={handleInlineOpenProject}
 						/>
 					</section>
 				{/if}

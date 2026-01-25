@@ -65,7 +65,7 @@
   const typeInfo = $derived(detectedType ? typeLabels[detectedType] : null);
   const confidencePct = $derived(Math.round(confidence * 100));
 
-  const confidenceColor = $derived(() => {
+  const confidenceColor = $derived.by(() => {
     if (confidence >= 0.8) return 'var(--success)';
     if (confidence >= 0.5) return 'var(--warning)';
     return 'var(--error, #ff6b6b)';
@@ -77,7 +77,7 @@
     {#if typeInfo}
       <span class="type-icon">{typeInfo.icon}</span>
       <span class="type-label" style="color: {typeInfo.color}">{typeInfo.label}</span>
-      <span class="confidence" style="color: {confidenceColor()}">{confidencePct}%</span>
+      <span class="confidence" style="color: {confidenceColor}">{confidencePct}%</span>
     {:else}
       <span class="type-icon">❓</span>
       <span class="type-label">Unknown Type</span>
@@ -101,7 +101,7 @@
         <div class="signals-section">
           <div class="section-title">Signals:</div>
           <div class="signals">
-            {#each signals.slice(0, 5) as signal}
+            {#each signals.slice(0, 5) as signal, i (i)}
               <div class="signal">
                 <span class="signal-icon">{typeLabels[signal.dtype]?.icon || '•'}</span>
                 <span class="signal-reason">{signal.reason}</span>
@@ -119,7 +119,7 @@
         <div class="scores-section">
           <div class="section-title">Type Scores:</div>
           <div class="scores">
-            {#each Object.entries(scores).sort(([, a], [, b]) => b - a) as [type, score]}
+            {#each Object.entries(scores).sort(([, a], [, b]) => b - a) as [type, score] (type)}
               <div class="score-bar">
                 <span class="score-label">{typeLabels[type as DiataxisType]?.label || type}</span>
                 <div class="bar-container">

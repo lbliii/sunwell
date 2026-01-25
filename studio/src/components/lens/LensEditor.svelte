@@ -101,10 +101,21 @@
     return errors;
   });
   
-  const errorLines = $derived(new Set(validationErrors.filter(e => e.severity === 'error').map(e => e.line)));
-  const warningLines = $derived(new Set(validationErrors.filter(e => e.severity === 'warning').map(e => e.line)));
-  const errorCount = $derived(validationErrors.filter(e => e.severity === 'error').length);
-  const warningCount = $derived(validationErrors.filter(e => e.severity === 'warning').length);
+  // Single pass categorization instead of 4x O(n) filter calls
+  const validationSummary = $derived.by(() => {
+    const errorLines = new Set<number>();
+    const warningLines = new Set<number>();
+    for (const e of validationErrors) {
+      if (e.severity === 'error') errorLines.add(e.line);
+      else if (e.severity === 'warning') warningLines.add(e.line);
+    }
+    return { errorLines, warningLines, errorCount: errorLines.size, warningCount: warningLines.size };
+  });
+
+  const errorLines = $derived(validationSummary.errorLines);
+  const warningLines = $derived(validationSummary.warningLines);
+  const errorCount = $derived(validationSummary.errorCount);
+  const warningCount = $derived(validationSummary.warningCount);
   
   // Syntax highlighting with Shiki
   async function updateHighlighting() {
@@ -163,7 +174,7 @@
     <div class="editor-container">
       <!-- Line numbers -->
       <div class="line-numbers" aria-hidden="true">
-        {#each Array(lineCount) as _, i}
+        {#each Array(lineCount) as _, i (i)}
           <span 
             class="line-number"
             class:error={errorLines.has(i + 1)}
@@ -220,7 +231,7 @@
       </div>
     {:else}
       <ul class="validation-errors">
-        {#each validationErrors as error}
+        {#each validationErrors as error (error.line + ':' + error.message)}
           <li class="validation-error {error.severity}">
             <button
               type="button"

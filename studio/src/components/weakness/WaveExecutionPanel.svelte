@@ -23,7 +23,7 @@
     <div class="execution-panel">
       <!-- Wave progress -->
       <div class="wave-progress">
-        {#each weakness.cascadePreview?.waves ?? [] as _wave, i}
+        {#each weakness.cascadePreview?.waves ?? [] as _wave, i (i)}
           <div 
             class="wave-marker"
             class:completed={i < weakness.execution.current_wave}
@@ -73,7 +73,7 @@
             
             {#if currentConf.deductions.length > 0}
               <div class="deductions">
-                {#each currentConf.deductions as d}
+                {#each currentConf.deductions as d, i (`deduction-${i}`)}
                   <span class="deduction">▲ {d}</span>
                 {/each}
               </div>

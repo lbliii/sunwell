@@ -44,7 +44,7 @@
     </div>
     
     <div class="conflict-list">
-      {#each conflicts as conflict}
+      {#each conflicts as conflict (conflict.path)}
         <button 
           class="conflict-item"
           class:selected={selectedConflict?.path === conflict.path}

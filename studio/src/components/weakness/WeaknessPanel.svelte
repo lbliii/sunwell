@@ -111,7 +111,7 @@
             >
               <div class="weakness-header">
                 <span class="weakness-icons">
-                  {#each w.signals as signal}
+                  {#each w.signals as signal (`${w.artifact_id}-icon-${signal.weakness_type}`)}
                     <span title={signal.weakness_type}>{getWeaknessIcon(signal.weakness_type)}</span>
                   {/each}
                 </span>
@@ -137,7 +137,7 @@
               <!-- Expanded signal details when selected -->
               {#if weakness.selectedWeakness?.artifact_id === w.artifact_id}
                 <div class="signal-details">
-                  {#each w.signals as signal}
+                  {#each w.signals as signal (`${w.artifact_id}-detail-${signal.weakness_type}`)}
                     <div class="signal-row">
                       <span class="signal-icon">{getWeaknessIcon(signal.weakness_type)}</span>
                       <span class="signal-type">{formatWeaknessType(signal.weakness_type)}</span>
@@ -192,7 +192,7 @@
         <!-- Execution waves preview -->
         <div class="waves-preview">
           <h5>Regeneration Waves</h5>
-          {#each weakness.cascadePreview.waves as wave, i}
+          {#each weakness.cascadePreview.waves as wave, i (i)}
             <div class="wave">
               <span class="wave-num">Wave {i}</span>
               <span class="wave-files">

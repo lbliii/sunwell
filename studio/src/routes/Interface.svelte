@@ -15,10 +15,9 @@
 	import {
 		interfaceState,
 		clearHistory,
-		composeSurface,
 		loadRegistry,
 	} from '../stores';
-	import { project, openProject } from '../stores/project.svelte';
+	import { project } from '../stores/project.svelte';
 	import type { Message } from '../stores/interface.svelte';
 
 	// Load registry on mount

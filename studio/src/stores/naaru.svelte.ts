@@ -45,73 +45,137 @@ export type NaaruEventType =
 	| 'learning_extracted'
 	| 'learning_persisted';
 
+// ═══════════════════════════════════════════════════════════════════════════
+// DISCRIMINATED EVENT DATA TYPES
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Event data for model_tokens events */
+export interface ModelTokensEventData {
+	readonly content: string;
+}
+
+/** Event data for task_complete events */
+export interface TaskCompleteEventData {
+	readonly taskId?: string;
+	readonly result?: string;
+}
+
+/** Event data for file_written events */
+export interface FileWrittenEventData {
+	readonly path: string;
+}
+
+/** Event data for error events */
+export interface ErrorEventData {
+	readonly message: string;
+	readonly code?: string;
+}
+
+/** Event data for route_decision events */
+export interface RouteDecisionEventData extends RoutingDecision { }
+
+/** Event data for composition_ready events */
+export interface CompositionReadyEventData extends CompositionSpec { }
+
+/** Union of all typed event data */
+export type NaaruEventData =
+	| ModelTokensEventData
+	| TaskCompleteEventData
+	| FileWrittenEventData
+	| ErrorEventData
+	| RouteDecisionEventData
+	| CompositionReadyEventData
+	| Record<string, unknown>; // Fallback for untyped events
+
 export interface ConversationMessage {
-	role: 'user' | 'assistant';
-	content: string;
+	readonly role: 'user' | 'assistant';
+	readonly content: string;
 }
 
 export interface ProcessInput {
-	content: string;
-	mode?: ProcessMode;
-	page_type?: PageType;
-	conversation_history?: ConversationMessage[];
-	workspace?: string;
-	stream?: boolean;
-	timeout?: number;
-	context?: Record<string, unknown>;
+	readonly content: string;
+	readonly mode?: ProcessMode;
+	readonly page_type?: PageType;
+	readonly conversation_history?: readonly ConversationMessage[];
+	readonly workspace?: string;
+	readonly stream?: boolean;
+	readonly timeout?: number;
+	readonly context?: Readonly<Record<string, unknown>>;
 	/** Model provider (RFC-Cloud-Model-Parity) */
-	provider?: string;
+	readonly provider?: string;
 	/** Model name override */
-	model?: string;
+	readonly model?: string;
 }
 
 export interface CompositionSpec {
-	page_type: PageType;
-	panels: Array<{
-		panel_type: string;
-		title?: string;
-		data?: Record<string, unknown>;
-	}>;
-	input_mode: InputMode;
-	suggested_tools: string[];
-	confidence: number;
-	source: 'regex' | 'fast_model' | 'large_model';
+	readonly page_type: PageType;
+	readonly panels: readonly {
+		readonly panel_type: string;
+		readonly title?: string;
+		readonly data?: Readonly<Record<string, unknown>>;
+	}[];
+	readonly input_mode: InputMode;
+	readonly suggested_tools: readonly string[];
+	readonly confidence: number;
+	readonly source: 'regex' | 'fast_model' | 'large_model';
 }
 
 export interface RoutingDecision {
-	interaction_type: RouteType;
-	confidence: number;
-	tier: number;
-	lens?: string;
-	page_type: PageType;
-	tools: string[];
-	mood?: string;
-	reasoning?: string;
+	readonly interaction_type: RouteType;
+	readonly confidence: number;
+	readonly tier: number;
+	readonly lens?: string;
+	readonly page_type: PageType;
+	readonly tools: readonly string[];
+	readonly mood?: string;
+	readonly reasoning?: string;
 }
 
 export interface NaaruEvent {
-	type: NaaruEventType;
-	timestamp: string;
-	data: Record<string, unknown>;
+	readonly type: NaaruEventType;
+	readonly timestamp: string;
+	readonly data: NaaruEventData;
 }
 
 export interface ProcessOutput {
-	response: string;
-	route_type: RouteType;
-	confidence: number;
-	composition: CompositionSpec | null;
-	tasks_completed: number;
-	artifacts: string[];
-	events: NaaruEvent[];
-	routing: RoutingDecision | null;
+	readonly response: string;
+	readonly route_type: RouteType;
+	readonly confidence: number;
+	readonly composition: CompositionSpec | null;
+	readonly tasks_completed: number;
+	readonly artifacts: readonly string[];
+	readonly events: readonly NaaruEvent[];
+	readonly routing: RoutingDecision | null;
 }
 
 export interface ConvergenceSlot {
-	id: string;
-	content: unknown;
-	relevance: number;
-	source: string;
-	ready: boolean;
+	readonly id: string;
+	readonly content: unknown;
+	readonly relevance: number;
+	readonly source: string;
+	readonly ready: boolean;
+}
+
+// Type guards for event data
+function isCompositionSpec(data: unknown): data is CompositionSpec {
+	if (typeof data !== 'object' || data === null) return false;
+	const d = data as Record<string, unknown>;
+	return typeof d.page_type === 'string' &&
+		Array.isArray(d.panels) &&
+		typeof d.input_mode === 'string' &&
+		Array.isArray(d.suggested_tools) &&
+		typeof d.confidence === 'number' &&
+		typeof d.source === 'string';
+}
+
+function isRoutingDecision(data: unknown): data is RoutingDecision {
+	if (typeof data !== 'object' || data === null) return false;
+	const d = data as Record<string, unknown>;
+	return typeof d.interaction_type === 'string' &&
+		typeof d.confidence === 'number' &&
+		typeof d.tier === 'number' &&
+		typeof d.page_type === 'string' &&
+		Array.isArray(d.tools);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -210,35 +274,42 @@ export async function process(input: ProcessInput): Promise<ProcessOutput> {
 			const events: NaaruEvent[] = [];
 
 			const unsubscribe = onEvent((event: AgentEvent) => {
-				// Convert to NaaruEvent format
+				// Convert to NaaruEvent format with typed data
+				const eventData: NaaruEventData = event.data || {};
 				const naaruEvent: NaaruEvent = {
 					type: event.type as NaaruEventType,
 					timestamp: new Date().toISOString(),
-					data: event.data || {},
+					data: eventData,
 				};
 				events.push(naaruEvent);
 				naaruState.events = [...naaruState.events, naaruEvent];
 
-				// Handle specific event types
-				if (event.type === 'model_tokens' && event.data?.content) {
-					naaruState.streamedContent += event.data.content as string;
-					response += event.data.content as string;
+				// Handle specific event types with type-safe extraction
+				if (event.type === 'model_tokens') {
+					const content = getTokenContent(eventData);
+					if (content) {
+						naaruState.streamedContent += content;
+						response += content;
+					}
 				}
 				if (event.type === 'task_complete') {
 					tasksCompleted++;
 				}
-				if (event.type === 'file_written' && event.data?.path) {
-					artifacts.push(event.data.path as string);
+				if (event.type === 'file_written') {
+					const path = getFilePath(eventData);
+					if (path) {
+						artifacts.push(path);
+					}
 				}
 
 				// Resolve on completion
 				if (event.type === 'complete' || event.type === 'error' || event.type === 'cancelled') {
 					unsubscribe();
 					if (event.type === 'error') {
-						reject(new Error((event.data?.message as string) || 'Agent execution failed'));
+						reject(new Error(getErrorMessage(eventData)));
 					} else {
 						resolve({
-							response: response || (event.data?.response as string) || '',
+							response: response || getResponseString(eventData),
 							route_type: 'workspace',
 							confidence: 0.9,
 							composition: null,
@@ -322,27 +393,32 @@ export async function process(input: ProcessInput): Promise<ProcessOutput> {
  */
 export function subscribeToEvents(): () => void {
 	const unsubscribe = onEvent((event: AgentEvent) => {
-		// Convert to NaaruEvent format
+		// Convert to NaaruEvent format with typed data
+		const eventData: NaaruEventData = event.data || {};
 		const naaruEvent: NaaruEvent = {
 			type: event.type as NaaruEventType,
 			timestamp: new Date().toISOString(),
-			data: event.data || {},
+			data: eventData,
 		};
 		naaruState.events = [...naaruState.events, naaruEvent];
 
-		// Update state based on event type
+		// Update state based on event type with type-safe extraction
 		switch (event.type) {
 			case 'composition_ready':
-				naaruState.convergence.composition = event.data as unknown as CompositionSpec;
+				if (isCompositionSpec(eventData)) {
+					naaruState.convergence.composition = eventData;
+				}
 				break;
 			case 'route_decision':
-				naaruState.convergence.routing = event.data as unknown as RoutingDecision;
+				if (isRoutingDecision(eventData)) {
+					naaruState.convergence.routing = eventData;
+				}
 				break;
 			case 'model_tokens':
-				naaruState.streamedContent += (event.data?.content as string) || '';
+				naaruState.streamedContent += getTokenContent(eventData);
 				break;
 			case 'error':
-				naaruState.error = (event.data?.message as string) || 'Unknown error';
+				naaruState.error = getErrorMessage(eventData);
 				break;
 		}
 	});

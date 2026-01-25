@@ -28,12 +28,18 @@
   let canvas = $state<DagCanvas | null>(null);
   let isLoading = $state(false);
   
-  // RFC-105: View level tabs
-  const viewLevels: { id: DagViewLevel; label: string; icon: string }[] = [
+  // Pre-compute completed node count to avoid O(n) filter in template
+  const completedNodeCount = $derived(dag.nodes.filter(n => n.status === 'complete').length);
+  
+  // RFC-105: View level tabs (readonly to prevent mutation)
+  const viewLevels = [
     { id: 'project', label: 'Project', icon: '📁' },
     { id: 'workspace', label: 'Workspace', icon: '🗂️' },
     { id: 'environment', label: 'Environment', icon: '🌐' },
-  ];
+  ] as const satisfies readonly { id: DagViewLevel; label: string; icon: string }[];
+
+  // Pre-computed sorted goals (avoid function call in template)
+  const sortedGoals = $derived(getSortedGoals());
   
   $effect(() => {
     untrack(() => { loadDag(); });
@@ -121,7 +127,7 @@
         </span>
       {:else}
         <span class="node-count">
-          {dag.nodes.filter((n: { status: string }) => n.status === 'complete').length}/{dag.nodes.length} tasks
+          {completedNodeCount}/{dag.nodes.length} tasks
         </span>
       {/if}
     </div>
@@ -137,7 +143,7 @@
           <aside class="goals-sidebar">
             <h3 class="sidebar-title">Goals ({dag.projectIndex.summary.totalGoals})</h3>
             <ul class="goals-list">
-              {#each getSortedGoals() as goal (goal.id)}
+              {#each sortedGoals as goal (goal.id)}
                 <li class="goal-item" class:complete={goal.status === 'complete'}>
                   <button class="goal-btn" onclick={() => handleGoalClick(goal)}>
                     <span class="goal-status">

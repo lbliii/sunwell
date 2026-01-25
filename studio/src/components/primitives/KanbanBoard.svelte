@@ -29,14 +29,14 @@
     <h2>Task Board</h2>
   </div>
   <div class="kanban-columns">
-    {#each columns as column}
+    {#each columns as column (column.id)}
       <div class="kanban-column">
         <div class="column-header">
           <span class="column-title">{column.title}</span>
           <span class="column-count">{column.items.length}</span>
         </div>
         <div class="column-items">
-          {#each column.items as item}
+          {#each column.items as item, i (`${column.id}-${i}`)}
             <div class="kanban-card">
               {item}
             </div>

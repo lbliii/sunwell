@@ -42,6 +42,12 @@
   let intelligenceData = $state<IntelligenceData | null>(null);
   let isLoadingMemory = $state(false);
   let memoryError = $state<string | null>(null);
+
+  // Pre-computed values to avoid recalculation in template
+  const sortedGoals = $derived(getSortedGoals());
+  const isPipelineEmpty = $derived(
+    dag.nodes.length === 0 && (!dag.projectIndex || dag.projectIndex.goals.length === 0)
+  );
   
   // RFC-106: Consolidated tabs (Overview merged into Project)
   const tabs = [
@@ -67,19 +73,22 @@
   // RFC-079: Track analyzed path to avoid re-analysis
   let analyzedForPath = $state<string | null>(null);
   
-  // Load project data when path changes
+  // Consolidated effect: Handle project path changes (RFC-079, RFC-094)
+  // - Loads project status
+  // - Sets up file store  
+  // - Sets DAG project path
+  // - Auto-analyzes if not already analyzed
   $effect(() => {
     const path = project.current?.path;
-    if (path) {
-      loadProjectStatus();
-      setFilesProjectPath(path); // Files store handles loading and event-driven refresh
-    }
-  });
-  
-  // RFC-079: Auto-analyze project when opened (if not already analyzed)
-  $effect(() => {
-    const path = project.current?.path;
-    if (path && path !== analyzedForPath && !project.isAnalyzing) {
+    setProjectPath(path ?? null);
+    
+    if (!path) return;
+    
+    loadProjectStatus();
+    setFilesProjectPath(path);
+    
+    // Auto-analyze if not already analyzed
+    if (path !== analyzedForPath && !project.isAnalyzing) {
       untrack(() => {
         analyzedForPath = path;
         analyzeProject(path);
@@ -87,29 +96,17 @@
     }
   });
   
-  // RFC-094: Set project path in dag store for reactive reload
+  // Tab-specific data loading (Pipeline)
   $effect(() => {
-    const path = project.current?.path;
-    setProjectPath(path ?? null);
-  });
-  
-  // Load DAG when pipeline tab is selected (initial load only)
-  $effect(() => {
-    const shouldLoad = activeTab === ViewTab.PIPELINE && project.current?.path && dag.nodes.length === 0;
-    if (shouldLoad) {
-      untrack(() => {
-        if (!isLoadingDag) loadDag();
-      });
+    if (activeTab === ViewTab.PIPELINE && project.current?.path && dag.nodes.length === 0 && !isLoadingDag) {
+      untrack(() => loadDag());
     }
   });
   
-  // Load memory when memory tab is selected
+  // Tab-specific data loading (Memory)
   $effect(() => {
-    const shouldLoad = activeTab === ViewTab.MEMORY && project.current?.path;
-    if (shouldLoad) {
-      untrack(() => {
-        if (!isLoadingMemory) loadMemory();
-      });
+    if (activeTab === ViewTab.MEMORY && project.current?.path && !isLoadingMemory) {
+      untrack(() => loadMemory());
     }
   });
   
@@ -227,7 +224,7 @@
               <span>{dagError}</span>
               <Button variant="ghost" size="sm" onclick={loadDag}>Retry</Button>
             </div>
-          {:else if dag.nodes.length === 0 && (!dag.projectIndex || dag.projectIndex.goals.length === 0)}
+          {:else if isPipelineEmpty}
             <div class="empty-state">
               <p class="empty-title">No pipeline yet</p>
               <p class="empty-description">Run a goal to see your task pipeline</p>
@@ -241,7 +238,7 @@
                     Goals ({dag.projectIndex.summary.completedGoals}/{dag.projectIndex.summary.totalGoals})
                   </h3>
                   <ul class="goals-list">
-                    {#each getSortedGoals() as goal (goal.id)}
+                    {#each sortedGoals as goal (goal.id)}
                       <li class="goal-item" class:complete={goal.status === 'complete'}>
                         <button class="goal-btn" onclick={() => handleGoalClick(goal.id)}>
                           <span class="goal-status">

@@ -8,8 +8,8 @@
 	import { fly } from 'svelte/transition';
 
 	interface Props {
-		type: string;
-		data: Record<string, unknown>;
+		readonly type: string;
+		readonly data: Readonly<Record<string, unknown>>;
 	}
 
 	let { type, data }: Props = $props();
@@ -38,6 +38,11 @@
 		if (typeof value === 'object' && value !== null && !Array.isArray(value)) return false;
 		return true;
 	}
+
+	// Pre-compute visible entries for O(1) render (avoids filter in template)
+	const visibleEntries = $derived(
+		Object.entries(data).filter(([k, v]) => shouldShow(k, v))
+	);
 </script>
 
 <div class="generic-block" in:fly={{ y: 20, duration: 250 }}>
@@ -47,7 +52,7 @@
 	</header>
 
 	<div class="data-grid">
-		{#each Object.entries(data).filter(([k, v]) => shouldShow(k, v)) as [key, value]}
+		{#each visibleEntries as [key, value] (key)}
 			<div class="data-row">
 				<span class="data-key">{formatKey(key)}</span>
 				<span class="data-value">{formatValue(value)}</span>

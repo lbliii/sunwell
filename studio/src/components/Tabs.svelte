@@ -18,10 +18,10 @@
   }
   
   interface Props {
-    tabs: Tab[];
-    activeTab: string;
-    onchange: (tabId: string) => void;
-    children: Snippet<[string]>;
+    readonly tabs: readonly Tab[];
+    readonly activeTab: string;
+    readonly onchange: (tabId: string) => void;
+    readonly children: Snippet<[string]>;
     label?: string;
   }
   
@@ -49,7 +49,7 @@
 
 <div class="tabs">
   <div class="tab-list" role="tablist" aria-label={label}>
-    {#each tabs as tab, i}
+    {#each tabs as tab, i (tab.id)}
       <button
         role="tab"
         id="tab-{tab.id}"
@@ -70,7 +70,7 @@
     {/each}
   </div>
   
-  {#each tabs as tab}
+  {#each tabs as tab (tab.id)}
     <div
       role="tabpanel"
       id="panel-{tab.id}"

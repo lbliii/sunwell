@@ -139,7 +139,7 @@ export function handleSkillGraphResolved(data: SkillGraphResolvedData): void {
 export function handleSkillWaveStart(data: SkillWaveStartData): void {
   const wave: SkillWave = {
     index: data.wave_index,
-    skills: data.skills,
+    skills: [...data.skills],
     status: 'running',
     succeeded: [],
     failed: [],

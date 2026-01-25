@@ -108,16 +108,16 @@
     </div>
 
     <div class="waves">
-      {#each waves as { wave, skills }, i}
-        <div class="wave" class:active={skillGraphState.currentWave === i}>
+      {#each waves as { wave, skills } (wave.index)}
+        <div class="wave" class:active={skillGraphState.currentWave === wave.index}>
           <div class="wave-header">
-            <span class="wave-label">Wave {i + 1}</span>
+            <span class="wave-label">Wave {wave.index + 1}</span>
             {#if wave.durationMs}
               <span class="wave-time">{wave.durationMs}ms</span>
             {/if}
           </div>
           <div class="skills">
-            {#each skills as skill}
+            {#each skills as skill (skill.name)}
               <div
                 class="skill"
                 class:running={skill.status === 'running'}

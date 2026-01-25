@@ -32,6 +32,9 @@
   let highlightedHtml = $state<string | null>(null);
   let copied = $state(false);
   let hovering = $state(false);
+  
+  // Pre-compute lines for O(1) template access (avoids .split() on every render)
+  const codeLines = $derived(code.split('\n'));
 
   // Highlight code on mount and when code/language changes
   $effect(() => {
@@ -71,8 +74,7 @@
   function _addLineNumbers(html: string): string {
     if (!showLineNumbers) return html;
 
-    const lines = code.split('\n');
-    const lineNumbersHtml = lines
+    const lineNumbersHtml = codeLines
       .map((_, i) => `<span class="line-number">${i + 1}</span>`)
       .join('\n');
 
@@ -103,7 +105,7 @@
       <div class="highlighted" class:with-numbers={showLineNumbers}>
         {#if showLineNumbers}
           <div class="line-numbers">
-            {#each code.split('\n') as _, i}
+            {#each codeLines as _, i (i)}
               <span class="line-number">{i + 1}</span>
             {/each}
           </div>

@@ -33,7 +33,7 @@
     </div>
   </div>
   <div class="terminal-output">
-    {#each output as line}
+    {#each output as line, i (line + i)}
       <div class="output-line">{line}</div>
     {/each}
   </div>
