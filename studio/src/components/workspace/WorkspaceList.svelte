@@ -156,7 +156,13 @@
   {#if displayWorkspaces.length === 0}
     <div class="empty-state">
       <p class="empty-title">No workspaces found</p>
-      <p class="empty-description">Discover workspaces to get started</p>
+      <p class="empty-description">
+        {grouped.registered.length === 0 &&
+        grouped.discovered.length === 0 &&
+        grouped.invalid.length === 0
+          ? 'No workspaces available. Try discovering workspaces or creating a new project.'
+          : 'No workspaces match the current filters.'}
+      </p>
       <Button variant="primary" onclick={() => discoverWorkspaces()}>
         Discover Workspaces
       </Button>

@@ -221,7 +221,7 @@ export function hasActiveWorkspace(): boolean {
 /**
  * Get the current workspace spec if available.
  */
-export function getCurrentWorkspace(): WorkspaceSpec | null {
+export function getCurrentWorkspaceSpec(): WorkspaceSpec | null {
 	if (_state.current?.type === 'workspace') {
 		return _state.current.workspace_spec || null;
 	}

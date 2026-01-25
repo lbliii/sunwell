@@ -16,11 +16,18 @@
 
   let switcherOpen = $state(false);
 
-  // Load current workspace on mount
+  // Load current workspace on mount and periodically refresh
   $effect(() => {
     if (!workspaceManager.current) {
       getCurrentWorkspace();
     }
+    
+    // Refresh current workspace every 30 seconds to detect external changes
+    const interval = setInterval(() => {
+      getCurrentWorkspace();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   });
 
   function getStatusEmoji(status: string): string {

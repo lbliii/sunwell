@@ -75,8 +75,11 @@
       isOpen = false;
       onSwitch?.(workspaceId);
       onClose?.();
+      // Reload workspaces to update current status
+      await loadWorkspaces();
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
+      // Keep switcher open on error so user can try again
     } finally {
       isLoading = false;
     }
@@ -91,7 +94,11 @@
 </script>
 
 {#if isOpen}
-  <div class="switcher-overlay" onclick={(e) => e.target === e.currentTarget && (isOpen = false)}>
+  <div
+    class="switcher-overlay"
+    role="presentation"
+    onclick={(e) => e.target === e.currentTarget && (isOpen = false)}
+  >
     <div class="switcher-popover" role="dialog" aria-label="Workspace Switcher">
       <div class="switcher-header">
         <h3 class="switcher-title">Switch Workspace</h3>

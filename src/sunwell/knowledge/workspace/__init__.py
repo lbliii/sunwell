@@ -22,6 +22,7 @@ from sunwell.knowledge.workspace.manager import (
     WorkspaceInfo,
     WorkspaceManager,
     WorkspaceStatus,
+    sanitize_workspace_id,
 )
 from sunwell.knowledge.workspace.resolver import (
     ResolutionSource,
@@ -54,4 +55,5 @@ __all__ = [
     "WorkspaceManager",
     "WorkspaceInfo",
     "WorkspaceStatus",
+    "sanitize_workspace_id",
 ]

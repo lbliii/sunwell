@@ -20,16 +20,37 @@ def _get_registry_path() -> Path:
 
 
 def _load_registry() -> dict:
-    """Load registry from disk."""
+    """Load registry from disk with graceful fallback on corruption."""
     path = _get_registry_path()
     if not path.exists():
         return {"projects": {}, "default_project": None}
 
     try:
         content = path.read_text(encoding="utf-8")
-        return json.loads(content)
-    except (json.JSONDecodeError, OSError) as e:
-        raise RegistryError(f"Failed to load registry: {e}") from e
+        data = json.loads(content)
+        
+        # Validate structure
+        if not isinstance(data, dict):
+            raise ValueError("Registry must be a dictionary")
+        if "projects" not in data:
+            data["projects"] = {}
+        if "default_project" not in data:
+            data["default_project"] = None
+            
+        return data
+    except (json.JSONDecodeError, OSError, ValueError) as e:
+        # On corruption, try to backup and return empty registry
+        backup_path = path.with_suffix(".json.bak")
+        try:
+            if path.exists():
+                import shutil
+                shutil.copy2(path, backup_path)
+        except Exception:
+            pass  # Backup failed, continue
+        
+        # Return empty registry instead of raising
+        # This allows the system to continue functioning
+        return {"projects": {}, "default_project": None}
 
 
 def _save_registry(data: dict) -> None:

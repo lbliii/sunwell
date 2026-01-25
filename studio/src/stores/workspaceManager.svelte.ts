@@ -74,6 +74,7 @@ export async function loadWorkspaces(): Promise<void> {
   } catch (e) {
     _error = e instanceof Error ? e.message : String(e);
     console.error('Failed to load workspaces:', e);
+    // Don't throw - allow UI to show error state
   } finally {
     _isLoading = false;
   }

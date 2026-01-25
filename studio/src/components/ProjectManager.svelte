@@ -1,9 +1,10 @@
 <!--
-  ProjectManager — Scalable project lifecycle control (RFC-096)
+  ProjectManager — Scalable project lifecycle control (RFC-096, RFC-140)
   
   Provides full project management with:
   - List view with filtering, sorting, search
   - Detail view with project info
+  - Workspace discovery view (RFC-140)
   - Full CRUD: Open, Resume, Iterate, Archive, Delete
   - Bulk operations with multi-select
   - Keyboard navigation (j/k/Enter/Space)
@@ -19,6 +20,7 @@
     ProjectBulkActions,
     ProjectStats,
   } from './project-manager';
+  import { WorkspaceDiscovery } from './workspace';
   import {
     projectManager,
     loadProjects,
@@ -33,8 +35,11 @@
     iterateProjectAction,
     getFilteredProjects,
   } from '../stores/projectManager.svelte';
+  import { workspaceManager, switchWorkspace } from '../stores/workspaceManager.svelte';
   import { goToProject, goToProjects } from '../stores/app.svelte';
   import type { ProjectStatus } from '$lib/types';
+
+  let showWorkspaceDiscovery = $state(false);
   
   interface Props {
     mode?: 'inline' | 'modal' | 'page';
@@ -206,15 +211,30 @@
         </Button>
       {/if}
       <h2 class="manager-title">
-        {projectManager.view === 'detail' ? projectManager.selectedProject?.name : 'Projects'}
+        {#if showWorkspaceDiscovery}
+          Workspace Discovery
+        {:else if projectManager.view === 'detail'}
+          {projectManager.selectedProject?.name}
+        {:else}
+          Projects
+        {/if}
       </h2>
-      {#if projectManager.view === 'list'}
+      {#if projectManager.view === 'list' && !showWorkspaceDiscovery}
         <ProjectStats />
       {/if}
     </div>
     
     <div class="header-right">
-      {#if mode === 'inline' && projectManager.projects.length > 0}
+      {#if !showWorkspaceDiscovery}
+        <Button variant="ghost" size="sm" onclick={() => (showWorkspaceDiscovery = true)}>
+          Discover Workspaces
+        </Button>
+      {:else}
+        <Button variant="ghost" size="sm" onclick={() => (showWorkspaceDiscovery = false)}>
+          Back to Projects
+        </Button>
+      {/if}
+      {#if mode === 'inline' && projectManager.projects.length > 0 && !showWorkspaceDiscovery}
         <Button variant="ghost" size="sm" onclick={goToProjects}>
           Manage All →
         </Button>
@@ -225,7 +245,20 @@
     </div>
   </header>
   
-  {#if projectManager.view === 'list'}
+  {#if showWorkspaceDiscovery}
+    <div class="manager-content">
+      <WorkspaceDiscovery
+        onSwitch={async (workspaceId) => {
+          await switchWorkspace(workspaceId);
+          showWorkspaceDiscovery = false;
+        }}
+        onRegister={(path) => {
+          // Workspace registered, refresh projects
+          loadProjects();
+        }}
+      />
+    </div>
+  {:else if projectManager.view === 'list'}
     <div class="manager-toolbar">
       <ProjectFilters />
       {#if projectManager.selectedCount > 0}

@@ -5,9 +5,9 @@ import tempfile
 from pathlib import Path
 from datetime import datetime, timedelta
 
-from sunwell.core.models.heuristic import Identity
-from sunwell.identity.core.models import Observation
+from sunwell.identity.core.models import Identity, Observation
 from sunwell.identity.store import IdentityStore
+from sunwell.core.models.heuristic import Identity as LensIdentity
 from sunwell.identity.extraction.extractor import extract_behaviors_regex
 from sunwell.identity.extraction.patterns import TWO_TIER_EXTRACTION_PROMPT
 from sunwell.identity.synthesis.digest import _extract_confidence, _extract_prompt, quick_digest

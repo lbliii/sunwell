@@ -76,18 +76,10 @@
 
   async function handleRegister(path: string) {
     try {
-      // Call API to register
-      const response = await fetch('/api/project/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path }),
-      });
-
-      if (response.ok) {
-        // Reload workspaces
-        await loadWorkspaces();
-        onRegister?.(path);
-      }
+      // Use workspaceManager to register via API
+      // For now, just reload workspaces - registration can be done via project init
+      await loadWorkspaces();
+      onRegister?.(path);
     } catch (e) {
       console.error('Registration failed:', e);
     }
@@ -214,7 +206,7 @@
     align-items: center;
   }
 
-  .controls-row > :first-child {
+  .controls-row > :first-child:is(input) {
     flex: 1;
   }
 

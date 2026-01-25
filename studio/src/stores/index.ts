@@ -163,7 +163,7 @@ export {
   resetInterface,
   getRecentMessages,
   hasActiveWorkspace,
-  getCurrentWorkspace,
+  getCurrentWorkspaceSpec,
 } from './interface.svelte';
 
 // Home state (RFC-080)
@@ -397,7 +397,7 @@ export {
   type FullStackScore,
 } from './evaluation.svelte';
 
-// Workspace state (RFC-103)
+// Workspace state (RFC-103) - Workspace linking for docs
 export {
   workspaceStore,
   initWorkspace,
@@ -415,6 +415,18 @@ export {
   type Workspace,
   type ToastState,
 } from './workspace.svelte';
+
+// Workspace Manager state (RFC-140) - Unified workspace management
+export {
+  workspaceManager,
+  loadWorkspaces,
+  getCurrentWorkspace,
+  switchWorkspace,
+  discoverWorkspaces,
+  getWorkspaceStatus,
+  getWorkspaceInfo,
+  type WorkspaceInfo,
+} from './workspaceManager.svelte';
 
 // Backlog state (RFC-114)
 export {

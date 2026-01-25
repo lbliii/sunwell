@@ -1,11 +1,15 @@
 /**
- * Workspace Store — Workspace-aware scanning state management (RFC-103)
+ * Workspace Store — Workspace-aware scanning state management (RFC-103, RFC-140)
  *
- * Manages state for workspace detection, linking, and drift detection:
+ * RFC-103: Workspace detection, linking, and drift detection:
  * - Detected workspace links
  * - Confirmed source connections
  * - Drift detection results
  * - Toast notification state
+ *
+ * RFC-140: Workspace management:
+ * - Current workspace state
+ * - Workspace discovery actions
  */
 
 import { apiGet, apiPost } from '$lib/socket';
