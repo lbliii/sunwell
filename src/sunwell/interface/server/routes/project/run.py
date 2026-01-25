@@ -10,7 +10,7 @@ from sunwell.interface.server.routes._models import (
     ProjectRunResponse,
     SuccessResponse,
 )
-from sunwell.interface.server.routes.project_models import (
+from sunwell.interface.server.routes.project.models import (
     AnalyzeRunRequest,
     ProjectRunRequest,
     StopRunRequest,

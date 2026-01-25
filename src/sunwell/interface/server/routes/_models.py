@@ -821,3 +821,105 @@ class CurrentProjectResponse(CamelModel):
 
     project: CurrentProjectItem | None
     workspace_root: str
+
+
+# ═══════════════════════════════════════════════════════════════
+# WRITER/DIATAXIS RESPONSE MODELS (RFC-086)
+# ═══════════════════════════════════════════════════════════════
+
+
+class DiataxisScores(CamelModel):
+    """Diataxis content type scores."""
+
+    tutorial: float = 0.0
+    how_to: float = 0.0
+    explanation: float = 0.0
+    reference: float = 0.0
+
+
+class DiataxisDetection(CamelModel):
+    """Diataxis detection result."""
+
+    detected_type: str | None
+    confidence: float
+    signals: list[str]
+    scores: DiataxisScores
+
+
+class DiataxisResponse(CamelModel):
+    """Response for Diataxis content type detection."""
+
+    detection: DiataxisDetection
+    warnings: list[str]
+
+
+class SkillExecuteResponse(CamelModel):
+    """Response for skill execution."""
+
+    message: str
+
+
+# ═══════════════════════════════════════════════════════════════
+# WORKFLOW RESPONSE MODELS (RFC-086)
+# ═══════════════════════════════════════════════════════════════
+
+
+class WorkflowRouteResponse(CamelModel):
+    """Response for workflow intent routing."""
+
+    category: str
+    confidence: float
+    signals: list[str]
+    suggested_workflow: str | None
+    tier: str
+
+
+class WorkflowStep(CamelModel):
+    """A step in a workflow execution."""
+
+    id: str
+    name: str
+    status: str
+
+
+class WorkflowExecutionResponse(CamelModel):
+    """Response for workflow execution state."""
+
+    id: str
+    chain_name: str
+    description: str
+    current_step: int
+    total_steps: int
+    steps: list[WorkflowStep]
+    status: str
+    started_at: str
+    updated_at: str
+    context: dict[str, str]
+
+
+class WorkflowStatusResponse(CamelModel):
+    """Simple workflow status response."""
+
+    status: str
+
+
+class WorkflowChainItem(CamelModel):
+    """A workflow chain definition."""
+
+    name: str
+    description: str
+    steps: list[str]
+    checkpoint_after: list[str]
+    tier: str
+
+
+class WorkflowChainsResponse(CamelModel):
+    """List of available workflow chains."""
+
+    chains: list[WorkflowChainItem]
+
+
+class ActiveWorkflowsResponse(CamelModel):
+    """List of active workflow executions."""
+
+    workflows: list[WorkflowExecutionResponse]

@@ -1,0 +1,30 @@
+"""Project management routes (RFC-113, RFC-117, RFC-132).
+
+This module combines all project-related routers:
+- gate: RFC-132 project gate endpoints (validate, list, create, default)
+- core: Core operations (get, recent, scan, resume, open, delete, archive, iterate)
+- analysis: Analysis endpoints (analyze, monorepo, files, status)
+- run: Run-related endpoints (RFC-066)
+- extended: Extended operations (memory stats, intelligence, DAG, learnings)
+- current: Current project operations (RFC-140)
+"""
+
+from fastapi import APIRouter
+
+from sunwell.interface.server.routes.project.analysis import router as analysis_router
+from sunwell.interface.server.routes.project.core import router as core_router
+from sunwell.interface.server.routes.project.current import router as current_router
+from sunwell.interface.server.routes.project.extended import router as extended_router
+from sunwell.interface.server.routes.project.gate import router as gate_router
+from sunwell.interface.server.routes.project.run import router as run_router
+
+# Main router that combines all project sub-routers
+router = APIRouter(prefix="/api", tags=["project"])
+
+# Include all sub-routers
+router.include_router(gate_router)
+router.include_router(core_router)
+router.include_router(analysis_router)
+router.include_router(run_router)
+router.include_router(extended_router)
+router.include_router(current_router)

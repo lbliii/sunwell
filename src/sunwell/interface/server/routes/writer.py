@@ -8,9 +8,19 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from sunwell.interface.server.routes._models import (
+    ActiveWorkflowsResponse,
+    DiataxisDetection,
+    DiataxisResponse,
+    DiataxisScores,
     FixAllResponse,
+    SkillExecuteResponse,
     ValidationResponse,
     ValidationWarning,
+    WorkflowChainItem,
+    WorkflowChainsResponse,
+    WorkflowExecutionResponse,
+    WorkflowRouteResponse,
+    WorkflowStatusResponse,
 )
 
 router = APIRouter(prefix="/api", tags=["writer"])
@@ -64,31 +74,48 @@ class WorkflowIdRequest(BaseModel):
 
 
 @router.post("/writer/diataxis")
-async def detect_diataxis(request: DiataxisRequest) -> dict[str, Any]:
+async def detect_diataxis(request: DiataxisRequest) -> DiataxisResponse:
     """Detect Diataxis content type."""
     content_lower = request.content.lower()
-    scores = {"TUTORIAL": 0, "HOW_TO": 0, "EXPLANATION": 0, "REFERENCE": 0}
+    tutorial_score = 0.0
+    how_to_score = 0.0
+    explanation_score = 0.0
+    reference_score = 0.0
 
     if any(k in content_lower for k in ["tutorial", "learn", "quickstart"]):
-        scores["TUTORIAL"] += 0.3
+        tutorial_score += 0.3
     if any(k in content_lower for k in ["how to", "guide", "configure"]):
-        scores["HOW_TO"] += 0.3
+        how_to_score += 0.3
     if any(k in content_lower for k in ["understand", "architecture", "concepts"]):
-        scores["EXPLANATION"] += 0.3
+        explanation_score += 0.3
     if any(k in content_lower for k in ["reference", "api", "parameters"]):
-        scores["REFERENCE"] += 0.3
+        reference_score += 0.3
 
-    best = max(scores.items(), key=lambda x: x[1])
+    scores = DiataxisScores(
+        tutorial=tutorial_score,
+        how_to=how_to_score,
+        explanation=explanation_score,
+        reference=reference_score,
+    )
 
-    return {
-        "detection": {
-            "detectedType": best[0] if best[1] > 0 else None,
-            "confidence": best[1],
-            "signals": [],
-            "scores": scores,
-        },
-        "warnings": [],
+    # Find the best match
+    score_map = {
+        "TUTORIAL": tutorial_score,
+        "HOW_TO": how_to_score,
+        "EXPLANATION": explanation_score,
+        "REFERENCE": reference_score,
     }
+    best = max(score_map.items(), key=lambda x: x[1])
+
+    return DiataxisResponse(
+        detection=DiataxisDetection(
+            detected_type=best[0] if best[1] > 0 else None,
+            confidence=best[1],
+            signals=[],
+            scores=scores,
+        ),
+        warnings=[],
+    )
 
 
 @router.post("/writer/validate")
@@ -209,9 +236,9 @@ async def fix_all_issues(request: FixAllRequest) -> FixAllResponse:
 
 
 @router.post("/writer/execute-skill")
-async def execute_skill(request: ExecuteSkillRequest) -> dict[str, Any]:
+async def execute_skill(request: ExecuteSkillRequest) -> SkillExecuteResponse:
     """Execute a lens skill."""
-    return {"message": f"Skill {request.skill_id} executed"}
+    return SkillExecuteResponse(message=f"Skill {request.skill_id} executed")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -220,96 +247,96 @@ async def execute_skill(request: ExecuteSkillRequest) -> dict[str, Any]:
 
 
 @router.post("/workflow/route")
-async def route_workflow_intent(request: RouteIntentRequest) -> dict[str, Any]:
+async def route_workflow_intent(request: RouteIntentRequest) -> WorkflowRouteResponse:
     """Route natural language to workflow."""
-    return {
-        "category": "information",
-        "confidence": 0.5,
-        "signals": [],
-        "suggested_workflow": None,
-        "tier": "fast",
-    }
+    return WorkflowRouteResponse(
+        category="information",
+        confidence=0.5,
+        signals=[],
+        suggested_workflow=None,
+        tier="fast",
+    )
 
 
 @router.post("/workflow/start")
-async def start_workflow(request: StartWorkflowRequest) -> dict[str, Any]:
+async def start_workflow(request: StartWorkflowRequest) -> WorkflowExecutionResponse:
     """Start a workflow chain."""
     import uuid
 
-    return {
-        "id": str(uuid.uuid4()),
-        "chain_name": request.chain_name,
-        "description": f"Workflow: {request.chain_name}",
-        "current_step": 0,
-        "total_steps": 3,
-        "steps": [],
-        "status": "running",
-        "started_at": datetime.now().isoformat(),
-        "updated_at": datetime.now().isoformat(),
-        "context": {"working_dir": str(Path.cwd())},
-    }
+    return WorkflowExecutionResponse(
+        id=str(uuid.uuid4()),
+        chain_name=request.chain_name,
+        description=f"Workflow: {request.chain_name}",
+        current_step=0,
+        total_steps=3,
+        steps=[],
+        status="running",
+        started_at=datetime.now().isoformat(),
+        updated_at=datetime.now().isoformat(),
+        context={"working_dir": str(Path.cwd())},
+    )
 
 
 @router.post("/workflow/stop")
-async def stop_workflow(request: WorkflowIdRequest) -> dict[str, Any]:
+async def stop_workflow(request: WorkflowIdRequest) -> WorkflowStatusResponse:
     """Stop a workflow."""
-    return {"status": "stopped"}
+    return WorkflowStatusResponse(status="stopped")
 
 
 @router.post("/workflow/resume")
-async def resume_workflow(request: WorkflowIdRequest) -> dict[str, Any]:
+async def resume_workflow(request: WorkflowIdRequest) -> WorkflowExecutionResponse:
     """Resume a workflow."""
-    return {
-        "id": request.execution_id,
-        "chain_name": "unknown",
-        "description": "Resumed workflow",
-        "current_step": 0,
-        "total_steps": 3,
-        "steps": [],
-        "status": "running",
-        "started_at": datetime.now().isoformat(),
-        "updated_at": datetime.now().isoformat(),
-        "context": {"working_dir": str(Path.cwd())},
-    }
+    return WorkflowExecutionResponse(
+        id=request.execution_id,
+        chain_name="unknown",
+        description="Resumed workflow",
+        current_step=0,
+        total_steps=3,
+        steps=[],
+        status="running",
+        started_at=datetime.now().isoformat(),
+        updated_at=datetime.now().isoformat(),
+        context={"working_dir": str(Path.cwd())},
+    )
 
 
 @router.post("/workflow/skip-step")
-async def skip_workflow_step(request: WorkflowIdRequest) -> dict[str, Any]:
+async def skip_workflow_step(request: WorkflowIdRequest) -> WorkflowStatusResponse:
     """Skip current workflow step."""
-    return {"status": "skipped"}
+    return WorkflowStatusResponse(status="skipped")
 
 
 @router.get("/workflow/chains")
-async def list_workflow_chains() -> dict[str, Any]:
+async def list_workflow_chains() -> WorkflowChainsResponse:
     """List available workflow chains."""
-    return {
-        "chains": [
-            {
-                "name": "feature-docs",
-                "description": "Document a new feature",
-                "steps": [],
-                "checkpoint_after": [],
-                "tier": "full",
-            },
-            {
-                "name": "health-check",
-                "description": "Validate existing docs",
-                "steps": [],
-                "checkpoint_after": [],
-                "tier": "light",
-            },
-            {
-                "name": "quick-fix",
-                "description": "Fast issue resolution",
-                "steps": [],
-                "checkpoint_after": [],
-                "tier": "fast",
-            },
+    return WorkflowChainsResponse(
+        chains=[
+            WorkflowChainItem(
+                name="feature-docs",
+                description="Document a new feature",
+                steps=[],
+                checkpoint_after=[],
+                tier="full",
+            ),
+            WorkflowChainItem(
+                name="health-check",
+                description="Validate existing docs",
+                steps=[],
+                checkpoint_after=[],
+                tier="light",
+            ),
+            WorkflowChainItem(
+                name="quick-fix",
+                description="Fast issue resolution",
+                steps=[],
+                checkpoint_after=[],
+                tier="fast",
+            ),
         ]
-    }
+    )
 
 
 @router.get("/workflow/active")
-async def list_active_workflows() -> dict[str, Any]:
+async def list_active_workflows() -> ActiveWorkflowsResponse:
     """List active workflows."""
-    return {"workflows": []}
+    return ActiveWorkflowsResponse(workflows=[])

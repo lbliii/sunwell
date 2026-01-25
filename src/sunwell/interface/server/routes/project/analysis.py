@@ -14,7 +14,7 @@ from sunwell.interface.server.routes._models import (
     ProjectFilesResponse,
     ProjectStatusResponse,
 )
-from sunwell.interface.server.routes.project_models import (
+from sunwell.interface.server.routes.project.models import (
     AnalyzeRequest,
     MonorepoRequest,
 )

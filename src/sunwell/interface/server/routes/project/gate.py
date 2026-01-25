@@ -8,7 +8,7 @@ from sunwell.interface.server.routes._models import (
     DefaultProjectResponse,
     SuccessResponse,
 )
-from sunwell.interface.server.routes.project_models import (
+from sunwell.interface.server.routes.project.models import (
     CreateProjectRequest,
     CreateProjectResponse,
     ProjectInfo,

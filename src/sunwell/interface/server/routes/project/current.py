@@ -9,7 +9,7 @@ from sunwell.interface.server.routes._models import (
     CurrentProjectResponse,
     SuccessResponse,
 )
-from sunwell.interface.server.routes.project_models import SwitchProjectRequest
+from sunwell.interface.server.routes.project.models import SwitchProjectRequest
 
 router = APIRouter(prefix="/project", tags=["project"])
 

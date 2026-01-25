@@ -340,8 +340,8 @@
             }
           },
           "required": [
-            "category",
-            "fact"
+            "fact",
+            "category"
           ],
           "additionalProperties": true
         },
@@ -947,9 +947,9 @@
             }
           },
           "required": [
-            "total_candidates",
+            "candidate_id",
             "artifact_count",
-            "candidate_id"
+            "total_candidates"
           ],
           "additionalProperties": true
         },
@@ -1031,9 +1031,9 @@
             }
           },
           "required": [
-            "total_candidates",
             "candidate_id",
-            "score"
+            "score",
+            "total_candidates"
           ],
           "additionalProperties": true
         },
@@ -1103,8 +1103,8 @@
             }
           },
           "required": [
-            "total_rounds",
-            "round"
+            "round",
+            "total_rounds"
           ],
           "additionalProperties": true
         },
@@ -1265,8 +1265,8 @@
             }
           },
           "required": [
-            "artifacts_discovered",
-            "phase"
+            "phase",
+            "artifacts_discovered"
           ],
           "additionalProperties": true
         },
@@ -1339,9 +1339,9 @@
             }
           },
           "required": [
+            "gate_id",
             "passed",
-            "step",
-            "gate_id"
+            "step"
           ],
           "additionalProperties": true
         },
@@ -1450,8 +1450,8 @@
             }
           },
           "required": [
-            "description",
-            "task_id"
+            "task_id",
+            "description"
           ],
           "additionalProperties": true
         },
@@ -1529,8 +1529,8 @@
             }
           },
           "required": [
-            "duration_ms",
-            "task_id"
+            "task_id",
+            "duration_ms"
           ],
           "additionalProperties": true
         },
@@ -1589,8 +1589,8 @@
             }
           },
           "required": [
-            "error",
-            "task_id"
+            "task_id",
+            "error"
           ],
           "additionalProperties": true
         },
@@ -2064,8 +2064,8 @@
             }
           },
           "required": [
-            "recovery_id",
-            "artifact_ids"
+            "artifact_ids",
+            "recovery_id"
           ],
           "additionalProperties": true
         },
@@ -2099,8 +2099,8 @@
             }
           },
           "required": [
-            "recovery_id",
-            "artifact_ids"
+            "artifact_ids",
+            "recovery_id"
           ],
           "additionalProperties": true
         },
@@ -2133,8 +2133,8 @@
             }
           },
           "required": [
-            "recovery_id",
-            "artifacts_passed"
+            "artifacts_passed",
+            "recovery_id"
           ],
           "additionalProperties": true
         },
@@ -2279,10 +2279,10 @@
             }
           },
           "required": [
-            "target_artifact",
             "edge_id",
             "check_type",
-            "source_artifact"
+            "source_artifact",
+            "target_artifact"
           ],
           "additionalProperties": true
         },
@@ -2361,8 +2361,8 @@
             }
           },
           "required": [
-            "check_type",
             "edge_id",
+            "check_type",
             "expected",
             "actual"
           ],
@@ -2403,10 +2403,10 @@
             }
           },
           "required": [
-            "file_path",
-            "location",
             "stub_type",
-            "artifact_id"
+            "artifact_id",
+            "location",
+            "file_path"
           ],
           "additionalProperties": true
         },
@@ -2439,8 +2439,8 @@
             }
           },
           "required": [
-            "file_path",
-            "artifact_id"
+            "artifact_id",
+            "file_path"
           ],
           "additionalProperties": true
         },
@@ -2479,10 +2479,10 @@
             }
           },
           "required": [
-            "integration_type",
-            "target_artifact",
             "task_id",
-            "source_artifact"
+            "integration_type",
+            "source_artifact",
+            "target_artifact"
           ],
           "additionalProperties": true
         },
@@ -2606,8 +2606,8 @@
             }
           },
           "required": [
-            "duration_ms",
-            "sources_loaded"
+            "sources_loaded",
+            "duration_ms"
           ],
           "additionalProperties": true
         },
@@ -2873,8 +2873,8 @@
             }
           },
           "required": [
-            "lens_name",
             "skill_count",
+            "lens_name",
             "content_hash",
             "wave_count"
           ],
@@ -2917,8 +2917,8 @@
           },
           "required": [
             "skills",
-            "wave_index",
-            "total_waves"
+            "total_waves",
+            "wave_index"
           ],
           "additionalProperties": true
         },
@@ -2960,8 +2960,8 @@
           },
           "required": [
             "duration_ms",
-            "failed",
             "succeeded",
+            "failed",
             "wave_index"
           ],
           "additionalProperties": true
@@ -3047,10 +3047,10 @@
             }
           },
           "required": [
+            "skill_name",
             "context_keys_available",
             "wave_index",
-            "requires",
-            "skill_name"
+            "requires"
           ],
           "additionalProperties": true
         },
@@ -3102,11 +3102,11 @@
             }
           },
           "required": [
-            "cached",
-            "produces",
             "success",
             "duration_ms",
-            "skill_name"
+            "produces",
+            "skill_name",
+            "cached"
           ],
           "additionalProperties": true
         },
@@ -3172,8 +3172,8 @@
             }
           },
           "required": [
-            "lens_name",
             "skill_count",
+            "lens_name",
             "duration_ms"
           ],
           "additionalProperties": true
@@ -3237,8 +3237,8 @@
             }
           },
           "required": [
-            "subgraph_size",
-            "skill_name"
+            "skill_name",
+            "subgraph_size"
           ],
           "additionalProperties": true
         },
@@ -3289,10 +3289,10 @@
           },
           "required": [
             "flags",
-            "dag_id",
-            "skill_count",
             "dag_name",
             "risk_level",
+            "dag_id",
+            "skill_count",
             "risk_score"
           ],
           "additionalProperties": true
@@ -3378,11 +3378,11 @@
             }
           },
           "required": [
+            "skill_name",
             "violation_type",
-            "evidence",
             "action_taken",
-            "detection_method",
-            "skill_name"
+            "evidence",
+            "detection_method"
           ],
           "additionalProperties": true
         },
@@ -3421,9 +3421,9 @@
             }
           },
           "required": [
-            "violations_found",
-            "output_length",
             "method",
+            "output_length",
+            "violations_found",
             "scan_duration_ms"
           ],
           "additionalProperties": true
@@ -3467,8 +3467,8 @@
           },
           "required": [
             "risk_level",
-            "skill_name",
-            "action"
+            "action",
+            "skill_name"
           ],
           "additionalProperties": true
         },
@@ -3501,8 +3501,8 @@
             }
           },
           "required": [
-            "goal_id",
-            "title"
+            "title",
+            "goal_id"
           ],
           "additionalProperties": true
         },
@@ -3595,8 +3595,8 @@
             }
           },
           "required": [
-            "goal_id",
-            "error"
+            "error",
+            "goal_id"
           ],
           "additionalProperties": true
         },
@@ -3995,8 +3995,8 @@
             }
           },
           "required": [
-            "iteration",
-            "errors_found"
+            "errors_found",
+            "iteration"
           ],
           "additionalProperties": true
         },

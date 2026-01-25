@@ -15,7 +15,7 @@ from sunwell.interface.server.routes._models import (
     ProjectIntelligenceResponse,
     ProjectLearningsResponse,
 )
-from sunwell.interface.server.routes.project_models import ProjectPathRequest
+from sunwell.interface.server.routes.project.models import ProjectPathRequest
 
 router = APIRouter(prefix="/project", tags=["project"])
 

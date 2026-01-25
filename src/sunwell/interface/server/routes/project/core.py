@@ -21,7 +21,7 @@ from sunwell.interface.server.routes._models import (
     ScannedProjectTask,
     SuccessResponse,
 )
-from sunwell.interface.server.routes.project_models import (
+from sunwell.interface.server.routes.project.models import (
     IterateProjectRequest,
     ProjectPathRequest,
 )
