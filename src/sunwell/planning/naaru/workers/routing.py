@@ -42,7 +42,7 @@ class CognitiveRoutingWorker(RegionWorker):
     async def _ensure_router(self) -> None:
         """Lazily initialize the UnifiedRouter."""
         if self._router is None and self.router_model is not None:
-            from sunwell.routing import UnifiedRouter
+            from sunwell.planning.routing import UnifiedRouter
 
             self._router = UnifiedRouter(
                 model=self.router_model,

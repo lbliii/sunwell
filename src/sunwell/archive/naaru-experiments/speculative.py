@@ -196,7 +196,7 @@ async def speculative_classify(
     """
     from collections import Counter
 
-    from sunwell.routing import UnifiedRouter
+    from sunwell.planning.routing import UnifiedRouter
 
     router = UnifiedRouter(model=model)
 

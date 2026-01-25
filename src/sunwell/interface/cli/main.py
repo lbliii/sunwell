@@ -288,7 +288,7 @@ def main(
 
     # RFC-086: If a path was provided (sunwell . or sunwell ~/path), open project
     if open_path and ctx.invoked_subcommand is None:
-        from sunwell.cli import open_cmd
+        from sunwell.interface.cli import open_cmd
 
         ctx.invoke(
             open_cmd.open_project,
@@ -370,47 +370,47 @@ def _run_goal(
 # -----------------------------------------------------------------------------
 
 # Configuration management (absorbs bind, env)
-from sunwell.cli import config_cmd
+from sunwell.interface.cli import config_cmd
 
 main.add_command(config_cmd.config)
 
 # Project operations (absorbs workspace, scan, import)
-from sunwell.cli import project_cmd
+from sunwell.interface.cli import project_cmd
 
 main.add_command(project_cmd.project)
 
 # Session management (absorbs team)
-from sunwell.cli import session
+from sunwell.interface.cli import session
 
 main.add_command(session.sessions)
 
 # Lens management
-from sunwell.cli import lens
+from sunwell.interface.cli import lens
 
 main.add_command(lens.lens)
 
 # First-time setup wizard
-from sunwell.cli import setup
+from sunwell.interface.cli import setup
 
 main.add_command(setup.setup)
 
 # HTTP server for Studio UI (RFC-113)
-from sunwell.cli import serve_cmd
+from sunwell.interface.cli import serve_cmd
 
 main.add_command(serve_cmd.serve)
 
 # Debug and diagnostics (RFC-120)
-from sunwell.cli import debug_cmd
+from sunwell.interface.cli import debug_cmd
 
 main.add_command(debug_cmd.debug)
 
 # Artifact Lineage (RFC-121)
-from sunwell.cli import lineage_cmd
+from sunwell.interface.cli import lineage_cmd
 
 main.add_command(lineage_cmd.lineage)
 
 # Recovery & Review (RFC-125)
-from sunwell.cli import review_cmd
+from sunwell.interface.cli import review_cmd
 
 main.add_command(review_cmd.review)
 
@@ -422,7 +422,7 @@ main.add_command(review_cmd.review)
 # -----------------------------------------------------------------------------
 
 # Interactive REPL mode
-from sunwell.cli import chat
+from sunwell.interface.cli import chat
 
 main.add_command(click.Command(
     name="chat",
@@ -443,7 +443,7 @@ main.add_command(click.Command(
 ))
 
 # Demo command - Prism Principle demonstrations
-from sunwell.cli import demo_cmd
+from sunwell.interface.cli import demo_cmd
 
 main.add_command(click.Command(
     name="demo",
@@ -454,7 +454,7 @@ main.add_command(click.Command(
 ))
 
 # Evaluation suite
-from sunwell.cli import eval_cmd
+from sunwell.interface.cli import eval_cmd
 
 main.add_command(click.Command(
     name="eval",
@@ -465,7 +465,7 @@ main.add_command(click.Command(
 ))
 
 # Runtime management
-from sunwell.cli import runtime_cmd
+from sunwell.interface.cli import runtime_cmd
 
 main.add_command(click.Command(
     name="runtime",
@@ -482,19 +482,19 @@ main.add_command(click.Command(
 # -----------------------------------------------------------------------------
 
 # Autonomous Backlog (RFC-046) - Studio: backlog refresh/run
-from sunwell.cli import backlog_cmd
+from sunwell.interface.cli import backlog_cmd
 
 backlog_cmd.backlog.hidden = True
 main.add_command(backlog_cmd.backlog)
 
 # DAG and Incremental Execution (RFC-074) - Studio: dag plan/cache/impact
-from sunwell.cli import dag_cmd
+from sunwell.interface.cli import dag_cmd
 
 dag_cmd.dag.hidden = True
 main.add_command(dag_cmd.dag)
 
 # Generative Interface (RFC-075) - Studio: interface demo
-from sunwell.cli import interface_cmd
+from sunwell.interface.cli import interface_cmd
 
 interface_cmd.interface.hidden = True
 main.add_command(interface_cmd.interface)
@@ -506,61 +506,61 @@ agent.hidden = True
 main.add_command(agent)
 
 # State DAG Scanning (RFC-100) - Studio: scan <path>
-from sunwell.cli import scan_cmd
+from sunwell.interface.cli import scan_cmd
 
 scan_cmd.scan.hidden = True
 main.add_command(scan_cmd.scan)
 
 # Security-First Skill Execution (RFC-089) - Studio: security analyze/approve/audit/scan
-from sunwell.cli import security_cmd
+from sunwell.interface.cli import security_cmd
 
 security_cmd.security.hidden = True
 main.add_command(security_cmd.security)
 
 # Self-Knowledge (RFC-085) - Studio: self source/analysis/proposals/summary
-from sunwell.cli import self_cmd
+from sunwell.interface.cli import self_cmd
 
 self_cmd.self_cmd.hidden = True
 main.add_command(self_cmd.self_cmd, name="self")
 
 # Surface Primitives & Layout (RFC-072) - Studio: surface registry
-from sunwell.cli import surface
+from sunwell.interface.cli import surface
 
 surface.surface.hidden = True
 main.add_command(surface.surface)
 
 # Weakness Cascade (RFC-063) - Studio: weakness scan/preview/extract-contract
-from sunwell.cli import weakness_cmd
+from sunwell.interface.cli import weakness_cmd
 
 weakness_cmd.weakness.hidden = True
 main.add_command(weakness_cmd.weakness)
 
 # Multi-Instance Coordination (RFC-051) - Studio: workers ui-state/pause/resume/start
-from sunwell.cli import workers_cmd
+from sunwell.interface.cli import workers_cmd
 
 workers_cmd.workers.hidden = True
 main.add_command(workers_cmd.workers)
 
 # Autonomous Workflow Execution (RFC-086) - Studio: workflow auto/run/stop/resume/skip/chains/list
-from sunwell.cli import workflow_cmd
+from sunwell.interface.cli import workflow_cmd
 
 workflow_cmd.workflow.hidden = True
 main.add_command(workflow_cmd.workflow)
 
 # Workspace-Aware Scanning (RFC-103) - Studio: workspace detect/show/link/unlink/list
-from sunwell.cli import workspace_cmd
+from sunwell.interface.cli import workspace_cmd
 
 workspace_cmd.workspace.hidden = True
 main.add_command(workspace_cmd.workspace)
 
 # Continuous Codebase Indexing (RFC-108) - Studio: index build/query/metrics
-from sunwell.cli import index_cmd
+from sunwell.interface.cli import index_cmd
 
 index_cmd.index.hidden = True
 main.add_command(index_cmd.index)
 
 # ToC Navigation (RFC-124) - Studio: nav build/find/show/stats
-from sunwell.cli import nav_cmd
+from sunwell.interface.cli import nav_cmd
 
 nav_cmd.nav.hidden = True
 main.add_command(nav_cmd.nav)
@@ -571,95 +571,95 @@ main.add_command(nav_cmd.nav)
 # -----------------------------------------------------------------------------
 
 # Project Intelligence commands (RFC-045) - hidden
-from sunwell.cli import intel_cmd
+from sunwell.interface.cli import intel_cmd
 
 intel_cmd.intel.hidden = True
 main.add_command(intel_cmd.intel)
 
 # Plan command for DAG visualization - hidden
-from sunwell.cli import plan_cmd
+from sunwell.interface.cli import plan_cmd
 
 plan_cmd.plan.hidden = True
 main.add_command(plan_cmd.plan)
 
 # Deep Verification (RFC-047) - hidden
-from sunwell.cli import verify_cmd
+from sunwell.interface.cli import verify_cmd
 
 verify_cmd.verify.hidden = True
 main.add_command(verify_cmd.verify)
 
 # Autonomy Guardrails (RFC-048) - hidden
-from sunwell.cli import guardrails_cmd
+from sunwell.interface.cli import guardrails_cmd
 
 guardrails_cmd.guardrails.hidden = True
 main.add_command(guardrails_cmd.guardrails)
 
 # External Integration (RFC-049) - hidden
-from sunwell.cli import external_cmd
+from sunwell.interface.cli import external_cmd
 
 external_cmd.external.hidden = True
 main.add_command(external_cmd.external)
 
 # Fast Bootstrap (RFC-050) - hidden
-from sunwell.cli import bootstrap_cmd
+from sunwell.interface.cli import bootstrap_cmd
 
 bootstrap_cmd.bootstrap.hidden = True
 main.add_command(bootstrap_cmd.bootstrap)
 
 # Team Intelligence (RFC-052) - hidden
-from sunwell.cli import team_cmd
+from sunwell.interface.cli import team_cmd
 
 team_cmd.team.hidden = True
 main.add_command(team_cmd.team)
 
 # Project Import (RFC-043 addendum) - hidden
-from sunwell.cli import import_cmd
+from sunwell.interface.cli import import_cmd
 
 import_cmd.import_project.hidden = True
 main.add_command(import_cmd.import_project, name="import")
 
 # Briefing System (RFC-071) - hidden
-from sunwell.cli import briefing_cmd
+from sunwell.interface.cli import briefing_cmd
 
 briefing_cmd.briefing.hidden = True
 main.add_command(briefing_cmd.briefing)
 
 # Reasoned Decisions (RFC-073) - hidden
-from sunwell.cli import reason
+from sunwell.interface.cli import reason
 
 reason.reason.hidden = True
 main.add_command(reason.reason)
 
 # Universal Writing Environment (RFC-086) - hidden
-from sunwell.cli import open_cmd
+from sunwell.interface.cli import open_cmd
 
 open_cmd.open_project.hidden = True
 main.add_command(open_cmd.open_project, name="open")
 
 # User Environment Model (RFC-104) - hidden
-from sunwell.cli import env_cmd
+from sunwell.interface.cli import env_cmd
 
 env_cmd.env.hidden = True
 main.add_command(env_cmd.env)
 
 # Configuration binding - hidden (absorbed into config)
-from sunwell.cli import bind
+from sunwell.interface.cli import bind
 
 bind.bind.hidden = True
 main.add_command(bind.bind)
 
 # RFC-111: Skill library management (learn, list, import)
-from sunwell.cli import skills_cmd
+from sunwell.interface.cli import skills_cmd
 
 main.add_command(skills_cmd.skills_group)
 
 # RFC-115: Hierarchical Goal Decomposition (epic commands)
-from sunwell.cli import epic_cmd
+from sunwell.interface.cli import epic_cmd
 
 main.add_command(epic_cmd.epic)
 
 # RFC-130: Agent Constellation (autonomous and guard commands)
-from sunwell.cli import autonomous_cmd, guard_cmd
+from sunwell.interface.cli import autonomous_cmd, guard_cmd
 
 main.add_command(autonomous_cmd.autonomous)
 main.add_command(guard_cmd.guard)

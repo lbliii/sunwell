@@ -97,7 +97,7 @@ async def consensus_classify(
     Returns:
         ConsensusResult with classification and vote distribution
     """
-    from sunwell.routing import UnifiedRouter
+    from sunwell.planning.routing import UnifiedRouter
     from sunwell.planning.routing.unified import Complexity
 
     router = UnifiedRouter(model=model)

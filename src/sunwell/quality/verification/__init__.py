@@ -12,7 +12,7 @@ Components:
 - DeepVerifier: Orchestrator that ties everything together
 
 Usage:
-    from sunwell.verification import DeepVerifier, create_verifier
+    from sunwell.quality.verification import DeepVerifier, create_verifier
 
     # Create verifier with desired level
     verifier = create_verifier(model, cwd, level="standard")

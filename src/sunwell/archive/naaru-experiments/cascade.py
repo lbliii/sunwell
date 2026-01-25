@@ -142,7 +142,7 @@ class GradientCascade:
         """
         import time
 
-        from sunwell.routing import UnifiedRouter
+        from sunwell.planning.routing import UnifiedRouter
 
         await self._ensure_loaded()
 

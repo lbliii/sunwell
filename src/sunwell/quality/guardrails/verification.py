@@ -15,7 +15,7 @@ from sunwell.quality.guardrails.types import (
 
 if TYPE_CHECKING:
     from sunwell.planning.naaru.types import ArtifactSpec
-    from sunwell.verification import DeepVerificationResult, DeepVerifier
+    from sunwell.quality.verification import DeepVerificationResult, DeepVerifier
 
 
 @dataclass(slots=True)
@@ -231,7 +231,7 @@ def create_verification_gate(
     verifier = None
     if model and cwd:
         try:
-            from sunwell.verification import create_verifier
+            from sunwell.quality.verification import create_verifier
 
             verifier = create_verifier(model, cwd, level=level)
         except ImportError:
