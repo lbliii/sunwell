@@ -3,6 +3,11 @@
  *
  * Manages workspace discovery, switching, and current workspace state.
  * Combines project registry + discovery for unified workspace view.
+ *
+ * Multi-Project Architecture:
+ * - WorkspaceContainer: Groups related projects (frontend + backend + shared)
+ * - WorkspaceInfo: Individual project information
+ * - Supports tiered indexing (L0-L3) for scalability
  */
 
 import { apiGet, apiPost } from '$lib/socket';
@@ -11,6 +16,51 @@ import { apiGet, apiPost } from '$lib/socket';
 // TYPES
 // ═══════════════════════════════════════════════════════════════
 
+/**
+ * Project role hints for query routing.
+ */
+export type ProjectRole =
+  | 'frontend'
+  | 'backend'
+  | 'api'
+  | 'shared'
+  | 'infra'
+  | 'docs'
+  | 'mobile'
+  | 'cli'
+  | 'library'
+  | 'monorepo'
+  | 'unknown';
+
+/**
+ * Index tier for tiered indexing.
+ */
+export type IndexTier = 'l0_manifest' | 'l1_signatures' | 'l2_full' | 'l3_deep';
+
+/**
+ * A project reference within a workspace.
+ */
+export interface WorkspaceProject {
+  readonly id: string;
+  readonly path: string;
+  readonly role: ProjectRole;
+  readonly isPrimary: boolean;
+}
+
+/**
+ * A workspace container grouping related projects.
+ */
+export interface WorkspaceContainer {
+  readonly id: string;
+  readonly name: string;
+  readonly projects: WorkspaceProject[];
+  readonly root: string | null;
+  readonly createdAt: string;
+}
+
+/**
+ * Individual project/workspace info (backward compatible).
+ */
 export interface WorkspaceInfo {
   readonly id: string;
   readonly name: string;
@@ -20,6 +70,9 @@ export interface WorkspaceInfo {
   readonly status: 'valid' | 'invalid' | 'not_found' | 'unregistered';
   readonly workspaceType: string;
   readonly lastUsed: string | null;
+  readonly workspaceId: string | null;
+  readonly role: ProjectRole;
+  readonly indexTier: IndexTier;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -27,7 +80,9 @@ export interface WorkspaceInfo {
 // ═══════════════════════════════════════════════════════════════
 
 let _workspaces = $state<WorkspaceInfo[]>([]);
+let _workspaceContainers = $state<WorkspaceContainer[]>([]);
 let _current = $state<WorkspaceInfo | null>(null);
+let _currentContainer = $state<WorkspaceContainer | null>(null);
 let _isLoading = $state(false);
 let _error = $state<string | null>(null);
 
@@ -36,11 +91,21 @@ let _error = $state<string | null>(null);
 // ═══════════════════════════════════════════════════════════════
 
 export const workspaceManager = {
+  /** All individual projects (backward compatible) */
   get workspaces() {
     return _workspaces;
   },
+  /** All workspace containers (multi-project) */
+  get containers() {
+    return _workspaceContainers;
+  },
+  /** Current project */
   get current() {
     return _current;
+  },
+  /** Current workspace container */
+  get currentContainer() {
+    return _currentContainer;
   },
   get isLoading() {
     return _isLoading;
@@ -147,6 +212,158 @@ export async function discoverWorkspaces(root?: string): Promise<WorkspaceInfo[]
     return [];
   } finally {
     _isLoading = false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// WORKSPACE CONTAINER ACTIONS (Multi-Project)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Load all workspace containers.
+ */
+export async function loadContainers(): Promise<WorkspaceContainer[]> {
+  try {
+    _isLoading = true;
+    _error = null;
+
+    const response = await apiGet<{
+      containers: WorkspaceContainer[];
+      current: WorkspaceContainer | null;
+    }>('/api/workspace/containers');
+
+    _workspaceContainers = response.containers || [];
+    _currentContainer = response.current || null;
+
+    return _workspaceContainers;
+  } catch (e) {
+    _error = e instanceof Error ? e.message : String(e);
+    console.error('Failed to load workspace containers:', e);
+    return [];
+  } finally {
+    _isLoading = false;
+  }
+}
+
+/**
+ * Create a new workspace container.
+ */
+export async function createContainer(options: {
+  id: string;
+  name?: string;
+  projects?: Array<{ id: string; path: string; role?: ProjectRole }>;
+}): Promise<WorkspaceContainer> {
+  try {
+    _error = null;
+
+    const container = await apiPost<WorkspaceContainer>('/api/workspace/containers', {
+      id: options.id,
+      name: options.name || options.id,
+      projects: options.projects || [],
+    });
+
+    // Reload containers
+    await loadContainers();
+
+    return container;
+  } catch (e) {
+    _error = e instanceof Error ? e.message : String(e);
+    throw e;
+  }
+}
+
+/**
+ * Add a project to a workspace container.
+ */
+export async function addProjectToContainer(
+  containerId: string,
+  project: { id: string; path: string; role?: ProjectRole; isPrimary?: boolean }
+): Promise<WorkspaceContainer> {
+  try {
+    _error = null;
+
+    const container = await apiPost<WorkspaceContainer>(
+      `/api/workspace/containers/${encodeURIComponent(containerId)}/projects`,
+      project
+    );
+
+    // Update local state
+    _workspaceContainers = _workspaceContainers.map((c) =>
+      c.id === containerId ? container : c
+    );
+
+    return container;
+  } catch (e) {
+    _error = e instanceof Error ? e.message : String(e);
+    throw e;
+  }
+}
+
+/**
+ * Remove a project from a workspace container.
+ */
+export async function removeProjectFromContainer(
+  containerId: string,
+  projectId: string
+): Promise<WorkspaceContainer> {
+  try {
+    _error = null;
+
+    const container = await apiDelete<WorkspaceContainer>(
+      `/api/workspace/containers/${encodeURIComponent(containerId)}/projects/${encodeURIComponent(projectId)}`
+    );
+
+    // Update local state
+    _workspaceContainers = _workspaceContainers.map((c) =>
+      c.id === containerId ? container : c
+    );
+
+    return container;
+  } catch (e) {
+    _error = e instanceof Error ? e.message : String(e);
+    throw e;
+  }
+}
+
+/**
+ * Switch to a workspace container.
+ */
+export async function switchContainer(containerId: string): Promise<void> {
+  try {
+    _error = null;
+
+    const container = await apiPost<WorkspaceContainer>(
+      `/api/workspace/containers/${encodeURIComponent(containerId)}/switch`,
+      {}
+    );
+
+    _currentContainer = container;
+
+    // Also set current project to primary
+    if (container.projects.length > 0) {
+      const primary = container.projects.find((p) => p.isPrimary) || container.projects[0];
+      await switchWorkspace(primary.id);
+    }
+  } catch (e) {
+    _error = e instanceof Error ? e.message : String(e);
+    throw e;
+  }
+}
+
+/**
+ * Delete a workspace container.
+ */
+export async function deleteContainer(containerId: string): Promise<void> {
+  try {
+    _error = null;
+
+    await apiDelete<void>(`/api/workspace/containers/${encodeURIComponent(containerId)}`);
+
+    // Reload containers
+    await loadContainers();
+  } catch (e) {
+    _error = e instanceof Error ? e.message : String(e);
+    throw e;
   }
 }
 

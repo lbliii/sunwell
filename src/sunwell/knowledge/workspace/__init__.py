@@ -1,4 +1,4 @@
-"""Workspace detection and codebase indexing.
+"""Workspace detection, management, and multi-project architecture.
 
 RFC-024 additions:
 - WorkspaceConfig: Extended configuration with trust suggestions
@@ -12,11 +12,17 @@ RFC-043 additions:
 RFC-141 additions:
 - Lifecycle management: deletion, rename, move, cleanup operations
 - Cascade behavior for workspace child data
+
+Multi-Project Architecture:
+- Workspace: Container grouping related projects
+- WorkspaceProject: Reference to a project within a workspace
+- IndexTier: Tiered indexing levels (L0-L3) for scalability
+- ProjectRole: Semantic hints for query routing
 """
 
 from sunwell.knowledge.workspace.detector import (
     DEFAULT_TRUST,
-    Workspace,
+    Workspace as DetectedWorkspace,  # Legacy: single codebase detection
     WorkspaceConfig,
     WorkspaceDetector,
     resolve_trust_level,
@@ -47,11 +53,24 @@ from sunwell.knowledge.workspace.resolver import (
     format_resolution_message,
     resolve_workspace,
 )
+from sunwell.knowledge.workspace.types import (
+    IndexTier,
+    ProjectRole,
+    Workspace,  # New: multi-project workspace container
+    WorkspaceDependencies,
+    WorkspaceProject,
+)
+from sunwell.knowledge.workspace.registry import (
+    WorkspaceRegistry,
+    WorkspaceRegistryError,
+    create_workspace,
+    get_default_workspace,
+)
 
 __all__ = [
     # Detection (RFC-024)
     "WorkspaceDetector",
-    "Workspace",
+    "DetectedWorkspace",  # Legacy name for single codebase detection
     "WorkspaceConfig",
     "resolve_trust_level",
     "DEFAULT_TRUST",
@@ -79,4 +98,15 @@ __all__ = [
     "MoveResult",
     "CleanupResult",
     "has_nested_workspaces",
+    # Multi-Project Architecture
+    "Workspace",
+    "WorkspaceProject",
+    "WorkspaceDependencies",
+    "IndexTier",
+    "ProjectRole",
+    # Workspace Registry
+    "WorkspaceRegistry",
+    "WorkspaceRegistryError",
+    "create_workspace",
+    "get_default_workspace",
 ]

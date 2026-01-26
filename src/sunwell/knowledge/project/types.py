@@ -121,11 +121,17 @@ class ProjectManifest:
 
 @dataclass(frozen=True, slots=True)
 class Project:
-    """A workspace with explicit boundaries.
+    """A project with explicit boundaries.
 
     Projects are first-class entities that define where the agent can
     read/write files. No more implicit cwd() — all file operations are
     scoped to a project.
+
+    Projects can belong to a Workspace, which groups related projects
+    (e.g., frontend + backend + shared). The workspace enables:
+    - Cross-project context and memory
+    - Smart query routing
+    - Tiered indexing for scalability
 
     Attributes:
         id: Unique identifier (e.g., 'my-fastapi-app')
@@ -134,6 +140,7 @@ class Project:
         workspace_type: How the workspace was created/validated
         created_at: When this project was registered
         manifest: Parsed manifest if .sunwell/project.toml exists
+        workspace_id: ID of the workspace this project belongs to (if any)
     """
 
     id: str
@@ -153,6 +160,9 @@ class Project:
 
     manifest: ProjectManifest | None = None
     """Parsed manifest if it exists."""
+
+    workspace_id: str | None = None
+    """ID of the workspace this project belongs to."""
 
     def __post_init__(self) -> None:
         """Validate project on construction."""
@@ -186,18 +196,22 @@ class Project:
 
     def to_registry_entry(self) -> dict:
         """Convert to registry JSON format."""
-        return {
+        entry = {
             "root": str(self.root),
             "manifest": str(self.manifest_path) if self.manifest else None,
             "last_used": datetime.now().isoformat(),
             "workspace_type": self.workspace_type.value,
         }
+        if self.workspace_id:
+            entry["workspace_id"] = self.workspace_id
+        return entry
 
     @classmethod
     def from_registry_entry(cls, project_id: str, entry: dict) -> Project:
         """Create Project from registry entry."""
         root = Path(entry["root"])
         workspace_type = WorkspaceType(entry.get("workspace_type", "registered"))
+        workspace_id = entry.get("workspace_id")
 
         # Try to load manifest if it exists
         manifest = None
@@ -215,4 +229,5 @@ class Project:
             workspace_type=workspace_type,
             created_at=manifest.created if manifest else datetime.now(),
             manifest=manifest,
+            workspace_id=workspace_id,
         )

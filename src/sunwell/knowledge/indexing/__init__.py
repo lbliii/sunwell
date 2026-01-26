@@ -10,6 +10,8 @@ Features:
 - Priority indexing (hot files first)
 - Graceful fallback (grep when no embeddings)
 - File watching (incremental updates)
+- Tiered indexing (L0-L3) for multi-project scalability
+- Signature extraction for lightweight L1 indexing
 """
 
 from sunwell.knowledge.indexing.auto_config import (
@@ -27,6 +29,11 @@ from sunwell.knowledge.indexing.project_type import (
     detect_project_type,
 )
 from sunwell.knowledge.indexing.service import IndexingService, IndexState, IndexStatus
+from sunwell.knowledge.indexing.signature_extractor import (
+    Signature,
+    SignatureExtractor,
+    extract_signatures,
+)
 
 __all__ = [
     # Core types
@@ -50,4 +57,8 @@ __all__ = [
     "estimate_goal_complexity",
     # Observability
     "IndexMetrics",
+    # Signature extraction (L1 indexing)
+    "SignatureExtractor",
+    "Signature",
+    "extract_signatures",
 ]

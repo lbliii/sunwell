@@ -1,6 +1,12 @@
 """Background codebase indexing service (RFC-108).
 
 Provides always-on semantic search without blocking user interaction.
+
+Supports tiered indexing for multi-project workspaces:
+- L0: Manifest - Project list, roles, dependencies (instant)
+- L1: Signatures - Exports, public APIs, types (lightweight)
+- L2: Full - Everything in active project (on focus)
+- L3: Deep - Cross-project detailed search (on demand)
 """
 
 import asyncio
@@ -23,6 +29,7 @@ from sunwell.knowledge.indexing.metrics import IndexMetrics
 from sunwell.knowledge.indexing.priority import get_priority_files
 from sunwell.knowledge.indexing.project_type import ProjectType, detect_project_type
 from sunwell.knowledge.workspace.indexer import CodebaseIndex, CodeChunk
+from sunwell.knowledge.workspace.types import IndexTier
 
 
 class IndexState(Enum):
@@ -54,6 +61,8 @@ class IndexStatus:
     fallback_reason: str | None = None
     priority_complete: bool = False
     estimated_time_ms: int | None = None
+    tier: IndexTier = IndexTier.L2_FULL
+    """Current indexing tier (L0-L3)."""
 
     def to_json(self) -> dict[str, str | int | bool | None]:
         """Export status as JSON-serializable dict."""
@@ -69,6 +78,7 @@ class IndexStatus:
             "fallback_reason": self.fallback_reason,
             "priority_complete": self.priority_complete,
             "estimated_time_ms": self.estimated_time_ms,
+            "tier": self.tier.value,
         }
 
 
@@ -87,6 +97,13 @@ class IndexingService:
     - AST-aware chunking (Python)
     - Graceful fallback (grep when no embeddings)
     - File watching (incremental updates)
+    - Tiered indexing (L0-L3) for multi-project scalability
+
+    Index Tiers:
+    - L0_MANIFEST: No embedding, just metadata (instant)
+    - L1_SIGNATURES: Only public APIs, exports, types (lightweight)
+    - L2_FULL: Complete indexing of all code (default for active project)
+    - L3_DEEP: Cross-project deep search (on-demand)
     """
 
     workspace_root: Path
@@ -94,6 +111,10 @@ class IndexingService:
 
     # Optional injected embedder (if None, creates one internally)
     embedder: object | None = None
+
+    # Indexing tier (determines depth of indexing)
+    tier: IndexTier = IndexTier.L2_FULL
+    """Indexing tier: L0=manifest, L1=signatures, L2=full, L3=deep."""
 
     # Configuration
     debounce_ms: int = 500
@@ -114,6 +135,14 @@ class IndexingService:
             ".txt", ".rtf",
             # Screenplays
             ".fountain", ".fdx", ".highland",
+        })
+    )
+
+    # Extensions for L1 signature-only indexing (just code, not docs)
+    signature_extensions: frozenset[str] = field(
+        default_factory=lambda: frozenset({
+            ".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".rs", ".rb",
+            ".java", ".kt", ".swift", ".c", ".cpp", ".h", ".hpp", ".cs",
         })
     )
 
@@ -175,8 +204,21 @@ class IndexingService:
             self.on_status_change(self._status)
 
     async def start(self) -> None:
-        """Start the indexing service."""
-        self._update_status(state=IndexState.CHECKING)
+        """Start the indexing service.
+
+        Behavior varies by tier:
+        - L0_MANIFEST: No indexing, just loads metadata (instant)
+        - L1_SIGNATURES: Index only public APIs/exports (lightweight, no file watching)
+        - L2_FULL: Full indexing with file watching (default)
+        - L3_DEEP: Same as L2 but may include cross-project context
+        """
+        self._update_status(state=IndexState.CHECKING, tier=self.tier)
+
+        # L0: Manifest tier - no actual indexing needed
+        if self.tier == IndexTier.L0_MANIFEST:
+            self._update_status(state=IndexState.READY)
+            self._ready.set()
+            return
 
         # 0. Detect project type (code, prose, script, docs, mixed)
         self._project_type = detect_project_type(self.workspace_root)
@@ -197,8 +239,9 @@ class IndexingService:
             # No cache, build from scratch
             asyncio.create_task(self._background_index())
 
-        # 2. Start file watcher
-        self._watch_task = asyncio.create_task(self._watch_files())
+        # 2. Start file watcher (only for L2/L3 - L1 is one-shot)
+        if self.tier in (IndexTier.L2_FULL, IndexTier.L3_DEEP):
+            self._watch_task = asyncio.create_task(self._watch_files())
 
     async def stop(self) -> None:
         """Stop the indexing service."""
@@ -277,7 +320,13 @@ class IndexingService:
         return chunks
 
     async def _background_index(self) -> None:
-        """Build index in background with priority files first."""
+        """Build index in background with priority files first.
+
+        Behavior varies by tier:
+        - L1_SIGNATURES: Only index signature files (public APIs)
+        - L2_FULL: Full indexing (priority + remaining)
+        - L3_DEEP: Same as L2 for single project
+        """
         import time
 
         build_start = time.perf_counter()
@@ -287,13 +336,20 @@ class IndexingService:
             self._embedder = self.embedder or await self._create_embedder()
 
             if self._embedder:
-                # Phase 1: Priority files (fast)
-                await self._index_priority_files()
-                self._update_status(priority_complete=True)
-                self._ready.set()  # Usable after priority phase
+                if self.tier == IndexTier.L1_SIGNATURES:
+                    # L1: Only index signatures (public APIs, exports)
+                    await self._index_signatures_only()
+                    self._update_status(priority_complete=True)
+                    self._ready.set()
+                else:
+                    # L2/L3: Full indexing
+                    # Phase 1: Priority files (fast)
+                    await self._index_priority_files()
+                    self._update_status(priority_complete=True)
+                    self._ready.set()  # Usable after priority phase
 
-                # Phase 2: Remaining files (background)
-                await self._index_remaining_files()
+                    # Phase 2: Remaining files (background)
+                    await self._index_remaining_files()
 
                 await self._save_cache()
 
@@ -323,6 +379,67 @@ class IndexingService:
                 error=str(e),
             )
             self._metrics.record_error(str(e))
+
+    async def _index_signatures_only(self) -> None:
+        """Index only public signatures (L1 tier).
+
+        This is lightweight indexing for cross-project awareness.
+        Only indexes public APIs, exports, and type definitions.
+        """
+        # Only index code files (not docs, prose, etc.)
+        signature_files = [
+            f for f in self._iter_indexable_files()
+            if f.suffix in self.signature_extensions
+        ]
+
+        if not signature_files:
+            return
+
+        total = len(signature_files)
+        chunks: list[CodeChunk] = []
+
+        for i, file_path in enumerate(signature_files):
+            try:
+                rel_path = file_path.relative_to(self.workspace_root)
+            except ValueError:
+                rel_path = file_path
+
+            self._update_status(
+                progress=int((i / total) * 100),
+                current_file=str(rel_path),
+            )
+
+            # Use signature-only chunking (public functions, classes, exports)
+            file_chunks = self._chunk_file_signatures(file_path)
+            chunks.extend(file_chunks)
+
+            # Batch embed every 100 chunks for L1 (smaller batches than L2)
+            if len(chunks) >= 100:
+                await self._embed_chunks(chunks)
+                chunks = []
+
+        # Embed final batch
+        if chunks and self._embedder:
+            await self._embed_chunks(chunks)
+
+    def _chunk_file_signatures(self, file_path: Path) -> list[CodeChunk]:
+        """Extract only public signatures from a file.
+
+        For L1 indexing - much lighter than full chunking.
+        Only extracts:
+        - Function/method signatures (not bodies)
+        - Class definitions (not full implementation)
+        - Exported constants and types
+        """
+        # For now, use the regular chunker but filter to functions/classes only
+        # A dedicated signature extractor will be implemented in the next phase
+        all_chunks = self._chunk_file(file_path)
+
+        # Filter to only function and class chunks (signatures)
+        return [
+            c for c in all_chunks
+            if c.chunk_type in ("function", "class", "module")
+        ]
 
     async def _index_priority_files(self) -> None:
         """Index priority files first for fast startup.
