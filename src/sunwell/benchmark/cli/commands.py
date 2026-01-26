@@ -974,7 +974,7 @@ def plan_eval(
 
     except Exception as e:
         console.print(f"[red]Evaluation failed: {e}[/red]")
-        raise SystemExit(1)
+        raise SystemExit(1) from e
 
 
 @benchmark.command("plan-compare")

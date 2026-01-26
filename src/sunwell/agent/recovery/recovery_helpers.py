@@ -80,7 +80,7 @@ async def resume_from_recovery(
     yield signal_event("extracted", signals=signals.to_dict())
 
     # Plan the fix
-    async for event, task_graph, _ in plan_with_signals_fn(
+    async for event, _task_graph, _ in plan_with_signals_fn(
         fix_goal,
         signals,
         {

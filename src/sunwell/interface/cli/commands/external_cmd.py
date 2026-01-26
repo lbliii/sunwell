@@ -5,10 +5,14 @@ Commands for managing external event sources, webhooks, and scheduled jobs.
 
 import asyncio
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 from rich.console import Console
 from rich.table import Table
+
+if TYPE_CHECKING:
+    from sunwell.features.external.processor import EventProcessor
 
 console = Console()
 

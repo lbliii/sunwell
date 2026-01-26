@@ -186,7 +186,9 @@ async def extract_signals(
     complexity = await trit_classify(goal, "Is this task complex?", model)
     needs_tools = await trit_classify(goal, "Does this need file or shell operations?", model)
     needs_context = await trit_classify(goal, "Does this need project context?", model)
-    is_dangerous = await trit_classify(goal, "Could this cause harm (delete files, break things)?", model)
+    is_dangerous = await trit_classify(
+        goal, "Could this cause harm (delete files, break things)?", model
+    )
     is_ambiguous = await trit_classify(goal, "Is this goal unclear or ambiguous?", model)
 
     return SignalVector(

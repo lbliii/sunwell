@@ -190,5 +190,5 @@ __all__ = [
     "InteractionType",
     "Serializable",
     "ViewSpec",
-    "WorkspaceSpec",
+    # WorkspaceSpec is imported from sunwell.interface.surface.types
 ]

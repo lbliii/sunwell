@@ -151,7 +151,7 @@ class TestStore:
 
     def test_store_creation(self, tmp_path):
         """Store should be creatable with a path."""
-        from sunwell.benchmark.evaluation.store import EvaluationStore
+        from sunwell.benchmark.eval.store import EvaluationStore
 
         db_path = tmp_path / "eval.db"
         store = EvaluationStore(db_path)
@@ -161,7 +161,7 @@ class TestStore:
 
     def test_store_aggregate_stats_empty(self, tmp_path):
         """Empty store should return zero stats."""
-        from sunwell.benchmark.evaluation.store import EvaluationStore
+        from sunwell.benchmark.eval.store import EvaluationStore
 
         db_path = tmp_path / "empty.db"
         store = EvaluationStore(db_path)
@@ -170,7 +170,7 @@ class TestStore:
 
     def test_store_load_recent_empty(self, tmp_path):
         """Empty store should return empty list."""
-        from sunwell.benchmark.evaluation.store import EvaluationStore
+        from sunwell.benchmark.eval.store import EvaluationStore
 
         db_path = tmp_path / "empty2.db"
         store = EvaluationStore(db_path)

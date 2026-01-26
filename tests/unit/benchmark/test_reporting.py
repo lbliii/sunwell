@@ -6,8 +6,8 @@ Covers:
 """
 
 import numpy as np
-import pytest
 
+from sunwell.benchmark.reporting.reporter import BenchmarkReporter
 from sunwell.benchmark.reporting.statistics import (
     bootstrap_ci,
     cohens_d,
@@ -25,7 +25,6 @@ from sunwell.benchmark.types import (
     TaskResult,
     Verdict,
 )
-from sunwell.benchmark.reporting.reporter import BenchmarkReporter
 
 
 class TestSignificanceTest:
@@ -132,6 +131,30 @@ class TestBootstrapCI:
         # 90% CI should be narrower than 95% CI
         assert (upper_95 - lower_95) >= (upper_90 - lower_90)
 
+    def test_reproducibility_with_seed(self) -> None:
+        """Seed 42 should produce identical results on repeated calls."""
+        data_a = np.array([3.0, 4.0, 5.0, 6.0, 7.0])
+        data_b = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+
+        lower1, upper1 = bootstrap_ci(data_a, data_b)
+        lower2, upper2 = bootstrap_ci(data_a, data_b)
+
+        # With fixed seed=42 in implementation, results should be identical
+        assert lower1 == lower2
+        assert upper1 == upper2
+
+    def test_ci_lower_always_lte_upper(self) -> None:
+        """CI lower should always be <= CI upper for any valid input."""
+        test_cases = [
+            (np.array([1.0, 2.0]), np.array([1.0, 2.0])),  # Equal
+            (np.array([5.0, 6.0]), np.array([1.0, 2.0])),  # A higher
+            (np.array([1.0, 2.0]), np.array([5.0, 6.0])),  # B higher
+            (np.array([1.0, 10.0, 2.0, 9.0]), np.array([3.0, 8.0, 4.0, 7.0])),  # Mixed
+        ]
+        for data_a, data_b in test_cases:
+            lower, upper = bootstrap_ci(data_a, data_b)
+            assert lower <= upper, f"CI ordering failed for {data_a} vs {data_b}"
+
 
 class TestInterpretEffectSize:
     """Test effect size interpretation."""
@@ -151,6 +174,32 @@ class TestInterpretEffectSize:
     def test_large(self) -> None:
         assert interpret_effect_size(1.0) == "large"
         assert interpret_effect_size(-1.0) == "large"
+
+    # Boundary tests - exact thresholds
+    def test_boundary_negligible_to_small(self) -> None:
+        """Test exact boundary at 0.2."""
+        assert interpret_effect_size(0.19) == "negligible"
+        assert interpret_effect_size(0.2) == "small"
+        assert interpret_effect_size(-0.19) == "negligible"
+        assert interpret_effect_size(-0.2) == "small"
+
+    def test_boundary_small_to_medium(self) -> None:
+        """Test exact boundary at 0.5."""
+        assert interpret_effect_size(0.49) == "small"
+        assert interpret_effect_size(0.5) == "medium"
+        assert interpret_effect_size(-0.49) == "small"
+        assert interpret_effect_size(-0.5) == "medium"
+
+    def test_boundary_medium_to_large(self) -> None:
+        """Test exact boundary at 0.8."""
+        assert interpret_effect_size(0.79) == "medium"
+        assert interpret_effect_size(0.8) == "large"
+        assert interpret_effect_size(-0.79) == "medium"
+        assert interpret_effect_size(-0.8) == "large"
+
+    def test_zero_is_negligible(self) -> None:
+        """Zero effect size is negligible."""
+        assert interpret_effect_size(0.0) == "negligible"
 
 
 class TestEmptySummary:
@@ -233,3 +282,290 @@ class TestBenchmarkReporter:
         assert summary.wins == 1
         # Single data point means insufficient data for stats
         assert summary.test_name == "insufficient_data"
+
+    def test_category_extraction_with_hyphen(self) -> None:
+        """Task ID with hyphens extracts first segment as category."""
+        reporter = BenchmarkReporter()
+
+        verdict = AggregatedVerdict(
+            winner=Verdict.B_WINS,
+            individual_verdicts=(),
+            agreement_rate=1.0,
+            avg_score_a=3.0,
+            avg_score_b=4.0,
+            position_bias=0.0,
+        )
+
+        eval_result = EvaluationResult(
+            task_id="docs-api-ref-001",
+            deterministic={},
+            judge_results={"selective_vs_bare": verdict},
+        )
+
+        summary = reporter.compute_statistics([], [eval_result])
+        assert "docs" in summary.n_per_category
+
+    def test_category_extraction_without_hyphen(self) -> None:
+        """Task ID without hyphens defaults to 'other' category."""
+        reporter = BenchmarkReporter()
+
+        verdict = AggregatedVerdict(
+            winner=Verdict.TIE,
+            individual_verdicts=(),
+            agreement_rate=1.0,
+            avg_score_a=3.0,
+            avg_score_b=3.0,
+            position_bias=0.0,
+        )
+
+        eval_result = EvaluationResult(
+            task_id="singletask",
+            deterministic={},
+            judge_results={"selective_vs_bare": verdict},
+        )
+
+        summary = reporter.compute_statistics([], [eval_result])
+        assert "other" in summary.n_per_category
+
+    def test_win_loss_tie_aggregation(self) -> None:
+        """Verify win/loss/tie counts match verdict types."""
+        reporter = BenchmarkReporter()
+
+        # Create 2 wins, 1 loss, 1 tie
+        verdicts = [
+            (Verdict.B_WINS, "task-win1"),
+            (Verdict.B_WINS, "task-win2"),
+            (Verdict.A_WINS, "task-loss1"),
+            (Verdict.TIE, "task-tie1"),
+        ]
+
+        eval_results = []
+        for verdict_type, task_id in verdicts:
+            verdict = AggregatedVerdict(
+                winner=verdict_type,
+                individual_verdicts=(),
+                agreement_rate=1.0,
+                avg_score_a=3.0,
+                avg_score_b=4.0 if verdict_type == Verdict.B_WINS else 3.0,
+                position_bias=0.0,
+            )
+            eval_results.append(EvaluationResult(
+                task_id=task_id,
+                deterministic={},
+                judge_results={"selective_vs_bare": verdict},
+            ))
+
+        summary = reporter.compute_statistics([], eval_results)
+        assert summary.wins == 2
+        assert summary.losses == 1
+        assert summary.ties == 1
+
+
+class TestStatisticalSummaryClaimLevel:
+    """Test StatisticalSummary.claim_level() method."""
+
+    def _make_summary(
+        self, p_value: float, effect_size: float
+    ) -> StatisticalSummary:
+        """Helper to create summary with specific p-value and effect size."""
+        return StatisticalSummary(
+            n_tasks=10,
+            n_per_category={},
+            wins=5,
+            losses=3,
+            ties=2,
+            effect_size_cohens_d=effect_size,
+            effect_size_interpretation="large" if abs(effect_size) >= 0.8 else "medium",
+            p_value=p_value,
+            test_statistic=10.0,
+            test_name="test",
+            ci_lower=0.1,
+            ci_upper=0.5,
+        )
+
+    def test_strong_evidence(self) -> None:
+        """p < 0.01 and d > 0.8 = strong evidence."""
+        summary = self._make_summary(p_value=0.005, effect_size=0.9)
+        assert summary.claim_level() == "strong evidence"
+
+    def test_shows_improvement(self) -> None:
+        """p < 0.05 and d > 0.5 = shows improvement."""
+        summary = self._make_summary(p_value=0.03, effect_size=0.6)
+        assert summary.claim_level() == "shows improvement"
+
+    def test_suggests_improvement(self) -> None:
+        """p < 0.1 and d > 0.2 = suggests improvement."""
+        summary = self._make_summary(p_value=0.08, effect_size=0.3)
+        assert summary.claim_level() == "suggests improvement"
+
+    def test_insufficient_evidence_high_p(self) -> None:
+        """p >= 0.1 = insufficient evidence."""
+        summary = self._make_summary(p_value=0.15, effect_size=0.9)
+        assert summary.claim_level() == "insufficient evidence"
+
+    def test_insufficient_evidence_low_effect(self) -> None:
+        """d <= 0.2 with low p = insufficient evidence."""
+        summary = self._make_summary(p_value=0.01, effect_size=0.15)
+        assert summary.claim_level() == "insufficient evidence"
+
+    def test_boundary_strong_evidence(self) -> None:
+        """Test boundary: p=0.01 and d=0.8 should NOT be strong (needs p < 0.01)."""
+        summary = self._make_summary(p_value=0.01, effect_size=0.85)
+        # p=0.01 is not < 0.01, so should be shows improvement
+        assert summary.claim_level() == "shows improvement"
+
+    def test_win_rate_calculation(self) -> None:
+        """Test win_rate property."""
+        summary = self._make_summary(p_value=0.05, effect_size=0.5)
+        # 5 wins / (5 + 3 + 2) = 0.5
+        assert summary.win_rate == 0.5
+
+    def test_significant_property(self) -> None:
+        """Test significant property (p < 0.05)."""
+        sig_summary = self._make_summary(p_value=0.04, effect_size=0.5)
+        assert sig_summary.significant is True
+
+        not_sig_summary = self._make_summary(p_value=0.06, effect_size=0.5)
+        assert not_sig_summary.significant is False
+
+
+class TestMarkdownReportGeneration:
+    """Test BenchmarkReporter.generate_markdown_report()."""
+
+    def _make_minimal_results(self) -> tuple:
+        """Create minimal results for testing markdown generation."""
+        from sunwell.benchmark.types import BenchmarkResults
+
+        verdict = AggregatedVerdict(
+            winner=Verdict.B_WINS,
+            individual_verdicts=(),
+            agreement_rate=0.8,
+            avg_score_a=3.5,
+            avg_score_b=4.5,
+            position_bias=0.1,
+        )
+
+        eval_result = EvaluationResult(
+            task_id="docs-test-001",
+            deterministic={
+                "selective": DeterministicResult(
+                    must_contain_results={"API": True},
+                    must_not_contain_results={},
+                ),
+            },
+            judge_results={"selective_vs_bare": verdict},
+        )
+
+        task_result = TaskResult(
+            task_id="docs-test-001",
+            outputs={
+                "selective": ConditionOutput(
+                    condition=Condition.SELECTIVE,
+                    content="Test output",
+                    tokens_input=100,
+                    tokens_output=50,
+                    latency_ms=500,
+                ),
+            },
+        )
+
+        results = BenchmarkResults(
+            timestamp="2025-01-01T00:00:00",
+            model="test-model",
+            task_results=(task_result,),
+        )
+
+        summary = StatisticalSummary(
+            n_tasks=1,
+            n_per_category={"docs": 1},
+            wins=1,
+            losses=0,
+            ties=0,
+            effect_size_cohens_d=0.9,
+            effect_size_interpretation="large",
+            p_value=0.02,
+            test_statistic=5.0,
+            test_name="Wilcoxon signed-rank",
+            ci_lower=0.1,
+            ci_upper=0.5,
+        )
+
+        return results, [eval_result], summary
+
+    def test_report_contains_header(self) -> None:
+        """Report should contain header section."""
+        reporter = BenchmarkReporter()
+        results, evals, summary = self._make_minimal_results()
+        report = reporter.generate_markdown_report(results, evals, summary)
+
+        assert "# Quality Benchmark Report" in report
+        assert "**Model**: test-model" in report
+
+    def test_report_contains_summary_table(self) -> None:
+        """Report should contain summary statistics table."""
+        reporter = BenchmarkReporter()
+        results, evals, summary = self._make_minimal_results()
+        report = reporter.generate_markdown_report(results, evals, summary)
+
+        assert "## Summary" in report
+        assert "| Metric | Value |" in report
+        assert "Win Rate" in report
+        assert "Effect Size" in report
+        assert "p-value" in report
+
+    def test_report_contains_interpretation(self) -> None:
+        """Report should contain interpretation section."""
+        reporter = BenchmarkReporter()
+        results, evals, summary = self._make_minimal_results()
+        report = reporter.generate_markdown_report(results, evals, summary)
+
+        assert "### Interpretation" in report
+        # With p=0.02 and d=0.9, should show "shows improvement"
+        assert "show improvement" in report.lower() or "strong evidence" in report.lower()
+
+    def test_report_contains_category_breakdown(self) -> None:
+        """Report should contain category breakdown when category_stats exist."""
+        from sunwell.benchmark.types import CategoryStats
+
+        reporter = BenchmarkReporter()
+        results, evals, _ = self._make_minimal_results()
+
+        # Create summary WITH category_stats populated
+        summary_with_cats = StatisticalSummary(
+            n_tasks=1,
+            n_per_category={"docs": 1},
+            wins=1,
+            losses=0,
+            ties=0,
+            effect_size_cohens_d=0.9,
+            effect_size_interpretation="large",
+            p_value=0.02,
+            test_statistic=5.0,
+            test_name="Wilcoxon signed-rank",
+            ci_lower=0.1,
+            ci_upper=0.5,
+            category_stats=(
+                CategoryStats(
+                    category="docs",
+                    total_tasks=1,
+                    wins=1,
+                    losses=0,
+                    ties=0,
+                    avg_selective_score=4.5,
+                    avg_baseline_score=3.5,
+                ),
+            ),
+        )
+
+        report = reporter.generate_markdown_report(results, evals, summary_with_cats)
+        assert "## Category Breakdown" in report
+        assert "docs" in report
+
+    def test_report_contains_detailed_results(self) -> None:
+        """Report should contain detailed per-task results."""
+        reporter = BenchmarkReporter()
+        results, evals, summary = self._make_minimal_results()
+        report = reporter.generate_markdown_report(results, evals, summary)
+
+        assert "## Detailed Results" in report
+        assert "docs-test-001" in report

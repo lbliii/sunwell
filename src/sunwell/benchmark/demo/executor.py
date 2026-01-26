@@ -351,7 +351,7 @@ Code only (no explanations):"""
 
         # Track judge evaluation
         judge_issues = tuple(judgment.feedback) if judgment.feedback else ()
-        judge_passed = judgment.score >= 8.0
+        _ = judgment.score >= 8.0  # Track but don't use
 
         # 3. Score initial code with deterministic scorer (same scorer used for final evaluation)
         initial_score_result = self.scorer.score(initial_code, task.expected_features)

@@ -27,6 +27,8 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
+from sunwell.foundation.utils import safe_yaml_load
+
 if TYPE_CHECKING:
     from sunwell.foundation.core.lens import Lens
     from sunwell.planning.routing.unified import RoutingDecision

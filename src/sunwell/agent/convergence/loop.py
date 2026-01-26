@@ -352,7 +352,7 @@ class ConvergenceLoop:
         except FileNotFoundError:
             logger.warning("ruff not installed, skipping lint check")
             return True, []
-        except (TimeoutError, subprocess.TimeoutExpired, asyncio.TimeoutError):
+        except TimeoutError:
             return False, ["Lint check timed out"]
         except Exception as e:
             return False, [str(e)]
@@ -379,7 +379,7 @@ class ConvergenceLoop:
             return False, errors
         except FileNotFoundError:
             pass  # ty not installed, try mypy
-        except (TimeoutError, subprocess.TimeoutExpired, asyncio.TimeoutError):
+        except TimeoutError:
             return False, ["Type check timed out"]
         except Exception as e:
             return False, [str(e)]
@@ -402,7 +402,7 @@ class ConvergenceLoop:
         except FileNotFoundError:
             logger.warning("Neither ty nor mypy installed, skipping type check")
             return True, []
-        except (TimeoutError, subprocess.TimeoutExpired, asyncio.TimeoutError):
+        except TimeoutError:
             return False, ["Type check timed out"]
         except Exception as e:
             return False, [str(e)]
@@ -435,7 +435,7 @@ class ConvergenceLoop:
         except FileNotFoundError:
             logger.warning("pytest not installed, skipping test check")
             return True, []
-        except (TimeoutError, subprocess.TimeoutExpired, asyncio.TimeoutError):
+        except TimeoutError:
             return False, ["Tests timed out"]
         except Exception as e:
             return False, [str(e)]

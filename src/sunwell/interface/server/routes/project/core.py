@@ -2,10 +2,15 @@
 
 import shutil
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter
 
 from sunwell.foundation.utils import normalize_path
+
+if TYPE_CHECKING:
+    from sunwell.knowledge.project.registry import ProjectRegistry
+    from sunwell.knowledge.project.types import Project
 from sunwell.interface.server.routes.models import (
     CurrentProjectItem,
     CurrentProjectResponse,

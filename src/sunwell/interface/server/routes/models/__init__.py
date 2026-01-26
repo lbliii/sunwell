@@ -256,9 +256,6 @@ __all__ = [
     "RunsListResponse",
     "RunHistoryItem",
     "RunEventsResponse",
-    # Common
-    "SuccessResponse",
-    "ErrorResponse",
     # Writer/Diataxis
     "DiataxisScores",
     "DiataxisDetection",

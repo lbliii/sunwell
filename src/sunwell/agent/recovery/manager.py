@@ -206,8 +206,8 @@ class RecoveryManager:
                 with open(path) as f:
                     data = json.load(f)
 
-                # Single-pass counting (O(n) instead of O(3n))
-                counts = {"passed": 0, "failed": 0, "waiting": 0}
+                # Single-pass counting (O(n) instead of O(5n))
+                counts = {"passed": 0, "failed": 0, "waiting": 0, "fixed": 0, "skipped": 0}
                 for a in data["artifacts"].values():
                     status = a["status"]
                     if status in counts:
@@ -220,6 +220,8 @@ class RecoveryManager:
                     passed=counts["passed"],
                     failed=counts["failed"],
                     waiting=counts["waiting"],
+                    fixed=counts["fixed"],
+                    skipped=counts["skipped"],
                     created_at=datetime.fromisoformat(data["created_at"]),
                 ))
             except (json.JSONDecodeError, KeyError):

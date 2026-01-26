@@ -332,7 +332,7 @@ class SmartContext:
                         "line": match_data.get("line_number", 0),
                         "content": match_data.get("lines", {}).get("text", ""),
                     })
-            except json.JSONDecodeError:
+            except ValueError:
                 continue
         return results
 

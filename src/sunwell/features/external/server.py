@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING
 from sunwell.features.external.types import EventSource
 
 if TYPE_CHECKING:
+    from fastapi.responses import JSONResponse
+
     from sunwell.features.external.processor import EventProcessor
 
 logger = logging.getLogger(__name__)
@@ -44,7 +46,7 @@ class WebhookServer:
         """Configure FastAPI application and routes."""
         try:
             from fastapi import FastAPI, Request
-            from fastapi.responses import JSONResponse
+            from fastapi.responses import JSONResponse  # noqa: F401 (used in inner functions)
         except ImportError as e:
             logger.warning(f"FastAPI not available: {e}")
             return
@@ -115,7 +117,7 @@ class WebhookServer:
         try:
             payload = json.loads(body)
         except json.JSONDecodeError:
-            raise HTTPException(400, "Invalid JSON payload")
+            raise HTTPException(400, "Invalid JSON payload") from None
 
         event_name = request.headers.get("X-GitHub-Event", "")
 
@@ -150,7 +152,7 @@ class WebhookServer:
         try:
             payload = json.loads(body)
         except json.JSONDecodeError:
-            raise HTTPException(400, "Invalid JSON payload")
+            raise HTTPException(400, "Invalid JSON payload") from None
 
         event = adapter.normalize_webhook(payload)
         if event:
@@ -176,7 +178,7 @@ class WebhookServer:
         try:
             payload = json.loads(body)
         except json.JSONDecodeError:
-            raise HTTPException(400, "Invalid JSON payload")
+            raise HTTPException(400, "Invalid JSON payload") from None
 
         event = adapter.normalize_webhook(payload)
         if event:
@@ -202,7 +204,7 @@ class WebhookServer:
         try:
             payload = json.loads(body)
         except json.JSONDecodeError:
-            raise HTTPException(400, "Invalid JSON payload")
+            raise HTTPException(400, "Invalid JSON payload") from None
 
         event = adapter.normalize_webhook(payload)
         if event:

@@ -244,7 +244,8 @@ def strain_summary(strains: list[Strain]) -> dict[str, any]:
 # =============================================================================
 
 
-TRIAGE_PROMPT = """You are triaging a STRAIN — a cluster of concerning signals detected by initial screening.
+TRIAGE_PROMPT = """You are triaging a STRAIN — a cluster of concerning signals detected \
+by initial screening.
 
 CONTEXT: This strain was detected in the following content:
 

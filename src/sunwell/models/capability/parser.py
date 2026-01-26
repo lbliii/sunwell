@@ -137,7 +137,6 @@ def parse_model_id(model_id: str) -> ModelSpec:
     Returns:
         ModelSpec with parsed components
     """
-    original = model_id
     provider = None
     org = None
 

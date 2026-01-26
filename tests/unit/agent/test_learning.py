@@ -667,6 +667,101 @@ class TestToolPattern:
 
         assert conf_high > conf_low
 
+    def test_has_lock_attribute(self) -> None:
+        """ToolPattern should have _lock for thread safety (RFC-122 fix)."""
+        pattern = ToolPattern(task_type="api", tool_sequence=("read_file",))
+        assert hasattr(pattern, "_lock")
+        assert isinstance(pattern._lock, threading.Lock)
+
+
+class TestToolPatternThreadSafety:
+    """Thread safety tests for ToolPattern (RFC-122 bug fix).
+
+    Bug: ToolPattern.record() used non-atomic += operations on
+    success_count/failure_count, unsafe in Python 3.14t free-threading.
+    Fix: Added threading.Lock and wrapped mutations.
+    """
+
+    def test_concurrent_recording_exact_counts(self) -> None:
+        """Verify record() produces exact counts under concurrent access."""
+        pattern = ToolPattern(task_type="test", tool_sequence=("read_file", "write_file"))
+        iterations = 500
+
+        def record_success() -> None:
+            for _ in range(iterations):
+                pattern.record(True)
+
+        def record_failure() -> None:
+            for _ in range(iterations):
+                pattern.record(False)
+
+        threads = [
+            threading.Thread(target=record_success),
+            threading.Thread(target=record_failure),
+            threading.Thread(target=record_success),
+            threading.Thread(target=record_failure),
+        ]
+
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # Should have exactly 1000 successes and 1000 failures
+        assert pattern.success_count == 2 * iterations
+        assert pattern.failure_count == 2 * iterations
+
+    def test_success_rate_consistent_under_contention(self) -> None:
+        """Verify success_rate property is consistent under concurrent reads/writes."""
+        pattern = ToolPattern(task_type="test", tool_sequence=("tool",))
+        errors: list[str] = []
+
+        def reader() -> None:
+            for _ in range(200):
+                rate = pattern.success_rate
+                if not (0.0 <= rate <= 1.0):
+                    errors.append(f"Invalid rate: {rate}")
+
+        def writer() -> None:
+            for _ in range(200):
+                pattern.record(True)
+                pattern.record(False)
+
+        threads = [threading.Thread(target=reader) for _ in range(3)]
+        threads += [threading.Thread(target=writer) for _ in range(2)]
+
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert not errors, f"Found errors: {errors}"
+
+    def test_confidence_consistent_under_contention(self) -> None:
+        """Verify confidence property is consistent under concurrent access."""
+        pattern = ToolPattern(task_type="test", tool_sequence=("tool",))
+        errors: list[str] = []
+
+        def reader() -> None:
+            for _ in range(200):
+                conf = pattern.confidence
+                if not (0.0 <= conf <= 1.0):
+                    errors.append(f"Invalid confidence: {conf}")
+
+        def writer() -> None:
+            for _ in range(200):
+                pattern.record(True)
+
+        threads = [threading.Thread(target=reader) for _ in range(3)]
+        threads += [threading.Thread(target=writer) for _ in range(2)]
+
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert not errors, f"Found errors: {errors}"
+
 
 class TestClassifyTaskType:
     """Tests for classify_task_type function."""

@@ -180,7 +180,4 @@ async def should_use_delegation(
 
     # Multiple file generation benefits from delegation
     file_indicators = ("files", "endpoints", "components", "modules")
-    if any(ind in task.lower() for ind in file_indicators):
-        return True
-
-    return False
+    return any(ind in task.lower() for ind in file_indicators)

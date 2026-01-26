@@ -120,7 +120,8 @@ class CodeScanner:
                 continue
 
             try:
-                content = file_path.read_text(encoding="utf-8", errors="replace")
+                # Read content to verify file is readable
+                file_path.read_text(encoding="utf-8", errors="replace")
             except OSError:
                 continue
 

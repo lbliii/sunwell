@@ -204,7 +204,6 @@ Duration: {duration_str}"""
     console.print(f"\n[bold]Goals:[/bold] {summary.goals_completed} completed, {summary.goals_failed} failed")
 
     # Files section
-    total_files = summary.files_created + summary.files_modified
     console.print(f"[bold]Files:[/bold] {summary.files_created} created, {summary.files_modified} modified")
 
     # Code changes

@@ -47,7 +47,7 @@ def format_table(
         col_widths = [min(w, max_width) for w in col_widths]
 
     # Format header
-    header_row = "  ".join(h.ljust(w) for h, w in zip(headers, col_widths))
+    header_row = "  ".join(h.ljust(w) for h, w in zip(headers, col_widths, strict=True))
     separator = "  ".join("-" * w for w in col_widths)
 
     # Format rows

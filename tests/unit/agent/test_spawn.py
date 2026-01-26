@@ -8,19 +8,19 @@ from datetime import datetime, timedelta
 import pytest
 
 from sunwell.agent.utils.spawn import (
-    SpawnDepthExceeded,
+    SpawnDepthExceededError,
     SpawnRequest,
     SpecialistResult,
     SpecialistState,
 )
 
 
-class TestSpawnDepthExceeded:
-    """Tests for SpawnDepthExceeded exception."""
+class TestSpawnDepthExceededError:
+    """Tests for SpawnDepthExceededError exception."""
 
     def test_exception_message(self) -> None:
         """Exception has informative message."""
-        exc = SpawnDepthExceeded(current_depth=4, max_depth=3)
+        exc = SpawnDepthExceededError(current_depth=4, max_depth=3)
 
         assert "4" in str(exc)
         assert "3" in str(exc)
@@ -28,9 +28,9 @@ class TestSpawnDepthExceeded:
         assert exc.max_depth == 3
 
     def test_exception_is_exception(self) -> None:
-        """SpawnDepthExceeded is a proper exception."""
-        with pytest.raises(SpawnDepthExceeded):
-            raise SpawnDepthExceeded(current_depth=5, max_depth=3)
+        """SpawnDepthExceededError is a proper exception."""
+        with pytest.raises(SpawnDepthExceededError):
+            raise SpawnDepthExceededError(current_depth=5, max_depth=3)
 
 
 class TestSpawnRequest:

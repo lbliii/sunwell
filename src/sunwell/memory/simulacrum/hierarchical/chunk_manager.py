@@ -23,7 +23,7 @@ import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sunwell.memory.simulacrum.hierarchical.chunks import Chunk, ChunkSummary, ChunkType
 from sunwell.memory.simulacrum.hierarchical.config import ChunkConfig

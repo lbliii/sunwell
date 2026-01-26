@@ -135,7 +135,8 @@ class TestBindingManager:
     def test_manager_create_binding(self) -> None:
         """Create a new binding via manager."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            manager = BindingManager(root=Path(tmpdir))
+            bindings_dir = Path(tmpdir) / "bindings"
+            manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
 
             binding = manager.create(
                 name="my-project",
@@ -145,13 +146,14 @@ class TestBindingManager:
 
             assert binding.name == "my-project"
             assert binding.lens_path == "./writer.lens"
-            # Should be persisted
-            assert (Path(tmpdir) / ".sunwell" / "bindings" / "my-project.json").exists()
+            # Should be persisted in the isolated bindings directory
+            assert (bindings_dir / "global" / "my-project.json").exists()
 
     def test_manager_create_auto_selects_model(self) -> None:
         """Create binding auto-selects model based on provider."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            manager = BindingManager(root=Path(tmpdir))
+            bindings_dir = Path(tmpdir) / "bindings"
+            manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
 
             openai = manager.create("test1", "./test.lens", provider="openai")
             anthropic = manager.create("test2", "./test.lens", provider="anthropic")
@@ -164,7 +166,8 @@ class TestBindingManager:
     def test_manager_get_binding(self) -> None:
         """Get existing binding by name."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            manager = BindingManager(root=Path(tmpdir))
+            bindings_dir = Path(tmpdir) / "bindings"
+            manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
             manager.create("test", "./test.lens")
 
             binding = manager.get("test")
@@ -175,7 +178,8 @@ class TestBindingManager:
     def test_manager_get_nonexistent_returns_none(self) -> None:
         """Get nonexistent binding returns None."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            manager = BindingManager(root=Path(tmpdir))
+            bindings_dir = Path(tmpdir) / "bindings"
+            manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
 
             binding = manager.get("does-not-exist")
 
@@ -184,7 +188,8 @@ class TestBindingManager:
     def test_manager_set_and_get_default(self) -> None:
         """Set and get default binding."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            manager = BindingManager(root=Path(tmpdir))
+            bindings_dir = Path(tmpdir) / "bindings"
+            manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
             manager.create("primary", "./primary.lens")
             manager.create("secondary", "./secondary.lens")
 
@@ -198,7 +203,8 @@ class TestBindingManager:
     def test_manager_set_default_nonexistent_fails(self) -> None:
         """Setting nonexistent binding as default fails."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            manager = BindingManager(root=Path(tmpdir))
+            bindings_dir = Path(tmpdir) / "bindings"
+            manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
 
             success = manager.set_default("does-not-exist")
 
@@ -207,7 +213,8 @@ class TestBindingManager:
     def test_manager_get_default_when_none_set(self) -> None:
         """Get default returns None when no default set."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            manager = BindingManager(root=Path(tmpdir))
+            bindings_dir = Path(tmpdir) / "bindings"
+            manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
 
             default = manager.get_default()
 
@@ -216,7 +223,8 @@ class TestBindingManager:
     def test_manager_get_or_default_with_name(self) -> None:
         """get_or_default returns named binding when provided."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            manager = BindingManager(root=Path(tmpdir))
+            bindings_dir = Path(tmpdir) / "bindings"
+            manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
             manager.create("specific", "./specific.lens")
             manager.create("default", "./default.lens")
             manager.set_default("default")
@@ -229,7 +237,8 @@ class TestBindingManager:
     def test_manager_get_or_default_falls_back(self) -> None:
         """get_or_default falls back to default when no name."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            manager = BindingManager(root=Path(tmpdir))
+            bindings_dir = Path(tmpdir) / "bindings"
+            manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
             manager.create("default", "./default.lens")
             manager.set_default("default")
 
@@ -241,7 +250,8 @@ class TestBindingManager:
     def test_manager_list_all(self) -> None:
         """List all bindings sorted by last_used."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            manager = BindingManager(root=Path(tmpdir))
+            bindings_dir = Path(tmpdir) / "bindings"
+            manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
             manager.create("first", "./first.lens")
             manager.create("second", "./second.lens")
             manager.create("third", "./third.lens")
@@ -258,7 +268,8 @@ class TestBindingManager:
     def test_manager_list_all_empty(self) -> None:
         """List all returns empty list when no bindings."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            manager = BindingManager(root=Path(tmpdir))
+            bindings_dir = Path(tmpdir) / "bindings"
+            manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
 
             bindings = manager.list_all()
 
@@ -267,7 +278,8 @@ class TestBindingManager:
     def test_manager_delete_binding(self) -> None:
         """Delete a binding."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            manager = BindingManager(root=Path(tmpdir))
+            bindings_dir = Path(tmpdir) / "bindings"
+            manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
             manager.create("test", "./test.lens")
 
             success = manager.delete("test")
@@ -278,7 +290,8 @@ class TestBindingManager:
     def test_manager_delete_clears_default(self) -> None:
         """Deleting default binding clears default."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            manager = BindingManager(root=Path(tmpdir))
+            bindings_dir = Path(tmpdir) / "bindings"
+            manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
             manager.create("test", "./test.lens")
             manager.set_default("test")
 
@@ -289,7 +302,8 @@ class TestBindingManager:
     def test_manager_delete_nonexistent_fails(self) -> None:
         """Deleting nonexistent binding returns False."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            manager = BindingManager(root=Path(tmpdir))
+            bindings_dir = Path(tmpdir) / "bindings"
+            manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
 
             success = manager.delete("does-not-exist")
 
@@ -298,7 +312,8 @@ class TestBindingManager:
     def test_manager_use_marks_as_used(self) -> None:
         """use() gets binding and marks it as used."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            manager = BindingManager(root=Path(tmpdir))
+            bindings_dir = Path(tmpdir) / "bindings"
+            manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
             manager.create("test", "./test.lens")
 
             binding = manager.use("test")
@@ -322,23 +337,18 @@ class TestGetBindingOrCreateTemp:
     def test_returns_named_binding_when_exists(self) -> None:
         """Returns existing binding when name matches."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            manager = BindingManager(root=Path(tmpdir))
+            bindings_dir = Path(tmpdir) / "bindings"
+            manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
             manager.create("existing", "./existing.lens")
 
-            # Temporarily change cwd for BindingManager
-            import os
-            old_cwd = os.getcwd()
-            try:
-                os.chdir(tmpdir)
-                binding, is_temp = get_binding_or_create_temp(
-                    binding_name="existing",
-                    lens_path=None,
-                    provider=None,
-                    model=None,
-                    simulacrum=None,
-                )
-            finally:
-                os.chdir(old_cwd)
+            binding, is_temp = get_binding_or_create_temp(
+                binding_name="existing",
+                lens_path=None,
+                provider=None,
+                model=None,
+                simulacrum=None,
+                bindings_dir=bindings_dir,
+            )
 
             assert binding is not None
             assert binding.name == "existing"
@@ -347,23 +357,19 @@ class TestGetBindingOrCreateTemp:
     def test_returns_default_when_no_name_or_lens(self) -> None:
         """Returns default binding when no name or lens provided."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            manager = BindingManager(root=Path(tmpdir))
+            bindings_dir = Path(tmpdir) / "bindings"
+            manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
             manager.create("default", "./default.lens")
             manager.set_default("default")
 
-            import os
-            old_cwd = os.getcwd()
-            try:
-                os.chdir(tmpdir)
-                binding, is_temp = get_binding_or_create_temp(
-                    binding_name=None,
-                    lens_path=None,
-                    provider=None,
-                    model=None,
-                    simulacrum=None,
-                )
-            finally:
-                os.chdir(old_cwd)
+            binding, is_temp = get_binding_or_create_temp(
+                binding_name=None,
+                lens_path=None,
+                provider=None,
+                model=None,
+                simulacrum=None,
+                bindings_dir=bindings_dir,
+            )
 
             assert binding is not None
             assert binding.name == "default"
@@ -372,19 +378,16 @@ class TestGetBindingOrCreateTemp:
     def test_creates_temp_binding_from_lens_path(self) -> None:
         """Creates temporary binding when lens_path provided."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            import os
-            old_cwd = os.getcwd()
-            try:
-                os.chdir(tmpdir)
-                binding, is_temp = get_binding_or_create_temp(
-                    binding_name=None,
-                    lens_path="./temp.lens",
-                    provider="anthropic",
-                    model="claude-sonnet-4-20250514",
-                    simulacrum="temp-memory",
-                )
-            finally:
-                os.chdir(old_cwd)
+            bindings_dir = Path(tmpdir) / "bindings"
+
+            binding, is_temp = get_binding_or_create_temp(
+                binding_name=None,
+                lens_path="./temp.lens",
+                provider="anthropic",
+                model="claude-sonnet-4-20250514",
+                simulacrum="temp-memory",
+                bindings_dir=bindings_dir,
+            )
 
             assert binding is not None
             assert binding.name == "_temp"
@@ -397,19 +400,16 @@ class TestGetBindingOrCreateTemp:
     def test_returns_none_when_nothing_matches(self) -> None:
         """Returns None when no binding, no default, no lens_path."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            import os
-            old_cwd = os.getcwd()
-            try:
-                os.chdir(tmpdir)
-                binding, is_temp = get_binding_or_create_temp(
-                    binding_name="nonexistent",
-                    lens_path=None,
-                    provider=None,
-                    model=None,
-                    simulacrum=None,
-                )
-            finally:
-                os.chdir(old_cwd)
+            bindings_dir = Path(tmpdir) / "bindings"
+
+            binding, is_temp = get_binding_or_create_temp(
+                binding_name="nonexistent",
+                lens_path=None,
+                provider=None,
+                model=None,
+                simulacrum=None,
+                bindings_dir=bindings_dir,
+            )
 
             assert binding is None
             assert is_temp is False
@@ -417,22 +417,18 @@ class TestGetBindingOrCreateTemp:
     def test_overrides_binding_with_cli_args(self) -> None:
         """CLI args override binding settings."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            manager = BindingManager(root=Path(tmpdir))
+            bindings_dir = Path(tmpdir) / "bindings"
+            manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
             manager.create("test", "./test.lens", provider="openai", model="gpt-4o")
 
-            import os
-            old_cwd = os.getcwd()
-            try:
-                os.chdir(tmpdir)
-                binding, is_temp = get_binding_or_create_temp(
-                    binding_name="test",
-                    lens_path=None,
-                    provider="anthropic",
-                    model="claude-sonnet-4-20250514",
-                    simulacrum="override-memory",
-                )
-            finally:
-                os.chdir(old_cwd)
+            binding, is_temp = get_binding_or_create_temp(
+                binding_name="test",
+                lens_path=None,
+                provider="anthropic",
+                model="claude-sonnet-4-20250514",
+                simulacrum="override-memory",
+                bindings_dir=bindings_dir,
+            )
 
             assert binding is not None
             assert binding.provider == "anthropic"

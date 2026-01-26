@@ -38,7 +38,7 @@ def serve(port: int, host: str, open_browser: bool, dev: bool) -> None:
     except ImportError:
         console.print("[red]Error: uvicorn not installed[/red]")
         console.print("Run: uv sync")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
     from sunwell.interface.server import create_app
 

@@ -527,7 +527,7 @@ async def _plan_async(
             console.print(f"[dim]Using model: {provider}:{model_name}[/dim]")
     except Exception as e:
         console.print(f"[red]Failed to load model: {e}[/red]")
-        raise SystemExit(1)
+        raise SystemExit(1) from e
 
     # Create planner
     router = None
@@ -550,7 +550,7 @@ async def _plan_async(
         graph = await planner.discover_graph(goal, {"cwd": str(Path.cwd())})
     except Exception as e:
         console.print(f"[red]Planning failed: {e}[/red]")
-        raise SystemExit(1)
+        raise SystemExit(1) from e
 
     waves = graph.execution_waves()
     dist = get_model_distribution(graph)

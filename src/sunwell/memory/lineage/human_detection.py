@@ -175,7 +175,6 @@ class HumanEditDetector:
                 continue
 
             # Estimate line changes (approximate)
-            old_hash = change["last_known_hash"]
             new_lines = content.count("\n") + 1
 
             # Record as human edit

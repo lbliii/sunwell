@@ -853,7 +853,7 @@ class SimulacrumManager:
                 raise RuntimeError(
                     f"Archive uses zstd compression but Python < 3.14. "
                     f"Upgrade Python or manually decompress: {archive_path}"
-                )
+                ) from None
         else:
             # Legacy gzip format
             with tarfile.open(archive_path, "r:gz") as tar:

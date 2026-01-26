@@ -200,7 +200,7 @@ class TestHistory:
 
     def test_history_entry_roundtrip(self):
         """DemoHistoryEntry should serialize and deserialize correctly."""
-        from sunwell.demo.history import DemoHistoryEntry
+        from sunwell.benchmark.demo.history import DemoHistoryEntry
 
         entry = DemoHistoryEntry(
             timestamp="2026-01-22T12:00:00",
@@ -227,7 +227,7 @@ class TestHistory:
 
     def test_get_history_summary_empty(self, tmp_path, monkeypatch):
         """Empty history should return total_runs=0."""
-        from sunwell.demo import history
+        from sunwell.benchmark.demo import history
 
         # Patch to use temp directory
         monkeypatch.setattr(history, "get_history_dir", lambda: tmp_path)
@@ -237,7 +237,7 @@ class TestHistory:
 
     def test_load_history_empty(self, tmp_path, monkeypatch):
         """Empty history should return empty list."""
-        from sunwell.demo import history
+        from sunwell.benchmark.demo import history
 
         monkeypatch.setattr(history, "get_history_dir", lambda: tmp_path)
 

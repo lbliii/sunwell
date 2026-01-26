@@ -199,8 +199,10 @@ async def cellular_discover(
     cells_contributed = 0
     cells_null = 0
     rounds_without_progress = 0
+    rounds_completed = 0
 
-    for round_num in range(max_rounds):
+    for _round in range(max_rounds):  # noqa: B007 - _round not used in loop, rounds_completed tracks
+        rounds_completed = _round + 1
         # Fire N cells (sequential by default for local Ollama)
         if parallel:
             cell_tasks = [
@@ -265,7 +267,7 @@ async def cellular_discover(
         cells_fired=cells_fired,
         cells_contributed=cells_contributed,
         cells_null=cells_null,
-        rounds=round_num + 1,
+        rounds=rounds_completed,
         total_latency_ms=total_latency,
         stabilized=stabilized,
     )

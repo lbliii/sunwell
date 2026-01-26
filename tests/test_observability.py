@@ -570,7 +570,7 @@ class TestDebugDumpSanitization:
 
     def test_sanitize_api_keys(self) -> None:
         """Sanitization should remove API keys."""
-        from sunwell.interface.cli.debug_cmd import _sanitize
+        from sunwell.interface.cli.commands.debug_cmd import _sanitize
 
         content = """
         ANTHROPIC_API_KEY=sk-ant-api123secret456
@@ -588,7 +588,7 @@ class TestDebugDumpSanitization:
 
     def test_sanitize_bearer_tokens(self) -> None:
         """Sanitization should remove Bearer tokens."""
-        from sunwell.interface.cli.debug_cmd import _sanitize
+        from sunwell.interface.cli.commands.debug_cmd import _sanitize
 
         content = 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
 
@@ -599,7 +599,7 @@ class TestDebugDumpSanitization:
 
     def test_sanitize_passwords(self) -> None:
         """Sanitization should remove passwords."""
-        from sunwell.interface.cli.debug_cmd import _sanitize
+        from sunwell.interface.cli.commands.debug_cmd import _sanitize
 
         content = """
         password: supersecret123
@@ -613,7 +613,7 @@ class TestDebugDumpSanitization:
 
     def test_sanitize_preserves_normal_content(self) -> None:
         """Sanitization should preserve non-sensitive content."""
-        from sunwell.interface.cli.debug_cmd import _sanitize
+        from sunwell.interface.cli.commands.debug_cmd import _sanitize
 
         content = """
         name: my-project
@@ -633,7 +633,7 @@ class TestDebugDumpHelpers:
 
     def test_read_jsonl(self, tmp_path: Path) -> None:
         """_read_jsonl should read JSONL with limit."""
-        from sunwell.interface.cli.debug_cmd import _read_jsonl
+        from sunwell.interface.cli.commands.debug_cmd import _read_jsonl
 
         jsonl_file = tmp_path / "events.jsonl"
         events = [{"event": f"event_{i}", "ts": "2026-01-24T10:00:00"} for i in range(10)]
@@ -647,7 +647,7 @@ class TestDebugDumpHelpers:
 
     def test_read_jsonl_handles_invalid_lines(self, tmp_path: Path) -> None:
         """_read_jsonl should skip invalid JSON lines."""
-        from sunwell.interface.cli.debug_cmd import _read_jsonl
+        from sunwell.interface.cli.commands.debug_cmd import _read_jsonl
 
         jsonl_file = tmp_path / "events.jsonl"
         content = """{"event": "valid"}
@@ -661,7 +661,7 @@ class TestDebugDumpHelpers:
 
     def test_collect_meta(self, tmp_path: Path) -> None:
         """_collect_meta should write system metadata."""
-        from sunwell.interface.cli.debug_cmd import _collect_meta
+        from sunwell.interface.cli.commands.debug_cmd import _collect_meta
 
         meta_path = tmp_path / "meta.json"
         _collect_meta(meta_path)

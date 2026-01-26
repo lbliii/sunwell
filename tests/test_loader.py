@@ -10,7 +10,7 @@ from sunwell.foundation.errors import SunwellError
 
 class TestLensLoader:
     def test_load_tech_writer(self, lens_loader: LensLoader, lenses_dir: Path):
-        lens = lens_loader.load(lenses_dir / "tech-writer.lens")
+        lens = lens_loader.load(lenses_dir / "tech-writer-v2.lens")
 
         assert lens.metadata.name == "Technical Writer"
         assert lens.metadata.domain == "documentation"
@@ -20,7 +20,7 @@ class TestLensLoader:
         assert lens.framework.name == "Diataxis"
 
     def test_load_code_reviewer(self, lens_loader: LensLoader, lenses_dir: Path):
-        lens = lens_loader.load(lenses_dir / "code-reviewer.lens")
+        lens = lens_loader.load(lenses_dir / "code-reviewer-v2.lens")
 
         assert lens.metadata.name == "Code Reviewer"
         assert lens.metadata.domain == "software"

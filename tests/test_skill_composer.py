@@ -474,7 +474,7 @@ class TestComposerIntegration:
     ) -> None:
         """plan_sync works without a model."""
         # Import GoalPlanner for sync planning
-        from sunwell.agent.planner import GoalPlanner
+        from sunwell.agent.planning import GoalPlanner
 
         planner = GoalPlanner(skills=composer.skills)
         graph = planner.plan_sync("read file and analyze the code")

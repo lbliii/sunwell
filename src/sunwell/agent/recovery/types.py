@@ -195,12 +195,14 @@ class RecoverySummary:
     passed: int
     failed: int
     waiting: int
-    created_at: datetime
+    fixed: int = 0
+    skipped: int = 0
+    created_at: datetime = field(default_factory=datetime.now)
 
     @property
     def total(self) -> int:
-        """Total artifact count."""
-        return self.passed + self.failed + self.waiting
+        """Total artifact count (all statuses)."""
+        return self.passed + self.failed + self.waiting + self.fixed + self.skipped
 
     @property
     def age_str(self) -> str:

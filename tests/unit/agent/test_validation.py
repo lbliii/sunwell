@@ -8,7 +8,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sunwell.agent.validation.gates import GateType, ValidationGate
+from sunwell.agent.validation.gates import (
+    GateType,
+    ValidationGate,
+    is_runnable_milestone,
+)
 from sunwell.agent.validation import (
     Artifact,
     ValidationError,
@@ -287,3 +291,101 @@ class TestValidationGateIntegration:
         assert len(events) > 0
         assert events[0].type == EventType.GATE_START
         assert events[0].data["gate_id"] == "gate_syntax"
+
+
+class TestValidationGateEdgeCases:
+    """Edge case tests for ValidationGate (bug bash findings)."""
+
+    def test_empty_depends_on_description(self) -> None:
+        """Gate with empty depends_on should have clean description."""
+        gate = ValidationGate(
+            id="test_gate",
+            gate_type=GateType.IMPORT,
+            depends_on=(),
+            validation="import foo",
+        )
+        # Should not end with "for " or have trailing comma
+        assert gate.description == "Import check"
+        assert not gate.description.endswith("for ")
+
+    def test_depends_on_single_task(self) -> None:
+        """Gate with single dependency formats description correctly."""
+        gate = ValidationGate(
+            id="test_gate",
+            gate_type=GateType.SYNTAX,
+            depends_on=("task-1",),
+            validation="py_compile",
+        )
+        assert gate.description == "Syntax check for task-1"
+
+    def test_depends_on_multiple_tasks(self) -> None:
+        """Gate with multiple dependencies lists them."""
+        gate = ValidationGate(
+            id="test_gate",
+            gate_type=GateType.LINT,
+            depends_on=("task-1", "task-2", "task-3"),
+            validation="ruff check",
+        )
+        assert gate.description == "Lint check for task-1, task-2, task-3"
+
+    def test_custom_description_preserved(self) -> None:
+        """Custom description should not be overwritten."""
+        gate = ValidationGate(
+            id="test_gate",
+            gate_type=GateType.TEST,
+            depends_on=(),
+            validation="pytest",
+            description="Run unit tests",
+        )
+        assert gate.description == "Run unit tests"
+
+
+class TestIsRunnableMilestoneEdgeCases:
+    """Edge case tests for is_runnable_milestone (bug bash findings)."""
+
+    def test_empty_tasks_returns_false(self) -> None:
+        """Empty task list should return False, not True (vacuous truth)."""
+        result = is_runnable_milestone([])
+        assert result is False
+
+    def test_all_python_tasks(self) -> None:
+        """All tasks with .py target_path should return True."""
+        from unittest.mock import MagicMock
+
+        tasks = [
+            MagicMock(target_path="src/models.py"),
+            MagicMock(target_path="src/routes.py"),
+        ]
+        result = is_runnable_milestone(tasks)
+        assert result is True
+
+    def test_mixed_extensions(self) -> None:
+        """Mix of .py and other extensions should return False."""
+        from unittest.mock import MagicMock
+
+        tasks = [
+            MagicMock(target_path="src/models.py"),
+            MagicMock(target_path="config.yaml"),
+        ]
+        result = is_runnable_milestone(tasks)
+        assert result is False
+
+    def test_task_without_target_path(self) -> None:
+        """Task with no target_path should return False."""
+        from unittest.mock import MagicMock
+
+        tasks = [
+            MagicMock(target_path=None),
+        ]
+        result = is_runnable_milestone(tasks)
+        assert result is False
+
+    def test_task_with_empty_target_path(self) -> None:
+        """Task with empty target_path should return False."""
+        from unittest.mock import MagicMock
+
+        tasks = [
+            MagicMock(target_path=""),
+        ]
+        result = is_runnable_milestone(tasks)
+        assert result is False

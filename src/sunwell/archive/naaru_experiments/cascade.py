@@ -103,7 +103,9 @@ class GradientCascade:
 
     _loaded_tiers: list[CascadeTier] = field(default_factory=list, repr=False)
     _fallback: ModelProtocol | None = field(default=None, repr=False)
-    _stats: dict[str, int] = field(default_factory=lambda: {"tier_exits": {}, "fallback_exits": 0}, repr=False)
+    _stats: dict[str, int] = field(
+        default_factory=lambda: {"tier_exits": {}, "fallback_exits": 0}, repr=False
+    )
 
     async def _ensure_loaded(self) -> None:
         """Lazy-load models on first use."""

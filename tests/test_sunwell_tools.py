@@ -223,7 +223,7 @@ class TestBuiltinsExport:
 
     def test_sunwell_tools_in_get_all_tools(self) -> None:
         """Sunwell tools should be included in get_all_tools()."""
-        from sunwell.tools.builtins import get_all_tools
+        from sunwell.tools.definitions.builtins import get_all_tools
 
         all_tools = get_all_tools()
         for tool_name in SUNWELL_TOOLS:

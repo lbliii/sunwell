@@ -96,9 +96,6 @@ from sunwell.foundation.utils import (
     sanitize_filename,
     slugify,
 )
-from sunwell.foundation.utils import (
-    validate_slug as validate_slug_util,
-)
 
 __all__ = [
     # === Core Types ===

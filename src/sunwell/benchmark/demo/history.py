@@ -4,6 +4,7 @@ Saves demo results to .sunwell/demo_history/ for tracking improvements
 and sharing results.
 """
 
+import json
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path

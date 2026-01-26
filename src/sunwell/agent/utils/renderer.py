@@ -82,6 +82,8 @@ class RichRenderer:
 
         # Try to import Rich with Holy Light theme
         try:
+            from dataclasses import replace
+
             from rich.console import Console
 
             from sunwell.interface.cli.core.theme import SUNWELL_THEME, should_reduce_motion
@@ -89,10 +91,13 @@ class RichRenderer:
             self.console = Console(theme=SUNWELL_THEME)
             self.rich_available = True
 
-            # Auto-detect reduced motion
-            if should_reduce_motion():
-                self.config.reduced_motion = True
-                self.config.enable_sparkles = False
+            # Auto-detect reduced motion (create new frozen config if needed)
+            if should_reduce_motion() and not self.config.reduced_motion:
+                self.config = replace(
+                    self.config,
+                    reduced_motion=True,
+                    enable_sparkles=False,
+                )
         except ImportError:
             self.rich_available = False
             self.console = None

@@ -96,7 +96,11 @@ class SignalStream:
         """Human-readable summary."""
         lines = [f"Stream: {self!r}"]
         for chunk in self.chunks:
-            marker = "🔴" if chunk.signal == Trit.YES else "🟡" if chunk.signal == Trit.MAYBE else "⚪"
+            marker = (
+                "🔴" if chunk.signal == Trit.YES
+                else "🟡" if chunk.signal == Trit.MAYBE
+                else "⚪"
+            )
             lines.append(f"  {marker} [{chunk.signal.value}] {chunk.chunk}")
         return "\n".join(lines)
 

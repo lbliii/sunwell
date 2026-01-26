@@ -1,6 +1,6 @@
 """Auto-wiring logic for RFC-084: Automatic topology extraction and cold demotion."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
 

@@ -223,20 +223,23 @@ class BindingManager:
         self,
         root: Path | None = None,
         project: str | None = None,
+        bindings_dir: Path | None = None,
     ) -> None:
         """Initialize binding manager.
 
         Args:
             root: Project root (defaults to cwd).
             project: Project slug for scoped bindings (None = global).
+            bindings_dir: Directory for bindings storage (defaults to ~/.sunwell/bindings).
+                          Pass a custom path for test isolation.
         """
         self.root = root or Path.cwd()
         self.project = project
-
+        self._bindings_dir = bindings_dir or Path.home() / ".sunwell" / "bindings"
 
         # RFC-101: Global binding index
         self._index_manager = BindingIndexManager(
-            bindings_dir=Path.home() / ".sunwell" / "bindings"
+            bindings_dir=self._bindings_dir
         )
 
     # =========================================================================
@@ -313,10 +316,9 @@ class BindingManager:
             provider = cfg.model.default_provider if cfg else "ollama"
 
         # Auto-select model based on provider if not specified
+        # Priority: explicit model > provider-specific default > config default
         if model is None:
-            model = (
-                cfg.model.default_model if cfg else _DEFAULT_MODELS.get(provider, "gpt-4o")
-            )
+            model = _DEFAULT_MODELS.get(provider, cfg.model.default_model if cfg else "gpt-4o")
 
         # Create identity
         namespace = project or self.project or "global"
@@ -340,7 +342,7 @@ class BindingManager:
 
         binding = Binding(
             name=name,
-            lens_path="",  # Deprecated, kept empty
+            lens_path=lens_path or "",  # Preserved for backwards compatibility
             uri=str(uri),
             id=str(identity.id),
             lens_uri=effective_lens_uri,
@@ -458,19 +460,24 @@ class BindingManager:
         """Delete a binding.
 
         RFC-101: Removes from both filesystem and index.
+
+        Returns:
+            True if binding was found and deleted, False otherwise.
         """
         # Try to resolve URI
         try:
             uri = self.resolve_uri(name)
             parsed = SunwellURI.parse(uri)
             path = self._get_binding_path(parsed.namespace, parsed.slug)
+            deleted = False
             if path and path.exists():
                 path.unlink()
-            self._index_manager.remove_binding(uri)
+                deleted = True
+            # Also remove from index (may succeed even if file wasn't found)
+            index_removed = self._index_manager.remove_binding(uri)
+            return deleted or index_removed
         except ValueError:
-            pass
-
-        return True
+            return False
 
     def use(self, name: str) -> Binding | None:
         """Get a binding and mark it as used."""
@@ -508,17 +515,10 @@ class BindingManager:
         """Get filesystem path for a binding."""
         if namespace == "global":
             # Use global path
-            return Path.home() / ".sunwell" / "bindings" / "global" / f"{slug}.json"
+            return self._bindings_dir / "global" / f"{slug}.json"
         else:
             # Project-scoped binding
-            return (
-                Path.home()
-                / ".sunwell"
-                / "bindings"
-                / "projects"
-                / namespace
-                / f"{slug}.json"
-            )
+            return self._bindings_dir / "projects" / namespace / f"{slug}.json"
 
     def _save(self, binding: Binding, namespace: str = "global") -> None:
         """Save a binding to the appropriate location."""
@@ -526,21 +526,12 @@ class BindingManager:
 
         if namespace == "global":
             # Save to global location
-            new_path = (
-                Path.home() / ".sunwell" / "bindings" / "global" / f"{slug}.json"
-            )
+            new_path = self._bindings_dir / "global" / f"{slug}.json"
             new_path.parent.mkdir(parents=True, exist_ok=True)
             binding.save(new_path)
         else:
             # Project-scoped binding
-            path = (
-                Path.home()
-                / ".sunwell"
-                / "bindings"
-                / "projects"
-                / namespace
-                / f"{slug}.json"
-            )
+            path = self._bindings_dir / "projects" / namespace / f"{slug}.json"
             path.parent.mkdir(parents=True, exist_ok=True)
             binding.save(path)
 
@@ -569,12 +560,23 @@ def get_binding_or_create_temp(
     provider: str | None,
     model: str | None,
     simulacrum: str | None,
+    *,
+    bindings_dir: Path | None = None,
 ) -> tuple[Binding | None, bool]:
     """Get existing binding or create temporary one from CLI args.
 
-    Returns (binding, is_temporary).
+    Args:
+        binding_name: Name of existing binding to load.
+        lens_path: Path to lens file for temp binding.
+        provider: LLM provider override.
+        model: Model name override.
+        simulacrum: Simulacrum name override.
+        bindings_dir: Custom bindings directory (for test isolation).
+
+    Returns:
+        Tuple of (binding, is_temporary).
     """
-    manager = BindingManager()
+    manager = BindingManager(bindings_dir=bindings_dir)
 
     # If binding name provided, try to load it
     if binding_name:
@@ -610,7 +612,7 @@ def get_binding_or_create_temp(
             lens_uri = f"sunwell:lens/user/{lens_path}"
         temp = Binding(
             name="_temp",
-            lens_path="",  # Deprecated
+            lens_path=lens_path,  # Preserved for backwards compatibility
             lens_uri=lens_uri,
             provider=provider or "ollama",
             model=model or "gemma3:4b",

@@ -120,11 +120,12 @@ class ValidationGate:
     def __post_init__(self):
         # Ensure description is set
         if not self.description:
-            object.__setattr__(
-                self,
-                "description",
-                f"{self.gate_type.value.capitalize()} check for {', '.join(self.depends_on)}",
-            )
+            gate_name = self.gate_type.value.capitalize()
+            if self.depends_on:
+                desc = f"{gate_name} check for {', '.join(self.depends_on)}"
+            else:
+                desc = f"{gate_name} check"
+            object.__setattr__(self, "description", desc)
 
 
 @dataclass(frozen=True, slots=True)
@@ -410,7 +411,10 @@ def is_runnable_milestone(tasks: list[Task]) -> bool:
     """Check if completing these tasks gives us something we can run.
 
     Heuristic: If tasks produce importable modules, we can validate.
+    Returns False for empty task list (nothing to run).
     """
+    if not tasks:
+        return False
     return all(
         t.target_path and t.target_path.endswith(".py")
         for t in tasks

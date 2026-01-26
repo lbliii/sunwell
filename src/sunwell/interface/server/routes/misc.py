@@ -12,6 +12,7 @@ from typing import Any
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
+from sunwell.foundation.utils import normalize_path
 from sunwell.interface.server.routes.agent import get_run_manager
 from sunwell.interface.server.routes.models import (
     BriefingClearResponse,

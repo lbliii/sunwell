@@ -700,7 +700,7 @@ class TestIncrementalExecutorEventContract:
         """IncrementalExecutor must emit task_start for each artifact."""
         import tempfile
         from pathlib import Path
-        from sunwell.incremental import ExecutionCache, IncrementalExecutor
+        from sunwell.agent.incremental import ExecutionCache, IncrementalExecutor
 
         capture = EventCapture()
 
@@ -745,7 +745,7 @@ class TestIncrementalExecutorEventContract:
         """IncrementalExecutor must emit task_complete for successful artifacts."""
         import tempfile
         from pathlib import Path
-        from sunwell.incremental import ExecutionCache, IncrementalExecutor
+        from sunwell.agent.incremental import ExecutionCache, IncrementalExecutor
 
         capture = EventCapture()
 
@@ -781,7 +781,7 @@ class TestIncrementalExecutorEventContract:
         """IncrementalExecutor must emit task_failed when artifact creation fails."""
         import tempfile
         from pathlib import Path
-        from sunwell.incremental import ExecutionCache, IncrementalExecutor
+        from sunwell.agent.incremental import ExecutionCache, IncrementalExecutor
 
         capture = EventCapture()
 
@@ -817,7 +817,7 @@ class TestIncrementalExecutorEventContract:
         """IncrementalExecutor task events must be balanced (start = complete + failed)."""
         import tempfile
         from pathlib import Path
-        from sunwell.incremental import ExecutionCache, IncrementalExecutor
+        from sunwell.agent.incremental import ExecutionCache, IncrementalExecutor
 
         capture = EventCapture()
 

@@ -160,7 +160,7 @@ from sunwell.agent.utils.renderer import (
 )
 from sunwell.agent.utils.request import RunOptions
 from sunwell.agent.utils.spawn import (
-    SpawnDepthExceeded,
+    SpawnDepthExceededError,
     SpawnRequest,
     SpecialistResult,
     SpecialistState,
@@ -272,7 +272,7 @@ __all__ = [
     "IntrospectionResult",
     "introspect_tool_call",
     # RFC-130: Agent Constellation (specialist spawning)
-    "SpawnDepthExceeded",
+    "SpawnDepthExceededError",
     "SpawnRequest",
     "SpecialistResult",
     "SpecialistState",

@@ -245,13 +245,13 @@ class Naaru:
             Specialist ID for tracking and result collection
 
         Raises:
-            SpawnDepthExceeded: If max spawn depth is reached
+            SpawnDepthExceededError: If max spawn depth is reached
         """
-        from sunwell.agent.utils.spawn import SpawnDepthExceeded, SpecialistState
+        from sunwell.agent.utils.spawn import SpawnDepthExceededError, SpecialistState
 
         # Check spawn depth limit
         if self._spawn_depth >= self._max_spawn_depth:
-            raise SpawnDepthExceeded(self._spawn_depth, self._max_spawn_depth)
+            raise SpawnDepthExceededError(self._spawn_depth, self._max_spawn_depth)
 
         # Generate unique ID
         specialist_id = self._generate_specialist_id(request.role)

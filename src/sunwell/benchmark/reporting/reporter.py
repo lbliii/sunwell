@@ -10,14 +10,12 @@ Implements RFC-018 statistical rigor requirements:
 
 
 import json
+import logging
 from dataclasses import dataclass
 from datetime import datetime
-import logging
 from pathlib import Path
 
 import numpy as np
-
-logger = logging.getLogger(__name__)
 
 from sunwell.benchmark.reporting.statistics import (
     bootstrap_ci,
@@ -34,6 +32,8 @@ from sunwell.benchmark.types import (
     TaskResult,
     Verdict,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -183,7 +183,8 @@ class BenchmarkReporter:
         lines.append("")
         lines.append("| Metric | Value |")
         lines.append("|--------|-------|")
-        win_rate_str = f"{summary.win_rate:.1%} ({summary.wins}W / {summary.losses}L / {summary.ties}T)"
+        wl = f"{summary.wins}W / {summary.losses}L / {summary.ties}T"
+        win_rate_str = f"{summary.win_rate:.1%} ({wl})"
         lines.append(f"| Win Rate | {win_rate_str} |")
         effect_str = f"{summary.effect_size_cohens_d:.3f} ({summary.effect_size_interpretation})"
         lines.append(f"| Effect Size (Cohen's d) | {effect_str} |")
@@ -256,8 +257,11 @@ class BenchmarkReporter:
                     "BASELINE" if verdict.winner == Verdict.A_WINS else "TIE"
                 )
                 lines.append(f"**{comparison}**: {winner}")
-                lines.append(f"  - Scores: baseline={verdict.avg_score_a:.1f}, selective={verdict.avg_score_b:.1f}")
-                lines.append(f"  - Agreement: {verdict.agreement_rate:.0%}, Position bias: {verdict.position_bias:.2f}")
+                scores = f"baseline={verdict.avg_score_a:.1f}, selective={verdict.avg_score_b:.1f}"
+                lines.append(f"  - Scores: {scores}")
+                agreement = f"Agreement: {verdict.agreement_rate:.0%}"
+                bias = f"Position bias: {verdict.position_bias:.2f}"
+                lines.append(f"  - {agreement}, {bias}")
 
             lines.append("")
 
@@ -274,25 +278,49 @@ class BenchmarkReporter:
             lines.append("")
 
             # Aggregate stats
-            total_tool_calls = sum(r.self_directed_metrics.total_tool_calls for r in self_directed_results)
-            total_get = sum(r.self_directed_metrics.get_expertise_calls for r in self_directed_results)
-            total_verify = sum(r.self_directed_metrics.verify_calls for r in self_directed_results)
-            total_list = sum(r.self_directed_metrics.list_expertise_calls for r in self_directed_results)
-            followed_react = sum(1 for r in self_directed_results if r.self_directed_metrics.followed_react_pattern)
-            verified_passed = sum(1 for r in self_directed_results if r.self_directed_metrics.verification_passed)
-            avg_latency = sum(r.self_directed_metrics.tool_latency_ms for r in self_directed_results) / len(self_directed_results)
+            total_tool_calls = sum(
+                r.self_directed_metrics.total_tool_calls for r in self_directed_results
+            )
+            total_get = sum(
+                r.self_directed_metrics.get_expertise_calls for r in self_directed_results
+            )
+            total_verify = sum(
+                r.self_directed_metrics.verify_calls for r in self_directed_results
+            )
+            total_list = sum(
+                r.self_directed_metrics.list_expertise_calls for r in self_directed_results
+            )
+            followed_react = sum(
+                1 for r in self_directed_results
+                if r.self_directed_metrics.followed_react_pattern
+            )
+            verified_passed = sum(
+                1 for r in self_directed_results
+                if r.self_directed_metrics.verification_passed
+            )
+            latency_sum = sum(
+                r.self_directed_metrics.tool_latency_ms for r in self_directed_results
+            )
+            avg_latency = latency_sum / len(self_directed_results)
 
             lines.append("### Aggregate Statistics")
             lines.append("")
             lines.append("| Metric | Value |")
             lines.append("|--------|-------|")
-            lines.append(f"| Tasks Using Expertise Tools | {len(self_directed_results)} / {len(results.task_results)} |")
+            n_sd = len(self_directed_results)
+            n_total = len(results.task_results)
+            lines.append(f"| Tasks Using Expertise Tools | {n_sd} / {n_total} |")
             lines.append(f"| Total Tool Calls | {total_tool_calls} |")
             lines.append(f"| - get_expertise() | {total_get} |")
             lines.append(f"| - verify_against_expertise() | {total_verify} |")
             lines.append(f"| - list_expertise_areas() | {total_list} |")
-            lines.append(f"| Followed ReAct Pattern | {followed_react} / {len(self_directed_results)} ({followed_react/len(self_directed_results):.0%}) |")
-            verify_display = f"{verified_passed} / {total_verify}" if total_verify > 0 else "N/A (no verify calls)"
+            react_pct = followed_react / n_sd
+            react_str = f"{followed_react} / {n_sd} ({react_pct:.0%})"
+            lines.append(f"| Followed ReAct Pattern | {react_str} |")
+            if total_verify > 0:
+                verify_display = f"{verified_passed} / {total_verify}"
+            else:
+                verify_display = "N/A (no verify calls)"
             lines.append(f"| Verification Passed | {verify_display} |")
             lines.append(f"| Avg Tool Latency | {avg_latency:.0f}ms |")
             lines.append("")
@@ -305,10 +333,22 @@ class BenchmarkReporter:
 
             for r in self_directed_results:
                 m = r.self_directed_metrics
-                topics = ", ".join(m.topics_queried[:2]) + ("..." if len(m.topics_queried) > 2 else "")
+                if len(m.topics_queried) > 2:
+                    topics = ", ".join(m.topics_queried[:2]) + "..."
+                else:
+                    topics = ", ".join(m.topics_queried)
                 react = "✓" if m.followed_react_pattern else "✗"
-                verify = "✓" if m.verification_passed else ("✗" if m.verification_passed is False else "-")
-                lines.append(f"| {r.task_id} | {m.total_tool_calls} | {topics or '-'} | {m.heuristics_retrieved} | {react} | {verify} |")
+                if m.verification_passed is True:
+                    verify = "✓"
+                elif m.verification_passed is False:
+                    verify = "✗"
+                else:
+                    verify = "-"
+                row = (
+                    f"| {r.task_id} | {m.total_tool_calls} | {topics or '-'} | "
+                    f"{m.heuristics_retrieved} | {react} | {verify} |"
+                )
+                lines.append(row)
 
             lines.append("")
 

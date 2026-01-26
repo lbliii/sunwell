@@ -73,6 +73,6 @@ class ArtifactCompletion:
             artifact_id=result.artifact_id,
             content_hash=content_hash,
             model_tier=result.model_tier,
-            duration_ms=int(result.duration.total_seconds() * 1000),
+            duration_ms=result.duration_ms,
             verified=result.verified,
         )

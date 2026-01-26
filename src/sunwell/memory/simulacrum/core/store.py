@@ -37,8 +37,9 @@ Key features:
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+from sunwell.foundation.types.memory import MemoryRetrievalResult
 from sunwell.memory.simulacrum.core.auto_wiring import (
     extract_topology_batch,
     maybe_demote_warm_to_cold,
@@ -363,8 +364,6 @@ class SimulacrumStore:
     @property
     def cold_path(self) -> Path:
         return self.base_path / "cold"
-
-    # === Session Management ===
 
     # === Session Management ===
 
@@ -877,21 +876,6 @@ class SimulacrumStore:
         return self._context_assembler.get_context_for_prompt_weighted(query, max_tokens)
 
     # === Tier Management ===
-
-    @property
-    def hot_path(self) -> Path:
-        """Path to hot storage file."""
-        return self.base_path / "hot" / f"{self._session_id}.json"
-
-    @property
-    def warm_path(self) -> Path:
-        """Path to warm storage directory."""
-        return self.base_path / "warm"
-
-    @property
-    def cold_path(self) -> Path:
-        """Path to cold storage directory."""
-        return self.base_path / "cold"
 
     def _flush_hot(self) -> None:
         """Flush hot tier to disk."""

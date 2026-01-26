@@ -1,9 +1,13 @@
 """Planning context for RFC-122: Compound Learning."""
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from sunwell.foundation.types.memory import Episode
 from sunwell.memory.simulacrum.core.turn import Learning
+
+if TYPE_CHECKING:
+    from sunwell.planning.naaru.convergence import Slot
 
 
 @dataclass(frozen=True, slots=True)

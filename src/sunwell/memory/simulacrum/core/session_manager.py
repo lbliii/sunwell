@@ -4,7 +4,7 @@ import json
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sunwell.memory.simulacrum.core.dag import ConversationDAG
 

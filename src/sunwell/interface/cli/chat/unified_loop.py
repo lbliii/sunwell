@@ -56,13 +56,10 @@ async def run_unified_loop(
     from sunwell.tools.execution import ToolExecutor
 
     # Set up tool executor
-    workspace_root = workspace
     try:
         project = resolve_project(cwd=workspace)
-        workspace_root = project.root
     except ProjectResolutionError:
         project = create_project_from_workspace(workspace)
-        workspace_root = project.root
 
     policy = ToolPolicy(trust_level=ToolTrust.from_string(trust_level))
     tool_executor = ToolExecutor(

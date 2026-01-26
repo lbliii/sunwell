@@ -56,6 +56,15 @@ class GenerativeModel(Protocol):
         ...
 
 
+@runtime_checkable
+class ValidatorProtocol(Protocol):
+    """Protocol for validators that can validate proposals."""
+
+    async def validate(self, proposal: dict) -> dict:
+        """Validate a proposal and return validation result."""
+        ...
+
+
 @dataclass(frozen=True, slots=True)
 class ResonanceConfig:
     """Configuration for the Resonance feedback loop.

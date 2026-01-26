@@ -205,6 +205,59 @@ def _print_permission_analysis(skills, scope, risk) -> None:
     }
     color = risk_colors.get(risk.level, "white")
 
+    console.print(
+        Panel(
+            f"[bold]Permission Analysis[/bold]\n"
+            f"Skills: {len(skills)} | "
+            f"Risk: [{color}]{risk.level.upper()}[/{color}] ({risk.score:.0%})",
+            title="🔒 Security Analysis",
+        )
+    )
+
+    # Permissions table
+    if not scope.is_empty():
+        console.print("\n[bold]Permissions Requested:[/bold]")
+
+        if scope.filesystem_read:
+            console.print("\n  📁 [cyan]Filesystem Read:[/cyan]")
+            for p in sorted(scope.filesystem_read):
+                console.print(f"     {p}")
+
+        if scope.filesystem_write:
+            console.print("\n  ✏️  [yellow]Filesystem Write:[/yellow]")
+            for p in sorted(scope.filesystem_write):
+                console.print(f"     {p}")
+
+        if scope.network_allow:
+            console.print("\n  🌐 [blue]Network:[/blue]")
+            for h in sorted(scope.network_allow):
+                console.print(f"     {h}")
+
+        if scope.shell_allow:
+            console.print("\n  💻 [magenta]Shell Commands:[/magenta]")
+            for c in sorted(scope.shell_allow):
+                console.print(f"     {c}")
+
+        if scope.env_read:
+            console.print("\n  🔑 [cyan]Environment Read:[/cyan]")
+            for e in sorted(scope.env_read):
+                console.print(f"     {e}")
+
+    else:
+        console.print("\n  [dim]No permissions declared (ambient mode)[/dim]")
+
+    # Risk flags
+    if risk.flags:
+        console.print("\n[bold red]⚠️  Risk Flags:[/bold red]")
+        for flag in risk.flags:
+            console.print(f"  • {flag}")
+
+    # Recommendations
+    if risk.recommendations:
+        console.print("\n[bold]💡 Recommendations:[/bold]")
+        for rec in risk.recommendations:
+            console.print(f"  • {rec}")
+
     console.print()
 
 
@@ -302,60 +355,6 @@ def _build_detailed_output(dag_id: str, dag_name: str, analysis) -> dict:
         output["highestRiskSkill"] = analysis.highest_risk_skill
 
     return output
-    console.print(
-        Panel(
-            f"[bold]Permission Analysis[/bold]\n"
-            f"Skills: {len(skills)} | "
-            f"Risk: [{color}]{risk.level.upper()}[/{color}] ({risk.score:.0%})",
-            title="🔒 Security Analysis",
-        )
-    )
-
-    # Permissions table
-    if not scope.is_empty():
-        console.print("\n[bold]Permissions Requested:[/bold]")
-
-        if scope.filesystem_read:
-            console.print("\n  📁 [cyan]Filesystem Read:[/cyan]")
-            for p in sorted(scope.filesystem_read):
-                console.print(f"     {p}")
-
-        if scope.filesystem_write:
-            console.print("\n  ✏️  [yellow]Filesystem Write:[/yellow]")
-            for p in sorted(scope.filesystem_write):
-                console.print(f"     {p}")
-
-        if scope.network_allow:
-            console.print("\n  🌐 [blue]Network:[/blue]")
-            for h in sorted(scope.network_allow):
-                console.print(f"     {h}")
-
-        if scope.shell_allow:
-            console.print("\n  💻 [magenta]Shell Commands:[/magenta]")
-            for c in sorted(scope.shell_allow):
-                console.print(f"     {c}")
-
-        if scope.env_read:
-            console.print("\n  🔑 [cyan]Environment Read:[/cyan]")
-            for e in sorted(scope.env_read):
-                console.print(f"     {e}")
-
-    else:
-        console.print("\n  [dim]No permissions declared (ambient mode)[/dim]")
-
-    # Risk flags
-    if risk.flags:
-        console.print("\n[bold red]⚠️  Risk Flags:[/bold red]")
-        for flag in risk.flags:
-            console.print(f"  • {flag}")
-
-    # Recommendations
-    if risk.recommendations:
-        console.print("\n[bold]💡 Recommendations:[/bold]")
-        for rec in risk.recommendations:
-            console.print(f"  • {rec}")
-
-    console.print()
 
 
 # =============================================================================

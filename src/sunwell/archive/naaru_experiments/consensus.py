@@ -252,8 +252,12 @@ async def should_use_tools(
     Returns:
         Tuple of (needs_tools, confidence)
     """
+    prompt = (
+        f"Goal: {goal}\n\n"
+        "Does this goal require file operations, shell commands, or other tools to complete?"
+    )
     result = await consensus_decision(
-        prompt=f"Goal: {goal}\n\nDoes this goal require file operations, shell commands, or other tools to complete?",
+        prompt=prompt,
         options=["yes", "no"],
         model=model,
         n_voters=n_voters,
@@ -272,8 +276,13 @@ async def should_use_harmonic(
     Returns:
         Tuple of (use_harmonic, confidence)
     """
+    prompt = (
+        f"Goal: {goal}\n\n"
+        "Would this goal benefit from multiple expert perspectives "
+        "(critic, expert, user advocate) or is a single perspective sufficient?"
+    )
     result = await consensus_decision(
-        prompt=f"Goal: {goal}\n\nWould this goal benefit from multiple expert perspectives (critic, expert, user advocate) or is a single perspective sufficient?",
+        prompt=prompt,
         options=["multiple", "single"],
         model=model,
         n_voters=n_voters,

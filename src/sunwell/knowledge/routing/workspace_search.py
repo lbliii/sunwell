@@ -208,7 +208,6 @@ class WorkspaceSearch:
         if self.active_project_id == project_id:
             return
 
-        old_active = self.active_project_id
         self.active_project_id = project_id
 
         # Upgrade new active project to L2 if already indexed at L1

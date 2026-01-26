@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from sunwell.foundation.identity import ResourceIdentity
 from sunwell.foundation.types.protocol import DictSerializable
 
-__all__ = ["DictSerializable", "LensLineage", "LensVersion", "LensManifest"]
+__all__ = ["DictSerializable", "LensLineage", "LensVersionInfo", "LensManifest"]
 
 
 @dataclass(frozen=True, slots=True)

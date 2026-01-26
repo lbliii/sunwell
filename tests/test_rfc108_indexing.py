@@ -24,7 +24,7 @@ class TestProjectTypeDetection:
 
     def test_detect_python_project(self, tmp_path: Path) -> None:
         """Detect Python project from pyproject.toml."""
-        from sunwell.indexing import detect_project_type, ProjectType
+        from sunwell.knowledge.indexing import detect_project_type, ProjectType
 
         (tmp_path / "pyproject.toml").write_text("[project]\nname = 'test'")
         (tmp_path / "src").mkdir()
@@ -35,7 +35,7 @@ class TestProjectTypeDetection:
 
     def test_detect_node_project(self, tmp_path: Path) -> None:
         """Detect Node.js project from package.json."""
-        from sunwell.indexing import detect_project_type, ProjectType
+        from sunwell.knowledge.indexing import detect_project_type, ProjectType
 
         (tmp_path / "package.json").write_text('{"name": "test"}')
         (tmp_path / "src").mkdir()
@@ -46,7 +46,7 @@ class TestProjectTypeDetection:
 
     def test_detect_prose_project(self, tmp_path: Path) -> None:
         """Detect prose project from manuscript markers."""
-        from sunwell.indexing import detect_project_type, ProjectType
+        from sunwell.knowledge.indexing import detect_project_type, ProjectType
 
         (tmp_path / "manuscript").mkdir()
         (tmp_path / "manuscript" / "chapter-01.md").write_text("# Chapter 1\n\nOnce upon a time...")
@@ -56,7 +56,7 @@ class TestProjectTypeDetection:
 
     def test_detect_script_project(self, tmp_path: Path) -> None:
         """Detect screenplay project from fountain files."""
-        from sunwell.indexing import detect_project_type, ProjectType
+        from sunwell.knowledge.indexing import detect_project_type, ProjectType
 
         (tmp_path / "script.fountain").write_text("INT. COFFEE SHOP - DAY\n\nA busy morning.")
 
@@ -65,7 +65,7 @@ class TestProjectTypeDetection:
 
     def test_detect_docs_project(self, tmp_path: Path) -> None:
         """Detect documentation project from docs markers."""
-        from sunwell.indexing import detect_project_type, ProjectType
+        from sunwell.knowledge.indexing import detect_project_type, ProjectType
 
         (tmp_path / "docs").mkdir()
         (tmp_path / "docs" / "conf.py").write_text("project = 'Test'")
@@ -76,7 +76,7 @@ class TestProjectTypeDetection:
 
     def test_detect_mixed_project(self, tmp_path: Path) -> None:
         """Detect mixed project with multiple types."""
-        from sunwell.indexing import detect_project_type, ProjectType
+        from sunwell.knowledge.indexing import detect_project_type, ProjectType
 
         # Both code and docs
         (tmp_path / "pyproject.toml").write_text("[project]\nname = 'test'")
@@ -88,7 +88,7 @@ class TestProjectTypeDetection:
 
     def test_detect_unknown_project(self, tmp_path: Path) -> None:
         """Detect unknown project with no markers."""
-        from sunwell.indexing import detect_project_type, ProjectType
+        from sunwell.knowledge.indexing import detect_project_type, ProjectType
 
         # Empty directory
         result = detect_project_type(tmp_path)
@@ -100,7 +100,7 @@ class TestFileTypeDetection:
 
     def test_detect_file_type_python(self, tmp_path: Path) -> None:
         """Detect Python file type."""
-        from sunwell.indexing import detect_file_type, ProjectType
+        from sunwell.knowledge.indexing import detect_file_type, ProjectType
 
         py_file = tmp_path / "main.py"
         py_file.write_text("def main(): pass")
@@ -110,7 +110,7 @@ class TestFileTypeDetection:
 
     def test_detect_file_type_markdown(self, tmp_path: Path) -> None:
         """Detect Markdown file type."""
-        from sunwell.indexing import detect_file_type, ProjectType
+        from sunwell.knowledge.indexing import detect_file_type, ProjectType
 
         md_file = tmp_path / "README.md"
         md_file.write_text("# Title\n\nSome documentation.")
@@ -120,7 +120,7 @@ class TestFileTypeDetection:
 
     def test_detect_file_type_fountain(self, tmp_path: Path) -> None:
         """Detect Fountain screenplay file type."""
-        from sunwell.indexing import detect_file_type, ProjectType
+        from sunwell.knowledge.indexing import detect_file_type, ProjectType
 
         fountain_file = tmp_path / "script.fountain"
         fountain_file.write_text("INT. OFFICE - DAY")
@@ -410,7 +410,7 @@ class TestIndexingService:
     @pytest.mark.asyncio
     async def test_service_starts_in_no_index_state(self, tmp_path: Path) -> None:
         """Service should start in NO_INDEX state."""
-        from sunwell.indexing import IndexingService, IndexState
+        from sunwell.knowledge.indexing import IndexingService, IndexState
 
         service = IndexingService(workspace_root=tmp_path)
         status = service.get_status()
@@ -419,7 +419,7 @@ class TestIndexingService:
     @pytest.mark.asyncio
     async def test_service_transitions_to_building(self, tmp_path: Path) -> None:
         """Service should transition to BUILDING when started."""
-        from sunwell.indexing import IndexingService, IndexState
+        from sunwell.knowledge.indexing import IndexingService, IndexState
 
         # Create a simple Python file
         (tmp_path / "main.py").write_text("print('hello')")
@@ -436,7 +436,7 @@ class TestIndexingService:
     @pytest.mark.asyncio
     async def test_service_handles_empty_workspace(self, tmp_path: Path) -> None:
         """Service should handle empty workspace gracefully."""
-        from sunwell.indexing import IndexingService, IndexState
+        from sunwell.knowledge.indexing import IndexingService, IndexState
 
         service = IndexingService(workspace_root=tmp_path)
         await service.start()
@@ -450,7 +450,7 @@ class TestIndexingService:
     @pytest.mark.asyncio
     async def test_service_query_returns_results(self, tmp_path: Path) -> None:
         """Service should return query results."""
-        from sunwell.indexing import IndexingService
+        from sunwell.knowledge.indexing import IndexingService
 
         # Create searchable content
         (tmp_path / "calculator.py").write_text('''
@@ -487,7 +487,7 @@ class TestSmartContext:
     @pytest.mark.asyncio
     async def test_fallback_to_grep_without_index(self, tmp_path: Path) -> None:
         """Should fallback to grep when no index available."""
-        from sunwell.indexing import SmartContext
+        from sunwell.knowledge.indexing import SmartContext
 
         # Create searchable content
         (tmp_path / "search_test.py").write_text('''
@@ -506,7 +506,7 @@ def find_user(user_id: int) -> User:
     @pytest.mark.asyncio
     async def test_fallback_to_file_list_without_grep(self, tmp_path: Path) -> None:
         """Should fallback to file list when grep unavailable."""
-        from sunwell.indexing import SmartContext
+        from sunwell.knowledge.indexing import SmartContext
 
         # Create some files
         (tmp_path / "app.py").write_text("print('app')")
@@ -523,7 +523,7 @@ def find_user(user_id: int) -> User:
     @pytest.mark.asyncio
     async def test_context_format_is_usable(self, tmp_path: Path) -> None:
         """Context should be formatted for LLM consumption."""
-        from sunwell.indexing import SmartContext
+        from sunwell.knowledge.indexing import SmartContext
 
         (tmp_path / "auth.py").write_text('''
 def authenticate(username: str, password: str) -> bool:
@@ -551,7 +551,7 @@ class TestIndexMetrics:
 
     def test_metrics_initialization(self) -> None:
         """Metrics should initialize with zero values."""
-        from sunwell.indexing import IndexMetrics
+        from sunwell.knowledge.indexing import IndexMetrics
 
         metrics = IndexMetrics()
         assert metrics.build_time_ms == 0
@@ -560,7 +560,7 @@ class TestIndexMetrics:
 
     def test_metrics_cache_hit_rate_calculation(self) -> None:
         """Cache hit rate should be calculated correctly."""
-        from sunwell.indexing import IndexMetrics
+        from sunwell.knowledge.indexing import IndexMetrics
 
         metrics = IndexMetrics()
         metrics.cache_hits = 7
@@ -570,7 +570,7 @@ class TestIndexMetrics:
 
     def test_metrics_query_latency_tracking(self) -> None:
         """Query latency should be tracked."""
-        from sunwell.indexing import IndexMetrics
+        from sunwell.knowledge.indexing import IndexMetrics
 
         metrics = IndexMetrics()
         metrics.record_query(10.5)

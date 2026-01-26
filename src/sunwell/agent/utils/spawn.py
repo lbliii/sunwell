@@ -19,7 +19,7 @@ from datetime import datetime
 from typing import Any
 
 
-class SpawnDepthExceeded(Exception):
+class SpawnDepthExceededError(Exception):
     """Raised when spawn depth limit is reached.
 
     Prevents infinite recursion of specialist spawning.

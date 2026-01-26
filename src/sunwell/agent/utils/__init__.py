@@ -15,7 +15,7 @@ from sunwell.agent.utils.renderer import (
 )
 from sunwell.agent.utils.request import RunOptions
 from sunwell.agent.utils.spawn import (
-    SpawnDepthExceeded,
+    SpawnDepthExceededError,
     SpawnRequest,
     SpecialistResult,
     SpecialistState,
@@ -40,7 +40,7 @@ __all__ = [
     "RendererConfig",
     "create_renderer",
     "RunOptions",
-    "SpawnDepthExceeded",
+    "SpawnDepthExceededError",
     "SpawnRequest",
     "SpecialistResult",
     "SpecialistState",

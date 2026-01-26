@@ -16,7 +16,7 @@ def runner():
 @pytest.fixture
 def temp_project(tmp_path):
     """Create a temp project with lineage data."""
-    from sunwell.lineage import LineageStore
+    from sunwell.memory.lineage import LineageStore
     
     # Initialize lineage store
     store = LineageStore(tmp_path)

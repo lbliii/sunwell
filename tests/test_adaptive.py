@@ -313,8 +313,8 @@ class TestRendererConfig:
         sig = inspect.signature(RendererConfig)
         param_names = set(sig.parameters.keys())
 
-        # These are the fields that SHOULD exist
-        expected = {"mode", "refresh_rate", "show_learnings", "verbose"}
+        # These are the fields that SHOULD exist (RFC-131 added enable_sparkles, reduced_motion)
+        expected = {"mode", "refresh_rate", "show_learnings", "verbose", "enable_sparkles", "reduced_motion"}
         assert expected == param_names, (
             f"RendererConfig signature changed! "
             f"Expected {expected}, got {param_names}. "

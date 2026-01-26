@@ -1,6 +1,7 @@
 """Tool pattern learning for RFC-134."""
 
-from dataclasses import dataclass
+import threading
+from dataclasses import dataclass, field
 
 
 @dataclass(slots=True)
@@ -9,6 +10,8 @@ class ToolPattern:
 
     Tracks which tool sequences succeed for which task types.
     Used to suggest optimal tool sequences for new tasks.
+
+    RFC-122: Thread-safe for Python 3.14t free-threading.
     """
 
     task_type: str
@@ -23,27 +26,34 @@ class ToolPattern:
     failure_count: int = 0
     """Number of failed completions with this sequence."""
 
+    # RFC-122: Thread-safe lock for mutations (3.14t)
+    _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
+    """Lock for thread-safe mutations."""
+
     @property
     def success_rate(self) -> float:
         """Calculate success rate for this pattern."""
-        total = self.success_count + self.failure_count
-        return self.success_count / total if total > 0 else 0.5
+        with self._lock:
+            total = self.success_count + self.failure_count
+            return self.success_count / total if total > 0 else 0.5
 
     @property
     def confidence(self) -> float:
         """Confidence in this pattern (more data = higher confidence)."""
-        total = self.success_count + self.failure_count
-        # Base confidence + boost from sample size (up to 0.3 boost at 10+ samples)
-        base = self.success_rate
-        sample_boost = min(0.3, total * 0.03)
-        return min(1.0, base * 0.7 + sample_boost)
+        with self._lock:
+            total = self.success_count + self.failure_count
+            # Base confidence + boost from sample size (up to 0.3 boost at 10+ samples)
+            base = self.success_count / total if total > 0 else 0.5
+            sample_boost = min(0.3, total * 0.03)
+            return min(1.0, base * 0.7 + sample_boost)
 
     def record(self, success: bool) -> None:
-        """Record an outcome for this pattern."""
-        if success:
-            self.success_count += 1
-        else:
-            self.failure_count += 1
+        """Record an outcome for this pattern (thread-safe)."""
+        with self._lock:
+            if success:
+                self.success_count += 1
+            else:
+                self.failure_count += 1
 
     @property
     def id(self) -> str:
