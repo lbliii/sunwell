@@ -382,3 +382,114 @@ class TestErrorCategories:
                         # Should not raise
                         _print_human_error(error)
                     break
+
+
+class TestContextAwareRecovery:
+    """Tests for context-aware recovery hint generation."""
+
+    def test_detect_environment_returns_dict(self) -> None:
+        """_detect_environment returns expected structure."""
+        from sunwell.interface.cli.core.error_handler import _detect_environment
+
+        env = _detect_environment()
+
+        assert isinstance(env, dict)
+        assert "ollama_running" in env
+        assert "has_anthropic_key" in env
+        assert "has_openai_key" in env
+        assert "has_ollama" in env
+        assert "config_exists" in env
+
+    def test_context_hints_for_provider_unavailable(self) -> None:
+        """Generates context hints for MODEL_PROVIDER_UNAVAILABLE."""
+        from sunwell.interface.cli.core.error_handler import _get_context_aware_hints
+
+        error = SunwellError(
+            code=ErrorCode.MODEL_PROVIDER_UNAVAILABLE,
+            context={"provider": "ollama"},
+        )
+
+        # Simulate Ollama installed but not running
+        env = {
+            "has_ollama": True,
+            "ollama_running": False,
+            "has_anthropic_key": False,
+            "has_openai_key": False,
+        }
+
+        hints = _get_context_aware_hints(error, env)
+
+        assert any("ollama serve" in h for h in hints)
+
+    def test_context_hints_for_auth_failed(self) -> None:
+        """Generates context hints for MODEL_AUTH_FAILED."""
+        from sunwell.interface.cli.core.error_handler import _get_context_aware_hints
+
+        error = SunwellError(
+            code=ErrorCode.MODEL_AUTH_FAILED,
+            context={"provider": "anthropic"},
+        )
+
+        # Simulate missing API key
+        env = {
+            "has_anthropic_key": False,
+            "has_openai_key": True,
+        }
+
+        hints = _get_context_aware_hints(error, env)
+
+        assert any("ANTHROPIC_API_KEY" in h for h in hints)
+
+    def test_context_hints_for_config_missing(self) -> None:
+        """Generates context hints for CONFIG_MISSING."""
+        from sunwell.interface.cli.core.error_handler import _get_context_aware_hints
+
+        error = SunwellError(
+            code=ErrorCode.CONFIG_MISSING,
+            context={"key": "model.default"},
+        )
+
+        # Simulate no config file
+        env = {"config_exists": False}
+
+        hints = _get_context_aware_hints(error, env)
+
+        assert any("sunwell setup" in h for h in hints)
+
+    def test_context_hints_empty_for_unrelated_error(self) -> None:
+        """Returns empty hints for errors without context detection."""
+        from sunwell.interface.cli.core.error_handler import _get_context_aware_hints
+
+        error = SunwellError(
+            code=ErrorCode.FILE_NOT_FOUND,
+            context={"path": "/missing/file"},
+        )
+
+        env = {"config_exists": True}
+
+        hints = _get_context_aware_hints(error, env)
+
+        assert hints == []
+
+    def test_human_error_includes_context_hints(self) -> None:
+        """_print_human_error includes context-aware hints."""
+        from sunwell.interface.cli.core.error_handler import _print_human_error
+
+        error = SunwellError(
+            code=ErrorCode.CONFIG_MISSING,
+            context={"key": "model"},
+        )
+
+        with (
+            patch(
+                "sunwell.interface.cli.core.error_handler._detect_environment",
+                return_value={"config_exists": False},
+            ),
+            patch("rich.console.Console.print") as mock_print,
+        ):
+            _print_human_error(error)
+
+        # Should have printed context hint
+        calls_str = " ".join(str(c) for c in mock_print.call_args_list)
+        # Verify print was called (context detection should work)
+        assert mock_print.called

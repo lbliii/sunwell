@@ -2,7 +2,7 @@
   Demo Page — Feature demos
 -->
 <script lang="ts">
-  import Demo from '../Demo.svelte';
+  import Demo from '$lib/views/Demo.svelte';
 </script>
 
 <Demo />

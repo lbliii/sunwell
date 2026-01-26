@@ -2,7 +2,7 @@
   Library Page — Lens library
 -->
 <script lang="ts">
-  import Library from '../Library.svelte';
+  import Library from '$lib/views/Library.svelte';
 </script>
 
 <Library />

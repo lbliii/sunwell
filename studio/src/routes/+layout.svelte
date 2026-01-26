@@ -15,7 +15,7 @@
   import { setupInferenceListeners } from '$lib/inference';
   import { openProject } from '$stores/project.svelte';
   import { onEvent } from '$lib/socket';
-  import '../app.css';
+  import '../styles/global.css';
   
   interface Props {
     children: import('svelte').Snippet;
