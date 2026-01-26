@@ -66,6 +66,11 @@ from sunwell.knowledge.workspace.registry import (
     create_workspace,
     get_default_workspace,
 )
+from sunwell.knowledge.workspace.workspace_index import (
+    SignatureMatch,
+    WorkspaceSignatureIndex,
+    get_workspace_index_dir,
+)
 
 __all__ = [
     # Detection (RFC-024)
@@ -109,4 +114,8 @@ __all__ = [
     "WorkspaceRegistryError",
     "create_workspace",
     "get_default_workspace",
+    # Workspace Index (L1 signatures)
+    "WorkspaceSignatureIndex",
+    "SignatureMatch",
+    "get_workspace_index_dir",
 ]

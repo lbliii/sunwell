@@ -4,9 +4,10 @@ Manages workspaces stored at ~/.sunwell/workspaces/ as TOML files.
 Each workspace groups related projects together for:
 - Cross-project context and memory
 - Smart query routing
-- Tiered indexing
+- Tiered indexing (L1 signatures, L2 full)
 """
 
+import asyncio
 import logging
 import tomllib
 from datetime import datetime
@@ -173,6 +174,60 @@ class WorkspaceRegistry:
             return True
         except OSError as e:
             raise WorkspaceRegistryError(f"Failed to delete workspace: {e}") from e
+
+    async def ensure_l1_indexed(self, workspace_id: str) -> dict[str, int]:
+        """Ensure workspace has L1 signature index.
+
+        Triggers background L1 indexing if needed. This is a lightweight
+        operation that only extracts public API signatures.
+
+        Args:
+            workspace_id: Workspace to index.
+
+        Returns:
+            Dict of project_id -> signature count.
+
+        Raises:
+            WorkspaceRegistryError: If workspace not found.
+        """
+        ws = self.get(workspace_id)
+        if not ws:
+            raise WorkspaceRegistryError(f"Workspace not found: {workspace_id}")
+
+        from sunwell.knowledge.workspace.workspace_index import WorkspaceSignatureIndex
+
+        index = WorkspaceSignatureIndex(ws)
+        return await index.scan_all()
+
+    def trigger_l1_indexing_background(self, workspace_id: str) -> None:
+        """Trigger L1 indexing in the background.
+
+        Non-blocking call that starts L1 indexing without waiting.
+
+        Args:
+            workspace_id: Workspace to index.
+        """
+        ws = self.get(workspace_id)
+        if not ws:
+            logger.warning(f"Cannot trigger L1 indexing: workspace {workspace_id} not found")
+            return
+
+        async def _index_background():
+            try:
+                from sunwell.knowledge.workspace.workspace_index import WorkspaceSignatureIndex
+                index = WorkspaceSignatureIndex(ws)
+                stats = await index.scan_all()
+                logger.info(f"L1 indexing complete for {workspace_id}: {sum(stats.values())} signatures")
+            except Exception as e:
+                logger.warning(f"Background L1 indexing failed for {workspace_id}: {e}")
+
+        # Start indexing in background task
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_index_background())
+        except RuntimeError:
+            # No running event loop, skip background indexing
+            logger.debug("No event loop for background L1 indexing, skipping")
 
     def add_project(
         self,

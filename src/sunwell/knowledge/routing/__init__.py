@@ -9,9 +9,15 @@ from sunwell.knowledge.routing.query_router import (
     RouteResult,
     route_query,
 )
+from sunwell.knowledge.routing.workspace_search import (
+    SearchResult,
+    WorkspaceSearch,
+)
 
 __all__ = [
     "QueryRouter",
     "RouteResult",
     "route_query",
+    "SearchResult",
+    "WorkspaceSearch",
 ]

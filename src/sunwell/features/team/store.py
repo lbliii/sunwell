@@ -1,8 +1,10 @@
 """Team Knowledge Store - RFC-052.
 
 Git-tracked storage for team-shared decisions, failures, and patterns.
-All team knowledge is stored in `.sunwell/team/` and committed to git.
-Changes are detected via git status/diff.
+
+Storage locations (mental models alignment):
+- Workspace-scoped (default): ~/.sunwell/workspaces/{workspace_id}/memory/team/
+- Project-scoped (legacy): {project}/.sunwell/team/
 
 Storage format:
 - decisions.jsonl: Team architectural decisions (append-only JSONL)
@@ -32,7 +34,19 @@ from sunwell.features.team.types import (
     TeamPatterns,
 )
 
-__all__ = ["TeamKnowledgeStore", "SyncResult"]
+__all__ = ["TeamKnowledgeStore", "SyncResult", "get_workspace_team_dir"]
+
+
+def get_workspace_team_dir(workspace_id: str) -> Path:
+    """Get the team knowledge directory for a workspace.
+
+    Args:
+        workspace_id: The workspace container ID.
+
+    Returns:
+        Path to ~/.sunwell/workspaces/{workspace_id}/memory/team/
+    """
+    return Path.home() / ".sunwell" / "workspaces" / workspace_id / "memory" / "team"
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,23 +72,38 @@ class SyncResult:
 class TeamKnowledgeStore:
     """Manages team-shared knowledge.
 
-    All team knowledge is stored in .sunwell/team/ and committed to git.
-    Changes are detected via git status/diff.
+    Storage location depends on scope:
+    - Workspace-scoped: ~/.sunwell/workspaces/{workspace_id}/memory/team/
+    - Project-scoped (legacy): {project}/.sunwell/team/
+
+    When workspace_id is provided, team knowledge is shared across all
+    projects in that workspace. Otherwise, it's scoped to the project.
     """
 
     def __init__(
         self,
         root: Path,
         embedder: EmbeddingProtocol | None = None,
+        workspace_id: str | None = None,
     ):
         """Initialize team knowledge store.
 
         Args:
-            root: Project root directory (where .sunwell/ is located)
+            root: Project root directory (used for git operations and legacy storage)
             embedder: Optional embedder for semantic search
+            workspace_id: Optional workspace ID for workspace-scoped storage
         """
         self.root = Path(root)
-        self.team_dir = self.root / ".sunwell" / "team"
+        self.workspace_id = workspace_id
+
+        # Determine storage location based on scope
+        if workspace_id:
+            # Workspace-scoped: shared across projects
+            self.team_dir = get_workspace_team_dir(workspace_id)
+        else:
+            # Project-scoped (legacy)
+            self.team_dir = self.root / ".sunwell" / "team"
+
         self.team_dir.mkdir(parents=True, exist_ok=True)
 
         self._decisions_path = self.team_dir / "decisions.jsonl"
@@ -95,6 +124,26 @@ class TeamKnowledgeStore:
         # Load existing knowledge
         self._load_decisions()
         self._load_failures()
+
+    @classmethod
+    def for_workspace(
+        cls,
+        workspace_id: str,
+        project_root: Path | None = None,
+        embedder: EmbeddingProtocol | None = None,
+    ) -> "TeamKnowledgeStore":
+        """Create a workspace-scoped team knowledge store.
+
+        Args:
+            workspace_id: Workspace container ID.
+            project_root: Optional project root for git operations.
+            embedder: Optional embedder for semantic search.
+
+        Returns:
+            TeamKnowledgeStore with workspace-scoped storage.
+        """
+        root = project_root or Path.cwd()
+        return cls(root=root, embedder=embedder, workspace_id=workspace_id)
 
     # =========================================================================
     # DECISIONS

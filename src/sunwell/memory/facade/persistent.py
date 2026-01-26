@@ -80,14 +80,19 @@ class PersistentMemory:
     """Whether all stores have been loaded."""
 
     @classmethod
-    def load(cls, workspace: Path) -> PersistentMemory:
+    def load(
+        cls,
+        workspace: Path,
+        workspace_id: str | None = None,
+    ) -> PersistentMemory:
         """Load all memory for workspace.
 
         Each store loads independently — failure in one doesn't block others.
         Gracefully handles missing directories or corrupted files.
 
         Args:
-            workspace: Root workspace path
+            workspace: Root workspace path (project directory)
+            workspace_id: Optional workspace container ID for workspace-scoped team memory
 
         Returns:
             PersistentMemory with all available stores loaded
@@ -95,14 +100,15 @@ class PersistentMemory:
         workspace = Path(workspace).resolve()
         intel_path = workspace / ".sunwell" / "intelligence"
         memory_path = workspace / ".sunwell" / "memory"
-        team_path = workspace / ".sunwell" / "team"
 
         # Load each component independently
         simulacrum = _load_simulacrum(memory_path)
         decisions = _load_decisions(intel_path)
         failures = _load_failures(intel_path)
         patterns = _load_patterns(intel_path)
-        team = _load_team(team_path)
+
+        # Team knowledge: workspace-scoped if workspace_id provided
+        team = _load_team(workspace, workspace_id)
 
         instance = cls(
             workspace=workspace,
@@ -143,14 +149,19 @@ class PersistentMemory:
         return instance
 
     @classmethod
-    async def load_async(cls, workspace: Path) -> PersistentMemory:
+    async def load_async(
+        cls,
+        workspace: Path,
+        workspace_id: str | None = None,
+    ) -> PersistentMemory:
         """Load all memory for workspace asynchronously.
 
         Loads stores in parallel using asyncio.to_thread for I/O-bound operations.
         Each store loads independently — failure in one doesn't block others.
 
         Args:
-            workspace: Root workspace path
+            workspace: Root workspace path (project directory)
+            workspace_id: Optional workspace container ID for workspace-scoped team memory
 
         Returns:
             PersistentMemory with all available stores loaded
@@ -160,7 +171,6 @@ class PersistentMemory:
         workspace = Path(workspace).resolve()
         intel_path = workspace / ".sunwell" / "intelligence"
         memory_path = workspace / ".sunwell" / "memory"
-        team_path = workspace / ".sunwell" / "team"
 
         # Load each component in parallel using asyncio.to_thread
         async def load_simulacrum() -> SimulacrumStore | None:
@@ -176,7 +186,7 @@ class PersistentMemory:
             return await asyncio.to_thread(_load_patterns, intel_path)
 
         async def load_team() -> TeamKnowledgeStore | None:
-            return await asyncio.to_thread(_load_team, team_path)
+            return await asyncio.to_thread(_load_team, workspace, workspace_id)
 
         # Load all in parallel
         simulacrum, decisions, failures, patterns, team = await asyncio.gather(
@@ -697,17 +707,38 @@ def _load_patterns(intel_path: Path) -> PatternProfile | None:
         return None
 
 
-def _load_team(team_path: Path) -> TeamKnowledgeStore | None:
-    """Load TeamKnowledgeStore if configured, returning None otherwise."""
-    if not team_path.exists():
-        return None
+def _load_team(
+    project_root: Path,
+    workspace_id: str | None = None,
+) -> TeamKnowledgeStore | None:
+    """Load TeamKnowledgeStore with workspace or project scope.
 
+    Args:
+        project_root: Project root directory.
+        workspace_id: Optional workspace ID for workspace-scoped storage.
+
+    Returns:
+        TeamKnowledgeStore or None if not configured/available.
+    """
     try:
-        from sunwell.features.team.store import TeamKnowledgeStore
+        from sunwell.features.team.store import TeamKnowledgeStore, get_workspace_team_dir
 
-        config_path = team_path / "config.json"
-        if config_path.exists():
-            return TeamKnowledgeStore(team_path)
+        if workspace_id:
+            # Workspace-scoped: check if workspace team dir exists or create it
+            team_path = get_workspace_team_dir(workspace_id)
+            if team_path.exists() or workspace_id:
+                return TeamKnowledgeStore(
+                    root=project_root,
+                    workspace_id=workspace_id,
+                )
+        else:
+            # Project-scoped (legacy)
+            team_path = project_root / ".sunwell" / "team"
+            if team_path.exists():
+                config_path = team_path / "config.json"
+                if config_path.exists():
+                    return TeamKnowledgeStore(root=project_root)
+
         return None
     except Exception as e:
         logger.warning(f"Failed to load TeamKnowledgeStore: {e}")

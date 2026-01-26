@@ -60,7 +60,6 @@ from sunwell.agent.execution import (
 )
 from sunwell.agent.execution.fixer import FixStage
 from sunwell.agent.learning import LearningExtractor, LearningStore, learn_from_execution
-from sunwell.agent.planning.planning_helpers import plan_with_signals
 from sunwell.agent.utils.metrics import InferenceMetrics
 from sunwell.agent.utils.request import RunOptions
 from sunwell.agent.signals import AdaptiveSignals, extract_signals
@@ -549,6 +548,9 @@ class Agent:
         context: dict[str, Any],
     ) -> AsyncIterator[AgentEvent]:
         """Plan using signal-appropriate technique."""
+        # Deferred import to avoid circular dependency
+        from sunwell.agent.planning.planning_helpers import plan_with_signals
+
         async for event, task_graph, planning_context in plan_with_signals(
             goal=goal,
             signals=signals,

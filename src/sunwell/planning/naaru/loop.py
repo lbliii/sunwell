@@ -1,4 +1,8 @@
-"""Main control loop for the Naaru architecture."""
+"""Main control loop for the Naaru architecture.
+
+Sessions are persisted globally at ~/.sunwell/sessions/ for cross-project
+session management and resume capability.
+"""
 
 
 import asyncio
@@ -10,6 +14,7 @@ from pathlib import Path
 
 from sunwell.features.mirror import MirrorHandler
 from sunwell.planning.naaru.discovery import OpportunityDiscoverer
+from sunwell.planning.naaru.session_store import SessionStore
 from sunwell.planning.naaru.signals import SignalHandler, StopReason, format_stop_reason
 from sunwell.planning.naaru.types import (
     CompletedTask,
@@ -41,16 +46,23 @@ class AutonomousRunner:
     workspace: Path
     storage_path: Path = None
     on_event: Callable[[str, str], None] | None = None
+    project_id: str | None = None
+    workspace_id: str | None = None
 
     # Internal state
     state: SessionState = field(init=False)
     mirror: MirrorHandler = field(init=False)
     discoverer: OpportunityDiscoverer = field(init=False)
     signals: SignalHandler = field(init=False)
+    _session_store: SessionStore = field(init=False)
     _loop_start: datetime = field(init=False)
 
     def __post_init__(self):
         """Initialize components."""
+        # Use global session store for persistence
+        self._session_store = SessionStore()
+
+        # Legacy storage path for local artifacts (mirror, signals)
         if self.storage_path is None:
             self.storage_path = self.workspace / ".sunwell" / "autonomous"
 
@@ -69,6 +81,17 @@ class AutonomousRunner:
             status=SessionStatus.RUNNING,
             started_at=datetime.now(),
         )
+
+        # Save initial state to global store
+        self._session_store.save(self.state)
+
+        # Set metadata for project/workspace association
+        if self.project_id or self.workspace_id:
+            self._session_store.set_metadata(
+                self.state.session_id,
+                project_id=self.project_id,
+                workspace_id=self.workspace_id,
+            )
 
         # Initialize mirror handler
         self.mirror = MirrorHandler(
@@ -111,6 +134,85 @@ class AutonomousRunner:
             await self._finalize()
 
         return self.state
+
+    @classmethod
+    async def resume(
+        cls,
+        session_id: str,
+        workspace: Path,
+        on_event: Callable[[str, str], None] | None = None,
+    ) -> SessionState:
+        """Resume a paused or interrupted session.
+
+        Args:
+            session_id: Session to resume.
+            workspace: Workspace path for local operations.
+            on_event: Optional event callback.
+
+        Returns:
+            Final session state.
+
+        Raises:
+            ValueError: If session not found or not resumable.
+        """
+        store = SessionStore()
+        state = store.load(session_id)
+
+        if not state:
+            msg = f"Session not found: {session_id}"
+            raise ValueError(msg)
+
+        if state.status not in (SessionStatus.PAUSED, SessionStatus.RUNNING):
+            msg = f"Session cannot be resumed (status: {state.status.value})"
+            raise ValueError(msg)
+
+        # Create runner with restored state
+        runner = cls(
+            config=state.config,
+            workspace=workspace,
+            on_event=on_event,
+        )
+        runner.state = state
+        runner.state.status = SessionStatus.RUNNING
+        runner._session_store = store
+
+        # Initialize components
+        runner.storage_path = workspace / ".sunwell" / "autonomous"
+        runner.storage_path.mkdir(parents=True, exist_ok=True)
+
+        runner.mirror = MirrorHandler(
+            workspace=workspace,
+            storage_path=runner.storage_path / "mirror",
+        )
+
+        runner.discoverer = OpportunityDiscoverer(
+            mirror=runner.mirror,
+            workspace=workspace,
+        )
+
+        runner.signals = SignalHandler(
+            session_id=state.session_id,
+            storage_path=runner.storage_path,
+            on_stop=lambda r: runner._emit("stop_signal", format_stop_reason(r)),
+        )
+        runner.signals.setup()
+
+        try:
+            await runner.signals.start_file_watcher()
+            runner._emit("resume", f"Resuming session {session_id}")
+
+            runner._loop_start = datetime.now()
+            await runner._run_loop()
+
+        except Exception as e:
+            runner.state.status = SessionStatus.FAILED
+            runner.state.stop_reason = str(e)
+            runner._emit("error", f"Fatal error: {e}")
+        finally:
+            runner.signals.teardown()
+            await runner._finalize()
+
+        return runner.state
 
     async def _run_loop(self) -> None:
         """Main execution loop."""
@@ -272,8 +374,13 @@ class AutonomousRunner:
         )
 
     async def _checkpoint(self) -> None:
-        """Save current state to disk."""
+        """Save current state to global store and local checkpoint."""
         self.state.checkpoint_at = datetime.now()
+
+        # Save to global session store
+        self._session_store.save(self.state)
+
+        # Also save local checkpoint for legacy compatibility
         checkpoint_path = self.storage_path / f"{self.state.session_id}.json"
         self.state.save(checkpoint_path)
 
@@ -293,7 +400,10 @@ class AutonomousRunner:
             else:
                 self.state.status = SessionStatus.PAUSED
 
-        # Final save
+        # Final save to global store
+        self._session_store.save(self.state)
+
+        # Also save local checkpoint for legacy compatibility
         checkpoint_path = self.storage_path / f"{self.state.session_id}.json"
         self.state.save(checkpoint_path)
 

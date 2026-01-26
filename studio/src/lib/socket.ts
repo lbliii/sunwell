@@ -249,8 +249,16 @@ export async function startRun(request: RunRequest): Promise<RunResponse> {
 
 	const result = (await response.json()) as RunResponse;
 
+	if (!response.ok) {
+		throw new Error(`Failed to start run: ${response.status} ${result.error || 'Unknown error'}`);
+	}
+
 	if (result.error) {
 		throw new Error(result.error);
+	}
+
+	if (!result.run_id) {
+		throw new Error('Server returned success but no run_id');
 	}
 
 	// Connect WebSocket to stream events

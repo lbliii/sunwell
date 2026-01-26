@@ -1,6 +1,8 @@
-"""Workspace management routes (RFC-140, RFC-141)."""
+"""Workspace management routes (RFC-140, RFC-141).
 
-from enum import Enum
+Multi-project workspace container support added for mental models alignment.
+"""
+
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
@@ -9,8 +11,12 @@ from sunwell.foundation.utils import normalize_path
 from sunwell.interface.server.routes.models import CamelModel
 from sunwell.knowledge.workspace import (
     DeletionMode,
+    ProjectRole,
+    Workspace,
     WorkspaceInfo,
     WorkspaceManager,
+    WorkspaceRegistry,
+    WorkspaceRegistryError,
     WorkspaceStatus,
     sanitize_workspace_id,
 )
@@ -667,4 +673,287 @@ async def get_active_runs(workspace_id: str) -> ActiveRunsResponse:
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to check active runs: {type(e).__name__}"
+        ) from e
+
+
+# ═══════════════════════════════════════════════════════════════
+# WORKSPACE CONTAINER ENDPOINTS (Multi-Project Architecture)
+# ═══════════════════════════════════════════════════════════════
+
+
+class ContainerProjectRequest(CamelModel):
+    """Request to add a project to a container."""
+
+    id: str
+    """Project ID."""
+
+    path: str
+    """Project path."""
+
+    role: str = "unknown"
+    """Project role: frontend, backend, api, shared, etc."""
+
+    is_primary: bool = False
+    """Whether this is the primary project."""
+
+
+class ContainerProjectResponse(CamelModel):
+    """Project within a container."""
+
+    id: str
+    path: str
+    role: str
+    is_primary: bool
+
+
+class ContainerResponse(CamelModel):
+    """Workspace container response."""
+
+    id: str
+    name: str
+    projects: list[ContainerProjectResponse]
+    root: str | None
+    created_at: str
+
+
+class ContainerListResponse(CamelModel):
+    """List of workspace containers."""
+
+    containers: list[ContainerResponse]
+    current: ContainerResponse | None = None
+
+
+class CreateContainerRequest(CamelModel):
+    """Request to create a workspace container."""
+
+    id: str
+    """Container ID."""
+
+    name: str | None = None
+    """Container name (defaults to ID)."""
+
+    projects: list[ContainerProjectRequest] = []
+    """Initial projects."""
+
+
+def _workspace_to_container_response(ws: Workspace) -> ContainerResponse:
+    """Convert Workspace to ContainerResponse."""
+    return ContainerResponse(
+        id=ws.id,
+        name=ws.name,
+        projects=[
+            ContainerProjectResponse(
+                id=p.id,
+                path=str(p.path),
+                role=p.role.value,
+                is_primary=p.is_primary,
+            )
+            for p in ws.projects
+        ],
+        root=str(ws.root) if ws.root else None,
+        created_at=ws.created_at.isoformat(),
+    )
+
+
+@router.get("/containers")
+async def list_containers() -> ContainerListResponse:
+    """List all workspace containers.
+
+    Returns workspace containers that group related projects.
+    """
+    try:
+        registry = WorkspaceRegistry()
+        containers = registry.list_workspaces()
+
+        # Determine current container (if any)
+        manager = WorkspaceManager()
+        current_project = manager.get_current()
+        current_container = None
+
+        if current_project:
+            for ws in containers:
+                if current_project.id in ws.project_ids:
+                    current_container = ws
+                    break
+
+        return ContainerListResponse(
+            containers=[_workspace_to_container_response(ws) for ws in containers],
+            current=_workspace_to_container_response(current_container) if current_container else None,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to list containers: {type(e).__name__}"
+        ) from e
+
+
+@router.post("/containers")
+async def create_container(request: CreateContainerRequest) -> ContainerResponse:
+    """Create a new workspace container.
+
+    Creates a container that groups related projects together.
+    """
+    try:
+        registry = WorkspaceRegistry()
+
+        # Build project list
+        from sunwell.knowledge.workspace.types import WorkspaceProject
+
+        projects: list[WorkspaceProject] = []
+        for i, p in enumerate(request.projects):
+            try:
+                role = ProjectRole(p.role)
+            except ValueError:
+                role = ProjectRole.UNKNOWN
+
+            projects.append(
+                WorkspaceProject(
+                    id=p.id,
+                    path=Path(p.path).expanduser().resolve(),
+                    role=role,
+                    is_primary=p.is_primary or (i == 0 and not any(proj.is_primary for proj in request.projects)),
+                )
+            )
+
+        ws = Workspace(
+            id=request.id,
+            name=request.name or request.id,
+            projects=tuple(projects),
+        )
+
+        registry.create(ws)
+        return _workspace_to_container_response(ws)
+
+    except WorkspaceRegistryError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to create container: {type(e).__name__}"
+        ) from e
+
+
+@router.get("/containers/{container_id}")
+async def get_container(container_id: str) -> ContainerResponse:
+    """Get a workspace container by ID."""
+    try:
+        registry = WorkspaceRegistry()
+        ws = registry.get(container_id)
+
+        if not ws:
+            raise HTTPException(status_code=404, detail=f"Container not found: {container_id}")
+
+        return _workspace_to_container_response(ws)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get container: {type(e).__name__}"
+        ) from e
+
+
+@router.delete("/containers/{container_id}")
+async def delete_container(container_id: str) -> dict[str, str]:
+    """Delete a workspace container.
+
+    This only removes the container definition, not the projects themselves.
+    """
+    try:
+        registry = WorkspaceRegistry()
+
+        if not registry.delete(container_id):
+            raise HTTPException(status_code=404, detail=f"Container not found: {container_id}")
+
+        return {"status": "deleted", "container_id": container_id}
+    except HTTPException:
+        raise
+    except WorkspaceRegistryError as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete container: {type(e).__name__}"
+        ) from e
+
+
+@router.post("/containers/{container_id}/switch")
+async def switch_to_container(container_id: str) -> ContainerResponse:
+    """Switch to a workspace container.
+
+    Sets the container's primary project as the current workspace.
+    """
+    try:
+        registry = WorkspaceRegistry()
+        ws = registry.get(container_id)
+
+        if not ws:
+            raise HTTPException(status_code=404, detail=f"Container not found: {container_id}")
+
+        # Switch to primary project
+        primary = ws.primary_project
+        if not primary:
+            raise HTTPException(status_code=400, detail="Container has no projects")
+
+        manager = WorkspaceManager()
+        manager.switch_workspace(primary.id)
+
+        return _workspace_to_container_response(ws)
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to switch container: {type(e).__name__}"
+        ) from e
+
+
+@router.post("/containers/{container_id}/projects")
+async def add_project_to_container(
+    container_id: str,
+    request: ContainerProjectRequest,
+) -> ContainerResponse:
+    """Add a project to a workspace container."""
+    try:
+        registry = WorkspaceRegistry()
+
+        try:
+            role = ProjectRole(request.role)
+        except ValueError:
+            role = ProjectRole.UNKNOWN
+
+        ws = registry.add_project(
+            container_id,
+            project_id=request.id,
+            project_path=Path(request.path).expanduser().resolve(),
+            role=role,
+            is_primary=request.is_primary,
+        )
+
+        return _workspace_to_container_response(ws)
+    except WorkspaceRegistryError as e:
+        if "not found" in str(e).lower():
+            raise HTTPException(status_code=404, detail=str(e)) from e
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to add project: {type(e).__name__}"
+        ) from e
+
+
+@router.delete("/containers/{container_id}/projects/{project_id}")
+async def remove_project_from_container(
+    container_id: str,
+    project_id: str,
+) -> ContainerResponse:
+    """Remove a project from a workspace container."""
+    try:
+        registry = WorkspaceRegistry()
+        ws = registry.remove_project(container_id, project_id)
+
+        return _workspace_to_container_response(ws)
+    except WorkspaceRegistryError as e:
+        if "not found" in str(e).lower():
+            raise HTTPException(status_code=404, detail=str(e)) from e
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to remove project: {type(e).__name__}"
         ) from e

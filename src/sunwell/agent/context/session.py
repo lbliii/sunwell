@@ -93,6 +93,13 @@ class SessionContext:
     options: "RunOptions | None" = None
     """Full execution options (RFC-137: includes delegation config)."""
 
+    # === WORKSPACE CONTEXT (multi-project architecture) ===
+    workspace_id: str | None = None
+    """Workspace container ID for multi-project context."""
+
+    project_id: str | None = None
+    """Project ID within the workspace (if workspace_id is set)."""
+
     # === EXECUTION STATE (updated during run) ===
     tasks: list[Task] = field(default_factory=list)
     """Tasks in the current plan."""

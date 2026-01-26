@@ -25,6 +25,7 @@ from sunwell.interface.server.routes.memory import router as memory_router
 from sunwell.interface.server.routes.misc import router as misc_router
 from sunwell.interface.server.routes.project import router as project_router
 from sunwell.interface.server.routes.recovery import router as recovery_router
+from sunwell.interface.server.routes.session import router as session_router
 from sunwell.interface.server.routes.surface import router as surface_router
 from sunwell.interface.server.routes.workspace import router as workspace_router
 from sunwell.interface.server.routes.writer import router as writer_router
@@ -40,6 +41,7 @@ __all__ = [
     "misc_router",
     "project_router",
     "recovery_router",
+    "session_router",
     "surface_router",
     "workspace_router",
     "writer_router",
