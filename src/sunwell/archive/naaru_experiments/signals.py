@@ -13,7 +13,7 @@ Signal Types:
 The network effect emerges from many simple signals, not complex paragraphs.
 
 Example:
-    >>> from sunwell.archive.naaru-experiments.signals import SignalNetwork
+    >>> from sunwell.archive.naaru_experiments.signals import SignalNetwork
     >>>
     >>> network = SignalNetwork(model)
     >>> result = await network.evaluate("Build a REST API")

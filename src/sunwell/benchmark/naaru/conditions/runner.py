@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class ConditionRunner:
-    """Runs conditions for the Naaru benchmark.
+    """Runs all 11 conditions (A-K) for the Naaru benchmark.
 
     Example:
         >>> runner = ConditionRunner(model=model, judge_model=judge)
@@ -87,3 +87,6 @@ class ConditionRunner:
 
             case NaaruCondition.ROTATION_DIVERGENT:
                 return await run_rotation(self.model, task, divergent=True)
+
+            case _:
+                raise ValueError(f"Unsupported condition: {condition}")

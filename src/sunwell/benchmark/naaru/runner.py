@@ -1,7 +1,7 @@
 """Naaru Benchmark Runner (RFC-027).
 
 The main orchestrator for the Naaru benchmark suite. Runs tasks across
-all 7 conditions and collects Naaru-specific metrics.
+all 11 conditions (A-K) and collects Naaru-specific metrics.
 
 Example:
     >>> runner = NaaruBenchmarkRunner(
@@ -13,7 +13,8 @@ Example:
     >>> results = await runner.run_suite(max_tasks=30)
 """
 
-
+import json
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -39,13 +40,15 @@ if TYPE_CHECKING:
     from sunwell.foundation.schema.loader import LensLoader
     from sunwell.models import ModelProtocol
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class NaaruBenchmarkRunner:
     """Execute benchmark tasks across Naaru conditions.
 
     This is the main entry point for RFC-027. It runs tasks across
-    7 conditions (A-G) to validate Naaru's quality claims.
+    11 conditions (A-K) to validate Naaru's quality claims.
 
     Attributes:
         model: The synthesis model (e.g., gemma3:1b)
@@ -107,7 +110,7 @@ class NaaruBenchmarkRunner:
 
         Args:
             task: The benchmark task to run
-            conditions: Conditions to run (default: all 7)
+            conditions: Conditions to run (default: all 11 A-K)
 
         Returns:
             NaaruTaskResult with outputs from all conditions
@@ -130,15 +133,16 @@ class NaaruBenchmarkRunner:
                 NaaruCondition.BASELINE_LENS,
                 NaaruCondition.HARMONIC_LENS,
                 NaaruCondition.NAARU_FULL_LENS,
+                NaaruCondition.ROTATION_LENS,
             ):
                 continue
 
             try:
                 output = await runner.run(condition, task, lens)
                 outputs[condition] = output
-            except Exception as e:
+            except Exception:
                 # Log error but continue with other conditions
-                print(f"  Error in {condition.value}: {e}")
+                logger.exception("Error in condition %s", condition.value)
 
         return NaaruTaskResult(
             task_id=task.id,
@@ -174,16 +178,13 @@ class NaaruBenchmarkRunner:
         results: list[NaaruTaskResult] = []
 
         for i, task in enumerate(tasks):
-            print(f"  [{i+1}/{len(tasks)}] Running {task.id}...", end=" ", flush=True)
+            logger.info("[%d/%d] Running %s...", i + 1, len(tasks), task.id)
             try:
                 result = await self.run_task(task, conditions)
                 results.append(result)
-
-                # Show condition summary
-                conds_run = len(result.outputs)
-                print(f"✓ ({conds_run} conditions)")
-            except Exception as e:
-                print(f"✗ {e}")
+                logger.info("  %s: ✓ (%d conditions)", task.id, len(result.outputs))
+            except Exception:
+                logger.exception("Task %s failed", task.id)
 
         return NaaruBenchmarkResults(
             timestamp=datetime.now().isoformat(),
@@ -327,8 +328,8 @@ class NaaruBenchmarkRunner:
                 target_persona=task_data.get("target_persona"),
                 source_path=path,
             )
-        except Exception as e:
-            print(f"Warning: Failed to load {path}: {e}")
+        except Exception:
+            logger.warning("Failed to load task file: %s", path, exc_info=True)
             return None
 
     def save_results(
@@ -379,7 +380,7 @@ class NaaruBenchmarkRunner:
                 "config": results.config,
             }, f, indent=2)
 
-        print(f"Results saved to {results_dir}")
+        logger.info("Results saved to %s", results_dir)
         return results_dir
 
     def _compute_condition_summary(

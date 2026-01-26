@@ -10,7 +10,7 @@ Like biological cells:
 - No cell sees the whole picture
 
 Example:
-    >>> from sunwell.archive.naaru-experiments.cellular import cellular_discover
+    >>> from sunwell.archive.naaru_experiments.cellular import cellular_discover
     >>>
     >>> graph = await cellular_discover(
     ...     goal="Build a REST API with auth",

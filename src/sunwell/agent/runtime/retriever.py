@@ -36,10 +36,17 @@ class ExpertiseRetriever:
         for heuristic in self.lens.heuristics:
             # Create searchable text from heuristic
             text_parts = [heuristic.name]
-            if heuristic.description:
-                text_parts.append(heuristic.description)
-            if heuristic.examples:
-                text_parts.extend(heuristic.examples)
+            if heuristic.rule:
+                text_parts.append(heuristic.rule)
+            if heuristic.always:
+                text_parts.extend(heuristic.always)
+            if heuristic.never:
+                text_parts.extend(heuristic.never)
+            # Include good/bad examples if present
+            if heuristic.examples.good:
+                text_parts.extend(heuristic.examples.good)
+            if heuristic.examples.bad:
+                text_parts.extend(heuristic.examples.bad)
 
             text = "\n".join(text_parts)
             heuristic_texts.append(text)
@@ -48,7 +55,7 @@ class ExpertiseRetriever:
         if heuristic_texts:
             # Batch embed all heuristics
             results = await self.embedder.embed(heuristic_texts)
-            for name, embedding in zip(heuristic_names, results.embeddings):
+            for name, embedding in zip(heuristic_names, results.vectors, strict=True):
                 self._heuristic_embeddings[name] = embedding
 
         self._initialized = True
@@ -70,10 +77,10 @@ class ExpertiseRetriever:
 
         # Embed the query
         query_result = await self.embedder.embed([query])
-        if not query_result.embeddings:
+        if len(query_result.vectors) == 0:
             return []
 
-        query_embedding = query_result.embeddings[0]
+        query_embedding = query_result.vectors[0]
 
         # Compute similarity scores
         scores: list[tuple[float, Heuristic]] = []
@@ -98,7 +105,7 @@ class ExpertiseRetriever:
         if len(a) != len(b):
             return 0.0
 
-        dot_product = sum(x * y for x, y in zip(a, b))
+        dot_product = sum(x * y for x, y in zip(a, b, strict=True))
         norm_a = sum(x * x for x in a) ** 0.5
         norm_b = sum(x * x for x in b) ** 0.5
 

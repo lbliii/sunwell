@@ -12,8 +12,10 @@ Follows patterns from:
 - security/approval_cache.py (SQLiteApprovalCache)
 """
 
+import json
 import sqlite3
 import threading
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
@@ -120,7 +122,7 @@ class EvaluationStore:
         self.close()
 
     @contextmanager
-    def transaction(self):
+    def transaction(self) -> Iterator[sqlite3.Connection]:
         """Context manager for transactions."""
         with self._lock:
             try:
@@ -181,7 +183,8 @@ class EvaluationStore:
                 "resonance_fixes": list(run.evaluation_details.resonance_fixes),
                 "features_delta": list(run.evaluation_details.features_delta),
             },
-            "prompts_snapshot": run.prompts_snapshot,
+            # Convert tuple[tuple[str, str], ...] to list[list[str, str]] for JSON
+            "prompts_snapshot": [list(item) for item in run.prompts_snapshot],
         }
 
         with self.transaction():
@@ -493,6 +496,20 @@ class EvaluationStore:
     # Helpers
     # =========================================================================
 
+    def _deserialize_prompts_snapshot(
+        self, data: list | dict
+    ) -> tuple[tuple[str, str], ...]:
+        """Deserialize prompts_snapshot from JSON.
+
+        Handles both new format (list of pairs) and legacy format (dict)
+        for backwards compatibility.
+        """
+        if isinstance(data, dict):
+            # Legacy format: dict[str, str] -> tuple[tuple[str, str], ...]
+            return tuple((k, v) for k, v in data.items())
+        # New format: list[list[str, str]] -> tuple[tuple[str, str], ...]
+        return tuple(tuple(item) for item in data)
+
     def _row_to_run(self, row: sqlite3.Row) -> EvaluationRun:
         """Convert database row to EvaluationRun."""
         details = safe_json_loads(row["details_json"])
@@ -542,7 +559,9 @@ class EvaluationStore:
             estimated_cost_usd=row["estimated_cost_usd"],
             git_commit=row["git_commit"],
             config_hash=row["config_hash"],
-            prompts_snapshot=details.get("prompts_snapshot", {}),
+            prompts_snapshot=self._deserialize_prompts_snapshot(
+                details.get("prompts_snapshot", [])
+            ),
         )
 
     def clear(self) -> None:

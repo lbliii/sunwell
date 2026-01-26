@@ -6,7 +6,7 @@ Three-tier evaluation system:
 3. Human evaluation protocol (not automated)
 """
 
-
+import logging
 from dataclasses import dataclass
 
 from sunwell.benchmark.evaluation.deterministic import evaluate_deterministic
@@ -14,11 +14,14 @@ from sunwell.benchmark.evaluation.judge import evaluate_with_judge
 from sunwell.benchmark.types import (
     AggregatedVerdict,
     BenchmarkTask,
+    DeterministicResult,
     EvaluationResult,
     TaskResult,
     Verdict,
 )
 from sunwell.models import ModelProtocol
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -129,15 +132,18 @@ class BenchmarkEvaluator:
         for result in results:
             task = task_map.get(result.task_id)
             if task is None:
+                logger.warning("Task not found for result: %s", result.task_id)
                 continue
 
-            print(f"  Evaluating {result.task_id}...", end=" ", flush=True)
+            logger.info("Evaluating %s...", result.task_id)
             try:
                 evaluation = await self.evaluate(task, result)
                 evaluations.append(evaluation)
-                winner = "✓ selective" if evaluation.selective_wins else f"✗ {evaluation.overall_winner}"
-                print(winner)
-            except Exception as e:
-                print(f"✗ {e}")
+                if evaluation.selective_wins:
+                    logger.info("  %s: ✓ selective wins", result.task_id)
+                else:
+                    logger.info("  %s: ✗ %s wins", result.task_id, evaluation.overall_winner)
+            except Exception:
+                logger.exception("Evaluation failed for %s", result.task_id)
 
         return evaluations

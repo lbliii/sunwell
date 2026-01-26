@@ -95,6 +95,61 @@ EVALUATION_TOOLS: tuple[Tool, ...] = (
 )
 
 
+# Task-to-lens mapping based on task characteristics
+TASK_LENS_MAP: dict[str, str] = {
+    "forum_app": "python-expert-v2.lens",
+    "cli_tool": "python-expert-v2.lens",
+    "rest_api": "python-expert-v2.lens",
+    "fixture_minimal": "coder-v2.lens",
+}
+
+# Keywords in task prompts that suggest specific lenses
+PROMPT_LENS_HINTS: dict[str, str] = {
+    "flask": "python-expert-v2.lens",
+    "fastapi": "python-expert-v2.lens",
+    "django": "python-expert-v2.lens",
+    "cli": "python-expert-v2.lens",
+    "click": "python-expert-v2.lens",
+    "api": "python-expert-v2.lens",
+    "test": "test-writer-v2.lens",
+    "documentation": "tech-writer-v2.lens",
+    "readme": "readme-crafter-v2.lens",
+}
+
+
+def _get_lens_for_task(task: FullStackTask) -> str:
+    """Detect appropriate lens based on task characteristics.
+
+    Uses task name, expected features, and prompt keywords to determine
+    the most suitable lens for code generation.
+
+    Args:
+        task: The evaluation task.
+
+    Returns:
+        Lens filename (e.g., "python-expert-v2.lens").
+    """
+    # First, check explicit task mapping
+    if task.name in TASK_LENS_MAP:
+        return TASK_LENS_MAP[task.name]
+
+    # Check prompt for keyword hints
+    prompt_lower = task.prompt.lower()
+    for keyword, lens in PROMPT_LENS_HINTS.items():
+        if keyword in prompt_lower:
+            return lens
+
+    # Default to general Python lens for Python tasks
+    if any(
+        f in task.expected_features
+        for f in ["type_hints", "docstring", "error_handling", "pydantic_models"]
+    ):
+        return "python-expert-v2.lens"
+
+    # Fallback
+    return "coder-v2.lens"
+
+
 def _get_tools_for_task(task: FullStackTask) -> tuple[Tool, ...]:
     """Get the tools available for a given task."""
     return tuple(
@@ -294,7 +349,6 @@ class SunwellFullStackExecutor:
             SunwellResult with full tracking.
         """
         from sunwell.benchmark.demo.judge import DemoJudge
-        from sunwell.interface.surface.lens_detection import get_lens_for_project
 
         start_time = time.monotonic()
         files_created: list[str] = []
@@ -303,8 +357,8 @@ class SunwellFullStackExecutor:
         total_output_tokens = 0
         resonance_count = 0
 
-        # Auto-detect lens if not specified
-        lens = self.lens_name or get_lens_for_project(output_dir)
+        # Auto-detect lens based on task (not output_dir which is empty)
+        lens = self.lens_name or _get_lens_for_task(task)
 
         # Load lens heuristics
         lens_heuristics = self._load_lens_heuristics(lens)

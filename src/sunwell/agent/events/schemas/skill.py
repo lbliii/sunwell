@@ -5,25 +5,52 @@ from typing import TypedDict
 
 class SkillCompileStartData(TypedDict, total=False):
     """Data for skill_compile_start event."""
+
     lens_name: str  # Required
+    skill_count: int
+    target_skills: list[str] | None
 
 
 class SkillCompileCompleteData(TypedDict, total=False):
-    """Data for skill_compile_complete event."""
+    """Data for skill_compile_complete event.
+
+    Note: Factory provides task_count instead of skill_count.
+    """
+
     lens_name: str  # Required
-    skill_count: int  # Required
+    task_count: int  # Required - number of tasks in compiled graph
+    wave_count: int  # Required - number of execution waves
     duration_ms: int  # Required
+    cached: bool
+    # Legacy field
+    skill_count: int | None
 
 
 class SkillCompileCacheHitData(TypedDict, total=False):
-    """Data for skill_compile_cache_hit event."""
-    lens_name: str  # Required
+    """Data for skill_compile_cache_hit event.
+
+    Note: Factory provides cache_key/task_count/wave_count.
+    """
+
+    cache_key: str  # Required
+    task_count: int  # Required
+    wave_count: int  # Required
+    # Legacy field
+    lens_name: str | None
 
 
 class SkillSubgraphExtractedData(TypedDict, total=False):
-    """Data for skill_subgraph_extracted event."""
-    skill_name: str  # Required
-    subgraph_size: int  # Required
+    """Data for skill_subgraph_extracted event.
+
+    Note: Factory provides target_skills/total_skills/extracted_skills.
+    """
+
+    target_skills: list[str]  # Required
+    total_skills: int  # Required
+    extracted_skills: int  # Required
+    # Legacy fields
+    skill_name: str | None
+    subgraph_size: int | None
 
 
 class SkillGraphResolvedData(TypedDict, total=False):

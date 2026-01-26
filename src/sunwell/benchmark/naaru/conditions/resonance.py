@@ -3,6 +3,7 @@
 E: RESONANCE - Harmonic + feedback loop (full judge)
 """
 
+import json
 import re
 import time
 from typing import TYPE_CHECKING

@@ -23,6 +23,10 @@ Structure:
 - recovery.py: Recovery events
 - integration.py: Integration verification events
 - security.py: Security events
+- session.py: Session and goal lifecycle events (RFC-131)
+- tool.py: Tool calling events (RFC-134)
+- delegation.py: Delegation events (RFC-137)
+- constellation.py: Agent constellation events (RFC-130)
 - registry.py: EVENT_SCHEMAS and REQUIRED_FIELDS dictionaries
 - validation.py: Validation functions
 - factories.py: Factory functions
@@ -46,10 +50,20 @@ from .base import (
     PlanWinnerData,
     TaskCompleteData,
     TaskFailedData,
+    TaskOutputData,
     TaskProgressData,
     TaskStartData,
 )
 from .briefing import BriefingLoadedData, BriefingSavedData
+from .constellation import (
+    AutonomousActionBlockedData,
+    CheckpointFoundData,
+    CheckpointSavedData,
+    GuardEvolutionSuggestedData,
+    PhaseCompleteData,
+    SpecialistCompletedData,
+    SpecialistSpawnedData,
+)
 from .convergence import (
     ConvergenceBudgetExceededData,
     ConvergenceFixingData,
@@ -61,6 +75,7 @@ from .convergence import (
     ConvergenceStuckData,
     ConvergenceTimeoutData,
 )
+from .delegation import DelegationStartedData, EphemeralLensCreatedData
 from .factories import (
     validated_plan_winner_event,
     validated_task_complete_event,
@@ -77,8 +92,8 @@ from .fix import (
 from .gate import GateFailData, GatePassData, GateStartData, GateStepData
 from .harmonic import (
     PlanCandidateGeneratedData,
-    PlanCandidatesCompleteData,
     PlanCandidateScoredData,
+    PlanCandidatesCompleteData,
     PlanCandidateStartData,
     PlanScoringCompleteData,
 )
@@ -92,12 +107,19 @@ from .integration import (
 )
 from .lens import LensChangedData, LensSelectedData, LensSuggestedData
 from .memory import (
+    BriefingUpdatedData,
+    DecisionMadeData,
+    FailureRecordedData,
+    KnowledgeRetrievedData,
+    LearningAddedData,
     MemoryCheckpointData,
     MemoryDeadEndData,
     MemoryLoadData,
     MemoryLoadedData,
     MemoryNewData,
     MemorySavedData,
+    OrientData,
+    TemplateMatchedData,
 )
 from .model import (
     ModelCompleteData,
@@ -138,6 +160,18 @@ from .security import (
     SecurityScanCompleteData,
     SecurityViolationData,
 )
+from .session import (
+    GoalAnalyzingData,
+    GoalCompleteData,
+    GoalFailedData,
+    GoalPausedData,
+    GoalReadyData,
+    GoalReceivedData,
+    SessionCrashData,
+    SessionEndData,
+    SessionReadyData,
+    SessionStartData,
+)
 from .signal import SignalData, SignalRouteData
 from .skill import (
     SkillCacheHitData,
@@ -150,6 +184,20 @@ from .skill import (
     SkillSubgraphExtractedData,
     SkillWaveCompleteData,
     SkillWaveStartData,
+)
+from .tool import (
+    ProgressiveUnlockData,
+    ToolBlockedData,
+    ToolCompleteData,
+    ToolErrorData,
+    ToolEscalateData,
+    ToolLoopCompleteData,
+    ToolLoopStartData,
+    ToolLoopTurnData,
+    ToolPatternLearnedData,
+    ToolRepairData,
+    ToolRetryData,
+    ToolStartData,
 )
 from .validation import (
     create_validated_event,
@@ -186,10 +234,22 @@ __all__ = [
     "TaskProgressData",
     "TaskCompleteData",
     "TaskFailedData",
+    "TaskOutputData",
     "MemoryLearningData",
     "CompleteData",
     "ErrorData",
     "EscalateData",
+    # Session/Goal schemas (RFC-131)
+    "SessionStartData",
+    "SessionReadyData",
+    "SessionEndData",
+    "SessionCrashData",
+    "GoalReceivedData",
+    "GoalAnalyzingData",
+    "GoalReadyData",
+    "GoalCompleteData",
+    "GoalFailedData",
+    "GoalPausedData",
     # Planning schemas
     "PlanCandidateData",
     "PlanExpandedData",
@@ -213,6 +273,14 @@ __all__ = [
     "MemoryDeadEndData",
     "MemoryCheckpointData",
     "MemorySavedData",
+    # RFC-MEMORY unified memory schemas
+    "OrientData",
+    "LearningAddedData",
+    "DecisionMadeData",
+    "FailureRecordedData",
+    "BriefingUpdatedData",
+    "KnowledgeRetrievedData",
+    "TemplateMatchedData",
     # Signal schemas
     "SignalData",
     "SignalRouteData",
@@ -294,4 +362,28 @@ __all__ = [
     "SecurityViolationData",
     "SecurityScanCompleteData",
     "AuditLogEntryData",
+    # Tool schemas (RFC-134)
+    "ToolStartData",
+    "ToolCompleteData",
+    "ToolErrorData",
+    "ToolLoopStartData",
+    "ToolLoopTurnData",
+    "ToolLoopCompleteData",
+    "ToolRepairData",
+    "ToolBlockedData",
+    "ToolRetryData",
+    "ToolEscalateData",
+    "ToolPatternLearnedData",
+    "ProgressiveUnlockData",
+    # Delegation schemas (RFC-137)
+    "DelegationStartedData",
+    "EphemeralLensCreatedData",
+    # Constellation schemas (RFC-130)
+    "SpecialistSpawnedData",
+    "SpecialistCompletedData",
+    "CheckpointFoundData",
+    "CheckpointSavedData",
+    "PhaseCompleteData",
+    "AutonomousActionBlockedData",
+    "GuardEvolutionSuggestedData",
 ]

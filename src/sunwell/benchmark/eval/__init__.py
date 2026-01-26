@@ -11,33 +11,44 @@ Key Components:
 - EvaluationStore: SQLite-backed historical tracking
 """
 
-from sunwell.benchmark.eval.evaluator import FullStackEvaluator, FullStackScore
+from sunwell.benchmark.eval.evaluator import FullStackEvaluator
 from sunwell.benchmark.eval.executors import (
     EvaluationError,
     SingleShotExecutor,
-    SingleShotResult,
     SunwellFullStackExecutor,
+)
+from sunwell.benchmark.eval.store import EvaluationStore, EvaluationSummary
+from sunwell.benchmark.eval.tasks import FULL_STACK_TASKS, get_eval_task, list_eval_tasks
+from sunwell.benchmark.eval.types import (
+    EvaluationDetails,
+    EvaluationRun,
+    EvaluationStats,
+    FullStackScore,
+    FullStackTask,
+    SingleShotResult,
     SunwellResult,
 )
-from sunwell.benchmark.eval.store import EvaluationRun, EvaluationStats, EvaluationStore
-from sunwell.benchmark.eval.tasks import FULL_STACK_TASKS, FullStackTask, get_eval_task
 
 __all__ = [
-    # Tasks
+    # Types (from types.py)
     "FullStackTask",
-    "FULL_STACK_TASKS",
-    "get_eval_task",
-    # Executors
-    "SingleShotExecutor",
     "SingleShotResult",
-    "SunwellFullStackExecutor",
     "SunwellResult",
-    "EvaluationError",
-    # Evaluator
-    "FullStackEvaluator",
     "FullStackScore",
-    # Store
-    "EvaluationStore",
+    "EvaluationDetails",
     "EvaluationRun",
     "EvaluationStats",
+    # Tasks (from tasks.py)
+    "FULL_STACK_TASKS",
+    "get_eval_task",
+    "list_eval_tasks",
+    # Executors (from executors.py)
+    "SingleShotExecutor",
+    "SunwellFullStackExecutor",
+    "EvaluationError",
+    # Evaluator (from evaluator.py)
+    "FullStackEvaluator",
+    # Store (from store.py)
+    "EvaluationStore",
+    "EvaluationSummary",
 ]

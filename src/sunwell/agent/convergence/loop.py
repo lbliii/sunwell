@@ -321,10 +321,11 @@ class ConvergenceLoop:
 
         duration = int((time.monotonic() - start) * 1000)
 
-        # Track error frequency for stuck detection
-        for err in errors:
-            err_key = f"{gate.value}:{err[:100]}"
-            self._error_history[err_key] = self._error_history.get(err_key, 0) + 1
+        # Track error frequency for stuck detection (thread-safe)
+        with self._error_history_lock:
+            for err in errors:
+                err_key = f"{gate.value}:{err[:100]}"
+                self._error_history[err_key] = self._error_history.get(err_key, 0) + 1
 
         return GateCheckResult(
             gate=gate,
@@ -408,8 +409,11 @@ class ConvergenceLoop:
 
     async def _check_tests(self, files: list[Path]) -> tuple[bool, list[str]]:
         """Run pytest on related test files."""
-        # Find related test files
-        test_files = [f for f in files if "test" in f.name.lower() or f.parent.name == "tests"]
+        # Find related test files (check name and any ancestor named 'tests')
+        test_files = [
+            f for f in files
+            if "test" in f.name.lower() or any(p.name == "tests" for p in f.parents)
+        ]
 
         if not test_files:
             return True, []
@@ -429,8 +433,9 @@ class ConvergenceLoop:
             ]
             return False, errors
         except FileNotFoundError:
-            return True, []  # pytest not installed, skip
-        except TimeoutError:
+            logger.warning("pytest not installed, skipping test check")
+            return True, []
+        except (TimeoutError, subprocess.TimeoutExpired, asyncio.TimeoutError):
             return False, ["Tests timed out"]
         except Exception as e:
             return False, [str(e)]
@@ -455,7 +460,7 @@ class ConvergenceLoop:
         timeout: int = 30,
     ) -> subprocess.CompletedProcess[str]:
         """Run a command in subprocess with timeout."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def run() -> subprocess.CompletedProcess[str]:
             return subprocess.run(
@@ -481,20 +486,22 @@ class ConvergenceLoop:
 
     def _check_stuck_errors(self, results: list[GateCheckResult]) -> bool:
         """Check if any error has repeated too many times."""
-        for r in results:
-            for err in r.errors:
-                err_key = f"{r.gate.value}:{err[:100]}"
-                if self._error_history.get(err_key, 0) >= self.config.escalate_after_same_error:
-                    return True
-        return False
+        with self._error_history_lock:
+            for r in results:
+                for err in r.errors:
+                    err_key = f"{r.gate.value}:{err[:100]}"
+                    if self._error_history.get(err_key, 0) >= self.config.escalate_after_same_error:
+                        return True
+            return False
 
     def _get_stuck_errors(self) -> list[str]:
         """Get errors that have repeated too many times."""
-        return [
-            key
-            for key, count in self._error_history.items()
-            if count >= self.config.escalate_after_same_error
-        ]
+        with self._error_history_lock:
+            return [
+                key
+                for key, count in self._error_history.items()
+                if count >= self.config.escalate_after_same_error
+            ]
 
     def _save_recovery_state(
         self,
@@ -525,17 +532,34 @@ class ConvergenceLoop:
         run_id = self.run_id or f"conv-{goal_hash[:8]}"
 
         # Build gate results from last iteration
+        # Parse file paths from error messages to associate errors with correct files
         gate_results: dict[str, tuple[bool, list[str]]] = {}
         if iterations:
             last_iter = iterations[-1]
+            # Initialize all files as passed
+            for file in last_iter.files_changed:
+                gate_results[str(file)] = (True, [])
+
             for gate_result in last_iter.gate_results:
-                for file in last_iter.files_changed:
-                    path = str(file)
-                    existing_passed, existing_errors = gate_results.get(path, (True, []))
-                    if not gate_result.passed:
-                        gate_results[path] = (False, existing_errors + list(gate_result.errors))
-                    elif path not in gate_results:
-                        gate_results[path] = (True, [])
+                if not gate_result.passed:
+                    for err in gate_result.errors:
+                        # Try to extract file path from error (format: "path:line:..." or "path: error")
+                        matched = False
+                        for file in last_iter.files_changed:
+                            file_str = str(file)
+                            file_name = file.name
+                            # Check if error mentions this file (full path or filename)
+                            if file_str in err or file_name in err.split(":")[0]:
+                                passed, errors = gate_results.get(file_str, (True, []))
+                                gate_results[file_str] = (False, errors + [err])
+                                matched = True
+                                break
+                        # If no file matched, attribute to all files (fallback)
+                        if not matched:
+                            for file in last_iter.files_changed:
+                                file_str = str(file)
+                                passed, errors = gate_results.get(file_str, (True, []))
+                                gate_results[file_str] = (False, errors + [err])
 
         # Build recovery artifacts
         recovery_artifacts: dict[str, RecoveryArtifact] = {}

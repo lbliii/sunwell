@@ -1,5 +1,9 @@
 """Planning evaluation framework."""
 
-from sunwell.benchmark.planning.evaluator import PlanningEvaluator
+from sunwell.benchmark.planning.evaluator import (
+    PlanningEvaluationResult,
+    PlanningEvaluator,
+    evaluate_plan,
+)
 
-__all__ = ["PlanningEvaluator"]
+__all__ = ["PlanningEvaluationResult", "PlanningEvaluator", "evaluate_plan"]

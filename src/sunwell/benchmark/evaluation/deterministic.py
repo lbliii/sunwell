@@ -12,7 +12,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from sunwell.benchmark.types import BenchmarkTask, DeterministicResult
+from sunwell.benchmark.types import BenchmarkTask, DeterministicResult, TaskCategory
 
 
 def evaluate_deterministic(
@@ -38,7 +38,7 @@ def evaluate_deterministic(
     lint_clean = None
     type_check = None
 
-    if task.category.value == "code_generation" and run_code_tests:
+    if task.category == TaskCategory.CODE_GENERATION and run_code_tests:
         tests_pass, lint_clean, type_check = run_code_checks(
             output=output,
             test_suite=task.test_suite,
@@ -63,7 +63,12 @@ def run_code_checks(
         Tuple of (tests_pass, lint_clean, type_check)
     """
     # Extract code blocks from output
-    code_blocks = re.findall(r'```(?:python)?\n(.*?)```', output, re.DOTALL)
+    # Pattern handles: ```python, ```py, ```python3, or untagged blocks
+    code_blocks = re.findall(
+        r'```(?:python[3]?|py)?[ \t]*\n(.*?)```',
+        output,
+        re.DOTALL,
+    )
 
     if not code_blocks:
         return None, None, None

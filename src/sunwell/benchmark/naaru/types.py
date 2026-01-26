@@ -1,7 +1,7 @@
 """Naaru Benchmark Types (RFC-027).
 
 Data structures for the Naaru benchmark suite:
-- 7 conditions (A-G) for ablation testing
+- 11 conditions (A-K) for ablation testing
 - Naaru-specific metrics (consensus, refinement, escalation)
 - Statistical analysis results
 """
@@ -175,7 +175,8 @@ class RotationMetrics:
     @property
     def frame_coverage(self) -> float:
         """Fraction of available frames that were used."""
-        total_frames = 6 if self.divergent_mode else 5
+        # ROTATION_FRAMES has 6 frames, DIVERGENT_ROTATION_FRAMES has 5
+        total_frames = 5 if self.divergent_mode else 6
         return self.n_frames / total_frames
 
     @property

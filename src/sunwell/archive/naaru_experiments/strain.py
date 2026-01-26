@@ -25,8 +25,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sunwell.archive.naaru-experiments.signals import Trit
-from sunwell.archive.naaru-experiments.streams import ChunkSignal, SignalStream
+from sunwell.archive.naaru_experiments.signals import Trit
+from sunwell.archive.naaru_experiments.streams import ChunkSignal, SignalStream
 
 if TYPE_CHECKING:
     from sunwell.models import ModelProtocol
@@ -419,7 +419,7 @@ async def scan_and_triage(
     Returns:
         Tuple of (signal_stream, strain_diagnoses)
     """
-    from sunwell.archive.naaru-experiments.streams import chunk_by_line, classify_stream
+    from sunwell.archive.naaru_experiments.streams import chunk_by_line, classify_stream
 
     if chunker is None:
         chunker = chunk_by_line

@@ -173,7 +173,6 @@ class RichRenderer:
                         )
 
                     case EventType.PLAN_CANDIDATE_GENERATED:
-                        candidate_id = event.data.get("candidate_id", "?")
                         artifact_count = event.data.get("artifact_count", 0)
                         prog = event.data.get("progress", 1)
                         total = event.data.get("total_candidates", 5)
@@ -197,7 +196,6 @@ class RichRenderer:
                             )
 
                     case EventType.PLAN_CANDIDATE_SCORED:
-                        candidate_id = event.data.get("candidate_id", "?")
                         score = event.data.get("score", 0)
                         prog = event.data.get("progress", 1)
                         total = event.data.get("total_candidates", 5)

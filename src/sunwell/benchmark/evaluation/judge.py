@@ -6,7 +6,6 @@ Pairwise comparison with position randomization and majority vote.
 
 import random
 import re
-from typing import TYPE_CHECKING
 
 from sunwell.benchmark.types import (
     AggregatedVerdict,
@@ -18,15 +17,12 @@ from sunwell.benchmark.types import (
 from sunwell.foundation.utils import safe_json_loads
 from sunwell.models import GenerateOptions, ModelProtocol
 
-if TYPE_CHECKING:
-    pass
-
-
 # =============================================================================
 # Judge Prompt Template
 # =============================================================================
 
-JUDGE_PROMPT_TEMPLATE = """You are a strict, impartial judge evaluating two responses to a documentation/code task.
+JUDGE_PROMPT_TEMPLATE = """\
+You are a strict, impartial judge evaluating two responses to a task.
 
 ## Task
 {task_prompt}
@@ -80,12 +76,13 @@ async def evaluate_with_judge(
 
     for _ in range(num_runs):
         # Randomize order to prevent position bias
-        if random.random() > 0.5:
-            first, second = output_a, output_b
-            order = "ab"
-        else:
+        swap = random.choice([True, False])
+        if swap:
             first, second = output_b, output_a
             order = "ba"
+        else:
+            first, second = output_a, output_b
+            order = "ab"
 
         verdict = await single_judge_call(
             judge_model=judge_model,
@@ -113,7 +110,10 @@ async def single_judge_call(
         rubric_lines.append(
             f"- **{dim.dimension}** (weight: {dim.weight}): {dim.criteria}"
         )
-    rubric_text = "\n".join(rubric_lines) if rubric_lines else "Evaluate on accuracy, completeness, and usability."
+    if rubric_lines:
+        rubric_text = "\n".join(rubric_lines)
+    else:
+        rubric_text = "Evaluate on accuracy, completeness, and usability."
 
     # Build prompt
     prompt = JUDGE_PROMPT_TEMPLATE.format(

@@ -32,6 +32,39 @@ class FeatureCheck:
     evidence: str | None = None
 
 
+@dataclass(slots=True)
+class _FileContents:
+    """Cached file contents for evaluation (internal use only)."""
+
+    python_files: list[Path]
+    contents: dict[Path, str]  # path -> content
+    all_content: str  # concatenated content for pattern matching
+
+    @classmethod
+    def from_directory(cls, output_dir: Path) -> "_FileContents":
+        """Read all Python files from a directory once."""
+        python_files = list(output_dir.rglob("*.py"))
+        contents: dict[Path, str] = {}
+        parts: list[str] = []
+
+        for py_file in python_files:
+            with contextlib.suppress(OSError, UnicodeDecodeError):
+                content = py_file.read_text()
+                contents[py_file] = content
+                parts.append(content)
+
+        return cls(
+            python_files=python_files,
+            contents=contents,
+            all_content="\n".join(parts),
+        )
+
+    @property
+    def total_lines(self) -> int:
+        """Total lines of Python code."""
+        return sum(len(c.splitlines()) for c in self.contents.values())
+
+
 class FullStackEvaluator:
     """Evaluate multi-file project outputs.
 
@@ -61,33 +94,27 @@ class FullStackEvaluator:
         Returns:
             FullStackScore with detailed breakdown.
         """
+        # Read all Python files once for efficiency
+        file_contents = _FileContents.from_directory(output_dir)
+
         scores: dict[str, float] = {}
 
         # 1. Structure score: Does it have expected files?
         scores["structure"] = self._score_structure(output_dir, task.expected_structure)
 
         # 2. Runnable score: Does it actually run?
-        runnable_result = self._score_runnable(output_dir)
+        runnable_result = self._score_runnable(output_dir, file_contents)
         scores["runnable"] = runnable_result["score"]
         error_details = runnable_result.get("error")
 
         # 3. Feature score: Does it have expected features?
-        scores["features"] = self._score_features(output_dir, task.expected_features)
+        scores["features"] = self._score_features(file_contents, task.expected_features)
 
         # 4. Quality score: Code quality metrics
-        scores["quality"] = self._score_quality(output_dir)
-
-        # Compute files and lines
-        python_files = list(output_dir.rglob("*.py"))
-        files_count = len(python_files)
-        lines_count = sum(
-            len(f.read_text().splitlines())
-            for f in python_files
-            if f.exists()
-        )
+        scores["quality"] = self._score_quality(output_dir, file_contents)
 
         # Count tests
-        tests_count = self._count_tests(output_dir)
+        tests_count = self._count_tests(file_contents)
 
         # Weighted average
         final_score = sum(
@@ -99,8 +126,8 @@ class FullStackEvaluator:
             final_score=round(final_score, 1),
             subscores=scores,
             runnable=scores["runnable"] >= 8.0,
-            files_count=files_count,
-            lines_count=lines_count,
+            files_count=len(file_contents.python_files),
+            lines_count=file_contents.total_lines,
             tests_count=tests_count,
             error_details=error_details,
         )
@@ -155,9 +182,13 @@ class FullStackEvaluator:
         if required_count == 0:
             return 7.0  # No requirements, give passing score
 
-        # Required files are 80% of score, optional are 20%
-        required_score = (required_found / required_count) * 8.0 if required_count > 0 else 8.0
-        optional_score = (optional_found / optional_count) * 2.0 if optional_count > 0 else 0.0
+        # Required files are 80% of score, optional are 20% bonus
+        # If no optional files defined, required can earn full 10 points
+        if optional_count == 0:
+            return (required_found / required_count) * 10.0
+
+        required_score = (required_found / required_count) * 8.0
+        optional_score = (optional_found / optional_count) * 2.0
 
         return min(10.0, required_score + optional_score)
 
@@ -165,7 +196,9 @@ class FullStackEvaluator:
     # RUNNABLE SCORING
     # =========================================================================
 
-    def _score_runnable(self, output_dir: Path) -> dict[str, Any]:
+    def _score_runnable(
+        self, output_dir: Path, file_contents: _FileContents
+    ) -> dict[str, Any]:
         """Check if the project actually runs.
 
         10 = Runs without errors
@@ -173,16 +206,16 @@ class FullStackEvaluator:
         2 = Import errors
         0 = Won't even parse
         """
-        python_files = list(output_dir.rglob("*.py"))
-
-        if not python_files:
+        if not file_contents.python_files:
             return {"score": 0.0, "error": "No Python files found"}
 
         # Phase 1: Check syntax (can we parse all files?)
         syntax_errors = []
-        for py_file in python_files:
+        for py_file in file_contents.python_files:
+            content = file_contents.contents.get(py_file)
+            if content is None:
+                continue
             try:
-                content = py_file.read_text()
                 ast.parse(content)
             except SyntaxError as e:
                 syntax_errors.append(f"{py_file.name}: {e}")
@@ -223,11 +256,23 @@ class FullStackEvaluator:
             return {"score": 8.0}
 
     def _try_import(self, py_file: Path) -> dict[str, Any]:
-        """Try to import a Python file to check for import errors."""
+        """Try to import a Python file to check for import errors.
+
+        Uses subprocess with isolated sys.path to test actual imports.
+        """
         try:
-            # Use subprocess to isolate import
+            # Build a script that actually tests the import
+            # Use the file's directory in sys.path to simulate relative imports
+            import_script = """
+import sys
+import importlib.util
+sys.path.insert(0, sys.argv[1])
+spec = importlib.util.spec_from_file_location("_test_module", sys.argv[2])
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+"""
             result = subprocess.run(
-                [sys.executable, "-c", f"import ast; ast.parse(open('{py_file}').read())"],
+                [sys.executable, "-c", import_script, str(py_file.parent), str(py_file)],
                 capture_output=True,
                 text=True,
                 timeout=5,
@@ -266,7 +311,7 @@ class FullStackEvaluator:
 
     def _score_features(
         self,
-        output_dir: Path,
+        file_contents: _FileContents,
         expected_features: frozenset[str],
     ) -> float:
         """Score based on presence of expected features.
@@ -276,28 +321,14 @@ class FullStackEvaluator:
         if not expected_features:
             return 7.0  # No feature requirements
 
-        # Read all Python content
-        all_content = ""
-        for py_file in output_dir.rglob("*.py"):
-            with contextlib.suppress(Exception):
-                all_content += py_file.read_text() + "\n"
-
         features_found = 0
         for feature in expected_features:
-            if self._check_feature(feature, all_content, output_dir):
+            if self._check_feature(feature, file_contents.all_content):
                 features_found += 1
-
-        if len(expected_features) == 0:
-            return 7.0
 
         return (features_found / len(expected_features)) * 10.0
 
-    def _check_feature(
-        self,
-        feature: str,
-        content: str,
-        output_dir: Path,
-    ) -> bool:
+    def _check_feature(self, feature: str, content: str) -> bool:
         """Check if a specific feature is present."""
         content_lower = content.lower()
 
@@ -336,7 +367,9 @@ class FullStackEvaluator:
     # QUALITY SCORING
     # =========================================================================
 
-    def _score_quality(self, output_dir: Path) -> float:
+    def _score_quality(
+        self, output_dir: Path, file_contents: _FileContents
+    ) -> float:
         """Score code quality based on various metrics.
 
         Considers:
@@ -345,44 +378,25 @@ class FullStackEvaluator:
         - File organization
         - Code patterns
         """
-        python_files = list(output_dir.rglob("*.py"))
-        if not python_files:
+        if not file_contents.python_files:
             return 0.0
 
         quality_points = 0.0
-        max_points = 10.0
+        all_content = file_contents.all_content
 
-        # Check for type hints (2 points)
-        has_type_hints = False
-        for py_file in python_files:
-            try:
-                content = py_file.read_text()
-                if "->" in content or ": str" in content or ": int" in content:
-                    has_type_hints = True
-                    break
-            except Exception:
-                pass
-        if has_type_hints:
+        # Check for type hints (2 points) - use cached content
+        if "->" in all_content or ": str" in all_content or ": int" in all_content:
             quality_points += 2.0
 
-        # Check for docstrings (2 points)
-        has_docstrings = False
-        for py_file in python_files:
-            try:
-                content = py_file.read_text()
-                if '"""' in content or "'''" in content:
-                    has_docstrings = True
-                    break
-            except Exception:
-                pass
-        if has_docstrings:
+        # Check for docstrings (2 points) - use cached content
+        if '"""' in all_content or "'''" in all_content:
             quality_points += 2.0
 
         # Check for file organization (2 points)
         # Multiple files = better organization
-        if len(python_files) >= 3:
+        if len(file_contents.python_files) >= 3:
             quality_points += 2.0
-        elif len(python_files) >= 2:
+        elif len(file_contents.python_files) >= 2:
             quality_points += 1.0
 
         # Check for requirements.txt (1 point)
@@ -394,27 +408,31 @@ class FullStackEvaluator:
             quality_points += 1.0
 
         # Check for tests (2 points)
-        test_files = list(output_dir.rglob("test_*.py"))
+        test_files = [f for f in file_contents.python_files if f.name.startswith("test_")]
         if test_files:
             quality_points += 2.0
 
-        return min(max_points, quality_points)
+        return min(10.0, quality_points)
 
     # =========================================================================
     # HELPERS
     # =========================================================================
 
-    def _count_tests(self, output_dir: Path) -> int:
+    def _count_tests(self, file_contents: _FileContents) -> int:
         """Count the number of test functions."""
         count = 0
-        for test_file in output_dir.rglob("test_*.py"):
+        for test_file in file_contents.python_files:
+            if not test_file.name.startswith("test_"):
+                continue
+            content = file_contents.contents.get(test_file)
+            if content is None:
+                continue
             try:
-                content = test_file.read_text()
                 tree = ast.parse(content)
                 for node in ast.walk(tree):
                     if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
                         count += 1
-            except Exception:
+            except SyntaxError:
                 pass
         return count
 

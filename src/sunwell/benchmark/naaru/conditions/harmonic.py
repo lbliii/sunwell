@@ -35,6 +35,16 @@ def build_vote_prompt(
         truncated = output[:1500] if len(output) > 1500 else output
         options_text += f"\n## Option {chr(65 + i)} (from {name})\n```\n{truncated}\n```\n"
 
+    # Build dynamic letter options based on number of candidates
+    n_options = len(outputs)
+    if n_options == 1:
+        letter_options = "A"
+    elif n_options == 2:
+        letter_options = "A or B"
+    else:
+        letters = ", ".join(chr(65 + i) for i in range(n_options - 1))
+        letter_options = f"{letters}, or {chr(65 + n_options - 1)}"
+
     return f"""You are evaluating solutions to this task:
 
 TASK: {task_prompt[:500]}
@@ -46,7 +56,7 @@ Which option is BEST? Consider:
 2. Completeness - Is it thorough?
 3. Quality - Is it well-written?
 
-Respond with ONLY the letter (A, B, or C):"""
+Respond with ONLY the letter ({letter_options}):"""
 
 
 async def collect_votes(
@@ -66,16 +76,16 @@ async def collect_votes(
         )
         tokens = result.usage.total_tokens if result.usage else 10
 
-        # Parse vote
+        # Parse vote - handle arbitrary number of candidates (A-Z)
         vote_text = result.text.strip().upper()
-        if vote_text.startswith("A"):
-            vote = 0
-        elif vote_text.startswith("B"):
-            vote = 1 if n_candidates > 1 else 0
-        elif vote_text.startswith("C"):
-            vote = 2 if n_candidates > 2 else 0
-        else:
-            vote = 0  # Default to first
+        vote = 0  # Default to first candidate
+
+        if vote_text:
+            first_char = vote_text[0]
+            if "A" <= first_char <= "Z":
+                candidate_idx = ord(first_char) - ord("A")
+                if 0 <= candidate_idx < n_candidates:
+                    vote = candidate_idx
 
         return vote, tokens
 
@@ -115,7 +125,8 @@ async def run_harmonic(
         temps = TemperatureStrategy.DIVERGENT
     else:
         personas = HARDCODED_PERSONAS
-        temps = getattr(TemperatureStrategy, temperature_strategy.upper(), TemperatureStrategy.UNIFORM_MED)
+        strategy_name = temperature_strategy.upper()
+        temps = getattr(TemperatureStrategy, strategy_name, TemperatureStrategy.UNIFORM_MED)
 
     # Step 1: Generate with each persona IN PARALLEL (with varying temps)
     async def generate_with_persona(
@@ -165,8 +176,15 @@ async def run_harmonic(
 
     elapsed = time.perf_counter() - start_time
 
+    # Determine condition based on temperature strategy
+    condition = (
+        NaaruCondition.HARMONIC_DIVERGENT
+        if temperature_strategy == "divergent"
+        else NaaruCondition.HARMONIC
+    )
+
     return NaaruConditionOutput(
-        condition=NaaruCondition.HARMONIC,
+        condition=condition,
         output=best_output,
         tokens_used=total_tokens,
         time_seconds=elapsed,

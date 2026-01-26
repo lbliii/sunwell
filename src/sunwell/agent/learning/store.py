@@ -134,7 +134,7 @@ class LearningStore:
             ]
 
     def format_tool_suggestions(self, task_type: str) -> str | None:
-        """Format tool suggestions for prompt injection (RFC-134).
+        """Format tool suggestions for prompt injection (RFC-134, thread-safe).
 
         Args:
             task_type: Task category
@@ -142,22 +142,27 @@ class LearningStore:
         Returns:
             Formatted string or None if no suggestions
         """
-        suggested = self.suggest_tools(task_type)
-        if not suggested:
-            return None
-
-        # Get the pattern for stats
+        # Single lock acquisition to avoid race condition
         with self._lock:
-            pattern_id = f"{task_type}:{','.join(suggested)}"
-            pattern = self._tool_patterns.get(pattern_id)
+            # Find all patterns for this task type
+            matching = [
+                p for p in self._tool_patterns.values()
+                if p.task_type == task_type and p.success_count > 0
+            ]
 
-        if pattern:
+            if not matching:
+                return None
+
+            # Sort by confidence (success rate + sample size boost)
+            matching.sort(key=lambda p: p.confidence, reverse=True)
+            best = matching[0]
+            suggested = list(best.tool_sequence[:3])
+
             return (
                 f"Recommended tool sequence for {task_type} tasks: "
                 f"{' → '.join(suggested)} "
-                f"(success rate: {pattern.success_rate:.0%})"
+                f"(success rate: {best.success_rate:.0%})"
             )
-        return f"Recommended tool sequence: {' → '.join(suggested)}"
 
     # =========================================================================
     # RFC-122: Usage Tracking and Template Access
@@ -211,7 +216,7 @@ class LearningStore:
             return [lrn for lrn in self.learnings if lrn.category == "heuristic"]
 
     def get_relevant(self, query: str, limit: int = 10) -> list[Learning]:
-        """Get learnings relevant to a query.
+        """Get learnings relevant to a query (thread-safe).
 
         Simple keyword matching for now.
         Could use embeddings for better retrieval.
@@ -227,31 +232,33 @@ class LearningStore:
         query_words = set(query_lower.split())
 
         scored: list[tuple[float, Learning]] = []
-        for learning in self.learnings:
-            fact_lower = learning.fact.lower()
-            fact_words = set(fact_lower.split())
+        with self._lock:
+            for learning in self.learnings:
+                fact_lower = learning.fact.lower()
+                fact_words = set(fact_lower.split())
 
-            # Score by word overlap
-            overlap = len(query_words & fact_words)
-            if overlap > 0:
-                score = overlap / len(query_words)
-                scored.append((score, learning))
+                # Score by word overlap
+                overlap = len(query_words & fact_words)
+                if overlap > 0:
+                    score = overlap / len(query_words)
+                    scored.append((score, learning))
 
-        # Sort by score descending
+        # Sort by score descending (outside lock - sorting is expensive)
         scored.sort(key=lambda x: x[0], reverse=True)
         return [lrn for _, lrn in scored[:limit]]
 
     def get_dead_ends_for(self, query: str) -> list[DeadEnd]:
-        """Get dead ends relevant to a query."""
+        """Get dead ends relevant to a query (thread-safe)."""
         query_lower = query.lower()
-        return [
-            de
-            for de in self.dead_ends
-            if any(word in de.approach.lower() for word in query_lower.split())
-        ]
+        with self._lock:
+            return [
+                de
+                for de in self.dead_ends
+                if any(word in de.approach.lower() for word in query_lower.split())
+            ]
 
     def format_for_prompt(self, limit: int = 10) -> str:
-        """Format learnings for injection into prompts.
+        """Format learnings for injection into prompts (thread-safe).
 
         Args:
             limit: Max learnings to include
@@ -259,36 +266,38 @@ class LearningStore:
         Returns:
             Formatted string for prompt injection
         """
-        if not self.learnings:
-            return ""
+        with self._lock:
+            if not self.learnings:
+                return ""
 
-        recent = self.learnings[-limit:]
-        lines = ["Known facts from this session:"]
-        for lrn in recent:
-            lines.append(f"- {lrn.fact}")
+            recent = self.learnings[-limit:]
+            lines = ["Known facts from this session:"]
+            for lrn in recent:
+                lines.append(f"- {lrn.fact}")
 
-        if self.dead_ends:
-            lines.append("\nApproaches that didn't work:")
-            for de in self.dead_ends[-5:]:
-                lines.append(f"- {de.approach}: {de.reason}")
+            if self.dead_ends:
+                lines.append("\nApproaches that didn't work:")
+                for de in self.dead_ends[-5:]:
+                    lines.append(f"- {de.approach}: {de.reason}")
 
         return "\n".join(lines)
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to dict for serialization."""
-        return {
-            "learnings": [
-                {"fact": lrn.fact, "category": lrn.category, "confidence": lrn.confidence}
-                for lrn in self.learnings
-            ],
-            "dead_ends": [
-                {"approach": d.approach, "reason": d.reason, "context": d.context}
-                for d in self.dead_ends
-            ],
-        }
+        """Convert to dict for serialization (thread-safe)."""
+        with self._lock:
+            return {
+                "learnings": [
+                    {"fact": lrn.fact, "category": lrn.category, "confidence": lrn.confidence}
+                    for lrn in self.learnings
+                ],
+                "dead_ends": [
+                    {"approach": d.approach, "reason": d.reason, "context": d.context}
+                    for d in self.dead_ends
+                ],
+            }
 
     def sync_to_simulacrum(self, store: Any) -> int:
-        """Sync learnings to Simulacrum store for persistence.
+        """Sync learnings to Simulacrum store for persistence (thread-safe).
 
         Args:
             store: SimulacrumStore instance
@@ -296,24 +305,45 @@ class LearningStore:
         Returns:
             Number of learnings synced
         """
+        import logging
+
+        logger = logging.getLogger(__name__)
+
         try:
             from sunwell.memory.simulacrum.core import Learning as SimLearning
-
-            synced = 0
-            for lrn in self.learnings:
-                sim_learning = SimLearning(
-                    fact=lrn.fact,
-                    category=lrn.category,
-                    confidence=lrn.confidence,
-                    source_file=lrn.source_file,
-                    source_line=lrn.source_line,
-                )
-                store.add_learning(sim_learning)
-                synced += 1
-
-            return synced
-        except (ImportError, AttributeError):
+        except ImportError as e:
+            logger.debug("Failed to import SimLearning: %s", e)
             return 0
+
+        # Map agent Learning categories to SimLearning Literal categories
+        category_map: dict[str, str] = {
+            "type": "pattern",
+            "api": "pattern",
+            "pattern": "pattern",
+            "fix": "fact",
+            "heuristic": "heuristic",
+            "template": "template",
+            "task_completion": "fact",
+        }
+
+        synced = 0
+        with self._lock:
+            for lrn in self.learnings:
+                try:
+                    # Map category to valid SimLearning Literal value
+                    sim_category = category_map.get(lrn.category, "pattern")
+                    sim_learning = SimLearning(
+                        fact=lrn.fact,
+                        source_turns=(),  # Required field, no source turns available
+                        confidence=lrn.confidence,
+                        category=sim_category,  # type: ignore[arg-type]
+                    )
+                    store.add_learning(sim_learning)
+                    synced += 1
+                except Exception as e:
+                    logger.debug("Failed to sync learning '%s': %s", lrn.fact[:50], e)
+
+        return synced
 
     def load_from_simulacrum(self, store: Any) -> int:
         """Load learnings from Simulacrum store.
@@ -331,18 +361,18 @@ class LearningStore:
                     fact=sim_learning.fact,
                     category=getattr(sim_learning, "category", "pattern"),
                     confidence=getattr(sim_learning, "confidence", 0.7),
-                    source_file=getattr(sim_learning, "source_file", None),
-                    source_line=getattr(sim_learning, "source_line", None),
                 )
-                self.add_learning(lrn)
+                self.add_learning(lrn)  # add_learning is already thread-safe
                 loaded += 1
 
             return loaded
-        except (ImportError, AttributeError):
+        except (ImportError, AttributeError) as e:
+            import logging
+            logging.getLogger(__name__).debug(f"Failed to load from simulacrum: {e}")
             return 0
 
     def save_to_disk(self, base_path: Path | None = None) -> int:
-        """Persist learnings to .sunwell/intelligence/learnings.jsonl.
+        """Persist learnings to .sunwell/intelligence/learnings.jsonl (thread-safe).
 
         This enables cross-session learning without requiring a full Simulacrum setup.
         Learnings are appended to the file, deduplicating by learning ID.
@@ -353,8 +383,12 @@ class LearningStore:
         Returns:
             Number of learnings saved
         """
-        if not self.learnings and not self.dead_ends:
-            return 0
+        # Snapshot data under lock to minimize lock hold time
+        with self._lock:
+            if not self.learnings and not self.dead_ends:
+                return 0
+            learnings_snapshot = list(self.learnings)
+            dead_ends_snapshot = list(self.dead_ends)
 
         base = base_path or Path.cwd()
         intel_dir = base / ".sunwell" / "intelligence"
@@ -380,7 +414,7 @@ class LearningStore:
         timestamp = datetime.now().isoformat()
 
         with open(learnings_path, "a", encoding="utf-8") as f:
-            for lrn in self.learnings:
+            for lrn in learnings_snapshot:
                 if lrn.id not in existing_ids:
                     record = {
                         "id": lrn.id,
@@ -394,25 +428,27 @@ class LearningStore:
                     f.write(json.dumps(record) + "\n")
                     saved += 1
 
-        # Also save dead ends
-        existing_approaches: set[str] = set()
+        # Also save dead ends (deduplicate by id now that DeadEnd has one)
+        existing_dead_end_ids: set[str] = set()
         if dead_ends_path.exists():
             with open(dead_ends_path, encoding="utf-8") as f:
                 for line in f:
                     if line.strip():
                         try:
                             data = json.loads(line)
-                            existing_approaches.add(data.get("approach", ""))
+                            existing_dead_end_ids.add(data.get("id", ""))
                         except json.JSONDecodeError:
                             pass
 
         with open(dead_ends_path, "a", encoding="utf-8") as f:
-            for de in self.dead_ends:
-                if de.approach not in existing_approaches:
+            for de in dead_ends_snapshot:
+                if de.id not in existing_dead_end_ids:
                     record = {
+                        "id": de.id,
                         "approach": de.approach,
                         "reason": de.reason,
                         "context": de.context,
+                        "gate": de.gate,
                         "created_at": timestamp,
                     }
                     f.write(json.dumps(record) + "\n")
@@ -510,9 +546,10 @@ class LearningStore:
                         de = DeadEnd(
                             approach=data["approach"],
                             reason=data.get("reason", ""),
-                            context=data.get("context"),
+                            context=data.get("context", ""),
+                            gate=data.get("gate"),
                         )
-                        self.add_dead_end(de)
+                        self.add_dead_end(de)  # add_dead_end is thread-safe
                     except (json.JSONDecodeError, KeyError):
                         pass
 

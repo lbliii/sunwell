@@ -50,6 +50,7 @@ Example:
 
 
 import asyncio
+import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -88,8 +89,8 @@ class Slot:
     ready: bool = True
     ttl: float | None = None
 
-    # Timestamp for TTL calculation
-    created_at: float = field(default_factory=lambda: asyncio.get_event_loop().time())
+    # Timestamp for TTL calculation (using time.monotonic for reliability)
+    created_at: float = field(default_factory=time.monotonic)
 
 
 @dataclass(slots=True)
@@ -181,7 +182,7 @@ class Convergence:
                 if slot.id == slot_id:
                     # Check TTL
                     if slot.ttl is not None:
-                        now = asyncio.get_event_loop().time()
+                        now = time.monotonic()
                         if now - slot.created_at > slot.ttl:
                             # Expired
                             self.slots.remove(slot)
@@ -279,7 +280,7 @@ class Convergence:
             Number of slots removed
         """
         async with self._lock:
-            now = asyncio.get_event_loop().time()
+            now = time.monotonic()
             expired = [
                 s for s in self.slots
                 if s.ttl is not None and now - s.created_at > s.ttl

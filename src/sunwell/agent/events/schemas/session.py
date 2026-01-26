@@ -1,6 +1,6 @@
 """Session and goal lifecycle event schemas (RFC-131)."""
 
-from typing import Any, TypedDict
+from typing import TypedDict
 
 
 # =============================================================================

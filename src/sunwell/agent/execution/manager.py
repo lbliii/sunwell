@@ -44,7 +44,7 @@ class ExecutionResult:
 @dataclass(frozen=True, slots=True)
 class DagContext:
     """RFC-105: Context from hierarchical DAG for planning.
-    
+
     Provides information about previous goals and artifacts
     to inform skip decisions and reuse existing work.
     """
@@ -268,7 +268,7 @@ class ExecutionManager:
 
     def _load_dag_context(self) -> DagContext:
         """RFC-105: Load DAG context from hierarchical index.
-        
+
         Reads .sunwell/dag/index.json for fast access to previous
         goals and artifacts for skip decisions.
         """

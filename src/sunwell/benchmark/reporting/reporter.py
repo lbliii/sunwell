@@ -12,10 +12,12 @@ Implements RFC-018 statistical rigor requirements:
 import json
 from dataclasses import dataclass
 from datetime import datetime
+import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 from sunwell.benchmark.reporting.statistics import (
     bootstrap_ci,
@@ -32,9 +34,6 @@ from sunwell.benchmark.types import (
     TaskResult,
     Verdict,
 )
-
-if TYPE_CHECKING:
-    pass
 
 
 @dataclass
@@ -73,12 +72,6 @@ class BenchmarkReporter:
         category_data: dict[str, dict] = {}
 
         for eval_result in evaluations:
-            # Find the task result for category info
-            next(
-                (r for r in results if r.task_id == eval_result.task_id),
-                None,
-            )
-
             # Extract category from task_id (e.g., "docs-api-ref-001" -> "docs")
             category = eval_result.task_id.split("-")[0] if "-" in eval_result.task_id else "other"
 
@@ -147,9 +140,13 @@ class BenchmarkReporter:
                 avg_baseline_score=np.mean(base_scores) if base_scores else 0.0,
             ))
 
+        n_per_category = {
+            cat: len(data["selective_scores"]) for cat, data in category_data.items()
+        }
+
         return StatisticalSummary(
             n_tasks=len(evaluations),
-            n_per_category={cat: len(data["selective_scores"]) for cat, data in category_data.items()},
+            n_per_category=n_per_category,
             wins=wins,
             losses=losses,
             ties=ties,
@@ -186,11 +183,15 @@ class BenchmarkReporter:
         lines.append("")
         lines.append("| Metric | Value |")
         lines.append("|--------|-------|")
-        lines.append(f"| Win Rate | {summary.win_rate:.1%} ({summary.wins}W / {summary.losses}L / {summary.ties}T) |")
-        lines.append(f"| Effect Size (Cohen's d) | {summary.effect_size_cohens_d:.3f} ({summary.effect_size_interpretation}) |")
+        win_rate_str = f"{summary.win_rate:.1%} ({summary.wins}W / {summary.losses}L / {summary.ties}T)"
+        lines.append(f"| Win Rate | {win_rate_str} |")
+        effect_str = f"{summary.effect_size_cohens_d:.3f} ({summary.effect_size_interpretation})"
+        lines.append(f"| Effect Size (Cohen's d) | {effect_str} |")
         lines.append(f"| Statistical Test | {summary.test_name} |")
-        lines.append(f"| p-value | {summary.p_value:.4f} {'✓' if summary.significant else '✗'} |")
-        lines.append(f"| 95% CI | [{summary.ci_lower:.3f}, {summary.ci_upper:.3f}] |")
+        sig_mark = "✓" if summary.significant else "✗"
+        lines.append(f"| p-value | {summary.p_value:.4f} {sig_mark} |")
+        ci_pct = summary.ci_level * 100
+        lines.append(f"| {ci_pct:.0f}% CI | [{summary.ci_lower:.3f}, {summary.ci_upper:.3f}] |")
         lines.append(f"| **Claim Level** | {summary.claim_level()} |")
         lines.append("")
 
@@ -291,7 +292,8 @@ class BenchmarkReporter:
             lines.append(f"| - verify_against_expertise() | {total_verify} |")
             lines.append(f"| - list_expertise_areas() | {total_list} |")
             lines.append(f"| Followed ReAct Pattern | {followed_react} / {len(self_directed_results)} ({followed_react/len(self_directed_results):.0%}) |")
-            lines.append(f"| Verification Passed | {verified_passed} / {total_verify if total_verify else 1} |")
+            verify_display = f"{verified_passed} / {total_verify}" if total_verify > 0 else "N/A (no verify calls)"
+            lines.append(f"| Verification Passed | {verify_display} |")
             lines.append(f"| Avg Tool Latency | {avg_latency:.0f}ms |")
             lines.append("")
 
@@ -446,4 +448,4 @@ class BenchmarkReporter:
         with open(dated_dir / "report.md", "w") as f:
             f.write(report)
 
-        print(f"Results saved to {dated_dir}/")
+        logger.info("Results saved to %s/", dated_dir)

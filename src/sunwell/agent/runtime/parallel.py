@@ -37,7 +37,8 @@ R = TypeVar("R")
 
 
 # Thread-safe context variables
-execution_context: ContextVar[dict] = ContextVar("execution_context", default={})
+# Note: No default for mutable types per B039 - use execution_context.get({}) instead
+execution_context: ContextVar[dict[str, Any]] = ContextVar("execution_context")
 current_tier: ContextVar[int] = ContextVar("current_tier", default=1)
 
 

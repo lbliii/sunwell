@@ -76,23 +76,21 @@ class ExpertiseToolHandler:
         if not topic:
             return "Error: 'topic' argument is required"
 
-        top_k = min(arguments.get("top_k", 5), 10)  # Cap at 10
+        # Retrieve relevant heuristics (top_k is set on the retriever at init time)
+        result = await self.retriever.retrieve(topic)
 
-        # Retrieve relevant heuristics
-        result = await self.retriever.retrieve(topic, top_k=top_k)
-
-        if not result.heuristics:
+        if not result:
             return f"No expertise found for topic: '{topic}'. Try a more general query or use list_expertise_areas() to see available topics."
 
         # Cache for verification
         cache_key = topic.lower().strip()
-        self._retrieved_cache[cache_key] = list(result.heuristics)
+        self._retrieved_cache[cache_key] = list(result)
 
         # Format output
         output_parts = [f"## Expertise Retrieved for: {topic}\n"]
-        output_parts.append(f"Found {len(result.heuristics)} relevant heuristics:\n")
+        output_parts.append(f"Found {len(result)} relevant heuristics:\n")
 
-        for h in result.heuristics:
+        for h in result:
             output_parts.append(self._format_heuristic(h))
 
         # Add usage hint

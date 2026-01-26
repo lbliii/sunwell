@@ -1,12 +1,15 @@
 """Learning extraction from code and fix attempts."""
 
 import json
+import logging
 import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from sunwell.agent.learning.dead_end import DeadEnd
 from sunwell.agent.learning.learning import Learning
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from sunwell.memory.simulacrum.core.turn import Learning as SimLearning
@@ -37,7 +40,7 @@ class LearningExtractor:
     use_llm: bool = False
     """Whether to use LLM for deeper extraction."""
 
-    model: "ModelProtocol | None" = None
+    model: ModelProtocol | None = None
     """Model for LLM extraction."""
 
     def extract_from_code(
@@ -254,7 +257,8 @@ PATTERN: Using Flask-SQLAlchemy with create_app pattern"""
 
             return learnings
 
-        except Exception:
+        except Exception as e:
+            logger.debug("LLM extraction failed: %s", e)
             return []
 
     # =========================================================================
@@ -373,7 +377,8 @@ For variables, use format:
                 template_data=template_data,
             )
 
-        except (json.JSONDecodeError, KeyError):
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.debug("Template extraction failed: %s", e)
             return None
 
     def extract_heuristic(

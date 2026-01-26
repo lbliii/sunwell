@@ -9,6 +9,7 @@ Components:
 - BenchmarkEvaluator: Three-tier evaluation (deterministic, LLM judge, human)
 - BenchmarkReporter: Statistical analysis and reporting
 - NaaruBenchmarkRunner: RFC-027 Naaru benchmark suite (harmonic, resonance, etc.)
+- PlanningEvaluator: Plan quality evaluation framework
 
 Usage:
     from sunwell.benchmark import BenchmarkRunner, BenchmarkEvaluator
@@ -23,6 +24,11 @@ Usage:
     from sunwell.benchmark.naaru import NaaruBenchmarkRunner
     naaru_runner = NaaruBenchmarkRunner(model=model, judge_model=judge, ...)
     naaru_results = await naaru_runner.run_suite()
+
+    # Planning evaluation
+    from sunwell.benchmark import PlanningEvaluator
+    evaluator = PlanningEvaluator.from_task("benchmark/tasks/planning/task.yaml")
+    result = evaluator.evaluate("plan.json")
 """
 
 from sunwell.benchmark.core.runner import BenchmarkRunner, create_runner
@@ -31,6 +37,10 @@ from sunwell.benchmark.naaru import (
     NaaruBenchmarkResults,
     NaaruBenchmarkRunner,
     NaaruCondition,
+)
+from sunwell.benchmark.planning import (
+    PlanningEvaluationResult,
+    PlanningEvaluator,
 )
 from sunwell.benchmark.reporting.reporter import BenchmarkReporter
 from sunwell.benchmark.types import (
@@ -53,6 +63,9 @@ __all__ = [
     "BenchmarkEvaluator",
     # Reporting
     "BenchmarkReporter",
+    # Planning
+    "PlanningEvaluator",
+    "PlanningEvaluationResult",
     # Types
     "BenchmarkTask",
     "TaskResult",

@@ -287,10 +287,20 @@ class AsyncWorkDeduper[T]:
 
     @property
     def cache_size(self) -> int:
-        """Number of cached results (not async-safe for property)."""
+        """Number of cached results (approximate, not async-safe)."""
         return len(self._results)
 
     @property
     def pending_count(self) -> int:
-        """Number of in-progress work items (not async-safe for property)."""
+        """Number of in-progress work items (approximate, not async-safe)."""
         return len(self._in_progress)
+
+    async def get_cache_size(self) -> int:
+        """Get number of cached results (async-safe)."""
+        async with self._lock:
+            return len(self._results)
+
+    async def get_pending_count(self) -> int:
+        """Get number of in-progress work items (async-safe)."""
+        async with self._lock:
+            return len(self._in_progress)

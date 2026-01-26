@@ -137,6 +137,7 @@ class Binding:
 
         data = {
             "name": self.name,
+            "lens_path": self.lens_path,  # Preserved for backwards compatibility
             "uri": self.uri,
             "id": self.id,
             "lens_uri": self.lens_uri,
@@ -186,7 +187,7 @@ class Binding:
 
         return cls(
             name=data["name"],
-            lens_path="",  # Deprecated, kept empty for backwards compatibility
+            lens_path=data.get("lens_path", ""),  # Preserved for backwards compatibility
             uri=data.get("uri"),
             id=data.get("id"),
             lens_uri=lens_uri or lens_path,  # Use migrated URI or keep path for file paths

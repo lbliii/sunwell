@@ -41,8 +41,12 @@ class ArtifactMatch:
 
 
 @dataclass(frozen=True, slots=True)
-class EvaluationResult:
-    """Complete evaluation result for a plan."""
+class PlanningEvaluationResult:
+    """Complete evaluation result for a plan.
+    
+    Note: Named PlanningEvaluationResult to distinguish from
+    benchmark.types.EvaluationResult which is for judge evaluations.
+    """
 
     task_id: str
     plan_file: str
@@ -178,7 +182,7 @@ class PlanningEvaluator:
 
         return cls(task=task, weights=weights)
 
-    def evaluate(self, plan_path: str | Path) -> EvaluationResult:
+    def evaluate(self, plan_path: str | Path) -> PlanningEvaluationResult:
         """Evaluate a plan against the task specification."""
         start = time.perf_counter()
 
@@ -204,8 +208,13 @@ class PlanningEvaluator:
 
         eval_time = (time.perf_counter() - start) * 1000
 
-        return EvaluationResult(
-            task_id=self.task["id"],
+        # Validate task has required 'id' field
+        task_id = self.task.get("id")
+        if task_id is None:
+            raise ValueError("Task YAML must contain 'id' field")
+
+        return PlanningEvaluationResult(
+            task_id=task_id,
             plan_file=str(path),
             coverage_score=coverage_score,
             coherence_score=coherence_score,
@@ -246,14 +255,17 @@ class PlanningEvaluator:
             best_score = 0
 
             for pa in plan_artifacts:
-                pa_id = pa["id"].lower()
+                pa_id = pa.get("id")
+                if not pa_id:
+                    continue  # Skip artifacts without ID
+                pa_id_lower = pa_id.lower()
                 pa_desc = pa.get("description", "").lower()
                 pa_file = (pa.get("produces_file") or "").lower()
 
                 score = 0
 
                 # ID similarity
-                if req_id.lower() in pa_id or pa_id in req_id.lower():
+                if req_id.lower() in pa_id_lower or pa_id_lower in req_id.lower():
                     score += 0.4
 
                 # Description keyword overlap
@@ -270,7 +282,7 @@ class PlanningEvaluator:
 
                 if score > best_score:
                     best_score = score
-                    best_match = pa["id"]
+                    best_match = pa_id
 
             if best_score >= 0.3:  # Threshold for match
                 matched.append({"expected": req_id, "actual": best_match, "score": best_score})
@@ -278,8 +290,12 @@ class PlanningEvaluator:
                 missing.append(req_id)
 
         # Extra artifacts (not necessarily bad)
-        expected_ids = {r["id"].lower() for r in required}
-        extra = [a["id"] for a in plan_artifacts if a["id"].lower() not in expected_ids]
+        expected_ids = {r.get("id", "").lower() for r in required}
+        extra = [
+            a.get("id", "<unknown>")
+            for a in plan_artifacts
+            if a.get("id", "").lower() not in expected_ids
+        ]
 
         coverage = len(matched) / len(required) * 100
 
@@ -300,29 +316,33 @@ class PlanningEvaluator:
             return 50.0, {"error": "No artifacts or waves"}
 
         # Check: artifacts in earlier waves shouldn't depend on later waves
-        artifact_waves = {}
+        artifact_waves: dict[str, int] = {}
         for a in artifacts:
-            artifact_waves[a["id"]] = a.get("wave", 0)
+            a_id = a.get("id")
+            if a_id:
+                artifact_waves[a_id] = a.get("wave", 0)
 
         violations = []
         for a in artifacts:
+            a_id = a.get("id", "<unknown>")
             a_wave = a.get("wave", 0)
             for req in a.get("requires", []):
                 req_wave = artifact_waves.get(req, 0)
                 if req_wave > a_wave:
-                    violations.append(f"{a['id']} (wave {a_wave}) requires {req} (wave {req_wave})")
+                    violations.append(f"{a_id} (wave {a_wave}) requires {req} (wave {req_wave})")
 
         if violations:
             score = max(0, 100 - len(violations) * 25)
             return score, {"violations": violations}
 
         # Check: no orphan dependencies (requiring non-existent artifacts)
-        all_ids = {a["id"] for a in artifacts}
+        all_ids = {a.get("id") for a in artifacts if a.get("id")}
         orphans = []
         for a in artifacts:
+            a_id = a.get("id", "<unknown>")
             for req in a.get("requires", []):
                 if req not in all_ids:
-                    orphans.append(f"{a['id']} requires missing {req}")
+                    orphans.append(f"{a_id} requires missing {req}")
 
         if orphans:
             score = max(0, 100 - len(orphans) * 20)
@@ -372,13 +392,10 @@ class PlanningEvaluator:
                     if tech in conflicts and any(e in conflicts[tech] for e in expected_tech):
                         wrong_tech.append(tech)
 
-        # Score
-        if not expected_tech:
-            score = 100
-        else:
-            correct_ratio = len(found_tech) / len(expected_tech)
-            penalty = len(wrong_tech) * 25
-            score = max(0, correct_ratio * 100 - penalty)
+        # Score (expected_tech is guaranteed non-empty here due to early return above)
+        correct_ratio = len(found_tech) / len(expected_tech)
+        penalty = len(wrong_tech) * 25
+        score = max(0, correct_ratio * 100 - penalty)
 
         return score, {
             "expected_tech": expected_tech,
@@ -387,35 +404,47 @@ class PlanningEvaluator:
         }
 
     def _eval_granularity(self, plan: dict) -> tuple[float, dict]:
-        """Evaluate task decomposition granularity (0-100)."""
+        """Evaluate task decomposition granularity (0-100).
+        
+        Scoring uses smooth transitions to avoid cliff effects:
+        - Sweet spot: 5-15 artifacts → 100
+        - Acceptable: 3-4 or 16-20 artifacts → 70-90 (linear ramp)
+        - Edge cases: <3 or >25 → 40-60
+        """
         artifacts = plan.get("artifacts", [])
         waves = plan.get("waves", [])
 
         if not artifacts:
             return 0.0, {}
 
-        # Heuristics for good granularity
         n_artifacts = len(artifacts)
         n_waves = len(waves)
 
-        # Too few artifacts = too coarse
-        # Too many artifacts = too fine
-        # Sweet spot: 5-15 for a medium task
-
-        if n_artifacts < 3:
-            score = 40  # Too coarse
-        elif n_artifacts > 20:
-            score = 60  # Too fine
-        elif 5 <= n_artifacts <= 15:
-            score = 100  # Just right
+        # Smooth scoring with linear ramps instead of cliffs
+        if 5 <= n_artifacts <= 15:
+            # Sweet spot
+            score = 100.0
+        elif n_artifacts < 3:
+            # Too coarse
+            score = 40.0
+        elif n_artifacts < 5:
+            # Ramp from 70 (at 3) to 100 (at 5)
+            score = 70.0 + (n_artifacts - 3) * 15.0  # 70 → 85 → 100
+        elif n_artifacts <= 20:
+            # Ramp from 100 (at 15) to 70 (at 20)
+            score = 100.0 - (n_artifacts - 15) * 6.0  # 100 → 94 → 88 → 82 → 76 → 70
+        elif n_artifacts <= 25:
+            # Ramp from 70 (at 20) to 60 (at 25)
+            score = 70.0 - (n_artifacts - 20) * 2.0
         else:
-            score = 80  # Acceptable
+            # Too fine
+            score = 60.0
 
         # Parallelization bonus: more waves with good width = better
         if n_waves > 0:
             avg_width = n_artifacts / n_waves
             if 2 <= avg_width <= 4:
-                score = min(100, score + 10)
+                score = min(100.0, score + 10.0)
 
         return score, {"artifacts": n_artifacts, "waves": n_waves}
 
@@ -446,7 +475,7 @@ class PlanningEvaluator:
 # =============================================================================
 
 
-def evaluate_plan(task_path: str, plan_path: str) -> EvaluationResult:
+def evaluate_plan(task_path: str, plan_path: str) -> PlanningEvaluationResult:
     """Convenience function for CLI."""
     evaluator = PlanningEvaluator.from_task(task_path)
     return evaluator.evaluate(plan_path)

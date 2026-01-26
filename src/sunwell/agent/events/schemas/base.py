@@ -63,9 +63,17 @@ class TaskCompleteData(TypedDict, total=False):
 
 class TaskFailedData(TypedDict, total=False):
     """Data for task_failed event."""
+
     task_id: str  # Required
     artifact_id: str  # Alias for compatibility
     error: str  # Required
+
+
+class TaskOutputData(TypedDict, total=False):
+    """Data for task_output event."""
+
+    task_id: str  # Required
+    content: str  # Required
 
 
 class MemoryLearningData(TypedDict, total=False):

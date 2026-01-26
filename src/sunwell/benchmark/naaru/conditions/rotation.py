@@ -12,10 +12,14 @@ ROTATION_FRAMES = {
 # Divergent rotation emphasizes adversarial thinking
 DIVERGENT_ROTATION_FRAMES = {
     "think": "Initial exploration. Consider multiple approaches, don't commit early.",
-    "adversary": "ATTACK this. Find security holes, edge cases, ways it could fail catastrophically.",
+    "adversary": (
+        "ATTACK this. Find security holes, edge cases, ways it could fail."
+    ),
     "advocate": "DEFEND this. Why is this approach good? What strengths does it have?",
     "naive": "Be a BEGINNER. What's confusing? What seems weird? Ask obvious questions.",
-    "synthesize": "Now integrate: what did adversary find? what did advocate strengthen? what did naive reveal?",
+    "synthesize": (
+        "Integrate: what did adversary find? advocate strengthen? naive reveal?"
+    ),
 }
 
 ROTATION_SYSTEM_PROMPT = """## Thought Rotation Protocol
@@ -62,9 +66,10 @@ def parse_frame_usage(text: str, frames: dict[str, str]) -> dict[str, int]:
         matches = re.findall(pattern, text, re.DOTALL | re.IGNORECASE)
 
         if matches:
-            # Estimate tokens as words / 0.75
+            # Estimate tokens: ~1.33 tokens per word (words / 0.75)
             total_content = " ".join(matches)
-            estimated_tokens = len(total_content.split()) // 1
+            word_count = len(total_content.split())
+            estimated_tokens = int(word_count * 1.33)
             frame_usage[frame_name] = estimated_tokens
 
     return frame_usage

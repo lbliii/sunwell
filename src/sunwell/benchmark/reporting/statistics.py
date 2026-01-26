@@ -11,6 +11,14 @@ import numpy as np
 
 from sunwell.benchmark.types import StatisticalSummary
 
+__all__ = [
+    "bootstrap_ci",
+    "cohens_d",
+    "empty_summary",
+    "interpret_effect_size",
+    "significance_test",
+]
+
 
 def significance_test(
     selective: np.ndarray,
@@ -20,7 +28,15 @@ def significance_test(
 
     Uses Wilcoxon signed-rank for paired data (same tasks),
     Mann-Whitney U for independent samples.
+
+    Returns:
+        Tuple of (p_value, test_statistic, test_name).
+        Returns (1.0, 0.0, "insufficient_data") if arrays are too small.
     """
+    # Need at least 2 samples for meaningful statistical test
+    if len(selective) < 2 or len(baseline) < 2:
+        return 1.0, 0.0, "insufficient_data"
+
     try:
         from scipy import stats
     except ImportError:
@@ -52,8 +68,13 @@ def cohens_d(
     selective: np.ndarray,
     baseline: np.ndarray,
 ) -> float:
-    """Calculate Cohen's d effect size."""
-    if len(selective) == 0 or len(baseline) == 0:
+    """Calculate Cohen's d effect size.
+
+    Returns 0.0 for insufficient data (need n >= 2 in each group for
+    meaningful variance estimation with ddof=1).
+    """
+    # Need at least 2 samples per group for ddof=1 variance
+    if len(selective) < 2 or len(baseline) < 2:
         return 0.0
 
     mean_diff = np.mean(selective) - np.mean(baseline)
@@ -62,13 +83,17 @@ def cohens_d(
     n1, n2 = len(selective), len(baseline)
     var1, var2 = np.var(selective, ddof=1), np.var(baseline, ddof=1)
 
+    # Handle NaN from variance calculation (shouldn't happen with n>=2, but defensive)
+    if np.isnan(var1) or np.isnan(var2):
+        return 0.0
+
     # Handle zero variance edge case
     if var1 == 0 and var2 == 0:
         return 0.0 if mean_diff == 0 else float('inf') * np.sign(mean_diff)
 
     pooled_std = np.sqrt(((n1 - 1) * var1 + (n2 - 1) * var2) / (n1 + n2 - 2))
 
-    if pooled_std == 0:
+    if pooled_std == 0 or np.isnan(pooled_std):
         return 0.0
 
     return float(mean_diff / pooled_std)
@@ -93,8 +118,13 @@ def bootstrap_ci(
     ci_level: float = 0.95,
     bootstrap_samples: int = 1000,
 ) -> tuple[float, float]:
-    """Calculate bootstrap confidence intervals for mean difference."""
-    if len(selective) == 0 or len(baseline) == 0:
+    """Calculate bootstrap confidence intervals for mean difference.
+
+    Returns (0.0, 0.0) if insufficient data for meaningful CI estimation.
+    Need at least 2 samples per group for bootstrap to produce variance.
+    """
+    # Need at least 2 samples per group for meaningful bootstrap CI
+    if len(selective) < 2 or len(baseline) < 2:
         return 0.0, 0.0
 
     rng = np.random.default_rng(42)  # Reproducible

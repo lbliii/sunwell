@@ -14,7 +14,11 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "session_id": {
+              "type": "string"
+            }
+          },
           "additionalProperties": true
         },
         "timestamp": {
@@ -37,7 +41,11 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "session_id": {
+              "type": "string"
+            }
+          },
           "additionalProperties": true
         },
         "timestamp": {
@@ -60,7 +68,14 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "session_id": {
+              "type": "string"
+            },
+            "duration_s": {
+              "type": "number"
+            }
+          },
           "additionalProperties": true
         },
         "timestamp": {
@@ -83,7 +98,14 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "session_id": {
+              "type": "string"
+            },
+            "error": {
+              "type": "string"
+            }
+          },
           "additionalProperties": true
         },
         "timestamp": {
@@ -106,7 +128,11 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "goal": {
+              "type": "string"
+            }
+          },
           "additionalProperties": true
         },
         "timestamp": {
@@ -129,7 +155,11 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "goal": {
+              "type": "string"
+            }
+          },
           "additionalProperties": true
         },
         "timestamp": {
@@ -152,7 +182,14 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "goal": {
+              "type": "string"
+            },
+            "tasks": {
+              "type": "integer"
+            }
+          },
           "additionalProperties": true
         },
         "timestamp": {
@@ -175,7 +212,17 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "goal": {
+              "type": "string"
+            },
+            "tasks_completed": {
+              "type": "integer"
+            },
+            "duration_s": {
+              "type": "number"
+            }
+          },
           "additionalProperties": true
         },
         "timestamp": {
@@ -198,7 +245,14 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "goal": {
+              "type": "string"
+            },
+            "error": {
+              "type": "string"
+            }
+          },
           "additionalProperties": true
         },
         "timestamp": {
@@ -221,7 +275,14 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "goal": {
+              "type": "string"
+            },
+            "checkpoint": {
+              "type": "string"
+            }
+          },
           "additionalProperties": true
         },
         "timestamp": {
@@ -340,8 +401,8 @@
             }
           },
           "required": [
-            "category",
-            "fact"
+            "fact",
+            "category"
           ],
           "additionalProperties": true
         },
@@ -461,7 +522,22 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "learnings": {
+              "type": "integer"
+            },
+            "constraints": {
+              "type": "integer"
+            },
+            "dead_ends": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "dead_ends",
+            "constraints",
+            "learnings"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -484,7 +560,21 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "fact": {
+              "type": "string"
+            },
+            "category": {
+              "type": "string"
+            },
+            "confidence": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "fact",
+            "category"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -507,7 +597,25 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "category": {
+              "type": "string"
+            },
+            "question": {
+              "type": "string"
+            },
+            "choice": {
+              "type": "string"
+            },
+            "rejected_count": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "choice",
+            "question",
+            "category"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -530,7 +638,22 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "description": {
+              "type": "string"
+            },
+            "error_type": {
+              "type": "string"
+            },
+            "context": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "description",
+            "error_type",
+            "context"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -553,7 +676,21 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "status": {
+              "type": "string"
+            },
+            "next_action": {
+              "type": "string"
+            },
+            "hot_files": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "status"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -576,7 +713,14 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "query": {
+              "type": "string"
+            },
+            "results_count": {
+              "type": "integer"
+            }
+          },
           "additionalProperties": true
         },
         "timestamp": {
@@ -599,7 +743,14 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "template_id": {
+              "type": "string"
+            },
+            "confidence": {
+              "type": "number"
+            }
+          },
           "additionalProperties": true
         },
         "timestamp": {
@@ -947,9 +1098,9 @@
             }
           },
           "required": [
+            "total_candidates",
             "candidate_id",
-            "artifact_count",
-            "total_candidates"
+            "artifact_count"
           ],
           "additionalProperties": true
         },
@@ -1032,8 +1183,8 @@
           },
           "required": [
             "score",
-            "candidate_id",
-            "total_candidates"
+            "total_candidates",
+            "candidate_id"
           ],
           "additionalProperties": true
         },
@@ -1450,8 +1601,8 @@
             }
           },
           "required": [
-            "task_id",
-            "description"
+            "description",
+            "task_id"
           ],
           "additionalProperties": true
         },
@@ -1529,8 +1680,8 @@
             }
           },
           "required": [
-            "task_id",
-            "duration_ms"
+            "duration_ms",
+            "task_id"
           ],
           "additionalProperties": true
         },
@@ -1554,7 +1705,18 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "task_id": {
+              "type": "string"
+            },
+            "content": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "task_id",
+            "content"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -1589,8 +1751,8 @@
             }
           },
           "required": [
-            "error",
-            "task_id"
+            "task_id",
+            "error"
           ],
           "additionalProperties": true
         },
@@ -2064,8 +2226,8 @@
             }
           },
           "required": [
-            "artifact_ids",
-            "recovery_id"
+            "recovery_id",
+            "artifact_ids"
           ],
           "additionalProperties": true
         },
@@ -2099,8 +2261,8 @@
             }
           },
           "required": [
-            "artifact_ids",
-            "recovery_id"
+            "recovery_id",
+            "artifact_ids"
           ],
           "additionalProperties": true
         },
@@ -2279,10 +2441,10 @@
             }
           },
           "required": [
-            "source_artifact",
+            "check_type",
             "edge_id",
-            "target_artifact",
-            "check_type"
+            "source_artifact",
+            "target_artifact"
           ],
           "additionalProperties": true
         },
@@ -2318,8 +2480,9 @@
             }
           },
           "required": [
-            "edge_id",
-            "check_type"
+            "verification_method",
+            "check_type",
+            "edge_id"
           ],
           "additionalProperties": true
         },
@@ -2362,9 +2525,9 @@
           },
           "required": [
             "actual",
+            "check_type",
             "edge_id",
-            "expected",
-            "check_type"
+            "expected"
           ],
           "additionalProperties": true
         },
@@ -2403,10 +2566,10 @@
             }
           },
           "required": [
-            "stub_type",
-            "location",
+            "artifact_id",
             "file_path",
-            "artifact_id"
+            "location",
+            "stub_type"
           ],
           "additionalProperties": true
         },
@@ -2439,8 +2602,8 @@
             }
           },
           "required": [
-            "file_path",
-            "artifact_id"
+            "artifact_id",
+            "file_path"
           ],
           "additionalProperties": true
         },
@@ -2479,9 +2642,9 @@
             }
           },
           "required": [
-            "source_artifact",
-            "task_id",
             "target_artifact",
+            "task_id",
+            "source_artifact",
             "integration_type"
           ],
           "additionalProperties": true
@@ -2507,12 +2670,26 @@
         "data": {
           "type": "object",
           "properties": {
+            "mission": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "has_hazards": {
+              "type": "boolean"
+            },
+            "has_dispatch_hints": {
+              "type": "boolean"
+            },
             "path": {
               "type": "string"
             }
           },
           "required": [
-            "path"
+            "mission",
+            "status",
+            "has_hazards"
           ],
           "additionalProperties": true
         },
@@ -2537,12 +2714,21 @@
         "data": {
           "type": "object",
           "properties": {
+            "status": {
+              "type": "string"
+            },
+            "next_action": {
+              "type": "string"
+            },
+            "tasks_completed": {
+              "type": "integer"
+            },
             "path": {
               "type": "string"
             }
           },
           "required": [
-            "path"
+            "status"
           ],
           "additionalProperties": true
         },
@@ -2567,13 +2753,16 @@
         "data": {
           "type": "object",
           "properties": {
+            "briefing": {
+              "type": "string"
+            },
             "sources": {
               "type": "array",
               "items": {}
             }
           },
           "required": [
-            "sources"
+            "briefing"
           ],
           "additionalProperties": true
         },
@@ -2598,6 +2787,16 @@
         "data": {
           "type": "object",
           "properties": {
+            "files_loaded": {
+              "type": "integer"
+            },
+            "learnings_loaded": {
+              "type": "integer"
+            },
+            "skills_activated": {
+              "type": "array",
+              "items": {}
+            },
             "duration_ms": {
               "type": "integer"
             },
@@ -2606,8 +2805,9 @@
             }
           },
           "required": [
-            "sources_loaded",
-            "duration_ms"
+            "files_loaded",
+            "skills_activated",
+            "learnings_loaded"
           ],
           "additionalProperties": true
         },
@@ -2632,13 +2832,13 @@
         "data": {
           "type": "object",
           "properties": {
+            "error": {
+              "type": "string"
+            },
             "timeout_ms": {
               "type": "integer"
             }
           },
-          "required": [
-            "timeout_ms"
-          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -2670,8 +2870,8 @@
             }
           },
           "required": [
-            "reason",
-            "suggested"
+            "suggested",
+            "reason"
           ],
           "additionalProperties": true
         },
@@ -2696,16 +2896,25 @@
         "data": {
           "type": "object",
           "properties": {
-            "provider": {
+            "task_id": {
               "type": "string"
             },
             "model": {
               "type": "string"
+            },
+            "prompt_tokens": {
+              "type": "integer"
+            },
+            "estimated_time_s": {
+              "type": "number"
+            },
+            "provider": {
+              "type": "string"
             }
           },
           "required": [
-            "model",
-            "provider"
+            "task_id",
+            "model"
           ],
           "additionalProperties": true
         },
@@ -2730,15 +2939,26 @@
         "data": {
           "type": "object",
           "properties": {
+            "task_id": {
+              "type": "string"
+            },
             "tokens": {
+              "type": "string"
+            },
+            "token_count": {
               "type": "integer"
+            },
+            "tokens_per_second": {
+              "type": "number"
             },
             "cumulative": {
               "type": "boolean"
             }
           },
           "required": [
-            "tokens"
+            "tokens",
+            "token_count",
+            "task_id"
           ],
           "additionalProperties": true
         },
@@ -2763,11 +2983,22 @@
         "data": {
           "type": "object",
           "properties": {
+            "task_id": {
+              "type": "string"
+            },
+            "phase": {
+              "type": "string"
+            },
             "content": {
               "type": "string"
+            },
+            "is_complete": {
+              "type": "boolean"
             }
           },
           "required": [
+            "phase",
+            "task_id",
             "content"
           ],
           "additionalProperties": true
@@ -2793,6 +3024,21 @@
         "data": {
           "type": "object",
           "properties": {
+            "task_id": {
+              "type": "string"
+            },
+            "total_tokens": {
+              "type": "integer"
+            },
+            "duration_s": {
+              "type": "number"
+            },
+            "tokens_per_second": {
+              "type": "number"
+            },
+            "time_to_first_token_ms": {
+              "type": "integer"
+            },
             "duration_ms": {
               "type": "integer"
             },
@@ -2804,7 +3050,10 @@
             }
           },
           "required": [
-            "duration_ms"
+            "duration_s",
+            "task_id",
+            "tokens_per_second",
+            "total_tokens"
           ],
           "additionalProperties": true
         },
@@ -2829,12 +3078,23 @@
         "data": {
           "type": "object",
           "properties": {
+            "task_id": {
+              "type": "string"
+            },
+            "elapsed_s": {
+              "type": "number"
+            },
+            "token_count": {
+              "type": "integer"
+            },
             "elapsed_ms": {
               "type": "integer"
             }
           },
           "required": [
-            "elapsed_ms"
+            "token_count",
+            "task_id",
+            "elapsed_s"
           ],
           "additionalProperties": true
         },
@@ -2873,10 +3133,10 @@
             }
           },
           "required": [
-            "skill_count",
             "wave_count",
+            "lens_name",
             "content_hash",
-            "lens_name"
+            "skill_count"
           ],
           "additionalProperties": true
         },
@@ -2916,9 +3176,9 @@
             }
           },
           "required": [
-            "skills",
             "total_waves",
-            "wave_index"
+            "wave_index",
+            "skills"
           ],
           "additionalProperties": true
         },
@@ -2959,10 +3219,10 @@
             }
           },
           "required": [
+            "succeeded",
             "wave_index",
-            "failed",
             "duration_ms",
-            "succeeded"
+            "failed"
           ],
           "additionalProperties": true
         },
@@ -3047,10 +3307,10 @@
             }
           },
           "required": [
-            "skill_name",
-            "requires",
             "context_keys_available",
-            "wave_index"
+            "wave_index",
+            "requires",
+            "skill_name"
           ],
           "additionalProperties": true
         },
@@ -3103,10 +3363,10 @@
           },
           "required": [
             "duration_ms",
-            "produces",
             "cached",
-            "skill_name",
-            "success"
+            "produces",
+            "success",
+            "skill_name"
           ],
           "additionalProperties": true
         },
@@ -3133,6 +3393,13 @@
           "properties": {
             "lens_name": {
               "type": "string"
+            },
+            "skill_count": {
+              "type": "integer"
+            },
+            "target_skills": {
+              "type": "array",
+              "items": {}
             }
           },
           "required": [
@@ -3164,17 +3431,27 @@
             "lens_name": {
               "type": "string"
             },
-            "skill_count": {
+            "task_count": {
+              "type": "integer"
+            },
+            "wave_count": {
               "type": "integer"
             },
             "duration_ms": {
               "type": "integer"
+            },
+            "cached": {
+              "type": "boolean"
+            },
+            "skill_count": {
+              "type": "integer"
             }
           },
           "required": [
-            "skill_count",
+            "wave_count",
             "duration_ms",
-            "lens_name"
+            "lens_name",
+            "task_count"
           ],
           "additionalProperties": true
         },
@@ -3199,12 +3476,23 @@
         "data": {
           "type": "object",
           "properties": {
+            "cache_key": {
+              "type": "string"
+            },
+            "task_count": {
+              "type": "integer"
+            },
+            "wave_count": {
+              "type": "integer"
+            },
             "lens_name": {
               "type": "string"
             }
           },
           "required": [
-            "lens_name"
+            "wave_count",
+            "cache_key",
+            "task_count"
           ],
           "additionalProperties": true
         },
@@ -3229,6 +3517,16 @@
         "data": {
           "type": "object",
           "properties": {
+            "target_skills": {
+              "type": "array",
+              "items": {}
+            },
+            "total_skills": {
+              "type": "integer"
+            },
+            "extracted_skills": {
+              "type": "integer"
+            },
             "skill_name": {
               "type": "string"
             },
@@ -3237,8 +3535,9 @@
             }
           },
           "required": [
-            "skill_name",
-            "subgraph_size"
+            "target_skills",
+            "total_skills",
+            "extracted_skills"
           ],
           "additionalProperties": true
         },
@@ -3289,11 +3588,11 @@
           },
           "required": [
             "skill_count",
-            "dag_name",
-            "risk_level",
-            "risk_score",
             "dag_id",
-            "flags"
+            "risk_level",
+            "dag_name",
+            "flags",
+            "risk_score"
           ],
           "additionalProperties": true
         },
@@ -3378,11 +3677,11 @@
             }
           },
           "required": [
-            "violation_type",
             "evidence",
+            "action_taken",
             "detection_method",
             "skill_name",
-            "action_taken"
+            "violation_type"
           ],
           "additionalProperties": true
         },
@@ -3421,10 +3720,10 @@
             }
           },
           "required": [
-            "violations_found",
             "method",
-            "scan_duration_ms",
-            "output_length"
+            "violations_found",
+            "output_length",
+            "scan_duration_ms"
           ],
           "additionalProperties": true
         },
@@ -3466,9 +3765,9 @@
             }
           },
           "required": [
+            "skill_name",
             "action",
-            "risk_level",
-            "skill_name"
+            "risk_level"
           ],
           "additionalProperties": true
         },
@@ -3595,8 +3894,8 @@
             }
           },
           "required": [
-            "goal_id",
-            "error"
+            "error",
+            "goal_id"
           ],
           "additionalProperties": true
         },
@@ -3650,7 +3949,22 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "tool_name": {
+              "type": "string"
+            },
+            "tool_call_id": {
+              "type": "string"
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "required": [
+            "tool_name",
+            "tool_call_id"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -3673,7 +3987,29 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "tool_name": {
+              "type": "string"
+            },
+            "tool_call_id": {
+              "type": "string"
+            },
+            "success": {
+              "type": "boolean"
+            },
+            "output": {
+              "type": "string"
+            },
+            "execution_time_ms": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "tool_name",
+            "success",
+            "tool_call_id",
+            "output"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -3696,7 +4032,22 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "tool_name": {
+              "type": "string"
+            },
+            "tool_call_id": {
+              "type": "string"
+            },
+            "error": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "tool_name",
+            "error",
+            "tool_call_id"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -3719,7 +4070,22 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "task_description": {
+              "type": "string"
+            },
+            "max_turns": {
+              "type": "integer"
+            },
+            "tool_count": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "task_description",
+            "tool_count",
+            "max_turns"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -3742,7 +4108,18 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "turn": {
+              "type": "integer"
+            },
+            "tool_calls_count": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "tool_calls_count",
+            "turn"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -3765,7 +4142,21 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "turns_used": {
+              "type": "integer"
+            },
+            "tool_calls_total": {
+              "type": "integer"
+            },
+            "final_response": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "tool_calls_total",
+            "turns_used"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -3788,7 +4179,26 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "tool_name": {
+              "type": "string"
+            },
+            "tool_call_id": {
+              "type": "string"
+            },
+            "repairs": {
+              "type": "array",
+              "items": {}
+            },
+            "repair_count": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "tool_name",
+            "tool_call_id",
+            "repairs"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -3811,7 +4221,22 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "tool_name": {
+              "type": "string"
+            },
+            "tool_call_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "tool_name",
+            "reason",
+            "tool_call_id"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -3834,7 +4259,30 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "tool_name": {
+              "type": "string"
+            },
+            "tool_call_id": {
+              "type": "string"
+            },
+            "attempt": {
+              "type": "integer"
+            },
+            "strategy": {
+              "type": "string"
+            },
+            "error": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "strategy",
+            "attempt",
+            "tool_name",
+            "error",
+            "tool_call_id"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -3857,7 +4305,25 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "tool_name": {
+              "type": "string"
+            },
+            "error": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "attempts": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "tool_name",
+            "reason",
+            "error"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -3880,7 +4346,23 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "task_type": {
+              "type": "string"
+            },
+            "tool_sequence": {
+              "type": "array",
+              "items": {}
+            },
+            "success_rate": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "task_type",
+            "success_rate",
+            "tool_sequence"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -3903,7 +4385,27 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "category": {
+              "type": "string"
+            },
+            "tools_unlocked": {
+              "type": "array",
+              "items": {}
+            },
+            "turn": {
+              "type": "integer"
+            },
+            "validation_passes": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "tools_unlocked",
+            "category",
+            "turn",
+            "validation_passes"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -3927,12 +4429,22 @@
         "data": {
           "type": "object",
           "properties": {
+            "files": {
+              "type": "array",
+              "items": {}
+            },
+            "gates": {
+              "type": "array",
+              "items": {}
+            },
             "max_iterations": {
               "type": "integer"
             }
           },
           "required": [
-            "max_iterations"
+            "files",
+            "max_iterations",
+            "gates"
           ],
           "additionalProperties": true
         },
@@ -3959,9 +4471,14 @@
           "properties": {
             "iteration": {
               "type": "integer"
+            },
+            "files": {
+              "type": "array",
+              "items": {}
             }
           },
           "required": [
+            "files",
             "iteration"
           ],
           "additionalProperties": true
@@ -3990,13 +4507,25 @@
             "iteration": {
               "type": "integer"
             },
+            "all_passed": {
+              "type": "boolean"
+            },
+            "total_errors": {
+              "type": "integer"
+            },
+            "gate_results": {
+              "type": "object",
+              "additionalProperties": true
+            },
             "errors_found": {
               "type": "integer"
             }
           },
           "required": [
-            "iteration",
-            "errors_found"
+            "all_passed",
+            "total_errors",
+            "gate_results",
+            "iteration"
           ],
           "additionalProperties": true
         },
@@ -4024,13 +4553,16 @@
             "iteration": {
               "type": "integer"
             },
+            "error_count": {
+              "type": "integer"
+            },
             "errors_to_fix": {
               "type": "integer"
             }
           },
           "required": [
-            "iteration",
-            "errors_to_fix"
+            "error_count",
+            "iteration"
           ],
           "additionalProperties": true
         },
@@ -4057,9 +4589,13 @@
           "properties": {
             "iterations": {
               "type": "integer"
+            },
+            "duration_ms": {
+              "type": "integer"
             }
           },
           "required": [
+            "duration_ms",
             "iterations"
           ],
           "additionalProperties": true
@@ -4085,12 +4621,15 @@
         "data": {
           "type": "object",
           "properties": {
+            "iterations": {
+              "type": "integer"
+            },
             "elapsed_ms": {
               "type": "integer"
             }
           },
           "required": [
-            "elapsed_ms"
+            "iterations"
           ],
           "additionalProperties": true
         },
@@ -4118,13 +4657,17 @@
             "iterations": {
               "type": "integer"
             },
+            "repeated_errors": {
+              "type": "array",
+              "items": {}
+            },
             "persistent_errors": {
               "type": "integer"
             }
           },
           "required": [
-            "iterations",
-            "persistent_errors"
+            "repeated_errors",
+            "iterations"
           ],
           "additionalProperties": true
         },
@@ -4149,12 +4692,15 @@
         "data": {
           "type": "object",
           "properties": {
+            "iterations": {
+              "type": "integer"
+            },
             "max_iterations": {
               "type": "integer"
             }
           },
           "required": [
-            "max_iterations"
+            "iterations"
           ],
           "additionalProperties": true
         },
@@ -4179,6 +4725,12 @@
         "data": {
           "type": "object",
           "properties": {
+            "tokens_used": {
+              "type": "integer"
+            },
+            "max_tokens": {
+              "type": "integer"
+            },
             "budget_ms": {
               "type": "integer"
             },
@@ -4187,8 +4739,8 @@
             }
           },
           "required": [
-            "budget_ms",
-            "elapsed_ms"
+            "tokens_used",
+            "max_tokens"
           ],
           "additionalProperties": true
         },
@@ -4212,7 +4764,29 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "task_description": {
+              "type": "string"
+            },
+            "smart_model": {
+              "type": "string"
+            },
+            "delegation_model": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "estimated_tokens": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "task_description",
+            "reason",
+            "delegation_model",
+            "smart_model"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -4235,7 +4809,32 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "task_scope": {
+              "type": "string"
+            },
+            "heuristics_count": {
+              "type": "integer"
+            },
+            "patterns_count": {
+              "type": "integer"
+            },
+            "generated_by": {
+              "type": "string"
+            },
+            "anti_patterns_count": {
+              "type": "integer"
+            },
+            "constraints_count": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "heuristics_count",
+            "task_scope",
+            "patterns_count",
+            "generated_by"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -4258,7 +4857,33 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "specialist_id": {
+              "type": "string"
+            },
+            "task_id": {
+              "type": "string"
+            },
+            "parent_id": {
+              "type": "string"
+            },
+            "role": {
+              "type": "string"
+            },
+            "focus": {
+              "type": "string"
+            },
+            "budget_tokens": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "focus",
+            "role",
+            "parent_id",
+            "specialist_id",
+            "task_id"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -4281,7 +4906,29 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "specialist_id": {
+              "type": "string"
+            },
+            "success": {
+              "type": "boolean"
+            },
+            "summary": {
+              "type": "string"
+            },
+            "tokens_used": {
+              "type": "integer"
+            },
+            "duration_seconds": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "success",
+            "tokens_used",
+            "summary",
+            "specialist_id"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -4304,7 +4951,22 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "phase": {
+              "type": "string"
+            },
+            "checkpoint_at": {
+              "type": "string"
+            },
+            "goal": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "checkpoint_at",
+            "phase",
+            "goal"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -4327,7 +4989,21 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "phase": {
+              "type": "string"
+            },
+            "summary": {
+              "type": "string"
+            },
+            "tasks_completed": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "phase",
+            "summary"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -4350,7 +5026,18 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "phase": {
+              "type": "string"
+            },
+            "duration_seconds": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "phase",
+            "duration_seconds"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -4373,7 +5060,29 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "action_type": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "blocking_rule": {
+              "type": "string"
+            },
+            "risk_level": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "reason",
+            "action_type",
+            "risk_level",
+            "blocking_rule"
+          ],
           "additionalProperties": true
         },
         "timestamp": {
@@ -4396,7 +5105,26 @@
         },
         "data": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "guard_id": {
+              "type": "string"
+            },
+            "evolution_type": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "confidence": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "guard_id",
+            "reason",
+            "evolution_type",
+            "confidence"
+          ],
           "additionalProperties": true
         },
         "timestamp": {

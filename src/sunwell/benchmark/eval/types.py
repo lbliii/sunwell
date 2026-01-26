@@ -205,7 +205,7 @@ class EvaluationRun:
     estimated_cost_usd: float
     git_commit: str | None = None
     config_hash: str = ""
-    prompts_snapshot: dict[str, str] = field(default_factory=dict)
+    prompts_snapshot: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

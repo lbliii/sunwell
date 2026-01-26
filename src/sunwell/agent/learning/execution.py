@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from sunwell.agent.core.task_graph import TaskGraph
     from sunwell.agent.learning.extractor import LearningExtractor
+    from sunwell.agent.learning.learning import Learning
     from sunwell.agent.learning.store import LearningStore
     from sunwell.memory.facade.persistent import PersistentMemory
     from sunwell.memory.simulacrum.core.planning_context import PlanningContext
@@ -134,14 +135,17 @@ async def learn_from_execution(
     logger.debug("Extracted %d learnings from execution", extracted_count)
 
 
-def _add_to_persistent_memory(memory: PersistentMemory, learning) -> None:
+def _add_to_persistent_memory(
+    memory: "PersistentMemory",
+    learning: "Learning",
+) -> None:
     """Add a learning to PersistentMemory.
 
     Helper to handle the conversion between Learning types.
     """
-    import contextlib
-
-    # Try to use PersistentMemory.add_learning
-    # If that fails, learnings will still be synced via sync_to_simulacrum
-    with contextlib.suppress(Exception):
+    try:
+        # Try to use PersistentMemory.add_learning
         memory.add_learning(learning)
+    except Exception as e:
+        # If that fails, learnings will still be synced via sync_to_simulacrum
+        logger.debug("Failed to add learning to persistent memory: %s", e)
