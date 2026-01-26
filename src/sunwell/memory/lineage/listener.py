@@ -6,7 +6,6 @@ Integrates with RFC-119 EventBus for real-time Studio updates.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from sunwell.memory.lineage.human_detection import HumanEditDetector

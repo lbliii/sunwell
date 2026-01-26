@@ -21,8 +21,8 @@ from sunwell.foundation.utils import safe_yaml_load
 from sunwell.knowledge.project import create_project_from_workspace
 from sunwell.planning.naaru import AgentResult, Naaru, Task
 from sunwell.planning.naaru.planners import AgentPlanner
-from sunwell.tools.execution import ToolExecutor
 from sunwell.tools.core.types import ToolPolicy, ToolTrust
+from sunwell.tools.execution import ToolExecutor
 
 # =============================================================================
 # Agent Benchmark Types

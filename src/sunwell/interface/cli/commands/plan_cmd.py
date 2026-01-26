@@ -28,7 +28,6 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
 
-
 # Pre-compiled regex patterns (avoid per-call compilation)
 _RE_TITLE = re.compile(r"^#\s+(.+)$", re.MULTILINE)
 _RE_SUMMARY = re.compile(r"##\s*Summary\s*\n+(.*?)(?=\n##|\Z)", re.IGNORECASE | re.DOTALL)
@@ -510,8 +509,8 @@ async def _plan_async(
     verbose: bool,
 ) -> None:
     """Generate and display/save the plan."""
-    from sunwell.interface.cli.helpers import resolve_model
     from sunwell.foundation.config import get_config
+    from sunwell.interface.cli.helpers import resolve_model
     from sunwell.planning.naaru import get_model_distribution
     from sunwell.planning.naaru.planners import ExpertiseAwareArtifactPlanner
     from sunwell.planning.routing import UnifiedRouter
@@ -860,7 +859,7 @@ def plan_diff(plan_id: str, v1: int, v2: int) -> None:
     diff = store.diff(plan_id, v1, v2)
 
     if not diff:
-        console.print(f"[red]Could not compute diff. Check plan ID and versions exist.[/red]")
+        console.print("[red]Could not compute diff. Check plan ID and versions exist.[/red]")
         return
 
     console.print(Panel(

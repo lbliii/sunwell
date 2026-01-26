@@ -85,7 +85,7 @@ class WorkspaceProject:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "WorkspaceProject":
+    def from_dict(cls, data: dict) -> WorkspaceProject:
         """Create from parsed dict."""
         role_str = data.get("role", "unknown")
         try:
@@ -146,7 +146,7 @@ class WorkspaceDependencies:
         return result
 
     @classmethod
-    def from_dict(cls, data: dict[str, list[str]]) -> "WorkspaceDependencies":
+    def from_dict(cls, data: dict[str, list[str]]) -> WorkspaceDependencies:
         """Create from parsed dict."""
         edges: list[tuple[str, str]] = []
         for src, deps in data.items():
@@ -227,7 +227,7 @@ class Workspace:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Workspace":
+    def from_dict(cls, data: dict) -> Workspace:
         """Create from parsed TOML dict."""
         ws_data = data.get("workspace", {})
 
@@ -263,7 +263,7 @@ class Workspace:
         )
 
     @classmethod
-    def single_project(cls, project_id: str, project_path: Path, name: str | None = None) -> "Workspace":
+    def single_project(cls, project_id: str, project_path: Path, name: str | None = None) -> Workspace:
         """Create a workspace with a single project.
 
         Convenience factory for the common case of working with one project.

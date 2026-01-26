@@ -91,6 +91,7 @@ class ChatCheckpoint:
     """ID linking to internal AgentCheckpoint for recovery."""
 
 
+@dataclass(frozen=True, slots=True)
 class CheckpointResponse:
     """User's response to a checkpoint.
 
@@ -103,24 +104,16 @@ class CheckpointResponse:
         >>> assert response.abort
     """
 
-    def __init__(
-        self,
-        choice: str,
-        additional_input: str | None = None,
-    ) -> None:
-        """Initialize checkpoint response.
+    choice: str
+    """User's selection from checkpoint options."""
 
-        Args:
-            choice: User's selection from checkpoint options
-            additional_input: Optional additional text from user
-        """
-        self.choice = choice
-        self.additional_input = additional_input
+    additional_input: str | None = None
+    """Optional additional text from user."""
 
     @property
     def proceed(self) -> bool:
         """True if user wants to continue/proceed."""
-        return self.choice.lower() in ("y", "yes", "proceed", "continue", "a", "auto")
+        return self.choice.lower() in ("y", "yes", "proceed", "continue")
 
     @property
     def skip(self) -> bool:

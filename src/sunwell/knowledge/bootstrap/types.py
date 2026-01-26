@@ -4,7 +4,7 @@ All dataclasses for bootstrap evidence, inference, and results.
 """
 
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Literal

@@ -11,14 +11,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from sunwell.foundation.config import SunwellConfig, get_config
-from sunwell.knowledge.embedding import create_embedder
-from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
-from sunwell.models import ModelProtocol
-from sunwell.memory.simulacrum.manager import SimulacrumManager
 from sunwell.foundation.types.protocol import (
     ConsoleProtocol,
     MemoryStoreProtocol,
 )
+from sunwell.knowledge.embedding import create_embedder
+from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
+from sunwell.memory.simulacrum.manager import SimulacrumManager
+from sunwell.models import ModelProtocol
 
 
 @dataclass(slots=True)

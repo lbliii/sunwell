@@ -16,9 +16,9 @@ import asyncio
 import os
 import random
 import sys
+from collections.abc import Iterator
 from dataclasses import dataclass
 from enum import Enum
-from collections.abc import Iterator
 from typing import Any
 
 from rich.console import Console

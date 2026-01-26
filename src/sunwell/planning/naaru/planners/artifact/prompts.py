@@ -68,66 +68,63 @@ For each thing that must exist, identify:
 
 === EXAMPLE ===
 
-Goal: "Build a REST API with user authentication"
+Goal: "Build a data processing pipeline"
 
 ```json
 [
   {{
-    "id": "UserProtocol",
-    "description": "Protocol defining User entity",
-    "contract": "Protocol with fields: id, email, password_hash, created_at",
+    "id": "DataSchema",
+    "description": "Schema defining input data structure",
+    "contract": "Dataclass with fields: id, timestamp, payload, source",
     "requires": [],
-    "produces_file": "src/protocols/user.py",
+    "produces_file": "src/schemas/data.py",
+    "domain_type": "schema"
+  }},
+  {{
+    "id": "ProcessorProtocol",
+    "description": "Protocol for data processors",
+    "contract": "Protocol: process(data: DataSchema) -> Result, validate(data) -> bool",
+    "requires": [],
+    "produces_file": "src/protocols/processor.py",
     "domain_type": "protocol"
   }},
   {{
-    "id": "AuthInterface",
-    "description": "Interface for authentication operations",
-    "contract": "Protocol: authenticate(), generate_token(), verify_token()",
-    "requires": [],
-    "produces_file": "src/protocols/auth.py",
-    "domain_type": "protocol"
-  }},
-  {{
-    "id": "UserModel",
-    "description": "SQLAlchemy model implementing UserProtocol",
-    "contract": "Class User(Base) implementing UserProtocol",
-    "requires": ["UserProtocol"],
-    "produces_file": "src/models/user.py",
-    "domain_type": "model"
-  }},
-  {{
-    "id": "AuthService",
-    "description": "JWT-based authentication service",
-    "contract": "Class implementing AuthInterface with JWT + bcrypt",
-    "requires": ["AuthInterface", "UserProtocol"],
-    "produces_file": "src/services/auth.py",
+    "id": "Validator",
+    "description": "Input validation implementation",
+    "contract": "Class implementing validation rules for DataSchema",
+    "requires": ["DataSchema"],
+    "produces_file": "src/processors/validator.py",
     "domain_type": "service"
   }},
   {{
-    "id": "UserRoutes",
-    "description": "REST endpoints for user operations",
-    "contract": "Flask Blueprint: POST /users, GET /users/me, PUT /users/me",
-    "requires": ["UserModel", "AuthService"],
-    "produces_file": "src/routes/users.py",
-    "domain_type": "routes"
+    "id": "Transformer",
+    "description": "Data transformation service",
+    "contract": "Class implementing ProcessorProtocol for data transformation",
+    "requires": ["ProcessorProtocol", "DataSchema"],
+    "produces_file": "src/processors/transformer.py",
+    "domain_type": "service"
   }},
   {{
-    "id": "App",
-    "description": "Flask application factory",
-    "contract": "create_app() initializing Flask, blueprints, database",
-    "requires": ["UserRoutes"],
-    "produces_file": "src/app.py",
+    "id": "Pipeline",
+    "description": "Main pipeline orchestrator",
+    "contract": "Class: run(input) -> output, combining validation and transformation",
+    "requires": ["Validator", "Transformer"],
+    "produces_file": "src/pipeline.py",
     "domain_type": "application"
   }}
 ]
 ```
 
 Analysis:
-- Leaves (parallel): UserProtocol, AuthInterface (no requirements)
-- Second wave: UserModel, AuthService (require protocols)
-- Third wave: UserRoutes (requires model + service)
-- Root: App (final convergence)
+- Leaves (parallel): DataSchema, ProcessorProtocol (no requirements)
+- Second wave: Validator, Transformer (require schemas/protocols)
+- Root: Pipeline (final orchestration)
+
+=== IMPORTANT: MATCH EXISTING PATTERNS ===
+
+If the workspace context shows existing code patterns (frameworks, naming conventions,
+directory structure), generate artifacts that are CONSISTENT with those patterns.
+Do NOT introduce new frameworks or patterns that conflict with what already exists.
 
 === NOW DISCOVER ARTIFACTS FOR ===
 
@@ -173,8 +170,9 @@ def build_schema_section(project_schema: ProjectSchema) -> str:
 
     lines.extend([
         "",
-        "When discovering artifacts, prefer types from this schema.",
-        "Set domain_type to match schema artifact types.",
+        "IMPORTANT: Use ONLY types from this schema for domain_type.",
+        "Artifacts with unknown types will be rejected during validation.",
+        "If no type fits well, omit domain_type rather than inventing new types.",
         "",
     ])
 

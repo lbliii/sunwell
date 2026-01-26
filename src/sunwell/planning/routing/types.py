@@ -94,7 +94,7 @@ class TierBehavior:
     """Verbosity of the response."""
 
     @classmethod
-    def for_tier(cls, tier: ExecutionTier) -> "TierBehavior":
+    def for_tier(cls, tier: ExecutionTier) -> TierBehavior:
         """Get behavior configuration for a tier."""
         behaviors = {
             ExecutionTier.FAST: cls(

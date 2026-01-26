@@ -16,13 +16,15 @@ from sunwell.interface.server.routes.models import (
     RecentProjectsResponse,
     ResumeProjectResponse,
     ResumeTaskItem,
-    ScanProjectsResponse,
     ScannedProjectItem,
     ScannedProjectTask,
+    ScanProjectsResponse,
     SuccessResponse,
 )
 from sunwell.interface.server.routes.project.models import (
     IterateProjectRequest,
+    OpenByIdRequest,
+    OpenByIdResponse,
     ProjectPathRequest,
 )
 
@@ -258,6 +260,93 @@ async def open_project(request: ProjectPathRequest) -> SuccessResponse:
     if not path.exists():
         return SuccessResponse(success=False, message=f"Path not found: {path}")
     return SuccessResponse(success=True, message=str(path))
+
+
+@router.post("/open-by-id")
+async def open_project_by_id(request: OpenByIdRequest) -> OpenByIdResponse:
+    """Open a project by ID or slug (SvelteKit Native Routing).
+    
+    This endpoint supports the new /project/[projectId] URL format.
+    It resolves slugs and IDs to the actual project and returns full project info.
+    
+    Resolution order:
+    1. Try to resolve as a URL slug (e.g., "my-app")
+    2. Try to find by project ID directly
+    3. Return 404 if not found
+    """
+    from fastapi import HTTPException
+
+    from sunwell.knowledge import ProjectRegistry
+
+    registry = ProjectRegistry()
+    project_id = request.project_id
+
+    # 1. Try to resolve as a URL slug
+    resolved_project, _ = registry.resolve_slug(project_id)
+
+    if resolved_project:
+        # Found via slug - update last_used
+        registry.touch(resolved_project.id)
+
+        return _build_open_by_id_response(resolved_project, registry)
+
+    # 2. Try to find by project ID directly
+    project = registry.get(project_id)
+
+    if project:
+        # Found via ID - update last_used
+        registry.touch(project.id)
+
+        return _build_open_by_id_response(project, registry)
+
+    # 3. Not found
+    raise HTTPException(status_code=404, detail=f"Project not found: {project_id}")
+
+
+def _build_open_by_id_response(project: Project, registry: ProjectRegistry) -> OpenByIdResponse:  # noqa: ARG001
+    """Build OpenByIdResponse from a Project."""
+
+    # Try to detect project type from files
+    project_type = "general"
+    if (project.root / "pyproject.toml").exists():
+        project_type = "code_python"
+    elif (project.root / "package.json").exists():
+        project_type = "code_js"
+    elif (project.root / "Cargo.toml").exists():
+        project_type = "code_rust"
+    elif (project.root / "go.mod").exists():
+        project_type = "code_go"
+    elif (project.root / "index.html").exists():
+        project_type = "code_web"
+
+    # Try to get description from manifest
+    description: str | None = None
+    manifest_path = project.root / ".sunwell" / "project.toml"
+    if manifest_path.exists():
+        try:
+            import tomllib
+
+            with open(manifest_path, "rb") as f:
+                manifest = tomllib.load(f)
+                description = manifest.get("project", {}).get("description")
+        except Exception:
+            pass
+
+    # Count files (basic count, not recursive for performance)
+    files_count = 0
+    try:
+        files_count = len([f for f in project.root.iterdir() if f.is_file()])
+    except Exception:
+        pass
+
+    return OpenByIdResponse(
+        id=project.id,
+        path=str(project.root),
+        name=project.name,
+        project_type=project_type,
+        description=description,
+        files_count=files_count,
+    )
 
 
 @router.post("/delete")

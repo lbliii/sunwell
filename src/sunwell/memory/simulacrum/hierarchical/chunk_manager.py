@@ -187,7 +187,7 @@ class ChunkManager:
 
         return chunk_id
 
-    def set_demotion_callback(self, callback: "Callable[[Chunk, str], None]") -> None:
+    def set_demotion_callback(self, callback: Callable[[Chunk, str], None]) -> None:
         """Set callback for chunk demotion (RFC-045).
 
         Args:

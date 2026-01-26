@@ -49,7 +49,7 @@ class RunOptions:
     converge: bool = False
     """Enable convergence loop (RFC-123)."""
 
-    convergence_config: "ConvergenceConfig | None" = None
+    convergence_config: ConvergenceConfig | None = None
     """Configuration for convergence behavior."""
 
     validate: bool = True
@@ -64,7 +64,7 @@ class RunOptions:
     model: str | None = None
     """Override model name for this run."""
 
-    lens: "Lens | None" = None
+    lens: Lens | None = None
     """Lens to apply during execution."""
 
     # =========================================================================
@@ -88,7 +88,7 @@ class RunOptions:
     model directly. Set higher for more conservative delegation.
     """
 
-    smart_model: "ModelProtocol | str | None" = None
+    smart_model: ModelProtocol | str | None = None
     """Smart model for lens creation during delegation.
 
     Can be:
@@ -99,7 +99,7 @@ class RunOptions:
     Example: "claude-3-opus-20240229" or opus_model_instance
     """
 
-    delegation_model: "ModelProtocol | str | None" = None
+    delegation_model: ModelProtocol | str | None = None
     """Cheap model for delegated execution.
 
     Can be:

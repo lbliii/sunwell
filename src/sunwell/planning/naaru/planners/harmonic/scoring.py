@@ -7,7 +7,7 @@ from sunwell.planning.naaru.artifacts import ArtifactGraph
 from sunwell.planning.naaru.planners.metrics import PlanMetrics, PlanMetricsV2
 
 if TYPE_CHECKING:
-    from sunwell.planning.naaru.planners.harmonic.utils import extract_keywords
+    pass
 
 # Import here to avoid circular dependency
 from sunwell.planning.naaru.planners.harmonic.utils import extract_keywords as _extract_keywords

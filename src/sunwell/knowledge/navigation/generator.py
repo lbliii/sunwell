@@ -464,18 +464,18 @@ class TocGenerator:
         # Extract classes and top-level functions
         # Only get direct children of the module (top-level only)
         module_children = list(ast.iter_child_nodes(tree))
-        
+
         # Get all classes and functions, then filter to top-level only
         all_classes = extract_class_defs(tree)
         all_functions = extract_function_defs(tree)
-        
+
         # Filter to only direct children of the module
         top_level_classes = [c for c in all_classes if c in module_children]
         top_level_functions = [f for f in all_functions if f in module_children]
-        
+
         for node in top_level_functions:
             self._extract_function(toc, node, module_id, rel_path, is_method=False)
-        
+
         for node in top_level_classes:
             self._extract_class(toc, node, module_id, rel_path)
 

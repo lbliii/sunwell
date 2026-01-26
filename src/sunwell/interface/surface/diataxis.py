@@ -6,9 +6,8 @@ from document content and structure.
 
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from types import MappingProxyType
 from typing import Literal
 
 DiataxisType = Literal["TUTORIAL", "HOW_TO", "EXPLANATION", "REFERENCE"]

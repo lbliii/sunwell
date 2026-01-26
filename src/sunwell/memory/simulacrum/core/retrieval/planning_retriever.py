@@ -3,13 +3,16 @@
 from typing import TYPE_CHECKING
 
 from sunwell.memory.simulacrum.core.planning_context import PlanningContext
-from sunwell.memory.simulacrum.core.retrieval.similarity import cosine_similarity, keyword_similarity
+from sunwell.memory.simulacrum.core.retrieval.similarity import (
+    cosine_similarity,
+    keyword_similarity,
+)
 
 if TYPE_CHECKING:
+    from sunwell.foundation.types.memory import Episode
     from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
     from sunwell.memory.simulacrum.core.dag import ConversationDAG
     from sunwell.memory.simulacrum.core.turn import Learning
-    from sunwell.foundation.types.memory import Episode
 
 
 class PlanningRetriever:
@@ -94,9 +97,7 @@ class PlanningRetriever:
         patterns: list[Learning] = []
 
         for _score, learning in scored:
-            if learning.category == "fact" and len(facts) < limit_per_category:
-                facts.append(learning)
-            elif learning.category == "preference" and len(facts) < limit_per_category:
+            if learning.category == "fact" and len(facts) < limit_per_category or learning.category == "preference" and len(facts) < limit_per_category:
                 facts.append(learning)
             elif learning.category == "constraint" and len(constraints) < limit_per_category:
                 constraints.append(learning)

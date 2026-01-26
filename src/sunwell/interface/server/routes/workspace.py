@@ -10,7 +10,6 @@ from fastapi import APIRouter, HTTPException, Query
 from sunwell.foundation.utils import normalize_path
 from sunwell.interface.server.routes.models import CamelModel
 from sunwell.knowledge.workspace import (
-    DeletionMode,
     ProjectRole,
     Workspace,
     WorkspaceInfo,

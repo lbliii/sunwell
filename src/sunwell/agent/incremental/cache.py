@@ -22,7 +22,6 @@ import json
 import sqlite3
 import threading
 import time
-import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -218,7 +217,10 @@ class ExecutionCache:
 
     def _get_metadata(self, key: str) -> str | None:
         """Get a metadata value."""
-        row = self._conn.execute("SELECT value FROM metadata WHERE key = ?", (key,)).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT value FROM metadata WHERE key = ?", (key,)
+            ).fetchone()
         return row["value"] if row else None
 
     def get(self, artifact_id: str) -> CachedExecution | None:
@@ -230,7 +232,10 @@ class ExecutionCache:
         Returns:
             CachedExecution if found, None otherwise.
         """
-        row = self._conn.execute("SELECT * FROM artifacts WHERE id = ?", (artifact_id,)).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM artifacts WHERE id = ?", (artifact_id,)
+            ).fetchone()
 
         if not row:
             return None
@@ -256,9 +261,10 @@ class ExecutionCache:
         Returns:
             List of matching CachedExecution objects.
         """
-        rows = self._conn.execute(
-            "SELECT * FROM artifacts WHERE input_hash = ?", (input_hash,)
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM artifacts WHERE input_hash = ?", (input_hash,)
+            ).fetchall()
 
         return [
             CachedExecution(
@@ -401,9 +407,10 @@ class ExecutionCache:
         Returns:
             List of artifact IDs that this artifact directly depends on.
         """
-        rows = self._conn.execute(
-            "SELECT to_id FROM provenance WHERE from_id = ?", (artifact_id,)
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT to_id FROM provenance WHERE from_id = ?", (artifact_id,)
+            ).fetchall()
         return [row["to_id"] for row in rows]
 
     def get_direct_dependents(self, artifact_id: str) -> list[str]:
@@ -415,9 +422,10 @@ class ExecutionCache:
         Returns:
             List of artifact IDs that directly depend on this artifact.
         """
-        rows = self._conn.execute(
-            "SELECT from_id FROM provenance WHERE to_id = ?", (artifact_id,)
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT from_id FROM provenance WHERE to_id = ?", (artifact_id,)
+            ).fetchall()
         return [row["from_id"] for row in rows]
 
     def get_upstream(self, artifact_id: str, max_depth: int = 100) -> list[str]:
@@ -432,22 +440,23 @@ class ExecutionCache:
         Returns:
             List of artifact IDs in dependency order (closest first).
         """
-        rows = self._conn.execute(
-            """
-            WITH RECURSIVE upstream(id, depth) AS (
-                SELECT to_id, 1
-                FROM provenance
-                WHERE from_id = ?
-                UNION ALL
-                SELECT p.to_id, u.depth + 1
-                FROM upstream u
-                JOIN provenance p ON p.from_id = u.id
-                WHERE u.depth < ?
-            )
-            SELECT DISTINCT id FROM upstream ORDER BY depth
-            """,
-            (artifact_id, max_depth),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                """
+                WITH RECURSIVE upstream(id, depth) AS (
+                    SELECT to_id, 1
+                    FROM provenance
+                    WHERE from_id = ?
+                    UNION ALL
+                    SELECT p.to_id, u.depth + 1
+                    FROM upstream u
+                    JOIN provenance p ON p.from_id = u.id
+                    WHERE u.depth < ?
+                )
+                SELECT DISTINCT id FROM upstream ORDER BY depth
+                """,
+                (artifact_id, max_depth),
+            ).fetchall()
 
         return [row["id"] for row in rows]
 
@@ -463,22 +472,23 @@ class ExecutionCache:
         Returns:
             List of artifact IDs in dependency order (closest first).
         """
-        rows = self._conn.execute(
-            """
-            WITH RECURSIVE downstream(id, depth) AS (
-                SELECT from_id, 1
-                FROM provenance
-                WHERE to_id = ?
-                UNION ALL
-                SELECT p.from_id, d.depth + 1
-                FROM downstream d
-                JOIN provenance p ON p.to_id = d.id
-                WHERE d.depth < ?
-            )
-            SELECT DISTINCT id FROM downstream ORDER BY depth
-            """,
-            (artifact_id, max_depth),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                """
+                WITH RECURSIVE downstream(id, depth) AS (
+                    SELECT from_id, 1
+                    FROM provenance
+                    WHERE to_id = ?
+                    UNION ALL
+                    SELECT p.from_id, d.depth + 1
+                    FROM downstream d
+                    JOIN provenance p ON p.to_id = d.id
+                    WHERE d.depth < ?
+                )
+                SELECT DISTINCT id FROM downstream ORDER BY depth
+                """,
+                (artifact_id, max_depth),
+            ).fetchall()
 
         return [row["id"] for row in rows]
 
@@ -575,7 +585,10 @@ class ExecutionCache:
         Returns:
             Run details dict, or None if not found.
         """
-        row = self._conn.execute("SELECT * FROM execution_runs WHERE id = ?", (run_id,)).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM execution_runs WHERE id = ?", (run_id,)
+            ).fetchone()
 
         if not row:
             return None
@@ -594,25 +607,29 @@ class ExecutionCache:
         """
         stats: dict[str, Any] = {}
 
-        # Count by status
-        rows = self._conn.execute(
-            "SELECT status, COUNT(*) as count FROM artifacts GROUP BY status"
-        ).fetchall()
-        stats["by_status"] = {row["status"]: row["count"] for row in rows}
+        with self._lock:
+            # Count by status
+            rows = self._conn.execute(
+                "SELECT status, COUNT(*) as count FROM artifacts GROUP BY status"
+            ).fetchall()
+            stats["by_status"] = {row["status"]: row["count"] for row in rows}
 
-        # Total artifacts
-        row = self._conn.execute("SELECT COUNT(*) as total FROM artifacts").fetchone()
-        stats["total_artifacts"] = row["total"] if row else 0
+            # Total artifacts
+            row = self._conn.execute("SELECT COUNT(*) as total FROM artifacts").fetchone()
+            stats["total_artifacts"] = row["total"] if row else 0
 
-        # Total skip count
-        row = self._conn.execute("SELECT SUM(skip_count) as total_skips FROM artifacts").fetchone()
-        stats["total_skips"] = row["total_skips"] or 0
+            # Total skip count
+            row = self._conn.execute(
+                "SELECT SUM(skip_count) as total_skips FROM artifacts"
+            ).fetchone()
+            stats["total_skips"] = row["total_skips"] or 0
 
-        # Average execution time
-        row = self._conn.execute(
-            "SELECT AVG(execution_time_ms) as avg_time FROM artifacts WHERE status = 'completed'"
-        ).fetchone()
-        stats["avg_execution_time_ms"] = row["avg_time"] or 0
+            # Average execution time
+            row = self._conn.execute(
+                "SELECT AVG(execution_time_ms) as avg_time FROM artifacts "
+                "WHERE status = 'completed'"
+            ).fetchone()
+            stats["avg_execution_time_ms"] = row["avg_time"] or 0
 
         # Total execution time saved (skips * avg time)
         if stats["total_skips"] > 0 and stats["avg_execution_time_ms"] > 0:
@@ -652,8 +669,10 @@ class ExecutionCache:
         """Compact the database to reclaim space.
 
         Call after clearing large amounts of data.
+        Note: VACUUM cannot run inside a transaction.
         """
-        self._conn.execute("VACUUM")
+        with self._lock:
+            self._conn.execute("VACUUM")
 
     # =========================================================================
     # Goal Tracking (RFC-076)
@@ -692,10 +711,11 @@ class ExecutionCache:
         Returns:
             List of artifact IDs if found, None otherwise.
         """
-        row = self._conn.execute(
-            "SELECT artifact_ids FROM goal_executions WHERE goal_hash = ?",
-            (goal_hash,),
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT artifact_ids FROM goal_executions WHERE goal_hash = ?",
+                (goal_hash,),
+            ).fetchone()
         return json.loads(row["artifact_ids"]) if row else None
 
     def get_goal_execution(self, goal_hash: str) -> dict[str, Any] | None:
@@ -707,10 +727,11 @@ class ExecutionCache:
         Returns:
             Dict with goal_hash, artifact_ids, executed_at, execution_time_ms.
         """
-        row = self._conn.execute(
-            "SELECT * FROM goal_executions WHERE goal_hash = ?",
-            (goal_hash,),
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM goal_executions WHERE goal_hash = ?",
+                (goal_hash,),
+            ).fetchone()
 
         if not row:
             return None
@@ -728,13 +749,15 @@ class ExecutionCache:
         Returns:
             List of artifact info dicts with id, input_hash, status, executed_at, skip_count.
         """
-        rows = self._conn.execute(
-            """
-            SELECT id, input_hash, spec_hash, status, executed_at, skip_count, execution_time_ms
-            FROM artifacts
-            ORDER BY executed_at DESC
-            """
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                """
+                SELECT id, input_hash, spec_hash, status, executed_at, skip_count,
+                       execution_time_ms
+                FROM artifacts
+                ORDER BY executed_at DESC
+                """
+            ).fetchall()
 
         return [
             {

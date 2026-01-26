@@ -475,14 +475,12 @@ async def create_cascade_executor(
     planner = ArtifactPlanner(model=model)
 
     # RFC-117: Try to resolve project context
-    from sunwell.knowledge.project import ProjectResolutionError, resolve_project
-
     from sunwell.knowledge.project import (
         ProjectResolutionError,
         create_project_from_workspace,
         resolve_project,
     )
-    
+
     try:
         project = resolve_project(project_root=project_root)
     except ProjectResolutionError:

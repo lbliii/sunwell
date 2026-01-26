@@ -16,8 +16,6 @@ from pathlib import Path
 
 from sunwell.knowledge.indexing.signature_extractor import Signature, SignatureExtractor
 from sunwell.knowledge.workspace.types import (
-    IndexTier,
-    ProjectRole,
     Workspace,
     WorkspaceProject,
 )

@@ -7,12 +7,9 @@ from fastapi import APIRouter
 
 from sunwell.interface.server.routes.models import (
     CamelModel,
-    DependencyGraphResponse,
     FileDependenciesResponse,
     ImpactAnalysisResponse,
     LineageByGoalResponse,
-    LineageGraphEdge,
-    LineageGraphNode,
     LineageStatsResponse,
     SyncChangesResponse,
     UntrackedChangesResponse,

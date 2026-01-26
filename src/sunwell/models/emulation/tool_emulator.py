@@ -239,8 +239,9 @@ def parse_tool_calls_from_text(
 
     # CODE DETECTION FALLBACK:
     # If no tool calls found, model might have output code directly.
-    # Auto-construct a write_file call if it looks like code.
-    if not tool_calls and expected_tool == "write_file" and _looks_like_code(text):
+    # Auto-construct a write_file call ONLY if we have a specific target_path.
+    # Don't create generic "generated_code.py" - that's confusing and pollutes projects.
+    if not tool_calls and expected_tool == "write_file" and target_path and _looks_like_code(text):
         code_content = _extract_code_from_markdown(text)
         if code_content:
             tool_calls.append(
@@ -248,7 +249,7 @@ def parse_tool_calls_from_text(
                     id="auto_write_fallback",
                     name="write_file",
                     arguments={
-                        "path": target_path or "generated_code.py",
+                        "path": target_path,
                         "content": code_content,
                     },
                 )

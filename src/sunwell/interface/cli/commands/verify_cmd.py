@@ -82,8 +82,8 @@ async def _verify_file(
     quiet: bool,
 ) -> None:
     """Execute deep verification on a file."""
-    from sunwell.interface.cli.helpers import resolve_model
     from sunwell.foundation.config import get_config
+    from sunwell.interface.cli.helpers import resolve_model
     from sunwell.planning.naaru.artifacts import ArtifactSpec
     from sunwell.quality.verification import create_verifier
 

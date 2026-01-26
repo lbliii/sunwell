@@ -5,7 +5,6 @@ RFC-138: Module Architecture Consolidation
 Provides zero-dependency path operations used across domains.
 """
 
-import os
 import re
 from pathlib import Path
 

@@ -7,10 +7,10 @@ import uuid
 from collections import Counter, deque
 
 from sunwell.features.mirror import MirrorHandler
-from sunwell.planning.naaru.core.bus import MessageType, NaaruRegion
-from sunwell.planning.naaru.core.worker import RegionWorker
 from sunwell.foundation.types.config import NaaruConfig
 from sunwell.foundation.types.model_size import ModelSize
+from sunwell.planning.naaru.core.bus import MessageType, NaaruRegion
+from sunwell.planning.naaru.core.worker import RegionWorker
 
 
 class HarmonicSynthesisWorker(RegionWorker):

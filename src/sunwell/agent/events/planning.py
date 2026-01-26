@@ -17,8 +17,8 @@ def plan_winner_event(
     gates: int,
     technique: str,
     selected_candidate_id: str = "candidate-0",
-    task_list: list["TaskSummary"] | None = None,
-    gate_list: list["GateSummary"] | None = None,
+    task_list: list[TaskSummary] | None = None,
+    gate_list: list[GateSummary] | None = None,
     **kwargs: Any,
 ) -> AgentEvent:
     """Create a plan winner event with optional task details (RFC-090).

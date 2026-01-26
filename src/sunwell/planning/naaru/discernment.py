@@ -56,10 +56,8 @@ import ast
 from dataclasses import dataclass, field
 from enum import Enum
 
-from sunwell.models import OllamaModel
-from sunwell.models import GenerateOptions, Tool
+from sunwell.models import GenerateOptions, OllamaModel, Tool
 from sunwell.planning.reasoning import ClassificationTemplate, FastClassifier
-
 
 # =============================================================================
 # Module-Level Constants (avoid rebuilding each call)
@@ -126,7 +124,7 @@ def check_imports(code: str) -> tuple[bool, str]:
 
     imports: set[str] = set()
     names_used: set[str] = set()
-    
+
     # Single walk to collect both imports and names
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -350,7 +348,7 @@ class Discernment:
         # Count passed/failed
         passed = sum(1 for v in checks_passed_dict.values() if v)
         total = len(checks_passed_dict)
-        
+
         # Convert to frozen tuple for DiscernmentResult
         checks_passed = tuple(checks_passed_dict.items())
 

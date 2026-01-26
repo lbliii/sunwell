@@ -19,7 +19,6 @@ from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID, uuid4
 
-from sunwell.foundation.utils.strings import slugify
 from sunwell.foundation.utils.validation import validate_slug as _validate_slug
 
 ResourceType = Literal["lens", "binding", "session"]

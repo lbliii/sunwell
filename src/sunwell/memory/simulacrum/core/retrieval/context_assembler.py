@@ -6,7 +6,6 @@ from sunwell.memory.simulacrum.hierarchical.chunks import Chunk, ChunkSummary
 
 if TYPE_CHECKING:
     from sunwell.memory.simulacrum.core.dag import ConversationDAG
-    from sunwell.memory.simulacrum.core.turn import Turn
     from sunwell.memory.simulacrum.hierarchical.chunk_manager import ChunkManager
 
 

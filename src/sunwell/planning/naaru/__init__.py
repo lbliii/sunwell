@@ -104,6 +104,12 @@ from sunwell.features.external.integration import (
     StubDetection,
     TaskType,
 )
+
+# NaaruConfig moved to sunwell.types.config
+from sunwell.foundation.types.config import NaaruConfig
+
+# ModelSize moved to sunwell.types.model_size
+from sunwell.foundation.types.model_size import ModelSize
 from sunwell.planning.naaru.analysis import (
     ParallelismAnalysis,
     analyze_parallelism,
@@ -212,6 +218,9 @@ from sunwell.planning.naaru.persistence import (
     save_execution,
 )
 
+# Persona - M'uru identity
+from sunwell.planning.naaru.persona import MURU, NaaruPersona
+
 # RFC-032: Task Planners
 from sunwell.planning.naaru.planners import (
     AgentPlanner,
@@ -222,6 +231,7 @@ from sunwell.planning.naaru.planners import (
     SelfImprovementPlanner,
     TaskPlanner,
 )
+
 # RFC-038: Harmonic Planning - additional exports
 from sunwell.planning.naaru.planners.harmonic import (
     HarmonicPlanner,
@@ -254,7 +264,6 @@ from sunwell.planning.naaru.selection import (
 )
 
 # RFC-110: Session management moved to Agent level
-
 # Shards - Parallel Helpers
 from sunwell.planning.naaru.shards import (
     Shard,
@@ -296,16 +305,6 @@ from sunwell.planning.naaru.workers import (
     ToolRegionWorker,  # RFC-032
     ValidationWorker,
 )
-
-# NaaruConfig moved to sunwell.types.config
-from sunwell.foundation.types.config import NaaruConfig
-
-# ModelSize moved to sunwell.types.model_size
-from sunwell.foundation.types.model_size import ModelSize
-
-# Persona - M'uru identity
-from sunwell.planning.naaru.persona import MURU, NaaruPersona
-
 
 __all__ = [
     # Core Types

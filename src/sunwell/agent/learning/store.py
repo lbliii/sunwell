@@ -6,14 +6,11 @@ import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from sunwell.agent.learning.dead_end import DeadEnd
 from sunwell.agent.learning.learning import Learning
 from sunwell.agent.learning.patterns import ToolPattern
-
-if TYPE_CHECKING:
-    pass
 
 # Regex pattern for loading from disk
 _RE_CLASS_OR_DEF = re.compile(r"(?:class|def)\s+(\w+)")
@@ -369,7 +366,7 @@ class LearningStore:
         # Load existing IDs to avoid duplicates
         existing_ids: set[str] = set()
         if learnings_path.exists():
-            with open(learnings_path) as f:
+            with open(learnings_path, encoding="utf-8") as f:
                 for line in f:
                     if line.strip():
                         try:
@@ -382,7 +379,7 @@ class LearningStore:
         saved = 0
         timestamp = datetime.now().isoformat()
 
-        with open(learnings_path, "a") as f:
+        with open(learnings_path, "a", encoding="utf-8") as f:
             for lrn in self.learnings:
                 if lrn.id not in existing_ids:
                     record = {
@@ -400,7 +397,7 @@ class LearningStore:
         # Also save dead ends
         existing_approaches: set[str] = set()
         if dead_ends_path.exists():
-            with open(dead_ends_path) as f:
+            with open(dead_ends_path, encoding="utf-8") as f:
                 for line in f:
                     if line.strip():
                         try:
@@ -409,7 +406,7 @@ class LearningStore:
                         except json.JSONDecodeError:
                             pass
 
-        with open(dead_ends_path, "a") as f:
+        with open(dead_ends_path, "a", encoding="utf-8") as f:
             for de in self.dead_ends:
                 if de.approach not in existing_approaches:
                     record = {
@@ -445,7 +442,7 @@ class LearningStore:
 
         # Source 1: .sunwell/intelligence/learnings.jsonl (JSONL format)
         if learnings_path.exists():
-            with open(learnings_path) as f:
+            with open(learnings_path, encoding="utf-8") as f:
                 for line in f:
                     if not line.strip():
                         continue
@@ -468,7 +465,7 @@ class LearningStore:
         if naaru_learnings_dir.exists():
             for json_file in naaru_learnings_dir.glob("*.json"):
                 try:
-                    with open(json_file) as f:
+                    with open(json_file, encoding="utf-8") as f:
                         data = json.load(f)
                     if isinstance(data, list):
                         for entry in data:
@@ -504,7 +501,7 @@ class LearningStore:
 
         # Source 3: Dead ends
         if dead_ends_path.exists():
-            with open(dead_ends_path) as f:
+            with open(dead_ends_path, encoding="utf-8") as f:
                 for line in f:
                     if not line.strip():
                         continue

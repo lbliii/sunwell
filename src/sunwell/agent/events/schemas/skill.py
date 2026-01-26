@@ -1,6 +1,6 @@
 """Skill compilation and execution event schemas."""
 
-from typing import Any, TypedDict
+from typing import TypedDict
 
 
 class SkillCompileStartData(TypedDict, total=False):

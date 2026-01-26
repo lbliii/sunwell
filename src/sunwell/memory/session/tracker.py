@@ -219,14 +219,13 @@ class SessionTracker:
 
         summary = self.get_summary()
 
-        with self._lock:
-            with open(path, "w") as f:
-                json.dump(summary.to_dict(), f, indent=2)
+        with self._lock, open(path, "w") as f:
+            json.dump(summary.to_dict(), f, indent=2)
 
         return path
 
     @classmethod
-    def load(cls, path: Path) -> "SessionTracker":
+    def load(cls, path: Path) -> SessionTracker:
         """Load a session from disk.
 
         Args:

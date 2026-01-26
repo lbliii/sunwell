@@ -17,8 +17,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.knowledge.codebase.decisions import Decision, DecisionMemory
     from sunwell.features.team.store import TeamKnowledgeStore
+    from sunwell.knowledge.codebase.decisions import Decision, DecisionMemory
 
 from sunwell.features.team.types import (
     TeamDecision,

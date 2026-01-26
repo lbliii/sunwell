@@ -4,7 +4,7 @@ import os
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from rich.console import Console
+    pass
 
 from sunwell.foundation.threading import is_free_threaded
 

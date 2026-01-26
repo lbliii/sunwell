@@ -90,7 +90,7 @@ class SessionContext:
     lens: Lens | None = None
     """Active lens for expertise injection."""
 
-    options: "RunOptions | None" = None
+    options: RunOptions | None = None
     """Full execution options (RFC-137: includes delegation config)."""
 
     # === WORKSPACE CONTEXT (multi-project architecture) ===
@@ -359,6 +359,64 @@ def _generate_session_id() -> str:
     return uuid.uuid4().hex[:16]
 
 
+def _detect_python_framework(cwd: Path) -> str | None:
+    """Detect Python framework from dependencies, not file names.
+    
+    Checks pyproject.toml and requirements.txt for actual framework imports.
+    """
+    framework_deps = {
+        "django": "django",
+        "flask": "flask",
+        "fastapi": "fastapi",
+        "starlette": "starlette",
+        "tornado": "tornado",
+    }
+
+    # Check pyproject.toml dependencies
+    pyproject = cwd / "pyproject.toml"
+    if pyproject.exists():
+        try:
+            content = pyproject.read_text(errors="ignore").lower()
+            for framework, dep in framework_deps.items():
+                if f'"{dep}"' in content or f"'{dep}'" in content or f"{dep} =" in content:
+                    return framework
+        except OSError:
+            pass
+
+    # Check requirements.txt
+    for req_file in ["requirements.txt", "requirements/base.txt"]:
+        req_path = cwd / req_file
+        if req_path.exists():
+            try:
+                content = req_path.read_text(errors="ignore").lower()
+                for framework, dep in framework_deps.items():
+                    for line in content.splitlines():
+                        line = line.strip()
+                        if line.startswith(dep) and (len(line) == len(dep) or line[len(dep)] in "=<>~["):
+                            return framework
+            except OSError:
+                pass
+
+    # Fallback: Check manage.py for Django
+    if (cwd / "manage.py").exists():
+        return "django"
+
+    # Fallback: Check main.py/app.py for framework imports
+    for entry in ["main.py", "app.py"]:
+        entry_path = cwd / entry
+        if entry_path.exists():
+            try:
+                content = entry_path.read_text(errors="ignore")[:2000]
+                if "from fastapi" in content or "import fastapi" in content:
+                    return "fastapi"
+                if "from flask" in content or "import flask" in content:
+                    return "flask"
+            except OSError:
+                pass
+
+    return None
+
+
 def _detect_project_type(cwd: Path) -> tuple[str, str | None]:
     """Detect project type and framework from directory contents."""
     ptype = "unknown"
@@ -367,18 +425,7 @@ def _detect_project_type(cwd: Path) -> tuple[str, str | None]:
     # Python indicators
     if (cwd / "pyproject.toml").exists() or (cwd / "setup.py").exists():
         ptype = "python"
-        # Framework detection
-        if (cwd / "manage.py").exists():
-            framework = "django"
-        elif any(cwd.rglob("**/flask*")):
-            framework = "flask"
-        elif (cwd / "main.py").exists():
-            try:
-                content = (cwd / "main.py").read_text(errors="ignore")[:2000]
-                if "fastapi" in content.lower():
-                    framework = "fastapi"
-            except OSError:
-                pass
+        framework = _detect_python_framework(cwd)
 
     # JavaScript/TypeScript indicators
     elif (cwd / "package.json").exists():

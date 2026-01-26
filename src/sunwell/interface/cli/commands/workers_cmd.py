@@ -73,7 +73,6 @@ async def _start_workers(
     auto: bool,
 ) -> None:
     """Start parallel execution."""
-    from sunwell.features.backlog.manager import BacklogManager
     from sunwell.agent.parallel import (
         Coordinator,
         GoalDependencyGraph,
@@ -81,6 +80,7 @@ async def _start_workers(
         ResourceGovernor,
         ResourceLimits,
     )
+    from sunwell.features.backlog.manager import BacklogManager
 
     root = Path.cwd()
 

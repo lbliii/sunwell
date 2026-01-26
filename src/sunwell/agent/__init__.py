@@ -52,26 +52,7 @@ Example:
     ... )
 """
 
-from sunwell.agent.utils.budget import AdaptiveBudget, CostEstimate
-from sunwell.agent.utils.checkpoint_manager import CheckpointManager
-
-# RFC-111: Skill composition and planning
-from sunwell.agent.planning.composer import (
-    CapabilityAnalysis,
-    CompositionResult,
-    CompositionType,
-    SkillComposer,
-)
-from sunwell.agent.core import Agent
-from sunwell.agent.utils.ephemeral_lens import create_ephemeral_lens, should_use_delegation
-from sunwell.agent.events.schemas import (
-    EVENT_SCHEMAS,
-    REQUIRED_FIELDS,
-    EventEmitter,
-    ValidatedEventEmitter,
-    create_validated_event,
-    validate_event_data,
-)
+from sunwell.agent.core import Agent, AgentLoop, TaskGraph, run_tool_loop, sanitize_code_content
 from sunwell.agent.events import (
     AgentEvent,
     EventType,
@@ -111,23 +92,40 @@ from sunwell.agent.events import (
     tool_start_event,
     validate_error_event,
 )
+from sunwell.agent.events.schemas import (
+    EVENT_SCHEMAS,
+    REQUIRED_FIELDS,
+    EventEmitter,
+    ValidatedEventEmitter,
+    create_validated_event,
+    validate_event_data,
+)
 from sunwell.agent.execution import (
     determine_specialist_role,
     execute_task_streaming_fallback,
     execute_task_with_tools,
-    execute_with_convergence,
     execute_via_specialist,
+    execute_with_convergence,
     get_context_snapshot,
     select_lens_for_task,
     should_spawn_specialist,
     validate_gate,
 )
 from sunwell.agent.execution.fixer import FixResult, FixStage
-from sunwell.agent.learning.learning import Learning
-from sunwell.agent.learning.extractor import LearningExtractor
-from sunwell.agent.learning.store import LearningStore
 from sunwell.agent.learning.execution import learn_from_execution
+from sunwell.agent.learning.extractor import LearningExtractor
+from sunwell.agent.learning.learning import Learning
+from sunwell.agent.learning.store import LearningStore
+from sunwell.agent.loop import LoopConfig, LoopState
 from sunwell.agent.planning import plan_with_signals
+
+# RFC-111: Skill composition and planning
+from sunwell.agent.planning.composer import (
+    CapabilityAnalysis,
+    CompositionResult,
+    CompositionType,
+    SkillComposer,
+)
 from sunwell.agent.planning.planner import (
     SHORTCUT_SKILL_MAP,
     CapabilityGap,
@@ -139,8 +137,18 @@ from sunwell.agent.recovery.recovery_helpers import (
     execute_with_convergence_recovery,
     resume_from_recovery,
 )
-from sunwell.agent.core import AgentLoop, run_tool_loop
-from sunwell.agent.loop import LoopConfig, LoopState
+from sunwell.agent.signals import (
+    AdaptiveSignals,
+    ErrorSignals,
+    FastSignalChecker,
+    TaskSignals,
+    classify_error,
+    extract_signals,
+)
+from sunwell.agent.utils.budget import AdaptiveBudget, CostEstimate
+from sunwell.agent.utils.checkpoint_manager import CheckpointManager
+from sunwell.agent.utils.ephemeral_lens import create_ephemeral_lens, should_use_delegation
+from sunwell.agent.utils.lens import resolve_lens_for_goal
 from sunwell.agent.utils.metrics import InferenceMetrics, InferenceSample, ModelPerformanceProfile
 from sunwell.agent.utils.renderer import (
     JSONRenderer,
@@ -151,24 +159,14 @@ from sunwell.agent.utils.renderer import (
     create_renderer,
 )
 from sunwell.agent.utils.request import RunOptions
-from sunwell.agent.signals import (
-    AdaptiveSignals,
-    ErrorSignals,
-    FastSignalChecker,
-    TaskSignals,
-    classify_error,
-    extract_signals,
-)
 from sunwell.agent.utils.spawn import (
     SpawnDepthExceeded,
     SpawnRequest,
     SpecialistResult,
     SpecialistState,
 )
-from sunwell.agent.core import TaskGraph, sanitize_code_content
 from sunwell.agent.utils.thinking import ThinkingBlock, ThinkingDetector, ThinkingPhase
 from sunwell.agent.utils.toolchain import LanguageToolchain, detect_toolchain
-from sunwell.agent.utils.lens import resolve_lens_for_goal
 from sunwell.agent.validation import (
     Artifact,
     GateResult,

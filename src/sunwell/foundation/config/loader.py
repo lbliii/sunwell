@@ -247,7 +247,7 @@ def _dict_to_config(data: dict) -> SunwellConfig:
 
     embedding_config = EmbeddingConfig(**data.get("embedding", {}))
     model_config = ModelConfig(**data.get("model", {}))
-    
+
     # Migrate deprecated NaaruConfig fields (RFC-030: Unified Router)
     naaru_data = data.get("naaru", {}).copy()
     # Migrate attunement_model to router if router not set
@@ -255,7 +255,7 @@ def _dict_to_config(data: dict) -> SunwellConfig:
         naaru_data["router"] = naaru_data.pop("attunement_model")
     # Remove deprecated attunement boolean (replaced by router field)
     naaru_data.pop("attunement", None)
-    
+
     naaru_config = NaaruConfig(**naaru_data)
     ollama_config = OllamaConfig(**data.get("ollama", {}))
     lens_config = LensConfig(**data.get("lens", {}))

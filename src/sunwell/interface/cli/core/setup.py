@@ -57,8 +57,8 @@ def setup(
         sunwell setup --provider openai  # Use OpenAI
         sunwell setup --minimal          # Just project, no bindings
     """
-    from sunwell.interface.cli.helpers import build_workspace_context
     from sunwell.foundation.config import get_config
+    from sunwell.interface.cli.helpers import build_workspace_context
 
     project_path = normalize_path(path)
 

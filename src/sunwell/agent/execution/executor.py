@@ -23,9 +23,9 @@ from sunwell.agent.utils.thinking import ThinkingDetector
 from sunwell.agent.validation import Artifact, ValidationStage
 
 if TYPE_CHECKING:
-    from sunwell.agent.validation.gates import ValidationGate
     from sunwell.agent.learning import LearningStore
     from sunwell.agent.utils.metrics import InferenceMetrics
+    from sunwell.agent.validation.gates import ValidationGate
     from sunwell.foundation.core.lens import Lens
     from sunwell.models import ModelProtocol
     from sunwell.planning.naaru.types import Task
@@ -34,11 +34,11 @@ logger = logging.getLogger(__name__)
 
 
 async def execute_task_streaming_fallback(
-    task: "Task",
-    model: "ModelProtocol",
+    task: Task,
+    model: ModelProtocol,
     cwd: Path,
-    learning_store: "LearningStore",
-    inference_metrics: "InferenceMetrics",
+    learning_store: LearningStore,
+    inference_metrics: InferenceMetrics,
     workspace_context: str | None = None,
     token_batch_size: int = 10,
 ) -> AsyncIterator[tuple[AgentEvent, str | None]]:
@@ -111,7 +111,12 @@ Respond directly and helpfully:"""
     token_count = 0
     thinking_detector = ThinkingDetector()
 
-    try:
+    # Check if model supports streaming, fall back to non-streaming if not
+    has_streaming = hasattr(model, "generate_stream") and callable(
+        getattr(model, "generate_stream", None)
+    )
+
+    if has_streaming:
         async for chunk in model.generate_stream(
             prompt,
             options=GenerateOptions(temperature=0.3, max_tokens=4000),
@@ -146,8 +151,8 @@ Respond directly and helpfully:"""
                     ),
                     None,
                 )
-
-    except AttributeError:
+    else:
+        # Fallback for models without streaming support
         result = await model.generate(
             prompt,
             options=GenerateOptions(temperature=0.3, max_tokens=4000),
@@ -181,7 +186,7 @@ Respond directly and helpfully:"""
 
 
 async def validate_gate(
-    gate: "ValidationGate",
+    gate: ValidationGate,
     artifacts: list[Artifact],
     cwd: Path,
 ) -> AsyncIterator[AgentEvent]:
@@ -202,7 +207,7 @@ async def validate_gate(
         yield event
 
 
-def determine_specialist_role(task: "Task") -> str:
+def determine_specialist_role(task: Task) -> str:
     """Determine the appropriate specialist role for a task.
 
     Args:
@@ -234,8 +239,8 @@ def determine_specialist_role(task: "Task") -> str:
 
 
 def should_spawn_specialist(
-    task: "Task",
-    lens: "Lens | None",
+    task: Task,
+    lens: Lens | None,
     specialist_count: int,
     has_naaru: bool,
 ) -> bool:
@@ -284,10 +289,10 @@ def should_spawn_specialist(
 
 
 async def select_lens_for_task(
-    task: "Task",
+    task: Task,
     cwd: Path,
     auto_lens: bool,
-) -> "Lens | None":
+) -> Lens | None:
     """Select the best-fit lens for a specific task (lens rotation).
 
     Different tasks may benefit from different expertise:
@@ -322,26 +327,26 @@ async def select_lens_for_task(
         )
         if resolution.lens and resolution.confidence > 0.7:
             return resolution.lens
-    except Exception:
-        pass  # Fall back to current lens
+    except Exception as e:
+        logger.debug("Lens resolution failed for task %s: %s", task.id, e)
 
     return None
 
 
 async def execute_task_with_tools(
-    task: "Task",
-    model: "ModelProtocol",
+    task: Task,
+    model: ModelProtocol,
     tool_executor: Any,
     cwd: Path,
-    learning_store: "LearningStore",
-    inference_metrics: "InferenceMetrics",
+    learning_store: LearningStore,
+    inference_metrics: InferenceMetrics,
     workspace_context: str | None,
-    lens: "Lens | None",
+    lens: Lens | None,
     memory: Any | None,
     simulacrum: Any | None,
     current_options: Any | None,
-    smart_model: "ModelProtocol | None",
-    delegation_model: "ModelProtocol | None",
+    smart_model: ModelProtocol | None,
+    delegation_model: ModelProtocol | None,
     auto_lens: bool = True,
 ) -> AsyncIterator[tuple[AgentEvent, str | None, Any]]:
     """Execute task via AgentLoop with native tool calling (preferred path).
@@ -372,10 +377,10 @@ async def execute_task_with_tools(
         Tuples of (event, result_text, tracker) where result_text is set on completion
     """
     from sunwell.agent.core import AgentLoop
-    from sunwell.agent.loop import LoopConfig
     from sunwell.agent.core.task_graph import sanitize_code_content
+    from sunwell.agent.events import AgentEvent, EventType
+    from sunwell.agent.loop import LoopConfig
     from sunwell.agent.validation import ValidationStage
-    from sunwell.agent.events import AgentEvent, EventType, lens_selected_event
     from sunwell.tools.tracking import InvocationTracker
 
     # === LENS ROTATION: Select best lens for this specific task ===
@@ -458,8 +463,10 @@ async def execute_task_with_tools(
             simulacrum=simulacrum,
             executor=tool_executor,
         )
-    except Exception:
-        pass  # Mirror is optional enhancement
+    except ImportError:
+        pass  # Mirror feature not installed
+    except Exception as e:
+        logger.debug("Mirror handler initialization failed: %s", e)
 
     # === RESOLVE DELEGATION MODELS (RFC-137) ===
     from sunwell.models import resolve_model
@@ -543,8 +550,6 @@ async def execute_task_with_tools(
     result_text = "\n".join(tool_results) if tool_results else ""
 
     # SELF-CORRECTION: Verify expected outcomes based on task type
-    import logging
-    logger = logging.getLogger(__name__)
 
     if task.target_path:
         expected_path = cwd / task.target_path
@@ -631,12 +636,24 @@ async def execute_task_with_tools(
         ttft_ms=None,
     )
 
-    yield (None, result_text, tracker)
+    # Final yield with task completion event (not None)
+    yield (
+        AgentEvent(
+            type=EventType.TASK_COMPLETE,
+            data={
+                "task_id": task.id,
+                "duration_s": duration,
+                "invocation_summary": tracker.summary(),
+            },
+        ),
+        result_text,
+        tracker,
+    )
 
 
 async def execute_with_convergence(
     task_graph: Any,
-    model: "ModelProtocol",
+    model: ModelProtocol,
     cwd: Path,
     naaru: Any,
     options: Any,

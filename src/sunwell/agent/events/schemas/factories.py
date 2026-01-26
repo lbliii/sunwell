@@ -15,7 +15,6 @@ def validated_task_start_event(
     **kwargs: Any,
 ) -> Any:  # Returns AgentEvent, but avoiding circular import
     """Create a validated task_start event."""
-    from sunwell.agent.events import AgentEvent
 
     data: TaskStartData = {
         "task_id": task_id,

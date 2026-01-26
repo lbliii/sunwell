@@ -767,7 +767,7 @@ class AgentEvent:
         return result
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "AgentEvent":
+    def from_dict(cls, data: dict[str, Any]) -> AgentEvent:
         """Create from dict."""
         ui_hints = None
         if "ui_hints" in data:
@@ -787,7 +787,7 @@ class AgentEvent:
             ui_hints=ui_hints,
         )
 
-    def with_ui_hints(self, hints: EventUIHints) -> "AgentEvent":
+    def with_ui_hints(self, hints: EventUIHints) -> AgentEvent:
         """Return a new event with the given UI hints."""
         return AgentEvent(
             type=self.type,

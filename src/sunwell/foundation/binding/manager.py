@@ -183,7 +183,7 @@ class Binding:
             # Convert old lens_path to URI if it's a slug
             if "/" not in lens_path and "\\" not in lens_path:
                 lens_uri = f"sunwell:lens/user/{lens_path}"
-        
+
         return cls(
             name=data["name"],
             lens_path="",  # Deprecated, kept empty for backwards compatibility

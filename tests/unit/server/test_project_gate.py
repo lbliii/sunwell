@@ -57,7 +57,7 @@ class TestValidateProjectPath:
         project_dir.mkdir()
 
         with patch(
-            "sunwell.project.validation.validate_workspace",
+            "sunwell.interface.server.routes.project.gate.validate_workspace",
             side_effect=ProjectValidationError(
                 "Cannot use Sunwell's own repository as workspace"
             ),
@@ -82,7 +82,7 @@ class TestListProjects:
         registry_file.write_text('{"projects": {}, "default_project": null}')
 
         with patch(
-            "sunwell.project.registry._get_registry_path", return_value=registry_file
+            "sunwell.knowledge.project.registry._get_registry_path", return_value=registry_file
         ):
             result = await list_projects()
 
@@ -114,7 +114,7 @@ class TestListProjects:
         registry_file.write_text(json.dumps(registry_data))
 
         with patch(
-            "sunwell.project.registry._get_registry_path", return_value=registry_file
+            "sunwell.knowledge.project.registry._get_registry_path", return_value=registry_file
         ):
             result = await list_projects()
 
@@ -173,11 +173,11 @@ class TestCreateProject:
 
         with (
             patch(
-                "sunwell.workspace.resolver.default_workspace_root",
+                "sunwell.knowledge.workspace.resolver.default_workspace_root",
                 return_value=projects_dir,
             ),
             patch(
-                "sunwell.project.registry._get_registry_path",
+                "sunwell.knowledge.project.registry._get_registry_path",
                 return_value=registry_file,
             ),
         ):
@@ -208,11 +208,11 @@ class TestGetDefaultProject:
         registry_file.write_text('{"projects": {}, "default_project": null}')
 
         with patch(
-            "sunwell.project.registry._get_registry_path", return_value=registry_file
+            "sunwell.knowledge.project.registry._get_registry_path", return_value=registry_file
         ):
             result = await get_default_project()
 
-            assert result["project"] is None
+            assert result.project is None
 
     @pytest.mark.asyncio
     async def test_get_default_valid_project(self, tmp_path: Path) -> None:
@@ -236,12 +236,12 @@ class TestGetDefaultProject:
         registry_file.write_text(json.dumps(registry_data))
 
         with patch(
-            "sunwell.project.registry._get_registry_path", return_value=registry_file
+            "sunwell.knowledge.project.registry._get_registry_path", return_value=registry_file
         ):
             result = await get_default_project()
 
-            assert result["project"] is not None
-            assert result["project"]["id"] == "default-project"
+            assert result.project is not None
+            assert result.project.id == "default-project"
 
 
 class TestSetDefaultProject:
@@ -254,14 +254,14 @@ class TestSetDefaultProject:
         registry_file.write_text('{"projects": {}, "default_project": null}')
 
         with patch(
-            "sunwell.project.registry._get_registry_path", return_value=registry_file
+            "sunwell.knowledge.project.registry._get_registry_path", return_value=registry_file
         ):
             request = SetDefaultRequest(project_id="not-exist")
 
             result = await set_default_project(request)
 
-            assert result["error"] == "not_found"
-            assert "not found" in result["message"].lower()
+            assert result.success is False
+            assert "not found" in (result.message or "").lower()
 
     @pytest.mark.asyncio
     async def test_set_default_success(self, tmp_path: Path) -> None:
@@ -284,14 +284,14 @@ class TestSetDefaultProject:
         registry_file.write_text(json.dumps(registry_data))
 
         with patch(
-            "sunwell.project.registry._get_registry_path", return_value=registry_file
+            "sunwell.knowledge.project.registry._get_registry_path", return_value=registry_file
         ):
             request = SetDefaultRequest(project_id="my-project")
 
             result = await set_default_project(request)
 
-            assert result["success"] is True
-            assert result["default_project"] == "my-project"
+            assert result.success is True
+            assert result.message == "my-project"
 
             # Verify registry was updated
             registry = json.loads(registry_file.read_text())

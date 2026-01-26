@@ -15,7 +15,7 @@ Example:
 """
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -146,7 +146,7 @@ class MilestoneTracker:
     4. Record milestone completion history
     """
 
-    backlog_manager: "BacklogManager"
+    backlog_manager: BacklogManager
     """BacklogManager for goal access."""
 
     learning_store: LearningStore | None = None
@@ -213,7 +213,7 @@ class MilestoneTracker:
         self,
         milestone_id: str,
         learnings: list[MilestoneLearning] | None = None,
-    ) -> "Goal | None":
+    ) -> Goal | None:
         """Mark milestone complete and advance to next.
 
         Args:

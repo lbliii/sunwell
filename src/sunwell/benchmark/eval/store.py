@@ -20,7 +20,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
-from sunwell.foundation.utils import safe_json_loads
 from sunwell.benchmark.eval.types import (
     EvaluationDetails,
     EvaluationRun,
@@ -28,6 +27,7 @@ from sunwell.benchmark.eval.types import (
     SingleShotResult,
     SunwellResult,
 )
+from sunwell.foundation.utils import safe_json_loads
 
 
 @dataclass(frozen=True, slots=True)

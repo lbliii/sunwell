@@ -237,8 +237,8 @@ class WorkerProcess:
         """
         # Import here to avoid circular imports and allow worker to run in subprocess
         from sunwell.agent import Agent
-        from sunwell.agent.utils.request import RunOptions
         from sunwell.agent.context.session import SessionContext
+        from sunwell.agent.utils.request import RunOptions
         from sunwell.memory import PersistentMemory
         from sunwell.models import OllamaModel
 

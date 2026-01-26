@@ -37,8 +37,8 @@ from sunwell.agent.recovery.types import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.agent.validation import Artifact
     from sunwell.agent.convergence.types import ConvergenceIteration
+    from sunwell.agent.validation import Artifact
 
 
 class RecoveryManager:

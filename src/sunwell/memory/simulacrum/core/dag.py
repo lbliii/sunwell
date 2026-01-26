@@ -20,7 +20,13 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from sunwell.memory.simulacrum.core.turn import Learning, TemplateData, TemplateVariable, Turn, TurnType
+from sunwell.memory.simulacrum.core.turn import (
+    Learning,
+    TemplateData,
+    TemplateVariable,
+    Turn,
+    TurnType,
+)
 
 
 @dataclass(slots=True)

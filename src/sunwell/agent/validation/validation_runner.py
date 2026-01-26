@@ -19,7 +19,7 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import AsyncIterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -30,12 +30,12 @@ from sunwell.agent.events import (
     gate_step_event,
     validate_error_event,
 )
-from sunwell.agent.validation.gates import GateResult, GateStepResult, GateType, ValidationGate
 from sunwell.agent.utils.toolchain import (
     LanguageToolchain,
     StaticAnalysisCascade,
     detect_toolchain,
 )
+from sunwell.agent.validation.gates import GateResult, GateStepResult, GateType, ValidationGate
 
 if TYPE_CHECKING:
     from sunwell.models import ModelProtocol

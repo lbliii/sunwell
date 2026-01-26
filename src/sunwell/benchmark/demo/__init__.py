@@ -11,8 +11,18 @@ Example:
     >>> presenter.present(comparison)
 """
 
-from sunwell.benchmark.demo.executor import ComponentBreakdown, DemoComparison, DemoExecutor, DemoResult
-from sunwell.benchmark.demo.files import DemoFiles, cleanup_old_demos, load_demo_code, save_demo_code
+from sunwell.benchmark.demo.executor import (
+    ComponentBreakdown,
+    DemoComparison,
+    DemoExecutor,
+    DemoResult,
+)
+from sunwell.benchmark.demo.files import (
+    DemoFiles,
+    cleanup_old_demos,
+    load_demo_code,
+    save_demo_code,
+)
 from sunwell.benchmark.demo.history import (
     DemoHistoryEntry,
     get_history_summary,

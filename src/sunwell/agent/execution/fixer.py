@@ -14,12 +14,11 @@ Fix strategies:
 """
 
 
+import re
 from collections.abc import AsyncIterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-
-import re
 
 from sunwell.agent.events import (
     AgentEvent,
@@ -252,7 +251,7 @@ class FixStage:
                 msg = f"Fixed {fixed_count} errors but {remaining} remain unfixable"
             else:
                 msg = f"{remaining} error{'s' if remaining > 1 else ''} could not be auto-fixed"
-            
+
             yield AgentEvent(
                 EventType.ESCALATE,
                 {
@@ -301,10 +300,10 @@ class FixStage:
         )
 
         if result.text:
-            # Update artifact content
-            artifact.content = result.text.strip()
-            # Write to file
-            artifact.path.write_text(artifact.content)
+            # Write fixed content directly to file
+            # (Artifact is frozen, so we write to disk instead of mutating)
+            fixed_content = result.text.strip()
+            artifact.path.write_text(fixed_content)
             return True
 
         return False
@@ -357,10 +356,10 @@ class FixStage:
             # Replace the region in the original content
             fixed_region = result.text.strip()
 
-            # Reconstruct file
+            # Reconstruct file and write directly
+            # (Artifact is frozen, so we write to disk instead of mutating)
             new_lines = lines[:start] + fixed_region.split("\n") + lines[end:]
-            artifact.content = "\n".join(new_lines)
-            artifact.path.write_text(artifact.content)
+            artifact.path.write_text("\n".join(new_lines))
             return True
 
         return False
@@ -374,49 +373,11 @@ class FixStage:
         """Use Vortex pipeline for multiple fix candidates.
 
         For runtime errors where we need to explore solutions.
+        Currently falls back to compound eye approach.
         """
-        # VortexPipeline doesn't exist - use compound eye fallback
-        # TODO: Implement VortexPipeline or use Vortex class directly
+        # VortexPipeline not yet implemented - fall back to compound eye
+        # TODO: Implement VortexPipeline for multi-candidate exploration
         return await self._compound_eye_fix(error, artifact, signals)
-
-        # Find error region
-        lines = artifact.content.split("\n")
-        error_line = error.line or 1
-        start = max(0, error_line - 10)
-        end = min(len(lines), error_line + 10)
-        code_region = "\n".join(lines[start:end])
-
-        # Create fix task for vortex
-        task = f"""Fix this runtime error:
-
-ERROR: {error.message}
-FILE: {error.file}
-LINE: {error_line}
-
-CODE REGION:
-```python
-{code_region}
-```
-
-Likely cause: {signals.likely_cause}
-
-Provide the corrected code region."""
-
-        # Run vortex pipeline
-        pipeline = VortexPipeline(model=self.model)
-        result = await pipeline.solve(task)
-
-        if result.synthesis:
-            # Extract code from synthesis
-            fixed_code = self._extract_code(result.synthesis)
-            if fixed_code:
-                # Replace region
-                new_lines = lines[:start] + fixed_code.split("\n") + lines[end:]
-                artifact.content = "\n".join(new_lines)
-                artifact.path.write_text(artifact.content)
-                return True
-
-        return False
 
     def _extract_code(self, text: str) -> str | None:
         """Extract code from LLM response."""
@@ -571,5 +532,6 @@ Output ONLY the fixed code (no explanation, no markdown fences):"""
         )
 
         if result.text:
-            artifact.content = result.text.strip()
-            artifact.path.write_text(artifact.content)
+            # Write fixed content directly to file
+            # (Artifact is frozen, so we write to disk instead of mutating)
+            artifact.path.write_text(result.text.strip())

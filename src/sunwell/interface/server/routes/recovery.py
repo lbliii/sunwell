@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
-from typing import Any
 
 from sunwell.interface.server.routes.models import CamelModel
 
@@ -232,12 +231,12 @@ async def auto_fix_recovery(
 async def _run_auto_fix(state: Any, hint: str | None) -> None:
     """Background task to run auto-fix (RFC-MEMORY)."""
     from sunwell.agent import AdaptiveBudget, Agent, RunOptions
-    from sunwell.interface.cli.helpers import resolve_model
     from sunwell.agent.context.session import SessionContext
-    from sunwell.memory import PersistentMemory
     from sunwell.agent.recovery import RecoveryManager, build_healing_context
-    from sunwell.tools.execution import ToolExecutor
+    from sunwell.interface.cli.helpers import resolve_model
+    from sunwell.memory import PersistentMemory
     from sunwell.tools.core.types import ToolPolicy, ToolTrust
+    from sunwell.tools.execution import ToolExecutor
 
     cwd = Path.cwd()
     healing_context = build_healing_context(state, hint)
@@ -257,7 +256,7 @@ async def _run_auto_fix(state: Any, hint: str | None) -> None:
         create_project_from_workspace,
         resolve_project,
     )
-    
+
     try:
         project = resolve_project(cwd=cwd)
     except ProjectResolutionError:

@@ -1,30 +1,16 @@
-"""Shared helper functions for CLI commands."""
+"""Workspace context building for CLI commands.
 
+RFC-126: Build workspace context for agent orientation.
+"""
 
 import json
-import os
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-from rich.console import Console
-from rich.table import Table
-
-from sunwell.foundation.threading import is_free_threaded
-
-if TYPE_CHECKING:
-    from sunwell.models import ModelProtocol
-
-console = Console()
-# RFC-053: Separate stderr console for warnings (keeps stdout clean for NDJSON)
-stderr_console = Console(stderr=True)
 
 
-# =============================================================================
-# Workspace Context Building (RFC-126)
-# =============================================================================
-
-
-def build_workspace_context(cwd: Path | None = None, use_cache: bool = True) -> dict[str, str | list[tuple[str, str]] | list[str]]:
+def build_workspace_context(
+    cwd: Path | None = None,
+    use_cache: bool = True,
+) -> dict[str, str | list[tuple[str, str]] | list[str]]:
     """Build workspace context dict for agent orientation.
 
     Returns a dict with:
@@ -87,7 +73,9 @@ def build_workspace_context(cwd: Path | None = None, use_cache: bool = True) -> 
     return context
 
 
-def format_workspace_context(ctx: dict[str, str | list[tuple[str, str]] | list[str]]) -> str:
+def format_workspace_context(
+    ctx: dict[str, str | list[tuple[str, str]] | list[str]],
+) -> str:
     """Format context dict into markdown for system prompt / agent context."""
     lines = [
         "## Workspace Context",
@@ -137,6 +125,67 @@ def format_workspace_context(ctx: dict[str, str | list[tuple[str, str]] | list[s
     return "\n".join(lines)
 
 
+def _detect_python_framework(cwd: Path) -> str | None:
+    """Detect Python framework from dependencies, not file names.
+    
+    Checks pyproject.toml and requirements.txt for actual framework imports.
+    """
+    framework_deps = {
+        "django": "django",
+        "flask": "flask",
+        "fastapi": "fastapi",
+        "starlette": "starlette",
+        "tornado": "tornado",
+        "bottle": "bottle",
+        "pyramid": "pyramid",
+    }
+
+    # Check pyproject.toml dependencies
+    pyproject = cwd / "pyproject.toml"
+    if pyproject.exists():
+        try:
+            content = pyproject.read_text(errors="ignore").lower()
+            for framework, dep in framework_deps.items():
+                # Look for dependency declarations like: flask = "..." or "flask"
+                if f'"{dep}"' in content or f"'{dep}'" in content or f"{dep} =" in content:
+                    return framework
+        except OSError:
+            pass
+
+    # Check requirements.txt
+    for req_file in ["requirements.txt", "requirements/base.txt", "requirements/main.txt"]:
+        req_path = cwd / req_file
+        if req_path.exists():
+            try:
+                content = req_path.read_text(errors="ignore").lower()
+                for framework, dep in framework_deps.items():
+                    # Match lines starting with the dep name (handles flask==1.0, flask>=2.0, etc.)
+                    for line in content.splitlines():
+                        line = line.strip()
+                        if line.startswith(dep) and (len(line) == len(dep) or line[len(dep)] in "=<>~["):
+                            return framework
+            except OSError:
+                pass
+
+    # Fallback: Check manage.py for Django
+    if (cwd / "manage.py").exists():
+        return "django"
+
+    # Fallback: Check main.py for FastAPI import
+    main_py = cwd / "main.py"
+    if main_py.exists():
+        try:
+            content = main_py.read_text(errors="ignore")[:2000]
+            if "from fastapi" in content or "import fastapi" in content:
+                return "fastapi"
+            if "from flask" in content or "import flask" in content:
+                return "flask"
+        except OSError:
+            pass
+
+    return None
+
+
 def _detect_project_type(cwd: Path) -> tuple[str, str | None]:
     """Detect project type and framework from directory contents."""
     ptype = "unknown"
@@ -145,18 +194,8 @@ def _detect_project_type(cwd: Path) -> tuple[str, str | None]:
     # Python indicators
     if (cwd / "pyproject.toml").exists() or (cwd / "setup.py").exists():
         ptype = "python"
-        # Framework detection
-        if (cwd / "manage.py").exists():
-            framework = "django"
-        elif any(cwd.rglob("**/flask*")):
-            framework = "flask"
-        elif (cwd / "main.py").exists():
-            try:
-                content = (cwd / "main.py").read_text(errors="ignore")[:2000]
-                if "fastapi" in content.lower():
-                    framework = "fastapi"
-            except OSError:
-                pass
+        # Framework detection - check dependencies, not file names
+        framework = _detect_python_framework(cwd)
 
     # JavaScript/TypeScript indicators
     elif (cwd / "package.json").exists():
@@ -260,8 +299,18 @@ def _build_directory_tree(cwd: Path, max_depth: int = 3, max_items: int = 50) ->
 
     # Directories to skip
     skip_dirs = {
-        ".git", ".sunwell", "__pycache__", "node_modules", ".venv", "venv",
-        "dist", "build", ".next", ".svelte-kit", "target", ".pytest_cache",
+        ".git",
+        ".sunwell",
+        "__pycache__",
+        "node_modules",
+        ".venv",
+        "venv",
+        "dist",
+        "build",
+        ".next",
+        ".svelte-kit",
+        "target",
+        ".pytest_cache",
     }
 
     def walk(path: Path, prefix: str, depth: int) -> None:
@@ -301,179 +350,3 @@ def _build_directory_tree(cwd: Path, max_depth: int = 3, max_items: int = 50) ->
     walk(cwd, "", 1)
 
     return "\n".join(lines)
-
-
-def check_free_threading(quiet: bool = False) -> bool:
-    """Check if running on free-threaded Python and warn if not.
-
-    Returns True if free-threaded, False otherwise.
-    Warnings are printed to stderr to keep stdout clean for --json mode.
-    """
-    if is_free_threaded():
-        return True
-
-    if not quiet and os.environ.get("SUNWELL_NO_GIL_WARNING") != "1":
-        # RFC-053: Print to stderr so --json mode isn't corrupted
-        stderr_console.print(
-            "[yellow]⚠️  Running on standard Python (GIL enabled)[/yellow]"
-        )
-        stderr_console.print(
-            "[dim]   For optimal performance, use Python 3.14t (free-threaded):[/dim]"
-        )
-        stderr_console.print(
-            "[dim]   /usr/local/bin/python3.14t -m sunwell chat[/dim]"
-        )
-        stderr_console.print(
-            "[dim]   Set SUNWELL_NO_GIL_WARNING=1 to suppress this message.[/dim]"
-        )
-        stderr_console.print()
-
-    return False
-
-
-def format_args(args: dict[str, str | int | float | bool | None]) -> str:
-    """Format tool call arguments for display."""
-    parts = []
-    for k, v in args.items():
-        if isinstance(v, str) and len(v) > 50:
-            v = v[:47] + "..."
-        parts.append(f"{k}={repr(v)}")
-    return ", ".join(parts)
-
-
-def load_dotenv() -> None:
-    """Load .env file if it exists and is readable."""
-    env_file = Path.cwd() / ".env"
-    if env_file.exists():
-        try:
-            with open(env_file) as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith("#") and "=" in line:
-                        key, _, value = line.partition("=")
-                        # Remove quotes if present
-                        value = value.strip().strip("'\"")
-                        os.environ.setdefault(key.strip(), value)
-        except PermissionError:
-            # Can't read .env (sandboxed environment, etc.) - continue without it
-            pass
-        except OSError:
-            # Other file access issues - continue without it
-            pass
-
-
-def create_model(provider: str, model_name: str) -> "ModelProtocol":
-    """Create model instance based on provider."""
-    if provider == "mock":
-        from sunwell.models import MockModel
-        return MockModel()
-
-    elif provider == "anthropic":
-        from sunwell.models import AnthropicModel
-        return AnthropicModel(
-            model=model_name,
-            api_key=os.environ.get("ANTHROPIC_API_KEY"),
-        )
-
-    elif provider == "openai":
-        from sunwell.models import OpenAIModel
-        return OpenAIModel(
-            model=model_name,
-            api_key=os.environ.get("OPENAI_API_KEY"),
-        )
-
-    elif provider == "ollama":
-        from sunwell.foundation.config import get_config
-        from sunwell.models import OllamaModel
-
-        cfg = get_config()
-        return OllamaModel(
-            model=model_name,
-            use_native_api=cfg.naaru.use_native_ollama_api,
-        )
-
-    else:
-        console.print(f"[red]Unknown provider:[/red] {provider}")
-        console.print("Available: anthropic, openai, ollama, mock")
-        import sys
-        sys.exit(1)
-
-
-def resolve_model(
-    provider_override: str | None = None,
-    model_override: str | None = None,
-) -> "ModelProtocol":
-    """Resolve model from CLI overrides or config defaults.
-
-    Priority:
-    1. CLI overrides (--provider, --model)
-    2. Config defaults (model.default_provider, model.default_model)
-    3. Hardcoded fallbacks (ollama, gemma3:4b)
-
-    Returns:
-        Model instance ready for use.
-    """
-    from sunwell.foundation.config import get_config
-
-    cfg = get_config()
-
-    # Resolve provider
-    provider = provider_override
-    if not provider and cfg and hasattr(cfg, "model"):
-        provider = cfg.model.default_provider
-    if not provider:
-        provider = "ollama"
-
-    # Resolve model name
-    model_name = model_override
-    if not model_name and cfg and hasattr(cfg, "model"):
-        model_name = cfg.model.default_model
-    if not model_name:
-        # Provider-specific defaults
-        model_name = {
-            "openai": "gpt-4o",
-            "anthropic": "claude-sonnet-4-20250514",
-            "ollama": "gemma3:4b",
-            "mock": "mock",
-        }.get(provider, "gemma3:4b")
-
-    return create_model(provider, model_name)
-
-
-def display_execution_stats(result) -> None:
-    """Display execution statistics."""
-    table = Table(title="Execution Stats")
-    table.add_column("Metric", style="cyan")
-    table.add_column("Value", style="green")
-
-    table.add_row("Tier", result.tier.name)
-    table.add_row("Confidence", f"{result.confidence.score:.0%} {result.confidence.level}")
-    table.add_row("Retrieved Heuristics", str(len(result.retrieved_components)))
-    table.add_row("Retrieved Code", str(len(result.retrieved_code)))
-    table.add_row("Validations", str(len(result.validation_results)))
-    table.add_row("Refinements", str(result.refinement_count))
-
-    if result.token_usage:
-        table.add_row("Tokens (prompt)", str(result.token_usage.prompt_tokens))
-        table.add_row("Tokens (completion)", str(result.token_usage.completion_tokens))
-
-    console.print(table)
-
-    # Show retrieved code if any
-    if result.retrieved_code:
-        console.print("\n[cyan]Code Context Used:[/cyan]")
-        for ref in result.retrieved_code:
-            console.print(f"  [blue]• {ref}[/blue]")
-
-    # Show validation results
-    if result.validation_results:
-        console.print("\n[bold]Validation Results:[/bold]")
-        for v in result.validation_results:
-            console.print(f"  {v.to_display()}")
-
-    # Show persona results
-    if result.persona_results:
-        console.print("\n[bold]Persona Results:[/bold]")
-        for p in result.persona_results:
-            status = "✅" if p.approved else "⚠️"
-            console.print(f"  {status} {p.persona_name}")

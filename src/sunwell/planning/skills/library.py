@@ -23,12 +23,12 @@ Skills are stored in .sunwell/skills/ with this structure:
 """
 
 import re
-import json
-import yaml
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
+
+import yaml
 
 from sunwell.planning.skills.types import (
     Skill,

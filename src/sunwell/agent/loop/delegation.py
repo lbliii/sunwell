@@ -11,10 +11,7 @@ from sunwell.agent.events import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.agent.loop.config import LoopConfig
-    from sunwell.foundation.core.lens import Lens
-    from sunwell.models import ModelProtocol, Tool
-    from sunwell.tools.execution import ToolExecutor
+    from sunwell.models import Tool
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +38,8 @@ async def run_with_delegation(
     Yields:
         AgentEvent for progress tracking
     """
-    from sunwell.agent.utils.ephemeral_lens import create_ephemeral_lens
     from sunwell.agent.loop.routing import estimate_output_tokens
+    from sunwell.agent.utils.ephemeral_lens import create_ephemeral_lens
 
     # Must have both smart and delegation models
     smart_model = loop_instance.smart_model
@@ -76,6 +73,10 @@ async def run_with_delegation(
         smart_model_id,
         delegation_model_id,
     )
+
+    # Save original state for restoration
+    original_model = loop_instance.model
+    original_lens = loop_instance.lens
 
     # Create ephemeral lens using smart model
     context_summary = context[:2000] if context else ""
@@ -114,6 +115,9 @@ async def run_with_delegation(
     try:
         # Set flag to prevent recursion
         loop_instance._in_delegation = True
+
+        # Swap to delegation model for execution
+        loop_instance.model = delegation_model
 
         # Run the loop with delegation model
         async for event in loop_instance.run(

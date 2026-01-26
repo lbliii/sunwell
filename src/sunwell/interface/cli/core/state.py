@@ -39,7 +39,11 @@ def get_simulacrum_manager():
             return _simulacrum_manager
         from sunwell.foundation.config import get_config
         from sunwell.knowledge.embedding import create_embedder
-        from sunwell.memory.simulacrum.manager import LifecyclePolicy, SimulacrumManager, SpawnPolicy
+        from sunwell.memory.simulacrum.manager import (
+            LifecyclePolicy,
+            SimulacrumManager,
+            SpawnPolicy,
+        )
 
         config = get_config()
 

@@ -22,9 +22,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-from sunwell.quality.security.analyzer import PermissionScope
 from sunwell.planning.skills.sandbox import ScriptSandbox
 from sunwell.planning.skills.types import TrustLevel
+from sunwell.quality.security.analyzer import PermissionScope
 
 if TYPE_CHECKING:
     from sunwell.planning.skills.types import Skill, SkillOutput

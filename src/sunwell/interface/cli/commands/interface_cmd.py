@@ -66,8 +66,8 @@ async def _process(
     import contextlib
 
     from sunwell.interface.cli.helpers import resolve_model
-    from sunwell.interface.generative.pipeline import IntentPipeline
     from sunwell.interface.generative.executor import ActionExecutor
+    from sunwell.interface.generative.pipeline import IntentPipeline
     from sunwell.interface.generative.router import InteractionRouter
     from sunwell.interface.generative.views import ViewRenderer
     from sunwell.models.providers.registry import ProviderRegistry
@@ -99,19 +99,19 @@ async def _process(
     if providers.lists:
         with contextlib.suppress(Exception):
             lists = await providers.lists.get_lists()
-    
+
     event_count = 0
     if providers.calendar:
         with contextlib.suppress(Exception):
             events = await providers.calendar.get_upcoming(days=7)
             event_count = len(events)
-    
+
     notes_count = 0
     if providers.notes:
         with contextlib.suppress(Exception):
             recent_notes = await providers.notes.get_recent(limit=10)
             notes_count = len(recent_notes)
-    
+
     context = {
         "lists": lists,
         "event_count": event_count,

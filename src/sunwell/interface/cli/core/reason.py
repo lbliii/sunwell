@@ -95,8 +95,8 @@ async def _decide(
     fast: bool = False,
 ) -> None:
     """Execute the decision."""
-    from sunwell.interface.cli.helpers import resolve_model
     from sunwell.foundation.config import get_config
+    from sunwell.interface.cli.helpers import resolve_model
     from sunwell.planning.reasoning import DecisionType, Reasoner
 
     # Validate decision type

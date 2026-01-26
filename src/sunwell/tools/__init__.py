@@ -25,7 +25,13 @@ RFC-027 additions:
 
 # Core types
 from sunwell.tools.core.constants import TRUST_LEVEL_TOOLS
-from sunwell.tools.core.types import ToolAuditEntry, ToolPolicy, ToolRateLimits, ToolResult, ToolTrust
+from sunwell.tools.core.types import (
+    ToolAuditEntry,
+    ToolPolicy,
+    ToolRateLimits,
+    ToolResult,
+    ToolTrust,
+)
 
 # Tool definitions
 from sunwell.tools.definitions import (
@@ -37,6 +43,15 @@ from sunwell.tools.definitions import (
     GIT_TOOLS,
     get_all_tools,
     get_tools_for_trust_level,
+)
+
+# Errors
+from sunwell.tools.errors import (
+    ToolError,
+    ToolErrorCode,
+    format_error_for_model,
+    get_retry_strategy,
+    should_retry,
 )
 
 # Execution
@@ -59,15 +74,6 @@ from sunwell.tools.providers import (
 
 # Sunwell handlers
 from sunwell.tools.sunwell import SunwellToolHandlers
-
-# Errors
-from sunwell.tools.errors import (
-    ToolError,
-    ToolErrorCode,
-    format_error_for_model,
-    get_retry_strategy,
-    should_retry,
-)
 
 __all__ = [
     # Trust levels

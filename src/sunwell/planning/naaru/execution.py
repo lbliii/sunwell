@@ -342,7 +342,6 @@ Code only, no explanations:"""
 
     async def _validate_generated_files(self, task: Any, file_paths: list[str]) -> None:
         """Validate generated files using judge model."""
-        from sunwell.planning.naaru.types import TaskStatus
 
         if not self._judge_model or not file_paths:
             return

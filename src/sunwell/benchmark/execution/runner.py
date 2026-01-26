@@ -520,8 +520,8 @@ Please fix these issues and provide an improved response."""
         Returns:
             Tuple of (ConditionOutput, SelfDirectedMetrics)
         """
-        from sunwell.knowledge.embedding import create_embedder
         from sunwell.agent.runtime.retriever import ExpertiseRetriever
+        from sunwell.knowledge.embedding import create_embedder
         from sunwell.tools.definitions import EXPERTISE_TOOLS
         from sunwell.tools.providers.expertise import ExpertiseToolHandler
 

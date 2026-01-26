@@ -17,8 +17,25 @@ from sunwell.interface.server.routes.project.analysis import router as analysis_
 from sunwell.interface.server.routes.project.core import router as core_router
 from sunwell.interface.server.routes.project.current import router as current_router
 from sunwell.interface.server.routes.project.extended import router as extended_router
-from sunwell.interface.server.routes.project.gate import router as gate_router
+from sunwell.interface.server.routes.project.gate import (
+    create_project,
+    get_default_project,
+    list_projects,
+    set_default_project,
+    validate_project_path,
+)
+from sunwell.interface.server.routes.project.gate import (
+    router as gate_router,
+)
 from sunwell.interface.server.routes.project.lifecycle import router as lifecycle_router
+from sunwell.interface.server.routes.project.models import (
+    CreateProjectRequest,
+    CreateProjectResponse,
+    ProjectInfo,
+    ProjectPathRequest,
+    SetDefaultRequest,
+    ValidationResult,
+)
 from sunwell.interface.server.routes.project.run import router as run_router
 from sunwell.interface.server.routes.project.slug import router as slug_router
 
@@ -34,3 +51,29 @@ router.include_router(extended_router)
 router.include_router(current_router)
 router.include_router(lifecycle_router)
 router.include_router(slug_router)
+
+__all__ = [
+    # Routers
+    "router",
+    "gate_router",
+    "core_router",
+    "analysis_router",
+    "run_router",
+    "extended_router",
+    "current_router",
+    "lifecycle_router",
+    "slug_router",
+    # Gate functions
+    "create_project",
+    "get_default_project",
+    "list_projects",
+    "set_default_project",
+    "validate_project_path",
+    # Models
+    "CreateProjectRequest",
+    "CreateProjectResponse",
+    "ProjectInfo",
+    "ProjectPathRequest",
+    "SetDefaultRequest",
+    "ValidationResult",
+]

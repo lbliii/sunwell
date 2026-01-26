@@ -450,7 +450,7 @@ def delete_cmd(project_id: str, confirm_full_delete: bool, delete_runs: bool, fo
     # Check for nested workspaces
     nested = has_nested_workspaces(proj.root, registry.projects)
     if nested:
-        console.print(f"[red]Error:[/red] Project contains nested workspaces/projects:")
+        console.print("[red]Error:[/red] Project contains nested workspaces/projects:")
         for nested_id in nested:
             console.print(f"  - {nested_id}")
         console.print()

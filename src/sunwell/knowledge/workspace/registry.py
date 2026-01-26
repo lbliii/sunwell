@@ -10,7 +10,6 @@ Each workspace groups related projects together for:
 import asyncio
 import logging
 import tomllib
-from datetime import datetime
 from pathlib import Path
 
 from sunwell.knowledge.workspace.types import (

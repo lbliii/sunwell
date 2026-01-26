@@ -108,7 +108,7 @@ class RoutingDecision:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "RoutingDecision":
+    def from_dict(cls, data: dict[str, Any]) -> RoutingDecision:
         """Create from dictionary."""
         return cls(
             intent=Intent(data.get("intent", "code")),

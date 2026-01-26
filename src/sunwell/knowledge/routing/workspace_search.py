@@ -10,10 +10,9 @@ Provides cross-project search that:
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from pathlib import Path
 
 from sunwell.knowledge.indexing.service import IndexingService
-from sunwell.knowledge.routing.query_router import QueryRouter, RouteResult
+from sunwell.knowledge.routing.query_router import QueryRouter
 from sunwell.knowledge.workspace.indexer import CodeChunk
 from sunwell.knowledge.workspace.types import IndexTier, Workspace, WorkspaceProject
 

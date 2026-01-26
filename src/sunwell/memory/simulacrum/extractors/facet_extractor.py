@@ -14,7 +14,8 @@ Patterns are pre-compiled at module load time for O(1) matching.
 """
 
 import re
-from typing import TYPE_CHECKING, Pattern
+from re import Pattern
+from typing import TYPE_CHECKING
 
 from sunwell.memory.simulacrum.topology.facets import (
     ConfidenceLevel,

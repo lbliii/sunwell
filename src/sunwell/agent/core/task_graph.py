@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 from sunwell.agent.validation.gates import ValidationGate
 
 
-def sanitize_code_content(content: str) -> str:
+def sanitize_code_content(content: str | None) -> str:
     """Strip markdown fences from generated code content.
 
     Defense-in-depth: Called before direct file writes to ensure
@@ -23,9 +23,11 @@ def sanitize_code_content(content: str) -> str:
         content: Raw content that may contain markdown fences
 
     Returns:
-        Content with markdown fences stripped
+        Content with markdown fences stripped, or empty string if None/empty
     """
-    if not content or not content.startswith("```"):
+    if not content:
+        return ""
+    if not content.startswith("```"):
         return content
 
     lines = content.split("\n")
@@ -57,7 +59,7 @@ class TaskGraph:
         completed_artifacts: Artifacts that have been produced
     """
 
-    tasks: list["Task"] = field(default_factory=list)
+    tasks: list[Task] = field(default_factory=list)
     """All tasks in the graph."""
 
     gates: list[ValidationGate] = field(default_factory=list)
@@ -73,7 +75,7 @@ class TaskGraph:
         """Check if there are pending tasks."""
         return len(self.completed_ids) < len(self.tasks)
 
-    def get_ready_tasks(self) -> list["Task"]:
+    def get_ready_tasks(self) -> list[Task]:
         """Get tasks that are ready to execute.
 
         A task is ready when:
@@ -90,14 +92,15 @@ class TaskGraph:
             and t.is_ready(self.completed_ids, self.completed_artifacts)
         ]
 
-    def mark_complete(self, task: "Task") -> None:
+    def mark_complete(self, task: Task) -> None:
         """Mark a task as complete.
 
         Args:
             task: The completed task
         """
         self.completed_ids.add(task.id)
-        self.completed_artifacts.update(task.produces)
+        if task.produces:
+            self.completed_artifacts.update(task.produces)
 
     @property
     def completed_summary(self) -> str:

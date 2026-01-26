@@ -8,14 +8,11 @@ Executes benchmark tasks across multiple conditions:
 """
 
 
-import asyncio
-import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sunwell.foundation.utils import safe_yaml_load
 from sunwell.benchmark.types import (
     BenchmarkResults,
     BenchmarkTask,
@@ -26,22 +23,18 @@ from sunwell.benchmark.types import (
     RetrievalMetrics,
     RoutingMetrics,
     RubricDimension,
-    SelfDirectedMetrics,
     TaskCategory,
     TaskEvaluation,
     TaskResult,
 )
-from sunwell.models import GenerateOptions, ModelProtocol
+from sunwell.foundation.utils import safe_yaml_load
+from sunwell.models import ModelProtocol
 
 if TYPE_CHECKING:
-    from sunwell.benchmark.types import PrefetchMetrics
-    from sunwell.core.models.heuristic import Heuristic
-    from sunwell.foundation.core.lens import Lens
     from sunwell.foundation.schema.loader import LensLoader
 
 
 from sunwell.benchmark.execution import ExecutionRunner
-from sunwell.benchmark.prompts import PromptBuilder
 
 
 @dataclass

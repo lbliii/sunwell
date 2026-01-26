@@ -10,13 +10,13 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from sunwell.agent.core.task_graph import sanitize_code_content
 from sunwell.agent.events import (
     AgentEvent,
     specialist_completed_event,
     specialist_spawned_event,
 )
 from sunwell.agent.utils.spawn import SpawnRequest
-from sunwell.agent.core.task_graph import sanitize_code_content
 
 if TYPE_CHECKING:
     from sunwell.agent.learning import LearningStore
@@ -26,9 +26,9 @@ if TYPE_CHECKING:
 
 
 async def execute_via_specialist(
-    task: "Task",
+    task: Task,
     naaru: Any,
-    lens: "Lens | None",
+    lens: Lens | None,
     cwd: Path,
     context_snapshot: dict[str, Any],
     specialist_count: int,
@@ -116,10 +116,10 @@ async def execute_via_specialist(
 
 def get_context_snapshot(
     goal: str,
-    learning_store: "LearningStore",
+    learning_store: LearningStore,
     workspace_context: str | None,
-    lens: "Lens | None",
-    briefing: "Briefing | None",
+    lens: Lens | None,
+    briefing: Briefing | None,
 ) -> dict[str, Any]:
     """Get current context snapshot to pass to specialist.
 

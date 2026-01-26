@@ -1,7 +1,7 @@
 """Routing, provenance, and quality policy parsing."""
 
-from sunwell.foundation.core.lens import Provenance, QualityPolicy, Router, RouterTier
 from sunwell.core.types.types import Tier
+from sunwell.foundation.core.lens import Provenance, QualityPolicy, Router, RouterTier
 
 
 def parse_provenance(data: dict) -> Provenance:

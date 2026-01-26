@@ -4,7 +4,11 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from sunwell.benchmark.naaru.conditions.baseline import run_baseline, run_baseline_lens
-from sunwell.benchmark.naaru.conditions.harmonic import run_harmonic, run_harmonic_divergent, run_harmonic_lens
+from sunwell.benchmark.naaru.conditions.harmonic import (
+    run_harmonic,
+    run_harmonic_divergent,
+    run_harmonic_lens,
+)
 from sunwell.benchmark.naaru.conditions.naaru_full import run_naaru_full, run_naaru_full_lens
 from sunwell.benchmark.naaru.conditions.resonance import run_resonance
 from sunwell.benchmark.naaru.conditions.rotation_conditions import run_rotation, run_rotation_lens

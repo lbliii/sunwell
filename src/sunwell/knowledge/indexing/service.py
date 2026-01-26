@@ -21,7 +21,6 @@ if TYPE_CHECKING:
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from pathlib import Path
 
 from sunwell.foundation.utils import safe_json_dumps, safe_json_loads
 from sunwell.knowledge.indexing.chunkers import ChunkerRegistry
@@ -654,7 +653,7 @@ class IndexingService:
 
         await self._save_cache()
 
-    async def _create_embedder(self) -> "EmbeddingProtocol | None":
+    async def _create_embedder(self) -> EmbeddingProtocol | None:
         """Create embedder with graceful fallback."""
         try:
             from sunwell.knowledge.embedding import create_embedder

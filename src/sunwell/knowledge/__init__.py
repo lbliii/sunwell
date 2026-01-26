@@ -9,7 +9,7 @@ Key components:
 
 For advanced usage, import from subpackages directly:
     from sunwell.knowledge.analysis import StateDag, SourceContext
-    from sunwell.knowledge.codebase import DecisionMemory, FailureMemory
+    from sunwell.knowledge.codebase import FailedApproach, learn_from_edit
     from sunwell.knowledge.bootstrap import BootstrapOrchestrator
 
 RFC-138: Module Architecture Consolidation
@@ -21,15 +21,39 @@ RFC-138: Module Architecture Consolidation
 from sunwell.knowledge.analysis import (
     Workspace,
     WorkspaceConfig,
-    scan_project,
     build_workspace,
+    scan_project,
+)
+
+# Question answering and context enrichment (RFC-135)
+from sunwell.knowledge.answering import (
+    AnswerResult,
+    answer_question,
+    answer_question_simple,
+    enrich_context_for_goal,
 )
 
 # Codebase intelligence (RFC-045)
 from sunwell.knowledge.codebase import (
-    ProjectIntelligence,
     CodebaseAnalyzer,
     DecisionMemory,
+    FailureMemory,
+    PatternProfile,
+    ProjectIntelligence,
+)
+
+# Embedding
+from sunwell.knowledge.embedding import (
+    EmbeddingProtocol,
+    SearchResult,
+    create_embedder,
+)
+
+# Environment discovery (RFC-104)
+from sunwell.knowledge.environment import (
+    UserEnvironment,
+    discover_roots,
+    load_environment,
 )
 
 # Indexing and RAG (RFC-108)
@@ -42,24 +66,10 @@ from sunwell.knowledge.indexing import (
 # Project management (RFC-117)
 from sunwell.knowledge.project import (
     Project,
-    ProjectRegistry,
     ProjectManifest,
-    resolve_project,
+    ProjectRegistry,
     analyze_project,
-)
-
-# Embedding
-from sunwell.knowledge.embedding import (
-    EmbeddingProtocol,
-    create_embedder,
-    SearchResult,
-)
-
-# Environment discovery (RFC-104)
-from sunwell.knowledge.environment import (
-    UserEnvironment,
-    load_environment,
-    discover_roots,
+    resolve_project,
 )
 
 __all__ = [
@@ -72,10 +82,17 @@ __all__ = [
     "ProjectIntelligence",
     "CodebaseAnalyzer",
     "DecisionMemory",
+    "FailureMemory",
+    "PatternProfile",
     # === Indexing ===
     "IndexingService",
     "SmartContext",
     "create_smart_context",
+    # === Question Answering (RFC-135) ===
+    "AnswerResult",
+    "answer_question",
+    "answer_question_simple",
+    "enrich_context_for_goal",
     # === Project ===
     "Project",
     "ProjectRegistry",

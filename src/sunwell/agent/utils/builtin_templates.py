@@ -13,7 +13,6 @@ Templates capture structural patterns for tasks like:
 
 from sunwell.memory.simulacrum.core.turn import Learning, TemplateData, TemplateVariable
 
-
 # =============================================================================
 # CRUD Endpoint Template
 # =============================================================================

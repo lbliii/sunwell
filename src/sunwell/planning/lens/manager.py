@@ -9,7 +9,6 @@ RFC-101 adds:
 - Namespace isolation (builtin, user, project)
 """
 
-import hashlib
 import json
 import shutil
 from dataclasses import dataclass, field
@@ -17,8 +16,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import yaml
-
+from sunwell.core.types.types import SemanticVersion
+from sunwell.foundation.core.lens import Lens
 from sunwell.foundation.identity import SunwellURI, URIParseError
 from sunwell.foundation.utils import (
     safe_json_dumps,
@@ -30,8 +29,6 @@ from sunwell.foundation.utils import (
     slugify,
     validate_slug,
 )
-from sunwell.foundation.core.lens import Lens
-from sunwell.core.types.types import SemanticVersion
 from sunwell.planning.lens.identity import (
     LensIndexEntry,
     LensManifest,
@@ -105,7 +102,7 @@ class LensManager:
         default_factory=lambda: Path.home() / ".sunwell" / "config.yaml"
     )
 
-    _loader: "LensLoader | None" = field(default=None, init=False)
+    _loader: LensLoader | None = field(default=None, init=False)
     _index_manager: LensIndexManager = field(init=False)
 
     def __post_init__(self) -> None:
@@ -119,7 +116,7 @@ class LensManager:
         )
 
     @property
-    def loader(self) -> "LensLoader":
+    def loader(self) -> LensLoader:
         """Lazy-load LensLoader to break circular import."""
         if self._loader is None:
             from sunwell.foundation.schema.loader import LensLoader

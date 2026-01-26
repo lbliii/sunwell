@@ -394,9 +394,9 @@ async def _execute_agent(run: RunState, *, use_v2: bool = False) -> AsyncIterato
         ProjectValidationError,
         resolve_project,
     )
-    from sunwell.tools.execution import ToolExecutor
-    from sunwell.tools.core.types import ToolPolicy, ToolTrust
     from sunwell.knowledge.workspace import default_workspace_root
+    from sunwell.tools.core.types import ToolPolicy, ToolTrust
+    from sunwell.tools.execution import ToolExecutor
 
     workspace_path = Path(run.workspace).expanduser().resolve() if run.workspace else None
 
@@ -437,7 +437,7 @@ async def _execute_agent(run: RunState, *, use_v2: bool = False) -> AsyncIterato
         ProjectResolutionError,
         create_project_from_workspace,
     )
-    
+
     # Ensure we have a project (create from workspace if resolve failed)
     if project is None:
         try:
@@ -446,7 +446,7 @@ async def _execute_agent(run: RunState, *, use_v2: bool = False) -> AsyncIterato
             # If workspace validation fails, we can't create tool executor
             yield {"type": "error", "data": {"message": "Invalid workspace"}}
             return
-    
+
     trust_level = ToolTrust.from_string(run.trust)
     tool_executor = ToolExecutor(
         project=project,

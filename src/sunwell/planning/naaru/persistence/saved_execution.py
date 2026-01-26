@@ -9,7 +9,6 @@ from sunwell.planning.naaru.executor import ArtifactResult, ExecutionResult
 from sunwell.planning.naaru.persistence.hashing import hash_goal
 from sunwell.planning.naaru.persistence.types import ArtifactCompletion, ExecutionStatus
 
-
 PERSISTENCE_VERSION = "1.0"
 
 

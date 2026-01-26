@@ -18,6 +18,7 @@ Usage:
 
 from typing import Any, Protocol
 
+from sunwell.foundation.types.protocol import Serializable
 from sunwell.planning.routing.decision import RoutingDecision
 from sunwell.planning.routing.exemplars import (
     ROUTING_EXEMPLARS,
@@ -42,7 +43,6 @@ from sunwell.planning.routing.unified import (
     UnifiedRouter,
     create_unified_router,
 )
-from sunwell.foundation.types.protocol import Serializable
 
 
 class HasStats(Protocol):

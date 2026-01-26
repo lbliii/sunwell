@@ -20,9 +20,9 @@ from sunwell.features.backlog.manager import BacklogManager
 
 if TYPE_CHECKING:
     from sunwell.agent import Agent
-    from sunwell.quality.guardrails import GuardrailSystem
     from sunwell.models import ModelProtocol
     from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
+    from sunwell.quality.guardrails import GuardrailSystem
 
 
 @dataclass(slots=True)
@@ -245,8 +245,8 @@ class AutonomousLoop:
 
                 # Execute with adaptive agent (RFC-042, RFC-MEMORY)
                 # Agent.run() takes SessionContext and PersistentMemory
-                from sunwell.agent.utils.request import RunOptions
                 from sunwell.agent.context.session import SessionContext
+                from sunwell.agent.utils.request import RunOptions
                 from sunwell.memory import PersistentMemory
 
                 workspace = self.backlog_manager.root

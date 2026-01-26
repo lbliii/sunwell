@@ -189,11 +189,11 @@ def fix(
 
     async def _fix() -> dict[str, Any]:
         from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
-        from sunwell.tools.execution import ToolExecutor
         from sunwell.quality.weakness.analyzer import WeaknessAnalyzer
         from sunwell.quality.weakness.cascade import CascadeEngine
         from sunwell.quality.weakness.executor import CascadeExecutor
         from sunwell.quality.weakness.types import WaveConfidence
+        from sunwell.tools.execution import ToolExecutor
 
         graph = await _build_graph(project_root)
 
@@ -224,11 +224,9 @@ def fix(
 
         # RFC-117: Try to resolve project context
         from sunwell.knowledge.project import (
-            ProjectResolutionError,
             create_project_from_workspace,
-            resolve_project,
         )
-        
+
         try:
             project = resolve_project(project_root=project_root)
         except ProjectResolutionError:

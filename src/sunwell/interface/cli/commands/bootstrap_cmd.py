@@ -280,8 +280,7 @@ async def _show_status() -> None:
 
 async def _run_incremental(verbose: bool) -> None:
     """Run incremental bootstrap update."""
-    from sunwell.knowledge import IncrementalBootstrap
-    from sunwell.knowledge import ProjectContext
+    from sunwell.knowledge import IncrementalBootstrap, ProjectContext
 
     project_root = Path.cwd()
     context = await ProjectContext.load(project_root)

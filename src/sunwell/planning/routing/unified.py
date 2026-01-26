@@ -155,7 +155,7 @@ class UnifiedRouter:
         self,
         request: str,
         context: dict[str, Any] | None = None,
-        lens: "Lens | None" = None,
+        lens: Lens | None = None,
     ) -> RoutingDecision:
         """Single inference call returns all routing decisions.
 
@@ -222,7 +222,7 @@ class UnifiedRouter:
 
             return decision
 
-    def _check_shortcut(self, request: str, lens: "Lens") -> RoutingDecision | None:
+    def _check_shortcut(self, request: str, lens: Lens) -> RoutingDecision | None:
         """Check if request is a shortcut command.
 
         RFC-070: Returns a pre-built decision for shortcut commands like "::a".
@@ -257,7 +257,7 @@ class UnifiedRouter:
     def _match_skill_triggers(
         self,
         request: str,
-        skills: "tuple[Skill, ...]",
+        skills: tuple[Skill, ...],
     ) -> tuple[tuple[str, ...], float]:
         """Find skills whose triggers match the input.
 

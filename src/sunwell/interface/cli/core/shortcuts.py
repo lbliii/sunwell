@@ -200,9 +200,9 @@ async def run_shortcut(
         json_output: Output as JSON
         verbose: Show detailed output
     """
-    from sunwell.interface.cli.helpers import resolve_model
-    from sunwell.foundation.schema.loader import LensLoader
     from sunwell.features.workflow.engine import SkillExecutor
+    from sunwell.foundation.schema.loader import LensLoader
+    from sunwell.interface.cli.helpers import resolve_model
 
     # Normalize shortcut (remove :: prefix if present)
     shortcut_clean = shortcut.lstrip(":")
@@ -283,8 +283,8 @@ async def run_shortcut(
         create_project_from_workspace,
         resolve_project,
     )
-    from sunwell.tools.execution import ToolExecutor
     from sunwell.tools.core.types import ToolPolicy, ToolTrust
+    from sunwell.tools.execution import ToolExecutor
 
     workspace = workspace_root or Path.cwd()
     try:

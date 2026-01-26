@@ -327,8 +327,8 @@ class IncrementalExecutor:
             return
 
         try:
-            from sunwell.agent.events.schemas import create_validated_event
             from sunwell.agent.events import EventType
+            from sunwell.agent.events.schemas import create_validated_event
 
             event = create_validated_event(EventType(event_type), data)
             self.event_callback(event)
@@ -365,9 +365,15 @@ class IncrementalExecutor:
                 continue
 
             # Get dependency hashes (already computed due to topo order)
-            dep_hashes = {
-                dep_id: self._computed_hashes.get(dep_id, "UNKNOWN") for dep_id in spec.requires
-            }
+            dep_hashes: dict[str, str] = {}
+            for dep_id in spec.requires:
+                if dep_id not in self._computed_hashes:
+                    # This indicates broken topological order or missing artifact
+                    raise ValueError(
+                        f"Dependency '{dep_id}' of '{artifact_id}' has no computed hash. "
+                        "This suggests broken topological sort or missing artifact in graph."
+                    )
+                dep_hashes[dep_id] = self._computed_hashes[dep_id]
 
             decision = should_skip(
                 spec=spec,

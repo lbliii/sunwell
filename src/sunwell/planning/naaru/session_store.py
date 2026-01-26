@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from sunwell.planning.naaru.types import SessionConfig, SessionState, SessionStatus
+from sunwell.planning.naaru.types import SessionState, SessionStatus
 
 logger = logging.getLogger(__name__)
 

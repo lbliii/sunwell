@@ -10,10 +10,8 @@ This enables self-improving agents that learn from successful patterns.
 """
 
 import re
-from dataclasses import dataclass, field
-from datetime import datetime
-from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from sunwell.planning.skills.types import Skill, SkillDependency, SkillType
 
@@ -28,10 +26,10 @@ _RE_SLUG_MULTI_HYPHEN = re.compile(r"-+")
 _RE_WORD_BOUNDARY = re.compile(r"\b\w+\b")
 
 if TYPE_CHECKING:
-    from sunwell.models import ModelProtocol
     from sunwell.memory.simulacrum.core.dag import ConversationDAG
     from sunwell.memory.simulacrum.core.store import SimulacrumStore
     from sunwell.memory.simulacrum.core.turn import Turn
+    from sunwell.models import ModelProtocol
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,7 +96,7 @@ class SkillLearner:
             library.save_learned_skill(skill, source="learned")
     """
 
-    model: "ModelProtocol | None" = None
+    model: ModelProtocol | None = None
     """Model for LLM-based pattern analysis. Optional."""
 
     min_turns_for_learning: int = 5
@@ -109,7 +107,7 @@ class SkillLearner:
 
     async def extract_skill_from_session(
         self,
-        store: "SimulacrumStore",
+        store: SimulacrumStore,
         session_id: str,
         success_criteria: str,
     ) -> Skill | None:
@@ -152,7 +150,7 @@ class SkillLearner:
 
     def extract_pattern_from_dag(
         self,
-        dag: "ConversationDAG",
+        dag: ConversationDAG,
         goal: str,
     ) -> ExecutionPattern | None:
         """Extract execution pattern from a conversation DAG.
@@ -170,7 +168,7 @@ class SkillLearner:
 
     def _extract_pattern(
         self,
-        dag: "ConversationDAG",
+        dag: ConversationDAG,
         goal: str,
     ) -> ExecutionPattern | None:
         """Extract pattern from conversation DAG."""
@@ -212,11 +210,11 @@ class SkillLearner:
 
     def _topological_sort(
         self,
-        dag: "ConversationDAG",
-    ) -> list["Turn"]:
+        dag: ConversationDAG,
+    ) -> list[Turn]:
         """Return turns in topological order."""
         visited: set[str] = set()
-        result: list["Turn"] = []
+        result: list[Turn] = []
 
         def dfs(turn_id: str) -> None:
             if turn_id in visited or turn_id not in dag.turns:
@@ -268,7 +266,7 @@ class SkillLearner:
 
         return keys
 
-    def _summarize_steps(self, dag: "ConversationDAG") -> str:
+    def _summarize_steps(self, dag: ConversationDAG) -> str:
         """Summarize the steps taken in the conversation."""
         from sunwell.memory.simulacrum.core.turn import TurnType
 
@@ -293,7 +291,6 @@ class SkillLearner:
 
         Creates a reasonable skill definition based on the pattern.
         """
-        import hashlib
 
         # Generate skill name from goal
         name = self._slugify(pattern.goal)[:50]
@@ -407,7 +404,6 @@ INSTRUCTIONS:
         pattern: ExecutionPattern,
     ) -> Skill:
         """Parse skill from LLM output."""
-        import re
 
         lines = text.strip().split("\n")
         name = self._slugify(pattern.goal)[:50]

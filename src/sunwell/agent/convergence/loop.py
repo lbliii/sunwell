@@ -11,13 +11,24 @@ Example:
 """
 
 import asyncio
+import logging
 import subprocess
+import threading
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+logger = logging.getLogger(__name__)
+
+from sunwell.agent.convergence.types import (
+    ConvergenceConfig,
+    ConvergenceIteration,
+    ConvergenceResult,
+    ConvergenceStatus,
+    GateCheckResult,
+)
 from sunwell.agent.events import (
     AgentEvent,
     EventType,
@@ -31,15 +42,8 @@ from sunwell.agent.events import (
     convergence_stuck_event,
     convergence_timeout_event,
 )
-from sunwell.agent.validation.gates import GateType
 from sunwell.agent.validation import Artifact, ValidationError
-from sunwell.agent.convergence.types import (
-    ConvergenceConfig,
-    ConvergenceIteration,
-    ConvergenceResult,
-    ConvergenceStatus,
-    GateCheckResult,
-)
+from sunwell.agent.validation.gates import GateType
 
 if TYPE_CHECKING:
     from sunwell.agent.execution.fixer import FixStage
@@ -90,6 +94,7 @@ class ConvergenceLoop:
     _start_time: float = field(default=0.0, init=False)
     _tokens_used: int = field(default=0, init=False)
     _error_history: dict[str, int] = field(default_factory=dict, init=False)
+    _error_history_lock: threading.Lock = field(default_factory=threading.Lock, init=False)
 
     def __post_init__(self) -> None:
         """Initialize fix stage."""
@@ -128,7 +133,7 @@ class ConvergenceLoop:
                 if f.exists():
                     artifacts[str(f)] = Artifact(
                         path=f,
-                        content=f.read_text(),
+                        content=f.read_text(encoding="utf-8", errors="replace"),
                         task_id="convergence",
                     )
 
@@ -256,7 +261,7 @@ class ConvergenceLoop:
                         if path.exists():
                             artifacts[str(path)] = Artifact(
                                 path=path,
-                                content=path.read_text(),
+                                content=path.read_text(encoding="utf-8", errors="replace"),
                                 task_id="convergence",
                             )
 
@@ -344,8 +349,9 @@ class ConvergenceLoop:
             errors = [line.strip() for line in result.stdout.splitlines() if line.strip()]
             return False, errors
         except FileNotFoundError:
-            return True, []  # ruff not installed, skip
-        except TimeoutError:
+            logger.warning("ruff not installed, skipping lint check")
+            return True, []
+        except (TimeoutError, subprocess.TimeoutExpired, asyncio.TimeoutError):
             return False, ["Lint check timed out"]
         except Exception as e:
             return False, [str(e)]
@@ -372,7 +378,7 @@ class ConvergenceLoop:
             return False, errors
         except FileNotFoundError:
             pass  # ty not installed, try mypy
-        except TimeoutError:
+        except (TimeoutError, subprocess.TimeoutExpired, asyncio.TimeoutError):
             return False, ["Type check timed out"]
         except Exception as e:
             return False, [str(e)]
@@ -393,8 +399,9 @@ class ConvergenceLoop:
             ]
             return False, errors
         except FileNotFoundError:
-            return True, []  # Neither ty nor mypy installed, skip
-        except TimeoutError:
+            logger.warning("Neither ty nor mypy installed, skipping type check")
+            return True, []
+        except (TimeoutError, subprocess.TimeoutExpired, asyncio.TimeoutError):
             return False, ["Type check timed out"]
         except Exception as e:
             return False, [str(e)]

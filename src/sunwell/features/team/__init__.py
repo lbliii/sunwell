@@ -42,7 +42,12 @@ from sunwell.features.team.types import (
     TeamOwnership,
     TeamPatterns,
 )
-from sunwell.features.team.unified import ApproachCheck, ApproachWarning, FileContext, UnifiedIntelligence
+from sunwell.features.team.unified import (
+    ApproachCheck,
+    ApproachWarning,
+    FileContext,
+    UnifiedIntelligence,
+)
 
 __all__ = [
     # Protocols

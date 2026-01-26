@@ -59,15 +59,14 @@ class TestConvergenceLoopRun:
             config=config,
         )
 
-        # Mock: lint passes immediately
-        loop._check_lint = AsyncMock(return_value=(True, []))
+        # Mock: lint passes immediately (patch on class since slots=True)
+        with patch.object(ConvergenceLoop, "_check_lint", AsyncMock(return_value=(True, []))):
+            test_file = tmp_workspace / "test.py"
+            events = [e async for e in loop.run([test_file])]
 
-        test_file = tmp_workspace / "test.py"
-        events = [e async for e in loop.run([test_file])]
-
-        assert loop.result is not None
-        assert loop.result.status == ConvergenceStatus.STABLE
-        assert loop.result.iteration_count == 1
+            assert loop.result is not None
+            assert loop.result.status == ConvergenceStatus.STABLE
+            assert loop.result.iteration_count == 1
 
     @pytest.mark.asyncio
     async def test_emits_start_event(self, mock_model, tmp_workspace):
@@ -81,15 +80,15 @@ class TestConvergenceLoopRun:
             cwd=tmp_workspace,
             config=config,
         )
-        loop._check_lint = AsyncMock(return_value=(True, []))
 
-        test_file = tmp_workspace / "test.py"
-        events = [e async for e in loop.run([test_file])]
+        with patch.object(ConvergenceLoop, "_check_lint", AsyncMock(return_value=(True, []))):
+            test_file = tmp_workspace / "test.py"
+            events = [e async for e in loop.run([test_file])]
 
-        start_events = [e for e in events if e.type == EventType.CONVERGENCE_START]
-        assert len(start_events) == 1
-        assert "files" in start_events[0].data
-        assert "gates" in start_events[0].data
+            start_events = [e for e in events if e.type == EventType.CONVERGENCE_START]
+            assert len(start_events) == 1
+            assert "files" in start_events[0].data
+            assert "gates" in start_events[0].data
 
     @pytest.mark.asyncio
     async def test_emits_stable_event(self, mock_model, tmp_workspace):
@@ -103,14 +102,14 @@ class TestConvergenceLoopRun:
             cwd=tmp_workspace,
             config=config,
         )
-        loop._check_lint = AsyncMock(return_value=(True, []))
 
-        test_file = tmp_workspace / "test.py"
-        events = [e async for e in loop.run([test_file])]
+        with patch.object(loop, "_check_lint", AsyncMock(return_value=(True, []))):
+            test_file = tmp_workspace / "test.py"
+            events = [e async for e in loop.run([test_file])]
 
-        stable_events = [e for e in events if e.type == EventType.CONVERGENCE_STABLE]
-        assert len(stable_events) == 1
-        assert "iterations" in stable_events[0].data
+            stable_events = [e for e in events if e.type == EventType.CONVERGENCE_STABLE]
+            assert len(stable_events) == 1
+            assert "iterations" in stable_events[0].data
 
     @pytest.mark.asyncio
     async def test_escalates_on_max_iterations(self, mock_model, tmp_workspace):
@@ -126,22 +125,21 @@ class TestConvergenceLoopRun:
             config=config,
         )
 
-        # Mock: always fail
-        loop._check_lint = AsyncMock(return_value=(False, ["persistent error"]))
-        
         # Mock fixer to be an async generator that yields nothing
         async def mock_fix_errors(*args, **kwargs):
             return
             yield  # Makes this an async generator
-        
-        loop._fixer.fix_errors = mock_fix_errors
 
-        test_file = tmp_workspace / "test.py"
-        events = [e async for e in loop.run([test_file])]
+        with (
+            patch.object(loop, "_check_lint", AsyncMock(return_value=(False, ["persistent error"]))),
+            patch.object(loop._fixer, "fix_errors", mock_fix_errors),
+        ):
+            test_file = tmp_workspace / "test.py"
+            events = [e async for e in loop.run([test_file])]
 
-        assert loop.result is not None
-        assert loop.result.status == ConvergenceStatus.ESCALATED
-        assert loop.result.iteration_count == 3
+            assert loop.result is not None
+            assert loop.result.status == ConvergenceStatus.ESCALATED
+            assert loop.result.iteration_count == 3
 
     @pytest.mark.asyncio
     async def test_emits_iteration_events(self, mock_model, tmp_workspace):
@@ -155,16 +153,16 @@ class TestConvergenceLoopRun:
             cwd=tmp_workspace,
             config=config,
         )
-        loop._check_lint = AsyncMock(return_value=(True, []))
 
-        test_file = tmp_workspace / "test.py"
-        events = [e async for e in loop.run([test_file])]
+        with patch.object(loop, "_check_lint", AsyncMock(return_value=(True, []))):
+            test_file = tmp_workspace / "test.py"
+            events = [e async for e in loop.run([test_file])]
 
-        iter_start = [e for e in events if e.type == EventType.CONVERGENCE_ITERATION_START]
-        iter_complete = [e for e in events if e.type == EventType.CONVERGENCE_ITERATION_COMPLETE]
+            iter_start = [e for e in events if e.type == EventType.CONVERGENCE_ITERATION_START]
+            iter_complete = [e for e in events if e.type == EventType.CONVERGENCE_ITERATION_COMPLETE]
 
-        assert len(iter_start) >= 1
-        assert len(iter_complete) >= 1
+            assert len(iter_start) >= 1
+            assert len(iter_complete) >= 1
 
 
 class TestConvergenceLoopGateChecks:

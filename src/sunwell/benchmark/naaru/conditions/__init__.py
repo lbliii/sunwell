@@ -20,9 +20,6 @@ from sunwell.benchmark.naaru.conditions.harmonic import (
     run_harmonic_lens,
 )
 from sunwell.benchmark.naaru.conditions.naaru_full import run_naaru_full, run_naaru_full_lens
-from sunwell.benchmark.naaru.conditions.resonance import run_resonance
-from sunwell.benchmark.naaru.conditions.rotation_conditions import run_rotation, run_rotation_lens
-from sunwell.benchmark.naaru.conditions.runner import ConditionRunner
 
 # Re-export utilities
 from sunwell.benchmark.naaru.conditions.personas import (
@@ -30,12 +27,15 @@ from sunwell.benchmark.naaru.conditions.personas import (
     HARDCODED_PERSONAS,
     TemperatureStrategy,
 )
+from sunwell.benchmark.naaru.conditions.resonance import run_resonance
 from sunwell.benchmark.naaru.conditions.rotation import (
     DIVERGENT_ROTATION_FRAMES,
     ROTATION_FRAMES,
     build_rotation_prompt,
     parse_frame_usage,
 )
+from sunwell.benchmark.naaru.conditions.rotation_conditions import run_rotation, run_rotation_lens
+from sunwell.benchmark.naaru.conditions.runner import ConditionRunner
 from sunwell.benchmark.naaru.conditions.utils import lightweight_validate
 
 __all__ = [

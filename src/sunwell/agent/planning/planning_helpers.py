@@ -26,9 +26,9 @@ from sunwell.agent.validation.gates import detect_gates
 
 if TYPE_CHECKING:
     from sunwell.agent.core.task_graph import TaskGraph
-    from sunwell.agent.utils.budget import AdaptiveBudget
     from sunwell.agent.learning import LearningStore
     from sunwell.agent.signals import AdaptiveSignals
+    from sunwell.agent.utils.budget import AdaptiveBudget
     from sunwell.foundation.core.lens import Lens
     from sunwell.memory.briefing import Briefing
     from sunwell.models import ModelProtocol
@@ -36,15 +36,15 @@ if TYPE_CHECKING:
 
 async def plan_with_signals(
     goal: str,
-    signals: "AdaptiveSignals",
+    signals: AdaptiveSignals,
     context: dict[str, Any],
-    model: "ModelProtocol",
-    learning_store: "LearningStore",
-    lens: "Lens | None",
-    briefing: "Briefing | None",
-    budget: "AdaptiveBudget",
+    model: ModelProtocol,
+    learning_store: LearningStore,
+    lens: Lens | None,
+    briefing: Briefing | None,
+    budget: AdaptiveBudget,
     simulacrum: Any | None = None,
-) -> AsyncIterator[tuple[AgentEvent, "TaskGraph | None", Any]]:
+) -> AsyncIterator[tuple[AgentEvent, TaskGraph | None, Any]]:
     """Plan using signal-appropriate technique.
 
     Args:
@@ -98,10 +98,10 @@ async def plan_with_signals(
 async def _harmonic_plan(
     goal: str,
     context: dict[str, Any],
-    model: "ModelProtocol",
-    budget: "AdaptiveBudget",
+    model: ModelProtocol,
+    budget: AdaptiveBudget,
     simulacrum: Any | None = None,
-) -> AsyncIterator[tuple[AgentEvent, "TaskGraph | None", Any]]:
+) -> AsyncIterator[tuple[AgentEvent, TaskGraph | None, Any]]:
     """Plan using Harmonic planning (multiple candidates).
 
     Args:
@@ -226,8 +226,8 @@ async def _harmonic_plan(
 async def _single_shot_plan(
     goal: str,
     context: dict[str, Any],
-    model: "ModelProtocol",
-) -> AsyncIterator[tuple[AgentEvent, "TaskGraph | None", Any]]:
+    model: ModelProtocol,
+) -> AsyncIterator[tuple[AgentEvent, TaskGraph | None, Any]]:
     """Simple single-shot planning.
 
     Args:
@@ -288,8 +288,8 @@ async def _single_shot_plan(
         )
 
     except ImportError:
-        from sunwell.planning.naaru.types import Task, TaskMode
         from sunwell.agent.core.task_graph import TaskGraph
+        from sunwell.planning.naaru.types import Task, TaskMode
 
         task = Task(
             id="main",

@@ -19,10 +19,10 @@ from typing import TYPE_CHECKING
 from sunwell.foundation.utils import safe_json_loads
 
 if TYPE_CHECKING:
-    from sunwell.knowledge.indexing.service import IndexingService
     from sunwell.knowledge.codebase.codebase import CodebaseGraph
-    from sunwell.models import ModelProtocol
+    from sunwell.knowledge.indexing.service import IndexingService
     from sunwell.knowledge.navigation.navigator import TocNavigator
+    from sunwell.models import ModelProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -592,7 +592,8 @@ def create_smart_context(
     # Load ToC navigation (RFC-124)
     if auto_load_toc:
         try:
-            from sunwell.knowledge.navigation import ProjectToc, TocNavigator as Navigator
+            from sunwell.knowledge.navigation import ProjectToc
+            from sunwell.knowledge.navigation import TocNavigator as Navigator
 
             toc = ProjectToc.load(workspace_root / SUNWELL_DIR)
             if toc:

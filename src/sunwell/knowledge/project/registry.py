@@ -30,7 +30,7 @@ def _load_registry() -> dict:
     try:
         content = path.read_text(encoding="utf-8")
         data = json.loads(content)
-        
+
         # Validate structure
         if not isinstance(data, dict):
             raise ValueError("Registry must be a dictionary")
@@ -40,7 +40,7 @@ def _load_registry() -> dict:
             data["slugs"] = {}
         if "default_project" not in data:
             data["default_project"] = None
-            
+
         return data
     except (json.JSONDecodeError, OSError, ValueError):
         # On corruption, try to backup and return empty registry
@@ -51,7 +51,7 @@ def _load_registry() -> dict:
                 shutil.copy2(path, backup_path)
         except Exception:
             pass  # Backup failed, continue
-        
+
         # Return empty registry instead of raising
         # This allows the system to continue functioning
         return {"projects": {}, "slugs": {}, "default_project": None}
@@ -72,20 +72,20 @@ def generate_slug(name: str) -> str:
     """
     # Lowercase and replace spaces/underscores with hyphens
     slug = name.lower().replace(" ", "-").replace("_", "-")
-    
+
     # Remove non-alphanumeric characters except hyphens
     slug = re.sub(r"[^a-z0-9-]", "", slug)
-    
+
     # Collapse multiple hyphens
     slug = re.sub(r"-+", "-", slug)
-    
+
     # Remove leading/trailing hyphens
     slug = slug.strip("-")
-    
+
     # Truncate to 30 characters
     if len(slug) > 30:
         slug = slug[:30].rstrip("-")
-    
+
     # Ensure we have something
     return slug or "project"
 
@@ -215,10 +215,10 @@ class ProjectRegistry:
         """
         self._data.setdefault("projects", {})
         self._data["projects"][project.id] = project.to_registry_entry()
-        
+
         # RFC-133: Generate URL slug
         slug = self.ensure_slug(project.id, project.name)
-        
+
         self._save()
         return slug
 
@@ -323,12 +323,12 @@ class ProjectRegistry:
             project = self.get(project_id)
             if project:
                 return (project, None)
-        
+
         # Try as project ID fallback
         project = self.get(slug)
         if project:
             return (project, None)
-        
+
         # Not found
         return (None, None)
 

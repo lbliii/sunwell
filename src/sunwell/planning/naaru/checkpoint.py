@@ -295,7 +295,7 @@ class AgentCheckpoint:
         cls,
         workspace: Path,
         goal: str,
-    ) -> "AgentCheckpoint | None":
+    ) -> AgentCheckpoint | None:
         """Find the most recent checkpoint for a specific goal.
 
         RFC-130: Enables goal-based resume for autonomous recovery.
@@ -332,7 +332,7 @@ class AgentCheckpoint:
         cls,
         workspace: Path,
         goal: str,
-    ) -> list["AgentCheckpoint"]:
+    ) -> list[AgentCheckpoint]:
         """Find all checkpoints for a specific goal, sorted by time.
 
         Args:

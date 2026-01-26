@@ -366,8 +366,6 @@ async def _run_evaluation(
     """Run evaluation."""
     import sys
 
-    from sunwell.interface.cli.helpers import resolve_model
-    from sunwell.foundation.config import get_config
     from sunwell.benchmark.eval import (
         EvaluationError,
         EvaluationStore,
@@ -379,6 +377,8 @@ async def _run_evaluation(
     from sunwell.benchmark.eval.evaluator import compute_improvement, determine_winner
     from sunwell.benchmark.eval.store import EvaluationRun
     from sunwell.benchmark.eval.types import EvaluationDetails
+    from sunwell.foundation.config import get_config
+    from sunwell.interface.cli.helpers import resolve_model
 
     # Resolve model
     config = get_config()
@@ -732,8 +732,6 @@ async def _run_evaluation_streaming(
         """Emit NDJSON line."""
         print(json.dumps(data), flush=True)
 
-    from sunwell.interface.cli.helpers import resolve_model
-    from sunwell.foundation.config import get_config
     from sunwell.benchmark.eval import (
         FullStackEvaluator,
         SingleShotExecutor,
@@ -741,6 +739,8 @@ async def _run_evaluation_streaming(
         get_eval_task,
     )
     from sunwell.benchmark.eval.evaluator import compute_improvement, determine_winner
+    from sunwell.foundation.config import get_config
+    from sunwell.interface.cli.helpers import resolve_model
 
     # Resolve model
     config = get_config()

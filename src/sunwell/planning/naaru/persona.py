@@ -15,10 +15,8 @@ Configure in ~/.sunwell/config.yaml or .sunwell/config.yaml:
         - "The Naaru"
 """
 
-from typing import Any
-
-
 from dataclasses import dataclass, field
+from typing import Any
 
 
 def _get_naaru_config() -> Any | None:

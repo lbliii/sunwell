@@ -15,13 +15,18 @@ Storage format:
 
 import hashlib
 import subprocess
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sunwell.foundation.utils import safe_json_dumps, safe_json_loads, safe_yaml_dump, safe_yaml_load
+from sunwell.foundation.utils import (
+    safe_json_dumps,
+    safe_json_loads,
+    safe_yaml_dump,
+    safe_yaml_load,
+)
 
 if TYPE_CHECKING:
     from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
@@ -131,7 +136,7 @@ class TeamKnowledgeStore:
         workspace_id: str,
         project_root: Path | None = None,
         embedder: EmbeddingProtocol | None = None,
-    ) -> "TeamKnowledgeStore":
+    ) -> TeamKnowledgeStore:
         """Create a workspace-scoped team knowledge store.
 
         Args:

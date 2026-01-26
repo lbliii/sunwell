@@ -11,7 +11,8 @@ RFC-084: Enhanced with Jaccard similarity for RELATES_TO detection.
 
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Pattern
+from re import Pattern
+from typing import TYPE_CHECKING
 
 from sunwell.memory.simulacrum.topology.topology_base import ConceptEdge, RelationType
 

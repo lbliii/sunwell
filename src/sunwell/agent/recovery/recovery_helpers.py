@@ -20,15 +20,14 @@ from sunwell.agent.events import (
 
 if TYPE_CHECKING:
     from sunwell.agent.learning import LearningStore
-    from sunwell.agent.signals import AdaptiveSignals
     from sunwell.models import ModelProtocol
 
 
 async def resume_from_recovery(
     recovery_state: Any,
-    model: "ModelProtocol",
+    model: ModelProtocol,
     cwd: Path,
-    learning_store: "LearningStore",
+    learning_store: LearningStore,
     extract_signals_fn: Any,
     plan_with_signals_fn: Any,
     user_hint: str | None = None,
@@ -116,7 +115,7 @@ async def resume_from_recovery(
 async def execute_with_convergence_recovery(
     recovery_state: Any,
     healing_context: str,
-    model: "ModelProtocol",
+    model: ModelProtocol,
     cwd: Path,
 ) -> AsyncIterator[AgentEvent]:
     """Execute recovery with convergence loops.
@@ -133,8 +132,8 @@ async def execute_with_convergence_recovery(
     Yields:
         AgentEvent for each step
     """
-    from sunwell.agent.validation.gates import GateType
     from sunwell.agent.convergence import ConvergenceConfig, ConvergenceLoop
+    from sunwell.agent.validation.gates import GateType
 
     # Get files to fix
     failed_files = [a.path for a in recovery_state.failed_artifacts]

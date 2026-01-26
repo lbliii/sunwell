@@ -50,7 +50,7 @@ class GoalSummary:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "GoalSummary":
+    def from_dict(cls, data: dict[str, Any]) -> GoalSummary:
         """Create from dict."""
         return cls(
             goal_id=data["goal_id"],
@@ -142,7 +142,7 @@ class SessionSummary:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "SessionSummary":
+    def from_dict(cls, data: dict[str, Any]) -> SessionSummary:
         """Create from dict."""
         return cls(
             session_id=data["session_id"],

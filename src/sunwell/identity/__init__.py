@@ -14,17 +14,17 @@ Key components:
 # Core models
 from sunwell.identity.core.models import Identity, Observation
 
-# Storage
-from sunwell.identity.store import IdentityStore
-
 # Extraction
 from sunwell.identity.extraction import extract_behaviors, extract_with_categories
 
-# Synthesis
-from sunwell.identity.synthesis import digest_identity
-
 # Injection
 from sunwell.identity.injection import build_system_prompt_with_identity
+
+# Storage
+from sunwell.identity.store import IdentityStore
+
+# Synthesis
+from sunwell.identity.synthesis import digest_identity
 
 __all__ = [
     # Core

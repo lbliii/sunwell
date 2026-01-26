@@ -4,10 +4,11 @@ Core types for weakness detection and cascade regeneration.
 These are frozen dataclasses for thread-safety in Python 3.14t.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Literal, Mapping
+from typing import Any, Literal
 
 
 class WeaknessType(str, Enum):

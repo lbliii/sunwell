@@ -1,7 +1,8 @@
 """Preset handling for skill permissions (RFC-092)."""
 
-import yaml
 from pathlib import Path
+
+import yaml
 
 
 def load_presets() -> dict[str, dict]:

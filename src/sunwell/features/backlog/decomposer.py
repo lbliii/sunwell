@@ -52,7 +52,7 @@ Output ONLY one of:
 DOMAIN:"""
 
 
-async def detect_domain(goal: str, model: "ModelProtocol") -> str:
+async def detect_domain(goal: str, model: ModelProtocol) -> str:
     """Detect domain for appropriate decomposition strategy.
 
     Args:
@@ -108,7 +108,7 @@ Output ONLY: YES or NO
 IS_EPIC:"""
 
 
-async def is_epic(goal: str, model: "ModelProtocol") -> bool:
+async def is_epic(goal: str, model: ModelProtocol) -> bool:
     """Detect if goal is an epic requiring hierarchical decomposition.
 
     Args:
@@ -384,7 +384,7 @@ class EpicDecomposer:
             epic, milestones = await decomposer.decompose("Build an RTS game")
     """
 
-    model: "ModelProtocol"
+    model: ModelProtocol
     """Model for decomposition (claude/gpt-4 recommended for quality)."""
 
     domain_hints: dict[str, str] = field(default_factory=dict)

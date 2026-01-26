@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING, Any
 from sunwell.planning.reasoning.decisions import DecisionType
 
 if TYPE_CHECKING:
-    from sunwell.planning.naaru.artifacts import ArtifactGraph
-    from sunwell.knowledge.project.schema import ProjectContext
     from sunwell.agent.incremental.cache import ExecutionCache
+    from sunwell.knowledge.project.schema import ProjectContext
+    from sunwell.planning.naaru.artifacts import ArtifactGraph
 
 
 class ContextEnricher:

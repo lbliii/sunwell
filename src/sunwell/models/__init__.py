@@ -7,6 +7,13 @@ Extended with:
 """
 
 # Core protocol
+# Adapters
+from sunwell.models.adapters import (
+    AnthropicModel,
+    MockModel,
+    OllamaModel,
+    OpenAIModel,
+)
 from sunwell.models.core.protocol import (
     GenerateOptions,
     GenerateResult,
@@ -19,23 +26,15 @@ from sunwell.models.core.protocol import (
     sanitize_llm_content,
 )
 
+# Emulation
+from sunwell.models.emulation import ToolEmulatorModel, wrap_for_tools
+
 # Registry
 from sunwell.models.registry import (
     ModelRegistry,
     get_registry,
     resolve_model,
 )
-
-# Adapters
-from sunwell.models.adapters import (
-    AnthropicModel,
-    MockModel,
-    OllamaModel,
-    OpenAIModel,
-)
-
-# Emulation
-from sunwell.models.emulation import ToolEmulatorModel, wrap_for_tools
 
 __all__ = [
     # Protocol

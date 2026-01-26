@@ -1,12 +1,12 @@
 """Dependency resolution and cycle detection for artifact planner."""
 
-import json
 from typing import TYPE_CHECKING, Any
 
 from sunwell.planning.naaru.artifacts import ArtifactSpec
 from sunwell.planning.naaru.planners.artifact.parsing import parse_artifacts
 
 if TYPE_CHECKING:
+    from sunwell.knowledge.project.schema import ProjectSchema
     from sunwell.models import ModelProtocol
 
 
@@ -181,6 +181,7 @@ async def break_cycle(
     goal: str,
     artifacts: list[ArtifactSpec],
     cycle: list[str],
+    project_schema: ProjectSchema | None = None,
 ) -> list[ArtifactSpec]:
     """Ask LLM to break a dependency cycle.
 
@@ -189,6 +190,7 @@ async def break_cycle(
         goal: Original goal
         artifacts: Current artifact list
         cycle: Cycle path detected
+        project_schema: Optional schema for validation (RFC-135)
 
     Returns:
         Corrected artifact list with cycle broken
@@ -223,4 +225,5 @@ with the cycle broken. Output ONLY valid JSON array:"""
         options=GenerateOptions(temperature=0.2, max_tokens=3000),
     )
 
-    return parse_artifacts(result.content or "")
+    # Pass schema through for validation (RFC-135)
+    return parse_artifacts(result.content or "", schema=project_schema)

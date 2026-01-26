@@ -11,7 +11,6 @@ from collections.abc import Callable, Coroutine
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, TypeVar, runtime_checkable
 
-
 # =============================================================================
 # SHARED PROTOCOLS (consolidated from multiple modules)
 # =============================================================================

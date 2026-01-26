@@ -61,7 +61,7 @@ class ArtifactEdit:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "ArtifactEdit":
+    def from_dict(cls, data: dict) -> ArtifactEdit:
         """Deserialize from dict."""
         return cls(
             edit_id=data["edit_id"],
@@ -128,7 +128,7 @@ class ArtifactLineage:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "ArtifactLineage":
+    def from_dict(cls, data: dict) -> ArtifactLineage:
         """Deserialize from dict."""
         return cls(
             artifact_id=data["artifact_id"],
@@ -150,7 +150,7 @@ class ArtifactLineage:
             ),
         )
 
-    def with_edit(self, edit: ArtifactEdit) -> "ArtifactLineage":
+    def with_edit(self, edit: ArtifactEdit) -> ArtifactLineage:
         """Return new lineage with edit appended."""
         return ArtifactLineage(
             artifact_id=self.artifact_id,
@@ -168,7 +168,7 @@ class ArtifactLineage:
             deleted_at=self.deleted_at,
         )
 
-    def with_path(self, new_path: str) -> "ArtifactLineage":
+    def with_path(self, new_path: str) -> ArtifactLineage:
         """Return new lineage with updated path."""
         return ArtifactLineage(
             artifact_id=self.artifact_id,
@@ -186,7 +186,7 @@ class ArtifactLineage:
             deleted_at=self.deleted_at,
         )
 
-    def with_deleted(self, deleted_at: datetime) -> "ArtifactLineage":
+    def with_deleted(self, deleted_at: datetime) -> ArtifactLineage:
         """Return new lineage marked as deleted."""
         return ArtifactLineage(
             artifact_id=self.artifact_id,
@@ -206,7 +206,7 @@ class ArtifactLineage:
 
     def with_imports(
         self, imports: tuple[str, ...], imported_by: tuple[str, ...]
-    ) -> "ArtifactLineage":
+    ) -> ArtifactLineage:
         """Return new lineage with updated dependency info."""
         return ArtifactLineage(
             artifact_id=self.artifact_id,

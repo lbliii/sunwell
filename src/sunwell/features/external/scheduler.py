@@ -12,6 +12,7 @@ from sunwell.features.external.types import EventSource, EventType, ExternalEven
 
 if TYPE_CHECKING:
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
     from sunwell.features.external.processor import EventProcessor
 
 logger = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ class ExternalScheduler:
         self._scheduler = None
         self._jobs: dict[str, dict] = {}
 
-    def _get_scheduler(self) -> "AsyncIOScheduler | None":
+    def _get_scheduler(self) -> AsyncIOScheduler | None:
         """Get or create APScheduler instance."""
         if self._scheduler is None:
             try:

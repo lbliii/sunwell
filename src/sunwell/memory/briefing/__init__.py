@@ -3,8 +3,8 @@
 from sunwell.memory.briefing.briefing import Briefing, BriefingStatus, ExecutionSummary
 from sunwell.memory.briefing.compression import compress_briefing
 from sunwell.memory.briefing.prefetch import (
-    PrefetchPlan,
     PrefetchedContext,
+    PrefetchPlan,
     briefing_to_learning,
 )
 

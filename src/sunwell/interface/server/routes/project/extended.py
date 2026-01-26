@@ -1,7 +1,6 @@
 """Extended project operations: memory stats, intelligence, DAG, learnings."""
 
 import json
-from pathlib import Path
 
 from fastapi import APIRouter
 
@@ -15,7 +14,6 @@ from sunwell.interface.server.routes.models import (
     ProjectIntelligenceResponse,
     ProjectLearningsResponse,
 )
-from sunwell.interface.server.routes.project.models import ProjectPathRequest
 
 router = APIRouter(prefix="/project", tags=["project"])
 

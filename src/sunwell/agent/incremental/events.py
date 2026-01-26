@@ -22,7 +22,25 @@ from typing import Any
 from sunwell.agent.events import AgentEvent, EventType
 from sunwell.foundation.types.protocol import Serializable
 
-__all__ = ["Serializable", "ArtifactHashComputed", "ArtifactSkipped"]
+__all__ = [
+    # Protocol
+    "Serializable",
+    # Data classes
+    "ArtifactCacheHit",
+    "ArtifactCacheMiss",
+    "ArtifactHashComputed",
+    "ArtifactSkipped",
+    "CacheInvalidation",
+    "ExecutionPlanComputed",
+    "ProvenanceQueryResult",
+    # Factory functions
+    "artifact_cache_hit_event",
+    "artifact_cache_miss_event",
+    "artifact_hash_computed_event",
+    "artifact_skipped_event",
+    "cache_invalidation_event",
+    "execution_plan_computed_event",
+]
 
 # =============================================================================
 # Event Data Classes

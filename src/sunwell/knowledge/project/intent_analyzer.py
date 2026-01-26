@@ -12,7 +12,6 @@ try:
 except ImportError:
     import tomli as tomllib  # type: ignore[import-not-found]
 
-from sunwell.models import ModelProtocol
 from sunwell.knowledge.project.cache import (
     load_cached_analysis,
     save_analysis_cache,
@@ -34,6 +33,7 @@ from sunwell.knowledge.project.intent_types import (
 )
 from sunwell.knowledge.project.monorepo import SubProject, detect_sub_projects, is_monorepo
 from sunwell.knowledge.project.signals import ProjectSignals, gather_project_signals
+from sunwell.models import ModelProtocol
 
 
 async def analyze_project(

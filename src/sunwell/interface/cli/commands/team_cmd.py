@@ -585,8 +585,8 @@ def migrate(dry_run: bool, migrate_all: bool) -> None:
 
 async def _migrate_decisions(dry_run: bool, migrate_all: bool) -> None:
     """Migrate personal decisions to team."""
-    from sunwell.knowledge import DecisionMemory
     from sunwell.features.team import KnowledgePropagator, TeamKnowledgeStore
+    from sunwell.knowledge import DecisionMemory
 
     intelligence_path = Path.cwd() / ".sunwell" / "intelligence"
     if not intelligence_path.exists():

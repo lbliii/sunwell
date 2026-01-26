@@ -56,19 +56,21 @@ def register_internal_commands(parent_group: click.Group) -> None:
         parent_group: The parent click group (typically main)
     """
     # Import commands from their original locations
-    from sunwell.interface.cli.commands import backlog_cmd
-    from sunwell.interface.cli.commands import dag_cmd
-    from sunwell.interface.cli.commands import scan_cmd
-    from sunwell.interface.cli.commands import workspace_cmd
-    from sunwell.interface.cli.commands import weakness_cmd
-    from sunwell.interface.cli.commands import workers_cmd
-    from sunwell.interface.cli.commands import workflow_cmd
-    from sunwell.interface.cli.commands import index_cmd
-    from sunwell.interface.cli.commands import nav_cmd
-    from sunwell.interface.cli.commands import intel_cmd
-    from sunwell.interface.cli.commands import briefing_cmd
-    from sunwell.interface.cli.commands import security_cmd
-    from sunwell.interface.cli.commands import interface_cmd
+    from sunwell.interface.cli.commands import (
+        backlog_cmd,
+        briefing_cmd,
+        dag_cmd,
+        index_cmd,
+        intel_cmd,
+        interface_cmd,
+        nav_cmd,
+        scan_cmd,
+        security_cmd,
+        weakness_cmd,
+        workers_cmd,
+        workflow_cmd,
+        workspace_cmd,
+    )
     from sunwell.interface.cli.surface import surface
 
     # Register under internal group

@@ -20,8 +20,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.foundation.core.lens import Lens
     from sunwell.agent.execution.manager import ExecutionResult
+    from sunwell.foundation.core.lens import Lens
 
 
 @dataclass(frozen=True, slots=True)

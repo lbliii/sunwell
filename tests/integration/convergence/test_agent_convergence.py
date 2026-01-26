@@ -172,7 +172,7 @@ class TestConvergenceModuleImports:
     @pytest.mark.integration
     def test_convergence_module_exports(self):
         """Convergence module should export expected types."""
-        from sunwell.planning.naaru.convergence import (
+        from sunwell.agent.convergence import (
             ConvergenceConfig,
             ConvergenceIteration,
             ConvergenceLoop,

@@ -25,7 +25,6 @@ if TYPE_CHECKING:
     from sunwell.knowledge.workspace.lifecycle import (
         CleanupResult,
         DeleteResult,
-        DeletionMode,
         MoveResult,
         PurgeResult,
         RenameResult,
@@ -94,14 +93,14 @@ def _load_current_workspace() -> dict | None:
     try:
         content = path.read_text(encoding="utf-8")
         data = json.loads(content)
-        
+
         # Validate workspace path still exists
         workspace_path = Path(data.get("workspace_path", ""))
         if workspace_path and not workspace_path.exists():
             # Clear invalid state
             _clear_current_workspace()
             return None
-            
+
         return data
     except (json.JSONDecodeError, OSError, KeyError):
         # Corrupted or invalid JSON, clear it
@@ -136,7 +135,7 @@ def _save_current_workspace(workspace_id: str, workspace_path: Path) -> None:
 
     try:
         content = json.dumps(data, indent=2)
-        
+
         # Atomic write: write to temp file, then rename
         # This prevents partial writes if process is interrupted
         with tempfile.NamedTemporaryFile(
@@ -148,7 +147,7 @@ def _save_current_workspace(workspace_id: str, workspace_path: Path) -> None:
         ) as temp_file:
             temp_file.write(content)
             temp_path = Path(temp_file.name)
-        
+
         # Use file locking on Unix systems (fcntl not available on Windows)
         if sys.platform != "win32":
             try:
@@ -159,7 +158,7 @@ def _save_current_workspace(workspace_id: str, workspace_path: Path) -> None:
             except (OSError, AttributeError):
                 # Fallback if locking fails (e.g., NFS)
                 pass
-        
+
         # Atomic rename (works on all platforms)
         # On Windows, this will fail if file is locked, which is acceptable
         temp_path.replace(path)

@@ -51,8 +51,8 @@ class NaaruEventEmitter:
         if self._callback is None:
             return
 
-        from sunwell.agent.events.schemas import create_validated_event
         from sunwell.agent.events import EventType
+        from sunwell.agent.events.schemas import create_validated_event
 
         try:
             event = create_validated_event(EventType(event_type), data)

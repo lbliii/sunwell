@@ -19,7 +19,6 @@ Example:
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 from sunwell.memory.core.types import MemoryContext, SyncResult, TaskMemoryContext
@@ -35,11 +34,11 @@ _GENERATION_KEYWORDS: frozenset[str] = frozenset({"generate", "create", "impleme
 """Keywords that indicate generation/creation tasks."""
 
 if TYPE_CHECKING:
+    from sunwell.features.team.store import TeamKnowledgeStore
     from sunwell.knowledge.codebase.decisions import Decision, DecisionMemory
     from sunwell.knowledge.codebase.failures import FailedApproach, FailureMemory
     from sunwell.knowledge.codebase.patterns import PatternProfile
     from sunwell.memory.simulacrum.core.store import SimulacrumStore
-    from sunwell.features.team.store import TeamKnowledgeStore
 
 logger = logging.getLogger(__name__)
 

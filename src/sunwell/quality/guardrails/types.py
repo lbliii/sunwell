@@ -297,6 +297,7 @@ class EscalationOption:
         "approve",  # Proceed with the action
         "approve_once",  # Approve this once, keep guardrail
         "skip",  # Skip this goal, continue session
+        "skip_all",  # Skip all remaining escalations
         "modify",  # Let user modify the goal
         "abort",  # Abort entire session
         "relax",  # Relax the guardrail for session
@@ -543,7 +544,7 @@ class GuardViolation:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "GuardViolation":
+    def from_dict(cls, data: dict) -> GuardViolation:
         """Create from dict."""
         context_dict = data.get("context", {})
         return cls(

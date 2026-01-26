@@ -16,48 +16,43 @@ RFC-138: Module Architecture Consolidation
 """
 
 # === Primary Entry Points ===
+# === Lens Management ===
+from sunwell.planning.lens import (
+    LensIndex,
+    LensIndexEntry,
+    LensManager,
+)
+
+# === Common Config Helpers ===
 from sunwell.planning.naaru import (
+    AgentResult,
     Naaru,
     NaaruConfig,
     Task,
     TaskStatus,
-    AgentResult,
+    create_auto_config,
+    create_balanced_config,
+    create_minimal_config,
 )
-
-from sunwell.planning.routing import (
-    UnifiedRouter,
-    RoutingDecision,
-    Intent,
-    Complexity,
-)
-
 from sunwell.planning.reasoning import (
-    Reasoner,
-    ReasonedDecision,
     DecisionType,
     FastClassifier,
+    ReasonedDecision,
+    Reasoner,
+)
+from sunwell.planning.routing import (
+    Complexity,
+    Intent,
+    RoutingDecision,
+    UnifiedRouter,
 )
 
 # === Skills ===
 from sunwell.planning.skills import (
     Skill,
+    SkillCompiler,
     SkillGraph,
     SkillResult,
-    SkillCompiler,
-)
-
-# === Lens Management ===
-from sunwell.planning.lens import (
-    LensManager,
-    LensIndex,
-    LensIndexEntry,
-)
-
-# === Common Config Helpers ===
-from sunwell.planning.naaru import (
-    create_auto_config,
-    create_balanced_config,
-    create_minimal_config,
 )
 
 __all__ = [

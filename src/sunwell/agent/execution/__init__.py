@@ -1,6 +1,7 @@
 """Task execution and specialist handling."""
 
 from sunwell.agent.core.task_graph import sanitize_code_content
+from sunwell.agent.execution.context import BacklogContext
 from sunwell.agent.execution.emitter import StdoutEmitter
 from sunwell.agent.execution.executor import (
     determine_specialist_role,
@@ -16,6 +17,7 @@ from sunwell.agent.execution.manager import ExecutionManager
 from sunwell.agent.execution.specialist import execute_via_specialist, get_context_snapshot
 
 __all__ = [
+    "BacklogContext",
     "determine_specialist_role",
     "execute_task_streaming_fallback",
     "execute_task_with_tools",

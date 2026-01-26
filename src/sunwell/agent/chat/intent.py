@@ -7,6 +7,10 @@ Classifies user input as conversation vs task to route appropriately:
 - INTERRUPT: Input during execution → pause and handle
 
 Uses heuristics first for speed, falls back to LLM for ambiguous cases.
+
+This module provides:
+- IntentRouter: Core classification engine
+- classify_input(): Convenience function for shared use across CLI entry points
 """
 
 from dataclasses import dataclass
@@ -160,10 +164,9 @@ class IntentRouter:
         # Strong signal: starts with task verb
         if first_word in _TASK_VERBS:
             task_score += 0.5
-
-        # Medium signal: task verb in first 3 words
-        if any(w in _TASK_VERBS for w in words[:3]):
-            task_score += 0.2
+        # Medium signal: task verb in words 2-3 (not first word to avoid double-counting)
+        elif any(w in _TASK_VERBS for w in words[1:3]):
+            task_score += 0.3
 
         # Weak signal: not a question
         is_question = lower.endswith("?")
@@ -230,6 +233,8 @@ class IntentRouter:
         context: str | None,
     ) -> IntentClassification:
         """Use LLM for ambiguous classification."""
+        from sunwell.models.core.protocol import Message
+
         if not self.model:
             # Fallback to conversation for safety
             return IntentClassification(
@@ -250,7 +255,7 @@ Respond with only: TASK or CONVERSATION"""
 
         try:
             result = await self.model.generate(
-                ({"role": "user", "content": prompt},),
+                (Message(role="user", content=prompt),),
             )
 
             text = result.text.strip().upper()
@@ -269,3 +274,37 @@ Respond with only: TASK or CONVERSATION"""
                 confidence=0.5,
                 reasoning="LLM classification failed, defaulting to conversation",
             )
+
+
+# =============================================================================
+# Convenience Functions for Shared Use
+# =============================================================================
+
+
+async def classify_input(
+    user_input: str,
+    model: ModelProtocol | None = None,
+    context: str | None = None,
+    threshold: float = 0.7,
+) -> IntentClassification:
+    """Classify user input for routing decisions.
+
+    Shared convenience function used by both goal command and chat loop
+    to ensure consistent intent classification across all entry points.
+
+    Args:
+        user_input: Raw user input text
+        model: Optional LLM for ambiguous cases
+        context: Optional conversation context for disambiguation
+        threshold: Confidence threshold for classification
+
+    Returns:
+        IntentClassification with intent, confidence, and reasoning
+
+    Example:
+        >>> result = await classify_input("where is flask used?", model)
+        >>> if result.intent == Intent.CONVERSATION:
+        ...     print("This is a question")
+    """
+    router = IntentRouter(model=model, threshold=threshold)
+    return await router.classify(user_input, context=context)

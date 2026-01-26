@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from sunwell.models import ModelProtocol
 
 
-def create_model(provider: str, model_name: str) -> "ModelProtocol":
+def create_model(provider: str, model_name: str) -> ModelProtocol:
     """Create model instance based on provider."""
     from sunwell.interface.cli.core.theme import console
 
@@ -53,7 +53,7 @@ def create_model(provider: str, model_name: str) -> "ModelProtocol":
 def resolve_model(
     provider_override: str | None = None,
     model_override: str | None = None,
-) -> "ModelProtocol":
+) -> ModelProtocol:
     """Resolve model from CLI overrides or config defaults.
 
     Priority:
@@ -75,7 +75,7 @@ def resolve_model(
 
     # Priority 1: CLI overrides
     provider = provider_override or cfg.model.default_provider or "ollama"
-    
+
     # Priority 2: Config model, then provider-specific defaults, then fallback
     if model_override:
         model_name = model_override

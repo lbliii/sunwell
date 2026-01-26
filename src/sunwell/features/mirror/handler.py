@@ -12,7 +12,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.foundation.utils import safe_json_dumps
 from sunwell.features.mirror.analysis import (
     FailureAnalyzer,
     analyze_errors,
@@ -40,6 +39,7 @@ from sunwell.features.mirror.proposals import ProposalManager, ProposalStatus
 from sunwell.features.mirror.router import ModelRouter
 from sunwell.features.mirror.safety import SafetyChecker
 from sunwell.features.mirror.self import Self
+from sunwell.foundation.utils import safe_json_dumps
 
 if TYPE_CHECKING:
     from sunwell.tools.execution import ToolExecutor

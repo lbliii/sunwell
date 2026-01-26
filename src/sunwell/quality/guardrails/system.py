@@ -21,10 +21,8 @@ from sunwell.quality.guardrails.types import (
     EscalationReason,
     EscalationResolution,
     FileChange,
-    GuardViolation,
     ScopeCheckResult,
     SessionStart,
-    ViolationOutcome,
 )
 from sunwell.quality.guardrails.verification import VerificationGate, create_verification_gate
 

@@ -18,20 +18,18 @@ RFC-138: Module Architecture Consolidation
 # === Primary Entry Points ===
 
 # Guardrails (RFC-048) - Safety system for autonomous operation
-from sunwell.quality.guardrails import (
-    GuardrailSystem,
-    GuardrailConfig,
-    execute_with_guardrails,
-    TrustLevel,
-    ActionRisk,
+# Confidence (RFC-100) - Confidence scoring
+from sunwell.quality.confidence import (
+    ConfidenceLevel,
+    Evidence,
+    aggregate_confidence,
 )
-
-# Verification (RFC-047) - Deep semantic verification
-from sunwell.quality.verification import (
-    DeepVerifier,
-    create_verifier,
-    DeepVerificationResult,
-    STANDARD_CONFIG,
+from sunwell.quality.guardrails import (
+    ActionRisk,
+    GuardrailConfig,
+    GuardrailSystem,
+    TrustLevel,
+    execute_with_guardrails,
 )
 
 # Security (RFC-089) - Permission analysis
@@ -41,18 +39,19 @@ from sunwell.quality.security import (
     create_secure_executor,
 )
 
-# Confidence (RFC-100) - Confidence scoring
-from sunwell.quality.confidence import (
-    ConfidenceLevel,
-    aggregate_confidence,
-    Evidence,
+# Verification (RFC-047) - Deep semantic verification
+from sunwell.quality.verification import (
+    STANDARD_CONFIG,
+    DeepVerificationResult,
+    DeepVerifier,
+    create_verifier,
 )
 
 # Weakness (RFC-063) - Technical debt detection
 from sunwell.quality.weakness import (
+    CascadeExecutor,
     WeaknessAnalyzer,
     WeaknessType,
-    CascadeExecutor,
 )
 
 __all__ = [

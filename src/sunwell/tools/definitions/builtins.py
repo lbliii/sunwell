@@ -687,8 +687,8 @@ def get_tools_for_trust_level(trust_level: str) -> tuple[Tool, ...]:
     Returns:
         Tuple of Tool objects available at that trust level
     """
-    from sunwell.tools.core.types import ToolTrust
     from sunwell.tools.core.constants import TRUST_LEVEL_TOOLS
+    from sunwell.tools.core.types import ToolTrust
 
     level = ToolTrust.from_string(trust_level)
     allowed_names = TRUST_LEVEL_TOOLS.get(level, frozenset())

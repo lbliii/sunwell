@@ -21,8 +21,8 @@ def emit_event(
         return
 
     try:
-        from sunwell.agent.events.schemas import create_validated_event
         from sunwell.agent.events import EventType
+        from sunwell.agent.events.schemas import create_validated_event
 
         # RFC-060: Validate event data against schema
         event = create_validated_event(EventType(event_type), data)

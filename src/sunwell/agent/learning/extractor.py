@@ -9,10 +9,9 @@ from sunwell.agent.learning.dead_end import DeadEnd
 from sunwell.agent.learning.learning import Learning
 
 if TYPE_CHECKING:
+    from sunwell.memory.simulacrum.core.turn import Learning as SimLearning
     from sunwell.models import ModelProtocol
     from sunwell.planning.naaru.types import Task
-    from sunwell.memory.simulacrum.core.turn import Learning as SimLearning
-    from sunwell.memory.simulacrum.core.turn import TemplateData, TemplateVariable
 
 # Pre-compiled regex patterns for learning extraction (avoid recompiling per call)
 _RE_API_ROUTE = re.compile(
@@ -38,7 +37,7 @@ class LearningExtractor:
     use_llm: bool = False
     """Whether to use LLM for deeper extraction."""
 
-    model: ModelProtocol | None = None
+    model: "ModelProtocol | None" = None
     """Model for LLM extraction."""
 
     def extract_from_code(
@@ -287,6 +286,8 @@ PATTERN: Using Flask-SQLAlchemy with create_app pattern"""
         """
         from sunwell.memory.simulacrum.core.turn import (
             Learning as SimLearning,
+        )
+        from sunwell.memory.simulacrum.core.turn import (
             TemplateData,
             TemplateVariable,
         )
@@ -324,9 +325,12 @@ Is this a repeatable pattern? If yes, extract:
 5. Validation commands
 
 Return JSON with:
-{{"is_pattern": true/false, "name": "...", "match_patterns": [...], "variables": [...], "produces": [...], "requires": [...], "expected_artifacts": [...], "validation": [...]}}
+{{"is_pattern": true/false, "name": "...", "match_patterns": [...], "variables": [...],
+"produces": [...], "requires": [...], "expected_artifacts": [...], "validation": [...]}}
 
-For variables, use format: {{"name": "entity", "description": "Model name", "type": "string", "hints": ["for {{{{entity}}}}", "{{{{entity}}}} API"]}}"""
+For variables, use format:
+{{"name": "entity", "description": "Model name", "type": "string",
+"hints": ["for {{{{entity}}}}", "{{{{entity}}}} API"]}}"""
 
         try:
             result = await self.model.generate(

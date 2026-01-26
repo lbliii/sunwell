@@ -30,6 +30,13 @@ Structure:
 """
 
 # Re-export all schemas
+from .backlog import (
+    BacklogGoalAddedData,
+    BacklogGoalCompletedData,
+    BacklogGoalFailedData,
+    BacklogGoalStartedData,
+    BacklogRefreshedData,
+)
 from .base import (
     CompleteData,
     ErrorData,
@@ -41,13 +48,6 @@ from .base import (
     TaskFailedData,
     TaskProgressData,
     TaskStartData,
-)
-from .backlog import (
-    BacklogGoalAddedData,
-    BacklogGoalCompletedData,
-    BacklogGoalFailedData,
-    BacklogGoalStartedData,
-    BacklogRefreshedData,
 )
 from .briefing import BriefingLoadedData, BriefingSavedData
 from .convergence import (
@@ -77,8 +77,8 @@ from .fix import (
 from .gate import GateFailData, GatePassData, GateStartData, GateStepData
 from .harmonic import (
     PlanCandidateGeneratedData,
-    PlanCandidateScoredData,
     PlanCandidatesCompleteData,
+    PlanCandidateScoredData,
     PlanCandidateStartData,
     PlanScoringCompleteData,
 )

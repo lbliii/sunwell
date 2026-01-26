@@ -32,8 +32,7 @@ instructions: |
 
 
 import re
-import shutil
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -76,7 +75,7 @@ class SkillExporter:
 
     def export_anthropic(
         self,
-        skill: "Skill",
+        skill: Skill,
         output_dir: Path,
         include_scripts: bool = True,
     ) -> Path:
@@ -175,7 +174,7 @@ class SkillExporter:
 
     def export_sunwell(
         self,
-        skill: "Skill",
+        skill: Skill,
         output_dir: Path,
     ) -> Path:
         """Export skill to full Sunwell format with DAG metadata.
@@ -270,7 +269,7 @@ class SkillExporter:
 
     def export(
         self,
-        skill: "Skill",
+        skill: Skill,
         output_dir: Path,
         format: ExportFormat = "anthropic",
     ) -> Path:
@@ -713,8 +712,8 @@ class SkillImporter:
 
 def validate_skill_folder(
     skill_path: Path,
-    lens: "Lens | None" = None,
-) -> "SkillValidationResult":
+    lens: Lens | None = None,
+) -> SkillValidationResult:
     """Validate a skill folder for correctness.
 
     Args:

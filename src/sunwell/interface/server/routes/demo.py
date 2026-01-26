@@ -64,10 +64,10 @@ async def run_demo(request: DemoRunRequest) -> dict[str, Any]:
     Use /api/demo/code/{run_id}/{method} to fetch raw code.
     """
     try:
-        from sunwell.interface.cli.helpers import resolve_model
-        from sunwell.foundation.config import get_config
         from sunwell.benchmark.demo import DemoComparison, DemoExecutor, DemoScorer, get_task
         from sunwell.benchmark.demo.files import cleanup_old_demos, save_demo_code
+        from sunwell.foundation.config import get_config
+        from sunwell.interface.cli.helpers import resolve_model
 
         config = get_config()
         provider = request.provider or (config.model.default_provider if config else "ollama")

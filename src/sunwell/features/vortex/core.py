@@ -19,7 +19,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from sunwell.models import ModelProtocol
 
-from sunwell.models import GenerateOptions
 from sunwell.features.vortex.config import VortexConfig
 from sunwell.features.vortex.locality import (
     LocalityResult,
@@ -38,6 +37,7 @@ from sunwell.features.vortex.signals import (
     Signal,
     parse_selection,
 )
+from sunwell.models import GenerateOptions
 
 # =============================================================================
 # Result Types

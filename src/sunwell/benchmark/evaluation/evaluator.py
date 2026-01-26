@@ -9,6 +9,8 @@ Three-tier evaluation system:
 
 from dataclasses import dataclass
 
+from sunwell.benchmark.evaluation.deterministic import evaluate_deterministic
+from sunwell.benchmark.evaluation.judge import evaluate_with_judge
 from sunwell.benchmark.types import (
     AggregatedVerdict,
     BenchmarkTask,
@@ -17,9 +19,6 @@ from sunwell.benchmark.types import (
     Verdict,
 )
 from sunwell.models import ModelProtocol
-
-from sunwell.benchmark.evaluation.deterministic import evaluate_deterministic
-from sunwell.benchmark.evaluation.judge import evaluate_with_judge
 
 
 @dataclass

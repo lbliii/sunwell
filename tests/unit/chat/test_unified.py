@@ -219,7 +219,7 @@ class TestUnifiedChatLoopRouting:
     async def test_conversation_routing(self, mock_model: MagicMock) -> None:
         """Conversation input returns string response."""
         # Mock the intent router to return CONVERSATION
-        with patch("sunwell.chat.unified.IntentRouter") as MockRouter:
+        with patch("sunwell.agent.chat.unified.IntentRouter") as MockRouter:
             mock_router = MagicMock()
             mock_router.classify = AsyncMock(return_value=IntentClassification(
                 intent=Intent.CONVERSATION,

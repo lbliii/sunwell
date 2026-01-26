@@ -19,7 +19,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sunwell.foundation.utils import safe_json_dumps, safe_yaml_load
 from sunwell.benchmark.naaru.conditions import ConditionRunner
 from sunwell.benchmark.naaru.types import (
     NaaruBenchmarkResults,
@@ -33,11 +32,12 @@ from sunwell.benchmark.types import (
     TaskCategory,
     TaskEvaluation,
 )
+from sunwell.foundation.utils import safe_json_dumps, safe_yaml_load
 
 if TYPE_CHECKING:
     from sunwell.foundation.core.lens import Lens
-    from sunwell.models import ModelProtocol
     from sunwell.foundation.schema.loader import LensLoader
+    from sunwell.models import ModelProtocol
 
 
 @dataclass

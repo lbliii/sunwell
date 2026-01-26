@@ -22,10 +22,12 @@ Multi-Project Architecture:
 
 from sunwell.knowledge.workspace.detector import (
     DEFAULT_TRUST,
-    Workspace as DetectedWorkspace,  # Legacy: single codebase detection
     WorkspaceConfig,
     WorkspaceDetector,
     resolve_trust_level,
+)
+from sunwell.knowledge.workspace.detector import (
+    Workspace as DetectedWorkspace,  # Legacy: single codebase detection
 )
 from sunwell.knowledge.workspace.indexer import CodebaseIndexer
 from sunwell.knowledge.workspace.lifecycle import (
@@ -44,6 +46,12 @@ from sunwell.knowledge.workspace.manager import (
     WorkspaceStatus,
     sanitize_workspace_id,
 )
+from sunwell.knowledge.workspace.registry import (
+    WorkspaceRegistry,
+    WorkspaceRegistryError,
+    create_workspace,
+    get_default_workspace,
+)
 from sunwell.knowledge.workspace.resolver import (
     ResolutionSource,
     WorkspaceResult,
@@ -59,12 +67,6 @@ from sunwell.knowledge.workspace.types import (
     Workspace,  # New: multi-project workspace container
     WorkspaceDependencies,
     WorkspaceProject,
-)
-from sunwell.knowledge.workspace.registry import (
-    WorkspaceRegistry,
-    WorkspaceRegistryError,
-    create_workspace,
-    get_default_workspace,
 )
 from sunwell.knowledge.workspace.workspace_index import (
     SignatureMatch,

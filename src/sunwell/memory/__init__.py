@@ -16,6 +16,16 @@ RFC-138: Module Architecture Consolidation
 """
 
 # Core types
+# Briefing system (RFC-071)
+from sunwell.memory.briefing import (
+    Briefing,
+    BriefingStatus,
+    ExecutionSummary,
+    PrefetchedContext,
+    PrefetchPlan,
+    briefing_to_learning,
+    compress_briefing,
+)
 from sunwell.memory.core.types import (
     MemoryContext,
     Promptable,
@@ -23,24 +33,13 @@ from sunwell.memory.core.types import (
     TaskMemoryContext,
 )
 
-# Briefing system (RFC-071)
-from sunwell.memory.briefing import (
-    Briefing,
-    BriefingStatus,
-    ExecutionSummary,
-    PrefetchPlan,
-    PrefetchedContext,
-    briefing_to_learning,
-    compress_briefing,
-)
-
 # Persistent memory facade - THE main entry point
 from sunwell.memory.facade import GoalMemory, PersistentMemory
+from sunwell.memory.lineage import ArtifactLineage, LineageStore
+from sunwell.memory.session import SessionTracker
 
 # Key types from subpackages (import more from subpackages directly)
-from sunwell.memory.simulacrum import SimulacrumStore, Turn, Learning
-from sunwell.memory.lineage import LineageStore, ArtifactLineage
-from sunwell.memory.session import SessionTracker
+from sunwell.memory.simulacrum import Learning, SimulacrumStore, Turn
 
 __all__ = [
     # === Primary API ===

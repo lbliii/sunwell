@@ -70,17 +70,17 @@ class LensData:
     version: str  # v1 or v2 format
 
     @classmethod
-    def from_yaml(cls, path: Path) -> "LensData":
+    def from_yaml(cls, path: Path) -> LensData:
         """Load lens data from YAML file."""
         data = safe_yaml_load(path)
 
         lens = data.get("lens", {})
         metadata = lens.get("metadata", {})
-        
+
         # Detect v1 vs v2 format
         heuristics = lens.get("heuristics", [])
         is_v2 = any(
-            "wisdom" in h or "judgment" in h 
+            "wisdom" in h or "judgment" in h
             for h in heuristics
         )
 
@@ -94,28 +94,28 @@ class LensData:
             knowledge_sources=lens.get("knowledge_sources"),
             version="v2" if is_v2 else "v1",
         )
-    
+
     def get_all_wisdom(self) -> list[str]:
         """Extract all wisdom statements from heuristics."""
         wisdom = []
         for h in self.heuristics:
             wisdom.extend(h.get("wisdom", []))
         return wisdom
-    
+
     def get_all_judgment(self) -> list[str]:
         """Extract all judgment statements from heuristics."""
         judgment = []
         for h in self.heuristics:
             judgment.extend(h.get("judgment", []))
         return judgment
-    
+
     def get_all_anti_patterns(self) -> list[str]:
         """Extract all anti-patterns from heuristics."""
         patterns = []
         for h in self.heuristics:
             patterns.extend(h.get("anti_patterns", []))
         return patterns
-    
+
     def get_all_examples(self) -> dict[str, str]:
         """Extract all named examples from heuristics."""
         examples = {}
@@ -435,7 +435,7 @@ class ExamplesProminentPromptBuilder(LensPromptBuilder):
         if self.lens.version == "v2":
             return self._build_v2_prompt(task_prompt)
         return self._build_v1_prompt(task_prompt)
-    
+
     def _build_v2_prompt(self, task_prompt: str) -> str:
         """Build prompt using v2 mental model format."""
         sections = [
@@ -443,7 +443,7 @@ class ExamplesProminentPromptBuilder(LensPromptBuilder):
             f"*{self.lens.description}*" if self.lens.description else "",
             "",
         ]
-        
+
         # Mental models first - teach HOW to think
         sections.append("## Mental Models\n")
         sorted_h = sorted(
@@ -451,13 +451,13 @@ class ExamplesProminentPromptBuilder(LensPromptBuilder):
             key=lambda h: h.get("priority", 0.5),
             reverse=True,
         )
-        
+
         for h in sorted_h:
             name = h.get("name", "Principle")
             rule = h.get("rule", "")
             sections.append(f"### {name}")
             sections.append(f"**Core principle**: {rule}\n")
-            
+
             # Wisdom - expert insights
             wisdom = h.get("wisdom", [])
             if wisdom:
@@ -465,7 +465,7 @@ class ExamplesProminentPromptBuilder(LensPromptBuilder):
                 for w in wisdom:
                     sections.append(f"  • {w}")
                 sections.append("")
-            
+
             # Judgment - when to apply
             judgment = h.get("judgment", [])
             if judgment:
@@ -473,7 +473,7 @@ class ExamplesProminentPromptBuilder(LensPromptBuilder):
                 for j in judgment:
                     sections.append(f"  • {j}")
                 sections.append("")
-            
+
             # Examples as illustrations
             examples = h.get("examples", {})
             if examples and isinstance(examples, dict):
@@ -481,7 +481,7 @@ class ExamplesProminentPromptBuilder(LensPromptBuilder):
                 for label, code in examples.items():
                     sections.append(f"  {label}: `{code}`")
                 sections.append("")
-            
+
             # Anti-patterns
             anti = h.get("anti_patterns", [])
             if anti:
@@ -489,23 +489,23 @@ class ExamplesProminentPromptBuilder(LensPromptBuilder):
                 for a in anti:
                     sections.append(f"  ✗ {a}")
                 sections.append("")
-        
+
         # Communication style
         if self.lens.communication:
             sections.append("## Communication Style")
             style = self.lens.communication.get("style", "")
             if style:
                 sections.append(f"*{style}*")
-            
+
             principles = self.lens.communication.get("principles", [])
             if principles:
                 for p in principles:
                     sections.append(f"- {p}")
-            
+
             tone = self.lens.communication.get("tone", [])
             if tone:
                 sections.append(f"\nTone: {', '.join(tone) if isinstance(tone, list) else tone}")
-        
+
         # Quality signals
         if self.lens.quality_policy:
             signals = self.lens.quality_policy.get("signals_of_quality", [])
@@ -513,7 +513,7 @@ class ExamplesProminentPromptBuilder(LensPromptBuilder):
                 sections.append("\n## Quality Signals")
                 for s in signals:
                     sections.append(f"✓ {s}")
-        
+
         return f"""{chr(10).join(sections)}
 
 ---

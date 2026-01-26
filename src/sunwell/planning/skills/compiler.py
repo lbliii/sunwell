@@ -31,7 +31,7 @@ from sunwell.planning.naaru.types import Task, TaskMode, TaskStatus
 if TYPE_CHECKING:
     from sunwell.foundation.core.lens import Lens
     from sunwell.planning.skills.graph import SkillGraph
-    from sunwell.planning.skills.types import Skill, SkillMetadata
+    from sunwell.planning.skills.types import Skill
 
 
 # =============================================================================

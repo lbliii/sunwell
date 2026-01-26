@@ -33,8 +33,8 @@ from sunwell.planning.naaru.selection import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.models import ModelProtocol
     from sunwell.foundation.types.config import NaaruConfig
+    from sunwell.models import ModelProtocol
 
 
 @dataclass(frozen=True, slots=True)

@@ -75,7 +75,7 @@ class RunManager:
     - Persist completed runs to RunStore (RFC-112 Observatory)
     """
 
-    def __init__(self, max_runs: int = 100, run_store: "RunStore | None" = None) -> None:
+    def __init__(self, max_runs: int = 100, run_store: RunStore | None = None) -> None:
         """Initialize run manager.
 
         Args:
@@ -161,7 +161,7 @@ class RunManager:
         """
         return list(self._runs.values())
 
-    def _get_store(self) -> "RunStore | None":
+    def _get_store(self) -> RunStore | None:
         """Get the run store, lazily initializing from global if needed."""
         if self._run_store is None:
             try:

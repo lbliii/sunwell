@@ -42,14 +42,20 @@ Components:
 
 import asyncio
 import contextlib
-from collections.abc import AsyncIterator, Callable
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from sunwell.features.mirror import MirrorHandler
-from sunwell.planning.naaru.core import MessageBus, MessageType, NaaruMessage, NaaruRegion, RegionWorker
+from sunwell.foundation.types.config import NaaruConfig
+from sunwell.planning.naaru.core import (
+    MessageBus,
+    MessageType,
+    NaaruMessage,
+    NaaruRegion,
+    RegionWorker,
+)
 from sunwell.planning.naaru.events import NaaruEventEmitter
 from sunwell.planning.naaru.execution import ExecutionCoordinator
 from sunwell.planning.naaru.learnings import LearningExtractor
@@ -62,7 +68,6 @@ from sunwell.planning.naaru.workers import (
     ToolRegionWorker,
     ValidationWorker,
 )
-from sunwell.foundation.types.config import NaaruConfig
 
 
 @dataclass(frozen=True, slots=True)
@@ -392,11 +397,11 @@ class Naaru:
         """Build focused prompt for specialist."""
         prompt_parts = [
             f"You are a specialist with role: {request.role}",
-            f"",
+            "",
             f"TASK: {request.focus}",
-            f"",
+            "",
             f"REASON YOU WERE SPAWNED: {request.reason}",
-            f"",
+            "",
         ]
 
         # Add relevant context from parent
@@ -480,7 +485,7 @@ class Naaru:
             Dict with proposals, learnings, and stats
         """
         output = on_output or print
-        output(f"🌟 Naaru Illuminate Mode")
+        output("🌟 Naaru Illuminate Mode")
         output(f"   Goals: {goals}")
         output(f"   Max time: {max_time_seconds}s")
         output("")
@@ -503,7 +508,7 @@ class Naaru:
                     asyncio.gather(*tasks, return_exceptions=True),
                     timeout=max_time_seconds,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 output(f"   ⏱️ Time limit reached ({max_time_seconds}s)")
             finally:
                 for task in tasks:
@@ -515,7 +520,7 @@ class Naaru:
         await run_workers()
 
         results = self._collect_results()
-        output(f"\n✨ Illuminate complete")
+        output("\n✨ Illuminate complete")
         output(f"   Proposals: {len(results['completed_proposals'])}")
         output(f"   Learnings: {results['learnings_count']}")
 

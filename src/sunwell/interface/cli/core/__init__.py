@@ -9,22 +9,22 @@ This module contains the core CLI components:
 - Session handling
 """
 
-from sunwell.interface.cli.core.main import GoalFirstGroup, cli_entrypoint, main
 from sunwell.interface.cli.core.error_handler import (
     format_error_for_json,
     handle_error,
     parse_error_from_json,
 )
-from sunwell.interface.cli.core.theme import (
-    SUNWELL_THEME,
-    create_sunwell_console,
-    should_reduce_motion,
-)
+from sunwell.interface.cli.core.main import GoalFirstGroup, cli_entrypoint, main
 from sunwell.interface.cli.core.shortcuts import (
     complete_shortcut,
     complete_target,
     get_cached_shortcuts,
     run_shortcut,
+)
+from sunwell.interface.cli.core.theme import (
+    SUNWELL_THEME,
+    create_sunwell_console,
+    should_reduce_motion,
 )
 
 # Backwards compatibility alias

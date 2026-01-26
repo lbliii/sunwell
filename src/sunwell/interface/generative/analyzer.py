@@ -29,6 +29,7 @@ from sunwell.interface.generative.types import (
     IntentAnalysis,
     ViewSpec,
 )
+from sunwell.interface.surface.types import WorkspaceSpec
 from sunwell.models.providers.base import (
     BookmarksProvider,
     CalendarProvider,
@@ -40,7 +41,6 @@ from sunwell.models.providers.base import (
     NotesProvider,
     ProjectsProvider,
 )
-from sunwell.interface.surface.types import WorkspaceSpec
 
 if TYPE_CHECKING:
     from sunwell.interface.generative.pipeline import IntentPipeline

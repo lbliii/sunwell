@@ -3,15 +3,11 @@
 import asyncio
 from typing import TYPE_CHECKING, Any
 
-from sunwell.planning.naaru.artifacts import ArtifactGraph
 from sunwell.planning.naaru.planners.metrics import CandidateResult
 from sunwell.planning.naaru.planners.variance import apply_variance, get_variance_configs
 
 if TYPE_CHECKING:
-    from sunwell.models import ModelProtocol
     from sunwell.planning.naaru.convergence import Convergence
-    from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
-    from sunwell.planning.naaru.planners.harmonic.planner import HarmonicPlanner
 
 
 async def generate_candidates(
@@ -101,7 +97,7 @@ async def generate_candidates(
 
 
 async def warm_convergence(
-    convergence: "Convergence",
+    convergence: Convergence,
     goal: str,
     context: dict[str, Any] | None,
 ) -> None:

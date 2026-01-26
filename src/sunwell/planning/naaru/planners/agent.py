@@ -17,8 +17,8 @@ from sunwell.planning.naaru.planners.protocol import PlanningError, PlanningStra
 from sunwell.planning.naaru.types import Task, TaskMode, TaskStatus
 
 if TYPE_CHECKING:
-    from sunwell.models import ModelProtocol, Tool
     from sunwell.knowledge.project.schema import ProjectSchema
+    from sunwell.models import ModelProtocol, Tool
 
 
 # Pre-compiled regex patterns for goal parsing (avoid per-call compilation)

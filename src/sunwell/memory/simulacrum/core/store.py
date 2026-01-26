@@ -34,7 +34,6 @@ Key features:
 """
 
 
-import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -43,7 +42,6 @@ from typing import TYPE_CHECKING
 from sunwell.memory.simulacrum.core.auto_wiring import (
     extract_topology_batch,
     maybe_demote_warm_to_cold,
-    turns_to_text,
 )
 from sunwell.memory.simulacrum.core.config import StorageConfig
 from sunwell.memory.simulacrum.core.dag import ConversationDAG
@@ -59,15 +57,14 @@ from sunwell.memory.simulacrum.core.session_manager import SessionManager
 from sunwell.memory.simulacrum.core.tier_manager import TierManager
 from sunwell.memory.simulacrum.core.turn import Learning, Turn, TurnType
 from sunwell.memory.simulacrum.core.turn_utils import estimate_token_count
-from sunwell.memory.simulacrum.hierarchical.chunks import Chunk, ChunkSummary
+from sunwell.memory.simulacrum.hierarchical.chunks import Chunk
 from sunwell.memory.simulacrum.hierarchical.config import ChunkConfig
 
 if TYPE_CHECKING:
-    from sunwell.memory.simulacrum.context.focus import Focus
-    from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
-    from sunwell.memory.simulacrum.extractors.topology_extractor import TopologyExtractor
     from sunwell.knowledge.codebase.extractor import IntelligenceExtractor
-    from sunwell.planning.naaru.convergence import Slot
+    from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
+    from sunwell.memory.simulacrum.context.focus import Focus
+    from sunwell.memory.simulacrum.extractors.topology_extractor import TopologyExtractor
     from sunwell.memory.simulacrum.hierarchical.chunk_manager import ChunkManager
     from sunwell.memory.simulacrum.hierarchical.summarizer import Summarizer
     from sunwell.memory.simulacrum.memory_tools import MemoryToolHandler
@@ -75,7 +72,6 @@ if TYPE_CHECKING:
 
 # RFC-022 Enhancement: Episode tracking
 from sunwell.foundation.types.memory import Episode
-
 
 # =============================================================================
 # SimulacrumStore
@@ -144,17 +140,17 @@ class SimulacrumStore:
     _embedder: EmbeddingProtocol | None = field(default=None, init=False)
     """Embedder for semantic retrieval."""
 
-    _intelligence_extractor: "IntelligenceExtractor | None" = field(default=None, init=False)
+    _intelligence_extractor: IntelligenceExtractor | None = field(default=None, init=False)
     """RFC-045: Intelligence extractor for project intelligence."""
 
     # RFC-084: Auto-wiring state
-    _topology_extractor: "TopologyExtractor | None" = field(default=None, init=False)
+    _topology_extractor: TopologyExtractor | None = field(default=None, init=False)
     """Topology extractor for relationship detection."""
 
     _topology_extracted_chunks: set[str] = field(default_factory=set)
     """Chunk IDs that have had topology extracted."""
 
-    _focus: "Focus | None" = field(default=None, init=False)
+    _focus: Focus | None = field(default=None, init=False)
     """Focus mechanism for weighted topic tracking (RFC-084)."""
 
     # Modular managers
@@ -335,7 +331,7 @@ class SimulacrumStore:
                 logger = logging.getLogger(__name__)
                 logger.debug(f"Intelligence extraction failed for chunk {chunk.id}: {e}")
 
-    def set_intelligence_extractor(self, extractor: "IntelligenceExtractor") -> None:
+    def set_intelligence_extractor(self, extractor: IntelligenceExtractor) -> None:
         """Set the intelligence extractor for RFC-045.
 
         Args:
@@ -566,7 +562,7 @@ class SimulacrumStore:
 
         Creates a Turn and routes through add_turn() for ChunkManager integration.
         """
-        from sunwell.memory.simulacrum.core.turn import Turn, TurnType
+        from sunwell.memory.simulacrum.core.turn import Turn
 
         turn = Turn(
             content=content,
@@ -580,7 +576,7 @@ class SimulacrumStore:
 
         Creates a Turn and routes through add_turn() for ChunkManager integration.
         """
-        from sunwell.memory.simulacrum.core.turn import Turn, TurnType
+        from sunwell.memory.simulacrum.core.turn import Turn
 
         turn = Turn(
             content=content,
@@ -607,7 +603,6 @@ class SimulacrumStore:
         Returns:
             The learning's ID
         """
-        from sunwell.memory.simulacrum.core.turn import Learning
 
         learning = Learning(
             fact=fact,
@@ -734,7 +729,7 @@ class SimulacrumStore:
         include_recent_turns: bool = True,
         include_chunks: bool = True,
         limit_per_type: int = 10,
-    ) -> "MemoryRetrievalResult":
+    ) -> MemoryRetrievalResult:
         """Parallel retrieval across memory types with free-threading awareness.
 
         Uses ThreadPoolExecutor with adaptive worker count based on GIL state
@@ -856,7 +851,7 @@ class SimulacrumStore:
     # (Implementation moved to auto_wiring.py module)
 
     @property
-    def focus(self) -> "Focus | None":
+    def focus(self) -> Focus | None:
         """Get the focus mechanism (RFC-084)."""
         return self._focus
 

@@ -25,9 +25,71 @@ from sunwell.features.backlog.manager import BacklogManager
 from sunwell.interface.cli.core.theme import create_sunwell_console
 
 if TYPE_CHECKING:
-    pass
+    from sunwell.agent.execution import ExecutionManager, ExecutionResult
+    from sunwell.features.backlog.goals import Goal
+    from sunwell.planning.naaru.planners import ArtifactPlanner
+    from sunwell.quality.guardrails import GuardrailSystem
+    from sunwell.tools.execution import ToolExecutor
 
 console = create_sunwell_console()
+
+
+# =============================================================================
+# Execution Helpers
+# =============================================================================
+
+
+async def _execute_goal_with_guardrails(
+    goal: Goal,
+    manager: ExecutionManager,
+    planner: ArtifactPlanner,
+    executor: ToolExecutor,
+    guardrails: GuardrailSystem | None = None,
+    verbose: bool = False,
+) -> ExecutionResult | None:
+    """Execute a single goal with optional guardrail integration.
+
+    This is the core execution helper used by both `backlog run` and
+    `backlog autonomous` commands.
+
+    Args:
+        goal: The goal to execute
+        manager: ExecutionManager for backlog lifecycle
+        planner: ArtifactPlanner for discovering artifacts
+        executor: ToolExecutor for running tools
+        guardrails: Optional GuardrailSystem for checkpointing
+        verbose: Whether to show verbose output
+
+    Returns:
+        ExecutionResult if successful, None if execution failed
+    """
+    from sunwell.quality.guardrails.types import FileChange
+
+    goal_text = goal.description or goal.title
+
+    try:
+        # Execute via ExecutionManager
+        result = await manager.run_goal(
+            goal=goal_text,
+            planner=planner,
+            executor=executor,
+            goal_id=goal.id,
+            verbose=verbose,
+        )
+
+        # Record checkpoint with guardrails if provided
+        if guardrails and result.success:
+            changes = [
+                FileChange(path=Path(p))
+                for p in result.artifacts_created
+            ]
+            await guardrails.checkpoint_goal(goal, changes)
+
+        return result
+
+    except Exception as e:
+        console.print(f"[void.purple]✗ Execution failed: {e}[/void.purple]")
+        return None
 
 
 @click.group()
@@ -212,12 +274,12 @@ async def _run_backlog_goal(
     json_output: bool,
 ) -> None:
     """Execute a specific backlog goal via ExecutionManager (RFC-094)."""
-    from sunwell.interface.cli.helpers import resolve_model
-    from sunwell.foundation.config import get_config
     from sunwell.agent.execution import ExecutionManager, StdoutEmitter
+    from sunwell.foundation.config import get_config
+    from sunwell.interface.cli.helpers import resolve_model
     from sunwell.planning.naaru.planners import ArtifactPlanner
-    from sunwell.tools.execution import ToolExecutor
     from sunwell.tools.core.types import ToolPolicy, ToolTrust
+    from sunwell.tools.execution import ToolExecutor
 
     root = Path.cwd()
     emitter = StdoutEmitter(json_output=json_output)
@@ -421,18 +483,39 @@ async def _execute_parallel(num_workers: int, auto: bool, dry_run: bool) -> None
     default="guarded",
     help="Trust level for guardrails (default: guarded)",
 )
+@click.option(
+    "--provider", "-p",
+    type=click.Choice(["openai", "anthropic", "ollama"]),
+    default=None,
+    help="Model provider (default: from config)",
+)
+@click.option(
+    "--model", "-m",
+    default=None,
+    help="Override model selection",
+)
 @click.option("--max-files", type=int, default=None, help="Override max files per goal")
 @click.option("--max-lines", type=int, default=None, help="Override max lines per goal")
 @click.option("--max-goals", type=int, default=None, help="Override max goals per session")
 @click.option("--dry-run", is_flag=True, help="Show what would be done without executing")
+@click.option(
+    "--yes", "-y",
+    is_flag=True,
+    help="Auto-approve all escalations (use with caution)",
+)
+@click.option("--verbose", "-v", is_flag=True, help="Show detailed output")
 @click.pass_context
 def autonomous(
     ctx,
     trust: str,
+    provider: str | None,
+    model: str | None,
     max_files: int | None,
     max_lines: int | None,
     max_goals: int | None,
     dry_run: bool,
+    yes: bool,
+    verbose: bool,
 ) -> None:
     """Execute backlog autonomously with guardrails (RFC-048).
 
@@ -448,18 +531,34 @@ def autonomous(
         sunwell backlog autonomous --trust supervised # Ask for dangerous only
         sunwell backlog autonomous --max-files 20     # Override file limit
         sunwell backlog autonomous --dry-run          # Preview without executing
+        sunwell backlog autonomous --yes              # Auto-approve all (dangerous)
     """
-    asyncio.run(_run_autonomous(trust, max_files, max_lines, max_goals, dry_run))
+    asyncio.run(_run_autonomous(
+        trust, provider, model, max_files, max_lines, max_goals, dry_run, yes, verbose
+    ))
 
 
 async def _run_autonomous(
     trust: str,
+    provider: str | None,
+    model: str | None,
     max_files: int | None,
     max_lines: int | None,
     max_goals: int | None,
     dry_run: bool,
+    yes: bool,
+    verbose: bool,
 ) -> None:
     """Run autonomous backlog with guardrails."""
+    from sunwell.agent.execution import ExecutionManager, StdoutEmitter
+    from sunwell.foundation.config import get_config
+    from sunwell.interface.cli.helpers import CLIEscalationUI, resolve_model
+    from sunwell.knowledge.project import (
+        ProjectResolutionError,
+        create_project_from_workspace,
+        resolve_project,
+    )
+    from sunwell.planning.naaru.planners import ArtifactPlanner
     from sunwell.quality.guardrails import (
         GuardrailConfig,
         GuardrailSystem,
@@ -467,6 +566,8 @@ async def _run_autonomous(
         TrustLevel,
         load_config,
     )
+    from sunwell.tools.core.types import ToolPolicy, ToolTrust
+    from sunwell.tools.execution import ToolExecutor
 
     root = Path.cwd()
 
@@ -496,8 +597,17 @@ async def _run_autonomous(
     # Create guardrail system
     guardrails = GuardrailSystem(repo_path=root, config=config)
 
+    # Configure CLI escalation UI
+    cli_ui = CLIEscalationUI(console=console)
+    guardrails.escalation_handler.ui = cli_ui
+
+    # If --yes flag, configure auto-response
+    if yes:
+        console.print("\n[yellow]⚠ Warning: --yes flag set. All escalations will be auto-approved.[/yellow]")
+        guardrails.escalation_handler.auto_response = "approve"
+
     # Show configuration
-    console.print("\n🛡️ [bold]Guardrails: {trust.upper()} mode[/bold]")
+    console.print(f"\n🛡️ [bold]Guardrails: {trust.upper()} mode[/bold]")
     console.print(f"   Trust zones: {len(config.trust_zones) + 7} (includes defaults)")
     scope = config.scope
     console.print(
@@ -511,8 +621,8 @@ async def _run_autonomous(
     )
 
     # Refresh backlog
-    manager = BacklogManager(root=root)
-    backlog = await manager.refresh()
+    backlog_manager = BacklogManager(root=root)
+    backlog = await backlog_manager.refresh()
     goals = backlog.execution_order()
 
     if not goals:
@@ -552,7 +662,46 @@ async def _run_autonomous(
         console.print(table)
         return
 
+    # ==========================================================================
+    # Setup execution infrastructure
+    # ==========================================================================
+
+    # Load model
+    app_config = get_config()
+    try:
+        synthesis_model = resolve_model(provider, model)
+        if verbose:
+            provider_name = provider or (app_config.model.default_provider if app_config else "ollama")
+            model_name = model or (app_config.model.default_model if app_config else "gemma3:4b")
+            console.print(f"[dim]Using model: {provider_name}:{model_name}[/dim]")
+    except Exception as e:
+        console.print(f"[void.purple]✗ Failed to load model: {e}[/void.purple]")
+        return
+
+    # Create planner
+    planner = ArtifactPlanner(model=synthesis_model)
+
+    # Resolve project context
+    try:
+        project = resolve_project(project_root=root)
+    except ProjectResolutionError:
+        project = create_project_from_workspace(root)
+
+    # Create tool executor
+    trust_level = ToolTrust.from_string("workspace")  # Default for autonomous
+    executor = ToolExecutor(
+        project=project,
+        policy=ToolPolicy(trust_level=trust_level),
+    )
+
+    # Create execution manager
+    emitter = StdoutEmitter(json_output=False)
+    exec_manager = ExecutionManager(root=root, emitter=emitter)
+
+    # ==========================================================================
     # Start session
+    # ==========================================================================
+
     try:
         session = await guardrails.start_session()
         console.print(f"\n[sunwell.heading]◆ Session tagged:[/] {session.tag}")
@@ -562,9 +711,15 @@ async def _run_autonomous(
 
     console.print("\n" + "━" * 60 + "\n")
 
+    # ==========================================================================
     # Process goals
+    # ==========================================================================
+
     completed = 0
     skipped = 0
+    failed = 0
+    artifacts_created = 0
+    skip_all_escalations = False
 
     for i, goal in enumerate(goals, 1):
         console.print(f"[{i}/{len(goals)}] [sunwell.heading]{goal.title}[/]")
@@ -572,28 +727,74 @@ async def _run_autonomous(
 
         can_auto = await guardrails.can_auto_approve(goal)
 
+        should_execute = False
+
         if can_auto:
             console.print("      [holy.success]★ Auto-approved[/holy.success]")
-            # In a real implementation, we'd execute the goal here
-            console.print("      [neutral.dim]Execution not yet wired up[/neutral.dim]")
-            completed += 1
-        else:
-            console.print("      [holy.gold]△ Requires approval - skipping in demo[/holy.gold]")
+            should_execute = True
+        elif skip_all_escalations:
+            console.print("      [holy.gold]△ Skipped (skip-all mode)[/holy.gold]")
             skipped += 1
+        else:
+            # Escalate to user
+            console.print("      [holy.gold]△ Requires approval[/holy.gold]")
+            resolution = await guardrails.escalate_goal(goal)
+
+            if resolution.action == "approve":
+                should_execute = True
+            elif resolution.action == "skip_all":
+                skip_all_escalations = True
+                skipped += 1
+                console.print("      [dim]Skipping all remaining escalations[/dim]")
+            elif resolution.action == "abort":
+                console.print("\n[holy.gold]Session aborted by user[/holy.gold]")
+                break
+            else:
+                skipped += 1
+                console.print("      [dim]Skipped[/dim]")
+
+        # Execute if approved
+        if should_execute:
+            result = await _execute_goal_with_guardrails(
+                goal=goal,
+                manager=exec_manager,
+                planner=planner,
+                executor=executor,
+                guardrails=guardrails,
+                verbose=verbose,
+            )
+
+            if result and result.success:
+                completed += 1
+                artifacts_created += len(result.artifacts_created)
+                console.print(
+                    f"      [holy.success]✓ Completed[/] "
+                    f"({len(result.artifacts_created)} artifacts, {result.duration_ms}ms)"
+                )
+            else:
+                failed += 1
+                error_msg = result.error if result else "Unknown error"
+                console.print(f"      [void.purple]✗ Failed: {error_msg}[/void.purple]")
 
         console.print()
 
         # Check if we can continue
         can_continue = guardrails.can_continue()
         if not can_continue.passed:
-            console.print(f"[holy.gold]Session limit: {can_continue.reason}[/holy.gold]")
+            console.print(f"[holy.gold]Session limit reached: {can_continue.reason}[/holy.gold]")
             break
 
+    # ==========================================================================
     # Session complete
+    # ==========================================================================
+
     console.print("━" * 60)
     stats = guardrails.get_session_stats()
+    remaining = len(goals) - completed - skipped - failed
+
     console.print("\n[sunwell.heading]◆ Session Complete[/sunwell.heading]")
-    console.print(f"   Goals: {completed} completed, {skipped} skipped")
+    console.print(f"   Goals: {completed} completed, {failed} failed, {skipped} skipped, {remaining} remaining")
+    console.print(f"   Artifacts: {artifacts_created} created")
     console.print(f"   Duration: {stats['duration_minutes']:.1f} minutes")
     console.print(f"\n   To rollback: sunwell guardrails rollback {session.tag}")
 

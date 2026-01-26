@@ -27,12 +27,12 @@ Usage:
 
 from sunwell.benchmark.core.runner import BenchmarkRunner, create_runner
 from sunwell.benchmark.evaluation.evaluator import BenchmarkEvaluator
-from sunwell.benchmark.reporting.reporter import BenchmarkReporter
 from sunwell.benchmark.naaru import (
     NaaruBenchmarkResults,
     NaaruBenchmarkRunner,
     NaaruCondition,
 )
+from sunwell.benchmark.reporting.reporter import BenchmarkReporter
 from sunwell.benchmark.types import (
     BenchmarkResults,
     BenchmarkTask,

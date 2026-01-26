@@ -195,8 +195,8 @@ class WorkspaceManager:
         Convenience method that combines memory loading with session building.
         Automatically resolves workspace container context.
         """
-        from sunwell.agent.utils.request import RunOptions
         from sunwell.agent.context.session import SessionContext
+        from sunwell.agent.utils.request import RunOptions
 
         workspace = workspace.resolve()
 
@@ -235,8 +235,8 @@ class WorkspaceManager:
         Returns both objects ready for Agent.run().
         Automatically resolves workspace container context.
         """
-        from sunwell.agent.utils.request import RunOptions
         from sunwell.agent.context.session import SessionContext
+        from sunwell.agent.utils.request import RunOptions
 
         workspace = workspace.resolve()
 

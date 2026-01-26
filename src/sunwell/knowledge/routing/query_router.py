@@ -11,12 +11,10 @@ This avoids loading all project indexes for every query.
 
 import re
 from dataclasses import dataclass, field
-from pathlib import Path
 
 from sunwell.knowledge.workspace.types import (
     ProjectRole,
     Workspace,
-    WorkspaceDependencies,
     WorkspaceProject,
 )
 

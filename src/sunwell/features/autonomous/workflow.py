@@ -13,7 +13,6 @@ Example:
     ...     handle_event(event)
 """
 
-import asyncio
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -136,9 +135,9 @@ async def autonomous_goal(
 
     from sunwell.agent import Agent
     from sunwell.agent.context.session import SessionContext
-    from sunwell.quality.guardrails.system import GuardrailSystem
     from sunwell.memory import PersistentMemory
     from sunwell.planning.naaru.checkpoint import AgentCheckpoint
+    from sunwell.quality.guardrails.system import GuardrailSystem
 
     config = config or AutonomousConfig()
     state = AutonomousState(goal=goal, started_at=time())

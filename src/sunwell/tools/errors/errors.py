@@ -82,7 +82,7 @@ class ToolError:
     """Additional error context."""
 
     @classmethod
-    def from_exception(cls, e: Exception, tool_name: str) -> "ToolError":
+    def from_exception(cls, e: Exception, tool_name: str) -> ToolError:
         """Create ToolError from a Python exception.
 
         Maps exception types to error codes and recovery strategies.

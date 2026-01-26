@@ -33,11 +33,11 @@ from sunwell.tools.handlers import CoreToolHandlers, PathSecurityError
 
 if TYPE_CHECKING:
     from sunwell.features.mirror.handler import MirrorHandler
-    from sunwell.models import Tool
+    from sunwell.features.workflow.engine import SkillExecutor
     from sunwell.knowledge.project import Project
     from sunwell.memory.simulacrum.manager import SimulacrumToolHandler
     from sunwell.memory.simulacrum.memory_tools import MemoryToolHandler
-    from sunwell.features.workflow.engine import SkillExecutor
+    from sunwell.models import Tool
     from sunwell.planning.skills.sandbox import ScriptSandbox
     from sunwell.tools.providers.expertise import ExpertiseToolHandler
     from sunwell.tools.providers.web_search import WebSearchHandler
@@ -53,11 +53,18 @@ ToolHandler = Callable[[dict], Awaitable[str]]
 
 from sunwell.tools.core.constants import (
     EXPERTISE_TOOLS as _EXPERTISE_TOOLS,
+)
+from sunwell.tools.core.constants import (
     MEMORY_TOOLS as _MEMORY_TOOLS,
+)
+from sunwell.tools.core.constants import (
     MIRROR_TOOLS as _MIRROR_TOOLS,
+)
+from sunwell.tools.core.constants import (
     SIMULACRUM_TOOLS as _SIMULACRUM_TOOLS,
+)
+from sunwell.tools.core.constants import (
     SUNWELL_TOOLS as _SUNWELL_TOOLS,
-    WEB_TOOLS as _WEB_TOOLS,
 )
 
 

@@ -3,10 +3,9 @@
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.foundation.errors import ErrorCode, lens_error
-from sunwell.foundation.utils import safe_yaml_load, safe_yaml_loads
-from sunwell.foundation.core.lens import Lens
 from sunwell.core.types.types import LensReference
+from sunwell.foundation.core.lens import Lens
+from sunwell.foundation.errors import ErrorCode, lens_error
 from sunwell.foundation.schema.loader.parsers import (
     parse_affordances,
     parse_anti_heuristics,
@@ -19,6 +18,7 @@ from sunwell.foundation.schema.loader.parsers import (
     parse_lens_reference,
     parse_metadata,
     parse_personas,
+    parse_provenance,
     parse_quality_policy,
     parse_refiners,
     parse_router,
@@ -28,9 +28,9 @@ from sunwell.foundation.schema.loader.parsers import (
     parse_skills,
     parse_spellbook,
     parse_workflows,
-    parse_provenance,
 )
 from sunwell.foundation.schema.loader.presets import load_presets, resolve_preset
+from sunwell.foundation.utils import safe_yaml_load, safe_yaml_loads
 
 if TYPE_CHECKING:
     from sunwell.features.fount.client import FountClient

@@ -142,7 +142,7 @@ class SkillMetadata:
         return min(score, 1.0)
 
     @classmethod
-    def from_skill(cls, skill: "Skill") -> "SkillMetadata":
+    def from_skill(cls, skill: Skill) -> SkillMetadata:
         """Create metadata from a full Skill object.
 
         Args:

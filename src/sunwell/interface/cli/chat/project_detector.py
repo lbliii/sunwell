@@ -3,7 +3,6 @@
 import json
 from pathlib import Path
 
-
 # Project type detection patterns
 PROJECT_MARKERS: dict[str, tuple[str, ...]] = {
     "python": ("pyproject.toml", "setup.py", "requirements.txt", "Pipfile"),

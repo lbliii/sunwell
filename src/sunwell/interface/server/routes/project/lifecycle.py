@@ -10,13 +10,11 @@ All endpoints delegate to WorkspaceManager since projects and workspaces
 are conceptually the same in Sunwell.
 """
 
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
 
 from sunwell.foundation.utils import normalize_path
 from sunwell.interface.server.routes.models.base import CamelModel
-from sunwell.knowledge.project import ProjectRegistry
 from sunwell.knowledge.workspace import WorkspaceManager
 
 router = APIRouter(prefix="/project", tags=["project"])

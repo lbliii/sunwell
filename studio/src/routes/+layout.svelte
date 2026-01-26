@@ -2,18 +2,17 @@
   Root Layout — SvelteKit root layout
   
   Handles global initialization and shared layout.
-  ProjectGate ensures valid project before showing app routes.
   
   Note: SvelteKit handles routing via file-based routes in src/routes/.
-  The old hash-based router (initRouter) is no longer used.
+  Project context is now handled by /project/[projectId]/+layout.svelte
+  using native SvelteKit dynamic routing.
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import ProjectGate from '$components/ProjectGate.svelte';
   import { setInitialized } from '$stores/app.svelte';
   import { setupInferenceListeners } from '$lib/inference';
-  import { openProject } from '$stores/project.svelte';
+  import { getProjectSlug } from '$stores/project.svelte';
   import { onEvent } from '$lib/socket';
   import '../styles/global.css';
   
@@ -37,20 +36,29 @@
   async function handleStartupParams(params: StartupParams): Promise<void> {
     const { project, lens, mode } = params;
     
-    // Open project in store if provided
-    if (project) {
-      await openProject(project);
+    if (!project) {
+      // No project - go home
+      goto('/');
+      return;
     }
     
-    // Navigate based on mode (using SvelteKit's goto)
+    // Get slug for project path
+    const slug = await getProjectSlug(project);
+    if (!slug) {
+      // Couldn't resolve slug - go home
+      goto('/');
+      return;
+    }
+    
+    // Navigate to project using new routing
     const lensQuery = lens ? `?lens=${encodeURIComponent(lens)}` : '';
     if (mode === 'writer') {
-      goto(`/writer${lensQuery}`);
+      goto(`/project/${slug}/writer${lensQuery}`);
     } else if (mode === 'planning') {
-      goto(`/planning${lensQuery}`);
+      goto(`/project/${slug}/planning${lensQuery}`);
     } else {
-      // Default: code mode → PROJECT view
-      goto(`/project${lensQuery}`);
+      // Default: project home view
+      goto(`/project/${slug}${lensQuery}`);
     }
   }
   
@@ -59,9 +67,10 @@
     inferenceCleanup = setupInferenceListeners();
     
     // RFC-086: Listen for startup params via WebSocket
+    // Note: 'startup_params' is a custom event type not in AgentEventType
     startupCleanup = onEvent((event) => {
-      if (event.type === 'startup_params') {
-        handleStartupParams(event.data as StartupParams);
+      if ((event.type as string) === 'startup_params') {
+        handleStartupParams(event.data as unknown as StartupParams);
       }
     });
     
@@ -76,13 +85,9 @@
   });
 </script>
 
-<ProjectGate>
-  {#snippet children()}
-    <div class="app-container">
-      {@render children?.()}
-    </div>
-  {/snippet}
-</ProjectGate>
+<div class="app-container">
+  {@render children?.()}
+</div>
 
 <style>
   .app-container {

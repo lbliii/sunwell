@@ -1,6 +1,6 @@
 """Planning event schemas."""
 
-from typing import Any, TypedDict
+from typing import TypedDict
 
 
 class PlanCandidateData(TypedDict, total=False):

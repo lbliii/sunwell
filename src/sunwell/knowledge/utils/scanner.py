@@ -7,7 +7,6 @@ Provides helpers for scanning directories and finding code files.
 
 from pathlib import Path
 
-
 # Common directories to skip when scanning
 SKIP_DIRS = {
     "__pycache__",

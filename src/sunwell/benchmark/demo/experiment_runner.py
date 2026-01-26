@@ -3,20 +3,16 @@
 Runs all lens injection strategies across demo tasks and collects metrics.
 """
 
-import asyncio
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
 from sunwell.benchmark.demo.lens_experiments import (
-    STRATEGY_BUILDERS,
     ExperimentResult,
     ExperimentSummary,
     LensData,
     LensStrategy,
-    PromptParts,
     create_prompt_builder,
     load_default_lens,
 )

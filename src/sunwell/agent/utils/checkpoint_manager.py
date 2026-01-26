@@ -13,8 +13,8 @@ from sunwell.agent.events import checkpoint_saved_event
 from sunwell.planning.naaru.checkpoint import AgentCheckpoint, CheckpointPhase
 
 if TYPE_CHECKING:
-    from sunwell.agent.events import AgentEvent
     from sunwell.agent.core.task_graph import TaskGraph
+    from sunwell.agent.events import AgentEvent
     from sunwell.foundation.core.lens import Lens
     from sunwell.memory.briefing import Briefing
 
@@ -52,11 +52,11 @@ class CheckpointManager:
         phase: CheckpointPhase,
         phase_summary: str,
         goal: str,
-        task_graph: "TaskGraph | None",
+        task_graph: TaskGraph | None,
         files_changed: list[str],
         context: dict[str, Any],
         spawned_specialist_ids: list[str],
-    ) -> "AgentEvent":
+    ) -> AgentEvent:
         """Save checkpoint at semantic phase boundary.
 
         RFC-130: Enables intelligent resume from meaningful workflow points.
@@ -136,8 +136,8 @@ class CheckpointManager:
         goal: str,
         learning_store: Any,
         workspace_context: str | None,
-        lens: "Lens | None",
-        briefing: "Briefing | None",
+        lens: Lens | None,
+        briefing: Briefing | None,
     ) -> dict[str, Any]:
         """Get current context snapshot for checkpoint or specialist.
 

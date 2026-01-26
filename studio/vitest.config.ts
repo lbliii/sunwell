@@ -7,7 +7,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
+    setupFiles: ['./src/lib/test/setup.ts'],
     include: ['src/**/*.{test,spec}.{js,ts}'],
     coverage: {
       provider: 'v8',
@@ -24,6 +24,8 @@ export default defineConfig({
   resolve: {
     alias: {
       $lib: path.resolve(__dirname, './src/lib'),
+      $stores: path.resolve(__dirname, './src/lib/stores'),
+      $components: path.resolve(__dirname, './src/lib/components'),
     },
   },
 });

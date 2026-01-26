@@ -74,7 +74,6 @@ def lineage_show(path: str, json_output: bool, workspace: str) -> None:
 
 def _display_lineage(artifact, path: str) -> None:
     """Display artifact lineage in rich format."""
-    from datetime import datetime
 
     # Header
     header_parts = [f"📜 {path}"]
@@ -296,7 +295,7 @@ def lineage_impact(path: str, json_output: bool, workspace: str) -> None:
 
     console.print(Panel(f"Impact Analysis: {path}", border_style="yellow"))
 
-    console.print(f"\n[bold]If you modify/delete this file:[/bold]")
+    console.print("\n[bold]If you modify/delete this file:[/bold]")
     console.print(f"  • {len(affected)} files will be affected")
     console.print(f"  • Max dependency depth: {impact['max_depth']}")
 

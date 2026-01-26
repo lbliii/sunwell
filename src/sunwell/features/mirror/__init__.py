@@ -31,6 +31,11 @@ from sunwell.features.mirror.analysis import (
 from sunwell.features.mirror.handler import MirrorHandler
 from sunwell.features.mirror.introspection import (
     SourceIntrospector,
+    # Execution introspection functions
+    execution_get_error_summary,
+    execution_get_errors,
+    execution_get_recent_tool_calls,
+    execution_get_stats,
     # Lens introspection functions
     lens_get_all,
     lens_get_framework,
@@ -43,11 +48,6 @@ from sunwell.features.mirror.introspection import (
     simulacrum_get_dead_ends,
     simulacrum_get_focus,
     simulacrum_get_learnings,
-    # Execution introspection functions
-    execution_get_error_summary,
-    execution_get_errors,
-    execution_get_recent_tool_calls,
-    execution_get_stats,
 )
 from sunwell.features.mirror.model_tracker import ModelPerformanceEntry, ModelPerformanceTracker
 from sunwell.features.mirror.proposals import (
@@ -64,7 +64,11 @@ from sunwell.features.mirror.router import (
     get_tools_for_category,
 )
 from sunwell.features.mirror.safety import SafetyChecker, SafetyPolicy, validate_diff_safety
-from sunwell.features.mirror.tools import MIRROR_TOOL_TRUST, MIRROR_TOOLS, get_mirror_tools_for_trust
+from sunwell.features.mirror.tools import (
+    MIRROR_TOOL_TRUST,
+    MIRROR_TOOLS,
+    get_mirror_tools_for_trust,
+)
 
 __all__ = [
     # Source Introspection (class - has internal state)

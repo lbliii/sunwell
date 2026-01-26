@@ -4,15 +4,21 @@ import json
 import re
 from typing import TYPE_CHECKING, Any
 
-from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec, CyclicDependencyError, DiscoveryFailedError, GraphExplosionError
+from sunwell.planning.naaru.artifacts import (
+    ArtifactGraph,
+    ArtifactSpec,
+    CyclicDependencyError,
+    DiscoveryFailedError,
+    GraphExplosionError,
+)
 from sunwell.planning.naaru.planners.artifact import dependencies, events, parsing, prompts
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from sunwell.agent.events import AgentEvent
-    from sunwell.models import ModelProtocol
     from sunwell.knowledge.project.schema import ProjectSchema
+    from sunwell.models import ModelProtocol
 
 # Pre-compiled regex patterns
 _RE_FILENAME = re.compile(r"(\w+\.(?:py|js|ts|md|txt|json|yaml|yml))")
@@ -78,7 +84,8 @@ async def discover(
         options=GenerateOptions(temperature=0.3, max_tokens=3000),
     )
 
-    return parsing.parse_artifacts(result.content or "")
+    # Pass schema through for validation (RFC-135)
+    return parsing.parse_artifacts(result.content or "", schema=project_schema)
 
 
 async def discover_with_recovery(
@@ -191,7 +198,7 @@ async def discover_with_recovery(
         if cycle:
             if attempt < max_retries - 1:
                 # Try to break cycle with LLM
-                artifacts = await dependencies.break_cycle(model, goal, artifacts, cycle)
+                artifacts = await dependencies.break_cycle(model, goal, artifacts, cycle, project_schema)
                 graph = ArtifactGraph()
                 for artifact in artifacts:
                     graph.add(artifact)
@@ -334,6 +341,7 @@ async def discover_new_artifacts(
     goal: str,
     completed: dict[str, Any],
     just_created: ArtifactSpec,
+    project_schema: ProjectSchema | None = None,
 ) -> list[ArtifactSpec]:
     """Discover if creating an artifact revealed new needs.
 
@@ -347,6 +355,7 @@ async def discover_new_artifacts(
         goal: The original goal
         completed: Dict of completed artifact IDs to their results
         just_created: The artifact that was just created
+        project_schema: Optional schema for validation (RFC-135)
 
     Returns:
         List of new artifacts to add (empty if none needed)
@@ -395,7 +404,8 @@ Output ONLY valid JSON array:"""
         options=GenerateOptions(temperature=0.3, max_tokens=2000),
     )
 
-    artifacts = parsing.parse_artifacts(result.content or "")
+    # Pass schema through for validation (RFC-135)
+    artifacts = parsing.parse_artifacts(result.content or "", schema=project_schema)
 
     # Filter out already-completed artifacts
     existing_ids = set(completed.keys())

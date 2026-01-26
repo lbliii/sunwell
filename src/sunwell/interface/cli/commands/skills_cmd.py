@@ -63,10 +63,10 @@ def learn_skill(
     """
     import asyncio
 
-    from sunwell.foundation.config import Config, load_config
+    from sunwell.foundation.config import load_config
+    from sunwell.memory.simulacrum.core.store import SimulacrumStore
     from sunwell.planning.skills.learner import SkillLearner
     from sunwell.planning.skills.library import SkillLibrary
-    from sunwell.memory.simulacrum.core.store import SimulacrumStore
 
     # Load config and initialize components
     config = load_config(project)

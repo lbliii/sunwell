@@ -8,7 +8,6 @@ import random
 import re
 from typing import TYPE_CHECKING
 
-from sunwell.foundation.utils import safe_json_loads
 from sunwell.benchmark.types import (
     AggregatedVerdict,
     BenchmarkTask,
@@ -16,6 +15,7 @@ from sunwell.benchmark.types import (
     JudgeVerdict,
     Verdict,
 )
+from sunwell.foundation.utils import safe_json_loads
 from sunwell.models import GenerateOptions, ModelProtocol
 
 if TYPE_CHECKING:

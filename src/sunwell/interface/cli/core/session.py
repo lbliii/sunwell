@@ -182,7 +182,7 @@ def sessions_summary(session_id: str | None, output_format: str) -> None:
 
 def _display_session_summary(summary) -> None:
     """Display session summary in rich format."""
-    from datetime import datetime, timedelta
+    from datetime import timedelta
 
     # Header panel
     duration = timedelta(seconds=summary.total_duration_seconds)

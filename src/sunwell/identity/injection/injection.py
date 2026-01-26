@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     from sunwell.core.models.heuristic import Identity as LensIdentity
     from sunwell.foundation.core.lens import Lens
     from sunwell.identity.core.models import Identity as UserIdentity
-    from sunwell.identity.store import IdentityStore
 
 from sunwell.identity.core.constants import (
     MAX_IDENTITY_PROMPT_LENGTH,

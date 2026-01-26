@@ -1,44 +1,29 @@
-"""JSON parsing utilities for harmonic planning."""
+"""JSON parsing utilities for harmonic planning.
 
-import json
-import re
-from typing import TYPE_CHECKING, Any
+RFC-135: This module now delegates to the validated artifact parsing
+to ensure consistent validation across all planning paths.
+"""
+
+from typing import TYPE_CHECKING
+
+# Re-export from artifact parsing for backwards compatibility
+from sunwell.planning.naaru.planners.artifact.parsing import (
+    extract_json,
+    parse_artifacts,
+    validate_artifact,
+)
 
 if TYPE_CHECKING:
     from sunwell.planning.naaru.artifacts import ArtifactSpec
 
-# Pre-compiled regex patterns for performance (avoid recompiling per-call)
-_RE_JSON_ARRAY = re.compile(r"\[.*\]", re.DOTALL)
-_RE_JSON_CODE_BLOCK = re.compile(r"```(?:json)?\s*(\[.*?\])\s*```", re.DOTALL)
 
+def specs_from_data(data: list[dict]) -> list[ArtifactSpec]:
+    """Convert parsed JSON to ArtifactSpec list.
 
-def parse_artifacts(response: str) -> list[ArtifactSpec]:
-    """Parse LLM response into ArtifactSpec objects."""
-    from sunwell.planning.naaru.artifacts import ArtifactSpec
-
-    # Strategy 1: Find JSON array with regex
-    json_match = _RE_JSON_ARRAY.search(response)
-    if json_match:
-        try:
-            data = json.loads(json_match.group())
-            return specs_from_data(data)
-        except json.JSONDecodeError:
-            pass
-
-    # Strategy 2: Look for code block with JSON
-    code_match = _RE_JSON_CODE_BLOCK.search(response)
-    if code_match:
-        try:
-            data = json.loads(code_match.group(1))
-            return specs_from_data(data)
-        except json.JSONDecodeError:
-            pass
-
-    return []
-
-
-def specs_from_data(data: list[dict[str, Any]]) -> list[ArtifactSpec]:
-    """Convert parsed JSON to ArtifactSpec list."""
+    DEPRECATED: Use parse_artifacts() from artifact.parsing instead.
+    This function is kept for backwards compatibility but doesn't
+    apply validation.
+    """
     from sunwell.planning.naaru.artifacts import ArtifactSpec
 
     artifacts = []
@@ -57,3 +42,6 @@ def specs_from_data(data: list[dict[str, Any]]) -> list[ArtifactSpec]:
         except (KeyError, TypeError):
             continue
     return artifacts
+
+
+__all__ = ["extract_json", "parse_artifacts", "validate_artifact", "specs_from_data"]

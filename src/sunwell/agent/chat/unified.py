@@ -40,13 +40,17 @@ from sunwell.agent.chat.intent import Intent, IntentRouter
 
 if TYPE_CHECKING:
     from sunwell.agent import Agent
-    from sunwell.agent.events import AgentEvent
     from sunwell.agent.context.session import SessionContext
+    from sunwell.agent.events import AgentEvent
     from sunwell.memory import PersistentMemory
     from sunwell.models import ModelProtocol
     from sunwell.tools.execution import ToolExecutor
 
 logger = logging.getLogger(__name__)
+
+# Maximum conversation history entries (user + assistant messages)
+# 50 entries = ~25 turns, enough context without unbounded growth
+_MAX_HISTORY_SIZE = 50
 
 
 class LoopState(Enum):
@@ -153,6 +157,30 @@ class UnifiedChatLoop:
         """Request graceful cancellation of current execution."""
         self._cancel_requested = True
 
+    def _clear_pending_input(self) -> None:
+        """Clear any pending input from the queue."""
+        while not self._pending_input.empty():
+            try:
+                self._pending_input.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+
+    def _trim_history(self) -> None:
+        """Trim conversation history to prevent unbounded growth."""
+        if len(self.conversation_history) > _MAX_HISTORY_SIZE:
+            # Keep the most recent entries
+            self.conversation_history = self.conversation_history[-_MAX_HISTORY_SIZE:]
+
+    def _ensure_checkpoint_response(
+        self, value: str | CheckpointResponse | None
+    ) -> CheckpointResponse:
+        """Convert value to CheckpointResponse, handling various input types."""
+        if isinstance(value, CheckpointResponse):
+            return value
+        if value is None:
+            return CheckpointResponse(choice="")
+        return CheckpointResponse(choice=str(value))
+
     async def run(
         self,
     ) -> AsyncIterator[str | ChatCheckpoint | AgentEvent]:
@@ -214,11 +242,12 @@ class UnifiedChatLoop:
                     yield "Execution cancelled."
                     continue
 
-                # Add to conversation history
+                # Add to conversation history (with size limit)
                 self.conversation_history.append({
                     "role": "user",
                     "content": user_input,
                 })
+                self._trim_history()
 
                 # Handle input during execution (interruption)
                 if self.is_executing:
@@ -261,6 +290,7 @@ class UnifiedChatLoop:
                         "role": "assistant",
                         "content": response,
                     })
+                    self._trim_history()
 
         except GeneratorExit:
             # Graceful shutdown via aclose()
@@ -291,8 +321,8 @@ class UnifiedChatLoop:
             4. Handle interruptions, failures, completion via ChatCheckpoints
         """
         from sunwell.agent import Agent
-        from sunwell.agent.events import AgentEvent, EventType
         from sunwell.agent.context.session import SessionContext
+        from sunwell.agent.events import EventType
 
         self._state = LoopState.PLANNING
 
@@ -331,9 +361,11 @@ class UnifiedChatLoop:
                     agent_checkpoint_id=f"plan-{self.session.session_id}",
                     context={"plan": plan_data},
                 )
-                response: CheckpointResponse = yield checkpoint
+                raw_response = yield checkpoint
+                response = self._ensure_checkpoint_response(raw_response)
 
                 if response.abort:
+                    self._clear_pending_input()
                     yield "Cancelled."
                     return
 
@@ -343,16 +375,20 @@ class UnifiedChatLoop:
 
             # Execute with checkpoint handling
             self._state = LoopState.EXECUTING
+            completed_tasks = 0  # Track completed tasks via events (not private state)
             async for event in self._current_agent.run(self.session, self.memory):
+                # Track task completions
+                if event.type == EventType.TASK_COMPLETE:
+                    completed_tasks += 1
+
                 # Check for cancellation
                 if self._cancel_requested:
                     self._cancel_requested = False
-                    task_graph = self._current_agent._task_graph
-                    completed = len(task_graph.completed_ids) if task_graph else 0
+                    self._clear_pending_input()
                     yield ChatCheckpoint(
                         type=ChatCheckpointType.COMPLETION,
                         message="Execution cancelled by user",
-                        summary=f"Completed {completed} tasks before cancel",
+                        summary=f"Completed {completed_tasks} tasks before cancel",
                     )
                     return
 
@@ -367,9 +403,11 @@ class UnifiedChatLoop:
                         options=("respond", "continue", "abort"),
                         default="respond",
                     )
-                    response = yield checkpoint
+                    raw_response = yield checkpoint
+                    response = self._ensure_checkpoint_response(raw_response)
 
                     if response.abort:
+                        self._clear_pending_input()
                         yield "Execution aborted."
                         return
 
@@ -402,9 +440,11 @@ class UnifiedChatLoop:
                         recovery_options=("auto-fix", "skip", "manual", "retry", "abort"),
                         default="auto-fix",
                     )
-                    response = yield checkpoint
+                    raw_response = yield checkpoint
+                    response = self._ensure_checkpoint_response(raw_response)
 
                     if response.abort:
+                        self._clear_pending_input()
                         yield "Execution aborted due to validation failure."
                         return
 
@@ -443,6 +483,7 @@ class UnifiedChatLoop:
                         "role": "assistant",
                         "content": f"Done! {summary}",
                     })
+                    self._trim_history()
 
         except Exception as e:
             self._state = LoopState.ERROR
@@ -522,11 +563,11 @@ class UnifiedChatLoop:
         gate_count = plan_data.get("gates", 0)
         gate_list = plan_data.get("gate_list", [])
 
-        # Use counts if no detail list provided
-        if not task_list:
-            task_count = task_count or len(task_list)
-        if not gate_list:
-            gate_count = gate_count or len(gate_list)
+        # Use list length if available, otherwise fall back to counts
+        if task_list:
+            task_count = len(task_list)
+        if gate_list:
+            gate_count = len(gate_list)
 
         lines = [
             f"★ Plan ready ({task_count or len(task_list)} tasks, {gate_count or len(gate_list)} validation gates)",

@@ -17,7 +17,7 @@ Features:
 import json
 import logging
 import threading
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -61,7 +61,7 @@ class StoredRun:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "StoredRun":
+    def from_dict(cls, data: dict[str, Any]) -> StoredRun:
         """Deserialize from dict."""
         return cls(
             run_id=data["run_id"],

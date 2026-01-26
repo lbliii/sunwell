@@ -5,14 +5,19 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from sunwell.planning.naaru.artifacts import DEFAULT_LIMITS, ArtifactGraph, ArtifactLimits, artifacts_to_tasks
+from sunwell.planning.naaru.artifacts import (
+    DEFAULT_LIMITS,
+    ArtifactGraph,
+    ArtifactLimits,
+    artifacts_to_tasks,
+)
 from sunwell.planning.naaru.planners.artifact import creation, discovery, events
 from sunwell.planning.naaru.types import Task, TaskMode
 
 if TYPE_CHECKING:
     from sunwell.agent.events import AgentEvent
-    from sunwell.models import ModelProtocol
     from sunwell.knowledge.project.schema import ProjectSchema
+    from sunwell.models import ModelProtocol
     from sunwell.planning.routing.unified import UnifiedRouter
 
 # Pre-compiled regex patterns

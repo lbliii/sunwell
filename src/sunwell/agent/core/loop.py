@@ -25,8 +25,7 @@ from typing import TYPE_CHECKING
 
 from sunwell.agent.events import (
     AgentEvent,
-    delegation_started_event,
-    ephemeral_lens_created_event,
+    EventType,
     signal_event,
     tool_complete_event,
     tool_error_event,
@@ -35,7 +34,24 @@ from sunwell.agent.events import (
     tool_loop_turn_event,
     tool_start_event,
 )
-from sunwell.agent.validation.introspection import introspect_tool_call
+from sunwell.agent.loop import (
+    delegation as loop_delegation,
+)
+from sunwell.agent.loop import (
+    expertise as loop_expertise,
+)
+from sunwell.agent.loop import (
+    learning as loop_learning,
+)
+from sunwell.agent.loop import (
+    recovery as loop_recovery,
+)
+from sunwell.agent.loop import (
+    reflection as loop_reflection,
+)
+from sunwell.agent.loop import (
+    validation as loop_validation,
+)
 from sunwell.agent.loop.config import LoopConfig, LoopState
 from sunwell.agent.loop.retry import interference_fix, record_tool_dead_end, vortex_fix
 from sunwell.agent.loop.routing import (
@@ -45,23 +61,16 @@ from sunwell.agent.loop.routing import (
     single_shot_generate,
     vortex_generate,
 )
-from sunwell.agent.loop import (
-    delegation as loop_delegation,
-    expertise as loop_expertise,
-    learning as loop_learning,
-    recovery as loop_recovery,
-    reflection as loop_reflection,
-    validation as loop_validation,
-)
+from sunwell.agent.validation.introspection import introspect_tool_call
 from sunwell.models import GenerateOptions, GenerateResult, Message, Tool, ToolCall
 
 if TYPE_CHECKING:
     from sunwell.agent.learning import LearningStore
-    from sunwell.agent.validation import ValidationStage
-    from sunwell.foundation.core.lens import Lens
-    from sunwell.features.mirror.handler import MirrorHandler
-    from sunwell.models import ModelProtocol
     from sunwell.agent.recovery.manager import RecoveryManager
+    from sunwell.agent.validation import ValidationStage
+    from sunwell.features.mirror.handler import MirrorHandler
+    from sunwell.foundation.core.lens import Lens
+    from sunwell.models import ModelProtocol
     from sunwell.tools.execution import ToolExecutor
     from sunwell.tools.progressive import ProgressivePolicy
 
@@ -154,8 +163,8 @@ class AgentLoop:
 
         # RFC-134: Initialize progressive tool policy if enabled
         if self.config.enable_progressive_tools:
-            from sunwell.tools.progressive import ProgressivePolicy
             from sunwell.tools.core.types import ToolTrust
+            from sunwell.tools.progressive import ProgressivePolicy
 
             # Get base trust from executor policy or default to WORKSPACE
             base_trust = ToolTrust.WORKSPACE
@@ -339,7 +348,7 @@ class AgentLoop:
             ):
                 yield event
                 # Track if validation failed
-                if event.type.value in ("gate_fail", "validate_error"):
+                if event.type in (EventType.GATE_FAIL, EventType.VALIDATE_ERROR):
                     validation_passed = False
 
         # RFC-134: Update progressive policy with validation outcome

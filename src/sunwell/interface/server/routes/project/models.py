@@ -107,6 +107,26 @@ class SwitchProjectRequest(CamelModel):
     project_id: str
 
 
+class OpenByIdRequest(CamelModel):
+    """Request to open a project by ID or slug (SvelteKit Native Routing)."""
+
+    project_id: str
+
+
+class OpenByIdResponse(CamelModel):
+    """Response from opening a project by ID or slug.
+    
+    Returns the full project info needed by the frontend.
+    """
+
+    id: str
+    path: str
+    name: str
+    project_type: str
+    description: str | None = None
+    files_count: int = 0
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # RFC-133 Phase 2: URL Slug Resolution Models
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -66,8 +66,8 @@ sunwell setup
 # Run a goal
 sunwell "Build a REST API with auth"
 
-# See what it proposes to work on
-sunwell backlog show
+# Interactive mode
+sunwell chat
 ```
 
 Requires Python 3.14+ and [Ollama](https://ollama.ai).
@@ -81,8 +81,8 @@ Requires Python 3.14+ and [Ollama](https://ollama.ai).
 See what the agent is doing:
 
 ```bash
-sunwell status          # Current state
-sunwell reasoning show  # Step-by-step thinking
+sunwell "goal" --verbose  # Detailed execution output
+sunwell lineage show <file>  # Track what changed and why
 ```
 
 Without this, you can't debug problems or understand failures.
@@ -107,15 +107,11 @@ Without this, autonomous operation is dangerous.
 Know when to believe outputs:
 
 ```bash
-sunwell verify <file>     # Deep verification
-sunwell confidence show   # Confidence scores
+sunwell review              # Review failed runs and recover
+sunwell "goal" --converge   # Iterate until lint/type gates pass
 ```
 
-```
-auth.py:     🟢 94%
-billing.py:  🟡 72%
-config.py:   🔴 45%
-```
+The agent validates its own work through convergence loops and gate checks before completing.
 
 Without this, you have to manually verify everything anyway.
 
@@ -124,8 +120,8 @@ Without this, you have to manually verify everything anyway.
 Persistent knowledge:
 
 ```bash
-sunwell intel status      # What it knows
-sunwell intel decisions   # Past decisions
+sunwell chat --session my-project   # Named sessions persist context
+sunwell sessions list               # View past sessions
 ```
 
 Sunwell remembers:
@@ -140,18 +136,11 @@ Without this, the agent repeats mistakes and forgets context.
 Track what's getting done:
 
 ```bash
-sunwell backlog show      # Proposed goals
-sunwell backlog execute   # Run autonomously
+sunwell epic status         # View current epic progress
+sunwell sessions summary    # What was accomplished
 ```
 
-```
-📋 Backlog
-HIGH   [BUG]  Fix race condition in cache.py:89
-HIGH   [TEST] Add test coverage for auth
-MEDIUM [TODO] Address TODO in routes.py:156
-```
-
-Sunwell finds work from codebase signals (TODOs, missing tests, etc).
+For autonomous operation, Sunwell finds work from codebase signals (TODOs, missing tests, etc) and tracks completion across sessions.
 
 ---
 
@@ -201,13 +190,15 @@ See [THESIS-VERIFICATION.md](docs/THESIS-VERIFICATION.md) for methodology.
 |---------|-------------|
 | `sunwell "goal"` | Execute a goal |
 | `sunwell "goal" --plan` | Show plan without executing |
-| `sunwell status` | Current agent state |
-| `sunwell reasoning show` | Reasoning trace |
-| `sunwell guardrails show` | Current constraints |
-| `sunwell verify <file>` | Deep verification |
-| `sunwell intel status` | What Sunwell knows |
-| `sunwell backlog show` | Proposed goals |
-| `sunwell backlog execute` | Run autonomous loop |
+| `sunwell chat` | Interactive conversation mode |
+| `sunwell setup` | Initialize project for Sunwell |
+| `sunwell config show` | View current configuration |
+| `sunwell lens list` | List available lenses |
+| `sunwell project info` | Show project details |
+| `sunwell sessions list` | View past sessions |
+| `sunwell review` | Recover from failed runs |
+
+See `sunwell --help` for all available commands.
 
 ---
 

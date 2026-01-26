@@ -6,7 +6,6 @@ Provides secure environment variable access with allowlist/blocklist enforcement
 import fnmatch
 import os
 
-
 # =============================================================================
 # Module-Level Functions (stateless operations)
 # =============================================================================

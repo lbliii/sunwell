@@ -8,9 +8,13 @@ from typing import TYPE_CHECKING
 from sunwell.core.models.framework import Framework
 from sunwell.core.models.heuristic import AntiHeuristic, CommunicationStyle, Heuristic
 from sunwell.core.models.persona import Persona
-from sunwell.core.types.types import LensReference, SemanticVersion, Tier
-from sunwell.core.models.validator import DeterministicValidator, HeuristicValidator, SchemaValidator
+from sunwell.core.models.validator import (
+    DeterministicValidator,
+    HeuristicValidator,
+    SchemaValidator,
+)
 from sunwell.core.models.workflow import Refiner, Workflow
+from sunwell.core.types.types import LensReference, SemanticVersion, Tier
 
 if TYPE_CHECKING:
     from sunwell.core.models.spell import Spell

@@ -152,7 +152,7 @@ class CandidateResult:
     id: str
     """Stable identifier (e.g., 'candidate-0', 'candidate-1')."""
 
-    graph: "ArtifactGraph"
+    graph: ArtifactGraph
     """The artifact graph for this candidate."""
 
     variance_config: dict[str, str | int | float | bool]

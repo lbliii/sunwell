@@ -158,7 +158,7 @@ class ProjectFileEntry(CamelModel):
     path: str
     is_dir: bool
     size: int | None = None
-    children: list["ProjectFileEntry"] | None = None
+    children: list[ProjectFileEntry] | None = None
 
 
 class ProjectFilesResponse(CamelModel):

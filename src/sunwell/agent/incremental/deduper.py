@@ -223,38 +223,26 @@ class AsyncWorkDeduper[T]:
         Raises:
             Exception: If work raises, propagated to all waiters.
         """
-        async with self._lock:
-            # Check if result already cached
-            if key in self._results:
-                return self._results[key]
-            if key in self._errors:
-                raise self._errors[key]
-
-            # Check if work is already in progress
-            if key in self._in_progress:
-                event = self._in_progress[key]
-                # Release lock while waiting
-
-        # If we need to wait for in-progress work
-        if key in self._in_progress:
-            event = self._in_progress[key]
-            await event.wait()
-
+        while True:
             async with self._lock:
+                # Check if result already cached
+                if key in self._results:
+                    return self._results[key]
                 if key in self._errors:
                     raise self._errors[key]
-                return self._results[key]
 
-        # Check again after acquiring lock (double-check pattern)
-        async with self._lock:
-            if key in self._results:
-                return self._results[key]
-            if key in self._errors:
-                raise self._errors[key]
+                # Check if work is already in progress
+                if key in self._in_progress:
+                    event_to_wait = self._in_progress[key]
+                else:
+                    # We're the first — register and start the work
+                    event = asyncio.Event()
+                    self._in_progress[key] = event
+                    break  # Exit lock to execute work
 
-            # We're the first — start the work
-            event = asyncio.Event()
-            self._in_progress[key] = event
+            # Wait for in-progress work (outside the lock)
+            await event_to_wait.wait()
+            # Loop back to check result under lock
 
         # Execute work outside the lock
         try:

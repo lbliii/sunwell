@@ -8,12 +8,7 @@ from sunwell.planning.naaru.artifacts import ArtifactGraph, ArtifactSpec
 from sunwell.planning.naaru.planners.metrics import PlanMetrics, PlanMetricsV2
 
 if TYPE_CHECKING:
-    from sunwell.models import ModelProtocol
-    from sunwell.memory.simulacrum.core.planning_context import PlanningContext
-    from sunwell.memory.simulacrum.core.turn import Learning, TemplateData
-    from sunwell.planning.naaru.planners.harmonic.planner import HarmonicPlanner
-    from sunwell.planning.naaru.planners.harmonic.scoring import score_plan
-    from sunwell.planning.naaru.planners.harmonic.utils import get_effective_score, metrics_to_dict
+    pass
 
 # Pre-compiled regex patterns
 _RE_JSON_OBJECT = re.compile(r"\{[^}]+\}")
@@ -41,7 +36,10 @@ async def plan_with_template(
     Returns:
         Tuple of (artifact_graph, metrics)
     """
-    from sunwell.planning.naaru.planners.harmonic.scoring import compute_metrics_v1, compute_metrics_v2
+    from sunwell.planning.naaru.planners.harmonic.scoring import (
+        compute_metrics_v1,
+        compute_metrics_v2,
+    )
     from sunwell.planning.naaru.planners.harmonic.utils import get_effective_score, metrics_to_dict
 
     template_data = template.template_data

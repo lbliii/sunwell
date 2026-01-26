@@ -8,17 +8,17 @@ from pathlib import Path
 import click
 from rich.console import Console
 from rich.panel import Panel
-from sunwell.memory.simulacrum.context.assembler import ContextAssembler
-from sunwell.memory.simulacrum.core.store import SimulacrumStore
 
-from sunwell.foundation.binding import BindingManager
-from sunwell.interface.cli.helpers import create_model
-from sunwell.foundation.errors import SunwellError
 from sunwell.core.types.types import LensReference
-from sunwell.knowledge.embedding import create_embedder
 from sunwell.features.fount.client import FountClient
 from sunwell.features.fount.resolver import LensResolver
+from sunwell.foundation.binding import BindingManager
+from sunwell.foundation.errors import SunwellError
 from sunwell.foundation.schema.loader import LensLoader
+from sunwell.interface.cli.helpers import create_model
+from sunwell.knowledge.embedding import create_embedder
+from sunwell.memory.simulacrum.context.assembler import ContextAssembler
+from sunwell.memory.simulacrum.core.store import SimulacrumStore
 
 console = Console()
 

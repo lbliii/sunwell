@@ -167,30 +167,30 @@ class TestCodeSanitization:
 
     def test_sanitize_removes_markdown_fences(self, tmp_workspace):
         """Should strip markdown code fences from output."""
-        from sunwell.agent.core import _sanitize_code_content
+        from sunwell.agent.core import sanitize_code_content
 
         raw = '```python\ndef hello():\n    pass\n```'
-        sanitized = _sanitize_code_content(raw)
+        sanitized = sanitize_code_content(raw)
 
         assert "```" not in sanitized
         assert "def hello():" in sanitized
 
     def test_sanitize_removes_language_tag(self, tmp_workspace):
         """Should strip language tags from markdown fences."""
-        from sunwell.agent.core import _sanitize_code_content
+        from sunwell.agent.core import sanitize_code_content
 
         raw = '```python\ncode\n```'
-        sanitized = _sanitize_code_content(raw)
+        sanitized = sanitize_code_content(raw)
 
         assert "python" not in sanitized or "def" in sanitized
         assert "```" not in sanitized
 
     def test_sanitize_handles_no_fences(self, tmp_workspace):
         """Should handle code without markdown fences."""
-        from sunwell.agent.core import _sanitize_code_content
+        from sunwell.agent.core import sanitize_code_content
 
         raw = 'def hello():\n    return "world"'
-        sanitized = _sanitize_code_content(raw)
+        sanitized = sanitize_code_content(raw)
 
         assert sanitized == raw
 
@@ -200,42 +200,42 @@ class TestCodeDetectionFallback:
 
     def test_looks_like_code_with_markdown_fence(self):
         """Should detect markdown-fenced code."""
-        from sunwell.models.tool_emulator import _looks_like_code
+        from sunwell.models.emulation.tool_emulator import _looks_like_code
 
         text = '```python\ndef hello():\n    pass\n```'
         assert _looks_like_code(text) is True
 
     def test_looks_like_code_with_function_def(self):
         """Should detect Python function definitions."""
-        from sunwell.models.tool_emulator import _looks_like_code
+        from sunwell.models.emulation.tool_emulator import _looks_like_code
 
         text = 'def calculate_sum(a, b):\n    return a + b'
         assert _looks_like_code(text) is True
 
     def test_looks_like_code_with_class_def(self):
         """Should detect class definitions."""
-        from sunwell.models.tool_emulator import _looks_like_code
+        from sunwell.models.emulation.tool_emulator import _looks_like_code
 
         text = 'class MyClass:\n    def __init__(self):\n        pass'
         assert _looks_like_code(text) is True
 
     def test_looks_like_code_with_imports(self):
         """Should detect import statements."""
-        from sunwell.models.tool_emulator import _looks_like_code
+        from sunwell.models.emulation.tool_emulator import _looks_like_code
 
         text = 'import os\nfrom pathlib import Path'
         assert _looks_like_code(text) is True
 
     def test_not_code_plain_text(self):
         """Should not detect plain text as code."""
-        from sunwell.models.tool_emulator import _looks_like_code
+        from sunwell.models.emulation.tool_emulator import _looks_like_code
 
         text = 'Here is my response about the task you asked me to do.'
         assert _looks_like_code(text) is False
 
     def test_extract_code_from_markdown(self):
         """Should extract code content from markdown fences."""
-        from sunwell.models.tool_emulator import _extract_code_from_markdown
+        from sunwell.models.emulation.tool_emulator import _extract_code_from_markdown
 
         text = '```python\ndef hello():\n    return "world"\n```'
         code = _extract_code_from_markdown(text)
@@ -243,7 +243,7 @@ class TestCodeDetectionFallback:
 
     def test_parse_tool_calls_auto_constructs_write_file(self):
         """Should auto-construct write_file when code detected and expected."""
-        from sunwell.models.tool_emulator import parse_tool_calls_from_text
+        from sunwell.models.emulation.tool_emulator import parse_tool_calls_from_text
 
         # Model outputs code directly instead of calling write_file
         text = '```python\ndef hello():\n    return "world"\n```'
@@ -261,7 +261,7 @@ class TestCodeDetectionFallback:
 
     def test_parse_tool_calls_no_auto_construct_without_expected(self):
         """Should NOT auto-construct if expected_tool not specified."""
-        from sunwell.models.tool_emulator import parse_tool_calls_from_text
+        from sunwell.models.emulation.tool_emulator import parse_tool_calls_from_text
 
         text = '```python\ndef hello():\n    pass\n```'
 
@@ -272,7 +272,7 @@ class TestCodeDetectionFallback:
 
     def test_parse_tool_calls_prefers_explicit_json(self):
         """Should prefer explicit JSON tool calls over auto-construction."""
-        from sunwell.models.tool_emulator import parse_tool_calls_from_text
+        from sunwell.models.emulation.tool_emulator import parse_tool_calls_from_text
 
         # Model correctly outputs JSON tool call
         text = '''```json

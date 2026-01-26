@@ -283,8 +283,8 @@ async def _auto_fix_recovery(
     verbose: bool,
 ) -> None:
     """Retry with agent using healing context."""
-    from sunwell.interface.cli.helpers import resolve_model
     from sunwell.agent.recovery import RecoveryManager, build_healing_context
+    from sunwell.interface.cli.helpers import resolve_model
 
     manager = RecoveryManager(recovery_dir)
     state = manager.load(recovery_id)
@@ -325,22 +325,21 @@ async def _auto_fix_recovery(
         create_renderer,
     )
     from sunwell.agent.context.session import SessionContext
-    from sunwell.memory import PersistentMemory
-    from sunwell.tools.execution import ToolExecutor
-    from sunwell.tools.core.types import ToolPolicy, ToolTrust
-
     from sunwell.knowledge.project import (
         ProjectResolutionError,
         create_project_from_workspace,
         resolve_project,
     )
-    
+    from sunwell.memory import PersistentMemory
+    from sunwell.tools.core.types import ToolPolicy, ToolTrust
+    from sunwell.tools.execution import ToolExecutor
+
     cwd = Path.cwd()
     try:
         project = resolve_project(cwd=cwd)
     except ProjectResolutionError:
         project = create_project_from_workspace(cwd)
-    
+
     tool_executor = ToolExecutor(
         project=project,
         policy=ToolPolicy(trust_level=ToolTrust.WORKSPACE),

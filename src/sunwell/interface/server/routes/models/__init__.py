@@ -113,9 +113,9 @@ from sunwell.interface.server.routes.models.project import (
     RecentProjectsResponse,
     ResumeProjectResponse,
     ResumeTaskItem,
-    ScanProjectsResponse,
     ScannedProjectItem,
     ScannedProjectTask,
+    ScanProjectsResponse,
 )
 from sunwell.interface.server.routes.models.prompts import (
     PromptActionResponse,

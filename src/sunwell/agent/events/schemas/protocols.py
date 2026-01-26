@@ -1,7 +1,6 @@
 """Event emitter protocols."""
 
 from dataclasses import dataclass
-
 from typing import Protocol, runtime_checkable
 
 from sunwell.agent.events import AgentEvent

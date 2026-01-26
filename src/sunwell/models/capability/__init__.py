@@ -24,8 +24,56 @@ Usage:
 """
 
 # Core parsing and registry
+# Tool emulation
+from sunwell.models.capability.emulation import (
+    build_emulation_prompt,
+    format_tool_descriptions,
+    optimize_tool_definitions,
+)
+
+# Evaluation
+from sunwell.models.capability.evaluation import (
+    EvaluationLogger,
+    ToolCallEvent,
+    ToolEvaluationMetrics,
+    get_logger,
+    get_metrics,
+    log_tool_call,
+)
+
+# Namespacing
+from sunwell.models.capability.namespacing import (
+    denamespacify_tool_call,
+    merge_registries,
+    namespace_tools,
+    parse_namespaced_name,
+    resolve_tool,
+)
+
+# Tool call normalization
+from sunwell.models.capability.normalizer import (
+    NormalizationResult,
+    ToolCallNormalizer,
+)
+
+# Parallel execution
+from sunwell.models.capability.parallel import (
+    ParallelExecutionPlan,
+    ToolCategory,
+    can_parallelize,
+    classify_tool,
+    plan_parallel_execution,
+)
 from sunwell.models.capability.parser import ModelSpec, parse_model_id
 from sunwell.models.capability.registry import ModelCapability, get_capability
+
+# Response formatting
+from sunwell.models.capability.response_format import (
+    FormattedResult,
+    ResponseFormat,
+    format_tool_result,
+    get_recommended_format,
+)
 
 # Schema adapters
 from sunwell.models.capability.schema import (
@@ -34,19 +82,6 @@ from sunwell.models.capability.schema import (
     OpenAISchemaAdapter,
     SchemaAdapter,
     get_schema_adapter,
-)
-
-# Tool emulation
-from sunwell.models.capability.emulation import (
-    build_emulation_prompt,
-    format_tool_descriptions,
-    optimize_tool_definitions,
-)
-
-# Tool call normalization
-from sunwell.models.capability.normalizer import (
-    NormalizationResult,
-    ToolCallNormalizer,
 )
 
 # Typed streaming
@@ -64,48 +99,12 @@ from sunwell.models.capability.tool_engineering import (
     enhance_tool_description,
 )
 
-# Parallel execution
-from sunwell.models.capability.parallel import (
-    ParallelExecutionPlan,
-    ToolCategory,
-    can_parallelize,
-    classify_tool,
-    plan_parallel_execution,
-)
-
 # Validation
 from sunwell.models.capability.validation import (
     ValidationResult,
     create_retry_prompt,
     format_validation_feedback,
     validate_tool_call,
-)
-
-# Response formatting
-from sunwell.models.capability.response_format import (
-    FormattedResult,
-    ResponseFormat,
-    format_tool_result,
-    get_recommended_format,
-)
-
-# Namespacing
-from sunwell.models.capability.namespacing import (
-    denamespacify_tool_call,
-    merge_registries,
-    namespace_tools,
-    parse_namespaced_name,
-    resolve_tool,
-)
-
-# Evaluation
-from sunwell.models.capability.evaluation import (
-    EvaluationLogger,
-    ToolCallEvent,
-    ToolEvaluationMetrics,
-    get_logger,
-    get_metrics,
-    log_tool_call,
 )
 
 __all__ = [

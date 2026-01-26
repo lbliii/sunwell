@@ -161,7 +161,6 @@ async def _extract_learnings_from_result(
     Returns:
         Number of learnings extracted
     """
-    import json
     import uuid
     from datetime import datetime
 

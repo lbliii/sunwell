@@ -10,16 +10,15 @@ All other commands are progressive disclosure or hidden for Studio.
 """
 
 
-import re
 import sys
 from pathlib import Path
+
 import click
 
-from sunwell.interface.cli.helpers import check_free_threading, load_dotenv
 from sunwell.interface.cli.core.async_runner import async_command, run_async
 from sunwell.interface.cli.core.shortcuts import complete_shortcut, complete_target
 from sunwell.interface.cli.core.theme import create_sunwell_console
-
+from sunwell.interface.cli.helpers import check_free_threading, load_dotenv
 
 # RFC-131: Holy Light themed console
 console = create_sunwell_console()
@@ -43,8 +42,8 @@ def cli_entrypoint() -> None:
         sys.exit(130)
     except Exception as e:
         # Handle SunwellError with nice formatting
-        from sunwell.interface.cli.core.error_handler import handle_error
         from sunwell.foundation.errors import SunwellError
+        from sunwell.interface.cli.core.error_handler import handle_error
 
         if isinstance(e, SunwellError):
             handle_error(e, json_output=False)

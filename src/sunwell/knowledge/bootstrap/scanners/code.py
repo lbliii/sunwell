@@ -10,7 +10,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from sunwell.knowledge.utils import extract_class_defs, extract_function_defs, parse_python_file
 from sunwell.knowledge.bootstrap.types import (
     CodeEvidence,
     DocstringStyle,
@@ -20,6 +19,7 @@ from sunwell.knowledge.bootstrap.types import (
     TestPatterns,
     TypeHintUsage,
 )
+from sunwell.knowledge.utils import extract_class_defs, extract_function_defs, parse_python_file
 
 
 @dataclass(frozen=True, slots=True)

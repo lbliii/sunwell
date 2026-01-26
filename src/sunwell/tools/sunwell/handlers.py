@@ -4,7 +4,7 @@ Direct Python API calls for performance (~5ms vs ~500ms CLI).
 All handlers are async and return ToolResult.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -12,9 +12,9 @@ from uuid import uuid4
 from sunwell.tools.core.types import ToolResult
 
 if TYPE_CHECKING:
+    from sunwell.features.mirror.self import Self
     from sunwell.knowledge.codebase.context import ProjectContext
     from sunwell.memory.lineage.store import LineageStore
-    from sunwell.features.mirror.self import Self
 
 
 def _result(success: bool, output: str) -> ToolResult:
@@ -32,10 +32,10 @@ class SunwellToolHandlers:
 
     workspace: Path
 
-    def __post_init__(self) -> None:
-        self._intel: ProjectContext | None = None
-        self._lineage: LineageStore | None = None
-        self._self: Self | None = None
+    # Lazy-loaded dependencies (init=False means they're set after init)
+    _intel: ProjectContext | None = field(default=None, init=False)
+    _lineage: LineageStore | None = field(default=None, init=False)
+    _self: Self | None = field(default=None, init=False)
 
     # ─────────────────────────────────────────────────────────────────────────
     # Project Intelligence

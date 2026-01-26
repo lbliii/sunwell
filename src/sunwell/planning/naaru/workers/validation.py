@@ -6,9 +6,9 @@ import json
 import re
 from collections import deque
 
+from sunwell.foundation.types.config import NaaruConfig
 from sunwell.planning.naaru.core.bus import MessageType, NaaruRegion
 from sunwell.planning.naaru.core.worker import RegionWorker
-from sunwell.foundation.types.config import NaaruConfig
 
 
 class ValidationWorker(RegionWorker):

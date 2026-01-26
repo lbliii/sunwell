@@ -86,7 +86,7 @@ class SpawnRequest:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "SpawnRequest":
+    def from_dict(cls, data: dict[str, Any]) -> SpawnRequest:
         """Create from dict."""
         return cls(
             parent_id=data["parent_id"],
@@ -176,7 +176,7 @@ class SpecialistState:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "SpecialistState":
+    def from_dict(cls, data: dict[str, Any]) -> SpecialistState:
         """Create from dict."""
         return cls(
             id=data["id"],

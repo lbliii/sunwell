@@ -13,8 +13,8 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-from sunwell.foundation.utils import safe_yaml_load
 from sunwell.benchmark.eval.types import FullStackTask, SingleShotResult, SunwellResult
+from sunwell.foundation.utils import safe_yaml_load
 from sunwell.models import GenerateOptions, ModelProtocol, Tool
 
 logger = logging.getLogger(__name__)
@@ -434,7 +434,6 @@ class SunwellFullStackExecutor:
     def _load_lens_heuristics(self, lens_name: str) -> list[str]:
         """Load heuristics from a lens file."""
         try:
-            import yaml
 
             lens_paths = [
                 Path("lenses") / lens_name,

@@ -125,13 +125,21 @@ class SkillComposer:
     max_generated_skills: int = 5
     """Maximum skills to generate for a single goal."""
 
+    # Internal indexes (init=False means they're set in __post_init__)
+    _skill_by_name: dict[str, Skill] = field(default_factory=dict, init=False)
+    """Index for fast skill lookup by name."""
+
+    _metadata: list[SkillMetadata] = field(default_factory=list, init=False)
+    """Precomputed metadata for all skills."""
+
+    _producers: dict[str, str] = field(default_factory=dict, init=False)
+    """Mapping of produced keys to skill names."""
+
     def __post_init__(self) -> None:
         """Build skill index for fast lookup."""
-        self._skill_by_name: dict[str, Skill] = {s.name: s for s in self.skills}
-        self._metadata: list[SkillMetadata] = [
-            SkillMetadata.from_skill(s) for s in self.skills
-        ]
-        self._producers: dict[str, str] = {}
+        self._skill_by_name = {s.name: s for s in self.skills}
+        self._metadata = [SkillMetadata.from_skill(s) for s in self.skills]
+        self._producers = {}
         for skill in self.skills:
             for key in skill.produces:
                 self._producers[key] = skill.name

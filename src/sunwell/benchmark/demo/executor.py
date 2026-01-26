@@ -17,10 +17,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from sunwell.foundation.utils import safe_yaml_load
 from sunwell.benchmark.demo.judge import DemoJudge
 from sunwell.benchmark.demo.scorer import DemoScorer
 from sunwell.benchmark.demo.tasks import DemoTask
+from sunwell.foundation.utils import safe_yaml_load
 from sunwell.planning.naaru.resonance import Resonance, ResonanceConfig
 
 # Type alias for streaming callbacks
@@ -131,7 +131,7 @@ class DemoExecutor:
         """Load v2 lens (mental model format) for enhanced prompting."""
         try:
             from sunwell.benchmark.demo.lens_experiments import LensData
-            
+
             # Prefer v2 python-expert lens, fall back to coder.lens
             lens_paths = [
                 Path("lenses/python-expert-v2.lens"),
@@ -140,19 +140,19 @@ class DemoExecutor:
                 Path(__file__).parent.parent.parent.parent / "lenses" / "coder.lens",
                 Path.home() / ".sunwell" / "lenses" / "coder.lens",
             ]
-            
+
             for path in lens_paths:
                 if path.exists():
                     return LensData.from_yaml(path)
             return None
         except Exception:
             return None
-    
+
     def _create_prompt_builder(self):
         """Create the best prompt builder for the loaded lens."""
         if not self.lens_data:
             return None
-        
+
         try:
             from sunwell.benchmark.demo.lens_experiments import LensStrategy, create_prompt_builder
             # Use examples_prominent - best performing strategy
@@ -207,7 +207,7 @@ class DemoExecutor:
                 for h in self.lens_data.heuristics
             )
             return prompt, requirements
-        
+
         # Fallback to v1 approach
         requirements = [
             "Include type hints for all parameters and return values",

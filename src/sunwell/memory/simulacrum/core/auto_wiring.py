@@ -3,16 +3,14 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
 
-    from sunwell.memory.simulacrum.extractors.topology_extractor import TopologyExtractor
+    from sunwell.memory.simulacrum.hierarchical.chunk_manager import ChunkManager
     from sunwell.memory.simulacrum.hierarchical.chunks import Chunk, ChunkSummary
     from sunwell.memory.simulacrum.hierarchical.config import ChunkConfig
-    from sunwell.memory.simulacrum.hierarchical.chunk_manager import ChunkManager
     from sunwell.memory.simulacrum.topology.unified_store import UnifiedMemoryStore
 
 
-def turns_to_text(chunk: "Chunk | ChunkSummary") -> str:
+def turns_to_text(chunk: Chunk | ChunkSummary) -> str:
     """Convert chunk turns to text for topology extraction."""
     if chunk.turns:
         return "\n".join(f"{t.turn_type.value}: {t.content[:500]}" for t in chunk.turns)
@@ -68,8 +66,8 @@ async def extract_topology_batch(
 
 
 def maybe_demote_warm_to_cold(
-    chunk_manager: "ChunkManager",
-    config: "ChunkConfig",
+    chunk_manager: ChunkManager,
+    config: ChunkConfig,
 ) -> None:
     """Demote old warm chunks to cold tier (RFC-084 auto-cold-demotion)."""
     import time

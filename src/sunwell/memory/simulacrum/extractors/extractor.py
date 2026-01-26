@@ -25,8 +25,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from sunwell.models import ModelProtocol
     from sunwell.memory.simulacrum.core.turn import Turn
+    from sunwell.models import ModelProtocol
 
 
 # =============================================================================
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 # Compiled once at module load, avoiding per-call regex compilation overhead.
 # =============================================================================
 
-from typing import Pattern
+from re import Pattern
 
 # Patterns that indicate a learning (from final responses)
 _LEARNING_PATTERNS: dict[str, tuple[Pattern[str], ...]] = {

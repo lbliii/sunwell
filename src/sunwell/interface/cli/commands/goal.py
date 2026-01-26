@@ -1,8 +1,23 @@
-"""Goal execution command for CLI."""
+"""Goal execution command for CLI.
+
+Unified entry point for goal execution (RFC-MEMORY, RFC-131, RFC-135).
+
+This module provides:
+- run_goal: CLI command for goal execution
+- run_agent: Core execution logic with intent routing
+
+Intent routing (RFC-135):
+- CONVERSATION intents (questions) → SmartContext for direct answer
+- TASK intents (actions) → Full agent planning + execution
+"""
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
+
+if TYPE_CHECKING:
+    from sunwell.models import ModelProtocol
 
 from sunwell.agent import (
     AdaptiveBudget,
@@ -11,24 +26,28 @@ from sunwell.agent import (
     RunOptions,
     create_renderer,
 )
+from sunwell.agent.chat.intent import Intent, classify_input
+from sunwell.agent.context.session import SessionContext
+from sunwell.agent.convergence import ConvergenceConfig
+from sunwell.agent.validation.gates import GateType
+from sunwell.foundation.config import get_config
 from sunwell.foundation.utils import safe_json_dumps
-from sunwell.interface.cli.helpers.project import extract_project_name
-from sunwell.interface.cli.helpers.events import print_event, print_plan_details
-from sunwell.interface.cli.helpers import resolve_model
 from sunwell.interface.cli.core.async_runner import async_command
 from sunwell.interface.cli.core.theme import console, print_banner
+from sunwell.interface.cli.helpers import resolve_model
+from sunwell.interface.cli.helpers.events import print_event, print_plan_details
+from sunwell.interface.cli.helpers.project import extract_project_name
 from sunwell.interface.cli.workspace_prompt import resolve_workspace_interactive
-from sunwell.foundation.config import get_config
-from sunwell.agent.context.session import SessionContext
-from sunwell.memory import PersistentMemory
 from sunwell.knowledge.project import ProjectResolutionError, resolve_project
-from sunwell.tools.execution import ToolExecutor
+from sunwell.memory import PersistentMemory
 from sunwell.tools.core.types import ToolPolicy, ToolTrust
+from sunwell.tools.execution import ToolExecutor
 
 
 @click.command(name="_run", hidden=True)
 @click.argument("goal")
 @click.option("--dry-run", is_flag=True)
+@click.option("--open", "open_studio", is_flag=True, help="Open plan in Studio (with --plan)")
 @click.option("--json-output", is_flag=True)
 @click.option("--provider", "-p", default=None)
 @click.option("--model", "-m", default=None)
@@ -36,10 +55,17 @@ from sunwell.tools.core.types import ToolPolicy, ToolTrust
 @click.option("--time", "-t", default=300)
 @click.option("--trust", default="workspace")
 @click.option("--workspace", "-w", default=None)
+@click.option("--converge/--no-converge", default=False,
+              help="Enable convergence loops (iterate until lint/types pass)")
+@click.option("--converge-gates", default="lint,type",
+              help="Gates for convergence (comma-separated: lint,type,test)")
+@click.option("--converge-max", default=5, type=int,
+              help="Maximum convergence iterations")
 @async_command
 async def run_goal(
     goal: str,
     dry_run: bool,
+    open_studio: bool,
     json_output: bool,
     provider: str | None,
     model: str | None,
@@ -47,14 +73,51 @@ async def run_goal(
     time: int,
     trust: str,
     workspace: str | None,
+    converge: bool,
+    converge_gates: str,
+    converge_max: int,
 ) -> None:
     """Internal command for goal execution (RFC-MEMORY)."""
     workspace_path = Path(workspace) if workspace else None
     # RFC-MEMORY: Single unified execution path
+    # Note: open_studio is only used with --plan in main.py, not needed here
     await run_agent(
         goal, time, trust, dry_run, verbose, provider, model, workspace_path,
         json_output=json_output,
+        converge=converge,
+        converge_gates=converge_gates,
+        converge_max=converge_max,
     )
+
+
+async def _answer_conversation(
+    question: str,
+    workspace: Path,
+    model: ModelProtocol,
+    verbose: bool,
+) -> str | None:
+    """Answer a conversation/question using shared answer_question (RFC-135).
+
+    Delegates to the shared knowledge/answering module which uses
+    SmartContext for semantic code search.
+
+    Args:
+        question: The user's question
+        workspace: Workspace path for code search
+        model: Model for answer generation
+        verbose: Show verbose output
+
+    Returns:
+        The answer, or None if search failed and we should fallback to planning.
+    """
+    from sunwell.knowledge import answer_question_simple
+
+    try:
+        return await answer_question_simple(question, workspace, model)
+    except Exception as e:
+        if verbose:
+            console.print(f"  [neutral.dim]· Search failed: {e}, falling back to planning[/]")
+        return None
 
 
 async def run_agent(
@@ -68,6 +131,9 @@ async def run_agent(
     workspace_path: Path | None = None,
     *,
     json_output: bool = False,
+    converge: bool = False,
+    converge_gates: str = "lint,type",
+    converge_max: int = 5,
 ) -> None:
     """Execute goal with Agent (RFC-MEMORY, RFC-131).
 
@@ -94,6 +160,9 @@ async def run_agent(
         model_override: Override model selection
         workspace_path: Explicit workspace path
         json_output: Output as JSON
+        converge: Enable convergence loops (RFC-123)
+        converge_gates: Comma-separated gate names (lint,type,test)
+        converge_max: Maximum convergence iterations
     """
     # RFC-131: Show Holy Light banner (except in JSON mode)
     if not json_output:
@@ -119,6 +188,40 @@ async def run_agent(
         console.print(f"  [void.purple]✗[/] [sunwell.error]Failed to load model:[/] {e}")
         return
 
+    # RFC-135: Unified intent routing for all entry points
+    # Classify intent to route CONVERSATION vs TASK appropriately
+    if not dry_run:
+        classification = await classify_input(
+            goal,
+            model=synthesis_model,
+        )
+
+        if classification.intent == Intent.CONVERSATION:
+            if verbose:
+                console.print(
+                    f"  [neutral.dim]· Intent: CONVERSATION "
+                    f"({classification.confidence:.0%} confidence)[/]"
+                )
+
+            answer = await _answer_conversation(goal, workspace, synthesis_model, verbose)
+            if answer:
+                if json_output:
+                    import json as json_module
+                    click.echo(json_module.dumps({"type": "answer", "data": {"text": answer}}))
+                else:
+                    from rich.markdown import Markdown
+                    console.print()
+                    console.print(Markdown(answer))
+                return
+            # If search failed, fall through to full planning
+            if verbose:
+                console.print("  [neutral.dim]· Search insufficient, falling back to planning...[/]")
+        elif verbose:
+            console.print(
+                f"  [neutral.dim]· Intent: TASK "
+                f"({classification.confidence:.0%} confidence)[/]"
+            )
+
     # Create tool executor
     trust_map = {
         "read_only": ToolTrust.READ_ONLY,
@@ -127,14 +230,14 @@ async def run_agent(
     }
     trust_level = trust_map.get(trust, ToolTrust.WORKSPACE)
     policy = ToolPolicy(trust_level=trust_level)
-    
+
     # Resolve project from workspace
     try:
         project = resolve_project(project_root=workspace)
     except ProjectResolutionError as e:
         console.print(f"  [void.purple]✗[/] [sunwell.error]Failed to resolve project:[/] {e}")
         return
-    
+
     tool_executor = ToolExecutor(project=project, policy=policy)
 
     # Create agent
@@ -146,9 +249,25 @@ async def run_agent(
     )
 
     # RFC-MEMORY: Build SessionContext and load PersistentMemory
+    # RFC-123: Build convergence config if enabled
+    convergence_config = None
+    if converge:
+        gate_map = {"lint": GateType.LINT, "type": GateType.TYPE, "test": GateType.TEST}
+        enabled = frozenset(
+            gate_map[g.strip().lower()]
+            for g in converge_gates.split(",")
+            if g.strip().lower() in gate_map
+        )
+        convergence_config = ConvergenceConfig(
+            max_iterations=converge_max,
+            enabled_gates=enabled or frozenset({GateType.LINT, GateType.TYPE}),
+        )
+
     options = RunOptions(
         trust=trust,
         timeout_seconds=time,
+        converge=converge,
+        convergence_config=convergence_config,
     )
     session = SessionContext.build(workspace, goal, options)
     memory = PersistentMemory.load(workspace)

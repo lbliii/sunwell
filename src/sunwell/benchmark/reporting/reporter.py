@@ -17,6 +17,13 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from sunwell.benchmark.reporting.statistics import (
+    bootstrap_ci,
+    cohens_d,
+    empty_summary,
+    interpret_effect_size,
+    significance_test,
+)
 from sunwell.benchmark.types import (
     BenchmarkResults,
     CategoryStats,
@@ -24,14 +31,6 @@ from sunwell.benchmark.types import (
     StatisticalSummary,
     TaskResult,
     Verdict,
-)
-
-from sunwell.benchmark.reporting.statistics import (
-    bootstrap_ci,
-    cohens_d,
-    empty_summary,
-    interpret_effect_size,
-    significance_test,
 )
 
 if TYPE_CHECKING:

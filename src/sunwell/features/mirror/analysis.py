@@ -10,7 +10,6 @@ from datetime import datetime, timedelta
 from types import MappingProxyType
 from typing import Any
 
-
 # Module-level constant for failure patterns (avoid per-instance recreation)
 _FAILURE_PATTERNS: MappingProxyType[str, MappingProxyType[str, str]] = MappingProxyType({
     "Permission denied": MappingProxyType({

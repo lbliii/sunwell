@@ -43,11 +43,11 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.models import ModelProtocol
-    from sunwell.planning.naaru.convergence import Convergence
     from sunwell.knowledge.project.schema import ProjectSchema
     from sunwell.memory.simulacrum.core.planning_context import PlanningContext
     from sunwell.memory.simulacrum.core.store import SimulacrumStore
+    from sunwell.models import ModelProtocol
+    from sunwell.planning.naaru.convergence import Convergence
 
 
 # =============================================================================
@@ -171,8 +171,8 @@ class HarmonicPlanner:
             return
 
         try:
-            from sunwell.agent.events.schemas import create_validated_event
             from sunwell.agent.events import EventType
+            from sunwell.agent.events.schemas import create_validated_event
 
             # RFC-060: Validate event data against schema
             event = create_validated_event(EventType(event_type), data)

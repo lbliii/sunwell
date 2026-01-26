@@ -2,8 +2,8 @@
 
 from dataclasses import dataclass
 
-from sunwell.memory.simulacrum.core.turn import Learning
 from sunwell.foundation.types.memory import Episode
+from sunwell.memory.simulacrum.core.turn import Learning
 
 
 @dataclass(frozen=True, slots=True)

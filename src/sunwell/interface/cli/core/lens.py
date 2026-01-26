@@ -45,8 +45,8 @@ async def _list_lenses(path: str | None, json_output: bool) -> None:
     from pathlib import Path
 
     from sunwell.foundation.errors import SunwellError
-    from sunwell.planning.naaru.expertise.discovery import LensDiscovery
     from sunwell.foundation.schema.loader import LensLoader
+    from sunwell.planning.naaru.expertise.discovery import LensDiscovery
 
     discovery = LensDiscovery()
 

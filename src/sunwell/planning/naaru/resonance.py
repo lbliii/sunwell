@@ -306,7 +306,7 @@ Code only, no explanations:"""
         self,
         proposal: dict,
         rejection: dict,
-        validator: "ValidatorProtocol",
+        validator: ValidatorProtocol,
     ) -> tuple[ResonanceResult, dict | None]:
         """Refine and validate in a loop until success or max attempts.
 

@@ -1,9 +1,9 @@
 """Session management for RFC-101: Session Identity System."""
 
 import json
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from sunwell.memory.simulacrum.core.dag import ConversationDAG
@@ -20,7 +20,7 @@ class SessionManager:
         base_path: Path,
         hot_dag_getter: Callable[[], ConversationDAG],
         hot_dag_setter: Callable[[ConversationDAG], None],
-        unified_store: "UnifiedMemoryStore | None" = None,
+        unified_store: UnifiedMemoryStore | None = None,
     ) -> None:
         """Initialize session manager.
 

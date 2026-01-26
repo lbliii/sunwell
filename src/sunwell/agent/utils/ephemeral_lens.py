@@ -45,7 +45,7 @@ Output ONLY the JSON object, no explanation."""
 
 
 async def create_ephemeral_lens(
-    model: "ModelProtocol",
+    model: ModelProtocol,
     task: str,
     context: str = "",
     target_files: tuple[str, ...] = (),

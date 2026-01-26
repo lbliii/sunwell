@@ -163,18 +163,16 @@ async def _resume_agent(
         return
 
     # Resume execution
-    from sunwell.planning.naaru import Naaru
-    from sunwell.knowledge.project import ProjectResolutionError, resolve_project
-    from sunwell.tools.execution import ToolExecutor
-    from sunwell.tools.core.types import ToolPolicy, ToolTrust
-
     # RFC-117: Try to resolve project context
     from sunwell.knowledge.project import (
         ProjectResolutionError,
         create_project_from_workspace,
         resolve_project,
     )
-    
+    from sunwell.planning.naaru import Naaru
+    from sunwell.tools.core.types import ToolPolicy, ToolTrust
+    from sunwell.tools.execution import ToolExecutor
+
     workspace = Path(cp.working_directory)
     try:
         project = resolve_project(project_root=workspace)
@@ -295,14 +293,14 @@ async def _resume_from_goal(
         return
 
     # Resume execution
-    from sunwell.planning.naaru import Naaru
     from sunwell.knowledge.project import (
         ProjectResolutionError,
         create_project_from_workspace,
         resolve_project,
     )
-    from sunwell.tools.execution import ToolExecutor
+    from sunwell.planning.naaru import Naaru
     from sunwell.tools.core.types import ToolPolicy, ToolTrust
+    from sunwell.tools.execution import ToolExecutor
 
     # Resolve project context
     try:

@@ -17,7 +17,8 @@ from sunwell.planning.naaru.persistence.plan_version import PlanDiff, PlanVersio
 from sunwell.planning.naaru.persistence.resume import resume_execution
 from sunwell.planning.naaru.persistence.saved_execution import PERSISTENCE_VERSION, SavedExecution
 from sunwell.planning.naaru.persistence.store import DEFAULT_PLANS_DIR, PlanStore
-from sunwell.planning.naaru.persistence.trace import DEFAULT_PLANS_DIR as TRACE_DEFAULT_PLANS_DIR, TraceLogger
+from sunwell.planning.naaru.persistence.trace import DEFAULT_PLANS_DIR as TRACE_DEFAULT_PLANS_DIR
+from sunwell.planning.naaru.persistence.trace import TraceLogger
 from sunwell.planning.naaru.persistence.types import ArtifactCompletion, ExecutionStatus
 from sunwell.planning.naaru.persistence.utils import get_latest_execution, save_execution
 

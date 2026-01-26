@@ -64,8 +64,9 @@ def compute_input_hash(
 
     Example:
         >>> spec = ArtifactSpec(id="A", description="test", contract="test")
-        >>> compute_input_hash(spec, {})
-        'a1b2c3d4e5f6g7h8i9j0'
+        >>> hash_val = compute_input_hash(spec, {})
+        >>> len(hash_val) == 20 and all(c in '0123456789abcdef' for c in hash_val)
+        True
     """
     hasher = hashlib.sha256()
 

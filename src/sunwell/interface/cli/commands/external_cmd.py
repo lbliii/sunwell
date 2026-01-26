@@ -122,12 +122,11 @@ async def _start_external(no_server: bool, host: str, port: int) -> None:
     scheduler.stop()
 
 
-async def _setup_adapters(processor: "EventProcessor") -> None:
+async def _setup_adapters(processor: EventProcessor) -> None:
     """Setup adapters based on environment variables."""
     import os
 
     from sunwell.features.external.adapters.github import GitHubAdapter
-    from sunwell.features.external.processor import EventProcessor
 
     # GitHub
     github_token = os.environ.get("GITHUB_TOKEN")

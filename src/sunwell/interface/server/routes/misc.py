@@ -12,6 +12,7 @@ from typing import Any
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
+from sunwell.interface.server.routes.agent import get_run_manager
 from sunwell.interface.server.routes.models import (
     BriefingClearResponse,
     BriefingResponse,
@@ -22,7 +23,6 @@ from sunwell.interface.server.routes.models import (
     SavedPromptItem,
     SavedPromptsResponse,
 )
-from sunwell.interface.server.routes.agent import get_run_manager
 
 router = APIRouter(prefix="/api", tags=["misc"])
 

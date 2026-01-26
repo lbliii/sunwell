@@ -26,13 +26,16 @@ Example:
     ...     print(event)
 """
 
+import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import time
 from typing import TYPE_CHECKING, Any
 
-from sunwell.agent.utils.budget import AdaptiveBudget
+logger = logging.getLogger(__name__)
+
+from sunwell.agent.core.task_graph import TaskGraph, sanitize_code_content
 from sunwell.agent.events import (
     AgentEvent,
     EventType,
@@ -51,8 +54,8 @@ from sunwell.agent.execution import (
     determine_specialist_role,
     execute_task_streaming_fallback,
     execute_task_with_tools,
-    execute_with_convergence,
     execute_via_specialist,
+    execute_with_convergence,
     get_context_snapshot,
     select_lens_for_task,
     should_spawn_specialist,
@@ -60,23 +63,23 @@ from sunwell.agent.execution import (
 )
 from sunwell.agent.execution.fixer import FixStage
 from sunwell.agent.learning import LearningExtractor, LearningStore, learn_from_execution
+from sunwell.agent.signals import AdaptiveSignals, extract_signals
+from sunwell.agent.utils.budget import AdaptiveBudget
 from sunwell.agent.utils.metrics import InferenceMetrics
 from sunwell.agent.utils.request import RunOptions
-from sunwell.agent.signals import AdaptiveSignals, extract_signals
-from sunwell.agent.core.task_graph import TaskGraph, sanitize_code_content
 from sunwell.agent.utils.toolchain import detect_toolchain
-from sunwell.agent.validation import Artifact, ValidationRunner, ValidationStage
+from sunwell.agent.validation import Artifact, ValidationRunner
 from sunwell.agent.validation.gates import ValidationGate
 
 if TYPE_CHECKING:
+    from sunwell.agent.recovery.types import RecoveryState
     from sunwell.foundation.core.lens import Lens
     from sunwell.memory.briefing import Briefing, PrefetchedContext
+    from sunwell.memory.simulacrum.core.planning_context import PlanningContext
+    from sunwell.memory.simulacrum.core.store import SimulacrumStore
     from sunwell.models import ModelProtocol
     from sunwell.planning.naaru import Naaru
     from sunwell.planning.naaru.types import Task
-    from sunwell.agent.recovery.types import RecoveryState
-    from sunwell.memory.simulacrum.core.planning_context import PlanningContext
-    from sunwell.memory.simulacrum.core.store import SimulacrumStore
     from sunwell.tools.execution import ToolExecutor
     from sunwell.tools.tracking import InvocationTracker
 
@@ -112,7 +115,7 @@ class Agent:
     model: ModelProtocol
     """Primary model for generation."""
 
-    tool_executor: Any = None
+    tool_executor: ToolExecutor | None = None
     """Tool executor for file I/O, commands, etc."""
 
     cwd: Path | None = None
@@ -155,7 +158,7 @@ class Agent:
     _learning_extractor: LearningExtractor = field(default_factory=LearningExtractor, init=False)
     _validation_runner: ValidationRunner | None = field(default=None, init=False)
     _fix_stage: FixStage | None = field(default=None, init=False)
-    _naaru: "Naaru | None" = field(default=None, init=False)
+    _naaru: Naaru | None = field(default=None, init=False)
     _inference_metrics: InferenceMetrics = field(default_factory=InferenceMetrics, init=False)
     _task_graph: TaskGraph | None = field(default=None, init=False)
 
@@ -166,12 +169,12 @@ class Agent:
     _briefing: Briefing | None = field(default=None, init=False)
     _workspace_context: str | None = field(default=None, init=False)
     _files_changed_this_run: list[str] = field(default_factory=list, init=False)
-    _last_planning_context: "PlanningContext | None" = field(default=None, init=False)
-    _prefetched_context: "PrefetchedContext | None" = field(default=None, init=False)
+    _last_planning_context: PlanningContext | None = field(default=None, init=False)
+    _prefetched_context: PrefetchedContext | None = field(default=None, init=False)
     """Prefetched context from briefing (files, hints)."""
 
     # RFC-MEMORY: Reference to memory stores for planning and execution
-    _simulacrum: "SimulacrumStore | None" = field(default=None, init=False)
+    _simulacrum: SimulacrumStore | None = field(default=None, init=False)
     """SimulacrumStore from PersistentMemory (set during run())."""
 
     _memory: PersistentMemory | None = field(default=None, init=False)
@@ -182,7 +185,7 @@ class Agent:
     """IDs of specialists spawned during this run."""
 
     # Tool invocation tracking for verification and self-correction
-    _invocation_tracker: "InvocationTracker | None" = field(default=None, init=False)
+    _invocation_tracker: InvocationTracker | None = field(default=None, init=False)
     """Tracks tool invocations for verification and self-correction."""
 
     _specialist_count: int = field(default=0, init=False)
@@ -197,6 +200,9 @@ class Agent:
 
     _last_task_result: str | None = field(default=None, init=False)
     """Last task result text (for file writing)."""
+
+    _gates_passed: int = field(default=0, init=False)
+    """Count of validation gates that passed during this run."""
 
     _current_phase: CheckpointPhase = field(
         default=CheckpointPhase.ORIENT_COMPLETE, init=False
@@ -221,14 +227,14 @@ class Agent:
             self._init_naaru()
 
     @property
-    def simulacrum(self) -> "SimulacrumStore | None":
+    def simulacrum(self) -> SimulacrumStore | None:
         """Get SimulacrumStore from current run context (RFC-MEMORY)."""
         return self._simulacrum
 
     def _init_naaru(self) -> None:
         """Initialize internal Naaru for task execution."""
-        from sunwell.planning.naaru import Naaru
         from sunwell.foundation.types.config import NaaruConfig
+        from sunwell.planning.naaru import Naaru
 
         self._naaru = Naaru(
             workspace=self.cwd,
@@ -270,13 +276,23 @@ class Agent:
         start_time = time()
         self._current_goal = session.goal
         self.cwd = session.cwd
+        self._gates_passed = 0  # Reset counter for this run
 
         # RFC-MEMORY: Store memory references for planning and task execution
         self._simulacrum = memory.simulacrum
         self._memory = memory
 
         # RFC-126: Store workspace context for task execution
-        self._workspace_context = session.to_planning_prompt()
+        # RFC-135: Enrich with goal-aware context from SmartContext
+        base_context = session.to_planning_prompt()
+        from sunwell.knowledge import enrich_context_for_goal
+
+        self._workspace_context = await enrich_context_for_goal(
+            goal=session.goal,
+            workspace=session.cwd,
+            model=self.model,
+            base_context=base_context,
+        )
 
         # ─── PHASE 0: PREFETCH (RFC-130) ───
         # Memory-informed prefetch to warm context before main execution
@@ -300,8 +316,8 @@ class Agent:
                                 confidence=0.75,
                                 reason="Lens from similar past goal",
                             )
-                    except Exception:
-                        pass  # Use default lens resolution
+                    except Exception as e:
+                        logger.debug("Failed to load prefetched lens %r: %s", prefetched.lens, e)
 
         # ─── PHASE 1: ORIENT ───
         # What do we know? What should we avoid?
@@ -460,17 +476,16 @@ class Agent:
         # ─── COMPLETE ───
         duration = time() - start_time
         tasks_done = len(self._task_graph.completed_ids) if self._task_graph else 0
-        gates_done = len(self._task_graph.gates) if self._task_graph else 0
         yield complete_event(
             tasks_completed=tasks_done,
-            gates_passed=gates_done,
+            gates_passed=self._gates_passed,
             duration_s=duration,
             learnings=len(self._learning_store.learnings),
         )
 
     async def resume_from_recovery(
         self,
-        recovery_state: "RecoveryState",
+        recovery_state: RecoveryState,
         user_hint: str | None = None,
     ) -> AsyncIterator[AgentEvent]:
         """Resume execution from a recovery state (RFC-125).
@@ -665,6 +680,10 @@ class Agent:
 
                     async for event in self._validate_gate(gate, gate_artifacts):
                         yield event
+
+                        # Track passed gates for completion metrics
+                        if event.type == EventType.GATE_PASS:
+                            self._gates_passed += 1
 
                         if event.type == EventType.GATE_FAIL and options.auto_fix:
                             error_msg = event.data.get("error_message", "Unknown error")
@@ -915,8 +934,9 @@ class Agent:
                 project_path=self.cwd,
                 timeout=2.0,  # Don't block for too long
             )
-        except Exception:
+        except Exception as e:
             # Prefetch failure shouldn't block execution
+            logger.debug("Memory-informed prefetch failed: %s", e)
             return None
 
     # =========================================================================

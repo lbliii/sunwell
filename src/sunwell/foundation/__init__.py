@@ -7,6 +7,17 @@ RFC-138: Module Architecture Consolidation
 """
 
 # Config
+# Binding (re-export from subpackage)
+from sunwell.foundation.binding import (
+    Binding,
+    BindingIndex,
+    BindingIndexEntry,
+    BindingIndexManager,
+    BindingManager,
+    create_binding_identity,
+    create_binding_uri,
+    get_binding_or_create_temp,
+)
 from sunwell.foundation.config import (
     SunwellConfig,
     get_config,
@@ -15,6 +26,9 @@ from sunwell.foundation.config import (
     resolve_naaru_model,
     save_default_config,
 )
+
+# Core (re-export from subpackage)
+from sunwell.foundation.core.lens import Lens, LensMetadata
 
 # Errors
 from sunwell.foundation.errors import (
@@ -38,14 +52,17 @@ from sunwell.foundation.identity import (
     validate_slug,
 )
 
+# Schema (re-export from subpackage)
+from sunwell.foundation.schema import LensLoader
+
 # Threading
 from sunwell.foundation.threading import (
+    ParallelStats,
     WorkloadType,
     cpu_count,
     is_free_threaded,
     optimal_llm_workers,
     optimal_workers,
-    ParallelStats,
     run_cpu_bound,
     run_parallel,
     run_parallel_async,
@@ -54,31 +71,13 @@ from sunwell.foundation.threading import (
 
 # Types - import key types explicitly (more from sunwell.foundation.types)
 from sunwell.foundation.types import (
+    Confidence,
+    ModelSize,
     NaaruConfig,
+    SemanticVersion,
     Severity,
     Tier,
-    ModelSize,
-    Confidence,
-    SemanticVersion,
 )
-
-# Schema (re-export from subpackage)
-from sunwell.foundation.schema import LensLoader
-
-# Binding (re-export from subpackage)
-from sunwell.foundation.binding import (
-    Binding,
-    BindingManager,
-    BindingIndex,
-    BindingIndexEntry,
-    BindingIndexManager,
-    create_binding_identity,
-    create_binding_uri,
-    get_binding_or_create_temp,
-)
-
-# Core (re-export from subpackage)
-from sunwell.foundation.core.lens import Lens, LensMetadata
 
 # Utils (re-export from subpackage)
 from sunwell.foundation.utils import (
@@ -96,6 +95,8 @@ from sunwell.foundation.utils import (
     safe_yaml_loads,
     sanitize_filename,
     slugify,
+)
+from sunwell.foundation.utils import (
     validate_slug as validate_slug_util,
 )
 

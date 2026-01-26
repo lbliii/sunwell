@@ -15,6 +15,11 @@ Example:
     >>> project = resolve_project(project_root="/path/to/project")
 """
 
+from sunwell.knowledge.project.cache import (
+    invalidate_cache,
+    load_cached_analysis,
+)
+from sunwell.knowledge.project.intent_analyzer import analyze_project
 from sunwell.knowledge.project.intent_types import (
     WORKSPACE_PRIMARIES,
     DevCommand,
@@ -67,11 +72,6 @@ from sunwell.knowledge.project.validation import (
     validate_not_sunwell_repo,
     validate_workspace,
 )
-from sunwell.knowledge.project.cache import (
-    invalidate_cache,
-    load_cached_analysis,
-)
-from sunwell.knowledge.project.intent_analyzer import analyze_project
 
 __all__ = [
     # Types (RFC-117)

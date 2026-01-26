@@ -144,8 +144,8 @@ class ContextResolver:
         if path:
             try:
                 target.resolve().relative_to(self.workspace.resolve())
-            except ValueError:
-                raise PermissionError(f"Path escapes workspace: {target}")
+            except ValueError as e:
+                raise PermissionError(f"Path escapes workspace: {target}") from e
 
         return target.read_text(encoding="utf-8", errors="replace")
 
@@ -159,8 +159,8 @@ class ContextResolver:
         # Security: ensure within workspace
         try:
             target.resolve().relative_to(self.workspace.resolve())
-        except ValueError:
-            raise PermissionError(f"Path escapes workspace: {target}")
+        except ValueError as e:
+            raise PermissionError(f"Path escapes workspace: {target}") from e
 
         files = []
         for f in sorted(target.iterdir()):

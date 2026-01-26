@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sunwell.agent.loop.config import LoopState
-    from sunwell.models import ToolCall
     from sunwell.agent.recovery.manager import RecoveryManager
+    from sunwell.models import ToolCall
 
 logger = logging.getLogger(__name__)
 

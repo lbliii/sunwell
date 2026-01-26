@@ -7,15 +7,15 @@ When looking up decisions or checking approaches, Sunwell checks:
 3. Project analysis (auto-generated from code)
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
+    from sunwell.features.team.store import TeamKnowledgeStore
     from sunwell.knowledge.codebase.codebase import CodebaseAnalyzer
     from sunwell.knowledge.codebase.decisions import Decision, DecisionMemory
     from sunwell.knowledge.codebase.failures import FailureMemory
-    from sunwell.features.team.store import TeamKnowledgeStore
 
 from sunwell.features.team.types import (
     TeamDecision,

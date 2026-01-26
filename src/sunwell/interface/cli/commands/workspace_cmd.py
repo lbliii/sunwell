@@ -924,7 +924,7 @@ def purge_workspace(workspace_id: str, confirm: bool, delete_runs: bool, force: 
     console.print(f"  Path: {project.root}")
     console.print()
     console.print("[yellow]This will DELETE the following:[/yellow]")
-    console.print(f"  - Registry entry")
+    console.print("  - Registry entry")
     console.print(f"  - {sunwell_dir}/ (all Sunwell data)")
     if delete_runs:
         console.print("  - Associated runs in ~/.sunwell/runs/")
@@ -1016,7 +1016,7 @@ def remove_workspace(workspace_id: str, confirm_full_delete: bool, delete_runs: 
     # Check for nested workspaces
     nested = has_nested_workspaces(project.root, registry.projects)
     if nested:
-        console.print(f"[red]Error:[/red] Workspace contains nested workspaces:")
+        console.print("[red]Error:[/red] Workspace contains nested workspaces:")
         for nested_id in nested:
             console.print(f"  - {nested_id}")
         console.print()
@@ -1028,7 +1028,7 @@ def remove_workspace(workspace_id: str, confirm_full_delete: bool, delete_runs: 
     console.print(f"  Path: {project.root}")
     console.print()
     console.print("[red]This will PERMANENTLY DELETE:[/red]")
-    console.print(f"  - Registry entry")
+    console.print("  - Registry entry")
     console.print(f"  - ENTIRE workspace directory: {project.root}")
     console.print("  - All source code and files within")
     if delete_runs:

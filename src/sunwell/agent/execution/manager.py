@@ -14,13 +14,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.foundation.utils import safe_json_dumps, safe_json_loads
-from sunwell.agent.events.schemas import EventEmitter
 from sunwell.agent.events import AgentEvent, EventType
-from sunwell.features.backlog.goals import Goal, GoalResult, GoalScope
-from sunwell.features.backlog.manager import BacklogManager
+from sunwell.agent.events.schemas import EventEmitter
 from sunwell.agent.execution.context import BacklogContext
 from sunwell.agent.incremental import ExecutionCache, IncrementalExecutor, IncrementalResult
+from sunwell.features.backlog.goals import Goal, GoalResult, GoalScope
+from sunwell.features.backlog.manager import BacklogManager
+from sunwell.foundation.utils import safe_json_dumps, safe_json_loads
 from sunwell.planning.naaru.persistence import hash_goal
 
 if TYPE_CHECKING:
@@ -308,7 +308,7 @@ class ExecutionManager:
                 previous_artifacts=previous_artifacts,
                 learnings=tuple(learnings[:20]),  # Limit to recent learnings
             )
-        except (json.JSONDecodeError, OSError) as e:
+        except (ValueError, OSError) as e:
             # Log but don't fail - DAG context is optional
             logging.debug("RFC-105: Could not load DAG index: %s", e)
             return DagContext()
@@ -519,7 +519,7 @@ class ExecutionManager:
 
         if learnings:
             learnings_file = intel_path / "learnings.jsonl"
-            with open(learnings_file, "a") as f:
+            with open(learnings_file, "a", encoding="utf-8") as f:
                 for learning in learnings:
                     f.write(safe_json_dumps(learning) + "\n")
 
