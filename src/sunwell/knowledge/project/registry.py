@@ -1,9 +1,11 @@
-"""Project registry for RFC-117.
+"""Project registry for RFC-117 + RFC-133 Phase 2.
 
 Tracks known projects in ~/.sunwell/projects.json for quick switching.
+Extended with URL slug support for human-readable deep linking.
 """
 
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -23,7 +25,7 @@ def _load_registry() -> dict:
     """Load registry from disk with graceful fallback on corruption."""
     path = _get_registry_path()
     if not path.exists():
-        return {"projects": {}, "default_project": None}
+        return {"projects": {}, "slugs": {}, "default_project": None}
 
     try:
         content = path.read_text(encoding="utf-8")
@@ -34,11 +36,13 @@ def _load_registry() -> dict:
             raise ValueError("Registry must be a dictionary")
         if "projects" not in data:
             data["projects"] = {}
+        if "slugs" not in data:
+            data["slugs"] = {}
         if "default_project" not in data:
             data["default_project"] = None
             
         return data
-    except (json.JSONDecodeError, OSError, ValueError) as e:
+    except (json.JSONDecodeError, OSError, ValueError):
         # On corruption, try to backup and return empty registry
         backup_path = path.with_suffix(".json.bak")
         try:
@@ -50,7 +54,55 @@ def _load_registry() -> dict:
         
         # Return empty registry instead of raising
         # This allows the system to continue functioning
-        return {"projects": {}, "default_project": None}
+        return {"projects": {}, "slugs": {}, "default_project": None}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RFC-133 Phase 2: Slug Generation and Resolution
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def generate_slug(name: str) -> str:
+    """Generate a URL-safe slug from a project name.
+    
+    Args:
+        name: Project name (e.g., "My Cool App")
+        
+    Returns:
+        URL-safe slug (e.g., "my-cool-app")
+    """
+    # Lowercase and replace spaces/underscores with hyphens
+    slug = name.lower().replace(" ", "-").replace("_", "-")
+    
+    # Remove non-alphanumeric characters except hyphens
+    slug = re.sub(r"[^a-z0-9-]", "", slug)
+    
+    # Collapse multiple hyphens
+    slug = re.sub(r"-+", "-", slug)
+    
+    # Remove leading/trailing hyphens
+    slug = slug.strip("-")
+    
+    # Truncate to 30 characters
+    if len(slug) > 30:
+        slug = slug[:30].rstrip("-")
+    
+    # Ensure we have something
+    return slug or "project"
+
+
+def is_valid_slug(slug: str) -> bool:
+    """Check if a string is a valid URL slug.
+    
+    Args:
+        slug: String to validate
+        
+    Returns:
+        True if valid slug format
+    """
+    if not slug:
+        return False
+    # Slugs: lowercase alphanumeric + hyphens, optional ~N disambiguator
+    return bool(re.match(r"^[a-z0-9][a-z0-9-]*[a-z0-9]?(~\d+)?$", slug)) or len(slug) == 1
 
 
 def _save_registry(data: dict) -> None:
@@ -70,6 +122,7 @@ class ProjectRegistry:
 
     Registry is stored at ~/.sunwell/projects.json and tracks:
     - Known projects with their root paths
+    - URL slugs for human-readable deep linking (RFC-133 Phase 2)
     - Default project for CLI commands
     - Last used timestamps
 
@@ -78,6 +131,9 @@ class ProjectRegistry:
         >>> registry.register(project)
         >>> project = registry.get("my-app")
         >>> registry.set_default("my-app")
+        >>> # RFC-133: Slug resolution
+        >>> project = registry.resolve_slug("my-app")
+        >>> slug = registry.get_slug("proj_abc123")
     """
 
     def __init__(self) -> None:
@@ -92,6 +148,11 @@ class ProjectRegistry:
     def projects(self) -> dict[str, dict]:
         """Get all registered projects."""
         return self._data.get("projects", {})
+
+    @property
+    def slugs(self) -> dict[str, str]:
+        """Get slug -> project_id mapping."""
+        return self._data.get("slugs", {})
 
     @property
     def default_project_id(self) -> str | None:
@@ -143,15 +204,23 @@ class ProjectRegistry:
             return None
         return self.get(default_id)
 
-    def register(self, project: Project) -> None:
-        """Register a project.
+    def register(self, project: Project) -> str:
+        """Register a project and generate its URL slug.
 
         Args:
             project: Project to register
+
+        Returns:
+            The URL slug assigned to this project
         """
         self._data.setdefault("projects", {})
         self._data["projects"][project.id] = project.to_registry_entry()
+        
+        # RFC-133: Generate URL slug
+        slug = self.ensure_slug(project.id, project.name)
+        
         self._save()
+        return slug
 
     def unregister(self, project_id: str) -> bool:
         """Remove a project from registry.
@@ -166,6 +235,9 @@ class ProjectRegistry:
             return False
 
         del self._data["projects"][project_id]
+
+        # RFC-133: Remove slug mapping
+        self.remove_slug(project_id)
 
         # Clear default if it was this project
         if self.default_project_id == project_id:
@@ -213,6 +285,142 @@ class ProjectRegistry:
             if Path(entry["root"]).resolve() == root:
                 return Project.from_registry_entry(project_id, entry)
         return None
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # RFC-133 Phase 2: URL Slug Support
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def get_slug(self, project_id: str) -> str | None:
+        """Get the URL slug for a project.
+
+        Args:
+            project_id: Project identifier
+
+        Returns:
+            URL slug or None if project not found
+        """
+        # Reverse lookup: find slug that maps to this project_id
+        for slug, pid in self.slugs.items():
+            if pid == project_id:
+                return slug
+        return None
+
+    def resolve_slug(self, slug: str) -> tuple[Project | None, list[Project] | None]:
+        """Resolve a URL slug to a project.
+
+        Args:
+            slug: URL slug (e.g., "my-app")
+
+        Returns:
+            Tuple of (project, ambiguous_list):
+            - (Project, None) if unique match found
+            - (None, [projects]) if ambiguous (shouldn't happen with proper registry)
+            - (None, None) if not found
+        """
+        # Direct lookup in slug registry
+        project_id = self.slugs.get(slug)
+        if project_id:
+            project = self.get(project_id)
+            if project:
+                return (project, None)
+        
+        # Try as project ID fallback
+        project = self.get(slug)
+        if project:
+            return (project, None)
+        
+        # Not found
+        return (None, None)
+
+    def ensure_slug(self, project_id: str, preferred_name: str | None = None) -> str:
+        """Ensure a project has a URL slug, generating one if needed.
+
+        Args:
+            project_id: Project identifier
+            preferred_name: Preferred name to derive slug from (defaults to project name)
+
+        Returns:
+            The URL slug for this project
+        """
+        # Check if already has a slug
+        existing = self.get_slug(project_id)
+        if existing:
+            return existing
+
+        # Get project to derive name
+        project = self.get(project_id)
+        if not project and not preferred_name:
+            # Can't generate without a name, use project_id as slug
+            slug = generate_slug(project_id)
+        else:
+            name = preferred_name or (project.name if project else project_id)
+            slug = generate_slug(name)
+
+        # Ensure uniqueness
+        slug = self._make_unique_slug(slug, project_id)
+
+        # Register the slug
+        self._data.setdefault("slugs", {})
+        self._data["slugs"][slug] = project_id
+        self._save()
+
+        return slug
+
+    def _make_unique_slug(self, base_slug: str, project_id: str) -> str:
+        """Make a slug unique by adding a disambiguator if needed.
+
+        Args:
+            base_slug: Initial slug
+            project_id: Project ID this slug is for
+
+        Returns:
+            Unique slug (base_slug or base_slug~N)
+        """
+        # Check if base slug is available
+        existing_id = self.slugs.get(base_slug)
+        if existing_id is None or existing_id == project_id:
+            return base_slug
+
+        # Find next available disambiguator
+        counter = 2
+        while True:
+            candidate = f"{base_slug}~{counter}"
+            existing_id = self.slugs.get(candidate)
+            if existing_id is None or existing_id == project_id:
+                return candidate
+            counter += 1
+            if counter > 100:
+                # Safety valve - fall back to project_id
+                return project_id
+
+    def remove_slug(self, project_id: str) -> bool:
+        """Remove a project's slug mapping.
+
+        Args:
+            project_id: Project identifier
+
+        Returns:
+            True if a slug was removed
+        """
+        slug = self.get_slug(project_id)
+        if slug and slug in self._data.get("slugs", {}):
+            del self._data["slugs"][slug]
+            self._save()
+            return True
+        return False
+
+    def list_slugs(self) -> list[tuple[str, str, str]]:
+        """List all slug mappings.
+
+        Returns:
+            List of (slug, project_id, project_path) tuples
+        """
+        result = []
+        for slug, project_id in self.slugs.items():
+            entry = self.projects.get(project_id, {})
+            path = entry.get("root", "")
+            result.append((slug, project_id, path))
+        return result
 
 
 def init_project(

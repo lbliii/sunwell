@@ -70,3 +70,46 @@ class TestCommandRegistration:
         """Test bootstrap command is registered."""
         commands = main.list_commands(None)
         assert "bootstrap" in commands
+
+    def test_internal_command_registered(self) -> None:
+        """Test internal command group is registered (CLI Core Refactor)."""
+        commands = main.list_commands(None)
+        assert "internal" in commands
+
+    def test_config_command_is_group(self) -> None:
+        """Test config command is now a group with subcommands (CLI Core Refactor)."""
+        config_cmd = main.commands.get("config")
+        assert config_cmd is not None
+        # Config should be a group, not a simple command
+        assert hasattr(config_cmd, "commands")
+        assert "show" in config_cmd.commands
+        assert "get" in config_cmd.commands
+        assert "set" in config_cmd.commands
+
+
+class TestCLICoreRefactor:
+    """Tests specific to the CLI Core Refactor changes."""
+
+    def test_deprecated_commands_removed(self) -> None:
+        """Test deprecated ask/apply commands have been removed."""
+        commands = main.list_commands(None)
+        assert "ask" not in commands, "Deprecated 'ask' command should be removed"
+        assert "apply" not in commands, "Deprecated 'apply' command should be removed"
+
+    def test_internal_group_has_expected_subcommands(self) -> None:
+        """Test internal group contains expected subcommands."""
+        internal_cmd = main.commands.get("internal")
+        assert internal_cmd is not None
+        assert hasattr(internal_cmd, "commands")
+        
+        # Check for some key internal commands
+        internal_commands = internal_cmd.commands
+        assert "backlog" in internal_commands
+        assert "workflow" in internal_commands
+
+    def test_async_runner_module_exists(self) -> None:
+        """Test async_runner module can be imported."""
+        from sunwell.interface.cli.core.async_runner import async_command, run_async
+        
+        assert callable(run_async)
+        assert callable(async_command)

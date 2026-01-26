@@ -6,7 +6,6 @@ RFC-079: Project analysis (analyze, signals, monorepo, cache)
 RFC-117: Workspace management (init, list, default, remove)
 """
 
-import asyncio
 import json
 from pathlib import Path
 
@@ -14,6 +13,8 @@ import click
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+
+from sunwell.interface.cli.core.async_runner import async_command
 
 console = Console()
 
@@ -699,7 +700,8 @@ def info_cmd(project_id: str | None) -> None:
 @click.option("--provider", "-p", type=click.Choice(["openai", "anthropic", "ollama"]),
               default=None, help="Model provider (default: from config)")
 @click.option("--model", "-m", default=None, help="Model to use for LLM classification")
-def analyze_cmd(
+@async_command
+async def analyze_cmd(
     path: str,
     output_json: bool,
     fresh: bool,
@@ -716,7 +718,7 @@ def analyze_cmd(
         sunwell project analyze ~/projects/myapp --json
         sunwell project analyze . --fresh
     """
-    asyncio.run(_analyze(Path(path), output_json, fresh, provider, model))
+    await _analyze(Path(path), output_json, fresh, provider, model)
 
 
 async def _analyze(

@@ -1,4 +1,4 @@
-"""Project management routes (RFC-113, RFC-117, RFC-132, RFC-141).
+"""Project management routes (RFC-113, RFC-117, RFC-132, RFC-133, RFC-141).
 
 This module combines all project-related routers:
 - gate: RFC-132 project gate endpoints (validate, list, create, default)
@@ -8,6 +8,7 @@ This module combines all project-related routers:
 - extended: Extended operations (memory stats, intelligence, DAG, learnings)
 - current: Current project operations (RFC-140)
 - lifecycle: RFC-141 lifecycle management (delete modes, rename, move, cleanup)
+- slug: RFC-133 Phase 2 URL slug resolution for deep linking
 """
 
 from fastapi import APIRouter
@@ -19,6 +20,7 @@ from sunwell.interface.server.routes.project.extended import router as extended_
 from sunwell.interface.server.routes.project.gate import router as gate_router
 from sunwell.interface.server.routes.project.lifecycle import router as lifecycle_router
 from sunwell.interface.server.routes.project.run import router as run_router
+from sunwell.interface.server.routes.project.slug import router as slug_router
 
 # Main router that combines all project sub-routers
 router = APIRouter(prefix="/api", tags=["project"])
@@ -31,3 +33,4 @@ router.include_router(run_router)
 router.include_router(extended_router)
 router.include_router(current_router)
 router.include_router(lifecycle_router)
+router.include_router(slug_router)

@@ -1,6 +1,5 @@
 """Goal execution command for CLI."""
 
-import asyncio
 from pathlib import Path
 
 import click
@@ -16,6 +15,7 @@ from sunwell.foundation.utils import safe_json_dumps
 from sunwell.interface.cli.helpers.project import extract_project_name
 from sunwell.interface.cli.helpers.events import print_event, print_plan_details
 from sunwell.interface.cli.helpers import resolve_model
+from sunwell.interface.cli.core.async_runner import async_command
 from sunwell.interface.cli.core.theme import console, print_banner
 from sunwell.interface.cli.workspace_prompt import resolve_workspace_interactive
 from sunwell.foundation.config import get_config
@@ -36,7 +36,8 @@ from sunwell.tools.core.types import ToolPolicy, ToolTrust
 @click.option("--time", "-t", default=300)
 @click.option("--trust", default="workspace")
 @click.option("--workspace", "-w", default=None)
-def run_goal(
+@async_command
+async def run_goal(
     goal: str,
     dry_run: bool,
     json_output: bool,
@@ -50,10 +51,10 @@ def run_goal(
     """Internal command for goal execution (RFC-MEMORY)."""
     workspace_path = Path(workspace) if workspace else None
     # RFC-MEMORY: Single unified execution path
-    asyncio.run(run_agent(
+    await run_agent(
         goal, time, trust, dry_run, verbose, provider, model, workspace_path,
         json_output=json_output,
-    ))
+    )
 
 
 async def run_agent(

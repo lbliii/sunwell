@@ -37,5 +37,20 @@ vi.mock('$lib/socket', () => ({
   healthCheck: vi.fn(() => Promise.resolve({ status: 'healthy', active_runs: 0 })),
 }));
 
+// Mock workspace store (used by components that use $stores alias)
+vi.mock('$stores/workspace.svelte', () => ({
+  workspaceStore: {
+    detectedLinks: [],
+    selectedLinks: new Set(),
+    toastState: 'hidden',
+    showToast: false,
+    hasDetectedLinks: false,
+  },
+  toggleLinkSelection: vi.fn(),
+  linkSelected: vi.fn(() => Promise.resolve()),
+  dismissToast: vi.fn(),
+  skipLinking: vi.fn(),
+}));
+
 // Global test utilities
 (globalThis as { expect?: typeof expect }).expect = expect;

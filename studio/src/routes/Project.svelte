@@ -20,6 +20,7 @@
   import { ATCView, StateDagView } from '../components/coordinator';
   import { project, analyzeProject } from '../stores/project.svelte';
   import { agent, runGoal } from '../stores/agent.svelte';
+  import { app, updateParams } from '../stores/app.svelte';
   import { dag, setGraph, setProjectPath, loadProjectDagIndex, getSortedGoals, expandGoal } from '../stores/dag.svelte';
   import { files, setFilesProjectPath } from '../stores/files.svelte';
   import { scanWeaknesses } from '../stores/weakness.svelte';
@@ -32,8 +33,11 @@
   let selectedFile = $state<{ path: string; name: string; content: string } | null>(null);
   let isLoadingPreview = $state(false);
   
-  // View tabs state: default to project (unified landing surface, RFC-106)
-  let activeTab = $state<string>(ViewTab.PROJECT);
+  // View tabs state: read from URL params or default to project (RFC-106, RFC-133)
+  // Valid tabs: project, pipeline, memory, health, state_dag, workers
+  const validTabs = new Set([ViewTab.PROJECT, ViewTab.PIPELINE, ViewTab.MEMORY, 'health', ViewTab.STATE_DAG, ViewTab.WORKERS]);
+  const initialTab = app.params.tab && validTabs.has(app.params.tab) ? app.params.tab : ViewTab.PROJECT;
+  let activeTab = $state<string>(initialTab);
   let isLoadingDag = $state(false);
   let dagError = $state<string | null>(null);
   
@@ -64,7 +68,8 @@
     if (e.ctrlKey && e.shiftKey && e.key === 'W') {
       e.preventDefault();
       if (project.current?.path) {
-        activeTab = 'health' as ViewTab;
+        activeTab = 'health';
+        updateParams({ tab: 'health' });
         scanWeaknesses(project.current.path);
       }
     }
@@ -190,6 +195,8 @@
   
   function handleTabChange(tabId: string) {
     activeTab = tabId;
+    // RFC-133: Persist tab to URL (replaceState to avoid history spam)
+    updateParams({ tab: tabId === ViewTab.PROJECT ? null : tabId });
   }
   
   // RFC-106: Overview handlers moved to IdleState.svelte

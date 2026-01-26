@@ -1,6 +1,5 @@
 """Lens commands — List, inspect, and manage lenses (RFC-064, RFC-070)."""
 
-import asyncio
 import json as json_module
 import sys
 from pathlib import Path
@@ -10,6 +9,7 @@ from rich.console import Console
 from rich.table import Table
 
 from sunwell.foundation.utils import safe_json_dumps, safe_yaml_dumps
+from sunwell.interface.cli.core.async_runner import async_command
 
 console = Console()
 
@@ -23,7 +23,8 @@ def lens() -> None:
 @lens.command("list")
 @click.option("--path", "-p", type=click.Path(exists=True), help="Path to search for lenses")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
-def lens_list(path: str | None, json_output: bool) -> None:
+@async_command
+async def lens_list(path: str | None, json_output: bool) -> None:
     """List all available lenses.
 
     By default, searches current directory and ~/.sunwell/lenses/
@@ -36,7 +37,7 @@ def lens_list(path: str | None, json_output: bool) -> None:
 
         sunwell lens list --json
     """
-    asyncio.run(_list_lenses(path, json_output))
+    await _list_lenses(path, json_output)
 
 
 async def _list_lenses(path: str | None, json_output: bool) -> None:
@@ -109,7 +110,7 @@ async def _list_lenses(path: str | None, json_output: bool) -> None:
         return
 
     if not lenses_data:
-        console.print("[yellow]No lenses found.[/yellow]")
+        console.print("[sunwell.warning]No lenses found.[/]")
         console.print(f"Searched: {', '.join(str(p) for p in discovery.search_paths)}")
         return
 
@@ -135,7 +136,8 @@ async def _list_lenses(path: str | None, json_output: bool) -> None:
 @lens.command("show")
 @click.argument("lens_name")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
-def lens_show(lens_name: str, json_output: bool) -> None:
+@async_command
+async def lens_show(lens_name: str, json_output: bool) -> None:
     """Show details of a specific lens.
 
     Examples:
@@ -144,7 +146,7 @@ def lens_show(lens_name: str, json_output: bool) -> None:
 
         sunwell lens show tech-writer --json
     """
-    asyncio.run(_show_lens(lens_name, json_output))
+    await _show_lens(lens_name, json_output)
 
 
 async def _show_lens(lens_name: str, json_output: bool) -> None:
@@ -159,7 +161,7 @@ async def _show_lens(lens_name: str, json_output: bool) -> None:
         if json_output:
             print(json_module.dumps({"error": f"Lens not found: {lens_name}"}))
         else:
-            console.print(f"[red]Lens not found: {lens_name}[/red]")
+            console.print(f"[void.purple]✗[/] [sunwell.error]Lens not found: {lens_name}[/]")
         sys.exit(1)
 
     # Build detail dict
@@ -200,7 +202,7 @@ async def _show_lens(lens_name: str, json_output: bool) -> None:
         console.print(f"\n[bold]Heuristics ({len(lens_obj.heuristics)}):[/bold]")
         for h in lens_obj.heuristics[:5]:  # Show first 5
             rule_preview = h.rule[:60] + "..." if len(h.rule) > 60 else h.rule
-            console.print(f"  • [cyan]{h.name}[/cyan]: {rule_preview}")
+            console.print(f"  • [holy.gold]{h.name}[/]: {rule_preview}")
         if len(lens_obj.heuristics) > 5:
             console.print(f"  ... and {len(lens_obj.heuristics) - 5} more")
 
@@ -221,7 +223,8 @@ async def _show_lens(lens_name: str, json_output: bool) -> None:
 @click.option("--explicit", "-e", default=None, help="Explicit lens to use")
 @click.option("--no-auto", is_flag=True, help="Disable auto-selection")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
-def lens_resolve(goal: str, explicit: str | None, no_auto: bool, json_output: bool) -> None:
+@async_command
+async def lens_resolve(goal: str, explicit: str | None, no_auto: bool, json_output: bool) -> None:
     """Resolve which lens would be used for a goal.
 
     Useful for debugging lens selection without running the agent.
@@ -232,7 +235,7 @@ def lens_resolve(goal: str, explicit: str | None, no_auto: bool, json_output: bo
 
         sunwell lens resolve "Write documentation" --json
     """
-    asyncio.run(_resolve_lens(goal, explicit, not no_auto, json_output))
+    await _resolve_lens(goal, explicit, not no_auto, json_output)
 
 
 async def _resolve_lens(
@@ -265,7 +268,7 @@ async def _resolve_lens(
         console.print(f"[dim]Confidence: {resolution.confidence:.0%}[/dim]")
         console.print(f"[dim]Reason: {resolution.reason}[/dim]")
     else:
-        console.print("[yellow]No lens selected[/yellow]")
+        console.print("[sunwell.warning]No lens selected[/]")
         console.print(f"[dim]Reason: {resolution.reason}[/dim]")
 
 
@@ -277,7 +280,8 @@ async def _resolve_lens(
 @lens.command("library")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.option("--filter", "filter_by", help="Filter by: builtin, user, or domain name")
-def library(json_output: bool, filter_by: str | None) -> None:
+@async_command
+async def library(json_output: bool, filter_by: str | None) -> None:
     """Browse the lens library with full metadata.
 
     Lists all available lenses with library metadata including
@@ -291,7 +295,7 @@ def library(json_output: bool, filter_by: str | None) -> None:
 
         sunwell lens library --filter documentation --json
     """
-    asyncio.run(_library(json_output, filter_by))
+    await _library(json_output, filter_by)
 
 
 async def _library(json_output: bool, filter_by: str | None) -> None:
@@ -354,7 +358,7 @@ async def _library(json_output: bool, filter_by: str | None) -> None:
         return
 
     if not entries:
-        console.print("[yellow]No lenses found.[/yellow]")
+        console.print("[sunwell.warning]No lenses found.[/]")
         return
 
     table = Table(title="Lens Library")
@@ -384,7 +388,8 @@ async def _library(json_output: bool, filter_by: str | None) -> None:
 @click.argument("source_name")
 @click.argument("new_name")
 @click.option("--message", "-m", help="Version message")
-def fork(source_name: str, new_name: str, message: str | None) -> None:
+@async_command
+async def fork(source_name: str, new_name: str, message: str | None) -> None:
     """Fork a lens to create an editable copy.
 
     Creates a new lens in ~/.sunwell/lenses/ based on an existing lens.
@@ -396,7 +401,7 @@ def fork(source_name: str, new_name: str, message: str | None) -> None:
 
         sunwell lens fork tech-writer my-docs -m "Forked for team standards"
     """
-    asyncio.run(_fork(source_name, new_name, message))
+    await _fork(source_name, new_name, message)
 
 
 async def _fork(source_name: str, new_name: str, message: str | None) -> None:
@@ -407,7 +412,7 @@ async def _fork(source_name: str, new_name: str, message: str | None) -> None:
         path = await manager.fork_lens(source_name, new_name, message)
         console.print(f"[green]✓[/green] Forked to: {path}")
     except ValueError as e:
-        console.print(f"[red]Error:[/red] {e}")
+        console.print(f"[void.purple]✗[/] [sunwell.error]Error:[/] {e}")
 
 
 @lens.command("save")
@@ -422,7 +427,8 @@ async def _fork(source_name: str, new_name: str, message: str | None) -> None:
     default="patch",
     help="Version bump type",
 )
-def save(name: str, file: str, message: str | None, bump: str) -> None:
+@async_command
+async def save(name: str, file: str, message: str | None, bump: str) -> None:
     """Save changes to a user lens with version tracking.
 
     Reads content from the specified file and saves it to the lens,
@@ -434,7 +440,7 @@ def save(name: str, file: str, message: str | None, bump: str) -> None:
 
         sunwell lens save my-coder --file edited.lens --bump minor
     """
-    asyncio.run(_save(name, file, message, bump))
+    await _save(name, file, message, bump)
 
 
 async def _save(name: str, file: str, message: str | None, bump: str) -> None:
@@ -452,14 +458,15 @@ async def _save(name: str, file: str, message: str | None, bump: str) -> None:
         )
         console.print(f"[green]✓[/green] Saved {name} v{new_version}")
     except ValueError as e:
-        console.print(f"[red]Error:[/red] {e}")
+        console.print(f"[void.purple]✗[/] [sunwell.error]Error:[/] {e}")
 
 
 @lens.command("delete")
 @click.argument("name")
 @click.option("--yes", is_flag=True, help="Skip confirmation")
 @click.option("--keep-versions", is_flag=True, default=True, help="Keep version history")
-def delete(name: str, yes: bool, keep_versions: bool) -> None:
+@async_command
+async def delete(name: str, yes: bool, keep_versions: bool) -> None:
     """Delete a user lens.
 
     Only user lenses (in ~/.sunwell/lenses/) can be deleted.
@@ -474,7 +481,7 @@ def delete(name: str, yes: bool, keep_versions: bool) -> None:
     if not yes and not click.confirm(f"Delete lens '{name}'?"):
         return
 
-    asyncio.run(_delete(name, keep_versions))
+    await _delete(name, keep_versions)
 
 
 async def _delete(name: str, keep_versions: bool) -> None:
@@ -485,7 +492,7 @@ async def _delete(name: str, keep_versions: bool) -> None:
         await manager.delete_lens(name, keep_versions=keep_versions)
         console.print(f"[green]✓[/green] Deleted: {name}")
     except ValueError as e:
-        console.print(f"[red]Error:[/red] {e}")
+        console.print(f"[void.purple]✗[/] [sunwell.error]Error:[/] {e}")
 
 
 @lens.command("versions")
@@ -527,7 +534,7 @@ def versions(name: str, json_output: bool) -> None:
     console.print(f"[bold]Version History: {name}[/bold]\n")
     for v in reversed(version_list):  # Most recent first
         marker = "→" if v == version_list[-1] else " "
-        console.print(f" {marker} [cyan]v{v.version}[/cyan] ({v.created_at[:10]})")
+        console.print(f" {marker} [holy.gold]v{v.version}[/] ({v.created_at[:10]})")
         if v.message:
             console.print(f"   {v.message}")
 
@@ -535,7 +542,8 @@ def versions(name: str, json_output: bool) -> None:
 @lens.command("rollback")
 @click.argument("name")
 @click.argument("version")
-def rollback(name: str, version: str) -> None:
+@async_command
+async def rollback(name: str, version: str) -> None:
     """Rollback a lens to a previous version.
 
     Restores the content from a previous version and creates
@@ -545,7 +553,7 @@ def rollback(name: str, version: str) -> None:
 
         sunwell lens rollback my-team-coder 1.0.0
     """
-    asyncio.run(_rollback(name, version))
+    await _rollback(name, version)
 
 
 async def _rollback(name: str, version: str) -> None:
@@ -556,7 +564,7 @@ async def _rollback(name: str, version: str) -> None:
         await manager.rollback(name, version)
         console.print(f"[green]✓[/green] Rolled back {name} to v{version}")
     except ValueError as e:
-        console.print(f"[red]Error:[/red] {e}")
+        console.print(f"[void.purple]✗[/] [sunwell.error]Error:[/] {e}")
 
 
 @lens.command("set-default")
@@ -589,7 +597,7 @@ def set_default(name: str | None, clear: bool) -> None:
     else:
         current = manager.get_global_default()
         if current:
-            console.print(f"Current default: [cyan]{current}[/cyan]")
+            console.print(f"Current default: [holy.gold]{current}[/]")
         else:
             console.print("No default lens set (auto-select enabled)")
 
@@ -614,7 +622,8 @@ def record_usage(name: str) -> None:
     help="Output file path (defaults to <name>.lens)",
 )
 @click.option("--format", "fmt", type=click.Choice(["yaml", "json"]), default="yaml")
-def export_lens(name: str, output: str | None, fmt: str) -> None:
+@async_command
+async def export_lens(name: str, output: str | None, fmt: str) -> None:
     """Export a lens to a standalone file (RFC-100).
 
     Exports a lens with all its content to a file that can be
@@ -628,7 +637,7 @@ def export_lens(name: str, output: str | None, fmt: str) -> None:
 
         sunwell lens export coder --format json
     """
-    asyncio.run(_export_lens(name, output, fmt))
+    await _export_lens(name, output, fmt)
 
 
 async def _export_lens(name: str, output: str | None, fmt: str) -> None:
@@ -640,7 +649,7 @@ async def _export_lens(name: str, output: str | None, fmt: str) -> None:
     lens_obj = await _load_lens(name, discovery)
 
     if not lens_obj:
-        console.print(f"[red]Lens not found: {name}[/red]")
+        console.print(f"[void.purple]✗[/] [sunwell.error]Lens not found: {name}[/]")
         return
 
     # Determine output path
@@ -702,7 +711,8 @@ async def _export_lens(name: str, output: str | None, fmt: str) -> None:
 @click.argument("lens_name")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.option("--mermaid", is_flag=True, help="Output as Mermaid diagram")
-def skill_graph(lens_name: str, json_output: bool, mermaid: bool) -> None:
+@async_command
+async def skill_graph(lens_name: str, json_output: bool, mermaid: bool) -> None:
     """Show the skill dependency graph for a lens (RFC-087).
 
     Displays skills and their dependencies as a DAG, with execution
@@ -716,7 +726,7 @@ def skill_graph(lens_name: str, json_output: bool, mermaid: bool) -> None:
 
         sunwell lens skill-graph coder --mermaid
     """
-    asyncio.run(_skill_graph(lens_name, json_output, mermaid))
+    await _skill_graph(lens_name, json_output, mermaid)
 
 
 async def _skill_graph(lens_name: str, json_output: bool, mermaid: bool) -> None:
@@ -732,7 +742,7 @@ async def _skill_graph(lens_name: str, json_output: bool, mermaid: bool) -> None
         if json_output:
             print(json_module.dumps({"error": f"Lens not found: {lens_name}"}))
         else:
-            console.print(f"[red]Lens not found: {lens_name}[/red]")
+            console.print(f"[void.purple]✗[/] [sunwell.error]Lens not found: {lens_name}[/]")
         sys.exit(1)
 
     if not lens_obj.skills:
@@ -744,7 +754,7 @@ async def _skill_graph(lens_name: str, json_output: bool, mermaid: bool) -> None
                 "contentHash": "",
             }))
         else:
-            console.print(f"[yellow]Lens '{lens_name}' has no skills.[/yellow]")
+            console.print(f"[sunwell.warning]Lens '{lens_name}' has no skills.[/]")
         return
 
     # Build skill graph
@@ -793,7 +803,7 @@ async def _skill_graph(lens_name: str, json_output: bool, mermaid: bool) -> None
 
     waves = graph.execution_waves()
     for i, wave in enumerate(waves):
-        console.print(f"[cyan]Wave {i + 1}:[/cyan] {', '.join(wave)}")
+        console.print(f"[holy.gold]Wave {i + 1}:[/] {', '.join(wave)}")
 
     console.print()
     for skill in lens_obj.skills:
@@ -807,7 +817,8 @@ async def _skill_graph(lens_name: str, json_output: bool, mermaid: bool) -> None
 @click.argument("lens_name")
 @click.option("--context-hash", help="Context hash for cache key computation")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
-def skill_plan(lens_name: str, context_hash: str | None, json_output: bool) -> None:
+@async_command
+async def skill_plan(lens_name: str, context_hash: str | None, json_output: bool) -> None:
     """Show execution plan with cache predictions (RFC-087).
 
     Predicts which skills will execute vs skip based on cache state.
@@ -818,7 +829,7 @@ def skill_plan(lens_name: str, context_hash: str | None, json_output: bool) -> N
 
         sunwell lens skill-plan coder --context-hash abc123
     """
-    asyncio.run(_skill_plan(lens_name, context_hash, json_output))
+    await _skill_plan(lens_name, context_hash, json_output)
 
 
 async def _skill_plan(lens_name: str, context_hash: str | None, json_output: bool) -> None:
@@ -834,7 +845,7 @@ async def _skill_plan(lens_name: str, context_hash: str | None, json_output: boo
         if json_output:
             print(json_module.dumps({"error": f"Lens not found: {lens_name}"}))
         else:
-            console.print(f"[red]Lens not found: {lens_name}[/red]")
+            console.print(f"[void.purple]✗[/] [sunwell.error]Lens not found: {lens_name}[/]")
         sys.exit(1)
 
     if not lens_obj.skills:
@@ -846,7 +857,7 @@ async def _skill_plan(lens_name: str, context_hash: str | None, json_output: boo
                 "skipPercentage": 0.0,
             }))
         else:
-            console.print(f"[yellow]Lens '{lens_name}' has no skills.[/yellow]")
+            console.print(f"[sunwell.warning]Lens '{lens_name}' has no skills.[/]")
         return
 
     # Build skill graph
@@ -906,7 +917,8 @@ async def _skill_plan(lens_name: str, context_hash: str | None, json_output: boo
 @lens.command("skills")
 @click.argument("lens_name")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
-def lens_skills(lens_name: str, json_output: bool) -> None:
+@async_command
+async def lens_skills(lens_name: str, json_output: bool) -> None:
     """List skills for a lens with DAG information (RFC-087).
 
     Shows skills with their dependencies, produces, and requires.
@@ -918,7 +930,7 @@ def lens_skills(lens_name: str, json_output: bool) -> None:
 
         sunwell lens skills tech-writer --json
     """
-    asyncio.run(_lens_skills(lens_name, json_output))
+    await _lens_skills(lens_name, json_output)
 
 
 async def _lens_skills(lens_name: str, json_output: bool) -> None:
@@ -933,14 +945,14 @@ async def _lens_skills(lens_name: str, json_output: bool) -> None:
         if json_output:
             print(json_module.dumps({"error": f"Lens not found: {lens_name}"}))
         else:
-            console.print(f"[red]Lens not found: {lens_name}[/red]")
+            console.print(f"[void.purple]✗[/] [sunwell.error]Lens not found: {lens_name}[/]")
         sys.exit(1)
 
     if not lens_obj.skills:
         if json_output:
             print(json_module.dumps([]))
         else:
-            console.print(f"[yellow]Lens '{lens_name}' has no skills.[/yellow]")
+            console.print(f"[sunwell.warning]Lens '{lens_name}' has no skills.[/]")
         return
 
     # Get router shortcuts if available

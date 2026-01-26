@@ -23,9 +23,12 @@ from sunwell.interface.cli.core.theme import (
 from sunwell.interface.cli.core.shortcuts import (
     complete_shortcut,
     complete_target,
-    get_default_shortcuts,
+    get_cached_shortcuts,
     run_shortcut,
 )
+
+# Backwards compatibility alias
+get_default_shortcuts = get_cached_shortcuts
 
 __all__ = [
     # Main

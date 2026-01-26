@@ -2,6 +2,7 @@
   Writer Route — Universal Writing Environment (RFC-086)
   
   Full-screen writing surface with lens-powered expertise.
+  RFC-133: URL params for deep linking (#/writer?lens=coder&file=/path/to/file)
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
@@ -16,9 +17,10 @@
   } from '../stores';
   import { app } from '../stores/app.svelte';
 
-  // Get params from navigation (type-safe without assertions)
+  // RFC-133: Get params from URL (type-safe)
+  // URL format: #/writer?lens=<name>&file=<path>
   const filePath = $derived(
-    typeof app.params?.filePath === 'string' ? app.params.filePath : undefined
+    typeof app.params?.file === 'string' ? app.params.file : undefined
   );
   const lensName = $derived(
     typeof app.params?.lens === 'string' ? app.params.lens : 'tech-writer'

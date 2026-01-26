@@ -293,35 +293,64 @@ export async function getRunStatus(runId: string): Promise<RunResponse> {
 // REST API HELPERS
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Import from safe API client - these now throw on HTTP errors
+import {
+	api,
+	apiGet as safeApiGet,
+	apiPost as safeApiPost,
+	apiDelete as safeApiDelete,
+	apiPut as safeApiPut,
+	apiPatch as safeApiPatch,
+	ApiError,
+	type RequestOptions,
+} from '$lib/api-client';
+
+// Re-export the safe API client
+export { api, ApiError, type RequestOptions };
+
 /**
- * Generic fetch wrapper for REST endpoints.
+ * GET request with proper error handling.
+ * @throws {ApiError} On HTTP errors (4xx, 5xx)
+ * @deprecated Import from '$lib/api-client' directly for full options support
  */
 export async function apiGet<T>(path: string): Promise<T> {
-	const response = await fetch(`${API_BASE}${path}`);
-	return response.json();
+	return safeApiGet<T>(path);
 }
 
+/**
+ * POST request with proper error handling.
+ * @throws {ApiError} On HTTP errors (4xx, 5xx)
+ * @deprecated Import from '$lib/api-client' directly for full options support
+ */
 export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
-	const response = await fetch(`${API_BASE}${path}`, {
-		method: 'POST',
-		headers: body ? { 'Content-Type': 'application/json' } : {},
-		body: body ? JSON.stringify(body) : undefined,
-	});
-	return response.json();
+	return safeApiPost<T>(path, body);
 }
 
+/**
+ * DELETE request with proper error handling.
+ * @throws {ApiError} On HTTP errors (4xx, 5xx)
+ * @deprecated Import from '$lib/api-client' directly for full options support
+ */
 export async function apiDelete<T>(path: string): Promise<T> {
-	const response = await fetch(`${API_BASE}${path}`, { method: 'DELETE' });
-	return response.json();
+	return safeApiDelete<T>(path);
 }
 
+/**
+ * PUT request with proper error handling.
+ * @throws {ApiError} On HTTP errors (4xx, 5xx)
+ * @deprecated Import from '$lib/api-client' directly for full options support
+ */
 export async function apiPut<T>(path: string, body?: unknown): Promise<T> {
-	const response = await fetch(`${API_BASE}${path}`, {
-		method: 'PUT',
-		headers: body ? { 'Content-Type': 'application/json' } : {},
-		body: body ? JSON.stringify(body) : undefined,
-	});
-	return response.json();
+	return safeApiPut<T>(path, body);
+}
+
+/**
+ * PATCH request with proper error handling.
+ * @throws {ApiError} On HTTP errors (4xx, 5xx)
+ * @deprecated Import from '$lib/api-client' directly for full options support
+ */
+export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
+	return safeApiPatch<T>(path, body);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

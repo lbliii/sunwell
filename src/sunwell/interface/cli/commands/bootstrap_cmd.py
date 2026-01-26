@@ -141,11 +141,11 @@ async def _run_bootstrap(
 
         console.print("\n[green]✅ Bootstrap complete[/green]")
         console.print(
-            "\nRun [cyan]sunwell chat[/cyan] to start. "
+            "\nRun [holy.gold]sunwell chat[/] to start. "
             "Your patterns and decisions are ready."
         )
     else:
-        console.print("\n[yellow]Report only — no changes saved[/yellow]")
+        console.print("\n[sunwell.warning]Report only — no changes saved[/]")
 
 
 def _display_result(result, report_only: bool) -> None:
@@ -158,7 +158,7 @@ def _display_result(result, report_only: bool) -> None:
     # Git evidence
     if result.git_evidence:
         git = result.git_evidence
-        console.print(f"  [cyan]Git history:[/cyan] {len(git.commits)} commits, "
+        console.print(f"  [holy.gold]Git history:[/] {len(git.commits)} commits, "
                       f"{len(git.contributor_stats)} contributors")
 
     # Code evidence
@@ -166,7 +166,7 @@ def _display_result(result, report_only: bool) -> None:
         code = result.code_evidence
         funcs = len(code.module_structure.functions)
         classes = len(code.module_structure.classes)
-        console.print(f"  [cyan]Code analysis:[/cyan] {funcs} functions, {classes} classes")
+        console.print(f"  [holy.gold]Code analysis:[/] {funcs} functions, {classes} classes")
 
         # Naming patterns
         naming = code.naming_patterns
@@ -195,7 +195,7 @@ def _display_result(result, report_only: bool) -> None:
         if config.type_checker:
             tools.append(f"type_checker={config.type_checker}")
         if tools:
-            console.print(f"  [cyan]Configuration:[/cyan] {', '.join(tools)}")
+            console.print(f"  [holy.gold]Configuration:[/] {', '.join(tools)}")
 
     console.print()
 
@@ -207,7 +207,7 @@ def _display_result(result, report_only: bool) -> None:
     console.print(f"  • Confidence: {result.average_confidence:.0%} (bootstrap default)")
 
     if result.warnings:
-        console.print("\n[yellow]Warnings:[/yellow]")
+        console.print("\n[sunwell.warning]Warnings:[/]")
         for warning in result.warnings:
             console.print(f"  ⚠️ {warning}")
 
@@ -251,8 +251,8 @@ async def _show_status() -> None:
     context = await ProjectContext.load(project_root)
 
     if not context.bootstrap_status:
-        console.print("[yellow]No bootstrap has been run yet.[/yellow]")
-        console.print("\nRun [cyan]sunwell bootstrap run[/cyan] to get started.")
+        console.print("[sunwell.warning]No bootstrap has been run yet.[/]")
+        console.print("\nRun [holy.gold]sunwell bootstrap run[/] to get started.")
         return
 
     status = context.bootstrap_status
@@ -274,8 +274,8 @@ async def _show_status() -> None:
     current_head = await incremental._get_head_commit()
 
     if current_head and current_head != status.last_commit_scanned:
-        console.print("\n[yellow]Update available[/yellow]: New commits since last bootstrap.")
-        console.print("Run [cyan]sunwell bootstrap update[/cyan] to process new commits.")
+        console.print("\n[sunwell.warning]Update available[/]: New commits since last bootstrap.")
+        console.print("Run [holy.gold]sunwell bootstrap update[/] to process new commits.")
 
 
 async def _run_incremental(verbose: bool) -> None:
@@ -322,14 +322,14 @@ async def _show_ownership(path: str | None) -> None:
             if len(experts) > 1:
                 console.print(f"[dim]Other experts:[/dim] {', '.join(experts[1:])}")
         else:
-            console.print(f"[yellow]No ownership data for {path}[/yellow]")
+            console.print(f"[sunwell.warning]No ownership data for {path}[/]")
     else:
         # Show all domains
         domains = ownership.get_all_domains()
 
         if not domains:
-            console.print("[yellow]No ownership data available.[/yellow]")
-            console.print("Run [cyan]sunwell bootstrap run[/cyan] first.")
+            console.print("[sunwell.warning]No ownership data available.[/]")
+            console.print("Run [holy.gold]sunwell bootstrap run[/] first.")
             return
 
         table = Table(title="Code Ownership Domains")

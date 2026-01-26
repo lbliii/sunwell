@@ -10,13 +10,13 @@ All other commands are progressive disclosure or hidden for Studio.
 """
 
 
-import asyncio
 import re
 import sys
 from pathlib import Path
 import click
 
 from sunwell.interface.cli.helpers import check_free_threading, load_dotenv
+from sunwell.interface.cli.core.async_runner import async_command, run_async
 from sunwell.interface.cli.core.shortcuts import complete_shortcut, complete_target
 from sunwell.interface.cli.core.theme import create_sunwell_console
 
@@ -196,7 +196,7 @@ def _show_all_commands(ctx: click.Context) -> None:
               help="Maximum convergence iterations")
 @click.option("--all-commands", is_flag=True, hidden=True,
               help="Show all commands including hidden")
-@click.version_option(version="0.3.0")  # RFC-131: Version bump
+@click.version_option(prog_name="sunwell")  # Dynamic version from pyproject.toml
 @click.pass_context
 def main(
     ctx,
@@ -271,7 +271,7 @@ def main(
         target = skill_target or positional_target
         context_str = ctx.obj.get("_context_str")
 
-        asyncio.run(
+        run_async(
             run_shortcut(
                 shortcut=skill_shortcut,
                 target=target,
@@ -331,7 +331,8 @@ def main(
 @click.option("--time", "-t", default=300)
 @click.option("--trust", default="workspace")
 @click.option("--workspace", "-w", default=None)
-def _run_goal(
+@async_command
+async def _run_goal(
     goal: str,
     dry_run: bool,
     json_output: bool,
@@ -347,10 +348,10 @@ def _run_goal(
 
     workspace_path = Path(workspace) if workspace else None
     # RFC-MEMORY: Single unified execution path - use modular version
-    asyncio.run(run_agent(
+    await run_agent(
         goal, time, trust, dry_run, verbose, provider, model, workspace_path,
         json_output=json_output,
-    ))
+    )
 
 
 # =============================================================================
@@ -657,3 +658,13 @@ from sunwell.interface.cli.commands import autonomous_cmd, guard_cmd
 
 main.add_command(autonomous_cmd.autonomous)
 main.add_command(guard_cmd.guard)
+
+# -----------------------------------------------------------------------------
+# Internal Command Group (CLI Core Refactor)
+# Provides organized access to all internal/Studio commands via:
+#   sunwell internal <group> <subcommand>
+# Original top-level hidden commands are kept for backwards compatibility.
+# -----------------------------------------------------------------------------
+from sunwell.interface.cli.commands.internal_cmd import register_internal_commands
+
+register_internal_commands(main)

@@ -1,7 +1,6 @@
-"""Smoke tests for deprecated CLI commands.
+"""Smoke tests for CLI commands and interfaces.
 
-These commands are marked deprecated but should still be callable without crashing.
-If they break, users get confusing errors instead of deprecation warnings.
+Tests that the CLI commands work correctly without crashing.
 """
 
 import pytest
@@ -10,49 +9,18 @@ from click.testing import CliRunner
 from sunwell.interface.cli.core.main import main
 
 
-class TestDeprecatedAskCommand:
-    """Tests for the deprecated 'ask' command."""
+class TestDeprecatedCommandsRemoved:
+    """Verify deprecated commands have been removed."""
 
-    def test_ask_command_exists(self) -> None:
-        """ask command is registered."""
+    def test_ask_command_removed(self) -> None:
+        """ask command has been removed (was deprecated)."""
         commands = main.list_commands(None)
-        assert "ask" in commands
+        assert "ask" not in commands, "'ask' command should have been removed"
 
-    def test_ask_without_args_shows_error(self) -> None:
-        """ask without args shows usage error (not crash)."""
-        runner = CliRunner()
-        result = runner.invoke(main, ["ask"])
-
-        # Should fail gracefully with missing argument, not crash
-        # May fail with PermissionError in sandbox, but shouldn't crash Python
-        assert result.exit_code != 0
-
-    def test_ask_shows_deprecation_warning(self) -> None:
-        """ask shows deprecation warning before any error."""
-        runner = CliRunner()
-        # Provide a prompt so it gets past arg parsing
-        result = runner.invoke(main, ["ask", "test prompt"])
-
-        # In sandbox, may fail with PermissionError before showing deprecation
-        # The key assertion is it doesn't crash with an unhandled exception
-        assert result.exit_code != 0 or "deprecated" in result.output.lower()
-
-
-class TestDeprecatedApplyCommand:
-    """Tests for the deprecated 'apply' command."""
-
-    def test_apply_command_exists(self) -> None:
-        """apply command is registered."""
+    def test_apply_command_removed(self) -> None:
+        """apply command has been removed (was deprecated)."""
         commands = main.list_commands(None)
-        assert "apply" in commands
-
-    def test_apply_without_args_shows_error(self) -> None:
-        """apply without args shows usage error (not crash)."""
-        runner = CliRunner()
-        result = runner.invoke(main, ["apply"])
-
-        # Should fail gracefully, not crash
-        assert result.exit_code != 0
+        assert "apply" not in commands, "'apply' command should have been removed"
 
 
 class TestMainGoalFirstInterface:

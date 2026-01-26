@@ -59,6 +59,28 @@ class WorkspaceManager:
     _cache: dict[Path, CachedWorkspace] = field(default_factory=dict)
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
+    def _resolve_workspace_id(self, project_path: Path) -> str | None:
+        """Find workspace container for a project.
+
+        Looks up the project in the workspace registry to find
+        if it belongs to a multi-project workspace container.
+
+        Args:
+            project_path: Path to the project.
+
+        Returns:
+            Workspace container ID if found, None otherwise.
+        """
+        try:
+            from sunwell.knowledge.workspace import WorkspaceRegistry
+
+            registry = WorkspaceRegistry()
+            ws = registry.find_workspace_for_project(project_path.name)
+            return ws.id if ws else None
+        except Exception as e:
+            logger.debug(f"Could not resolve workspace for {project_path}: {e}")
+            return None
+
     def get_memory(self, workspace: Path) -> PersistentMemory:
         """Get or load PersistentMemory for workspace (sync version)."""
         from sunwell.memory import PersistentMemory
@@ -78,9 +100,12 @@ class WorkspaceManager:
                 del self._cache[workspace]
                 logger.debug(f"Cache expired for {workspace}")
 
+            # Resolve workspace container for workspace-scoped memory
+            workspace_id = self._resolve_workspace_id(workspace)
+
             # Load fresh
-            logger.info(f"Loading memory for {workspace}")
-            memory = PersistentMemory.load(workspace)
+            logger.info(f"Loading memory for {workspace} (workspace_id={workspace_id})")
+            memory = PersistentMemory.load(workspace, workspace_id=workspace_id)
 
             # Evict if at capacity
             self._evict_if_needed()
@@ -111,9 +136,16 @@ class WorkspaceManager:
                 del self._cache[workspace]
                 logger.debug(f"Cache expired for {workspace}")
 
+        # Resolve workspace container for workspace-scoped memory
+        workspace_id = self._resolve_workspace_id(workspace)
+
         # Load outside lock (async)
-        logger.info(f"Loading memory async for {workspace}")
-        memory = await PersistentMemory.load_async(workspace)
+        logger.info(f"Loading memory async for {workspace} (workspace_id={workspace_id})")
+        memory = await PersistentMemory.load_async(workspace, workspace_id=workspace_id)
+
+        # Trigger L1 indexing in background for multi-project workspaces
+        if workspace_id:
+            self._trigger_l1_indexing(workspace_id)
 
         with self._lock:
             # Double-check (another request may have loaded)
@@ -133,6 +165,22 @@ class WorkspaceManager:
 
             return memory
 
+    def _trigger_l1_indexing(self, workspace_id: str) -> None:
+        """Trigger L1 signature indexing in the background.
+
+        Non-blocking call that starts L1 indexing for all projects
+        in the workspace without waiting for completion.
+        """
+        try:
+            from sunwell.knowledge.workspace import WorkspaceRegistry
+
+            registry = WorkspaceRegistry()
+            registry.trigger_l1_indexing_background(workspace_id)
+            logger.debug(f"Triggered L1 indexing for workspace {workspace_id}")
+        except Exception as e:
+            # Don't fail memory loading if indexing fails
+            logger.warning(f"Failed to trigger L1 indexing for {workspace_id}: {e}")
+
     def build_session(
         self,
         workspace: Path,
@@ -145,11 +193,15 @@ class WorkspaceManager:
         """Build SessionContext for workspace.
 
         Convenience method that combines memory loading with session building.
+        Automatically resolves workspace container context.
         """
         from sunwell.agent.utils.request import RunOptions
         from sunwell.agent.context.session import SessionContext
 
         workspace = workspace.resolve()
+
+        # Resolve workspace container for multi-project context
+        workspace_id = self._resolve_workspace_id(workspace)
 
         # Build options
         options = RunOptions(
@@ -159,7 +211,13 @@ class WorkspaceManager:
         )
 
         # Build session (this also loads briefing)
-        session = SessionContext.build(workspace, goal, options)
+        session = SessionContext.build(
+            workspace,
+            goal,
+            options,
+            workspace_id=workspace_id,
+            project_id=workspace.name,
+        )
 
         return session
 
@@ -175,11 +233,15 @@ class WorkspaceManager:
         """Build SessionContext and load PersistentMemory in parallel.
 
         Returns both objects ready for Agent.run().
+        Automatically resolves workspace container context.
         """
         from sunwell.agent.utils.request import RunOptions
         from sunwell.agent.context.session import SessionContext
 
         workspace = workspace.resolve()
+
+        # Resolve workspace container for multi-project context
+        workspace_id = self._resolve_workspace_id(workspace)
 
         options = RunOptions(
             trust=trust,
@@ -194,7 +256,13 @@ class WorkspaceManager:
         loop = asyncio.get_running_loop()
         session_task = loop.run_in_executor(
             None,
-            lambda: SessionContext.build(workspace, goal, options),
+            lambda: SessionContext.build(
+                workspace,
+                goal,
+                options,
+                workspace_id=workspace_id,
+                project_id=workspace.name,
+            ),
         )
 
         memory, session = await asyncio.gather(memory_task, session_task)

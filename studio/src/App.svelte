@@ -19,7 +19,7 @@
   import Evaluation from './routes/Evaluation.svelte';  // RFC-098
   import Observatory from './routes/Observatory.svelte';  // RFC-112
   import ProjectGate from './components/ProjectGate.svelte';  // RFC-132
-  import { app, setInitialized, navigate, goToWriter } from './stores/app.svelte';
+  import { app, setInitialized, navigate, goToWriter, initRouter } from './stores/app.svelte';
   import { Route } from '$lib/constants';
   import { setupInferenceListeners } from '$lib/inference';
   import { openProject } from './stores/project.svelte';
@@ -35,6 +35,7 @@
   // RFC-081: Wire up inference visibility listeners
   let inferenceCleanup: (() => void) | null = null;
   let startupCleanup: (() => void) | null = null;
+  let routerCleanup: (() => void) | null = null;
   
   async function handleStartupParams(params: StartupParams): Promise<void> {
     const { project, lens, mode } = params;
@@ -44,18 +45,22 @@
       await openProject(project);
     }
     
-    // Navigate based on mode
+    // Navigate based on mode (lens param only if defined)
+    const lensParam = lens ? { lens } : undefined;
     if (mode === 'writer') {
       goToWriter(undefined, lens ?? undefined);
     } else if (mode === 'planning') {
-      navigate(Route.PLANNING, { lens });
+      navigate(Route.PLANNING, lensParam);
     } else {
       // Default: code mode → PROJECT view
-      navigate(Route.PROJECT, { lens });
+      navigate(Route.PROJECT, lensParam);
     }
   }
   
   onMount(() => {
+    // RFC-133: Initialize URL-based routing
+    routerCleanup = initRouter();
+    
     // Set up inference event listeners for real-time model feedback
     inferenceCleanup = setupInferenceListeners();
     
@@ -68,6 +73,7 @@
     
     return () => {
       // Clean up on unmount
+      routerCleanup?.();
       inferenceCleanup?.();
       startupCleanup?.();
     };

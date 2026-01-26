@@ -40,7 +40,9 @@ from sunwell.knowledge.project.monorepo import (
 from sunwell.knowledge.project.registry import (
     ProjectRegistry,
     RegistryError,
+    generate_slug,
     init_project,
+    is_valid_slug,
 )
 from sunwell.knowledge.project.resolver import (
     ProjectResolutionError,
@@ -102,7 +104,9 @@ __all__ = [
     # Registry
     "ProjectRegistry",
     "RegistryError",
+    "generate_slug",
     "init_project",
+    "is_valid_slug",
     # Resolver
     "ProjectResolutionError",
     "ProjectResolver",

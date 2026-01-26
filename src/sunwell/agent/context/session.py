@@ -125,6 +125,8 @@ class SessionContext:
         goal: str,
         options: RunOptions | None = None,
         lens: Lens | None = None,
+        workspace_id: str | None = None,
+        project_id: str | None = None,
     ) -> SessionContext:
         """Build session context from workspace.
 
@@ -136,6 +138,8 @@ class SessionContext:
             goal: Natural language goal
             options: Execution options (or defaults)
             lens: Explicit lens or None for auto-selection
+            workspace_id: Optional workspace container ID for multi-project context
+            project_id: Optional project ID within the workspace
 
         Returns:
             SessionContext ready for Agent.run()
@@ -178,6 +182,8 @@ class SessionContext:
             model_name="default",  # Resolved later
             lens=lens,
             options=options,  # RFC-137: Full options for delegation config
+            workspace_id=workspace_id,
+            project_id=project_id or cwd.name,
         )
 
     # === PROMPTS ===

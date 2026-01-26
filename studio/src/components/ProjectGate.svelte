@@ -1,14 +1,20 @@
 <!--
-  ProjectGate — Validates project context before showing app (RFC-132)
+  ProjectGate — Validates project context before showing app (RFC-132, RFC-133 Phase 2)
   
   Gates the main app behind project validation. If no valid project is
   available, shows a project picker/creator modal.
+  
+  RFC-133 Phase 2: URL-first project resolution
+  - Checks URL for project slug (#/p/{slug}/...)
+  - Resolves slug via API
+  - Falls back to default project if no URL context
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { onMount } from 'svelte';
   import { apiGet, apiPost, apiPut } from '$lib/socket';
   import { project, openProject } from '../stores/project.svelte';
+  import { app, setProjectSlug } from '../stores/app.svelte';
   import Button from './Button.svelte';
   import Modal from './Modal.svelte';
   import Spinner from './ui/Spinner.svelte';
@@ -24,6 +30,9 @@
   let needsProject = $state(false);
   let validationError = $state<string | null>(null);
   let suggestion = $state<string | null>(null);
+  
+  // RFC-133: Slug resolution error state
+  let slugNotFound = $state<string | null>(null);
   
   // Project list for picker
   interface ProjectItem {
@@ -57,9 +66,39 @@
     isValidating = true;
     validationError = null;
     suggestion = null;
+    slugNotFound = null;
     
     try {
-      // Check for default project first
+      // RFC-133 Phase 2: Check URL for project slug first
+      const urlSlug = app.projectSlug;
+      
+      if (urlSlug) {
+        // Try to resolve slug from URL
+        const resolved = await apiPost<{
+          project: ProjectItem | null;
+          ambiguous: ProjectItem[] | null;
+          error: string | null;
+        }>('/api/project/resolve', { slug: urlSlug });
+        
+        if (resolved.project) {
+          // Found project - open it and sync slug
+          if (resolved.project.valid) {
+            await openProjectWithSlug(resolved.project.root, urlSlug);
+            needsProject = false;
+            return;
+          } else {
+            // Project exists in registry but is invalid (e.g., unmounted drive)
+            validationError = 'project_invalid';
+            slugNotFound = urlSlug;
+          }
+        } else if (resolved.error === 'not_found') {
+          // Slug not found - show error and fall through to picker
+          slugNotFound = urlSlug;
+        }
+        // If ambiguous (shouldn't happen with proper registry), fall through to picker
+      }
+      
+      // Check for default project
       const defaultResp = await apiGet<{project: {id: string; name: string; root: string} | null; warning?: string}>('/api/project/default');
       
       if (defaultResp.project) {
@@ -70,13 +109,14 @@
         );
         
         if (validation.valid) {
-          await openProject(defaultResp.project.root);
+          // Open default project and update URL with its slug
+          await openProjectAndSyncSlug(defaultResp.project.root);
           needsProject = false;
           return;
         }
       }
       
-      // Check current project (from URL or prior session)
+      // Check current project (from prior session, not URL)
       if (project.current?.path) {
         const validation = await apiPost<{valid: boolean; errorCode?: string; errorMessage?: string; suggestion?: string}>(
           '/api/project/validate',
@@ -84,6 +124,8 @@
         );
         
         if (validation.valid) {
+          // Sync URL with current project's slug
+          await syncProjectSlug(project.current.path);
           needsProject = false;
           return;
         }
@@ -102,6 +144,40 @@
     }
   }
   
+  /**
+   * Open project and set the slug in app state.
+   */
+  async function openProjectWithSlug(path: string, slug: string): Promise<void> {
+    await openProject(path);
+    setProjectSlug(slug);
+  }
+  
+  /**
+   * Open project and fetch/sync its slug from the backend.
+   */
+  async function openProjectAndSyncSlug(path: string): Promise<void> {
+    await openProject(path);
+    await syncProjectSlug(path);
+  }
+  
+  /**
+   * Fetch project slug from backend and update URL.
+   */
+  async function syncProjectSlug(path: string): Promise<void> {
+    try {
+      const resp = await apiPost<{slug: string | null; projectId: string | null; error: string | null}>(
+        '/api/project/slug',
+        { path }
+      );
+      if (resp.slug) {
+        setProjectSlug(resp.slug);
+      }
+    } catch (e) {
+      // Non-critical - URL won't have slug but app still works
+      console.warn('Failed to sync project slug:', e);
+    }
+  }
+  
   async function loadProjects() {
     isLoadingProjects = true;
     try {
@@ -113,11 +189,13 @@
   }
   
   async function selectProject(proj: ProjectItem) {
-    await openProject(proj.root);
+    // RFC-133: Open project and sync slug to URL
+    await openProjectAndSyncSlug(proj.root);
+    slugNotFound = null;
     needsProject = false;
   }
   
-  async function makeDefault(proj: ProjectItem, e: MouseEvent) {
+  async function makeDefault(proj: ProjectItem, e: MouseEvent | KeyboardEvent) {
     e.stopPropagation();
     await apiPut('/api/project/default', { project_id: proj.id });
     await loadProjects();
@@ -144,8 +222,10 @@
         return;
       }
       
-      await openProject(resp.path);
+      // RFC-133: Open project and sync slug to URL
+      await openProjectAndSyncSlug(resp.path);
       showCreator = false;
+      slugNotFound = null;
       needsProject = false;
     } finally {
       isCreating = false;
@@ -170,12 +250,23 @@
     title="Select Project" 
     onClose={handleModalClose}
   >
+    {#if slugNotFound}
+      <div class="error-banner slug-error">
+        <p><strong>Project not found:</strong> <code>{slugNotFound}</code></p>
+        <p class="suggestion">The project "{slugNotFound}" doesn't exist or has been removed. Please select a different project.</p>
+      </div>
+    {/if}
+    
     {#if validationError === 'sunwell_repo'}
       <div class="error-banner">
         <p>Cannot use Sunwell's source repository as workspace.</p>
         {#if suggestion}
           <p class="suggestion">Suggested location: <code>{suggestion}</code></p>
         {/if}
+      </div>
+    {:else if validationError === 'project_invalid'}
+      <div class="error-banner">
+        <p>The project workspace is no longer accessible (drive unmounted or folder deleted).</p>
       </div>
     {/if}
     
@@ -294,6 +385,19 @@
   .error-banner p {
     margin: 0;
     color: var(--text-primary);
+  }
+  
+  .error-banner.slug-error {
+    background: rgba(var(--warning-rgb, 255, 193, 7), 0.1);
+    border-color: var(--status-warning, #ffc107);
+  }
+  
+  .error-banner code {
+    background: var(--bg-tertiary);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
   }
   
   .suggestion {

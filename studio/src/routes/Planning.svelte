@@ -2,6 +2,7 @@
   Planning — DAG-based task visualization (Svelte 5)
   
   RFC-105: Updated to use hierarchical DAG with index-based fast loading.
+  RFC-133: URL params for deep linking (#/planning?level=workspace)
   Shows the project's task graph with interactive navigation.
 -->
 <script lang="ts">
@@ -21,12 +22,25 @@
     getSortedGoals,
     expandGoal,
   } from '../stores/dag.svelte';
-  import { goHome } from '../stores/app.svelte';
+  import { goHome, app, updateParams } from '../stores/app.svelte';
   import { project } from '../stores/project.svelte';
   import type { DagGraph, DagViewLevel, GoalSummary } from '$lib/types';
   
   let canvas = $state<DagCanvas | null>(null);
   let isLoading = $state(false);
+  
+  // RFC-133: Read initial view level from URL params
+  const validLevels: DagViewLevel[] = ['project', 'workspace', 'environment'];
+  const initialLevel = app.params.level && validLevels.includes(app.params.level as DagViewLevel)
+    ? app.params.level as DagViewLevel
+    : 'project';
+  
+  // Set initial level in dag store on mount
+  $effect(() => {
+    if (initialLevel !== 'project') {
+      setViewLevel(initialLevel);
+    }
+  });
   
   // Pre-compute completed node count to avoid O(n) filter in template
   const completedNodeCount = $derived(dag.nodes.filter(n => n.status === 'complete').length);
@@ -74,8 +88,10 @@
   }
   
   // RFC-105: Handle view level change
+  // RFC-133: Persist level to URL (replaceState to avoid history spam)
   function handleViewLevelChange(level: DagViewLevel) {
     setViewLevel(level);
+    updateParams({ level: level === 'project' ? null : level });
     if (level === 'workspace' && project.current?.path) {
       // Get parent directory as workspace
       const parts = project.current.path.split('/');

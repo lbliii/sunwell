@@ -168,10 +168,19 @@ ERROR_MESSAGES: dict[ErrorCode, str] = {
 
 # Recovery hints for self-healing
 RECOVERY_HINTS: dict[ErrorCode, list[str]] = {
-    ErrorCode.MODEL_TOOLS_NOT_SUPPORTED: [
-        "Switch to a model that supports tools (e.g., llama3:8b, gpt-4o-mini)",
-        "Disable tools with --no-tools flag",
-        "Use the model without tool calling for simple conversations",
+    # =========================================================================
+    # 1xxx - Model/Provider Errors
+    # =========================================================================
+    ErrorCode.MODEL_NOT_FOUND: [
+        "Run 'ollama list' to see available local models",
+        "Install the model: 'ollama pull {model}'",
+        "Use 'sunwell config set model.default <model>' to set a different default",
+        "Check the model name spelling",
+    ],
+    ErrorCode.MODEL_AUTH_FAILED: [
+        "Set the API key environment variable ({env_var})",
+        "Check if your API key is valid and not expired",
+        "Verify you have access to the requested model",
     ],
     ErrorCode.MODEL_RATE_LIMITED: [
         "Wait {retry_after} seconds before retrying",
@@ -183,35 +192,226 @@ RECOVERY_HINTS: dict[ErrorCode, list[str]] = {
         "Use a model with a larger context window",
         "Enable automatic context summarization",
     ],
+    ErrorCode.MODEL_TIMEOUT: [
+        "Increase timeout with --time flag (e.g., --time 600)",
+        "Try a smaller/faster model",
+        "Check network connectivity to provider",
+        "Retry the request - this may be a transient issue",
+    ],
+    ErrorCode.MODEL_API_ERROR: [
+        "Check the provider's status page for outages",
+        "Verify your API key has sufficient quota",
+        "Try a different model from the same provider",
+        "Check the error detail for specific guidance",
+    ],
+    ErrorCode.MODEL_TOOLS_NOT_SUPPORTED: [
+        "Switch to a model that supports tools (e.g., llama3:8b, gpt-4o-mini)",
+        "Disable tools with --no-tools flag",
+        "Use the model without tool calling for simple conversations",
+    ],
+    ErrorCode.MODEL_STREAMING_NOT_SUPPORTED: [
+        "Add --no-stream flag to disable streaming",
+        "Use a different model that supports streaming",
+        "Continue without streaming - results will appear at completion",
+    ],
     ErrorCode.MODEL_PROVIDER_UNAVAILABLE: [
         "Check if the provider service is running (e.g., 'ollama serve')",
         "Verify the provider URL is correct",
         "Switch to a different provider",
     ],
-    ErrorCode.MODEL_AUTH_FAILED: [
-        "Set the API key environment variable ({env_var})",
-        "Check if your API key is valid and not expired",
-        "Verify you have access to the requested model",
+    ErrorCode.MODEL_RESPONSE_INVALID: [
+        "Retry the request - this may be a transient issue",
+        "Try a different model",
+        "Report this issue if it persists",
     ],
+
+    # =========================================================================
+    # 2xxx - Lens Errors
+    # =========================================================================
     ErrorCode.LENS_NOT_FOUND: [
         "Check the lens path is correct",
-        "Use 'sunwell list' to see available lenses",
-        "Create the lens with 'sunwell init'",
+        "Use 'sunwell lens list' to see available lenses",
+        "Create the lens with 'sunwell lens fork'",
+    ],
+    ErrorCode.LENS_PARSE_ERROR: [
+        "Check the lens YAML syntax with a validator",
+        "Ensure all required fields are present",
+        "Run 'sunwell lens show {lens}' for schema validation",
+    ],
+    ErrorCode.LENS_CIRCULAR_DEPENDENCY: [
+        "Review the lens inheritance chain: {chain}",
+        "Remove one of the circular references",
+        "Use composition instead of inheritance",
+    ],
+    ErrorCode.LENS_VERSION_CONFLICT: [
+        "Update the lens to use compatible versions",
+        "Pin specific versions in your lens file",
+        "Check if multiple lenses require different versions",
+    ],
+    ErrorCode.LENS_MERGE_CONFLICT: [
+        "Review conflicting lens configurations",
+        "Use explicit overrides in your lens",
+        "Split conflicting functionality into separate lenses",
+    ],
+    ErrorCode.LENS_INVALID_SCHEMA: [
+        "Check the lens against the schema at schemas/lens-v2.schema.yaml",
+        "Ensure all skill definitions are valid",
+        "Run 'sunwell lens show --validate {lens}'",
+    ],
+    ErrorCode.LENS_FOUNT_UNAVAILABLE: [
+        "Check your network connection",
+        "Verify Fount registry URL in config",
+        "Use local lenses instead (specify path directly)",
+    ],
+
+    # =========================================================================
+    # 3xxx - Tool/Skill Errors
+    # =========================================================================
+    ErrorCode.TOOL_NOT_FOUND: [
+        "Check tool name spelling",
+        "Ensure the tool is included in your lens allowed_tools",
+        "Run 'sunwell debug tools' to see available tools",
     ],
     ErrorCode.TOOL_PERMISSION_DENIED: [
         "Increase trust level with --trust flag",
         "Add the path to allowed patterns in lens",
         "Run with elevated permissions if appropriate",
     ],
+    ErrorCode.TOOL_EXECUTION_FAILED: [
+        "Check the tool arguments and inputs",
+        "Review the error detail for specific issues",
+        "Try running the operation manually to debug",
+    ],
+    ErrorCode.TOOL_TIMEOUT: [
+        "Increase tool timeout in configuration",
+        "Check if the operation is hung",
+        "Try a simpler operation first",
+    ],
+    ErrorCode.TOOL_INVALID_ARGUMENTS: [
+        "Check the tool's expected argument types",
+        "Review the error detail for which argument is invalid",
+        "Use --verbose to see full argument details",
+    ],
+    ErrorCode.SKILL_NOT_FOUND: [
+        "Check skill name spelling",
+        "Ensure the skill is defined in your lens",
+        "Use 'sunwell lens show {lens}' to see available skills",
+    ],
+    ErrorCode.SKILL_PARSE_ERROR: [
+        "Check skill YAML syntax",
+        "Ensure all required skill fields are present",
+        "Validate against the skill schema",
+    ],
+    ErrorCode.SKILL_EXECUTION_FAILED: [
+        "Review the error detail for specific issues",
+        "Check skill prerequisites and inputs",
+        "Try running with --verbose for more detail",
+    ],
+    ErrorCode.SKILL_VALIDATION_FAILED: [
+        "Review the validation output for specific issues",
+        "Check if validation rules are too strict",
+        "Run with --no-validate to skip validation (use carefully)",
+    ],
     ErrorCode.SKILL_SANDBOX_VIOLATION: [
         "Review skill script for forbidden operations",
         "Add required paths to sandbox allowlist",
         "Use a higher trust level if script is trusted",
     ],
+
+    # =========================================================================
+    # 4xxx - Validation Errors
+    # =========================================================================
+    ErrorCode.VALIDATION_SCRIPT_FAILED: [
+        "Check the validation script output for errors",
+        "Ensure the script has execute permissions",
+        "Run the script manually to debug",
+    ],
+    ErrorCode.VALIDATION_TIMEOUT: [
+        "Increase validation timeout",
+        "Check if validation is stuck in an infinite loop",
+        "Use simpler validation scripts",
+    ],
+    ErrorCode.VALIDATION_INVALID_OUTPUT: [
+        "Check the validator's output format",
+        "Ensure validator returns valid JSON/expected format",
+        "Review validator implementation",
+    ],
+    ErrorCode.VALIDATION_CONFIDENCE_LOW: [
+        "Review and improve the generated content",
+        "Provide more specific instructions",
+        "Lower the confidence threshold if appropriate",
+    ],
+    ErrorCode.VALIDATION_GATE_FAILED: [
+        "Review the gate requirements",
+        "Fix the issues identified in the gate output",
+        "Use --skip-gate to bypass (use carefully)",
+    ],
+
+    # =========================================================================
+    # 5xxx - Configuration Errors
+    # =========================================================================
+    ErrorCode.CONFIG_MISSING: [
+        "Run 'sunwell setup' to create initial configuration",
+        "Add the required key to ~/.config/sunwell/config.yaml",
+        "Set via CLI: 'sunwell config set {key} <value>'",
+    ],
+    ErrorCode.CONFIG_INVALID: [
+        "Check the configuration value format",
+        "Review valid options in documentation",
+        "Reset to default: 'sunwell config unset {key}'",
+    ],
     ErrorCode.CONFIG_ENV_MISSING: [
         "Set the environment variable: export {var}=<value>",
         "Add it to your .env file",
         "Use --{flag} command line option instead",
+    ],
+
+    # =========================================================================
+    # 6xxx - Runtime Errors
+    # =========================================================================
+    ErrorCode.RUNTIME_STATE_INVALID: [
+        "Try restarting the operation",
+        "Clear any cached state",
+        "Report this issue if it persists",
+    ],
+    ErrorCode.RUNTIME_MEMORY_EXHAUSTED: [
+        "Reduce context size or conversation history",
+        "Process files in smaller batches",
+        "Increase available memory",
+    ],
+    ErrorCode.RUNTIME_CONCURRENT_LIMIT: [
+        "Wait for current operations to complete",
+        "Reduce parallelism in configuration",
+        "Increase concurrent limit if resources allow",
+    ],
+
+    # =========================================================================
+    # 7xxx - Network/IO Errors
+    # =========================================================================
+    ErrorCode.NETWORK_UNREACHABLE: [
+        "Check your internet connection",
+        "Verify the host URL is correct",
+        "Check if a proxy or firewall is blocking access",
+    ],
+    ErrorCode.NETWORK_TIMEOUT: [
+        "Check your network connection stability",
+        "Increase timeout settings",
+        "Try again - this may be a transient issue",
+    ],
+    ErrorCode.FILE_NOT_FOUND: [
+        "Check the file path is correct",
+        "Ensure the file exists and is readable",
+        "Use absolute path if relative path is ambiguous",
+    ],
+    ErrorCode.FILE_PERMISSION_DENIED: [
+        "Check file/directory permissions",
+        "Run with appropriate user permissions",
+        "Ensure the path is not read-only",
+    ],
+    ErrorCode.FILE_WRITE_FAILED: [
+        "Check disk space availability",
+        "Verify write permissions for the directory",
+        "Ensure the file is not locked by another process",
     ],
 }
 

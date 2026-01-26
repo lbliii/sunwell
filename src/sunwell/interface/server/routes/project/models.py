@@ -107,6 +107,58 @@ class SwitchProjectRequest(CamelModel):
     project_id: str
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# RFC-133 Phase 2: URL Slug Resolution Models
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class SlugResolveRequest(CamelModel):
+    """Request to resolve a URL slug to a project."""
+
+    slug: str
+
+
+class SlugResolveResponse(CamelModel):
+    """Response from slug resolution."""
+
+    project: ProjectInfo | None = None
+    """Resolved project if unique match found."""
+
+    ambiguous: list[ProjectInfo] | None = None
+    """Multiple candidates if ambiguous (shouldn't happen with proper registry)."""
+
+    error: str | None = None
+    """Error code if resolution failed (e.g., 'not_found')."""
+
+
+class SlugRequest(CamelModel):
+    """Request to get slug for a project path."""
+
+    path: str
+
+
+class SlugResponse(CamelModel):
+    """Response with a project's URL slug."""
+
+    slug: str | None = None
+    project_id: str | None = None
+    error: str | None = None
+
+
+class SlugInfo(CamelModel):
+    """Information about a slug mapping."""
+
+    slug: str
+    project_id: str
+    path: str
+
+
+class SlugListResponse(CamelModel):
+    """List of all slug mappings."""
+
+    slugs: list[SlugInfo]
+
+
 def generate_slug(name: str) -> str:
     """Generate a URL-safe slug from a project name."""
     slug = name.lower()

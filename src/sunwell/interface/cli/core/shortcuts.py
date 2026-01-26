@@ -8,11 +8,15 @@ Provides direct invocation of skill shortcuts via the -s flag:
 
 This module handles shortcut resolution, context building, and skill execution.
 Migrated from do_cmd.py as part of RFC-109 CLI simplification.
+
+CLI Core Refactor: Shortcuts are now sourced exclusively from the active lens.
+The hardcoded default shortcuts have been removed in favor of lens-defined shortcuts.
 """
 
 import contextlib
 import re
 import subprocess
+import threading
 from pathlib import Path
 
 import click
@@ -26,57 +30,110 @@ _RE_PY_FILE_REF = re.compile(r"`([a-z_/]+\.py)`")
 
 console = create_sunwell_console()
 
-
 # ============================================================================
-# Shell Completion (preserved from do_cmd.py)
+# Shortcut Cache (for fast shell completion)
 # ============================================================================
 
+# Thread-safe cache for lens shortcuts
+_shortcut_cache: dict[str, str] | None = None
+_shortcut_cache_lock = threading.Lock()
 
-def get_default_shortcuts() -> dict[str, str]:
-    """Get shortcuts from default lens without full initialization.
 
-    This provides a fast path for shell completion before full lens loading.
-    Returns mapping of shortcut (without ::) to skill name.
+def _load_lens_shortcuts_sync(lens_name: str = "coder") -> dict[str, str]:
+    """Load shortcuts from lens synchronously (for shell completion).
+
+    This function is called during shell completion, which needs to be
+    synchronous and fast. It uses a simple file-based lookup rather than
+    full async lens resolution.
+
+    Args:
+        lens_name: Name of the lens to load shortcuts from.
+
+    Returns:
+        Dict mapping shortcut keys to skill names.
     """
-    return {
-        # Audit & Validation
-        "a": "audit-documentation",
-        "a-2": "audit-documentation-deep",
-        "health": "check-health",
-        "score": "score-confidence",
-        "drift": "detect-drift",
-        "lint": "lint-structure",
-        "vdr": "assess-vdr",
-        "examples": "audit-code-examples",
-        "readability": "check-readability",
-        # Transformation
-        "p": "polish-documentation",
-        "m": "modularize-content",
-        "md": "fix-markdown-syntax",
-        "rst": "fix-rst-syntax",
-        "fm": "generate-frontmatter",
-        "style": "apply-style-guide",
-        # Creation
-        "overview": "create-overview-page",
-        "architecture": "create-architecture-page",
-        "features": "create-features-page",
-        "ecosystem": "create-ecosystem-page",
-        "map": "generate-navigation-map",
-        # Pipelines
-        "pipeline": "docs-pipeline",
-        "swarm": "all-personas",
-        # Utilities
-        "r": "research-verify",
-        "retro": "run-retrospective",
-        "verify": "verify-claims",
-    }
+    shortcuts: dict[str, str] = {}
+
+    # Try common lens paths
+    lens_paths = [
+        Path.cwd() / "lenses" / f"{lens_name}.lens",
+        Path.home() / ".sunwell" / "lenses" / f"{lens_name}.lens",
+        Path(__file__).parent.parent.parent.parent / "lenses" / f"{lens_name}.lens",
+    ]
+
+    for lens_path in lens_paths:
+        if not lens_path.exists():
+            continue
+
+        try:
+            import yaml
+
+            content = lens_path.read_text()
+            data = yaml.safe_load(content)
+
+            # Extract shortcuts from router section
+            lens_data = data.get("lens", data)
+            router = lens_data.get("router", {})
+            raw_shortcuts = router.get("shortcuts", {})
+
+            # Normalize shortcuts (remove :: prefix for completion)
+            for key, skill in raw_shortcuts.items():
+                clean_key = key.lstrip(":")
+                shortcuts[clean_key] = skill
+
+            if shortcuts:
+                return shortcuts
+
+        except Exception:
+            continue
+
+    return shortcuts
+
+
+def get_cached_shortcuts(lens_name: str = "coder") -> dict[str, str]:
+    """Get shortcuts with caching for shell completion performance.
+
+    Uses a global cache to avoid repeated file I/O during shell completion.
+    The cache is populated on first access and reused for subsequent calls.
+
+    Args:
+        lens_name: Name of the lens to get shortcuts from.
+
+    Returns:
+        Dict mapping shortcut keys to skill names.
+    """
+    global _shortcut_cache
+
+    if _shortcut_cache is not None:
+        return _shortcut_cache
+
+    with _shortcut_cache_lock:
+        # Double-check after acquiring lock
+        if _shortcut_cache is not None:
+            return _shortcut_cache
+
+        _shortcut_cache = _load_lens_shortcuts_sync(lens_name)
+        return _shortcut_cache
+
+
+def invalidate_shortcut_cache() -> None:
+    """Invalidate the shortcut cache.
+
+    Call this when the active lens changes or when lens files are modified.
+    """
+    global _shortcut_cache
+    with _shortcut_cache_lock:
+        _shortcut_cache = None
 
 
 def complete_shortcut(
     ctx: click.Context, param: click.Parameter, incomplete: str
 ) -> list[str]:
-    """Shell completion for shortcuts."""
-    shortcuts = list(get_default_shortcuts().keys())
+    """Shell completion for shortcuts.
+
+    Uses cached lens shortcuts for fast completion performance.
+    """
+    shortcuts = list(get_cached_shortcuts().keys())
     # Handle both with and without :: prefix
     incomplete_clean = incomplete.lstrip(":")
     return [s for s in shortcuts if s.startswith(incomplete_clean)]
@@ -159,32 +216,35 @@ async def run_shortcut(
     loader = LensLoader()
     lens = await _resolve_lens(loader, lens_name)
     if not lens:
-        console.print(f"[red]Lens not found:[/red] {lens_name}")
+        console.print(f"  [void.purple]✗[/] [sunwell.error]Lens not found:[/] {lens_name}")
+        console.print("[neutral.dim]  Tip: Check lens name or run 'sunwell lens list'[/]")
         return
 
-    # 2. Resolve shortcut → skill
-    if not lens.router or not lens.router.shortcuts:
-        console.print("[red]Lens has no shortcuts defined[/red]")
-        return
+    # 2. Resolve shortcut → skill (lens-only resolution)
+    skill_name: str | None = None
 
-    # Try with and without :: prefix
-    skill_name = lens.router.shortcuts.get(f"::{shortcut_clean}")
-    if not skill_name:
-        skill_name = lens.router.shortcuts.get(shortcut_clean)
-    if not skill_name:
-        # Fallback to default shortcuts
-        skill_name = get_default_shortcuts().get(shortcut_clean)
+    if lens.router and lens.router.shortcuts:
+        # Try with and without :: prefix
+        skill_name = lens.router.shortcuts.get(f"::{shortcut_clean}")
+        if not skill_name:
+            skill_name = lens.router.shortcuts.get(shortcut_clean)
 
     if not skill_name:
-        console.print(f"[red]Unknown shortcut:[/red] {shortcut}")
-        available = ", ".join(sorted(get_default_shortcuts().keys()))
-        console.print(f"[dim]Available shortcuts: {available}[/dim]")
+        console.print(f"  [void.purple]✗[/] [sunwell.error]Unknown shortcut:[/] {shortcut}")
+        if lens.router and lens.router.shortcuts:
+            available = ", ".join(
+                sorted(k.lstrip(":") for k in lens.router.shortcuts.keys())
+            )
+            console.print(f"[neutral.dim]  Available in {lens_name}: {available}[/]")
+        else:
+            console.print(f"[neutral.dim]  Lens '{lens_name}' has no shortcuts defined.[/]")
+        console.print("[neutral.dim]  Tip: Run 'sunwell -s ?' to see available shortcuts.[/]")
         return
 
     # 3. Find skill in lens
     skill = lens.get_skill(skill_name)
     if not skill:
-        console.print(f"[red]Skill not found in lens:[/red] {skill_name}")
+        console.print(f"  [void.purple]✗[/] [sunwell.error]Skill not found in lens:[/] {skill_name}")
         return
 
     if verbose:
@@ -209,11 +269,12 @@ async def run_shortcut(
     try:
         synthesis_model = resolve_model(provider, model)
     except Exception as e:
-        console.print(f"[red]Failed to create model:[/red] {e}")
+        console.print(f"  [void.purple]✗[/] [sunwell.error]Failed to create model:[/] {e}")
         return
 
     if not synthesis_model:
-        console.print("[red]No model available. Run 'sunwell setup' first.[/red]")
+        console.print("  [void.purple]✗[/] [sunwell.error]No model available[/]")
+        console.print("[neutral.dim]  Run 'sunwell setup' to configure a model.[/]")
         return
 
     # 7. Create tool executor (RFC-117: with project context if available)
@@ -643,16 +704,23 @@ def _show_execution_plan(
     cmd = f"sunwell -s {shortcut}"
     if target:
         cmd += f" {target}"
-    console.print(f"  Run: [cyan]{cmd}[/cyan]")
+    console.print(f"  Run: [holy.gold]{cmd}[/]")
     if not verbose:
         console.print(f"  More detail: [dim]{cmd} --plan --verbose[/dim]")
     console.print()
 
 
 def _show_shortcut_help() -> None:
-    """Show available shortcuts and their descriptions."""
-    shortcuts = get_default_shortcuts()
+    """Show available shortcuts from the active lens."""
+    shortcuts = get_cached_shortcuts()
 
+    if not shortcuts:
+        console.print("\n[yellow]No shortcuts available.[/yellow]")
+        console.print("[dim]The active lens has no shortcuts defined.[/dim]")
+        console.print("[dim]Use --lens to specify a different lens.[/dim]")
+        return
+
+    # Categorize shortcuts by keyword patterns
     audit_keywords = ("audit", "check", "score", "drift", "lint", "vdr", "readability", "examples")
     creation_keywords = ("create", "generate")
     transform_keywords = ("polish", "modularize", "fix", "apply")
@@ -674,24 +742,29 @@ def _show_shortcut_help() -> None:
         and k not in transform_shortcuts
     }
 
-    console.print("\n[bold cyan]📋 Available Shortcuts[/bold cyan]\n")
+    console.print("\n[bold cyan]◎ Available Shortcuts[/bold cyan]\n")
 
-    console.print("[bold]Audit & Validation:[/bold]")
-    for shortcut, skill in sorted(audit_shortcuts.items()):
-        console.print(f"  [cyan]{shortcut:<14}[/cyan] {skill}")
+    if audit_shortcuts:
+        console.print("[bold]Audit & Validation:[/bold]")
+        for shortcut, skill in sorted(audit_shortcuts.items()):
+            console.print(f"  [holy.gold]{shortcut:<14}[/] {skill}")
 
-    console.print("\n[bold]Content Creation:[/bold]")
-    for shortcut, skill in sorted(creation_shortcuts.items()):
-        console.print(f"  [cyan]{shortcut:<14}[/cyan] {skill}")
+    if creation_shortcuts:
+        console.print("\n[bold]Content Creation:[/bold]")
+        for shortcut, skill in sorted(creation_shortcuts.items()):
+            console.print(f"  [holy.gold]{shortcut:<14}[/] {skill}")
 
-    console.print("\n[bold]Transformation:[/bold]")
-    for shortcut, skill in sorted(transform_shortcuts.items()):
-        console.print(f"  [cyan]{shortcut:<14}[/cyan] {skill}")
+    if transform_shortcuts:
+        console.print("\n[bold]Transformation:[/bold]")
+        for shortcut, skill in sorted(transform_shortcuts.items()):
+            console.print(f"  [holy.gold]{shortcut:<14}[/] {skill}")
 
-    console.print("\n[bold]Utilities:[/bold]")
-    for shortcut, skill in sorted(util_shortcuts.items()):
-        console.print(f"  [cyan]{shortcut:<14}[/cyan] {skill}")
+    if util_shortcuts:
+        console.print("\n[bold]Other:[/bold]")
+        for shortcut, skill in sorted(util_shortcuts.items()):
+            console.print(f"  [holy.gold]{shortcut:<14}[/] {skill}")
 
-    console.print("\n[dim]Usage: sunwell -s a-2 docs/api.md[/dim]")
+    console.print(f"\n[dim]Total: {len(shortcuts)} shortcuts from active lens[/dim]")
+    console.print("[dim]Usage: sunwell -s a-2 docs/api.md[/dim]")
     console.print("[dim]       sunwell -s a-2 docs/api.md \"focus on API examples\"[/dim]")
     console.print("[dim]Tip: Use --verbose for detailed execution info[/dim]")
