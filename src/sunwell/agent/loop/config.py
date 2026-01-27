@@ -86,6 +86,27 @@ class LoopConfig:
     enable_progressive_tools: bool = False
     """Start with read-only tools and unlock write tools as trust builds."""
 
+    # =========================================================================
+    # Reliability Settings (Solo Dev Hardening)
+    # =========================================================================
+    circuit_breaker_threshold: int = 5
+    """Consecutive failures before opening circuit breaker."""
+
+    circuit_breaker_recovery_seconds: float = 60.0
+    """Seconds to wait before attempting recovery after circuit opens."""
+
+    max_tokens: int = 50_000
+    """Maximum tokens for this session. Agent stops when exhausted."""
+
+    budget_warning_threshold: float = 0.2
+    """Emit warning when budget remaining drops below this ratio (0.0-1.0)."""
+
+    enable_circuit_breaker: bool = True
+    """Enable circuit breaker to stop after consecutive failures."""
+
+    enable_budget_enforcement: bool = True
+    """Enable hard budget enforcement (stop when exhausted)."""
+
     # RFC-137: Smart-to-dumb model delegation
     enable_delegation: bool = False
     """Enable smart-to-dumb model delegation for cost optimization.

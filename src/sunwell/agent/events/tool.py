@@ -264,3 +264,103 @@ def progressive_unlock_event(
             **kwargs,
         },
     )
+
+
+# =============================================================================
+# Reliability Events (Solo Dev Hardening)
+# =============================================================================
+
+
+def circuit_breaker_open_event(
+    state: str,
+    consecutive_failures: int,
+    failure_threshold: int,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a circuit breaker open event.
+
+    Emitted when consecutive failures exceed threshold, stopping execution.
+    """
+    return AgentEvent(
+        EventType.CIRCUIT_BREAKER_OPEN,
+        {
+            "state": state,
+            "consecutive_failures": consecutive_failures,
+            "failure_threshold": failure_threshold,
+            **kwargs,
+        },
+    )
+
+
+def tool_loop_budget_exhausted_event(
+    spent: int,
+    budget: int,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a budget exhausted event.
+
+    Emitted when token budget is fully consumed, stopping execution.
+    """
+    return AgentEvent(
+        EventType.BUDGET_EXHAUSTED,
+        {
+            "spent": spent,
+            "budget": budget,
+            "percentage_used": round(spent / budget * 100, 1) if budget > 0 else 100.0,
+            **kwargs,
+        },
+    )
+
+
+def tool_loop_budget_warning_event(
+    remaining: int,
+    percentage: float,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a budget warning event.
+
+    Emitted when token budget is running low (below warning threshold).
+    """
+    return AgentEvent(
+        EventType.BUDGET_WARNING,
+        {
+            "remaining": remaining,
+            "percentage_remaining": round(percentage * 100, 1),
+            **kwargs,
+        },
+    )
+
+
+def health_check_failed_event(
+    errors: list[str],
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a health check failed event.
+
+    Emitted when pre-flight health check fails, blocking autonomous execution.
+    """
+    return AgentEvent(
+        EventType.HEALTH_CHECK_FAILED,
+        {
+            "errors": errors,
+            "error_count": len(errors),
+            **kwargs,
+        },
+    )
+
+
+def health_warning_event(
+    warning: str,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a health warning event.
+
+    Emitted when health check finds non-critical issues.
+    """
+    return AgentEvent(
+        EventType.HEALTH_WARNING,
+        {
+            "warning": warning,
+            **kwargs,
+        },
+    )

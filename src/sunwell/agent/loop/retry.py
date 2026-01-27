@@ -4,14 +4,21 @@ Provides:
 - Interference fix: 3 perspectives to fix a failed tool call
 - Vortex fix: Multiple candidates to fix a failed tool call
 - Dead-end recording: Track approaches that consistently fail
+- Backoff-aware retry: Exponential backoff between retry attempts
 """
 
+import asyncio
 import json
 import logging
 import re
 from typing import TYPE_CHECKING
 
 from sunwell.agent.loop.routing import interference_generate, vortex_generate
+from sunwell.agent.reliability.backoff import (
+    DEFAULT_RETRY_BACKOFF,
+    BackoffPolicy,
+    sleep_with_backoff,
+)
 from sunwell.models import GenerateOptions, Message, ToolCall
 
 if TYPE_CHECKING:
@@ -19,6 +26,40 @@ if TYPE_CHECKING:
     from sunwell.models import ModelProtocol
 
 logger = logging.getLogger(__name__)
+
+# Default backoff policy for tool retries
+TOOL_RETRY_BACKOFF = DEFAULT_RETRY_BACKOFF
+
+
+async def retry_with_backoff(
+    attempt: int,
+    policy: BackoffPolicy | None = None,
+    abort_event: asyncio.Event | None = None,
+) -> bool:
+    """Sleep with exponential backoff before a retry attempt.
+
+    Args:
+        attempt: Current attempt number (1-indexed)
+        policy: Backoff policy to use (defaults to TOOL_RETRY_BACKOFF)
+        abort_event: Optional event to signal early abort
+
+    Returns:
+        True if sleep completed, False if aborted
+    """
+    if policy is None:
+        policy = TOOL_RETRY_BACKOFF
+
+    # Only sleep on retries (attempt > 1)
+    if attempt > 1:
+        logger.debug(
+            "Backoff: sleeping before attempt %d (policy: %dms initial, %.1fx factor)",
+            attempt,
+            policy.initial_ms,
+            policy.factor,
+        )
+        return await sleep_with_backoff(policy, attempt, abort_event)
+
+    return True
 
 
 async def interference_fix(

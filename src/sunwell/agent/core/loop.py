@@ -27,14 +27,18 @@ from sunwell.agent.coordination.registry import get_registry
 from sunwell.agent.events import (
     AgentEvent,
     EventType,
+    circuit_breaker_open_event,
     signal_event,
     tool_complete_event,
     tool_error_event,
+    tool_loop_budget_exhausted_event,
+    tool_loop_budget_warning_event,
     tool_loop_complete_event,
     tool_loop_start_event,
     tool_loop_turn_event,
     tool_start_event,
 )
+from sunwell.agent.reliability.circuit_breaker import CircuitBreaker
 from sunwell.agent.hooks import HookEvent, emit_hook_sync
 from sunwell.agent.loop import (
     delegation as loop_delegation,
@@ -55,7 +59,12 @@ from sunwell.agent.loop import (
     validation as loop_validation,
 )
 from sunwell.agent.loop.config import LoopConfig, LoopState
-from sunwell.agent.loop.retry import interference_fix, record_tool_dead_end, vortex_fix
+from sunwell.agent.loop.retry import (
+    interference_fix,
+    record_tool_dead_end,
+    retry_with_backoff,
+    vortex_fix,
+)
 from sunwell.agent.loop.routing import (
     estimate_output_tokens,
     get_task_confidence,
@@ -136,12 +145,30 @@ class AgentLoop:
     _heartbeat_interval: int = field(default=5, init=False)
     """Emit heartbeat every N turns when running as subagent."""
 
+    # Reliability: Circuit breaker for consecutive failures
+    _circuit_breaker: CircuitBreaker | None = field(default=None, init=False)
+    """Circuit breaker to stop after consecutive failures."""
+
+    # Reliability: Token budget tracking
+    _tokens_spent: int = field(default=0, init=False)
+    """Tokens spent so far in this session."""
+
+    _budget_warning_emitted: bool = field(default=False, init=False)
+    """Whether we've already emitted a budget warning."""
+
     def __post_init__(self) -> None:
         """Initialize workspace from executor if not provided."""
         if self.workspace is None and hasattr(self.executor, "_resolved_workspace"):
             self.workspace = self.executor._resolved_workspace
         if self.workspace is None:
             self.workspace = Path.cwd()
+
+        # Initialize circuit breaker if enabled
+        if self.config.enable_circuit_breaker:
+            self._circuit_breaker = CircuitBreaker(
+                failure_threshold=self.config.circuit_breaker_threshold,
+                recovery_timeout_seconds=self.config.circuit_breaker_recovery_seconds,
+            )
 
     def set_subagent_run_id(self, run_id: str, heartbeat_interval: int = 5) -> None:
         """Mark this loop as running as a subagent.
@@ -237,10 +264,15 @@ class AgentLoop:
             # Estimate tokens based on task complexity
             estimated_tokens = self._estimate_output_tokens(task_description)
 
+            # Calculate actual budget remaining
+            budget_remaining = self.config.max_tokens - self._tokens_spent
+            if budget_remaining < 0:
+                budget_remaining = 0
+
             if await should_use_delegation(
                 task_description,
                 estimated_tokens,
-                budget_remaining=50_000,  # TODO: Get from budget tracker
+                budget_remaining=budget_remaining,
             ):
                 logger.info(
                     "Delegation triggered: %d estimated tokens > threshold %d",
@@ -331,9 +363,38 @@ class AgentLoop:
         # Main loop
         final_response: str | None = None
         last_tool_name: str | None = None
+        circuit_breaker_opened = False
 
         while state.turn < self.config.max_turns:
             state.turn += 1
+
+            # Reliability: Check circuit breaker before each turn
+            if self._circuit_breaker and not self._circuit_breaker.can_execute():
+                logger.warning(
+                    "Circuit breaker OPEN: %d consecutive failures, stopping execution",
+                    self._circuit_breaker.consecutive_failures,
+                )
+                yield circuit_breaker_open_event(
+                    state=self._circuit_breaker.state.value,
+                    consecutive_failures=self._circuit_breaker.consecutive_failures,
+                    failure_threshold=self._circuit_breaker.failure_threshold,
+                )
+                circuit_breaker_opened = True
+                break
+
+            # Reliability: Check budget before each turn
+            if self.config.enable_budget_enforcement and self.config.max_tokens > 0:
+                if self._tokens_spent >= self.config.max_tokens:
+                    logger.warning(
+                        "Budget EXHAUSTED: %d/%d tokens spent, stopping execution",
+                        self._tokens_spent,
+                        self.config.max_tokens,
+                    )
+                    yield tool_loop_budget_exhausted_event(
+                        spent=self._tokens_spent,
+                        budget=self.config.max_tokens,
+                    )
+                    break
 
             # Emit heartbeat periodically if running as subagent
             if self._subagent_run_id and state.turn % self._heartbeat_interval == 0:
@@ -362,6 +423,26 @@ class AgentLoop:
                 available_tools,
                 task_description=routing_task,
             )
+
+            # Reliability: Track token usage for budget enforcement
+            if result.usage and self.config.enable_budget_enforcement:
+                self._tokens_spent += result.usage.total_tokens
+
+                # Check if we need to emit a budget warning
+                if self.config.max_tokens > 0 and not self._budget_warning_emitted:
+                    remaining = self.config.max_tokens - self._tokens_spent
+                    remaining_ratio = remaining / self.config.max_tokens
+                    if remaining_ratio <= self.config.budget_warning_threshold:
+                        logger.warning(
+                            "Budget WARNING: %.1f%% remaining (%d tokens)",
+                            remaining_ratio * 100,
+                            remaining,
+                        )
+                        yield tool_loop_budget_warning_event(
+                            remaining=remaining,
+                            percentage=remaining_ratio,
+                        )
+                        self._budget_warning_emitted = True
 
             if result.has_tool_calls:
                 yield tool_loop_turn_event(
@@ -652,6 +733,10 @@ class AgentLoop:
             if result.success and tc.id in state.failure_counts:
                 del state.failure_counts[tc.id]
 
+            # Reliability: Record success with circuit breaker
+            if result.success and self._circuit_breaker:
+                self._circuit_breaker.record_success()
+
         except Exception as e:
             logger.exception("Tool execution failed: %s", tc.name)
             error_msg = str(e)
@@ -710,6 +795,20 @@ class AgentLoop:
                     tc, error_msg, state, self.recovery_manager
                 )
 
+            # Reliability: Record failure with circuit breaker
+            if self._circuit_breaker:
+                circuit_opened = self._circuit_breaker.record_failure()
+                if circuit_opened:
+                    logger.warning(
+                        "Circuit breaker OPENED after %d consecutive failures",
+                        self._circuit_breaker.consecutive_failures,
+                    )
+                    yield circuit_breaker_open_event(
+                        state=self._circuit_breaker.state.value,
+                        consecutive_failures=self._circuit_breaker.consecutive_failures,
+                        failure_threshold=self._circuit_breaker.failure_threshold,
+                    )
+
     async def _retry_with_escalation(
         self,
         tc: ToolCall,
@@ -724,7 +823,12 @@ class AgentLoop:
         - Failure 2: Interference (3 perspectives on the fix)
         - Failure 3: Vortex (multiple candidate fixes)
         - Failure 4+: Record dead-end and escalate to user
+
+        Now includes exponential backoff with jitter between attempts.
         """
+        # Reliability: Apply backoff before retry (with jitter to prevent thundering herd)
+        await retry_with_backoff(failure_count)
+
         if failure_count == 1:
             # Simple retry - maybe transient error
             logger.info("Strategy: Simple retry for %s", tc.name)

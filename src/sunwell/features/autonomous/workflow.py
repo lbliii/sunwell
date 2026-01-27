@@ -21,7 +21,10 @@ from sunwell.agent.events import (
     AgentEvent,
     EventType,
     checkpoint_found_event,
+    health_check_failed_event,
+    health_warning_event,
 )
+from sunwell.agent.reliability.health import check_health
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,6 +147,18 @@ async def autonomous_goal(
 
     # Initialize components
     project_path = Path(project_path).resolve()
+
+    # Reliability: Run pre-flight health check before autonomous execution
+    health = await check_health(project_path, check_git=True)
+    if not health.ok:
+        # Emit health check failed event for each error
+        yield health_check_failed_event(errors=health.errors)
+        raise RuntimeError(f"Health check failed: {'; '.join(health.errors)}")
+
+    # Emit warnings for non-critical issues
+    for warning in health.warnings:
+        yield health_warning_event(warning=warning)
+
     memory = await PersistentMemory.load_async(project_path)
 
     # Check for existing checkpoint

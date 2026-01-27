@@ -180,11 +180,16 @@ from sunwell.agent.events.skill import (
 # Tool Events (RFC-134)
 # =============================================================================
 from sunwell.agent.events.tool import (
+    circuit_breaker_open_event,
+    health_check_failed_event,
+    health_warning_event,
     progressive_unlock_event,
     tool_blocked_event,
     tool_complete_event,
     tool_error_event,
     tool_escalate_event,
+    tool_loop_budget_exhausted_event,
+    tool_loop_budget_warning_event,
     tool_loop_complete_event,
     tool_loop_start_event,
     tool_loop_turn_event,
@@ -247,6 +252,12 @@ __all__ = [
     "tool_escalate_event",
     "tool_pattern_learned_event",
     "progressive_unlock_event",
+    # Reliability
+    "circuit_breaker_open_event",
+    "tool_loop_budget_exhausted_event",
+    "tool_loop_budget_warning_event",
+    "health_check_failed_event",
+    "health_warning_event",
     # Model
     "model_start_event",
     "model_tokens_event",

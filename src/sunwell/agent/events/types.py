@@ -242,6 +242,21 @@ DEFAULT_UI_HINTS: dict[str, EventUIHints] = {
     "autonomous_action_blocked": EventUIHints(icon="⊗", severity="error", animation="shake"),
     "guard_evolution_suggested": EventUIHints(icon="※", severity="warning"),
     # ═══════════════════════════════════════════════════════════════
+    # RELIABILITY (Solo Dev Hardening)
+    # ═══════════════════════════════════════════════════════════════
+    "circuit_breaker_open": EventUIHints(
+        icon="⊗", severity="error", dismissible=False, animation="shake"
+    ),
+    "budget_exhausted": EventUIHints(
+        icon="¤", severity="error", dismissible=False, animation="shake"
+    ),
+    "budget_warning": EventUIHints(icon="¤", severity="warning"),
+    "health_check_failed": EventUIHints(
+        icon="⊘", severity="error", dismissible=False, animation="shake"
+    ),
+    "health_warning": EventUIHints(icon="△", severity="warning"),
+    "timeout": EventUIHints(icon="◔", severity="error"),
+    # ═══════════════════════════════════════════════════════════════
     # SESSION LIFECYCLE (RFC-131)
     # ═══════════════════════════════════════════════════════════════
     "session_start": EventUIHints(icon="✦", severity="info", animation="fade-in"),
@@ -724,6 +739,27 @@ class EventType(Enum):
 
     GUARD_EVOLUTION_SUGGESTED = "guard_evolution_suggested"
     """Guard evolution suggested based on violations (RFC-130)."""
+
+    # ═══════════════════════════════════════════════════════════════
+    # Reliability Events (Solo Dev Hardening)
+    # ═══════════════════════════════════════════════════════════════
+    CIRCUIT_BREAKER_OPEN = "circuit_breaker_open"
+    """Circuit breaker opened due to consecutive failures."""
+
+    BUDGET_EXHAUSTED = "budget_exhausted"
+    """Token budget fully consumed, execution stopped."""
+
+    BUDGET_WARNING = "budget_warning"
+    """Token budget running low (below warning threshold)."""
+
+    HEALTH_CHECK_FAILED = "health_check_failed"
+    """Pre-flight health check failed, blocking execution."""
+
+    HEALTH_WARNING = "health_warning"
+    """Health check found non-critical issues."""
+
+    TIMEOUT = "timeout"
+    """Execution timed out."""
 
 
 @dataclass(frozen=True, slots=True)

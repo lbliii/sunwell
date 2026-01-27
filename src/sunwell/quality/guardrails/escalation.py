@@ -5,8 +5,8 @@ Handles escalations with clear user communication.
 
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass
-from typing import Protocol
+from dataclasses import dataclass, field
+from typing import Literal, Protocol
 
 from sunwell.quality.guardrails.types import (
     ActionClassification,
@@ -16,6 +16,36 @@ from sunwell.quality.guardrails.types import (
     EscalationResolution,
     ScopeCheckResult,
 )
+
+
+@dataclass(frozen=True, slots=True)
+class EscalationPolicy:
+    """Policy for handling escalations when no UI is available.
+
+    Determines what happens when the agent needs user input but can't
+    get it (e.g., running in autonomous/headless mode).
+
+    Attributes:
+        no_ui_action: What to do when escalation can't reach user
+            - "abort": Stop execution entirely (safest, recommended)
+            - "skip": Skip the action and continue (risky, legacy behavior)
+            - "approve_safe": Auto-approve SAFE/LOW risk, abort others
+        timeout_seconds: How long to wait for user response before default
+        max_auto_skips: Maximum times to auto-skip before forcing abort
+    """
+
+    no_ui_action: Literal["abort", "skip", "approve_safe"] = "abort"
+    """What to do when escalation can't reach user."""
+
+    timeout_seconds: int = 300
+    """How long to wait for user response before default action."""
+
+    max_auto_skips: int = 3
+    """Maximum times to auto-skip before forcing abort."""
+
+
+# Default policy is safest: abort when no UI
+DEFAULT_ESCALATION_POLICY = EscalationPolicy(no_ui_action="abort")
 
 
 class UIProtocol(Protocol):
@@ -54,10 +84,15 @@ class EscalationHandler:
     on_escalate: Callable[[Escalation], None] | None = None
     """Callback when escalation is created."""
 
+    policy: EscalationPolicy = field(default_factory=lambda: DEFAULT_ESCALATION_POLICY)
+    """Policy for handling escalations when no UI is available."""
+
     _pending: dict = None
+    _auto_skip_count: int = 0
 
     def __post_init__(self):
         self._pending = {}
+        self._auto_skip_count = 0
 
     async def escalate(self, escalation: Escalation) -> EscalationResolution:
         """Present escalation to user and await resolution.
@@ -100,13 +135,8 @@ class EscalationHandler:
             response = await self.ui.await_escalation_response(escalation.id)
             return self._process_response(escalation, response)
 
-        # No UI - default to skip
-        return EscalationResolution(
-            escalation_id=escalation.id,
-            option_id="skip",
-            action="skip",
-            acknowledged=False,
-        )
+        # No UI - use policy to determine action
+        return self._resolve_no_ui(escalation)
 
     def create_escalation(
         self,
@@ -322,6 +352,71 @@ class EscalationHandler:
             "action": option.action,
             "risk_acknowledgment": option.risk_acknowledgment,
         }
+
+    def _resolve_no_ui(self, escalation: Escalation) -> EscalationResolution:
+        """Resolve escalation when no UI is available.
+
+        Uses the configured policy to determine the action.
+
+        Args:
+            escalation: The escalation to resolve
+
+        Returns:
+            EscalationResolution based on policy
+        """
+        policy = self.policy
+
+        # Check if we've exceeded max auto-skips
+        if policy.no_ui_action == "skip" and self._auto_skip_count >= policy.max_auto_skips:
+            return EscalationResolution(
+                escalation_id=escalation.id,
+                option_id="abort",
+                action="abort",
+                acknowledged=False,
+                reason=f"Max auto-skips ({policy.max_auto_skips}) exceeded, forcing abort",
+            )
+
+        if policy.no_ui_action == "abort":
+            return EscalationResolution(
+                escalation_id=escalation.id,
+                option_id="abort",
+                action="abort",
+                acknowledged=False,
+                reason="No UI available, policy requires abort",
+            )
+
+        if policy.no_ui_action == "approve_safe":
+            # Get risk level from escalation or classification
+            risk_level = "unknown"
+            if escalation.action_classification:
+                risk_level = escalation.action_classification.risk.value
+
+            if risk_level in ("safe", "low"):
+                return EscalationResolution(
+                    escalation_id=escalation.id,
+                    option_id="approve",
+                    action="approve",
+                    acknowledged=False,
+                    reason=f"Auto-approved ({risk_level} risk action, no UI)",
+                )
+            else:
+                return EscalationResolution(
+                    escalation_id=escalation.id,
+                    option_id="abort",
+                    action="abort",
+                    acknowledged=False,
+                    reason=f"Risky action ({risk_level}), no UI to confirm",
+                )
+
+        # Default: skip (legacy behavior, not recommended)
+        self._auto_skip_count += 1
+        return EscalationResolution(
+            escalation_id=escalation.id,
+            option_id="skip",
+            action="skip",
+            acknowledged=False,
+            reason=f"No UI, auto-skip ({self._auto_skip_count}/{policy.max_auto_skips})",
+        )
 
     def _process_response(
         self, escalation: Escalation, response: dict
