@@ -43,6 +43,88 @@ class ToolTrust(Enum):
         return order.index(self) >= order.index(other)
 
 
+# =============================================================================
+# Tool Groups and Profiles (Agentic Infrastructure Upgrade)
+# =============================================================================
+
+
+TOOL_GROUPS: dict[str, frozenset[str]] = {
+    "group:discovery": frozenset(["list_files", "search_files"]),
+    "group:read": frozenset(["read_file", "search_code"]),
+    "group:write": frozenset(["write_file", "edit_file", "apply_patch"]),
+    "group:shell": frozenset(["run_command"]),
+    "group:git": frozenset(["git_status", "git_diff", "git_log", "git_commit", "git_add", "git_restore"]),
+    "group:memory": frozenset(["memory_search", "memory_get"]),
+    "group:web": frozenset(["web_search", "web_fetch"]),
+    "group:expertise": frozenset(["get_expertise", "verify_against_expertise", "list_expertise_areas"]),
+}
+"""Tool groups for logical grouping. Use in allowed_tools or also_allow."""
+
+
+class ToolProfile(Enum):
+    """Named tool profiles that compose groups.
+
+    Profiles provide semantic presets for common use cases.
+    Each profile maps to a set of tool groups.
+    """
+
+    MINIMAL = "minimal"
+    """Discovery only - list_files, search_files."""
+
+    READ_ONLY = "read_only"
+    """Discovery + read - safe for exploration."""
+
+    CODING = "coding"
+    """Read + write + shell + git - standard development."""
+
+    RESEARCH = "research"
+    """Read + memory + web - information gathering."""
+
+    FULL = "full"
+    """All tools - unrestricted."""
+
+
+# Profile to groups mapping
+PROFILE_GROUPS: dict[ToolProfile, tuple[str, ...]] = {
+    ToolProfile.MINIMAL: ("group:discovery",),
+    ToolProfile.READ_ONLY: ("group:discovery", "group:read"),
+    ToolProfile.CODING: ("group:discovery", "group:read", "group:write", "group:shell", "group:git"),
+    ToolProfile.RESEARCH: ("group:discovery", "group:read", "group:memory", "group:web", "group:expertise"),
+    ToolProfile.FULL: tuple(TOOL_GROUPS.keys()),
+}
+
+
+def expand_tool_groups(tools: frozenset[str] | tuple[str, ...]) -> frozenset[str]:
+    """Expand tool group references to individual tools.
+
+    Args:
+        tools: Set of tool names and/or group references (e.g., "group:read")
+
+    Returns:
+        Expanded set with groups replaced by their member tools
+    """
+    expanded: set[str] = set()
+    for tool in tools:
+        if tool in TOOL_GROUPS:
+            expanded.update(TOOL_GROUPS[tool])
+        else:
+            expanded.add(tool)
+    return frozenset(expanded)
+
+
+def get_profile_tools(profile: ToolProfile) -> frozenset[str]:
+    """Get all tools for a profile.
+
+    Args:
+        profile: The tool profile
+
+    Returns:
+        Set of all tool names in the profile
+    """
+    groups = PROFILE_GROUPS.get(profile, ())
+    return expand_tool_groups(frozenset(groups))
+
+
 @dataclass(frozen=True, slots=True)
 class ToolResult:
     """Result from executing a tool."""
@@ -132,12 +214,31 @@ class ToolAuditEntry:
 
 @dataclass(slots=True)
 class ToolPolicy:
-    """Tool execution policy from lens or global config."""
+    """Tool execution policy from lens or global config.
+
+    Resolution order for allowed tools:
+    1. If profile is set, use profile's tools
+    2. Else if allowed_tools is set, use that
+    3. Else use trust_level's default tools
+
+    Then apply also_allow (additive) and also_deny (subtractive).
+    """
 
     trust_level: ToolTrust = ToolTrust.WORKSPACE
 
+    # Named profile (takes precedence over allowed_tools if set)
+    profile: ToolProfile | None = None
+    """Named tool profile. If set, determines base tools before also_allow/also_deny."""
+
     # Explicit tool allowlist (optional, defaults to all at trust_level)
     allowed_tools: frozenset[str] | None = None
+
+    # Additive/subtractive modifiers (applied after base resolution)
+    also_allow: frozenset[str] = frozenset()
+    """Additional tools to allow. Can include group references like 'group:git'."""
+
+    also_deny: frozenset[str] = frozenset()
+    """Tools to deny even if in base set. Applied after also_allow."""
 
     # Additional blocked patterns (merged with defaults)
     blocked_paths: frozenset[str] = frozenset()
@@ -149,15 +250,71 @@ class ToolPolicy:
     rate_limits: ToolRateLimits | None = None
 
     def get_allowed_tools(self) -> frozenset[str]:
-        """Get the set of allowed tools based on policy."""
-        if self.allowed_tools is not None:
-            return self.allowed_tools
-        # Local import to break circular dependency with constants.py
-        from sunwell.tools.core.constants import TRUST_LEVEL_TOOLS
+        """Get the set of allowed tools based on policy.
 
-        return TRUST_LEVEL_TOOLS.get(self.trust_level, frozenset())
+        Resolution:
+        1. profile → profile tools (expanded from groups)
+        2. allowed_tools → explicit set (expanded from groups)
+        3. trust_level → default tools for level
+
+        Then: (base | also_allow) - also_deny
+        """
+        # Determine base set
+        if self.profile is not None:
+            base = get_profile_tools(self.profile)
+        elif self.allowed_tools is not None:
+            base = expand_tool_groups(self.allowed_tools)
+        else:
+            # Local import to break circular dependency with constants.py
+            from sunwell.tools.core.constants import TRUST_LEVEL_TOOLS
+            base = TRUST_LEVEL_TOOLS.get(self.trust_level, frozenset())
+
+        # Apply modifiers
+        expanded_allow = expand_tool_groups(self.also_allow) if self.also_allow else frozenset()
+        expanded_deny = expand_tool_groups(self.also_deny) if self.also_deny else frozenset()
+
+        return (base | expanded_allow) - expanded_deny
 
     def is_tool_allowed(self, tool_name: str) -> bool:
         """Check if a specific tool is allowed."""
         allowed = self.get_allowed_tools()
         return tool_name in allowed
+
+    def with_profile(self, profile: ToolProfile) -> ToolPolicy:
+        """Return a new policy with a different profile."""
+        return ToolPolicy(
+            trust_level=self.trust_level,
+            profile=profile,
+            allowed_tools=self.allowed_tools,
+            also_allow=self.also_allow,
+            also_deny=self.also_deny,
+            blocked_paths=self.blocked_paths,
+            command_allowlist=self.command_allowlist,
+            rate_limits=self.rate_limits,
+        )
+
+    def with_also_allow(self, *tools: str) -> ToolPolicy:
+        """Return a new policy with additional allowed tools."""
+        return ToolPolicy(
+            trust_level=self.trust_level,
+            profile=self.profile,
+            allowed_tools=self.allowed_tools,
+            also_allow=self.also_allow | frozenset(tools),
+            also_deny=self.also_deny,
+            blocked_paths=self.blocked_paths,
+            command_allowlist=self.command_allowlist,
+            rate_limits=self.rate_limits,
+        )
+
+    def with_also_deny(self, *tools: str) -> ToolPolicy:
+        """Return a new policy with additional denied tools."""
+        return ToolPolicy(
+            trust_level=self.trust_level,
+            profile=self.profile,
+            allowed_tools=self.allowed_tools,
+            also_allow=self.also_allow,
+            also_deny=self.also_deny | frozenset(tools),
+            blocked_paths=self.blocked_paths,
+            command_allowlist=self.command_allowlist,
+            rate_limits=self.rate_limits,
+        )

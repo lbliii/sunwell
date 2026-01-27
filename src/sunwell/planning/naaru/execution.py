@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from sunwell.planning.naaru.events import EventEmitter
+from sunwell.planning.naaru.events import NaaruEventEmitterProtocol
 
 
 class ExecutionCoordinator:
@@ -29,7 +29,7 @@ class ExecutionCoordinator:
         synthesis_model: Any = None,
         judge_model: Any = None,
         tool_executor: Any = None,
-        event_emitter: EventEmitter | None = None,
+        event_emitter: NaaruEventEmitterProtocol | None = None,
         config: Any = None,
     ) -> None:
         """Initialize coordinator.

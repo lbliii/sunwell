@@ -94,11 +94,23 @@ class OllamaWebSearch:
     Free tier available at https://ollama.com
 
     Docs: https://docs.ollama.com/capabilities/web-search
+
+    Usage as context manager (recommended):
+        async with OllamaWebSearch() as search:
+            results = await search.search("query")
     """
 
     api_key: str | None = None
     base_url: str = "https://ollama.com/api"
     _client: httpx.AsyncClient | None = field(default=None, init=False, repr=False)
+
+    async def __aenter__(self) -> "OllamaWebSearch":
+        """Enter async context manager."""
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Exit async context manager, closing the HTTP client."""
+        await self.close()
 
     def _get_api_key(self) -> str:
         """Get API key from parameter or environment."""

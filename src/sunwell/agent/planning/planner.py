@@ -88,13 +88,16 @@ class GoalPlanner:
     model: ModelProtocol | None = None
     """Model for natural language understanding (optional)."""
 
+    # Internal lookup tables (initialized in __post_init__)
+    _skill_by_name: dict[str, Skill] = field(default_factory=dict, init=False, repr=False)
+    _metadata: list[SkillMetadata] = field(default_factory=list, init=False, repr=False)
+    _producers: dict[str, str] = field(default_factory=dict, init=False, repr=False)
+
     def __post_init__(self) -> None:
         """Build skill index for fast lookup."""
-        self._skill_by_name: dict[str, Skill] = {s.name: s for s in self.skills}
-        self._metadata: list[SkillMetadata] = [
-            SkillMetadata.from_skill(s) for s in self.skills
-        ]
-        self._producers: dict[str, str] = {}  # context_key → skill_name
+        self._skill_by_name = {s.name: s for s in self.skills}
+        self._metadata = [SkillMetadata.from_skill(s) for s in self.skills]
+        self._producers = {}  # context_key → skill_name
         for skill in self.skills:
             for key in skill.produces:
                 self._producers[key] = skill.name

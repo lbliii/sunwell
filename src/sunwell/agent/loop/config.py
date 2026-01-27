@@ -76,6 +76,44 @@ class LoopConfig:
     delegation if enabled. Lower values = more aggressive delegation.
     """
 
+    # =========================================================================
+    # Subagent Coordination (Agentic Infrastructure Upgrade)
+    # =========================================================================
+    enable_subagents: bool = False
+    """Allow spawning subagents for parallel work.
+
+    When enabled, the agent can spawn child sessions for parallelizable
+    subtasks. Each subagent runs in its own context with inherited
+    workspace access.
+    """
+
+    max_subagent_depth: int = 2
+    """Maximum nesting depth for subagents.
+
+    Prevents runaway recursion. Depth 0 = root session.
+    Depth 1 = first-level subagent, etc.
+    """
+
+    max_concurrent_subagents: int = 3
+    """Maximum parallel subagents per parent.
+
+    Limits resource consumption. Set based on available
+    compute and API rate limits.
+    """
+
+    subagent_timeout_seconds: int = 300
+    """Timeout for individual subagent runs.
+
+    Prevents hung subagents from blocking the parent.
+    """
+
+    subagent_cleanup: Literal["delete", "keep"] = "delete"
+    """Default cleanup policy for completed subagents.
+
+    - 'delete': Remove session artifacts after completion (default)
+    - 'keep': Preserve for debugging/resumption
+    """
+
 
 @dataclass(slots=True)
 class LoopState:

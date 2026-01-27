@@ -56,8 +56,9 @@ class TestValidateProjectPath:
         project_dir = tmp_path / "sunwell"
         project_dir.mkdir()
 
+        # Patch where validate_workspace is imported from
         with patch(
-            "sunwell.interface.server.routes.project.gate.validate_workspace",
+            "sunwell.knowledge.project.validate_workspace",
             side_effect=ProjectValidationError(
                 "Cannot use Sunwell's own repository as workspace"
             ),

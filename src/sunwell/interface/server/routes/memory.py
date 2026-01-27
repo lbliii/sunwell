@@ -103,7 +103,8 @@ async def get_memory_chunks(path: str) -> MemoryChunksResponse:
         if warm_path.exists():
             for shard_file in sorted(warm_path.glob("*.jsonl"), reverse=True)[:10]:
                 try:
-                    line_count = sum(1 for _ in open(shard_file))
+                    with open(shard_file) as f:
+                        line_count = sum(1 for _ in f)
                     warm_items.append(WarmChunkItem(
                         date=shard_file.stem,
                         file=str(shard_file),

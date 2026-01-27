@@ -46,26 +46,26 @@ class TestLensLoading:
     def test_builtin_lenses_exist(self, lenses_dir: Path) -> None:
         """Built-in lens files exist on disk."""
         expected_lenses = [
-            "tech-writer.lens",
-            "coder.lens",
-            "code-reviewer.lens",
-            "helper.lens",
+            "tech-writer-v2.lens",
+            "coder-v2.lens",
+            "code-reviewer-v2.lens",
+            "helper-v2.lens",
         ]
         for name in expected_lenses:
             assert (lenses_dir / name).exists(), f"Missing built-in lens: {name}"
 
     def test_load_tech_writer_lens(self, lens_loader: LensLoader, lenses_dir: Path) -> None:
         """Tech-writer lens loads with expected structure."""
-        lens = lens_loader.load(lenses_dir / "tech-writer.lens")
+        lens = lens_loader.load(lenses_dir / "tech-writer-v2.lens")
 
         assert lens.metadata.name == "Technical Writer"
         assert lens.metadata.domain == "documentation"
         assert len(lens.heuristics) > 0
-        assert len(lens.personas) > 0
+        # v2 lenses use communication section instead of personas
 
     def test_load_coder_lens(self, lens_loader: LensLoader, lenses_dir: Path) -> None:
         """Coder lens loads with expected structure."""
-        lens = lens_loader.load(lenses_dir / "coder.lens")
+        lens = lens_loader.load(lenses_dir / "coder-v2.lens")
 
         assert lens.metadata.name is not None
         assert lens.metadata.domain == "software"
@@ -95,8 +95,8 @@ class TestLensDifferentiation:
         self, lens_loader: LensLoader, lenses_dir: Path
     ) -> None:
         """Tech-writer and coder lenses have different heuristics."""
-        tech_writer = lens_loader.load(lenses_dir / "tech-writer.lens")
-        coder = lens_loader.load(lenses_dir / "coder.lens")
+        tech_writer = lens_loader.load(lenses_dir / "tech-writer-v2.lens")
+        coder = lens_loader.load(lenses_dir / "coder-v2.lens")
 
         tw_heuristic_names = {h.name for h in tech_writer.heuristics}
         coder_heuristic_names = {h.name for h in coder.heuristics}
@@ -113,12 +113,13 @@ class TestLensDifferentiation:
 
     def test_domains_differ(self, lens_loader: LensLoader, lenses_dir: Path) -> None:
         """Different lenses have different domains."""
-        tech_writer = lens_loader.load(lenses_dir / "tech-writer.lens")
-        coder = lens_loader.load(lenses_dir / "coder.lens")
+        tech_writer = lens_loader.load(lenses_dir / "tech-writer-v2.lens")
+        coder = lens_loader.load(lenses_dir / "coder-v2.lens")
 
         assert tech_writer.metadata.domain == "documentation"
         assert coder.metadata.domain == "software"
 
+    @pytest.mark.skip(reason="v2 lenses don't embed skills directly")
     def test_lens_skills_count_varies(self, lens_loader: LensLoader, lenses_dir: Path) -> None:
         """Different lenses have different skill counts."""
         lenses = {}
@@ -141,7 +142,7 @@ class TestContextInjection:
 
     def test_to_context_includes_lens_name(self, lens_loader: LensLoader, lenses_dir: Path) -> None:
         """Context includes the lens name."""
-        lens = lens_loader.load(lenses_dir / "tech-writer.lens")
+        lens = lens_loader.load(lenses_dir / "tech-writer-v2.lens")
         context = lens.to_context()
 
         assert "Technical Writer" in context
@@ -150,7 +151,7 @@ class TestContextInjection:
         self, lens_loader: LensLoader, lenses_dir: Path
     ) -> None:
         """Context includes heuristic rules."""
-        lens = lens_loader.load(lenses_dir / "tech-writer.lens")
+        lens = lens_loader.load(lenses_dir / "tech-writer-v2.lens")
         context = lens.to_context()
 
         assert "Heuristics" in context
@@ -161,8 +162,8 @@ class TestContextInjection:
         self, lens_loader: LensLoader, lenses_dir: Path
     ) -> None:
         """Different lenses produce different contexts."""
-        tech_writer = lens_loader.load(lenses_dir / "tech-writer.lens")
-        coder = lens_loader.load(lenses_dir / "coder.lens")
+        tech_writer = lens_loader.load(lenses_dir / "tech-writer-v2.lens")
+        coder = lens_loader.load(lenses_dir / "coder-v2.lens")
 
         tw_context = tech_writer.to_context()
         coder_context = coder.to_context()
@@ -178,7 +179,7 @@ class TestContextInjection:
         self, lens_loader: LensLoader, lenses_dir: Path
     ) -> None:
         """Context can be filtered to specific components."""
-        lens = lens_loader.load(lenses_dir / "tech-writer.lens")
+        lens = lens_loader.load(lenses_dir / "tech-writer-v2.lens")
 
         # Get first heuristic name
         if lens.heuristics:
@@ -202,7 +203,7 @@ class TestLensAccessors:
 
     def test_get_persona_by_name(self, lens_loader: LensLoader, lenses_dir: Path) -> None:
         """Can retrieve personas by name."""
-        lens = lens_loader.load(lenses_dir / "tech-writer.lens")
+        lens = lens_loader.load(lenses_dir / "tech-writer-v2.lens")
 
         if lens.personas:
             first_persona = lens.personas[0]
@@ -214,7 +215,7 @@ class TestLensAccessors:
         self, lens_loader: LensLoader, lenses_dir: Path
     ) -> None:
         """Persona lookup is case-insensitive."""
-        lens = lens_loader.load(lenses_dir / "tech-writer.lens")
+        lens = lens_loader.load(lenses_dir / "tech-writer-v2.lens")
 
         if lens.personas:
             first_persona = lens.personas[0]
@@ -223,7 +224,7 @@ class TestLensAccessors:
 
     def test_get_heuristic_by_name(self, lens_loader: LensLoader, lenses_dir: Path) -> None:
         """Can retrieve heuristics by name."""
-        lens = lens_loader.load(lenses_dir / "tech-writer.lens")
+        lens = lens_loader.load(lenses_dir / "tech-writer-v2.lens")
 
         if lens.heuristics:
             first_heuristic = lens.heuristics[0]
@@ -235,7 +236,7 @@ class TestLensAccessors:
         self, lens_loader: LensLoader, lenses_dir: Path
     ) -> None:
         """Nonexistent lookups return None."""
-        lens = lens_loader.load(lenses_dir / "tech-writer.lens")
+        lens = lens_loader.load(lenses_dir / "tech-writer-v2.lens")
 
         assert lens.get_persona("nonexistent_persona_xyz") is None
         assert lens.get_heuristic("nonexistent_heuristic_xyz") is None
@@ -253,7 +254,7 @@ class TestLensSummary:
 
     def test_summary_includes_key_info(self, lens_loader: LensLoader, lenses_dir: Path) -> None:
         """Summary includes essential lens information."""
-        lens = lens_loader.load(lenses_dir / "tech-writer.lens")
+        lens = lens_loader.load(lenses_dir / "tech-writer-v2.lens")
         summary = lens.summary()
 
         assert "Technical Writer" in summary
@@ -263,7 +264,7 @@ class TestLensSummary:
 
     def test_summary_shows_skill_count(self, lens_loader: LensLoader, lenses_dir: Path) -> None:
         """Summary includes skill count if skills exist."""
-        lens = lens_loader.load(lenses_dir / "tech-writer.lens")
+        lens = lens_loader.load(lenses_dir / "tech-writer-v2.lens")
         summary = lens.summary()
 
         if lens.skills:
@@ -290,7 +291,7 @@ class TestLensDataModel:
 
     def test_all_validators_property(self, lens_loader: LensLoader, lenses_dir: Path) -> None:
         """all_validators combines deterministic and heuristic validators."""
-        lens = lens_loader.load(lenses_dir / "tech-writer.lens")
+        lens = lens_loader.load(lenses_dir / "tech-writer-v2.lens")
 
         combined = lens.all_validators
         expected_count = len(lens.deterministic_validators) + len(lens.heuristic_validators)
@@ -313,7 +314,7 @@ class TestBehaviorChange:
         self, lens_loader: LensLoader, lenses_dir: Path
     ) -> None:
         """Tech-writer lens has documentation-related skills."""
-        lens = lens_loader.load(lenses_dir / "tech-writer.lens")
+        lens = lens_loader.load(lenses_dir / "tech-writer-v2.lens")
 
         skill_names = {s.name.lower() for s in lens.skills}
 
@@ -331,7 +332,7 @@ class TestBehaviorChange:
         self, lens_loader: LensLoader, lenses_dir: Path
     ) -> None:
         """Lens framework is included in context output."""
-        lens = lens_loader.load(lenses_dir / "tech-writer.lens")
+        lens = lens_loader.load(lenses_dir / "tech-writer-v2.lens")
 
         if lens.framework:
             context = lens.to_context()
@@ -341,7 +342,7 @@ class TestBehaviorChange:
         self, lens_loader: LensLoader, lenses_dir: Path
     ) -> None:
         """Different lenses can have different router shortcuts."""
-        tech_writer = lens_loader.load(lenses_dir / "tech-writer.lens")
+        tech_writer = lens_loader.load(lenses_dir / "tech-writer-v2.lens")
 
         if tech_writer.router and tech_writer.router.shortcuts:
             shortcuts = tech_writer.router.shortcuts

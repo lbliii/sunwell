@@ -75,7 +75,7 @@ class ShellHandlers(BaseHandler):
 
     async def mkdir(self, args: dict) -> str:
         """Create a directory (and parent directories if needed)."""
-        path = self._safe_path(args["path"], allow_write=True)
+        path = self._safe_path(args["path"])
 
         if path.exists():
             if path.is_dir():

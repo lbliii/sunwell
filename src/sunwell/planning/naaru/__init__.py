@@ -187,7 +187,7 @@ from sunwell.planning.naaru.diversity import (
 )
 
 # RFC-076: Modular Components
-from sunwell.planning.naaru.events import EventEmitter, NaaruEventEmitter
+from sunwell.planning.naaru.events import NaaruEventEmitter, NaaruEventEmitterProtocol
 from sunwell.planning.naaru.execution import ExecutionCoordinator
 
 # RFC-036: Artifact Execution
@@ -501,7 +501,7 @@ __all__ = [
     "StubDetection",
 
     # RFC-076: Modular Components
-    "EventEmitter",
+    "NaaruEventEmitterProtocol",
     "NaaruEventEmitter",
     "ExecutionCoordinator",
     "LearningExtractor",

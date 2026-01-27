@@ -3,6 +3,8 @@
 Tests team knowledge store, conflict resolution, propagation, and onboarding.
 """
 
+import shutil
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -11,7 +13,6 @@ import pytest
 from sunwell.features.team import (
     ConflictResolver,
     KnowledgeConflict,
-    OnboardingSummary,
     RejectedOption,
     TeamConfig,
     TeamDecision,
@@ -23,7 +24,6 @@ from sunwell.features.team import (
     UnifiedIntelligence,
 )
 
-
 # =============================================================================
 # FIXTURES
 # =============================================================================
@@ -33,16 +33,24 @@ from sunwell.features.team import (
 def team_dir(tmp_path: Path) -> Path:
     """Create a temporary directory for team knowledge."""
     (tmp_path / ".sunwell" / "team").mkdir(parents=True)
-    # Initialize git repo for git operations
-    import subprocess
 
-    subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True, check=True)
-    subprocess.run(
+    # Check if git is available
+    if shutil.which("git") is None:
+        pytest.skip("git not available")
+
+    # Initialize git repo for git operations
+    result = subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True)
+    if result.returncode != 0:
+        pytest.skip(f"git init failed: {result.stderr.decode()}")
+
+    result = subprocess.run(
         ["git", "config", "user.email", "test@example.com"],
         cwd=tmp_path,
         capture_output=True,
-        check=True,
     )
+    if result.returncode != 0:
+        pytest.skip(f"git config failed: {result.stderr.decode()}")
+
     subprocess.run(
         ["git", "config", "user.name", "Test User"],
         cwd=tmp_path,
@@ -373,7 +381,7 @@ class TestTeamKnowledgeStore:
         store: TeamKnowledgeStore,
     ) -> None:
         """Test that similar failures increment occurrence count."""
-        failure1 = await store.create_failure(
+        await store.create_failure(
             description="Redis connection issue",
             error_type="runtime_error",
             root_cause="Connection pool exhaustion",

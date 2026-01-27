@@ -30,7 +30,7 @@ class GitHandlers(BaseHandler):
     async def git_init(self, args: dict) -> str:
         """Initialize a new git repository."""
         path = args.get("path", ".")
-        target = self._safe_path(path, allow_write=True)
+        target = self._safe_path(path)
 
         if not target.exists():
             target.mkdir(parents=True, exist_ok=True)
@@ -40,7 +40,14 @@ class GitHandlers(BaseHandler):
         if (target / ".git").exists():
             return f"Already a git repository: {path}"
 
-        result = self._run_git(["git", "init"])
+        # Run git init in the target directory, not workspace root
+        result = subprocess.run(
+            ["git", "init"],
+            cwd=target,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
 
         if result.returncode != 0:
             return f"Error: {result.stderr}"

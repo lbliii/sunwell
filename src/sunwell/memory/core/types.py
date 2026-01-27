@@ -6,24 +6,16 @@ These types represent query results from PersistentMemory:
 """
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any
+
+# Import Promptable from centralized protocol module (RFC-025 Protocol Centralization)
+from sunwell.foundation.types.protocol import Promptable
 
 if TYPE_CHECKING:
     pass
 
-
-class Promptable(Protocol):
-    """Protocol for objects that can be formatted into prompts.
-
-    Implemented by:
-    - MemoryContext
-    - TaskMemoryContext
-    - Briefing
-    """
-
-    def to_prompt(self) -> str:
-        """Format this object for inclusion in an LLM prompt."""
-        ...
+# Re-export for backward compatibility
+__all__ = ["Promptable", "MemoryContext", "TaskMemoryContext", "SyncResult"]
 
 
 @dataclass(frozen=True, slots=True)

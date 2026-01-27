@@ -41,7 +41,7 @@ class _FileContents:
     all_content: str  # concatenated content for pattern matching
 
     @classmethod
-    def from_directory(cls, output_dir: Path) -> "_FileContents":
+    def from_directory(cls, output_dir: Path) -> _FileContents:
         """Read all Python files from a directory once."""
         python_files = list(output_dir.rglob("*.py"))
         contents: dict[Path, str] = {}

@@ -24,7 +24,7 @@ def test_cli_json_structure() -> None:
             [
                 sys.executable,
                 "-m",
-                "sunwell.cli",
+                "sunwell.interface.cli",
                 "agent",
                 "run",
                 "--json",

@@ -12,10 +12,14 @@ Key distinction:
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Literal, Protocol, Self
+from typing import Any, Literal
 
 # Re-export RejectedOption from intelligence for compatibility
 from sunwell.knowledge.codebase.decisions import RejectedOption
+
+# Import protocols from centralized module (RFC-025 Protocol Centralization)
+from sunwell.foundation.types.protocol import DictSerializable as Serializable
+from sunwell.foundation.types.protocol import Embeddable
 
 __all__ = [
     # Protocols
@@ -31,21 +35,6 @@ __all__ = [
     "TeamKnowledgeContext",
     "TeamKnowledgeUpdate",
 ]
-
-
-class Serializable(Protocol):
-    """Protocol for types that can be serialized to/from dict."""
-
-    def to_dict(self) -> dict[str, Any]: ...
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> Self: ...
-
-
-class Embeddable(Protocol):
-    """Protocol for types that can be converted to text for embedding/search."""
-
-    def to_text(self) -> str: ...
 
 
 class KnowledgeScope(Enum):

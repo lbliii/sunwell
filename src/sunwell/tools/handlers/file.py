@@ -36,8 +36,8 @@ class FileHandlers(BaseHandler):
         sandbox: ScriptSandbox | None = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(workspace, **kwargs)
-        self.sandbox = sandbox
+        # Pass sandbox through to ShellHandlers via kwargs
+        super().__init__(workspace, sandbox=sandbox, **kwargs)
         self._file_event_callback: FileEventCallback | None = None
 
     def set_file_event_callback(self, callback: FileEventCallback | None) -> None:
@@ -131,7 +131,7 @@ class FileHandlers(BaseHandler):
         if not user_path or user_path in (".", "..", "/"):
             raise ValueError(f"Invalid file path: '{user_path}'. Must specify a filename.")
 
-        path = self._safe_path(user_path, allow_write=True)
+        path = self._safe_path(user_path)
 
         if path.exists() and path.is_dir():
             raise ValueError(
@@ -177,7 +177,7 @@ class FileHandlers(BaseHandler):
         new_content_arg = self._sanitize_content(new_content_arg, user_path)
         occurrence = args.get("occurrence", 1)
 
-        path = self._safe_path(user_path, allow_write=True)
+        path = self._safe_path(user_path)
 
         if not path.exists():
             raise FileNotFoundError(
@@ -200,13 +200,18 @@ class FileHandlers(BaseHandler):
         backup_path = path.with_suffix(path.suffix + ".bak")
         backup_path.write_text(content, encoding="utf-8")
 
+        # Track the index of replacement for accurate line reporting
         if occurrence == 0:
             new_file_content = content.replace(old_content_arg, new_content_arg)
             replaced_count = count
+            # For replace-all, report first occurrence line
+            first_idx = content.find(old_content_arg)
+            lines_before = content[:first_idx].count('\n') + 1
         elif occurrence == -1:
             idx = content.rfind(old_content_arg)
             new_file_content = content[:idx] + new_content_arg + content[idx + len(old_content_arg):]
             replaced_count = 1
+            lines_before = content[:idx].count('\n') + 1
         else:
             if occurrence > count:
                 raise ValueError(
@@ -217,10 +222,10 @@ class FileHandlers(BaseHandler):
                 idx = content.find(old_content_arg, idx + 1)
             new_file_content = content[:idx] + new_content_arg + content[idx + len(old_content_arg):]
             replaced_count = 1
+            lines_before = content[:idx].count('\n') + 1
 
         path.write_text(new_file_content, encoding="utf-8")
 
-        lines_before = content[:content.find(old_content_arg)].count('\n') + 1
         old_lines = old_content_arg.count('\n') + 1
         new_lines = new_content_arg.count('\n') + 1
 

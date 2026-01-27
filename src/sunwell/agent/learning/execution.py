@@ -136,8 +136,8 @@ async def learn_from_execution(
 
 
 def _add_to_persistent_memory(
-    memory: "PersistentMemory",
-    learning: "Learning",
+    memory: PersistentMemory,
+    learning: Learning,
 ) -> None:
     """Add a learning to PersistentMemory.
 

@@ -128,7 +128,7 @@ class TestSelfKnowledgeHandlers:
     @pytest.mark.asyncio
     async def test_self_read_returns_source(self, handlers: SunwellToolHandlers) -> None:
         """Should return module source code."""
-        result = await handlers.handle_self_read(module="sunwell.tools.types")
+        result = await handlers.handle_self_read(module="sunwell.tools.core.types")
         assert result.success
         # Should contain ToolTrust or class definitions
         assert "ToolTrust" in result.output or "class" in result.output
@@ -195,7 +195,8 @@ class TestTrustLevelIntegration:
 
     def test_workspace_tools_in_trust_levels(self) -> None:
         """Workspace tools should be in WORKSPACE trust level."""
-        from sunwell.tools.core.types import TRUST_LEVEL_TOOLS, ToolTrust
+        from sunwell.tools.core.constants import TRUST_LEVEL_TOOLS
+        from sunwell.tools.core.types import ToolTrust
 
         workspace_allowed = TRUST_LEVEL_TOOLS[ToolTrust.WORKSPACE]
         for tool in SUNWELL_WORKSPACE_TOOLS:
@@ -203,7 +204,8 @@ class TestTrustLevelIntegration:
 
     def test_read_only_tools_in_trust_levels(self) -> None:
         """Read-only tools should be in READ_ONLY trust level."""
-        from sunwell.tools.core.types import TRUST_LEVEL_TOOLS, ToolTrust
+        from sunwell.tools.core.constants import TRUST_LEVEL_TOOLS
+        from sunwell.tools.core.types import ToolTrust
 
         read_only_allowed = TRUST_LEVEL_TOOLS[ToolTrust.READ_ONLY]
         for tool in SUNWELL_READ_ONLY_TOOLS:
@@ -211,7 +213,8 @@ class TestTrustLevelIntegration:
 
     def test_all_sunwell_tools_in_full_level(self) -> None:
         """All Sunwell tools should be available at FULL trust level."""
-        from sunwell.tools.core.types import TRUST_LEVEL_TOOLS, ToolTrust
+        from sunwell.tools.core.constants import TRUST_LEVEL_TOOLS
+        from sunwell.tools.core.types import ToolTrust
 
         full_allowed = TRUST_LEVEL_TOOLS[ToolTrust.FULL]
         for tool in SUNWELL_TOOLS:

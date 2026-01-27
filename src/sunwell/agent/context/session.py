@@ -21,13 +21,22 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from sunwell.agent.utils.request import RunOptions
     from sunwell.foundation.core.lens import Lens
     from sunwell.memory.briefing import Briefing
     from sunwell.planning.naaru.types import Task
+
+
+class SpawnDepthExceededError(Exception):
+    """Raised when spawn depth limit is exceeded."""
+
+    def __init__(self, depth: int, max_depth: int = 3) -> None:
+        self.depth = depth
+        self.max_depth = max_depth
+        super().__init__(f"Spawn depth {depth} exceeds maximum {max_depth}")
 
 
 @dataclass(slots=True)
@@ -99,6 +108,20 @@ class SessionContext:
 
     project_id: str | None = None
     """Project ID within the workspace (if workspace_id is set)."""
+
+    # === SUBAGENT COORDINATION (Agentic Infrastructure Upgrade) ===
+    parent_session_id: str | None = None
+    """Parent session ID if this is a subagent. None for root sessions."""
+
+    spawn_depth: int = 0
+    """Nesting depth (0 = root session, 1 = first-level subagent, etc.)."""
+
+    cleanup_policy: Literal["delete", "keep"] = "keep"
+    """What to do with session state after completion.
+    
+    - 'delete': Remove session artifacts after completion (for ephemeral subagents)
+    - 'keep': Preserve session artifacts (default, for debugging/resumption)
+    """
 
     # === EXECUTION STATE (updated during run) ===
     tasks: list[Task] = field(default_factory=list)
@@ -185,6 +208,67 @@ class SessionContext:
             workspace_id=workspace_id,
             project_id=project_id or cwd.name,
         )
+
+    @classmethod
+    def spawn_child(
+        cls,
+        parent: SessionContext,
+        task: str,
+        cleanup: Literal["delete", "keep"] = "delete",
+        max_depth: int = 3,
+    ) -> SessionContext:
+        """Spawn a child session for a subagent.
+
+        Creates a new session that inherits workspace context from parent
+        but has its own session_id and tracks its relationship to parent.
+
+        Args:
+            parent: Parent session to spawn from
+            task: Goal/task for the child session
+            cleanup: Cleanup policy for child session artifacts
+            max_depth: Maximum allowed nesting depth
+
+        Returns:
+            New SessionContext for the subagent
+
+        Raises:
+            SpawnDepthExceededError: If parent.spawn_depth >= max_depth
+        """
+        if parent.spawn_depth >= max_depth:
+            raise SpawnDepthExceededError(parent.spawn_depth, max_depth)
+
+        return cls(
+            session_id=_generate_session_id(),
+            cwd=parent.cwd,
+            goal=task,
+            project_name=parent.project_name,
+            project_type=parent.project_type,
+            framework=parent.framework,
+            key_files=parent.key_files,
+            entry_points=parent.entry_points,
+            directory_tree=parent.directory_tree,
+            briefing=parent.briefing,
+            trust=parent.trust,
+            timeout=parent.timeout,
+            model_name=parent.model_name,
+            lens=parent.lens,
+            options=parent.options,
+            workspace_id=parent.workspace_id,
+            project_id=parent.project_id,
+            parent_session_id=parent.session_id,
+            spawn_depth=parent.spawn_depth + 1,
+            cleanup_policy=cleanup,
+        )
+
+    @property
+    def is_subagent(self) -> bool:
+        """True if this is a child session (has a parent)."""
+        return self.parent_session_id is not None
+
+    @property
+    def is_root(self) -> bool:
+        """True if this is a root session (no parent)."""
+        return self.parent_session_id is None
 
     # === PROMPTS ===
 
@@ -321,7 +405,7 @@ class SessionContext:
 
     def summary(self) -> dict[str, Any]:
         """Generate summary dict for completion event."""
-        return {
+        result = {
             "session_id": self.session_id,
             "goal": self.goal[:100],
             "project_type": self.project_type,
@@ -330,6 +414,11 @@ class SessionContext:
             "artifacts_created": len(self.artifacts_created),
             "files_modified": len(self.files_modified),
         }
+        # Include subagent info if applicable
+        if self.is_subagent:
+            result["parent_session_id"] = self.parent_session_id
+            result["spawn_depth"] = self.spawn_depth
+        return result
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize for API/UI consumption."""
@@ -346,6 +435,11 @@ class SessionContext:
             "trust": self.trust,
             "timeout": self.timeout,
             "started_at": self.started_at.isoformat(),
+            # Subagent coordination
+            "parent_session_id": self.parent_session_id,
+            "spawn_depth": self.spawn_depth,
+            "cleanup_policy": self.cleanup_policy,
+            "is_subagent": self.is_subagent,
         }
 
 

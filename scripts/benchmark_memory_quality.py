@@ -108,7 +108,7 @@ async def run_benchmark():
         # Phase 2: Test recall with and without memory
         console.print("[bold]Phase 2: Testing fact recall[/bold]")
 
-        from sunwell.cli.helpers import create_model
+        from sunwell.interface.cli.helpers import create_model
 
         try:
             model = create_model("ollama", "gemma3:4b")

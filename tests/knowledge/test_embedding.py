@@ -244,7 +244,7 @@ class TestCreateEmbedder:
 
     def test_create_embedder_returns_protocol(self):
         """Factory returns something implementing EmbeddingProtocol."""
-        from sunwell.embedding.protocol import EmbeddingProtocol
+        from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
 
         embedder = create_embedder()
 

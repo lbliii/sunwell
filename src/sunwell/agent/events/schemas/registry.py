@@ -56,8 +56,8 @@ from .fix import (
 from .gate import GateFailData, GatePassData, GateStartData, GateStepData
 from .harmonic import (
     PlanCandidateGeneratedData,
-    PlanCandidateScoredData,
     PlanCandidatesCompleteData,
+    PlanCandidateScoredData,
     PlanCandidateStartData,
     PlanScoringCompleteData,
 )

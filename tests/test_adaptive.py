@@ -239,21 +239,21 @@ async def test_imports_successful():
     from sunwell.agent import (
         Agent,
         AgentEvent,
-        GateDetector,
         GateResult,
         LearningExtractor,
         RendererConfig,
         RichRenderer,
         TaskGraph,
         create_renderer,
+        detect_gates,
         extract_signals,
     )
 
     # Verify all imports work by checking they're not None
     assert all([
-        Agent, AgentEvent, GateDetector, GateResult,
+        Agent, AgentEvent, GateResult,
         LearningExtractor, RendererConfig, RichRenderer,
-        TaskGraph, create_renderer, extract_signals,
+        TaskGraph, create_renderer, detect_gates, extract_signals,
     ])
 
 

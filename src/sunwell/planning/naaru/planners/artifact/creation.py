@@ -108,8 +108,8 @@ Respond with JSON:
             data = json.loads(json_match.group())
             return VerificationResult(
                 passed=data.get("passed", False),
-                explanation=data.get("explanation", ""),
-                missing=data.get("missing", []),
+                reason=data.get("explanation", ""),
+                gaps=tuple(data.get("missing", [])),
             )
         except json.JSONDecodeError:
             pass
@@ -117,6 +117,6 @@ Respond with JSON:
     # Fallback: assume passed if we can't parse
     return VerificationResult(
         passed=True,
-        explanation="Verification response could not be parsed, assuming passed",
-        missing=[],
+        reason="Verification response could not be parsed, assuming passed",
+        gaps=(),
     )

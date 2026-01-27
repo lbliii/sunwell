@@ -20,10 +20,33 @@ Relationship with schemas package:
 - Use validated versions (e.g., `validated_task_start_event`) when schema
   compliance is critical or for contract enforcement with frontends
 
+Event Bus (Agentic Infrastructure Upgrade):
+- Use `emit()` to emit events with automatic run context injection
+- Use `on_event()` to subscribe to events (pub/sub pattern)
+- Use `set_run_context()` to establish run context for sequencing
+- Events emitted via the bus include: seq (sequence number), run_id, session_id
+
 RFC-097: Events now support optional UI hints for richer frontend rendering.
 RFC-134: Added tool introspection and escalation events.
 RFC-137: Added delegation and ephemeral lens events.
 """
+
+# =============================================================================
+# Event Bus (Agentic Infrastructure Upgrade)
+# =============================================================================
+from sunwell.agent.events.bus import (
+    clear_run_context,
+    collect_events,
+    crash_session,
+    emit,
+    emit_typed,
+    end_session,
+    get_run_context,
+    on_event,
+    reset_for_tests,
+    set_run_context,
+    start_session,
+)
 
 # =============================================================================
 # Types and Base Classes
@@ -187,6 +210,18 @@ __all__ = [
     "TaskSummary",
     "GateSummary",
     "DEFAULT_UI_HINTS",
+    # Event Bus
+    "emit",
+    "emit_typed",
+    "on_event",
+    "set_run_context",
+    "get_run_context",
+    "clear_run_context",
+    "start_session",
+    "end_session",
+    "crash_session",
+    "collect_events",
+    "reset_for_tests",
     # Lifecycle
     "signal_event",
     "task_start_event",

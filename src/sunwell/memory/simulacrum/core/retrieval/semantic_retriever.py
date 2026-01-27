@@ -1,12 +1,18 @@
-"""Semantic retrieval for parallel memory access."""
+"""Semantic retrieval for parallel memory access.
+
+Supports hybrid search combining vector similarity (embeddings) with
+BM25 keyword scoring for improved retrieval quality.
+"""
 
 from typing import TYPE_CHECKING
 
 from sunwell.foundation.threading import WorkloadType, optimal_workers, run_parallel
 from sunwell.foundation.types.memory import MemoryRetrievalResult
 from sunwell.memory.simulacrum.core.retrieval.similarity import (
+    bm25_score,
     cosine_similarity,
-    keyword_similarity,
+    hybrid_score,
+    normalize_bm25,
 )
 
 if TYPE_CHECKING:
@@ -22,6 +28,13 @@ class SemanticRetriever:
 
     Uses ThreadPoolExecutor with adaptive worker count based on GIL state
     for true parallel retrieval when running on Python 3.13+ free-threaded.
+
+    Supports hybrid search combining:
+    - Vector similarity (semantic matching via embeddings)
+    - BM25 scoring (lexical matching for exact terms)
+
+    Hybrid search catches both semantic relationships ("auth" → "authentication")
+    and exact term matches that embeddings might miss.
     """
 
     def __init__(
@@ -30,6 +43,7 @@ class SemanticRetriever:
         embedder: EmbeddingProtocol | None = None,
         episodes: list[Episode] | None = None,
         chunk_manager: ChunkManager | None = None,
+        hybrid_weight: float = 0.7,
     ) -> None:
         """Initialize semantic retriever.
 
@@ -38,11 +52,14 @@ class SemanticRetriever:
             embedder: Optional embedder for semantic matching
             episodes: Optional list of episodes
             chunk_manager: Optional chunk manager for chunk retrieval
+            hybrid_weight: Weight for vector score in hybrid search (0.0-1.0).
+                BM25 weight = 1 - hybrid_weight. Default 0.7 (70% vector, 30% BM25).
         """
         self._dag = dag
         self._embedder = embedder
         self._episodes = episodes or []
         self._chunk_manager = chunk_manager
+        self._hybrid_weight = hybrid_weight
 
     async def retrieve_parallel(
         self,
@@ -52,8 +69,9 @@ class SemanticRetriever:
         include_recent_turns: bool = True,
         include_chunks: bool = True,
         limit_per_type: int = 10,
+        hybrid_weight: float | None = None,
     ) -> MemoryRetrievalResult:
-        """Parallel retrieval across memory types.
+        """Parallel retrieval across memory types with hybrid scoring.
 
         Args:
             query: Query string for semantic matching
@@ -62,10 +80,14 @@ class SemanticRetriever:
             include_recent_turns: Include recent conversation turns
             include_chunks: Include warm/cold chunks
             limit_per_type: Max items per memory type
+            hybrid_weight: Override instance hybrid_weight for this query.
+                0.0 = pure BM25, 1.0 = pure vector, None = use instance default.
 
         Returns:
             MemoryRetrievalResult with all retrieved items
         """
+        weight = hybrid_weight if hybrid_weight is not None else self._hybrid_weight
+
         # Compute query embedding once
         query_embedding: tuple[float, ...] | None = None
         if self._embedder:
@@ -77,7 +99,7 @@ class SemanticRetriever:
 
         # Define retrieval tasks as sync functions
         def get_learnings() -> list[tuple[Learning, float]]:
-            """Retrieve and score learnings."""
+            """Retrieve and score learnings using hybrid search."""
             if not include_learnings:
                 return []
 
@@ -85,10 +107,13 @@ class SemanticRetriever:
             scored: list[tuple[Learning, float]] = []
 
             for learning in learnings:
-                if query_embedding and learning.embedding:
-                    score = cosine_similarity(query_embedding, learning.embedding)
-                else:
-                    score = keyword_similarity(query, learning.fact)
+                score = hybrid_score(
+                    query=query,
+                    document=learning.fact,
+                    query_embedding=query_embedding,
+                    doc_embedding=learning.embedding,
+                    vector_weight=weight,
+                )
 
                 if score > 0.3:
                     scored.append((learning, score))
@@ -97,19 +122,22 @@ class SemanticRetriever:
             return scored[:limit_per_type]
 
         def get_episodes() -> list[tuple[Episode, float]]:
-            """Retrieve and score episodes."""
+            """Retrieve and score episodes using BM25."""
             if not include_episodes:
                 return []
 
             scored: list[tuple[Episode, float]] = []
             for ep in self._episodes:
-                # Simple keyword match for episodes
-                score = keyword_similarity(query, ep.summary)
-                if score > 0.2 or ep.outcome == "failed":  # Always include dead ends
-                    # Boost failed episodes to avoid dead ends
-                    if ep.outcome == "failed":
-                        score += 0.3
-                    scored.append((ep, min(1.0, score)))
+                # Use BM25 for episodes (typically no embeddings)
+                raw_score = bm25_score(query, ep.summary)
+                score = normalize_bm25(raw_score)
+
+                # Always include dead ends with boosted score
+                if ep.outcome == "failed":
+                    score = min(1.0, score + 0.3)
+
+                if score > 0.2 or ep.outcome == "failed":
+                    scored.append((ep, score))
 
             scored.sort(key=lambda x: -x[1])
             return scored[:limit_per_type]
@@ -124,7 +152,7 @@ class SemanticRetriever:
             return [(turn, 1.0 - (i * 0.05)) for i, turn in enumerate(turns)]
 
         def get_chunks() -> list[tuple[str, float]]:
-            """Retrieve relevant chunks."""
+            """Retrieve relevant chunks using hybrid search."""
             if not include_chunks or not self._chunk_manager:
                 return []
 
@@ -134,10 +162,13 @@ class SemanticRetriever:
 
             for chunk in all_chunks:
                 if chunk.summary:
-                    score = keyword_similarity(query, chunk.summary.main_points)
+                    text = chunk.summary.main_points
+                    # Use BM25 for chunks (embeddings computed per-chunk is expensive)
+                    raw_score = bm25_score(query, text)
+                    score = normalize_bm25(raw_score)
+
                     if score > 0.2:
-                        content = chunk.summary.main_points
-                        scored.append((content, score))
+                        scored.append((text, score))
 
             scored.sort(key=lambda x: -x[1])
             return scored[:limit_per_type]

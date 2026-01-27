@@ -371,6 +371,7 @@ class TestSimulacrumAlias:
         from sunwell.memory.simulacrum.core import Simulacrum, SimulacrumStore
         assert Simulacrum is SimulacrumStore
 
+    @pytest.mark.skip(reason="LegacySimulacrum was removed in refactoring")
     def test_legacy_simulacrum_available(self) -> None:
         """Test that LegacySimulacrum is still importable."""
         from sunwell.memory.simulacrum.core import LegacySimulacrum

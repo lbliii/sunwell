@@ -26,6 +26,18 @@ if TYPE_CHECKING:
 # =============================================================================
 
 # Pattern to match [TOOL:name(args)]
+#
+# Limitation: Arguments containing literal ')' will break parsing.
+# Workaround: Ensure arguments are quoted and don't contain unescaped ')'.
+# For code verification, the code is passed as-is and usually works because
+# function definitions like "def foo(): pass" don't contain unquoted ')'.
+#
+# Examples that work:
+#   [TOOL:get_expertise("async patterns")]
+#   [TOOL:verify_against_expertise("def foo(): return x")]
+#
+# Examples that may fail:
+#   [TOOL:verify("print('a)')")] - the ')' inside the string breaks parsing
 TOOL_TAG_PATTERN = re.compile(
     r'\[TOOL:(\w+)\(([^)]*)\)\]',
     re.DOTALL

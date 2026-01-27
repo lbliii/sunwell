@@ -31,7 +31,7 @@ export interface RunGoalOptions {
 export interface RunGoalResult {
 	success: boolean;
 	message: string;
-	workspace_path: string;
+	workspacePath: string;
 }
 
 type AgentEventListener = (event: AgentEvent) => void;
@@ -67,7 +67,7 @@ export async function runGoal(options: RunGoalOptions): Promise<RunGoalResult> {
 		await startRun({
 			goal: options.goal,
 			workspace: options.projectPath,
-			project_id: options.projectId,
+			projectId: options.projectId,
 			lens: options.lens ?? undefined,
 			provider: options.provider ?? undefined,
 		});
@@ -75,13 +75,13 @@ export async function runGoal(options: RunGoalOptions): Promise<RunGoalResult> {
 		return {
 			success: true,
 			message: 'Run started',
-			workspace_path: options.projectPath || '.',
+			workspacePath: options.projectPath || '.',
 		};
 	} catch (e) {
 		return {
 			success: false,
 			message: e instanceof Error ? e.message : String(e),
-			workspace_path: '',
+			workspacePath: '',
 		};
 	}
 }

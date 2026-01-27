@@ -2343,7 +2343,7 @@ dev = [
 ]
 
 [project.scripts]
-sunwell = "sunwell.cli:main"
+sunwell = "sunwell.interface.cli:cli_entrypoint"
 
 [build-system]
 requires = ["hatchling"]

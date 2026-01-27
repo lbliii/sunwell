@@ -7,6 +7,7 @@ Research Insight: Error responses should steer agents toward
 better behavior with specific, actionable guidance (MCP best practices).
 """
 
+import asyncio
 from dataclasses import dataclass
 from enum import Enum
 from typing import Literal
@@ -220,10 +221,6 @@ class ToolError:
             ),
             details={"exception_type": type(e).__name__},
         )
-
-
-# Import asyncio for CancelledError check
-import asyncio
 
 
 def should_retry(error: ToolError, attempt: int, max_attempts: int = 3) -> bool:

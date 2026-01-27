@@ -8,7 +8,7 @@ The `Self` singleton provides unified access to self-knowledge capabilities:
 - Proposals (safe self-improvement with sandbox testing)
 
 Usage:
-    >>> from sunwell.self import Self
+    >>> from sunwell.features.mirror.self import Self
     >>> Self.get().source.read_module("sunwell.tools.executor")
     >>> Self.get().analysis.recent_failures()
     >>> Self.get().proposals.create(...)
@@ -28,7 +28,12 @@ if TYPE_CHECKING:
     from sunwell.features.mirror.self.source import SourceKnowledge
 
 
-@dataclass(slots=True)
+# Module-level singleton state (not in slots)
+_self_instance: Self | None = None
+_self_lock: threading.Lock = threading.Lock()
+
+
+@dataclass
 class Self:
     """Sunwell's self-knowledge service.
 
@@ -76,9 +81,6 @@ class Self:
 
     # === Thread-Safe Singleton Access (3.14t compatible) ===
 
-    _instance: Self | None = None
-    _lock: threading.Lock = threading.Lock()
-
     @classmethod
     def get(cls) -> Self:
         """Get the global Self instance (thread-safe).
@@ -87,14 +89,15 @@ class Self:
         - Fast path: no lock if already initialized
         - Slow path: lock only during first initialization
         """
-        if cls._instance is not None:
-            return cls._instance
+        global _self_instance
+        if _self_instance is not None:
+            return _self_instance
 
-        with cls._lock:
+        with _self_lock:
             # Double-check after acquiring lock
-            if cls._instance is None:
-                cls._instance = cls._create_default()
-            return cls._instance
+            if _self_instance is None:
+                _self_instance = cls._create_default()
+            return _self_instance
 
     @classmethod
     def _create_default(cls) -> Self:
@@ -119,8 +122,9 @@ class Self:
 
         Thread-safe — acquires lock before clearing.
         """
-        with cls._lock:
-            cls._instance = None
+        global _self_instance
+        with _self_lock:
+            _self_instance = None
 
     @classmethod
     def _create_for_testing(cls, source_root: Path, storage_root: Path) -> Self:

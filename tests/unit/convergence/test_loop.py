@@ -103,7 +103,8 @@ class TestConvergenceLoopRun:
             config=config,
         )
 
-        with patch.object(loop, "_check_lint", AsyncMock(return_value=(True, []))):
+        # Patch on class since slots=True prevents instance patching
+        with patch.object(ConvergenceLoop, "_check_lint", AsyncMock(return_value=(True, []))):
             test_file = tmp_workspace / "test.py"
             events = [e async for e in loop.run([test_file])]
 
@@ -130,9 +131,10 @@ class TestConvergenceLoopRun:
             return
             yield  # Makes this an async generator
 
+        # Patch on class since slots=True prevents instance patching
         with (
-            patch.object(loop, "_check_lint", AsyncMock(return_value=(False, ["persistent error"]))),
-            patch.object(loop._fixer, "fix_errors", mock_fix_errors),
+            patch.object(ConvergenceLoop, "_check_lint", AsyncMock(return_value=(False, ["persistent error"]))),
+            patch("sunwell.agent.execution.fixer.FixStage.fix_errors", mock_fix_errors),
         ):
             test_file = tmp_workspace / "test.py"
             events = [e async for e in loop.run([test_file])]
@@ -154,7 +156,8 @@ class TestConvergenceLoopRun:
             config=config,
         )
 
-        with patch.object(loop, "_check_lint", AsyncMock(return_value=(True, []))):
+        # Patch on class since slots=True prevents instance patching
+        with patch.object(ConvergenceLoop, "_check_lint", AsyncMock(return_value=(True, []))):
             test_file = tmp_workspace / "test.py"
             events = [e async for e in loop.run([test_file])]
 
@@ -255,3 +258,100 @@ class TestConvergenceLoopTimeout:
         
         with patch("time.monotonic", return_value=15):
             assert loop._check_timeout() is True
+
+
+class TestConvergenceLoopTimeoutErrorHandling:
+    """Tests for TimeoutError handling in gate checks (UP041 bug fix).
+
+    Bug: Used deprecated subprocess.TimeoutExpired and asyncio.TimeoutError
+    Fix: Now uses built-in TimeoutError
+    """
+
+    @pytest.mark.asyncio
+    async def test_lint_check_catches_timeout_error(self, mock_model, tmp_workspace):
+        """_check_lint should catch TimeoutError and return appropriate error."""
+        loop = ConvergenceLoop(model=mock_model, cwd=tmp_workspace)
+
+        # Patch on class since ConvergenceLoop uses slots=True
+        with patch.object(
+            ConvergenceLoop, "_run_subprocess", AsyncMock(side_effect=TimeoutError)
+        ):
+            passed, errors = await loop._check_lint([tmp_workspace / "test.py"])
+
+        assert passed is False
+        assert len(errors) == 1
+        assert "timed out" in errors[0].lower()
+
+    @pytest.mark.asyncio
+    async def test_type_check_catches_timeout_error(self, mock_model, tmp_workspace):
+        """_check_types should catch TimeoutError and return appropriate error."""
+        loop = ConvergenceLoop(model=mock_model, cwd=tmp_workspace)
+
+        with patch.object(
+            ConvergenceLoop, "_run_subprocess", AsyncMock(side_effect=TimeoutError)
+        ):
+            passed, errors = await loop._check_types([tmp_workspace / "test.py"])
+
+        assert passed is False
+        assert len(errors) == 1
+        assert "timed out" in errors[0].lower()
+
+    @pytest.mark.asyncio
+    async def test_test_check_catches_timeout_error(self, mock_model, tmp_workspace):
+        """_check_tests should catch TimeoutError and return appropriate error."""
+        loop = ConvergenceLoop(model=mock_model, cwd=tmp_workspace)
+
+        # Create a test file so the check runs
+        test_file = tmp_workspace / "test_example.py"
+        test_file.write_text("def test_foo(): pass")
+
+        with patch.object(
+            ConvergenceLoop, "_run_subprocess", AsyncMock(side_effect=TimeoutError)
+        ):
+            passed, errors = await loop._check_tests([test_file])
+
+        assert passed is False
+        assert len(errors) == 1
+        assert "timed out" in errors[0].lower()
+
+    @pytest.mark.asyncio
+    async def test_lint_check_file_not_found(self, mock_model, tmp_workspace):
+        """_check_lint should return True if ruff not installed."""
+        loop = ConvergenceLoop(model=mock_model, cwd=tmp_workspace)
+
+        with patch.object(
+            ConvergenceLoop, "_run_subprocess", AsyncMock(side_effect=FileNotFoundError)
+        ):
+            passed, errors = await loop._check_lint([tmp_workspace / "test.py"])
+
+        assert passed is True
+        assert errors == []
+
+    @pytest.mark.asyncio
+    async def test_type_check_both_not_found(self, mock_model, tmp_workspace):
+        """_check_types should return True if neither ty nor mypy installed."""
+        loop = ConvergenceLoop(model=mock_model, cwd=tmp_workspace)
+
+        with patch.object(
+            ConvergenceLoop, "_run_subprocess", AsyncMock(side_effect=FileNotFoundError)
+        ):
+            passed, errors = await loop._check_types([tmp_workspace / "test.py"])
+
+        # Should gracefully handle neither tool being installed
+        assert passed is True
+        assert errors == []
+
+    @pytest.mark.asyncio
+    async def test_type_check_returns_errors_on_failure(self, mock_model, tmp_workspace):
+        """_check_types should return errors when type check fails."""
+        loop = ConvergenceLoop(model=mock_model, cwd=tmp_workspace)
+
+        mock_result = MagicMock(returncode=1, stdout="test.py:1: error: Something wrong")
+
+        with patch.object(
+            ConvergenceLoop, "_run_subprocess", AsyncMock(return_value=mock_result)
+        ):
+            passed, errors = await loop._check_types([tmp_workspace / "test.py"])
+
+        assert passed is False
+        assert len(errors) >= 1

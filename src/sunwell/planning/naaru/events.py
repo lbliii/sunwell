@@ -8,8 +8,13 @@ from collections.abc import Callable
 from typing import Any, Protocol
 
 
-class EventEmitter(Protocol):
-    """Protocol for event emission."""
+class NaaruEventEmitterProtocol(Protocol):
+    """Protocol for Naaru event emission.
+
+    Distinct from agent.events.schemas.protocols.EventEmitter which takes
+    AgentEvent objects. This protocol takes event_type strings and data kwargs.
+    (RFC-025 Protocol Centralization)
+    """
 
     def emit(self, event_type: str, **data: Any) -> None:
         """Emit an event with validated payload."""

@@ -3,24 +3,8 @@
 This module contains shared protocols and types for the runtime package.
 """
 
-from pathlib import Path
-from typing import Protocol, Self
+# Import Saveable from centralized protocol module (RFC-025 Protocol Centralization)
+from sunwell.foundation.types.protocol import Saveable
 
-
-class Saveable(Protocol):
-    """Protocol for objects that can be saved/loaded to files.
-
-    Implemented by:
-    - EpisodeSnapshot
-    - EpisodeChain
-    - HandoffState
-    """
-
-    def save(self, path: Path) -> None:
-        """Save object state to a file."""
-        ...
-
-    @classmethod
-    def load(cls, path: Path) -> Self:
-        """Load object state from a file."""
-        ...
+# Re-export for backward compatibility
+__all__ = ["Saveable"]

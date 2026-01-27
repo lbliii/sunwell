@@ -53,7 +53,7 @@ class Binding:
     """Binding name (e.g., "my-project", "docs-writer")."""
 
     lens_path: str = ""
-    """Path to lens file (deprecated, use lens_uri instead)."""
+    """Path to lens file. Prefer lens_uri for new code, but lens_path is preserved for backwards compatibility."""
 
     # RFC-101: New identity fields
     uri: str | None = None

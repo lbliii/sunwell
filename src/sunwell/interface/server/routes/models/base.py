@@ -12,16 +12,15 @@ def _to_camel(string: str) -> str:
 class CamelModel(BaseModel):
     """Base model with camelCase support.
 
-    - Accepts camelCase input (via alias_generator)
-    - Serializes as snake_case (frontend expects snake_case)
+    - Accepts both camelCase and snake_case input (via alias_generator + populate_by_name)
+    - Serializes as camelCase (JavaScript/TypeScript convention)
     """
 
     model_config = ConfigDict(
         alias_generator=_to_camel,
         populate_by_name=True,
-        # Serialize using field names (snake_case), not aliases (camelCase)
-        # Frontend expects snake_case: run_id, project_id, etc.
-        serialize_by_alias=False,
+        # Serialize using aliases (camelCase) for JavaScript/TypeScript convention
+        serialize_by_alias=True,
     )
 
 

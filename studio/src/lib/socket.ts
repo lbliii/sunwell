@@ -40,7 +40,7 @@ const API_BASE =
 export interface RunRequest {
 	goal: string;
 	workspace?: string;
-	project_id?: string; // RFC-117: Explicit project binding
+	projectId?: string; // RFC-117: Explicit project binding
 	lens?: string;
 	provider?: string;
 	model?: string;
@@ -49,7 +49,7 @@ export interface RunRequest {
 }
 
 export interface RunResponse {
-	run_id: string;
+	runId: string;
 	status: string;
 	error?: string;
 }
@@ -257,12 +257,12 @@ export async function startRun(request: RunRequest): Promise<RunResponse> {
 		throw new Error(result.error);
 	}
 
-	if (!result.run_id) {
-		throw new Error('Server returned success but no run_id');
+	if (!result.runId) {
+		throw new Error('Server returned success but no runId');
 	}
 
 	// Connect WebSocket to stream events
-	connectWebSocket(result.run_id);
+	connectWebSocket(result.runId);
 
 	return result;
 }
@@ -397,24 +397,24 @@ export const healthCheck = () => apiGet<{ status: string; active_runs: number }>
 
 /** Run info with source tracking */
 export interface RunInfo {
-	run_id: string;
+	runId: string;
 	goal: string;
 	status: string;
 	source: 'cli' | 'studio' | 'api';
-	started_at: string;
-	completed_at: string | null;
-	event_count: number;
+	startedAt: string;
+	completedAt: string | null;
+	eventCount: number;
 }
 
 /** Global event with source metadata */
 export interface GlobalEvent {
 	v: number;
-	run_id: string;
+	runId: string;
 	type: string;
 	data: Record<string, unknown>;
 	timestamp: string;
 	source: 'cli' | 'studio' | 'api';
-	project_id: string | null;
+	projectId: string | null;
 }
 
 type GlobalEventListener = (event: GlobalEvent) => void;
@@ -588,30 +588,30 @@ export const listRuns = (projectId?: string, limit = 20) => {
 
 /** Observatory snapshot data for a run */
 export interface ObservatoryData {
-	run_id: string;
-	resonance_iterations: Array<{
+	runId: string;
+	resonanceIterations: Array<{
 		round: number;
-		current_score?: number;
-		new_score?: number;
+		currentScore?: number;
+		newScore?: number;
 		improved?: boolean;
-		improvements_identified?: string;
+		improvementsIdentified?: string;
 		reason?: string;
 	}>;
-	prism_candidates: Array<{
+	prismCandidates: Array<{
 		id: string;
-		artifact_count: number;
+		artifactCount: number;
 		score?: number;
-		variance_config?: {
-			prompt_style?: string;
+		varianceConfig?: {
+			promptStyle?: string;
 			temperature?: number;
 			constraint?: string;
 		};
 	}>;
-	selected_candidate: {
+	selectedCandidate: {
 		id: string;
-		artifact_count: number;
+		artifactCount: number;
 		score?: number;
-		selection_reason?: string;
+		selectionReason?: string;
 	} | null;
 	tasks: Array<{
 		id: string;
@@ -620,17 +620,17 @@ export interface ObservatoryData {
 		progress: number;
 	}>;
 	learnings: string[];
-	convergence_iterations: Array<{
+	convergenceIterations: Array<{
 		iteration: number;
-		all_passed: boolean;
-		total_errors: number;
-		gate_results: Array<{
+		allPassed: boolean;
+		totalErrors: number;
+		gateResults: Array<{
 			gate: string;
 			passed: boolean;
 			errors: number;
 		}>;
 	}>;
-	convergence_status: string | null;
+	convergenceStatus: string | null;
 }
 
 /**
@@ -648,5 +648,5 @@ export const getObservatoryData = (runId: string) => {
  * @param runId - The run ID
  */
 export const getRunEvents = (runId: string) => {
-	return apiGet<{ run_id: string; events: Array<Record<string, unknown>> }>(`/api/run/${runId}/events`);
+	return apiGet<{ runId: string; events: Array<Record<string, unknown>> }>(`/api/run/${runId}/events`);
 };

@@ -9,7 +9,7 @@ allowing implementations to be swapped for testing or alternative backends.
 
 from collections.abc import Callable, Coroutine
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol, TypeVar, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, Self, TypeVar, runtime_checkable
 
 # =============================================================================
 # SHARED PROTOCOLS (consolidated from multiple modules)
@@ -43,6 +43,58 @@ class DictSerializable(Protocol):
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary representation."""
         ...
+
+
+# =============================================================================
+# PROMPT FORMATTING PROTOCOLS
+# =============================================================================
+
+
+class Promptable(Protocol):
+    """Protocol for objects that can be formatted into prompts.
+
+    Consolidated from: memory/core/types.
+    Implemented by: MemoryContext, TaskMemoryContext, Briefing.
+    """
+
+    def to_prompt(self) -> str:
+        """Format this object for inclusion in an LLM prompt."""
+        ...
+
+
+class Embeddable(Protocol):
+    """Protocol for types that can be converted to text for embedding/search.
+
+    Consolidated from: features/team/types.
+    Implemented by: TeamDecision, TeamFailure.
+    """
+
+    def to_text(self) -> str:
+        """Convert to text suitable for embedding generation."""
+        ...
+
+
+# =============================================================================
+# PERSISTENCE PROTOCOLS
+# =============================================================================
+
+
+class Saveable(Protocol):
+    """Protocol for objects that can be saved/loaded to files.
+
+    Consolidated from: agent/runtime/types.
+    Implemented by: EpisodeSnapshot, EpisodeChain, HandoffState.
+    """
+
+    def save(self, path: Path) -> None:
+        """Save object state to a file."""
+        ...
+
+    @classmethod
+    def load(cls, path: Path) -> Self:
+        """Load object state from a file."""
+        ...
+
 
 from sunwell.models import Tool, ToolCall
 from sunwell.tools.core.types import ToolResult

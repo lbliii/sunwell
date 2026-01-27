@@ -58,7 +58,7 @@ class TestToolExecutorHook:
     async def test_hook_callback_structure(self, tmp_path: Path):
         """Hook callback should receive Path."""
         from sunwell.knowledge.project import create_project_from_workspace
-        from sunwell.tools.executor import ToolExecutor
+        from sunwell.tools.execution.executor import ToolExecutor
         from sunwell.tools.core.types import ToolPolicy, ToolTrust
 
         # Create executor with mock callback

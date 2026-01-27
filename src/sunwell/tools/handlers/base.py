@@ -42,12 +42,11 @@ class BaseHandler:
         self.workspace = workspace.resolve()
         self.blocked_patterns = blocked_patterns
 
-    def _safe_path(self, user_path: str, *, allow_write: bool = False) -> Path:
+    def _safe_path(self, user_path: str) -> Path:
         """Canonicalize path and enforce security restrictions.
 
         Args:
             user_path: User-provided path (may be relative or absolute)
-            allow_write: If True, path must not match write-protected patterns
 
         Returns:
             Resolved absolute path within workspace

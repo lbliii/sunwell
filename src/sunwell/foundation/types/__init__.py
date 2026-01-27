@@ -43,9 +43,15 @@ from sunwell.foundation.types.naaru_api import (
 from sunwell.foundation.types.protocol import (
     ChatSessionProtocol,
     ConsoleProtocol,
+    DictSerializable,
+    Embeddable,
     MemoryStoreProtocol,
     ParallelExecutorProtocol,
+    Promptable,
+    Saveable,
+    Serializable,
     ToolExecutorProtocol,
+    WorkerProtocol,
 )
 from sunwell.foundation.types.routing import (
     RoutingTier,
@@ -74,11 +80,17 @@ __all__ = [
     # Routing types
     "RoutingTier",
     # Protocols (RFC-025)
+    "Serializable",
+    "DictSerializable",
+    "Promptable",
+    "Embeddable",
+    "Saveable",
     "ConsoleProtocol",
     "ChatSessionProtocol",
     "MemoryStoreProtocol",
     "ToolExecutorProtocol",
     "ParallelExecutorProtocol",
+    "WorkerProtocol",
     # Naaru API types (RFC-083)
     "CompositionSpec",
     "ConversationMessage",

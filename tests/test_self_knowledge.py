@@ -122,7 +122,7 @@ class TestSourceKnowledge:
 
     def test_read_module(self, source):
         """Can read Sunwell module source code."""
-        code = source.read_module("sunwell.self")
+        code = source.read_module("sunwell.features.mirror.self")
         assert "class Self" in code
         assert "def get" in code
 
@@ -133,7 +133,7 @@ class TestSourceKnowledge:
 
     def test_find_symbol_class(self, source):
         """Can find a class in a module."""
-        info = source.find_symbol("sunwell.self", "Self")
+        info = source.find_symbol("sunwell.features.mirror.self", "Self")
         assert info.type == "class"
         assert info.name == "Self"
         assert "get" in info.methods
@@ -141,18 +141,18 @@ class TestSourceKnowledge:
 
     def test_find_symbol_function(self, source):
         """Can find a function in a module."""
-        info = source.find_symbol("sunwell.self.types", "is_path_blocked")
+        info = source.find_symbol("sunwell.features.mirror.self.types", "is_path_blocked")
         assert info.type == "function"
         assert info.name == "is_path_blocked"
 
     def test_find_symbol_not_found(self, source):
         """Raises ValueError for unknown symbol."""
         with pytest.raises(ValueError):
-            source.find_symbol("sunwell.self", "NonexistentClass")
+            source.find_symbol("sunwell.features.mirror.self", "NonexistentClass")
 
     def test_get_module_structure(self, source):
         """Can get module structure."""
-        structure = source.get_module_structure("sunwell.self.types")
+        structure = source.get_module_structure("sunwell.features.mirror.self.types")
         class_names = [c["name"] for c in structure.classes]
 
         assert "SourceLocation" in class_names
@@ -162,10 +162,10 @@ class TestSourceKnowledge:
         """Can list all modules."""
         modules = source.list_modules()
 
-        assert "sunwell.self" in modules
-        assert "sunwell.self.source" in modules
-        assert "sunwell.self.analysis" in modules
-        assert "sunwell.tools.executor" in modules
+        assert "sunwell.features.mirror.self" in modules
+        assert "sunwell.features.mirror.self.source" in modules
+        assert "sunwell.features.mirror.self.analysis" in modules
+        assert "sunwell.tools.execution.executor" in modules
 
     def test_search(self, source):
         """Can search across codebase."""

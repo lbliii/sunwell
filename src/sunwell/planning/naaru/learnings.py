@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from sunwell.planning.naaru.events import EventEmitter
+from sunwell.planning.naaru.events import NaaruEventEmitterProtocol
 
 
 class LearningExtractor:
@@ -22,7 +22,7 @@ class LearningExtractor:
     def __init__(
         self,
         workspace: Path,
-        event_emitter: EventEmitter | None = None,
+        event_emitter: NaaruEventEmitterProtocol | None = None,
     ) -> None:
         """Initialize extractor.
 

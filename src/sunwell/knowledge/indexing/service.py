@@ -179,6 +179,10 @@ class IndexingService:
         """Get current status."""
         return self._status
 
+    def get_status(self) -> IndexStatus:
+        """Get current status (method variant for compatibility)."""
+        return self._status
+
     @property
     def metrics(self) -> IndexMetrics:
         """Get metrics."""

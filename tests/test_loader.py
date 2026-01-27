@@ -15,9 +15,8 @@ class TestLensLoader:
         assert lens.metadata.name == "Technical Writer"
         assert lens.metadata.domain == "documentation"
         assert len(lens.heuristics) >= 4
-        assert len(lens.personas) >= 4
-        assert lens.framework is not None
-        assert lens.framework.name == "Diataxis"
+        # v2 lenses don't have personas or framework sections
+        # They use communication and knowledge_sources instead
 
     def test_load_code_reviewer(self, lens_loader: LensLoader, lenses_dir: Path):
         lens = lens_loader.load(lenses_dir / "code-reviewer-v2.lens")
