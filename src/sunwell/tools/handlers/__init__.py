@@ -5,6 +5,7 @@ This module provides specialized handlers for different tool categories:
 - GitHandlers: Git operations (status, diff, log, commit, etc.)
 - ShellHandlers: Shell operations (run_command, mkdir)
 - EnvHandlers: Environment variable operations
+- UndoHandlers: Undo/rollback operations (backup management)
 
 Example:
     >>> from sunwell.tools.handlers import FileHandlers, GitHandlers
@@ -29,12 +30,13 @@ from sunwell.tools.handlers.env import EnvHandlers
 from sunwell.tools.handlers.file import FileHandlers
 from sunwell.tools.handlers.git import GitHandlers
 from sunwell.tools.handlers.shell import ShellHandlers
+from sunwell.tools.handlers.undo import UndoHandlers
 
 if TYPE_CHECKING:
     from sunwell.planning.skills.sandbox import ScriptSandbox
 
 
-class CoreToolHandlers(FileHandlers, GitHandlers, ShellHandlers, EnvHandlers):
+class CoreToolHandlers(FileHandlers, GitHandlers, ShellHandlers, EnvHandlers, UndoHandlers):
     """Combined handler with all tool operations.
 
     This class combines all handlers into a single class for convenience.
@@ -48,6 +50,7 @@ class CoreToolHandlers(FileHandlers, GitHandlers, ShellHandlers, EnvHandlers):
         >>> await handlers.git_status({})
         >>> await handlers.run_command({"command": "ls"})
         >>> await handlers.get_env({"name": "PATH"})
+        >>> await handlers.undo_file({"path": "file.txt"})
     """
 
     def __init__(
@@ -77,6 +80,7 @@ __all__ = [
     "GitHandlers",
     "ShellHandlers",
     "EnvHandlers",
+    "UndoHandlers",
     # Combined handler
     "CoreToolHandlers",
 ]

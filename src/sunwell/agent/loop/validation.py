@@ -10,6 +10,7 @@ from sunwell.agent.events import (
     gate_step_event,
     validate_error_event,
 )
+from sunwell.agent.hooks import HookEvent, emit_hook_sync
 
 if TYPE_CHECKING:
     from sunwell.agent.validation import ValidationStage
@@ -79,8 +80,17 @@ async def run_validation_gates(
                 message=step_result.message or "",
             )
 
-        # If validation failed, emit error events
-        if not gate_result.passed:
+        # Emit hook events for gate pass/fail
+        if gate_result.passed:
+            emit_hook_sync(
+                HookEvent.GATE_PASS,
+                gate_id=gate.id,
+                gate_type="syntax",
+                files=file_paths,
+            )
+        else:
+            # Emit error events
+            error_messages = []
             for error in gate_result.errors:
                 yield validate_error_event(
                     error_type="validation",
@@ -88,6 +98,16 @@ async def run_validation_gates(
                     file=error.file if hasattr(error, "file") else None,
                     line=error.line if hasattr(error, "line") else None,
                 )
+                error_messages.append(str(error))
+
+            # Emit gate fail hook
+            emit_hook_sync(
+                HookEvent.GATE_FAIL,
+                gate_id=gate.id,
+                gate_type="syntax",
+                files=file_paths,
+                errors=error_messages,
+            )
 
             # Log for telemetry
             logger.warning(
@@ -100,4 +120,12 @@ async def run_validation_gates(
 
     except Exception as e:
         logger.warning("Validation gate error: %s", e)
+        # Emit gate fail hook for exceptions
+        emit_hook_sync(
+            HookEvent.GATE_FAIL,
+            gate_id=gate.id if 'gate' in locals() else "unknown",
+            gate_type="syntax",
+            files=file_paths,
+            errors=[str(e)],
+        )
         # Don't fail the entire operation if validation has issues

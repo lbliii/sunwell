@@ -9,6 +9,10 @@ TRUST_LEVEL_TOOLS: dict[ToolTrust, frozenset[str]] = {
     }),
     ToolTrust.READ_ONLY: frozenset({
         "list_files", "search_files", "read_file",
+        # File discovery - safe, no side effects
+        "find_files",
+        # Backup inspection - read-only
+        "list_backups",
         # Git read operations - safe, no side effects
         "git_info", "git_status", "git_diff", "git_log", "git_blame", "git_show",
         # RFC-125: Self-knowledge tools (read-only, safe at READ_ONLY level)
@@ -16,6 +20,10 @@ TRUST_LEVEL_TOOLS: dict[ToolTrust, frozenset[str]] = {
     }),
     ToolTrust.WORKSPACE: frozenset({
         "list_files", "search_files", "read_file", "write_file", "edit_file", "mkdir",
+        # File management operations - create backups before destructive actions
+        "delete_file", "rename_file", "copy_file", "find_files", "patch_file",
+        # Undo/rollback operations
+        "undo_file", "list_backups", "restore_file",
         "git_info", "git_status", "git_diff", "git_log", "git_blame", "git_show",
         # Staging operations - reversible, don't modify history
         "git_add", "git_restore",
@@ -31,6 +39,10 @@ TRUST_LEVEL_TOOLS: dict[ToolTrust, frozenset[str]] = {
     }),
     ToolTrust.SHELL: frozenset({
         "list_files", "search_files", "read_file", "write_file", "edit_file", "mkdir", "run_command",
+        # File management operations
+        "delete_file", "rename_file", "copy_file", "find_files", "patch_file",
+        # Undo/rollback operations
+        "undo_file", "list_backups", "restore_file",
         "git_info", "git_status", "git_diff", "git_log", "git_blame", "git_show",
         "git_add", "git_restore", "git_init",
         # History-modifying operations - require explicit trust
@@ -46,6 +58,10 @@ TRUST_LEVEL_TOOLS: dict[ToolTrust, frozenset[str]] = {
     ToolTrust.FULL: frozenset({
         # All previous tools
         "list_files", "search_files", "read_file", "write_file", "edit_file", "mkdir", "run_command",
+        # File management operations
+        "delete_file", "rename_file", "copy_file", "find_files", "patch_file",
+        # Undo/rollback operations
+        "undo_file", "list_backups", "restore_file",
         "git_info", "git_status", "git_diff", "git_log", "git_blame", "git_show",
         "git_add", "git_restore", "git_init",
         "git_commit", "git_branch", "git_checkout", "git_stash",

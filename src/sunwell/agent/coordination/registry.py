@@ -8,8 +8,10 @@ Features:
 - Listener pattern for lifecycle events
 - Resume capability after process restart
 - Thread-safe with explicit locking (3.14t compatible)
+- Batch spawn and await for parallel task execution
 """
 
+import asyncio
 import json
 import logging
 import threading
@@ -19,7 +21,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from sunwell.agent.context.session import SessionContext
+    from sunwell.agent.loop.config import LoopConfig
+    from sunwell.planning.naaru.types import Task
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +77,21 @@ class SubagentRecord:
     error_message: str | None = None
     """Error message if outcome is ERROR."""
 
+    # =========================================================================
+    # Heartbeat Monitoring (Agentic Infrastructure Phase 2)
+    # =========================================================================
+    last_heartbeat: datetime | None = None
+    """When the last heartbeat was received."""
+
+    heartbeat_interval_seconds: int = 30
+    """Expected heartbeat interval. Used to detect stale subagents."""
+
+    progress: float | None = None
+    """Execution progress (0.0-1.0) if reported."""
+
+    status_message: str | None = None
+    """Current status message from the subagent."""
+
     @property
     def is_pending(self) -> bool:
         """True if not yet started."""
@@ -93,6 +115,34 @@ class SubagentRecord:
         delta = self.ended_at - self.started_at
         return int(delta.total_seconds() * 1000)
 
+    @property
+    def is_stale(self) -> bool:
+        """True if no heartbeat received within 2x expected interval.
+
+        A stale subagent may be hung and should be investigated or cancelled.
+        """
+        if not self.is_running:
+            return False
+
+        # Use last_heartbeat if available, otherwise started_at
+        last_contact = self.last_heartbeat or self.started_at
+        if last_contact is None:
+            return False
+
+        threshold_seconds = self.heartbeat_interval_seconds * 2
+        elapsed = (datetime.now() - last_contact).total_seconds()
+        return elapsed > threshold_seconds
+
+    @property
+    def seconds_since_heartbeat(self) -> float | None:
+        """Seconds since last heartbeat (or start if no heartbeat yet)."""
+        if not self.is_running:
+            return None
+        last_contact = self.last_heartbeat or self.started_at
+        if last_contact is None:
+            return None
+        return (datetime.now() - last_contact).total_seconds()
+
     def to_dict(self) -> dict:
         """Serialize for persistence."""
         return {
@@ -107,6 +157,11 @@ class SubagentRecord:
             "ended_at": self.ended_at.isoformat() if self.ended_at else None,
             "outcome": self.outcome.value if self.outcome else None,
             "error_message": self.error_message,
+            # Heartbeat fields
+            "last_heartbeat": self.last_heartbeat.isoformat() if self.last_heartbeat else None,
+            "heartbeat_interval_seconds": self.heartbeat_interval_seconds,
+            "progress": self.progress,
+            "status_message": self.status_message,
         }
 
     @classmethod
@@ -124,6 +179,11 @@ class SubagentRecord:
             ended_at=datetime.fromisoformat(data["ended_at"]) if data.get("ended_at") else None,
             outcome=SubagentOutcome(data["outcome"]) if data.get("outcome") else None,
             error_message=data.get("error_message"),
+            # Heartbeat fields
+            last_heartbeat=datetime.fromisoformat(data["last_heartbeat"]) if data.get("last_heartbeat") else None,
+            heartbeat_interval_seconds=data.get("heartbeat_interval_seconds", 30),
+            progress=data.get("progress"),
+            status_message=data.get("status_message"),
         )
 
 
@@ -341,6 +401,271 @@ class SubagentRegistry:
 
         return removed
 
+    # =========================================================================
+    # Batch Operations (Agentic Infrastructure Phase 2)
+    # =========================================================================
+
+    def spawn_parallel(
+        self,
+        parent: SessionContext,
+        tasks: list[Task],
+        config: LoopConfig,
+    ) -> list[SubagentRecord]:
+        """Register subagents for parallelizable tasks.
+
+        Creates SubagentRecords for each task, respecting:
+        - max_concurrent_subagents from config
+        - max_subagent_depth from config
+
+        Does NOT actually execute the subagents - that's the executor's job.
+        This just registers them in the registry.
+
+        Args:
+            parent: Parent session context
+            tasks: Tasks to spawn subagents for
+            config: Loop configuration with subagent limits
+
+        Returns:
+            List of registered SubagentRecords
+
+        Raises:
+            ValueError: If spawn depth exceeded or too many concurrent subagents
+        """
+        from sunwell.agent.context.session import SpawnDepthExceededError
+
+        # Check depth limit
+        if parent.spawn_depth >= config.max_subagent_depth:
+            raise SpawnDepthExceededError(parent.spawn_depth, config.max_subagent_depth)
+
+        # Check concurrent limit
+        current_active = len(self.list_active())
+        if current_active + len(tasks) > config.max_concurrent_subagents:
+            available = max(0, config.max_concurrent_subagents - current_active)
+            raise ValueError(
+                f"Cannot spawn {len(tasks)} subagents: "
+                f"only {available} slots available "
+                f"(max={config.max_concurrent_subagents}, active={current_active})"
+            )
+
+        records: list[SubagentRecord] = []
+        for task in tasks:
+            # Create child session ID
+            child_session_id = uuid.uuid4().hex[:16]
+
+            record = self.register(
+                child_session_id=child_session_id,
+                parent_session_id=parent.session_id,
+                task=task.description,
+                cleanup=config.subagent_cleanup,
+                label=task.id,
+            )
+            records.append(record)
+
+        logger.info(
+            "Spawned %d subagents for parent %s",
+            len(records),
+            parent.session_id,
+        )
+        return records
+
+    async def await_all(
+        self,
+        records: list[SubagentRecord],
+        timeout: float,
+        poll_interval: float = 0.5,
+    ) -> dict[str, SubagentOutcome]:
+        """Wait for all subagents to complete.
+
+        Polls the registry until all subagents have completed or timeout.
+
+        Args:
+            records: Subagent records to wait for
+            timeout: Maximum time to wait in seconds
+            poll_interval: How often to check status in seconds
+
+        Returns:
+            Dict mapping run_id to outcome
+
+        Note:
+            Subagents that don't complete within timeout are marked as TIMEOUT.
+        """
+        run_ids = {r.run_id for r in records}
+        start_time = asyncio.get_event_loop().time()
+        results: dict[str, SubagentOutcome] = {}
+
+        while run_ids - set(results.keys()):
+            elapsed = asyncio.get_event_loop().time() - start_time
+            if elapsed >= timeout:
+                # Mark remaining as timeout
+                for run_id in run_ids - set(results.keys()):
+                    self.mark_complete(run_id, SubagentOutcome.TIMEOUT)
+                    results[run_id] = SubagentOutcome.TIMEOUT
+                logger.warning(
+                    "Subagent await timed out after %.1fs, %d timed out",
+                    timeout,
+                    len(run_ids) - len([o for o in results.values() if o != SubagentOutcome.TIMEOUT]),
+                )
+                break
+
+            # Check status
+            for run_id in run_ids - set(results.keys()):
+                record = self.get(run_id)
+                if record and record.is_complete and record.outcome:
+                    results[run_id] = record.outcome
+
+            # Wait before next poll
+            if run_ids - set(results.keys()):
+                await asyncio.sleep(poll_interval)
+
+        return results
+
+    def count_active_for_parent(self, parent_session_id: str) -> int:
+        """Count active subagents for a specific parent.
+
+        Args:
+            parent_session_id: Parent session ID
+
+        Returns:
+            Number of currently running subagents
+        """
+        with self._lock:
+            return sum(
+                1 for r in self._runs.values()
+                if r.parent_session_id == parent_session_id and r.is_running
+            )
+
+    # =========================================================================
+    # Heartbeat Monitoring (Agentic Infrastructure Phase 2)
+    # =========================================================================
+
+    def heartbeat(
+        self,
+        run_id: str,
+        progress: float | None = None,
+        status: str | None = None,
+    ) -> SubagentRecord | None:
+        """Record a heartbeat from a subagent.
+
+        Should be called periodically by running subagents to indicate
+        they are still alive and making progress.
+
+        Args:
+            run_id: The run ID of the subagent
+            progress: Optional progress (0.0-1.0)
+            status: Optional status message
+
+        Returns:
+            Updated record or None if not found
+        """
+        with self._lock:
+            record = self._runs.get(run_id)
+            if record is None:
+                logger.warning("Heartbeat for unknown run %s", run_id)
+                return None
+
+            if not record.is_running:
+                logger.warning("Heartbeat for non-running subagent %s", run_id)
+                return None
+
+            record.last_heartbeat = datetime.now()
+            if progress is not None:
+                record.progress = max(0.0, min(1.0, progress))
+            if status is not None:
+                record.status_message = status
+
+            self._persist()
+
+        self._notify_listeners(record, "heartbeat")
+        logger.debug(
+            "Heartbeat from %s: progress=%.1f%% status=%s",
+            run_id,
+            (record.progress or 0) * 100,
+            status,
+        )
+        return record
+
+    def get_stale(self, threshold_seconds: float | None = None) -> list[SubagentRecord]:
+        """Get subagents that haven't sent heartbeat recently.
+
+        A subagent is considered stale if:
+        - It is running
+        - No heartbeat received within threshold (default: 2x heartbeat_interval)
+
+        Args:
+            threshold_seconds: Custom threshold (default: use 2x heartbeat_interval)
+
+        Returns:
+            List of stale subagent records
+        """
+        with self._lock:
+            stale: list[SubagentRecord] = []
+            for record in self._runs.values():
+                if not record.is_running:
+                    continue
+
+                # Use custom threshold or record's default
+                if threshold_seconds is not None:
+                    last_contact = record.last_heartbeat or record.started_at
+                    if last_contact is None:
+                        continue
+                    elapsed = (datetime.now() - last_contact).total_seconds()
+                    if elapsed > threshold_seconds:
+                        stale.append(record)
+                elif record.is_stale:
+                    stale.append(record)
+
+            return stale
+
+    async def cancel_stale(
+        self,
+        threshold_seconds: float | None = None,
+        reason: str = "No heartbeat received",
+    ) -> int:
+        """Cancel subagents that appear hung.
+
+        Marks stale subagents as CANCELLED and notifies listeners.
+
+        Args:
+            threshold_seconds: Custom threshold (default: use is_stale property)
+            reason: Reason message to include
+
+        Returns:
+            Number of subagents cancelled
+        """
+        stale = self.get_stale(threshold_seconds)
+        cancelled = 0
+
+        for record in stale:
+            self.mark_complete(
+                record.run_id,
+                SubagentOutcome.CANCELLED,
+                error_message=reason,
+            )
+            cancelled += 1
+            logger.warning(
+                "Cancelled stale subagent %s (last heartbeat: %s)",
+                record.run_id,
+                record.seconds_since_heartbeat,
+            )
+
+        if cancelled > 0:
+            logger.info("Cancelled %d stale subagents", cancelled)
+
+        return cancelled
+
+    def list_with_progress(self) -> list[tuple[SubagentRecord, float | None]]:
+        """List all running subagents with their progress.
+
+        Returns:
+            List of (record, progress) tuples for running subagents
+        """
+        with self._lock:
+            return [
+                (r, r.progress)
+                for r in self._runs.values()
+                if r.is_running
+            ]
+
     def add_listener(self, listener: SubagentListener) -> Callable[[], None]:
         """Add a lifecycle listener.
 
@@ -360,7 +685,7 @@ class SubagentRegistry:
             self._listeners.discard(listener)
 
     def _notify_listeners(self, record: SubagentRecord, event_type: str) -> None:
-        """Notify all listeners of an event."""
+        """Notify all listeners of an event and emit hooks."""
         with self._lock:
             listeners = list(self._listeners)
 
@@ -369,6 +694,37 @@ class SubagentRegistry:
                 listener(record, event_type)
             except Exception:
                 logger.exception("Listener failed for event %s", event_type)
+
+        # Emit hook events
+        self._emit_hook(record, event_type)
+
+    def _emit_hook(self, record: SubagentRecord, event_type: str) -> None:
+        """Emit hook events for subagent lifecycle."""
+        from sunwell.agent.hooks import HookEvent, emit_hook_sync
+
+        hook_event: HookEvent | None = None
+        hook_data: dict[str, str | int | float | None] = {
+            "run_id": record.run_id,
+            "child_session_id": record.child_session_id,
+            "parent_session_id": record.parent_session_id,
+            "task": record.task,
+        }
+
+        if event_type == "register":
+            hook_event = HookEvent.SUBAGENT_SPAWN
+        elif event_type == "start":
+            hook_event = HookEvent.SUBAGENT_START
+        elif event_type == "heartbeat":
+            hook_event = HookEvent.SUBAGENT_HEARTBEAT
+            hook_data["progress"] = record.progress
+            hook_data["status"] = record.status_message
+        elif event_type == "complete":
+            hook_event = HookEvent.SUBAGENT_COMPLETE
+            hook_data["outcome"] = record.outcome.value if record.outcome else None
+            hook_data["duration_ms"] = record.duration_ms
+
+        if hook_event:
+            emit_hook_sync(hook_event, **hook_data)
 
     def set_persistence_path(self, path: Path) -> None:
         """Set the persistence path and load existing data.

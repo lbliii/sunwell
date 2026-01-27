@@ -4,7 +4,33 @@ Extracted from loop.py for better organization.
 """
 
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Literal
+
+
+class ExecutionLane(Enum):
+    """Execution lanes for workload isolation.
+
+    Different lane types have independent concurrency limits to prevent
+    resource starvation between workload types.
+    """
+
+    MAIN = "main"
+    """Root agent work - primary user-facing execution."""
+
+    SUBAGENT = "subagent"
+    """Child session work - parallelizable subtasks."""
+
+    BACKGROUND = "background"
+    """Background work - learning extraction, memory compaction, etc."""
+
+
+# Default concurrency limits per lane
+DEFAULT_LANE_CONCURRENCY: dict[str, int] = {
+    ExecutionLane.MAIN.value: 4,
+    ExecutionLane.SUBAGENT.value: 8,
+    ExecutionLane.BACKGROUND.value: 1,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,6 +139,30 @@ class LoopConfig:
     - 'delete': Remove session artifacts after completion (default)
     - 'keep': Preserve for debugging/resumption
     """
+
+    # =========================================================================
+    # Execution Lanes (Agentic Infrastructure Phase 2)
+    # =========================================================================
+    execution_lane: ExecutionLane = ExecutionLane.MAIN
+    """Which lane this loop runs in.
+
+    Determines concurrency limits and queue isolation.
+    """
+
+    lane_concurrency: dict[str, int] | None = None
+    """Override default concurrency limits per lane.
+
+    Keys are lane values ("main", "subagent", "background").
+    If None, uses DEFAULT_LANE_CONCURRENCY.
+
+    Example: {"main": 2, "subagent": 4} for lower parallelism.
+    """
+
+    def get_lane_concurrency(self, lane: ExecutionLane) -> int:
+        """Get concurrency limit for a lane."""
+        if self.lane_concurrency and lane.value in self.lane_concurrency:
+            return self.lane_concurrency[lane.value]
+        return DEFAULT_LANE_CONCURRENCY.get(lane.value, 1)
 
 
 @dataclass(slots=True)

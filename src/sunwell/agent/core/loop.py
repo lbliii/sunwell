@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from sunwell.agent.coordination.registry import get_registry
 from sunwell.agent.events import (
     AgentEvent,
     EventType,
@@ -34,6 +35,7 @@ from sunwell.agent.events import (
     tool_loop_turn_event,
     tool_start_event,
 )
+from sunwell.agent.hooks import HookEvent, emit_hook_sync
 from sunwell.agent.loop import (
     delegation as loop_delegation,
 )
@@ -127,12 +129,59 @@ class AgentLoop:
     # Internal flag to prevent delegation recursion
     _in_delegation: bool = field(default=False, init=False)
 
+    # Subagent execution tracking (Agentic Infrastructure Phase 2)
+    _subagent_run_id: str | None = field(default=None, init=False)
+    """Run ID if executing as a subagent (for heartbeat emission)."""
+
+    _heartbeat_interval: int = field(default=5, init=False)
+    """Emit heartbeat every N turns when running as subagent."""
+
     def __post_init__(self) -> None:
         """Initialize workspace from executor if not provided."""
         if self.workspace is None and hasattr(self.executor, "_resolved_workspace"):
             self.workspace = self.executor._resolved_workspace
         if self.workspace is None:
             self.workspace = Path.cwd()
+
+    def set_subagent_run_id(self, run_id: str, heartbeat_interval: int = 5) -> None:
+        """Mark this loop as running as a subagent.
+
+        Enables heartbeat emission during execution.
+
+        Args:
+            run_id: The subagent run ID from SubagentRegistry
+            heartbeat_interval: Emit heartbeat every N turns
+        """
+        self._subagent_run_id = run_id
+        self._heartbeat_interval = heartbeat_interval
+
+    def _emit_heartbeat(
+        self,
+        turn: int,
+        total_turns: int,
+        current_tool: str | None = None,
+    ) -> None:
+        """Emit heartbeat if running as a subagent.
+
+        Args:
+            turn: Current turn number
+            total_turns: Maximum turns allowed
+            current_tool: Name of current/last tool being executed
+        """
+        if not self._subagent_run_id:
+            return
+
+        progress = turn / total_turns if total_turns > 0 else 0.0
+        status = f"Turn {turn}/{total_turns}"
+        if current_tool:
+            status += f" - {current_tool}"
+
+        registry = get_registry()
+        registry.heartbeat(
+            self._subagent_run_id,
+            progress=progress,
+            status=status,
+        )
 
     async def run(
         self,
@@ -271,10 +320,24 @@ class AgentLoop:
             tool_count=len(tools),
         )
 
+        # Emit session start hook
+        emit_hook_sync(
+            HookEvent.SESSION_START,
+            task_description=task_description,
+            max_turns=self.config.max_turns,
+            is_subagent=self._subagent_run_id is not None,
+        )
+
         # Main loop
         final_response: str | None = None
+        last_tool_name: str | None = None
+
         while state.turn < self.config.max_turns:
             state.turn += 1
+
+            # Emit heartbeat periodically if running as subagent
+            if self._subagent_run_id and state.turn % self._heartbeat_interval == 0:
+                self._emit_heartbeat(state.turn, self.config.max_turns, last_tool_name)
 
             # RFC-134: Advance progressive policy turn
             if self.progressive_policy:
@@ -305,6 +368,10 @@ class AgentLoop:
                     turn=state.turn,
                     tool_calls_count=len(result.tool_calls),
                 )
+
+                # Track last tool for heartbeat status
+                if result.tool_calls:
+                    last_tool_name = result.tool_calls[-1].name
 
                 # Execute tool calls
                 async for event in self._execute_tool_calls(
@@ -388,6 +455,15 @@ class AgentLoop:
                 state.tool_sequence,
                 success,
             )
+
+        # Emit session end hook
+        emit_hook_sync(
+            HookEvent.SESSION_END,
+            turns_used=state.turn,
+            tool_calls_total=state.tool_calls_total,
+            success=final_response is not None and validation_passed,
+            is_subagent=self._subagent_run_id is not None,
+        )
 
     async def _generate_with_routing(
         self,
@@ -505,6 +581,14 @@ class AgentLoop:
                 arguments=tc.arguments,
             )
 
+            # Emit hook for tool start
+            emit_hook_sync(
+                HookEvent.TOOL_START,
+                tool_name=tc.name,
+                tool_call_id=tc.id,
+                arguments=tc.arguments,
+            )
+
             # RFC-134: Track tool sequence for learning
             state.tool_sequence.append(tc.name)
 
@@ -542,6 +626,15 @@ class AgentLoop:
                 success=result.success,
                 output=result.output,
                 execution_time_ms=result.execution_time_ms or 0,
+            )
+
+            # Emit hook for tool complete
+            emit_hook_sync(
+                HookEvent.TOOL_COMPLETE,
+                tool_name=tc.name,
+                tool_call_id=tc.id,
+                success=result.success,
+                duration_ms=result.execution_time_ms or 0,
             )
 
             # Append messages for conversation
@@ -587,6 +680,14 @@ class AgentLoop:
 
             # No escalation or max retries exceeded
             yield tool_error_event(
+                tool_name=tc.name,
+                tool_call_id=tc.id,
+                error=error_msg,
+            )
+
+            # Emit hook for tool error
+            emit_hook_sync(
+                HookEvent.TOOL_ERROR,
                 tool_name=tc.name,
                 tool_call_id=tc.id,
                 error=error_msg,

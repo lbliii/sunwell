@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -15,6 +16,132 @@ logger = logging.getLogger(__name__)
 
 # Regex for detecting markdown code fences at start of content
 _MARKDOWN_FENCE_RE = re.compile(r"^```\w*\n", re.MULTILINE)
+
+# Regex for parsing unified diff hunk headers
+_HUNK_HEADER_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+
+
+@dataclass(frozen=True, slots=True)
+class DiffHunk:
+    """A single hunk from a unified diff."""
+
+    old_start: int
+    old_count: int
+    new_start: int
+    new_count: int
+    lines: tuple[str, ...]
+
+
+def parse_unified_diff(diff: str) -> list[DiffHunk]:
+    """Parse a unified diff into hunks.
+
+    Args:
+        diff: Unified diff text
+
+    Returns:
+        List of DiffHunk objects
+
+    Raises:
+        ValueError: If diff format is invalid
+    """
+    hunks: list[DiffHunk] = []
+    lines = diff.split("\n")
+
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+
+        # Skip file headers (--- and +++)
+        if line.startswith("---") or line.startswith("+++"):
+            i += 1
+            continue
+
+        # Look for hunk header
+        match = _HUNK_HEADER_RE.match(line)
+        if match:
+            old_start = int(match.group(1))
+            old_count = int(match.group(2)) if match.group(2) else 1
+            new_start = int(match.group(3))
+            new_count = int(match.group(4)) if match.group(4) else 1
+
+            # Collect hunk lines
+            hunk_lines: list[str] = []
+            i += 1
+            while i < len(lines):
+                hunk_line = lines[i]
+                if hunk_line.startswith("@@") or hunk_line.startswith("---") or hunk_line.startswith("+++"):
+                    break
+                if hunk_line.startswith(("-", "+", " ")) or hunk_line == "":
+                    hunk_lines.append(hunk_line)
+                i += 1
+
+            hunks.append(DiffHunk(
+                old_start=old_start,
+                old_count=old_count,
+                new_start=new_start,
+                new_count=new_count,
+                lines=tuple(hunk_lines),
+            ))
+        else:
+            i += 1
+
+    return hunks
+
+
+def apply_hunks(content: str, hunks: list[DiffHunk]) -> str:
+    """Apply diff hunks to file content.
+
+    Args:
+        content: Original file content
+        hunks: Parsed diff hunks to apply
+
+    Returns:
+        Modified content with hunks applied
+
+    Raises:
+        ValueError: If hunks don't match the content
+    """
+    lines = content.split("\n")
+
+    # Apply hunks in reverse order to avoid line number shifts
+    for hunk in reversed(hunks):
+        # Convert to 0-indexed
+        start_idx = hunk.old_start - 1
+
+        # Validate context matches
+        old_lines: list[str] = []
+        new_lines: list[str] = []
+
+        for diff_line in hunk.lines:
+            if diff_line.startswith("-"):
+                old_lines.append(diff_line[1:])
+            elif diff_line.startswith("+"):
+                new_lines.append(diff_line[1:])
+            elif diff_line.startswith(" "):
+                old_lines.append(diff_line[1:])
+                new_lines.append(diff_line[1:])
+            elif diff_line == "":
+                # Empty line in diff = empty context line
+                old_lines.append("")
+                new_lines.append("")
+
+        # Check that old lines match
+        actual_old = lines[start_idx:start_idx + len(old_lines)]
+        if actual_old != old_lines:
+            # Try fuzzy match with stripped whitespace
+            stripped_actual = [l.rstrip() for l in actual_old]
+            stripped_expected = [l.rstrip() for l in old_lines]
+            if stripped_actual != stripped_expected:
+                raise ValueError(
+                    f"Hunk at line {hunk.old_start} doesn't match file content.\n"
+                    f"Expected:\n{chr(10).join(old_lines[:5])}\n"
+                    f"Found:\n{chr(10).join(actual_old[:5])}"
+                )
+
+        # Replace old lines with new lines
+        lines[start_idx:start_idx + len(old_lines)] = new_lines
+
+    return "\n".join(lines)
 
 if TYPE_CHECKING:
     from sunwell.planning.skills.sandbox import ScriptSandbox
@@ -299,3 +426,186 @@ class FileHandlers(BaseHandler):
             return "Search timed out after 30s"
         except FileNotFoundError:
             return "Search tools (rg, grep) not available"
+
+    async def delete_file(self, args: dict) -> str:
+        """Delete a file. Creates a backup before deletion."""
+        user_path = args["path"]
+        path = self._safe_path(user_path)
+
+        if not path.exists():
+            raise FileNotFoundError(f"File not found: {user_path}")
+        if not path.is_file():
+            raise ValueError(f"Not a file: {user_path}. Use rmdir for directories.")
+
+        # Read content for backup and line counting
+        try:
+            content = path.read_text(encoding="utf-8", errors="replace")
+            lines_removed = content.count("\n") + 1 if content else 0
+        except OSError:
+            content = ""
+            lines_removed = 0
+
+        # Create backup before deletion
+        backup_path = path.with_suffix(path.suffix + ".deleted.bak")
+        backup_path.write_text(content, encoding="utf-8")
+
+        # Delete the file
+        path.unlink()
+
+        # Emit file event for lineage tracking (RFC-121)
+        self._emit_file_event("file_deleted", user_path, "", 0, lines_removed)
+
+        return f"✓ Deleted {user_path} ({lines_removed} lines, backup: {backup_path.name})"
+
+    async def rename_file(self, args: dict) -> str:
+        """Rename or move a file within the workspace."""
+        source_path = args["source"]
+        dest_path = args["destination"]
+
+        src = self._safe_path(source_path)
+        dst = self._safe_path(dest_path)
+
+        if not src.exists():
+            raise FileNotFoundError(f"Source file not found: {source_path}")
+        if not src.is_file():
+            raise ValueError(f"Source is not a file: {source_path}")
+        if dst.exists():
+            raise ValueError(f"Destination already exists: {dest_path}")
+
+        # Create parent directories for destination
+        dst.parent.mkdir(parents=True, exist_ok=True)
+
+        # Read content for event emission
+        try:
+            content = src.read_text(encoding="utf-8", errors="replace")
+            lines = content.count("\n") + 1 if content else 0
+        except OSError:
+            content = ""
+            lines = 0
+
+        # Perform the rename
+        src.rename(dst)
+
+        # Emit events for lineage tracking
+        self._emit_file_event("file_deleted", source_path, "", 0, lines)
+        self._emit_file_event("file_created", dest_path, content, lines, 0)
+
+        return f"✓ Renamed {source_path} → {dest_path}"
+
+    async def copy_file(self, args: dict) -> str:
+        """Copy a file within the workspace."""
+        source_path = args["source"]
+        dest_path = args["destination"]
+
+        src = self._safe_path(source_path)
+        dst = self._safe_path(dest_path)
+
+        if not src.exists():
+            raise FileNotFoundError(f"Source file not found: {source_path}")
+        if not src.is_file():
+            raise ValueError(f"Source is not a file: {source_path}")
+        if dst.exists():
+            raise ValueError(f"Destination already exists: {dest_path}")
+
+        # Create parent directories for destination
+        dst.parent.mkdir(parents=True, exist_ok=True)
+
+        # Read content for event emission
+        try:
+            content = src.read_text(encoding="utf-8", errors="replace")
+            lines = content.count("\n") + 1 if content else 0
+        except OSError:
+            content = ""
+            lines = 0
+
+        # Perform the copy
+        shutil.copy2(src, dst)
+
+        # Emit event for lineage tracking
+        self._emit_file_event("file_created", dest_path, content, lines, 0)
+
+        return f"✓ Copied {source_path} → {dest_path} ({len(content):,} bytes)"
+
+    async def find_files(self, args: dict) -> str:
+        """Find files matching a glob pattern."""
+        pattern = args["pattern"]
+        search_path = self._safe_path(args.get("path", "."))
+        max_results = min(args.get("max_results", 100), 500)  # Cap at 500
+
+        if not search_path.is_dir():
+            raise ValueError(f"Not a directory: {args.get('path', '.')}")
+
+        files = []
+        for f in search_path.glob(pattern):
+            if len(files) >= max_results:
+                break
+            try:
+                relative = str(f.relative_to(self.workspace))
+                # Verify path is accessible (respects blocked patterns)
+                self._safe_path(relative)
+                files.append(relative)
+            except PathSecurityError:
+                continue
+
+        # Sort for consistent output
+        files.sort()
+
+        if not files:
+            return f"No files matching '{pattern}'"
+
+        result = f"Found {len(files)} file(s) matching '{pattern}':\n"
+        result += "\n".join(files)
+
+        if len(files) == max_results:
+            result += f"\n\n(results limited to {max_results})"
+
+        return result
+
+    async def patch_file(self, args: dict) -> str:
+        """Apply a unified diff patch to a file."""
+        user_path = args["path"]
+        diff = args["diff"]
+
+        path = self._safe_path(user_path)
+
+        if not path.exists():
+            raise FileNotFoundError(
+                f"File not found: {user_path}. Use write_file to create new files."
+            )
+        if not path.is_file():
+            raise ValueError(f"Not a file: {user_path}")
+
+        # Read original content
+        content = path.read_text(encoding="utf-8")
+        old_lines = content.count("\n") + 1 if content else 0
+
+        # Create backup before patching
+        backup_path = path.with_suffix(path.suffix + ".bak")
+        backup_path.write_text(content, encoding="utf-8")
+
+        # Parse and apply the diff
+        try:
+            hunks = parse_unified_diff(diff)
+            if not hunks:
+                return f"No valid hunks found in diff. Ensure diff uses unified format with @@ headers."
+
+            new_content = apply_hunks(content, hunks)
+        except ValueError as e:
+            return f"Failed to apply patch: {e}"
+
+        # Write patched content
+        path.write_text(new_content, encoding="utf-8")
+
+        new_lines = new_content.count("\n") + 1 if new_content else 0
+        lines_added = max(0, new_lines - old_lines)
+        lines_removed = max(0, old_lines - new_lines)
+
+        # Emit file event for lineage tracking (RFC-121)
+        self._emit_file_event("file_modified", user_path, new_content, lines_added, lines_removed)
+
+        return (
+            f"✓ Patched {user_path}\n"
+            f"  Applied {len(hunks)} hunk(s)\n"
+            f"  Lines: {old_lines} → {new_lines}\n"
+            f"  Backup: {backup_path.name}"
+        )

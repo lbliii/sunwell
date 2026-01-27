@@ -177,6 +177,182 @@ CORE_TOOLS: dict[str, Tool] = {
             "required": ["path"],
         },
     ),
+    # File Management Operations
+    "delete_file": Tool(
+        name="delete_file",
+        description=(
+            "Delete a file. Creates a backup before deletion for safety. "
+            "Use with caution - prefer git operations for version-controlled files."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "File path relative to workspace root",
+                },
+            },
+            "required": ["path"],
+        },
+    ),
+    "rename_file": Tool(
+        name="rename_file",
+        description=(
+            "Rename or move a file within the workspace. "
+            "Creates parent directories for destination if needed."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "source": {
+                    "type": "string",
+                    "description": "Source file path relative to workspace root",
+                },
+                "destination": {
+                    "type": "string",
+                    "description": "Destination path relative to workspace root",
+                },
+            },
+            "required": ["source", "destination"],
+        },
+    ),
+    "copy_file": Tool(
+        name="copy_file",
+        description=(
+            "Copy a file within the workspace. "
+            "Creates parent directories for destination if needed."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "source": {
+                    "type": "string",
+                    "description": "Source file path relative to workspace root",
+                },
+                "destination": {
+                    "type": "string",
+                    "description": "Destination path relative to workspace root",
+                },
+            },
+            "required": ["source", "destination"],
+        },
+    ),
+    "find_files": Tool(
+        name="find_files",
+        description=(
+            "Find files matching a glob pattern. Unlike search_files which searches content, "
+            "this finds files by name/path pattern. Useful for discovering project structure."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "pattern": {
+                    "type": "string",
+                    "description": "Glob pattern to match (e.g., '**/*.py', 'src/**/*.ts')",
+                },
+                "path": {
+                    "type": "string",
+                    "description": "Directory to search in (default: workspace root)",
+                    "default": ".",
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Maximum number of results (default: 100)",
+                    "default": 100,
+                },
+            },
+            "required": ["pattern"],
+        },
+    ),
+    "patch_file": Tool(
+        name="patch_file",
+        description=(
+            "Apply a unified diff patch to a file. More precise than edit_file for complex "
+            "multi-hunk changes. Uses standard unified diff format (like git diff output). "
+            "Creates a backup before patching."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "File path relative to workspace root",
+                },
+                "diff": {
+                    "type": "string",
+                    "description": (
+                        "Unified diff patch to apply. Standard format with @@ hunk headers. "
+                        "Lines starting with '-' are removed, '+' are added, ' ' are context. "
+                        "Example:\n"
+                        "@@ -10,3 +10,4 @@\n"
+                        " context line\n"
+                        "-old line\n"
+                        "+new line\n"
+                        "+added line\n"
+                        " more context"
+                    ),
+                },
+            },
+            "required": ["path", "diff"],
+        },
+    ),
+    # Undo/Rollback Operations
+    "undo_file": Tool(
+        name="undo_file",
+        description=(
+            "Restore a file from its most recent backup. "
+            "Backups are created automatically by edit_file, write_file, delete_file, and patch_file. "
+            "The current state is saved before restoring in case you need to undo the undo."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "File path relative to workspace root",
+                },
+            },
+            "required": ["path"],
+        },
+    ),
+    "list_backups": Tool(
+        name="list_backups",
+        description=(
+            "List available backups for a file or all files. "
+            "Shows timestamps, operation types, and sizes."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "File path to filter (optional, omit for all files)",
+                },
+            },
+        },
+    ),
+    "restore_file": Tool(
+        name="restore_file",
+        description=(
+            "Restore a file from a specific backup (not just the most recent). "
+            "Use list_backups first to see available restore points."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "File path relative to workspace root",
+                },
+                "index": {
+                    "type": "integer",
+                    "description": "Backup index (0 = most recent, higher = older)",
+                    "default": 0,
+                },
+            },
+            "required": ["path"],
+        },
+    ),
     # Git Repository Initialization
     "git_init": Tool(
         name="git_init",

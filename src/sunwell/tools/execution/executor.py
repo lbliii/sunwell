@@ -207,6 +207,16 @@ class ToolExecutor:
             "search_files": self._core_handlers.search_files,
             "run_command": self._core_handlers.run_command,
             "mkdir": self._core_handlers.mkdir,
+            # File management tools (toolkit evolution)
+            "delete_file": self._core_handlers.delete_file,
+            "rename_file": self._core_handlers.rename_file,
+            "copy_file": self._core_handlers.copy_file,
+            "find_files": self._core_handlers.find_files,
+            "patch_file": self._core_handlers.patch_file,
+            # Undo/rollback tools
+            "undo_file": self._core_handlers.undo_file,
+            "list_backups": self._core_handlers.list_backups,
+            "restore_file": self._core_handlers.restore_file,
             # Git tools (RFC-024)
             "git_init": self._core_handlers.git_init,
             "git_info": self._core_handlers.git_info,

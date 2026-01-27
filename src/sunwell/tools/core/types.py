@@ -49,9 +49,11 @@ class ToolTrust(Enum):
 
 
 TOOL_GROUPS: dict[str, frozenset[str]] = {
-    "group:discovery": frozenset(["list_files", "search_files"]),
+    "group:discovery": frozenset(["list_files", "search_files", "find_files"]),
     "group:read": frozenset(["read_file", "search_code"]),
-    "group:write": frozenset(["write_file", "edit_file", "apply_patch"]),
+    "group:write": frozenset(["write_file", "edit_file", "patch_file"]),
+    "group:file_management": frozenset(["delete_file", "rename_file", "copy_file"]),
+    "group:undo": frozenset(["undo_file", "list_backups", "restore_file"]),
     "group:shell": frozenset(["run_command"]),
     "group:git": frozenset(["git_status", "git_diff", "git_log", "git_commit", "git_add", "git_restore"]),
     "group:memory": frozenset(["memory_search", "memory_get"]),

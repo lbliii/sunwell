@@ -13,6 +13,12 @@ from sunwell.agent.execution.executor import (
     validate_gate,
 )
 from sunwell.agent.execution.fixer import FixResult, FixStage
+from sunwell.agent.execution.lanes import (
+    ExecutionLanes,
+    LaneState,
+    QueueEntry,
+    get_lanes,
+)
 from sunwell.agent.execution.manager import ExecutionManager
 from sunwell.agent.execution.specialist import execute_via_specialist, get_context_snapshot
 
@@ -32,4 +38,9 @@ __all__ = [
     "FixResult",
     "ExecutionManager",
     "StdoutEmitter",
+    # Execution Lanes (Phase 2)
+    "ExecutionLanes",
+    "LaneState",
+    "QueueEntry",
+    "get_lanes",
 ]
