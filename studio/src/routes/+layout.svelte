@@ -11,7 +11,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { setInitialized } from '$stores/app.svelte';
-  import { setupInferenceListeners } from '$lib/inference';
+  import { setupInferenceListeners } from '$lib/inference.svelte';
   import { getProjectSlug } from '$stores/project.svelte';
   import { onEvent } from '$lib/socket';
   import '../styles/global.css';
