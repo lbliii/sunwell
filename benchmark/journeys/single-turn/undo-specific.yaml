@@ -1,0 +1,30 @@
+# Journey: Test restore_file tool
+# Tests restoring from a specific backup
+
+journey:
+  id: undo-specific
+  type: single_turn
+  description: "Test restore_file tool for specific backup restoration"
+  tags:
+    - undo
+    - core
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "main.py"
+        content: |
+          # Current version
+          def main():
+              pass
+
+  input: "Restore main.py from the backup made 5 minutes ago"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called_any:
+      - restore_file
+      - list_backups  # May need to list first
+      - undo_file     # May fall back to undo

@@ -1,0 +1,32 @@
+# Journey: Test git_blame tool
+# Tests line-by-line authorship
+
+journey:
+  id: git-blame
+  type: single_turn
+  description: "Test git_blame tool for authorship tracking"
+  tags:
+    - git
+    - read-only
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "main.py"
+        content: |
+          def first():
+              pass
+          
+          def second():
+              pass
+
+  input: "Who wrote line 4 of main.py?"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called:
+      - name: git_blame
+        args_contain:
+          path: "main.py"

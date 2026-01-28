@@ -1,0 +1,27 @@
+# Journey: Test git_restore tool
+# Tests unstaging files
+
+journey:
+  id: git-restore
+  type: single_turn
+  description: "Test git_restore tool for unstaging"
+  tags:
+    - git
+    - staging
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "main.py"
+        content: "# staged"
+
+  input: "Unstage main.py"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called:
+      - name: git_restore
+        args_contain:
+          path: "main.py"

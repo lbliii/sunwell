@@ -33,6 +33,109 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _detect_truncation(content: str) -> bool:
+    """Detect if content appears to be truncated mid-output.
+
+    Checks for:
+    - Incomplete syntax (ending with (, {, [, :, ,)
+    - Unclosed code blocks
+    - Content near typical output limits
+
+    Args:
+        content: The generated content to check
+
+    Returns:
+        True if content appears truncated
+    """
+    if not content:
+        return False
+
+    stripped = content.rstrip()
+    if not stripped:
+        return False
+
+    # Check for incomplete syntax indicators
+    incomplete_endings = ("(", "{", "[", ":", ",", "=", "->", "=>", "def ", "class ", "async ")
+    if stripped.endswith(incomplete_endings):
+        return True
+
+    # Check for unclosed code blocks (``` without closing ```)
+    fence_count = stripped.count("```")
+    if fence_count % 2 != 0:
+        return True
+
+    # Check for very long output near typical limits (may be truncated)
+    # gemma3:4b typically has ~2048 token output limit (~8000 chars)
+    if len(stripped) > 7000:
+        # Check if it ends mid-word or mid-line
+        if not stripped.endswith(("\n", "}", ")", "]", '"', "'", ";", ",")):
+            return True
+
+    return False
+
+
+async def _continue_truncated_output(
+    model: Any,
+    partial_content: str,
+    target_path: str,
+    max_continuations: int = 3,
+) -> str:
+    """Continue generating from truncated output.
+
+    Args:
+        model: Model for generation
+        partial_content: The truncated content
+        target_path: Target file path for context
+        max_continuations: Maximum continuation attempts
+
+    Returns:
+        Complete content after continuation(s)
+    """
+    from sunwell.models import GenerateOptions
+
+    content = partial_content
+    continuations = 0
+
+    while _detect_truncation(content) and continuations < max_continuations:
+        continuations += 1
+        logger.info(
+            "Content appears truncated, attempting continuation %d/%d for %s",
+            continuations,
+            max_continuations,
+            target_path,
+        )
+
+        # Take last 500 chars as context
+        context_suffix = content[-500:] if len(content) > 500 else content
+
+        continuation_prompt = f"""Continue this code from where it was cut off.
+The file is: {target_path}
+
+Last part of the code:
+```
+{context_suffix}
+```
+
+Continue ONLY the remaining code. Start exactly where it stopped. Do not repeat any code."""
+
+        try:
+            result = await model.generate(
+                continuation_prompt,
+                options=GenerateOptions(temperature=0.2, max_tokens=2000),
+            )
+            if result.text:
+                # Extract just the code from the response
+                from sunwell.agent.core.task_graph import sanitize_code_content
+                continuation = sanitize_code_content(result.text)
+                if continuation:
+                    content = content + "\n" + continuation
+        except Exception as e:
+            logger.warning("Continuation attempt %d failed: %s", continuations, e)
+            break
+
+    return content
+
+
 async def execute_task_streaming_fallback(
     task: Task,
     model: ModelProtocol,
@@ -180,6 +283,9 @@ Respond directly and helpfully:"""
             duration_s=duration,
             tokens_per_second=tps,
             time_to_first_token_ms=ttft_ms,
+            model=model_id,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=token_count,
         ),
         "".join(token_buffer),
     )
@@ -421,8 +527,14 @@ async def execute_task_with_tools(
     context_block = "\n\n".join(context_sections) if context_sections else None
 
     # === BUILD SYSTEM PROMPT ===
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc).astimezone()
+    current_time = now.strftime("%Y-%m-%d %H:%M %Z")
+
     system_prompt = (
-        "You are a code generation assistant. When you need to create or modify files, "
+        f"You are a code generation assistant. Current date/time: {current_time}. "
+        "When you need to create or modify files, "
         "use the write_file or edit_file tools. Do NOT output code in your text response - "
         "always use the appropriate file tool to write code to disk. "
         "The write_file content parameter expects RAW code, not wrapped in markdown."
@@ -571,9 +683,23 @@ async def execute_task_with_tools(
                     task.target_path,
                 )
 
-                # Sanitize and write the file
-                expected_path.parent.mkdir(parents=True, exist_ok=True)
+                # Sanitize the code (handles tool call prefixes and markdown fences)
                 sanitized = sanitize_code_content(text_output)
+
+                # Check for truncation and attempt continuation if needed
+                if _detect_truncation(sanitized):
+                    logger.info(
+                        "Detected truncated output for %s, attempting continuation",
+                        task.target_path,
+                    )
+                    sanitized = await _continue_truncated_output(
+                        model=model,
+                        partial_content=sanitized,
+                        target_path=task.target_path,
+                    )
+
+                # Write the file
+                expected_path.parent.mkdir(parents=True, exist_ok=True)
                 expected_path.write_text(sanitized)
                 result_text = sanitized
 

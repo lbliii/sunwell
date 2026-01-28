@@ -41,10 +41,10 @@ def _create_default_sandbox(workspace: Path) -> ScriptSandbox | None:
         from sunwell.planning.skills.sandbox import ScriptSandbox
 
         return ScriptSandbox(
-            workspace=workspace,
             timeout_seconds=300,  # 5 minute max
             allow_network=False,
-            allow_write_outside_workspace=False,
+            read_paths=(workspace,),  # Allow reading from workspace
+            write_paths=(workspace,),  # Allow writing to workspace
         )
     except ImportError:
         logger.warning(

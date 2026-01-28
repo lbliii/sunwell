@@ -1,0 +1,51 @@
+# Journey: Query project backlog
+# Tests: TASK intent for knowledge queries about project state
+journey:
+  id: "journey-backlog-query"
+  type: "single_turn"
+  description: "Test task intent for project knowledge queries"
+  tags:
+    - task
+    - knowledge
+    - backlog
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "TODO.md"
+        content: |
+          # Project Backlog
+
+          ## High Priority
+          - [ ] Fix authentication bug
+          - [ ] Add rate limiting
+
+          ## Medium Priority
+          - [ ] Update documentation
+          - [ ] Add logging
+
+          ## Low Priority
+          - [ ] Refactor database layer
+
+  input: "what's in our backlog?"
+
+  expect:
+    # This is asking for information, but about actionable items
+    # Could be TASK or CONVERSATION depending on implementation
+    intent:
+      - TASK
+      - CONVERSATION
+
+    # Should read the backlog file
+    tools_called:
+      - name: read_file
+        args_contain:
+          path: "TODO.md"
+
+    # Output should reference backlog items
+    output_contains:
+      - "authentication"
+      - "rate limiting"
+
+  timeout_seconds: 60
+  allow_flaky_retry: 0

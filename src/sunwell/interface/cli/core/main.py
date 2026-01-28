@@ -30,6 +30,12 @@ def cli_entrypoint() -> None:
     This catches SunwellError and displays it nicely instead of ugly tracebacks.
     Called from pyproject.toml [project.scripts].
     """
+    # Configure logging early (env var only at this stage)
+    # Flags like --debug will refine this in main()
+    from sunwell.foundation.logging import configure_logging
+
+    configure_logging()
+
     try:
         main(standalone_mode=False)
     except click.ClickException as e:
@@ -195,6 +201,7 @@ def _show_all_commands(ctx: click.Context) -> None:
               help="Maximum convergence iterations")
 @click.option("--all-commands", is_flag=True, hidden=True,
               help="Show all commands including hidden")
+@click.option("--debug", is_flag=True, help="Enable debug logging (also: SUNWELL_LOG_LEVEL=DEBUG)")
 @click.version_option(prog_name="sunwell")  # Dynamic version from pyproject.toml
 @click.pass_context
 def main(
@@ -216,6 +223,7 @@ def main(
     converge_gates: str,
     converge_max: int,
     all_commands: bool,
+    debug: bool,
 ) -> None:
     """✦ Sunwell — AI agent for software tasks.
 
@@ -248,6 +256,12 @@ def main(
     \b
     The light illuminates the path. ✧
     """
+    # Reconfigure logging if --debug flag was passed
+    if debug:
+        from sunwell.foundation.logging import configure_logging
+
+        configure_logging(debug=True)
+
     load_dotenv()
     check_free_threading(quiet=quiet)
 
@@ -426,15 +440,12 @@ from sunwell.interface.cli.chat import chat
 
 main.add_command(chat)
 
-# Benchmark suite
+# Benchmark suite (RFC-018) - register as group to preserve subcommands
 from sunwell.benchmark.cli import benchmark
 
-main.add_command(click.Command(
-    name="benchmark",
-    callback=benchmark.callback if hasattr(benchmark, 'callback') else benchmark,
-    help="Run benchmark suite",
-    hidden=True,
-))
+# Register as group (not Command) to preserve subcommands like journeys, naaru, etc.
+benchmark.hidden = True
+main.add_command(benchmark)
 
 # Demo command - Prism Principle demonstrations
 from sunwell.interface.cli.commands import demo_cmd

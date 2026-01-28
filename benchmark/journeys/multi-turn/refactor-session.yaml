@@ -1,0 +1,80 @@
+# Journey: Multi-turn refactoring session
+# Tests: Code understanding, refactoring, explanation
+journey:
+  id: "journey-refactor-session"
+  type: "multi_turn"
+  description: "Test multi-turn refactoring: analyze, refactor, explain"
+  tags:
+    - multi-turn
+    - refactor
+    - code-quality
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "user_service.py"
+        content: |
+          """User service with some code smells."""
+
+          def get_user_data(user_id, db, include_email=True, include_phone=True,
+                           include_address=True, include_preferences=True):
+              # Too many parameters - code smell!
+              user = db.query(f"SELECT * FROM users WHERE id = {user_id}")
+
+              result = {"id": user_id}
+
+              if include_email:
+                  result["email"] = user["email"]
+              if include_phone:
+                  result["phone"] = user["phone"]
+              if include_address:
+                  result["address"] = user["address"]
+              if include_preferences:
+                  result["preferences"] = user["preferences"]
+
+              return result
+
+          def create_user(name, email, phone, address, preferences, db):
+              # SQL injection vulnerability!
+              db.execute(f"INSERT INTO users VALUES ('{name}', '{email}')")
+              return True
+
+  turns:
+    # Turn 1: Ask about code quality
+    - input: "what code smells do you see in user_service.py?"
+      expect:
+        intent:
+          - TASK
+          - CONVERSATION
+        tools_called:
+          - name: read_file
+        output_contains:
+          - "parameter"
+
+    # Turn 2: Request refactoring
+    - input: "refactor get_user_data to use a config object instead of boolean flags"
+      expect:
+        intent: TASK
+        tools_called:
+          - name: write_file
+        files_modified:
+          - path: "user_service.py"
+            contains:
+              - "class"
+            not_contains:
+              - "include_email=True, include_phone=True"
+        output_contains:
+          - "refactor"
+
+    # Turn 3: Ask about security
+    - input: "is there any security issue in create_user?"
+      expect:
+        intent:
+          - TASK
+          - CONVERSATION
+        output_contains:
+          - "SQL"
+          - "injection"
+
+  timeout_seconds: 300
+  allow_flaky_retry: 1

@@ -1,0 +1,27 @@
+# Journey: Test git_status tool
+# Tests checking working tree status
+
+journey:
+  id: git-status
+  type: single_turn
+  description: "Test git_status tool for repository status"
+  tags:
+    - git
+    - read-only
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: ".gitkeep"
+        content: ""
+
+  input: "What's the current git status?"
+
+  expect:
+    intent:
+      - TASK
+      - CONVERSATION
+    signals:
+      needs_tools: "YES"
+    tools_called:
+      - name: git_status

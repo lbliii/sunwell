@@ -43,6 +43,9 @@ from sunwell.foundation.errors import (
     tools_not_supported,
 )
 
+# Logging
+from sunwell.foundation.logging import configure_logging
+
 # Identity
 from sunwell.foundation.identity import (
     ResourceIdentity,
@@ -124,6 +127,8 @@ __all__ = [
     "model_error",
     "tool_error",
     "tools_not_supported",
+    # === Logging ===
+    "configure_logging",
     # === Identity ===
     "ResourceIdentity",
     "ResourceType",

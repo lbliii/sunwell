@@ -49,4 +49,5 @@ async def chat_loop(
         store=store,
         memory_path=memory_path,
         lens=lens,
+        tools_enabled=tools_enabled,
     )

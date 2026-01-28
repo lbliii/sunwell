@@ -1,0 +1,44 @@
+# Journey: Test edit_file tool
+# Tests targeted file editing with context matching
+
+journey:
+  id: file-edit
+  type: single_turn
+  description: "Test edit_file tool for targeted code changes"
+  tags:
+    - file
+    - edit
+    - core
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "main.py"
+        content: |
+          def foo():
+              """A simple function."""
+              return "hello"
+          
+          def bar():
+              """Another function."""
+              return foo()
+
+  input: "Change the function name from foo to bar_renamed in main.py"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+      complexity:
+        - "NO"
+        - "MAYBE"
+    tools_called:
+      - name: edit_file
+        args_contain:
+          path: "main.py"
+    files_modified:
+      - path: "main.py"
+        contains:
+          - "bar_renamed"
+        not_contains:
+          - "def foo():"

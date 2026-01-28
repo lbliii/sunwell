@@ -1,0 +1,36 @@
+# Journey: Test copy_file tool
+# Tests file copying
+
+journey:
+  id: file-copy
+  type: single_turn
+  description: "Test copy_file tool for file duplication"
+  tags:
+    - file
+    - copy
+    - core
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "config.yaml"
+        content: |
+          database:
+            host: localhost
+            port: 5432
+
+  input: "Copy config.yaml to config.backup.yaml"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called:
+      - name: copy_file
+        args_contain:
+          source: "config.yaml"
+    files_created:
+      - pattern: "*.backup.yaml"
+        contains:
+          - "database"
+          - "localhost"

@@ -240,6 +240,8 @@ class Agent:
             workspace=self.cwd,
             synthesis_model=self.model,
             tool_executor=self.tool_executor,
+            simulacrum=self._simulacrum,  # RFC-MEMORY: Pass simulacrum for learnings
+            memory=self._memory,           # RFC-MEMORY: Pass PersistentMemory
             config=NaaruConfig(
                 enable_parallel_execution=True,
                 max_parallel_tasks=4,
@@ -281,6 +283,11 @@ class Agent:
         # RFC-MEMORY: Store memory references for planning and task execution
         self._simulacrum = memory.simulacrum
         self._memory = memory
+
+        # Update Naaru's memory references (they were None at __post_init__ time)
+        if self._naaru:
+            self._naaru.simulacrum = self._simulacrum
+            self._naaru.memory = self._memory
 
         # RFC-126: Store workspace context for task execution
         # RFC-135: Enrich with goal-aware context from SmartContext

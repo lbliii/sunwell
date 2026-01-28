@@ -433,3 +433,33 @@ export interface ObservatoryData {
 export const observatoryApi = {
   getData: (runId: string) => apiGet<ObservatoryData>(`/api/observatory/data/${runId}`),
 };
+
+// Lens API
+export interface LensSummary {
+  name: string;
+  description: string;
+  domain: string;
+  version?: string;
+}
+
+export interface LensDetail extends LensSummary {
+  skills: string[];
+  tools: string[];
+  config?: Record<string, unknown>;
+}
+
+/**
+ * List all available lenses.
+ */
+export async function listLenses(): Promise<LensSummary[]> {
+  const response = await apiGet<LensSummary[]>('/api/lenses');
+  return response;
+}
+
+/**
+ * Get details for a specific lens.
+ */
+export async function getLens(name: string): Promise<LensDetail> {
+  const response = await apiGet<LensDetail>(`/api/lenses/${encodeURIComponent(name)}`);
+  return response;
+}

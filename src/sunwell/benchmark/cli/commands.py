@@ -1064,6 +1064,312 @@ def plan_compare(
         console.print(f"\n[dim]Comparison saved to: {output}[/dim]")
 
 
+# =============================================================================
+# Journey E2E Testing (Behavioral Testing Framework)
+# =============================================================================
+
+
+@benchmark.command("journeys")
+@click.option(
+    "--journey",
+    "journey_id",
+    help="Run a single journey by ID",
+)
+@click.option(
+    "--category",
+    type=click.Choice(["single-turn", "multi-turn"]),
+    help="Run only journeys in this category",
+)
+@click.option(
+    "--tag",
+    "tags",
+    multiple=True,
+    help="Filter by tag (can specify multiple)",
+)
+@click.option(
+    "--journeys-dir",
+    type=click.Path(exists=True, path_type=Path),
+    default=Path("benchmark/journeys"),
+    help="Directory containing journey YAML files",
+)
+@click.option(
+    "--output",
+    type=click.Path(path_type=Path),
+    help="Output file for JSON results",
+)
+@click.option(
+    "--model",
+    default=None,
+    help="Model to use (default: from config)",
+)
+@click.option(
+    "--provider",
+    type=click.Choice(["ollama", "openai", "anthropic"]),
+    default="ollama",
+    help="Model provider",
+)
+@click.option(
+    "--trust",
+    type=click.Choice(["read_only", "workspace", "shell"]),
+    default="shell",
+    help="Tool trust level",
+)
+@click.option(
+    "--parallel",
+    is_flag=True,
+    help="Run journeys in parallel",
+)
+@click.option(
+    "--max-concurrent",
+    type=int,
+    default=4,
+    help="Maximum concurrent journeys (with --parallel)",
+)
+@click.option(
+    "--no-cleanup",
+    is_flag=True,
+    help="Don't cleanup workspace after run (for debugging)",
+)
+@click.option(
+    "--verbose", "-v",
+    is_flag=True,
+    help="Verbose output",
+)
+def journeys(
+    journey_id: str | None,
+    category: str | None,
+    tags: tuple[str, ...],
+    journeys_dir: Path,
+    output: Path | None,
+    model: str | None,
+    provider: str,
+    trust: str,
+    parallel: bool,
+    max_concurrent: int,
+    no_cleanup: bool,
+    verbose: bool,
+) -> None:
+    """Run E2E behavioral test journeys.
+
+    Journeys test observable outcomes (intent, tools, state) rather than
+    exact text outputs. Supports single-turn and multi-turn conversations.
+
+    \b
+    Examples:
+        # Run all journeys
+        sunwell benchmark journeys
+
+        # Run specific journey
+        sunwell benchmark journeys --journey create-app
+
+        # Run category
+        sunwell benchmark journeys --category single-turn
+
+        # Run journeys with specific tag
+        sunwell benchmark journeys --tag agentic
+
+        # Output JSON report
+        sunwell benchmark journeys --output report.json
+
+        # Debug mode (no cleanup)
+        sunwell benchmark journeys --journey debug-session --no-cleanup -v
+    """
+    asyncio.run(_run_journeys(
+        journey_id=journey_id,
+        category=category,
+        tags=tags,
+        journeys_dir=journeys_dir,
+        output=output,
+        model=model,
+        provider=provider,
+        trust=trust,
+        parallel=parallel,
+        max_concurrent=max_concurrent,
+        cleanup=not no_cleanup,
+        verbose=verbose,
+    ))
+
+
+async def _run_journeys(
+    journey_id: str | None,
+    category: str | None,
+    tags: tuple[str, ...],
+    journeys_dir: Path,
+    output: Path | None,
+    model: str | None,
+    provider: str,
+    trust: str,
+    parallel: bool,
+    max_concurrent: int,
+    cleanup: bool,
+    verbose: bool,
+) -> None:
+    """Async journey execution."""
+    from sunwell.benchmark.journeys import (
+        JourneyRunner,
+        load_journey,
+        load_journeys_from_directory,
+    )
+    from sunwell.benchmark.journeys.runner import run_journeys
+    from sunwell.benchmark.journeys.types import Journey
+
+    # Banner
+    console.print()
+    console.print("╔" + "═" * 60 + "╗")
+    console.print("║" + " 🧪 E2E BEHAVIORAL TESTING".ljust(60) + "║")
+    if journey_id:
+        console.print("║" + f"    Journey: {journey_id}".ljust(60) + "║")
+    if category:
+        console.print("║" + f"    Category: {category}".ljust(60) + "║")
+    if tags:
+        console.print("║" + f"    Tags: {', '.join(tags)}".ljust(60) + "║")
+    console.print("║" + f"    Provider: {provider}".ljust(60) + "║")
+    if model:
+        console.print("║" + f"    Model: {model}".ljust(60) + "║")
+    console.print("╚" + "═" * 60 + "╝")
+    console.print()
+
+    # Load journeys
+    journeys_to_run: list[Journey] = []
+
+    if journey_id:
+        # Load specific journey
+        patterns = [
+            journeys_dir / f"**/{journey_id}.yaml",
+            journeys_dir / f"**/{journey_id}.yml",
+        ]
+        found = False
+        for pattern in patterns:
+            for path in journeys_dir.glob(f"**/{journey_id}.yaml"):
+                journeys_to_run.append(load_journey(path))
+                found = True
+                break
+            if found:
+                break
+
+        if not found:
+            console.print(f"[red]Journey not found: {journey_id}[/red]")
+            return
+    else:
+        # Load from directory
+        search_dir = journeys_dir
+        if category:
+            search_dir = journeys_dir / category
+
+        journeys_to_run = load_journeys_from_directory(search_dir)
+
+    # Filter by tags
+    if tags:
+        journeys_to_run = [
+            j for j in journeys_to_run
+            if any(t in j.tags for t in tags)
+        ]
+
+    if not journeys_to_run:
+        console.print("[yellow]No journeys found matching criteria[/yellow]")
+        return
+
+    console.print(f"📋 Found {len(journeys_to_run)} journey(s) to run")
+    console.print()
+
+    # Run journeys
+    results = await run_journeys(
+        journeys_to_run,
+        parallel=parallel,
+        max_concurrent=max_concurrent,
+        provider=provider,
+        model_name=model,
+        trust_level=trust,
+        cleanup_workspace=cleanup,
+        debug=verbose,
+    )
+
+    # Display results
+    _display_journey_results(results, verbose)
+
+    # Save JSON output
+    if output:
+        import json
+        report = {
+            "total": len(results),
+            "passed": sum(1 for r in results if r.passed),
+            "failed": sum(1 for r in results if not r.passed),
+            "results": [
+                {
+                    "journey_id": r.journey_id,
+                    "passed": r.passed,
+                    "duration_ms": r.duration_ms,
+                    "error": r.error,
+                    "intent_match": r.intent_match,
+                    "signals_match": r.signals_match,
+                    "tools_match": r.tools_match,
+                    "state_match": r.state_match,
+                    "output_match": r.output_match,
+                    "assertions": r.assertion_report.summary(),
+                }
+                for r in results
+            ],
+        }
+        output.write_text(json.dumps(report, indent=2))
+        console.print(f"\n📄 Results saved to: {output}")
+
+
+def _display_journey_results(results: list, verbose: bool) -> None:
+    """Display journey results."""
+    from sunwell.benchmark.journeys.runner import JourneyResult
+
+    # Summary table
+    table = Table(title="Journey Results")
+    table.add_column("Journey", style="cyan")
+    table.add_column("Status", justify="center")
+    table.add_column("Intent", justify="center")
+    table.add_column("Signals", justify="center")
+    table.add_column("Tools", justify="center")
+    table.add_column("State", justify="center")
+    table.add_column("Output", justify="center")
+    table.add_column("Time", justify="right")
+
+    for result in results:
+        status = "[green]✓ PASS[/green]" if result.passed else "[red]✗ FAIL[/red]"
+
+        def check(val: bool) -> str:
+            return "[green]✓[/green]" if val else "[red]✗[/red]"
+
+        table.add_row(
+            result.journey_id,
+            status,
+            check(result.intent_match),
+            check(result.signals_match),
+            check(result.tools_match),
+            check(result.state_match),
+            check(result.output_match),
+            f"{result.duration_ms}ms",
+        )
+
+    console.print(table)
+
+    # Summary
+    passed = sum(1 for r in results if r.passed)
+    failed = len(results) - passed
+
+    console.print()
+    if failed == 0:
+        console.print(f"[green]✅ All {passed} journey(s) passed![/green]")
+    else:
+        console.print(f"[red]❌ {failed}/{len(results)} journey(s) failed[/red]")
+
+    # Show failures in verbose mode
+    if verbose:
+        for result in results:
+            if not result.passed:
+                console.print()
+                console.print(f"[red]── {result.journey_id} ──[/red]")
+                if result.error:
+                    console.print(f"  Error: {result.error}")
+                for failure in result.assertion_report.failures():
+                    console.print(f"  ✗ [{failure.category}] {failure.message}")
+
+
 # Export for CLI integration
 def register_benchmark_commands(cli: click.Group) -> None:
     """Register benchmark commands with main CLI."""

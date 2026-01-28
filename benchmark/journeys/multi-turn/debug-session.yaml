@@ -1,0 +1,87 @@
+# Journey: Multi-turn debug session
+# Tests: Conversation state, file reading, bug fixing, verification
+journey:
+  id: "journey-debug-session"
+  type: "multi_turn"
+  description: "Test multi-turn debugging workflow: find bug, fix, verify"
+  tags:
+    - multi-turn
+    - debug
+    - agentic
+    - files
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "calculator.py"
+        content: |
+          """Simple calculator module."""
+
+          def add(a, b):
+              return a + b
+
+          def subtract(a, b):
+              return a - b
+
+          def multiply(a, b):
+              return a + b  # BUG: should be a * b
+
+          def divide(a, b):
+              return a / b
+
+      - path: "test_calculator.py"
+        content: |
+          from calculator import add, subtract, multiply, divide
+
+          def test_add():
+              assert add(2, 3) == 5
+
+          def test_subtract():
+              assert subtract(5, 3) == 2
+
+          def test_multiply():
+              assert multiply(4, 3) == 12  # This will fail!
+
+          def test_divide():
+              assert divide(10, 2) == 5
+
+  turns:
+    # Turn 1: User reports a bug
+    - input: "there's a bug in calculator.py, the multiply function is broken"
+      expect:
+        intent: TASK
+        tools_called:
+          - name: read_file
+            args_contain:
+              path: "calculator.py"
+        output_contains:
+          - "multiply"
+          - "bug"
+
+    # Turn 2: User asks for fix
+    - input: "fix it"
+      expect:
+        intent: TASK
+        tools_called:
+          - name: write_file
+        files_modified:
+          - path: "calculator.py"
+            contains:
+              - "a * b"
+            not_contains:
+              - "return a + b  # BUG"
+        output_contains:
+          - "fixed"
+
+    # Turn 3: User asks for verification
+    - input: "does it work now?"
+      expect:
+        # Could be task (run tests) or conversation (explain fix)
+        intent:
+          - TASK
+          - CONVERSATION
+        output_contains:
+          - "multiply"
+
+  timeout_seconds: 300
+  allow_flaky_retry: 1

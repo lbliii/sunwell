@@ -1,0 +1,27 @@
+# Journey: Test web_fetch tool
+# Tests fetching content from URLs
+
+journey:
+  id: web-fetch
+  type: single_turn
+  description: "Test web_fetch tool for URL content retrieval"
+  tags:
+    - web
+    - network
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: ".gitkeep"
+        content: ""
+
+  input: "Get the content from https://example.com"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called:
+      - name: web_fetch
+        args_contain:
+          url: "example.com"

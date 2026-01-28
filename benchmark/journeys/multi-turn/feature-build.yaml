@@ -1,0 +1,72 @@
+# Journey: Multi-turn feature building
+# Tests: Progressive feature development with conversation state
+journey:
+  id: "journey-feature-build"
+  type: "multi_turn"
+  description: "Test multi-turn feature development: plan, implement, iterate"
+  tags:
+    - multi-turn
+    - feature
+    - agentic
+    - iterative
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "app.py"
+        content: |
+          """Simple web app."""
+          from flask import Flask
+
+          app = Flask(__name__)
+
+          @app.route('/')
+          def home():
+              return "Welcome!"
+
+          if __name__ == '__main__':
+              app.run()
+
+  turns:
+    # Turn 1: Request new feature
+    - input: "add a /health endpoint that returns JSON with status ok"
+      expect:
+        intent: TASK
+        tools_called:
+          - name: read_file
+          - name: write_file
+        files_modified:
+          - path: "app.py"
+            contains:
+              - "/health"
+              - "status"
+        output_contains:
+          - "health"
+
+    # Turn 2: Request modification
+    - input: "also include the current timestamp in the response"
+      expect:
+        intent: TASK
+        tools_called:
+          - name: write_file
+        files_modified:
+          - path: "app.py"
+            contains:
+              - "timestamp"
+              - "datetime"
+        output_contains:
+          - "timestamp"
+
+    # Turn 3: Ask about the implementation
+    - input: "what does the health endpoint return now?"
+      expect:
+        # Should describe the endpoint
+        intent:
+          - TASK
+          - CONVERSATION
+        output_contains:
+          - "status"
+          - "timestamp"
+
+  timeout_seconds: 300
+  allow_flaky_retry: 1

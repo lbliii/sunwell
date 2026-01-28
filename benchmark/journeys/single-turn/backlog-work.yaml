@@ -1,0 +1,56 @@
+# Journey: Start working on backlog
+# Tests: TASK intent, epic detection, multi-step planning
+journey:
+  id: "journey-backlog-work"
+  type: "single_turn"
+  description: "Test epic detection and multi-step task decomposition"
+  tags:
+    - task
+    - epic
+    - planning
+    - agentic
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "TODO.md"
+        content: |
+          # Project Backlog
+
+          ## High Priority
+          - [ ] Fix authentication bug in login.py
+          - [ ] Add rate limiting to API
+
+          ## Medium Priority
+          - [ ] Update API documentation
+
+      - path: "login.py"
+        content: |
+          def authenticate(username, password):
+              # BUG: No password validation
+              if username:
+                  return True
+              return False
+
+  input: "start working on the backlog, prioritize the authentication bug"
+
+  expect:
+    intent: TASK
+
+    signals:
+      needs_tools: "YES"
+      complexity:
+        - "STANDARD"
+        - "COMPLEX"
+        - "MAYBE"
+
+    # Should read files to understand the task
+    tools_called:
+      - name: read_file
+
+    # Output should reference the authentication work
+    output_contains:
+      - "authentication"
+
+  timeout_seconds: 300
+  allow_flaky_retry: 1

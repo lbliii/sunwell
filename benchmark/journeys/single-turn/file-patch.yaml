@@ -1,0 +1,49 @@
+# Journey: Test patch_file tool
+# Tests unified diff patching
+
+journey:
+  id: file-patch
+  type: single_turn
+  description: "Test patch_file tool for applying unified diffs"
+  tags:
+    - file
+    - patch
+    - core
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "main.py"
+        content: |
+          def greet(name):
+              return f"Hello, {name}"
+          
+          def main():
+              print(greet("World"))
+
+  input: |
+    Apply this diff to main.py:
+    
+    --- main.py
+    +++ main.py
+    @@ -1,5 +1,5 @@
+     def greet(name):
+    -    return f"Hello, {name}"
+    +    return f"Hi there, {name}!"
+     
+     def main():
+         print(greet("World"))
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called_any:
+      - patch_file
+      - edit_file
+    files_modified:
+      - path: "main.py"
+        contains:
+          - "Hi there"
+        not_contains:
+          - 'return f"Hello, {name}"'

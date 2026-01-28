@@ -1,0 +1,49 @@
+# Journey: Read-Analyze-Write Chain
+# Tests multi-tool workflow: read -> analyze -> write
+
+journey:
+  id: chain-refactor
+  type: single_turn
+  description: "Test chaining read_file and edit_file for refactoring"
+  tags:
+    - chain
+    - refactor
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "utils.py"
+        content: |
+          import logging
+          
+          def process_data(data):
+              print("Starting process")
+              result = data * 2
+              print("Process complete")
+              return result
+          
+          def another_function():
+              print("Debug info")
+              return 42
+
+  input: "Refactor the logging in utils.py to use the logging module instead of print"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+      complexity:
+        - "YES"
+        - "MAYBE"
+    tools_called_min: 2
+    tools_called_any:
+      - read_file
+    tools_called_any:
+      - edit_file
+      - write_file
+    files_modified:
+      - path: "utils.py"
+        contains:
+          - "logging"
+        not_contains:
+          - 'print("Starting'

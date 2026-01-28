@@ -1,0 +1,27 @@
+# Journey: Test git_branch tool
+# Tests branch creation
+
+journey:
+  id: git-branch
+  type: single_turn
+  description: "Test git_branch tool for branch management"
+  tags:
+    - git
+    - history
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: ".gitkeep"
+        content: ""
+
+  input: "Create a new branch called feature-x"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called:
+      - name: git_branch
+        args_contain:
+          name: "feature-x"

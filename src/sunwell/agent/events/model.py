@@ -108,6 +108,10 @@ def model_complete_event(
     duration_s: float,
     tokens_per_second: float,
     time_to_first_token_ms: int | None = None,
+    model: str | None = None,
+    finish_reason: str | None = None,
+    prompt_tokens: int | None = None,
+    completion_tokens: int | None = None,
     **kwargs: Any,
 ) -> AgentEvent:
     """Create a model complete event (RFC-081).
@@ -120,6 +124,10 @@ def model_complete_event(
         duration_s: Total generation time
         tokens_per_second: Average generation speed
         time_to_first_token_ms: Time to first token in milliseconds (optional)
+        model: Model identifier used for generation (optional)
+        finish_reason: Why generation stopped ("stop", "length", "tool_calls", etc.)
+        prompt_tokens: Tokens in the prompt (optional)
+        completion_tokens: Tokens in the completion (optional)
     """
     return AgentEvent(
         EventType.MODEL_COMPLETE,
@@ -129,6 +137,10 @@ def model_complete_event(
             "duration_s": duration_s,
             "tokens_per_second": tokens_per_second,
             "time_to_first_token_ms": time_to_first_token_ms,
+            "model": model,
+            "finish_reason": finish_reason,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
             **kwargs,
         },
     )

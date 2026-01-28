@@ -14,33 +14,55 @@ from sunwell.agent.validation.gates import ValidationGate
 
 
 def sanitize_code_content(content: str | None) -> str:
-    """Strip markdown fences from generated code content.
+    """Strip markdown fences and tool call prefixes from generated code content.
 
     Defense-in-depth: Called before direct file writes to ensure
     markdown fences are removed even if other sanitization missed them.
 
+    Handles multiple formats:
+    1. Standard markdown: ```python\\ncode\\n```
+    2. Tool call prefix: write_file path ```python\\ncode\\n```
+    3. Tool call with explanation: "I'll create..." write_file path ```python\\ncode
+
     Args:
-        content: Raw content that may contain markdown fences
+        content: Raw content that may contain markdown fences or tool syntax
 
     Returns:
-        Content with markdown fences stripped, or empty string if None/empty
+        Content with markdown fences and tool syntax stripped, or empty string if None/empty
     """
+    import re
+
     if not content:
         return ""
-    if not content.startswith("```"):
-        return content
 
-    lines = content.split("\n")
+    text = content.strip()
 
-    # Remove opening fence (```python, ```rust, etc.)
-    if lines[0].startswith("```"):
+    # Pattern 1: Look for code block anywhere in the text (handles tool call prefix)
+    # Matches: write_file path ```language\ncode\n``` or just ```language\ncode\n```
+    fence_pattern = re.compile(r'```\w*\n(.*?)```', re.DOTALL)
+    match = fence_pattern.search(text)
+    if match:
+        return match.group(1).strip()
+
+    # Pattern 2: Code block without closing fence (truncated output)
+    # Matches: write_file path ```language\ncode (no closing ```)
+    open_fence = re.compile(r'```\w*\n(.*)$', re.DOTALL)
+    match = open_fence.search(text)
+    if match:
+        return match.group(1).strip()
+
+    # Pattern 3: Standard case - starts with markdown fence
+    if text.startswith("```"):
+        lines = text.split("\n")
+        # Remove opening fence
         lines = lines[1:]
+        # Remove closing fence if present
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        return "\n".join(lines)
 
-    # Remove closing fence
-    if lines and lines[-1].strip() == "```":
-        lines = lines[:-1]
-
-    return "\n".join(lines)
+    # No fence found, return as-is
+    return text
 
 
 

@@ -1,0 +1,26 @@
+# Journey: Test git_show tool
+# Tests showing commit details
+
+journey:
+  id: git-show
+  type: single_turn
+  description: "Test git_show tool for commit details"
+  tags:
+    - git
+    - read-only
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: ".gitkeep"
+        content: ""
+
+  input: "Show the last commit details"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called_any:
+      - git_show
+      - git_log

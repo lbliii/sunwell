@@ -1,0 +1,45 @@
+# Journey: Test search_files tool
+# Tests content search within files
+
+journey:
+  id: file-search
+  type: single_turn
+  description: "Test search_files tool for content searching"
+  tags:
+    - file
+    - search
+    - core
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "app.py"
+        content: |
+          # TODO: Add authentication
+          def main():
+              pass
+      - path: "utils.py"
+        content: |
+          # TODO: Refactor this
+          def helper():
+              # TODO: Add error handling
+              pass
+      - path: "config.py"
+        content: |
+          # Configuration file
+          DEBUG = True
+
+  input: "Find all files containing TODO"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called_any:
+      - search_files
+      - find_files
+    output_contains:
+      - "app.py"
+      - "utils.py"
+    output_not_contains:
+      - "config.py"

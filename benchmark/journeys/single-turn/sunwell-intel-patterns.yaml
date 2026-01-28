@@ -1,0 +1,28 @@
+# Journey: Test sunwell_intel_patterns tool
+# Tests retrieving learned code patterns
+
+journey:
+  id: sunwell-intel-patterns
+  type: single_turn
+  description: "Test sunwell_intel_patterns for pattern retrieval"
+  tags:
+    - sunwell
+    - intel
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: ".gitkeep"
+        content: ""
+
+  input: "What patterns have you learned?"
+
+  expect:
+    intent:
+      - TASK
+      - CONVERSATION
+    signals:
+      needs_tools: "YES"
+    tools_called_any:
+      - sunwell_intel_patterns
+      - sunwell_intel_decisions

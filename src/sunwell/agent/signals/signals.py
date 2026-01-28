@@ -243,6 +243,200 @@ def parse_signals(text: str) -> AdaptiveSignals:
     )
 
 
+def _heuristic_needs_tools(goal: str) -> bool | None:
+    """Heuristic check for whether a goal needs tools.
+
+    Returns True/False if confident, None if uncertain.
+    This provides a reliable fallback when small LLMs fail to classify correctly.
+    """
+    goal_lower = goal.lower()
+
+    # Action verbs that almost always need tools
+    tool_verbs = (
+        "create", "make", "build", "write", "generate",
+        "add", "update", "modify", "edit", "change", "fix",
+        "delete", "remove", "install", "run", "execute",
+        "save", "store", "read", "open", "list", "show",
+        "find", "search", "grep", "analyze", "check",
+    )
+
+    # Patterns that clearly need tools
+    tool_patterns = (
+        "to my todo", "to the backlog", "to my list",
+        "in the file", "the code", "the project",
+        "this directory", "this folder", "the repo",
+        ".py", ".js", ".ts", ".yaml", ".json", ".md",
+    )
+
+    # Question words that usually DON'T need tools (pure conversation)
+    question_only = (
+        "what is", "what are", "who is", "who are",
+        "why is", "why are", "how does", "explain",
+        "tell me about", "describe",
+    )
+
+    # Check for clear tool-needing patterns
+    for verb in tool_verbs:
+        # Look for verb at start or after common words
+        if goal_lower.startswith(verb + " ") or f" {verb} " in goal_lower:
+            return True
+
+    for pattern in tool_patterns:
+        if pattern in goal_lower:
+            return True
+
+    # Check for pure questions (no tool needed)
+    for q in question_only:
+        if goal_lower.startswith(q):
+            # But not if combined with action verbs
+            has_action = any(v in goal_lower for v in ("create", "make", "add", "fix"))
+            if not has_action:
+                return False
+
+    # Uncertain - let LLM decide
+    return None
+
+
+def _heuristic_is_dangerous(goal: str) -> bool | None:
+    """Heuristic check for dangerous operations.
+
+    Returns True/False if confident, None if uncertain.
+    """
+    goal_lower = goal.lower()
+
+    # Dangerous commands and patterns
+    dangerous_patterns = (
+        # Destructive file operations
+        "rm -rf", "rmdir", "delete all", "remove all", "wipe",
+        "drop table", "drop database", "truncate",
+        # System commands
+        "sudo", "chmod 777", "chown", "shutdown", "reboot",
+        # Git destructive
+        "force push", "git push -f", "git reset --hard",
+        "git clean -fd",
+        # Data destruction
+        "format", "erase", "destroy", "nuke",
+        # Credentials/security
+        "password", "secret", "api key", "private key",
+        "credential", ".env",
+    )
+
+    # Patterns that suggest bulk operations (potentially dangerous)
+    bulk_patterns = (
+        "all files", "entire", "everything",
+        "recursively", "recursive",
+    )
+
+    # Check for dangerous patterns
+    for pattern in dangerous_patterns:
+        if pattern in goal_lower:
+            return True
+
+    # Bulk operations with destructive verbs
+    destructive_verbs = ("delete", "remove", "clean", "clear", "reset")
+    for bulk in bulk_patterns:
+        if bulk in goal_lower:
+            for verb in destructive_verbs:
+                if verb in goal_lower:
+                    return True
+
+    # Uncertain - let LLM decide
+    return None
+
+
+def _heuristic_complexity(goal: str) -> str | None:
+    """Heuristic check for task complexity.
+
+    Returns "YES", "NO", "MAYBE", or None if uncertain.
+    """
+    goal_lower = goal.lower()
+    word_count = len(goal.split())
+
+    # Simple tasks (likely NO complexity)
+    simple_patterns = (
+        "what is", "what are", "show me", "list", "display",
+        "explain", "describe", "tell me",
+    )
+
+    for pattern in simple_patterns:
+        if goal_lower.startswith(pattern):
+            if word_count < 10:  # Short question
+                return "NO"
+
+    # Complex indicators (likely YES)
+    complex_indicators = (
+        # Multi-step language
+        "and then", "after that", "followed by",
+        "first", "second", "third", "finally",
+        # Multi-component
+        "multiple", "several", "all the", "each",
+        # Integration language
+        "integrate", "connect", "combine", "merge",
+        # Architecture language
+        "architecture", "system", "framework", "infrastructure",
+        # Refactoring
+        "refactor", "restructure", "reorganize", "migrate",
+    )
+
+    for indicator in complex_indicators:
+        if indicator in goal_lower:
+            return "YES"
+
+    # Length-based heuristic
+    if word_count > 30:
+        return "YES"
+    if word_count < 8:
+        return "NO"
+
+    # Uncertain
+    return None
+
+
+def _heuristic_is_epic(goal: str) -> bool | None:
+    """Heuristic check for epic/ambitious goals.
+
+    Returns True/False if confident, None if uncertain.
+    Epics are multi-phase goals requiring 50+ tasks.
+    """
+    goal_lower = goal.lower()
+
+    # Epic indicators (ambitious scope)
+    epic_patterns = (
+        # "Build a X" patterns
+        "build a game", "build an app", "build a platform",
+        "build a saas", "build a website", "build a system",
+        "create a game", "create an app", "create a platform",
+        "make a game", "make an app",
+        # Scope words
+        "full application", "complete application",
+        "entire system", "whole project",
+        "from scratch", "end-to-end",
+        # Multi-component
+        "with authentication", "with database", "with api",
+        "with frontend", "with backend", "with tests",
+        # Creative works
+        "write a novel", "write a book", "create a course",
+    )
+
+    for pattern in epic_patterns:
+        if pattern in goal_lower:
+            return True
+
+    # Non-epic indicators (bounded scope)
+    non_epic_patterns = (
+        "fix the", "fix a", "update the", "change the",
+        "add a", "remove the", "rename", "refactor the",
+        "single", "this file", "this function", "this class",
+    )
+
+    for pattern in non_epic_patterns:
+        if pattern in goal_lower:
+            return False
+
+    # Uncertain
+    return None
+
+
 async def extract_signals(
     goal: str,
     model: ModelProtocol,
@@ -253,6 +447,8 @@ async def extract_signals(
     This is cheap (~40 tokens) and runs once per goal.
     Signals drive all subsequent routing decisions.
 
+    Uses heuristics as a fallback/override for unreliable small models.
+
     Args:
         goal: The user's goal/request
         model: Model for signal extraction
@@ -261,7 +457,17 @@ async def extract_signals(
     Returns:
         AdaptiveSignals for routing decisions
     """
+    import logging
+
     from sunwell.models import GenerateOptions
+
+    logger = logging.getLogger(__name__)
+
+    # Check heuristics for obvious cases
+    heuristic_needs_tools = _heuristic_needs_tools(goal)
+    heuristic_is_dangerous = _heuristic_is_dangerous(goal)
+    heuristic_complexity = _heuristic_complexity(goal)
+    heuristic_is_epic = _heuristic_is_epic(goal)
 
     prompt = SIGNAL_EXTRACTION_PROMPT.format(goal=goal)
     if context:
@@ -272,14 +478,78 @@ async def extract_signals(
             prompt,
             options=GenerateOptions(temperature=0.2, max_tokens=200),
         )
-        return parse_signals(result.text)
+        signals = parse_signals(result.text)
+
+        # Apply heuristic overrides where LLM disagrees with obvious case
+        overrides: dict[str, str] = {}
+
+        # needs_tools override
+        if heuristic_needs_tools is not None:
+            llm_needs_tools = signals.needs_tools == "YES"
+            if heuristic_needs_tools and not llm_needs_tools:
+                overrides["needs_tools"] = "YES"
+                logger.debug(
+                    "Heuristic override: needs_tools YES (LLM said NO) for: %s",
+                    goal[:50],
+                )
+
+        # is_dangerous override (safety critical - always override if heuristic says YES)
+        if heuristic_is_dangerous is True:
+            if signals.is_dangerous != "YES":
+                overrides["is_dangerous"] = "YES"
+                logger.debug(
+                    "Heuristic override: is_dangerous YES for: %s",
+                    goal[:50],
+                )
+
+        # complexity override
+        if heuristic_complexity is not None:
+            llm_complexity = signals.complexity
+            # Override if heuristic is confident and LLM disagrees
+            if heuristic_complexity == "YES" and llm_complexity == "NO":
+                overrides["complexity"] = "YES"
+                logger.debug(
+                    "Heuristic override: complexity YES (LLM said NO) for: %s",
+                    goal[:50],
+                )
+            elif heuristic_complexity == "NO" and llm_complexity == "YES":
+                overrides["complexity"] = "NO"
+                logger.debug(
+                    "Heuristic override: complexity NO (LLM said YES) for: %s",
+                    goal[:50],
+                )
+
+        # is_epic override
+        if heuristic_is_epic is True:
+            if signals.is_epic != "YES":
+                overrides["is_epic"] = "YES"
+                logger.debug(
+                    "Heuristic override: is_epic YES for: %s",
+                    goal[:50],
+                )
+
+        # Apply overrides if any
+        if overrides:
+            return AdaptiveSignals(
+                complexity=overrides.get("complexity", signals.complexity),  # type: ignore
+                needs_tools=overrides.get("needs_tools", signals.needs_tools),  # type: ignore
+                is_ambiguous=signals.is_ambiguous,
+                is_dangerous=overrides.get("is_dangerous", signals.is_dangerous),  # type: ignore
+                is_epic=overrides.get("is_epic", signals.is_epic),  # type: ignore
+                confidence=max(signals.confidence, 0.8),  # Boost confidence when heuristics apply
+                domain=signals.domain,
+                components=signals.components,
+            )
+
+        return signals
     except Exception:
-        # Default to conservative signals on error
+        # Default to conservative signals on error, using heuristics where available
         return AdaptiveSignals(
-            complexity="YES",
-            needs_tools="YES",
+            complexity=heuristic_complexity if heuristic_complexity else "YES",  # type: ignore
+            needs_tools="YES" if heuristic_needs_tools in (True, None) else "NO",
             is_ambiguous="MAYBE",
-            is_dangerous="NO",
+            is_dangerous="YES" if heuristic_is_dangerous else "NO",
+            is_epic="YES" if heuristic_is_epic else "NO",
             confidence=0.5,
         )
 

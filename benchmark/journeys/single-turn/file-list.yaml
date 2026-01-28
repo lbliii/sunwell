@@ -1,0 +1,38 @@
+# Journey: Test list_files tool
+# Tests directory listing
+
+journey:
+  id: file-list
+  type: single_turn
+  description: "Test list_files tool for directory exploration"
+  tags:
+    - file
+    - list
+    - core
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "src/main.py"
+        content: "# main"
+      - path: "src/utils.py"
+        content: "# utils"
+      - path: "tests/test_main.py"
+        content: "# tests"
+      - path: "README.md"
+        content: "# Project"
+
+  input: "What files are in the src directory?"
+
+  expect:
+    intent:
+      - TASK
+      - CONVERSATION
+    signals:
+      needs_tools: "YES"
+    tools_called_any:
+      - list_files
+      - find_files
+    output_contains:
+      - "main.py"
+      - "utils.py"

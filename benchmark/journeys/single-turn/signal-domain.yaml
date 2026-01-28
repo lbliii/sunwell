@@ -1,0 +1,29 @@
+# Journey: Test domain signal
+# Tests domain classification
+
+journey:
+  id: signal-domain
+  type: single_turn
+  description: "Test domain signal classification"
+  tags:
+    - signal
+    - domain
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "deployment.yaml"
+        content: |
+          apiVersion: apps/v1
+          kind: Deployment
+
+  input: "Deploy this application to Kubernetes"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+      domain:
+        - "devops"
+        - "cli"
+        - "general"

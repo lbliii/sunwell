@@ -1,0 +1,46 @@
+# Journey: Create a simple app
+# Tests: TASK intent, code generation, file creation, shell execution
+journey:
+  id: "journey-create-app"
+  type: "single_turn"
+  description: "Test agentic code generation - creating a Flask app"
+  tags:
+    - agentic
+    - code-generation
+    - files
+    - shell
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    env:
+      SUNWELL_MODEL_DEFAULT_PROVIDER: "ollama"
+
+  input: "create a simple flask app with a hello endpoint at /hello that returns 'Hello, World!'"
+
+  expect:
+    intent: TASK
+
+    signals:
+      needs_tools: "YES"
+      complexity:
+        - "STANDARD"
+        - "COMPLEX"
+
+    tools_called:
+      - name: write_file
+        args_contain:
+          path: "*.py"
+
+    files_created:
+      - pattern: "*.py"
+        contains:
+          - "flask"
+          - "Flask"
+          - "@app.route"
+          - "/hello"
+
+    output_contains:
+      - "created"
+
+  timeout_seconds: 180
+  allow_flaky_retry: 1

@@ -1,0 +1,25 @@
+# Journey: Test git_log tool
+# Tests viewing commit history
+
+journey:
+  id: git-log
+  type: single_turn
+  description: "Test git_log tool for commit history"
+  tags:
+    - git
+    - read-only
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: ".gitkeep"
+        content: ""
+
+  input: "Show recent commits"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called:
+      - name: git_log

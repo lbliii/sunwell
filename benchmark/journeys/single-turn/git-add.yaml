@@ -1,0 +1,27 @@
+# Journey: Test git_add tool
+# Tests staging files
+
+journey:
+  id: git-add
+  type: single_turn
+  description: "Test git_add tool for staging changes"
+  tags:
+    - git
+    - staging
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "main.py"
+        content: "# new file"
+
+  input: "Stage main.py for commit"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called:
+      - name: git_add
+        args_contain:
+          paths: "main.py"

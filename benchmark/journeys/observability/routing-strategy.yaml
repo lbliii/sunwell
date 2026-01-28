@@ -1,0 +1,24 @@
+# Test routing strategy selection based on confidence
+# Verifies that confidence-based routing is working correctly
+
+journey:
+  id: routing-strategy
+  description: Verify routing strategy selection based on task complexity
+  tags:
+    - observability
+    - routing
+    - confidence
+
+  # Simple task should use single_shot strategy
+  input: "What is 2 + 2?"
+
+  expect:
+    intent: CONVERSATION
+    signals:
+      complexity: simple
+      needs_tools: "NO"
+    # Single shot for simple, high-confidence tasks
+    # Note: May be single_shot or interference depending on confidence
+    routing_strategy:
+      - single_shot
+      - interference

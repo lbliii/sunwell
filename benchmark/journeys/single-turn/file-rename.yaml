@@ -1,0 +1,31 @@
+# Journey: Test rename_file tool
+# Tests file renaming/moving
+
+journey:
+  id: file-rename
+  type: single_turn
+  description: "Test rename_file tool for file renaming"
+  tags:
+    - file
+    - rename
+    - core
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "old.py"
+        content: |
+          def legacy_function():
+              return "legacy"
+
+  input: "Rename old.py to new.py"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called:
+      - name: rename_file
+        args_contain:
+          source: "old.py"
+          destination: "new.py"

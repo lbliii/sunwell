@@ -1,0 +1,25 @@
+# Journey: Test git_stash tool
+# Tests stashing changes
+
+journey:
+  id: git-stash
+  type: single_turn
+  description: "Test git_stash tool for stashing work"
+  tags:
+    - git
+    - history
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "work-in-progress.py"
+        content: "# WIP"
+
+  input: "Stash my current changes"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called:
+      - name: git_stash

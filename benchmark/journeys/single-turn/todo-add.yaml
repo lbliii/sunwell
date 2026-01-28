@@ -1,0 +1,29 @@
+# Journey: Add item to todo list
+# Tests: TASK intent, memory/state operations
+journey:
+  id: "journey-todo-add"
+  type: "single_turn"
+  description: "Test task intent with memory/backlog operations"
+  tags:
+    - task
+    - memory
+    - backlog
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+
+  input: "add 'review pull request #42' to my todo list"
+
+  expect:
+    intent: TASK
+
+    signals:
+      needs_tools: "YES"
+
+    # Should acknowledge the todo item
+    output_contains:
+      - "todo"
+      - "pull request"
+
+  timeout_seconds: 60
+  allow_flaky_retry: 0

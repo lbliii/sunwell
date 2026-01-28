@@ -1,0 +1,28 @@
+# Journey: Test sunwell_self_modules tool
+# Tests introspecting sunwell's own modules
+
+journey:
+  id: sunwell-self-modules
+  type: single_turn
+  description: "Test sunwell_self_modules for self-introspection"
+  tags:
+    - sunwell
+    - meta
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: ".gitkeep"
+        content: ""
+
+  input: "What modules does sunwell have?"
+
+  expect:
+    intent:
+      - TASK
+      - CONVERSATION
+    signals:
+      needs_tools: "YES"
+    tools_called_any:
+      - sunwell_self_modules
+      - sunwell_self_search

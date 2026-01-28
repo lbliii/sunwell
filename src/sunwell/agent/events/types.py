@@ -85,6 +85,11 @@ DEFAULT_UI_HINTS: dict[str, EventUIHints] = {
     "tool_escalate": EventUIHints(icon="△", severity="warning", dismissible=False),
     "tool_pattern_learned": EventUIHints(icon="≡", severity="success"),
     "progressive_unlock": EventUIHints(icon="✧", severity="success", animation="fade-in"),
+    # Reliability detection
+    "reliability_warning": EventUIHints(icon="⚠", severity="warning", dismissible=False),
+    "reliability_hallucination": EventUIHints(
+        icon="⊘", severity="error", dismissible=False, animation="shake"
+    ),
     # ═══════════════════════════════════════════════════════════════
     # COMPLETION & ERROR
     # ═══════════════════════════════════════════════════════════════
@@ -676,6 +681,13 @@ class EventType(Enum):
 
     TOOL_ESCALATE = "tool_escalate"
     """Tool failures exceeded retry limit, escalating to user."""
+
+    # Reliability detection events
+    RELIABILITY_WARNING = "reliability_warning"
+    """Detected potential reliability issue (e.g., hallucinated tool completion)."""
+
+    RELIABILITY_HALLUCINATION = "reliability_hallucination"
+    """Model appears to have hallucinated task completion without tool calls."""
 
     TOOL_PATTERN_LEARNED = "tool_pattern_learned"
     """Recorded a successful tool pattern for future use."""

@@ -1,0 +1,27 @@
+# Journey: Test git_checkout tool
+# Tests switching branches
+
+journey:
+  id: git-checkout
+  type: single_turn
+  description: "Test git_checkout tool for branch switching"
+  tags:
+    - git
+    - history
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: ".gitkeep"
+        content: ""
+
+  input: "Switch to the main branch"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called:
+      - name: git_checkout
+        args_contain:
+          target: "main"

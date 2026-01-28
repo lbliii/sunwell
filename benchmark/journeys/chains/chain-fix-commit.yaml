@@ -1,0 +1,43 @@
+# Journey: Search-Edit-Commit Chain
+# Tests multi-tool workflow: search -> edit -> git commit
+
+journey:
+  id: chain-fix-commit
+  type: single_turn
+  description: "Test chaining file operations with git commit"
+  tags:
+    - chain
+    - git
+    - edit
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "readme.md"
+        content: |
+          # My Porject
+          
+          This is a sample project.
+
+  input: "Find and fix the typo in readme.md, then commit the change"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+      complexity:
+        - "YES"
+        - "MAYBE"
+    tools_called_min: 2
+    tools_called_any:
+      - read_file
+      - search_files
+    tools_called_any:
+      - edit_file
+      - write_file
+    files_modified:
+      - path: "readme.md"
+        contains:
+          - "Project"
+        not_contains:
+          - "Porject"

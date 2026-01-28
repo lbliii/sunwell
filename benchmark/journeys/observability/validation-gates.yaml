@@ -1,0 +1,31 @@
+# Test validation gates run after file operations
+# Verifies that validation passes after creating valid code
+
+journey:
+  id: validation-gates
+  description: Verify validation gates run and pass after file writes
+  tags:
+    - observability
+    - validation
+    - files
+
+  setup:
+    files: []
+
+  input: "Create a Python function called add_numbers that takes two integers and returns their sum. Save it to math_utils.py"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called:
+      - name: write_file
+        args_contain:
+          path: "*.py"
+    files_created:
+      - pattern: "*.py"
+        contains:
+          - "def "
+          - "return"
+    # Validation should pass for valid Python code
+    validation_must_pass: true

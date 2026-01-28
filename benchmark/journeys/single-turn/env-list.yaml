@@ -1,0 +1,26 @@
+# Journey: Test list_env tool
+# Tests listing available environment variables
+
+journey:
+  id: env-list
+  type: single_turn
+  description: "Test list_env tool for showing available vars"
+  tags:
+    - env
+    - system
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: ".gitkeep"
+        content: ""
+
+  input: "Show me available environment variables"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called_any:
+      - list_env
+      - run_command

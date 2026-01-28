@@ -1,0 +1,28 @@
+# Journey: Test mkdir tool
+# Tests directory creation
+
+journey:
+  id: file-mkdir
+  type: single_turn
+  description: "Test mkdir tool for directory creation"
+  tags:
+    - file
+    - mkdir
+    - core
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "src/main.py"
+        content: "# main"
+
+  input: "Create a new directory called tests"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called:
+      - name: mkdir
+        args_contain:
+          path: "tests"

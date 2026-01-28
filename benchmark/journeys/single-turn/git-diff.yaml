@@ -1,0 +1,26 @@
+# Journey: Test git_diff tool
+# Tests showing changes
+
+journey:
+  id: git-diff
+  type: single_turn
+  description: "Test git_diff tool for showing changes"
+  tags:
+    - git
+    - read-only
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "main.py"
+        content: "# modified"
+
+  input: "Show me what changed"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called_any:
+      - git_diff
+      - git_status

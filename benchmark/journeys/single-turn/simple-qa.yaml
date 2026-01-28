@@ -1,0 +1,33 @@
+# Journey: Simple Q&A (conversation, not task)
+# Tests: CONVERSATION intent detection, no tool usage
+journey:
+  id: "journey-simple-qa"
+  type: "single_turn"
+  description: "Test conversation intent - factual Q&A without tools"
+  tags:
+    - conversation
+    - qa
+    - no-tools
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+
+  input: "what is a tomato? is it a fruit or vegetable?"
+
+  expect:
+    # Should detect as CONVERSATION (question, not action)
+    intent: CONVERSATION
+
+    # No tools should be called for simple Q&A
+    tools_not_called:
+      - write_file
+      - shell
+      - read_file
+
+    # Should provide factual information about tomatoes
+    output_contains:
+      - "tomato"
+      - "fruit"
+
+  timeout_seconds: 30
+  allow_flaky_retry: 0

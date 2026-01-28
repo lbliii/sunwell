@@ -5,6 +5,7 @@ Classifies user input as conversation vs task to route appropriately:
 - TASK: Action requests → trigger agent planning + execution
 - COMMAND: /slash commands or :: shortcuts → handle specially
 - INTERRUPT: Input during execution → pause and handle
+- UNKNOWN: Unclear input that couldn't be classified confidently
 
 Uses heuristics first for speed, falls back to LLM for ambiguous cases.
 
@@ -13,12 +14,15 @@ This module provides:
 - classify_input(): Convenience function for shared use across CLI entry points
 """
 
+import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sunwell.models import ModelProtocol
+
+logger = logging.getLogger(__name__)
 
 
 class Intent(Enum):
@@ -34,7 +38,10 @@ class Intent(Enum):
     """Input during active execution."""
 
     COMMAND = "command"
-    """Explicit /slash command or :: shortcut."""
+    """Explicit /slash command or :: shortcuts."""
+
+    UNKNOWN = "unknown"
+    """Unclear input that couldn't be classified confidently."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,9 +128,12 @@ class IntentRouter:
         Returns:
             IntentClassification with intent, confidence, and reasoning
         """
+        logger.debug("classify() called: input=%r, is_executing=%s", user_input[:50], is_executing)
+
         # Check for explicit commands first
         stripped = user_input.strip()
         if stripped.startswith("/") or stripped.startswith("::"):
+            logger.debug("Detected command prefix")
             return IntentClassification(
                 intent=Intent.COMMAND,
                 confidence=1.0,
@@ -132,6 +142,7 @@ class IntentRouter:
 
         # Check for interrupt during execution
         if is_executing:
+            logger.debug("Input during execution -> INTERRUPT")
             return IntentClassification(
                 intent=Intent.INTERRUPT,
                 confidence=1.0,
@@ -139,22 +150,59 @@ class IntentRouter:
             )
 
         # Heuristic classification
-        return await self._classify_heuristic(user_input, context)
+        try:
+            result = await self._classify_heuristic(user_input, context)
+            logger.debug(
+                "Classification complete: %s (confidence=%.2f, reason=%s)",
+                result.intent.value,
+                result.confidence,
+                result.reasoning,
+            )
+            return result
+        except Exception as e:
+            logger.exception("Classification failed with exception")
+            return IntentClassification(
+                intent=Intent.UNKNOWN,
+                confidence=0.0,
+                reasoning=f"Classification error: {e}",
+            )
 
     async def _classify_heuristic(
         self,
         user_input: str,
         context: str | None = None,
     ) -> IntentClassification:
-        """Classify using heuristics, with optional LLM fallback."""
+        """Classify using heuristics, with LLM escalation for unclear cases."""
         lower = user_input.lower().strip()
         words = lower.split()
 
         if not words:
+            logger.debug("Empty input after stripping")
             return IntentClassification(
-                intent=Intent.CONVERSATION,
-                confidence=0.5,
+                intent=Intent.UNKNOWN,
+                confidence=0.0,
                 reasoning="Empty input",
+            )
+
+        # Gibberish detection: if no recognizable words, escalate to LLM
+        has_recognizable = any(
+            len(w) <= 2 or  # Short words like "a", "is", "to"
+            w in _TASK_VERBS or
+            w in _QUESTION_STARTERS or
+            w in {"the", "this", "that", "it", "i", "you", "we", "they", "my", "your",
+                  "a", "an", "is", "are", "was", "were", "be", "have", "has", "do", "does",
+                  "hello", "hi", "hey", "thanks", "thank", "please", "yes", "no", "ok", "okay"}
+            for w in words
+        )
+
+        if not has_recognizable and len(words) == 1 and len(words[0]) > 10:
+            logger.debug("Detected possible gibberish, escalating to LLM: %r", user_input[:30])
+            if self.model:
+                return await self._classify_with_llm(user_input, context)
+            return IntentClassification(
+                intent=Intent.UNKNOWN,
+                confidence=0.1,
+                reasoning="Unrecognizable input (no LLM available)",
             )
 
         # Score task indicators
@@ -192,6 +240,12 @@ class IntentRouter:
         if any(phrase in lower for phrase in ("i think", "i'm wondering", "curious about")):
             conv_score += 0.2
 
+        # Weak signal: greeting patterns
+        if first_word in {"hello", "hi", "hey", "greetings"}:
+            conv_score += 0.3
+
+        logger.debug("Heuristic scores: task=%.2f, conv=%.2f, threshold=%.2f", task_score, conv_score, self.threshold)
+
         # Determine intent from scores
         if task_score >= self.threshold:
             return IntentClassification(
@@ -208,23 +262,35 @@ class IntentRouter:
                 reasoning="Question pattern detected",
             )
 
-        # Ambiguous - try LLM if available and scores are close
-        if self.model and abs(task_score - conv_score) < 0.3:
+        # Neither score above threshold - escalate to LLM
+        max_score = max(task_score, conv_score)
+        if self.model:
+            logger.debug("Scores below threshold (max=%.2f), escalating to LLM", max_score)
             return await self._classify_with_llm(user_input, context)
 
-        # Default to higher score
+        # No LLM available - return UNKNOWN if very low, otherwise best guess
+        if max_score < 0.3:
+            logger.debug("No LLM, scores very low, marking as UNKNOWN")
+            return IntentClassification(
+                intent=Intent.UNKNOWN,
+                confidence=max_score,
+                reasoning=f"Low confidence, no LLM (task={task_score:.2f}, conv={conv_score:.2f})",
+            )
+
+        # Default to higher score with caveat
+        logger.debug("No LLM, using best guess from heuristics")
         if task_score > conv_score:
             return IntentClassification(
                 intent=Intent.TASK,
                 confidence=task_score,
                 task_description=user_input,
-                reasoning="Heuristic: task score higher",
+                reasoning="Heuristic best guess: task score higher",
             )
 
         return IntentClassification(
             intent=Intent.CONVERSATION,
             confidence=max(conv_score, 0.5),
-            reasoning="Heuristic: conversation score higher",
+            reasoning="Heuristic best guess: conversation score higher",
         )
 
     async def _classify_with_llm(
@@ -236,11 +302,11 @@ class IntentRouter:
         from sunwell.models.core.protocol import Message
 
         if not self.model:
-            # Fallback to conversation for safety
+            logger.debug("No LLM available for ambiguous classification")
             return IntentClassification(
-                intent=Intent.CONVERSATION,
-                confidence=0.5,
-                reasoning="No LLM available, defaulting to conversation",
+                intent=Intent.UNKNOWN,
+                confidence=0.3,
+                reasoning="No LLM available for disambiguation",
             )
 
         prompt = f"""Classify this user input as either TASK or CONVERSATION.
@@ -254,25 +320,40 @@ User input: "{user_input}"
 Respond with only: TASK or CONVERSATION"""
 
         try:
+            logger.debug("Calling LLM for intent classification")
             result = await self.model.generate(
                 (Message(role="user", content=prompt),),
             )
 
-            text = result.text.strip().upper()
-            is_task = "TASK" in text
+            text = (result.text or "").strip().upper()
+            logger.debug("LLM classification response: %r", text[:50])
 
+            if "TASK" in text:
+                return IntentClassification(
+                    intent=Intent.TASK,
+                    confidence=0.8,
+                    task_description=user_input,
+                    reasoning="LLM classification: TASK",
+                )
+            elif "CONVERSATION" in text:
+                return IntentClassification(
+                    intent=Intent.CONVERSATION,
+                    confidence=0.8,
+                    reasoning="LLM classification: CONVERSATION",
+                )
+            else:
+                logger.warning("LLM returned unexpected classification: %r", text[:50])
+                return IntentClassification(
+                    intent=Intent.UNKNOWN,
+                    confidence=0.4,
+                    reasoning=f"LLM returned unclear response: {text[:30]}",
+                )
+        except Exception as e:
+            logger.exception("LLM classification failed")
             return IntentClassification(
-                intent=Intent.TASK if is_task else Intent.CONVERSATION,
-                confidence=0.8,
-                task_description=user_input if is_task else None,
-                reasoning="LLM classification",
-            )
-        except Exception:
-            # On failure, default to conversation
-            return IntentClassification(
-                intent=Intent.CONVERSATION,
-                confidence=0.5,
-                reasoning="LLM classification failed, defaulting to conversation",
+                intent=Intent.UNKNOWN,
+                confidence=0.2,
+                reasoning=f"LLM classification error: {e}",
             )
 
 

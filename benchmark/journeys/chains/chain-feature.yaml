@@ -1,0 +1,32 @@
+# Journey: Create-Test-Run Chain
+# Tests multi-tool workflow: create -> write test -> run
+
+journey:
+  id: chain-feature
+  type: single_turn
+  description: "Test chaining file creation with test execution"
+  tags:
+    - chain
+    - create
+    - test
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "pytest.ini"
+        content: |
+          [pytest]
+          testpaths = tests
+
+  input: "Create a new function called 'add' in math_utils.py and write a test for it"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+      complexity: "YES"
+    tools_called_min: 2
+    files_created:
+      - pattern: "*.py"
+        contains:
+          - "def add"

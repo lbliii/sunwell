@@ -1,0 +1,27 @@
+# Journey: Test web_search tool
+# Tests web searching functionality
+
+journey:
+  id: web-search
+  type: single_turn
+  description: "Test web_search tool for searching the web"
+  tags:
+    - web
+    - network
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: ".gitkeep"
+        content: ""
+
+  input: "Search for Python async best practices"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called:
+      - name: web_search
+        args_contain:
+          query: "python"

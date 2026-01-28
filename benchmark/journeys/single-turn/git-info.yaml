@@ -1,0 +1,28 @@
+# Journey: Test git_info tool
+# Tests repository information
+
+journey:
+  id: git-info
+  type: single_turn
+  description: "Test git_info tool for repository details"
+  tags:
+    - git
+    - read-only
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: ".gitkeep"
+        content: ""
+
+  input: "What repository is this?"
+
+  expect:
+    intent:
+      - TASK
+      - CONVERSATION
+    signals:
+      needs_tools: "YES"
+    tools_called_any:
+      - git_info
+      - git_status

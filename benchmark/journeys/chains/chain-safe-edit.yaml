@@ -1,0 +1,38 @@
+# Journey: Backup-Edit-Verify Chain
+# Tests safe editing with backup
+
+journey:
+  id: chain-safe-edit
+  type: single_turn
+  description: "Test chaining backup and edit operations"
+  tags:
+    - chain
+    - backup
+    - edit
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "config.yaml"
+        content: |
+          database:
+            host: localhost
+            port: 5432
+          cache:
+            enabled: false
+
+  input: "Safely edit config.yaml to enable caching, making sure there's a backup first"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called_min: 1
+    tools_called_any:
+      - copy_file
+      - edit_file
+      - write_file
+    files_modified:
+      - path: "config.yaml"
+        contains:
+          - "enabled: true"

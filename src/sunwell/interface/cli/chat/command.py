@@ -51,6 +51,11 @@ console = Console()
     default=True,
     help=": Enable Naaru Shards for parallel processing",
 )
+@click.option(
+    "--debug",
+    is_flag=True,
+    help="Enable debug logging (shows model calls, intent classification, etc.)",
+)
 def chat(
     binding_or_lens: str | None,
     session: str | None,
@@ -64,6 +69,7 @@ def chat(
     model_routing: bool,
     router_model: str | None,
     naaru: bool,
+    debug: bool,
 ) -> None:
     """Start an interactive headspace chat session.
 
@@ -93,6 +99,12 @@ def chat(
 
     # Mid-conversation: /switch anthropic:claude-sonnet-4-20250514
     """
+    # Configure debug logging if requested
+    if debug:
+        from sunwell.foundation.logging import configure_logging
+
+        configure_logging(debug=True)
+
     # Resolve binding/lens and settings
     lens_path, provider, model, session, tools_enabled, trust_level = _resolve_binding(
         binding_or_lens, provider, model, session, tools, trust

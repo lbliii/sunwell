@@ -1,0 +1,46 @@
+# Journey: Search and Edit Chain
+# Tests multi-tool workflow: search -> edit
+
+journey:
+  id: chain-search-edit
+  type: single_turn
+  description: "Test chaining search_files and edit_file tools"
+  tags:
+    - chain
+    - search
+    - edit
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "src/main.py"
+        content: |
+          # TODO: Fix this function
+          def process():
+              pass
+      - path: "src/utils.py"
+        content: |
+          # TODO: Add validation
+          def validate():
+              pass
+      - path: "src/config.py"
+        content: |
+          # Configuration
+          DEBUG = True
+
+  input: "Find all TODO comments and add a priority tag to each one"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+      complexity:
+        - "YES"
+        - "MAYBE"
+    tools_called_min: 2
+    tools_called_any:
+      - search_files
+      - find_files
+    tools_called_any:
+      - edit_file
+      - write_file

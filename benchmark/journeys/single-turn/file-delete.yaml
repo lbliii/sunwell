@@ -1,0 +1,35 @@
+# Journey: Test delete_file tool
+# Tests file deletion with safety (creates backup)
+
+journey:
+  id: file-delete
+  type: single_turn
+  description: "Test delete_file tool for safe file removal"
+  tags:
+    - file
+    - delete
+    - core
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "temp.txt"
+        content: "This is a temporary file"
+      - path: "important.py"
+        content: "# Keep this"
+
+  input: "Delete the temp.txt file"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+      is_dangerous:
+        - "NO"
+        - "YES"  # Some models may flag deletion as dangerous
+    tools_called:
+      - name: delete_file
+        args_contain:
+          path: "temp.txt"
+    tools_not_called:
+      - write_file

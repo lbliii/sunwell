@@ -1,0 +1,40 @@
+# Journey: Test find_files tool
+# Tests file discovery by pattern
+
+journey:
+  id: file-find
+  type: single_turn
+  description: "Test find_files tool for pattern-based file discovery"
+  tags:
+    - file
+    - find
+    - core
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "src/main.py"
+        content: "# main"
+      - path: "src/utils.py"
+        content: "# utils"
+      - path: "tests/test_main.py"
+        content: "# tests"
+      - path: "README.md"
+        content: "# readme"
+      - path: "config.json"
+        content: "{}"
+
+  input: "Find all Python files in this project"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called_any:
+      - find_files
+      - list_files
+      - search_files
+    output_contains:
+      - ".py"
+    output_matches:
+      - "main\\.py|utils\\.py|test_main\\.py"

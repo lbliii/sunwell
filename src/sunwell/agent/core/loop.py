@@ -28,7 +28,14 @@ from sunwell.agent.events import (
     AgentEvent,
     EventType,
     circuit_breaker_open_event,
+    goal_analyzing_event,
+    goal_complete_event,
+    goal_failed_event,
+    goal_ready_event,
+    goal_received_event,
+    progressive_unlock_event,
     signal_event,
+    signal_route_event,
     tool_complete_event,
     tool_error_event,
     tool_loop_budget_exhausted_event,
@@ -36,6 +43,8 @@ from sunwell.agent.events import (
     tool_loop_complete_event,
     tool_loop_start_event,
     tool_loop_turn_event,
+    tool_repair_event,
+    tool_retry_event,
     tool_start_event,
 )
 from sunwell.agent.reliability.circuit_breaker import CircuitBreaker
@@ -228,6 +237,9 @@ class AgentLoop:
         Yields:
             AgentEvent for progress tracking
         """
+        # Emit goal received event
+        yield goal_received_event(goal=task_description)
+
         # Get tools from executor if not provided
         if tools is None:
             tools = self.executor.get_tool_definitions()
@@ -360,10 +372,17 @@ class AgentLoop:
             is_subagent=self._subagent_run_id is not None,
         )
 
+        # Emit goal ready event (setup complete, about to execute)
+        yield goal_ready_event(
+            strategy="tool_loop",
+            tasks=1,  # Single task in tool loop mode
+        )
+
         # Main loop
         final_response: str | None = None
         last_tool_name: str | None = None
         circuit_breaker_opened = False
+        goal_error: str | None = None
 
         while state.turn < self.config.max_turns:
             state.turn += 1
@@ -400,9 +419,34 @@ class AgentLoop:
             if self._subagent_run_id and state.turn % self._heartbeat_interval == 0:
                 self._emit_heartbeat(state.turn, self.config.max_turns, last_tool_name)
 
-            # RFC-134: Advance progressive policy turn
+            # RFC-134: Advance progressive policy turn and detect unlocks
             if self.progressive_policy:
+                # Track tools available before turn advance
+                tools_before = self.progressive_policy.get_available_tools()
+                
                 self.progressive_policy.advance_turn()
+                
+                # Check for newly unlocked tools
+                tools_after = self.progressive_policy.get_available_tools()
+                newly_unlocked = tools_after - tools_before
+                if newly_unlocked:
+                    # Determine which category was unlocked
+                    unlock_status = self.progressive_policy.get_unlock_status()
+                    for category, unlocked in unlock_status.items():
+                        if unlocked and category != "read_only":
+                            yield progressive_unlock_event(
+                                category=category,
+                                tools_unlocked=list(newly_unlocked),
+                                turn=state.turn,
+                                validation_passes=self.progressive_policy.validation_passes,
+                            )
+                            logger.info(
+                                "Progressive unlock: %s category unlocked (%d tools) at turn %d",
+                                category,
+                                len(newly_unlocked),
+                                state.turn,
+                            )
+                            break  # Only emit one event per turn
 
             # RFC-134: Filter tools based on progressive policy
             available_tools = tools
@@ -484,6 +528,40 @@ class AgentLoop:
             final_response=final_response,
         )
 
+        # Reliability detection: Check for hallucinated completion
+        from sunwell.agent.reliability import detect_tool_failure, ToolFailureType
+
+        reliability_result = detect_tool_failure(
+            intent="TASK",  # Assume TASK since we're in tool loop
+            needs_tools=True,  # In tool loop = tools expected
+            tool_calls_total=state.tool_calls_total,
+            response_text=final_response,
+            tools_available=len(tools),
+        )
+
+        if reliability_result.failure_type != ToolFailureType.NONE:
+            yield AgentEvent(
+                type=(
+                    EventType.RELIABILITY_HALLUCINATION
+                    if reliability_result.failure_type
+                    == ToolFailureType.HALLUCINATED_COMPLETION
+                    else EventType.RELIABILITY_WARNING
+                ),
+                data={
+                    "failure_type": reliability_result.failure_type.value,
+                    "confidence": reliability_result.confidence,
+                    "message": reliability_result.message,
+                    "suggested_action": reliability_result.suggested_action,
+                    "tool_calls_total": state.tool_calls_total,
+                    "tools_available": len(tools),
+                },
+            )
+            logger.warning(
+                "Reliability issue detected: %s (confidence: %.2f)",
+                reliability_result.failure_type.value,
+                reliability_result.confidence,
+            )
+
         # Run validation gates if enabled and files were written
         validation_passed = True
         if (
@@ -502,11 +580,34 @@ class AgentLoop:
         # RFC-134: Update progressive policy with validation outcome
         if self.progressive_policy:
             if validation_passed and state.file_writes:
+                # Track tools before validation pass
+                tools_before = self.progressive_policy.get_available_tools()
+                
                 self.progressive_policy.record_validation_pass()
                 logger.debug(
                     "Progressive policy: validation passed, %d passes total",
                     self.progressive_policy.validation_passes,
                 )
+                
+                # Check for newly unlocked tools after validation pass
+                tools_after = self.progressive_policy.get_available_tools()
+                newly_unlocked = tools_after - tools_before
+                if newly_unlocked:
+                    unlock_status = self.progressive_policy.get_unlock_status()
+                    for category, unlocked in unlock_status.items():
+                        if unlocked and category != "read_only":
+                            yield progressive_unlock_event(
+                                category=category,
+                                tools_unlocked=list(newly_unlocked),
+                                turn=state.turn,
+                                validation_passes=self.progressive_policy.validation_passes,
+                            )
+                            logger.info(
+                                "Progressive unlock: %s category unlocked (%d tools) after validation",
+                                category,
+                                len(newly_unlocked),
+                            )
+                            break
             elif not validation_passed:
                 self.progressive_policy.record_validation_failure()
                 logger.debug(
@@ -546,6 +647,31 @@ class AgentLoop:
             is_subagent=self._subagent_run_id is not None,
         )
 
+        # Emit goal lifecycle event (complete or failed)
+        goal_success = final_response is not None and validation_passed and not circuit_breaker_opened
+        if goal_success:
+            yield goal_complete_event(
+                turns=state.turn,
+                tools_called=state.tool_calls_total,
+                success=True,
+            )
+        else:
+            # Determine failure reason
+            if circuit_breaker_opened:
+                goal_error = "Circuit breaker opened - too many consecutive failures"
+            elif not validation_passed:
+                goal_error = "Validation gates failed"
+            elif final_response is None:
+                goal_error = f"Max turns ({self.config.max_turns}) exceeded without completion"
+            else:
+                goal_error = "Unknown failure"
+
+            yield goal_failed_event(
+                error=goal_error,
+                turn=state.turn,
+                tools_called=state.tool_calls_total,
+            )
+
     async def _generate_with_routing(
         self,
         messages: list[Message],
@@ -559,7 +685,11 @@ class AgentLoop:
         Low confidence (<0.6): Vortex (multiple candidates, pick best)
 
         This is a KEY DIFFERENTIATOR - competitors always use single-shot.
+
+        Emits SIGNAL_ROUTE event via event bus when routing is enabled.
         """
+        from sunwell.agent.events import emit
+
         options = GenerateOptions(temperature=self.config.temperature)
 
         # Skip routing if disabled
@@ -573,32 +703,56 @@ class AgentLoop:
 
         # Route based on confidence
         if confidence < 0.6:
+            strategy = "vortex"
             # Low confidence → Vortex (multiple candidates)
             logger.info(
                 "◎ CONFIDENCE ROUTING → Vortex (multiple candidates) [%.2f]",
                 confidence,
-                extra={"confidence": confidence, "strategy": "vortex"},
+                extra={"confidence": confidence, "strategy": strategy},
             )
+            # Emit routing event
+            emit(signal_route_event(
+                confidence=confidence,
+                strategy=strategy,
+                threshold_vortex=0.6,
+                threshold_interference=0.85,
+            ))
             return await vortex_generate(
                 self.model, messages, tools, self.config.tool_choice, options
             )
         elif confidence < 0.85:
+            strategy = "interference"
             # Medium confidence → Interference (3 perspectives)
             logger.info(
                 "◎ CONFIDENCE ROUTING → Interference (3 perspectives) [%.2f]",
                 confidence,
-                extra={"confidence": confidence, "strategy": "interference"},
+                extra={"confidence": confidence, "strategy": strategy},
             )
+            # Emit routing event
+            emit(signal_route_event(
+                confidence=confidence,
+                strategy=strategy,
+                threshold_vortex=0.6,
+                threshold_interference=0.85,
+            ))
             return await interference_generate(
                 self.model, messages, tools, self.config.tool_choice, options
             )
         else:
+            strategy = "single_shot"
             # High confidence → Single-shot
             logger.info(
                 "◎ CONFIDENCE ROUTING → Single-shot [%.2f]",
                 confidence,
-                extra={"confidence": confidence, "strategy": "single_shot"},
+                extra={"confidence": confidence, "strategy": strategy},
             )
+            # Emit routing event
+            emit(signal_route_event(
+                confidence=confidence,
+                strategy=strategy,
+                threshold_vortex=0.6,
+                threshold_interference=0.85,
+            ))
             return await single_shot_generate(
                 self.model, messages, tools, self.config.tool_choice, options
             )
@@ -642,9 +796,15 @@ class AgentLoop:
                     ))
                     continue
 
-                # Log repairs made
+                # Emit and log repairs made
                 if introspection.repairs:
                     state.repairs_made += len(introspection.repairs)
+                    # Emit TOOL_REPAIR event
+                    yield tool_repair_event(
+                        tool_name=tc.name,
+                        tool_call_id=tc.id,
+                        repairs=tuple(introspection.repairs),
+                    )
                     for repair in introspection.repairs:
                         logger.info("Introspection repair: %s", repair)
 
@@ -831,13 +991,31 @@ class AgentLoop:
 
         if failure_count == 1:
             # Simple retry - maybe transient error
+            strategy = "simple"
             logger.info("Strategy: Simple retry for %s", tc.name)
+            # Emit TOOL_RETRY event
+            yield tool_retry_event(
+                tool_name=tc.name,
+                tool_call_id=tc.id,
+                attempt=failure_count,
+                strategy=strategy,
+                error=error,
+            )
             async for event in self._execute_single_tool(tc, state):
                 yield event
 
         elif failure_count == 2:
             # Interference: 3 perspectives on fixing the error
+            strategy = "interference"
             logger.info("Strategy: Interference (3 perspectives) for %s", tc.name)
+            # Emit TOOL_RETRY event
+            yield tool_retry_event(
+                tool_name=tc.name,
+                tool_call_id=tc.id,
+                attempt=failure_count,
+                strategy=strategy,
+                error=error,
+            )
             fixed_tc = await interference_fix(self.model, tc, error, self.config.tool_choice)
             if fixed_tc:
                 async for event in self._execute_single_tool(fixed_tc, state):
@@ -851,7 +1029,16 @@ class AgentLoop:
 
         elif failure_count == 3:
             # Vortex: multiple candidate fixes
+            strategy = "vortex"
             logger.info("Strategy: Vortex (multiple candidates) for %s", tc.name)
+            # Emit TOOL_RETRY event
+            yield tool_retry_event(
+                tool_name=tc.name,
+                tool_call_id=tc.id,
+                attempt=failure_count,
+                strategy=strategy,
+                error=error,
+            )
             fixed_tc = await vortex_fix(self.model, tc, error, self.config.tool_choice)
             if fixed_tc:
                 async for event in self._execute_single_tool(fixed_tc, state):

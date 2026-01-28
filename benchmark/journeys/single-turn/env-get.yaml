@@ -1,0 +1,28 @@
+# Journey: Test get_env tool
+# Tests getting environment variables
+
+journey:
+  id: env-get
+  type: single_turn
+  description: "Test get_env tool for reading environment variables"
+  tags:
+    - env
+    - system
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: ".gitkeep"
+        content: ""
+
+  input: "What's my HOME directory?"
+
+  expect:
+    intent:
+      - TASK
+      - CONVERSATION
+    signals:
+      needs_tools: "YES"
+    tools_called_any:
+      - get_env
+      - run_command

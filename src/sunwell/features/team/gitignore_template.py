@@ -74,10 +74,19 @@ def ensure_sunwell_structure(project_root: Path) -> Path:
 
     Returns:
         Path to .sunwell directory
+
+    Raises:
+        ValueError: If project_root is inside a .sunwell directory
     """
     from pathlib import Path
 
-    sunwell_dir = Path(project_root) / ".sunwell"
+    project_root = Path(project_root).resolve()
+
+    # Validate we're not inside .sunwell (prevent .sunwell/.sunwell nesting)
+    if ".sunwell" in project_root.parts:
+        raise ValueError(f"Cannot create .sunwell inside .sunwell: {project_root}")
+
+    sunwell_dir = project_root / ".sunwell"
 
     # Create directory structure
     directories = [

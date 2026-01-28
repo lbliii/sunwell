@@ -97,6 +97,12 @@ class PersistentMemory:
             PersistentMemory with all available stores loaded
         """
         workspace = Path(workspace).resolve()
+
+        # Prevent nesting - if workspace IS .sunwell, use parent
+        if workspace.name == ".sunwell":
+            workspace = workspace.parent
+            logger.warning("Workspace was .sunwell directory, using parent: %s", workspace)
+
         intel_path = workspace / ".sunwell" / "intelligence"
         memory_path = workspace / ".sunwell" / "memory"
 
@@ -131,6 +137,12 @@ class PersistentMemory:
             PersistentMemory with empty stores
         """
         workspace = Path(workspace).resolve()
+
+        # Prevent nesting - if workspace IS .sunwell, use parent
+        if workspace.name == ".sunwell":
+            workspace = workspace.parent
+            logger.warning("Workspace was .sunwell directory, using parent: %s", workspace)
+
         intel_path = workspace / ".sunwell" / "intelligence"
 
         # Create minimal stores without loading from disk

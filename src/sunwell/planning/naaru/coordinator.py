@@ -132,6 +132,13 @@ class Naaru:
     config: NaaruConfig = field(default_factory=NaaruConfig)
     """Naaru configuration."""
 
+    # Memory components (RFC-MEMORY integration)
+    simulacrum: Any = None
+    """SimulacrumStore for conversation history and learnings."""
+
+    memory: Any = None
+    """PersistentMemory for cross-session learning persistence."""
+
     # Optional components
     convergence: Any = None
     """Shared working memory (Convergence)."""

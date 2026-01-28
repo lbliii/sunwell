@@ -1,0 +1,32 @@
+# Journey: Test run_command tool
+# Tests shell command execution
+
+journey:
+  id: shell-run
+  type: single_turn
+  description: "Test run_command tool for shell operations"
+  tags:
+    - shell
+    - core
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "test_example.py"
+        content: |
+          def test_add():
+              assert 1 + 1 == 2
+          
+          def test_subtract():
+              assert 5 - 3 == 2
+
+  input: "Run pytest to check the tests"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called:
+      - name: run_command
+        args_contain:
+          command: "pytest"

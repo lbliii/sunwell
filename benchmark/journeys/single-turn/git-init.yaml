@@ -1,0 +1,25 @@
+# Journey: Test git_init tool
+# Tests repository initialization
+
+journey:
+  id: git-init
+  type: single_turn
+  description: "Test git_init tool for repo creation"
+  tags:
+    - git
+    - staging
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "README.md"
+        content: "# New Project"
+
+  input: "Initialize a git repository here"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called:
+      - name: git_init

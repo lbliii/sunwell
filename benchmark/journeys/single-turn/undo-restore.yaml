@@ -1,0 +1,29 @@
+# Journey: Test undo_file tool
+# Tests restoring from most recent backup
+
+journey:
+  id: undo-restore
+  type: single_turn
+  description: "Test undo_file tool for restoring recent changes"
+  tags:
+    - undo
+    - core
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "main.py"
+        content: |
+          def original():
+              return "original content"
+
+  input: "Undo my last change to main.py"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called:
+      - name: undo_file
+        args_contain:
+          path: "main.py"

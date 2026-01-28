@@ -99,6 +99,9 @@ class SunwellConfig:
     verbose: bool = False
     """Enable verbose output by default."""
 
+    debug: bool = False
+    """Enable debug logging by default (shows model calls, intent classification, etc.)."""
+
 
 # Global config instance (lazy-loaded, thread-safe)
 _config: SunwellConfig | None = None
@@ -269,6 +272,7 @@ def _dict_to_config(data: dict) -> SunwellConfig:
         ollama=ollama_config,
         lens=lens_config,
         verbose=data.get("verbose", False),
+        debug=data.get("debug", False),
     )
 
 
@@ -303,6 +307,7 @@ def load_config(path: str | Path | None = None) -> SunwellConfig:
         "ollama": dataclass_defaults["ollama"],
         "lens": dataclass_defaults["lens"],
         "verbose": False,
+        "debug": False,
     }
 
     # Try to load from files
@@ -519,8 +524,8 @@ model:
   # Default provider (ollama, openai, anthropic)
   default_provider: "ollama"
 
-  # Default model name
-  default_model: "gemma3:4b"
+  # Default model name (qwen2.5:1.5b has reliable native tool calling)
+  default_model: "qwen2.5:1.5b"
 
   # Enable adaptive model selection by default
   smart_routing: false
@@ -639,6 +644,10 @@ ollama:
 
 # Global settings
 verbose: false
+
+# Enable debug logging (shows model calls, intent classification, planning)
+# Can also use: --debug flag, or SUNWELL_LOG_LEVEL=DEBUG env var
+debug: false
 '''
 
     path = Path(path)

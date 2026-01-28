@@ -1,0 +1,25 @@
+# Journey: Test list_backups tool
+# Tests listing available backup versions
+
+journey:
+  id: undo-list
+  type: single_turn
+  description: "Test list_backups tool for showing backup history"
+  tags:
+    - undo
+    - core
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "config.yaml"
+        content: "version: 1"
+
+  input: "Show me available backups"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called:
+      - name: list_backups

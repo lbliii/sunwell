@@ -148,3 +148,117 @@ def lens_selected_event(
             **kwargs,
         },
     )
+
+
+# =============================================================================
+# Goal Lifecycle Events (RFC-131)
+# =============================================================================
+
+
+def goal_received_event(goal: str, **kwargs: Any) -> AgentEvent:
+    """Create a goal received event.
+
+    Emitted when a goal is acknowledged at the start of a run.
+    """
+    return AgentEvent(
+        EventType.GOAL_RECEIVED,
+        {"goal": goal[:500] if len(goal) > 500 else goal, **kwargs},
+    )
+
+
+def goal_analyzing_event(goal: str, **kwargs: Any) -> AgentEvent:
+    """Create a goal analyzing event.
+
+    Emitted before signal extraction and routing decision.
+    """
+    return AgentEvent(
+        EventType.GOAL_ANALYZING,
+        {"goal": goal[:500] if len(goal) > 500 else goal, **kwargs},
+    )
+
+
+def goal_ready_event(
+    plan_id: str | None = None,
+    tasks: int = 0,
+    strategy: str | None = None,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a goal ready event.
+
+    Emitted when plan is selected and execution is about to begin.
+    """
+    return AgentEvent(
+        EventType.GOAL_READY,
+        {"plan_id": plan_id, "tasks": tasks, "strategy": strategy, **kwargs},
+    )
+
+
+def goal_complete_event(
+    turns: int,
+    tools_called: int,
+    success: bool = True,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a goal complete event.
+
+    Emitted when goal is achieved successfully.
+    """
+    return AgentEvent(
+        EventType.GOAL_COMPLETE,
+        {"turns": turns, "tools_called": tools_called, "success": success, **kwargs},
+    )
+
+
+def goal_failed_event(
+    error: str,
+    turn: int,
+    tools_called: int = 0,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a goal failed event.
+
+    Emitted when goal could not be achieved.
+    """
+    return AgentEvent(
+        EventType.GOAL_FAILED,
+        {
+            "error": error[:500] if len(error) > 500 else error,
+            "turn": turn,
+            "tools_called": tools_called,
+            **kwargs,
+        },
+    )
+
+
+# =============================================================================
+# Routing Events
+# =============================================================================
+
+
+def signal_route_event(
+    confidence: float,
+    strategy: str,
+    threshold_vortex: float = 0.6,
+    threshold_interference: float = 0.85,
+    **kwargs: Any,
+) -> AgentEvent:
+    """Create a signal route event.
+
+    Emitted after routing decision based on confidence score.
+
+    Args:
+        confidence: Confidence score (0.0-1.0)
+        strategy: Selected strategy ("vortex", "interference", "single_shot")
+        threshold_vortex: Threshold below which Vortex is used
+        threshold_interference: Threshold below which Interference is used
+    """
+    return AgentEvent(
+        EventType.SIGNAL_ROUTE,
+        {
+            "confidence": round(confidence, 3),
+            "strategy": strategy,
+            "threshold_vortex": threshold_vortex,
+            "threshold_interference": threshold_interference,
+            **kwargs,
+        },
+    )

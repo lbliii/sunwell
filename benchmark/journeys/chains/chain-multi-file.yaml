@@ -1,0 +1,50 @@
+# Journey: Multi-File Update Chain
+# Tests updating multiple files in sequence
+
+journey:
+  id: chain-multi-file
+  type: single_turn
+  description: "Test updating multiple related files"
+  tags:
+    - chain
+    - multi-file
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "src/constants.py"
+        content: |
+          VERSION = "1.0.0"
+          APP_NAME = "MyApp"
+      - path: "setup.py"
+        content: |
+          from setuptools import setup
+          setup(
+              name="myapp",
+              version="1.0.0",
+          )
+      - path: "README.md"
+        content: |
+          # MyApp v1.0.0
+          A sample application.
+
+  input: "Update the version to 2.0.0 in all files"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+      complexity:
+        - "YES"
+        - "MAYBE"
+    tools_called_min: 3
+    files_modified:
+      - path: "src/constants.py"
+        contains:
+          - '2.0.0'
+      - path: "setup.py"
+        contains:
+          - '2.0.0'
+      - path: "README.md"
+        contains:
+          - '2.0.0'

@@ -226,17 +226,31 @@ class UnifiedChatLoop:
             while True:
                 # Get user input (via asend)
                 user_input: str | CheckpointResponse | None = yield
+                logger.debug(
+                    "Loop received input: type=%s, value=%r",
+                    type(user_input).__name__,
+                    user_input[:50] if isinstance(user_input, str) else user_input,
+                )
+
                 # Handle None (initialization or continue after event)
                 if user_input is None:
+                    logger.debug("Input is None, continuing")
                     continue
 
                 # Handle CheckpointResponse (from checkpoint interaction)
                 if isinstance(user_input, CheckpointResponse):
+                    logger.debug("Received CheckpointResponse, continuing")
                     # Checkpoint responses are handled in _execute_goal
+                    continue
+
+                # Handle empty/whitespace input
+                if not user_input or not user_input.strip():
+                    logger.debug("Empty or whitespace input, skipping")
                     continue
 
                 # Handle cancellation request
                 if self._cancel_requested:
+                    logger.debug("Cancellation requested, resetting")
                     self._cancel_requested = False
                     self._state = LoopState.IDLE
                     yield "Execution cancelled."
@@ -251,15 +265,23 @@ class UnifiedChatLoop:
 
                 # Handle input during execution (interruption)
                 if self.is_executing:
+                    logger.debug("Input during execution, queueing as interrupt")
                     await self._pending_input.put(user_input)
                     continue
 
                 # Classify intent
                 self._state = LoopState.CLASSIFYING
+                logger.debug("Classifying intent for: %r", user_input[:100])
                 classification = await self.intent_router.classify(
                     user_input,
                     context=self._get_conversation_context(),
                     is_executing=self.is_executing,
+                )
+                logger.debug(
+                    "Intent classified: %s (confidence=%.2f, task=%r)",
+                    classification.intent,
+                    getattr(classification, "confidence", 0.0),
+                    classification.task_description[:50] if classification.task_description else None,
                 )
 
                 # Route based on intent
@@ -275,15 +297,38 @@ class UnifiedChatLoop:
 
                 elif classification.intent == Intent.TASK:
                     # Transition to agent mode
-                    async for event in self._execute_goal(
-                        classification.task_description or user_input
-                    ):
+                    goal = classification.task_description or user_input
+                    logger.debug("Routing to agent mode with goal: %r", goal[:100])
+                    async for event in self._execute_goal(goal):
                         yield event
                     self._state = LoopState.IDLE
 
-                else:  # CONVERSATION
+                elif classification.intent == Intent.UNKNOWN:
+                    # Unclear input - ask for clarification
+                    logger.warning(
+                        "Unknown intent: %r (confidence=%.2f, reason=%s)",
+                        user_input[:50],
+                        classification.confidence,
+                        classification.reasoning,
+                    )
+                    self._state = LoopState.IDLE
+                    yield (
+                        f"I'm not sure what you'd like me to do. "
+                        f"Could you rephrase that?\n\n"
+                        f"_({classification.reasoning})_"
+                    )
+
+                elif classification.intent == Intent.INTERRUPT:
+                    # Input during execution - queue it for handling
+                    logger.debug("Interrupt received during execution: %r", user_input[:50])
+                    await self._pending_input.put(user_input)
+                    # Don't yield anything, let the execution handle it
+
+                else:  # CONVERSATION (default)
                     self._state = LoopState.CONVERSING
+                    logger.debug("Generating conversational response")
                     response = await self._generate_response(user_input)
+                    logger.debug("Response generated: %d chars", len(response) if response else 0)
                     self._state = LoopState.IDLE
                     yield response
                     self.conversation_history.append({
@@ -324,9 +369,21 @@ class UnifiedChatLoop:
         from sunwell.agent.context.session import SessionContext
         from sunwell.agent.events import EventType
 
+        logger.debug("_execute_goal starting for: %r", goal[:100])
         self._state = LoopState.PLANNING
 
+        # Check if we have tool executor
+        if self.tool_executor is None:
+            logger.warning("No tool executor available for goal execution")
+            yield (
+                "I understand you want me to do something, but I'm in **chat mode** "
+                "(tools disabled). Use `/tools on` to enable agent mode, or rephrase "
+                "as a question."
+            )
+            return
+
         # Create agent
+        logger.debug("Creating agent with tool_executor=%s", type(self.tool_executor).__name__)
         self._current_agent = Agent(
             model=self.model,
             tool_executor=self.tool_executor,
@@ -337,16 +394,25 @@ class UnifiedChatLoop:
         try:
             # Update session with goal
             self.session = SessionContext.build(self.workspace, goal, None)
+            logger.debug("Session created: %s", self.session.session_id)
 
             # Plan first (stream planning events if enabled)
+            logger.debug("Starting agent.plan()")
             plan_data: dict[str, Any] | None = None
+            event_count = 0
             async for event in self._current_agent.plan(self.session, self.memory):
+                event_count += 1
+                logger.debug("Plan event %d: type=%s", event_count, event.type)
                 if self.stream_progress:
                     yield event
                 if event.type == EventType.PLAN_WINNER:
                     plan_data = event.data
+                    logger.debug("Plan winner received with %d tasks", plan_data.get("tasks", 0) if plan_data else 0)
+
+            logger.debug("Planning complete: %d events, plan_data=%s", event_count, "yes" if plan_data else "no")
 
             if not plan_data:
+                logger.warning("No plan data after planning phase")
                 yield "I couldn't create a plan for that goal."
                 return
 
@@ -521,16 +587,36 @@ class UnifiedChatLoop:
             for m in messages
         )
 
+        logger.debug(
+            "Calling model.generate with %d messages (model=%s)",
+            len(structured),
+            type(self.model).__name__,
+        )
+
         # Check if model supports streaming
         if hasattr(self.model, "generate_stream"):
+            logger.debug("Using streaming generation")
             response_parts: list[str] = []
-            async for chunk in self.model.generate_stream(structured):
-                response_parts.append(chunk)
-            return "".join(response_parts)
+            try:
+                async for chunk in self.model.generate_stream(structured):
+                    response_parts.append(chunk)
+                response = "".join(response_parts)
+                logger.debug("Streaming complete: %d chars", len(response))
+                return response
+            except Exception as e:
+                logger.exception("Streaming generation failed")
+                raise
 
         # Fallback to non-streaming
-        result = await self.model.generate(structured)
-        return result.text or ""
+        logger.debug("Using non-streaming generation")
+        try:
+            result = await self.model.generate(structured)
+            response = result.text or ""
+            logger.debug("Generation complete: %d chars", len(response))
+            return response
+        except Exception as e:
+            logger.exception("Generation failed")
+            raise
 
     def _build_messages(self, user_input: str) -> list[dict[str, str]]:
         """Build message list with conversation history."""
@@ -598,6 +684,11 @@ class UnifiedChatLoop:
     @property
     def _system_prompt(self) -> str:
         """Build system prompt for conversation mode."""
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc).astimezone()
+        current_time = now.strftime("%A, %B %d, %Y at %H:%M %Z")
+
         return f"""You are Sunwell, an AI assistant for software development.
 
 You can both:
@@ -609,7 +700,12 @@ you'll transition to execution mode with a plan.
 
 When the user asks questions, explain or discuss freely.
 
-Current workspace: {self.workspace}"""
+Current date/time: {current_time}
+Current workspace: {self.workspace}
+
+Note: Your training data has a knowledge cutoff. For questions about current
+events, recent releases, or time-sensitive information, acknowledge you may
+not have the latest data and suggest the user verify from authoritative sources."""
 
     def _handle_command(self, command: str) -> tuple[str | None, str | None]:
         """Handle /slash commands.

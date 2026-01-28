@@ -1,0 +1,30 @@
+# Journey: Test is_ambiguous signal
+# Tests detection of unclear requests
+
+journey:
+  id: signal-ambiguous
+  type: single_turn
+  description: "Test is_ambiguous signal for unclear requests"
+  tags:
+    - signal
+    - ambiguous
+    - clarification
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "main.py"
+        content: "# code"
+      - path: "utils.py"
+        content: "# utilities"
+      - path: "tests.py"
+        content: "# tests"
+
+  input: "Fix the thing"
+
+  expect:
+    intent: TASK
+    signals:
+      is_ambiguous:
+        - "YES"
+        - "MAYBE"

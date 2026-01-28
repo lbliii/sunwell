@@ -1,0 +1,22 @@
+# Test token budget tracking
+# Verifies that simple queries stay within token budget
+
+journey:
+  id: token-budget
+  description: Verify token usage tracking for simple queries
+  tags:
+    - observability
+    - tokens
+    - budget
+
+  input: "What is the capital of France?"
+
+  expect:
+    intent: CONVERSATION
+    signals:
+      complexity: simple
+      needs_tools: "NO"
+    # Simple Q&A should use minimal tokens
+    max_tokens: 2000
+    # No reliability issues for straightforward queries
+    no_reliability_issues: true

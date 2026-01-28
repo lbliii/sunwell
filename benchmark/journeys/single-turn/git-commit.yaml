@@ -1,0 +1,27 @@
+# Journey: Test git_commit tool
+# Tests creating commits
+
+journey:
+  id: git-commit
+  type: single_turn
+  description: "Test git_commit tool for committing changes"
+  tags:
+    - git
+    - history
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "bugfix.py"
+        content: "# fix"
+
+  input: "Commit these changes with message 'fix bug'"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called:
+      - name: git_commit
+        args_contain:
+          message: "fix"

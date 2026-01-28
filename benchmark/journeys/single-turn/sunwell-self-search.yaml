@@ -1,0 +1,29 @@
+# Journey: Test sunwell_self_search tool
+# Tests semantic search in sunwell source
+
+journey:
+  id: sunwell-self-search
+  type: single_turn
+  description: "Test sunwell_self_search for semantic code search"
+  tags:
+    - sunwell
+    - meta
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: ".gitkeep"
+        content: ""
+
+  input: "How does sunwell handle tool calling?"
+
+  expect:
+    intent:
+      - TASK
+      - CONVERSATION
+    signals:
+      needs_tools: "YES"
+    tools_called_any:
+      - sunwell_self_search
+      - sunwell_self_modules
+      - sunwell_self_read

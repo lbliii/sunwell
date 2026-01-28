@@ -1,0 +1,29 @@
+# Journey: Test sunwell_weakness_scan tool
+# Tests scanning for code weaknesses
+
+journey:
+  id: sunwell-weakness-scan
+  type: single_turn
+  description: "Test sunwell_weakness_scan for code analysis"
+  tags:
+    - sunwell
+    - analysis
+
+  setup:
+    workspace: "/tmp/sunwell-test-{uuid}"
+    files:
+      - path: "main.py"
+        content: |
+          # Potential weakness: no error handling
+          def risky_operation():
+              return open("file.txt").read()
+
+  input: "Scan this file for weaknesses"
+
+  expect:
+    intent: TASK
+    signals:
+      needs_tools: "YES"
+    tools_called_any:
+      - sunwell_weakness_scan
+      - read_file
