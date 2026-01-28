@@ -324,6 +324,54 @@ class Task:
         return len(self.verification_checks) > 0
 
 
+    def to_opportunity(self) -> Opportunity:
+        """Convert Task to Opportunity for backward compatibility.
+
+        Maps Task fields to Opportunity equivalents.
+        """
+        # Map category string to OpportunityCategory enum
+        try:
+            category = OpportunityCategory(self.category)
+        except ValueError:
+            category = OpportunityCategory.OTHER
+
+        return Opportunity(
+            id=self.id,
+            description=self.description,
+            category=category,
+            target_module=self.target_path or "",
+            priority=self.priority,
+            estimated_effort=self.estimated_effort,
+            risk_level=self.risk_level,
+            details=self.details,
+        )
+
+    @classmethod
+    def from_opportunity(cls, opp: Opportunity) -> Task:
+        """Create Task from Opportunity for backward compatibility.
+
+        Converts legacy Opportunity to Task with sensible defaults.
+        Opportunity represents self-improvement work, so defaults to SELF_IMPROVE.
+        """
+        # Infer mode from category - Opportunities are self-improvement tasks
+        mode = TaskMode.SELF_IMPROVE  # Default for Naaru self-improvement
+        if opp.category == OpportunityCategory.DOCUMENTATION:
+            mode = TaskMode.GENERATE
+        elif opp.category == OpportunityCategory.TESTING:
+            mode = TaskMode.GENERATE
+
+        return cls(
+            id=opp.id,
+            description=opp.description,
+            mode=mode,
+            target_path=opp.target_module,
+            category=opp.category.value,
+            priority=opp.priority,
+            estimated_effort=opp.estimated_effort,
+            risk_level=opp.risk_level,
+            details=opp.details,
+        )
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
         return {

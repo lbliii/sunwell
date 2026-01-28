@@ -62,7 +62,12 @@ from sunwell.agent.execution import (
     validate_gate,
 )
 from sunwell.agent.execution.fixer import FixStage
-from sunwell.agent.learning import LearningExtractor, LearningStore, learn_from_execution
+from sunwell.agent.learning import (
+    LearningExtractor,
+    LearningStore,
+    RoutingOutcomeStore,
+    learn_from_execution,
+)
 from sunwell.agent.signals import AdaptiveSignals, extract_signals
 from sunwell.agent.utils.budget import AdaptiveBudget
 from sunwell.agent.utils.metrics import InferenceMetrics
@@ -155,6 +160,9 @@ class Agent:
 
     # Internal state (not user-configurable)
     _learning_store: LearningStore = field(default_factory=LearningStore, init=False)
+    _routing_outcome_store: RoutingOutcomeStore = field(
+        default_factory=RoutingOutcomeStore, init=False
+    )
     _learning_extractor: LearningExtractor = field(default_factory=LearningExtractor, init=False)
     _validation_runner: ValidationRunner | None = field(default=None, init=False)
     _fix_stage: FixStage | None = field(default=None, init=False)
@@ -221,6 +229,9 @@ class Agent:
 
         # Load inference metrics from disk for model discovery
         self._inference_metrics.load_from_disk(self.cwd)
+
+        # Load routing outcomes from disk for adaptive routing
+        self._routing_outcome_store.load_from_disk(self.cwd)
 
         # Initialize Naaru for task execution (if tool_executor provided)
         if self.tool_executor:
@@ -476,6 +487,9 @@ class Agent:
 
         # Sync memory to disk
         memory.sync()
+
+        # Save routing outcomes for adaptive routing
+        self._routing_outcome_store.save_to_disk(session.cwd)
 
         # Save briefing for next session
         session.save_briefing()
@@ -784,6 +798,7 @@ class Agent:
             tool_executor=self.tool_executor,
             cwd=self.cwd,
             learning_store=self._learning_store,
+            routing_outcome_store=self._routing_outcome_store,
             inference_metrics=self._inference_metrics,
             workspace_context=self._workspace_context,
             lens=self.lens,

@@ -25,6 +25,12 @@ from sunwell.agent.learning.execution import learn_from_execution  # From learni
 from sunwell.agent.learning.extractor import LearningExtractor
 from sunwell.agent.learning.learning import Learning
 from sunwell.agent.learning.patterns import ToolPattern, classify_task_type
+from sunwell.agent.learning.routing import (
+    DEFAULT_INTERFERENCE_THRESHOLD,
+    DEFAULT_VORTEX_THRESHOLD,
+    RoutingOutcome,
+    RoutingOutcomeStore,
+)
 from sunwell.agent.learning.store import LearningStore
 
 __all__ = [
@@ -35,4 +41,9 @@ __all__ = [
     "LearningExtractor",
     "LearningStore",
     "learn_from_execution",
+    # Adaptive routing (RFC-xxx)
+    "RoutingOutcome",
+    "RoutingOutcomeStore",
+    "DEFAULT_VORTEX_THRESHOLD",
+    "DEFAULT_INTERFERENCE_THRESHOLD",
 ]

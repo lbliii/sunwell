@@ -263,6 +263,8 @@ class ValidationRunner:
                     passed, message = await self._check_command(gate)
                 case GateType.SEMANTIC:
                     passed, message = await self._check_semantic(gate, artifacts)
+                case GateType.CONTRACT:
+                    passed, message = await self._check_contract(gate, artifacts)
                 case _:
                     passed, message = True, "No specific check"
 
@@ -468,6 +470,113 @@ class ValidationRunner:
             return True, f"Semantic verification passed ({avg_confidence:.0%} confidence)"
         else:
             return False, f"Semantic verification failed: {'; '.join(messages)}"
+
+    async def _check_contract(
+        self,
+        gate: ValidationGate,
+        artifacts: list[Artifact],
+    ) -> tuple[bool, str]:
+        """Check if implementation satisfies its Protocol contract (RFC-034).
+
+        Uses the ContractVerifier with tiered verification:
+        1. AST analysis (fast)
+        2. mypy type checking (thorough)
+        3. LLM verification (fallback)
+
+        Args:
+            gate: ValidationGate with contract_protocol and contract_file set
+            artifacts: Implementation artifacts to verify
+
+        Returns:
+            (passed, message) tuple
+        """
+        if not gate.contract_protocol:
+            return False, "CONTRACT gate requires contract_protocol to be set"
+
+        if not artifacts:
+            return True, "No artifacts to verify"
+
+        from sunwell.planning.naaru.verification import (
+            ContractVerifier,
+            VerificationStatus,
+        )
+
+        # Initialize verifier
+        verifier = ContractVerifier(
+            workspace=self.cwd,
+            model=self.model,  # For LLM fallback
+            skip_llm=self.model is None,
+            mypy_timeout=float(gate.timeout_s),
+        )
+
+        all_passed = True
+        messages: list[str] = []
+
+        for artifact in artifacts:
+            if artifact.path.suffix != ".py":
+                continue
+
+            # Determine contract file path
+            contract_file = Path(gate.contract_file) if gate.contract_file else None
+
+            # If no explicit contract file, try to find it
+            if not contract_file or not contract_file.exists():
+                # Look for a file containing the protocol in common locations
+                possible_paths = [
+                    self.cwd / "protocols.py",
+                    self.cwd / "interfaces.py",
+                    self.cwd / "types.py",
+                    self.cwd / "contracts.py",
+                    self.cwd / "src" / "protocols.py",
+                    self.cwd / "src" / "interfaces.py",
+                ]
+                for p in possible_paths:
+                    if p.exists():
+                        contract_file = p
+                        break
+
+            if not contract_file or not contract_file.exists():
+                messages.append(
+                    f"{artifact.path.name}: SKIPPED (contract file not found)"
+                )
+                continue
+
+            try:
+                result = await verifier.verify(
+                    implementation_file=artifact.path,
+                    contract_file=contract_file,
+                    protocol_name=gate.contract_protocol,
+                    impl_class_name=None,  # Auto-detect
+                )
+
+                if result.passed:
+                    tier = result.final_tier.value if result.final_tier else "unknown"
+                    messages.append(
+                        f"{artifact.path.name}: PASSED ({tier})"
+                    )
+                else:
+                    all_passed = False
+                    # Include mismatch details
+                    mismatch_summary = ""
+                    mismatches = result.all_mismatches
+                    if mismatches:
+                        mismatch_summary = "; ".join(
+                            m.issue for m in mismatches[:3]
+                        )
+                    messages.append(
+                        f"{artifact.path.name}: FAILED - {result.summary or mismatch_summary}"
+                    )
+
+            except Exception as e:
+                all_passed = False
+                messages.append(f"{artifact.path.name}: ERROR - {e}")
+
+        summary = "; ".join(messages) if messages else "No Python files verified"
+
+        if all_passed:
+            return True, f"Contract verification passed: {summary}"
+        else:
+            return False, f"Contract verification failed: {summary}"
 
     async def _run_subprocess(
         self,

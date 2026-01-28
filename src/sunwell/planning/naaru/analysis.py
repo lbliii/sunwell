@@ -16,10 +16,13 @@ Example:
 
 from collections import defaultdict
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from sunwell.llm.types import ModelProtocol
     from sunwell.planning.naaru.types import Task
+    from sunwell.planning.naaru.verification import ContractVerificationResult
 
 
 def visualize_task_graph(tasks: list[Task]) -> str:
@@ -298,34 +301,54 @@ def _find_conflicts(tasks: list) -> list[tuple[str, str, set[str]]]:
 async def validate_contracts(
     tasks: list[Task],
     completed_ids: set[str],
-) -> list[str]:
+    workspace: Path | None = None,
+    model: "ModelProtocol | None" = None,
+) -> tuple[list[str], list["ContractVerificationResult"]]:
     """Validate that completed implementations satisfy their contracts (RFC-034).
 
     This runs after task execution to verify the produced artifacts
-    actually conform to the declared interfaces.
-
-    Note: This is a placeholder for future implementation. Full contract
-    validation would require:
-    - mypy/pyright for type checking generated code
-    - Runtime Protocol checks
-    - LLM-based verification
+    actually conform to the declared interfaces using a tiered approach:
+    1. AST Analysis - Fast structural checks
+    2. Static Type Check - mypy verification
+    3. LLM Verification - Semantic analysis (fallback, if model provided)
 
     Args:
         tasks: List of all tasks
         completed_ids: Set of completed task IDs
+        workspace: Workspace root directory (defaults to cwd)
+        model: Optional LLM model for Tier 3 semantic verification
 
     Returns:
-        List of validation errors (empty if all valid)
+        Tuple of (errors, verification_results):
+        - errors: List of validation error messages
+        - verification_results: List of ContractVerificationResult objects
     """
     from sunwell.planning.naaru.types import TaskStatus
+    from sunwell.planning.naaru.verification import (
+        ContractVerificationResult,
+        ContractVerifier,
+        VerificationStatus,
+    )
 
-    errors = []
+    errors: list[str] = []
+    results: list[ContractVerificationResult] = []
 
-    # Build a map of artifact producers
+    if workspace is None:
+        workspace = Path.cwd()
+
+    # Build maps for task and artifact lookups
+    task_map: dict[str, Task] = {t.id: t for t in tasks}
     artifact_producers: dict[str, str] = {}
     for task in tasks:
         for artifact in task.produces:
             artifact_producers[artifact] = task.id
+
+    # Initialize verifier
+    verifier = ContractVerifier(
+        workspace=workspace,
+        model=model,
+        skip_llm=model is None,
+    )
 
     for task in tasks:
         if task.status != TaskStatus.COMPLETED:
@@ -349,13 +372,98 @@ async def validate_contracts(
             )
             continue
 
-        # TODO: Actually verify the implementation satisfies the protocol
-        # This could use:
-        # - mypy --no-incremental for type checking
-        # - Runtime isinstance() checks
-        # - LLM-based verification ("Does X satisfy protocol Y?")
+        contract_task = task_map.get(contract_task_id)
+        if contract_task is None:
+            errors.append(f"Contract task {contract_task_id} not found in task map")
+            continue
 
-    return errors
+        # Determine file paths for verification
+        impl_file = _find_implementation_file(task, workspace)
+        contract_file = _find_contract_file(contract_task, workspace)
+
+        if impl_file is None:
+            errors.append(
+                f"Task {task.id}: Cannot determine implementation file path"
+            )
+            continue
+
+        if contract_file is None:
+            errors.append(
+                f"Task {task.id}: Cannot determine contract file path for {task.contract}"
+            )
+            continue
+
+        # Run verification
+        result = await verifier.verify(
+            implementation_file=impl_file,
+            contract_file=contract_file,
+            protocol_name=task.contract,
+        )
+        results.append(result)
+
+        # Report failures
+        if result.status == VerificationStatus.FAILED:
+            mismatch_details = "; ".join(
+                f"{m.method_name}: {m.issue}"
+                for m in result.all_mismatches[:3]
+            )
+            errors.append(
+                f"Task {task.id}: Implementation does not satisfy {task.contract}: "
+                f"{mismatch_details}"
+            )
+        elif result.status == VerificationStatus.ERROR:
+            errors.append(
+                f"Task {task.id}: Verification error: {result.error_message}"
+            )
+
+    return errors, results
+
+
+def _find_implementation_file(task: "Task", workspace: Path) -> Path | None:
+    """Find the implementation file for a task.
+
+    Checks task.target_path and task.modifies for Python files.
+
+    Args:
+        task: Task to find implementation file for
+        workspace: Workspace root directory
+
+    Returns:
+        Path to implementation file, or None if not found
+    """
+    # First check target_path
+    if task.target_path:
+        target = Path(task.target_path)
+        if target.suffix == ".py":
+            full_path = workspace / target if not target.is_absolute() else target
+            if full_path.exists():
+                return full_path
+
+    # Check modifies for Python files
+    for modified in task.modifies:
+        modified_path = Path(modified)
+        if modified_path.suffix == ".py":
+            full_path = workspace / modified_path if not modified_path.is_absolute() else modified_path
+            if full_path.exists():
+                return full_path
+
+    return None
+
+
+def _find_contract_file(task: "Task", workspace: Path) -> Path | None:
+    """Find the contract/Protocol file for a contract task.
+
+    Checks task.target_path and task.modifies for Python files.
+
+    Args:
+        task: Contract task to find Protocol file for
+        workspace: Workspace root directory
+
+    Returns:
+        Path to contract file, or None if not found
+    """
+    # Same logic as implementation file - contracts are also Python files
+    return _find_implementation_file(task, workspace)
 
 
 def format_execution_summary(tasks: list[Task]) -> str:

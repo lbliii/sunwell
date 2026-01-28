@@ -1,0 +1,27 @@
+# Test Vortex routing for low-confidence, complex tasks
+# Verifies that complex tasks trigger the Vortex multi-candidate strategy
+
+journey:
+  id: routing-vortex
+  description: Verify Vortex routing for low-confidence tasks
+  tags:
+    - observability
+    - routing
+    - vortex
+    - confidence
+
+  # Complex task should trigger Vortex (low confidence)
+  input: "Refactor the entire authentication system to use OAuth2 with JWT tokens, implement refresh token rotation, and add rate limiting"
+
+  expect:
+    intent: TASK
+    signals:
+      complexity:
+        - complex
+        - high
+      needs_tools: "YES"
+    # Complex refactoring tasks should use vortex or interference
+    # depending on confidence score
+    routing_strategy:
+      - vortex
+      - interference

@@ -25,6 +25,11 @@ from .base import (
     TaskStartData,
 )
 from .briefing import BriefingLoadedData, BriefingSavedData
+from .contract import (
+    ContractVerifyFailData,
+    ContractVerifyPassData,
+    ContractVerifyStartData,
+)
 from .constellation import (
     AutonomousActionBlockedData,
     CheckpointFoundData,
@@ -108,6 +113,16 @@ from .recovery import (
     RecoveryLoadedData,
     RecoveryResolvedData,
     RecoverySavedData,
+)
+from .reliability import (
+    BudgetExhaustedData,
+    BudgetWarningData,
+    CircuitBreakerOpenData,
+    HealthCheckFailedData,
+    HealthWarningData,
+    ReliabilityHallucinationData,
+    ReliabilityWarningData,
+    TimeoutData,
 )
 from .refinement import (
     PlanRefineAttemptData,
@@ -374,6 +389,23 @@ EVENT_SCHEMAS: dict[EventType, type[TypedDict]] = {
     EventType.STUB_DETECTED: StubDetectedData,
     EventType.ORPHAN_DETECTED: OrphanDetectedData,
     EventType.WIRE_TASK_GENERATED: WireTaskGeneratedData,
+    # =============================================================================
+    # Contract verification events
+    # =============================================================================
+    EventType.CONTRACT_VERIFY_START: ContractVerifyStartData,
+    EventType.CONTRACT_VERIFY_PASS: ContractVerifyPassData,
+    EventType.CONTRACT_VERIFY_FAIL: ContractVerifyFailData,
+    # =============================================================================
+    # Reliability Events (Solo Dev Hardening)
+    # =============================================================================
+    EventType.RELIABILITY_WARNING: ReliabilityWarningData,
+    EventType.RELIABILITY_HALLUCINATION: ReliabilityHallucinationData,
+    EventType.CIRCUIT_BREAKER_OPEN: CircuitBreakerOpenData,
+    EventType.BUDGET_EXHAUSTED: BudgetExhaustedData,
+    EventType.BUDGET_WARNING: BudgetWarningData,
+    EventType.HEALTH_CHECK_FAILED: HealthCheckFailedData,
+    EventType.HEALTH_WARNING: HealthWarningData,
+    EventType.TIMEOUT: TimeoutData,
 }
 
 # =============================================================================
@@ -477,6 +509,16 @@ REQUIRED_FIELDS: dict[EventType, set[str]] = {
     EventType.WIRE_TASK_GENERATED: {
         "task_id", "source_artifact", "target_artifact", "integration_type"
     },
+    # Contract verification events
+    EventType.CONTRACT_VERIFY_START: {
+        "task_id", "protocol_name", "implementation_file", "contract_file"
+    },
+    EventType.CONTRACT_VERIFY_PASS: {
+        "task_id", "protocol_name", "final_tier"
+    },
+    EventType.CONTRACT_VERIFY_FAIL: {
+        "task_id", "protocol_name", "final_tier", "error_message"
+    },
     # Skill graph events (RFC-087)
     EventType.SKILL_GRAPH_RESOLVED: {
         "lens_name", "skill_count", "wave_count", "content_hash"
@@ -536,4 +578,13 @@ REQUIRED_FIELDS: dict[EventType, set[str]] = {
     EventType.DECISION_MADE: {"category", "question", "choice"},
     EventType.FAILURE_RECORDED: {"description", "error_type", "context"},
     EventType.BRIEFING_UPDATED: {"status"},
+    # Reliability events (Solo Dev Hardening)
+    EventType.RELIABILITY_WARNING: {"warning"},
+    EventType.RELIABILITY_HALLUCINATION: {"detected_pattern"},
+    EventType.CIRCUIT_BREAKER_OPEN: {"state", "consecutive_failures", "failure_threshold"},
+    EventType.BUDGET_EXHAUSTED: {"spent", "budget"},
+    EventType.BUDGET_WARNING: {"remaining"},
+    EventType.HEALTH_CHECK_FAILED: {"errors"},
+    EventType.HEALTH_WARNING: {"warnings"},
+    EventType.TIMEOUT: {"operation"},
 }

@@ -534,8 +534,8 @@
             }
           },
           "required": [
-            "dead_ends",
             "constraints",
+            "dead_ends",
             "learnings"
           ],
           "additionalProperties": true
@@ -612,9 +612,9 @@
             }
           },
           "required": [
-            "choice",
             "question",
-            "category"
+            "category",
+            "choice"
           ],
           "additionalProperties": true
         },
@@ -650,9 +650,9 @@
             }
           },
           "required": [
-            "description",
             "error_type",
-            "context"
+            "context",
+            "description"
           ],
           "additionalProperties": true
         },
@@ -816,6 +816,21 @@
             },
             "reasoning": {
               "type": "string"
+            },
+            "confidence": {
+              "type": "number"
+            },
+            "strategy": {
+              "type": "string"
+            },
+            "threshold_vortex": {
+              "type": "number"
+            },
+            "threshold_interference": {
+              "type": "number"
+            },
+            "thresholds_adaptive": {
+              "type": "boolean"
             }
           },
           "required": [
@@ -955,8 +970,8 @@
             }
           },
           "required": [
-            "tasks",
-            "selected_candidate_id"
+            "selected_candidate_id",
+            "tasks"
           ],
           "additionalProperties": true
         },
@@ -1099,8 +1114,8 @@
           },
           "required": [
             "total_candidates",
-            "candidate_id",
-            "artifact_count"
+            "artifact_count",
+            "candidate_id"
           ],
           "additionalProperties": true
         },
@@ -1182,9 +1197,9 @@
             }
           },
           "required": [
-            "score",
             "total_candidates",
-            "candidate_id"
+            "candidate_id",
+            "score"
           ],
           "additionalProperties": true
         },
@@ -1254,8 +1269,8 @@
             }
           },
           "required": [
-            "total_rounds",
-            "round"
+            "round",
+            "total_rounds"
           ],
           "additionalProperties": true
         },
@@ -1416,8 +1431,8 @@
             }
           },
           "required": [
-            "phase",
-            "artifacts_discovered"
+            "artifacts_discovered",
+            "phase"
           ],
           "additionalProperties": true
         },
@@ -1601,8 +1616,8 @@
             }
           },
           "required": [
-            "description",
-            "task_id"
+            "task_id",
+            "description"
           ],
           "additionalProperties": true
         },
@@ -1680,8 +1695,8 @@
             }
           },
           "required": [
-            "duration_ms",
-            "task_id"
+            "task_id",
+            "duration_ms"
           ],
           "additionalProperties": true
         },
@@ -1714,8 +1729,8 @@
             }
           },
           "required": [
-            "task_id",
-            "content"
+            "content",
+            "task_id"
           ],
           "additionalProperties": true
         },
@@ -1751,8 +1766,8 @@
             }
           },
           "required": [
-            "task_id",
-            "error"
+            "error",
+            "task_id"
           ],
           "additionalProperties": true
         },
@@ -1858,8 +1873,8 @@
             }
           },
           "required": [
-            "message",
-            "error_type"
+            "error_type",
+            "message"
           ],
           "additionalProperties": true
         },
@@ -1958,8 +1973,8 @@
             }
           },
           "required": [
-            "progress",
-            "stage"
+            "stage",
+            "progress"
           ],
           "additionalProperties": true
         },
@@ -2441,10 +2456,10 @@
             }
           },
           "required": [
-            "check_type",
-            "edge_id",
             "source_artifact",
-            "target_artifact"
+            "check_type",
+            "target_artifact",
+            "edge_id"
           ],
           "additionalProperties": true
         },
@@ -2480,9 +2495,9 @@
             }
           },
           "required": [
-            "verification_method",
             "check_type",
-            "edge_id"
+            "edge_id",
+            "verification_method"
           ],
           "additionalProperties": true
         },
@@ -2526,8 +2541,8 @@
           "required": [
             "actual",
             "check_type",
-            "edge_id",
-            "expected"
+            "expected",
+            "edge_id"
           ],
           "additionalProperties": true
         },
@@ -2566,10 +2581,10 @@
             }
           },
           "required": [
-            "artifact_id",
+            "stub_type",
             "file_path",
-            "location",
-            "stub_type"
+            "artifact_id",
+            "location"
           ],
           "additionalProperties": true
         },
@@ -2602,8 +2617,8 @@
             }
           },
           "required": [
-            "artifact_id",
-            "file_path"
+            "file_path",
+            "artifact_id"
           ],
           "additionalProperties": true
         },
@@ -2642,10 +2657,156 @@
             }
           },
           "required": [
+            "source_artifact",
             "target_artifact",
             "task_id",
-            "source_artifact",
             "integration_type"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "contract_verify_start",
+          "description": "Event type: contract_verify_start"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "task_id": {
+              "type": "string"
+            },
+            "protocol_name": {
+              "type": "string"
+            },
+            "implementation_file": {
+              "type": "string"
+            },
+            "contract_file": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "protocol_name",
+            "contract_file",
+            "task_id",
+            "implementation_file"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "contract_verify_pass",
+          "description": "Event type: contract_verify_pass"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "task_id": {
+              "type": "string"
+            },
+            "protocol_name": {
+              "type": "string"
+            },
+            "implementation_file": {
+              "type": "string"
+            },
+            "final_tier": {
+              "type": "string"
+            },
+            "tier_results": {
+              "type": "array",
+              "items": {}
+            },
+            "duration_ms": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "final_tier",
+            "task_id",
+            "protocol_name"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "contract_verify_fail",
+          "description": "Event type: contract_verify_fail"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "task_id": {
+              "type": "string"
+            },
+            "protocol_name": {
+              "type": "string"
+            },
+            "implementation_file": {
+              "type": "string"
+            },
+            "final_tier": {
+              "type": "string"
+            },
+            "tier_results": {
+              "type": "array",
+              "items": {}
+            },
+            "mismatches": {
+              "type": "array",
+              "items": {}
+            },
+            "error_message": {
+              "type": "string"
+            },
+            "duration_ms": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "final_tier",
+            "task_id",
+            "protocol_name",
+            "error_message"
           ],
           "additionalProperties": true
         },
@@ -2687,9 +2848,9 @@
             }
           },
           "required": [
-            "mission",
+            "has_hazards",
             "status",
-            "has_hazards"
+            "mission"
           ],
           "additionalProperties": true
         },
@@ -2805,9 +2966,9 @@
             }
           },
           "required": [
+            "learnings_loaded",
             "files_loaded",
-            "skills_activated",
-            "learnings_loaded"
+            "skills_activated"
           ],
           "additionalProperties": true
         },
@@ -2913,8 +3074,8 @@
             }
           },
           "required": [
-            "task_id",
-            "model"
+            "model",
+            "task_id"
           ],
           "additionalProperties": true
         },
@@ -2957,8 +3118,8 @@
           },
           "required": [
             "tokens",
-            "token_count",
-            "task_id"
+            "task_id",
+            "token_count"
           ],
           "additionalProperties": true
         },
@@ -2997,9 +3158,9 @@
             }
           },
           "required": [
-            "phase",
+            "content",
             "task_id",
-            "content"
+            "phase"
           ],
           "additionalProperties": true
         },
@@ -3051,8 +3212,8 @@
           },
           "required": [
             "duration_s",
-            "task_id",
             "tokens_per_second",
+            "task_id",
             "total_tokens"
           ],
           "additionalProperties": true
@@ -3092,9 +3253,9 @@
             }
           },
           "required": [
-            "token_count",
+            "elapsed_s",
             "task_id",
-            "elapsed_s"
+            "token_count"
           ],
           "additionalProperties": true
         },
@@ -3133,10 +3294,10 @@
             }
           },
           "required": [
-            "wave_count",
+            "skill_count",
             "lens_name",
             "content_hash",
-            "skill_count"
+            "wave_count"
           ],
           "additionalProperties": true
         },
@@ -3219,10 +3380,10 @@
             }
           },
           "required": [
-            "succeeded",
             "wave_index",
-            "duration_ms",
-            "failed"
+            "succeeded",
+            "failed",
+            "duration_ms"
           ],
           "additionalProperties": true
         },
@@ -3308,9 +3469,9 @@
           },
           "required": [
             "context_keys_available",
-            "wave_index",
             "requires",
-            "skill_name"
+            "skill_name",
+            "wave_index"
           ],
           "additionalProperties": true
         },
@@ -3362,11 +3523,11 @@
             }
           },
           "required": [
+            "skill_name",
             "duration_ms",
-            "cached",
             "produces",
             "success",
-            "skill_name"
+            "cached"
           ],
           "additionalProperties": true
         },
@@ -3448,10 +3609,10 @@
             }
           },
           "required": [
-            "wave_count",
-            "duration_ms",
+            "task_count",
             "lens_name",
-            "task_count"
+            "duration_ms",
+            "wave_count"
           ],
           "additionalProperties": true
         },
@@ -3490,8 +3651,8 @@
             }
           },
           "required": [
-            "wave_count",
             "cache_key",
+            "wave_count",
             "task_count"
           ],
           "additionalProperties": true
@@ -3535,9 +3696,9 @@
             }
           },
           "required": [
-            "target_skills",
+            "extracted_skills",
             "total_skills",
-            "extracted_skills"
+            "target_skills"
           ],
           "additionalProperties": true
         },
@@ -3588,11 +3749,11 @@
           },
           "required": [
             "skill_count",
-            "dag_id",
-            "risk_level",
             "dag_name",
+            "dag_id",
             "flags",
-            "risk_score"
+            "risk_score",
+            "risk_level"
           ],
           "additionalProperties": true
         },
@@ -3631,8 +3792,8 @@
             }
           },
           "required": [
-            "approved",
-            "dag_id"
+            "dag_id",
+            "approved"
           ],
           "additionalProperties": true
         },
@@ -3677,11 +3838,11 @@
             }
           },
           "required": [
-            "evidence",
-            "action_taken",
-            "detection_method",
             "skill_name",
-            "violation_type"
+            "violation_type",
+            "action_taken",
+            "evidence",
+            "detection_method"
           ],
           "additionalProperties": true
         },
@@ -3720,10 +3881,10 @@
             }
           },
           "required": [
-            "method",
             "violations_found",
+            "scan_duration_ms",
             "output_length",
-            "scan_duration_ms"
+            "method"
           ],
           "additionalProperties": true
         },
@@ -3765,8 +3926,8 @@
             }
           },
           "required": [
-            "skill_name",
             "action",
+            "skill_name",
             "risk_level"
           ],
           "additionalProperties": true
@@ -3800,8 +3961,8 @@
             }
           },
           "required": [
-            "goal_id",
-            "title"
+            "title",
+            "goal_id"
           ],
           "additionalProperties": true
         },
@@ -3962,8 +4123,8 @@
             }
           },
           "required": [
-            "tool_name",
-            "tool_call_id"
+            "tool_call_id",
+            "tool_name"
           ],
           "additionalProperties": true
         },
@@ -4005,10 +4166,10 @@
             }
           },
           "required": [
-            "tool_name",
-            "success",
             "tool_call_id",
-            "output"
+            "output",
+            "tool_name",
+            "success"
           ],
           "additionalProperties": true
         },
@@ -4044,9 +4205,9 @@
             }
           },
           "required": [
-            "tool_name",
             "error",
-            "tool_call_id"
+            "tool_call_id",
+            "tool_name"
           ],
           "additionalProperties": true
         },
@@ -4082,9 +4243,9 @@
             }
           },
           "required": [
+            "max_turns",
             "task_description",
-            "tool_count",
-            "max_turns"
+            "tool_count"
           ],
           "additionalProperties": true
         },
@@ -4117,8 +4278,8 @@
             }
           },
           "required": [
-            "tool_calls_count",
-            "turn"
+            "turn",
+            "tool_calls_count"
           ],
           "additionalProperties": true
         },
@@ -4154,8 +4315,8 @@
             }
           },
           "required": [
-            "tool_calls_total",
-            "turns_used"
+            "turns_used",
+            "tool_calls_total"
           ],
           "additionalProperties": true
         },
@@ -4195,9 +4356,9 @@
             }
           },
           "required": [
-            "tool_name",
+            "repairs",
             "tool_call_id",
-            "repairs"
+            "tool_name"
           ],
           "additionalProperties": true
         },
@@ -4233,9 +4394,9 @@
             }
           },
           "required": [
-            "tool_name",
+            "tool_call_id",
             "reason",
-            "tool_call_id"
+            "tool_name"
           ],
           "additionalProperties": true
         },
@@ -4277,11 +4438,11 @@
             }
           },
           "required": [
-            "strategy",
-            "attempt",
-            "tool_name",
             "error",
-            "tool_call_id"
+            "attempt",
+            "tool_call_id",
+            "strategy",
+            "tool_name"
           ],
           "additionalProperties": true
         },
@@ -4320,9 +4481,78 @@
             }
           },
           "required": [
-            "tool_name",
+            "error",
             "reason",
-            "error"
+            "tool_name"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "reliability_warning",
+          "description": "Event type: reliability_warning"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "warning": {
+              "type": "string"
+            },
+            "context": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "warning"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "reliability_hallucination",
+          "description": "Event type: reliability_hallucination"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "detected_pattern": {
+              "type": "string"
+            },
+            "evidence": {
+              "type": "string"
+            },
+            "severity": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "detected_pattern"
           ],
           "additionalProperties": true
         },
@@ -4401,9 +4631,9 @@
             }
           },
           "required": [
-            "tools_unlocked",
-            "category",
             "turn",
+            "category",
+            "tools_unlocked",
             "validation_passes"
           ],
           "additionalProperties": true
@@ -4442,8 +4672,8 @@
             }
           },
           "required": [
-            "files",
             "max_iterations",
+            "files",
             "gates"
           ],
           "additionalProperties": true
@@ -4478,8 +4708,8 @@
             }
           },
           "required": [
-            "files",
-            "iteration"
+            "iteration",
+            "files"
           ],
           "additionalProperties": true
         },
@@ -4522,10 +4752,10 @@
             }
           },
           "required": [
-            "all_passed",
+            "iteration",
             "total_errors",
-            "gate_results",
-            "iteration"
+            "all_passed",
+            "gate_results"
           ],
           "additionalProperties": true
         },
@@ -4561,8 +4791,8 @@
             }
           },
           "required": [
-            "error_count",
-            "iteration"
+            "iteration",
+            "error_count"
           ],
           "additionalProperties": true
         },
@@ -4782,10 +5012,10 @@
             }
           },
           "required": [
-            "task_description",
-            "reason",
             "delegation_model",
-            "smart_model"
+            "smart_model",
+            "task_description",
+            "reason"
           ],
           "additionalProperties": true
         },
@@ -4830,10 +5060,10 @@
             }
           },
           "required": [
-            "heuristics_count",
             "task_scope",
+            "generated_by",
             "patterns_count",
-            "generated_by"
+            "heuristics_count"
           ],
           "additionalProperties": true
         },
@@ -4878,11 +5108,11 @@
             }
           },
           "required": [
-            "focus",
-            "role",
-            "parent_id",
             "specialist_id",
-            "task_id"
+            "task_id",
+            "parent_id",
+            "role",
+            "focus"
           ],
           "additionalProperties": true
         },
@@ -4924,10 +5154,10 @@
             }
           },
           "required": [
-            "success",
-            "tokens_used",
             "summary",
-            "specialist_id"
+            "tokens_used",
+            "specialist_id",
+            "success"
           ],
           "additionalProperties": true
         },
@@ -4963,9 +5193,9 @@
             }
           },
           "required": [
-            "checkpoint_at",
+            "goal",
             "phase",
-            "goal"
+            "checkpoint_at"
           ],
           "additionalProperties": true
         },
@@ -5001,8 +5231,8 @@
             }
           },
           "required": [
-            "phase",
-            "summary"
+            "summary",
+            "phase"
           ],
           "additionalProperties": true
         },
@@ -5035,8 +5265,8 @@
             }
           },
           "required": [
-            "phase",
-            "duration_seconds"
+            "duration_seconds",
+            "phase"
           ],
           "additionalProperties": true
         },
@@ -5078,10 +5308,10 @@
             }
           },
           "required": [
-            "reason",
+            "blocking_rule",
             "action_type",
-            "risk_level",
-            "blocking_rule"
+            "reason",
+            "risk_level"
           ],
           "additionalProperties": true
         },
@@ -5120,10 +5350,222 @@
             }
           },
           "required": [
+            "confidence",
             "guard_id",
-            "reason",
             "evolution_type",
-            "confidence"
+            "reason"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "circuit_breaker_open",
+          "description": "Event type: circuit_breaker_open"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string"
+            },
+            "consecutive_failures": {
+              "type": "integer"
+            },
+            "failure_threshold": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "consecutive_failures",
+            "state",
+            "failure_threshold"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "budget_exhausted",
+          "description": "Event type: budget_exhausted"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "spent": {
+              "type": "integer"
+            },
+            "budget": {
+              "type": "integer"
+            },
+            "percentage_used": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "spent",
+            "budget"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "budget_warning",
+          "description": "Event type: budget_warning"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "remaining": {
+              "type": "integer"
+            },
+            "percentage_remaining": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "remaining"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "health_check_failed",
+          "description": "Event type: health_check_failed"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "errors": {
+              "type": "array",
+              "items": {}
+            },
+            "error_count": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "errors"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "health_warning",
+          "description": "Event type: health_warning"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "warnings": {
+              "type": "array",
+              "items": {}
+            },
+            "warning_count": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "warnings"
+          ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "timeout",
+          "description": "Event type: timeout"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "operation": {
+              "type": "string"
+            },
+            "timeout_seconds": {
+              "type": "number"
+            },
+            "elapsed_seconds": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "operation"
           ],
           "additionalProperties": true
         },

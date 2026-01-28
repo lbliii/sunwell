@@ -75,6 +75,10 @@ class GateType(Enum):
     SEMANTIC = "semantic"
     """Deep verification — does it do the right thing?"""
 
+    # Contract verification (RFC-034)
+    CONTRACT = "contract"
+    """Does implementation satisfy its Protocol contract?"""
+
 
 @dataclass(frozen=True, slots=True)
 class ValidationGate:
@@ -91,6 +95,8 @@ class ValidationGate:
         blocks: Task IDs blocked until this gate passes
         is_runnable_milestone: Whether we can actually run something
         timeout_s: Timeout for validation in seconds
+        contract_protocol: For CONTRACT gates, the Protocol name to verify against
+        contract_file: For CONTRACT gates, path to file containing the Protocol
     """
 
     id: str
@@ -117,7 +123,14 @@ class ValidationGate:
     description: str = ""
     """Human-readable description of what this gate checks."""
 
-    def __post_init__(self):
+    # RFC-034: Contract validation fields
+    contract_protocol: str = ""
+    """For CONTRACT gates: Protocol name to verify against."""
+
+    contract_file: str = ""
+    """For CONTRACT gates: Path to file containing the Protocol definition."""
+
+    def __post_init__(self) -> None:
         # Ensure description is set
         if not self.description:
             gate_name = self.gate_type.value.capitalize()
@@ -234,6 +247,11 @@ def detect_gates(tasks: list[Task]) -> list[ValidationGate]:
     tests = [t for t in tasks if _is_test_task(t)]
     for test_task in tests:
         gates.append(_make_test_gate(test_task))
+
+    # Pattern 6: Contract implementation tasks (RFC-034)
+    contract_tasks = [t for t in tasks if _has_contract(t)]
+    for contract_task in contract_tasks:
+        gates.append(_make_contract_gate(contract_task, tasks))
 
     return gates
 
@@ -418,4 +436,55 @@ def is_runnable_milestone(tasks: list[Task]) -> bool:
     return all(
         t.target_path and t.target_path.endswith(".py")
         for t in tasks
+    )
+
+
+# =============================================================================
+# Contract Gate Detection (RFC-034)
+# =============================================================================
+
+
+def _has_contract(task: Task) -> bool:
+    """Check if task has a contract to verify against."""
+    return bool(task.contract) and not task.is_contract
+
+
+def _make_contract_gate(
+    task: Task,
+    all_tasks: list[Task],
+) -> ValidationGate:
+    """Create a contract validation gate for an implementation task.
+
+    Args:
+        task: The implementation task with a contract
+        all_tasks: All tasks for finding the contract definition
+
+    Returns:
+        ValidationGate configured for contract verification
+    """
+    # Find the contract definition task
+    contract_name = task.contract or ""
+    contract_file = ""
+
+    # Look for the task that produces this contract
+    for t in all_tasks:
+        if t.is_contract and contract_name in t.produces:
+            contract_file = t.target_path or ""
+            break
+        # Also check if the contract name matches the task description
+        if t.is_contract and contract_name.lower() in t.description.lower():
+            contract_file = t.target_path or ""
+            break
+
+    return ValidationGate(
+        id=f"gate_contract_{task.id}",
+        gate_type=GateType.CONTRACT,
+        depends_on=(task.id,),
+        validation=contract_name,  # Protocol name to verify
+        blocks=(),
+        is_runnable_milestone=True,
+        timeout_s=60,  # Contract verification can take longer with mypy
+        description=f"Verify {task.id} implements {contract_name}",
+        contract_protocol=contract_name,
+        contract_file=contract_file,
     )

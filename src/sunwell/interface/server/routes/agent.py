@@ -71,6 +71,8 @@ class StopRunRequest(CamelModel):
 # ═══════════════════════════════════════════════════════════════
 # AGENT EXECUTION ROUTES
 # ═══════════════════════════════════════════════════════════════
+# NOTE: Specific routes (/run/active, /run/history) must be defined
+# BEFORE parameterized routes (/run/{run_id}) for correct matching.
 
 
 @router.post("/run")
@@ -89,6 +91,52 @@ async def start_run(request: RunRequest) -> RunStartResponse:
         use_v2=request.use_v2,
     )
     return RunStartResponse(run_id=run.run_id, status=run.status, use_v2=run.use_v2)
+
+
+@router.get("/run/active")
+async def get_active_runs() -> list[RunItem]:
+    """Get all active runs."""
+    return [
+        RunItem(
+            run_id=run.run_id,
+            goal=run.goal,
+            status=run.status,
+            source=run.source,
+            started_at=run.started_at.isoformat() if run.started_at else "",
+            completed_at=run.completed_at.isoformat() if run.completed_at else None,
+            event_count=len(run.events),
+        )
+        for run in _run_manager.list_runs()
+        if run.status in ("pending", "running")
+    ]
+
+
+@router.get("/run/history")
+async def get_run_history(
+    limit: int = 20,
+    project_id: str | None = None,
+) -> list[RunHistoryItem]:
+    """Get run history from persistent storage.
+
+    Returns historical runs that have been persisted to disk.
+    """
+    store = get_run_store()
+    runs = store.list_runs(limit=limit, project_id=project_id)
+    return [
+        RunHistoryItem(
+            run_id=run.run_id,
+            goal=run.goal,
+            status=run.status,
+            source=run.source,
+            started_at=run.started_at,
+            completed_at=run.completed_at,
+            event_count=len(run.events),
+            workspace=run.workspace,
+            lens=run.lens,
+            model=run.model,
+        )
+        for run in runs
+    ]
 
 
 @router.get("/run/{run_id}")
@@ -249,57 +297,6 @@ async def list_runs(
     # Sort by started_at descending and limit
     result_runs.sort(key=lambda x: x.started_at, reverse=True)
     return RunsListResponse(runs=result_runs[:limit])
-
-
-# ═══════════════════════════════════════════════════════════════
-# RUN MANAGEMENT EXTENDED
-# ═══════════════════════════════════════════════════════════════
-
-
-@router.get("/run/active")
-async def get_active_runs() -> list[RunItem]:
-    """Get all active runs."""
-    return [
-        RunItem(
-            run_id=run.run_id,
-            goal=run.goal,
-            status=run.status,
-            source=run.source,
-            started_at=run.started_at.isoformat() if run.started_at else "",
-            completed_at=run.completed_at.isoformat() if run.completed_at else None,
-            event_count=len(run.events),
-        )
-        for run in _run_manager.list_runs()
-        if run.status in ("pending", "running")
-    ]
-
-
-@router.get("/run/history")
-async def get_run_history(
-    limit: int = 20,
-    project_id: str | None = None,
-) -> list[RunHistoryItem]:
-    """Get run history from persistent storage.
-
-    Returns historical runs that have been persisted to disk.
-    """
-    store = get_run_store()
-    runs = store.list_runs(limit=limit, project_id=project_id)
-    return [
-        RunHistoryItem(
-            run_id=run.run_id,
-            goal=run.goal,
-            status=run.status,
-            source=run.source,
-            started_at=run.started_at,
-            completed_at=run.completed_at,
-            event_count=len(run.events),
-            workspace=run.workspace,
-            lens=run.lens,
-            model=run.model,
-        )
-        for run in runs
-    ]
 
 
 @router.get("/run/{run_id}/events")

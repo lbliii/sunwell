@@ -55,6 +55,9 @@ class LoopConfig:
     enable_validation_gates: bool = True
     """Run validation gates after file operations."""
 
+    enable_contract_validation: bool = True
+    """Run contract validation when protocol context is available (RFC-034)."""
+
     enable_recovery: bool = True
     """Save recovery state on failures."""
 
@@ -213,3 +216,17 @@ class LoopState:
     # RFC-134: Introspection repairs tracking
     repairs_made: int = 0
     """Count of repairs made by introspection."""
+
+    # Adaptive routing tracking
+    routing_strategy: str | None = None
+    """Strategy used: 'vortex', 'interference', or 'single_shot'."""
+
+    routing_confidence: float | None = None
+    """Confidence score used for routing decision."""
+
+    # RFC-034: Contract validation context
+    contract_protocol: str | None = None
+    """Protocol name for contract validation (set when implementing a contract)."""
+
+    contract_file: str | None = None
+    """Path to file containing the Protocol definition."""

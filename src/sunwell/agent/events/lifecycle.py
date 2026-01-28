@@ -240,6 +240,7 @@ def signal_route_event(
     strategy: str,
     threshold_vortex: float = 0.6,
     threshold_interference: float = 0.85,
+    thresholds_adaptive: bool = False,
     **kwargs: Any,
 ) -> AgentEvent:
     """Create a signal route event.
@@ -251,14 +252,17 @@ def signal_route_event(
         strategy: Selected strategy ("vortex", "interference", "single_shot")
         threshold_vortex: Threshold below which Vortex is used
         threshold_interference: Threshold below which Interference is used
+        thresholds_adaptive: True if thresholds are from adaptive learning
     """
     return AgentEvent(
         EventType.SIGNAL_ROUTE,
         {
+            "route": strategy,  # Legacy field for compatibility
             "confidence": round(confidence, 3),
             "strategy": strategy,
             "threshold_vortex": threshold_vortex,
             "threshold_interference": threshold_interference,
+            "thresholds_adaptive": thresholds_adaptive,
             **kwargs,
         },
     )

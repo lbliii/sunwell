@@ -209,6 +209,12 @@ DEFAULT_UI_HINTS: dict[str, EventUIHints] = {
     "orphan_detected": EventUIHints(icon="⊘", severity="warning"),
     "wire_task_generated": EventUIHints(icon="+", severity="info"),
     # ═══════════════════════════════════════════════════════════════
+    # CONTRACT VERIFICATION
+    # ═══════════════════════════════════════════════════════════════
+    "contract_verify_start": EventUIHints(icon="⊕", severity="info", animation="pulse"),
+    "contract_verify_pass": EventUIHints(icon="✓", severity="success", animation="fade-in"),
+    "contract_verify_fail": EventUIHints(icon="✗", severity="error", animation="shake"),
+    # ═══════════════════════════════════════════════════════════════
     # BRIEFING & PREFETCH (RFC-071)
     # ═══════════════════════════════════════════════════════════════
     "briefing_loaded": EventUIHints(icon="▢", severity="info", animation="fade-in"),
@@ -549,6 +555,16 @@ class EventType(Enum):
 
     WIRE_TASK_GENERATED = "wire_task_generated"
     """Wire task generated during planning."""
+
+    # Contract verification events
+    CONTRACT_VERIFY_START = "contract_verify_start"
+    """Starting Protocol contract verification."""
+
+    CONTRACT_VERIFY_PASS = "contract_verify_pass"
+    """Contract verification passed - implementation satisfies Protocol."""
+
+    CONTRACT_VERIFY_FAIL = "contract_verify_fail"
+    """Contract verification failed - implementation does not satisfy Protocol."""
 
     # Briefing events (RFC-071)
     BRIEFING_LOADED = "briefing_loaded"

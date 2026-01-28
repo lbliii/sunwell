@@ -85,7 +85,7 @@ from sunwell.agent.validation.introspection import introspect_tool_call
 from sunwell.models import GenerateOptions, GenerateResult, Message, Tool, ToolCall
 
 if TYPE_CHECKING:
-    from sunwell.agent.learning import LearningStore
+    from sunwell.agent.learning import LearningStore, RoutingOutcomeStore
     from sunwell.agent.recovery.manager import RecoveryManager
     from sunwell.agent.validation import ValidationStage
     from sunwell.features.mirror.handler import MirrorHandler
@@ -128,6 +128,7 @@ class AgentLoop:
 
     # Optional Sunwell integrations (differentiators)
     learning_store: LearningStore | None = None
+    routing_outcome_store: RoutingOutcomeStore | None = None
     validation_stage: ValidationStage | None = None
     recovery_manager: RecoveryManager | None = None
     lens: Lens | None = None
@@ -239,6 +240,9 @@ class AgentLoop:
         """
         # Emit goal received event
         yield goal_received_event(goal=task_description)
+
+        # Emit goal analyzing event (before signal extraction and routing)
+        yield goal_analyzing_event(goal=task_description)
 
         # Get tools from executor if not provided
         if tools is None:
@@ -466,6 +470,7 @@ class AgentLoop:
                 state.messages,
                 available_tools,
                 task_description=routing_task,
+                state=state,
             )
 
             # Reliability: Track token usage for budget enforcement
@@ -577,6 +582,28 @@ class AgentLoop:
                 if event.type in (EventType.GATE_FAIL, EventType.VALIDATE_ERROR):
                     validation_passed = False
 
+        # RFC-034: Run contract validation if enabled and context is available
+        if (
+            self.config.enable_contract_validation
+            and self.validation_stage
+            and state.file_writes
+            and state.contract_protocol
+            and validation_passed  # Only run contract validation if syntax passed
+        ):
+            async for event in loop_validation.run_contract_validation(
+                state.file_writes,
+                self.validation_stage,
+                state.contract_protocol,
+                state.contract_file,
+            ):
+                yield event
+                # Track if contract validation failed
+                if event.type in (
+                    EventType.GATE_FAIL,
+                    EventType.CONTRACT_VERIFY_FAIL,
+                ):
+                    validation_passed = False
+
         # RFC-134: Update progressive policy with validation outcome
         if self.progressive_policy:
             if validation_passed and state.file_writes:
@@ -638,6 +665,33 @@ class AgentLoop:
                 success,
             )
 
+        # Adaptive routing: Record routing outcome for threshold learning
+        if (
+            self.routing_outcome_store
+            and state.routing_strategy
+            and state.routing_confidence is not None
+        ):
+            from sunwell.agent.learning import RoutingOutcome, classify_task_type
+
+            task_type = classify_task_type(task_description)
+            success = final_response is not None and validation_passed
+            outcome = RoutingOutcome(
+                task_type=task_type,
+                confidence=state.routing_confidence,
+                strategy=state.routing_strategy,
+                success=success,
+                tool_count=state.tool_calls_total,
+                validation_passed=validation_passed,
+            )
+            self.routing_outcome_store.record(outcome)
+            logger.debug(
+                "Recorded routing outcome: %s at %.2f -> %s (success=%s)",
+                state.routing_strategy,
+                state.routing_confidence,
+                task_type,
+                success,
+            )
+
         # Emit session end hook
         emit_hook_sync(
             HookEvent.SESSION_END,
@@ -677,6 +731,7 @@ class AgentLoop:
         messages: list[Message],
         tools: tuple[Tool, ...],
         task_description: str | None = None,
+        state: LoopState | None = None,
     ) -> GenerateResult:
         """Generate with optional confidence-based routing.
 
@@ -687,6 +742,7 @@ class AgentLoop:
         This is a KEY DIFFERENTIATOR - competitors always use single-shot.
 
         Emits SIGNAL_ROUTE event via event bus when routing is enabled.
+        Updates state.routing_strategy and state.routing_confidence if state provided.
         """
         from sunwell.agent.events import emit
 
@@ -710,6 +766,10 @@ class AgentLoop:
                 confidence,
                 extra={"confidence": confidence, "strategy": strategy},
             )
+            # Track routing decision for outcome learning
+            if state is not None:
+                state.routing_strategy = strategy
+                state.routing_confidence = confidence
             # Emit routing event
             emit(signal_route_event(
                 confidence=confidence,
@@ -728,6 +788,10 @@ class AgentLoop:
                 confidence,
                 extra={"confidence": confidence, "strategy": strategy},
             )
+            # Track routing decision for outcome learning
+            if state is not None:
+                state.routing_strategy = strategy
+                state.routing_confidence = confidence
             # Emit routing event
             emit(signal_route_event(
                 confidence=confidence,
@@ -746,6 +810,10 @@ class AgentLoop:
                 confidence,
                 extra={"confidence": confidence, "strategy": strategy},
             )
+            # Track routing decision for outcome learning
+            if state is not None:
+                state.routing_strategy = strategy
+                state.routing_confidence = confidence
             # Emit routing event
             emit(signal_route_event(
                 confidence=confidence,

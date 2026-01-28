@@ -2,10 +2,12 @@
 
 import logging
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from sunwell.agent.events import (
     AgentEvent,
+    EventType,
     gate_start_event,
     gate_step_event,
     validate_error_event,
@@ -129,3 +131,132 @@ async def run_validation_gates(
             errors=[str(e)],
         )
         # Don't fail the entire operation if validation has issues
+
+
+async def run_contract_validation(
+    file_paths: list[str],
+    validation_stage: ValidationStage | None,
+    protocol_name: str,
+    contract_file: str | None = None,
+) -> AsyncIterator[AgentEvent]:
+    """Run contract validation on implementation files (RFC-034).
+
+    Verifies that implementation files satisfy their Protocol contract
+    using tiered verification: AST → mypy → LLM.
+
+    Args:
+        file_paths: Paths to implementation files to verify
+        validation_stage: Validation stage with runner
+        protocol_name: Name of the Protocol to verify against
+        contract_file: Optional path to file containing the Protocol
+
+    Yields:
+        AgentEvent for validation progress
+    """
+    if not validation_stage:
+        logger.debug("Contract validation skipped - no validation stage configured")
+        return
+
+    if not protocol_name:
+        logger.debug("Contract validation skipped - no protocol name provided")
+        return
+
+    logger.info(
+        "═ CONTRACT VALIDATION → Verifying %d file(s) against %s",
+        len(file_paths),
+        protocol_name,
+        extra={"files": file_paths, "protocol": protocol_name},
+    )
+
+    from sunwell.agent.validation import Artifact
+    from sunwell.agent.validation.gates import GateType, ValidationGate
+
+    # Create artifacts for validation
+    artifacts = [
+        Artifact(path=Path(path), content="")  # Content loaded by validator
+        for path in file_paths
+    ]
+
+    # Create contract validation gate
+    gate = ValidationGate(
+        id=f"contract_{protocol_name}",
+        gate_type=GateType.CONTRACT,
+        depends_on=(),
+        validation=protocol_name,
+        contract_protocol=protocol_name,
+        contract_file=contract_file or "",
+        timeout_s=60,
+        description=f"Verify implementation satisfies {protocol_name}",
+    )
+
+    # Emit gate start with contract-specific event
+    yield AgentEvent(
+        EventType.CONTRACT_VERIFY_START,
+        {
+            "task_id": "",
+            "protocol_name": protocol_name,
+            "implementation_file": file_paths[0] if file_paths else "",
+            "contract_file": contract_file or "",
+        },
+    )
+
+    try:
+        # Run contract validation through the runner
+        async for event in validation_stage.runner.validate_gate(gate, artifacts):
+            yield event
+
+            # Track if validation passed or failed
+            if event.type == EventType.GATE_PASS:
+                yield AgentEvent(
+                    EventType.CONTRACT_VERIFY_PASS,
+                    {
+                        "task_id": "",
+                        "protocol_name": protocol_name,
+                        "final_tier": "gate",
+                    },
+                )
+                emit_hook_sync(
+                    HookEvent.GATE_PASS,
+                    gate_id=gate.id,
+                    gate_type="contract",
+                    files=file_paths,
+                    protocol=protocol_name,
+                )
+            elif event.type == EventType.GATE_FAIL:
+                yield AgentEvent(
+                    EventType.CONTRACT_VERIFY_FAIL,
+                    {
+                        "task_id": "",
+                        "protocol_name": protocol_name,
+                        "final_tier": "gate",
+                        "error_message": event.data.get("error_message", "Contract verification failed"),
+                    },
+                )
+                emit_hook_sync(
+                    HookEvent.GATE_FAIL,
+                    gate_id=gate.id,
+                    gate_type="contract",
+                    files=file_paths,
+                    protocol=protocol_name,
+                    errors=[event.data.get("error_message", "Contract verification failed")],
+                )
+
+    except Exception as e:
+        logger.warning("Contract validation error: %s", e)
+        yield AgentEvent(
+            EventType.CONTRACT_VERIFY_FAIL,
+            {
+                "task_id": "",
+                "protocol_name": protocol_name,
+                "final_tier": "error",
+                "error_message": str(e),
+            },
+        )
+        emit_hook_sync(
+            HookEvent.GATE_FAIL,
+            gate_id=gate.id,
+            gate_type="contract",
+            files=file_paths,
+            protocol=protocol_name,
+            errors=[str(e)],
+        )

@@ -22,11 +22,13 @@ Structure:
 - convergence.py: Convergence events
 - recovery.py: Recovery events
 - integration.py: Integration verification events
+- contract.py: Contract verification events
 - security.py: Security events
 - session.py: Session and goal lifecycle events (RFC-131)
 - tool.py: Tool calling events (RFC-134)
 - delegation.py: Delegation events (RFC-137)
 - constellation.py: Agent constellation events (RFC-130)
+- reliability.py: Reliability events (Solo Dev Hardening)
 - registry.py: EVENT_SCHEMAS and REQUIRED_FIELDS dictionaries
 - validation.py: Validation functions
 - factories.py: Factory functions
@@ -55,6 +57,13 @@ from .base import (
     TaskStartData,
 )
 from .briefing import BriefingLoadedData, BriefingSavedData
+from .contract import (
+    ContractVerifyFailData,
+    ContractVerifyPassData,
+    ContractVerifyStartData,
+    MethodMismatchData,
+    TierResultData,
+)
 from .constellation import (
     AutonomousActionBlockedData,
     CheckpointFoundData,
@@ -145,6 +154,16 @@ from .recovery import (
     RecoveryLoadedData,
     RecoveryResolvedData,
     RecoverySavedData,
+)
+from .reliability import (
+    BudgetExhaustedData,
+    BudgetWarningData,
+    CircuitBreakerOpenData,
+    HealthCheckFailedData,
+    HealthWarningData,
+    ReliabilityHallucinationData,
+    ReliabilityWarningData,
+    TimeoutData,
 )
 from .refinement import (
     PlanRefineAttemptData,
@@ -356,6 +375,12 @@ __all__ = [
     "StubDetectedData",
     "OrphanDetectedData",
     "WireTaskGeneratedData",
+    # Contract verification schemas
+    "ContractVerifyStartData",
+    "ContractVerifyPassData",
+    "ContractVerifyFailData",
+    "MethodMismatchData",
+    "TierResultData",
     # Security schemas
     "SecurityApprovalRequestedData",
     "SecurityApprovalReceivedData",
@@ -386,4 +411,13 @@ __all__ = [
     "PhaseCompleteData",
     "AutonomousActionBlockedData",
     "GuardEvolutionSuggestedData",
+    # Reliability schemas (Solo Dev Hardening)
+    "ReliabilityWarningData",
+    "ReliabilityHallucinationData",
+    "CircuitBreakerOpenData",
+    "BudgetExhaustedData",
+    "BudgetWarningData",
+    "HealthCheckFailedData",
+    "HealthWarningData",
+    "TimeoutData",
 ]

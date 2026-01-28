@@ -107,6 +107,13 @@ class ExecutionCoordinator:
 
             await asyncio.sleep(0.1)
 
+        # RFC-034: Validate contracts after task execution
+        contract_errors = await self._validate_task_contracts(tasks, completed_ids)
+        if contract_errors:
+            output(f"⚠️ Contract validation found {len(contract_errors)} issue(s)")
+            for error in contract_errors[:3]:  # Show first 3
+                output(f"   • {error}")
+
         return tasks
 
     def _group_for_parallel_execution(self, ready: list[Any]) -> list[list[Any]]:
@@ -484,3 +491,64 @@ Respond with "PASS" or "FAIL" with reason."""
                     artifacts.add(Path(artifact))
 
         return sorted(artifacts)
+
+    async def _validate_task_contracts(
+        self,
+        tasks: list[Any],
+        completed_ids: set[str],
+    ) -> list[str]:
+        """Validate that completed implementations satisfy their Protocol contracts.
+
+        RFC-034: After task execution, verify any tasks with contract annotations
+        actually implement the specified Protocol correctly.
+
+        Args:
+            tasks: List of executed tasks
+            completed_ids: Set of completed task IDs
+
+        Returns:
+            List of contract validation error messages (empty if all valid)
+        """
+        from sunwell.planning.naaru.analysis import validate_contracts
+
+        # Get tasks that have contracts
+        has_contracts = any(
+            hasattr(t, "contract") and t.contract for t in tasks
+        )
+        if not has_contracts:
+            return []
+
+        # Run contract validation
+        errors, results = await validate_contracts(
+            tasks=tasks,
+            completed_ids=completed_ids,
+            workspace=self._root,
+            model=self._synthesis_model,  # For LLM fallback verification
+        )
+
+        # Emit events for each verification result
+        if self._emitter and results:
+            from sunwell.agent.events import AgentEvent, EventType
+
+            for result in results:
+                if result.passed:
+                    self._emitter.emit(AgentEvent(
+                        EventType.CONTRACT_VERIFY_PASS,
+                        {
+                            "task_id": "",  # Would need task context
+                            "protocol_name": result.protocol_name,
+                            "final_tier": result.final_tier.value if result.final_tier else "unknown",
+                        },
+                    ))
+                elif result.status.value == "failed":
+                    self._emitter.emit(AgentEvent(
+                        EventType.CONTRACT_VERIFY_FAIL,
+                        {
+                            "task_id": "",
+                            "protocol_name": result.protocol_name,
+                            "final_tier": result.final_tier.value if result.final_tier else "unknown",
+                            "error_message": result.summary,
+                        },
+                    ))
+
+        return errors

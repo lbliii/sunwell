@@ -23,7 +23,7 @@ from sunwell.agent.utils.thinking import ThinkingDetector
 from sunwell.agent.validation import Artifact, ValidationStage
 
 if TYPE_CHECKING:
-    from sunwell.agent.learning import LearningStore
+    from sunwell.agent.learning import LearningStore, RoutingOutcomeStore
     from sunwell.agent.utils.metrics import InferenceMetrics
     from sunwell.agent.validation.gates import ValidationGate
     from sunwell.foundation.core.lens import Lens
@@ -445,6 +445,7 @@ async def execute_task_with_tools(
     tool_executor: Any,
     cwd: Path,
     learning_store: LearningStore,
+    routing_outcome_store: RoutingOutcomeStore | None,
     inference_metrics: InferenceMetrics,
     workspace_context: str | None,
     lens: Lens | None,
@@ -462,6 +463,7 @@ async def execute_task_with_tools(
     - Task memory: Injects task-specific constraints/hazards/patterns
     - Validation gates: Runs lint/syntax checks after file writes
     - Recovery integration: Saves state on failures for later resume
+    - Adaptive routing: Records routing outcomes for threshold learning
 
     Args:
         task: The task to execute
@@ -469,6 +471,7 @@ async def execute_task_with_tools(
         tool_executor: Tool executor
         cwd: Working directory
         learning_store: For tracking learnings
+        routing_outcome_store: For tracking routing outcomes (adaptive routing)
         inference_metrics: For tracking inference performance
         workspace_context: Workspace context string
         lens: Current lens
@@ -612,6 +615,7 @@ async def execute_task_with_tools(
         executor=tool_executor,
         config=config,
         learning_store=learning_store,
+        routing_outcome_store=routing_outcome_store,
         validation_stage=validation_stage,
         lens=active_lens,  # For expertise injection
         mirror_handler=mirror_handler,  # For self-reflection
