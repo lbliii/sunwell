@@ -384,11 +384,58 @@ class TestCommandHandling:
         assert loop._cancel_requested
 
     def test_status_command(self, loop: UnifiedChatLoop) -> None:
-        """/status shows state and history count."""
+        """/status shows state, history count, and tools status."""
         loop.conversation_history = [{"role": "user", "content": "hi"}]
         response, goal = loop._handle_command("/status")
         assert "idle" in response.lower()
         assert "1 messages" in response
+        assert "Tools: disabled" in response
+
+    def test_tools_on_when_disabled(self, loop: UnifiedChatLoop) -> None:
+        """/tools on enables tool executor when disabled."""
+        assert loop.tool_executor is None
+        response, goal = loop._handle_command("/tools on")
+        assert "enabled" in response.lower()
+        assert loop.tool_executor is not None
+        assert goal is None
+
+    def test_tools_on_when_already_enabled(self) -> None:
+        """/tools on when already enabled returns message."""
+        model = MagicMock()
+        mock_executor = MagicMock()
+        loop = UnifiedChatLoop(
+            model=model,
+            tool_executor=mock_executor,
+            workspace=Path("/tmp/test"),
+        )
+        response, goal = loop._handle_command("/tools on")
+        assert "already enabled" in response.lower()
+        assert loop.tool_executor is mock_executor
+
+    def test_tools_off_when_enabled(self) -> None:
+        """/tools off disables tool executor when enabled."""
+        model = MagicMock()
+        mock_executor = MagicMock()
+        loop = UnifiedChatLoop(
+            model=model,
+            tool_executor=mock_executor,
+            workspace=Path("/tmp/test"),
+        )
+        response, goal = loop._handle_command("/tools off")
+        assert "disabled" in response.lower()
+        assert loop.tool_executor is None
+
+    def test_tools_off_when_already_disabled(self, loop: UnifiedChatLoop) -> None:
+        """/tools off when already disabled returns message."""
+        assert loop.tool_executor is None
+        response, goal = loop._handle_command("/tools off")
+        assert "already disabled" in response.lower()
+
+    def test_tools_no_arg_shows_status(self, loop: UnifiedChatLoop) -> None:
+        """/tools without argument shows current status."""
+        response, goal = loop._handle_command("/tools")
+        assert "disabled" in response.lower()
+        assert "/tools on" in response or "/tools off" in response
 
     def test_unknown_command(self, loop: UnifiedChatLoop) -> None:
         """Unknown command returns error message."""

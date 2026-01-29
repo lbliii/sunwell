@@ -14,21 +14,23 @@ from sunwell.agent.validation.gates import ValidationGate
 
 
 def sanitize_code_content(content: str | None) -> str:
-    """Strip markdown fences and tool call prefixes from generated code content.
+    """Strip markdown fences, tool call syntax, and preamble from generated code.
 
     Defense-in-depth: Called before direct file writes to ensure
-    markdown fences are removed even if other sanitization missed them.
+    clean code content even when models output tool calls in text.
 
-    Handles multiple formats:
-    1. Standard markdown: ```python\\ncode\\n```
-    2. Tool call prefix: write_file path ```python\\ncode\\n```
-    3. Tool call with explanation: "I'll create..." write_file path ```python\\ncode
+    Handles multiple formats (in order of specificity):
+    1. Python function call: write_file("path", '''content''') or write_file("path", \"\"\"content\"\"\")
+    2. Tool call with markdown fence: write_file path ```language\\ncode\\n```
+    3. Explanatory preamble: "Okay, I will create..." followed by tool call
+    4. Standard markdown: ```language\\ncode\\n```
+    5. Truncated output: ```language\\ncode (no closing ```)
 
     Args:
-        content: Raw content that may contain markdown fences or tool syntax
+        content: Raw content that may contain markdown fences, tool syntax, or preamble
 
     Returns:
-        Content with markdown fences and tool syntax stripped, or empty string if None/empty
+        Clean code content with all wrapping stripped, or empty string if None/empty
     """
     import re
 
@@ -36,22 +38,65 @@ def sanitize_code_content(content: str | None) -> str:
         return ""
 
     text = content.strip()
+    if not text:
+        return ""
 
-    # Pattern 1: Look for code block anywhere in the text (handles tool call prefix)
-    # Matches: write_file path ```language\ncode\n``` or just ```language\ncode\n```
+    # Pattern 1: Python function call syntax with triple quotes
+    # Matches: write_file("path", """content""") or write_file("path", '''content''')
+    # Also handles: write_file("path", """content
+    python_call_pattern = re.compile(
+        r'write_file\s*\(\s*["\'][^"\']+["\']\s*,\s*'  # write_file("path",
+        r'(?:"""(.*?)"""|\'\'\'(.*?)\'\'\')',  # """content""" or '''content'''
+        re.DOTALL
+    )
+    match = python_call_pattern.search(text)
+    if match:
+        extracted = match.group(1) or match.group(2)
+        if extracted:
+            return extracted.strip()
+
+    # Pattern 1b: Unclosed Python triple quotes (truncated)
+    # Matches: write_file("path", """content (no closing """)
+    python_unclosed = re.compile(
+        r'write_file\s*\(\s*["\'][^"\']+["\']\s*,\s*'  # write_file("path",
+        r'(?:"""|\'\'\')\s*(.*)$',  # """content (to end)
+        re.DOTALL
+    )
+    match = python_unclosed.search(text)
+    if match:
+        extracted = match.group(1)
+        # Remove trailing """) if present
+        extracted = re.sub(r'["\')]+\s*$', '', extracted)
+        if extracted.strip():
+            return extracted.strip()
+
+    # Pattern 2: Tool call prefix with markdown fence
+    # Matches: write_file path ```language\ncode\n``` or write_file("path") ```code```
+    # Also catches preamble text before tool call
+    tool_fence_pattern = re.compile(
+        r'(?:^|\n)write_file\s+\S+\s*'  # write_file path
+        r'```\w*\n?(.*?)```',  # ```language\ncode```
+        re.DOTALL
+    )
+    match = tool_fence_pattern.search(text)
+    if match:
+        return match.group(1).strip()
+
+    # Pattern 3: Any markdown fence anywhere (most flexible)
+    # This handles preamble text + ```code``` cases
     fence_pattern = re.compile(r'```\w*\n(.*?)```', re.DOTALL)
     match = fence_pattern.search(text)
     if match:
         return match.group(1).strip()
 
-    # Pattern 2: Code block without closing fence (truncated output)
-    # Matches: write_file path ```language\ncode (no closing ```)
+    # Pattern 4: Unclosed markdown fence (truncated output)
+    # Matches: ```language\ncode (no closing ```)
     open_fence = re.compile(r'```\w*\n(.*)$', re.DOTALL)
     match = open_fence.search(text)
     if match:
         return match.group(1).strip()
 
-    # Pattern 3: Standard case - starts with markdown fence
+    # Pattern 5: Standard case - starts with markdown fence
     if text.startswith("```"):
         lines = text.split("\n")
         # Remove opening fence
@@ -61,8 +106,22 @@ def sanitize_code_content(content: str | None) -> str:
             lines = lines[:-1]
         return "\n".join(lines)
 
-    # No fence found, return as-is
-    return text
+    # Pattern 6: Just a tool call with no content (e.g., "write_file path")
+    # This indicates the model failed to output actual content
+    if re.match(r'^write_file\s+\S+\s*$', text):
+        # Return empty - there's no actual code here
+        return ""
+
+    # Pattern 7: Remove common preamble patterns at the start
+    # e.g., "Okay, I will create...", "I'll write..."
+    preamble_patterns = [
+        r'^(?:Okay|Ok|Sure|Alright|I\'ll|I will|Let me|Here\'s|Here is)[^`\n]*\n+',
+    ]
+    for pattern in preamble_patterns:
+        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
+
+    # No fence found and not a tool call pattern, return cleaned text as-is
+    return text.strip()
 
 
 

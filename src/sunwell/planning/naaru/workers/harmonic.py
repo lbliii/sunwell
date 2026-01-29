@@ -5,12 +5,109 @@ import asyncio
 import json
 import uuid
 from collections import Counter, deque
+from typing import TYPE_CHECKING
 
 from sunwell.features.mirror import MirrorHandler
 from sunwell.foundation.types.config import NaaruConfig
 from sunwell.foundation.types.model_size import ModelSize
 from sunwell.planning.naaru.core.bus import MessageType, NaaruRegion
 from sunwell.planning.naaru.core.worker import RegionWorker
+from sunwell.planning.naaru.expertise.language import Language
+
+if TYPE_CHECKING:
+    from sunwell.foundation.core.lens import Lens
+
+
+# Language-specific default personas when no lens is available
+# These are language-appropriate alternatives to avoid Python bias
+LANGUAGE_DEFAULT_PERSONAS: dict[Language, dict[str, dict[str, str]]] = {
+    Language.PYTHON: {
+        "security": {
+            "name": "Security Expert",
+            "system": "Security expert. Focus on attack vectors, edge cases, defensive coding.",
+        },
+        "code_quality": {
+            "name": "Code Reviewer",
+            "system": "Senior Python developer. Clean, maintainable, idiomatic Python.",
+        },
+        "testing": {
+            "name": "QA Engineer",
+            "system": "QA engineer. Testability, edge cases, failure modes.",
+        },
+    },
+    Language.TYPESCRIPT: {
+        "security": {
+            "name": "Security Expert",
+            "system": "Security expert. Attack vectors, input validation, secure TS patterns.",
+        },
+        "code_quality": {
+            "name": "Code Reviewer",
+            "system": "Senior TypeScript developer. Type safety, clean architecture.",
+        },
+        "testing": {
+            "name": "QA Engineer",
+            "system": "QA engineer. Jest/Vitest testing, edge cases, failure modes.",
+        },
+    },
+    Language.JAVASCRIPT: {
+        "security": {
+            "name": "Security Expert",
+            "system": "Security expert. XSS prevention, input validation, secure JS patterns.",
+        },
+        "code_quality": {
+            "name": "Code Reviewer",
+            "system": "Senior JavaScript developer. Clean, readable, idiomatic JavaScript.",
+        },
+        "testing": {
+            "name": "QA Engineer",
+            "system": "QA engineer. Testability, edge cases, failure modes.",
+        },
+    },
+    Language.RUST: {
+        "security": {
+            "name": "Security Expert",
+            "system": "Security expert. Memory safety, unsafe blocks, secure Rust patterns.",
+        },
+        "code_quality": {
+            "name": "Code Reviewer",
+            "system": "Senior Rust developer. Ownership, lifetimes, idiomatic Rust.",
+        },
+        "testing": {
+            "name": "QA Engineer",
+            "system": "QA engineer. Property-based testing, edge cases, failure modes.",
+        },
+    },
+    Language.GO: {
+        "security": {
+            "name": "Security Expert",
+            "system": "Security expert. Concurrency safety, input validation, secure Go.",
+        },
+        "code_quality": {
+            "name": "Code Reviewer",
+            "system": "Senior Go developer. Simplicity, error handling, idiomatic Go.",
+        },
+        "testing": {
+            "name": "QA Engineer",
+            "system": "QA engineer. Table-driven tests, edge cases, failure modes.",
+        },
+    },
+}
+
+# Generic fallback personas (language-agnostic)
+GENERIC_PERSONAS: dict[str, dict[str, str]] = {
+    "security": {
+        "name": "Security Expert",
+        "system": "Security expert. Attack vectors, edge cases, defensive coding.",
+    },
+    "code_quality": {
+        "name": "Code Reviewer",
+        "system": "Senior developer. Clean, maintainable, idiomatic code.",
+    },
+    "testing": {
+        "name": "QA Engineer",
+        "system": "QA engineer. Testability, edge cases, failure modes.",
+    },
+}
 
 
 class HarmonicSynthesisWorker(RegionWorker):
@@ -22,22 +119,6 @@ class HarmonicSynthesisWorker(RegionWorker):
     The key insight: temperature diversity gives random variance,
     lens diversity gives STRUCTURED variance based on domain knowledge.
     """
-
-    # Lens personas for harmonic synthesis
-    LENS_PERSONAS = {
-        "security": {
-            "name": "Security Expert",
-            "system": "You are a security expert. Focus on attack vectors, edge cases, and defensive coding.",
-        },
-        "code_quality": {
-            "name": "Code Reviewer",
-            "system": "You are a senior Python developer. Focus on clean, maintainable, idiomatic code.",
-        },
-        "testing": {
-            "name": "QA Engineer",
-            "system": "You are a QA engineer. Focus on testability, edge cases, and failure modes.",
-        },
-    }
 
     def __init__(
         self,
@@ -63,6 +144,57 @@ class HarmonicSynthesisWorker(RegionWorker):
         # Bounded deque to prevent memory leak (keeps last 1000 generated code entries)
         self.generated_code: deque[dict] = deque(maxlen=1000)
         self._prefetch_cache: dict = {}
+
+    def _get_personas(
+        self,
+        lens: Lens | None = None,
+        language: Language = Language.UNKNOWN,
+    ) -> dict[str, dict[str, str]]:
+        """Get personas for harmonic synthesis from lens or language defaults.
+
+        Priority:
+        1. Derive from lens communication style and heuristics
+        2. Use language-specific default personas
+        3. Fall back to generic personas
+
+        Args:
+            lens: Optional lens to derive personas from
+            language: Detected language for fallback personas
+
+        Returns:
+            Dict of persona_id -> {name, system} for harmonic synthesis
+        """
+        # If we have a lens with communication style, derive personas from it
+        if lens and lens.communication:
+            style = lens.communication.style or ""
+            principles = lens.communication.principles or ()
+
+            # Build a language-aware code quality persona from lens
+            code_quality_system = style
+            if principles:
+                code_quality_system += f" {principles[0]}"
+
+            return {
+                "security": {
+                    "name": "Security Expert",
+                    "system": "Security expert. Attack vectors, edge cases, defensive coding.",
+                },
+                "code_quality": {
+                    "name": lens.metadata.name,
+                    "system": code_quality_system,
+                },
+                "testing": {
+                    "name": "QA Engineer",
+                    "system": "QA engineer. Testability, edge cases, failure modes.",
+                },
+            }
+
+        # Use language-specific defaults
+        if language in LANGUAGE_DEFAULT_PERSONAS:
+            return LANGUAGE_DEFAULT_PERSONAS[language]
+
+        # Fall back to generic
+        return GENERIC_PERSONAS
 
     @property
     def model_size(self) -> ModelSize:
@@ -175,6 +307,16 @@ class HarmonicSynthesisWorker(RegionWorker):
             self.stats["routed_intents"] = self.stats.get("routed_intents", {})
             self.stats["routed_intents"][intent] = self.stats["routed_intents"].get(intent, 0) + 1
 
+        # Detect language from description to select appropriate personas
+        from sunwell.planning.naaru.expertise.language import detect_language
+
+        lang_result = detect_language(description, self.workspace)
+        language = lang_result.language
+
+        # Get personas from lens or language defaults (no more hardcoded Python bias)
+        # Note: lens loading would need to be passed through routing in future
+        personas = self._get_personas(lens=None, language=language)
+
         from sunwell.models import GenerateOptions
 
         # Step 1: Generate with ALL lens personas IN PARALLEL
@@ -207,7 +349,7 @@ Code only:"""
 
         generation_tasks = [
             generate_with_lens(lens_id, lens)
-            for lens_id, lens in self.LENS_PERSONAS.items()
+            for lens_id, lens in personas.items()
         ]
         results = await asyncio.gather(*generation_tasks)
 
@@ -226,7 +368,7 @@ TASK: {description}
         for i, c in enumerate(candidates):
             vote_prompt += f"""
 SOLUTION {i+1} (from {c['lens_name']}):
-```python
+```
 {c['code'][:500]}
 ```
 """
@@ -252,7 +394,7 @@ Respond with ONLY the number (1, 2, or 3):"""
 
         vote_tasks = [
             vote_as_lens(lens_id, lens)
-            for lens_id, lens in self.LENS_PERSONAS.items()
+            for lens_id, lens in personas.items()
         ]
         vote_results = await asyncio.gather(*vote_tasks)
 
@@ -407,6 +549,26 @@ Code only:"""
         description = opportunity.get("description", "")
         category = opportunity.get("category", "code_quality")
 
+        # Detect language from description
+        lang_result = detect_language(description, self.workspace)
+        language = lang_result.language
+        lang_name = {
+            Language.PYTHON: "Python",
+            Language.TYPESCRIPT: "TypeScript",
+            Language.JAVASCRIPT: "JavaScript",
+            Language.RUST: "Rust",
+            Language.GO: "Go",
+        }.get(language, "")
+
+        # Language-specific test framework
+        test_framework = {
+            Language.PYTHON: "pytest",
+            Language.TYPESCRIPT: "Jest/Vitest",
+            Language.JAVASCRIPT: "Jest",
+            Language.RUST: "Rust #[test]",
+            Language.GO: "Go testing",
+        }.get(language, "unit")
+
         # RFC-020: Use routing to enhance prompt
         routing_context = ""
         if routing:
@@ -414,11 +576,13 @@ Code only:"""
             if focus:
                 routing_context = f"\nFOCUS: {', '.join(focus)}\n"
 
+        # Language-aware prompts
+        lang_prefix = f"{lang_name} " if lang_name else ""
         prompts = {
-            "error_handling": f"Write Python error handling for: {description}{routing_context}\nCode only:",
-            "testing": f"Write pytest test for: {description}{routing_context}\nCode only:",
-            "documentation": f"Write docstring for: {description}{routing_context}\nDocstring only:",
-            "code_quality": f"Improve this Python code: {description}{routing_context}\nCode only:",
+            "error_handling": f"Write {lang_prefix}error handling for: {description}{routing_context}\nCode only:",
+            "testing": f"Write {test_framework} test for: {description}{routing_context}\nCode only:",
+            "documentation": f"Write docstring/comment for: {description}{routing_context}\nDoc only:",
+            "code_quality": f"Improve this {lang_prefix}code: {description}{routing_context}\nCode only:",
         }
 
         prompt = prompts.get(category, prompts["code_quality"])

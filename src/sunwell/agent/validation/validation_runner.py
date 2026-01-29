@@ -54,8 +54,8 @@ class Artifact:
     task_id: str = ""
     """ID of the task that produced this artifact."""
 
-    language: str = "python"
-    """Language of the artifact."""
+    language: str = "unknown"
+    """Language of the artifact (auto-detected from extension if not specified)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,8 +156,9 @@ class ValidationRunner:
 
         yield gate_start_event(gate.id, gate.gate_type.value)
 
-        # Get files to validate
-        files = [a.path for a in artifacts if a.path.suffix == ".py"]
+        # Get files to validate (filter by toolchain extensions, not just .py)
+        valid_extensions = self.toolchain.extensions if self.toolchain.extensions else (".py",)
+        files = [a.path for a in artifacts if a.path.suffix in valid_extensions]
 
         step_results: list[GateStepResult] = []
         all_passed = True
@@ -331,10 +332,25 @@ class ValidationRunner:
 
     async def _check_schema(self, gate: ValidationGate) -> tuple[bool, str]:
         """Check if database schema can be created."""
+        # Determine runner command based on toolchain
+        # Default to python for backwards compatibility
+        runner = "python"
+        if self.toolchain.extensions:
+            ext_runners = {
+                ".py": "python",
+                ".ts": "npx tsx",
+                ".js": "node",
+                ".go": "go run",
+            }
+            for ext in self.toolchain.extensions:
+                if ext in ext_runners:
+                    runner = ext_runners[ext]
+                    break
+
         # Run validation command in subprocess
         try:
             result = await self._run_subprocess(
-                f"python -c \"{gate.validation}\"",
+                f"{runner} -c \"{gate.validation}\"" if runner == "python" else gate.validation,
                 timeout=gate.timeout_s,
             )
             if result.returncode == 0:
@@ -435,7 +451,9 @@ class ValidationRunner:
         total_confidence = 0.0
 
         for artifact in artifacts:
-            if artifact.path.suffix != ".py":
+            # Skip files not matching toolchain extensions
+            valid_exts = self.toolchain.extensions if self.toolchain.extensions else (".py",)
+            if artifact.path.suffix not in valid_exts:
                 continue
 
             # Create artifact spec from gate validation string or defaults
@@ -513,7 +531,9 @@ class ValidationRunner:
         messages: list[str] = []
 
         for artifact in artifacts:
-            if artifact.path.suffix != ".py":
+            # Skip files not matching toolchain extensions (contract check is language-specific)
+            valid_exts = self.toolchain.extensions if self.toolchain.extensions else (".py",)
+            if artifact.path.suffix not in valid_exts:
                 continue
 
             # Determine contract file path
@@ -521,15 +541,22 @@ class ValidationRunner:
 
             # If no explicit contract file, try to find it
             if not contract_file or not contract_file.exists():
-                # Look for a file containing the protocol in common locations
+                # Look for protocol/interface files based on language
+                ext = artifact.path.suffix
                 possible_paths = [
-                    self.cwd / "protocols.py",
-                    self.cwd / "interfaces.py",
-                    self.cwd / "types.py",
-                    self.cwd / "contracts.py",
-                    self.cwd / "src" / "protocols.py",
-                    self.cwd / "src" / "interfaces.py",
+                    self.cwd / f"protocols{ext}",
+                    self.cwd / f"interfaces{ext}",
+                    self.cwd / f"types{ext}",
+                    self.cwd / f"contracts{ext}",
+                    self.cwd / "src" / f"protocols{ext}",
+                    self.cwd / "src" / f"interfaces{ext}",
                 ]
+                # Add TypeScript-specific paths
+                if ext in (".ts", ".tsx"):
+                    possible_paths.extend([
+                        self.cwd / "src" / "types" / "index.ts",
+                        self.cwd / "src" / "interfaces" / "index.ts",
+                    ])
                 for p in possible_paths:
                     if p.exists():
                         contract_file = p

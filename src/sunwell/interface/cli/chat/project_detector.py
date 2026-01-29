@@ -42,12 +42,25 @@ class ProjectDetector:
     def detect_project_type(cwd: Path) -> tuple[str, str | None]:
         """Detect project type from marker files.
 
+        .. deprecated::
+            For language detection only, use
+            `sunwell.planning.naaru.expertise.language.detect_language` instead.
+            This function is kept for framework detection compatibility.
+
         Args:
             cwd: Current working directory
 
         Returns:
             Tuple of (project_type, framework) e.g. ("python", "FastAPI")
         """
+        import warnings
+
+        warnings.warn(
+            "Use sunwell.planning.naaru.expertise.language.detect_language for language detection. "
+            "ProjectDetector.detect_project_type is kept for framework detection.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         for ptype, markers in PROJECT_MARKERS.items():
             for marker in markers:
                 if "*" in marker:

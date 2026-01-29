@@ -512,7 +512,20 @@ def _detect_python_framework(cwd: Path) -> str | None:
 
 
 def _detect_project_type(cwd: Path) -> tuple[str, str | None]:
-    """Detect project type and framework from directory contents."""
+    """Detect project type and framework from directory contents.
+
+    .. deprecated::
+        For language detection only, use `sunwell.planning.naaru.expertise.language.detect_language`
+        instead. This function is kept for framework detection compatibility.
+    """
+    import warnings
+
+    warnings.warn(
+        "Use sunwell.planning.naaru.expertise.language.detect_language for language detection. "
+        "_detect_project_type is kept for framework detection only.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     ptype = "unknown"
     framework = None
 

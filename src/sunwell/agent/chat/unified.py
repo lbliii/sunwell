@@ -111,6 +111,7 @@ class UnifiedChatLoop:
         tool_executor: ToolExecutor | None,
         workspace: Path,
         *,
+        trust_level: str = "workspace",
         intent_router: IntentRouter | None = None,
         auto_confirm: bool = False,
         stream_progress: bool = True,
@@ -121,6 +122,7 @@ class UnifiedChatLoop:
             model: LLM for generation
             tool_executor: Executor for tools (file I/O, commands, etc.)
             workspace: Working directory
+            trust_level: Trust level for tool execution (default "workspace")
             intent_router: Custom intent router (created with model if None)
             auto_confirm: Skip confirmation checkpoints (for testing/CI)
             stream_progress: Yield AgentEvents during execution
@@ -128,6 +130,7 @@ class UnifiedChatLoop:
         self.model = model
         self.tool_executor = tool_executor
         self.workspace = Path(workspace).resolve()
+        self.trust_level = trust_level
         self.intent_router = intent_router or IntentRouter(model)
         self.auto_confirm = auto_confirm
         self.stream_progress = stream_progress
@@ -715,6 +718,7 @@ not have the latest data and suggest the user verify from authoritative sources.
         - /chat: Stay in conversation mode
         - /abort: Cancel current execution
         - /status: Show current state
+        - /tools on|off: Enable/disable tool execution
 
         Returns:
             Tuple of (response_message, agent_goal). If agent_goal is set,
@@ -735,6 +739,54 @@ not have the latest data and suggest the user verify from authoritative sources.
                 return ("Cancellation requested...", None)
             return ("No execution in progress.", None)
         elif cmd == "/status":
-            return (f"State: {self._state.value}, History: {len(self.conversation_history)} messages", None)
+            tools_status = "enabled" if self.tool_executor else "disabled"
+            return (
+                f"State: {self._state.value}, History: {len(self.conversation_history)} messages, "
+                f"Tools: {tools_status}",
+                None,
+            )
+        elif cmd == "/tools":
+            return self._handle_tools_command(arg)
         else:
             return (f"Unknown command: {cmd}", None)
+
+    def _handle_tools_command(self, arg: str) -> tuple[str | None, str | None]:
+        """Handle /tools on|off command to enable/disable tool execution."""
+        from sunwell.knowledge.project import (
+            ProjectResolutionError,
+            create_project_from_workspace,
+            resolve_project,
+        )
+        from sunwell.tools.core.types import ToolPolicy, ToolTrust
+        from sunwell.tools.execution import ToolExecutor
+
+        arg_lower = arg.lower()
+        if arg_lower == "on":
+            if self.tool_executor is not None:
+                return ("Tools are already enabled.", None)
+
+            # Create tool executor
+            try:
+                project = resolve_project(cwd=self.workspace)
+            except ProjectResolutionError:
+                project = create_project_from_workspace(self.workspace)
+
+            policy = ToolPolicy(trust_level=ToolTrust.from_string(self.trust_level))
+            self.tool_executor = ToolExecutor(
+                project=project,
+                sandbox=None,
+                policy=policy,
+            )
+            logger.info("Tools enabled with trust_level=%s", self.trust_level)
+            return ("✓ Tools enabled. I can now execute tasks.", None)
+
+        elif arg_lower == "off":
+            if self.tool_executor is None:
+                return ("Tools are already disabled.", None)
+            self.tool_executor = None
+            logger.info("Tools disabled")
+            return ("✓ Tools disabled. I'll only respond to questions.", None)
+
+        else:
+            status = "enabled" if self.tool_executor else "disabled"
+            return (f"Tools are currently {status}. Use `/tools on` or `/tools off`.", None)

@@ -235,7 +235,18 @@ class CodeScanner(Scanner):
         return results
 
     def _detect_project_type(self, root: Path) -> str:
-        """Detect the primary language/framework of the project."""
+        """Detect the primary language/framework of the project.
+
+        .. deprecated::
+            Use `sunwell.planning.naaru.expertise.language.detect_language` instead.
+        """
+        import warnings
+
+        warnings.warn(
+            "Use sunwell.planning.naaru.expertise.language.detect_language instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         for lang, files in _PROJECT_MARKERS.items():
             for marker in files:
                 if (root / marker).exists():

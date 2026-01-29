@@ -108,13 +108,38 @@ async def resolve_lens_for_goal(
                             reason=f"Router selected: {decision.lens} ({decision.reasoning})",
                         )
             except Exception:
-                pass  # Fall back to domain classification
+                pass  # Fall back to language/domain classification
+
+        # Try language-based lens selection first
+        try:
+            from sunwell.planning.naaru.expertise.language import (
+                detect_language,
+                get_language_lens,
+            )
+
+            lang_result = detect_language(goal, project_path)
+            if lang_result.is_confident:
+                lang_lens_name = get_language_lens(lang_result.language)
+                if lang_lens_name:
+                    lens = await _load_lens(lang_lens_name, discovery)
+                    if lens:
+                        return LensResolution(
+                            lens=lens,
+                            source="auto",
+                            confidence=lang_result.confidence,
+                            reason=(
+                                f"Language {lang_result.language.value}: {lens.metadata.name} "
+                                f"(signals: {', '.join(lang_result.signals[:3])})"
+                            ),
+                        )
+        except Exception:
+            pass  # Fall back to domain classification
 
         # Fallback to domain classification
         try:
             from sunwell.planning.naaru.expertise.classifier import classify_domain
 
-            domain = await classify_domain(goal)
+            domain = classify_domain(goal)
             lenses = await discovery.discover(domain, max_lenses=1)
             if lenses:
                 return LensResolution(

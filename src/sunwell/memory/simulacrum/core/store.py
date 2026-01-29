@@ -1012,6 +1012,198 @@ class SimulacrumStore:
 
         return stats_dict
 
+    # === Observability & Debugging ===
+
+    async def debug_retrieval(self, query: str, limit: int = 10) -> dict[str, Any]:
+        """Show WHY specific results were retrieved for a query.
+
+        Provides transparency into the retrieval process:
+        - What semantic matches were found
+        - How focus weights affected ranking
+        - Which tiers contributed results
+        - Why certain chunks were/weren't selected
+
+        Args:
+            query: The query to analyze
+            limit: Number of results to show per category
+
+        Returns:
+            Debug information dict with retrieval details
+        """
+        debug_info: dict[str, Any] = {
+            "query": query,
+            "timestamp": datetime.now().isoformat(),
+        }
+
+        # Query embedding
+        if self._embedder:
+            try:
+                query_embedding = await self._embedder.embed([query])
+                debug_info["query_embedding"] = {
+                    "dimensions": len(query_embedding[0]) if query_embedding else 0,
+                    "preview": query_embedding[0][:5].tolist() if query_embedding else [],
+                }
+            except Exception as e:
+                debug_info["query_embedding"] = {"error": str(e)}
+        else:
+            debug_info["query_embedding"] = {"status": "no_embedder"}
+
+        # Semantic matches from chunks
+        if self._chunk_manager:
+            try:
+                chunks = self._chunk_manager.get_relevant_chunks(query, limit=limit)
+                debug_info["semantic_matches"] = [
+                    {
+                        "chunk_id": chunk.id,
+                        "tier": chunk.tier,
+                        "turn_count": len(chunk.turn_ids),
+                        "preview": chunk.summary[:100] if chunk.summary else "",
+                    }
+                    for chunk in chunks
+                ]
+            except Exception as e:
+                debug_info["semantic_matches"] = {"error": str(e)}
+        else:
+            debug_info["semantic_matches"] = {"status": "no_chunk_manager"}
+
+        # Focus weights
+        if self._focus:
+            try:
+                weights = self._focus.topics
+                debug_info["focus_weights"] = {
+                    "active_topics": len(weights),
+                    "top_topics": sorted(
+                        [(topic, weight) for topic, weight in weights.items()],
+                        key=lambda x: x[1],
+                        reverse=True,
+                    )[:5],
+                    "explicit_topics": list(self._focus.explicit),
+                }
+            except Exception as e:
+                debug_info["focus_weights"] = {"error": str(e)}
+        else:
+            debug_info["focus_weights"] = {"status": "no_focus"}
+
+        # Tier distribution
+        debug_info["tier_distribution"] = {
+            "hot": len(self._hot_dag.turns),
+            "warm": len(list(self.warm_path.glob("*.jsonl"))) if self.warm_path.exists() else 0,
+            "cold": len(list(self.cold_path.glob("*"))) if self.cold_path.exists() else 0,
+        }
+
+        # Recent learnings that might match
+        learnings = list(self._hot_dag.learnings.values())
+        matching_learnings = [
+            {"fact": l.fact[:100], "category": l.category, "confidence": l.confidence}
+            for l in learnings
+            if query.lower() in l.fact.lower()
+        ][:limit]
+        debug_info["matching_learnings"] = matching_learnings
+
+        # Episodes that might be relevant
+        if self._episode_manager:
+            episodes = self._episode_manager.get_episodes(limit=limit)
+            matching_episodes = [
+                {
+                    "id": ep.id,
+                    "summary": ep.summary[:100],
+                    "outcome": ep.outcome,
+                    "relevance": "high" if query.lower() in ep.summary.lower() else "low",
+                }
+                for ep in episodes
+                if query.lower() in ep.summary.lower()
+            ][:limit]
+            debug_info["matching_episodes"] = matching_episodes
+
+        return debug_info
+
+    def health_check(self) -> dict[str, Any]:
+        """Validate memory system integrity and health.
+
+        Checks:
+        - Tier balance (hot not overflowing)
+        - Embeddings status
+        - Topology coverage
+        - Storage consistency
+
+        Returns:
+            Health status dict with diagnostics
+        """
+        health = {
+            "timestamp": datetime.now().isoformat(),
+            "overall_status": "healthy",
+            "checks": {},
+        }
+
+        # Hot tier check
+        hot_turns = len(self._hot_dag.turns)
+        hot_max = self.config.hot_max_turns
+        hot_ratio = hot_turns / hot_max if hot_max > 0 else 0
+        health["checks"]["hot_tier"] = {
+            "status": "ok" if hot_ratio < 0.9 else "warning" if hot_ratio < 1.0 else "critical",
+            "turns": hot_turns,
+            "max_turns": hot_max,
+            "utilization": f"{hot_ratio * 100:.1f}%",
+        }
+        if hot_ratio >= 0.9:
+            health["overall_status"] = "degraded"
+
+        # Embeddings check
+        embedder_status = "available" if self._embedder else "missing"
+        health["checks"]["embeddings"] = {
+            "status": "ok" if embedder_status == "available" else "warning",
+            "embedder": embedder_status,
+        }
+
+        # Chunk manager check
+        if self._chunk_manager:
+            chunk_stats = self._chunk_manager.stats
+            health["checks"]["chunks"] = {
+                "status": "ok",
+                "total_chunks": chunk_stats.get("total_chunks", 0),
+                "micro_chunks": chunk_stats.get("micro_chunks", 0),
+                "meso_chunks": chunk_stats.get("meso_chunks", 0),
+                "macro_chunks": chunk_stats.get("macro_chunks", 0),
+            }
+        else:
+            health["checks"]["chunks"] = {"status": "missing", "chunk_manager": "not_initialized"}
+            health["overall_status"] = "degraded"
+
+        # Topology coverage check
+        if self._unified_store:
+            total_nodes = len(self._unified_store._nodes)
+            health["checks"]["topology"] = {
+                "status": "ok" if total_nodes > 0 else "warning",
+                "total_nodes": total_nodes,
+            }
+        else:
+            health["checks"]["topology"] = {"status": "warning", "unified_store": "not_initialized"}
+
+        # Storage consistency check
+        try:
+            hot_exists = self.hot_path.exists() or len(self._hot_dag.turns) > 0
+            warm_exists = self.warm_path.exists()
+            cold_exists = self.cold_path.exists()
+            health["checks"]["storage"] = {
+                "status": "ok",
+                "hot_path": "exists" if hot_exists else "missing",
+                "warm_path": "exists" if warm_exists else "missing",
+                "cold_path": "exists" if cold_exists else "missing",
+            }
+        except Exception as e:
+            health["checks"]["storage"] = {"status": "error", "error": str(e)}
+            health["overall_status"] = "error"
+
+        # Session state check
+        health["checks"]["session"] = {
+            "status": "ok",
+            "session_id": self._session_id,
+            "project": self._project,
+            "session_uri": self._session_uri,
+        }
+
+        return health
+
     def cleanup_dead_ends(self) -> int:
         """Remove dead end turns from warm/cold storage."""
         dead_end_ids = self._hot_dag.dead_ends

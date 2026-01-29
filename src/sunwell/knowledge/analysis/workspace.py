@@ -550,7 +550,18 @@ class WorkspaceDetector:
         return None
 
     def _detect_language(self, path: Path) -> str | None:
-        """Detect the primary language of a project."""
+        """Detect the primary language of a project.
+
+        .. deprecated::
+            Use `sunwell.planning.naaru.expertise.language.detect_language` instead.
+        """
+        import warnings
+
+        warnings.warn(
+            "Use sunwell.planning.naaru.expertise.language.detect_language instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         for marker, language, _ in _PROJECT_MARKERS:
             if (path / marker).exists():
                 return language

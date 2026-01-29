@@ -498,6 +498,12 @@ from sunwell.interface.cli.commands import dag_cmd
 dag_cmd.dag.hidden = True
 main.add_command(dag_cmd.dag)
 
+# Memory observability - Studio: memory debug/health
+from sunwell.interface.cli.commands import memory_cmd
+
+memory_cmd.memory.hidden = True
+main.add_command(memory_cmd.memory)
+
 # Generative Interface (RFC-075) - Studio: interface demo
 from sunwell.interface.cli.commands import interface_cmd
 

@@ -50,12 +50,27 @@ from sunwell.planning.naaru.expertise.discovery import (
 from sunwell.planning.naaru.expertise.extractor import (
     ExpertiseExtractor,
 )
+from sunwell.planning.naaru.expertise.language import (
+    Language,
+    LanguageClassification,
+    LanguageClassifier,
+    detect_language,
+    get_language_lens,
+    language_from_extension,
+)
 
 __all__ = [
-    # Classification
+    # Domain Classification
     "Domain",
     "DomainClassifier",
     "DomainClassification",
+    # Language Classification
+    "Language",
+    "LanguageClassifier",
+    "LanguageClassification",
+    "detect_language",
+    "get_language_lens",
+    "language_from_extension",
     # Discovery
     "LensDiscovery",
     "LensSource",

@@ -249,7 +249,19 @@ class SourceContext:
 
 
 def _detect_language(root: Path) -> str:
-    """Detect primary language of a source directory."""
+    """Detect primary language of a source directory.
+
+    .. deprecated::
+        Use `sunwell.planning.naaru.expertise.language.detect_language` for
+        comprehensive language detection including goal keyword analysis.
+    """
+    import warnings
+
+    warnings.warn(
+        "Use sunwell.planning.naaru.expertise.language.detect_language instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     for marker, lang in _LANGUAGE_MARKERS:
         if (root / marker).exists():
             return lang

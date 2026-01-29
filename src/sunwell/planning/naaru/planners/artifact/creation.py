@@ -13,6 +13,7 @@ async def create_artifact(
     model: ModelProtocol,
     artifact: ArtifactSpec,
     context: dict[str, Any] | None = None,
+    goal: str | None = None,
 ) -> str:
     """Create the content for an artifact based on its specification.
 
@@ -23,11 +24,16 @@ async def create_artifact(
         model: Model to use for creation
         artifact: The artifact specification
         context: Optional context (completed artifacts, cwd, etc.)
+        goal: Optional goal for language detection fallback
 
     Returns:
         Generated content as a string
     """
-    prompt = prompts.build_creation_prompt(artifact, context)
+    # Extract goal from context if not provided
+    if goal is None and context:
+        goal = context.get("goal")
+
+    prompt = prompts.build_creation_prompt(artifact, context, goal=goal)
 
     from sunwell.models import GenerateOptions
 
@@ -64,13 +70,18 @@ async def verify_artifact(
     if len(created_content) > 3000:
         content_preview += "\n... [truncated]"
 
+    # Determine file extension for code block
+    file_ext = ""
+    if artifact.produces_file and "." in artifact.produces_file:
+        file_ext = artifact.produces_file.split(".")[-1]
+
     prompt = f"""ARTIFACT: {artifact.id}
 
 CONTRACT (what it must satisfy):
 {artifact.contract}
 
 CREATED CONTENT:
-```python
+```{file_ext}
 {content_preview}
 ```
 

@@ -108,14 +108,21 @@ def tool_loop_complete_event(
     turns_used: int,
     tool_calls_total: int,
     final_response: str | None = None,
+    model_calls: int = 0,
+    tokens_input: int = 0,
+    tokens_output: int = 0,
     **kwargs: Any,
 ) -> AgentEvent:
-    """Create a tool loop completion event."""
+    """Create a tool loop completion event with telemetry."""
     return AgentEvent(
         EventType.TOOL_LOOP_COMPLETE,
         {
             "turns_used": turns_used,
             "tool_calls_total": tool_calls_total,
+            "model_calls": model_calls,
+            "tokens_input": tokens_input,
+            "tokens_output": tokens_output,
+            "tokens_total": tokens_input + tokens_output,
             "final_response": (
                 final_response[:500]
                 if final_response and len(final_response) > 500

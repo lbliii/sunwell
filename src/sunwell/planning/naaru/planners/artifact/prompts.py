@@ -3,9 +3,197 @@
 from typing import TYPE_CHECKING, Any
 
 from sunwell.planning.naaru.artifacts import ArtifactSpec
+from sunwell.planning.naaru.expertise.language import Language, detect_language
 
 if TYPE_CHECKING:
     from sunwell.knowledge.project.schema import ProjectSchema
+
+
+# Language-specific examples for artifact discovery
+# These guide the LLM to produce appropriate file paths and structures
+DISCOVERY_EXAMPLES: dict[Language, str] = {
+    Language.PYTHON: '''Goal: "Build a data processing pipeline"
+
+```json
+[
+  {
+    "id": "DataSchema",
+    "description": "Schema defining input data structure",
+    "contract": "Dataclass with fields: id, timestamp, payload, source",
+    "requires": [],
+    "produces_file": "src/schemas/data.py",
+    "domain_type": "schema"
+  },
+  {
+    "id": "ProcessorProtocol",
+    "description": "Protocol for data processors",
+    "contract": "Protocol: process(data: DataSchema) -> Result, validate(data) -> bool",
+    "requires": [],
+    "produces_file": "src/protocols/processor.py",
+    "domain_type": "protocol"
+  },
+  {
+    "id": "Pipeline",
+    "description": "Main pipeline orchestrator",
+    "contract": "Class: run(input) -> output, combining validation and transformation",
+    "requires": ["ProcessorProtocol", "DataSchema"],
+    "produces_file": "src/pipeline.py",
+    "domain_type": "application"
+  }
+]
+```''',
+    Language.TYPESCRIPT: '''Goal: "Build a todo app in Svelte"
+
+```json
+[
+  {
+    "id": "TodoType",
+    "description": "TypeScript type for todo items",
+    "contract": "Type with fields: id, title, completed, createdAt",
+    "requires": [],
+    "produces_file": "src/lib/types/todo.ts",
+    "domain_type": "type"
+  },
+  {
+    "id": "TodoStore",
+    "description": "Svelte store for todo state management",
+    "contract": "Writable store with add, toggle, remove methods",
+    "requires": ["TodoType"],
+    "produces_file": "src/lib/stores/todos.ts",
+    "domain_type": "store"
+  },
+  {
+    "id": "TodoItem",
+    "description": "Svelte component for single todo",
+    "contract": "Component: displays todo, handles toggle/delete",
+    "requires": ["TodoType"],
+    "produces_file": "src/lib/components/TodoItem.svelte",
+    "domain_type": "component"
+  },
+  {
+    "id": "TodoList",
+    "description": "Main todo list component",
+    "contract": "Component: renders list, handles add new todo",
+    "requires": ["TodoStore", "TodoItem"],
+    "produces_file": "src/routes/+page.svelte",
+    "domain_type": "page"
+  }
+]
+```''',
+    Language.JAVASCRIPT: '''Goal: "Build a REST API with Express"
+
+```json
+[
+  {
+    "id": "UserModel",
+    "description": "User data model",
+    "contract": "Schema with fields: id, email, name, createdAt",
+    "requires": [],
+    "produces_file": "src/models/user.js",
+    "domain_type": "model"
+  },
+  {
+    "id": "UserController",
+    "description": "User route handlers",
+    "contract": "CRUD handlers: create, read, update, delete",
+    "requires": ["UserModel"],
+    "produces_file": "src/controllers/userController.js",
+    "domain_type": "controller"
+  },
+  {
+    "id": "UserRoutes",
+    "description": "Express router for user endpoints",
+    "contract": "Router with /users endpoints",
+    "requires": ["UserController"],
+    "produces_file": "src/routes/users.js",
+    "domain_type": "router"
+  }
+]
+```''',
+    Language.RUST: '''Goal: "Build a CLI tool"
+
+```json
+[
+  {
+    "id": "Config",
+    "description": "Configuration struct",
+    "contract": "Struct with serde derive for config loading",
+    "requires": [],
+    "produces_file": "src/config.rs",
+    "domain_type": "model"
+  },
+  {
+    "id": "Args",
+    "description": "CLI argument parser",
+    "contract": "Clap derive struct for CLI args",
+    "requires": [],
+    "produces_file": "src/args.rs",
+    "domain_type": "cli"
+  },
+  {
+    "id": "Main",
+    "description": "Main entry point",
+    "contract": "Main function: parse args, load config, run",
+    "requires": ["Config", "Args"],
+    "produces_file": "src/main.rs",
+    "domain_type": "application"
+  }
+]
+```''',
+    Language.GO: '''Goal: "Build an HTTP server"
+
+```json
+[
+  {
+    "id": "Models",
+    "description": "Data models",
+    "contract": "Struct definitions with json tags",
+    "requires": [],
+    "produces_file": "internal/models/models.go",
+    "domain_type": "model"
+  },
+  {
+    "id": "Handlers",
+    "description": "HTTP handlers",
+    "contract": "Handler functions for routes",
+    "requires": ["Models"],
+    "produces_file": "internal/handlers/handlers.go",
+    "domain_type": "handler"
+  },
+  {
+    "id": "Main",
+    "description": "Main entry point",
+    "contract": "Main: setup router, start server",
+    "requires": ["Handlers"],
+    "produces_file": "cmd/server/main.go",
+    "domain_type": "application"
+  }
+]
+```''',
+}
+
+# Default example for unknown languages
+DEFAULT_EXAMPLE = DISCOVERY_EXAMPLES[Language.PYTHON]
+
+# Language to file extension mapping
+LANGUAGE_EXTENSIONS: dict[Language, str] = {
+    Language.PYTHON: "py",
+    Language.TYPESCRIPT: "ts",
+    Language.JAVASCRIPT: "js",
+    Language.RUST: "rs",
+    Language.GO: "go",
+    Language.UNKNOWN: "py",
+}
+
+# Language display names
+LANGUAGE_NAMES: dict[Language, str] = {
+    Language.PYTHON: "Python",
+    Language.TYPESCRIPT: "TypeScript",
+    Language.JAVASCRIPT: "JavaScript",
+    Language.RUST: "Rust",
+    Language.GO: "Go",
+    Language.UNKNOWN: "Python",
+}
 
 
 def build_discovery_prompt(
@@ -30,11 +218,27 @@ def build_discovery_prompt(
     if project_schema:
         schema_section = build_schema_section(project_schema)
 
+    # Detect language from goal to select appropriate example
+    lang_result = detect_language(goal)
+    language = lang_result.language
+    language_name = LANGUAGE_NAMES.get(language, "Python")
+    example = DISCOVERY_EXAMPLES.get(language, DEFAULT_EXAMPLE)
+
+    # Add language hint if detected with confidence
+    language_hint = ""
+    if lang_result.is_confident:
+        language_hint = f"""
+=== DETECTED LANGUAGE: {language_name} ===
+
+Based on your goal, this appears to be a {language_name} project.
+Use appropriate file extensions and patterns for {language_name}.
+"""
+
     return f"""GOAL: {goal}
 
 CONTEXT:
 {context_str}
-{schema_section}
+{schema_section}{language_hint}
 === ARTIFACT DISCOVERY ===
 
 Think about this goal differently. Don't ask "what steps should I take?"
@@ -66,59 +270,14 @@ For each thing that must exist, identify:
    A requires B if creating A needs to reference, implement, or build on B.
    "UserModel requires UserProtocol" because it implements that protocol.
 
-=== EXAMPLE ===
+=== EXAMPLE ({language_name}) ===
 
-Goal: "Build a data processing pipeline"
-
-```json
-[
-  {{
-    "id": "DataSchema",
-    "description": "Schema defining input data structure",
-    "contract": "Dataclass with fields: id, timestamp, payload, source",
-    "requires": [],
-    "produces_file": "src/schemas/data.py",
-    "domain_type": "schema"
-  }},
-  {{
-    "id": "ProcessorProtocol",
-    "description": "Protocol for data processors",
-    "contract": "Protocol: process(data: DataSchema) -> Result, validate(data) -> bool",
-    "requires": [],
-    "produces_file": "src/protocols/processor.py",
-    "domain_type": "protocol"
-  }},
-  {{
-    "id": "Validator",
-    "description": "Input validation implementation",
-    "contract": "Class implementing validation rules for DataSchema",
-    "requires": ["DataSchema"],
-    "produces_file": "src/processors/validator.py",
-    "domain_type": "service"
-  }},
-  {{
-    "id": "Transformer",
-    "description": "Data transformation service",
-    "contract": "Class implementing ProcessorProtocol for data transformation",
-    "requires": ["ProcessorProtocol", "DataSchema"],
-    "produces_file": "src/processors/transformer.py",
-    "domain_type": "service"
-  }},
-  {{
-    "id": "Pipeline",
-    "description": "Main pipeline orchestrator",
-    "contract": "Class: run(input) -> output, combining validation and transformation",
-    "requires": ["Validator", "Transformer"],
-    "produces_file": "src/pipeline.py",
-    "domain_type": "application"
-  }}
-]
-```
+{example}
 
 Analysis:
-- Leaves (parallel): DataSchema, ProcessorProtocol (no requirements)
-- Second wave: Validator, Transformer (require schemas/protocols)
-- Root: Pipeline (final orchestration)
+- Leaves (parallel): artifacts with no requirements
+- Subsequent waves: artifacts requiring previous
+- Root: final artifact satisfying the goal
 
 === IMPORTANT: MATCH EXISTING PATTERNS ===
 
@@ -130,7 +289,7 @@ Do NOT introduce new frameworks or patterns that conflict with what already exis
 
 Goal: {goal}
 
-Output ONLY valid JSON array of artifacts:"""
+Output ONLY valid JSON array of artifacts (use {language_name} file extensions):"""
 
 
 def build_schema_section(project_schema: ProjectSchema) -> str:
@@ -225,12 +384,14 @@ def format_context(context: dict[str, Any] | None) -> str:
 def build_creation_prompt(
     artifact: ArtifactSpec,
     context: dict[str, Any] | None = None,
+    goal: str | None = None,
 ) -> str:
     """Build prompt for creating artifact content.
 
     Args:
         artifact: Artifact specification to create
         context: Optional context with completed dependencies
+        goal: Optional goal for language detection fallback
 
     Returns:
         Formatted creation prompt
@@ -240,12 +401,22 @@ def build_creation_prompt(
     if artifact.produces_file and "." in artifact.produces_file:
         file_ext = artifact.produces_file.split(".")[-1]
     else:
-        file_ext = "py"
+        # Detect language from goal if available, otherwise default to py
+        if goal:
+            lang_result = detect_language(goal)
+            file_ext = LANGUAGE_EXTENSIONS.get(lang_result.language, "py")
+        else:
+            file_ext = "py"
 
+    # Map extension to language name (expanded mapping)
     language_hint = {
         "py": "Python",
         "js": "JavaScript",
         "ts": "TypeScript",
+        "tsx": "TypeScript (React)",
+        "jsx": "JavaScript (React)",
+        "svelte": "Svelte",
+        "vue": "Vue",
         "rs": "Rust",
         "go": "Go",
         "java": "Java",
@@ -253,7 +424,7 @@ def build_creation_prompt(
         "json": "JSON",
         "yaml": "YAML",
         "yml": "YAML",
-    }.get(file_ext, "Python")
+    }.get(file_ext, file_ext.upper() if file_ext else "Python")
 
     # Build context section
     context_section = ""
@@ -264,12 +435,15 @@ def build_creation_prompt(
         )
         context_section = f"\n\nCOMPLETED DEPENDENCIES:\n{completed_desc}"
 
+    # Determine default file path based on detected language
+    default_file = f"{artifact.id.lower()}.{file_ext}"
+
     return f"""Create the following artifact:
 
 ARTIFACT: {artifact.id}
 DESCRIPTION: {artifact.description}
 CONTRACT: {artifact.contract}
-FILE: {artifact.produces_file or f"{artifact.id.lower()}.py"}
+FILE: {artifact.produces_file or default_file}
 TYPE: {artifact.domain_type or "component"}
 REQUIRES: {list(artifact.requires) if artifact.requires else "none"}
 {context_section}

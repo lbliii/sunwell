@@ -112,12 +112,24 @@ PYTHON_STDLIB = frozenset([
 def detect_language(path: Path) -> str | None:
     """Detect language from file extension.
 
+    .. deprecated::
+        Use `sunwell.planning.naaru.expertise.language.language_from_extension`
+        for file extension-based detection, or `detect_language` for
+        comprehensive goal+project detection.
+
     Args:
         path: File path
 
     Returns:
         Language identifier or None if unknown
     """
+    import warnings
+
+    warnings.warn(
+        "Use sunwell.planning.naaru.expertise.language.language_from_extension instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return EXTENSION_TO_LANG.get(path.suffix.lower())
 
 

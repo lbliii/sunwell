@@ -112,6 +112,11 @@ class RichRenderer:
         self._learnings: list[str] = []
         self._files_created: list[str] = []
         self._files_modified: list[str] = []
+        # Telemetry state (from TOOL_LOOP_COMPLETE events)
+        self._model_calls = 0
+        self._tool_calls = 0
+        self._tokens_input = 0
+        self._tokens_output = 0
 
     async def render(self, events: AsyncIterator[AgentEvent]) -> None:
         """Render events as they stream in with Holy Light aesthetic.
@@ -345,6 +350,12 @@ class RichRenderer:
             self._learnings.append(event.data.get("fact", ""))
         elif event.type == EventType.VALIDATE_ERROR:
             self._errors.append(event.data.get("message", ""))
+        elif event.type == EventType.TOOL_LOOP_COMPLETE:
+            # Capture telemetry from tool loop completion
+            self._model_calls += event.data.get("model_calls", 0)
+            self._tool_calls += event.data.get("tool_calls_total", 0)
+            self._tokens_input += event.data.get("tokens_input", 0)
+            self._tokens_output += event.data.get("tokens_output", 0)
 
     def _render_signals(self, signals: dict) -> None:
         """Render signal extraction results with Holy Light styling (RFC-131)."""
@@ -457,6 +468,22 @@ class RichRenderer:
 
         self.console.print()
         self.console.print(f"  [holy.radiant]✦[/] {tasks} tasks completed in {duration:.1f}s")
+
+        # Show telemetry if we have it
+        if self._model_calls > 0 or self._tool_calls > 0:
+            self.console.print()
+            self.console.print("  [sunwell.phase]Telemetry:[/]")
+            self.console.print(f"   [holy.gold]├─[/] LLM calls: {self._model_calls}")
+            self.console.print(f"   [holy.gold]├─[/] Tool calls: {self._tool_calls}")
+            if self._tokens_input > 0 or self._tokens_output > 0:
+                total_tokens = self._tokens_input + self._tokens_output
+                self.console.print(
+                    f"   [holy.gold]└─[/] Tokens: {total_tokens:,} "
+                    f"[neutral.dim](in: {self._tokens_input:,}, out: {self._tokens_output:,})[/]"
+                )
+            else:
+                self.console.print(f"   [holy.gold]└─[/] Tokens: [neutral.dim]n/a[/]")
+
         self.console.print()
 
         # Show created/modified files if tracked
@@ -564,10 +591,23 @@ class RichRenderer:
             case EventType.MEMORY_LEARNING:
                 fact = event.data.get('fact', '')
                 print(f"  ≡ Learned: {fact[:50]}...")
+            case EventType.TOOL_LOOP_COMPLETE:
+                # Update telemetry state for simple renderer too
+                self._model_calls += event.data.get('model_calls', 0)
+                self._tool_calls += event.data.get('tool_calls_total', 0)
+                self._tokens_input += event.data.get('tokens_input', 0)
+                self._tokens_output += event.data.get('tokens_output', 0)
             case EventType.COMPLETE:
                 tasks = event.data.get('tasks_completed', 0)
                 dur = event.data.get('duration_s', 0)
                 print(f"★ Complete: {tasks} tasks in {dur:.1f}s")
+                # Show telemetry if we have it
+                if self._model_calls > 0 or self._tool_calls > 0:
+                    total_tokens = self._tokens_input + self._tokens_output
+                    print(f"  ├─ LLM calls: {self._model_calls}")
+                    print(f"  ├─ Tool calls: {self._tool_calls}")
+                    if total_tokens > 0:
+                        print(f"  └─ Tokens: {total_tokens:,} (in: {self._tokens_input:,}, out: {self._tokens_output:,})")
                 print("✦✧✦ Goal achieved")
             case EventType.ERROR:
                 print(f"✗ Error: {event.data.get('message', 'Unknown')}")

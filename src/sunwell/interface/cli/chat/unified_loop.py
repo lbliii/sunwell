@@ -88,6 +88,7 @@ async def run_unified_loop(
         model=model,
         tool_executor=tool_executor,
         workspace=workspace,
+        trust_level=trust_level,
         auto_confirm=auto_confirm,
         stream_progress=stream_progress,
     )

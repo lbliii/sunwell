@@ -236,11 +236,11 @@ class NaaruConfig:
     # ==========================================================================
 
     # Voice: Fast classifier for routing + trivial answers (~1s responses)
-    voice: str = "gemma3:1b"
+    voice: str = "llama3.1:8b"
     """Model for routing/classification. Fast, can answer trivial directly."""
 
     # Fallback models if voice unavailable
-    voice_models: tuple[str, ...] = ("gemma3:1b", "llama3.2:3b", "qwen2.5:1.5b")
+    voice_models: tuple[str, ...] = ("llama3.1:8b", "gemma3:1b", "llama3.2:3b")
     """Models to try for voice (in order of preference)."""
 
     voice_temperature: float = 0.3
@@ -271,7 +271,7 @@ class NaaruConfig:
     """Enable tiered validation (fast model before full judgment)."""
 
     # RFC-030: Unified Router (replaces attunement, discernment, model routing)
-    router: str = "qwen2.5:1.5b"
+    router: str = "llama3.1:8b"
     """Single model for ALL routing decisions (RFC-030).
 
     This tiny model handles:
@@ -281,7 +281,7 @@ class NaaruConfig:
     - Tool prediction
     - User mood/expertise detection
 
-    Recommended: qwen2.5:1.5b (fast, accurate JSON output)
+    Recommended: llama3.1:8b (good tool support, accurate JSON output)
     """
 
     router_temperature: float = 0.1

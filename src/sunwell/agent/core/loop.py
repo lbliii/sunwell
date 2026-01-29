@@ -516,6 +516,12 @@ class AgentLoop:
                 state=state,
             )
 
+            # Track model call telemetry
+            state.model_calls += 1
+            if result.usage:
+                state.tokens_input += result.usage.prompt_tokens
+                state.tokens_output += result.usage.completion_tokens
+
             # Reliability: Track token usage for budget enforcement
             if result.usage and self.config.enable_budget_enforcement:
                 self._tokens_spent += result.usage.total_tokens
@@ -569,11 +575,14 @@ class AgentLoop:
                 final_response = result.text
                 break
 
-        # Emit loop complete
+        # Emit loop complete with telemetry
         yield tool_loop_complete_event(
             turns_used=state.turn,
             tool_calls_total=state.tool_calls_total,
             final_response=final_response,
+            model_calls=state.model_calls,
+            tokens_input=state.tokens_input,
+            tokens_output=state.tokens_output,
         )
 
         # Reliability detection: Check for hallucinated completion

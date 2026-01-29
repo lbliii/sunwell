@@ -48,7 +48,8 @@ class TestArtifact:
         )
 
         assert artifact.task_id == ""
-        assert artifact.language == "python"
+        # Default is "unknown" - language is auto-detected from toolchain, not hardcoded
+        assert artifact.language == "unknown"
 
     def test_artifact_is_frozen(self, tmp_path: Path) -> None:
         """Artifact is immutable."""

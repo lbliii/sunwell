@@ -209,6 +209,15 @@ class LoopState:
     tool_calls_total: int = 0
     """Total tool calls executed."""
 
+    model_calls: int = 0
+    """Total LLM API calls made (for telemetry)."""
+
+    tokens_input: int = 0
+    """Total input tokens used (for telemetry)."""
+
+    tokens_output: int = 0
+    """Total output tokens generated (for telemetry)."""
+
     file_writes: list[str] = field(default_factory=list)
     """Paths of files written (for validation gates)."""
 

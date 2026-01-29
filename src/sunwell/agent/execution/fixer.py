@@ -27,12 +27,13 @@ from sunwell.agent.events import (
 )
 from sunwell.agent.signals import ErrorSignals, classify_error
 from sunwell.agent.validation import Artifact, ValidationError
+from sunwell.planning.naaru.expertise.language import Language, language_from_extension
 
 if TYPE_CHECKING:
     from sunwell.models import ModelProtocol
 
 # Pre-compiled regex for code block extraction (avoid recompiling per call)
-_RE_CODE_BLOCK = re.compile(r"```(?:python)?\s*\n(.*?)\n```", re.DOTALL)
+_RE_CODE_BLOCK = re.compile(r"```(?:\w+)?\s*\n(.*?)\n```", re.DOTALL)
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,10 +77,13 @@ class FixResult:
 
 
 # =============================================================================
-# Fix Prompts
+# Language-Specific Fix Prompts
 # =============================================================================
 
-TARGETED_FIX_PROMPT = """Fix the following error in this code region.
+# Prompt templates organized by language and error type
+FIX_PROMPTS: dict[Language, dict[str, str]] = {
+    Language.PYTHON: {
+        "targeted": """Fix the following error in this code region.
 
 ERROR TYPE: {error_type}
 ERROR MESSAGE: {error_message}
@@ -93,10 +97,8 @@ CODE REGION:
 
 CONTEXT: {context}
 
-Output ONLY the fixed code region (no explanation, no markdown fences):"""
-
-
-SYNTAX_FIX_PROMPT = """Fix the syntax error in this Python code.
+Output ONLY the fixed code region (no explanation, no markdown fences):""",
+        "syntax": """Fix the syntax error in this Python code.
 
 ERROR: {error_message}
 LINE: {line}
@@ -106,10 +108,8 @@ CODE:
 {code}
 ```
 
-Output ONLY the corrected code (no explanation, no markdown fences):"""
-
-
-TYPE_FIX_PROMPT = """Fix this type error.
+Output ONLY the corrected code (no explanation, no markdown fences):""",
+        "type": """Fix this type error.
 
 ERROR: {error_message}
 FILE: {file_path}
@@ -126,7 +126,307 @@ Rules:
 - All public functions need type annotations
 - Fix the specific type issue mentioned
 
-Output ONLY the fixed code (no explanation):"""
+Output ONLY the fixed code (no explanation):""",
+        "lint": """Fix these lint errors in the Python code:
+
+Lint errors (ruff):
+{lint_desc}
+
+Type errors (ty):
+{type_desc}
+
+CODE:
+```python
+{code}
+```
+
+Rules:
+- Use Python 3.14 syntax (list[str] not List[str])
+- Use X | None not Optional[X]
+- All public functions need type annotations
+- Follow ruff rules
+
+Output ONLY the fixed code (no explanation, no markdown fences):""",
+    },
+    Language.TYPESCRIPT: {
+        "targeted": """Fix the following error in this code region.
+
+ERROR TYPE: {error_type}
+ERROR MESSAGE: {error_message}
+FILE: {file_path}
+LINE: {line}
+
+CODE REGION:
+```typescript
+{code_region}
+```
+
+CONTEXT: {context}
+
+Output ONLY the fixed code region (no explanation, no markdown fences):""",
+        "syntax": """Fix the syntax error in this TypeScript code.
+
+ERROR: {error_message}
+LINE: {line}
+
+CODE:
+```typescript
+{code}
+```
+
+Output ONLY the corrected code (no explanation, no markdown fences):""",
+        "type": """Fix this type error.
+
+ERROR: {error_message}
+FILE: {file_path}
+LINE: {line}
+
+CODE REGION:
+```typescript
+{code_region}
+```
+
+Rules:
+- Use strict TypeScript patterns
+- Prefer explicit type annotations over inference for public APIs
+- Use discriminated unions for type narrowing
+- Fix the specific type issue mentioned
+
+Output ONLY the fixed code (no explanation):""",
+        "lint": """Fix these errors in the TypeScript code:
+
+ESLint errors:
+{lint_desc}
+
+Type errors (tsc):
+{type_desc}
+
+CODE:
+```typescript
+{code}
+```
+
+Rules:
+- Use strict TypeScript patterns
+- Prefer explicit types over 'any'
+- Follow ESLint rules
+
+Output ONLY the fixed code (no explanation, no markdown fences):""",
+    },
+    Language.JAVASCRIPT: {
+        "targeted": """Fix the following error in this code region.
+
+ERROR TYPE: {error_type}
+ERROR MESSAGE: {error_message}
+FILE: {file_path}
+LINE: {line}
+
+CODE REGION:
+```javascript
+{code_region}
+```
+
+CONTEXT: {context}
+
+Output ONLY the fixed code region (no explanation, no markdown fences):""",
+        "syntax": """Fix the syntax error in this JavaScript code.
+
+ERROR: {error_message}
+LINE: {line}
+
+CODE:
+```javascript
+{code}
+```
+
+Output ONLY the corrected code (no explanation, no markdown fences):""",
+        "type": """Fix this error.
+
+ERROR: {error_message}
+FILE: {file_path}
+LINE: {line}
+
+CODE REGION:
+```javascript
+{code_region}
+```
+
+Output ONLY the fixed code (no explanation):""",
+        "lint": """Fix these errors in the JavaScript code:
+
+ESLint errors:
+{lint_desc}
+
+CODE:
+```javascript
+{code}
+```
+
+Rules:
+- Follow ESLint rules
+- Use modern JavaScript (ES2020+)
+
+Output ONLY the fixed code (no explanation, no markdown fences):""",
+    },
+    Language.RUST: {
+        "targeted": """Fix the following error in this code region.
+
+ERROR TYPE: {error_type}
+ERROR MESSAGE: {error_message}
+FILE: {file_path}
+LINE: {line}
+
+CODE REGION:
+```rust
+{code_region}
+```
+
+CONTEXT: {context}
+
+Output ONLY the fixed code region (no explanation, no markdown fences):""",
+        "syntax": """Fix the syntax error in this Rust code.
+
+ERROR: {error_message}
+LINE: {line}
+
+CODE:
+```rust
+{code}
+```
+
+Output ONLY the corrected code (no explanation, no markdown fences):""",
+        "type": """Fix this type/borrow checker error.
+
+ERROR: {error_message}
+FILE: {file_path}
+LINE: {line}
+
+CODE REGION:
+```rust
+{code_region}
+```
+
+Rules:
+- Follow Rust ownership and borrowing rules
+- Use appropriate lifetimes
+- Prefer &str over String for function parameters where possible
+- Fix the specific error mentioned
+
+Output ONLY the fixed code (no explanation):""",
+        "lint": """Fix these errors in the Rust code:
+
+Clippy warnings:
+{lint_desc}
+
+Compiler errors:
+{type_desc}
+
+CODE:
+```rust
+{code}
+```
+
+Rules:
+- Follow clippy suggestions
+- Use idiomatic Rust patterns
+
+Output ONLY the fixed code (no explanation, no markdown fences):""",
+    },
+    Language.GO: {
+        "targeted": """Fix the following error in this code region.
+
+ERROR TYPE: {error_type}
+ERROR MESSAGE: {error_message}
+FILE: {file_path}
+LINE: {line}
+
+CODE REGION:
+```go
+{code_region}
+```
+
+CONTEXT: {context}
+
+Output ONLY the fixed code region (no explanation, no markdown fences):""",
+        "syntax": """Fix the syntax error in this Go code.
+
+ERROR: {error_message}
+LINE: {line}
+
+CODE:
+```go
+{code}
+```
+
+Output ONLY the corrected code (no explanation, no markdown fences):""",
+        "type": """Fix this type error.
+
+ERROR: {error_message}
+FILE: {file_path}
+LINE: {line}
+
+CODE REGION:
+```go
+{code_region}
+```
+
+Rules:
+- Use proper Go types
+- Handle errors explicitly
+- Follow Go naming conventions
+
+Output ONLY the fixed code (no explanation):""",
+        "lint": """Fix these errors in the Go code:
+
+golangci-lint errors:
+{lint_desc}
+
+Compiler errors:
+{type_desc}
+
+CODE:
+```go
+{code}
+```
+
+Rules:
+- Follow golangci-lint suggestions
+- Use idiomatic Go patterns
+- Handle errors properly
+
+Output ONLY the fixed code (no explanation, no markdown fences):""",
+    },
+}
+
+# Default to Python for unknown languages (backwards compatibility)
+DEFAULT_LANGUAGE = Language.PYTHON
+
+
+def get_fix_prompt(
+    language: Language,
+    prompt_type: str,
+    **kwargs: str,
+) -> str:
+    """Get a language-appropriate fix prompt.
+
+    Args:
+        language: The detected language
+        prompt_type: Type of fix prompt ("targeted", "syntax", "type", "lint")
+        **kwargs: Template variables to substitute
+
+    Returns:
+        Formatted prompt string
+    """
+    # Get language-specific prompts or fall back to Python
+    lang_prompts = FIX_PROMPTS.get(language, FIX_PROMPTS[DEFAULT_LANGUAGE])
+    template = lang_prompts.get(prompt_type, lang_prompts.get("targeted", ""))
+    return template.format(**kwargs)
+
+
+# Legacy aliases for backwards compatibility
+TARGETED_FIX_PROMPT = FIX_PROMPTS[Language.PYTHON]["targeted"]
+SYNTAX_FIX_PROMPT = FIX_PROMPTS[Language.PYTHON]["syntax"]
+TYPE_FIX_PROMPT = FIX_PROMPTS[Language.PYTHON]["type"]
 
 
 # =============================================================================
@@ -287,10 +587,15 @@ class FixStage:
             # it's an unfixable lint error - use LLM
             pass
 
-        # For syntax errors, use LLM
-        prompt = SYNTAX_FIX_PROMPT.format(
+        # Detect language from file extension for language-appropriate prompts
+        language = language_from_extension(artifact.path.suffix)
+
+        # For syntax errors, use LLM with language-appropriate prompt
+        prompt = get_fix_prompt(
+            language,
+            "syntax",
             error_message=error.message,
-            line=error.line or 1,
+            line=str(error.line or 1),
             code=artifact.content,
         )
 
@@ -329,20 +634,27 @@ class FixStage:
         end = min(len(lines), error_line + 5)
         code_region = "\n".join(lines[start:end])
 
-        # Use targeted fix prompt
+        # Detect language from file extension
+        language = language_from_extension(artifact.path.suffix)
+
+        # Use targeted fix prompt with language-appropriate formatting
         if signals.error_type == "type":
-            prompt = TYPE_FIX_PROMPT.format(
+            prompt = get_fix_prompt(
+                language,
+                "type",
                 error_message=error.message,
-                file_path=error.file,
-                line=error_line,
+                file_path=str(error.file),
+                line=str(error_line),
                 code_region=code_region,
             )
         else:
-            prompt = TARGETED_FIX_PROMPT.format(
+            prompt = get_fix_prompt(
+                language,
+                "targeted",
                 error_type=signals.error_type,
                 error_message=error.message,
-                file_path=error.file,
-                line=error_line,
+                file_path=str(error.file),
+                line=str(error_line),
                 code_region=code_region,
                 context=f"Likely cause: {signals.likely_cause}",
             )
@@ -429,9 +741,11 @@ class StaticAnalysisFixer:
         Yields:
             AgentEvent for fix progress
         """
-        from sunwell.agent.utils.toolchain import PYTHON_TOOLCHAIN, ToolchainRunner
+        from sunwell.agent.utils.toolchain import ToolchainRunner, detect_toolchain
 
-        runner = ToolchainRunner(PYTHON_TOOLCHAIN, self.cwd)
+        # Detect the appropriate toolchain based on the project
+        toolchain = detect_toolchain(self.cwd)
+        runner = ToolchainRunner(toolchain, self.cwd)
 
         yield fix_progress_event(
             stage="lint_autofix",
@@ -497,6 +811,9 @@ class StaticAnalysisFixer:
         if not lint_errors and not type_errors:
             return
 
+        # Detect language from file extension for language-appropriate prompts
+        language = language_from_extension(artifact.path.suffix)
+
         # Build fix prompt
         lint_desc = "\n".join(
             f"- Line {e.line}: [{e.code}] {e.message}" for e in lint_errors
@@ -505,26 +822,14 @@ class StaticAnalysisFixer:
             f"- Line {e.line}: {e.message}" for e in type_errors
         )
 
-        prompt = f"""Fix these errors in the code:
-
-Lint errors (ruff):
-{lint_desc or "None"}
-
-Type errors (ty):
-{type_desc or "None"}
-
-CODE:
-```python
-{artifact.content}
-```
-
-Rules:
-- Use Python 3.14 syntax (list[str] not List[str])
-- Use X | None not Optional[X]
-- All public functions need type annotations
-- Follow ruff rules
-
-Output ONLY the fixed code (no explanation, no markdown fences):"""
+        # Use language-specific lint prompt
+        prompt = get_fix_prompt(
+            language,
+            "lint",
+            lint_desc=lint_desc or "None",
+            type_desc=type_desc or "None",
+            code=artifact.content,
+        )
 
         result = await self.model.generate(
             prompt,
