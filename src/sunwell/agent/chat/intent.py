@@ -71,13 +71,38 @@ _TASK_VERBS: frozenset[str] = frozenset({
     "fix", "refactor", "update", "modify", "change", "delete",
     "remove", "migrate", "convert", "generate", "setup", "configure",
     "install", "deploy", "test", "debug", "optimize", "improve",
+    "show", "list", "get", "find", "search", "run", "execute",
+    "copy", "move", "rename", "open", "close", "start", "stop",
 })
 
-# High-signal conversation indicators
+# Patterns for questions that actually require tool execution
+# These look like questions but need tools to answer
+_TOOL_REQUIRING_PATTERNS: tuple[str, ...] = (
+    # Git operations
+    "who wrote", "who changed", "who modified", "who committed", "who authored",
+    "what changed", "what's changed", "what files changed", "what's different",
+    "what is the status", "what's the status",
+    # File operations
+    "what files", "what's in", "what is in", "what does", "what's inside",
+    "what does the file", "what does this file",
+    # Environment operations
+    "what environment", "what's my", "what is my",
+    "what variables", "what's set",
+    # Search operations
+    "where is", "where are", "where does", "where do",
+    "which files", "which modules", "which functions",
+)
+
+# High-signal conversation indicators (conceptual questions only)
 _QUESTION_STARTERS: frozenset[str] = frozenset({
-    "what", "why", "how", "when", "where", "who", "which",
+    # "what", "why", "how", "when", "where", "who", "which" - REMOVED: too broad
+    # These often require tool execution
+    # Conceptual/explanatory patterns only:
     "can you explain", "tell me about", "describe", "explain",
-    "is there", "are there", "do you", "does this", "could you",
+    "do you", "does this", "could you",
+    "what is a", "what are", "what's the difference",
+    "how does", "how do", "how can i", "how should",
+    "why does", "why is", "why are", "why do",
 })
 
 
@@ -208,6 +233,14 @@ class IntentRouter:
         # Score task indicators
         first_word = words[0]
         task_score = 0.0
+        is_question = lower.endswith("?")
+
+        # Check for tool-requiring question patterns FIRST
+        # These look like questions but require tool execution
+        is_tool_requiring_question = any(lower.startswith(p) for p in _TOOL_REQUIRING_PATTERNS)
+        if is_tool_requiring_question:
+            logger.debug("Detected tool-requiring question pattern")
+            task_score += 0.8  # Very strong signal - this is a task despite looking like a question
 
         # Strong signal: starts with task verb
         if first_word in _TASK_VERBS:
@@ -217,7 +250,6 @@ class IntentRouter:
             task_score += 0.3
 
         # Weak signal: not a question
-        is_question = lower.endswith("?")
         if not is_question:
             task_score += 0.1
 
@@ -228,11 +260,11 @@ class IntentRouter:
         # Score conversation indicators
         conv_score = 0.0
 
-        # Strong signal: ends with question mark
-        if is_question:
+        # Strong signal: ends with question mark (BUT NOT if it's a tool-requiring question)
+        if is_question and not is_tool_requiring_question:
             conv_score += 0.4
 
-        # Strong signal: starts with question word/phrase
+        # Strong signal: starts with conceptual question pattern
         if any(lower.startswith(q) for q in _QUESTION_STARTERS):
             conv_score += 0.4
 
@@ -248,11 +280,18 @@ class IntentRouter:
 
         # Determine intent from scores
         if task_score >= self.threshold:
+            # Determine reason based on what triggered high task score
+            if is_tool_requiring_question:
+                reason = "Tool-requiring question pattern detected"
+            elif first_word in _TASK_VERBS:
+                reason = "Imperative verb detected"
+            else:
+                reason = "Task indicators detected"
             return IntentClassification(
                 intent=Intent.TASK,
                 confidence=min(task_score, 1.0),
                 task_description=user_input,
-                reasoning="Imperative verb detected",
+                reasoning=reason,
             )
 
         if conv_score >= self.threshold:

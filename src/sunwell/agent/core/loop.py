@@ -93,6 +93,7 @@ if TYPE_CHECKING:
     from sunwell.models import ModelProtocol
     from sunwell.tools.execution import ToolExecutor
     from sunwell.tools.progressive import ProgressivePolicy
+    from sunwell.tools.selection import MultiSignalToolSelector
 
 logger = logging.getLogger(__name__)
 
@@ -137,6 +138,13 @@ class AgentLoop:
     # RFC-134: Progressive tool policy (set during run if enabled)
     progressive_policy: ProgressivePolicy | None = field(default=None, init=False)
     """Dynamic tool availability based on turn/trust (RFC-134)."""
+
+    # RFC-XXX: Multi-signal tool selector (set during run if enabled)
+    tool_selector: "MultiSignalToolSelector | None" = field(default=None, init=False)
+    """DAG-based intelligent tool selection for small model accuracy."""
+
+    _task_type: str = field(default="general", init=False)
+    """Classified task type for tool selection (from classify_task_type)."""
 
     # RFC-137: Model delegation
     smart_model: ModelProtocol | None = None
@@ -267,6 +275,26 @@ class AgentLoop:
             logger.info(
                 "Progressive tools enabled: starting with %d tools",
                 len(self.progressive_policy.get_available_tools()),
+            )
+
+        # RFC-XXX: Initialize multi-signal tool selector if enabled
+        if self.config.enable_tool_selection:
+            from sunwell.agent.learning import classify_task_type
+            from sunwell.tools.selection import MultiSignalToolSelector
+
+            self.tool_selector = MultiSignalToolSelector(
+                workspace_root=self.workspace,
+                progressive_policy=self.progressive_policy,
+                learning_store=self.learning_store,
+                lens=self.lens,
+                max_tools=self.config.tool_selection_max_tools,
+            )
+            # Classify task type for learned pattern suggestions
+            self._task_type = classify_task_type(task_description)
+            logger.info(
+                "Tool selector enabled: task_type=%s, workspace=%s",
+                self._task_type,
+                self.workspace,
             )
 
         # RFC-137: Check if delegation should be used (skip if already in delegation)
@@ -463,6 +491,21 @@ class AgentLoop:
                         len(tools),
                         state.turn,
                     )
+
+            # RFC-XXX: Multi-signal tool selection (DAG + learned patterns + project)
+            if self.tool_selector:
+                used_tools = frozenset(state.tool_sequence)
+                available_tools = self.tool_selector.select(
+                    query=task_description,
+                    task_type=self._task_type,
+                    used_tools=used_tools,
+                    available_tools=available_tools,
+                )
+                logger.debug(
+                    "Tool selection: %d tools after DAG+signals (used=%d)",
+                    len(available_tools),
+                    len(used_tools),
+                )
 
             # Generate with tools (first turn uses task_description for routing)
             routing_task = task_description if state.turn == 1 else None

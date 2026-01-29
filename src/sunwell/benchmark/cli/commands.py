@@ -1205,15 +1205,23 @@ async def _run_journeys(
     verbose: bool,
 ) -> None:
     """Async journey execution."""
+    from rich.live import Live
+    from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+
     from sunwell.benchmark.journeys import (
         JourneyRunner,
         load_journey,
         load_journeys_from_directory,
     )
-    from sunwell.benchmark.journeys.runner import run_journeys
+    from sunwell.benchmark.journeys.runner import JourneyResult
     from sunwell.benchmark.journeys.types import Journey
+    from sunwell.foundation.config import get_config
 
-    # Banner
+    # Resolve actual model being used
+    cfg = get_config()
+    resolved_model = model or (cfg.model.default_model if cfg else "gemma3:4b")
+
+    # Banner - always show resolved model
     console.print()
     console.print("╔" + "═" * 60 + "╗")
     console.print("║" + " 🧪 E2E BEHAVIORAL TESTING".ljust(60) + "║")
@@ -1224,8 +1232,7 @@ async def _run_journeys(
     if tags:
         console.print("║" + f"    Tags: {', '.join(tags)}".ljust(60) + "║")
     console.print("║" + f"    Provider: {provider}".ljust(60) + "║")
-    if model:
-        console.print("║" + f"    Model: {model}".ljust(60) + "║")
+    console.print("║" + f"    Model: {resolved_model}".ljust(60) + "║")
     console.print("╚" + "═" * 60 + "╝")
     console.print()
 
@@ -1269,20 +1276,119 @@ async def _run_journeys(
         console.print("[yellow]No journeys found matching criteria[/yellow]")
         return
 
-    console.print(f"📋 Found {len(journeys_to_run)} journey(s) to run")
+    console.print(f"📋 Running {len(journeys_to_run)} journey(s)")
     console.print()
 
-    # Run journeys
-    results = await run_journeys(
-        journeys_to_run,
-        parallel=parallel,
-        max_concurrent=max_concurrent,
+    # Suppress noisy logging during benchmark runs (unless verbose)
+    import logging
+    if not verbose:
+        # Quiet the agent/tools logs (budget warnings, blocked tools, etc.)
+        # Use parent logger to catch all child loggers
+        logging.getLogger("sunwell.agent").setLevel(logging.ERROR)
+        logging.getLogger("sunwell.tools").setLevel(logging.ERROR)
+        logging.getLogger("sunwell.models").setLevel(logging.ERROR)
+
+    # Create runner
+    runner = JourneyRunner(
         provider=provider,
-        model_name=model,
+        model_name=resolved_model,
         trust_level=trust,
         cleanup_workspace=cleanup,
         debug=verbose,
     )
+
+    # Track results and real-time status
+    results: list[JourneyResult] = []
+    passed_count = 0
+    failed_count = 0
+
+    # Progress display with real-time updates
+    progress = Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TextColumn("•"),
+        TextColumn("[green]{task.fields[passed]}✓[/green]"),
+        TextColumn("[red]{task.fields[failed]}✗[/red]"),
+        TimeElapsedColumn(),
+        console=console,
+        transient=not verbose,  # Keep visible in verbose mode
+    )
+
+    with progress:
+        task_id = progress.add_task(
+            "Running journeys",
+            total=len(journeys_to_run),
+            passed=0,
+            failed=0,
+        )
+
+        if parallel:
+            # Parallel execution with semaphore
+            import asyncio
+            semaphore = asyncio.Semaphore(max_concurrent)
+
+            async def run_with_tracking(journey: Journey) -> JourneyResult:
+                nonlocal passed_count, failed_count
+                async with semaphore:
+                    result = await runner.run(journey)
+                    if result.passed:
+                        passed_count += 1
+                    else:
+                        failed_count += 1
+                    progress.update(
+                        task_id,
+                        advance=1,
+                        passed=passed_count,
+                        failed=failed_count,
+                    )
+                    # Print immediate result in verbose mode
+                    if verbose:
+                        status = "[green]✓[/green]" if result.passed else "[red]✗[/red]"
+                        progress.console.print(
+                            f"  {status} {journey.id} ({result.duration_ms}ms)"
+                        )
+                    return result
+
+            results = await asyncio.gather(*[run_with_tracking(j) for j in journeys_to_run])
+        else:
+            # Sequential execution
+            for journey in journeys_to_run:
+                # Update description to show current journey
+                progress.update(
+                    task_id,
+                    description=f"[cyan]{journey.id}[/cyan]",
+                )
+
+                result = await runner.run(journey)
+                results.append(result)
+
+                if result.passed:
+                    passed_count += 1
+                else:
+                    failed_count += 1
+
+                progress.update(
+                    task_id,
+                    advance=1,
+                    passed=passed_count,
+                    failed=failed_count,
+                )
+
+                # Print immediate result
+                if verbose:
+                    status = "[green]✓[/green]" if result.passed else "[red]✗[/red]"
+                    progress.console.print(
+                        f"  {status} {journey.id} ({result.duration_ms}ms)"
+                    )
+                elif not result.passed:
+                    # Always show failures even in non-verbose mode
+                    progress.console.print(
+                        f"  [red]✗ {journey.id}[/red]: {result.error or 'assertions failed'}"
+                    )
+
+    console.print()
 
     # Display results
     _display_journey_results(results, verbose)
@@ -1358,16 +1464,35 @@ def _display_journey_results(results: list, verbose: bool) -> None:
     else:
         console.print(f"[red]❌ {failed}/{len(results)} journey(s) failed[/red]")
 
-    # Show failures in verbose mode
-    if verbose:
-        for result in results:
-            if not result.passed:
-                console.print()
-                console.print(f"[red]── {result.journey_id} ──[/red]")
-                if result.error:
-                    console.print(f"  Error: {result.error}")
-                for failure in result.assertion_report.failures():
-                    console.print(f"  ✗ [{failure.category}] {failure.message}")
+    # Show failures (always show brief, verbose shows full detail)
+    failed_results = [r for r in results if not r.passed]
+    if failed_results:
+        console.print()
+        console.print("[bold]Failures:[/bold]")
+
+        for result in failed_results:
+            console.print(f"\n[red]── {result.journey_id} ──[/red]")
+
+            if result.error:
+                console.print(f"  [red]Error:[/red] {result.error}")
+
+            # Show assertion failures
+            failures = result.assertion_report.failures()
+            if failures:
+                for failure in failures[:5]:  # Limit to first 5
+                    console.print(f"  [red]✗[/red] [{failure.category}] {failure.message}")
+                if len(failures) > 5:
+                    console.print(f"  ... and {len(failures) - 5} more")
+
+            # Show tool call info if tools didn't match
+            if not result.tools_match and verbose:
+                tool_calls = [
+                    e.data.get("tool_name", e.data.get("tool", "?"))
+                    for e in result.events
+                    if hasattr(e, "data") and e.data and "tool" in str(e.data)
+                ]
+                if tool_calls:
+                    console.print(f"  [dim]Tools called: {', '.join(tool_calls[:10])}[/dim]")
 
 
 # Export for CLI integration

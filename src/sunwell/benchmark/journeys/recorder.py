@@ -424,15 +424,17 @@ class EventRecorder:
 
         # Tool events
         if event.type == EventType.TOOL_START:
+            # Support multiple key names: "tool_name" (from tool.py), "tool", or "name"
+            tool_name = data.get("tool_name") or data.get("tool") or data.get("name", "")
             self.tool_calls.append(ToolCallRecord(
-                name=data.get("tool", data.get("name", "")),
+                name=tool_name,
                 arguments=data.get("arguments", data.get("args", {})),
                 timestamp=event.timestamp,
             ))
         elif event.type == EventType.TOOL_COMPLETE:
             # Update last tool call with result
             if self.tool_calls:
-                tool_name = data.get("tool", data.get("name", ""))
+                tool_name = data.get("tool_name") or data.get("tool") or data.get("name", "")
                 # Find matching tool call (last one with same name)
                 for tc in reversed(self.tool_calls):
                     if tc.name == tool_name and tc.result is None:
@@ -458,18 +460,20 @@ class EventRecorder:
                     confidence=data.get("confidence", 0.5),
                     reasoning=data.get("reasoning"),
                 ))
-            # Also extract signals if present
-            if any(k in data for k in ("complexity", "needs_tools", "is_ambiguous")):
+            # Extract signals - they can be at top level OR nested under "signals" key
+            # (agent.py emits: signal_event("extracted", signals=signals.to_dict()))
+            signal_data = data.get("signals", data)  # Try nested first, fall back to top level
+            if any(k in signal_data for k in ("complexity", "needs_tools", "is_ambiguous")):
                 self.signals.append(SignalRecord(
-                    complexity=data.get("complexity"),
-                    needs_tools=data.get("needs_tools"),
-                    is_ambiguous=data.get("is_ambiguous"),
-                    is_dangerous=data.get("is_dangerous"),
-                    is_epic=data.get("is_epic"),
-                    confidence=data.get("confidence", 0.5),
-                    domain=data.get("domain", "general"),
-                    planning_route=data.get("planning_route"),
-                    execution_route=data.get("execution_route"),
+                    complexity=signal_data.get("complexity"),
+                    needs_tools=signal_data.get("needs_tools"),
+                    is_ambiguous=signal_data.get("is_ambiguous"),
+                    is_dangerous=signal_data.get("is_dangerous"),
+                    is_epic=signal_data.get("is_epic"),
+                    confidence=signal_data.get("confidence", 0.5),
+                    domain=signal_data.get("domain", "general"),
+                    planning_route=signal_data.get("planning_route"),
+                    execution_route=signal_data.get("execution_route"),
                 ))
 
         # Model output events

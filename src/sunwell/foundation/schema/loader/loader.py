@@ -27,6 +27,7 @@ from sunwell.foundation.schema.loader.parsers import (
     parse_skill_retry,
     parse_skills,
     parse_spellbook,
+    parse_tool_profile,
     parse_workflows,
 )
 from sunwell.foundation.schema.loader.presets import load_presets, resolve_preset
@@ -290,6 +291,11 @@ class LensLoader:
         if "affordances" in lens_data:
             affordances = parse_affordances(lens_data["affordances"])
 
+        # Parse tool_profile (RFC-XXX: Multi-Signal Tool Selection)
+        tool_profile = None
+        if "tool_profile" in lens_data:
+            tool_profile = parse_tool_profile(lens_data["tool_profile"])
+
         return Lens(
             metadata=metadata,
             extends=extends,
@@ -311,5 +317,6 @@ class LensLoader:
             spellbook=spellbook,
             schema_validators=schema_validators,
             affordances=affordances,
+            tool_profile=tool_profile,
             source_path=source_path,
         )

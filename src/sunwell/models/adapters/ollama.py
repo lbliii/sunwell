@@ -13,11 +13,14 @@ See: https://docs.ollama.com/api/generate
 
 
 import json
+import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
 from sunwell.foundation.errors import from_openai_error
+
+logger = logging.getLogger(__name__)
 from sunwell.models.core.protocol import (
     GenerateOptions,
     GenerateResult,
@@ -250,6 +253,7 @@ class OllamaModel:
             kwargs["tools"] = converted_tools
             if tool_choice:
                 kwargs["tool_choice"] = self._convert_tool_choice(tool_choice)
+            logger.debug("OllamaModel: Passing %d tools, tool_choice=%s", len(converted_tools), kwargs.get("tool_choice"))
 
         if opts.max_tokens:
             kwargs["max_tokens"] = opts.max_tokens

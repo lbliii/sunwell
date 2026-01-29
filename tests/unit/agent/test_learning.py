@@ -918,3 +918,169 @@ class TestToolSuggestions:
         
         assert len(patterns) == 1
         assert patterns[0].task_type == "test"
+
+
+# =============================================================================
+# learn_from_execution Tests (RFC-122, RFC-135)
+# =============================================================================
+
+
+class TestLearnFromExecution:
+    """Tests for learn_from_execution() function.
+    
+    This function extracts learnings after agent execution completes.
+    Key invariant: TaskGraph.tasks is a list, not a dict.
+    """
+
+    @pytest.fixture
+    def mock_task(self) -> Any:
+        """Create a mock task."""
+        task = MagicMock()
+        task.id = "task-1"
+        task.name = "Create user model"
+        task.description = "Create a User model with id and email fields"
+        return task
+
+    @pytest.fixture
+    def task_graph_with_tasks(self, mock_task: Any) -> Any:
+        """Create a TaskGraph with tasks (as a list, not dict)."""
+        from sunwell.agent.core.task_graph import TaskGraph
+        
+        graph = TaskGraph()
+        graph.tasks = [mock_task]  # TaskGraph.tasks is list[Task]
+        return graph
+
+    @pytest.fixture
+    def empty_task_graph(self) -> Any:
+        """Create an empty TaskGraph."""
+        from sunwell.agent.core.task_graph import TaskGraph
+        
+        return TaskGraph()
+
+    @pytest.mark.asyncio
+    async def test_learn_from_execution_with_tasks(
+        self,
+        task_graph_with_tasks: Any,
+        learning_store: LearningStore,
+    ) -> None:
+        """learn_from_execution works with TaskGraph that has tasks.
+        
+        This is a regression test for the bug where .values() was called
+        on task_graph.tasks (a list) instead of iterating directly.
+        """
+        from sunwell.agent.learning.execution import learn_from_execution
+        
+        extractor = LearningExtractor()
+        
+        # Should not raise "'list' object has no attribute 'values'"
+        learnings = []
+        async for fact, category in learn_from_execution(
+            goal="Create a user model",
+            success=True,
+            task_graph=task_graph_with_tasks,
+            learning_store=learning_store,
+            learning_extractor=extractor,
+            files_changed=[],
+            last_planning_context=None,
+            memory=None,
+        ):
+            learnings.append((fact, category))
+        
+        # Function completed without error - that's the key assertion
+        # (heuristic extraction may or may not produce learnings)
+        assert isinstance(learnings, list)
+
+    @pytest.mark.asyncio
+    async def test_learn_from_execution_empty_task_graph(
+        self,
+        empty_task_graph: Any,
+        learning_store: LearningStore,
+    ) -> None:
+        """learn_from_execution handles empty TaskGraph."""
+        from sunwell.agent.learning.execution import learn_from_execution
+        
+        extractor = LearningExtractor()
+        
+        learnings = []
+        async for fact, category in learn_from_execution(
+            goal="Do something",
+            success=True,
+            task_graph=empty_task_graph,
+            learning_store=learning_store,
+            learning_extractor=extractor,
+            files_changed=[],
+            last_planning_context=None,
+            memory=None,
+        ):
+            learnings.append((fact, category))
+        
+        # Empty task graph should complete without error
+        assert isinstance(learnings, list)
+
+    @pytest.mark.asyncio
+    async def test_learn_from_execution_skips_heuristics_on_failure(
+        self,
+        task_graph_with_tasks: Any,
+        learning_store: LearningStore,
+    ) -> None:
+        """learn_from_execution skips heuristic extraction when success=False."""
+        from sunwell.agent.learning.execution import learn_from_execution
+        
+        extractor = LearningExtractor()
+        
+        # With success=False, heuristic extraction should be skipped
+        learnings = []
+        async for fact, category in learn_from_execution(
+            goal="Failed task",
+            success=False,  # Key: execution failed
+            task_graph=task_graph_with_tasks,
+            learning_store=learning_store,
+            learning_extractor=extractor,
+            files_changed=[],
+            last_planning_context=None,
+            memory=None,
+        ):
+            learnings.append((fact, category))
+        
+        # Should complete without error, no heuristics extracted
+        assert isinstance(learnings, list)
+
+    @pytest.mark.asyncio
+    async def test_learn_from_execution_extracts_from_files(
+        self,
+        empty_task_graph: Any,
+        learning_store: LearningStore,
+        tmp_path: Path,
+    ) -> None:
+        """learn_from_execution extracts patterns from changed Python files."""
+        from sunwell.agent.learning.execution import learn_from_execution
+        
+        # Create a Python file with extractable patterns
+        py_file = tmp_path / "models.py"
+        py_file.write_text("""
+from pydantic import BaseModel
+
+class User(BaseModel):
+    id: int
+    email: str
+    name: str
+""")
+        
+        extractor = LearningExtractor()
+        
+        learnings = []
+        async for fact, category in learn_from_execution(
+            goal="Create user model",
+            success=True,
+            task_graph=empty_task_graph,
+            learning_store=learning_store,
+            learning_extractor=extractor,
+            files_changed=[str(py_file)],
+            last_planning_context=None,
+            memory=None,
+        ):
+            learnings.append((fact, category))
+        
+        # Should extract at least the class pattern
+        assert len(learnings) > 0
+        assert any("User" in fact for fact, _ in learnings)

@@ -49,25 +49,25 @@ def get_simulacrum_manager():
 
         # Build policies from config
         spawn_policy = SpawnPolicy(
-            enabled=config.headspace.spawn.enabled,
-            novelty_threshold=config.headspace.spawn.novelty_threshold,
-            min_queries_before_spawn=config.headspace.spawn.min_queries_before_spawn,
-            domain_coherence_threshold=config.headspace.spawn.domain_coherence_threshold,
-            max_headspaces=config.headspace.spawn.max_headspaces,
-            auto_name=config.headspace.spawn.auto_name,
+            enabled=config.simulacrum.spawn.enabled,
+            novelty_threshold=config.simulacrum.spawn.novelty_threshold,
+            min_queries_before_spawn=config.simulacrum.spawn.min_queries_before_spawn,
+            domain_coherence_threshold=config.simulacrum.spawn.domain_coherence_threshold,
+            max_headspaces=config.simulacrum.spawn.max_headspaces,
+            auto_name=config.simulacrum.spawn.auto_name,
         )
 
         lifecycle_policy = LifecyclePolicy(
-            stale_days=config.headspace.lifecycle.stale_days,
-            archive_days=config.headspace.lifecycle.archive_days,
-            min_useful_nodes=config.headspace.lifecycle.min_useful_nodes,
-            min_useful_learnings=config.headspace.lifecycle.min_useful_learnings,
-            auto_archive=config.headspace.lifecycle.auto_archive,
-            auto_merge_empty=config.headspace.lifecycle.auto_merge_empty,
-            protect_recently_spawned_days=config.headspace.lifecycle.protect_recently_spawned_days,
+            stale_days=config.simulacrum.lifecycle.stale_days,
+            archive_days=config.simulacrum.lifecycle.archive_days,
+            min_useful_nodes=config.simulacrum.lifecycle.min_useful_nodes,
+            min_useful_learnings=config.simulacrum.lifecycle.min_useful_learnings,
+            auto_archive=config.simulacrum.lifecycle.auto_archive,
+            auto_merge_empty=config.simulacrum.lifecycle.auto_merge_empty,
+            protect_recently_spawned_days=config.simulacrum.lifecycle.protect_recently_spawned_days,
         )
 
-        manager_path = Path(config.headspace.base_path)
+        manager_path = Path(config.simulacrum.base_path)
         _simulacrum_manager = SimulacrumManager(
             base_path=manager_path,
             spawn_policy=spawn_policy,

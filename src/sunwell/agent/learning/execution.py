@@ -94,7 +94,7 @@ async def learn_from_execution(
 
     # 2. Extract heuristics from task ordering (if enough tasks)
     if task_graph and success:
-        tasks = list(task_graph.tasks.values())
+        tasks = task_graph.tasks  # TaskGraph.tasks is already a list[Task]
         heuristic = learning_extractor.extract_heuristic(goal, tasks)
         if heuristic:
             # Convert SimLearning to Learning for consistency

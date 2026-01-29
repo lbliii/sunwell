@@ -77,19 +77,19 @@ def show(path: str | None) -> None:
 
     # Simulacrum config
     console.print("\n[cyan]Simulacrum[/cyan]")
-    console.print(f"  Base path: {cfg.headspace.base_path}")
+    console.print(f"  Base path: {cfg.simulacrum.base_path}")
 
     console.print("\n  [dim]Spawn Policy:[/dim]")
-    console.print(f"    Enabled: {cfg.headspace.spawn.enabled}")
-    console.print(f"    Novelty threshold: {cfg.headspace.spawn.novelty_threshold}")
-    console.print(f"    Min queries before spawn: {cfg.headspace.spawn.min_queries_before_spawn}")
-    console.print(f"    Domain coherence: {cfg.headspace.spawn.domain_coherence_threshold}")
-    console.print(f"    Max headspaces: {cfg.headspace.spawn.max_simulacrums}")
+    console.print(f"    Enabled: {cfg.simulacrum.spawn.enabled}")
+    console.print(f"    Novelty threshold: {cfg.simulacrum.spawn.novelty_threshold}")
+    console.print(f"    Min queries before spawn: {cfg.simulacrum.spawn.min_queries_before_spawn}")
+    console.print(f"    Domain coherence: {cfg.simulacrum.spawn.domain_coherence_threshold}")
+    console.print(f"    Max headspaces: {cfg.simulacrum.spawn.max_simulacrums}")
 
     console.print("\n  [dim]Lifecycle Policy:[/dim]")
-    console.print(f"    Stale days: {cfg.headspace.lifecycle.stale_days}")
-    console.print(f"    Archive days: {cfg.headspace.lifecycle.archive_days}")
-    console.print(f"    Auto archive: {cfg.headspace.lifecycle.auto_archive}")
+    console.print(f"    Stale days: {cfg.simulacrum.lifecycle.stale_days}")
+    console.print(f"    Archive days: {cfg.simulacrum.lifecycle.archive_days}")
+    console.print(f"    Auto archive: {cfg.simulacrum.lifecycle.auto_archive}")
 
     # Embedding config
     console.print("\n[cyan]Embedding[/cyan]")

@@ -22,6 +22,7 @@ from sunwell.foundation.schema.loader.parsers.skills import (
     parse_skills,
 )
 from sunwell.foundation.schema.loader.parsers.spellbook import parse_spellbook
+from sunwell.foundation.schema.loader.parsers.tool_profile import parse_tool_profile
 from sunwell.foundation.schema.loader.parsers.validators import (
     parse_deterministic_validators,
     parse_heuristic_validators,
@@ -62,4 +63,6 @@ __all__ = [
     "parse_spellbook",
     # Affordances
     "parse_affordances",
+    # Tool Profile
+    "parse_tool_profile",
 ]

@@ -166,6 +166,43 @@ class QualityPolicy:
     retry_limit: int = 3  # Max refinement loops
 
 
+# =============================================================================
+# RFC-XXX: Tool Profile for Multi-Signal Tool Selection
+# =============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class ToolProfile:
+    """Tool preferences for multi-signal tool selection.
+
+    Allows lenses to specify which tools are most relevant for their domain,
+    improving tool selection accuracy especially for small models.
+
+    Example in lens YAML:
+        tool_profile:
+          primary: [search_files, read_file, edit_file, run_command]
+          secondary: [git_status, git_diff, git_add, git_commit]
+          avoid: [web_search]  # Not useful for code tasks
+
+    Attributes:
+        primary: Tools that should be prioritized for this lens's domain.
+            These get highest boost in tool ranking.
+        secondary: Tools that are useful but less critical.
+            These get moderate boost in tool ranking.
+        avoid: Tools that are typically not useful for this lens's domain.
+            These are deprioritized or filtered out.
+    """
+
+    primary: tuple[str, ...] = ()
+    """Primary tools for this lens's domain (highest priority)."""
+
+    secondary: tuple[str, ...] = ()
+    """Secondary tools (useful but not critical)."""
+
+    avoid: tuple[str, ...] = ()
+    """Tools to deprioritize or avoid for this lens."""
+
+
 @dataclass(slots=True)
 class Lens:
     """The core expertise container.
@@ -253,6 +290,14 @@ class Lens:
     # RFC-072: Surface affordances
     affordances: Affordances | None = None
     """UI primitives this lens surfaces. None = use domain defaults."""
+
+    # RFC-XXX: Tool profile for multi-signal tool selection
+    tool_profile: ToolProfile | None = None
+    """Tool preferences for intelligent tool selection.
+
+    Allows lenses to specify which tools are most relevant for their domain,
+    improving tool selection accuracy especially for small models.
+    """
 
     # RFC-130: Agent Constellation — Specialist spawning
     can_spawn: bool = False

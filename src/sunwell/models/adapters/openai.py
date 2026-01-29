@@ -38,6 +38,12 @@ class OpenAIModel:
     api_key: str | None = None
     _client: AsyncOpenAI | None = field(default=None, init=False)
 
+    def __post_init__(self) -> None:
+        """Read API key from environment if not provided."""
+        import os
+        if self.api_key is None:
+            self.api_key = os.environ.get("OPENAI_API_KEY")
+
     @property
     def model_id(self) -> str:
         return self.model

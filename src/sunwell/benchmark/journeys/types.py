@@ -181,8 +181,8 @@ class SingleTurnJourney:
     setup: Setup = field(default_factory=Setup)
     """Setup configuration."""
 
-    timeout_seconds: int = 120
-    """Maximum execution time."""
+    timeout_seconds: int = 300
+    """Maximum execution time (increased for slower but more capable models)."""
 
     allow_flaky_retry: int = 0
     """Number of retries on behavioral failure."""
@@ -417,7 +417,7 @@ def load_journey(path: str | Path) -> Journey:
             input=j["input"],
             expect=_parse_expectation(j.get("expect", {})),
             setup=setup,
-            timeout_seconds=j.get("timeout_seconds", 120),
+            timeout_seconds=j.get("timeout_seconds", 300),
             allow_flaky_retry=j.get("allow_flaky_retry", 0),
             description=j.get("description", ""),
             tags=tuple(tags),

@@ -18,6 +18,9 @@ from pathlib import Path
 from time import time
 from typing import Any
 
+from rich.console import Console
+from rich.panel import Panel
+
 from sunwell.benchmark.journeys.assertions import AssertionReport, BehavioralAssertions
 from sunwell.benchmark.journeys.recorder import EventRecorder
 from sunwell.benchmark.journeys.types import (
@@ -30,6 +33,9 @@ from sunwell.benchmark.journeys.types import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Verbose console for debug output
+_verbose_console = Console()
 
 
 @dataclass(slots=True)
@@ -155,6 +161,7 @@ class JourneyRunner:
         trust_level: str = "shell",
         cleanup_workspace: bool = True,
         debug: bool = False,
+        enable_sunwell_tools: bool = False,
     ) -> None:
         """Initialize the runner.
 
@@ -165,6 +172,7 @@ class JourneyRunner:
             trust_level: Tool trust level
             cleanup_workspace: Whether to cleanup workspace after run
             debug: Enable debug logging
+            enable_sunwell_tools: Enable Sunwell self-introspection tools (RFC-125)
         """
         self._model = model
         self._provider = provider
@@ -172,6 +180,7 @@ class JourneyRunner:
         self._trust_level = trust_level
         self._cleanup_workspace = cleanup_workspace
         self._debug = debug
+        self._enable_sunwell_tools = enable_sunwell_tools
         self._assertions = BehavioralAssertions()
 
     async def run(self, journey: Journey) -> JourneyResult:
@@ -419,121 +428,157 @@ class JourneyRunner:
         workspace: Path,
         recorder: EventRecorder,
     ) -> str:
-        """Execute a single input and return output."""
-        from sunwell.agent.chat.intent import IntentRouter
-        from sunwell.agent.events import emit
+        """Execute a single input and return output.
+        
+        Always runs with tools available - the model decides whether to use them.
+        This is simpler and more reliable than pre-classifying intent.
+        """
         from sunwell.knowledge.project import (
             ProjectResolutionError,
             create_project_from_workspace,
             resolve_project,
         )
-        from sunwell.models.core.protocol import Message
         from sunwell.tools.core.types import ToolPolicy, ToolTrust
         from sunwell.tools.execution import ToolExecutor
 
         model = await self._get_model()
 
-        # Classify intent
-        router = IntentRouter(model=model)
-        classification = await router.classify(user_input)
+        # Verbose: show model being used
+        if self._debug:
+            model_name = getattr(model, "model", getattr(model, "_model", "unknown"))
+            _verbose_console.print(f"  [dim]Model: {model_name}[/dim]")
+            _verbose_console.print(f"  [dim]Input: \"{user_input[:60]}{'...' if len(user_input) > 60 else ''}\"[/dim]")
 
-        # Record intent as event
+        # Set up project and tools
+        try:
+            project = resolve_project(cwd=workspace)
+        except ProjectResolutionError:
+            project = create_project_from_workspace(workspace)
+
+        policy = ToolPolicy(trust_level=ToolTrust.from_string(self._trust_level))
+
+        # Set up optional handlers for advanced tools
+        sunwell_handler = None
+        if self._enable_sunwell_tools:
+            from sunwell.tools.sunwell.handlers import SunwellToolHandlers
+            sunwell_handler = SunwellToolHandlers(workspace=workspace)
+
+        tool_executor = ToolExecutor(
+            project=project,
+            sandbox=None,
+            policy=policy,
+            sunwell_handler=sunwell_handler,
+        )
+
+        # Extract signals for routing/observability (but don't gate on them)
         from sunwell.agent.events import EventType
         from sunwell.agent.events.types import AgentEvent
+        from sunwell.agent.signals import extract_signals
 
+        signals = await extract_signals(user_input, model)
+
+        # Record signals as event (for behavioral assertions)
+        signals_event = AgentEvent(
+            type=EventType.SIGNAL,
+            data={
+                "signal_type": "adaptive",
+                "complexity": signals.complexity,
+                "needs_tools": signals.needs_tools,
+                "is_ambiguous": signals.is_ambiguous,
+                "is_dangerous": signals.is_dangerous,
+                "is_epic": signals.is_epic,
+                "confidence": signals.confidence,
+                "domain": signals.domain,
+                "planning_route": signals.planning_route,
+                "execution_route": signals.execution_route,
+            },
+        )
+        recorder._handle_event(signals_event)
+
+        # Also record intent as TASK (since we always run with tools)
+        # The model will naturally respond conversationally if appropriate
         intent_event = AgentEvent(
             type=EventType.SIGNAL,
             data={
                 "signal_type": "intent",
-                "intent": classification.intent.value,
-                "confidence": classification.confidence,
-                "reasoning": classification.reasoning,
+                "intent": "task",  # Always TASK - model decides tool use
+                "confidence": 1.0,
+                "reasoning": "Always run with tools available",
             },
         )
         recorder._handle_event(intent_event)
 
-        # Handle based on intent
-        if classification.intent.value == "conversation":
-            # Simple conversation - just respond
-            result = await model.generate(
-                (Message(role="user", content=user_input),),
-            )
-            return result.text or ""
+        if self._debug:
+            _verbose_console.print(f"  [dim]Intent: [green]task[/green] (tools available, model decides)[/dim]")
 
-        elif classification.intent.value == "task":
-            # Run agent with tools
-            try:
-                project = resolve_project(cwd=workspace)
-            except ProjectResolutionError:
-                project = create_project_from_workspace(workspace)
+        # Run agent loop with tools available
+        # Decide tool_choice based on signal extraction
+        from sunwell.agent import AgentLoop, LoopConfig
 
-            policy = ToolPolicy(trust_level=ToolTrust.from_string(self._trust_level))
-            tool_executor = ToolExecutor(
-                project=project,
-                sandbox=None,
-                policy=policy,
-            )
-
-            # Extract signals
-            from sunwell.agent.signals import extract_signals
-
-            signals = await extract_signals(user_input, model)
-
-            # Record signals as event
-            signals_event = AgentEvent(
-                type=EventType.SIGNAL,
-                data={
-                    "signal_type": "adaptive",
-                    "complexity": signals.complexity,
-                    "needs_tools": signals.needs_tools,
-                    "is_ambiguous": signals.is_ambiguous,
-                    "is_dangerous": signals.is_dangerous,
-                    "is_epic": signals.is_epic,
-                    "confidence": signals.confidence,
-                    "domain": signals.domain,
-                    "planning_route": signals.planning_route,
-                    "execution_route": signals.execution_route,
-                },
-            )
-            recorder._handle_event(signals_event)
-
-            # Run agent loop
-            from sunwell.agent import AgentLoop, LoopConfig
-
-            loop_config = LoopConfig(
-                max_turns=20,
-            )
-
-            # System prompt that encourages tool usage
+        # If signals indicate tools are needed, use tool_choice="auto" with strong hint
+        # Otherwise let model decide freely
+        tool_choice = "auto"
+        if signals.needs_tools == "YES":
+            # Strong hint in system prompt since we know tools are needed
             system_prompt = (
                 "You are a helpful assistant with access to tools. "
-                "When the user asks you to do something (create, add, update, fix, etc.), "
-                "you MUST use the appropriate tools to complete the task. "
-                "Do NOT ask for clarification unless absolutely necessary. "
-                "Take action immediately using the tools available to you."
+                "The user's request requires using tools - do not try to answer from memory. "
+                "Use the appropriate tool to get real, current information. "
+                "For file operations, use file tools. For git, use git tools. "
+                "For environment info, use list_env or run_command."
             )
-
-            agent_loop = AgentLoop(
-                model=model,
-                executor=tool_executor,
-                config=loop_config,
-            )
-
-            output_parts: list[str] = []
-            async for event in agent_loop.run(user_input, system_prompt=system_prompt):
-                recorder._handle_event(event)
-                # Collect output from completion events
-                if hasattr(event, "data") and event.data:
-                    if "output" in event.data:
-                        output_parts.append(str(event.data["output"]))
-                    elif "content" in event.data:
-                        output_parts.append(str(event.data["content"]))
-
-            return "\n".join(output_parts) if output_parts else ""
-
         else:
-            # Command or unknown - just return empty
-            return ""
+            # More permissive - model decides
+            system_prompt = (
+                "You are a helpful assistant with access to tools. "
+                "Use tools when they would help answer the user's request accurately. "
+                "For factual questions about files, code, git, or the environment, prefer tools. "
+                "For general knowledge or conversation, you may respond directly."
+            )
+
+        loop_config = LoopConfig(
+            max_turns=20,
+            tool_choice=tool_choice,
+            enable_confidence_routing=False,  # Skip vortex/interference complexity
+            enable_learning_injection=False,  # Simpler prompts
+        )
+
+        agent_loop = AgentLoop(
+            model=model,
+            executor=tool_executor,
+            config=loop_config,
+        )
+
+        output_parts: list[str] = []
+        tool_call_count = 0
+        async for event in agent_loop.run(user_input, system_prompt=system_prompt):
+            recorder._handle_event(event)
+            
+            # Verbose: show events as they happen
+            if self._debug:
+                if event.type == EventType.TOOL_START:
+                    tool_name = event.data.get("tool_name", event.data.get("tool", "?"))
+                    tool_call_count += 1
+                    _verbose_console.print(f"    [cyan]→ Tool: {tool_name}[/cyan]")
+                elif event.type == EventType.TOOL_COMPLETE:
+                    tool_name = event.data.get("tool_name", event.data.get("tool", "?"))
+                    _verbose_console.print(f"    [green]✓ {tool_name} complete[/green]")
+                elif event.type == EventType.TOOL_ERROR:
+                    error = event.data.get("error", "unknown error")[:50]
+                    _verbose_console.print(f"    [red]✗ Tool error: {error}[/red]")
+                
+            # Collect output from completion events
+            if hasattr(event, "data") and event.data:
+                if "output" in event.data:
+                    output_parts.append(str(event.data["output"]))
+                elif "content" in event.data:
+                    output_parts.append(str(event.data["content"]))
+
+        # Verbose: summary
+        if self._debug:
+            _verbose_console.print(f"  [dim]Tool calls: {tool_call_count}, Events: {len(recorder.events)}, Recorded tools: {len(recorder.tool_calls)}[/dim]")
+
+        return "\n".join(output_parts) if output_parts else ""
 
     async def _create_chat_loop(self, workspace: Path) -> Any:
         """Create a chat loop for multi-turn conversations."""
