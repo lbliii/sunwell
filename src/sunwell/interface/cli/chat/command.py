@@ -235,7 +235,7 @@ def _resolve_binding(
         model = {
             "openai": "gpt-4o",
             "anthropic": "claude-sonnet-4-20250514",
-            "ollama": "gemma3:4b",
+            "ollama": "llama3.1:8b",
             "mock": "mock",
         }.get(provider, "gpt-4o")
 

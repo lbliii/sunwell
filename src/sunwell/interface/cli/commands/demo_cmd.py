@@ -271,7 +271,7 @@ async def _run_demo(
         if config and hasattr(config, "model"):
             model_name = f"{config.model.default_provider}:{config.model.default_model}"
         else:
-            model_name = "ollama:gemma3:4b"
+            model_name = "ollama:llama3.1:8b"
 
     # Validate task
     demo_task = get_task(task)
@@ -658,7 +658,7 @@ async def _run_demo_streaming(
         if config and hasattr(config, "model"):
             model_name = f"{config.model.default_provider}:{config.model.default_model}"
         else:
-            model_name = "ollama:gemma3:4b"
+            model_name = "ollama:llama3.1:8b"
 
     # Get task
     demo_task = get_task(task)

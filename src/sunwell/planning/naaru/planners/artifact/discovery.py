@@ -1,6 +1,7 @@
 """Discovery logic for artifact planner."""
 
 import json
+import logging
 import re
 from typing import TYPE_CHECKING, Any
 
@@ -12,6 +13,8 @@ from sunwell.planning.naaru.artifacts import (
     GraphExplosionError,
 )
 from sunwell.planning.naaru.planners.artifact import dependencies, events, parsing, prompts
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -238,8 +241,16 @@ async def discover_with_recovery(
         # Log orphans (warning, not error)
         orphans = graph.find_orphans()
         if orphans:
-            # Orphans are allowed but noted
-            pass
+            # Orphans are allowed but noted for visibility
+            orphan_ids = [o.id for o in orphans]
+            logger.info(
+                f"Discovered {len(orphans)} orphaned artifact(s) that are not consumed by any other artifact: {', '.join(orphan_ids)}",
+                extra={
+                    "orphan_count": len(orphans),
+                    "orphan_ids": orphan_ids,
+                    "phase": "discovery",
+                }
+            )
 
         # RFC-059: Emit discovery complete
         events.emit_event(event_callback, "plan_discovery_progress", {
@@ -323,11 +334,22 @@ Output a SINGLE artifact JSON object (not an array):
                 requires=frozenset(data.get("requires", [])),
                 domain_type=data.get("domain_type"),
             )
-    except (json.JSONDecodeError, KeyError):
-        pass
+    except (json.JSONDecodeError, KeyError) as e:
+        logger.warning(
+            f"Failed to parse root artifact from LLM response: {e}. Using generic fallback.",
+            extra={
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "response_preview": content[:300],
+            }
+        )
 
     # Fallback: create generic root
     artifact_ids = [a.id for a in artifacts]
+    logger.info(
+        f"Creating generic root artifact as fallback, integrating {len(artifact_ids)} artifacts",
+        extra={"artifact_count": len(artifact_ids), "artifact_ids": artifact_ids}
+    )
     return ArtifactSpec(
         id="Goal",
         description=f"Complete: {goal[:50]}...",

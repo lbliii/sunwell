@@ -3,6 +3,7 @@
 
 import asyncio
 import json
+import logging
 import uuid
 from collections import Counter, deque
 from typing import TYPE_CHECKING
@@ -13,6 +14,8 @@ from sunwell.foundation.types.model_size import ModelSize
 from sunwell.planning.naaru.core.bus import MessageType, NaaruRegion
 from sunwell.planning.naaru.core.worker import RegionWorker
 from sunwell.planning.naaru.expertise.language import Language
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from sunwell.foundation.core.lens import Lens
@@ -344,7 +347,17 @@ Code only:"""
                     "code": result.content or "",
                     "tokens": result.usage.total_tokens if result.usage else 0,
                 }
-            except Exception:
+            except Exception as e:
+                logger.warning(
+                    f"Persona '{lens_id}' ({lens['name']}) generation failed: {e}",
+                    exc_info=True,
+                    extra={
+                        "persona_id": lens_id,
+                        "persona_name": lens["name"],
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    }
+                )
                 return None
 
         generation_tasks = [
@@ -389,7 +402,17 @@ Respond with ONLY the number (1, 2, or 3):"""
                 vote = int("".join(c for c in vote_text if c.isdigit())[:1]) - 1
                 vote = max(0, min(vote, len(candidates) - 1))
                 return vote, tokens
-            except Exception:
+            except Exception as e:
+                logger.warning(
+                    f"Persona '{lens_id}' ({lens['name']}) voting failed: {e}. Defaulting to option 0.",
+                    exc_info=True,
+                    extra={
+                        "persona_id": lens_id,
+                        "persona_name": lens["name"],
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    }
+                )
                 return 0, 0
 
         vote_tasks = [
@@ -506,7 +529,15 @@ Code only:"""
                     }
                     self.stats["shard_prefetch"] = self.stats.get("shard_prefetch", 0) + 1
                 return True
-            except Exception:
+            except Exception as e:
+                logger.debug(
+                    f"Prefetch failed for next opportunity '{next_key}': {e}",
+                    extra={
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                        "next_category": next_cat if 'next_cat' in locals() else None,
+                    }
+                )
                 return None
 
         # Run both in parallel
@@ -615,6 +646,16 @@ Code only:"""
             }
 
         except Exception as e:
+            logger.error(
+                f"Synthesis failed for opportunity '{description[:100]}': {e}",
+                exc_info=True,
+                extra={
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "category": category if 'category' in locals() else None,
+                    "description_preview": description[:200] if 'description' in locals() else None,
+                }
+            )
             return {"error": str(e)}
 
     async def _synthesize_basic(self, findings: dict) -> dict | None:

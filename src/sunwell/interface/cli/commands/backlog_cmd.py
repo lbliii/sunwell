@@ -374,7 +374,7 @@ async def _run_backlog_goal(
         synthesis_model = resolve_model(provider_override, model_override)
         if verbose:
             provider = provider_override or (config.model.default_provider if config else "ollama")
-            model_name = model_override or (config.model.default_model if config else "gemma3:4b")
+            model_name = model_override or (config.model.default_model if config else "llama3.1:8b")
             console.print(f"[dim]Using model: {provider}:{model_name}[/dim]")
     except Exception as e:
         if json_output:
@@ -672,7 +672,7 @@ async def _run_autonomous(
         synthesis_model = resolve_model(provider, model)
         if verbose:
             provider_name = provider or (app_config.model.default_provider if app_config else "ollama")
-            model_name = model or (app_config.model.default_model if app_config else "gemma3:4b")
+            model_name = model or (app_config.model.default_model if app_config else "llama3.1:8b")
             console.print(f"[dim]Using model: {provider_name}:{model_name}[/dim]")
     except Exception as e:
         console.print(f"[void.purple]✗ Failed to load model: {e}[/void.purple]")

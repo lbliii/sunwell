@@ -31,7 +31,7 @@ from sunwell.foundation.utils import slugify
 _DEFAULT_MODELS: dict[str, str] = {
     "openai": "gpt-4o",
     "anthropic": "claude-sonnet-4-20250514",
-    "ollama": "gemma3:4b",
+    "ollama": "llama3.1:8b",
 }
 
 
@@ -68,8 +68,8 @@ class Binding:
     provider: str = "ollama"
     """LLM provider (default: from config)."""
 
-    model: str = "gemma3:4b"
-    """Model name (default: from config)."""
+    model: str = "llama3.1:8b"
+    """Model name (default: from config, llama3.1 for native tool support)."""
 
     simulacrum: str | None = None
     """Associated simulacrum name (defaults to binding name)."""
@@ -175,7 +175,7 @@ class Binding:
 
         cfg = get_config()
         default_provider = cfg.model.default_provider if cfg else "ollama"
-        default_model = cfg.model.default_model if cfg else "gemma3:4b"
+        default_model = cfg.model.default_model if cfg else "llama3.1:8b"
 
         # Migrate lens_path to lens_uri if needed
         lens_uri = data.get("lens_uri")
@@ -615,7 +615,7 @@ def get_binding_or_create_temp(
             lens_path=lens_path,  # Preserved for backwards compatibility
             lens_uri=lens_uri,
             provider=provider or "ollama",
-            model=model or "gemma3:4b",
+            model=model or "llama3.1:8b",
             simulacrum=simulacrum,
         )
         return temp, True

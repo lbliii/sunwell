@@ -156,11 +156,12 @@ def setup(
         resolved_model = {
             "openai": "gpt-4o-mini",
             "anthropic": "claude-sonnet-4-20250514",
-            "ollama": "gemma3:4b",
-        }.get(resolved_provider, "gemma3:4b")
+            "ollama": "llama3.1:8b",
+        }.get(resolved_provider, "llama3.1:8b")
 
     if not quiet:
-        console.print(f"[neutral.dim]  Model: {resolved_provider}:{resolved_model}[/neutral.dim]")
+        # Model info is important - show prominently
+        console.print(f"[bold cyan]◆ Model:[/bold cyan] {resolved_provider}:{resolved_model}")
 
     # =========================================================================
     # Step 4: Lens bindings (optional, skip with --minimal)

@@ -186,8 +186,8 @@ class ModelConfig:
     default_provider: str = "ollama"
     """Default model provider (ollama for local-first)."""
 
-    default_model: str = "gemma3:4b"
-    """Default model name (gemma3:4b for local-first)."""
+    default_model: str = "llama3.1:8b"
+    """Default model name (llama3.1:8b for local-first with native tool support)."""
 
     smart_routing: bool = False
     """Enable adaptive model selection by default."""

@@ -342,8 +342,8 @@ class TestEndToEndFallback:
         if result_text and task.target_path:
             path = tmp_workspace / task.target_path
             path.parent.mkdir(parents=True, exist_ok=True)
-            from sunwell.agent.core import _sanitize_code_content
-            sanitized = _sanitize_code_content(result_text)
+            from sunwell.agent.core import sanitize_code_content
+            sanitized = sanitize_code_content(result_text)
             path.write_text(sanitized)
 
         # Verify file exists

@@ -523,7 +523,7 @@ async def _plan_async(
         model = resolve_model(provider_override, model_override)
         if output_format == "human":
             provider = provider_override or (config.model.default_provider if config else "ollama")
-            model_name = model_override or (config.model.default_model if config else "gemma3:4b")
+            model_name = model_override or (config.model.default_model if config else "llama3.1:8b")
             console.print(f"[dim]Using model: {provider}:{model_name}[/dim]")
     except Exception as e:
         console.print(f"[red]Failed to load model: {e}[/red]")

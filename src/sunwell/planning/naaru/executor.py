@@ -18,6 +18,7 @@ Example:
 
 
 import asyncio
+import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
     from sunwell.features.external.integration import IntegrationVerifier
     from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
+logger = logging.getLogger(__name__)
 
 # Type alias for artifact creation function
 CreateArtifactFn = Callable[[ArtifactSpec], Awaitable[str]]
@@ -378,9 +380,18 @@ class ArtifactExecutor:
                         "integration_warning",
                         message=f"⚠️ Orphaned artifacts detected (not imported): {orphan_names}",
                     )
-        except Exception:
+        except Exception as e:
             # Integration checks are advisory, don't fail execution
-            pass
+            # But log the failure for debugging
+            logger.warning(
+                f"Integration verification failed (non-fatal): {e}",
+                exc_info=True,
+                extra={
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "artifacts_produced": len(produced) if 'produced' in locals() else 0,
+                }
+            )
 
     async def _execute_artifact(
         self,
@@ -482,9 +493,19 @@ class ArtifactExecutor:
                         artifact_id=artifact.id,
                         message=f"⚠️ Stub implementations detected: {stub_names}",
                     )
-        except Exception:
+        except Exception as e:
             # Integration checks are advisory, don't fail execution
-            pass
+            # But log the failure for debugging
+            logger.warning(
+                f"Stub detection failed for artifact '{artifact.id}' (non-fatal): {e}",
+                exc_info=True,
+                extra={
+                    "artifact_id": artifact.id,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "file_path": str(file_path) if 'file_path' in locals() else None,
+                }
+            )
 
     async def _discover_new(
         self,
@@ -509,8 +530,18 @@ class ArtifactExecutor:
             # Convert content dict to completion dict format
             completed_dict = {aid: {"content": content} for aid, content in completed.items()}
             return await self.planner.discover_new_artifacts(goal, completed_dict, just_created)
-        except Exception:
-            # Discovery failure is not fatal
+        except Exception as e:
+            # Discovery failure is not fatal, but should be logged
+            logger.warning(
+                f"New artifact discovery failed after creating '{just_created.id}' (non-fatal): {e}",
+                exc_info=True,
+                extra={
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "just_created_artifact": just_created.id,
+                    "completed_count": len(completed),
+                }
+            )
             return []
 
     def _emit_event(

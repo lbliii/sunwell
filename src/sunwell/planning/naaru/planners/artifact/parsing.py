@@ -25,38 +25,79 @@ _RE_JSON_CODE_BLOCK = re.compile(r"```(?:json)?\s*(\[.*?\])\s*```", re.DOTALL)
 
 
 def extract_json(response: str) -> list[dict] | None:
-    """Extract JSON array from LLM response.
+    """Extract JSON array from LLM response with diagnostic logging.
+
+    Tries three strategies in order:
+    1. Regex match for JSON array
+    2. Code block extraction
+    3. Full response parsing
 
     Args:
         response: LLM response text
 
     Returns:
-        Parsed JSON array or None if parsing fails
+        Parsed JSON array or None if all strategies fail
     """
     # Strategy 1: Find JSON array with regex
     json_match = _RE_JSON_ARRAY.search(response)
     if json_match:
         try:
             return json.loads(json_match.group())
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as e:
+            logger.debug(
+                f"JSON extraction strategy 1 (regex array) failed: {e}",
+                extra={
+                    "strategy": "regex_array",
+                    "error": str(e),
+                    "attempted_content": json_match.group()[:200],
+                }
+            )
 
     # Strategy 2: Look for code block with JSON
     code_match = _RE_JSON_CODE_BLOCK.search(response)
     if code_match:
         try:
             return json.loads(code_match.group(1))
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as e:
+            logger.debug(
+                f"JSON extraction strategy 2 (code block) failed: {e}",
+                extra={
+                    "strategy": "code_block",
+                    "error": str(e),
+                    "attempted_content": code_match.group(1)[:200],
+                }
+            )
 
     # Strategy 3: Try parsing entire response
     try:
         data = json.loads(response)
         if isinstance(data, list):
             return data
-    except json.JSONDecodeError:
-        pass
+        else:
+            logger.debug(
+                f"JSON extraction strategy 3 succeeded but result is not a list: {type(data)}",
+                extra={"strategy": "full_response", "result_type": type(data).__name__}
+            )
+    except json.JSONDecodeError as e:
+        logger.debug(
+            f"JSON extraction strategy 3 (full response) failed: {e}",
+            extra={
+                "strategy": "full_response",
+                "error": str(e),
+                "response_preview": response[:200],
+            }
+        )
 
+    # All strategies exhausted
+    logger.warning(
+        f"Failed to extract JSON array from LLM response (all 3 strategies failed). "
+        f"Response length: {len(response)} chars. Preview: {response[:300]!r}",
+        extra={
+            "response_length": len(response),
+            "response_preview": response[:500],
+            "strategies_tried": ["regex_array", "code_block", "full_response"],
+        }
+    )
     return None
 
 
@@ -212,8 +253,16 @@ def parse_artifacts(
                 continue
 
             artifacts.append(artifact)
-        except (KeyError, TypeError):
-            # Skip malformed artifacts
+        except (KeyError, TypeError) as e:
+            # Skip malformed artifacts but log what was wrong
+            logger.warning(
+                f"Skipping malformed artifact in response: {e}",
+                extra={
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "artifact_data": str(item)[:300],
+                }
+            )
             continue
 
     return artifacts

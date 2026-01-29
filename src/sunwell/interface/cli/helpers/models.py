@@ -60,7 +60,7 @@ def resolve_model(
     1. CLI overrides (--provider, --model)
     2. Config defaults (model.default_provider, model.default_model)
     3. Provider-specific defaults (if provider specified but no model)
-    4. Hardcoded fallbacks (ollama, gemma3:4b)
+    4. Hardcoded fallbacks (ollama, llama3.1:8b)
 
     Args:
         provider_override: Provider from CLI --provider flag
@@ -86,9 +86,9 @@ def resolve_model(
         provider_defaults = {
             "openai": "gpt-4o",
             "anthropic": "claude-sonnet-4-20250514",
-            "ollama": "gemma3:4b",
+            "ollama": "llama3.1:8b",
             "mock": "mock-model",
         }
-        model_name = provider_defaults.get(provider, "gemma3:4b")
+        model_name = provider_defaults.get(provider, "llama3.1:8b")
 
     return create_model(provider, model_name)

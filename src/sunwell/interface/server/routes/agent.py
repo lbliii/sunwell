@@ -416,7 +416,7 @@ async def _execute_agent(run: RunState, *, use_v2: bool = False) -> AsyncIterato
 
     config = get_config()
     provider = run.provider or (config.model.default_provider if config else "ollama")
-    model_name = run.model or (config.model.default_model if config else "gemma3:4b")
+    model_name = run.model or (config.model.default_model if config else "llama3.1:8b")
 
     from sunwell.interface.cli.helpers import resolve_model
 

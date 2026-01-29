@@ -408,7 +408,7 @@ async def _run_evaluation(
         if config and hasattr(config, "model"):
             model_name = f"{config.model.default_provider}:{config.model.default_model}"
         else:
-            model_name = "ollama:gemma3:4b"
+            model_name = "ollama:llama3.1:8b"
 
     # Get task
     try:
@@ -758,7 +758,7 @@ async def _run_evaluation_streaming(
     model_name = model_override or (
         f"{config.model.default_provider}:{config.model.default_model}"
         if config and hasattr(config, "model")
-        else "ollama:gemma3:4b"
+        else "ollama:llama3.1:8b"
     )
 
     try:

@@ -149,7 +149,7 @@ def run(
 
     # Resolve model from config if not specified
     if model is None:
-        model = cfg.model.default_model if cfg else "gemma3:4b"
+        model = cfg.model.default_model if cfg else "llama3.1:8b"
 
     asyncio.run(_run_benchmark(
         model=model,
@@ -671,7 +671,7 @@ def naaru(
 
     # Resolve judge model from config if not specified
     if judge_model is None:
-        judge_model = cfg.naaru.wisdom if cfg else "gemma3:4b"
+        judge_model = cfg.naaru.wisdom if cfg else "llama3.1:8b"
 
     asyncio.run(_run_naaru_benchmark(
         model=model,
@@ -1219,7 +1219,7 @@ async def _run_journeys(
 
     # Resolve actual model being used
     cfg = get_config()
-    resolved_model = model or (cfg.model.default_model if cfg else "gemma3:4b")
+    resolved_model = model or (cfg.model.default_model if cfg else "llama3.1:8b")
 
     # Banner - always show resolved model
     console.print()

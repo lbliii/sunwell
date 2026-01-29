@@ -81,7 +81,7 @@ def bind_create(
 
     # Resolve model from config if not specified
     if model is None:
-        model = cfg.model.default_model if cfg else "gemma3:4b"
+        model = cfg.model.default_model if cfg else "llama3.1:8b"
 
     manager = BindingManager()
 

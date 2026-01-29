@@ -1,5 +1,6 @@
 """Artifact creation and verification for artifact planner."""
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 from sunwell.planning.naaru.artifacts import ArtifactSpec, VerificationResult
@@ -7,6 +8,8 @@ from sunwell.planning.naaru.planners.artifact import parsing, prompts
 
 if TYPE_CHECKING:
     from sunwell.models import ModelProtocol
+
+logger = logging.getLogger(__name__)
 
 
 async def create_artifact(
@@ -122,12 +125,30 @@ Respond with JSON:
                 reason=data.get("explanation", ""),
                 gaps=tuple(data.get("missing", [])),
             )
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as e:
+            logger.error(
+                f"Failed to parse verification JSON for artifact '{artifact.id}': {e}",
+                extra={
+                    "artifact_id": artifact.id,
+                    "error": str(e),
+                    "attempted_json": json_match.group()[:300],
+                }
+            )
 
-    # Fallback: assume passed if we can't parse
+    # CRITICAL FIX: Fail-safe behavior - reject unparseable verifications
+    # Previously this was 'passed=True' which allowed bad artifacts through
+    logger.error(
+        f"Verification response for artifact '{artifact.id}' could not be parsed. "
+        f"FAILING verification for safety (requires manual review). "
+        f"Response preview: {content[:500]}",
+        extra={
+            "artifact_id": artifact.id,
+            "response_length": len(content),
+            "response_preview": content[:500],
+        }
+    )
     return VerificationResult(
-        passed=True,
-        reason="Verification response could not be parsed, assuming passed",
-        gaps=(),
+        passed=False,
+        reason="Verification response malformed - requires manual review",
+        gaps=("unparseable_verification_response",),
     )
