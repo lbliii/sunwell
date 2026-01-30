@@ -36,7 +36,13 @@ from sunwell.agent.chat.checkpoint import (
     ChatCheckpointType,
     CheckpointResponse,
 )
-from sunwell.agent.chat.intent import Intent, IntentRouter
+from sunwell.agent.intent import (
+    DAGClassifier,
+    IntentClassification,
+    IntentNode,
+    format_path,
+    requires_approval,
+)
 
 if TYPE_CHECKING:
     from sunwell.agent import Agent
@@ -112,7 +118,6 @@ class UnifiedChatLoop:
         workspace: Path,
         *,
         trust_level: str = "workspace",
-        intent_router: IntentRouter | None = None,
         auto_confirm: bool = False,
         stream_progress: bool = True,
     ) -> None:
@@ -123,7 +128,6 @@ class UnifiedChatLoop:
             tool_executor: Executor for tools (file I/O, commands, etc.)
             workspace: Working directory
             trust_level: Trust level for tool execution (default "workspace")
-            intent_router: Custom intent router (created with model if None)
             auto_confirm: Skip confirmation checkpoints (for testing/CI)
             stream_progress: Yield AgentEvents during execution
         """
@@ -131,14 +135,19 @@ class UnifiedChatLoop:
         self.tool_executor = tool_executor
         self.workspace = Path(workspace).resolve()
         self.trust_level = trust_level
-        self.intent_router = intent_router or IntentRouter(model)
         self.auto_confirm = auto_confirm
         self.stream_progress = stream_progress
+
+        # DAG classifier (RFC: Conversational DAG Architecture)
+        self.classifier = DAGClassifier(model=model)
 
         # Shared state (survives mode switches)
         self.conversation_history: list[dict[str, str]] = []
         self.session: SessionContext | None = None
         self.memory: PersistentMemory | None = None
+
+        # Current DAG path (for display and navigation)
+        self._current_dag_path: tuple[IntentNode, ...] | None = None
 
         # Execution state
         self._state = LoopState.IDLE
@@ -272,73 +281,47 @@ class UnifiedChatLoop:
                     await self._pending_input.put(user_input)
                     continue
 
-                # Classify intent
-                self._state = LoopState.CLASSIFYING
-                logger.debug("Classifying intent for: %r", user_input[:100])
-                classification = await self.intent_router.classify(
-                    user_input,
-                    context=self._get_conversation_context(),
-                    is_executing=self.is_executing,
-                )
-                logger.debug(
-                    "Intent classified: %s (confidence=%.2f, task=%r)",
-                    classification.intent,
-                    getattr(classification, "confidence", 0.0),
-                    classification.task_description[:50] if classification.task_description else None,
-                )
-
-                # Route based on intent
-                if classification.intent == Intent.COMMAND:
+                # Check for explicit /command first
+                if user_input.strip().startswith("/") or user_input.strip().startswith("::"):
                     response, agent_goal = self._handle_command(user_input)
                     if agent_goal:
-                        # /agent command - execute the goal
                         async for event in self._execute_goal(agent_goal):
                             yield event
                     elif response:
                         yield response
                     self._state = LoopState.IDLE
+                    continue
 
-                elif classification.intent == Intent.TASK:
-                    # Transition to agent mode
-                    goal = classification.task_description or user_input
-                    logger.debug("Routing to agent mode with goal: %r", goal[:100])
-                    async for event in self._execute_goal(goal):
-                        yield event
-                    self._state = LoopState.IDLE
-
-                elif classification.intent == Intent.UNKNOWN:
-                    # Unclear input - ask for clarification
-                    logger.warning(
-                        "Unknown intent: %r (confidence=%.2f, reason=%s)",
-                        user_input[:50],
-                        classification.confidence,
-                        classification.reasoning,
-                    )
-                    self._state = LoopState.IDLE
-                    yield (
-                        f"I'm not sure what you'd like me to do. "
-                        f"Could you rephrase that?\n\n"
-                        f"_({classification.reasoning})_"
-                    )
-
-                elif classification.intent == Intent.INTERRUPT:
-                    # Input during execution - queue it for handling
-                    logger.debug("Interrupt received during execution: %r", user_input[:50])
-                    await self._pending_input.put(user_input)
-                    # Don't yield anything, let the execution handle it
-
-                else:  # CONVERSATION (default)
-                    self._state = LoopState.CONVERSING
-                    logger.debug("Generating conversational response")
-                    response = await self._generate_response(user_input)
-                    logger.debug("Response generated: %d chars", len(response) if response else 0)
-                    self._state = LoopState.IDLE
-                    yield response
-                    self.conversation_history.append({
-                        "role": "assistant",
-                        "content": response,
-                    })
-                    self._trim_history()
+                # Classify intent using DAG classifier
+                self._state = LoopState.CLASSIFYING
+                logger.debug("Classifying intent for: %r", user_input[:100])
+                
+                result = await self.classifier.classify(
+                    user_input,
+                    context=self._get_conversation_context(),
+                )
+                self._current_dag_path = result.path
+                
+                logger.debug(
+                    "DAG classification: path=%s (confidence=%.2f, reason=%s)",
+                    format_path(result.path),
+                    result.confidence,
+                    result.reasoning,
+                )
+                
+                # Emit hook for intent classification
+                from sunwell.agent.hooks import HookEvent, emit_hook_sync
+                emit_hook_sync(
+                    HookEvent.INTENT_CLASSIFIED,
+                    path=[n.value for n in result.path],
+                    confidence=result.confidence,
+                    reasoning=result.reasoning,
+                    user_input=user_input,
+                )
+                
+                # Route based on DAG path
+                async for event in self._route_dag_classification(result, user_input):
+                    yield event
 
         except GeneratorExit:
             # Graceful shutdown via aclose()
@@ -709,6 +692,151 @@ Current workspace: {self.workspace}
 Note: Your training data has a knowledge cutoff. For questions about current
 events, recent releases, or time-sensitive information, acknowledge you may
 not have the latest data and suggest the user verify from authoritative sources."""
+
+    async def _route_dag_classification(
+        self,
+        classification: IntentClassification,
+        user_input: str,
+    ) -> AsyncIterator[str | ChatCheckpoint | AgentEvent]:
+        """Route based on DAG classification path.
+        
+        Maps DAG paths to actions:
+        - UNDERSTAND branch → Conversation (no tools)
+        - ANALYZE branch → Read-only tools
+        - PLAN branch → Read-only tools, may lead to action
+        - ACT/READ branch → Read-only tools
+        - ACT/WRITE branch → Write tools with approval
+        
+        Args:
+            classification: DAG classification result
+            user_input: Original user input
+            
+        Yields:
+            Responses, checkpoints, and events
+        """
+        path = classification.path
+        terminal = classification.terminal_node
+        branch = classification.branch
+        
+        logger.debug(
+            "DAG routing: terminal=%s, branch=%s, requires_tools=%s, requires_approval=%s",
+            terminal,
+            branch,
+            classification.requires_tools,
+            requires_approval(path),
+        )
+        
+        # UNDERSTAND branch - pure conversation, no tools
+        if branch == IntentNode.UNDERSTAND:
+            self._state = LoopState.CONVERSING
+            response = await self._generate_response(user_input)
+            self._state = LoopState.IDLE
+            yield response
+            self.conversation_history.append({
+                "role": "assistant",
+                "content": response,
+            })
+            self._trim_history()
+            return
+        
+        # ANALYZE branch - conversation with optional read-only context
+        if branch == IntentNode.ANALYZE:
+            self._state = LoopState.CONVERSING
+            # For now, treat as conversation - future: could use read-only tools
+            response = await self._generate_response(user_input)
+            self._state = LoopState.IDLE
+            yield response
+            self.conversation_history.append({
+                "role": "assistant",
+                "content": response,
+            })
+            self._trim_history()
+            return
+        
+        # PLAN branch - may show a plan but not execute
+        if branch == IntentNode.PLAN:
+            self._state = LoopState.CONVERSING
+            # For now, treat as conversation about planning
+            response = await self._generate_response(user_input)
+            self._state = LoopState.IDLE
+            yield response
+            self.conversation_history.append({
+                "role": "assistant",
+                "content": response,
+            })
+            self._trim_history()
+            return
+        
+        # ACT branch - requires tools
+        if branch == IntentNode.ACT:
+            # Check if tools are available
+            if self.tool_executor is None:
+                yield (
+                    f"I understand you want me to {terminal.value} something, "
+                    f"but I'm in **chat mode** (tools disabled). "
+                    f"Use `/tools on` to enable agent mode."
+                )
+                self._state = LoopState.IDLE
+                return
+            
+            # READ sub-branch - read-only tools
+            if IntentNode.READ in path and IntentNode.WRITE not in path:
+                # Execute with read-only scope
+                goal = classification.task_description or user_input
+                logger.debug("Routing to read-only agent: %r", goal[:100])
+                async for event in self._execute_goal(goal):
+                    yield event
+                self._state = LoopState.IDLE
+                return
+            
+            # WRITE sub-branch - write tools with approval
+            if IntentNode.WRITE in path:
+                goal = classification.task_description or user_input
+                
+                # Show path and get approval if needed
+                if requires_approval(path) and not self.auto_confirm:
+                    path_display = format_path(path)
+                    checkpoint = ChatCheckpoint(
+                        type=ChatCheckpointType.CONFIRMATION,
+                        message=f"Path: {path_display}\n\nThis will modify files. Proceed?",
+                        options=("Y", "n"),
+                        default="Y",
+                        context={"dag_path": [n.value for n in path]},
+                    )
+                    raw_response = yield checkpoint
+                    response = self._ensure_checkpoint_response(raw_response)
+                    
+                    if not response.proceed:
+                        yield "Okay, no changes made."
+                        self._state = LoopState.IDLE
+                        return
+                
+                logger.debug("Routing to write agent: %r", goal[:100])
+                async for event in self._execute_goal(goal):
+                    yield event
+                self._state = LoopState.IDLE
+                return
+        
+        # Fallback - low confidence or unknown path
+        if classification.confidence < 0.5:
+            self._state = LoopState.IDLE
+            yield (
+                f"I'm not sure what you'd like me to do. "
+                f"Could you rephrase that?\n\n"
+                f"_({classification.reasoning})_"
+            )
+            return
+        
+        # Default to conversation
+        self._state = LoopState.CONVERSING
+        response = await self._generate_response(user_input)
+        self._state = LoopState.IDLE
+        yield response
+        self.conversation_history.append({
+            "role": "assistant",
+            "content": response,
+        })
+        self._trim_history()
 
     def _handle_command(self, command: str) -> tuple[str | None, str | None]:
         """Handle /slash commands.

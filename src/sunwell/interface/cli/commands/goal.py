@@ -26,7 +26,7 @@ from sunwell.agent import (
     RunOptions,
     create_renderer,
 )
-from sunwell.agent.chat.intent import Intent, classify_input
+from sunwell.agent.intent import IntentNode, classify_intent, format_path
 from sunwell.agent.context.session import SessionContext
 from sunwell.agent.convergence import ConvergenceConfig
 from sunwell.agent.validation.gates import GateType
@@ -188,18 +188,22 @@ async def run_agent(
         console.print(f"  [void.purple]✗[/] [sunwell.error]Failed to load model:[/] {e}")
         return
 
-    # RFC-135: Unified intent routing for all entry points
-    # Classify intent to route CONVERSATION vs TASK appropriately
+    # RFC-135: Unified intent routing using DAG classification
+    # UNDERSTAND branch (CLARIFY, EXPLAIN) → SmartContext for direct answer
+    # ACT branch → Full agent planning + execution
     if not dry_run:
-        classification = await classify_input(
+        classification = await classify_intent(
             goal,
             model=synthesis_model,
         )
 
-        if classification.intent == Intent.CONVERSATION:
+        # UNDERSTAND branch = conversational (no tools needed)
+        is_conversation = classification.branch == IntentNode.UNDERSTAND
+
+        if is_conversation:
             if verbose:
                 console.print(
-                    f"  [neutral.dim]· Intent: CONVERSATION "
+                    f"  [neutral.dim]· Intent: {format_path(classification.path)} "
                     f"({classification.confidence:.0%} confidence)[/]"
                 )
 
@@ -218,7 +222,7 @@ async def run_agent(
                 console.print("  [neutral.dim]· Search insufficient, falling back to planning...[/]")
         elif verbose:
             console.print(
-                f"  [neutral.dim]· Intent: TASK "
+                f"  [neutral.dim]· Intent: {format_path(classification.path)} "
                 f"({classification.confidence:.0%} confidence)[/]"
             )
 

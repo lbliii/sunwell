@@ -8,12 +8,17 @@ Extracts learnings from completed agent executions:
 
 RFC-135: Learnings are persisted to .sunwell/intelligence/ via PersistentMemory,
 not created as project artifacts.
+
+Durability: Learnings are appended to a journal BEFORE yielding events,
+ensuring they survive crashes. The journal is the source of truth.
 """
 
 import logging
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from sunwell.memory.core.journal import LearningJournal
 
 if TYPE_CHECKING:
     from sunwell.agent.core.task_graph import TaskGraph
@@ -24,6 +29,17 @@ if TYPE_CHECKING:
     from sunwell.memory.simulacrum.core.planning_context import PlanningContext
 
 logger = logging.getLogger(__name__)
+
+# Module-level journal cache to avoid repeated instantiation
+_journal_cache: dict[Path, LearningJournal] = {}
+
+
+def _get_journal(workspace: Path) -> LearningJournal:
+    """Get or create a cached journal for a workspace."""
+    if workspace not in _journal_cache:
+        memory_dir = workspace / ".sunwell" / "memory"
+        _journal_cache[workspace] = LearningJournal(memory_dir)
+    return _journal_cache[workspace]
 
 
 async def learn_from_execution(
@@ -48,6 +64,9 @@ async def learn_from_execution(
     RFC-135: All learnings are persisted through PersistentMemory to
     .sunwell/intelligence/, NOT as project artifacts.
 
+    Durability: Each learning is written to the journal BEFORE yielding,
+    ensuring it survives crashes. The journal append is atomic and fsynced.
+
     Args:
         goal: The goal that was executed
         success: Whether execution succeeded
@@ -62,6 +81,11 @@ async def learn_from_execution(
         Tuples of (fact, category) for each extracted learning
     """
     extracted_count = 0
+
+    # Get journal for durable writes (if memory is configured)
+    journal: LearningJournal | None = None
+    if memory:
+        journal = _get_journal(memory.workspace)
 
     # 1. Extract code patterns from changed files
     for file_path in files_changed[:10]:  # Limit to avoid long extraction
@@ -78,12 +102,20 @@ async def learn_from_execution(
             learnings = learning_extractor.extract_from_code(content, str(path))
 
             for learning in learnings:
-                # Add to session store
+                # Add to session store (in-memory)
                 learning_store.add_learning(learning)
 
                 # Add to persistent memory (RFC-135)
                 if memory:
                     _add_to_persistent_memory(memory, learning)
+
+                # DURABILITY: Append to journal BEFORE yielding
+                # This ensures the learning survives crashes
+                if journal:
+                    try:
+                        journal.append(learning)
+                    except OSError as e:
+                        logger.warning("Failed to append learning to journal: %s", e)
 
                 yield (learning.fact, learning.category)
                 extracted_count += 1
@@ -110,11 +142,18 @@ async def learn_from_execution(
             if memory:
                 _add_to_persistent_memory(memory, learning)
 
+            # DURABILITY: Append to journal BEFORE yielding
+            if journal:
+                try:
+                    journal.append(learning)
+                except OSError as e:
+                    logger.warning("Failed to append heuristic to journal: %s", e)
+
             yield (learning.fact, "heuristic")
             extracted_count += 1
 
     # 3. Sync session learnings to persistent storage (RFC-135)
-    # This ensures learnings go to .sunwell/intelligence/, not as artifacts
+    # This is now a secondary persistence path; journal is primary
     if memory:
         try:
             synced = learning_store.sync_to_simulacrum(memory.simulacrum)
@@ -123,7 +162,7 @@ async def learn_from_execution(
         except Exception as e:
             logger.warning("Failed to sync learnings to memory: %s", e)
 
-    # 4. Also save to disk directly as backup
+    # 4. Also save to disk directly as backup (legacy path)
     if memory:
         try:
             saved = learning_store.save_to_disk(memory.workspace)

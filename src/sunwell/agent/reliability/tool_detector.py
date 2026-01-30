@@ -16,7 +16,7 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 
-from sunwell.agent.chat.intent import Intent
+from sunwell.agent.intent import IntentClassification, IntentNode
 
 
 class ToolFailureType(Enum):
@@ -95,9 +95,23 @@ _REFUSAL_PATTERN = re.compile(
 )
 
 
+def _is_action_intent(intent: IntentClassification | str) -> bool:
+    """Check if the intent indicates an action (tool use expected).
+    
+    With the DAG system, action intents are those in the ACT branch.
+    """
+    if isinstance(intent, IntentClassification):
+        # Check if ACT is in the path
+        return IntentNode.ACT in intent.path
+    
+    # Legacy string handling
+    intent_str = str(intent).upper()
+    return intent_str in ("TASK", "ACT", "WRITE", "CREATE", "MODIFY", "DELETE", "READ")
+
+
 def detect_tool_failure(
     *,
-    intent: Intent | str,
+    intent: IntentClassification | str,
     needs_tools: bool | str,
     tool_calls_total: int,
     response_text: str | None,
@@ -106,7 +120,7 @@ def detect_tool_failure(
     """Detect if tool calling failed in a suspicious way.
 
     Args:
-        intent: The classified intent (TASK, CONVERSATION, etc.)
+        intent: The classified intent (IntentClassification or legacy string)
         needs_tools: Whether signals indicated tools were needed
         tool_calls_total: Total tool calls made during execution
         response_text: The model's final response text
@@ -115,16 +129,16 @@ def detect_tool_failure(
     Returns:
         ToolReliabilityResult with failure type and details
     """
-    # Normalize inputs
-    intent_str = intent.value if hasattr(intent, "value") else str(intent).upper()
+    # Check if this is an action-type intent
+    is_action = _is_action_intent(intent)
     needs_tools_bool = (
         needs_tools in (True, "YES", "yes", "Yes")
         if isinstance(needs_tools, (bool, str))
         else False
     )
 
-    # Case 1: Task intent + needs_tools=YES + no tools called
-    if intent_str == "TASK" and needs_tools_bool and tool_calls_total == 0:
+    # Case 1: Action intent + needs_tools=YES + no tools called
+    if is_action and needs_tools_bool and tool_calls_total == 0:
         # Check if response suggests completion (hallucination)
         if response_text and _COMPLETION_PATTERN.search(response_text):
             return ToolReliabilityResult(
@@ -165,9 +179,9 @@ def detect_tool_failure(
             suggested_action="Check if model supports tool calling.",
         )
 
-    # Case 2: Tools available but conversation-style response for a TASK
+    # Case 2: Tools available but conversation-style response for an action
     if (
-        intent_str == "TASK"
+        is_action
         and tools_available > 0
         and tool_calls_total == 0
         and response_text

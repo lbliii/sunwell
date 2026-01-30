@@ -62,6 +62,15 @@ class HookEvent(Enum):
     LEARNING_EXTRACT = "learning:extract"
     LEARNING_APPLY = "learning:apply"
 
+    # Intent classification (DAG Architecture)
+    INTENT_CLASSIFIED = "intent:classified"
+    NODE_TRANSITION = "intent:node_transition"
+
+    # File changes (for diff preview)
+    FILE_CHANGE_PENDING = "file:change_pending"
+    FILE_CHANGE_APPROVED = "file:change_approved"
+    FILE_CHANGE_REJECTED = "file:change_rejected"
+
 
 @dataclass(frozen=True, slots=True)
 class HookMetadata:
@@ -180,5 +189,30 @@ EVENT_DATA_SCHEMAS: dict[HookEvent, dict[str, str]] = {
         "gate_name": "str - Name of the gate",
         "files": "list[str] - Files that failed",
         "errors": "list[str] - Validation errors",
+    },
+    HookEvent.INTENT_CLASSIFIED: {
+        "path": "list[str] - DAG path nodes (e.g., ['conversation', 'act', 'write', 'modify'])",
+        "confidence": "float - Classification confidence (0.0-1.0)",
+        "reasoning": "str - Why this classification was made",
+        "user_input": "str - Original user input",
+    },
+    HookEvent.NODE_TRANSITION: {
+        "from_node": "str - Previous node in DAG",
+        "to_node": "str - New node in DAG",
+        "path": "list[str] - Full current path",
+    },
+    HookEvent.FILE_CHANGE_PENDING: {
+        "file_path": "str - Path to file being changed",
+        "change_type": "str - create/modify/delete",
+        "diff": "str - Unified diff of changes (for modify)",
+    },
+    HookEvent.FILE_CHANGE_APPROVED: {
+        "file_path": "str - Path to file",
+        "change_type": "str - create/modify/delete",
+    },
+    HookEvent.FILE_CHANGE_REJECTED: {
+        "file_path": "str - Path to file",
+        "change_type": "str - create/modify/delete",
+        "reason": "str - Why change was rejected",
     },
 }

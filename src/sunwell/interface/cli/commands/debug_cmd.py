@@ -160,6 +160,113 @@ def dump(output: str | None, include_system: bool) -> None:
         )
 
 
+@debug.command()
+@click.option(
+    "--lines",
+    "-n",
+    default=50,
+    help="Number of lines to show from the latest log (default: 50)",
+)
+@click.option(
+    "--list",
+    "-l",
+    is_flag=True,
+    help="List all available session logs instead of showing latest",
+)
+@click.option(
+    "--session",
+    "-s",
+    default=None,
+    help="Show specific session log by filename (e.g., session_2026-01-29_15-30-00.log)",
+)
+def logs(lines: int, list: bool, session: str | None) -> None:
+    """View persistent session logs from .sunwell/logs/.
+
+    By default, shows the last 50 lines of the most recent session log.
+
+    \b
+    Examples:
+        sunwell debug logs                    # Show last 50 lines of latest log
+        sunwell debug logs -n 100             # Show last 100 lines
+        sunwell debug logs --list             # List all available logs
+        sunwell debug logs -s session_...log  # View specific session
+    """
+    # Find log directory
+    log_dirs = [
+        Path.cwd() / ".sunwell" / "logs",
+        Path.home() / ".sunwell" / "logs",
+    ]
+
+    log_dir = None
+    for candidate in log_dirs:
+        if candidate.exists():
+            log_dir = candidate
+            break
+
+    if not log_dir or not log_dir.exists():
+        console.print("[yellow]No logs directory found at .sunwell/logs/[/yellow]")
+        console.print("[dim]Logs are created automatically when you run commands[/dim]")
+        return
+
+    # Get all session logs
+    log_files = sorted(
+        log_dir.glob("session_*.log"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,  # Newest first
+    )
+
+    if not log_files:
+        console.print("[yellow]No session logs found[/yellow]")
+        return
+
+    # List mode
+    if list:
+        console.print(f"[bold]Session logs in {log_dir}:[/bold]\n")
+        for i, log_file in enumerate(log_files, 1):
+            size_kb = log_file.stat().st_size / 1024
+            mtime = datetime.fromtimestamp(log_file.stat().st_mtime)
+            age = datetime.now() - mtime
+            age_str = (
+                f"{age.days}d ago" if age.days > 0
+                else f"{age.seconds // 3600}h ago" if age.seconds >= 3600
+                else f"{age.seconds // 60}m ago"
+            )
+            console.print(f"  {i}. {log_file.name} ({size_kb:.1f} KB, {age_str})")
+        console.print(f"\n[dim]Total: {len(log_files)} session logs[/dim]")
+        return
+
+    # Find target log file
+    if session:
+        target_log = log_dir / session
+        if not target_log.exists():
+            console.print(f"[red]Log file not found: {session}[/red]")
+            console.print("[dim]Use --list to see available logs[/dim]")
+            return
+    else:
+        target_log = log_files[0]  # Most recent
+
+    # Read and display log
+    try:
+        log_content = target_log.read_text()
+        log_lines = log_content.splitlines()
+
+        # Show header
+        mtime = datetime.fromtimestamp(target_log.stat().st_mtime)
+        console.print(f"[bold]Session log:[/bold] {target_log.name}")
+        console.print(f"[dim]Time: {mtime.strftime('%Y-%m-%d %H:%M:%S')} ({len(log_lines)} lines total)[/dim]\n")
+
+        # Show last N lines
+        display_lines = log_lines[-lines:] if len(log_lines) > lines else log_lines
+        if len(log_lines) > lines:
+            console.print(f"[dim]... (showing last {lines} of {len(log_lines)} lines)[/dim]\n")
+
+        for line in display_lines:
+            console.print(line)
+
+    except Exception as e:
+        console.print(f"[red]Error reading log file: {e}[/red]")
+
+
 # =============================================================================
 # Collectors
 # =============================================================================

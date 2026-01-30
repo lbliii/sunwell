@@ -106,6 +106,9 @@ class PersistentMemory:
         intel_path = workspace / ".sunwell" / "intelligence"
         memory_path = workspace / ".sunwell" / "memory"
 
+        # Run migration if needed (populates journal from existing sources)
+        _run_migration_if_needed(workspace)
+
         # Load each component independently
         simulacrum = _load_simulacrum(memory_path)
         decisions = _load_decisions(intel_path)
@@ -665,8 +668,32 @@ class GoalMemory:
 # =============================================================================
 
 
+def _run_migration_if_needed(workspace: Path) -> None:
+    """Run journal migration if not already complete.
+
+    Migrates existing learnings from SimulacrumStore and legacy JSONL
+    to the new durable journal format.
+    """
+    try:
+        from sunwell.memory.core.migration import migrate_if_needed
+
+        result = migrate_if_needed(workspace)
+        if result and result.total_migrated > 0:
+            logger.info(
+                "Migrated %d learnings to journal (%d from simulacrum, %d from legacy)",
+                result.total_migrated,
+                result.migrated_from_simulacrum,
+                result.migrated_from_legacy,
+            )
+    except Exception as e:
+        logger.debug("Journal migration skipped: %s", e)
+
+
 def _load_simulacrum(memory_path: Path) -> SimulacrumStore | None:
-    """Load SimulacrumStore, returning None on failure."""
+    """Load SimulacrumStore, returning None on failure.
+
+    Also loads learnings from the durable journal and syncs them to the DAG.
+    """
     try:
         from sunwell.memory.simulacrum.core.store import SimulacrumStore
 
@@ -678,11 +705,70 @@ def _load_simulacrum(memory_path: Path) -> SimulacrumStore | None:
                 # Load most recent session
                 latest = max(sessions, key=lambda p: p.stat().st_mtime)
                 store.load_session(latest.stem)
+
+            # Load learnings from journal and sync to DAG
+            _sync_journal_to_dag(memory_path, store)
+
             return store
         return SimulacrumStore(memory_path)
     except Exception as e:
         logger.warning(f"Failed to load SimulacrumStore: {e}")
         return None
+
+
+def _sync_journal_to_dag(memory_path: Path, store: SimulacrumStore) -> int:
+    """Sync learnings from journal to SimulacrumStore DAG.
+
+    This ensures learnings from the journal are available for retrieval.
+    Returns the number of learnings synced.
+    """
+    try:
+        from sunwell.memory.core.journal import LearningJournal
+        from sunwell.memory.simulacrum.core.turn import Learning as SimLearning
+
+        journal = LearningJournal(memory_path)
+        if not journal.exists():
+            return 0
+
+        dag = store.get_dag()
+        existing_ids = set(dag.learnings.keys())
+
+        synced = 0
+        for entry in journal.load_deduplicated().values():
+            if entry.id not in existing_ids:
+                # Convert journal entry to SimLearning
+                sim_learning = SimLearning(
+                    fact=entry.fact,
+                    source_turns=(),
+                    confidence=entry.confidence,
+                    category=_map_category(entry.category),
+                )
+                dag.add_learning(sim_learning)
+                synced += 1
+
+        if synced > 0:
+            logger.debug("Synced %d learnings from journal to DAG", synced)
+
+        return synced
+    except Exception as e:
+        logger.debug("Failed to sync journal to DAG: %s", e)
+        return 0
+
+
+def _map_category(category: str) -> str:
+    """Map agent learning categories to SimLearning categories."""
+    category_map = {
+        "type": "pattern",
+        "api": "pattern",
+        "pattern": "pattern",
+        "fix": "fact",
+        "heuristic": "heuristic",
+        "template": "template",
+        "task_completion": "fact",
+        "preference": "preference",
+        "project": "fact",  # Project-level facts (language, framework)
+    }
+    return category_map.get(category, "fact")
 
 
 def _load_decisions(intel_path: Path) -> DecisionMemory | None:

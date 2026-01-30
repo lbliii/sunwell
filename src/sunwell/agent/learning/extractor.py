@@ -28,6 +28,33 @@ _RE_FOREIGN_KEY = re.compile(r"(\w+)\s*=\s*(?:Column\()?ForeignKey\(['\"]([^'\"]
 _RE_DATACLASS_FIELD = re.compile(r"^\s+(\w+):\s*(\S+)", re.MULTILINE)
 _RE_SQLA_COLUMN = re.compile(r"^\s+(\w+)\s*=\s*Column\(", re.MULTILINE)
 
+# Language detection patterns
+_LANGUAGE_INDICATORS: dict[str, tuple[str, ...]] = {
+    "python": (".py",),
+    "javascript": (".js", ".mjs", ".cjs"),
+    "typescript": (".ts", ".tsx"),
+    "go": (".go",),
+    "rust": (".rs",),
+    "java": (".java",),
+    "ruby": (".rb",),
+    "php": (".php",),
+    "c#": (".cs",),
+    "swift": (".swift",),
+    "kotlin": (".kt", ".kts"),
+}
+
+# Framework detection patterns
+_FRAMEWORK_PATTERNS: dict[str, tuple[re.Pattern, ...]] = {
+    "Flask": (re.compile(r"from flask import|Flask\(__name__\)"),),
+    "FastAPI": (re.compile(r"from fastapi import|FastAPI\(\)"),),
+    "Django": (re.compile(r"from django|django\."),),
+    "Express": (re.compile(r"require\(['\"]express['\"]\)|from ['\"]express['\"]"),),
+    "React": (re.compile(r"import React|from ['\"]react['\"]|useState|useEffect"),),
+    "Vue": (re.compile(r"from ['\"]vue['\"]|createApp|defineComponent"),),
+    "SQLAlchemy": (re.compile(r"from sqlalchemy|Column\(|relationship\("),),
+    "Pydantic": (re.compile(r"from pydantic|BaseModel|Field\("),),
+}
+
 
 @dataclass(slots=True)
 class LearningExtractor:
@@ -51,6 +78,8 @@ class LearningExtractor:
         """Extract learnings from generated code.
 
         Uses pattern matching for:
+        - Project language (from file extension)
+        - Framework usage (from imports)
         - Type/class definitions
         - Foreign key relationships
         - API endpoints
@@ -64,6 +93,9 @@ class LearningExtractor:
             List of extracted learnings
         """
         learnings: list[Learning] = []
+
+        # Extract project-level learnings (language, framework)
+        learnings.extend(self._extract_project_facts(content, file_path))
 
         # Extract class definitions
         for match in _RE_CLASS_DEF.finditer(content):
@@ -161,6 +193,57 @@ class LearningExtractor:
             fields.append(match.group(1))
 
         return fields[:10]  # Limit to 10 fields
+
+    def _extract_project_facts(
+        self,
+        content: str,
+        file_path: str | None,
+    ) -> list[Learning]:
+        """Extract project-level facts (language, framework).
+
+        These are high-confidence learnings that help parallel workers
+        maintain consistency across the project.
+
+        Args:
+            content: Code content
+            file_path: Path to the file
+
+        Returns:
+            List of project-level learnings
+        """
+        learnings: list[Learning] = []
+
+        if not file_path:
+            return learnings
+
+        # Detect language from file extension
+        for language, extensions in _LANGUAGE_INDICATORS.items():
+            if any(file_path.endswith(ext) for ext in extensions):
+                learnings.append(
+                    Learning(
+                        fact=f"Project uses {language}",
+                        category="project",
+                        confidence=0.95,  # High confidence - file extension is definitive
+                        source_file=file_path,
+                    )
+                )
+                break
+
+        # Detect frameworks from content
+        for framework, patterns in _FRAMEWORK_PATTERNS.items():
+            for pattern in patterns:
+                if pattern.search(content):
+                    learnings.append(
+                        Learning(
+                            fact=f"Project uses {framework}",
+                            category="project",
+                            confidence=0.9,
+                            source_file=file_path,
+                        )
+                    )
+                    break
+
+        return learnings
 
     def extract_from_fix(
         self,

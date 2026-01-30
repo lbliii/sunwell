@@ -5,6 +5,7 @@ Provides centralized logging setup with sensible defaults:
 - --debug flag: DEBUG level with full context
 - SUNWELL_DEBUG=true or SUNWELL_LOG_LEVEL=DEBUG env vars: Override for CI/scripting
 - Config file: debug: true in .sunwell/config.yaml (persistent)
+- Persistent logs: Stored in .sunwell/logs/ with session rotation
 
 Usage:
     from sunwell.foundation.logging import configure_logging
@@ -22,6 +23,8 @@ Priority for level resolution (highest to lowest):
 import logging
 import os
 import sys
+from datetime import datetime
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 # Format includes module path for tracing issues
@@ -42,6 +45,54 @@ _NOISY_LOGGERS = (
 # Cache config debug setting to avoid re-reading file
 _config_debug_checked = False
 _config_debug_value = False
+
+# Session log retention
+_MAX_LOG_SESSIONS = 10  # Keep last N session logs
+
+
+def _get_log_directory() -> Path:
+    """Get or create the persistent log directory.
+
+    Returns:
+        Path to .sunwell/logs/ directory
+    """
+    # Check both local and home directories
+    for base in [Path.cwd(), Path.home()]:
+        sunwell_dir = base / ".sunwell"
+        if sunwell_dir.exists():
+            log_dir = sunwell_dir / "logs"
+            log_dir.mkdir(exist_ok=True)
+            return log_dir
+
+    # Fallback: create in current directory
+    log_dir = Path.cwd() / ".sunwell" / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    return log_dir
+
+
+def _cleanup_old_logs(log_dir: Path, max_sessions: int = _MAX_LOG_SESSIONS) -> None:
+    """Remove old session logs, keeping only the most recent N.
+
+    Args:
+        log_dir: Directory containing log files
+        max_sessions: Maximum number of session logs to retain
+    """
+    if not log_dir.exists():
+        return
+
+    # Find all session log files (pattern: session_YYYY-MM-DD_HH-MM-SS.log)
+    log_files = sorted(
+        log_dir.glob("session_*.log"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,  # Newest first
+    )
+
+    # Remove files beyond the retention limit
+    for old_log in log_files[max_sessions:]:
+        try:
+            old_log.unlink()
+        except OSError:
+            pass  # Ignore errors during cleanup
 
 
 def _check_config_debug() -> bool:
@@ -86,6 +137,7 @@ def configure_logging(
     debug: bool = False,
     level: int | str | None = None,
     stream: object = None,
+    persist: bool = True,
 ) -> None:
     """Configure logging for Sunwell CLI.
 
@@ -97,6 +149,7 @@ def configure_logging(
         level: Override log level (int or string like "DEBUG", "INFO")
                Also reads SUNWELL_LOG_LEVEL env var
         stream: Output stream (default: stderr)
+        persist: Store logs in .sunwell/logs/ with session rotation (default: True)
 
     Priority for level resolution (highest to lowest):
         1. Explicit `level` parameter (programmatic override)
@@ -121,16 +174,39 @@ def configure_logging(
     else:
         resolved_level = logging.WARNING
 
-    # Choose format based on verbosity
-    log_format = _DEBUG_FORMAT if resolved_level <= logging.DEBUG else _DEFAULT_FORMAT
+    # Choose format based on verbosity (always use DEBUG format for files)
+    console_format = _DEBUG_FORMAT if resolved_level <= logging.DEBUG else _DEFAULT_FORMAT
 
-    # Configure root logger
-    logging.basicConfig(
-        level=resolved_level,
-        format=log_format,
-        stream=stream or sys.stderr,
-        force=True,  # Override any existing config
-    )
+    # Configure root logger with console handler
+    root_logger = logging.getLogger()
+    root_logger.setLevel(resolved_level)
+    root_logger.handlers.clear()  # Remove existing handlers
+
+    # Add console handler (stderr)
+    console_handler = logging.StreamHandler(stream or sys.stderr)
+    console_handler.setLevel(resolved_level)
+    console_handler.setFormatter(logging.Formatter(console_format))
+    root_logger.addHandler(console_handler)
+
+    # Add persistent file handler
+    if persist:
+        try:
+            log_dir = _get_log_directory()
+            _cleanup_old_logs(log_dir)
+
+            # Create session log file with timestamp
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            log_file = log_dir / f"session_{timestamp}.log"
+
+            # File handler always uses detailed format and captures everything
+            file_handler = logging.FileHandler(log_file, mode="w", encoding="utf-8")
+            file_handler.setLevel(logging.DEBUG)  # Capture all levels to file
+            file_handler.setFormatter(logging.Formatter(_DEBUG_FORMAT))
+            root_logger.addHandler(file_handler)
+
+        except Exception as e:
+            # Non-fatal: log to stderr if file logging fails
+            sys.stderr.write(f"Warning: Could not enable persistent logging: {e}\n")
 
     # Quiet noisy third-party loggers
     for name in _NOISY_LOGGERS:
@@ -139,10 +215,11 @@ def configure_logging(
     # Log that we're configured (only visible in debug mode)
     logger = logging.getLogger(__name__)
     logger.debug(
-        "Logging configured: level=%s, debug=%s, from_config=%s",
+        "Logging configured: level=%s, debug=%s, from_config=%s, persist=%s",
         logging.getLevelName(resolved_level),
         debug,
         _config_debug_value,
+        persist,
     )
 
 

@@ -324,6 +324,8 @@ class LearningStore:
             "heuristic": "heuristic",
             "template": "template",
             "task_completion": "fact",
+            "project": "fact",  # Project-level facts (language, framework)
+            "preference": "preference",
         }
 
         synced = 0
@@ -455,13 +457,46 @@ class LearningStore:
 
         return saved
 
+    def load_from_journal(self, base_path: Path | None = None) -> int:
+        """Load learnings from the durable journal (primary recovery path).
+
+        The journal at .sunwell/memory/learnings.jsonl is the source of truth
+        for durable learnings. This method should be called on startup to
+        recover learnings from the journal.
+
+        Args:
+            base_path: Project root (defaults to cwd)
+
+        Returns:
+            Number of learnings loaded
+        """
+        from sunwell.memory.core.journal import LearningJournal
+
+        base = base_path or Path.cwd()
+        memory_dir = base / ".sunwell" / "memory"
+        journal = LearningJournal(memory_dir)
+
+        if not journal.exists():
+            return 0
+
+        # Load deduplicated learnings from journal
+        learnings = journal.load_as_learnings()
+        loaded = 0
+
+        for learning in learnings:
+            self.add_learning(learning)  # add_learning handles deduplication
+            loaded += 1
+
+        return loaded
+
     def load_from_disk(self, base_path: Path | None = None) -> int:
         """Load learnings from .sunwell/ directories.
 
         Reads from multiple sources:
-        1. .sunwell/intelligence/learnings.jsonl (JSONL format)
-        2. .sunwell/learnings/*.json (Naaru execution format - JSON arrays)
-        3. .sunwell/intelligence/dead_ends.jsonl
+        1. .sunwell/memory/learnings.jsonl (journal - primary, durable)
+        2. .sunwell/intelligence/learnings.jsonl (legacy JSONL format)
+        3. .sunwell/learnings/*.json (Naaru execution format - JSON arrays)
+        4. .sunwell/intelligence/dead_ends.jsonl
 
         Args:
             base_path: Project root (defaults to cwd)
@@ -476,7 +511,10 @@ class LearningStore:
 
         loaded = 0
 
-        # Source 1: .sunwell/intelligence/learnings.jsonl (JSONL format)
+        # Source 1: .sunwell/memory/learnings.jsonl (journal - primary, durable)
+        loaded += self.load_from_journal(base)
+
+        # Source 2: .sunwell/intelligence/learnings.jsonl (legacy JSONL format)
         if learnings_path.exists():
             with open(learnings_path, encoding="utf-8") as f:
                 for line in f:
@@ -496,7 +534,7 @@ class LearningStore:
                     except (json.JSONDecodeError, KeyError):
                         pass
 
-        # Source 2: .sunwell/learnings/*.json (Naaru execution format)
+        # Source 3: .sunwell/learnings/*.json (Naaru execution format)
         # Format: [{"type": "task_completion", "task_id": ..., "task_description": ..., ...}]
         if naaru_learnings_dir.exists():
             for json_file in naaru_learnings_dir.glob("*.json"):
@@ -535,7 +573,7 @@ class LearningStore:
                 except (json.JSONDecodeError, OSError):
                     pass
 
-        # Source 3: Dead ends
+        # Source 4: Dead ends
         if dead_ends_path.exists():
             with open(dead_ends_path, encoding="utf-8") as f:
                 for line in f:

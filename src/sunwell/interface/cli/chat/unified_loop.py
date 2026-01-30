@@ -57,6 +57,7 @@ async def run_unified_loop(
         UnifiedChatLoop,
     )
     from sunwell.agent.events import AgentEvent
+    from sunwell.interface.cli.hooks import register_user_hooks, unregister_user_hooks
     from sunwell.knowledge.project import (
         ProjectResolutionError,
         create_project_from_workspace,
@@ -64,6 +65,11 @@ async def run_unified_loop(
     )
     from sunwell.tools.core.types import ToolPolicy, ToolTrust
     from sunwell.tools.execution import ToolExecutor
+
+    # Load user-configurable hooks from .sunwell/hooks.toml
+    hook_count = register_user_hooks(workspace)
+    if hook_count > 0:
+        logger.info("Loaded %d user hooks from .sunwell/hooks.toml", hook_count)
 
     # Set up tool executor only if tools are enabled
     tool_executor = None
