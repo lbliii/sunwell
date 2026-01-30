@@ -148,6 +148,7 @@ class UnifiedChatLoop:
 
         # Current DAG path (for display and navigation)
         self._current_dag_path: tuple[IntentNode, ...] | None = None
+        self._previous_dag_path: tuple[IntentNode, ...] | None = None
 
         # Execution state
         self._state = LoopState.IDLE

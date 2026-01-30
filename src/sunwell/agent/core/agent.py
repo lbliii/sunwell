@@ -242,6 +242,70 @@ class Agent:
         """Get SimulacrumStore from current run context (RFC-MEMORY)."""
         return self._simulacrum
 
+    def _populate_learning_store_from_memory(
+        self,
+        workspace: Path,
+        memory: PersistentMemory,
+    ) -> int:
+        """Populate LearningStore from persistent memory sources.
+
+        Phase 1.1 of Unified Memory Coordination: Ensures the agent starts
+        with existing learnings from prior sessions and other workers.
+
+        Loads from (in priority order):
+        1. Journal (primary durable source)
+        2. SimulacrumStore DAG (legacy learnings)
+
+        Args:
+            workspace: Project workspace path
+            memory: PersistentMemory instance
+
+        Returns:
+            Number of learnings loaded
+        """
+        loaded = 0
+
+        # 1. Load from journal (primary source - durable, cross-worker visible)
+        try:
+            journal_loaded = self._learning_store.load_from_journal(workspace)
+            loaded += journal_loaded
+            if journal_loaded > 0:
+                logger.debug("Loaded %d learnings from journal", journal_loaded)
+        except Exception as e:
+            logger.debug("Failed to load from journal: %s", e)
+
+        # 2. Load from SimulacrumStore (may have learnings not yet in journal)
+        if memory.simulacrum:
+            try:
+                sim_loaded = self._learning_store.load_from_simulacrum(memory.simulacrum)
+                loaded += sim_loaded
+                if sim_loaded > 0:
+                    logger.debug("Loaded %d learnings from simulacrum", sim_loaded)
+            except Exception as e:
+                logger.debug("Failed to load from simulacrum: %s", e)
+
+        if loaded > 0:
+            logger.info("Populated LearningStore with %d learnings from memory", loaded)
+
+        return loaded
+
+    def _subscribe_to_learning_bus(self) -> None:
+        """Subscribe LearningStore to the global LearningBus.
+
+        Phase 2.2 of Unified Memory Coordination: Enables real-time learning
+        sharing between in-process agents (subagents, Naaru workers).
+
+        When another agent publishes a learning to the bus, this agent's
+        LearningStore will automatically receive it.
+        """
+        try:
+            from sunwell.memory.core.learning_bus import subscribe_learning_store
+
+            subscribe_learning_store(self._learning_store)
+            logger.debug("Subscribed LearningStore to LearningBus")
+        except Exception as e:
+            logger.debug("Failed to subscribe to LearningBus: %s", e)
+
     def _init_naaru(self) -> None:
         """Initialize internal Naaru for task execution."""
         from sunwell.foundation.types.config import NaaruConfig
@@ -294,6 +358,14 @@ class Agent:
         # RFC-MEMORY: Store memory references for planning and task execution
         self._simulacrum = memory.simulacrum
         self._memory = memory
+
+        # Populate LearningStore from persistent memory (Phase 1.1: Unified Memory Coordination)
+        # This ensures the agent starts with existing learnings from prior sessions
+        self._populate_learning_store_from_memory(session.cwd, memory)
+
+        # Phase 2.2: Subscribe LearningStore to LearningBus for real-time sharing
+        # This enables in-process agents (subagents, Naaru workers) to share learnings
+        self._subscribe_to_learning_bus()
 
         # Update Naaru's memory references (they were None at __post_init__ time)
         if self._naaru:

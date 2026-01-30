@@ -718,6 +718,45 @@ class SimulacrumStore:
 
         return await self._planning_retriever.retrieve(goal, limit_per_category)
 
+    async def find_similar_goals(
+        self,
+        goal: str,
+        limit: int = 5,
+    ) -> list[Learning]:
+        """Find learnings from similar past goals (Phase 4.2: Unified Memory Coordination).
+
+        Searches the DAG for learnings that are semantically similar to the
+        given goal. Used by memory-informed prefetch and specialist spawning.
+
+        Args:
+            goal: Goal description to match against
+            limit: Maximum number of learnings to return
+
+        Returns:
+            List of Learning objects from similar goals, sorted by relevance
+        """
+        # Use retrieve_for_planning which already does semantic matching
+        planning_ctx = await self.retrieve_for_planning(goal, limit_per_category=limit)
+
+        # Combine all learnings and sort by relevance
+        all_learnings: list[Learning] = []
+
+        # Add all categories of learnings
+        all_learnings.extend(planning_ctx.facts)
+        all_learnings.extend(planning_ctx.patterns)
+        all_learnings.extend(planning_ctx.constraints)
+        all_learnings.extend(planning_ctx.preferences)
+        all_learnings.extend(planning_ctx.heuristics)
+
+        # Sort by confidence (as proxy for relevance) and limit
+        sorted_learnings = sorted(
+            all_learnings,
+            key=lambda l: l.confidence,
+            reverse=True,
+        )
+
+        return sorted_learnings[:limit]
+
     # === RFC-022: Parallel Retrieval ===
 
     async def retrieve_parallel(

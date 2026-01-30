@@ -19,6 +19,24 @@ from sunwell.memory.core.journal import (
     append_learning,
     get_journal,
 )
+from sunwell.memory.core.journal_watcher import (
+    JournalWatcher,
+    PollingJournalWatcher,
+    create_journal_watcher,
+    create_polling_watcher,
+)
+from sunwell.memory.core.learning_bus import (
+    LearningBus,
+    LearningCallback,
+    get_learning_bus,
+    reset_learning_bus,
+    subscribe_learning_store,
+)
+from sunwell.memory.core.learning_cache import (
+    LearningCache,
+    get_learning_cache,
+    sync_cache_from_journal,
+)
 from sunwell.memory.core.migration import (
     MigrationResult,
     is_migration_complete,
@@ -59,4 +77,19 @@ __all__ = [
     "is_migration_complete",
     "migrate_if_needed",
     "migrate_learnings",
+    # Learning bus
+    "LearningBus",
+    "LearningCallback",
+    "get_learning_bus",
+    "reset_learning_bus",
+    "subscribe_learning_store",
+    # Journal watcher
+    "JournalWatcher",
+    "PollingJournalWatcher",
+    "create_journal_watcher",
+    "create_polling_watcher",
+    # Learning cache
+    "LearningCache",
+    "get_learning_cache",
+    "sync_cache_from_journal",
 ]

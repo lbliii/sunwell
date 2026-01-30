@@ -612,6 +612,36 @@ class PersistentMemory:
             except Exception as e:
                 logger.warning(f"Failed to find similar goals in decisions: {e}")
 
+        # Phase 4.2: Search LearningCache for project-level context
+        # This captures learnings like "Project uses python" that help inform prefetch
+        try:
+            from sunwell.memory.core.learning_cache import get_learning_cache
+
+            cache = get_learning_cache(self.workspace)
+
+            # Get project-level learnings
+            project_learnings = cache.get_by_category("project", limit=5)
+
+            # Search for goal-related learnings
+            if goal:
+                goal_keywords = goal.lower().split()[:3]  # First 3 words
+                for keyword in goal_keywords:
+                    matching = cache.search_facts(keyword, limit=3)
+                    for entry in matching:
+                        # Create a GoalMemory with just the learning context
+                        similar_goals.append(GoalMemory(
+                            goal=f"Context: {entry.fact[:50]}",
+                            success=True,
+                            hot_files=(entry.source_file,) if entry.source_file else (),
+                            learnings=(entry.fact,),
+                            skills_used=(),
+                            lens_used=None,
+                            success_pattern=None,
+                            similarity_score=entry.confidence * 0.5,  # Lower score for keyword match
+                        ))
+        except Exception as e:
+            logger.debug("Failed to search learning cache: %s", e)
+
         # Deduplicate and sort by similarity
         seen_goals: set[str] = set()
         unique_goals: list[GoalMemory] = []

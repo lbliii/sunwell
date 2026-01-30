@@ -489,6 +489,45 @@ class LearningStore:
 
         return loaded
 
+    def reload_from_journal(self, base_path: Path | None = None) -> int:
+        """Reload new learnings from journal (for parallel worker coordination).
+
+        Phase 1.2 of Unified Memory Coordination: Called before each task
+        in multi-instance workers to pick up learnings from other workers.
+
+        Unlike load_from_journal which loads all learnings, this only loads
+        NEW learnings (those not already in _learning_ids). This is efficient
+        for polling during execution.
+
+        Args:
+            base_path: Project root (defaults to cwd)
+
+        Returns:
+            Number of NEW learnings loaded
+        """
+        from sunwell.memory.core.journal import LearningJournal
+
+        base = base_path or Path.cwd()
+        memory_dir = base / ".sunwell" / "memory"
+        journal = LearningJournal(memory_dir)
+
+        if not journal.exists():
+            return 0
+
+        # Load deduplicated learnings from journal
+        learnings = journal.load_as_learnings()
+        loaded = 0
+
+        for learning in learnings:
+            # add_learning only adds if ID not already present
+            with self._lock:
+                if learning.id not in self._learning_ids:
+                    self._learning_ids.add(learning.id)
+                    self.learnings.append(learning)
+                    loaded += 1
+
+        return loaded
+
     def load_from_disk(self, base_path: Path | None = None) -> int:
         """Load learnings from .sunwell/ directories.
 

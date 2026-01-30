@@ -184,10 +184,31 @@ async def _read_files(paths: tuple[str, ...], project_path: Path) -> dict[str, s
 async def _load_learnings(
     ids: tuple[str, ...], project_path: Path
 ) -> tuple[Learning, ...]:
-    """Load learnings by ID from memory store."""
+    """Load learnings by ID from memory store.
+
+    Phase 4.1: Uses LearningCache for fast O(1) lookups when available,
+    falls back to LearningStore for backwards compatibility.
+    """
     if not ids:
         return ()
 
+    # Try LearningCache first (Phase 4.1: fast SQLite-backed access)
+    try:
+        from sunwell.memory.core.learning_cache import get_learning_cache
+
+        cache = get_learning_cache(project_path)
+        matched = []
+        for learning_id in ids:
+            entry = cache.get_by_id(learning_id)
+            if entry:
+                matched.append(entry.to_learning())
+
+        if matched:
+            return tuple(matched)
+    except Exception:
+        pass  # Fall through to LearningStore
+
+    # Fallback to LearningStore
     try:
         from sunwell.agent.learning import LearningStore
 

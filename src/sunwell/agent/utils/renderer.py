@@ -154,6 +154,12 @@ class RichRenderer:
 
                 match event.type:
                     # RFC-131: Holy Light phase headers
+                    case EventType.INTENT_CLASSIFIED:
+                        self._render_intent_classified(event.data)
+
+                    case EventType.NODE_TRANSITION:
+                        self._render_node_transition(event.data)
+
                     case EventType.SIGNAL:
                         if event.data.get("status") == "extracting":
                             task_id = progress.add_task(
@@ -357,6 +363,41 @@ class RichRenderer:
             self._tokens_input += event.data.get("tokens_input", 0)
             self._tokens_output += event.data.get("tokens_output", 0)
 
+    def _render_intent_classified(self, data: dict) -> None:
+        """Render intent classification with DAG path (Conversational DAG Architecture)."""
+        path_formatted = data.get("path_formatted", "")
+        confidence = data.get("confidence", 0)
+        requires_approval = data.get("requires_approval", False)
+        tool_scope = data.get("tool_scope")
+
+        # Format path with colors
+        path_parts = data.get("path", [])
+        from sunwell.interface.cli.progress.dag_path import format_dag_path
+        path_text = format_dag_path(path_parts) if path_parts else path_formatted
+
+        self.console.print()
+        self.console.print(f"  [holy.gold]→[/] Intent: ", end="")
+        self.console.print(path_text)
+
+        # Show details if verbose or requires approval
+        if self.config.verbose or requires_approval:
+            self.console.print(f"     [dim]confidence: {confidence:.0%}[/]")
+            if tool_scope:
+                self.console.print(f"     [dim]scope: {tool_scope}[/]")
+            if requires_approval:
+                self.console.print(f"     [void.indigo]⊗ requires approval[/]")
+
+    def _render_node_transition(self, data: dict) -> None:
+        """Render a node transition in the intent DAG."""
+        from_node = data.get("from_node", "?")
+        to_node = data.get("to_node", "?")
+        reason = data.get("reason", "")
+
+        self.console.print(
+            f"  [dim]◇ {from_node} → [/][holy.gold]{to_node}[/]"
+            + (f" [dim]({reason})[/]" if reason else "")
+        )
+
     def _render_signals(self, signals: dict) -> None:
         """Render signal extraction results with Holy Light styling (RFC-131)."""
         self.console.print("\n[holy.radiant]✦ Understanding goal...[/]")
@@ -521,6 +562,14 @@ class RichRenderer:
     def _render_simple(self, event: AgentEvent) -> None:
         """Simple fallback rendering without Rich (RFC-131: character shapes)."""
         match event.type:
+            case EventType.INTENT_CLASSIFIED:
+                path = event.data.get("path_formatted", "")
+                conf = event.data.get("confidence", 0)
+                print(f"→ Intent: {path} ({conf:.0%})")
+            case EventType.NODE_TRANSITION:
+                from_n = event.data.get("from_node", "?")
+                to_n = event.data.get("to_node", "?")
+                print(f"  ◇ {from_n} → {to_n}")
             case EventType.SIGNAL:
                 if event.data.get("signals"):
                     signals = event.data["signals"]

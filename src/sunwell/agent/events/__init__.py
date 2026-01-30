@@ -88,6 +88,14 @@ from sunwell.agent.events.delegation import (
 )
 
 # =============================================================================
+# Intent Events (Conversational DAG Architecture)
+# =============================================================================
+from sunwell.agent.events.intent import (
+    intent_classified_event,
+    node_transition_event,
+)
+
+# =============================================================================
 # Integration Events (RFC-067, RFC-071)
 # =============================================================================
 from sunwell.agent.events.integration import (
@@ -336,4 +344,7 @@ __all__ = [
     # Delegation
     "delegation_started_event",
     "ephemeral_lens_created_event",
+    # Intent
+    "intent_classified_event",
+    "node_transition_event",
 ]

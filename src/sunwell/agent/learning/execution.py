@@ -11,6 +11,9 @@ not created as project artifacts.
 
 Durability: Learnings are appended to a journal BEFORE yielding events,
 ensuring they survive crashes. The journal is the source of truth.
+
+Phase 2.2 (Unified Memory Coordination): After journaling, learnings are
+published to the LearningBus for real-time sharing with in-process agents.
 """
 
 import logging
@@ -19,6 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from sunwell.memory.core.journal import LearningJournal
+from sunwell.memory.core.learning_bus import get_learning_bus
 
 if TYPE_CHECKING:
     from sunwell.agent.core.task_graph import TaskGraph
@@ -117,6 +121,14 @@ async def learn_from_execution(
                     except OSError as e:
                         logger.warning("Failed to append learning to journal: %s", e)
 
+                # Phase 2.2: Publish to LearningBus for in-process sharing
+                # Other agents/subagents subscribed to the bus will receive this
+                try:
+                    bus = get_learning_bus()
+                    bus.publish(learning)
+                except Exception as e:
+                    logger.debug("Failed to publish learning to bus: %s", e)
+
                 yield (learning.fact, learning.category)
                 extracted_count += 1
 
@@ -148,6 +160,13 @@ async def learn_from_execution(
                     journal.append(learning)
                 except OSError as e:
                     logger.warning("Failed to append heuristic to journal: %s", e)
+
+            # Phase 2.2: Publish to LearningBus for in-process sharing
+            try:
+                bus = get_learning_bus()
+                bus.publish(learning)
+            except Exception as e:
+                logger.debug("Failed to publish heuristic to bus: %s", e)
 
             yield (learning.fact, "heuristic")
             extracted_count += 1

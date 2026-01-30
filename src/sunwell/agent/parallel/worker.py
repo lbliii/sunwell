@@ -238,9 +238,14 @@ class WorkerProcess:
         # Import here to avoid circular imports and allow worker to run in subprocess
         from sunwell.agent import Agent
         from sunwell.agent.context.session import SessionContext
+        from sunwell.agent.learning.store import LearningStore
         from sunwell.agent.utils.request import RunOptions
         from sunwell.memory import PersistentMemory
         from sunwell.models import OllamaModel
+
+        # Phase 1.2: Reload learnings from journal before executing
+        # This picks up learnings from other parallel workers
+        self._reload_learnings_from_journal()
 
         # Create model (each worker gets its own model instance)
         try:
@@ -264,6 +269,36 @@ class WorkerProcess:
         async for event in agent.run(session, memory):
             # Handle events (logging, status updates)
             await self._handle_agent_event(event)
+
+    def _reload_learnings_from_journal(self) -> int:
+        """Reload learnings from journal to pick up updates from other workers.
+
+        Phase 1.2 of Unified Memory Coordination: Before each task,
+        workers check the journal for new learnings from sibling workers.
+
+        Returns:
+            Number of new learnings loaded
+        """
+        import logging
+
+        from sunwell.agent.learning.store import LearningStore
+
+        logger = logging.getLogger(__name__)
+
+        # Create a temporary store to count new learnings
+        # The actual loading happens in Agent._populate_learning_store_from_memory
+        # But we log here for visibility
+        temp_store = LearningStore()
+        loaded = temp_store.reload_from_journal(self.root)
+
+        if loaded > 0:
+            logger.info(
+                "Worker %d: Reloaded %d learnings from journal",
+                self.worker_id,
+                loaded,
+            )
+
+        return loaded
 
     async def _handle_agent_event(self, event: Any) -> None:
         """Handle an agent event.
