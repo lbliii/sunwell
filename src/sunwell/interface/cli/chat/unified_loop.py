@@ -58,6 +58,10 @@ async def run_unified_loop(
     )
     from sunwell.agent.events import AgentEvent
     from sunwell.interface.cli.hooks import register_user_hooks, unregister_user_hooks
+    from sunwell.interface.cli.notifications import (
+        Notifier,
+        load_notification_config,
+    )
     from sunwell.knowledge.project import (
         ProjectResolutionError,
         create_project_from_workspace,
@@ -68,6 +72,14 @@ async def run_unified_loop(
 
     # Load user-configurable hooks from .sunwell/hooks.toml
     hook_count = register_user_hooks(workspace)
+
+    # Load notification config from .sunwell/config.toml
+    notification_config = load_notification_config(workspace)
+    notifier = Notifier(config=notification_config)
+    
+    # Set module-level notifier for checkpoint handlers
+    global _notifier
+    _notifier = notifier
     if hook_count > 0:
         logger.info("Loaded %d user hooks from .sunwell/hooks.toml", hook_count)
 
@@ -99,6 +111,10 @@ async def run_unified_loop(
         stream_progress=stream_progress,
     )
 
+    # Set notifier on background manager for completion notifications
+    if hasattr(loop, '_background_manager') and loop._background_manager is not None:
+        loop._background_manager.notifier = notifier
+
     # Start the generator
     gen = loop.run()
     await gen.asend(None)  # Initialize
@@ -121,6 +137,33 @@ async def run_unified_loop(
             if user_input.lower() in ("/quit", "/exit", "/q"):
                 logger.debug("Quit command received")
                 break
+
+            # Handle /tools on|off commands
+            if user_input.lower().startswith("/tools"):
+                parts = user_input.lower().split()
+                if len(parts) >= 2:
+                    if parts[1] == "on":
+                        if loop.tool_executor is None:
+                            # Create tool executor
+                            try:
+                                project = resolve_project(cwd=workspace)
+                            except ProjectResolutionError:
+                                project = create_project_from_workspace(workspace)
+                            policy = ToolPolicy(trust_level=ToolTrust.from_string(trust_level))
+                            loop.tool_executor = ToolExecutor(project=project, policy=policy)
+                            console.print("[green]✓ Tools enabled[/green]")
+                        else:
+                            console.print("[dim]Tools already enabled[/dim]")
+                        continue
+                    elif parts[1] == "off":
+                        if loop.tool_executor is not None:
+                            loop.tool_executor = None
+                            console.print("[yellow]✓ Tools disabled[/yellow]")
+                        else:
+                            console.print("[dim]Tools already disabled[/dim]")
+                        continue
+                console.print("[dim]Usage: /tools on | /tools off[/dim]")
+                continue
 
             # Send input to the loop
             logger.debug("Sending to generator: %r", user_input[:50])
@@ -205,7 +248,9 @@ def _handle_checkpoint(checkpoint: ChatCheckpoint) -> CheckpointResponse | None:
             console.print(f"[dim]Options: {', '.join(checkpoint.options)}[/dim]")
         default = checkpoint.default or "Y"
         choice = console.input(f"[bold]Proceed?[/bold] [{default}] ").strip() or default
-        return CheckpointResponse(choice)
+        resp = CheckpointResponse(choice)
+        logger.debug("CONFIRMATION: choice=%r proceed=%s", choice, resp.proceed)
+        return resp
 
     elif checkpoint.type == ChatCheckpointType.FAILURE:
         console.print(f"[red]✗ {checkpoint.message}[/red]")
@@ -215,6 +260,8 @@ def _handle_checkpoint(checkpoint: ChatCheckpoint) -> CheckpointResponse | None:
             console.print(
                 f"[yellow]Recovery options: {', '.join(checkpoint.recovery_options)}[/yellow]"
             )
+        # Send error notification
+        _send_error_notification(checkpoint.message, checkpoint.error or "")
         default = checkpoint.default or "abort"
         choice = console.input(f"[bold]Action?[/bold] [{default}] ").strip() or default
         if choice.lower() in ("q", "quit", "abort"):
@@ -227,12 +274,16 @@ def _handle_checkpoint(checkpoint: ChatCheckpoint) -> CheckpointResponse | None:
             console.print(f"[dim]{checkpoint.summary}[/dim]")
         if checkpoint.files_changed:
             console.print(f"[dim]Files: {', '.join(checkpoint.files_changed[:5])}[/dim]")
+        # Send completion notification (fire and forget)
+        _send_completion_notification(checkpoint.summary or checkpoint.message)
         return CheckpointResponse("done")
 
     elif checkpoint.type == ChatCheckpointType.INTERRUPTION:
         console.print(f"[yellow]⚡ Paused:[/yellow] {checkpoint.message}")
         if checkpoint.options:
             console.print(f"[dim]Options: {', '.join(checkpoint.options)}[/dim]")
+        # Send waiting notification
+        _send_waiting_notification(checkpoint.message)
         default = checkpoint.default or "continue"
         choice = console.input(f"[bold]Action?[/bold] [{default}] ").strip() or default
         return CheckpointResponse(choice)
@@ -241,6 +292,66 @@ def _handle_checkpoint(checkpoint: ChatCheckpoint) -> CheckpointResponse | None:
         console.print(f"[cyan]? {checkpoint.message}[/cyan]")
         user_input = console.input("[bold]Your response:[/bold] ").strip()
         return CheckpointResponse("respond", additional_input=user_input)
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Adaptive Trust Checkpoints (Next-Level Chat UX)
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    elif checkpoint.type == ChatCheckpointType.TRUST_UPGRADE:
+        console.print(f"\n[cyan]🔓 Trust Upgrade Available[/cyan]")
+        console.print(f"[white]{checkpoint.message}[/white]")
+        if checkpoint.options:
+            console.print(f"[dim]Options: {', '.join(checkpoint.options)}[/dim]")
+        default = checkpoint.default or "no"
+        choice = console.input(f"[bold]Auto-approve?[/bold] [{default}] ").strip() or default
+        return CheckpointResponse(choice)
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Background Task Checkpoints (Next-Level Chat UX)
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    elif checkpoint.type == ChatCheckpointType.BACKGROUND_OFFER:
+        console.print(f"\n[cyan]⏱️ Long-Running Task[/cyan]")
+        console.print(f"[white]{checkpoint.message}[/white]")
+        if checkpoint.estimated_duration_seconds:
+            minutes = checkpoint.estimated_duration_seconds // 60
+            seconds = checkpoint.estimated_duration_seconds % 60
+            if minutes > 0:
+                console.print(f"[dim]Estimated time: {minutes}m {seconds}s[/dim]")
+            else:
+                console.print(f"[dim]Estimated time: {seconds}s[/dim]")
+        if checkpoint.options:
+            console.print(f"[dim]Options: {', '.join(checkpoint.options)}[/dim]")
+        default = checkpoint.default or "wait"
+        choice = console.input(f"[bold]Run in background?[/bold] [{default}] ").strip() or default
+        return CheckpointResponse(choice)
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Ambient Intelligence Checkpoints (Next-Level Chat UX)
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    elif checkpoint.type == ChatCheckpointType.AMBIENT_ALERT:
+        # Color based on severity
+        severity = checkpoint.severity or "info"
+        if severity == "error":
+            color = "red"
+            icon = "🚨"
+        elif severity == "warning":
+            color = "yellow"
+            icon = "⚠️"
+        else:
+            color = "cyan"
+            icon = "💡"
+
+        console.print(f"\n[{color}]{icon} {checkpoint.alert_type or 'Alert'}[/{color}]")
+        console.print(f"[white]{checkpoint.message}[/white]")
+        if checkpoint.suggested_fix:
+            console.print(f"[dim]Suggested fix: {checkpoint.suggested_fix}[/dim]")
+        if checkpoint.options:
+            console.print(f"[dim]Options: {', '.join(checkpoint.options)}[/dim]")
+        default = checkpoint.default or "ignore"
+        choice = console.input(f"[bold]Action?[/bold] [{default}] ").strip() or default
+        return CheckpointResponse(choice)
 
     else:
         # Unknown checkpoint type - default to continue
@@ -323,4 +434,66 @@ def _render_response(response: str, lens=None) -> None:
     console.print(Markdown(response))
     # Flush to ensure terminal is ready for next input
     sys.stdout.flush()
+
+
+# =============================================================================
+# Notification Helpers (Conversational DAG Architecture)
+# =============================================================================
+
+# Module-level notifier (set by run_unified_loop)
+_notifier: "Notifier | None" = None
+
+
+def _send_completion_notification(summary: str) -> None:
+    """Send a completion notification (fire and forget).
+    
+    Args:
+        summary: Completion summary message
+    """
+    import asyncio
+    
+    if _notifier is None:
+        return
+    
+    try:
+        # Fire and forget - don't wait for notification
+        asyncio.create_task(_notifier.send_complete(summary))
+    except Exception:
+        # Notifications should never break the main flow
+        pass
+
+
+def _send_error_notification(message: str, details: str = "") -> None:
+    """Send an error notification (fire and forget).
+    
+    Args:
+        message: Error message
+        details: Additional details
+    """
+    import asyncio
+    
+    if _notifier is None:
+        return
+    
+    try:
+        asyncio.create_task(_notifier.send_error(message, details=details))
+    except Exception:
+        pass
+
+
+def _send_waiting_notification(message: str = "Input needed") -> None:
+    """Send a waiting-for-input notification (fire and forget).
+    
+    Args:
+        message: Waiting message
+    """
+    import asyncio
+    
+    if _notifier is None:
+        return
+    
+    try:
+        asyncio.create_task(_notifier.send_waiting(message))
+    except Exception:
+        pass
     sys.stderr.flush()

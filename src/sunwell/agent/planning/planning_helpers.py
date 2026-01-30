@@ -44,7 +44,7 @@ async def plan_with_signals(
     briefing: Briefing | None,
     budget: AdaptiveBudget,
     simulacrum: Any | None = None,
-) -> AsyncIterator[tuple[AgentEvent, TaskGraph | None, Any]]:
+) -> AsyncIterator[AgentEvent]:
     """Plan using signal-appropriate technique.
 
     Args:
@@ -59,14 +59,10 @@ async def plan_with_signals(
         simulacrum: SimulacrumStore for knowledge retrieval
 
     Yields:
-        Tuples of (event, task_graph, planning_context) where task_graph
-        is set on final yield
+        AgentEvent instances. The PLAN_WINNER event contains task_graph and
+        planning_context in its data dict for consumers to extract.
     """
-    yield (
-        AgentEvent(EventType.PLAN_START, {"technique": signals.planning_route}),
-        None,
-        None,
-    )
+    yield AgentEvent(EventType.PLAN_START, {"technique": signals.planning_route})
 
     # Build context with learnings and lens expertise
     planning_context = dict(context) if context else {}
@@ -85,14 +81,14 @@ async def plan_with_signals(
 
     if signals.planning_route == "HARMONIC":
         logger.debug("[Observatory] Starting harmonic planning (multi-candidate)")
-        async for result in _harmonic_plan(
+        async for event in _harmonic_plan(
             goal, planning_context, model, budget, simulacrum
         ):
-            yield result
+            yield event
     else:
         logger.debug("[Observatory] Starting single-shot planning (simple path)")
-        async for result in _single_shot_plan(goal, planning_context, model):
-            yield result
+        async for event in _single_shot_plan(goal, planning_context, model):
+            yield event
 
 
 async def _harmonic_plan(
@@ -101,7 +97,7 @@ async def _harmonic_plan(
     model: ModelProtocol,
     budget: AdaptiveBudget,
     simulacrum: Any | None = None,
-) -> AsyncIterator[tuple[AgentEvent, TaskGraph | None, Any]]:
+) -> AsyncIterator[AgentEvent]:
     """Plan using Harmonic planning (multiple candidates).
 
     Args:
@@ -112,7 +108,8 @@ async def _harmonic_plan(
         simulacrum: SimulacrumStore for knowledge retrieval
 
     Yields:
-        Tuples of (event, task_graph, planning_context)
+        AgentEvent instances. The PLAN_WINNER event contains task_graph and
+        planning_context in its data dict.
     """
     try:
         from sunwell.planning.naaru.planners.harmonic import HarmonicPlanner
@@ -171,7 +168,7 @@ async def _harmonic_plan(
                 break
             # Skip plan_winner from planner - we emit our own with full details
             if event.type != EventType.PLAN_WINNER:
-                yield (event, None, None)
+                yield event
 
         # Await completion and get tasks
         tasks = await planning_task
@@ -203,31 +200,30 @@ async def _harmonic_plan(
             for g in gates
         ]
 
-        yield (
-            plan_winner_event(
-                tasks=len(tasks),
-                gates=len(gates),
-                technique="harmonic",
-                selected_candidate_id=selected_candidate_id,
-                task_list=task_list,
-                gate_list=gate_list,
-                score=winner_score,
-                metrics=winner_metrics,
-            ),
-            task_graph,
-            last_planning_context,
+        yield plan_winner_event(
+            tasks=len(tasks),
+            gates=len(gates),
+            technique="harmonic",
+            selected_candidate_id=selected_candidate_id,
+            task_list=task_list,
+            gate_list=gate_list,
+            score=winner_score,
+            metrics=winner_metrics,
+            # Event-carried data: consumers extract these from event.data
+            task_graph=task_graph,
+            planning_context=last_planning_context,
         )
 
     except ImportError:
-        async for result in _single_shot_plan(goal, context, model):
-            yield result
+        async for event in _single_shot_plan(goal, context, model):
+            yield event
 
 
 async def _single_shot_plan(
     goal: str,
     context: dict[str, Any],
     model: ModelProtocol,
-) -> AsyncIterator[tuple[AgentEvent, TaskGraph | None, Any]]:
+) -> AsyncIterator[AgentEvent]:
     """Simple single-shot planning.
 
     Args:
@@ -236,7 +232,7 @@ async def _single_shot_plan(
         model: Model for generation
 
     Yields:
-        Tuples of (event, task_graph, planning_context)
+        AgentEvent instances. The PLAN_WINNER event contains task_graph in its data dict.
     """
     try:
         from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
@@ -275,16 +271,14 @@ async def _single_shot_plan(
             for g in gates
         ]
 
-        yield (
-            plan_winner_event(
-                tasks=len(tasks),
-                gates=len(gates),
-                technique="single_shot",
-                task_list=task_list,
-                gate_list=gate_list,
-            ),
-            task_graph,
-            None,
+        yield plan_winner_event(
+            tasks=len(tasks),
+            gates=len(gates),
+            technique="single_shot",
+            task_list=task_list,
+            gate_list=gate_list,
+            # Event-carried data: consumers extract task_graph from event.data
+            task_graph=task_graph,
         )
 
     except ImportError:
@@ -298,22 +292,20 @@ async def _single_shot_plan(
         )
         task_graph = TaskGraph(tasks=[task], gates=[])
 
-        yield (
-            plan_winner_event(
-                tasks=1,
-                gates=0,
-                technique="minimal",
-                task_list=[
-                    {
-                        "id": "main",
-                        "description": goal,
-                        "depends_on": [],
-                        "produces": [],
-                        "category": None,
-                    }
-                ],
-                gate_list=[],
-            ),
-            task_graph,
-            None,
+        yield plan_winner_event(
+            tasks=1,
+            gates=0,
+            technique="minimal",
+            task_list=[
+                {
+                    "id": "main",
+                    "description": goal,
+                    "depends_on": [],
+                    "produces": [],
+                    "category": None,
+                }
+            ],
+            gate_list=[],
+            # Event-carried data: consumers extract task_graph from event.data
+            task_graph=task_graph,
         )

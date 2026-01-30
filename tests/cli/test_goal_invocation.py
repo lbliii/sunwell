@@ -26,11 +26,11 @@ class TestGoalInvocation:
         and the run_goal function signature. The bug that prompted this test
         was open_studio being passed but not accepted.
         """
-        # Mock run_agent to avoid actual execution
+        # Mock run_goal_unified to avoid actual execution
         with patch(
-            "sunwell.interface.cli.commands.goal.run_agent",
+            "sunwell.interface.cli.commands.goal.run_goal_unified",
             new_callable=AsyncMock,
-        ) as mock_run_agent:
+        ):
             result = runner.invoke(main, ["test goal"])
             
             # Should not crash with "unexpected keyword argument"
@@ -38,14 +38,11 @@ class TestGoalInvocation:
             # but we should not get a TypeError from parameter mismatch
             assert "unexpected keyword argument" not in result.output
             assert "got an unexpected keyword argument" not in (result.exception or "")
-            
-            # If it didn't crash, run_agent should have been called
-            # (unless there's some early exit like missing config)
 
     def test_goal_with_plan_flag(self, runner: CliRunner) -> None:
         """Goal with --plan flag works."""
         with patch(
-            "sunwell.interface.cli.commands.goal.run_agent",
+            "sunwell.interface.cli.commands.goal.run_goal_unified",
             new_callable=AsyncMock,
         ):
             result = runner.invoke(main, ["--plan", "test goal"])
@@ -54,7 +51,7 @@ class TestGoalInvocation:
     def test_goal_with_converge_flag(self, runner: CliRunner) -> None:
         """Goal with --converge flag works."""
         with patch(
-            "sunwell.interface.cli.commands.goal.run_agent",
+            "sunwell.interface.cli.commands.goal.run_goal_unified",
             new_callable=AsyncMock,
         ):
             result = runner.invoke(main, ["--converge", "test goal"])
@@ -63,7 +60,7 @@ class TestGoalInvocation:
     def test_goal_with_all_flags(self, runner: CliRunner) -> None:
         """Goal with all optional flags works."""
         with patch(
-            "sunwell.interface.cli.commands.goal.run_agent",
+            "sunwell.interface.cli.commands.goal.run_goal_unified",
             new_callable=AsyncMock,
         ):
             result = runner.invoke(
@@ -141,17 +138,3 @@ class TestRunGoalParameterSignature:
         assert not missing, f"run_goal missing params that main.py passes: {missing}"
 
 
-class TestRunAgentParameterSignature:
-    """Tests to verify run_agent accepts all parameters run_goal passes."""
-
-    def test_run_agent_accepts_converge_params(self) -> None:
-        """run_agent accepts converge parameters."""
-        from sunwell.interface.cli.commands.goal import run_agent
-        
-        import inspect
-        sig = inspect.signature(run_agent)
-        params = list(sig.parameters.keys())
-        
-        assert "converge" in params, "run_agent must accept converge"
-        assert "converge_gates" in params, "run_agent must accept converge_gates"
-        assert "converge_max" in params, "run_agent must accept converge_max"

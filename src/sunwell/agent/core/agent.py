@@ -42,6 +42,7 @@ from sunwell.agent.events import (
     briefing_loaded_event,
     complete_event,
     failure_recorded_event,
+    intent_classified_event,
     lens_selected_event,
     memory_learning_event,
     orient_event,
@@ -384,6 +385,19 @@ class Agent:
             base_context=base_context,
         )
 
+        # ─── PHASE 0.1: INTENT CLASSIFICATION (Conversational DAG Architecture) ───
+        # Classify intent and emit event for UI display
+        from sunwell.agent.intent import classify_intent, format_path, requires_approval
+
+        classification = await classify_intent(session.goal, model=self.model)
+        yield intent_classified_event(
+            path=tuple(n.value for n in classification.path),
+            confidence=classification.confidence,
+            reasoning=classification.reasoning,
+            requires_approval=requires_approval(classification.path),
+            tool_scope=classification.tool_scope.value if classification.tool_scope else None,
+        )
+
         # ─── PHASE 0: PREFETCH (RFC-130) ───
         # Memory-informed prefetch to warm context before main execution
         if session.briefing:
@@ -659,7 +673,7 @@ class Agent:
         # Deferred import to avoid circular dependency
         from sunwell.agent.planning.planning_helpers import plan_with_signals
 
-        async for event, task_graph, planning_context in plan_with_signals(
+        async for event in plan_with_signals(
             goal=goal,
             signals=signals,
             context=context,
@@ -671,10 +685,14 @@ class Agent:
             simulacrum=self.simulacrum,
         ):
             yield event
-            if task_graph is not None:
-                self._task_graph = task_graph
-            if planning_context is not None:
-                self._last_planning_context = planning_context
+            # Extract task_graph and planning_context from PLAN_WINNER event data
+            if event.type == EventType.PLAN_WINNER:
+                task_graph = event.data.get("task_graph")
+                if task_graph is not None:
+                    self._task_graph = task_graph
+                planning_context = event.data.get("planning_context")
+                if planning_context is not None:
+                    self._last_planning_context = planning_context
 
     async def _execute_with_gates(self, options: RunOptions) -> AsyncIterator[AgentEvent]:
         """Execute tasks with validation gates and inference visibility.

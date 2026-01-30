@@ -289,6 +289,150 @@ def unset(key: str, path: str, global_config: bool) -> None:
 
 
 @config.command()
+@click.option("--binding", "-b", help="Show effective config for a specific binding")
+def effective(binding: str | None) -> None:
+    """Show effective configuration with sources.
+
+    Displays where each setting comes from (code default, config file,
+    binding, or CLI override). This helps debug configuration issues.
+
+    Examples:
+        sunwell config effective              # Show global effective config
+        sunwell config effective -b coder     # Show config for 'coder' binding
+    """
+    from sunwell.foundation.binding import BindingManager
+    from sunwell.foundation.types.config import ModelConfig
+
+    cfg = get_config()
+    
+    # Code defaults for comparison
+    code_defaults = ModelConfig()
+    
+    console.print(Panel("[bold]Effective Configuration[/bold]", border_style="cyan"))
+    
+    # Priority explanation
+    console.print("\n[dim]Priority (highest to lowest):[/dim]")
+    console.print("  [cyan]1.[/cyan] CLI flags (--model, --provider)")
+    console.print("  [cyan]2.[/cyan] Binding file (~/.sunwell/bindings/)")
+    console.print("  [cyan]3.[/cyan] Config file (~/.sunwell/config.toml or .yaml)")
+    console.print("  [cyan]4.[/cyan] Code defaults")
+    
+    console.print("\n[cyan]Model Settings[/cyan]")
+    
+    # Determine sources for each setting
+    def get_source(value: str, config_value: str, code_default: str) -> str:
+        """Determine where a value came from."""
+        if value != config_value and value != code_default:
+            return "[yellow]binding[/yellow]"
+        elif config_value != code_default:
+            return "[green]config[/green]"
+        else:
+            return "[dim]default[/dim]"
+    
+    # If binding specified, load it
+    if binding:
+        manager = BindingManager()
+        b = manager.get(binding)
+        if b:
+            console.print(f"\n  [bold]Binding:[/bold] {b.name}")
+            console.print(f"  [bold]File:[/bold] ~/.sunwell/bindings/global/{b.name}.json")
+            console.print()
+            
+            # Show binding values with sources
+            source = "[yellow]binding[/yellow]"
+            console.print(f"  provider: {b.provider:<20} [{source}]")
+            console.print(f"  model: {b.model:<23} [{source}]")
+            console.print(f"  tools_enabled: {str(b.tools_enabled):<13} [{source}]")
+            console.print(f"  trust_level: {b.trust_level:<15} [{source}]")
+            
+            if b.lens_path:
+                console.print(f"  lens_path: {b.lens_path}")
+        else:
+            console.print(f"\n  [red]✗[/red] Binding not found: {binding}")
+            console.print("  [dim]Available bindings:[/dim]")
+            for b in manager.list_all():
+                console.print(f"    - {b.name}")
+            return
+    else:
+        # Check if config file explicitly sets these values
+        import yaml
+        config_has_provider = False
+        config_has_model = False
+        
+        for config_file in [
+            Path(".sunwell/config.yaml"),
+            Path.home() / ".sunwell" / "config.yaml",
+        ]:
+            if config_file.exists():
+                try:
+                    with config_file.open() as f:
+                        raw_config = yaml.safe_load(f) or {}
+                    model_section = raw_config.get("model", {})
+                    if "default_provider" in model_section:
+                        config_has_provider = True
+                    if "default_model" in model_section:
+                        config_has_model = True
+                except Exception:
+                    pass
+        
+        # Determine sources - show [config] if explicitly set, even if matches default
+        if config_has_provider:
+            provider_source = "[green]config[/green]"
+        elif cfg.model.default_provider != code_defaults.default_provider:
+            provider_source = "[green]config[/green]"
+        else:
+            provider_source = "[dim]default[/dim]"
+            
+        if config_has_model:
+            model_source = "[green]config[/green]"
+        elif cfg.model.default_model != code_defaults.default_model:
+            model_source = "[green]config[/green]"
+        else:
+            model_source = "[dim]default[/dim]"
+        
+        console.print(f"  default_provider: {cfg.model.default_provider:<15} [{provider_source}]")
+        console.print(f"  default_model: {cfg.model.default_model:<18} [{model_source}]")
+    
+    # Config file locations
+    console.print("\n[cyan]Config Files[/cyan]")
+    
+    # Check for config files
+    toml_global = Path.home() / ".sunwell" / "config.toml"
+    yaml_global = Path.home() / ".sunwell" / "config.yaml"
+    toml_local = Path(".sunwell/config.toml")
+    yaml_local = Path(".sunwell/config.yaml")
+    
+    files_found = []
+    if toml_local.exists():
+        files_found.append(("local", str(toml_local)))
+        console.print(f"  [green]✓[/green] {toml_local} (project)")
+    if yaml_local.exists():
+        files_found.append(("local", str(yaml_local)))
+        console.print(f"  [green]✓[/green] {yaml_local} (project)")
+    if toml_global.exists():
+        files_found.append(("global", str(toml_global)))
+        console.print(f"  [green]✓[/green] {toml_global} (user)")
+    if yaml_global.exists():
+        files_found.append(("global", str(yaml_global)))
+        console.print(f"  [green]✓[/green] {yaml_global} (user)")
+    
+    if not files_found:
+        console.print("  [dim]○[/dim] No config files found (using code defaults)")
+        console.print("  [dim]  Run: sunwell config init --global[/dim]")
+    
+    # Bindings summary
+    console.print("\n[cyan]Bindings[/cyan]")
+    bindings_dir = Path.home() / ".sunwell" / "bindings" / "global"
+    if bindings_dir.exists():
+        binding_files = list(bindings_dir.glob("*.json"))
+        console.print(f"  Found: {len(binding_files)} bindings in ~/.sunwell/bindings/global/")
+        if binding_files and not binding:
+            console.print("  [dim]Run: sunwell config effective -b <name> to see binding details[/dim]")
+    else:
+        console.print("  [dim]○[/dim] No bindings directory")
+
+
+@config.command()
 @click.option(
     "--path",
     type=click.Path(),

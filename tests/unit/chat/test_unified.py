@@ -7,13 +7,15 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from pathlib import Path
 
-from sunwell.agent.chat.checkpoint import (
+from sunwell.agent.chat import (
     ChatCheckpoint,
     ChatCheckpointType,
     CheckpointResponse,
+    IntentClassification,
+    IntentNode,
+    LoopState,
+    UnifiedChatLoop,
 )
-from sunwell.agent.chat.intent import Intent, IntentClassification
-from sunwell.agent.chat.unified import LoopState, UnifiedChatLoop
 
 
 class TestLoopState:
@@ -200,111 +202,23 @@ class TestUnifiedChatLoopInit:
         assert loop._cancel_requested is True
 
 
-class TestUnifiedChatLoopRouting:
-    """Tests for intent-based routing in the unified loop."""
-
-    @pytest.fixture
-    def mock_model(self) -> MagicMock:
-        """Create a mock model."""
-        async def mock_stream(*args, **kwargs):
-            for chunk in ["Test ", "response"]:
-                yield chunk
-
-        model = MagicMock()
-        model.generate = AsyncMock(return_value=MagicMock(text="Test response"))
-        model.generate_stream = mock_stream
-        return model
-
-    @pytest.mark.asyncio
-    async def test_conversation_routing(self, mock_model: MagicMock) -> None:
-        """Conversation input returns string response."""
-        # Mock the intent router to return CONVERSATION
-        with patch("sunwell.agent.chat.unified.IntentRouter") as MockRouter:
-            mock_router = MagicMock()
-            mock_router.classify = AsyncMock(return_value=IntentClassification(
-                intent=Intent.CONVERSATION,
-                confidence=0.9,
-            ))
-            MockRouter.return_value = mock_router
-
-            loop = UnifiedChatLoop(
-                model=mock_model,
-                tool_executor=None,
-                workspace=Path("/tmp/test"),
-            )
-
-            # Manually set up the loop state
-            loop._state = LoopState.IDLE
-            loop.intent_router = mock_router
-
-            # Test that _generate_response is called for conversation
-            # (Full loop test requires more setup, so we test the component)
-            result = await loop._generate_response("What is Python?")
-            assert isinstance(result, str)
-
-    @pytest.mark.asyncio
-    async def test_command_detection(self, mock_model: MagicMock) -> None:
-        """Commands are detected by router."""
-        router = loop = UnifiedChatLoop(
-            model=mock_model,
-            tool_executor=None,
-            workspace=Path("/tmp/test"),
-        )
-        # Direct router test
-        result = await loop.intent_router.classify("/quit")
-        assert result.intent == Intent.COMMAND
-
-
-class TestSystemPrompt:
-    """Tests for system prompt generation."""
-
-    def test_system_prompt_includes_workspace(self) -> None:
-        """System prompt includes workspace path."""
-        model = MagicMock()
-        loop = UnifiedChatLoop(
-            model=model,
-            tool_executor=None,
-            workspace=Path("/my/project"),
-        )
-        prompt = loop._system_prompt
-        assert "/my/project" in prompt
-
-    def test_system_prompt_describes_capabilities(self) -> None:
-        """System prompt describes both chat and agent capabilities."""
-        model = MagicMock()
-        loop = UnifiedChatLoop(
-            model=model,
-            tool_executor=None,
-            workspace=Path("/tmp/test"),
-        )
-        prompt = loop._system_prompt
-        assert "conversation" in prompt.lower() or "questions" in prompt.lower()
-        assert "task" in prompt.lower() or "execute" in prompt.lower()
-
-
 class TestPlanFormatting:
     """Tests for plan summary formatting."""
 
-    @pytest.fixture
-    def loop(self) -> UnifiedChatLoop:
-        """Create loop for testing."""
-        model = MagicMock()
-        return UnifiedChatLoop(
-            model=model,
-            tool_executor=None,
-            workspace=Path("/tmp/test"),
-        )
-
-    def test_format_plan_with_counts_only(self, loop: UnifiedChatLoop) -> None:
+    def test_format_plan_with_counts_only(self) -> None:
         """Format plan when only counts are provided."""
+        from sunwell.agent.chat.execution import format_plan_summary
+
         plan_data = {"tasks": 5, "gates": 2}
-        result = loop._format_plan_summary(plan_data)
+        result = format_plan_summary(plan_data)
         assert "5 tasks" in result
         assert "2 validation gates" in result
         assert "Proceed?" in result
 
-    def test_format_plan_with_task_list(self, loop: UnifiedChatLoop) -> None:
+    def test_format_plan_with_task_list(self) -> None:
         """Format plan with detailed task list."""
+        from sunwell.agent.chat.execution import format_plan_summary
+
         plan_data = {
             "tasks": 3,
             "gates": 1,
@@ -314,27 +228,31 @@ class TestPlanFormatting:
                 {"description": "Write tests"},
             ],
         }
-        result = loop._format_plan_summary(plan_data)
+        result = format_plan_summary(plan_data)
         assert "Create user model" in result
         assert "Add authentication endpoint" in result
         assert "Write tests" in result
 
-    def test_format_plan_truncates_long_list(self, loop: UnifiedChatLoop) -> None:
+    def test_format_plan_truncates_long_list(self) -> None:
         """Only first 10 tasks shown, with '... and N more'."""
+        from sunwell.agent.chat.execution import format_plan_summary
+
         plan_data = {
             "tasks": 15,
             "gates": 0,
             "task_list": [{"description": f"Task {i}"} for i in range(15)],
         }
-        result = loop._format_plan_summary(plan_data)
+        result = format_plan_summary(plan_data)
         assert "Task 9" in result  # 10th task (0-indexed)
         assert "Task 10" not in result  # 11th task hidden
         assert "... and 5 more" in result
 
-    def test_format_plan_empty(self, loop: UnifiedChatLoop) -> None:
+    def test_format_plan_empty(self) -> None:
         """Empty plan still shows structure."""
+        from sunwell.agent.chat.execution import format_plan_summary
+
         plan_data = {"tasks": 0, "gates": 0}
-        result = loop._format_plan_summary(plan_data)
+        result = format_plan_summary(plan_data)
         assert "0 tasks" in result
         assert "Proceed?" in result
 

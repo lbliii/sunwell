@@ -1,47 +1,22 @@
 """Goal execution command for CLI.
 
-Unified entry point for goal execution (RFC-MEMORY, RFC-131, RFC-135).
+Single-shot goal execution that delegates to UnifiedChatLoop.
+This is essentially an alias for a single-turn conversation.
 
-This module provides:
-- run_goal: CLI command for goal execution
-- run_agent: Core execution logic with intent routing
-
-Intent routing (RFC-135):
-- CONVERSATION intents (questions) → SmartContext for direct answer
-- TASK intents (actions) → Full agent planning + execution
+The goal command now goes through the same path as `sunwell chat`,
+ensuring all UI features (intent classification, progress display,
+notifications) work consistently.
 """
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import click
 
-if TYPE_CHECKING:
-    from sunwell.models import ModelProtocol
-
-from sunwell.agent import (
-    AdaptiveBudget,
-    Agent,
-    EventType,
-    RunOptions,
-    create_renderer,
-)
-from sunwell.agent.intent import IntentNode, classify_intent, format_path
-from sunwell.agent.context.session import SessionContext
-from sunwell.agent.convergence import ConvergenceConfig
-from sunwell.agent.validation.gates import GateType
-from sunwell.foundation.config import get_config
-from sunwell.foundation.utils import safe_json_dumps
 from sunwell.interface.cli.core.async_runner import async_command
 from sunwell.interface.cli.core.theme import console, print_banner
 from sunwell.interface.cli.helpers import resolve_model
-from sunwell.interface.cli.helpers.events import print_event, print_plan_details
 from sunwell.interface.cli.helpers.project import extract_project_name
 from sunwell.interface.cli.workspace_prompt import resolve_workspace_interactive
-from sunwell.knowledge.project import ProjectResolutionError, resolve_project
-from sunwell.memory import PersistentMemory
-from sunwell.tools.core.types import ToolPolicy, ToolTrust
-from sunwell.tools.execution import ToolExecutor
 
 
 @click.command(name="_run", hidden=True)
@@ -77,98 +52,64 @@ async def run_goal(
     converge_gates: str,
     converge_max: int,
 ) -> None:
-    """Internal command for goal execution (RFC-MEMORY)."""
+    """Execute a goal (single-turn through unified loop)."""
     workspace_path = Path(workspace) if workspace else None
-    # RFC-MEMORY: Single unified execution path
-    # Note: open_studio is only used with --plan in main.py, not needed here
-    await run_agent(
-        goal, time, trust, dry_run, verbose, provider, model, workspace_path,
+    
+    await run_goal_unified(
+        goal=goal,
+        workspace_path=workspace_path,
+        trust_level=trust,
+        provider_override=provider,
+        model_override=model,
+        verbose=verbose,
+        dry_run=dry_run,
         json_output=json_output,
-        converge=converge,
-        converge_gates=converge_gates,
-        converge_max=converge_max,
     )
 
 
-async def _answer_conversation(
-    question: str,
-    workspace: Path,
-    model: ModelProtocol,
-    verbose: bool,
-) -> str | None:
-    """Answer a conversation/question using shared answer_question (RFC-135).
-
-    Delegates to the shared knowledge/answering module which uses
-    SmartContext for semantic code search.
-
-    Args:
-        question: The user's question
-        workspace: Workspace path for code search
-        model: Model for answer generation
-        verbose: Show verbose output
-
-    Returns:
-        The answer, or None if search failed and we should fallback to planning.
-    """
-    from sunwell.knowledge import answer_question_simple
-
-    try:
-        return await answer_question_simple(question, workspace, model)
-    except Exception as e:
-        if verbose:
-            console.print(f"  [neutral.dim]· Search failed: {e}, falling back to planning[/]")
-        return None
-
-
-async def run_agent(
+async def run_goal_unified(
     goal: str,
-    time: int,
-    trust: str,
-    dry_run: bool,
-    verbose: bool,
-    provider_override: str | None,
-    model_override: str | None,
     workspace_path: Path | None = None,
-    *,
+    trust_level: str = "workspace",
+    provider_override: str | None = None,
+    model_override: str | None = None,
+    verbose: bool = False,
+    dry_run: bool = False,
     json_output: bool = False,
-    converge: bool = False,
-    converge_gates: str = "lint,type",
-    converge_max: int = 5,
 ) -> None:
-    """Execute goal with Agent (RFC-MEMORY, RFC-131).
-
-    This is THE unified entry point using:
-    - SessionContext: All session state in one object
-    - PersistentMemory: Unified access to all memory stores
-    - Agent.run(session, memory): Memory flows through, not around
-
-    The Agent automatically:
-    - Orients using persistent memory (decisions, failures, patterns)
-    - Extracts signals to select techniques
-    - Uses Harmonic planning with memory constraints
-    - Validates at gates with fail-fast
-    - Auto-fixes errors with Compound Eye
-    - Persists learnings via PersistentMemory
-
+    """Execute a goal through the unified chat loop (single turn).
+    
+    This is the main entry point for goal execution. It delegates to
+    UnifiedChatLoop with auto_confirm=True for a single-turn execution.
+    
     Args:
         goal: The goal to execute
-        time: Max execution time in seconds
-        trust: Trust level (read_only, workspace, shell)
-        dry_run: If True, only plan without executing
-        verbose: Show verbose output
+        workspace_path: Explicit workspace path
+        trust_level: Trust level (read_only, workspace, shell)
         provider_override: Override provider selection
         model_override: Override model selection
-        workspace_path: Explicit workspace path
-        json_output: Output as JSON
-        converge: Enable convergence loops (RFC-123)
-        converge_gates: Comma-separated gate names (lint,type,test)
-        converge_max: Maximum convergence iterations
+        verbose: Show verbose output
+        dry_run: If True, only plan without executing
+        json_output: Output as JSON (uses JSONRenderer)
     """
-    # RFC-131: Show Holy Light banner (except in JSON mode)
+    from sunwell.agent.chat import ChatCheckpoint, ChatCheckpointType, UnifiedChatLoop
+    from sunwell.agent.events import AgentEvent
+    from sunwell.foundation.config import get_config
+    from sunwell.interface.cli.hooks import register_user_hooks
+    from sunwell.interface.cli.notifications import Notifier, load_notification_config
+    from sunwell.knowledge.project import (
+        ProjectResolutionError,
+        create_project_from_workspace,
+        resolve_project,
+    )
+    from sunwell.tools.core.types import ToolPolicy, ToolTrust
+    from sunwell.tools.execution import ToolExecutor
+
+    # Show banner (except in JSON mode)
     if not json_output:
         print_banner(console, version="0.3.0", small=True)
 
-    # Load config (currently unused but needed for future config access)
+    # Load config
     _ = get_config()
 
     # Resolve workspace
@@ -179,52 +120,21 @@ async def run_agent(
         quiet=not verbose,
     )
 
+    # Load user hooks
+    hook_count = register_user_hooks(workspace)
+    if hook_count > 0 and verbose:
+        console.print(f"  [dim]Loaded {hook_count} user hooks[/]")
+
+    # Load notification config
+    notification_config = load_notification_config(workspace)
+    notifier = Notifier(config=notification_config)
+
     # Create model
-    synthesis_model = None
     try:
         synthesis_model = resolve_model(provider_override, model_override)
     except Exception as e:
-        # RFC-131: Holy Light error styling
         console.print(f"  [void.purple]✗[/] [sunwell.error]Failed to load model:[/] {e}")
         return
-
-    # RFC-135: Unified intent routing using DAG classification
-    # UNDERSTAND branch (CLARIFY, EXPLAIN) → SmartContext for direct answer
-    # ACT branch → Full agent planning + execution
-    if not dry_run:
-        classification = await classify_intent(
-            goal,
-            model=synthesis_model,
-        )
-
-        # UNDERSTAND branch = conversational (no tools needed)
-        is_conversation = classification.branch == IntentNode.UNDERSTAND
-
-        if is_conversation:
-            if verbose:
-                console.print(
-                    f"  [neutral.dim]· Intent: {format_path(classification.path)} "
-                    f"({classification.confidence:.0%} confidence)[/]"
-                )
-
-            answer = await _answer_conversation(goal, workspace, synthesis_model, verbose)
-            if answer:
-                if json_output:
-                    import json as json_module
-                    click.echo(json_module.dumps({"type": "answer", "data": {"text": answer}}))
-                else:
-                    from rich.markdown import Markdown
-                    console.print()
-                    console.print(Markdown(answer))
-                return
-            # If search failed, fall through to full planning
-            if verbose:
-                console.print("  [neutral.dim]· Search insufficient, falling back to planning...[/]")
-        elif verbose:
-            console.print(
-                f"  [neutral.dim]· Intent: {format_path(classification.path)} "
-                f"({classification.confidence:.0%} confidence)[/]"
-            )
 
     # Create tool executor
     trust_map = {
@@ -232,102 +142,281 @@ async def run_agent(
         "workspace": ToolTrust.WORKSPACE,
         "shell": ToolTrust.SHELL,
     }
-    trust_level = trust_map.get(trust, ToolTrust.WORKSPACE)
-    policy = ToolPolicy(trust_level=trust_level)
+    tool_trust = trust_map.get(trust_level, ToolTrust.WORKSPACE)
+    policy = ToolPolicy(trust_level=tool_trust)
 
-    # Resolve project from workspace
     try:
         project = resolve_project(project_root=workspace)
-    except ProjectResolutionError as e:
-        console.print(f"  [void.purple]✗[/] [sunwell.error]Failed to resolve project:[/] {e}")
-        return
+    except ProjectResolutionError:
+        project = create_project_from_workspace(workspace)
 
     tool_executor = ToolExecutor(project=project, policy=policy)
 
-    # Create agent
-    agent = Agent(
+    # Create unified loop with auto_confirm for single-shot execution
+    loop = UnifiedChatLoop(
         model=synthesis_model,
         tool_executor=tool_executor,
-        cwd=workspace,
-        budget=AdaptiveBudget(total_budget=50_000),
+        workspace=workspace,
+        trust_level=trust_level,
+        auto_confirm=True,  # No checkpoints for single-shot
+        stream_progress=True,
     )
 
-    # RFC-MEMORY: Build SessionContext and load PersistentMemory
-    # RFC-123: Build convergence config if enabled
-    convergence_config = None
-    if converge:
-        gate_map = {"lint": GateType.LINT, "type": GateType.TYPE, "test": GateType.TEST}
-        enabled = frozenset(
-            gate_map[g.strip().lower()]
-            for g in converge_gates.split(",")
-            if g.strip().lower() in gate_map
-        )
-        convergence_config = ConvergenceConfig(
-            max_iterations=converge_max,
-            enabled_gates=enabled or frozenset({GateType.LINT, GateType.TYPE}),
-        )
-
-    options = RunOptions(
-        trust=trust,
-        timeout_seconds=time,
-        converge=converge,
-        convergence_config=convergence_config,
-    )
-    session = SessionContext.build(workspace, goal, options)
-    memory = PersistentMemory.load(workspace)
-
-    # RFC-131: Holy Light styled verbose output
-    if verbose:
-        console.print(f"  [neutral.dim]· Session: {session.session_id}[/]")
-        fw = session.framework or "no framework"
-        console.print(f"  [neutral.dim]· Project: {session.project_type} ({fw})[/]")
-        learn = memory.learning_count
-        dec = memory.decision_count
-        fail = memory.failure_count
-        console.print(f"  [neutral.dim]· Memory: {learn}L / {dec}D / {fail}F[/]")
-        console.print()
-
-    # Dry run: just plan
-    if dry_run:
-        if not json_output:
-            # RFC-131: Holy Light styled dry run message
-            console.print("  [void.indigo]◇[/] [sunwell.warning]Dry run mode — planning only[/]\n")
-
-        plan_data: dict[str, str | int | list[dict[str, str | list[str]]]] | None = None
-        async for event in agent.plan(session, memory):
-            if event.type == EventType.PLAN_WINNER:
-                plan_data = event.data
-            elif event.type == EventType.ERROR and not json_output:
-                print_event(event, verbose)
-
-        if plan_data:
-            if json_output:
-                click.echo(safe_json_dumps(plan_data, indent=2))
-                return
-            print_plan_details(plan_data, verbose, goal)
+    # Create renderer based on output mode
+    from sunwell.agent import create_renderer
+    renderer_mode = "json" if json_output else "interactive"
+    
+    # For JSON output, use JSONRenderer directly
+    if json_output:
+        from sunwell.agent.utils.renderer import JSONRenderer
+        
+        async def run_json():
+            gen = loop.run()
+            await gen.asend(None)  # Initialize
+            result = await gen.asend(goal)
+            
+            # Process all results
+            while result is not None:
+                if isinstance(result, AgentEvent):
+                    import json
+                    print(json.dumps(result.to_dict()))
+                    result = await gen.asend(None)
+                elif isinstance(result, ChatCheckpoint):
+                    # Auto-confirm checkpoints
+                    from sunwell.agent.chat import CheckpointResponse
+                    result = await gen.asend(CheckpointResponse("y"))
+                elif isinstance(result, str):
+                    import json
+                    print(json.dumps({"type": "response", "data": {"text": result}}))
+                    result = None
+                else:
+                    result = None
+        
+        try:
+            await run_json()
+        except KeyboardInterrupt:
+            print('{"type": "error", "data": {"message": "Interrupted by user"}}')
         return
 
-    # Create renderer
-    renderer_mode = "json" if json_output else "interactive"
-    renderer = create_renderer(mode=renderer_mode, verbose=verbose)
-
-    # RFC-MEMORY: Full execution with new architecture
+    # Interactive mode - use RichRenderer for events
+    from rich.markdown import Markdown
+    
     try:
-        await renderer.render(agent.run(session, memory))
-
+        gen = loop.run()
+        await gen.asend(None)  # Initialize
+        result = await gen.asend(goal)
+        
+        # Process results until completion
+        while result is not None:
+            if isinstance(result, str):
+                # Conversational response (for UNDERSTAND intents)
+                console.print()
+                console.print(Markdown(result))
+                # Send completion notification
+                await notifier.send_complete("Response generated")
+                result = None
+                
+            elif isinstance(result, ChatCheckpoint):
+                # Handle checkpoint (should auto-confirm, but handle display)
+                if result.type == ChatCheckpointType.COMPLETION:
+                    # Show completion summary
+                    console.print(f"\n[green]★ {result.message}[/green]")
+                    if result.summary:
+                        console.print(f"[dim]{result.summary}[/dim]")
+                    if result.files_changed:
+                        console.print(f"[dim]Files: {', '.join(result.files_changed[:5])}[/dim]")
+                    await notifier.send_complete(result.summary or result.message)
+                    result = None
+                elif result.type == ChatCheckpointType.FAILURE:
+                    console.print(f"\n[red]✗ {result.message}[/red]")
+                    if result.error:
+                        console.print(f"[dim]{result.error}[/dim]")
+                    await notifier.send_error(result.message, details=result.error or "")
+                    result = None
+                else:
+                    # Auto-confirm other checkpoints
+                    from sunwell.agent.chat import CheckpointResponse
+                    result = await gen.asend(CheckpointResponse("y"))
+                    
+            elif isinstance(result, AgentEvent):
+                # Render event using the event helpers
+                _render_event(result, verbose)
+                result = await gen.asend(None)
+            else:
+                result = None
+                
     except KeyboardInterrupt:
-        if json_output:
-            print('{"type": "error", "data": {"message": "Interrupted by user"}}')
-        else:
-            # RFC-131: Holy Light styled interrupt
-            console.print("\n  [neutral.dim]◈ Paused by user[/]")
+        console.print("\n  [neutral.dim]◈ Paused by user[/]")
     except Exception as e:
-        if json_output:
-            import json as json_module
-            print(json_module.dumps({"type": "error", "data": {"message": str(e)}}))
-        else:
-            # RFC-131: Holy Light error styling
-            console.print(f"\n  [void.purple]✗[/] [sunwell.error]Error:[/] {e}")
-            if verbose:
-                import traceback
-                console.print(f"[neutral.dim]{traceback.format_exc()}[/]")
+        console.print(f"\n  [void.purple]✗[/] [sunwell.error]Error:[/] {e}")
+        if verbose:
+            import traceback
+            console.print(f"[neutral.dim]{traceback.format_exc()}[/]")
+
+
+def _render_event(event: AgentEvent, verbose: bool = False) -> None:
+    """Render an AgentEvent to the console.
+    
+    Uses the same rendering logic as the unified loop but optimized
+    for single-shot execution (no Live display needed).
+    """
+    from sunwell.agent.events import EventType
+    from sunwell.interface.cli.progress.dag_path import format_dag_path
+    
+    match event.type:
+        # Intent classification (Conversational DAG Architecture)
+        case EventType.INTENT_CLASSIFIED:
+            path_parts = event.data.get("path", [])
+            confidence = event.data.get("confidence", 0)
+            requires_approval = event.data.get("requires_approval", False)
+            tool_scope = event.data.get("tool_scope")
+            
+            path_text = format_dag_path(path_parts) if path_parts else event.data.get("path_formatted", "")
+            
+            console.print()
+            console.print(f"  [holy.gold]→[/] Intent: {path_text}")
+            
+            if verbose or requires_approval:
+                console.print(f"     [dim]confidence: {confidence:.0%}[/]")
+                if tool_scope:
+                    console.print(f"     [dim]scope: {tool_scope}[/]")
+                if requires_approval:
+                    console.print(f"     [void.indigo]⊗ requires approval[/]")
+        
+        case EventType.NODE_TRANSITION:
+            from_node = event.data.get("from_node", "?")
+            to_node = event.data.get("to_node", "?")
+            reason = event.data.get("reason", "")
+            console.print(
+                f"  [dim]◇ {from_node} → [/][holy.gold]{to_node}[/]"
+                + (f" [dim]({reason})[/]" if reason else "")
+            )
+        
+        # Signal extraction
+        case EventType.SIGNAL:
+            if event.data.get("status") == "extracting":
+                console.print("[holy.radiant]✦[/] Understanding goal...", end="\r")
+            elif event.data.get("signals"):
+                signals = event.data["signals"]
+                console.print()
+                console.print("[holy.radiant]✦[/] Understanding goal...")
+                console.print(f"   [holy.gold]├─[/] complexity: {signals.get('complexity', '?')}")
+                console.print(f"   [holy.gold]├─[/] needs_tools: {signals.get('needs_tools', '?')}")
+                conf = signals.get("effective_confidence", 0)
+                console.print(f"   [holy.gold]├─[/] confidence: {conf:.0%}")
+                console.print(f"   [holy.gold]└─[/] route: {signals.get('planning_route', '?')}")
+        
+        # Planning
+        case EventType.PLAN_START:
+            technique = event.data.get("technique", "unknown")
+            console.print(f"[holy.radiant]✦[/] Illuminating ({technique})...")
+        
+        case EventType.PLAN_CANDIDATE_GENERATED:
+            prog = event.data.get("progress", 1)
+            total = event.data.get("total_candidates", 5)
+            style = event.data.get("variance_config", {}).get("prompt_style", "?")
+            artifacts = event.data.get("artifact_count", 0)
+            console.print(f"   [holy.gold]✧[/] [{prog}/{total}] {style}: {artifacts} artifacts")
+        
+        case EventType.PLAN_WINNER:
+            tasks = event.data.get("tasks", 0)
+            gates = event.data.get("gates", 0)
+            technique = event.data.get("technique", "unknown")
+            selected = event.data.get("selected_candidate_id", "?")
+            score = event.data.get("score", 0)
+            console.print(f"   [holy.success]★[/] Selected: {selected} (score: {score:.1f})")
+            console.print(f"\n[holy.success]★[/] [sunwell.heading]Plan ready[/] ({technique})")
+            console.print(f"   [holy.gold]├─[/] {tasks} tasks")
+            console.print(f"   [holy.gold]└─[/] {gates} validation gates")
+        
+        # Task execution
+        case EventType.TASK_START:
+            task_id = event.data.get("task_id", "task")
+            console.print(f"[cyan]→[/] {task_id}")
+        
+        case EventType.TASK_COMPLETE:
+            duration_ms = event.data.get("duration_ms", 0)
+            console.print(f"[green]✓[/] Done ({duration_ms}ms)")
+        
+        # Model inference
+        case EventType.MODEL_COMPLETE:
+            total = event.data.get("total_tokens", 0)
+            duration = event.data.get("duration_s", 0)
+            tps = event.data.get("tokens_per_second", 0)
+            ttft = event.data.get("time_to_first_token_ms")
+            ttft_str = f", TTFT: {ttft}ms" if ttft else ""
+            console.print(
+                f"   [holy.success]✓[/] Generated {total} tokens "
+                f"in {duration:.1f}s ({tps:.1f} tok/s{ttft_str})"
+            )
+        
+        # Learning
+        case EventType.MEMORY_LEARNING:
+            fact = event.data.get("fact", "")
+            console.print(f"   [holy.gold.dim]≡[/] Learned: {fact[:50]}...")
+        
+        # Gates
+        case EventType.GATE_START:
+            gate_id = event.data.get("gate_id", "gate")
+            console.print(f"\n  [holy.gold]{'═' * 54}[/]")
+            console.print(f"  [sunwell.phase]GATE: {gate_id}[/]")
+            console.print(f"  [holy.gold]{'═' * 54}[/]")
+        
+        case EventType.GATE_STEP:
+            step = event.data.get("step", "?")
+            passed = event.data.get("passed", False)
+            icon = "✧" if passed else "✗"
+            color = "holy.success" if passed else "void.purple"
+            console.print(f"    ├─ {step.ljust(12)} [{color}]{icon}[/]")
+        
+        case EventType.GATE_PASS:
+            duration = event.data.get("duration_ms", 0)
+            console.print(f"    └─ [holy.success]✧ PASSED[/] ({duration}ms)")
+        
+        case EventType.GATE_FAIL:
+            failed_step = event.data.get("failed_step", "unknown")
+            console.print(f"    └─ [void.purple]✗ FAILED[/] at {failed_step}")
+        
+        # Fixing
+        case EventType.FIX_START:
+            console.print("\n  [void.indigo]⚙[/] Auto-fixing...")
+        
+        case EventType.FIX_PROGRESS:
+            stage = event.data.get("stage", "?")
+            detail = event.data.get("detail", "")
+            console.print(f"   [holy.gold]├─[/] {stage}: {detail}")
+        
+        case EventType.FIX_COMPLETE:
+            console.print("   └─ [holy.success]✓[/] Fix applied")
+        
+        # Escalation
+        case EventType.ESCALATE:
+            reason = event.data.get("reason", "unknown")
+            message = event.data.get("message", "")
+            console.print("\n  [void.indigo]△[/] [sunwell.warning]Escalating to user[/]")
+            console.print(f"    Reason: {reason}")
+            if message:
+                console.print(f"    {message}")
+        
+        # Completion
+        case EventType.COMPLETE:
+            tasks = event.data.get("tasks_completed", 0)
+            duration = event.data.get("duration_s", 0)
+            learnings = event.data.get("learnings", 0)
+            
+            console.print()
+            console.print(f"┌{'─' * 53}┐")
+            console.print(f"│  [holy.success]★ Complete[/]{'':44}│")
+            console.print(f"└{'─' * 53}┘")
+            console.print()
+            console.print(f"  [holy.radiant]✦[/] {tasks} tasks completed in {duration:.1f}s")
+            if learnings > 0:
+                console.print(f"  [holy.gold.dim]≡[/] Extracted {learnings} learnings")
+            console.print()
+            console.print("  [holy.radiant]✦✧✦[/] Goal achieved")
+            console.print()
+        
+        # Errors
+        case EventType.ERROR:
+            message = event.data.get("message", "Unknown error")
+            console.print(f"\n  [void.purple]✗[/] [sunwell.error]Error:[/] {message}")

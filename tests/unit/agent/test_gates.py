@@ -35,6 +35,7 @@ class TestGateType:
             "TEST",
             "COMMAND",
             "SEMANTIC",
+            "CONTRACT",
         }
 
         actual = {gt.name for gt in GateType}

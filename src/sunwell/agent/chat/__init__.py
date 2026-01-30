@@ -25,7 +25,8 @@ from sunwell.agent.chat.checkpoint import (
     ChatCheckpointType,
     CheckpointResponse,
 )
-from sunwell.agent.chat.unified import LoopState, UnifiedChatLoop
+from sunwell.agent.chat.state import LoopState
+from sunwell.agent.chat.unified import UnifiedChatLoop
 from sunwell.agent.intent import (
     DAGClassifier,
     IntentClassification,

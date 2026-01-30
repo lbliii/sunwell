@@ -153,6 +153,9 @@ class ToolExecutor:
                 self.sandbox,
             )
 
+        # Set up file event callback for HookEvent emission (Conversational DAG Architecture)
+        self._core_handlers.set_file_event_callback(self._emit_file_change_hook)
+
         # Initialize rate limits from policy
         if self.policy and self.policy.rate_limits:
             self._rate_limits = self.policy.rate_limits
@@ -194,6 +197,54 @@ class ToolExecutor:
             has_custom = True
 
         return frozenset(patterns) if has_custom else None
+
+    def _emit_file_change_hook(
+        self,
+        event_type: str,
+        path: str,
+        content: str,
+        lines_added: int,
+        lines_removed: int,
+    ) -> None:
+        """Emit file change hooks for the Conversational DAG Architecture.
+
+        Called by FileHandlers when files are created, modified, or deleted.
+        Emits appropriate HookEvent for user-defined hooks.
+
+        Args:
+            event_type: "file_created", "file_modified", or "file_deleted"
+            path: File path relative to workspace
+            content: New file content (empty for deletes)
+            lines_added: Lines added
+            lines_removed: Lines removed
+        """
+        from sunwell.agent.hooks import HookEvent, emit_hook_sync
+
+        # Map file handler events to HookEvent types
+        if event_type == "file_created":
+            emit_hook_sync(
+                HookEvent.FILE_CHANGE_APPROVED,
+                file_path=path,
+                change_type="create",
+                lines_added=lines_added,
+                lines_removed=lines_removed,
+            )
+        elif event_type == "file_modified":
+            emit_hook_sync(
+                HookEvent.FILE_CHANGE_APPROVED,
+                file_path=path,
+                change_type="modify",
+                lines_added=lines_added,
+                lines_removed=lines_removed,
+            )
+        elif event_type == "file_deleted":
+            emit_hook_sync(
+                HookEvent.FILE_CHANGE_APPROVED,
+                file_path=path,
+                change_type="delete",
+                lines_added=0,
+                lines_removed=lines_removed,
+            )
 
     def _register_core_tools(self) -> None:
         """Register built-in tools filtered by policy."""

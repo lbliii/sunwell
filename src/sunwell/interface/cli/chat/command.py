@@ -137,12 +137,16 @@ def chat(
     # Build system prompt from lens
     system_prompt = lens.to_context()
 
+    # Use CLI flag if provided, otherwise respect binding's setting
+    # Binding defaults to tools_enabled=True (manager.py:98)
+    final_tools_enabled = tools if tools is not None else tools_enabled
+
     # Display session info
-    _display_session_info(lens, provider, model, session, tools_enabled, trust_level)
+    _display_session_info(lens, provider, model, session, final_tools_enabled, trust_level)
 
     # Import and run chat loop
     from sunwell.interface.cli.chat.loop import chat_loop
-
+    
     asyncio.run(
         chat_loop(
             dag=dag,
@@ -151,7 +155,7 @@ def chat(
             initial_model=llm,
             initial_model_name=f"{provider}:{model}",
             system_prompt=system_prompt,
-            tools_enabled=tools_enabled or False,
+            tools_enabled=final_tools_enabled,
             trust_level=trust_level or "workspace",
             smart=smart,
             lens=lens,

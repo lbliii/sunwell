@@ -334,39 +334,6 @@ def main(
         )
 
 
-@main.command(name="_run", hidden=True)
-@click.argument("goal")
-@click.option("--dry-run", is_flag=True)
-@click.option("--json-output", is_flag=True)
-@click.option("--provider", "-p", default=None)
-@click.option("--model", "-m", default=None)
-@click.option("--verbose", "-v", is_flag=True)
-@click.option("--time", "-t", default=300)
-@click.option("--trust", default="workspace")
-@click.option("--workspace", "-w", default=None)
-@async_command
-async def _run_goal(
-    goal: str,
-    dry_run: bool,
-    json_output: bool,
-    provider: str | None,
-    model: str | None,
-    verbose: bool,
-    time: int,
-    trust: str,
-    workspace: str | None,
-) -> None:
-    """Internal command for goal execution (RFC-MEMORY)."""
-    from sunwell.interface.cli.commands.goal import run_agent
-
-    workspace_path = Path(workspace) if workspace else None
-    # RFC-MEMORY: Single unified execution path - use modular version
-    await run_agent(
-        goal, time, trust, dry_run, verbose, provider, model, workspace_path,
-        json_output=json_output,
-    )
-
-
 # =============================================================================
 # RFC-109: COMMAND REGISTRATION (Tiered Visibility)
 # =============================================================================

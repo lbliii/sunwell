@@ -10,6 +10,9 @@ Types:
     - FAILURE: Gate failed, error occurred (recovery options)
     - COMPLETION: Task or goal complete (summary)
     - INTERRUPTION: User typed during execution (pause handling)
+    - TRUST_UPGRADE: Offer to auto-approve certain operations (adaptive trust)
+    - BACKGROUND_OFFER: Offer to run long task in background
+    - AMBIENT_ALERT: Proactive alert about detected issue
 """
 
 from dataclasses import dataclass, field
@@ -39,6 +42,27 @@ class ChatCheckpointType(Enum):
 
     INTERRUPTION = "interruption"
     """User typed during execution, pause for handling."""
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Adaptive Trust (Next-Level Chat UX)
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    TRUST_UPGRADE = "trust_upgrade"
+    """Offer to auto-approve operations after consistent approval pattern."""
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Background Tasks (Next-Level Chat UX)
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    BACKGROUND_OFFER = "background_offer"
+    """Offer to run long-running task in background with notifications."""
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Ambient Intelligence (Next-Level Chat UX)
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    AMBIENT_ALERT = "ambient_alert"
+    """Proactive alert about detected issue during execution."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,6 +113,36 @@ class ChatCheckpoint:
     # Link to internal agent checkpoint (for resume support)
     agent_checkpoint_id: str | None = None
     """ID linking to internal AgentCheckpoint for recovery."""
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # TRUST_UPGRADE checkpoint fields
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    intent_path: tuple[str, ...] = ()
+    """Intent DAG path for trust upgrade (e.g., ("ACT", "WRITE", "CREATE"))."""
+
+    approval_count: int = 0
+    """Number of approvals that triggered the upgrade suggestion."""
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # BACKGROUND_OFFER checkpoint fields
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    estimated_duration_seconds: int | None = None
+    """Estimated task duration in seconds for background offer."""
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # AMBIENT_ALERT checkpoint fields
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    alert_type: str | None = None
+    """Type of ambient alert (security, optimization, drift, etc.)."""
+
+    severity: str | None = None
+    """Alert severity (info, warning, error)."""
+
+    suggested_fix: str | None = None
+    """Suggested fix for the detected issue."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,3 +198,55 @@ class CheckpointResponse:
     def autofix(self) -> bool:
         """True if user wants to attempt auto-fix."""
         return self.choice.lower() in ("a", "auto", "auto-fix", "autofix", "fix")
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # TRUST_UPGRADE response properties
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    @property
+    def enable_auto_approve(self) -> bool:
+        """True if user wants to enable auto-approve for this path."""
+        return self.choice.lower() in ("y", "yes", "enable", "auto", "always")
+
+    @property
+    def decline_auto_approve(self) -> bool:
+        """True if user declines auto-approve (keep asking)."""
+        return self.choice.lower() in ("n", "no", "decline", "keep", "ask")
+
+    @property
+    def never_suggest(self) -> bool:
+        """True if user never wants this suggestion again."""
+        return self.choice.lower() in ("never", "stop", "disable")
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # BACKGROUND_OFFER response properties
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    @property
+    def run_background(self) -> bool:
+        """True if user wants to run task in background."""
+        return self.choice.lower() in ("b", "background", "bg", "async")
+
+    @property
+    def wait_foreground(self) -> bool:
+        """True if user wants to wait for task in foreground."""
+        return self.choice.lower() in ("w", "wait", "foreground", "fg")
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # AMBIENT_ALERT response properties
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    @property
+    def fix_alert(self) -> bool:
+        """True if user wants to fix the detected issue."""
+        return self.choice.lower() in ("f", "fix", "resolve")
+
+    @property
+    def ignore_alert(self) -> bool:
+        """True if user wants to ignore this specific alert."""
+        return self.choice.lower() in ("i", "ignore", "skip")
+
+    @property
+    def suppress_alert_type(self) -> bool:
+        """True if user wants to suppress this type of alert."""
+        return self.choice.lower() in ("s", "suppress", "mute", "hide")

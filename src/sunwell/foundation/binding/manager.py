@@ -95,7 +95,7 @@ class Binding:
     """Auto-index workspace for code context."""
 
     # Tool settings (RFC-012)
-    tools_enabled: bool = False
+    tools_enabled: bool = True
     """Enable tool calling (read/write files, run commands)."""
 
     trust_level: str = "workspace"

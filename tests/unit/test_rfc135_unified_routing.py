@@ -1,105 +1,20 @@
-"""Unit tests for RFC-135 Unified Chat-Agent Routing.
+"""Unit tests for RFC-135 Artifact Validation.
 
 Tests for:
-- Intent classification (CONVERSATION vs TASK)
 - Artifact validation (meta-artifacts, boundary checks)
 - Schema-based validation
+
+Note: Intent classification tests moved to tests/unit/agent/intent/test_dag.py
 """
 
 import pytest
 
-from sunwell.agent.chat.intent import (
-    Intent,
-    IntentClassification,
-    IntentRouter,
-    classify_input,
-)
 from sunwell.planning.naaru.artifacts import ArtifactSpec
 from sunwell.planning.naaru.planners.artifact.parsing import (
     validate_artifact,
     validate_artifact_path,
     _is_meta_artifact,
 )
-
-
-# =============================================================================
-# Intent Classification Tests
-# =============================================================================
-
-
-class TestIntentRouter:
-    """Tests for intent classification."""
-
-    @pytest.fixture
-    def router(self):
-        """Create router without model (heuristics only)."""
-        return IntentRouter(model=None, threshold=0.7)
-
-    @pytest.mark.asyncio
-    async def test_question_is_conversation(self, router):
-        """Questions should be classified as CONVERSATION."""
-        result = await router.classify("Where is flask used?")
-        assert result.intent == Intent.CONVERSATION
-        assert result.confidence > 0.5
-
-    @pytest.mark.asyncio
-    async def test_what_question_is_conversation(self, router):
-        """'What' questions should be CONVERSATION."""
-        result = await router.classify("What does this function do?")
-        assert result.intent == Intent.CONVERSATION
-
-    @pytest.mark.asyncio
-    async def test_how_question_is_conversation(self, router):
-        """'How' questions should be CONVERSATION."""
-        result = await router.classify("How does the auth system work?")
-        assert result.intent == Intent.CONVERSATION
-
-    @pytest.mark.asyncio
-    async def test_imperative_is_task(self, router):
-        """Imperative sentences should be TASK."""
-        result = await router.classify("Add user authentication")
-        assert result.intent == Intent.TASK
-        # Heuristic-only classification may have lower confidence
-        assert result.confidence >= 0.5
-
-    @pytest.mark.asyncio
-    async def test_create_is_task(self, router):
-        """'Create' commands should be TASK."""
-        result = await router.classify("Create a new API endpoint for users")
-        assert result.intent == Intent.TASK
-
-    @pytest.mark.asyncio
-    async def test_fix_is_task(self, router):
-        """'Fix' commands should be TASK."""
-        result = await router.classify("Fix the login bug")
-        assert result.intent == Intent.TASK
-
-    @pytest.mark.asyncio
-    async def test_command_prefix(self, router):
-        """Commands with / prefix should be COMMAND."""
-        result = await router.classify("/help")
-        assert result.intent == Intent.COMMAND
-        assert result.confidence == 1.0
-
-    @pytest.mark.asyncio
-    async def test_shortcut_prefix(self, router):
-        """Commands with :: prefix should be COMMAND."""
-        result = await router.classify("::plan")
-        assert result.intent == Intent.COMMAND
-        assert result.confidence == 1.0
-
-
-class TestClassifyInput:
-    """Tests for the classify_input convenience function."""
-
-    @pytest.mark.asyncio
-    async def test_classify_without_model(self):
-        """classify_input works without model."""
-        result = await classify_input(
-            "Where is the config file?",
-            model=None,
-        )
-        assert result.intent == Intent.CONVERSATION
 
 
 # =============================================================================
