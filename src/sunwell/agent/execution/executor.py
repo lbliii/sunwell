@@ -144,7 +144,7 @@ async def execute_task_streaming_fallback(
     inference_metrics: InferenceMetrics,
     workspace_context: str | None = None,
     token_batch_size: int = 10,
-) -> AsyncIterator[tuple[AgentEvent, str | None]]:
+) -> AsyncIterator[AgentEvent]:
     """Execute task via text streaming (fallback path).
 
     This is the original streaming implementation used when tool-based
@@ -160,7 +160,8 @@ async def execute_task_streaming_fallback(
         token_batch_size: Batch size for token events
 
     Yields:
-        Tuples of (event, result_text) where result_text is set on final yield
+        AgentEvent instances. The final MODEL_COMPLETE event contains result_text
+        in its data dict for consumers to extract.
     """
     from sunwell.models import GenerateOptions
 
@@ -198,14 +199,11 @@ Respond directly and helpfully:"""
     model_id = getattr(model, "model_id", "unknown")
     estimated_time = inference_metrics.estimate_time(model_id, prompt_tokens, expected_output=500)
 
-    yield (
-        model_start_event(
-            task_id=task.id,
-            model=model_id,
-            prompt_tokens=prompt_tokens,
-            estimated_time_s=estimated_time,
-        ),
-        None,
+    yield model_start_event(
+        task_id=task.id,
+        model=model_id,
+        prompt_tokens=prompt_tokens,
+        estimated_time_s=estimated_time,
     )
 
     start_time = time()
@@ -232,27 +230,21 @@ Respond directly and helpfully:"""
 
             thinking_blocks = thinking_detector.feed(chunk)
             for block in thinking_blocks:
-                yield (
-                    model_thinking_event(
-                        task_id=task.id,
-                        phase=block.phase,
-                        content=block.content,
-                        is_complete=block.is_complete,
-                    ),
-                    None,
+                yield model_thinking_event(
+                    task_id=task.id,
+                    phase=block.phase,
+                    content=block.content,
+                    is_complete=block.is_complete,
                 )
 
             elapsed = time() - start_time
             if token_count % token_batch_size == 0:
                 tps = token_count / elapsed if elapsed > 0 else None
-                yield (
-                    model_tokens_event(
-                        task_id=task.id,
-                        tokens="".join(token_buffer[-token_batch_size:]),
-                        token_count=token_count,
-                        tokens_per_second=tps,
-                    ),
-                    None,
+                yield model_tokens_event(
+                    task_id=task.id,
+                    tokens="".join(token_buffer[-token_batch_size:]),
+                    token_count=token_count,
+                    tokens_per_second=tps,
                 )
     else:
         # Fallback for models without streaming support
@@ -276,18 +268,17 @@ Respond directly and helpfully:"""
         ttft_ms=ttft_ms,
     )
 
-    yield (
-        model_complete_event(
-            task_id=task.id,
-            total_tokens=token_count,
-            duration_s=duration,
-            tokens_per_second=tps,
-            time_to_first_token_ms=ttft_ms,
-            model=model_id,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=token_count,
-        ),
-        "".join(token_buffer),
+    yield model_complete_event(
+        task_id=task.id,
+        total_tokens=token_count,
+        duration_s=duration,
+        tokens_per_second=tps,
+        time_to_first_token_ms=ttft_ms,
+        model=model_id,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=token_count,
+        # Event-carried data: consumers extract result_text from event.data
+        result_text="".join(token_buffer),
     )
 
 
@@ -455,7 +446,7 @@ async def execute_task_with_tools(
     smart_model: ModelProtocol | None,
     delegation_model: ModelProtocol | None,
     auto_lens: bool = True,
-) -> AsyncIterator[tuple[AgentEvent, str | None, Any]]:
+) -> AsyncIterator[AgentEvent]:
     """Execute task via AgentLoop with native tool calling (preferred path).
 
     Enhancements over basic tool calling:
@@ -483,7 +474,8 @@ async def execute_task_with_tools(
         auto_lens: Whether auto-lens selection is enabled
 
     Yields:
-        Tuples of (event, result_text, tracker) where result_text is set on completion
+        AgentEvent instances. Final events (TASK_COMPLETE, TOOL_COMPLETE with self_corrected,
+        VALIDATE_ERROR) contain result_text and tracker in their data dict.
     """
     from sunwell.agent.core import AgentLoop
     from sunwell.agent.core.task_graph import sanitize_code_content
@@ -495,13 +487,9 @@ async def execute_task_with_tools(
     # === LENS ROTATION: Select best lens for this specific task ===
     task_lens = await select_lens_for_task(task, cwd, auto_lens)
     if task_lens and task_lens != lens:
-        yield (
-            lens_selected_event(
-                name=task_lens.metadata.name,
-                source="task_rotation",
-            ),
-            None,
-            None,
+        yield lens_selected_event(
+            name=task_lens.metadata.name,
+            source="task_rotation",
         )
 
     # === BUILD CONTEXT: Learnings + Task Memory + Lens ===
@@ -636,7 +624,7 @@ async def execute_task_with_tools(
         system_prompt=system_prompt,
         context=context_block,
     ):
-        yield (event, None, None)
+        yield event
 
         # Track ALL tool invocations via the tracker
         if event.type.value == "tool_complete":
@@ -716,20 +704,19 @@ async def execute_task_with_tools(
                     self_corrected=True,
                 )
 
-                # Emit self-correction event
-                yield (
-                    AgentEvent(
-                        type=EventType.TOOL_COMPLETE,
-                        data={
-                            "tool_name": "write_file",
-                            "success": True,
-                            "output": f"Self-corrected: wrote {task.target_path}",
-                            "self_corrected": True,
-                            "invocation_summary": tracker.summary(),
-                        },
-                    ),
-                    result_text,
-                    tracker,
+                # Emit self-correction event with result_text and tracker in data
+                yield AgentEvent(
+                    type=EventType.TOOL_COMPLETE,
+                    data={
+                        "tool_name": "write_file",
+                        "success": True,
+                        "output": f"Self-corrected: wrote {task.target_path}",
+                        "self_corrected": True,
+                        "invocation_summary": tracker.summary(),
+                        # Event-carried data for consumers
+                        "result_text": result_text,
+                        "tracker": tracker,
+                    },
                 )
                 return
             else:
@@ -739,18 +726,16 @@ async def execute_task_with_tools(
                     task.id,
                     task.target_path,
                 )
-                yield (
-                    AgentEvent(
-                        type=EventType.VALIDATE_ERROR,
-                        data={
-                            "message": f"Expected file {task.target_path} was not created",
-                            "task_id": task.id,
-                            "step": "file_creation",
-                            "invocation_summary": tracker.summary(),
-                        },
-                    ),
-                    None,
-                    tracker,
+                yield AgentEvent(
+                    type=EventType.VALIDATE_ERROR,
+                    data={
+                        "message": f"Expected file {task.target_path} was not created",
+                        "task_id": task.id,
+                        "step": "file_creation",
+                        "invocation_summary": tracker.summary(),
+                        # Event-carried data for consumers
+                        "tracker": tracker,
+                    },
                 )
                 # Raise to trigger fallback
                 raise RuntimeError(
@@ -766,18 +751,17 @@ async def execute_task_with_tools(
         ttft_ms=None,
     )
 
-    # Final yield with task completion event (not None)
-    yield (
-        AgentEvent(
-            type=EventType.TASK_COMPLETE,
-            data={
-                "task_id": task.id,
-                "duration_s": duration,
-                "invocation_summary": tracker.summary(),
-            },
-        ),
-        result_text,
-        tracker,
+    # Final yield with task completion event - includes result_text and tracker in data
+    yield AgentEvent(
+        type=EventType.TASK_COMPLETE,
+        data={
+            "task_id": task.id,
+            "duration_s": duration,
+            "invocation_summary": tracker.summary(),
+            # Event-carried data for consumers
+            "result_text": result_text,
+            "tracker": tracker,
+        },
     )
 
 

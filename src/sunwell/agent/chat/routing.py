@@ -133,6 +133,19 @@ async def route_dag_classification(
 ) -> AsyncIterator[tuple[LoopState, str | ChatCheckpoint | AgentEvent | None]]:
     """Route based on DAG classification path.
 
+    ⚠️ BIDIRECTIONAL GENERATOR: This generator expects responses via asend().
+    Do NOT consume with ``async for`` - it will break checkpoint responses.
+    Use manual iteration instead::
+
+        route_gen = route_dag_classification(...)
+        try:
+            result = await route_gen.asend(None)
+            while True:
+                response = yield result  # forward to caller
+                result = await route_gen.asend(response)
+        except StopAsyncIteration:
+            pass
+
     Maps DAG paths to actions:
     - UNDERSTAND branch → Conversation (no tools)
     - ANALYZE branch → Read-only tools
@@ -152,7 +165,7 @@ async def route_dag_classification(
         conversation_history: Conversation history
         auto_confirm: Whether to skip confirmations
         generate_response_fn: Function to generate conversation response
-        execute_goal_fn: Function to execute a goal
+        execute_goal_fn: Function to execute a goal (must also be iterated manually)
         workspace: Workspace path for trust storage (optional)
         approval_tracker: ApprovalTracker instance for recording decisions (optional)
         auto_approve_config: AutoApproveConfig for checking auto-approve rules (optional)

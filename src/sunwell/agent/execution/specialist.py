@@ -33,7 +33,7 @@ async def execute_via_specialist(
     context_snapshot: dict[str, Any],
     specialist_count: int,
     files_changed_tracker: list[str],
-) -> AsyncIterator[tuple[AgentEvent, str | None]]:
+) -> AsyncIterator[AgentEvent]:
     """Execute task by delegating to a spawned specialist.
 
     Args:
@@ -46,7 +46,8 @@ async def execute_via_specialist(
         files_changed_tracker: List to append file changes to
 
     Yields:
-        Tuples of (event, specialist_id) where specialist_id is set on spawn
+        AgentEvent instances. The SPECIALIST_SPAWNED event contains specialist_id
+        in its data dict for consumers to extract.
     """
     from sunwell.agent.execution import determine_specialist_role
 
@@ -76,32 +77,26 @@ async def execute_via_specialist(
     # Spawn specialist
     specialist_id = await naaru.spawn_specialist(spawn_request, context_snapshot)
 
-    # Emit spawn event
-    yield (
-        specialist_spawned_event(
-            specialist_id=specialist_id,
-            task_id=task.id,
-            parent_id="agent-main",
-            role=role,
-            focus=task.description,
-            budget_tokens=spawn_request.budget_tokens,
-        ),
-        specialist_id,
+    # Emit spawn event (specialist_id already in event data via specialist_spawned_event)
+    yield specialist_spawned_event(
+        specialist_id=specialist_id,
+        task_id=task.id,
+        parent_id="agent-main",
+        role=role,
+        focus=task.description,
+        budget_tokens=spawn_request.budget_tokens,
     )
 
     # Wait for specialist to complete
     result = await naaru.wait_specialist(specialist_id)
 
     # Emit completion event
-    yield (
-        specialist_completed_event(
-            specialist_id=specialist_id,
-            success=result.success,
-            summary=result.summary,
-            tokens_used=result.tokens_used,
-            duration_seconds=result.duration_seconds,
-        ),
-        None,
+    yield specialist_completed_event(
+        specialist_id=specialist_id,
+        success=result.success,
+        summary=result.summary,
+        tokens_used=result.tokens_used,
+        duration_seconds=result.duration_seconds,
     )
 
     # If specialist produced output and task has target, write it

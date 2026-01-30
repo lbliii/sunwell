@@ -15,11 +15,98 @@ Modes:
 
 import json
 import sys
-from collections.abc import AsyncIterator
-from dataclasses import dataclass
+from collections.abc import AsyncIterator, Callable
+from dataclasses import dataclass, field
 from typing import Protocol, TextIO
 
 from sunwell.agent.events import AgentEvent, EventType
+
+
+# =============================================================================
+# Event Formatting (Shared Between Renderers)
+# =============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class EventFormat:
+    """Defines how to format an event for display.
+
+    Used by both Rich and simple renderers to avoid duplicating format logic.
+    """
+
+    icon: str
+    """Unicode icon/symbol for the event."""
+
+    template: str
+    """Format template using {data_key} placeholders from event.data."""
+
+    rich_style: str = "holy.gold"
+    """Rich markup style for the icon (Rich renderer only)."""
+
+    line_end: str = "\n"
+    """Line ending: '\\n' for newline, '\\r' for overwrite."""
+
+    condition: str | None = None
+    """Optional data key that must be truthy for event to render."""
+
+
+def _format_event_simple(event: AgentEvent, fmt: EventFormat) -> str | None:
+    """Format an event for simple (non-Rich) output.
+
+    Args:
+        event: The event to format
+        fmt: Format specification
+
+    Returns:
+        Formatted string or None if condition not met
+    """
+    # Check condition if specified
+    if fmt.condition and not event.data.get(fmt.condition):
+        return None
+
+    try:
+        text = fmt.template.format(**event.data)
+        return f"{fmt.icon} {text}"
+    except KeyError:
+        # Missing data key - skip this event
+        return None
+
+
+# Simple event formats - used by _render_simple() for straightforward events
+_SIMPLE_EVENT_FORMATS: dict[EventType, EventFormat] = {
+    EventType.TASK_START: EventFormat(
+        icon="✧",
+        template="Task: {task_id}",
+    ),
+    EventType.TASK_COMPLETE: EventFormat(
+        icon="✓",
+        template="Done ({duration_ms}ms)",
+    ),
+    EventType.GATE_PASS: EventFormat(
+        icon="✧",
+        template="Gate passed: {gate_id}",
+    ),
+    EventType.GATE_FAIL: EventFormat(
+        icon="✗",
+        template="Gate failed: {gate_id}",
+    ),
+    EventType.FIX_START: EventFormat(
+        icon="⚙",
+        template="Auto-fixing...",
+    ),
+    EventType.FIX_COMPLETE: EventFormat(
+        icon="✓",
+        template="Fix applied",
+    ),
+    EventType.ERROR: EventFormat(
+        icon="✗",
+        template="Error: {message}",
+    ),
+    EventType.ESCALATE: EventFormat(
+        icon="△",
+        template="Escalating: {reason}",
+    ),
+}
 
 
 class Renderer(Protocol):
@@ -560,7 +647,20 @@ class RichRenderer:
         self.console.print(f"\n  [void.purple]✗[/] [sunwell.error]Error:[/] {message}")
 
     def _render_simple(self, event: AgentEvent) -> None:
-        """Simple fallback rendering without Rich (RFC-131: character shapes)."""
+        """Simple fallback rendering without Rich (RFC-131: character shapes).
+
+        Uses _SIMPLE_EVENT_FORMATS for straightforward events, with custom
+        handlers for events needing complex logic.
+        """
+        # Try simple format first
+        fmt = _SIMPLE_EVENT_FORMATS.get(event.type)
+        if fmt:
+            text = _format_event_simple(event, fmt)
+            if text:
+                print(text)
+            return
+
+        # Custom handlers for complex events
         match event.type:
             case EventType.INTENT_CLASSIFIED:
                 path = event.data.get("path_formatted", "")
@@ -598,20 +698,12 @@ class RichRenderer:
                 gates = event.data.get('gates', 0)
                 technique = event.data.get('technique', 'unknown')
                 print(f"★ Plan ready ({technique}): {tasks} tasks, {gates} gates")
-            case EventType.TASK_START:
-                print(f"✧ Task: {event.data.get('task_id', 'task')}")
-            case EventType.TASK_COMPLETE:
-                print(f"  ✓ Done ({event.data.get('duration_ms', 0)}ms)")
             case EventType.TOOL_COMPLETE:
                 # Show self-corrections prominently
                 if event.data.get('self_corrected'):
                     tool = event.data.get('tool_name', 'tool')
                     output = event.data.get('output', '')
                     print(f"  ⚡ Self-corrected: {tool} - {output[:50]}")
-            case EventType.GATE_PASS:
-                print(f"✧ Gate passed: {event.data.get('gate_id', 'gate')}")
-            case EventType.GATE_FAIL:
-                print(f"✗ Gate failed: {event.data.get('gate_id', 'gate')}")
             # RFC-081, RFC-131: Inference visibility with character shapes
             case EventType.MODEL_START:
                 model = event.data.get('model', 'model')
@@ -633,10 +725,6 @@ class RichRenderer:
                 duration = event.data.get('duration_s', 0)
                 tps = event.data.get('tokens_per_second', 0)
                 print(f"  ✓ {total} tokens in {duration:.1f}s ({tps:.1f} tok/s)")
-            case EventType.FIX_START:
-                print("⚙ Auto-fixing...")
-            case EventType.FIX_COMPLETE:
-                print("  ✓ Fix applied")
             case EventType.MEMORY_LEARNING:
                 fact = event.data.get('fact', '')
                 print(f"  ≡ Learned: {fact[:50]}...")
@@ -658,11 +746,6 @@ class RichRenderer:
                     if total_tokens > 0:
                         print(f"  └─ Tokens: {total_tokens:,} (in: {self._tokens_input:,}, out: {self._tokens_output:,})")
                 print("✦✧✦ Goal achieved")
-            case EventType.ERROR:
-                print(f"✗ Error: {event.data.get('message', 'Unknown')}")
-            case EventType.ESCALATE:
-                reason = event.data.get('reason', 'unknown')
-                print(f"△ Escalating: {reason}")
 
 
 # =============================================================================

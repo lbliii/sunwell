@@ -194,7 +194,12 @@ class UnifiedChatLoop:
         self,
         goal: str,
     ) -> AsyncIterator[str | ChatCheckpoint | AgentEvent]:
-        """Execute a goal with checkpoints and optional progress streaming."""
+        """Execute a goal with checkpoints and optional progress streaming.
+
+        ⚠️ BIDIRECTIONAL GENERATOR: This generator expects responses via asend().
+        Do NOT consume with ``async for`` - it will break checkpoint responses.
+        Use manual iteration to forward responses to the inner GoalExecutor.
+        """
         from sunwell.agent.context.session import SessionContext
 
         if self.tool_executor is None:
@@ -302,6 +307,9 @@ class UnifiedChatLoop:
         self,
     ) -> AsyncIterator[str | ChatCheckpoint | AgentEvent]:
         """Main loop - yields responses, checkpoints, and optionally progress events.
+
+        ⚠️ BIDIRECTIONAL GENERATOR: This generator expects responses via asend().
+        Do NOT consume with ``async for`` - it will break checkpoint responses.
 
         This is an async generator. Initialize with asend(None), then send user
         input via asend(user_input). The generator yields:

@@ -789,7 +789,8 @@ class Agent:
                         if tid in artifacts
                     ]
 
-                    async for event in self._validate_gate(gate, gate_artifacts):
+                    # Inline validate_gate (was _validate_gate wrapper)
+                    async for event in validate_gate(gate, gate_artifacts, self.cwd):
                         yield event
 
                         # Track passed gates for completion metrics
@@ -882,7 +883,7 @@ class Agent:
 
         Delegates to execution.execute_task_with_tools for the actual implementation.
         """
-        async for event, result_text, tracker in execute_task_with_tools(
+        async for event in execute_task_with_tools(
             task=task,
             model=self.model,
             tool_executor=self.tool_executor,
@@ -899,12 +900,14 @@ class Agent:
             delegation_model=self.delegation_model,
             auto_lens=self.auto_lens,
         ):
-            if event is not None:
-                yield event
+            yield event
+            # Extract result_text and tracker from event data (event-carried pattern)
+            result_text = event.data.get("result_text")
             if result_text is not None:
                 self._last_task_result = result_text
                 if task.target_path:
                     self._files_changed_this_run.append(task.target_path)
+            tracker = event.data.get("tracker")
             if tracker is not None:
                 self._invocation_tracker = tracker
 
@@ -914,7 +917,7 @@ class Agent:
 
     async def _execute_task_streaming_fallback(self, task: Task) -> AsyncIterator[AgentEvent]:
         """Fallback: Execute task via text streaming (original implementation)."""
-        async for event, result_text in execute_task_streaming_fallback(
+        async for event in execute_task_streaming_fallback(
             task=task,
             model=self.model,
             cwd=self.cwd,
@@ -924,17 +927,10 @@ class Agent:
             token_batch_size=self.token_batch_size,
         ):
             yield event
+            # Extract result_text from event data (event-carried pattern)
+            result_text = event.data.get("result_text")
             if result_text is not None:
                 self._last_task_result = result_text
-
-    async def _validate_gate(
-        self,
-        gate: ValidationGate,
-        artifacts: list[Artifact],
-    ) -> AsyncIterator[AgentEvent]:
-        """Validate at a gate."""
-        async for event in validate_gate(gate, artifacts, self.cwd):
-            yield event
 
     async def _attempt_fix(
         self,
@@ -979,7 +975,7 @@ class Agent:
         """
         context = self._get_context_snapshot()
 
-        async for event, specialist_id in execute_via_specialist(
+        async for event in execute_via_specialist(
             task=task,
             naaru=self._naaru,
             lens=self.lens,
@@ -989,7 +985,9 @@ class Agent:
             files_changed_tracker=self._files_changed_this_run,
         ):
             yield event
-            if specialist_id is not None:
+            # Extract specialist_id from event data (event-carried pattern)
+            specialist_id = event.data.get("specialist_id")
+            if specialist_id is not None and event.type == EventType.SPECIALIST_SPAWNED:
                 self._spawned_specialist_ids.append(specialist_id)
                 self._specialist_count += 1
 

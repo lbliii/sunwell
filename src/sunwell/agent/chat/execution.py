@@ -173,6 +173,19 @@ class GoalExecutor:
     ) -> AsyncIterator[tuple[LoopState, str | ChatCheckpoint | AgentEvent]]:
         """Execute a goal with checkpoints and optional progress streaming.
 
+        ⚠️ BIDIRECTIONAL GENERATOR: This generator expects responses via asend().
+        Do NOT consume with ``async for`` - it will break checkpoint responses.
+        Use manual iteration instead::
+
+            gen = executor.execute(...)
+            try:
+                result = await gen.asend(None)
+                while True:
+                    response = yield result  # or handle checkpoint
+                    result = await gen.asend(response)
+            except StopAsyncIteration:
+                pass
+
         Flow:
             1. PLANNING: Generate plan via agent.plan()
             2. CONFIRMING: Yield ChatCheckpoint for user approval (unless auto_confirm)

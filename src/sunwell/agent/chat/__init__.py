@@ -18,6 +18,33 @@ Example:
     >>> if isinstance(result, ChatCheckpoint):
     ...     # Handle checkpoint (confirmation, failure, etc.)
     ...     response = await gen.asend(CheckpointResponse("y"))
+
+⚠️ BIDIRECTIONAL GENERATOR PATTERN:
+
+Several async generators in this module use bidirectional communication via
+``asend()`` to receive checkpoint responses. These generators are marked with
+a ⚠️ warning in their docstrings.
+
+**IMPORTANT**: Do NOT consume these generators with ``async for``. The
+``async for`` syntax calls ``__anext__()`` which is equivalent to
+``asend(None)``, causing checkpoint responses to be lost.
+
+**Correct pattern**::
+
+    gen = bidirectional_generator(...)
+    try:
+        result = await gen.asend(None)  # Initialize
+        while True:
+            # Handle result (yield to caller or process checkpoint)
+            response = get_checkpoint_response(result)
+            result = await gen.asend(response)  # Forward response
+    except StopAsyncIteration:
+        pass
+
+**Incorrect pattern** (will break checkpoints)::
+
+    async for result in bidirectional_generator(...):  # ❌ WRONG
+        yield result  # Checkpoint responses are lost!
 """
 
 from sunwell.agent.chat.checkpoint import (

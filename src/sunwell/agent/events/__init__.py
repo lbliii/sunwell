@@ -35,6 +35,7 @@ RFC-137: Added delegation and ephemeral lens events.
 # Event Bus (Agentic Infrastructure Upgrade)
 # =============================================================================
 from sunwell.agent.events.bus import (
+    EventDispatcher,
     clear_run_context,
     collect_events,
     crash_session,
@@ -233,6 +234,7 @@ __all__ = [
     "emit",
     "emit_typed",
     "on_event",
+    "EventDispatcher",
     "set_run_context",
     "get_run_context",
     "clear_run_context",

@@ -288,6 +288,79 @@ def crash_session(error: str) -> AgentEvent:
 
 
 # =============================================================================
+# Event Dispatcher (Type-Specific Handlers)
+# =============================================================================
+
+
+class EventDispatcher:
+    """Maps event types to handler functions for cleaner event processing.
+
+    Use this when you need to handle specific event types without writing
+    large if/elif chains. Handlers are called synchronously when dispatch()
+    is invoked.
+
+    Example:
+        >>> dispatcher = EventDispatcher()
+        >>> dispatcher.on(EventType.TASK_COMPLETE, self._on_task_complete)
+        >>> dispatcher.on(EventType.GATE_FAIL, self._on_gate_fail)
+        >>>
+        >>> async for event in agent.run(...):
+        ...     dispatcher.dispatch(event)
+        ...     yield event
+    """
+
+    def __init__(self) -> None:
+        """Initialize the dispatcher."""
+        self._handlers: dict[EventType, list[Callable[[AgentEvent], None]]] = {}
+
+    def on(
+        self,
+        event_type: EventType,
+        handler: Callable[[AgentEvent], None],
+    ) -> Callable[[], None]:
+        """Register a handler for a specific event type.
+
+        Args:
+            event_type: The event type to handle
+            handler: Callback function (event: AgentEvent) -> None
+
+        Returns:
+            Unsubscribe function. Call to remove the handler.
+        """
+        self._handlers.setdefault(event_type, []).append(handler)
+
+        def unsubscribe() -> None:
+            handlers = self._handlers.get(event_type, [])
+            if handler in handlers:
+                handlers.remove(handler)
+
+        return unsubscribe
+
+    def dispatch(self, event: AgentEvent) -> None:
+        """Dispatch an event to registered handlers.
+
+        Handlers for the event's type are called in registration order.
+        Handler errors are logged but don't break the dispatch.
+
+        Args:
+            event: The event to dispatch
+        """
+        handlers = self._handlers.get(event.type, [])
+        for handler in handlers:
+            try:
+                handler(event)
+            except Exception:
+                logger.exception(
+                    "Event handler failed for %s",
+                    event.type.value,
+                )
+
+    def clear(self) -> None:
+        """Remove all registered handlers."""
+        self._handlers.clear()
+
+
+# =============================================================================
 # Testing Utilities
 # =============================================================================
 
