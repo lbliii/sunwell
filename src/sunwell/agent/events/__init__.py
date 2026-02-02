@@ -97,6 +97,11 @@ from sunwell.agent.events.intent import (
 )
 
 # =============================================================================
+# Domain Events (RFC-DOMAINS)
+# =============================================================================
+from sunwell.agent.events.domain import domain_detected_event
+
+# =============================================================================
 # Integration Events (RFC-067, RFC-071)
 # =============================================================================
 from sunwell.agent.events.integration import (
@@ -349,4 +354,6 @@ __all__ = [
     # Intent
     "intent_classified_event",
     "node_transition_event",
+    # Domain
+    "domain_detected_event",
 ]

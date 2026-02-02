@@ -2,9 +2,9 @@
 
 Provides:
 - cosine_similarity: Vector similarity for embeddings
-- keyword_similarity: Simple word overlap (legacy)
-- bm25_score: BM25 keyword scoring (production-grade)
+- bm25_score: BM25 keyword scoring
 - hybrid_score: Combines vector + BM25 with configurable weights
+- activity_decay_score: Activity-based decay (inspired by MIRA)
 """
 
 from collections import Counter
@@ -29,26 +29,6 @@ def cosine_similarity(
     if norm_a == 0 or norm_b == 0:
         return 0.0
     return dot / (norm_a * norm_b)
-
-
-def keyword_similarity(query: str, fact: str) -> float:
-    """Keyword-based similarity fallback when embeddings unavailable.
-
-    Simple word overlap measure. For production use, prefer bm25_score().
-
-    Args:
-        query: Query string
-        fact: Fact string to match against
-
-    Returns:
-        Similarity score between 0.0 and 1.0
-    """
-    query_words = set(query.lower().split())
-    fact_words = set(fact.lower().split())
-    overlap = len(query_words & fact_words)
-    if not query_words:
-        return 0.0
-    return overlap / len(query_words)
 
 
 def bm25_score(
@@ -188,3 +168,59 @@ def hybrid_score(
 
     # Combine with weights
     return vector_weight * vector + (1 - vector_weight) * bm25_normalized
+
+
+def activity_decay_score(
+    activity_day_created: int,
+    current_activity_days: int,
+    *,
+    decay_rate: float = 0.015,
+    newness_boost_days: int = 15,
+    newness_boost: float = 0.3,
+) -> float:
+    """Compute decay factor based on activity days, not calendar time.
+
+    Inspired by MIRA's scoring_formula.sql which uses "activity days"
+    (days with actual user engagement) rather than calendar days for
+    decay calculations. This prevents vacation-induced memory degradation.
+
+    The decay formula is: 1.0 / (1.0 + age * decay_rate)
+    - At age=0: returns ~1.3 (with newness boost)
+    - At age=67: returns ~0.5 (half-life)
+    - At age=134: returns ~0.33
+
+    New learnings get a "grace period" boost that linearly decays over
+    newness_boost_days, giving them time to prove their value through
+    usage before being penalized.
+
+    Args:
+        activity_day_created: Activity day when the learning was created.
+        current_activity_days: Current cumulative activity day count
+        decay_rate: Decay per activity day. Default 0.015 gives ~67 day half-life.
+            Higher = faster decay.
+        newness_boost_days: Days of grace period for new learnings.
+            Default 15 activity days.
+        newness_boost: Maximum boost during grace period. Default 0.3.
+            New learnings start with score multiplier of 1.0 + newness_boost.
+
+    Returns:
+        Multiplier in range (0.0, 1.0 + newness_boost].
+        Apply this to relevance scores: final_score = base_score * decay
+
+    Example:
+        >>> activity_decay_score(10, 10)  # Created today
+        1.3  # Full newness boost
+
+        >>> activity_decay_score(10, 40)  # 30 activity days ago
+        0.69  # Moderate decay, no boost
+    """
+    age = current_activity_days - activity_day_created
+
+    # Base decay: asymptotic approach to 0
+    # At age=0: 1.0, at age=67: ~0.5, at age=134: ~0.33
+    base = 1.0 / (1.0 + max(0, age) * decay_rate)
+
+    # Newness boost: grace period for new learnings to prove themselves
+    boost = newness_boost * (1.0 - age / newness_boost_days) if age < newness_boost_days else 0.0
+
+    return base + boost

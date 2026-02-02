@@ -9,7 +9,6 @@ Thread Safety:
 """
 
 import hashlib
-import json
 import logging
 import shutil
 import subprocess
@@ -18,6 +17,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
+
+from sunwell.foundation.utils import safe_json_dump, safe_json_load
 
 logger = logging.getLogger(__name__)
 
@@ -229,39 +230,34 @@ class SnapshotManager:
             if self._loaded:
                 return
 
-            if self._index_path.exists():
-                try:
-                    with open(self._index_path) as f:
-                        data = json.load(f)
-
-                    for snap_data in data.get("snapshots", []):
+            data = safe_json_load(self._index_path, default={})
+            if data:
+                for snap_data in data.get("snapshots", []):
+                    try:
                         snapshot = CodeSnapshot.from_dict(snap_data)
                         self._snapshots[snapshot.id] = snapshot
+                    except (KeyError, TypeError) as e:
+                        logger.debug("Skipping malformed snapshot: %s", e)
 
-                    self._conversation_turn = data.get("conversation_turn", 0)
-                    logger.debug(
-                        "Loaded %d snapshots from index", len(self._snapshots)
-                    )
-                except Exception as e:
-                    logger.warning("Failed to load snapshot index: %s", e)
+                self._conversation_turn = data.get("conversation_turn", 0)
+                logger.debug(
+                    "Loaded %d snapshots from index", len(self._snapshots)
+                )
 
             self._loaded = True
 
     def _save_index(self) -> None:
-        """Save snapshot index to disk."""
-        try:
-            self._snapshots_dir.mkdir(parents=True, exist_ok=True)
+        """Save snapshot index to disk with atomic write."""
+        self._snapshots_dir.mkdir(parents=True, exist_ok=True)
 
-            data = {
-                "version": 1,
-                "conversation_turn": self._conversation_turn,
-                "snapshots": [s.to_dict() for s in self._snapshots.values()],
-            }
+        data = {
+            "version": 1,
+            "conversation_turn": self._conversation_turn,
+            "snapshots": [s.to_dict() for s in self._snapshots.values()],
+        }
 
-            with open(self._index_path, "w") as f:
-                json.dump(data, f, indent=2)
-        except Exception as e:
-            logger.warning("Failed to save snapshot index: %s", e)
+        if not safe_json_dump(data, self._index_path):
+            logger.warning("Failed to save snapshot index")
 
     def _generate_snapshot_id(self) -> str:
         """Generate unique snapshot ID."""

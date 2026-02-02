@@ -1,4 +1,4 @@
-"""Tier management for hot/warm/cold storage."""
+"""Tier management for recent/compressed/archived turn storage."""
 
 import gzip
 import json
@@ -12,7 +12,7 @@ from sunwell.memory.simulacrum.core.turn import Turn, TurnType
 
 
 class TierManager:
-    """Manages hot/warm/cold tier storage lifecycle."""
+    """Manages recent/compressed/archived tier storage lifecycle for turns."""
 
     def __init__(
         self,
@@ -33,26 +33,26 @@ class TierManager:
 
     @property
     def hot_path(self) -> Path:
-        """Path to hot storage file."""
-        return self.base_path / "hot"
+        """Path to recent turns storage."""
+        return self.base_path / "turns" / "recent"
 
     @property
     def warm_path(self) -> Path:
-        """Path to warm storage directory."""
-        return self.base_path / "warm"
+        """Path to compressed turns storage directory."""
+        return self.base_path / "turns" / "compressed"
 
     @property
     def cold_path(self) -> Path:
-        """Path to cold storage directory."""
-        return self.base_path / "cold"
+        """Path to archived turns storage directory."""
+        return self.base_path / "turns" / "archived"
 
-    def flush_hot(self, session_id: str) -> None:
-        """Flush hot tier to disk."""
-        hot_file = self.hot_path / f"{session_id}.json"
-        self._hot_dag.save(hot_file)
+    def flush_recent(self, session_id: str) -> None:
+        """Flush recent tier to disk."""
+        recent_file = self.hot_path / f"{session_id}.json"
+        self._hot_dag.save(recent_file)
 
-    def maybe_demote_to_warm(self) -> None:
-        """Move old turns from hot to warm storage."""
+    def maybe_demote_to_compressed(self) -> None:
+        """Move old turns from recent to compressed storage."""
         if len(self._hot_dag.turns) <= self.config.hot_max_turns:
             return
 
@@ -64,9 +64,9 @@ class TierManager:
 
         to_demote = turns_by_time[:len(turns_by_time) - self.config.hot_max_turns]
 
-        # Save to warm storage
+        # Save to compressed storage
         for turn in to_demote:
-            self._save_to_warm(turn)
+            self._save_to_compressed(turn)
             # Don't remove from DAG - keep structure, just mark as demoted
             self._hot_dag.compressed.add(turn.id)
 
@@ -74,9 +74,9 @@ class TierManager:
         """Update the hot DAG reference (needed when DAG is replaced)."""
         self._hot_dag = hot_dag
 
-    def _save_to_warm(self, turn: Turn) -> None:
-        """Save a turn to warm storage."""
-        # Use date-based sharding for warm storage
+    def _save_to_compressed(self, turn: Turn) -> None:
+        """Save a turn to compressed storage."""
+        # Use date-based sharding for compressed storage
         date_str = turn.timestamp[:10]  # YYYY-MM-DD
         shard_path = self.warm_path / f"{date_str}.jsonl"
 
@@ -90,8 +90,8 @@ class TierManager:
             }
             f.write(json.dumps(data) + "\n")
 
-    def move_to_cold(self, older_than_hours: int | None = None) -> int:
-        """Archive old warm storage to cold (compressed)."""
+    def move_to_archived(self, older_than_hours: int | None = None) -> int:
+        """Archive old compressed storage to archived (further compressed)."""
         hours = older_than_hours or self.config.warm_max_age_hours
         cutoff = datetime.now() - timedelta(hours=hours)
         moved = 0
@@ -131,8 +131,8 @@ class TierManager:
 
         return moved
 
-    def retrieve_from_warm(self, turn_id: str) -> Turn | None:
-        """Retrieve a specific turn from warm storage."""
+    def retrieve_from_compressed(self, turn_id: str) -> Turn | None:
+        """Retrieve a specific turn from compressed storage."""
         for shard_file in self.warm_path.glob("*.jsonl"):
             with open(shard_file) as f:
                 for line in f:
@@ -146,8 +146,8 @@ class TierManager:
                         )
         return None
 
-    def search_warm(self, query: str, limit: int = 10) -> list[Turn]:
-        """Simple text search over warm storage."""
+    def search_compressed(self, query: str, limit: int = 10) -> list[Turn]:
+        """Simple text search over compressed storage."""
         query_lower = query.lower()
         matches = []
 
@@ -169,13 +169,13 @@ class TierManager:
         return matches
 
     def cleanup_dead_ends(self, dead_end_ids: set[str]) -> int:
-        """Remove dead end turns from warm/cold storage."""
+        """Remove dead end turns from compressed/archived storage."""
         if not dead_end_ids:
             return 0
 
         removed = 0
 
-        # Clean warm storage
+        # Clean compressed storage
         for shard_file in self.warm_path.glob("*.jsonl"):
             lines_to_keep = []
             with open(shard_file) as f:

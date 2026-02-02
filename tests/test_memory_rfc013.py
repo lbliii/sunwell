@@ -65,14 +65,14 @@ async def test_chunk_manager_archival(tmp_path):
     
     manager._chunks[chunk_id] = chunk
     
-    # Demote to cold
-    manager.demote_to_cold(chunk_id)
+    # Demote to macro
+    manager.demote_to_macro(chunk_id)
     
-    cold_chunk = manager._chunks[chunk_id]
-    assert cold_chunk.turns is None
-    assert cold_chunk.content_ctf is None
-    assert cold_chunk.content_ref is not None
-    assert cold_chunk.content_ref.endswith(".json.gz")
+    macro_chunk = manager._chunks[chunk_id]
+    assert macro_chunk.turns is None
+    assert macro_chunk.content_ctf is None
+    assert macro_chunk.content_ref is not None
+    assert macro_chunk.content_ref.endswith(".json.gz")
     
     # Expand from archive
     expanded = manager.expand_chunk(chunk_id)
@@ -87,5 +87,5 @@ def test_chunk_manager_stats(tmp_path):
     
     stats = manager.stats
     assert stats["total_chunks"] == 2
-    assert stats["hot_chunks"] == 1
+    assert stats["micro_chunks"] == 1
     assert stats["total_tokens"] == 30

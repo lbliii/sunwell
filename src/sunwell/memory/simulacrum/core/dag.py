@@ -11,15 +11,28 @@ This enables:
 - Parallel conversation threads
 - Smart compression (keep important paths, compress dead ends)
 - Provenance tracking (where did this insight come from?)
+
+Graph scoring (MIRA-inspired):
+- Learnings form a relationship graph (supports, derives_from, etc.)
+- Inbound references indicate "hub" knowledge
+- Used for importance scoring in retrieval
 """
 
-
-import json
+import logging
 from collections import defaultdict
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from sunwell.foundation.utils import safe_json_dump, safe_json_load
+
+logger = logging.getLogger(__name__)
+
+from sunwell.memory.simulacrum.core.retrieval.learning_graph import (
+    LearningGraph,
+    RelationType,
+    detect_relationships,
+)
 from sunwell.memory.simulacrum.core.turn import (
     Learning,
     TemplateData,
@@ -40,6 +53,7 @@ class ConversationDAG:
     - Content-addressable: turns identified by hash
     - Immutable history: turns never modified, only added
     - Learnings extracted: insights persist beyond compression
+    - Learning relationships: graph of how learnings relate (supports, derives, etc.)
     """
 
     # Core storage - O(1) lookup by ID
@@ -72,6 +86,10 @@ class ConversationDAG:
 
     compressed: set[str] = field(default_factory=set)
     """Turn IDs that have been compressed (full content in cold storage)."""
+
+    # Learning relationship graph (MIRA-inspired hub scoring)
+    learning_graph: LearningGraph = field(default_factory=LearningGraph)
+    """Graph of relationships between learnings for importance scoring."""
 
     def add_turn(self, turn: Turn) -> str:
         """Add a turn to the DAG.
@@ -127,10 +145,91 @@ class ConversationDAG:
         )
         return self.add_turn(turn)
 
-    def add_learning(self, learning: Learning) -> str:
-        """Add an extracted learning."""
+    def add_learning(self, learning: Learning, auto_detect_relationships: bool = True) -> str:
+        """Add an extracted learning.
+
+        Optionally detects relationships to existing learnings and
+        updates the learning graph for importance scoring.
+
+        Args:
+            learning: The learning to add
+            auto_detect_relationships: If True, detect relationships to existing learnings
+
+        Returns:
+            The learning's content-addressable ID
+        """
         self.learnings[learning.id] = learning
+
+        # Auto-detect relationships for graph scoring
+        if auto_detect_relationships and len(self.learnings) > 1:
+            existing = [l for l in self.learnings.values() if l.id != learning.id]
+            edges = detect_relationships(learning, existing)
+            for edge in edges:
+                self.learning_graph.add_edge(edge)
+
         return learning.id
+
+    def find_learning(self, learning_id: str) -> Learning | None:
+        """Find a learning by ID.
+
+        Args:
+            learning_id: The content-addressable ID of the learning
+
+        Returns:
+            The Learning if found, None otherwise
+        """
+        return self.learnings.get(learning_id)
+
+    def replace_learning(self, old: Learning, new: Learning) -> bool:
+        """Replace a learning with an updated version (immutable update pattern).
+
+        Since Learning is frozen, we can't modify it in place. This method
+        removes the old learning and adds the new one, updating any references.
+
+        Note: The new learning may have a different ID if identity-affecting
+        fields changed. For graph scoring updates (mention_count, activity_day_*)
+        the ID should stay the same since these are metadata fields.
+
+        Args:
+            old: The learning to replace
+            new: The updated learning
+
+        Returns:
+            True if replacement succeeded, False if old learning not found
+        """
+        if old.id not in self.learnings:
+            return False
+
+        # Remove old
+        del self.learnings[old.id]
+
+        # Add new (may have same or different ID) - skip auto-detect since relationships preserved
+        self.learnings[new.id] = new
+
+        # If ID changed, update learning graph references
+        if old.id != new.id:
+            self.learning_graph.remove_learning(old.id)
+            # Re-detect relationships for the new learning
+            existing = [l for l in self.learnings.values() if l.id != new.id]
+            edges = detect_relationships(new, existing)
+            for edge in edges:
+                self.learning_graph.add_edge(edge)
+
+        return True
+
+    def get_inbound_link_count(self, learning_id: str) -> int:
+        """Get the number of other learnings that reference this one.
+
+        Used for graph-based importance scoring. Learnings with more
+        inbound references are "hub" knowledge and rank higher.
+
+        Args:
+            learning_id: The learning ID to check
+
+        Returns:
+            Number of inbound references (0 if not in graph)
+        """
+        return self.learning_graph.inbound_count(learning_id)
 
     def branch(self, name: str, from_turn: str | None = None) -> str:
         """Create a named branch from a point in history.
@@ -238,7 +337,7 @@ class ConversationDAG:
 
     @property
     def stats(self) -> dict:
-        """DAG statistics."""
+        """DAG statistics including learning relationship graph."""
         return {
             "total_turns": len(self.turns),
             "roots": len(self.roots),
@@ -247,6 +346,7 @@ class ConversationDAG:
             "dead_ends": len(self.dead_ends),
             "compressed": len(self.compressed),
             "learnings": len(self.learnings),
+            "learning_graph": self.learning_graph.stats,
         }
 
     # =========================================================================
@@ -309,6 +409,17 @@ class ConversationDAG:
 
     def save(self, path: Path) -> None:
         """Save DAG to file."""
+        # Serialize learning graph edges
+        learning_graph_edges = []
+        for edge_list in self.learning_graph._outgoing.values():
+            for edge in edge_list:
+                learning_graph_edges.append({
+                    "source_id": edge.source_id,
+                    "target_id": edge.target_id,
+                    "relation_type": edge.relation_type.value,
+                    "weight": edge.weight,
+                })
+
         data = {
             "turns": {
                 tid: {
@@ -337,9 +448,16 @@ class ConversationDAG:
                     "embedding": list(l.embedding) if l.embedding else None,
                     "use_count": l.use_count,
                     "last_used": l.last_used,
+                    # Graph scoring fields
+                    "mention_count": l.mention_count,
+                    "activity_day_created": l.activity_day_created,
+                    "activity_day_accessed": l.activity_day_accessed,
+                    "happens_at": l.happens_at,
+                    "expires_at": l.expires_at,
                 }
                 for lid, l in self.learnings.items()
             },
+            "learning_graph_edges": learning_graph_edges,
             "roots": list(self.roots),
             "heads": list(self.heads),
             "active_head": self.active_head,
@@ -348,15 +466,15 @@ class ConversationDAG:
             "compressed": list(self.compressed),
         }
 
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w") as f:
-            json.dump(data, f, indent=2)
+        if not safe_json_dump(data, path):
+            logger.error("Failed to save DAG to %s", path)
 
     @classmethod
     def load(cls, path: Path) -> ConversationDAG:
-        """Load DAG from file."""
-        with open(path) as f:
-            data = json.load(f)
+        """Load DAG from file. Returns empty DAG if file missing/corrupted."""
+        data = safe_json_load(path, default={})
+        if not data:
+            return cls()
 
         dag = cls()
 
@@ -389,6 +507,12 @@ class ConversationDAG:
                 embedding=tuple(ldata["embedding"]) if ldata.get("embedding") else None,
                 use_count=ldata.get("use_count", 0),
                 last_used=ldata.get("last_used"),
+                # Graph scoring fields
+                mention_count=ldata.get("mention_count", 0),
+                activity_day_created=ldata["activity_day_created"],
+                activity_day_accessed=ldata["activity_day_accessed"],
+                happens_at=ldata.get("happens_at"),
+                expires_at=ldata.get("expires_at"),
             )
             dag.learnings[lid] = learning
 
@@ -404,5 +528,17 @@ class ConversationDAG:
         for turn in dag.turns.values():
             for parent_id in turn.parent_ids:
                 dag.children[parent_id].add(turn.id)
+
+        # Restore learning graph edges (MIRA-inspired hub scoring)
+        from sunwell.memory.simulacrum.core.retrieval.learning_graph import LearningEdge
+
+        for edge_data in data.get("learning_graph_edges", []):
+            edge = LearningEdge(
+                source_id=edge_data["source_id"],
+                target_id=edge_data["target_id"],
+                relation_type=RelationType(edge_data["relation_type"]),
+                weight=edge_data.get("weight", 1.0),
+            )
+            dag.learning_graph.add_edge(edge)
 
         return dag

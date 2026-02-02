@@ -60,8 +60,6 @@ class RunRequest(CamelModel):
     trust: str = "workspace"
     timeout: int = 300
     source: str = "studio"
-    use_v2: bool = False
-    """Use new SessionContext + PersistentMemory architecture."""
 
 
 class StopRunRequest(CamelModel):
@@ -88,9 +86,8 @@ async def start_run(request: RunRequest) -> RunStartResponse:
         trust=request.trust,
         timeout=request.timeout,
         source=request.source,
-        use_v2=request.use_v2,
     )
-    return RunStartResponse(run_id=run.run_id, status=run.status, use_v2=run.use_v2)
+    return RunStartResponse(run_id=run.run_id, status=run.status)
 
 
 @router.get("/run/active")
@@ -193,7 +190,7 @@ async def stream_events(websocket: WebSocket, run_id: str) -> None:
     if run.status == "pending":
         run.status = "running"
         try:
-            async for event in _execute_agent(run, use_v2=run.use_v2):
+            async for event in _execute_agent(run):
                 event_dict = event if isinstance(event, dict) else event.to_dict()
                 run.events.append(event_dict)
                 await websocket.send_json(event_dict)
@@ -374,14 +371,13 @@ async def stop_run(request: StopRunRequest) -> RunCancelResponse:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _execute_agent(run: RunState, *, use_v2: bool = False) -> AsyncIterator[dict[str, Any]]:
+async def _execute_agent(run: RunState) -> AsyncIterator[dict[str, Any]]:
     """Execute the agent and yield events.
 
     This is where we wire the real Agent.run() to the WebSocket.
 
     Args:
         run: The run state containing goal, workspace, options.
-        use_v2: Deprecated, always uses SessionContext + PersistentMemory.
     """
     from sunwell.agent import Agent
     from sunwell.agent.utils.budget import AdaptiveBudget

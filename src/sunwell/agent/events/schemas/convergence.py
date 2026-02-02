@@ -28,8 +28,6 @@ class ConvergenceIterationCompleteData(TypedDict, total=False):
     all_passed: bool
     total_errors: int
     gate_results: list[dict[str, Any]]
-    # Legacy field name
-    errors_found: int | None
 
 
 class ConvergenceFixingData(TypedDict, total=False):
@@ -40,8 +38,6 @@ class ConvergenceFixingData(TypedDict, total=False):
 
     iteration: int  # Required
     error_count: int
-    # Legacy field name
-    errors_to_fix: int | None
 
 
 class ConvergenceStableData(TypedDict, total=False):
@@ -55,8 +51,6 @@ class ConvergenceTimeoutData(TypedDict, total=False):
     """Data for convergence_timeout event."""
 
     iterations: int
-    # Legacy field
-    elapsed_ms: int | None
 
 
 class ConvergenceStuckData(TypedDict, total=False):
@@ -67,16 +61,12 @@ class ConvergenceStuckData(TypedDict, total=False):
 
     iterations: int  # Required
     repeated_errors: list[str]
-    # Legacy field
-    persistent_errors: int | None
 
 
 class ConvergenceMaxIterationsData(TypedDict, total=False):
     """Data for convergence_max_iterations event."""
 
     iterations: int
-    # Legacy field name
-    max_iterations: int | None
 
 
 class ConvergenceBudgetExceededData(TypedDict, total=False):
@@ -87,6 +77,3 @@ class ConvergenceBudgetExceededData(TypedDict, total=False):
 
     tokens_used: int
     max_tokens: int
-    # Legacy fields
-    budget_ms: int | None
-    elapsed_ms: int | None

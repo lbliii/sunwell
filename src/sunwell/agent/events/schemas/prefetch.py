@@ -10,8 +10,6 @@ class PrefetchStartData(TypedDict, total=False):
     """
 
     briefing: str
-    # Legacy field
-    sources: list[str] | None
 
 
 class PrefetchCompleteData(TypedDict, total=False):
@@ -23,9 +21,6 @@ class PrefetchCompleteData(TypedDict, total=False):
     files_loaded: int
     learnings_loaded: int
     skills_activated: list[str]
-    # Legacy fields
-    duration_ms: int | None
-    sources_loaded: int | None
 
 
 class PrefetchTimeoutData(TypedDict, total=False):
@@ -35,5 +30,3 @@ class PrefetchTimeoutData(TypedDict, total=False):
     """
 
     error: str | None
-    # Legacy field
-    timeout_ms: int | None

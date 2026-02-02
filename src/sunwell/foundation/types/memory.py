@@ -102,30 +102,33 @@ class MemoryRetrievalResult:
         )
 
     def to_context(self, max_tokens: int = 6000) -> str:
-        """Format all results into context string."""
+        """Format all results into context string.
+
+        Uses first-person voice to reduce epistemic distance.
+        """
         parts = []
 
         # Focus hint
         if self.focus_topics:
-            parts.append(f"**Focus**: {', '.join(self.focus_topics[:5])}")
+            parts.append(f"**My Focus**: {', '.join(self.focus_topics[:5])}")
 
         # Procedural (always first - how to think)
         if self.heuristics:
-            parts.append("\n## How to Think About This")
+            parts.append("\n## How I Think About This")
             for h in self.heuristics[:10]:
-                parts.append(f"- {h}")
+                parts.append(f"- I've found: {h}")
 
         # Learnings (high relevance first)
         if self.learnings:
-            parts.append("\n## What We've Learned")
+            parts.append("\n## What I've Learned")
             for learning, score in sorted(self.learnings, key=lambda x: -x[1])[:15]:
                 marker = "●" if score > 0.7 else "○"
-                parts.append(f"{marker} [{learning.category}] {learning.fact}")
+                parts.append(f"{marker} {learning._first_person_prefix()} {learning.fact}")
 
-        # Dead ends from episodes
+        # Dead ends from episodes (already first-person from episode summaries)
         dead_ends = [(e, s) for e, s in self.episodes if e.outcome == "failed"]
         if dead_ends:
-            parts.append("\n## Dead Ends (don't repeat)")
+            parts.append("\n## What I Tried and Failed")
             for ep, _ in dead_ends[:5]:
                 parts.append(f"❌ {ep.summary}")
 
@@ -133,13 +136,13 @@ class MemoryRetrievalResult:
         if self.turns:
             parts.append("\n## Recent Conversation")
             for turn, _ in self.turns[-10:]:
-                role = "User" if turn.turn_type.value == "user" else "Assistant"
+                role = "User" if turn.turn_type.value == "user" else "Me"
                 content = turn.content[:300] + "..." if len(turn.content) > 300 else turn.content
                 parts.append(f"\n**{role}**: {content}")
 
         # Code context
         if self.code_chunks:
-            parts.append("\n## Relevant Code")
+            parts.append("\n## Code I'm Looking At")
             for chunk, score in sorted(self.code_chunks, key=lambda x: -x[1])[:5]:
                 parts.append(f"\n```\n{chunk[:500]}\n```")
 

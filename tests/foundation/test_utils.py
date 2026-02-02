@@ -5,19 +5,27 @@ RFC-138: Module Architecture Consolidation
 
 import json
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 
 from sunwell.foundation.utils import (
+    absolute_timestamp,
+    absolute_timestamp_full,
     compute_file_hash,
     compute_hash,
     compute_string_hash,
     ensure_dir,
+    format_for_summary,
     normalize_path,
     relative_to_cwd,
+    safe_json_dump,
     safe_json_dumps,
+    safe_json_load,
     safe_json_loads,
+    safe_jsonl_append,
+    safe_jsonl_load,
     safe_yaml_dump,
     safe_yaml_load,
     sanitize_filename,
@@ -212,3 +220,245 @@ class TestSerialization:
 
         with pytest.raises(ValueError, match="must contain a dict"):
             safe_yaml_load(yaml_file)
+
+
+class TestCrashTolerantJsonIO:
+    """Tests for crash-tolerant JSON file I/O (safe_json_load/dump)."""
+
+    def test_safe_json_load_valid(self, tmp_path: Path) -> None:
+        """Load valid JSON file."""
+        json_file = tmp_path / "data.json"
+        json_file.write_text('{"key": "value", "num": 42}', encoding="utf-8")
+
+        result = safe_json_load(json_file)
+        assert result == {"key": "value", "num": 42}
+
+    def test_safe_json_load_missing_file(self, tmp_path: Path) -> None:
+        """Missing file returns default."""
+        result = safe_json_load(tmp_path / "nonexistent.json")
+        assert result is None
+
+        result = safe_json_load(tmp_path / "nonexistent.json", default={})
+        assert result == {}
+
+        result = safe_json_load(tmp_path / "nonexistent.json", default={"version": 1})
+        assert result == {"version": 1}
+
+    def test_safe_json_load_corrupted_file(self, tmp_path: Path) -> None:
+        """Corrupted JSON returns default instead of raising."""
+        json_file = tmp_path / "bad.json"
+        json_file.write_text("{invalid json content", encoding="utf-8")
+
+        result = safe_json_load(json_file)
+        assert result is None
+
+        result = safe_json_load(json_file, default={"fallback": True})
+        assert result == {"fallback": True}
+
+    def test_safe_json_load_empty_file(self, tmp_path: Path) -> None:
+        """Empty file returns default."""
+        json_file = tmp_path / "empty.json"
+        json_file.write_text("", encoding="utf-8")
+
+        result = safe_json_load(json_file, default={})
+        assert result == {}
+
+    def test_safe_json_dump_basic(self, tmp_path: Path) -> None:
+        """Basic JSON dump creates file."""
+        json_file = tmp_path / "output.json"
+        data = {"key": "value", "list": [1, 2, 3]}
+
+        success = safe_json_dump(data, json_file)
+        assert success is True
+        assert json_file.exists()
+
+        # Verify content
+        loaded = json.loads(json_file.read_text(encoding="utf-8"))
+        assert loaded == data
+
+    def test_safe_json_dump_creates_parent_dirs(self, tmp_path: Path) -> None:
+        """Creates parent directories if needed."""
+        json_file = tmp_path / "deep" / "nested" / "dir" / "data.json"
+
+        success = safe_json_dump({"test": True}, json_file)
+        assert success is True
+        assert json_file.exists()
+
+    def test_safe_json_dump_atomic_no_partial_write(self, tmp_path: Path) -> None:
+        """Atomic write shouldn't leave partial files on serialization error."""
+        json_file = tmp_path / "atomic.json"
+
+        # Write some initial data
+        safe_json_dump({"initial": "data"}, json_file)
+
+        # Try to write unserializable data (should fail)
+        class NotSerializable:
+            pass
+
+        success = safe_json_dump({"bad": NotSerializable()}, json_file)
+        assert success is False
+
+        # Original file should be unchanged (atomic = no partial writes)
+        loaded = json.loads(json_file.read_text(encoding="utf-8"))
+        assert loaded == {"initial": "data"}
+
+    def test_safe_json_dump_overwrites_existing(self, tmp_path: Path) -> None:
+        """Overwrites existing file completely."""
+        json_file = tmp_path / "overwrite.json"
+
+        safe_json_dump({"version": 1, "old_key": "old_value"}, json_file)
+        safe_json_dump({"version": 2, "new_key": "new_value"}, json_file)
+
+        loaded = json.loads(json_file.read_text(encoding="utf-8"))
+        assert loaded == {"version": 2, "new_key": "new_value"}
+        assert "old_key" not in loaded
+
+    def test_safe_json_dump_non_atomic_mode(self, tmp_path: Path) -> None:
+        """Non-atomic mode also works."""
+        json_file = tmp_path / "non_atomic.json"
+
+        success = safe_json_dump({"test": True}, json_file, atomic=False)
+        assert success is True
+        assert json_file.exists()
+
+
+class TestJsonlIO:
+    """Tests for JSONL (JSON Lines) I/O."""
+
+    def test_safe_jsonl_append_creates_file(self, tmp_path: Path) -> None:
+        """Appending to non-existent file creates it."""
+        jsonl_file = tmp_path / "events.jsonl"
+
+        success = safe_jsonl_append({"event": "first"}, jsonl_file)
+        assert success is True
+        assert jsonl_file.exists()
+
+        content = jsonl_file.read_text(encoding="utf-8")
+        assert content == '{"event": "first"}\n'
+
+    def test_safe_jsonl_append_multiple(self, tmp_path: Path) -> None:
+        """Multiple appends create multiple lines."""
+        jsonl_file = tmp_path / "events.jsonl"
+
+        safe_jsonl_append({"id": 1}, jsonl_file)
+        safe_jsonl_append({"id": 2}, jsonl_file)
+        safe_jsonl_append({"id": 3}, jsonl_file)
+
+        lines = jsonl_file.read_text(encoding="utf-8").strip().split("\n")
+        assert len(lines) == 3
+        assert json.loads(lines[0]) == {"id": 1}
+        assert json.loads(lines[2]) == {"id": 3}
+
+    def test_safe_jsonl_load_empty(self, tmp_path: Path) -> None:
+        """Loading non-existent file returns empty list."""
+        result = safe_jsonl_load(tmp_path / "nonexistent.jsonl")
+        assert result == []
+
+    def test_safe_jsonl_load_valid(self, tmp_path: Path) -> None:
+        """Load valid JSONL file."""
+        jsonl_file = tmp_path / "data.jsonl"
+        jsonl_file.write_text(
+            '{"id": 1, "name": "first"}\n'
+            '{"id": 2, "name": "second"}\n'
+            '{"id": 3, "name": "third"}\n',
+            encoding="utf-8",
+        )
+
+        result = safe_jsonl_load(jsonl_file)
+        assert len(result) == 3
+        assert result[0] == {"id": 1, "name": "first"}
+        assert result[2] == {"id": 3, "name": "third"}
+
+    def test_safe_jsonl_load_skips_corrupted_lines(self, tmp_path: Path) -> None:
+        """Corrupted lines are skipped, valid lines are kept."""
+        jsonl_file = tmp_path / "partial.jsonl"
+        jsonl_file.write_text(
+            '{"id": 1}\n'
+            '{bad json}\n'  # Corrupted
+            '{"id": 2}\n'
+            'not json at all\n'  # Corrupted
+            '{"id": 3}\n',
+            encoding="utf-8",
+        )
+
+        result = safe_jsonl_load(jsonl_file)
+        assert len(result) == 3
+        assert result == [{"id": 1}, {"id": 2}, {"id": 3}]
+
+    def test_safe_jsonl_load_skips_empty_lines(self, tmp_path: Path) -> None:
+        """Empty lines are skipped."""
+        jsonl_file = tmp_path / "sparse.jsonl"
+        jsonl_file.write_text(
+            '{"id": 1}\n'
+            '\n'
+            '   \n'
+            '{"id": 2}\n',
+            encoding="utf-8",
+        )
+
+        result = safe_jsonl_load(jsonl_file)
+        assert len(result) == 2
+
+    def test_safe_jsonl_roundtrip(self, tmp_path: Path) -> None:
+        """Append then load preserves data."""
+        jsonl_file = tmp_path / "roundtrip.jsonl"
+
+        records = [
+            {"type": "start", "ts": "2025-01-01"},
+            {"type": "event", "data": [1, 2, 3]},
+            {"type": "end", "ts": "2025-01-02"},
+        ]
+
+        for record in records:
+            safe_jsonl_append(record, jsonl_file)
+
+        loaded = safe_jsonl_load(jsonl_file)
+        assert loaded == records
+
+
+class TestTimestamps:
+    """Tests for timestamp utilities (first-person voice support)."""
+
+    def test_absolute_timestamp_current_year(self) -> None:
+        """Timestamp for current year omits year."""
+        now = datetime.now()
+        dt = datetime(now.year, 2, 15)
+        result = absolute_timestamp(dt)
+        assert result == "On Feb 15"
+        assert str(now.year) not in result
+
+    def test_absolute_timestamp_previous_year(self) -> None:
+        """Timestamp for previous year includes year."""
+        now = datetime.now()
+        dt = datetime(now.year - 1, 12, 25)
+        result = absolute_timestamp(dt)
+        assert result == f"On Dec 25, {now.year - 1}"
+
+    def test_absolute_timestamp_defaults_to_now(self) -> None:
+        """Without argument, uses current time."""
+        result = absolute_timestamp()
+        assert result.startswith("On ")
+        # Should contain month abbreviation
+        assert any(m in result for m in ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"])
+
+    def test_absolute_timestamp_full_current_year(self) -> None:
+        """Full timestamp includes time component."""
+        now = datetime.now()
+        dt = datetime(now.year, 3, 10, 14, 30)
+        result = absolute_timestamp_full(dt)
+        assert "On Mar 10" in result
+        assert "2:30 PM" in result
+
+    def test_absolute_timestamp_full_previous_year(self) -> None:
+        """Full timestamp for previous year includes year and time."""
+        now = datetime.now()
+        dt = datetime(now.year - 1, 7, 4, 9, 15)
+        result = absolute_timestamp_full(dt)
+        assert f"On Jul 4, {now.year - 1}" in result
+        assert "9:15 AM" in result
+
+    def test_format_for_summary(self) -> None:
+        """format_for_summary is alias for absolute_timestamp."""
+        dt = datetime(2025, 6, 15)
+        assert format_for_summary(dt) == absolute_timestamp(dt)

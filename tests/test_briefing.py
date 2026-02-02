@@ -93,19 +93,23 @@ class TestBriefingSerialization:
 
         prompt = briefing.to_prompt()
 
-        assert "## Current State (Briefing)" in prompt
-        assert "**Mission**: Build auth" in prompt
+        # First-person voice headers
+        assert "## Where I Am (Briefing)" in prompt
+        assert "**My Mission**: Build auth" in prompt
         assert "⚠️ No rate limiting" in prompt
         assert "`auth.py`" in prompt
 
     def test_briefing_create_initial(self):
-        """Initial briefing has correct defaults."""
+        """Initial briefing has correct defaults with first-person voice."""
         briefing = Briefing.create_initial("Build a forum app", goal_hash="abc123")
 
         assert briefing.mission == "Build a forum app"
         assert briefing.status == BriefingStatus.NOT_STARTED
         assert briefing.goal_hash == "abc123"
-        assert briefing.next_action == "Begin planning."
+        # First-person voice
+        assert briefing.next_action == "I'll begin planning."
+        assert briefing.progress == "I'm starting fresh."
+        assert briefing.last_action == "I received the goal."
 
 
 # =============================================================================

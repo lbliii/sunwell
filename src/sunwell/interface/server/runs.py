@@ -44,10 +44,6 @@ class RunState:
     started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     completed_at: datetime | None = None
 
-    # RFC: Architecture Proposal - New execution path
-    use_v2: bool = False
-    """Use SessionContext + PersistentMemory architecture."""
-
     @property
     def is_cancelled(self) -> bool:
         """Check if run has been cancelled."""
@@ -99,7 +95,6 @@ class RunManager:
         trust: str = "workspace",
         timeout: int = 300,
         source: str = "studio",
-        use_v2: bool = False,
     ) -> RunState:
         """Create a new run.
 
@@ -113,7 +108,6 @@ class RunManager:
             trust: Tool trust level.
             timeout: Execution timeout in seconds.
             source: Origin of the run ("cli", "studio", "api").
-            use_v2: Use SessionContext + PersistentMemory architecture.
 
         Returns:
             New RunState with unique run_id.
@@ -130,7 +124,6 @@ class RunManager:
             trust=trust,
             timeout=timeout,
             source=source,
-            use_v2=use_v2,
         )
 
         with self._lock:

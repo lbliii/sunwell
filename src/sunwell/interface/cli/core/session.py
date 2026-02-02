@@ -111,9 +111,9 @@ def sessions_archive(path: str, older_than: int) -> None:
         sunwell sessions archive --older-than 24  # Archive anything older than 1 day
     """
     store = SimulacrumStore(Path(path))
-    moved = store.move_to_cold(older_than_hours=older_than)
+    moved = store.move_to_archived(older_than_hours=older_than)
 
-    console.print(f"[green]✓ Archived {moved} files to cold storage[/green]")
+    console.print(f"[green]✓ Archived {moved} files to archived storage[/green]")
 
 
 # =============================================================================

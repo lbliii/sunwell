@@ -423,12 +423,6 @@ def get_fix_prompt(
     return template.format(**kwargs)
 
 
-# Legacy aliases for backwards compatibility
-TARGETED_FIX_PROMPT = FIX_PROMPTS[Language.PYTHON]["targeted"]
-SYNTAX_FIX_PROMPT = FIX_PROMPTS[Language.PYTHON]["syntax"]
-TYPE_FIX_PROMPT = FIX_PROMPTS[Language.PYTHON]["type"]
-
-
 # =============================================================================
 # Fix Stage
 # =============================================================================

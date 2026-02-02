@@ -17,13 +17,16 @@ Note: RFC-067 types (TaskType, RequiredIntegration, IntegrationCheck, etc.)
 have been moved to sunwell.integration.types for better organization.
 """
 
-
-import json
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+from sunwell.foundation.utils import safe_json_dump, safe_json_load
+
+logger = logging.getLogger(__name__)
 
 # RFC-067 types - imported here for Task dataclass fields
 from sunwell.features.external.integration.types import (
@@ -517,6 +520,18 @@ class CompletedTask:
             "details": dict(self.details),
         }
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> CompletedTask:
+        """Create from dict."""
+        details_dict = data.get("details", {})
+        return cls(
+            opportunity_id=data["opportunity_id"],
+            proposal_id=data.get("proposal_id"),
+            result=data["result"],
+            timestamp=datetime.fromisoformat(data["timestamp"]),
+            details=tuple(details_dict.items()),
+        )
+
 
 @dataclass(slots=True)
 class SessionState:
@@ -587,6 +602,7 @@ class SessionState:
 
         state.stop_reason = data.get("stop_reason")
         state.opportunities = [Opportunity.from_dict(o) for o in data.get("opportunities", [])]
+        state.completed = [CompletedTask.from_dict(c) for c in data.get("completed", [])]
         state.current_task = (
             Opportunity.from_dict(data["current_task"])
             if data.get("current_task") else None
@@ -601,17 +617,24 @@ class SessionState:
 
         return state
 
-    def save(self, path: Path) -> None:
-        """Save state to file."""
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w") as f:
-            json.dump(self.to_dict(), f, indent=2)
+    def save(self, path: Path) -> bool:
+        """Save state to file with atomic write.
+
+        Returns:
+            True if saved successfully, False on error
+        """
+        if not safe_json_dump(self.to_dict(), path):
+            logger.error("Failed to save session state to %s", path)
+            return False
+        return True
 
     @classmethod
-    def load(cls, path: Path) -> SessionState:
-        """Load state from file."""
-        with open(path) as f:
-            return cls.from_dict(json.load(f))
+    def load(cls, path: Path) -> SessionState | None:
+        """Load state from file. Returns None if missing/corrupted."""
+        data = safe_json_load(path)
+        if data is None:
+            return None
+        return cls.from_dict(data)
 
     def get_progress_summary(self) -> dict[str, Any]:
         """Get a summary of current progress."""

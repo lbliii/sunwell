@@ -65,22 +65,22 @@ async def extract_topology_batch(
     unified_store.save()
 
 
-def maybe_demote_warm_to_cold(
+def maybe_demote_meso_to_macro(
     chunk_manager: ChunkManager,
     config: ChunkConfig,
 ) -> None:
-    """Demote old warm chunks to cold tier (RFC-084 auto-cold-demotion)."""
+    """Demote old meso chunks to macro tier (RFC-084 auto-cold-demotion)."""
     import time
     from datetime import datetime
 
-    warm_chunks = chunk_manager._get_warm_chunks()
-    if not warm_chunks:
+    meso_chunks = chunk_manager._get_meso_chunks()
+    if not meso_chunks:
         return
 
     now = time.time()
 
     # By age: older than config threshold
-    for chunk in warm_chunks:
+    for chunk in meso_chunks:
         if not chunk.timestamp_end:
             continue
         try:
@@ -88,14 +88,14 @@ def maybe_demote_warm_to_cold(
             chunk_time = datetime.fromisoformat(chunk.timestamp_end).timestamp()
             age_days = (now - chunk_time) / 86400
             if age_days > config.warm_retention_days:
-                chunk_manager.demote_to_cold(chunk.id)
+                chunk_manager.demote_to_macro(chunk.id)
         except (ValueError, OSError):
             continue
 
     # By count: keep only max_warm_chunks
-    warm_chunks = chunk_manager._get_warm_chunks()  # Refresh after age-based demotion
-    warm_chunks.sort(key=lambda c: c.turn_range[0])  # Sort by turn range (oldest first)
+    meso_chunks = chunk_manager._get_meso_chunks()  # Refresh after age-based demotion
+    meso_chunks.sort(key=lambda c: c.turn_range[0])  # Sort by turn range (oldest first)
 
-    while len(warm_chunks) > config.max_warm_chunks:
-        oldest = warm_chunks.pop(0)
-        chunk_manager.demote_to_cold(oldest.id)
+    while len(meso_chunks) > config.max_warm_chunks:
+        oldest = meso_chunks.pop(0)
+        chunk_manager.demote_to_macro(oldest.id)

@@ -22,8 +22,6 @@ class SkillCompileCompleteData(TypedDict, total=False):
     wave_count: int  # Required - number of execution waves
     duration_ms: int  # Required
     cached: bool
-    # Legacy field
-    skill_count: int | None
 
 
 class SkillCompileCacheHitData(TypedDict, total=False):
@@ -35,8 +33,6 @@ class SkillCompileCacheHitData(TypedDict, total=False):
     cache_key: str  # Required
     task_count: int  # Required
     wave_count: int  # Required
-    # Legacy field
-    lens_name: str | None
 
 
 class SkillSubgraphExtractedData(TypedDict, total=False):
@@ -48,9 +44,6 @@ class SkillSubgraphExtractedData(TypedDict, total=False):
     target_skills: list[str]  # Required
     total_skills: int  # Required
     extracted_skills: int  # Required
-    # Legacy fields
-    skill_name: str | None
-    subgraph_size: int | None
 
 
 class SkillGraphResolvedData(TypedDict, total=False):

@@ -179,10 +179,19 @@ class MemoryToolHandler:
         dag: ConversationDAG,
         store: UnifiedMemoryStore | None = None,
         embedder: EmbeddingProtocol | None = None,
+        activity_days: int = 0,
     ):
         self.dag = dag
         self.store = store
         self.embedder = embedder
+        self._activity_days = activity_days
+
+    def update_activity_days(self, activity_days: int) -> None:
+        """Update the current activity day count.
+
+        Call this at session start or when activity is recorded.
+        """
+        self._activity_days = activity_days
 
     async def handle(self, tool_name: str, arguments: dict) -> str:
         """Execute a memory tool and return result."""
@@ -338,6 +347,7 @@ class MemoryToolHandler:
             category=category,
             confidence=confidence,
             source_turns=(self.dag.active_head,) if self.dag.active_head else (),
+            activity_day_created=self._activity_days,
         )
         self.dag.add_learning(learning)
         return f"✓ Learned: [{category}] {fact}"
@@ -355,6 +365,7 @@ class MemoryToolHandler:
                 category="dead_end",
                 confidence=1.0,
                 source_turns=(self.dag.active_head,),
+                activity_day_created=self._activity_days,
             )
             self.dag.add_learning(learning)
 

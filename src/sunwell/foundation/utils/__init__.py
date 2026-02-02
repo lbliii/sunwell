@@ -8,6 +8,7 @@ Provides generic utilities used across domains:
 - Hashing (compute_hash, compute_file_hash, compute_string_hash)
 - Path operations (normalize_path, sanitize_filename, ensure_dir, relative_to_cwd)
 - Serialization (safe_json_loads, safe_json_dumps, safe_yaml_load, safe_yaml_dump)
+- Timestamps (absolute_timestamp, format_for_summary)
 """
 
 from sunwell.foundation.utils.hashing import (
@@ -22,14 +23,23 @@ from sunwell.foundation.utils.paths import (
     sanitize_filename,
 )
 from sunwell.foundation.utils.serialization import (
+    safe_json_dump,
     safe_json_dumps,
+    safe_json_load,
     safe_json_loads,
+    safe_jsonl_append,
+    safe_jsonl_load,
     safe_yaml_dump,
     safe_yaml_dumps,
     safe_yaml_load,
     safe_yaml_loads,
 )
 from sunwell.foundation.utils.strings import slugify
+from sunwell.foundation.utils.timestamps import (
+    absolute_timestamp,
+    absolute_timestamp_full,
+    format_for_summary,
+)
 from sunwell.foundation.utils.validation import validate_slug
 
 __all__ = [
@@ -47,10 +57,18 @@ __all__ = [
     "ensure_dir",
     "relative_to_cwd",
     # Serialization utilities
+    "safe_json_load",
     "safe_json_loads",
+    "safe_json_dump",
     "safe_json_dumps",
+    "safe_jsonl_load",
+    "safe_jsonl_append",
     "safe_yaml_load",
     "safe_yaml_loads",
     "safe_yaml_dump",
     "safe_yaml_dumps",
+    # Timestamp utilities
+    "absolute_timestamp",
+    "absolute_timestamp_full",
+    "format_for_summary",
 ]

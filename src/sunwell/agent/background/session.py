@@ -198,6 +198,7 @@ class BackgroundSession:
         tool_executor: ToolExecutor,
         memory: PersistentMemory | None = None,
         on_complete: Any | None = None,
+        precomputed_plan: Any | None = None,  # PlanResult for RFC: Plan-Based Duration Estimation
     ) -> None:
         """Execute the goal in the background.
 
@@ -206,6 +207,7 @@ class BackgroundSession:
             tool_executor: Tool executor for file operations
             memory: Optional persistent memory
             on_complete: Optional callback when complete (async callable)
+            precomputed_plan: Optional PlanResult to skip re-planning (RFC)
         """
         from sunwell.agent import Agent
         from sunwell.agent.context.session import SessionContext
@@ -234,7 +236,8 @@ class BackgroundSession:
             tasks_completed = 0
             files_changed: list[str] = []
 
-            async for event in agent.run(session, memory):
+            # RFC: Plan-Based Duration Estimation - pass precomputed plan if available
+            async for event in agent.run(session, memory, precomputed_plan=precomputed_plan):
                 if event.type == EventType.TASK_COMPLETE:
                     tasks_completed += 1
                 elif event.type == EventType.COMPLETE:

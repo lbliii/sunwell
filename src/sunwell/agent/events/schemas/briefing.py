@@ -13,8 +13,6 @@ class BriefingLoadedData(TypedDict, total=False):
     status: str
     has_hazards: bool
     has_dispatch_hints: bool
-    # Legacy field for backward compatibility
-    path: str | None
 
 
 class BriefingSavedData(TypedDict, total=False):
@@ -26,5 +24,3 @@ class BriefingSavedData(TypedDict, total=False):
     status: str
     next_action: str | None
     tasks_completed: int
-    # Legacy field for backward compatibility
-    path: str | None

@@ -172,6 +172,21 @@ class LoopConfig:
     """
 
     # =========================================================================
+    # Trinket Composition
+    # =========================================================================
+    refresh_trinkets_per_turn: bool = False
+    """Refresh dynamic trinkets each turn.
+
+    When True, non-cacheable trinkets regenerate their content
+    at the start of each turn. When False, only regenerates
+    when context changes significantly.
+
+    Note: Trinket composition is always enabled. The system uses modular
+    trinkets to compose system prompts from independent components
+    (time, briefing, learnings, tool guidance, memory context).
+    """
+
+    # =========================================================================
     # Execution Lanes (Agentic Infrastructure Phase 2)
     # =========================================================================
     execution_lane: ExecutionLane = ExecutionLane.MAIN

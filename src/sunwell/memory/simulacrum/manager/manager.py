@@ -23,11 +23,14 @@ Example flow:
 5. When both topics intersect, agent queries both simulacrums
 """
 
-
-import json
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+
+from sunwell.foundation.utils import safe_json_dump, safe_json_load
+
+logger = logging.getLogger(__name__)
 from typing import TYPE_CHECKING
 
 from sunwell.memory.simulacrum.core.store import SimulacrumStore, StorageConfig
@@ -104,18 +107,17 @@ class SimulacrumManager:
         self._load_registry()
 
     def _load_registry(self) -> None:
-        """Load simulacrum registry from disk."""
+        """Load simulacrum registry from disk. Gracefully handles missing/corrupt files."""
         registry_path = self.base_path / "registry.json"
-        if registry_path.exists():
-            with open(registry_path) as f:
-                data = json.load(f)
+        data = safe_json_load(registry_path, default={})
+        if data:
             for name, meta_dict in data.get("simulacrums", {}).items():
                 self._metadata[name] = SimulacrumMetadata.from_dict(meta_dict)
             for name, archive_dict in data.get("archived", {}).items():
                 self._archived[name] = ArchiveMetadata.from_dict(archive_dict)
 
     def _save_registry(self) -> None:
-        """Save simulacrum registry to disk."""
+        """Save simulacrum registry to disk with atomic write."""
         registry_path = self.base_path / "registry.json"
         data = {
             "simulacrums": {
@@ -126,8 +128,8 @@ class SimulacrumManager:
             },
             "updated_at": datetime.now().isoformat(),
         }
-        with open(registry_path, "w") as f:
-            json.dump(data, f, indent=2)
+        if not safe_json_dump(data, registry_path):
+            logger.error("Failed to save simulacrum registry")
 
     def set_embedder(self, embedder: EmbeddingProtocol) -> None:
         """Set embedder for semantic operations."""
@@ -755,34 +757,27 @@ class SimulacrumManager:
         archive_dir = self.base_path / "archive"
         archive_dir.mkdir(parents=True, exist_ok=True)
 
-        # Archive path - prefer zstd (Python 3.14+), fallback to gzip
         archive_name = f"{name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
-        # Try zstd first (Python 3.14+ built-in, faster & better compression)
+        # Archive with zstd compression (Python 3.14+)
         source_dir = self.base_path / name
         if source_dir.exists():
+            import io
             import tarfile
-            try:
-                # Python 3.14+: Use zstd compression
-                from compression import zstd
-                archive_path = archive_dir / f"{archive_name}.tar.zst"
 
-                # Create tar archive in memory, then compress with zstd
-                import io
-                tar_buffer = io.BytesIO()
-                with tarfile.open(fileobj=tar_buffer, mode="w") as tar:
-                    tar.add(source_dir, arcname=name)
-                tar_data = tar_buffer.getvalue()
+            from compression import zstd
 
-                # Compress with zstd (level 3 = good balance of speed/ratio)
-                compressed = zstd.compress(tar_data, level=3)
-                archive_path.write_bytes(compressed)
+            archive_path = archive_dir / f"{archive_name}.tar.zst"
 
-            except ImportError:
-                # Fallback to gzip for older Python
-                archive_path = archive_dir / f"{archive_name}.tar.gz"
-                with tarfile.open(archive_path, "w:gz") as tar:
-                    tar.add(source_dir, arcname=name)
+            # Create tar archive in memory, then compress with zstd
+            tar_buffer = io.BytesIO()
+            with tarfile.open(fileobj=tar_buffer, mode="w") as tar:
+                tar.add(source_dir, arcname=name)
+            tar_data = tar_buffer.getvalue()
+
+            # Compress with zstd (level 3 = good balance of speed/ratio)
+            compressed = zstd.compress(tar_data, level=3)
+            archive_path.write_bytes(compressed)
 
         # Create archive metadata
         archive_meta = ArchiveMetadata(
@@ -817,15 +812,16 @@ class SimulacrumManager:
     def restore(self, name: str) -> SimulacrumStore:
         """Restore an archived simulacrum.
 
-        Handles both zstd (Python 3.14+) and gzip archives.
-
         Args:
             name: Name of archived simulacrum to restore
 
         Returns:
             The restored SimulacrumStore
         """
+        import io
         import tarfile
+
+        from compression import zstd
 
         if name not in self._archived:
             raise KeyError(f"No archived simulacrum '{name}' found")
@@ -836,28 +832,19 @@ class SimulacrumManager:
         if not archive_path.exists():
             raise FileNotFoundError(f"Archive file not found: {archive_path}")
 
-        # Extract based on archive format
-        if archive_path.suffix == ".zst" or str(archive_path).endswith(".tar.zst"):
-            # Python 3.14+ zstd format
-            try:
-                import io
-                from compression import zstd
+        # Only zstd format supported
+        if not (archive_path.suffix == ".zst" or str(archive_path).endswith(".tar.zst")):
+            raise ValueError(
+                f"Unsupported archive format: {archive_path}. "
+                "Only .tar.zst archives are supported. Manually decompress and re-archive."
+            )
 
-                compressed_data = archive_path.read_bytes()
-                tar_data = zstd.decompress(compressed_data)
+        compressed_data = archive_path.read_bytes()
+        tar_data = zstd.decompress(compressed_data)
 
-                tar_buffer = io.BytesIO(tar_data)
-                with tarfile.open(fileobj=tar_buffer, mode="r") as tar:
-                    tar.extractall(self.base_path)
-            except ImportError:
-                raise RuntimeError(
-                    f"Archive uses zstd compression but Python < 3.14. "
-                    f"Upgrade Python or manually decompress: {archive_path}"
-                ) from None
-        else:
-            # Legacy gzip format
-            with tarfile.open(archive_path, "r:gz") as tar:
-                tar.extractall(self.base_path)
+        tar_buffer = io.BytesIO(tar_data)
+        with tarfile.open(fileobj=tar_buffer, mode="r") as tar:
+            tar.extractall(self.base_path)
 
         # Restore metadata
         restored_meta = SimulacrumMetadata(

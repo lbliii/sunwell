@@ -2,7 +2,7 @@
 
 import pytest
 
-from sunwell.demo import (
+from sunwell.benchmark.demo import (
     BUILTIN_TASKS,
     DemoScorer,
     DemoTask,
@@ -172,7 +172,7 @@ class TestIntegration:
 
     def test_full_scoring_flow(self):
         """Test the complete scoring flow."""
-        from sunwell.demo import DemoComparison
+        from sunwell.benchmark.demo import DemoComparison
 
         task = get_task("divide")
         scorer = DemoScorer()

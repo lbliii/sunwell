@@ -384,6 +384,10 @@ class SessionContext:
             None if status == BriefingStatus.COMPLETE
             else "Continue from previous session"
         )
+
+        # Get hazards from reflection phase (if any)
+        reflection_hazards = getattr(self, "_reflection_hazards", [])
+
         summary = ExecutionSummary(
             last_action=f"Worked on: {self.goal[:100]}",
             next_action=next_action,
@@ -391,6 +395,7 @@ class SessionContext:
             tasks_completed=completed_count,
             gates_passed=0,
             new_learnings=(),
+            new_hazards=tuple(reflection_hazards[:3]),  # Include hazards from reflection
         )
 
         # Compress and save

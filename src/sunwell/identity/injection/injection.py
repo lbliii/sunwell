@@ -10,11 +10,15 @@ RFC-131: Identity comes ONLY from lenses. No hardcoded fallback.
 
 Identity is injected as a separate section at the end of the system prompt,
 not competing with task context in the Convergence slots.
+
+Awareness patterns (behavioral self-observations) are also injected here
+as a "Self-Observations" section for self-correction hints.
 """
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from sunwell.awareness.patterns import AwarenessPattern
     from sunwell.core.models.heuristic import Identity as LensIdentity
     from sunwell.foundation.core.lens import Lens
     from sunwell.identity.core.models import Identity as UserIdentity
@@ -30,6 +34,7 @@ def build_system_prompt_with_identity(
     user_identity: UserIdentity | None,
     *,
     lens: Lens | None = None,
+    awareness_patterns: list[AwarenessPattern] | None = None,
     max_identity_chars: int = MAX_IDENTITY_PROMPT_LENGTH,
     include_agent_identity: bool = True,
 ) -> str:
@@ -38,6 +43,7 @@ def build_system_prompt_with_identity(
     Injects:
     1. Agent identity from lens (if configured)
     2. User's interaction style (from learned behaviors)
+    3. Self-observations from awareness patterns (behavioral hints)
 
     Note: Identity ONLY comes from lenses. If no lens identity is configured,
     no agent identity section is added. Use `default_compose: ["base/muru"]`
@@ -47,6 +53,7 @@ def build_system_prompt_with_identity(
         lens_prompt: Base system prompt from lens
         user_identity: User Identity object (may be None or unusable)
         lens: Lens with optional communication.identity (RFC-131)
+        awareness_patterns: Behavioral patterns for self-correction hints
         max_identity_chars: Maximum characters for identity section
         include_agent_identity: Whether to inject agent identity section
 
@@ -75,6 +82,12 @@ def build_system_prompt_with_identity(
         identity_text = user_identity.prompt[:max_identity_chars]
         base += f"\n\n## User Interaction Style\n\n{identity_text}"
 
+    # Inject awareness patterns (self-observations)
+    if awareness_patterns:
+        awareness_text = _format_awareness_patterns(awareness_patterns)
+        if awareness_text:
+            base += f"\n\n## Self-Observations\n\n{awareness_text}"
+
     return base
 
 
@@ -94,5 +107,18 @@ def _format_lens_identity(identity: LensIdentity) -> str:
             lines.append(f"- {prohibition}")
 
     return "\n".join(lines)
+
+
+def _format_awareness_patterns(patterns: list[AwarenessPattern]) -> str:
+    """Format awareness patterns for system prompt injection.
+
+    Args:
+        patterns: Behavioral patterns to format
+
+    Returns:
+        Formatted string for system prompt, or empty if no significant patterns
+    """
+    from sunwell.awareness.patterns import format_patterns_for_prompt
+    return format_patterns_for_prompt(patterns)
 
 

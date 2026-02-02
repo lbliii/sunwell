@@ -484,7 +484,6 @@ def handle_tools_command(
         policy = ToolPolicy(trust_level=ToolTrust.from_string(trust_level))
         new_executor = ToolExecutor(
             project=project,
-            sandbox=None,
             policy=policy,
         )
         logger.info("Tools enabled with trust_level=%s", trust_level)

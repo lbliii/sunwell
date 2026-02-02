@@ -7,7 +7,6 @@ Thread Safety:
 """
 
 import asyncio
-import json
 import logging
 import threading
 import uuid
@@ -17,9 +16,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from sunwell.agent.background.session import BackgroundSession, SessionStatus
+from sunwell.foundation.utils import safe_json_dump, safe_json_load
 
 if TYPE_CHECKING:
-    from sunwell.interface.cli.notifications import Notifier
+    from sunwell.interface.cli.notifications import BatchedNotifier, Notifier
     from sunwell.memory import PersistentMemory
     from sunwell.models import ModelProtocol
     from sunwell.tools.execution import ToolExecutor
@@ -53,7 +53,7 @@ class BackgroundManager:
     workspace: Path
     """Workspace root directory."""
 
-    notifier: Notifier | None = None
+    notifier: "Notifier | BatchedNotifier | None" = None
     """Optional notifier for completion notifications."""
 
     _sessions: dict[str, BackgroundSession] = field(default_factory=dict, init=False)
@@ -87,39 +87,34 @@ class BackgroundManager:
             if self._loaded:
                 return
 
-            if self._index_path.exists():
-                try:
-                    with open(self._index_path) as f:
-                        data = json.load(f)
-
-                    for session_data in data.get("sessions", []):
+            data = safe_json_load(self._index_path, default={})
+            if data:
+                for session_data in data.get("sessions", []):
+                    try:
                         session = BackgroundSession.from_dict(session_data)
                         self._sessions[session.session_id] = session
+                    except (KeyError, TypeError) as e:
+                        logger.debug("Skipping malformed session: %s", e)
 
-                    logger.debug(
-                        "Loaded %d background sessions from index",
-                        len(self._sessions),
-                    )
-                except Exception as e:
-                    logger.warning("Failed to load background sessions: %s", e)
+                logger.debug(
+                    "Loaded %d background sessions from index",
+                    len(self._sessions),
+                )
 
             self._loaded = True
 
     def _save_index(self) -> None:
-        """Save session index to disk."""
-        try:
-            self._sessions_dir.mkdir(parents=True, exist_ok=True)
+        """Save session index to disk with atomic write."""
+        self._sessions_dir.mkdir(parents=True, exist_ok=True)
 
-            data = {
-                "version": 1,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-                "sessions": [s.to_dict() for s in self._sessions.values()],
-            }
+        data = {
+            "version": 1,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "sessions": [s.to_dict() for s in self._sessions.values()],
+        }
 
-            with open(self._index_path, "w") as f:
-                json.dump(data, f, indent=2)
-        except Exception as e:
-            logger.warning("Failed to save background sessions: %s", e)
+        if not safe_json_dump(data, self._index_path):
+            logger.warning("Failed to save background sessions")
 
     def _generate_session_id(self) -> str:
         """Generate unique session ID."""
@@ -168,15 +163,11 @@ class BackgroundManager:
         if self.notifier is not None:
             try:
                 if session.status == SessionStatus.COMPLETED:
-                    await self.notifier.send_complete(
-                        title="Sunwell: Background Task Complete",
-                        message=session.result_summary or f"Completed: {session.goal[:50]}",
-                    )
+                    summary = session.result_summary or f"Completed: {session.goal[:50]}"
+                    await self.notifier.send_complete(summary)
                 elif session.status == SessionStatus.FAILED:
-                    await self.notifier.send_error(
-                        title="Sunwell: Background Task Failed",
-                        message=session.error or f"Failed: {session.goal[:50]}",
-                    )
+                    error_msg = session.error or f"Failed: {session.goal[:50]}"
+                    await self.notifier.send_error(error_msg)
             except Exception as e:
                 logger.warning("Failed to send completion notification: %s", e)
 
@@ -187,6 +178,7 @@ class BackgroundManager:
         tool_executor: ToolExecutor,
         memory: PersistentMemory | None = None,
         estimated_duration: int | None = None,
+        precomputed_plan: Any | None = None,  # PlanResult for RFC: Plan-Based Duration Estimation
     ) -> BackgroundSession:
         """Spawn a new background session.
 
@@ -196,6 +188,7 @@ class BackgroundManager:
             tool_executor: Tool executor for file operations
             memory: Optional persistent memory
             estimated_duration: Estimated duration in seconds
+            precomputed_plan: Optional PlanResult to skip re-planning (RFC)
 
         Returns:
             The created BackgroundSession
@@ -223,6 +216,7 @@ class BackgroundManager:
                 tool_executor=tool_executor,
                 memory=memory,
                 on_complete=self._on_session_complete,
+                precomputed_plan=precomputed_plan,
             )
         )
         session._task = task

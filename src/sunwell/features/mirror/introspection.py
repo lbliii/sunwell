@@ -6,7 +6,7 @@ simulacrum state, and execution history.
 
 
 import ast
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -36,11 +36,10 @@ class SourceIntrospector:
         >>> source = introspector.get_module_source("sunwell.tools.executor")
         >>> symbol = introspector.find_symbol("sunwell.tools.executor", "ToolExecutor")
 
-    Note: The `sunwell_root` parameter is deprecated and ignored.
-    Source root is now auto-detected from the installed package location.
+    Source root is auto-detected from the installed package location.
     """
 
-    sunwell_root: Path | None = None  # Deprecated, kept for API compatibility
+    _source_root: Path = field(init=False)
 
     def __post_init__(self) -> None:
         """Auto-resolve the actual Sunwell source root."""

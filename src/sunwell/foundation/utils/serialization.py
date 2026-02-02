@@ -3,17 +3,25 @@
 RFC-138: Module Architecture Consolidation
 
 Provides safe parsing and serialization with clear error messages.
+Includes crash-tolerant file I/O with atomic writes.
 YAML support requires pyyaml (optional dependency).
 """
 
 import json
+import logging
+import os
+import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 try:
     import yaml
 except ImportError:
     yaml = None  # type: ignore[assignment]
+
+logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
 
 
 def safe_json_loads(data: str) -> dict[str, Any] | list[Any]:
@@ -168,3 +176,171 @@ def safe_yaml_dump(obj: dict[str, Any], path: Path) -> None:
 
     content = safe_yaml_dumps(obj)
     path.write_text(content, encoding="utf-8")
+
+
+# =============================================================================
+# Crash-Tolerant JSON File I/O
+# =============================================================================
+
+
+def safe_json_load(
+    path: Path,
+    default: T | None = None,
+) -> dict[str, Any] | list[Any] | T | None:
+    """Load JSON file with graceful error handling.
+
+    Returns default value if file doesn't exist or is corrupted.
+    Never raises exceptions - logs warnings instead.
+
+    Args:
+        path: Path to JSON file
+        default: Value to return on error (default: None)
+
+    Returns:
+        Parsed JSON data, or default on any error
+
+    Example:
+        >>> data = safe_json_load(Path("config.json"), default={})
+        >>> data = safe_json_load(Path("missing.json"), default={"version": 1})
+    """
+    if not path.exists():
+        return default
+
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        logger.warning("Corrupted JSON in %s: %s (using default)", path, e)
+        return default
+    except OSError as e:
+        logger.warning("Failed to read %s: %s (using default)", path, e)
+        return default
+
+
+def safe_json_dump(
+    obj: dict[str, Any] | list[Any],
+    path: Path,
+    *,
+    indent: int = 2,
+    atomic: bool = True,
+) -> bool:
+    """Write JSON file with crash tolerance.
+
+    Uses atomic write (temp file + rename) to prevent corruption on crash.
+    Creates parent directories if needed.
+
+    Args:
+        obj: Object to serialize
+        path: Destination path
+        indent: JSON indentation (default: 2)
+        atomic: Use atomic write via temp file (default: True)
+
+    Returns:
+        True if successful, False on error
+
+    Example:
+        >>> success = safe_json_dump({"key": "value"}, Path("config.json"))
+        >>> if not success:
+        ...     print("Warning: failed to save config")
+    """
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        content = json.dumps(obj, indent=indent)
+
+        if atomic:
+            # Write to temp file in same directory, then rename (atomic on POSIX)
+            fd, tmp_path = tempfile.mkstemp(
+                suffix=".tmp",
+                prefix=path.stem + "_",
+                dir=path.parent,
+            )
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    f.write(content)
+                os.replace(tmp_path, path)  # Atomic on POSIX
+            except Exception:
+                # Clean up temp file on failure
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+                raise
+        else:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(content)
+
+        return True
+    except OSError as e:
+        logger.error("Failed to write %s: %s", path, e)
+        return False
+    except (TypeError, ValueError) as e:
+        logger.error("Failed to serialize JSON for %s: %s", path, e)
+        return False
+
+
+def safe_jsonl_append(
+    record: dict[str, Any],
+    path: Path,
+) -> bool:
+    """Append a single record to JSONL file.
+
+    JSONL (JSON Lines) is naturally crash-tolerant since each line is
+    independent. A crash mid-write only corrupts the last line.
+
+    Args:
+        record: Dict to append as JSON line
+        path: Path to JSONL file
+
+    Returns:
+        True if successful, False on error
+
+    Example:
+        >>> safe_jsonl_append({"event": "start"}, Path("events.jsonl"))
+    """
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record) + "\n")
+        return True
+    except OSError as e:
+        logger.error("Failed to append to %s: %s", path, e)
+        return False
+    except (TypeError, ValueError) as e:
+        logger.error("Failed to serialize record for %s: %s", path, e)
+        return False
+
+
+def safe_jsonl_load(
+    path: Path,
+) -> list[dict[str, Any]]:
+    """Load all records from JSONL file.
+
+    Skips corrupted lines gracefully - partial data is better than none.
+
+    Args:
+        path: Path to JSONL file
+
+    Returns:
+        List of parsed records (empty list if file missing or all corrupted)
+
+    Example:
+        >>> records = safe_jsonl_load(Path("events.jsonl"))
+    """
+    if not path.exists():
+        return []
+
+    records: list[dict[str, Any]] = []
+    try:
+        with open(path, encoding="utf-8") as f:
+            for lineno, line in enumerate(f, 1):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    records.append(json.loads(line))
+                except json.JSONDecodeError:
+                    logger.debug("Skipping corrupted line %d in %s", lineno, path)
+    except OSError as e:
+        logger.warning("Failed to read %s: %s", path, e)
+
+    return records

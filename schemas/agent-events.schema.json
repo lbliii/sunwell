@@ -401,8 +401,8 @@
             }
           },
           "required": [
-            "fact",
-            "category"
+            "category",
+            "fact"
           ],
           "additionalProperties": true
         },
@@ -534,9 +534,9 @@
             }
           },
           "required": [
-            "constraints",
+            "learnings",
             "dead_ends",
-            "learnings"
+            "constraints"
           ],
           "additionalProperties": true
         },
@@ -572,8 +572,8 @@
             }
           },
           "required": [
-            "fact",
-            "category"
+            "category",
+            "fact"
           ],
           "additionalProperties": true
         },
@@ -651,8 +651,8 @@
           },
           "required": [
             "error_type",
-            "context",
-            "description"
+            "description",
+            "context"
           ],
           "additionalProperties": true
         },
@@ -1113,9 +1113,9 @@
             }
           },
           "required": [
-            "total_candidates",
             "artifact_count",
-            "candidate_id"
+            "candidate_id",
+            "total_candidates"
           ],
           "additionalProperties": true
         },
@@ -1197,9 +1197,9 @@
             }
           },
           "required": [
-            "total_candidates",
             "candidate_id",
-            "score"
+            "score",
+            "total_candidates"
           ],
           "additionalProperties": true
         },
@@ -1465,8 +1465,8 @@
             }
           },
           "required": [
-            "gate_id",
-            "gate_type"
+            "gate_type",
+            "gate_id"
           ],
           "additionalProperties": true
         },
@@ -1729,8 +1729,8 @@
             }
           },
           "required": [
-            "content",
-            "task_id"
+            "task_id",
+            "content"
           ],
           "additionalProperties": true
         },
@@ -1766,8 +1766,8 @@
             }
           },
           "required": [
-            "error",
-            "task_id"
+            "task_id",
+            "error"
           ],
           "additionalProperties": true
         },
@@ -1973,8 +1973,8 @@
             }
           },
           "required": [
-            "stage",
-            "progress"
+            "progress",
+            "stage"
           ],
           "additionalProperties": true
         },
@@ -2241,8 +2241,8 @@
             }
           },
           "required": [
-            "recovery_id",
-            "artifact_ids"
+            "artifact_ids",
+            "recovery_id"
           ],
           "additionalProperties": true
         },
@@ -2276,8 +2276,8 @@
             }
           },
           "required": [
-            "recovery_id",
-            "artifact_ids"
+            "artifact_ids",
+            "recovery_id"
           ],
           "additionalProperties": true
         },
@@ -2456,10 +2456,10 @@
             }
           },
           "required": [
+            "edge_id",
             "source_artifact",
             "check_type",
-            "target_artifact",
-            "edge_id"
+            "target_artifact"
           ],
           "additionalProperties": true
         },
@@ -2495,9 +2495,9 @@
             }
           },
           "required": [
-            "check_type",
+            "verification_method",
             "edge_id",
-            "verification_method"
+            "check_type"
           ],
           "additionalProperties": true
         },
@@ -2539,10 +2539,10 @@
             }
           },
           "required": [
-            "actual",
-            "check_type",
             "expected",
-            "edge_id"
+            "edge_id",
+            "actual",
+            "check_type"
           ],
           "additionalProperties": true
         },
@@ -2581,10 +2581,10 @@
             }
           },
           "required": [
-            "stub_type",
-            "file_path",
             "artifact_id",
-            "location"
+            "stub_type",
+            "location",
+            "file_path"
           ],
           "additionalProperties": true
         },
@@ -2617,8 +2617,8 @@
             }
           },
           "required": [
-            "file_path",
-            "artifact_id"
+            "artifact_id",
+            "file_path"
           ],
           "additionalProperties": true
         },
@@ -2657,10 +2657,10 @@
             }
           },
           "required": [
-            "source_artifact",
-            "target_artifact",
             "task_id",
-            "integration_type"
+            "source_artifact",
+            "integration_type",
+            "target_artifact"
           ],
           "additionalProperties": true
         },
@@ -2699,10 +2699,10 @@
             }
           },
           "required": [
-            "protocol_name",
-            "contract_file",
             "task_id",
-            "implementation_file"
+            "contract_file",
+            "implementation_file",
+            "protocol_name"
           ],
           "additionalProperties": true
         },
@@ -2748,8 +2748,8 @@
             }
           },
           "required": [
-            "final_tier",
             "task_id",
+            "final_tier",
             "protocol_name"
           ],
           "additionalProperties": true
@@ -2803,10 +2803,10 @@
             }
           },
           "required": [
-            "final_tier",
             "task_id",
-            "protocol_name",
-            "error_message"
+            "final_tier",
+            "error_message",
+            "protocol_name"
           ],
           "additionalProperties": true
         },
@@ -2842,15 +2842,12 @@
             },
             "has_dispatch_hints": {
               "type": "boolean"
-            },
-            "path": {
-              "type": "string"
             }
           },
           "required": [
+            "mission",
             "has_hazards",
-            "status",
-            "mission"
+            "status"
           ],
           "additionalProperties": true
         },
@@ -2883,9 +2880,6 @@
             },
             "tasks_completed": {
               "type": "integer"
-            },
-            "path": {
-              "type": "string"
             }
           },
           "required": [
@@ -2916,10 +2910,6 @@
           "properties": {
             "briefing": {
               "type": "string"
-            },
-            "sources": {
-              "type": "array",
-              "items": {}
             }
           },
           "required": [
@@ -2957,18 +2947,12 @@
             "skills_activated": {
               "type": "array",
               "items": {}
-            },
-            "duration_ms": {
-              "type": "integer"
-            },
-            "sources_loaded": {
-              "type": "integer"
             }
           },
           "required": [
+            "skills_activated",
             "learnings_loaded",
-            "files_loaded",
-            "skills_activated"
+            "files_loaded"
           ],
           "additionalProperties": true
         },
@@ -2995,9 +2979,6 @@
           "properties": {
             "error": {
               "type": "string"
-            },
-            "timeout_ms": {
-              "type": "integer"
             }
           },
           "additionalProperties": true
@@ -3068,14 +3049,11 @@
             },
             "estimated_time_s": {
               "type": "number"
-            },
-            "provider": {
-              "type": "string"
             }
           },
           "required": [
-            "model",
-            "task_id"
+            "task_id",
+            "model"
           ],
           "additionalProperties": true
         },
@@ -3117,8 +3095,8 @@
             }
           },
           "required": [
-            "tokens",
             "task_id",
+            "tokens",
             "token_count"
           ],
           "additionalProperties": true
@@ -3158,8 +3136,8 @@
             }
           },
           "required": [
-            "content",
             "task_id",
+            "content",
             "phase"
           ],
           "additionalProperties": true
@@ -3200,9 +3178,6 @@
             "time_to_first_token_ms": {
               "type": "integer"
             },
-            "duration_ms": {
-              "type": "integer"
-            },
             "input_tokens": {
               "type": "integer"
             },
@@ -3211,10 +3186,10 @@
             }
           },
           "required": [
-            "duration_s",
-            "tokens_per_second",
             "task_id",
-            "total_tokens"
+            "total_tokens",
+            "duration_s",
+            "tokens_per_second"
           ],
           "additionalProperties": true
         },
@@ -3247,14 +3222,11 @@
             },
             "token_count": {
               "type": "integer"
-            },
-            "elapsed_ms": {
-              "type": "integer"
             }
           },
           "required": [
-            "elapsed_s",
             "task_id",
+            "elapsed_s",
             "token_count"
           ],
           "additionalProperties": true
@@ -3295,9 +3267,9 @@
           },
           "required": [
             "skill_count",
-            "lens_name",
             "content_hash",
-            "wave_count"
+            "wave_count",
+            "lens_name"
           ],
           "additionalProperties": true
         },
@@ -3380,10 +3352,10 @@
             }
           },
           "required": [
-            "wave_index",
-            "succeeded",
             "failed",
-            "duration_ms"
+            "succeeded",
+            "duration_ms",
+            "wave_index"
           ],
           "additionalProperties": true
         },
@@ -3419,9 +3391,9 @@
             }
           },
           "required": [
-            "cache_key",
             "skill_name",
-            "saved_ms"
+            "saved_ms",
+            "cache_key"
           ],
           "additionalProperties": true
         },
@@ -3468,9 +3440,9 @@
             }
           },
           "required": [
-            "context_keys_available",
             "requires",
             "skill_name",
+            "context_keys_available",
             "wave_index"
           ],
           "additionalProperties": true
@@ -3523,11 +3495,11 @@
             }
           },
           "required": [
-            "skill_name",
-            "duration_ms",
+            "cached",
             "produces",
             "success",
-            "cached"
+            "duration_ms",
+            "skill_name"
           ],
           "additionalProperties": true
         },
@@ -3603,16 +3575,13 @@
             },
             "cached": {
               "type": "boolean"
-            },
-            "skill_count": {
-              "type": "integer"
             }
           },
           "required": [
-            "task_count",
-            "lens_name",
             "duration_ms",
-            "wave_count"
+            "task_count",
+            "wave_count",
+            "lens_name"
           ],
           "additionalProperties": true
         },
@@ -3645,15 +3614,12 @@
             },
             "wave_count": {
               "type": "integer"
-            },
-            "lens_name": {
-              "type": "string"
             }
           },
           "required": [
-            "cache_key",
             "wave_count",
-            "task_count"
+            "task_count",
+            "cache_key"
           ],
           "additionalProperties": true
         },
@@ -3687,18 +3653,12 @@
             },
             "extracted_skills": {
               "type": "integer"
-            },
-            "skill_name": {
-              "type": "string"
-            },
-            "subgraph_size": {
-              "type": "integer"
             }
           },
           "required": [
             "extracted_skills",
-            "total_skills",
-            "target_skills"
+            "target_skills",
+            "total_skills"
           ],
           "additionalProperties": true
         },
@@ -3748,12 +3708,12 @@
             }
           },
           "required": [
-            "skill_count",
-            "dag_name",
+            "risk_level",
             "dag_id",
             "flags",
-            "risk_score",
-            "risk_level"
+            "skill_count",
+            "dag_name",
+            "risk_score"
           ],
           "additionalProperties": true
         },
@@ -3792,8 +3752,8 @@
             }
           },
           "required": [
-            "dag_id",
-            "approved"
+            "approved",
+            "dag_id"
           ],
           "additionalProperties": true
         },
@@ -3838,11 +3798,11 @@
             }
           },
           "required": [
-            "skill_name",
             "violation_type",
-            "action_taken",
+            "detection_method",
             "evidence",
-            "detection_method"
+            "skill_name",
+            "action_taken"
           ],
           "additionalProperties": true
         },
@@ -3881,9 +3841,9 @@
             }
           },
           "required": [
+            "output_length",
             "violations_found",
             "scan_duration_ms",
-            "output_length",
             "method"
           ],
           "additionalProperties": true
@@ -4123,8 +4083,8 @@
             }
           },
           "required": [
-            "tool_call_id",
-            "tool_name"
+            "tool_name",
+            "tool_call_id"
           ],
           "additionalProperties": true
         },
@@ -4166,10 +4126,10 @@
             }
           },
           "required": [
-            "tool_call_id",
             "output",
             "tool_name",
-            "success"
+            "success",
+            "tool_call_id"
           ],
           "additionalProperties": true
         },
@@ -4205,9 +4165,9 @@
             }
           },
           "required": [
+            "tool_name",
             "error",
-            "tool_call_id",
-            "tool_name"
+            "tool_call_id"
           ],
           "additionalProperties": true
         },
@@ -4278,8 +4238,8 @@
             }
           },
           "required": [
-            "turn",
-            "tool_calls_count"
+            "tool_calls_count",
+            "turn"
           ],
           "additionalProperties": true
         },
@@ -4315,8 +4275,8 @@
             }
           },
           "required": [
-            "turns_used",
-            "tool_calls_total"
+            "tool_calls_total",
+            "turns_used"
           ],
           "additionalProperties": true
         },
@@ -4356,9 +4316,9 @@
             }
           },
           "required": [
+            "tool_name",
             "repairs",
-            "tool_call_id",
-            "tool_name"
+            "tool_call_id"
           ],
           "additionalProperties": true
         },
@@ -4394,9 +4354,9 @@
             }
           },
           "required": [
-            "tool_call_id",
+            "tool_name",
             "reason",
-            "tool_name"
+            "tool_call_id"
           ],
           "additionalProperties": true
         },
@@ -4438,11 +4398,11 @@
             }
           },
           "required": [
-            "error",
             "attempt",
-            "tool_call_id",
+            "error",
             "strategy",
-            "tool_name"
+            "tool_name",
+            "tool_call_id"
           ],
           "additionalProperties": true
         },
@@ -4481,9 +4441,9 @@
             }
           },
           "required": [
-            "error",
             "reason",
-            "tool_name"
+            "tool_name",
+            "error"
           ],
           "additionalProperties": true
         },
@@ -4631,10 +4591,10 @@
             }
           },
           "required": [
-            "turn",
             "category",
-            "tools_unlocked",
-            "validation_passes"
+            "turn",
+            "validation_passes",
+            "tools_unlocked"
           ],
           "additionalProperties": true
         },
@@ -4672,8 +4632,8 @@
             }
           },
           "required": [
-            "max_iterations",
             "files",
+            "max_iterations",
             "gates"
           ],
           "additionalProperties": true
@@ -4708,8 +4668,8 @@
             }
           },
           "required": [
-            "iteration",
-            "files"
+            "files",
+            "iteration"
           ],
           "additionalProperties": true
         },
@@ -4746,16 +4706,13 @@
             "gate_results": {
               "type": "object",
               "additionalProperties": true
-            },
-            "errors_found": {
-              "type": "integer"
             }
           },
           "required": [
+            "gate_results",
             "iteration",
-            "total_errors",
             "all_passed",
-            "gate_results"
+            "total_errors"
           ],
           "additionalProperties": true
         },
@@ -4785,14 +4742,11 @@
             },
             "error_count": {
               "type": "integer"
-            },
-            "errors_to_fix": {
-              "type": "integer"
             }
           },
           "required": [
-            "iteration",
-            "error_count"
+            "error_count",
+            "iteration"
           ],
           "additionalProperties": true
         },
@@ -4853,9 +4807,6 @@
           "properties": {
             "iterations": {
               "type": "integer"
-            },
-            "elapsed_ms": {
-              "type": "integer"
             }
           },
           "required": [
@@ -4890,9 +4841,6 @@
             "repeated_errors": {
               "type": "array",
               "items": {}
-            },
-            "persistent_errors": {
-              "type": "integer"
             }
           },
           "required": [
@@ -4923,9 +4871,6 @@
           "type": "object",
           "properties": {
             "iterations": {
-              "type": "integer"
-            },
-            "max_iterations": {
               "type": "integer"
             }
           },
@@ -4960,17 +4905,11 @@
             },
             "max_tokens": {
               "type": "integer"
-            },
-            "budget_ms": {
-              "type": "integer"
-            },
-            "elapsed_ms": {
-              "type": "integer"
             }
           },
           "required": [
-            "tokens_used",
-            "max_tokens"
+            "max_tokens",
+            "tokens_used"
           ],
           "additionalProperties": true
         },
@@ -5012,9 +4951,9 @@
             }
           },
           "required": [
+            "task_description",
             "delegation_model",
             "smart_model",
-            "task_description",
             "reason"
           ],
           "additionalProperties": true
@@ -5060,11 +4999,134 @@
             }
           },
           "required": [
-            "task_scope",
             "generated_by",
-            "patterns_count",
-            "heuristics_count"
+            "task_scope",
+            "heuristics_count",
+            "patterns_count"
           ],
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "intent_classified",
+          "description": "Event type: intent_classified"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "array",
+              "items": {}
+            },
+            "path_formatted": {
+              "type": "string"
+            },
+            "confidence": {
+              "type": "number"
+            },
+            "reasoning": {
+              "type": "string"
+            },
+            "requires_approval": {
+              "type": "boolean"
+            },
+            "tool_scope": {
+              "type": "string"
+            },
+            "depth": {
+              "type": "integer"
+            }
+          },
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "node_transition",
+          "description": "Event type: node_transition"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "from_node": {
+              "type": "string"
+            },
+            "to_node": {
+              "type": "string"
+            },
+            "path": {
+              "type": "array",
+              "items": {}
+            },
+            "path_formatted": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp (seconds since epoch)"
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "timestamp"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "domain_detected",
+          "description": "Event type: domain_detected"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "domain_type": {
+              "type": "string"
+            },
+            "confidence": {
+              "type": "number"
+            },
+            "tools_package": {
+              "type": "string"
+            },
+            "validators": {
+              "type": "array",
+              "items": {}
+            }
+          },
           "additionalProperties": true
         },
         "timestamp": {
@@ -5108,10 +5170,10 @@
             }
           },
           "required": [
-            "specialist_id",
-            "task_id",
-            "parent_id",
             "role",
+            "parent_id",
+            "task_id",
+            "specialist_id",
             "focus"
           ],
           "additionalProperties": true
@@ -5154,10 +5216,10 @@
             }
           },
           "required": [
-            "summary",
-            "tokens_used",
+            "success",
             "specialist_id",
-            "success"
+            "summary",
+            "tokens_used"
           ],
           "additionalProperties": true
         },
@@ -5193,9 +5255,9 @@
             }
           },
           "required": [
-            "goal",
             "phase",
-            "checkpoint_at"
+            "checkpoint_at",
+            "goal"
           ],
           "additionalProperties": true
         },
@@ -5308,9 +5370,9 @@
             }
           },
           "required": [
-            "blocking_rule",
             "action_type",
             "reason",
+            "blocking_rule",
             "risk_level"
           ],
           "additionalProperties": true
@@ -5350,10 +5412,10 @@
             }
           },
           "required": [
-            "confidence",
             "guard_id",
-            "evolution_type",
-            "reason"
+            "confidence",
+            "reason",
+            "evolution_type"
           ],
           "additionalProperties": true
         },
@@ -5427,8 +5489,8 @@
             }
           },
           "required": [
-            "spent",
-            "budget"
+            "budget",
+            "spent"
           ],
           "additionalProperties": true
         },

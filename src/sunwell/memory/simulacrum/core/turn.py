@@ -302,6 +302,22 @@ class Learning:
     last_used: str | None = None
     """Timestamp of last usage."""
 
+    # Graph scoring fields (inspired by MIRA)
+    mention_count: int = 0
+    """Explicit agent references to this learning (strongest signal)."""
+
+    activity_day_created: int = 0
+    """Activity day when created (vacation-proof decay)."""
+
+    activity_day_accessed: int = 0
+    """Activity day of last access."""
+
+    happens_at: str | None = None
+    """ISO timestamp for time-sensitive content (deadlines)."""
+
+    expires_at: str | None = None
+    """ISO timestamp for expiring content."""
+
     @property
     def id(self) -> str:
         """Content-addressable ID.
@@ -312,13 +328,34 @@ class Learning:
         return hashlib.blake2b(data.encode(), digest_size=12).hexdigest()
 
     def to_turn(self) -> Turn:
-        """Convert to a Turn for context injection."""
+        """Convert to a Turn for context injection.
+
+        Uses first-person voice to reduce epistemic distance.
+        """
+        prefix = self._first_person_prefix()
         return Turn(
-            content=f"[{self.category.upper()}] {self.fact}",
+            content=f"{prefix} {self.fact}",
             turn_type=TurnType.LEARNING,
             parent_ids=self.source_turns,
             confidence=self.confidence,
         )
+
+    def _first_person_prefix(self) -> str:
+        """Map category to first-person framing.
+
+        First-person voice helps the agent treat learnings as its own
+        memories rather than logs about someone else.
+        """
+        prefixes = {
+            "fact": "I know:",
+            "preference": "I prefer:",
+            "constraint": "I must:",
+            "pattern": "I use:",
+            "dead_end": "I tried and it failed:",
+            "template": "I follow this pattern:",
+            "heuristic": "I've found:",
+        }
+        return prefixes.get(self.category, "I learned:")
 
     def with_usage(self, success: bool) -> Self:
         """Create a new Learning with updated usage stats (RFC-122).
@@ -346,6 +383,11 @@ class Learning:
             embedding=self.embedding,
             use_count=self.use_count + 1,
             last_used=datetime.now().isoformat(),
+            mention_count=self.mention_count,
+            activity_day_created=self.activity_day_created,
+            activity_day_accessed=self.activity_day_accessed,
+            happens_at=self.happens_at,
+            expires_at=self.expires_at,
         )
 
     def with_embedding(self, embedding: tuple[float, ...]) -> Self:
@@ -368,4 +410,98 @@ class Learning:
             embedding=embedding,
             use_count=self.use_count,
             last_used=self.last_used,
+            mention_count=self.mention_count,
+            activity_day_created=self.activity_day_created,
+            activity_day_accessed=self.activity_day_accessed,
+            happens_at=self.happens_at,
+            expires_at=self.expires_at,
+        )
+
+    def with_mention(self) -> Self:
+        """Create a new Learning with incremented mention count.
+
+        Mentions are explicit agent references - the strongest signal
+        of memory importance. Call this when the agent explicitly
+        references this learning in its output.
+
+        Returns:
+            New Learning with mention_count incremented
+        """
+        return Learning(
+            fact=self.fact,
+            source_turns=self.source_turns,
+            confidence=self.confidence,
+            category=self.category,
+            timestamp=self.timestamp,
+            superseded_by=self.superseded_by,
+            template_data=self.template_data,
+            embedding=self.embedding,
+            use_count=self.use_count,
+            last_used=self.last_used,
+            mention_count=self.mention_count + 1,
+            activity_day_created=self.activity_day_created,
+            activity_day_accessed=self.activity_day_accessed,
+            happens_at=self.happens_at,
+            expires_at=self.expires_at,
+        )
+
+    def with_access(self, activity_day: int) -> Self:
+        """Create a new Learning with updated access tracking.
+
+        Call this when a learning is retrieved and used. Updates
+        the access count, timestamp, and activity day for proper
+        decay calculations.
+
+        Args:
+            activity_day: Current cumulative activity day
+
+        Returns:
+            New Learning with updated access tracking
+        """
+        return Learning(
+            fact=self.fact,
+            source_turns=self.source_turns,
+            confidence=self.confidence,
+            category=self.category,
+            timestamp=self.timestamp,
+            superseded_by=self.superseded_by,
+            template_data=self.template_data,
+            embedding=self.embedding,
+            use_count=self.use_count + 1,
+            last_used=datetime.now().isoformat(),
+            mention_count=self.mention_count,
+            activity_day_created=self.activity_day_created,
+            activity_day_accessed=activity_day,
+            happens_at=self.happens_at,
+            expires_at=self.expires_at,
+        )
+
+    def with_activity_day_created(self, activity_day: int) -> Self:
+        """Create a new Learning with activity day stamp.
+
+        Call this when first creating a learning to stamp the
+        activity day for proper newness boost calculations.
+
+        Args:
+            activity_day: Current cumulative activity day
+
+        Returns:
+            New Learning with activity_day_created set
+        """
+        return Learning(
+            fact=self.fact,
+            source_turns=self.source_turns,
+            confidence=self.confidence,
+            category=self.category,
+            timestamp=self.timestamp,
+            superseded_by=self.superseded_by,
+            template_data=self.template_data,
+            embedding=self.embedding,
+            use_count=self.use_count,
+            last_used=self.last_used,
+            mention_count=self.mention_count,
+            activity_day_created=activity_day,
+            activity_day_accessed=self.activity_day_accessed,
+            happens_at=self.happens_at,
+            expires_at=self.expires_at,
         )

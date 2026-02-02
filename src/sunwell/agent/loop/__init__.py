@@ -4,7 +4,10 @@ This package contains supporting modules for the AgentLoop:
 - config: LoopConfig, LoopState, ExecutionLane
 - routing: Confidence-based routing strategies
 - retry: Retry and escalation strategies
-- delegation, expertise, learning, recovery, reflection, validation: Loop integrations
+- delegation, expertise, recovery, reflection, validation: Loop integrations
+
+Note: Learning injection is now handled via trinket composition
+(see agent/trinkets/implementations/learning.py).
 """
 
 # Re-export config for convenience

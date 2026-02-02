@@ -29,7 +29,58 @@ from sunwell.agent.learning import (
     LearningStore,
     learn_from_execution,
 )
-from sunwell.agent.loop.learning import get_learnings_prompt
+
+
+async def get_learnings_prompt(
+    goal: str,
+    store: LearningStore,
+    *,
+    enable_tool_learning: bool = False,
+) -> str:
+    """Replacement for deleted function - formats learnings for prompt injection.
+
+    Uses LearningStore methods directly since the original module was removed.
+    """
+    # Get basic learnings prompt
+    prompt = store.format_for_prompt(limit=10)
+
+    # Add tool suggestions if enabled
+    if enable_tool_learning:
+        # Classify task type from goal keywords
+        goal_lower = goal.lower()
+        task_type = "general"
+        if "api" in goal_lower or "endpoint" in goal_lower:
+            task_type = "api"
+        elif "refactor" in goal_lower:
+            task_type = "refactor"
+        elif "test" in goal_lower:
+            task_type = "test"
+
+        tool_suggestion = store.format_tool_suggestions(task_type)
+        if tool_suggestion:
+            prompt = f"{prompt}\n\n{tool_suggestion}" if prompt else tool_suggestion
+
+    return prompt
+
+
+def save_learnings_to_journal(store: LearningStore, workspace: Path) -> int:
+    """Helper to save learnings from store to journal.
+
+    Replaces the removed save_to_disk method for test compatibility.
+    """
+    from sunwell.memory.core.journal import LearningJournal
+
+    memory_dir = workspace / ".sunwell" / "memory"
+    journal = LearningJournal(memory_dir)
+
+    saved = 0
+    for learning in store.learnings:
+        try:
+            journal.append(learning)
+            saved += 1
+        except OSError:
+            pass
+    return saved
 
 
 # =============================================================================
@@ -39,9 +90,9 @@ from sunwell.agent.loop.learning import get_learnings_prompt
 
 @pytest.fixture
 def learning_workspace(tmp_path: Path) -> Path:
-    """Create workspace with .sunwell/intelligence/ structure."""
-    intel_dir = tmp_path / ".sunwell" / "intelligence"
-    intel_dir.mkdir(parents=True)
+    """Create workspace with .sunwell/ structure."""
+    memory_dir = tmp_path / ".sunwell" / "memory"
+    memory_dir.mkdir(parents=True)
     return tmp_path
 
 
@@ -81,19 +132,19 @@ class TestLearningPersistence:
     def test_learning_persists_across_sessions(
         self, learning_workspace: Path
     ) -> None:
-        """Verify learnings saved in session 1 are available in session 2."""
-        # Session 1: Create and save learning
-        store1 = LearningStore()
-        store1.add_learning(
-            Learning(fact="User model has email field", category="type")
-        )
-        store1.add_learning(
-            Learning(fact="Uses SQLAlchemy ORM", category="pattern")
-        )
-        saved = store1.save_to_disk(learning_workspace)
-        assert saved > 0, "Should save at least one learning"
+        """Verify learnings saved via journal in session 1 are available in session 2."""
+        from sunwell.memory.core.journal import LearningJournal
 
-        # Session 2: Load and verify retrieval
+        # Session 1: Create and save learning via journal
+        memory_dir = learning_workspace / ".sunwell" / "memory"
+        journal = LearningJournal(memory_dir)
+
+        learning1 = Learning(fact="User model has email field", category="type")
+        learning2 = Learning(fact="Uses SQLAlchemy ORM", category="pattern")
+        journal.append(learning1)
+        journal.append(learning2)
+
+        # Session 2: Load via store and verify retrieval
         store2 = LearningStore()
         loaded = store2.load_from_disk(learning_workspace)
         assert loaded > 0, "Should load at least one learning"
@@ -106,43 +157,46 @@ class TestLearningPersistence:
         ), "Should find email-related learning"
 
     @pytest.mark.integration
-    def test_dead_ends_persist_across_sessions(
+    def test_dead_ends_recorded_as_failures(
         self, learning_workspace: Path
     ) -> None:
-        """Verify dead ends are persisted and loaded."""
-        # Session 1: Record dead end
-        store1 = LearningStore()
-        store1.add_dead_end(
+        """Verify dead ends are now recorded as failures (unified)."""
+        # Dead ends are now recorded via memory.add_failure() with error_type="dead_end"
+        # This test verifies the in-memory dead_ends list still works
+        store = LearningStore()
+        store.add_dead_end(
             DeadEnd(
                 approach="Use synchronous database driver",
                 reason="Blocks async event loop",
                 context="FastAPI application",
             )
         )
-        store1.save_to_disk(learning_workspace)
 
-        # Session 2: Load and verify
-        store2 = LearningStore()
-        store2.load_from_disk(learning_workspace)
-        assert len(store2.dead_ends) > 0, "Should load dead ends"
-        assert "synchronous" in store2.dead_ends[0].approach
+        # In-memory dead ends should work
+        assert len(store.dead_ends) == 1
+        assert "synchronous" in store.dead_ends[0].approach
+        # Note: Dead ends are now persisted via failures.jsonl, not dead_ends.jsonl
 
     @pytest.mark.integration
-    def test_deduplication_across_saves(self, learning_workspace: Path) -> None:
-        """Verify duplicate learnings are not saved multiple times."""
-        # Save same learning twice
-        store1 = LearningStore()
+    def test_deduplication_via_journal(self, learning_workspace: Path) -> None:
+        """Verify journal handles deduplication across appends."""
+        from sunwell.memory.core.journal import LearningJournal
+
+        # Append same learning twice to journal
+        memory_dir = learning_workspace / ".sunwell" / "memory"
+        journal = LearningJournal(memory_dir)
+
         learning = Learning(fact="Test fact", category="pattern")
-        store1.add_learning(learning)
-        store1.save_to_disk(learning_workspace)
+        journal.append(learning)
+        journal.append(learning)  # Same ID, should be deduped on load
 
-        store2 = LearningStore()
-        store2.add_learning(learning)
-        store2.save_to_disk(learning_workspace)
+        # Load and verify deduplication
+        entries = journal.load_deduplicated()
+        assert len(entries) == 1, "Journal should deduplicate by ID"
 
-        # Load and verify only one instance
-        store3 = LearningStore()
-        loaded = store3.load_from_disk(learning_workspace)
+        # Store should also see only one
+        store = LearningStore()
+        loaded = store.load_from_disk(learning_workspace)
         assert loaded == 1, "Should only load one instance (deduped)"
 
 
@@ -434,8 +488,13 @@ def create_user(data):
         ):
             pass
 
-        # Save to disk
-        saved = store.save_to_disk(learning_workspace)
+        # Save to journal (new persistence method)
+        from sunwell.memory.core.journal import LearningJournal
+
+        memory_dir = learning_workspace / ".sunwell" / "memory"
+        journal = LearningJournal(memory_dir)
+        for learning in store.learnings:
+            journal.append(learning)
 
         # Reload in new store
         store2 = LearningStore()
@@ -601,32 +660,32 @@ class TestMultiSessionAccumulation:
         # Session 1
         store1 = LearningStore()
         store1.add_learning(Learning(fact="Session 1 learning", category="pattern"))
-        store1.save_to_disk(learning_workspace)
+        save_learnings_to_journal(store1, learning_workspace)
 
         # Session 2
         store2 = LearningStore()
         store2.load_from_disk(learning_workspace)
         store2.add_learning(Learning(fact="Session 2 learning", category="pattern"))
-        store2.save_to_disk(learning_workspace)
+        save_learnings_to_journal(store2, learning_workspace)
 
         # Session 3
         store3 = LearningStore()
         store3.load_from_disk(learning_workspace)
         store3.add_learning(Learning(fact="Session 3 learning", category="pattern"))
-        store3.save_to_disk(learning_workspace)
+        save_learnings_to_journal(store3, learning_workspace)
 
         # Session 4
         store4 = LearningStore()
         store4.load_from_disk(learning_workspace)
         store4.add_learning(Learning(fact="Session 4 learning", category="pattern"))
-        store4.save_to_disk(learning_workspace)
+        save_learnings_to_journal(store4, learning_workspace)
 
         # Session 5: Verify all learnings accessible
         store5 = LearningStore()
         loaded = store5.load_from_disk(learning_workspace)
         assert loaded == 4, "Should have 4 learnings from 4 sessions"
 
-        facts = [l.fact for l in store5.learnings]
+        facts = [lrn.fact for lrn in store5.learnings]
         assert "Session 1 learning" in facts
         assert "Session 2 learning" in facts
         assert "Session 3 learning" in facts
@@ -647,7 +706,7 @@ class TestMultiSessionAccumulation:
         store1.record_usage(learning_id, success=True)
         store1.record_usage(store1.learnings[0].id, success=True)
         boosted_confidence = store1.learnings[0].confidence
-        store1.save_to_disk(learning_workspace)
+        save_learnings_to_journal(store1, learning_workspace)
 
         # Session 2: Load and verify confidence persisted
         store2 = LearningStore()
@@ -657,33 +716,30 @@ class TestMultiSessionAccumulation:
         # This test documents the expected behavior
 
     @pytest.mark.integration
-    def test_dead_end_remembered_after_multiple_sessions(
+    def test_learnings_accumulate_without_dead_ends(
         self, learning_workspace: Path
     ) -> None:
-        """Verify dead end from session 1 persists through many sessions."""
-        # Session 1: Record dead end
-        store1 = LearningStore()
-        store1.add_dead_end(
-            DeadEnd(
-                approach="Use global state",
-                reason="Causes race conditions",
-                gate="test",
-            )
-        )
-        store1.save_to_disk(learning_workspace)
+        """Verify learnings accumulate correctly (dead ends now go to failures)."""
+        # Note: Dead ends are now recorded as failures via memory.add_failure()
+        # They don't persist through LearningStore anymore
+        # This test verifies learnings accumulate correctly
 
-        # Sessions 2-5: Load, add unrelated learnings, save
+        # Session 1: Add learning
+        store1 = LearningStore()
+        store1.add_learning(Learning(fact="Session 1", category="pattern"))
+        save_learnings_to_journal(store1, learning_workspace)
+
+        # Sessions 2-5: Add more learnings
         for i in range(2, 6):
             store = LearningStore()
             store.load_from_disk(learning_workspace)
             store.add_learning(Learning(fact=f"Session {i}", category="pattern"))
-            store.save_to_disk(learning_workspace)
+            save_learnings_to_journal(store, learning_workspace)
 
-        # Session 6: Verify dead end still present
+        # Final: Verify all learnings present
         final_store = LearningStore()
-        final_store.load_from_disk(learning_workspace)
-        assert len(final_store.dead_ends) == 1
-        assert "global state" in final_store.dead_ends[0].approach
+        loaded = final_store.load_from_disk(learning_workspace)
+        assert loaded == 5, "Should have 5 learnings from 5 sessions"
 
 
 # =============================================================================
@@ -944,15 +1000,19 @@ class TestEdgeCasesRobustness:
         # Both are stored; higher confidence doesn't auto-remove lower
 
     @pytest.mark.integration
-    def test_corrupted_disk_file_recovery(self, learning_workspace: Path) -> None:
-        """Verify graceful handling of malformed files."""
-        # Create corrupted learnings file
-        learnings_path = learning_workspace / ".sunwell" / "intelligence" / "learnings.jsonl"
+    def test_corrupted_journal_file_recovery(self, learning_workspace: Path) -> None:
+        """Verify graceful handling of malformed journal files."""
+        from datetime import datetime
+
+        ts = datetime.now().isoformat()
+
+        # Create corrupted learnings file in journal location
+        learnings_path = learning_workspace / ".sunwell" / "memory" / "learnings.jsonl"
         learnings_path.parent.mkdir(parents=True, exist_ok=True)
         learnings_path.write_text(
-            '{"fact": "valid", "category": "pattern"}\n'
+            f'{{"fact": "valid", "category": "pattern", "id": "a1", "confidence": 0.8, "timestamp": "{ts}"}}\n'
             "not valid json\n"
-            '{"fact": "also valid", "category": "type"}\n'
+            f'{{"fact": "also valid", "category": "type", "id": "a2", "confidence": 0.7, "timestamp": "{ts}"}}\n'
         )
 
         store = LearningStore()
@@ -962,15 +1022,16 @@ class TestEdgeCasesRobustness:
         assert loaded == 2
 
     @pytest.mark.integration
-    def test_concurrent_session_writes_safe(self, learning_workspace: Path) -> None:
-        """Verify concurrent writes don't corrupt state."""
+    def test_concurrent_journal_writes_safe(self, learning_workspace: Path) -> None:
+        """Verify concurrent journal writes don't corrupt state."""
+        from sunwell.memory.core.journal import LearningJournal
+
+        memory_dir = learning_workspace / ".sunwell" / "memory"
+        journal = LearningJournal(memory_dir)
 
         def write_learning(i: int) -> None:
-            store = LearningStore()
-            store.add_learning(
-                Learning(fact=f"Concurrent learning {i}", category="pattern")
-            )
-            store.save_to_disk(learning_workspace)
+            learning = Learning(fact=f"Concurrent learning {i}", category="pattern")
+            journal.append(learning)
 
         # Write from multiple threads
         with ThreadPoolExecutor(max_workers=4) as executor:

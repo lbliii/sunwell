@@ -13,8 +13,6 @@ class ModelStartData(TypedDict, total=False):
     model: str  # Required
     prompt_tokens: int | None
     estimated_time_s: float | None
-    # Legacy field
-    provider: str | None
 
 
 class ModelTokensData(TypedDict, total=False):
@@ -50,8 +48,6 @@ class ModelCompleteData(TypedDict, total=False):
     duration_s: float
     tokens_per_second: float
     time_to_first_token_ms: int | None
-    # Legacy field
-    duration_ms: int | None
     input_tokens: int | None
     output_tokens: int | None
 
@@ -65,5 +61,3 @@ class ModelHeartbeatData(TypedDict, total=False):
     task_id: str
     elapsed_s: float
     token_count: int
-    # Legacy field
-    elapsed_ms: int | None

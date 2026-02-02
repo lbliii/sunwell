@@ -20,15 +20,34 @@ from enum import Enum
 
 
 class Domain(Enum):
-    """Recognized goal domains."""
+    """Recognized goal domains.
 
+    RFC-DOMAINS: Extended with non-code domains for general-purpose agents.
+    """
+
+    # Code-related domains (original)
     DOCUMENTATION = "documentation"
     CODE = "code"
     REVIEW = "review"
     PROJECT = "project"
     TEST = "test"
     REFACTOR = "refactor"
+
+    # RFC-DOMAINS: Non-code domains
+    RESEARCH = "research"
+    """Knowledge work: web search, summarize, cite, fact-check."""
+
+    WRITING = "writing"
+    """Content creation: outline, draft, revise, style check."""
+
+    DATA = "data"
+    """Data analysis: query, transform, visualize, validate schema."""
+
+    PERSONAL = "personal"
+    """Personal assistant: calendar, contacts, email, reminders."""
+
     GENERAL = "general"
+    """Fallback for unclassified goals."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,6 +156,69 @@ DOMAIN_SIGNALS: dict[Domain, dict[str, float]] = {
         "config": 0.5,
         "ci/cd": 0.8,
         "pipeline": 0.6,
+    },
+    # RFC-DOMAINS: Non-code domain signals
+    Domain.RESEARCH: {
+        # Strong signals
+        "research": 1.0,
+        "investigate": 1.0,
+        "find information": 1.0,
+        "learn about": 0.9,
+        # Medium signals
+        "understand": 0.7,
+        "summarize": 0.8,
+        "sources": 0.8,
+        "evidence": 0.7,
+        "fact": 0.6,
+        "history": 0.7,
+        "overview": 0.6,
+    },
+    Domain.WRITING: {
+        # Strong signals
+        "write": 0.8,
+        "draft": 1.0,
+        "compose": 0.9,
+        "blog post": 1.0,
+        "article": 0.9,
+        "essay": 1.0,
+        # Medium signals
+        "outline": 0.7,
+        "revise": 0.7,
+        "edit text": 0.8,
+        "proofread": 0.8,
+        "tone": 0.5,
+        "style": 0.5,
+    },
+    Domain.DATA: {
+        # Strong signals
+        "data": 0.8,
+        "analyze data": 1.0,
+        "dataset": 1.0,
+        "csv": 0.9,
+        "spreadsheet": 0.9,
+        "visualization": 0.9,
+        # Medium signals
+        "chart": 0.7,
+        "graph": 0.6,
+        "statistics": 0.8,
+        "query": 0.6,
+        "aggregate": 0.7,
+        "transform": 0.5,
+    },
+    Domain.PERSONAL: {
+        # Strong signals
+        "calendar": 1.0,
+        "schedule": 0.9,
+        "appointment": 1.0,
+        "reminder": 1.0,
+        "email": 0.8,
+        "contact": 0.8,
+        # Medium signals
+        "meeting": 0.7,
+        "task": 0.5,
+        "todo": 0.7,
+        "deadline": 0.6,
+        "notification": 0.6,
     },
 }
 

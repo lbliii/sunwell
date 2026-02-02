@@ -131,6 +131,15 @@ class ChatCheckpoint:
     estimated_duration_seconds: int | None = None
     """Estimated task duration in seconds for background offer."""
 
+    plan_summary: str | None = None
+    """Human-readable plan summary, e.g., "12 tasks across 8 files"."""
+
+    confidence_range: tuple[int, int] | None = None
+    """Confidence interval (low, high) seconds based on historical data."""
+
+    task_count: int | None = None
+    """Number of tasks in the plan."""
+
     # ═══════════════════════════════════════════════════════════════════════════
     # AMBIENT_ALERT checkpoint fields
     # ═══════════════════════════════════════════════════════════════════════════

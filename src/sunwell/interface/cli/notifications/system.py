@@ -6,18 +6,24 @@ notification mechanism:
 - Linux: notify-send
 - Windows: PowerShell toast notifications
 - Fallback: Terminal bell (\a)
+
+Features:
+- Automatic notification history recording
+- Focus mode awareness (macOS) - skip sound or queue when Focus is active
 """
 
 import asyncio
 import logging
-import os
 import platform
 import shutil
 import subprocess
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
+
+if TYPE_CHECKING:
+    from sunwell.interface.cli.notifications.store import NotificationStore
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +38,14 @@ class NotificationType(Enum):
     WAITING = "waiting"  # User input needed
 
 
+class FocusModeBehavior(Enum):
+    """Behavior when Focus mode is active (macOS)."""
+    
+    IGNORE = "ignore"  # Send notifications normally
+    SKIP_SOUND = "skip_sound"  # Send notification but skip sound
+    QUEUE = "queue"  # Queue notifications for later (recorded but not delivered)
+
+
 @dataclass(frozen=True, slots=True)
 class NotificationConfig:
     """Configuration for notifications.
@@ -40,6 +54,9 @@ class NotificationConfig:
         enabled: Whether notifications are enabled
         desktop: Show desktop notifications
         sound: Play sound with notification
+        focus_mode_behavior: Behavior when Focus mode is active
+        batching: Whether to batch rapid-fire notifications
+        batch_window_ms: Batch window in milliseconds
         on_complete: Custom command for completion
         on_error: Custom command for errors
         on_waiting: Custom command for waiting
@@ -48,6 +65,9 @@ class NotificationConfig:
     enabled: bool = True
     desktop: bool = True
     sound: bool = True
+    focus_mode_behavior: FocusModeBehavior = FocusModeBehavior.SKIP_SOUND
+    batching: bool = False
+    batch_window_ms: int = 5000
     on_complete: str | None = None
     on_error: str | None = None
     on_waiting: str | None = None
@@ -62,10 +82,21 @@ class NotificationConfig:
         Returns:
             NotificationConfig instance
         """
+        # Parse focus mode behavior
+        focus_behavior_str = data.get("focus_mode_behavior", "skip_sound")
+        try:
+            focus_behavior = FocusModeBehavior(focus_behavior_str)
+        except ValueError:
+            logger.warning(f"Unknown focus_mode_behavior: {focus_behavior_str}, using skip_sound")
+            focus_behavior = FocusModeBehavior.SKIP_SOUND
+        
         return cls(
             enabled=data.get("enabled", True),
             desktop=data.get("desktop", True),
             sound=data.get("sound", True),
+            focus_mode_behavior=focus_behavior,
+            batching=data.get("batching", False),
+            batch_window_ms=data.get("batch_window_ms", 5000),
             on_complete=data.get("on_complete"),
             on_error=data.get("on_error"),
             on_waiting=data.get("on_waiting"),
@@ -109,6 +140,28 @@ def has_command(cmd: str) -> bool:
     return shutil.which(cmd) is not None
 
 
+def detect_focus_mode() -> bool:
+    """Detect if macOS Focus mode (Do Not Disturb) is active.
+    
+    Returns:
+        True if Focus mode is active, False otherwise.
+        Always returns False on non-macOS platforms.
+    """
+    if detect_platform() != Platform.MACOS:
+        return False
+    
+    try:
+        result = subprocess.run(
+            ["defaults", "read", "com.apple.controlcenter", "NSStatusItem Visible FocusModes"],
+            capture_output=True,
+            timeout=2.0,
+        )
+        return result.stdout.strip() == b"1"
+    except Exception as e:
+        logger.debug(f"Failed to detect Focus mode: {e}")
+        return False
+
+
 @dataclass
 class Notifier:
     """Cross-platform notification dispatcher.
@@ -116,13 +169,24 @@ class Notifier:
     Automatically detects the platform and uses the
     appropriate notification mechanism.
     
+    Features:
+        - Automatic notification history (if store provided)
+        - Focus mode awareness (macOS)
+        - Cross-platform support
+    
     Example:
         >>> notifier = Notifier()
         >>> await notifier.send("Hello", "World")
         >>> await notifier.send_complete("Build done", duration=12.5)
+        
+        # With history
+        >>> from sunwell.interface.cli.notifications.store import NotificationStore
+        >>> store = NotificationStore(workspace)
+        >>> notifier = Notifier(store=store)
     """
     
     config: NotificationConfig = field(default_factory=NotificationConfig)
+    store: "NotificationStore | None" = None
     _platform: Platform = field(default=None, init=False)
     _notifier_fn: Callable | None = field(default=None, init=False)
     
@@ -159,6 +223,8 @@ class Notifier:
         title: str,
         message: str,
         notification_type: NotificationType = NotificationType.INFO,
+        *,
+        context: dict | None = None,
     ) -> bool:
         """Send a notification.
         
@@ -166,6 +232,7 @@ class Notifier:
             title: Notification title
             message: Notification body
             notification_type: Type of notification
+            context: Optional context data (file path, session ID, etc.)
             
         Returns:
             True if notification was sent
@@ -173,24 +240,91 @@ class Notifier:
         if not self.config.enabled:
             return False
         
+        # Check Focus mode
+        focus_active = detect_focus_mode()
+        skip_sound = False
+        should_queue = False
+        
+        if focus_active:
+            behavior = self.config.focus_mode_behavior
+            if behavior == FocusModeBehavior.QUEUE:
+                should_queue = True
+            elif behavior == FocusModeBehavior.SKIP_SOUND:
+                skip_sound = True
+            # IGNORE: continue normally
+        
+        # If queuing, record but don't deliver
+        if should_queue:
+            self._record_notification(
+                notification_type, title, message,
+                delivered=False, context=context,
+            )
+            logger.debug(f"Notification queued (Focus mode active): {title}")
+            return False
+        
         # Check for custom command
         custom_cmd = self._get_custom_command(notification_type)
-        if custom_cmd:
-            return await self._run_custom(custom_cmd, title, message)
+        delivered = False
         
-        # Use platform notifier
-        if self._notifier_fn:
+        if custom_cmd:
+            delivered = await self._run_custom(custom_cmd, title, message)
+        elif self._notifier_fn:
             try:
-                await self._notifier_fn(title, message, notification_type)
-                return True
+                await self._notifier_fn(
+                    title, message, notification_type,
+                    skip_sound=skip_sound,
+                )
+                delivered = True
             except Exception as e:
                 logger.debug(f"Notification failed: {e}")
         
-        # Fallback to terminal bell
-        if self.config.sound:
+        # Fallback to terminal bell (unless sound skipped)
+        if not delivered and self.config.sound and not skip_sound:
             self._bell()
         
-        return False
+        # Record to store
+        self._record_notification(
+            notification_type, title, message,
+            delivered=delivered, context=context,
+        )
+        
+        return delivered
+    
+    def _record_notification(
+        self,
+        notification_type: NotificationType,
+        title: str,
+        message: str,
+        *,
+        delivered: bool,
+        context: dict | None = None,
+    ) -> None:
+        """Record a notification to the store.
+        
+        Args:
+            notification_type: Type of notification
+            title: Notification title
+            message: Notification body
+            delivered: Whether the notification was delivered
+            context: Optional context data
+        """
+        if self.store is None:
+            return
+        
+        try:
+            from sunwell.interface.cli.notifications.store import NotificationRecord
+            
+            record = NotificationRecord.create(
+                notification_type=notification_type,
+                title=title,
+                message=message,
+                delivered=delivered,
+                channel="desktop",
+                context=context,
+            )
+            self.store.append(record)
+        except Exception as e:
+            logger.debug(f"Failed to record notification: {e}")
     
     async def send_complete(
         self,
@@ -295,6 +429,8 @@ class Notifier:
         title: str,
         message: str,
         notification_type: NotificationType,
+        *,
+        skip_sound: bool = False,
     ) -> None:
         """Send notification via terminal-notifier (macOS).
         
@@ -302,6 +438,7 @@ class Notifier:
             title: Notification title
             message: Notification body
             notification_type: Type of notification
+            skip_sound: Skip playing sound (e.g., when Focus mode is active)
         """
         args = [
             "terminal-notifier",
@@ -310,7 +447,7 @@ class Notifier:
             "-group", "sunwell",
         ]
         
-        if self.config.sound:
+        if self.config.sound and not skip_sound:
             # Use appropriate sound based on type
             sounds = {
                 NotificationType.SUCCESS: "Glass",
@@ -332,6 +469,8 @@ class Notifier:
         title: str,
         message: str,
         notification_type: NotificationType,
+        *,
+        skip_sound: bool = False,
     ) -> None:
         """Send notification via osascript (macOS fallback).
         
@@ -339,6 +478,7 @@ class Notifier:
             title: Notification title
             message: Notification body
             notification_type: Type of notification
+            skip_sound: Skip playing sound (e.g., when Focus mode is active)
         """
         # Escape quotes for AppleScript
         safe_title = title.replace('"', '\\"')
@@ -346,7 +486,7 @@ class Notifier:
         
         script = f'display notification "{safe_message}" with title "{safe_title}"'
         
-        if self.config.sound:
+        if self.config.sound and not skip_sound:
             sound_mapping = {
                 NotificationType.SUCCESS: "Glass",
                 NotificationType.ERROR: "Basso",
@@ -367,6 +507,8 @@ class Notifier:
         title: str,
         message: str,
         notification_type: NotificationType,
+        *,
+        skip_sound: bool = False,
     ) -> None:
         """Send notification via notify-send (Linux).
         
@@ -374,6 +516,7 @@ class Notifier:
             title: Notification title
             message: Notification body
             notification_type: Type of notification
+            skip_sound: Skip playing sound (not applicable on Linux)
         """
         urgency_map = {
             NotificationType.SUCCESS: "normal",
@@ -403,6 +546,8 @@ class Notifier:
         title: str,
         message: str,
         notification_type: NotificationType,
+        *,
+        skip_sound: bool = False,
     ) -> None:
         """Send notification via PowerShell toast (Windows).
         
@@ -410,8 +555,12 @@ class Notifier:
             title: Notification title
             message: Notification body
             notification_type: Type of notification
+            skip_sound: Skip playing sound (uses silent attribute)
         """
         # PowerShell toast notification
+        # Add silent attribute if skip_sound is True
+        audio_xml = "" if skip_sound else ""
+        
         ps_script = f'''
         [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
         [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
@@ -423,6 +572,7 @@ class Notifier:
                     <text id="2">{message}</text>
                 </binding>
             </visual>
+            {audio_xml}
         </toast>
 "@
         $xml = New-Object Windows.Data.Xml.Dom.XmlDocument

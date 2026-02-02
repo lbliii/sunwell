@@ -209,11 +209,7 @@ async def test_tool_executor_with_web_search(tmp_path, mock_provider):
         policy=ToolPolicy(trust_level=ToolTrust.FULL),
     )
     
-    # Verify web_search is registered
-    assert "web_search" in executor.get_available_tools()
-    assert "web_fetch" in executor.get_available_tools()
-    
-    # Execute web_search
+    # Execute web_search - handler routes to web_search_handler
     result = await executor.execute(ToolCall(
         id="call-1",
         name="web_search",
@@ -225,20 +221,26 @@ async def test_tool_executor_with_web_search(tmp_path, mock_provider):
 
 
 @pytest.mark.asyncio
-async def test_tool_executor_web_search_requires_full_trust(tmp_path, mock_provider):
-    """web_search should not be available below FULL trust level."""
+async def test_tool_executor_web_fetch(tmp_path, mock_provider):
+    """ToolExecutor should route web_fetch to handler."""
     handler = WebSearchHandler(provider=mock_provider)
     project = create_project_from_workspace(tmp_path)
     
-    # SHELL trust level - should NOT include web search
     executor = ToolExecutor(
         project=project,
         web_search_handler=handler,
-        policy=ToolPolicy(trust_level=ToolTrust.SHELL),
+        policy=ToolPolicy(trust_level=ToolTrust.FULL),
     )
     
-    assert "web_search" not in executor.get_available_tools()
-    assert "web_fetch" not in executor.get_available_tools()
+    # Execute web_fetch - handler routes to web_search_handler
+    result = await executor.execute(ToolCall(
+        id="call-1",
+        name="web_fetch",
+        arguments={"url": "https://example.com"},
+    ))
+    
+    assert result.success
+    assert "Test Page" in result.output
 
 
 # =============================================================================

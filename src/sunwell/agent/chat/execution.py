@@ -20,6 +20,7 @@ from sunwell.agent.events import AgentEvent
 if TYPE_CHECKING:
     from sunwell.agent import Agent
     from sunwell.agent.context.session import SessionContext
+    from sunwell.agent.recovery.manager import RecoveryManager
     from sunwell.memory import PersistentMemory
     from sunwell.models import ModelProtocol
     from sunwell.tools.execution import ToolExecutor
@@ -122,6 +123,7 @@ class GoalExecutor:
         *,
         auto_confirm: bool = False,
         stream_progress: bool = True,
+        recovery_manager: RecoveryManager | None = None,
     ) -> None:
         """Initialize the goal executor.
 
@@ -131,12 +133,14 @@ class GoalExecutor:
             workspace: Working directory
             auto_confirm: Skip confirmation checkpoints
             stream_progress: Yield AgentEvents during execution
+            recovery_manager: Manager for persisting recovery state on failures
         """
         self.model = model
         self.tool_executor = tool_executor
         self.workspace = workspace
         self.auto_confirm = auto_confirm
         self.stream_progress = stream_progress
+        self.recovery_manager = recovery_manager
 
         # Execution state
         self._current_agent: Agent | None = None

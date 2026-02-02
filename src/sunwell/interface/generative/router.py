@@ -288,18 +288,18 @@ class InteractionRouter:
 
 async def process_goal(
     goal: str,
-    analyzer: Any,  # IntentAnalyzer
+    pipeline: Any,  # IntentPipeline
     router: InteractionRouter,
 ) -> WorkspaceOutput | ViewOutput | ActionOutput | ConversationOutput | HybridOutput:
     """Process a goal through the full pipeline.
 
     Args:
         goal: User's goal string
-        analyzer: IntentAnalyzer instance
+        pipeline: IntentPipeline instance
         router: InteractionRouter instance
 
     Returns:
         The appropriate output type based on intent
     """
-    analysis = await analyzer.analyze(goal)
+    analysis = await pipeline.analyze(goal)
     return await router.route(analysis)

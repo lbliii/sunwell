@@ -88,18 +88,18 @@ async def main() -> int:
     # Import after parsing to avoid slow imports on --help
     from sunwell.interface.cli.helpers import resolve_model
     from sunwell.foundation.config import get_config
-    from sunwell.demo.experiment_runner import (
+    from sunwell.benchmark.demo.experiment_runner import (
         ExperimentConfig,
         ExperimentRunner,
         print_detailed_report,
         print_experiment_report,
     )
-    from sunwell.demo.lens_experiments import (
+    from sunwell.benchmark.demo.lens_experiments import (
         LensStrategy,
         create_prompt_builder,
         load_default_lens,
     )
-    from sunwell.demo.tasks import BUILTIN_TASKS
+    from sunwell.benchmark.demo.tasks import BUILTIN_TASKS
 
     # Resolve model
     config = get_config()

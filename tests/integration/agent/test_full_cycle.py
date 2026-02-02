@@ -402,7 +402,7 @@ class TestMemoryObservability:
         assert "query" in debug_info
         assert debug_info["query"] == "authentication"
         assert "tier_distribution" in debug_info
-        assert "hot" in debug_info["tier_distribution"]
+        assert "recent" in debug_info["tier_distribution"]
 
     @pytest.mark.integration
     def test_health_check_detects_issues(self, tmp_path: Path) -> None:

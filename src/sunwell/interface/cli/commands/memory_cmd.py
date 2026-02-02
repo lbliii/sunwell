@@ -328,8 +328,8 @@ def compact(older_than: int | None, dry_run: bool) -> None:
 
     # Perform compaction
     with console.status("[bold green]Compacting tiers..."):
-        # Move warm to cold
-        archived = store.move_to_cold(older_than_hours=older_than)
+        # Move compressed to archived
+        archived = store.move_to_archived(older_than_hours=older_than)
 
     stats_after = store.stats()
     console.print(f"After:  HOT={stats_after['hot_turns']} WARM={stats_after['warm_files']} "

@@ -26,9 +26,6 @@ from sunwell.knowledge.workspace.detector import (
     WorkspaceDetector,
     resolve_trust_level,
 )
-from sunwell.knowledge.workspace.detector import (
-    Workspace as DetectedWorkspace,  # Legacy: single codebase detection
-)
 from sunwell.knowledge.workspace.indexer import CodebaseIndexer
 from sunwell.knowledge.workspace.lifecycle import (
     CleanupResult,
@@ -77,7 +74,6 @@ from sunwell.knowledge.workspace.workspace_index import (
 __all__ = [
     # Detection (RFC-024)
     "WorkspaceDetector",
-    "DetectedWorkspace",  # Legacy name for single codebase detection
     "WorkspaceConfig",
     "resolve_trust_level",
     "DEFAULT_TRUST",

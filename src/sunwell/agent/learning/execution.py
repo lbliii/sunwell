@@ -56,6 +56,7 @@ async def learn_from_execution(
     files_changed: list[str],
     last_planning_context: PlanningContext | None,
     memory: PersistentMemory | None,
+    force: bool = False,
 ) -> AsyncIterator[tuple[str, str]]:
     """Extract learnings from completed execution (RFC-122, RFC-135).
 
@@ -64,9 +65,10 @@ async def learn_from_execution(
     - Fix strategies from successful corrections
     - Templates from novel tasks
     - Heuristics from task ordering
+    - Session-level insights (when force=True)
 
     RFC-135: All learnings are persisted through PersistentMemory to
-    .sunwell/intelligence/, NOT as project artifacts.
+    .sunwell/memory/learnings.jsonl (the journal).
 
     Durability: Each learning is written to the journal BEFORE yielding,
     ensuring it survives crashes. The journal append is atomic and fsynced.
@@ -80,6 +82,7 @@ async def learn_from_execution(
         files_changed: List of files that were modified
         last_planning_context: Context from planning phase
         memory: Persistent memory for cross-session learnings
+        force: If True, extract learnings even without code changes
 
     Yields:
         Tuples of (fact, category) for each extracted learning
@@ -91,14 +94,41 @@ async def learn_from_execution(
     if memory:
         journal = _get_journal(memory.workspace)
 
+    # Helper to persist and publish a learning
+    def _persist_learning(learning: Learning) -> None:
+        # Add to session store (in-memory)
+        learning_store.add_learning(learning)
+
+        # Add to persistent memory
+        if memory:
+            _add_to_persistent_memory(memory, learning)
+
+        # DURABILITY: Append to journal
+        if journal:
+            try:
+                journal.append(learning)
+            except OSError as e:
+                logger.warning("Failed to append learning to journal: %s", e)
+
+        # Publish to LearningBus for in-process sharing
+        try:
+            bus = get_learning_bus()
+            bus.publish(learning)
+        except Exception as e:
+            logger.debug("Failed to publish learning to bus: %s", e)
+
     # 1. Extract code patterns from changed files
     for file_path in files_changed[:10]:  # Limit to avoid long extraction
         path = Path(file_path)
         if not path.exists():
             continue
 
-        # Only extract from supported file types
-        if path.suffix not in (".py", ".js", ".ts", ".jsx", ".tsx"):
+        # Expanded file types (beyond just code)
+        extractable_suffixes = (
+            ".py", ".js", ".ts", ".jsx", ".tsx",  # Code
+            ".yaml", ".yml", ".json", ".toml",     # Config
+        )
+        if path.suffix not in extractable_suffixes:
             continue
 
         try:
@@ -106,29 +136,7 @@ async def learn_from_execution(
             learnings = learning_extractor.extract_from_code(content, str(path))
 
             for learning in learnings:
-                # Add to session store (in-memory)
-                learning_store.add_learning(learning)
-
-                # Add to persistent memory (RFC-135)
-                if memory:
-                    _add_to_persistent_memory(memory, learning)
-
-                # DURABILITY: Append to journal BEFORE yielding
-                # This ensures the learning survives crashes
-                if journal:
-                    try:
-                        journal.append(learning)
-                    except OSError as e:
-                        logger.warning("Failed to append learning to journal: %s", e)
-
-                # Phase 2.2: Publish to LearningBus for in-process sharing
-                # Other agents/subagents subscribed to the bus will receive this
-                try:
-                    bus = get_learning_bus()
-                    bus.publish(learning)
-                except Exception as e:
-                    logger.debug("Failed to publish learning to bus: %s", e)
-
+                _persist_learning(learning)
                 yield (learning.fact, learning.category)
                 extracted_count += 1
 
@@ -136,43 +144,79 @@ async def learn_from_execution(
             logger.debug("Failed to extract from %s: %s", file_path, e)
             continue
 
-    # 2. Extract heuristics from task ordering (if enough tasks)
-    if task_graph and success:
-        tasks = task_graph.tasks  # TaskGraph.tasks is already a list[Task]
-        heuristic = learning_extractor.extract_heuristic(goal, tasks)
-        if heuristic:
-            # Convert SimLearning to Learning for consistency
-            from sunwell.agent.learning.learning import Learning
+    # 2. Extract heuristics from task ordering
+    # On success: learn what worked
+    # On failure with force: learn what to avoid
+    if task_graph and task_graph.tasks:
+        from sunwell.agent.learning.learning import Learning
 
+        if success:
+            # Learn successful patterns
+            heuristic = learning_extractor.extract_heuristic(goal, task_graph.tasks)
+            if heuristic:
+                learning = Learning(
+                    fact=heuristic.fact,
+                    category="heuristic",
+                    confidence=heuristic.confidence,
+                )
+                _persist_learning(learning)
+                yield (learning.fact, "heuristic")
+                extracted_count += 1
+        elif force:
+            # Learn from failure: record what approach didn't work
+            failed_tasks = [
+                t for t in task_graph.tasks
+                if t.id not in task_graph.completed_ids
+            ]
+            if failed_tasks:
+                failed_task = failed_tasks[0]
+                learning = Learning(
+                    fact=f"Approach failed for '{goal[:50]}': {failed_task.description[:100]}",
+                    category="heuristic",
+                    confidence=0.6,  # Lower confidence for failure learnings
+                )
+                _persist_learning(learning)
+                yield (learning.fact, "heuristic")
+                extracted_count += 1
+
+    # 3. Extract session-level insights when force=True
+    if force and extracted_count == 0:
+        # No code learnings extracted - create a session summary learning
+        from sunwell.agent.learning.learning import Learning
+
+        tasks_completed = len(task_graph.completed_ids) if task_graph else 0
+        tasks_total = len(task_graph.tasks) if task_graph else 0
+
+        if tasks_total > 0:
+            status = "succeeded" if success else "failed"
             learning = Learning(
-                fact=heuristic.fact,
-                category="heuristic",
-                confidence=heuristic.confidence,
+                fact=f"Goal '{goal[:50]}' {status}: {tasks_completed}/{tasks_total} tasks completed",
+                category="session",
+                confidence=1.0,
             )
-            learning_store.add_learning(learning)
-
-            if memory:
-                _add_to_persistent_memory(memory, learning)
-
-            # DURABILITY: Append to journal BEFORE yielding
-            if journal:
-                try:
-                    journal.append(learning)
-                except OSError as e:
-                    logger.warning("Failed to append heuristic to journal: %s", e)
-
-            # Phase 2.2: Publish to LearningBus for in-process sharing
-            try:
-                bus = get_learning_bus()
-                bus.publish(learning)
-            except Exception as e:
-                logger.debug("Failed to publish heuristic to bus: %s", e)
-
-            yield (learning.fact, "heuristic")
+            _persist_learning(learning)
+            yield (learning.fact, "session")
             extracted_count += 1
 
-    # 3. Sync session learnings to persistent storage (RFC-135)
-    # This is now a secondary persistence path; journal is primary
+    # 4. Record dead ends from learning store as failures
+    if learning_store.dead_ends and memory and memory.failures:
+        for dead_end in learning_store.dead_ends:
+            try:
+                from sunwell.knowledge import FailedApproach
+
+                failure = FailedApproach(
+                    id="",  # Will be generated
+                    description=dead_end.approach,
+                    error_type="dead_end",
+                    error_message=dead_end.reason,
+                    context=dead_end.context or goal,
+                    session_id="",
+                )
+                await memory.add_failure(failure)
+            except Exception as e:
+                logger.debug("Failed to record dead end as failure: %s", e)
+
+    # 5. Sync session learnings to SimulacrumStore
     if memory:
         try:
             synced = learning_store.sync_to_simulacrum(memory.simulacrum)
@@ -180,15 +224,6 @@ async def learn_from_execution(
                 logger.debug("Synced %d learnings to persistent memory", synced)
         except Exception as e:
             logger.warning("Failed to sync learnings to memory: %s", e)
-
-    # 4. Also save to disk directly as backup (legacy path)
-    if memory:
-        try:
-            saved = learning_store.save_to_disk(memory.workspace)
-            if saved > 0:
-                logger.debug("Saved %d learnings to disk", saved)
-        except Exception as e:
-            logger.warning("Failed to save learnings to disk: %s", e)
 
     logger.debug("Extracted %d learnings from execution", extracted_count)
 

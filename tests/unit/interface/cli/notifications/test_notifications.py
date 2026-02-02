@@ -4,17 +4,20 @@ import pytest
 from pathlib import Path
 
 from sunwell.interface.cli.notifications.system import (
+    FocusModeBehavior,
     NotificationConfig,
     NotificationType,
     Notifier,
     Platform,
+    detect_focus_mode,
     detect_platform,
     has_command,
 )
 from sunwell.interface.cli.notifications.config import (
-    load_notification_config,
     create_example_config_file,
+    create_notifier,
     get_config_section,
+    load_notification_config,
 )
 
 
@@ -254,3 +257,165 @@ value = "test"
         """Missing section returns empty dict."""
         section = get_config_section(tmp_path, "nonexistent")
         assert section == {}
+
+
+class TestFocusModeBehavior:
+    """Test FocusModeBehavior enum."""
+
+    def test_all_behaviors_exist(self) -> None:
+        """All expected behaviors exist."""
+        behaviors = ["ignore", "skip_sound", "queue"]
+        for b in behaviors:
+            assert FocusModeBehavior(b) is not None
+
+    def test_values(self) -> None:
+        """Enum values are correct."""
+        assert FocusModeBehavior.IGNORE.value == "ignore"
+        assert FocusModeBehavior.SKIP_SOUND.value == "skip_sound"
+        assert FocusModeBehavior.QUEUE.value == "queue"
+
+
+class TestFocusModeDetection:
+    """Test focus mode detection."""
+
+    def test_detect_focus_mode(self) -> None:
+        """Focus mode detection returns bool."""
+        # This will only actually detect on macOS
+        result = detect_focus_mode()
+        assert isinstance(result, bool)
+
+
+class TestNotificationConfigEnhancements:
+    """Test enhanced NotificationConfig features."""
+
+    def test_focus_mode_behavior_default(self) -> None:
+        """Default focus mode behavior is skip_sound."""
+        config = NotificationConfig()
+        assert config.focus_mode_behavior == FocusModeBehavior.SKIP_SOUND
+
+    def test_batching_defaults(self) -> None:
+        """Batching is disabled by default."""
+        config = NotificationConfig()
+        assert config.batching is False
+        assert config.batch_window_ms == 5000
+
+    def test_from_dict_with_focus_mode(self) -> None:
+        """Config from dict with focus_mode_behavior."""
+        data = {
+            "focus_mode_behavior": "skip_sound",
+            "batching": True,
+            "batch_window_ms": 3000,
+        }
+        config = NotificationConfig.from_dict(data)
+
+        assert config.focus_mode_behavior == FocusModeBehavior.SKIP_SOUND
+        assert config.batching is True
+        assert config.batch_window_ms == 3000
+
+    def test_from_dict_invalid_focus_mode(self) -> None:
+        """Invalid focus mode falls back to skip_sound (default)."""
+        data = {"focus_mode_behavior": "invalid"}
+        config = NotificationConfig.from_dict(data)
+
+        assert config.focus_mode_behavior == FocusModeBehavior.SKIP_SOUND
+
+
+class TestCreateNotifier:
+    """Test create_notifier factory function."""
+
+    def test_create_with_defaults(self, tmp_path: Path) -> None:
+        """Create notifier with defaults."""
+        notifier = create_notifier(tmp_path)
+
+        # Should return a Notifier (not BatchedNotifier since batching is off by default)
+        assert notifier is not None
+
+    def test_create_with_history(self, tmp_path: Path) -> None:
+        """Create notifier with history enabled."""
+        notifier = create_notifier(tmp_path, with_history=True)
+
+        # Notifier should have a store
+        from sunwell.interface.cli.notifications.system import Notifier
+        if isinstance(notifier, Notifier):
+            assert notifier.store is not None
+
+    def test_create_without_history(self, tmp_path: Path) -> None:
+        """Create notifier without history."""
+        notifier = create_notifier(tmp_path, with_history=False)
+
+        from sunwell.interface.cli.notifications.system import Notifier
+        if isinstance(notifier, Notifier):
+            assert notifier.store is None
+
+    def test_create_with_batching_override(self, tmp_path: Path) -> None:
+        """Force batching on."""
+        notifier = create_notifier(tmp_path, with_batching=True)
+
+        from sunwell.interface.cli.notifications.batcher import BatchedNotifier
+        assert isinstance(notifier, BatchedNotifier)
+
+    def test_create_with_config_batching(self, tmp_path: Path) -> None:
+        """Batching from config."""
+        # Create config with batching enabled
+        config_dir = tmp_path / ".sunwell"
+        config_dir.mkdir()
+        config_file = config_dir / "config.toml"
+        config_file.write_text('''
+[notifications]
+batching = true
+batch_window_ms = 2000
+''')
+
+        notifier = create_notifier(tmp_path)
+
+        from sunwell.interface.cli.notifications.batcher import BatchedNotifier
+        assert isinstance(notifier, BatchedNotifier)
+        assert notifier.window_ms == 2000
+
+
+class TestNotifierWithStore:
+    """Test Notifier with notification store."""
+
+    def test_notifier_accepts_store(self, tmp_path: Path) -> None:
+        """Notifier can be created with a store."""
+        from sunwell.interface.cli.notifications.store import NotificationStore
+
+        store = NotificationStore(workspace=tmp_path)
+        config = NotificationConfig(enabled=False)
+        notifier = Notifier(config=config, store=store)
+
+        assert notifier.store is store
+
+    @pytest.mark.asyncio
+    async def test_disabled_notifier_does_not_record(self, tmp_path: Path) -> None:
+        """Disabled notifier returns early without recording."""
+        from sunwell.interface.cli.notifications.store import NotificationStore
+
+        store = NotificationStore(workspace=tmp_path)
+        config = NotificationConfig(enabled=False)  # Disabled
+        notifier = Notifier(config=config, store=store)
+
+        # Disabled notifier returns False immediately without recording
+        result = await notifier.send("Test", "Message", NotificationType.INFO)
+
+        assert result is False
+        # Disabled notifiers don't record (returns early at config.enabled check)
+        assert store.count() == 0
+
+    @pytest.mark.asyncio
+    async def test_enabled_notifier_records_to_store(self, tmp_path: Path) -> None:
+        """Enabled notifier records notifications to store (regardless of delivery)."""
+        from sunwell.interface.cli.notifications.store import NotificationStore
+
+        store = NotificationStore(workspace=tmp_path)
+        # Enable notifications but desktop=False so no actual OS notification
+        config = NotificationConfig(enabled=True, desktop=False)
+        notifier = Notifier(config=config, store=store)
+
+        # Send should record even if no notification is shown
+        await notifier.send("Test", "Message", NotificationType.INFO)
+
+        # Check store has record
+        assert store.count() == 1
+        records = store.get_recent(limit=1)
+        assert records[0].title == "Test"

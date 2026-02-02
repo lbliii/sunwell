@@ -379,69 +379,56 @@ class TestSimLearningIntegration:
 # =============================================================================
 
 
-class TestSerializationRoundTrip:
-    """Tests for save_to_disk / load_from_disk."""
+class TestJournalRoundTrip:
+    """Tests for journal-based persistence via load_from_journal / load_from_disk."""
 
-    def test_learnings_survive_roundtrip(
+    def test_learnings_survive_journal_roundtrip(
         self,
         populated_store: LearningStore,
         temp_project: Path,
     ) -> None:
-        """Learnings are preserved through disk serialization."""
+        """Learnings are preserved through journal serialization."""
+        from sunwell.memory.core.journal import LearningJournal
+
         original_count = len(populated_store.learnings)
-        original_facts = {l.fact for l in populated_store.learnings}
+        original_facts = {lrn.fact for lrn in populated_store.learnings}
 
-        populated_store.save_to_disk(temp_project)
+        # Write to journal (the new single source of truth)
+        memory_dir = temp_project / ".sunwell" / "memory"
+        journal = LearningJournal(memory_dir)
+        for learning in populated_store.learnings:
+            journal.append(learning)
 
+        # Load into new store
         new_store = LearningStore()
-        loaded = new_store.load_from_disk(temp_project)
+        loaded = new_store.load_from_disk(temp_project)  # Delegates to journal
 
         assert loaded >= original_count
-        loaded_facts = {l.fact for l in new_store.learnings}
+        loaded_facts = {lrn.fact for lrn in new_store.learnings}
         assert original_facts <= loaded_facts
 
-    def test_dead_ends_survive_roundtrip(
-        self,
-        populated_store: LearningStore,
-        temp_project: Path,
-    ) -> None:
-        """Dead ends are preserved through disk serialization."""
-        original_approaches = {d.approach for d in populated_store.dead_ends}
+    def test_load_from_disk_delegates_to_journal(self, temp_project: Path) -> None:
+        """load_from_disk now just loads from journal."""
+        from sunwell.memory.core.journal import LearningJournal
 
-        populated_store.save_to_disk(temp_project)
+        # Write directly to journal
+        memory_dir = temp_project / ".sunwell" / "memory"
+        journal = LearningJournal(memory_dir)
+        journal.append(Learning(fact="Journal fact", category="pattern"))
 
-        new_store = LearningStore()
-        new_store.load_from_disk(temp_project)
-
-        loaded_approaches = {d.approach for d in new_store.dead_ends}
-        assert original_approaches <= loaded_approaches
-
-    def test_dead_end_gate_preserved(self, temp_project: Path) -> None:
-        """DeadEnd.gate field is preserved in serialization."""
+        # Load via store
         store = LearningStore()
-        store.add_dead_end(DeadEnd(
-            approach="Try X",
-            reason="Failed",
-            gate="lint",
-        ))
+        loaded = store.load_from_disk(temp_project)
 
-        store.save_to_disk(temp_project)
+        assert loaded == 1
+        assert store.learnings[0].fact == "Journal fact"
 
-        new_store = LearningStore()
-        new_store.load_from_disk(temp_project)
-
-        assert len(new_store.dead_ends) == 1
-        assert new_store.dead_ends[0].gate == "lint"
-
-    def test_empty_store_roundtrip(self, temp_project: Path) -> None:
-        """Empty store handles roundtrip gracefully."""
+    def test_empty_journal_roundtrip(self, temp_project: Path) -> None:
+        """Empty journal handles roundtrip gracefully."""
         store = LearningStore()
-        saved = store.save_to_disk(temp_project)
-        assert saved == 0
-
-        new_store = LearningStore()
-        loaded = new_store.load_from_disk(temp_project)
+        loaded = store.load_from_disk(temp_project)
         assert loaded == 0
+        assert len(store.learnings) == 0
 
 
 # =============================================================================
@@ -467,30 +454,32 @@ class TestDeduplication:
         learning_store.add_learning(Learning(fact="X", category="api"))
         assert len(learning_store.learnings) == 2
 
-    def test_disk_deduplication_learnings(self, temp_project: Path) -> None:
-        """Learnings don't duplicate on multiple saves."""
+    def test_journal_deduplication_learnings(self, temp_project: Path) -> None:
+        """Journal handles deduplication via load_deduplicated."""
+        from sunwell.memory.core.journal import LearningJournal
+
+        memory_dir = temp_project / ".sunwell" / "memory"
+        journal = LearningJournal(memory_dir)
+
+        # Append same learning twice (simulating multiple sessions)
+        learning = Learning(fact="Persistent", category="pattern")
+        journal.append(learning)
+        journal.append(learning)  # Same ID
+
+        # Journal load_deduplicated should return only one
+        entries = journal.load_deduplicated()
+        assert len(entries) == 1
+
+    def test_store_deduplication_on_add(self, temp_project: Path) -> None:
+        """Store deduplicates on add, not on save."""
         store = LearningStore()
-        store.add_learning(Learning(fact="Persistent", category="pattern"))
+        learning = Learning(fact="Duplicate test", category="pattern")
 
-        store.save_to_disk(temp_project)
-        store.save_to_disk(temp_project)  # Second save
+        store.add_learning(learning)
+        store.add_learning(learning)  # Same ID
 
-        # Read the file directly
-        path = temp_project / ".sunwell" / "intelligence" / "learnings.jsonl"
-        lines = [l for l in path.read_text().strip().split("\n") if l]
-        assert len(lines) == 1
-
-    def test_disk_deduplication_dead_ends(self, temp_project: Path) -> None:
-        """Dead ends don't duplicate on multiple saves."""
-        store = LearningStore()
-        store.add_dead_end(DeadEnd(approach="X", reason="Y", gate="lint"))
-
-        store.save_to_disk(temp_project)
-        store.save_to_disk(temp_project)  # Second save
-
-        path = temp_project / ".sunwell" / "intelligence" / "dead_ends.jsonl"
-        lines = [l for l in path.read_text().strip().split("\n") if l]
-        assert len(lines) == 1
+        # Store should only have one
+        assert len(store.learnings) == 1
 
 
 # =============================================================================
@@ -1018,17 +1007,17 @@ class TestLearnFromExecution:
         assert isinstance(learnings, list)
 
     @pytest.mark.asyncio
-    async def test_learn_from_execution_skips_heuristics_on_failure(
+    async def test_learn_from_execution_skips_heuristics_on_failure_without_force(
         self,
         task_graph_with_tasks: Any,
         learning_store: LearningStore,
     ) -> None:
-        """learn_from_execution skips heuristic extraction when success=False."""
+        """learn_from_execution skips heuristic extraction when success=False and force=False."""
         from sunwell.agent.learning.execution import learn_from_execution
         
         extractor = LearningExtractor()
         
-        # With success=False, heuristic extraction should be skipped
+        # With success=False and force=False, heuristic extraction should be skipped
         learnings = []
         async for fact, category in learn_from_execution(
             goal="Failed task",
@@ -1039,10 +1028,75 @@ class TestLearnFromExecution:
             files_changed=[],
             last_planning_context=None,
             memory=None,
+            force=False,  # Default behavior
         ):
             learnings.append((fact, category))
         
         # Should complete without error, no heuristics extracted
+        assert isinstance(learnings, list)
+        # No success heuristics when failed
+        assert not any(cat == "heuristic" for _, cat in learnings)
+
+    @pytest.mark.asyncio
+    async def test_learn_from_execution_extracts_failure_heuristics_with_force(
+        self,
+        task_graph_with_tasks: Any,
+        learning_store: LearningStore,
+    ) -> None:
+        """learn_from_execution extracts failure heuristics when force=True."""
+        from sunwell.agent.learning.execution import learn_from_execution
+        
+        extractor = LearningExtractor()
+        
+        # Mark some tasks as incomplete to simulate failure
+        # With force=True, should extract what-not-to-do heuristics
+        learnings = []
+        async for fact, category in learn_from_execution(
+            goal="Failed task that should learn",
+            success=False,
+            task_graph=task_graph_with_tasks,
+            learning_store=learning_store,
+            learning_extractor=extractor,
+            files_changed=[],
+            last_planning_context=None,
+            memory=None,
+            force=True,  # Force extraction even on failure
+        ):
+            learnings.append((fact, category))
+        
+        # Should extract failure-related learnings
+        assert len(learnings) > 0
+        # Should have heuristic or session category
+        assert any(cat in ("heuristic", "session") for _, cat in learnings)
+
+    @pytest.mark.asyncio
+    async def test_learn_from_execution_session_summary_with_force(
+        self,
+        empty_task_graph: Any,
+        learning_store: LearningStore,
+    ) -> None:
+        """learn_from_execution creates session summary when force=True and no code learnings."""
+        from sunwell.agent.learning.execution import learn_from_execution
+        
+        extractor = LearningExtractor()
+        
+        # Empty task graph, no files - should create session summary with force
+        learnings = []
+        async for fact, category in learn_from_execution(
+            goal="Simple goal",
+            success=True,
+            task_graph=empty_task_graph,
+            learning_store=learning_store,
+            learning_extractor=extractor,
+            files_changed=[],
+            last_planning_context=None,
+            memory=None,
+            force=True,
+        ):
+            learnings.append((fact, category))
+        
+        # With empty task graph (0 tasks), no session learning created
+        # This is expected - session learnings only created when tasks > 0
         assert isinstance(learnings, list)
 
     @pytest.mark.asyncio

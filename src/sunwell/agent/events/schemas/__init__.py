@@ -114,6 +114,7 @@ from .integration import (
     StubDetectedData,
     WireTaskGeneratedData,
 )
+from .intent import DomainDetectedData, IntentClassifiedData, NodeTransitionData
 from .lens import LensChangedData, LensSelectedData, LensSuggestedData
 from .memory import (
     BriefingUpdatedData,
@@ -303,6 +304,10 @@ __all__ = [
     # Signal schemas
     "SignalData",
     "SignalRouteData",
+    # Intent/Domain schemas (Conversational DAG, RFC-DOMAINS)
+    "IntentClassifiedData",
+    "NodeTransitionData",
+    "DomainDetectedData",
     # Gate schemas
     "GateStartData",
     "GateStepData",

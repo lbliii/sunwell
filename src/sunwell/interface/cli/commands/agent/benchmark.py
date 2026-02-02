@@ -215,14 +215,24 @@ async def _extract_learnings_from_result(
             # Learning extraction failed for this artifact
             continue
 
-    # Persist learnings to .sunwell/intelligence/learnings.jsonl
+    # Persist learnings to .sunwell/memory/learnings.jsonl (the journal)
     if learnings:
-        intel_path = Path.cwd() / ".sunwell" / "intelligence"
-        intel_path.mkdir(parents=True, exist_ok=True)
+        from sunwell.agent.learning.learning import Learning
+        from sunwell.memory.core.journal import LearningJournal
 
-        learnings_file = intel_path / "learnings.jsonl"
-        with open(learnings_file, "a") as f:
-            for learning in learnings:
-                f.write(safe_json_dumps(learning) + "\n")
+        memory_dir = Path.cwd() / ".sunwell" / "memory"
+        journal = LearningJournal(memory_dir)
+
+        for learning_dict in learnings:
+            learning = Learning(
+                fact=learning_dict["fact"],
+                category=learning_dict["category"],
+                confidence=learning_dict["confidence"],
+                source_file=learning_dict.get("source_file"),
+            )
+            try:
+                journal.append(learning)
+            except OSError:
+                pass  # Best effort persistence
 
     return len(learnings)

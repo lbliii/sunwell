@@ -15,7 +15,6 @@ Key components:
 - IntentPipeline: Two-step classification + response (RECOMMENDED)
 - IntentClassifier: Structured routing decisions
 - ResponseGenerator: Route-aware response generation
-- IntentAnalyzer: Legacy single-prompt approach (deprecated)
 - InteractionRouter: Routes intents to appropriate handlers
 - ActionExecutor: Executes actions against data providers
 - ViewRenderer: Renders views for calendar, lists, notes, etc.
@@ -26,7 +25,6 @@ Usage (recommended):
     >>> analysis = await pipeline.analyze("build a chat app")
 """
 
-from sunwell.interface.generative.analyzer import IntentAnalyzer
 from sunwell.interface.generative.block_actions import BlockActionExecutor, BlockActionResult
 from sunwell.interface.generative.classifier import ClassificationResult, IntentClassifier
 from sunwell.interface.generative.executor import ActionExecutor, ActionResult
@@ -69,8 +67,7 @@ __all__ = [
     "IntentClassifier",
     "ResponseGenerator",
     "analyze_with_pipeline",
-    # Legacy Components
-    "IntentAnalyzer",
+    # Executors and Renderers
     "ActionExecutor",
     "ActionResult",
     "BlockActionExecutor",

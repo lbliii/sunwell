@@ -43,6 +43,7 @@ from sunwell.planning.reasoning.decisions import (
     ReasonedDecision,
     RecoveryDecision,
 )
+from sunwell.knowledge.codebase.advisor import TaskGraphAdvisor
 from sunwell.planning.reasoning.enrichment import ContextEnricher
 from sunwell.planning.reasoning.prompts import PromptBuilder
 
@@ -356,12 +357,21 @@ class Reasoner:
         if not self.fallback_rules:
             self.fallback_rules = self._default_fallback_rules()
 
+        # Create task advisor from codebase graph if available
+        task_advisor: TaskGraphAdvisor | None = None
+        if self.project_context and self.project_context.codebase:
+            codebase = self.project_context.codebase
+            # Only create advisor if structural graph is populated
+            if codebase.structural_nodes:
+                task_advisor = TaskGraphAdvisor(codebase)
+
         # Initialize context enricher
         self._context_enricher = ContextEnricher(
             project_context=self.project_context,
             execution_cache=self.execution_cache,
             artifact_graph=self.artifact_graph,
             decision_history=self._history_by_type,
+            task_advisor=task_advisor,
         )
 
     async def decide(
@@ -396,11 +406,19 @@ class Reasoner:
         """
         # 1. Assemble full context
         if not self._context_enricher:
+            # Create task advisor from codebase graph if available
+            task_advisor: TaskGraphAdvisor | None = None
+            if self.project_context and self.project_context.codebase:
+                codebase = self.project_context.codebase
+                if codebase.structural_nodes:
+                    task_advisor = TaskGraphAdvisor(codebase)
+
             self._context_enricher = ContextEnricher(
                 project_context=self.project_context,
                 execution_cache=self.execution_cache,
                 artifact_graph=self.artifact_graph,
                 decision_history=self._history_by_type,
+                task_advisor=task_advisor,
             )
         enriched = await self._context_enricher.enrich(decision_type, context)
 

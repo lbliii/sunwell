@@ -1,15 +1,17 @@
-"""Tool execution engine for RFC-012 tool calling.
+"""Tool execution engine with dynamic tool registry.
 
-ToolExecutor dispatches tool calls to appropriate handlers:
-- Built-in tools → CoreToolHandlers
-- Skill-derived tools → SkillExecutor (RFC-011)
+ToolExecutor dispatches tool calls to handlers:
+- Core tools → DynamicToolRegistry (self-registering tools)
 - Memory tools → MemoryToolHandler (RFC-014)
-- Web search tools → WebSearchHandler
-- Learned tools → LearnedToolHandler (Phase 6 - future)
+- Mirror tools → MirrorHandler (RFC-015)
+- Expertise tools → ExpertiseToolHandler (RFC-027)
+- Sunwell tools → SunwellToolHandlers (RFC-125)
 
-RFC-117: Project-centric workspace isolation
-- Uses `project` parameter for validated workspace context
-- Workspace is derived from `project.root`
+Features:
+- Synthetic loading: tools auto-enable on first call
+- Idle expiry: unused tools disabled after 5 turns
+- Tool hints: inactive tool descriptions for context
+- Usage guidance: active tool tips for system prompt
 """
 
 
@@ -22,30 +24,29 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# Callback type for file write hooks
+FileWriteHook = Callable[[Path], Awaitable[None]]
+
 from sunwell.models import ToolCall
 from sunwell.tools.core.types import (
     ToolAuditEntry,
     ToolPolicy,
     ToolRateLimits,
     ToolResult,
+    ToolUsageTracker,
 )
-from sunwell.tools.handlers import CoreToolHandlers, PathSecurityError
+from sunwell.tools.handlers import PathSecurityError
 
 if TYPE_CHECKING:
     from sunwell.features.mirror.handler import MirrorHandler
-    from sunwell.features.workflow.engine import SkillExecutor
     from sunwell.knowledge.project import Project
     from sunwell.memory.simulacrum.manager import SimulacrumToolHandler
     from sunwell.memory.simulacrum.memory_tools import MemoryToolHandler
     from sunwell.models import Tool
-    from sunwell.planning.skills.sandbox import ScriptSandbox
     from sunwell.tools.providers.expertise import ExpertiseToolHandler
     from sunwell.tools.providers.web_search import WebSearchHandler
+    from sunwell.tools.registry import DynamicToolRegistry
     from sunwell.tools.sunwell.handlers import SunwellToolHandlers
-
-
-# Type alias for tool handlers
-ToolHandler = Callable[[dict], Awaitable[str]]
 
 # =============================================================================
 # Tool Category Constants (O(1) lookup, no per-instance rebuilding)
@@ -66,27 +67,30 @@ from sunwell.tools.core.constants import (
 from sunwell.tools.core.constants import (
     SUNWELL_TOOLS as _SUNWELL_TOOLS,
 )
+from sunwell.tools.core.constants import (
+    WEB_TOOLS as _WEB_TOOLS,
+)
 
 
 @dataclass(slots=True)
 class ToolExecutor:
-    """Execute tool calls locally.
+    """Execute tool calls via dynamic tool registry.
 
-    This is a dispatcher that routes tool calls to appropriate handlers:
-    - Built-in tools → CoreToolHandlers
-    - Skill-derived tools → SkillExecutor (RFC-011)
+    Routes tool calls to appropriate handlers:
+    - Core tools → DynamicToolRegistry (self-registering tools from implementations/)
     - Memory tools → MemoryToolHandler (RFC-014)
-    - Learned tools → LearnedToolHandler (future)
+    - Mirror tools → MirrorHandler (RFC-015)
+    - Expertise tools → ExpertiseToolHandler (RFC-027)
+    - Sunwell tools → SunwellToolHandlers (RFC-125)
 
-    RFC-117: Project-centric workspace isolation
-    - Uses `project` parameter for validated workspace context
-    - Validates workspace is not Sunwell's own repo
-    - Workspace is derived from `project.root`
+    Features:
+    - Synthetic loading: tools auto-enable on first call
+    - Idle expiry: unused tools disabled after 5 turns
+    - Tool hints: inactive tool descriptions for context
+    - Usage guidance: active tool tips for system prompt
 
     Args:
         project: Project instance with validated root (RFC-117, required)
-        sandbox: ScriptSandbox for command execution (RFC-011)
-        skill_executor: For skill-derived tools
         memory_handler: For memory tools (RFC-014)
         policy: Tool execution policy (trust level, allowed tools)
         audit_path: Where to write audit logs (None to disable)
@@ -94,14 +98,12 @@ class ToolExecutor:
 
     # RFC-117: Use project for validated workspace context
     project: Project
-    sandbox: ScriptSandbox | None = None
-    skill_executor: SkillExecutor | None = None
-    memory_handler: MemoryToolHandler | None = None  # RFC-014
-    headspace_handler: SimulacrumToolHandler | None = None  # RFC-014: Multi-headspace
-    web_search_handler: WebSearchHandler | None = None  # Web search tools
-    mirror_handler: MirrorHandler | None = None  # RFC-015: Mirror neurons
-    expertise_handler: ExpertiseToolHandler | None = None  # RFC-027: Self-directed expertise
-    sunwell_handler: SunwellToolHandlers | None = None  # RFC-125: Agent self-access
+    memory_handler: MemoryToolHandler | None = None
+    headspace_handler: SimulacrumToolHandler | None = None
+    web_search_handler: WebSearchHandler | None = None
+    mirror_handler: MirrorHandler | None = None
+    expertise_handler: ExpertiseToolHandler | None = None
+    sunwell_handler: SunwellToolHandlers | None = None
     policy: ToolPolicy | None = None
     audit_path: Path | None = None
 
@@ -109,15 +111,20 @@ class ToolExecutor:
     on_file_write: Callable[[Path], Awaitable[None]] | None = None
     """Hook called after successful write_file or edit_file operations."""
 
-    # Handler registry
-    _handlers: dict[str, ToolHandler] = field(default_factory=dict)
-    _core_handlers: CoreToolHandlers | None = field(default=None, init=False)
+    # Internal state
     _rate_limits: ToolRateLimits = field(default_factory=ToolRateLimits, init=False)
     _audit_entries: list[ToolAuditEntry] = field(default_factory=list, init=False)
     _resolved_workspace: Path | None = field(default=None, init=False)
 
+    # Dynamic Tool Registry
+    _registry: DynamicToolRegistry | None = field(default=None, init=False)
+    """Dynamic tool registry for self-registering tools."""
+
+    _usage_tracker: ToolUsageTracker | None = field(default=None, init=False)
+    """Tool usage tracker for idle expiry."""
+
     def __post_init__(self) -> None:
-        """Initialize core tool handlers."""
+        """Initialize dynamic tool registry."""
         from sunwell.knowledge.project.validation import (
             ProjectValidationError,
             validate_not_sunwell_repo,
@@ -137,207 +144,102 @@ class ToolExecutor:
         # Store resolved workspace for internal use
         self._resolved_workspace = workspace
 
-        # Get blocked patterns from policy, project, or defaults
-        blocked_patterns = self._get_blocked_patterns()
-
-        # Initialize core tool handlers
-        if blocked_patterns is not None:
-            self._core_handlers = CoreToolHandlers(
-                workspace,
-                self.sandbox,
-                blocked_patterns=blocked_patterns,
-            )
-        else:
-            self._core_handlers = CoreToolHandlers(
-                workspace,
-                self.sandbox,
-            )
-
-        # Set up file event callback for HookEvent emission (Conversational DAG Architecture)
-        self._core_handlers.set_file_event_callback(self._emit_file_change_hook)
-
         # Initialize rate limits from policy
         if self.policy and self.policy.rate_limits:
             self._rate_limits = self.policy.rate_limits
 
-        # Register built-in tools (filtered by policy)
-        self._register_core_tools()
+        # Initialize dynamic tool registry
+        self._init_registry(workspace)
 
 
-    def _get_blocked_patterns(self) -> frozenset[str] | None:
-        """Get blocked patterns from policy and project.
+    # =========================================================================
+    # Dynamic Tool Registry
+    # =========================================================================
 
-        Combines patterns from:
-        1. Default patterns
-        2. Policy blocked_paths
-        3. Project protected paths (RFC-117)
+    def _init_registry(self, workspace: Path) -> None:
+        """Initialize the dynamic tool registry.
 
-        Returns:
-            Combined blocked patterns or None to use defaults
-        """
-        from sunwell.tools.handlers import DEFAULT_BLOCKED_PATTERNS
-
-        patterns: set[str] = set()
-        has_custom = False
-
-        # Add policy blocked paths
-        if self.policy and self.policy.blocked_paths:
-            patterns.update(DEFAULT_BLOCKED_PATTERNS)
-            patterns.update(self.policy.blocked_paths)
-            has_custom = True
-
-        # Add project protected paths (RFC-117)
-        if self.project and self.project.protected_paths:
-            if not has_custom:
-                patterns.update(DEFAULT_BLOCKED_PATTERNS)
-            # Convert protected paths to glob patterns
-            for protected in self.project.protected_paths:
-                patterns.add(f"**/{protected}/**")
-                patterns.add(f"**/{protected}")
-            has_custom = True
-
-        return frozenset(patterns) if has_custom else None
-
-    def _emit_file_change_hook(
-        self,
-        event_type: str,
-        path: str,
-        content: str,
-        lines_added: int,
-        lines_removed: int,
-    ) -> None:
-        """Emit file change hooks for the Conversational DAG Architecture.
-
-        Called by FileHandlers when files are created, modified, or deleted.
-        Emits appropriate HookEvent for user-defined hooks.
+        Creates a DynamicToolRegistry, discovers tools from implementations/,
+        and sets up usage tracking for idle expiry.
 
         Args:
-            event_type: "file_created", "file_modified", or "file_deleted"
-            path: File path relative to workspace
-            content: New file content (empty for deletes)
-            lines_added: Lines added
-            lines_removed: Lines removed
+            workspace: Workspace root for tool context
         """
-        from sunwell.agent.hooks import HookEvent, emit_hook_sync
+        from sunwell.tools.registry import DynamicToolRegistry
 
-        # Map file handler events to HookEvent types
-        if event_type == "file_created":
-            emit_hook_sync(
-                HookEvent.FILE_CHANGE_APPROVED,
-                file_path=path,
-                change_type="create",
-                lines_added=lines_added,
-                lines_removed=lines_removed,
-            )
-        elif event_type == "file_modified":
-            emit_hook_sync(
-                HookEvent.FILE_CHANGE_APPROVED,
-                file_path=path,
-                change_type="modify",
-                lines_added=lines_added,
-                lines_removed=lines_removed,
-            )
-        elif event_type == "file_deleted":
-            emit_hook_sync(
-                HookEvent.FILE_CHANGE_APPROVED,
-                file_path=path,
-                change_type="delete",
-                lines_added=0,
-                lines_removed=lines_removed,
-            )
+        # Create registry with rich context
+        self._registry = DynamicToolRegistry(
+            project=self.project,
+            memory_store=(
+                self.memory_handler.store
+                if self.memory_handler and hasattr(self.memory_handler, "store")
+                else None
+            ),
+            llm_provider=None,  # Can be set later if needed
+        )
 
-    def _register_core_tools(self) -> None:
-        """Register built-in tools filtered by policy."""
-        # Map tool names to handlers
-        all_handlers = {
-            # Core file tools
-            "read_file": self._core_handlers.read_file,
-            "write_file": self._core_handlers.write_file,
-            "edit_file": self._core_handlers.edit_file,  # RFC-041: Surgical editing
-            "list_files": self._core_handlers.list_files,
-            "search_files": self._core_handlers.search_files,
-            "run_command": self._core_handlers.run_command,
-            "mkdir": self._core_handlers.mkdir,
-            # File management tools (toolkit evolution)
-            "delete_file": self._core_handlers.delete_file,
-            "rename_file": self._core_handlers.rename_file,
-            "copy_file": self._core_handlers.copy_file,
-            "find_files": self._core_handlers.find_files,
-            "patch_file": self._core_handlers.patch_file,
-            # Undo/rollback tools
-            "undo_file": self._core_handlers.undo_file,
-            "list_backups": self._core_handlers.list_backups,
-            "restore_file": self._core_handlers.restore_file,
-            # Git tools (RFC-024)
-            "git_init": self._core_handlers.git_init,
-            "git_info": self._core_handlers.git_info,
-            "git_status": self._core_handlers.git_status,
-            "git_diff": self._core_handlers.git_diff,
-            "git_log": self._core_handlers.git_log,
-            "git_blame": self._core_handlers.git_blame,
-            "git_show": self._core_handlers.git_show,
-            "git_add": self._core_handlers.git_add,
-            "git_restore": self._core_handlers.git_restore,
-            "git_commit": self._core_handlers.git_commit,
-            "git_branch": self._core_handlers.git_branch,
-            "git_checkout": self._core_handlers.git_checkout,
-            "git_stash": self._core_handlers.git_stash,
-            "git_reset": self._core_handlers.git_reset,
-            "git_merge": self._core_handlers.git_merge,
-            # Environment tools (RFC-024)
-            "get_env": self._core_handlers.get_env,
-            "list_env": self._core_handlers.list_env,
-        }
+        # Discover tools from implementations package
+        self._registry.discover()
 
-        # Filter by policy
-        if self.policy:
-            allowed = self.policy.get_allowed_tools()
-            for name, handler in all_handlers.items():
-                if name in allowed:
-                    self._handlers[name] = handler
-        else:
-            # No policy = default to WORKSPACE level
-            from sunwell.tools.core.constants import TRUST_LEVEL_TOOLS
-            from sunwell.tools.core.types import ToolTrust
-            default_allowed = TRUST_LEVEL_TOOLS[ToolTrust.WORKSPACE]
-            for name, handler in all_handlers.items():
-                if name in default_allowed:
-                    self._handlers[name] = handler
+        # Initialize usage tracker for idle expiry
+        self._usage_tracker = ToolUsageTracker()
 
-        # Register web search tools if handler provided and policy allows
-        if self.web_search_handler:
-            allowed = self.policy.get_allowed_tools() if self.policy else set()
-            if "web_search" in allowed:
-                self._handlers["web_search"] = self.web_search_handler.web_search
-            if "web_fetch" in allowed:
-                self._handlers["web_fetch"] = self.web_search_handler.web_fetch
+    @property
+    def registry(self) -> DynamicToolRegistry:
+        """Access the dynamic tool registry."""
+        if not self._registry:
+            raise RuntimeError("Registry not initialized")
+        return self._registry
 
-    def register(self, name: str, handler: ToolHandler) -> None:
-        """Register a custom tool handler.
+    def get_tool_hints(self) -> dict[str, str]:
+        """Get hints for inactive tools.
 
-        Use this to add skill-derived tools or custom extensions.
+        Returns:
+            Dict mapping tool name to simple description for inactive tools
         """
-        self._handlers[name] = handler
+        return self._registry.get_hints() if self._registry else {}
+
+    def get_tool_guidance(self) -> str:
+        """Get usage guidance for active tools.
+
+        Returns:
+            Formatted guidance string for system prompt
+        """
+        return self._registry.get_active_guidance() if self._registry else ""
+
+    def advance_turn(self) -> list[str]:
+        """Advance turn counter and expire idle tools.
+
+        Call this at the end of each model response turn.
+
+        Returns:
+            List of tool names that were disabled due to inactivity
+        """
+        if not self._usage_tracker or not self._registry:
+            return []
+
+        expired = self._usage_tracker.advance_turn()
+        for name in expired:
+            if self._registry.is_known(name):
+                self._registry.disable(name)
+
+        return expired
 
     def get_available_tools(self) -> list[str]:
-        """Get list of available tool names."""
-        return list(self._handlers.keys())
+        """Get list of available tool names (active + known)."""
+        if not self._registry:
+            return []
+        return self._registry.list_all_tools()
 
     def get_tool_definitions(self) -> tuple[Tool, ...]:
-        """Get full Tool definitions for available tools (for native tool calling).
+        """Get Tool definitions for active tools.
 
         Returns Tool objects with name, description, and JSON Schema parameters.
-        Use this when passing tools to model.generate(tools=...) for reliable
-        tool calling instead of text-based prompts.
+        Use this when passing tools to model.generate(tools=...).
         """
-        from sunwell.tools.definitions.builtins import ALL_BUILTIN_TOOLS
-
-        available_names = self._handlers.keys()
-
-        return tuple(
-            tool for name, tool in ALL_BUILTIN_TOOLS.items()
-            if name in available_names
-        )
+        if not self._registry:
+            return ()
+        return self._registry.get_active_schemas()
 
     async def execute(self, tool_call: ToolCall) -> ToolResult:
         """Execute a single tool call.
@@ -503,22 +405,49 @@ class ToolExecutor:
                     output="Sunwell tools not configured. Set sunwell_handler on ToolExecutor.",
                 )
 
+        # Route web tools to web_search_handler
+        if tool_call.name in _WEB_TOOLS:
+            if self.web_search_handler:
+                try:
+                    if tool_call.name == "web_search":
+                        output = await self.web_search_handler.web_search(
+                            tool_call.arguments,
+                        )
+                    elif tool_call.name == "web_fetch":
+                        output = await self.web_search_handler.web_fetch(
+                            tool_call.arguments,
+                        )
+                    else:
+                        output = f"Unknown web tool: {tool_call.name}"
+                    elapsed_ms = int((time.monotonic() - start) * 1000)
+                    self._log_audit(tool_call, True, elapsed_ms)
+                    return ToolResult(
+                        tool_call_id=tool_call.id,
+                        success=True,
+                        output=output,
+                        execution_time_ms=elapsed_ms,
+                    )
+                except Exception as e:
+                    elapsed_ms = int((time.monotonic() - start) * 1000)
+                    self._log_audit(tool_call, False, elapsed_ms, str(e))
+                    return ToolResult(
+                        tool_call_id=tool_call.id,
+                        success=False,
+                        output=f"Web tool error: {e}",
+                    )
+            else:
+                return ToolResult(
+                    tool_call_id=tool_call.id,
+                    success=False,
+                    output="Web tools not configured. Set web_search_handler on ToolExecutor.",
+                )
+
         # Check rate limits
         if not self._rate_limits.check_tool_call():
             return ToolResult(
                 tool_call_id=tool_call.id,
                 success=False,
                 output="Rate limit exceeded. Please wait before making more tool calls.",
-            )
-
-        # Find handler
-        handler = self._handlers.get(tool_call.name)
-        if not handler:
-            available = ", ".join(self._handlers.keys())
-            return ToolResult(
-                tool_call_id=tool_call.id,
-                success=False,
-                output=f"Unknown tool: {tool_call.name}. Available: {available}",
             )
 
         # Additional rate limit checks for specific tools
@@ -547,10 +476,34 @@ class ToolExecutor:
                 output="Shell command rate limit exceeded.",
             )
 
-        # Execute handler
+        # Execute via dynamic tool registry (synthetic loading)
+        if not self._registry:
+            return ToolResult(
+                tool_call_id=tool_call.id,
+                success=False,
+                output="Tool registry not initialized.",
+            )
+
+        if not self._registry.is_known(tool_call.name):
+            available = ", ".join(self._registry.list_all_tools())
+            return ToolResult(
+                tool_call_id=tool_call.id,
+                success=False,
+                output=f"Unknown tool: {tool_call.name}. Available: {available}",
+            )
+
         try:
-            output = await handler(tool_call.arguments)
+            # Synthetic loading: auto_enable=True means tools load on first call
+            output = await self._registry.execute(
+                tool_call.name,
+                tool_call.arguments,
+                auto_enable=True,
+            )
             elapsed_ms = int((time.monotonic() - start) * 1000)
+
+            # Track usage for idle expiry
+            if self._usage_tracker:
+                self._usage_tracker.record_use(tool_call.name)
 
             # RFC-123: Fire convergence hook after successful file writes
             await self._fire_write_hook(tool_call)
@@ -595,6 +548,14 @@ class ToolExecutor:
                 tool_call_id=tool_call.id,
                 success=False,
                 output="Tool execution timed out",
+            )
+        except KeyError as e:
+            elapsed_ms = int((time.monotonic() - start) * 1000)
+            self._log_audit(tool_call, False, elapsed_ms, str(e))
+            return ToolResult(
+                tool_call_id=tool_call.id,
+                success=False,
+                output=f"Tool error: {e}",
             )
         except Exception as e:
             elapsed_ms = int((time.monotonic() - start) * 1000)

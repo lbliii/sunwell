@@ -35,6 +35,7 @@ class LensSource(Enum):
 # Domain to lens mapping
 # Lists lens file names (without path) for each domain
 DOMAIN_LENS_MAP: dict[Domain, list[str]] = {
+    # Code-related domains
     Domain.DOCUMENTATION: [
         "tech-writer.lens",
         "team-writer.lens",
@@ -42,6 +43,7 @@ DOMAIN_LENS_MAP: dict[Domain, list[str]] = {
     Domain.CODE: [
         "coder.lens",
         "team-dev.lens",
+        "python-expert-v2.lens",
     ],
     Domain.REVIEW: [
         "code-reviewer.lens",
@@ -58,6 +60,20 @@ DOMAIN_LENS_MAP: dict[Domain, list[str]] = {
     Domain.PROJECT: [
         "team-dev.lens",
         "team-pm.lens",
+    ],
+    # RFC-DOMAINS: Non-code domain mappings
+    Domain.RESEARCH: [
+        "researcher.lens",
+    ],
+    Domain.WRITING: [
+        "content-writer.lens",
+        "editor.lens",
+    ],
+    Domain.DATA: [
+        "data-analyst.lens",
+    ],
+    Domain.PERSONAL: [
+        "assistant.lens",
     ],
     Domain.GENERAL: [
         "helper.lens",

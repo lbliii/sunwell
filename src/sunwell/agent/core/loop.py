@@ -56,9 +56,6 @@ from sunwell.agent.loop import (
     expertise as loop_expertise,
 )
 from sunwell.agent.loop import (
-    learning as loop_learning,
-)
-from sunwell.agent.loop import (
     recovery as loop_recovery,
 )
 from sunwell.agent.loop import (
@@ -87,9 +84,12 @@ from sunwell.models import GenerateOptions, GenerateResult, Message, Tool, ToolC
 if TYPE_CHECKING:
     from sunwell.agent.learning import LearningStore, RoutingOutcomeStore
     from sunwell.agent.recovery.manager import RecoveryManager
+    from sunwell.agent.trinkets import TrinketComposer
     from sunwell.agent.validation import ValidationStage
     from sunwell.features.mirror.handler import MirrorHandler
     from sunwell.foundation.core.lens import Lens
+    from sunwell.memory.briefing.briefing import Briefing
+    from sunwell.memory.simulacrum.core.store import SimulacrumStore
     from sunwell.models import ModelProtocol
     from sunwell.tools.execution import ToolExecutor
     from sunwell.tools.progressive import ProgressivePolicy
@@ -174,6 +174,17 @@ class AgentLoop:
     _budget_warning_emitted: bool = field(default=False, init=False)
     """Whether we've already emitted a budget warning."""
 
+    # Trinket composition (initialized in __post_init__)
+    _trinket_composer: "TrinketComposer | None" = field(default=None, init=False)
+    """Trinket composer for modular prompt composition."""
+
+    # Optional injections for trinkets (set by caller if available)
+    briefing: "Briefing | None" = None
+    """Optional briefing for session orientation."""
+
+    memory_store: "SimulacrumStore | None" = None
+    """Optional memory store for historical context."""
+
     def __post_init__(self) -> None:
         """Initialize workspace from executor if not provided."""
         if self.workspace is None and hasattr(self.executor, "_resolved_workspace"):
@@ -188,6 +199,9 @@ class AgentLoop:
                 recovery_timeout_seconds=self.config.circuit_breaker_recovery_seconds,
             )
 
+        # Initialize trinket composer (always enabled)
+        self._trinket_composer = self._setup_trinkets()
+
     def set_subagent_run_id(self, run_id: str, heartbeat_interval: int = 5) -> None:
         """Mark this loop as running as a subagent.
 
@@ -199,6 +213,54 @@ class AgentLoop:
         """
         self._subagent_run_id = run_id
         self._heartbeat_interval = heartbeat_interval
+
+    def _setup_trinkets(self) -> TrinketComposer:
+        """Set up trinket composer with registered trinkets.
+
+        Returns:
+            Configured TrinketComposer instance.
+        """
+        from sunwell.agent.trinkets import (
+            BriefingTrinket,
+            LearningTrinket,
+            MemoryTrinket,
+            TimeTrinket,
+            ToolGuidanceTrinket,
+            TrinketComposer,
+        )
+
+        composer = TrinketComposer()
+
+        # Time trinket (priority 0, notification)
+        composer.register(TimeTrinket())
+
+        # Briefing trinket (priority 10, system, cacheable)
+        if self.briefing:
+            composer.register(BriefingTrinket(self.briefing))
+
+        # Learning trinket (priority 30, system)
+        if self.config.enable_learning_injection and self.learning_store:
+            composer.register(
+                LearningTrinket(
+                    self.learning_store,
+                    enable_tool_learning=self.config.enable_tool_learning,
+                )
+            )
+
+        # Tool guidance trinket (priority 50, system)
+        composer.register(ToolGuidanceTrinket(self.executor))
+
+        # Memory trinket (priority 70, context)
+        if self.memory_store:
+            composer.register(MemoryTrinket(self.memory_store))
+
+        logger.debug(
+            "Trinket composer initialized with %d trinkets: %s",
+            len(composer.trinkets),
+            composer.registered_names,
+        )
+
+        return composer
 
     def _emit_heartbeat(
         self,
@@ -336,24 +398,52 @@ class AgentLoop:
         # Initialize state
         state = LoopState()
 
-        # Build initial messages
-        if system_prompt:
-            state.messages.append(Message(role="system", content=system_prompt))
-
-        # Inject learnings if enabled
+        # Build initial messages via trinket composition
         learnings_injected = False
-        if self.config.enable_learning_injection and self.learning_store:
-            learnings_prompt = await loop_learning.get_learnings_prompt(
-                task_description,
-                self.learning_store,
-                self.config.enable_tool_learning,
+        composed = None
+
+        if self._trinket_composer:
+            from sunwell.agent.trinkets import TrinketContext
+
+            trinket_ctx = TrinketContext(
+                task=task_description,
+                workspace=self.workspace or Path.cwd(),
+                turn=0,
+                tools=tools or (),
             )
-            if learnings_prompt:
-                state.messages.append(Message(role="system", content=learnings_prompt))
-                learnings_injected = True
+
+            composed = await self._trinket_composer.compose(trinket_ctx)
+
+            # Add system content (base prompt + trinket system sections)
+            system_parts = []
+            if system_prompt:
+                system_parts.append(system_prompt)
+            if composed.has_system:
+                system_parts.append(composed.system)
+                learnings_injected = True  # Learnings are part of trinket composition
+
+            if system_parts:
+                state.messages.append(Message(role="system", content="\n\n".join(system_parts)))
+
+            # Context gets merged with task description
+            if composed.has_context:
+                context = f"{composed.context}\n\n{context}" if context else composed.context
+
+            logger.debug(
+                "Trinket composition: system=%d chars, context=%d chars, notification=%d chars",
+                len(composed.system),
+                len(composed.context),
+                len(composed.notification),
+            )
+        else:
+            # Fallback: just use system prompt directly (no trinkets configured)
+            if system_prompt:
+                state.messages.append(Message(role="system", content=system_prompt))
 
         # Track what differentiators are active (for observability)
         differentiators_active = []
+        if self._trinket_composer:
+            differentiators_active.append("trinket_composition")
         if tools != self.executor.get_tool_definitions():
             differentiators_active.append("expertise_injection")
         if learnings_injected:
@@ -383,10 +473,15 @@ class AgentLoop:
                 count=len(differentiators_active),
             )
 
-        # Build user message with context
+        # Build user message with context and notifications
         user_content = task_description
         if context:
             user_content = f"{context}\n\n{task_description}"
+
+        # Add notifications (e.g., current time) if available from trinkets
+        if composed and composed.has_notification:
+            user_content = f"{composed.notification}\n\n{user_content}"
+
         state.messages.append(Message(role="user", content=user_content))
 
         # Emit loop start
@@ -559,6 +654,17 @@ class AgentLoop:
                 ):
                     yield event
 
+                # Notify trinkets of turn completion
+                if self._trinket_composer:
+                    from sunwell.agent.trinkets import TurnResult as TrinketTurnResult
+
+                    turn_result = TrinketTurnResult(
+                        turn=state.turn,
+                        tool_calls=tuple(tc.name for tc in result.tool_calls),
+                        success=True,  # We got here without exceptions
+                    )
+                    self._trinket_composer.notify_turn_complete(turn_result)
+
                 # DIFFERENTIATOR: Self-reflection every N turns
                 if (
                     self.config.enable_self_reflection
@@ -589,8 +695,8 @@ class AgentLoop:
         from sunwell.agent.reliability import detect_tool_failure, ToolFailureType
 
         reliability_result = detect_tool_failure(
-            intent="TASK",  # Assume TASK since we're in tool loop
-            needs_tools=True,  # In tool loop = tools expected
+            is_action_context=True,  # In tool loop = action context
+            needs_tools=True,  # Tools expected in this context
             tool_calls_total=state.tool_calls_total,
             response_text=final_response,
             tools_available=len(tools),

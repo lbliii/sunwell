@@ -72,7 +72,7 @@ class PlanningContext:
         if self.constraints:
             slots.append(Slot(
                 id="knowledge:constraints",
-                content=[f"⚠️ {c.fact}" for c in self.constraints],
+                content=[f"⚠️ I must: {c.fact}" for c in self.constraints],
                 relevance=1.0,  # Constraints are high priority
                 source=SlotSource.MEMORY_FETCHER,
             ))
@@ -80,7 +80,7 @@ class PlanningContext:
         if self.dead_ends:
             slots.append(Slot(
                 id="knowledge:dead_ends",
-                content=[f"❌ {d.fact}" for d in self.dead_ends],
+                content=[f"❌ I tried: {d.fact}" for d in self.dead_ends],
                 relevance=0.95,  # Dead ends are important to avoid
                 source=SlotSource.MEMORY_FETCHER,
             ))
@@ -96,7 +96,7 @@ class PlanningContext:
         if self.heuristics:
             slots.append(Slot(
                 id="knowledge:heuristics",
-                content=[f"💡 {h.fact}" for h in self.heuristics],
+                content=[f"💡 I've found: {h.fact}" for h in self.heuristics],
                 relevance=0.7,
                 source=SlotSource.MEMORY_FETCHER,
             ))
@@ -113,7 +113,7 @@ class PlanningContext:
         if self.dead_end_summaries:
             slots.append(Slot(
                 id="knowledge:episode_dead_ends",
-                content=[f"❌ [Past session] {s}" for s in self.dead_end_summaries],
+                content=[f"❌ {s}" for s in self.dead_end_summaries],  # Already first-person
                 relevance=0.92,  # High priority to avoid past mistakes
                 source=SlotSource.MEMORY_FETCHER,
             ))
@@ -121,40 +121,43 @@ class PlanningContext:
         return slots
 
     def to_prompt_section(self) -> str:
-        """Format for injection into planner prompt."""
+        """Format for injection into planner prompt.
+
+        Uses first-person voice to reduce epistemic distance.
+        """
         sections: list[str] = []
 
         if self.facts or self.patterns:
-            sections.append("## Project Knowledge")
+            sections.append("## What I Know About This Project")
             for f in self.facts[:10]:
-                sections.append(f"- {f.fact}")
+                sections.append(f"- I know: {f.fact}")
             for p in self.patterns[:5]:
-                sections.append(f"- {p.fact}")
+                sections.append(f"- I use: {p.fact}")
 
         if self.constraints:
-            sections.append("\n## Constraints (must follow)")
+            sections.append("\n## Constraints (I must follow)")
             for c in self.constraints[:5]:
-                sections.append(f"- ⚠️ {c.fact}")
+                sections.append(f"- ⚠️ I must: {c.fact}")
 
         if self.dead_ends:
-            sections.append("\n## Dead Ends (don't do these)")
+            sections.append("\n## Dead Ends (I tried these and they failed)")
             for d in self.dead_ends[:5]:
-                sections.append(f"- ❌ {d.fact}")
+                sections.append(f"- ❌ I tried: {d.fact}")
 
         if self.templates:
-            sections.append("\n## Known Task Patterns")
+            sections.append("\n## Patterns I Follow")
             for t in self.templates[:3]:
                 if t.template_data:
                     sections.append(f"- **{t.template_data.name}**: {t.fact}")
 
         if self.heuristics:
-            sections.append("\n## Heuristics")
+            sections.append("\n## What I've Found Works")
             for h in self.heuristics[:5]:
-                sections.append(f"- 💡 {h.fact}")
+                sections.append(f"- 💡 I've found: {h.fact}")
 
-        # RFC-022: Episode-based dead ends
+        # RFC-022: Episode-based dead ends (already first-person from episode summaries)
         if self.dead_end_summaries:
-            sections.append("\n## Past Session Dead Ends")
+            sections.append("\n## Past Session Failures")
             for s in self.dead_end_summaries[:5]:
                 sections.append(f"- ❌ {s}")
 

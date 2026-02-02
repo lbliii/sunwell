@@ -1,19 +1,13 @@
 """Learning store for in-memory session learnings."""
 
-import json
-import re
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from sunwell.agent.learning.dead_end import DeadEnd
 from sunwell.agent.learning.learning import Learning
 from sunwell.agent.learning.patterns import ToolPattern
-
-# Regex pattern for loading from disk
-_RE_CLASS_OR_DEF = re.compile(r"(?:class|def)\s+(\w+)")
 
 
 @dataclass(slots=True)
@@ -373,90 +367,6 @@ class LearningStore:
             logging.getLogger(__name__).debug(f"Failed to load from simulacrum: {e}")
             return 0
 
-    def save_to_disk(self, base_path: Path | None = None) -> int:
-        """Persist learnings to .sunwell/intelligence/learnings.jsonl (thread-safe).
-
-        This enables cross-session learning without requiring a full Simulacrum setup.
-        Learnings are appended to the file, deduplicating by learning ID.
-
-        Args:
-            base_path: Project root (defaults to cwd)
-
-        Returns:
-            Number of learnings saved
-        """
-        # Snapshot data under lock to minimize lock hold time
-        with self._lock:
-            if not self.learnings and not self.dead_ends:
-                return 0
-            learnings_snapshot = list(self.learnings)
-            dead_ends_snapshot = list(self.dead_ends)
-
-        base = base_path or Path.cwd()
-        intel_dir = base / ".sunwell" / "intelligence"
-        intel_dir.mkdir(parents=True, exist_ok=True)
-
-        learnings_path = intel_dir / "learnings.jsonl"
-        dead_ends_path = intel_dir / "dead_ends.jsonl"
-
-        # Load existing IDs to avoid duplicates
-        existing_ids: set[str] = set()
-        if learnings_path.exists():
-            with open(learnings_path, encoding="utf-8") as f:
-                for line in f:
-                    if line.strip():
-                        try:
-                            data = json.loads(line)
-                            existing_ids.add(data.get("id", ""))
-                        except json.JSONDecodeError:
-                            pass
-
-        # Append new learnings
-        saved = 0
-        timestamp = datetime.now().isoformat()
-
-        with open(learnings_path, "a", encoding="utf-8") as f:
-            for lrn in learnings_snapshot:
-                if lrn.id not in existing_ids:
-                    record = {
-                        "id": lrn.id,
-                        "fact": lrn.fact,
-                        "category": lrn.category,
-                        "confidence": lrn.confidence,
-                        "source_file": lrn.source_file,
-                        "source_line": lrn.source_line,
-                        "created_at": timestamp,
-                    }
-                    f.write(json.dumps(record) + "\n")
-                    saved += 1
-
-        # Also save dead ends (deduplicate by id now that DeadEnd has one)
-        existing_dead_end_ids: set[str] = set()
-        if dead_ends_path.exists():
-            with open(dead_ends_path, encoding="utf-8") as f:
-                for line in f:
-                    if line.strip():
-                        try:
-                            data = json.loads(line)
-                            existing_dead_end_ids.add(data.get("id", ""))
-                        except json.JSONDecodeError:
-                            pass
-
-        with open(dead_ends_path, "a", encoding="utf-8") as f:
-            for de in dead_ends_snapshot:
-                if de.id not in existing_dead_end_ids:
-                    record = {
-                        "id": de.id,
-                        "approach": de.approach,
-                        "reason": de.reason,
-                        "context": de.context,
-                        "gate": de.gate,
-                        "created_at": timestamp,
-                    }
-                    f.write(json.dumps(record) + "\n")
-
-        return saved
-
     def load_from_journal(self, base_path: Path | None = None) -> int:
         """Load learnings from the durable journal (primary recovery path).
 
@@ -529,13 +439,9 @@ class LearningStore:
         return loaded
 
     def load_from_disk(self, base_path: Path | None = None) -> int:
-        """Load learnings from .sunwell/ directories.
+        """Load learnings from the journal.
 
-        Reads from multiple sources:
-        1. .sunwell/memory/learnings.jsonl (journal - primary, durable)
-        2. .sunwell/intelligence/learnings.jsonl (legacy JSONL format)
-        3. .sunwell/learnings/*.json (Naaru execution format - JSON arrays)
-        4. .sunwell/intelligence/dead_ends.jsonl
+        Single source of truth: .sunwell/memory/learnings.jsonl
 
         Args:
             base_path: Project root (defaults to cwd)
@@ -543,91 +449,4 @@ class LearningStore:
         Returns:
             Number of learnings loaded
         """
-        base = base_path or Path.cwd()
-        learnings_path = base / ".sunwell" / "intelligence" / "learnings.jsonl"
-        dead_ends_path = base / ".sunwell" / "intelligence" / "dead_ends.jsonl"
-        naaru_learnings_dir = base / ".sunwell" / "learnings"
-
-        loaded = 0
-
-        # Source 1: .sunwell/memory/learnings.jsonl (journal - primary, durable)
-        loaded += self.load_from_journal(base)
-
-        # Source 2: .sunwell/intelligence/learnings.jsonl (legacy JSONL format)
-        if learnings_path.exists():
-            with open(learnings_path, encoding="utf-8") as f:
-                for line in f:
-                    if not line.strip():
-                        continue
-                    try:
-                        data = json.loads(line)
-                        lrn = Learning(
-                            fact=data["fact"],
-                            category=data.get("category", "pattern"),
-                            confidence=data.get("confidence", 0.7),
-                            source_file=data.get("source_file"),
-                            source_line=data.get("source_line"),
-                        )
-                        self.add_learning(lrn)
-                        loaded += 1
-                    except (json.JSONDecodeError, KeyError):
-                        pass
-
-        # Source 3: .sunwell/learnings/*.json (Naaru execution format)
-        # Format: [{"type": "task_completion", "task_id": ..., "task_description": ..., ...}]
-        if naaru_learnings_dir.exists():
-            for json_file in naaru_learnings_dir.glob("*.json"):
-                try:
-                    with open(json_file, encoding="utf-8") as f:
-                        data = json.load(f)
-                    if isinstance(data, list):
-                        for entry in data:
-                            task_id = entry.get("task_id", "")
-                            description = entry.get("task_description", "")
-                            output = entry.get("output", "")
-
-                            # Create learning from task completion
-                            if task_id and description:
-                                lrn = Learning(
-                                    fact=f"Completed: {description}",
-                                    category="task_completion",
-                                    confidence=1.0,
-                                    source_file=task_id,
-                                )
-                                self.add_learning(lrn)
-                                loaded += 1
-
-                            # Extract useful patterns from output if available
-                            if output and len(output) > 20:
-                                # Extract class/function definitions
-                                for match in _RE_CLASS_OR_DEF.finditer(output):
-                                    lrn = Learning(
-                                        fact=f"Defined {match.group(1)} in {task_id}",
-                                        category="pattern",
-                                        confidence=0.9,
-                                        source_file=task_id,
-                                    )
-                                    self.add_learning(lrn)
-                                    loaded += 1
-                except (json.JSONDecodeError, OSError):
-                    pass
-
-        # Source 4: Dead ends
-        if dead_ends_path.exists():
-            with open(dead_ends_path, encoding="utf-8") as f:
-                for line in f:
-                    if not line.strip():
-                        continue
-                    try:
-                        data = json.loads(line)
-                        de = DeadEnd(
-                            approach=data["approach"],
-                            reason=data.get("reason", ""),
-                            context=data.get("context", ""),
-                            gate=data.get("gate"),
-                        )
-                        self.add_dead_end(de)  # add_dead_end is thread-safe
-                    except (json.JSONDecodeError, KeyError):
-                        pass
-
-        return loaded
+        return self.load_from_journal(base_path)

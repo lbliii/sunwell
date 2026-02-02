@@ -10,10 +10,10 @@ RFC-101 adds:
 - URI-based identification (sunwell:binding/namespace/slug)
 - Project-scoped storage
 - Global binding index for O(1) listing
-- lens_uri instead of lens_path
+- lens_uri for lens references
 """
 
-import json
+import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -25,7 +25,9 @@ from sunwell.foundation.binding.identity import (
     create_binding_uri,
 )
 from sunwell.foundation.identity import SunwellURI
-from sunwell.foundation.utils import slugify
+from sunwell.foundation.utils import safe_json_dump, safe_json_load, slugify
+
+logger = logging.getLogger(__name__)
 
 # Default models per provider (extracted to avoid per-call dict creation)
 _DEFAULT_MODELS: dict[str, str] = {
@@ -40,7 +42,7 @@ class Binding:
     """Your personal attunement to a lens.
 
     Stores all the config so you don't need flags:
-    - lens: URI or path to the lens
+    - lens_uri: URI or path to the lens
     - provider: LLM provider (openai, anthropic, etc.)
     - model: Model name (gpt-4o, claude-sonnet-4-20250514, etc.)
     - simulacrum: Name of associated simulacrum
@@ -52,10 +54,7 @@ class Binding:
     name: str
     """Binding name (e.g., "my-project", "docs-writer")."""
 
-    lens_path: str = ""
-    """Path to lens file. Prefer lens_uri for new code, but lens_path is preserved for backwards compatibility."""
-
-    # RFC-101: New identity fields
+    # RFC-101: Identity fields
     uri: str | None = None
     """Full URI (e.g., "sunwell:binding/global/my-writer")."""
 
@@ -63,7 +62,7 @@ class Binding:
     """UUID for stable identification."""
 
     lens_uri: str | None = None
-    """URI of the lens (preferred over lens_path)."""
+    """URI or path to the lens file."""
 
     provider: str = "ollama"
     """LLM provider (default: from config)."""
@@ -120,16 +119,8 @@ class Binding:
         self.use_count += 1
 
     def get_lens_reference(self) -> str:
-        """Get the lens reference (URI or path).
-
-        Returns lens_uri if set, otherwise falls back to lens_path for backwards compatibility.
-        """
-        if self.lens_uri:
-            return self.lens_uri
-        # Backwards compatibility: convert old lens_path to URI if it's a slug
-        if self.lens_path and "/" not in self.lens_path and "\\" not in self.lens_path:
-            return f"sunwell:lens/user/{self.lens_path}"
-        return self.lens_path
+        """Get the lens reference (URI or path)."""
+        return self.lens_uri or ""
 
     def save(self, path: Path) -> None:
         """Save binding to file."""
@@ -137,7 +128,6 @@ class Binding:
 
         data = {
             "name": self.name,
-            "lens_path": self.lens_path,  # Preserved for backwards compatibility
             "uri": self.uri,
             "id": self.id,
             "lens_uri": self.lens_uri,
@@ -158,42 +148,41 @@ class Binding:
             "use_count": self.use_count,
         }
 
-        with open(path, "w") as f:
-            json.dump(data, f, indent=2)
+        if not safe_json_dump(data, path):
+            logger.error("Failed to save binding to %s", path)
 
     @classmethod
-    def load(cls, path: Path) -> Binding:
-        """Load binding from file."""
-        with open(path) as f:
-            data = json.load(f)
+    def load(cls, path: Path) -> Binding | None:
+        """Load binding from file. Returns None if missing/corrupted."""
+        data = safe_json_load(path)
+        if data is None:
+            return None
 
-        # Migration: support old "headspace" field name
-        simulacrum = data.get("simulacrum") or data.get("headspace")
-
-        # Use config defaults for backwards compatibility with old bindings
         from sunwell.foundation.config import get_config
 
         cfg = get_config()
         default_provider = cfg.model.default_provider if cfg else "ollama"
         default_model = cfg.model.default_model if cfg else "llama3.1:8b"
 
-        # Migrate lens_path to lens_uri if needed
+        # Migrate legacy lens_path to lens_uri
         lens_uri = data.get("lens_uri")
-        lens_path = data.get("lens_path", "")
-        if not lens_uri and lens_path:
-            # Convert old lens_path to URI if it's a slug
-            if "/" not in lens_path and "\\" not in lens_path:
-                lens_uri = f"sunwell:lens/user/{lens_path}"
+        if not lens_uri:
+            lens_path = data.get("lens_path", "")
+            if lens_path:
+                # Convert slug to URI, keep file paths as-is
+                if "/" not in lens_path and "\\" not in lens_path:
+                    lens_uri = f"sunwell:lens/user/{lens_path}"
+                else:
+                    lens_uri = lens_path
 
         return cls(
             name=data["name"],
-            lens_path=data.get("lens_path", ""),  # Preserved for backwards compatibility
             uri=data.get("uri"),
             id=data.get("id"),
-            lens_uri=lens_uri or lens_path,  # Use migrated URI or keep path for file paths
+            lens_uri=lens_uri,
             provider=data.get("provider", default_provider),
             model=data.get("model", default_model),
-            simulacrum=simulacrum,
+            simulacrum=data.get("simulacrum"),
             tier=data.get("tier", 1),
             stream=data.get("stream", True),
             verbose=data.get("verbose", False),
@@ -284,7 +273,6 @@ class BindingManager:
     def create(
         self,
         name: str,
-        lens_path: str | None = None,
         lens_uri: str | None = None,
         provider: str | None = None,
         model: str | None = None,
@@ -297,8 +285,7 @@ class BindingManager:
 
         Args:
             name: Binding name
-            lens_path: Path to lens file (legacy)
-            lens_uri: URI of the lens (preferred)
+            lens_uri: URI or path to the lens
             provider: LLM provider
             model: Model name
             project: Project slug (None = global)
@@ -326,23 +313,13 @@ class BindingManager:
         uri = create_binding_uri(slug, namespace if namespace != "global" else None)
         identity = create_binding_identity(uri)
 
-        # Determine lens reference
+        # Normalize lens reference to URI if it's a slug
         effective_lens_uri = lens_uri
-        if (
-            not effective_lens_uri
-            and lens_path
-            and "/" not in lens_path
-            and "\\" not in lens_path
-        ):
-            # Convert path to URI if it looks like a slug
-            effective_lens_uri = f"sunwell:lens/user/{lens_path}"
-        elif not effective_lens_uri and lens_path:
-            # Keep file path as-is for actual file paths
-            effective_lens_uri = lens_path
+        if lens_uri and "/" not in lens_uri and "\\" not in lens_uri and not lens_uri.startswith("sunwell:"):
+            effective_lens_uri = f"sunwell:lens/user/{lens_uri}"
 
         binding = Binding(
             name=name,
-            lens_path=lens_path or "",  # Preserved for backwards compatibility
             uri=str(uri),
             id=str(identity.id),
             lens_uri=effective_lens_uri,
@@ -556,7 +533,7 @@ class BindingManager:
 # Convenience function for CLI
 def get_binding_or_create_temp(
     binding_name: str | None,
-    lens_path: str | None,
+    lens_uri: str | None,
     provider: str | None,
     model: str | None,
     simulacrum: str | None,
@@ -567,7 +544,7 @@ def get_binding_or_create_temp(
 
     Args:
         binding_name: Name of existing binding to load.
-        lens_path: Path to lens file for temp binding.
+        lens_uri: URI or path to lens file for temp binding.
         provider: LLM provider override.
         model: Model name override.
         simulacrum: Simulacrum name override.
@@ -592,7 +569,7 @@ def get_binding_or_create_temp(
             return binding, False
 
     # Try default binding
-    if not lens_path:
+    if not lens_uri:
         default = manager.get_default()
         if default:
             default.touch()
@@ -605,15 +582,14 @@ def get_binding_or_create_temp(
             return default, False
 
     # Create temporary binding (not saved)
-    if lens_path:
-        # Convert path to URI if it's a slug, otherwise keep as file path
-        lens_uri = lens_path
-        if "/" not in lens_path and "\\" not in lens_path:
-            lens_uri = f"sunwell:lens/user/{lens_path}"
+    if lens_uri:
+        # Normalize to URI if it's a slug
+        effective_uri = lens_uri
+        if "/" not in lens_uri and "\\" not in lens_uri and not lens_uri.startswith("sunwell:"):
+            effective_uri = f"sunwell:lens/user/{lens_uri}"
         temp = Binding(
             name="_temp",
-            lens_path=lens_path,  # Preserved for backwards compatibility
-            lens_uri=lens_uri,
+            lens_uri=effective_uri,
             provider=provider or "ollama",
             model=model or "llama3.1:8b",
             simulacrum=simulacrum,

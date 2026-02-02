@@ -38,6 +38,7 @@ dependencies = [
     "websockets>=16.0",
     # Ollama is default provider, uses OpenAI client for /v1 endpoint
     "openai>=1.0",
+    "rosettes>=0.1.0",
 ]
 
 [project.optional-dependencies]

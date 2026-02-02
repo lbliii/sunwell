@@ -21,12 +21,12 @@ class TestBinding:
 
     def test_binding_creation_minimal(self) -> None:
         """Create binding with minimal required fields."""
-        binding = Binding(name="test", lens_path="./test.lens")
+        binding = Binding(name="test", lens_uri="./test.lens")
 
         assert binding.name == "test"
-        assert binding.lens_path == "./test.lens"
+        assert binding.lens_uri == "./test.lens"
         assert binding.provider == "ollama"  # Default changed to ollama
-        assert binding.model == "gemma3:4b"  # Default changed to gemma3:4b
+        assert binding.model == "llama3.1:8b"
         # simulacrum defaults to name
         assert binding.simulacrum == "test"
 
@@ -34,7 +34,7 @@ class TestBinding:
         """Create binding with all fields."""
         binding = Binding(
             name="my-project",
-            lens_path="/path/to/lens.lens",
+            lens_uri="/path/to/lens.lens",
             provider="anthropic",
             model="claude-sonnet-4-20250514",
             simulacrum="project-memory",
@@ -59,7 +59,7 @@ class TestBinding:
 
     def test_binding_touch_updates_metadata(self) -> None:
         """touch() updates last_used and increments use_count."""
-        binding = Binding(name="test", lens_path="./test.lens")
+        binding = Binding(name="test", lens_uri="./test.lens")
         original_last_used = binding.last_used
         original_count = binding.use_count
 
@@ -75,9 +75,9 @@ class TestBinding:
 
             original = Binding(
                 name="test-project",
-                lens_path="/path/to/lens.lens",
+                lens_uri="/path/to/lens.lens",
                 provider="ollama",
-                model="gemma3:4b",
+                model="llama3.1:8b",
                 simulacrum="test-memory",
                 tier=2,
                 stream=False,
@@ -89,7 +89,7 @@ class TestBinding:
             loaded = Binding.load(path)
 
             assert loaded.name == original.name
-            assert loaded.lens_path == original.lens_path
+            assert loaded.lens_uri == original.lens_uri
             assert loaded.provider == original.provider
             assert loaded.model == original.model
             assert loaded.simulacrum == original.simulacrum
@@ -98,32 +98,52 @@ class TestBinding:
             assert loaded.tools_enabled == original.tools_enabled
             assert loaded.workspace_patterns == original.workspace_patterns
 
-    def test_binding_load_migrates_headspace_to_simulacrum(self) -> None:
-        """Loading old binding with 'headspace' migrates to 'simulacrum'."""
+    def test_binding_load_migrates_lens_path_to_lens_uri(self) -> None:
+        """Loading old binding with 'lens_path' migrates to 'lens_uri'."""
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "old_binding.json"
 
-            # Old format with 'headspace' instead of 'simulacrum'
+            # Old format with 'lens_path' instead of 'lens_uri'
             old_data = {
                 "name": "legacy",
                 "lens_path": "./old.lens",
                 "provider": "openai",
                 "model": "gpt-4",
-                "headspace": "legacy-memory",  # Old field name
             }
             with open(path, "w") as f:
                 json.dump(old_data, f)
 
             loaded = Binding.load(path)
 
-            assert loaded.simulacrum == "legacy-memory"
+            # lens_path should be migrated to lens_uri
+            assert loaded.lens_uri == "./old.lens"
+
+    def test_binding_load_migrates_slug_to_uri(self) -> None:
+        """Loading old binding with slug lens_path converts to URI."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "old_binding.json"
+
+            # Old format with slug (no path separators)
+            old_data = {
+                "name": "legacy",
+                "lens_path": "tech-writer",  # slug, not a path
+                "provider": "openai",
+                "model": "gpt-4",
+            }
+            with open(path, "w") as f:
+                json.dump(old_data, f)
+
+            loaded = Binding.load(path)
+
+            # Slug should be converted to URI
+            assert loaded.lens_uri == "sunwell:lens/user/tech-writer"
 
     def test_binding_save_creates_parent_dirs(self) -> None:
         """save() creates parent directories if needed."""
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "nested" / "dir" / "binding.json"
 
-            binding = Binding(name="test", lens_path="./test.lens")
+            binding = Binding(name="test", lens_uri="./test.lens")
             binding.save(path)
 
             assert path.exists()
@@ -140,12 +160,12 @@ class TestBindingManager:
 
             binding = manager.create(
                 name="my-project",
-                lens_path="./writer.lens",
+                lens_uri="./writer.lens",
                 provider="openai",
             )
 
             assert binding.name == "my-project"
-            assert binding.lens_path == "./writer.lens"
+            assert binding.lens_uri == "./writer.lens"
             # Should be persisted in the isolated bindings directory
             assert (bindings_dir / "global" / "my-project.json").exists()
 
@@ -155,20 +175,35 @@ class TestBindingManager:
             bindings_dir = Path(tmpdir) / "bindings"
             manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
 
-            openai = manager.create("test1", "./test.lens", provider="openai")
-            anthropic = manager.create("test2", "./test.lens", provider="anthropic")
-            ollama = manager.create("test3", "./test.lens", provider="ollama")
+            openai = manager.create("test1", lens_uri="./test.lens", provider="openai")
+            anthropic = manager.create("test2", lens_uri="./test.lens", provider="anthropic")
+            ollama = manager.create("test3", lens_uri="./test.lens", provider="ollama")
 
             assert openai.model == "gpt-4o"
             assert anthropic.model == "claude-sonnet-4-20250514"
-            assert ollama.model == "gemma3:4b"
+            assert ollama.model == "llama3.1:8b"
+
+    def test_manager_create_normalizes_slug_to_uri(self) -> None:
+        """Create binding converts slug to URI."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bindings_dir = Path(tmpdir) / "bindings"
+            manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
+
+            binding = manager.create(
+                name="my-project",
+                lens_uri="tech-writer",  # slug, not a path
+                provider="openai",
+            )
+
+            # Should be converted to URI
+            assert binding.lens_uri == "sunwell:lens/user/tech-writer"
 
     def test_manager_get_binding(self) -> None:
         """Get existing binding by name."""
         with tempfile.TemporaryDirectory() as tmpdir:
             bindings_dir = Path(tmpdir) / "bindings"
             manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
-            manager.create("test", "./test.lens")
+            manager.create("test", lens_uri="./test.lens")
 
             binding = manager.get("test")
 
@@ -190,8 +225,8 @@ class TestBindingManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             bindings_dir = Path(tmpdir) / "bindings"
             manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
-            manager.create("primary", "./primary.lens")
-            manager.create("secondary", "./secondary.lens")
+            manager.create("primary", lens_uri="./primary.lens")
+            manager.create("secondary", lens_uri="./secondary.lens")
 
             success = manager.set_default("primary")
             default = manager.get_default()
@@ -225,8 +260,8 @@ class TestBindingManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             bindings_dir = Path(tmpdir) / "bindings"
             manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
-            manager.create("specific", "./specific.lens")
-            manager.create("default", "./default.lens")
+            manager.create("specific", lens_uri="./specific.lens")
+            manager.create("default", lens_uri="./default.lens")
             manager.set_default("default")
 
             binding = manager.get_or_default("specific")
@@ -239,7 +274,7 @@ class TestBindingManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             bindings_dir = Path(tmpdir) / "bindings"
             manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
-            manager.create("default", "./default.lens")
+            manager.create("default", lens_uri="./default.lens")
             manager.set_default("default")
 
             binding = manager.get_or_default(None)
@@ -252,9 +287,9 @@ class TestBindingManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             bindings_dir = Path(tmpdir) / "bindings"
             manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
-            manager.create("first", "./first.lens")
-            manager.create("second", "./second.lens")
-            manager.create("third", "./third.lens")
+            manager.create("first", lens_uri="./first.lens")
+            manager.create("second", lens_uri="./second.lens")
+            manager.create("third", lens_uri="./third.lens")
 
             # Use 'second' to make it most recent
             manager.use("second")
@@ -280,7 +315,7 @@ class TestBindingManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             bindings_dir = Path(tmpdir) / "bindings"
             manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
-            manager.create("test", "./test.lens")
+            manager.create("test", lens_uri="./test.lens")
 
             success = manager.delete("test")
 
@@ -292,7 +327,7 @@ class TestBindingManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             bindings_dir = Path(tmpdir) / "bindings"
             manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
-            manager.create("test", "./test.lens")
+            manager.create("test", lens_uri="./test.lens")
             manager.set_default("test")
 
             manager.delete("test")
@@ -314,7 +349,7 @@ class TestBindingManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             bindings_dir = Path(tmpdir) / "bindings"
             manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
-            manager.create("test", "./test.lens")
+            manager.create("test", lens_uri="./test.lens")
 
             binding = manager.use("test")
 
@@ -339,11 +374,11 @@ class TestGetBindingOrCreateTemp:
         with tempfile.TemporaryDirectory() as tmpdir:
             bindings_dir = Path(tmpdir) / "bindings"
             manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
-            manager.create("existing", "./existing.lens")
+            manager.create("existing", lens_uri="./existing.lens")
 
             binding, is_temp = get_binding_or_create_temp(
                 binding_name="existing",
-                lens_path=None,
+                lens_uri=None,
                 provider=None,
                 model=None,
                 simulacrum=None,
@@ -359,12 +394,12 @@ class TestGetBindingOrCreateTemp:
         with tempfile.TemporaryDirectory() as tmpdir:
             bindings_dir = Path(tmpdir) / "bindings"
             manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
-            manager.create("default", "./default.lens")
+            manager.create("default", lens_uri="./default.lens")
             manager.set_default("default")
 
             binding, is_temp = get_binding_or_create_temp(
                 binding_name=None,
-                lens_path=None,
+                lens_uri=None,
                 provider=None,
                 model=None,
                 simulacrum=None,
@@ -375,14 +410,14 @@ class TestGetBindingOrCreateTemp:
             assert binding.name == "default"
             assert is_temp is False
 
-    def test_creates_temp_binding_from_lens_path(self) -> None:
-        """Creates temporary binding when lens_path provided."""
+    def test_creates_temp_binding_from_lens_uri(self) -> None:
+        """Creates temporary binding when lens_uri provided."""
         with tempfile.TemporaryDirectory() as tmpdir:
             bindings_dir = Path(tmpdir) / "bindings"
 
             binding, is_temp = get_binding_or_create_temp(
                 binding_name=None,
-                lens_path="./temp.lens",
+                lens_uri="./temp.lens",
                 provider="anthropic",
                 model="claude-sonnet-4-20250514",
                 simulacrum="temp-memory",
@@ -391,20 +426,20 @@ class TestGetBindingOrCreateTemp:
 
             assert binding is not None
             assert binding.name == "_temp"
-            assert binding.lens_path == "./temp.lens"
+            assert binding.lens_uri == "./temp.lens"
             assert binding.provider == "anthropic"
             assert binding.model == "claude-sonnet-4-20250514"
             assert binding.simulacrum == "temp-memory"
             assert is_temp is True
 
     def test_returns_none_when_nothing_matches(self) -> None:
-        """Returns None when no binding, no default, no lens_path."""
+        """Returns None when no binding, no default, no lens_uri."""
         with tempfile.TemporaryDirectory() as tmpdir:
             bindings_dir = Path(tmpdir) / "bindings"
 
             binding, is_temp = get_binding_or_create_temp(
                 binding_name="nonexistent",
-                lens_path=None,
+                lens_uri=None,
                 provider=None,
                 model=None,
                 simulacrum=None,
@@ -419,11 +454,11 @@ class TestGetBindingOrCreateTemp:
         with tempfile.TemporaryDirectory() as tmpdir:
             bindings_dir = Path(tmpdir) / "bindings"
             manager = BindingManager(root=Path(tmpdir), bindings_dir=bindings_dir)
-            manager.create("test", "./test.lens", provider="openai", model="gpt-4o")
+            manager.create("test", lens_uri="./test.lens", provider="openai", model="gpt-4o")
 
             binding, is_temp = get_binding_or_create_temp(
                 binding_name="test",
-                lens_path=None,
+                lens_uri=None,
                 provider="anthropic",
                 model="claude-sonnet-4-20250514",
                 simulacrum="override-memory",
@@ -435,15 +470,17 @@ class TestGetBindingOrCreateTemp:
             assert binding.model == "claude-sonnet-4-20250514"
             assert binding.simulacrum == "override-memory"
 
-    def test_signature_accepts_simulacrum_parameter(self) -> None:
-        """Verify function signature accepts 'simulacrum' (not 'headspace').
+    def test_signature_accepts_lens_uri_parameter(self) -> None:
+        """Verify function signature accepts 'lens_uri' (not 'lens_path').
 
-        This test exists because the parameter was renamed and the call site
-        in ask.py broke. This ensures future changes maintain compatibility.
+        This test exists because the parameter was renamed and call sites
+        could break. This ensures future changes maintain compatibility.
         """
         import inspect
         sig = inspect.signature(get_binding_or_create_temp)
         param_names = list(sig.parameters.keys())
 
+        assert "lens_uri" in param_names
+        assert "lens_path" not in param_names
         assert "simulacrum" in param_names
         assert "headspace" not in param_names

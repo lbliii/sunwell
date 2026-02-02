@@ -74,6 +74,7 @@ from .integration import (
     StubDetectedData,
     WireTaskGeneratedData,
 )
+from .intent import DomainDetectedData, IntentClassifiedData, NodeTransitionData
 from .lens import LensChangedData, LensSelectedData, LensSuggestedData
 from .memory import (
     BriefingUpdatedData,
@@ -244,6 +245,12 @@ EVENT_SCHEMAS: dict[EventType, type[TypedDict]] = {
     # =============================================================================
     EventType.SIGNAL: SignalData,
     EventType.SIGNAL_ROUTE: SignalRouteData,
+    # =============================================================================
+    # Intent and Domain events (Conversational DAG, RFC-DOMAINS)
+    # =============================================================================
+    EventType.INTENT_CLASSIFIED: IntentClassifiedData,
+    EventType.NODE_TRANSITION: NodeTransitionData,
+    EventType.DOMAIN_DETECTED: DomainDetectedData,
     # =============================================================================
     # Gate events
     # =============================================================================

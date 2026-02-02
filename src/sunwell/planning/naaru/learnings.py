@@ -3,20 +3,22 @@
 Extracts learnings from task execution and persists them for future use.
 """
 
-
-import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from sunwell.foundation.utils import safe_json_dump
 from sunwell.planning.naaru.events import NaaruEventEmitterProtocol
+
+logger = logging.getLogger(__name__)
 
 
 class LearningExtractor:
     """Extract and persist learnings from execution (RFC-054).
 
     Learnings are extracted from completed tasks and persisted
-    to .sunwell/learnings/ for future reference.
+    to .sunwell/memory/learnings.jsonl (the journal) for future reference.
     """
 
     def __init__(
@@ -73,23 +75,25 @@ class LearningExtractor:
 
         return learnings
 
-    async def persist(self, learnings: list[dict[str, Any]]) -> Path:
-        """Persist learnings to storage.
+    async def persist(self, learnings: list[dict[str, Any]]) -> Path | None:
+        """Persist learnings to storage with atomic write.
 
         Args:
             learnings: List of learning dictionaries
 
         Returns:
-            Path to the persisted learnings file
+            Path to the persisted learnings file, or None on error
         """
-        learnings_dir = self._root / ".sunwell" / "learnings"
-        learnings_dir.mkdir(parents=True, exist_ok=True)
-
-        learnings_file = learnings_dir / f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        with open(learnings_file, "w") as f:
-            json.dump(learnings, f, indent=2)
-
-        return learnings_file
+        learnings_file = (
+            self._root
+            / ".sunwell"
+            / "learnings"
+            / f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        )
+        if safe_json_dump(learnings, learnings_file):
+            return learnings_file
+        logger.error("Failed to persist learnings")
+        return None
 
     async def persist_execution_state(
         self,
@@ -99,8 +103,10 @@ class LearningExtractor:
         completed: int,
         failed: int,
         elapsed: float,
-    ) -> Path:
+    ) -> Path | None:
         """Persist execution state to .sunwell/plans/ (RFC-040).
+
+        Uses atomic write for crash tolerance.
 
         Args:
             goal: The execution goal
@@ -111,12 +117,9 @@ class LearningExtractor:
             elapsed: Execution time in seconds
 
         Returns:
-            Path to the persisted plan file
+            Path to the persisted plan file, or None on error
         """
         import hashlib
-
-        plans_path = self._root / ".sunwell" / "plans"
-        plans_path.mkdir(parents=True, exist_ok=True)
 
         goal_hash = hashlib.sha256(goal.encode()).hexdigest()[:16]
 
@@ -134,8 +137,8 @@ class LearningExtractor:
             "created_at": datetime.now().isoformat(),
         }
 
-        plan_file = plans_path / f"{goal_hash}.json"
-        with open(plan_file, "w") as f:
-            json.dump(execution_state, f, indent=2)
-
-        return plan_file
+        plan_file = self._root / ".sunwell" / "plans" / f"{goal_hash}.json"
+        if safe_json_dump(execution_state, plan_file):
+            return plan_file
+        logger.error("Failed to persist execution state for goal: %s", goal)
+        return None

@@ -345,8 +345,8 @@ def effective(binding: str | None) -> None:
             console.print(f"  tools_enabled: {str(b.tools_enabled):<13} [{source}]")
             console.print(f"  trust_level: {b.trust_level:<15} [{source}]")
             
-            if b.lens_path:
-                console.print(f"  lens_path: {b.lens_path}")
+            if b.lens_uri:
+                console.print(f"  lens_uri: {b.lens_uri}")
         else:
             console.print(f"\n  [red]✗[/red] Binding not found: {binding}")
             console.print("  [dim]Available bindings:[/dim]")

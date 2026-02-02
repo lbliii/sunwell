@@ -47,7 +47,7 @@ async def run_validation_gates(
     )
 
     from sunwell.agent.validation import Artifact
-    from sunwell.agent.validation.gates import ValidationGate
+    from sunwell.agent.validation.gates import GateType, ValidationGate
 
     # Create artifacts for validation
     artifacts = [
@@ -58,8 +58,10 @@ async def run_validation_gates(
     # Create validation gate for post-write checks
     gate = ValidationGate(
         id="post_tool_write",
-        type="syntax",  # Start with syntax, can expand
-        after_tasks=[],
+        gate_type=GateType.SYNTAX,
+        depends_on=(),
+        validation="",  # Empty for syntax check
+        description="Post-write syntax validation",
     )
 
     # Emit gate start

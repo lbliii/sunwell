@@ -58,11 +58,13 @@ from sunwell.agent.intent import (
     format_path,
 )
 from sunwell.agent.background import BackgroundManager
+from sunwell.agent.recovery.manager import RecoveryManager
 from sunwell.agent.rewind import SnapshotManager
 from sunwell.agent.trust import ApprovalTracker, AutoApproveConfig
 
 if TYPE_CHECKING:
     from sunwell.agent.context.session import SessionContext
+    from sunwell.agent.core.agent import PlanResult
     from sunwell.memory import PersistentMemory
     from sunwell.models import ModelProtocol
     from sunwell.tools.execution import ToolExecutor
@@ -147,6 +149,10 @@ class UnifiedChatLoop:
         # Background task manager
         self._background_manager = BackgroundManager(workspace=self.workspace)
 
+        # Recovery manager for persisting execution state on interruption/failure
+        recovery_dir = self.workspace / ".sunwell" / "recovery"
+        self._recovery_manager = RecoveryManager(recovery_dir)
+
     @property
     def is_executing(self) -> bool:
         """True if agent is currently executing tasks."""
@@ -220,6 +226,7 @@ class UnifiedChatLoop:
             workspace=self.workspace,
             auto_confirm=self.auto_confirm,
             stream_progress=self.stream_progress,
+            recovery_manager=self._recovery_manager,
         )
 
         # Create session
@@ -461,7 +468,15 @@ class UnifiedChatLoop:
                 self._snapshot_taken_this_turn = False
 
                 # Route based on DAG path
-                route_gen = route_dag_classification(
+                # route_dag_classification returns either:
+                # - A tuple (LoopState, str) for conversational responses
+                # - An AsyncIterator for execution paths with checkpoints
+                
+                # RFC: Plan-Based Duration Estimation - load execution history
+                from sunwell.agent.estimation import ExecutionHistory
+                execution_history = ExecutionHistory.load(self.workspace)
+                
+                route_result = await route_dag_classification(
                     result,
                     user_input,
                     tool_executor=self.tool_executor,
@@ -477,17 +492,30 @@ class UnifiedChatLoop:
                     background_manager=self._background_manager,
                     model=self.model,
                     memory=self.memory,
+                    # RFC: Plan-Based Duration Estimation
+                    plan_fn=self._plan_goal,
+                    execute_with_plan_fn=self._execute_goal_with_plan,
+                    execution_history=execution_history,
                 )
-                try:
-                    route_result = await route_gen.asend(None)
-                    while True:
-                        state, event = route_result
-                        self._state = state
-                        # Single-yield protocol: yield event, receive response, forward to routing
-                        response = yield event
-                        route_result = await route_gen.asend(response)
-                except StopAsyncIteration:
-                    pass
+
+                if isinstance(route_result, tuple):
+                    # Conversational response - yield directly
+                    # Generator is now at top-level yield, ready for next input
+                    state, response = route_result
+                    self._state = state
+                    yield response
+                else:
+                    # Execution generator - iterate with asend forwarding
+                    try:
+                        gen_result = await route_result.asend(None)
+                        while True:
+                            state, event = gen_result
+                            self._state = state
+                            # Single-yield protocol: yield event, receive response, forward
+                            response = yield event
+                            gen_result = await route_result.asend(response)
+                    except StopAsyncIteration:
+                        pass
                 self._state = LoopState.IDLE
 
         except GeneratorExit:
@@ -525,3 +553,120 @@ class UnifiedChatLoop:
                 event = await goal_gen.asend(response)
         except StopAsyncIteration:
             pass
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # RFC: Plan-Based Duration Estimation
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    async def _plan_goal(self, goal: str) -> PlanResult:
+        """Run planning only and return PlanResult for duration estimation.
+        
+        This is called before the background offer to get accurate task data.
+        """
+        from sunwell.agent import Agent
+        from sunwell.agent.core.agent import PlanResult
+
+        if self.tool_executor is None:
+            # Return empty plan result if no tools
+            from sunwell.agent.core.task_graph import TaskGraph
+            from sunwell.planning.naaru.planners.metrics import PlanMetrics
+            return PlanResult(
+                task_graph=TaskGraph(),
+                metrics=PlanMetrics(
+                    depth=1, width=0, leaf_count=0, artifact_count=0,
+                    parallelism_factor=0.0, balance_factor=0.0,
+                    file_conflicts=0, estimated_waves=1,
+                ),
+            )
+
+        agent = Agent(
+            model=self.model,
+            tool_executor=self.tool_executor,
+            cwd=self.workspace,
+        )
+
+        return await agent.plan_only(goal, self.memory)
+
+    async def _execute_goal_with_plan(
+        self,
+        goal: str,
+        plan_result: PlanResult,
+    ) -> AsyncIterator[tuple[LoopState, str | ChatCheckpoint | AgentEvent]]:
+        """Execute goal using a precomputed plan.
+        
+        Wraps _execute_goal but passes the precomputed plan to skip re-planning.
+        """
+        goal_gen = self._execute_goal_with_precomputed_plan(goal, plan_result)
+        try:
+            event = await goal_gen.asend(None)
+            while True:
+                response = yield (self._state, event)
+                event = await goal_gen.asend(response)
+        except StopAsyncIteration:
+            pass
+
+    async def _execute_goal_with_precomputed_plan(
+        self,
+        goal: str,
+        plan_result: PlanResult,
+    ) -> AsyncIterator[str | ChatCheckpoint | AgentEvent]:
+        """Execute a goal with a precomputed plan (skip planning phase).
+        
+        Similar to _execute_goal but passes precomputed_plan to Agent.run().
+        """
+        from sunwell.agent import Agent
+        from sunwell.agent.context.session import SessionContext
+
+        if self.tool_executor is None:
+            yield (
+                "I understand you want me to do something, but I'm in **chat mode** "
+                "(tools disabled). Use `/tools on` to enable agent mode."
+            )
+            return
+
+        self._state = LoopState.EXECUTING  # Skip PLANNING state since we have plan
+
+        agent = Agent(
+            model=self.model,
+            tool_executor=self.tool_executor,
+            cwd=self.workspace,
+        )
+
+        # Create session
+        self.session = SessionContext.build(self.workspace, goal, None)
+
+        try:
+            async for event in agent.run(
+                self.session,
+                self.memory or await self._get_or_create_memory(),
+                precomputed_plan=plan_result,
+            ):
+                # Yield events for UI display
+                if self.stream_progress:
+                    yield event
+                # Also yield checkpoints
+                if event.type.value.startswith("checkpoint"):
+                    checkpoint = self._event_to_checkpoint(event)
+                    if checkpoint:
+                        yield checkpoint
+
+        finally:
+            self._state = LoopState.IDLE
+
+    async def _get_or_create_memory(self) -> PersistentMemory:
+        """Get existing memory or create a new one."""
+        if self.memory is None:
+            from sunwell.memory import PersistentMemory
+            self.memory = PersistentMemory.load(self.workspace)
+        return self.memory
+
+    def _event_to_checkpoint(self, event: AgentEvent) -> ChatCheckpoint | None:
+        """Convert certain AgentEvents to ChatCheckpoints."""
+        # Simple conversion for completion events
+        if event.type.value == "complete":
+            return ChatCheckpoint(
+                type=ChatCheckpointType.COMPLETION,
+                message="Task complete",
+                summary=event.data.get("summary", ""),
+            )
+        return None

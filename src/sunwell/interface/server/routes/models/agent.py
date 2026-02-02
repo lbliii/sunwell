@@ -8,7 +8,6 @@ class RunStartResponse(CamelModel):
 
     run_id: str
     status: str
-    use_v2: bool
 
 
 class RunStatusResponse(CamelModel):

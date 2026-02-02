@@ -75,13 +75,6 @@ MODEL_REGISTRY: dict[str, ModelCapability] = {
     "gemma3:4b": ModelCapability("gemma3:4b", Tier.STANDARD, tools=False, context_window=128000, cost_index=0),
     "gemma3:12b": ModelCapability("gemma3:12b", Tier.DEEP_LENS, tools=False, context_window=128000, cost_index=0),
     "gemma2:9b": ModelCapability("gemma2:9b", Tier.STANDARD, tools=False, context_window=8192, cost_index=0),
-
-    # ==========================================================================
-    # LEGACY: Older models
-    # ==========================================================================
-    "llama3:8b": ModelCapability("llama3:8b", Tier.STANDARD, tools=True, context_window=8192, cost_index=0),
-    "llama3:70b": ModelCapability("llama3:70b", Tier.DEEP_LENS, tools=True, context_window=8192, cost_index=0),
-    "mistral:7b": ModelCapability("mistral:7b", Tier.STANDARD, tools=True, context_window=32000, cost_index=0),
 }
 
 # Pre-built prefix index for O(1) lookups of model families

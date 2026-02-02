@@ -1,12 +1,20 @@
-"""Planning context retrieval for RFC-122: Compound Learning."""
+"""Planning context retrieval for RFC-122: Compound Learning.
+
+Extended with MIRA-inspired importance scoring that incorporates:
+- Graph connectivity (hub score from learning relationships)
+- Behavioral signals (access patterns, mentions)
+- Temporal relevance (recency, deadlines)
+
+The learning graph tracks how learnings relate to each other:
+- Learnings with many inbound references are "hub" knowledge
+- Hub score boosts importance during retrieval
+"""
 
 from typing import TYPE_CHECKING
 
 from sunwell.memory.simulacrum.core.planning_context import PlanningContext
-from sunwell.memory.simulacrum.core.retrieval.similarity import (
-    cosine_similarity,
-    keyword_similarity,
-)
+from sunwell.memory.simulacrum.core.retrieval.importance import compute_importance
+from sunwell.memory.simulacrum.core.retrieval.similarity import hybrid_score
 
 if TYPE_CHECKING:
     from sunwell.foundation.types.memory import Episode
@@ -43,15 +51,18 @@ class PlanningRetriever:
         self,
         goal: str,
         limit_per_category: int = 5,
+        activity_days: int = 0,
     ) -> PlanningContext:
         """Retrieve all relevant knowledge for planning a task.
 
-        Uses semantic matching against learnings stored in DAG.
+        Uses importance scoring against learnings stored in DAG.
         Returns categorized results for injection into HarmonicPlanner.
 
         Args:
             goal: Task description to match against
             limit_per_category: Max items per category
+            activity_days: Current cumulative activity day count for decay calculations.
+                Pass 0 to disable activity-based decay (uses calendar time only).
 
         Returns:
             PlanningContext with categorized learnings
@@ -72,15 +83,24 @@ class PlanningRetriever:
         scored: list[tuple[float, Learning]] = []
 
         for learning in learnings:
-            if goal_embedding and learning.embedding:
-                similarity = cosine_similarity(goal_embedding, learning.embedding)
-            else:
-                # Fallback: keyword matching
-                similarity = keyword_similarity(goal, learning.fact)
+            # Compute semantic similarity using hybrid scoring (vector + BM25)
+            similarity = hybrid_score(
+                query=goal,
+                document=learning.fact,
+                query_embedding=goal_embedding,
+                doc_embedding=learning.embedding,
+            )
 
-            # Boost by confidence and usage
-            boost = learning.confidence * (1.0 + 0.05 * min(learning.use_count, 10))
-            final_score = similarity * boost
+            # Get inbound link count from learning graph (hub score)
+            inbound_links = self._dag.get_inbound_link_count(learning.id)
+
+            # Use full importance scoring with graph connectivity
+            final_score = compute_importance(
+                learning=learning,
+                query_similarity=similarity,
+                activity_days=activity_days,
+                inbound_link_count=inbound_links,
+            )
 
             if final_score > 0.3:
                 scored.append((final_score, learning))
@@ -97,21 +117,24 @@ class PlanningRetriever:
         patterns: list[Learning] = []
 
         for _score, learning in scored:
-            if learning.category == "fact" and len(facts) < limit_per_category or learning.category == "preference" and len(facts) < limit_per_category:
+            cat = learning.category
+            if cat in ("fact", "preference") and len(facts) < limit_per_category:
                 facts.append(learning)
-            elif learning.category == "constraint" and len(constraints) < limit_per_category:
+            elif cat == "constraint" and len(constraints) < limit_per_category:
                 constraints.append(learning)
-            elif learning.category == "dead_end" and len(dead_ends) < limit_per_category:
+            elif cat == "dead_end" and len(dead_ends) < limit_per_category:
                 dead_ends.append(learning)
-            elif learning.category == "template" and len(templates) < limit_per_category:
+            elif cat == "template" and len(templates) < limit_per_category:
                 templates.append(learning)
-            elif learning.category == "heuristic" and len(heuristics) < limit_per_category:
+            elif cat == "heuristic" and len(heuristics) < limit_per_category:
                 heuristics.append(learning)
-            elif learning.category == "pattern" and len(patterns) < limit_per_category:
+            elif cat == "pattern" and len(patterns) < limit_per_category:
                 patterns.append(learning)
 
         # RFC-022: Include episodes for learning from past sessions
-        failed_episodes = [ep for ep in self._episodes if ep.outcome == "failed"][:limit_per_category]
+        failed_episodes = [
+            ep for ep in self._episodes if ep.outcome == "failed"
+        ][:limit_per_category]
         dead_end_summaries = tuple(ep.summary for ep in failed_episodes)
 
         return PlanningContext(

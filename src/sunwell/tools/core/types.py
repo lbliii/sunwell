@@ -320,3 +320,86 @@ class ToolPolicy:
             command_allowlist=self.command_allowlist,
             rate_limits=self.rate_limits,
         )
+
+
+# =============================================================================
+# Tool Usage Tracking (Dynamic Tool Registry)
+# =============================================================================
+
+
+@dataclass(slots=True)
+class ToolUsageTracker:
+    """Track tool usage for idle expiry in dynamic tool registry.
+
+    Tracks when each tool was last used (by turn number) and identifies
+    tools that have been idle for too long. Used by DynamicToolRegistry
+    to automatically disable inactive tools, reducing context window usage.
+
+    Attributes:
+        last_used_turn: Dict mapping tool name to last-used turn number
+        current_turn: Current conversation turn number
+        idle_threshold: Number of turns before a tool expires (default: 5)
+
+    Example:
+        >>> tracker = ToolUsageTracker()
+        >>> tracker.record_use("read_file")
+        >>> tracker.advance_turn()  # Returns [] (nothing expired)
+        >>> # ... 5 more turns without using read_file ...
+        >>> expired = tracker.advance_turn()  # Returns ["read_file"]
+    """
+
+    last_used_turn: dict[str, int] = field(default_factory=dict)
+    current_turn: int = 0
+    idle_threshold: int = 5
+
+    def record_use(self, tool_name: str) -> None:
+        """Record that a tool was used this turn.
+
+        Args:
+            tool_name: Name of the tool that was used
+        """
+        self.last_used_turn[tool_name] = self.current_turn
+
+    def advance_turn(self) -> list[str]:
+        """Advance turn counter and return tools to expire.
+
+        Call this at the end of each model response turn.
+        Returns tool names that have been idle for more than
+        idle_threshold turns.
+
+        Returns:
+            List of tool names that should be disabled
+        """
+        self.current_turn += 1
+        expired = []
+        for name, turn in list(self.last_used_turn.items()):
+            if self.current_turn - turn > self.idle_threshold:
+                expired.append(name)
+        return expired
+
+    def mark_essential(self, tool_name: str) -> None:
+        """Mark a tool as recently used (prevents expiry).
+
+        Use this for essential tools that should never expire.
+
+        Args:
+            tool_name: Name of the tool to mark
+        """
+        self.last_used_turn[tool_name] = self.current_turn
+
+    def get_idle_turns(self, tool_name: str) -> int:
+        """Get how many turns a tool has been idle.
+
+        Args:
+            tool_name: Name of the tool
+
+        Returns:
+            Number of turns since last use, or current_turn if never used
+        """
+        last_turn = self.last_used_turn.get(tool_name, 0)
+        return self.current_turn - last_turn
+
+    def clear(self) -> None:
+        """Reset all tracking state."""
+        self.last_used_turn.clear()
+        self.current_turn = 0

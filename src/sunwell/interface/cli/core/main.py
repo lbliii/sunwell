@@ -58,6 +58,13 @@ def cli_entrypoint() -> None:
             handle_error(e, json_output=False)
 
 
+# Continuation phrases that might indicate user wants to resume a paused goal
+CONTINUATION_PATTERNS = frozenset({
+    "yes", "y", "continue", "proceed", "go", "ok", "sure", "yep", "yeah",
+    "yes continue", "yes proceed", "continue please", "go ahead",
+})
+
+
 # RFC-037, RFC-109: Custom group that supports goal-first and shortcut interfaces
 class GoalFirstGroup(click.Group):
     """Custom group that allows multiple entry patterns:
@@ -65,10 +72,11 @@ class GoalFirstGroup(click.Group):
     - `sunwell "goal"` - Goal-first (RFC-037)
     - `sunwell -s a-2 file.md` - Shortcut execution (RFC-109)
     - `sunwell .` or `sunwell ~/path` - Project opening (RFC-086)
+    - `sunwell "yes"` or `sunwell "continue"` - Continuation intent (resume paused goal)
     """
 
     def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
-        """Override to handle goal-first, shortcut, and path patterns."""
+        """Override to handle goal-first, shortcut, path, and continuation patterns."""
         # If no args, proceed normally
         if not args:
             return super().parse_args(ctx, args)
@@ -125,6 +133,11 @@ class GoalFirstGroup(click.Group):
             and not first_arg.startswith("--")
         ):
             ctx.obj["_goal"] = first_arg
+            
+            # Check if this looks like a continuation intent
+            if first_arg.lower() in CONTINUATION_PATTERNS:
+                ctx.obj["_continuation_intent"] = True
+            
             args = args[1:]
 
         return super().parse_args(ctx, args)
@@ -140,7 +153,7 @@ def _show_all_commands(ctx: click.Context) -> None:
     table.add_column("Description")
 
     # Tier definitions
-    tier_1_2 = {"config", "project", "session", "lens", "setup"}  # Visible in --help
+    tier_1_2 = {"config", "project", "session", "lens", "setup", "resume"}  # Visible in --help
     tier_3 = {"benchmark", "chat", "demo", "eval", "index", "runtime"}  # Hidden, developer
     tier_4 = {
         "backlog", "dag", "interface", "naaru", "scan", "security", "self",
@@ -314,6 +327,65 @@ def main(
 
     # If a goal was provided and no subcommand invoked, run agent
     if goal and ctx.invoked_subcommand is None:
+        # Check for continuation intent (e.g., "sunwell yes" or "sunwell continue")
+        is_continuation = ctx.obj.get("_continuation_intent", False)
+        
+        if is_continuation:
+            # Check for resumable sessions
+            from pathlib import Path
+
+            from sunwell.planning.naaru.session_store import SessionStore
+            
+            store = SessionStore()
+            resumable = store.get_resumable_sessions()
+            
+            # Filter to current workspace if possible
+            cwd = Path.cwd()
+            workspace_resumable = [
+                s for s in resumable
+                if s.workspace_id == str(cwd)
+            ]
+            
+            # Prefer workspace-specific, fall back to all resumable
+            sessions_to_check = workspace_resumable or resumable
+            
+            if sessions_to_check:
+                # Found resumable session(s), offer to resume
+                latest = sessions_to_check[0]
+                goal_preview = latest.goals[0] if latest.goals else "Unknown goal"
+                if len(goal_preview) > 50:
+                    goal_preview = goal_preview[:47] + "..."
+                
+                console.print()
+                console.print(f"[holy.gold]◆[/] Found paused goal: [bold]{goal_preview}[/bold]")
+                console.print(f"   Session: {latest.session_id}")
+                console.print()
+                
+                choice = console.input(
+                    "[bold]Resume[/bold] this goal? ([cyan]R[/]esume / [cyan]N[/]ew goal / [cyan]C[/]ancel) "
+                ).strip().lower()
+                
+                if choice in ("r", "resume", ""):
+                    # Resume the session
+                    from sunwell.interface.cli.commands import resume_cmd
+                    
+                    ctx.invoke(
+                        resume_cmd.resume,
+                        session_id=latest.session_id,
+                        list_sessions=False,
+                        workspace=False,
+                        show_all=False,
+                        provider=provider,
+                        model=model,
+                        verbose=verbose,
+                    )
+                    return
+                elif choice in ("c", "cancel", "q", "quit"):
+                    console.print("[neutral.dim]Cancelled[/neutral.dim]")
+                    return
+                # Otherwise fall through to treat as new goal
+                console.print()
+        
         from sunwell.interface.cli.commands.goal import run_goal
 
         ctx.invoke(
@@ -338,7 +410,7 @@ def main(
 # RFC-109: COMMAND REGISTRATION (Tiered Visibility)
 # =============================================================================
 #
-# Tier 1-2 (Visible): config, project, session, lens, setup
+# Tier 1-2 (Visible): config, project, session, lens, setup, resume
 # Tier 3 (Hidden):    benchmark, chat, demo, eval, index, runtime
 # Tier 4 (Internal):  backlog, dag, interface, naaru, scan, security, self,
 #                     skill, surface, weakness, workers, workflow, workspace
@@ -394,6 +466,11 @@ main.add_command(lineage_cmd.lineage)
 from sunwell.interface.cli.commands import review_cmd
 
 main.add_command(review_cmd.review)
+
+# Goal Resume (enables `sunwell resume` to continue interrupted goals)
+from sunwell.interface.cli.commands import resume_cmd
+
+main.add_command(resume_cmd.resume)
 
 
 # -----------------------------------------------------------------------------
@@ -470,6 +547,12 @@ from sunwell.interface.cli.commands import memory_cmd
 
 memory_cmd.memory.hidden = True
 main.add_command(memory_cmd.memory)
+
+# Notification history - view and manage notification history
+from sunwell.interface.cli.commands import notifications_cmd
+
+notifications_cmd.notifications.hidden = True
+main.add_command(notifications_cmd.notifications)
 
 # Generative Interface (RFC-075) - Studio: interface demo
 from sunwell.interface.cli.commands import interface_cmd

@@ -41,6 +41,7 @@ from sunwell.agent.events import (
     EventType,
     briefing_loaded_event,
     complete_event,
+    domain_detected_event,
     failure_recorded_event,
     intent_classified_event,
     lens_selected_event,
@@ -92,6 +93,27 @@ if TYPE_CHECKING:
 from sunwell.agent.context.session import SessionContext
 from sunwell.memory import PersistentMemory
 from sunwell.planning.naaru.checkpoint import AgentCheckpoint, CheckpointPhase
+
+
+@dataclass(frozen=True, slots=True)
+class PlanResult:
+    """Result from plan_only() for duration estimation.
+
+    Contains the task graph and metrics needed for accurate
+    duration estimation before execution.
+    """
+
+    task_graph: TaskGraph
+    """The planned task graph."""
+
+    metrics: Any  # PlanMetrics | PlanMetricsV2
+    """Plan quality metrics (depth, parallelism, etc.)."""
+
+    signals: Any = None  # AdaptiveSignals
+    """Extracted signals from goal analysis."""
+
+    estimated_seconds: int | None = None
+    """Duration estimate in seconds (set after estimation for calibration)."""
 
 
 @dataclass(slots=True)
@@ -200,6 +222,10 @@ class Agent:
     _specialist_count: int = field(default=0, init=False)
     """Count of specialists spawned in this run."""
 
+    # RFC-DOMAINS: Domain detection
+    _detected_domain: Any = field(default=None, init=False)
+    """Detected domain for current goal (from DomainRegistry)."""
+
     # RFC-130: Semantic checkpointing
     _user_decisions: list[str] = field(default_factory=list, init=False)
     """User decisions recorded during this run."""
@@ -218,6 +244,10 @@ class Agent:
     )
     """Current semantic phase of execution."""
 
+    # Recovery manager for persisting execution state on failures
+    _recovery_manager: Any = field(default=None, init=False)
+    """RecoveryManager for saving state on interruption/failure."""
+
     def __post_init__(self) -> None:
         if self.cwd is None:
             self.cwd = Path.cwd()
@@ -227,6 +257,11 @@ class Agent:
         toolchain = detect_toolchain(self.cwd)
         self._validation_runner = ValidationRunner(toolchain, self.cwd)
         self._fix_stage = FixStage(self.model, self.cwd, max_attempts=3)
+
+        # Initialize recovery manager for persisting execution state on failures
+        from sunwell.agent.recovery.manager import RecoveryManager
+        recovery_dir = self.cwd / ".sunwell" / "recovery"
+        self._recovery_manager = RecoveryManager(recovery_dir)
 
         # Load inference metrics from disk for model discovery
         self._inference_metrics.load_from_disk(self.cwd)
@@ -328,6 +363,8 @@ class Agent:
         self,
         session: SessionContext,
         memory: PersistentMemory,
+        *,
+        precomputed_plan: PlanResult | None = None,
     ) -> AsyncIterator[AgentEvent]:
         """Execute goal with explicit context and memory (RFC-MEMORY).
 
@@ -347,6 +384,7 @@ class Agent:
         Args:
             session: SessionContext with goal, workspace, options
             memory: PersistentMemory with decisions, failures, patterns
+            precomputed_plan: Optional PlanResult from plan_only() to skip planning
 
         Yields:
             AgentEvent for each step of execution
@@ -387,15 +425,34 @@ class Agent:
 
         # ─── PHASE 0.1: INTENT CLASSIFICATION (Conversational DAG Architecture) ───
         # Classify intent and emit event for UI display
-        from sunwell.agent.intent import classify_intent, format_path, requires_approval
+        from sunwell.agent.intent import (
+            classify_intent,
+            format_path,
+            get_tool_scope,
+            requires_approval,
+        )
 
         classification = await classify_intent(session.goal, model=self.model)
+        tool_scope = get_tool_scope(classification.path)
         yield intent_classified_event(
             path=tuple(n.value for n in classification.path),
             confidence=classification.confidence,
             reasoning=classification.reasoning,
             requires_approval=requires_approval(classification.path),
-            tool_scope=classification.tool_scope.value if classification.tool_scope else None,
+            tool_scope=tool_scope.value if tool_scope else None,
+        )
+
+        # ─── PHASE 0.2: DOMAIN DETECTION (RFC-DOMAINS) ───
+        # Detect domain for goal-appropriate tools and validators
+        from sunwell.domains import DomainRegistry
+
+        detected_domain, domain_confidence = DomainRegistry.detect(session.goal)
+        self._detected_domain = detected_domain
+        yield domain_detected_event(
+            domain_type=detected_domain.domain_type.value,
+            confidence=domain_confidence,
+            tools_package=detected_domain.tools_package,
+            validators=[v.name for v in detected_domain.validators],
         )
 
         # ─── PHASE 0: PREFETCH (RFC-130) ───
@@ -492,27 +549,39 @@ class Agent:
             return
 
         # ─── PHASE 3: PLAN ───
-        # Build context with memory constraints
-        planning_context: dict[str, Any] = {}
-        learnings_context = self._learning_store.format_for_prompt()
-        if learnings_context:
-            planning_context["learnings"] = learnings_context
+        if precomputed_plan is not None:
+            # Use precomputed plan from plan_only() (skip re-planning)
+            self._task_graph = precomputed_plan.task_graph
+            # Emit PLAN_WINNER event for consistency with UI
+            from sunwell.agent.events import plan_winner_event
+            yield plan_winner_event(
+                tasks=len(precomputed_plan.task_graph.tasks),
+                gates=len(precomputed_plan.task_graph.gates),
+                technique="precomputed",
+                task_graph=precomputed_plan.task_graph,
+            )
+        else:
+            # Build context with memory constraints
+            planning_context: dict[str, Any] = {}
+            learnings_context = self._learning_store.format_for_prompt()
+            if learnings_context:
+                planning_context["learnings"] = learnings_context
 
-        if self.lens:
-            planning_context["lens_context"] = self.lens.to_context()
+            if self.lens:
+                planning_context["lens_context"] = self.lens.to_context()
 
-        if self._briefing:
-            planning_context["briefing"] = self._briefing.to_prompt()
+            if self._briefing:
+                planning_context["briefing"] = self._briefing.to_prompt()
 
-        # RFC-MEMORY: Inject memory constraints into planning
-        memory_prompt = memory_ctx.to_prompt()
-        if memory_prompt:
-            planning_context["memory_constraints"] = memory_prompt
+            # RFC-MEMORY: Inject memory constraints into planning
+            memory_prompt = memory_ctx.to_prompt()
+            if memory_prompt:
+                planning_context["memory_constraints"] = memory_prompt
 
-        async for event in self._plan_with_signals(session.goal, signals, planning_context):
-            yield event
-            if event.type == EventType.ERROR:
-                return
+            async for event in self._plan_with_signals(session.goal, signals, planning_context):
+                yield event
+                if event.type == EventType.ERROR:
+                    return
 
         # Update session with tasks
         if self._task_graph:
@@ -559,7 +628,8 @@ class Agent:
                             error_type=failure.error_type,
                             context=failure.context,
                         )
-                return
+                # Don't return early - continue to session end phases
+                break
 
         # Track modified files
         if self._task_graph:
@@ -567,12 +637,20 @@ class Agent:
                 if task.id in self._task_graph.completed_ids and task.target_path:
                     session.files_modified.append(task.target_path)
 
-        # ─── PHASE 5: LEARN ───
-        async for event in self._learn_from_execution(session.goal, execution_success, memory):
+        # ─── PHASE 5: SAVE SESSION (GUARANTEED) ───
+        # Save conversation DAG even on failure - this preserves context for debugging
+        memory.sync()
+
+        # ─── PHASE 6: LEARN ───
+        # Always extract learnings, even from failures (learn what NOT to do)
+        async for event in self._learn_from_execution(
+            session.goal, execution_success, memory, force=True
+        ):
             yield event
 
-        # Sync memory to disk
-        memory.sync()
+        # ─── PHASE 7: REFLECT ───
+        # Analyze session and update briefing
+        await self._reflect_on_session(session, execution_success, memory)
 
         # Save routing outcomes for adaptive routing
         self._routing_outcome_store.save_to_disk(session.cwd)
@@ -580,8 +658,36 @@ class Agent:
         # Save briefing for next session
         session.save_briefing()
 
-        # ─── COMPLETE ───
+        # ─── PHASE 8: LOG EXECUTION HISTORY (RFC: Plan-Based Duration Estimation) ───
+        # Record actual duration for historical calibration
         duration = time() - start_time
+        if (
+            precomputed_plan is not None
+            and precomputed_plan.estimated_seconds is not None
+            and self._task_graph is not None
+        ):
+            try:
+                from sunwell.agent.estimation import ExecutionHistory, PlanProfile
+
+                history = ExecutionHistory.load(session.cwd)
+                profile = PlanProfile.from_task_graph(
+                    self._task_graph, precomputed_plan.metrics
+                )
+                history.record(
+                    profile=profile,
+                    estimated_seconds=precomputed_plan.estimated_seconds,
+                    actual_seconds=int(duration),
+                )
+                history.save(session.cwd)
+                logger.debug(
+                    "Logged execution history: estimated=%ds, actual=%ds",
+                    precomputed_plan.estimated_seconds,
+                    int(duration),
+                )
+            except Exception as e:
+                logger.debug("Failed to log execution history: %s", e)
+
+        # ─── COMPLETE ───
         tasks_done = len(self._task_graph.completed_ids) if self._task_graph else 0
         yield complete_event(
             tasks_completed=tasks_done,
@@ -651,6 +757,91 @@ class Agent:
 
         async for event in self._plan_with_signals(session.goal, signals, {}):
             yield event
+
+    async def plan_only(
+        self,
+        goal: str,
+        memory: PersistentMemory | None = None,
+    ) -> PlanResult:
+        """Run planning and return result directly (for duration estimation).
+
+        Unlike plan(), this method returns the TaskGraph and metrics directly
+        rather than yielding events. Used by routing to get plan data before
+        offering background execution.
+
+        Args:
+            goal: The goal to plan for
+            memory: Optional PersistentMemory for simulacrum access
+
+        Returns:
+            PlanResult with task_graph and metrics
+        """
+        from sunwell.planning.naaru.planners.metrics import PlanMetrics
+
+        # RFC-MEMORY: Store memory references for planning
+        if memory:
+            self._simulacrum = memory.simulacrum
+            self._memory = memory
+
+        # Extract signals
+        signals = await self._extract_signals_with_memory(goal)
+
+        # Build minimal planning context
+        planning_context: dict[str, Any] = {}
+        learnings_context = self._learning_store.format_for_prompt()
+        if learnings_context:
+            planning_context["learnings"] = learnings_context
+
+        if self.lens:
+            planning_context["lens_context"] = self.lens.to_context()
+
+        if self._briefing:
+            planning_context["briefing"] = self._briefing.to_prompt()
+
+        # Run planning and capture task_graph and metrics from PLAN_WINNER event
+        task_graph: TaskGraph | None = None
+        metrics: PlanMetrics | None = None
+
+        async for event in self._plan_with_signals(goal, signals, planning_context):
+            if event.type == EventType.PLAN_WINNER:
+                task_graph = event.data.get("task_graph")
+                # Metrics from harmonic planning
+                metrics_dict = event.data.get("metrics")
+                if metrics_dict and isinstance(metrics_dict, dict):
+                    # Reconstruct PlanMetrics from dict if available
+                    try:
+                        metrics = PlanMetrics(
+                            depth=metrics_dict.get("depth", 1),
+                            width=metrics_dict.get("width", 1),
+                            leaf_count=metrics_dict.get("leaf_count", 1),
+                            artifact_count=metrics_dict.get("artifact_count", 1),
+                            parallelism_factor=metrics_dict.get("parallelism_factor", 1.0),
+                            balance_factor=metrics_dict.get("balance_factor", 1.0),
+                            file_conflicts=metrics_dict.get("file_conflicts", 0),
+                            estimated_waves=metrics_dict.get("estimated_waves", 1),
+                        )
+                    except (TypeError, KeyError):
+                        pass
+
+        # If no task_graph from planning, create empty one
+        if task_graph is None:
+            task_graph = TaskGraph()
+
+        # If no metrics, create default metrics based on task_graph
+        if metrics is None:
+            task_count = len(task_graph.tasks)
+            metrics = PlanMetrics(
+                depth=1,
+                width=task_count,
+                leaf_count=task_count,
+                artifact_count=task_count,
+                parallelism_factor=1.0,
+                balance_factor=float(task_count),
+                file_conflicts=0,
+                estimated_waves=1,
+            )
+
+        return PlanResult(task_graph=task_graph, metrics=metrics, signals=signals)
 
     async def _extract_signals_with_memory(self, goal: str) -> AdaptiveSignals:
         """Extract signals with memory context."""
@@ -760,10 +951,17 @@ class Agent:
                 if artifact:
                     artifacts[task.id] = artifact
 
-                    learnings = self._learning_extractor.extract_from_code(
-                        artifact.content,
-                        str(artifact.path),
-                    )
+                    # RFC-DOMAINS: Use domain-specific learning extraction if available
+                    if self._detected_domain:
+                        learnings = self._detected_domain.extract_learnings(
+                            artifact.content,
+                            str(artifact.path),
+                        )
+                    else:
+                        learnings = self._learning_extractor.extract_from_code(
+                            artifact.content,
+                            str(artifact.path),
+                        )
                     for learning in learnings:
                         self._learning_store.add_learning(learning)
                         yield memory_learning_event(
@@ -895,10 +1093,12 @@ class Agent:
             lens=self.lens,
             memory=self._memory,
             simulacrum=self._simulacrum,
+            briefing=self._briefing,  # For trinket composition
             current_options=self._current_options,
             smart_model=self.smart_model,
             delegation_model=self.delegation_model,
             auto_lens=self.auto_lens,
+            recovery_manager=self._recovery_manager,
         ):
             yield event
             # Extract result_text and tracker from event data (event-carried pattern)
@@ -1108,8 +1308,16 @@ class Agent:
         goal: str,
         success: bool,
         memory: PersistentMemory | None = None,
+        *,
+        force: bool = False,
     ) -> AsyncIterator[AgentEvent]:
         """Extract learnings from completed execution (RFC-122).
+
+        Args:
+            goal: The goal that was executed
+            success: Whether execution succeeded
+            memory: Persistent memory for cross-session learnings
+            force: If True, extract learnings even without code changes
 
         Delegates to learning.learn_from_execution for the actual implementation.
         """
@@ -1122,8 +1330,81 @@ class Agent:
             files_changed=self._files_changed_this_run,
             last_planning_context=self._last_planning_context,
             memory=memory,
+            force=force,
         ):
             yield memory_learning_event(fact=fact, category=category)
 
         # Clear run state
         self._files_changed_this_run = []
+
+    async def _reflect_on_session(
+        self,
+        session: SessionContext,
+        success: bool,
+        memory: PersistentMemory,
+    ) -> None:
+        """End-of-session reflection to extract higher-level insights.
+
+        Runs AFTER learning extraction. Analyzes the session to:
+        1. Identify what worked vs what didn't
+        2. Update briefing hazards based on failures
+        3. Extract meta-patterns from tool usage
+
+        Args:
+            session: The session context
+            success: Whether execution succeeded
+            memory: Persistent memory for storing insights
+        """
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        # Track hazards for briefing
+        hazards: list[str] = []
+
+        # 1. Analyze task completion patterns
+        if self._task_graph:
+            completed = len(self._task_graph.completed_ids)
+            total = len(self._task_graph.tasks)
+
+            if not success and completed < total:
+                # Find what failed
+                failed_tasks = [
+                    t for t in self._task_graph.tasks
+                    if t.id not in self._task_graph.completed_ids
+                ]
+                if failed_tasks:
+                    failed = failed_tasks[0]
+                    hazards.append(f"Failed at: {failed.description[:60]}")
+
+        # 2. Analyze dead ends from learning store
+        if self._learning_store.dead_ends:
+            recent_dead_ends = self._learning_store.dead_ends[-3:]
+            for de in recent_dead_ends:
+                hazards.append(f"Avoid: {de.approach[:50]}")
+
+        # 3. Record tool usage patterns for future reference
+        tool_patterns = self._learning_store.get_tool_patterns(min_samples=1)
+        if tool_patterns:
+            # Record the most successful pattern
+            best_pattern = max(tool_patterns, key=lambda p: p.confidence)
+            if best_pattern.success_rate > 0.7:
+                logger.debug(
+                    "Successful tool pattern: %s (%.0f%% success)",
+                    " → ".join(best_pattern.tool_sequence[:3]),
+                    best_pattern.success_rate * 100,
+                )
+
+        # 4. Update session with hazards for briefing
+        # These will be incorporated when save_briefing() is called
+        if hazards:
+            # Add to session's internal state for briefing generation
+            if not hasattr(session, "_reflection_hazards"):
+                session._reflection_hazards = []
+            session._reflection_hazards.extend(hazards[:3])  # Limit to top 3
+
+        logger.debug(
+            "Session reflection complete: success=%s, hazards=%d",
+            success,
+            len(hazards),
+        )

@@ -93,8 +93,7 @@ def bind_create(
 
     binding = manager.create(
         name=name,
-        lens_uri=lens if lens and ("/" in lens or "\\" in lens or lens.startswith("sunwell:")) else None,
-        lens_path=lens if lens and not ("/" in lens or "\\" in lens or lens.startswith("sunwell:")) else None,
+        lens_uri=lens,
         provider=provider,
         model=model,
         tier=int(tier),

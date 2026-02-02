@@ -1,4 +1,7 @@
-"""Chat command - Interactive headspace chat session."""
+"""Chat command - Interactive headspace chat session.
+
+Holy Light aesthetic (RFC-131): Golden accents radiating from the void.
+"""
 
 
 import asyncio
@@ -6,7 +9,6 @@ import sys
 from pathlib import Path
 
 import click
-from rich.console import Console
 from rich.panel import Panel
 
 from sunwell.core.types.types import LensReference
@@ -15,12 +17,20 @@ from sunwell.features.fount.resolver import LensResolver
 from sunwell.foundation.binding import BindingManager
 from sunwell.foundation.errors import SunwellError
 from sunwell.foundation.schema.loader import LensLoader
+from sunwell.interface.cli.core.theme import (
+    CHARS_CHECKS,
+    CHARS_STARS,
+    create_sunwell_console,
+    print_banner,
+    render_error,
+)
 from sunwell.interface.cli.helpers import create_model
 from sunwell.knowledge.embedding import create_embedder
 from sunwell.memory.simulacrum.context.assembler import ContextAssembler
 from sunwell.memory.simulacrum.core.store import SimulacrumStore
 
-console = Console()
+# Holy Light themed console
+console = create_sunwell_console()
 
 
 @click.command()
@@ -205,9 +215,9 @@ def _resolve_binding(
             lens_path = binding_or_lens
         else:
             console.print(
-                f"[red]Not found:[/red] '{binding_or_lens}' is neither a binding nor a lens file"
+                f"[void.purple]{CHARS_CHECKS['fail']} Not found:[/void.purple] '{binding_or_lens}' is neither a binding nor a lens file"
             )
-            console.print("[dim]List bindings: sunwell bind list[/dim]")
+            console.print("[neutral.dim]List bindings: sunwell bind list[/neutral.dim]")
             return None, "", "", None, None, None
     else:
         # Try default binding
@@ -223,13 +233,13 @@ def _resolve_binding(
             if trust_level is None:
                 trust_level = binding.trust_level
         else:
-            console.print("[yellow]No binding specified and no default set.[/yellow]")
+            console.print(f"[void.indigo]{CHARS_STARS['progress']} No binding specified and no default set.[/void.indigo]")
             console.print()
-            console.print("Options:")
-            console.print("  1. Run [cyan]sunwell setup[/cyan] to create default bindings")
-            console.print("  2. Specify a lens: [cyan]sunwell chat path/to/lens.lens[/cyan]")
+            console.print("[neutral.text]Options:[/neutral.text]")
+            console.print(f"  1. Run [holy.radiant]sunwell setup[/holy.radiant] to create default bindings")
+            console.print(f"  2. Specify a lens: [holy.radiant]sunwell chat path/to/lens.lens[/holy.radiant]")
             console.print(
-                "  3. Create a binding: [cyan]sunwell bind create my-chat --lens my.lens[/cyan]"
+                f"  3. Create a binding: [holy.radiant]sunwell bind create my-chat --lens my.lens[/holy.radiant]"
             )
             return None, "", "", None, None, None
 
@@ -260,25 +270,30 @@ def _load_lens(lens_path: str) -> object | None:
         ref = LensReference(source=source)
         return asyncio.run(resolver.resolve(ref))
     except SunwellError as e:
-        console.print(f"[red]Error loading/resolving lens:[/red] {e.message}")
+        render_error(
+            console,
+            "Error loading/resolving lens",
+            details=e.message,
+            suggestion="Check the lens path and try again",
+        )
         return None
 
 
 def _init_session(store: SimulacrumStore, session: str | None) -> object:
-    """Initialize or resume session."""
+    """Initialize or resume session with Holy Light feedback."""
     if session:
         try:
             dag = store.load_session(session)
-            console.print(f"[green]✓ Resumed session:[/green] {session}")
-            console.print(f"[dim]  {len(dag.turns)} turns, {len(dag.learnings)} learnings[/dim]")
+            console.print(f"[holy.success]{CHARS_STARS['complete']} Resumed session:[/holy.success] {session}")
+            console.print(f"[neutral.dim]  {len(dag.turns)} turns, {len(dag.learnings)} learnings[/neutral.dim]")
         except FileNotFoundError:
             store.new_session(session)
             dag = store.get_dag()
-            console.print(f"[green]✓ Created new session:[/green] {session}")
+            console.print(f"[holy.success]{CHARS_STARS['complete']} Created new session:[/holy.success] {session}")
     else:
         session = store.new_session()
         dag = store.get_dag()
-        console.print(f"[green]✓ New session:[/green] {session}")
+        console.print(f"[holy.success]{CHARS_STARS['complete']} New session:[/holy.success] {session}")
 
     return dag
 
@@ -291,18 +306,22 @@ def _display_session_info(
     tools_enabled: bool | None,
     trust_level: str | None,
 ) -> None:
-    """Display session information panel."""
+    """Display session information panel with Holy Light styling."""
+    # Show branded banner (small version for chat)
+    print_banner(console, small=True)
+
     mode_label = "Agent" if tools_enabled else "Chat"
-    mode_color = "green" if tools_enabled else "blue"
+    mode_style = "holy.success" if tools_enabled else "holy.gold"
     trust_display = f" ({trust_level or 'workspace'})" if tools_enabled else ""
 
+    # Holy Light panel: golden border, radiant highlights
     console.print(
         Panel(
-            f"[bold]{lens.metadata.name}[/bold] ({provider}:{model}): "
-            f"[{mode_color}]{mode_label}{trust_display}[/{mode_color}]\n"
-            f"Commands: /switch, /branch, /learn, /stats, /quit"
+            f"[sunwell.heading]{lens.metadata.name}[/sunwell.heading] [neutral.dim]({provider}:{model})[/neutral.dim]: "
+            f"[{mode_style}]{mode_label}{trust_display}[/{mode_style}]\n"
+            f"[neutral.muted]Commands:[/neutral.muted] /switch, /branch, /learn, /stats, /quit"
             + (" | /tools on/off" if not tools_enabled else ""),
-            title=f"Session: {session}",
-            border_style=mode_color,
+            title=f"[holy.radiant]{CHARS_STARS['radiant']} Session: {session}[/holy.radiant]",
+            border_style="holy.gold",
         )
     )

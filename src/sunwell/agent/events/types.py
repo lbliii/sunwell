@@ -273,6 +273,10 @@ DEFAULT_UI_HINTS: dict[str, EventUIHints] = {
     "intent_classified": EventUIHints(icon="→", severity="info", animation="fade-in"),
     "node_transition": EventUIHints(icon="◇", severity="info"),
     # ═══════════════════════════════════════════════════════════════
+    # DOMAIN DETECTION (RFC-DOMAINS)
+    # ═══════════════════════════════════════════════════════════════
+    "domain_detected": EventUIHints(icon="◉", severity="info", animation="fade-in"),
+    # ═══════════════════════════════════════════════════════════════
     # SESSION LIFECYCLE (RFC-131)
     # ═══════════════════════════════════════════════════════════════
     "session_start": EventUIHints(icon="✦", severity="info", animation="fade-in"),
@@ -760,6 +764,12 @@ class EventType(Enum):
     NODE_TRANSITION = "node_transition"
     """Transitioned between nodes in the intent DAG."""
 
+    # ═══════════════════════════════════════════════════════════════
+    # Domain Detection (RFC-DOMAINS)
+    # ═══════════════════════════════════════════════════════════════
+    DOMAIN_DETECTED = "domain_detected"
+    """Domain detected for goal (code, research, writing, etc.)."""
+
     # Agent Constellation events (RFC-130)
     SPECIALIST_SPAWNED = "specialist_spawned"
     """Specialist agent spawned for a subtask."""
@@ -781,6 +791,27 @@ class EventType(Enum):
 
     GUARD_EVOLUTION_SUGGESTED = "guard_evolution_suggested"
     """Guard evolution suggested based on violations (RFC-130)."""
+
+    # ═══════════════════════════════════════════════════════════════
+    # File/Artifact Events
+    # ═══════════════════════════════════════════════════════════════
+    FILE_CREATED = "file_created"
+    """File created by the agent."""
+
+    FILE_MODIFIED = "file_modified"
+    """File modified by the agent."""
+
+    FILE_DELETED = "file_deleted"
+    """File deleted by the agent."""
+
+    FILE_READ = "file_read"
+    """File read by the agent."""
+
+    CODE_GENERATED = "code_generated"
+    """Code generated and ready to display."""
+
+    LEARNING_EXTRACTED = "learning_extracted"
+    """Learning extracted from generated code or execution."""
 
     # ═══════════════════════════════════════════════════════════════
     # Reliability Events (Solo Dev Hardening)

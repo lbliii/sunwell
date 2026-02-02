@@ -442,10 +442,12 @@ async def execute_task_with_tools(
     lens: Lens | None,
     memory: Any | None,
     simulacrum: Any | None,
+    briefing: Any | None,  # For trinket composition
     current_options: Any | None,
     smart_model: ModelProtocol | None,
     delegation_model: ModelProtocol | None,
     auto_lens: bool = True,
+    recovery_manager: Any | None = None,
 ) -> AsyncIterator[AgentEvent]:
     """Execute task via AgentLoop with native tool calling (preferred path).
 
@@ -468,10 +470,12 @@ async def execute_task_with_tools(
         lens: Current lens
         memory: PersistentMemory reference
         simulacrum: SimulacrumStore for knowledge
+        briefing: Briefing for session orientation (trinket composition)
         current_options: RunOptions for this execution
         smart_model: Smart model for lens creation (RFC-137)
         delegation_model: Cheap model for delegation (RFC-137)
         auto_lens: Whether auto-lens selection is enabled
+        recovery_manager: Manager for persisting recovery state on failures
 
     Yields:
         AgentEvent instances. Final events (TASK_COMPLETE, TOOL_COMPLETE with self_corrected,
@@ -605,11 +609,15 @@ async def execute_task_with_tools(
         learning_store=learning_store,
         routing_outcome_store=routing_outcome_store,
         validation_stage=validation_stage,
+        recovery_manager=recovery_manager,  # For persisting state on failures
         lens=active_lens,  # For expertise injection
         mirror_handler=mirror_handler,  # For self-reflection
         # RFC-137: Model delegation
         smart_model=smart_model_resolved,
         delegation_model=delegation_model_resolved,
+        # Trinket composition inputs
+        briefing=briefing,
+        memory_store=simulacrum,
     )
 
     # Initialize invocation tracker for this task

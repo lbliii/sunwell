@@ -213,6 +213,45 @@ class TestExtendedLearning:
         assert updated.embedding == embedding
         assert updated.id == sample_fact_learning.id
 
+    def test_first_person_prefix_all_categories(self) -> None:
+        """Test _first_person_prefix() returns correct prefix for each category."""
+        categories_and_prefixes = [
+            ("fact", "I know:"),
+            ("preference", "I prefer:"),
+            ("constraint", "I must:"),
+            ("pattern", "I use:"),
+            ("dead_end", "I tried and it failed:"),
+            ("template", "I follow this pattern:"),
+            ("heuristic", "I've found:"),
+        ]
+        for category, expected_prefix in categories_and_prefixes:
+            learning = Learning(
+                fact="Test fact",
+                source_turns=(),
+                confidence=0.8,
+                category=category,  # type: ignore
+            )
+            assert learning._first_person_prefix() == expected_prefix
+
+    def test_to_turn_uses_first_person_prefix(self, sample_fact_learning: Learning) -> None:
+        """Test to_turn() uses first-person prefix."""
+        turn = sample_fact_learning.to_turn()
+        # Should start with "I know:" for fact category
+        assert turn.content.startswith("I know:")
+        assert sample_fact_learning.fact in turn.content
+
+    def test_to_turn_heuristic_prefix(self, sample_heuristic_learning: Learning) -> None:
+        """Test to_turn() uses correct prefix for heuristics."""
+        turn = sample_heuristic_learning.to_turn()
+        assert turn.content.startswith("I've found:")
+        assert sample_heuristic_learning.fact in turn.content
+
+    def test_to_turn_template_prefix(self, sample_template_learning: Learning) -> None:
+        """Test to_turn() uses correct prefix for templates."""
+        turn = sample_template_learning.to_turn()
+        assert turn.content.startswith("I follow this pattern:")
+        assert sample_template_learning.fact in turn.content
+
     def test_id_stability(self, sample_template_learning: Learning) -> None:
         """Test that ID is based on category:fact only."""
         # Same category and fact should produce same ID
@@ -317,7 +356,7 @@ class TestPlanningContext:
             goal="Build CRUD API",
         )
         section = context.to_prompt_section()
-        assert "## Project Knowledge" in section
+        assert "## What I Know About This Project" in section
         assert sample_fact_learning.fact in section
 
     @pytest.mark.asyncio
@@ -644,41 +683,30 @@ class TestSimulacrumStoreRetrieveForPlanning:
 
 
 class TestSimilarityFunctions:
-    """Tests for similarity helper functions."""
+    """Tests for similarity helper functions in retrieval module."""
 
     def test_cosine_similarity_identical(self) -> None:
         """Test cosine similarity of identical vectors."""
+        from sunwell.memory.simulacrum.core.retrieval.similarity import cosine_similarity
+
         vec = (1.0, 2.0, 3.0)
-        result = SimulacrumStore._cosine_similarity(vec, vec)
+        result = cosine_similarity(vec, vec)
         assert abs(result - 1.0) < 0.001
 
     def test_cosine_similarity_orthogonal(self) -> None:
         """Test cosine similarity of orthogonal vectors."""
+        from sunwell.memory.simulacrum.core.retrieval.similarity import cosine_similarity
+
         vec_a = (1.0, 0.0, 0.0)
         vec_b = (0.0, 1.0, 0.0)
-        result = SimulacrumStore._cosine_similarity(vec_a, vec_b)
+        result = cosine_similarity(vec_a, vec_b)
         assert abs(result) < 0.001
 
     def test_cosine_similarity_zero_vector(self) -> None:
         """Test cosine similarity with zero vector."""
+        from sunwell.memory.simulacrum.core.retrieval.similarity import cosine_similarity
+
         vec_a = (1.0, 2.0, 3.0)
         vec_b = (0.0, 0.0, 0.0)
-        result = SimulacrumStore._cosine_similarity(vec_a, vec_b)
+        result = cosine_similarity(vec_a, vec_b)
         assert result == 0.0
-
-    def test_keyword_similarity(self) -> None:
-        """Test keyword similarity."""
-        result = SimulacrumStore._keyword_similarity(
-            "build REST API endpoint",
-            "REST API uses FastAPI"
-        )
-        assert result > 0.0  # Should have some overlap
-
-    def test_keyword_similarity_no_overlap(self) -> None:
-        """Test keyword similarity with no overlap."""
-        result = SimulacrumStore._keyword_similarity(
-            "build something",
-            "create other"
-        )
-        # May have small overlap from common words
-        assert result >= 0.0

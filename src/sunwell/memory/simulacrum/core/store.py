@@ -42,8 +42,9 @@ from typing import TYPE_CHECKING, Any
 from sunwell.foundation.types.memory import MemoryRetrievalResult
 from sunwell.memory.simulacrum.core.auto_wiring import (
     extract_topology_batch,
-    maybe_demote_warm_to_cold,
+    maybe_demote_meso_to_macro,
 )
+from sunwell.memory.core.activity import ActivityTracker
 from sunwell.memory.simulacrum.core.config import StorageConfig
 from sunwell.memory.simulacrum.core.dag import ConversationDAG
 from sunwell.memory.simulacrum.core.episodes import EpisodeManager
@@ -170,22 +171,37 @@ class SimulacrumStore:
     _context_assembler: ContextAssembler | None = field(default=None, init=False)
     """Context assembler for prompt building."""
 
+    # Graph scoring (MIRA-inspired)
+    _activity_tracker: ActivityTracker = field(init=False)
+    """Tracks activity days for vacation-proof memory decay (persisted)."""
+
     def __post_init__(self) -> None:
         self.base_path = Path(self.base_path)
         self._ensure_dirs()
+        self._init_activity_tracking()  # Initialize before managers
         self._init_chunk_manager()
         self._init_unified_store()
         self._init_auto_wiring()  # RFC-084
         self._init_managers()  # Initialize modular managers
 
+    def _init_activity_tracking(self) -> None:
+        """Initialize persistent activity tracking (MIRA-inspired).
+
+        Records activity for today to enable vacation-proof decay calculations.
+        """
+        self._activity_tracker = ActivityTracker(self.base_path)
+        self._activity_tracker.record_activity(self._project)
+
     def _ensure_dirs(self) -> None:
         """Create storage directories."""
-        (self.base_path / "hot").mkdir(parents=True, exist_ok=True)
-        (self.base_path / "warm").mkdir(parents=True, exist_ok=True)
-        (self.base_path / "cold").mkdir(parents=True, exist_ok=True)
+        # Turns: tiered by recency
+        (self.base_path / "turns" / "recent").mkdir(parents=True, exist_ok=True)
+        (self.base_path / "turns" / "compressed").mkdir(parents=True, exist_ok=True)
+        (self.base_path / "turns" / "archived").mkdir(parents=True, exist_ok=True)
+        # Other storage
         (self.base_path / "sessions").mkdir(parents=True, exist_ok=True)
         (self.base_path / "chunks").mkdir(parents=True, exist_ok=True)
-        (self.base_path / "unified").mkdir(parents=True, exist_ok=True)  # RFC-014
+        (self.base_path / "topology").mkdir(parents=True, exist_ok=True)  # RFC-014
         (self.base_path / "episodes").mkdir(parents=True, exist_ok=True)  # RFC-022
 
     def _init_managers(self) -> None:
@@ -247,23 +263,24 @@ class SimulacrumStore:
         from sunwell.memory.simulacrum.memory_tools import MemoryToolHandler
         from sunwell.memory.simulacrum.topology.unified_store import UnifiedMemoryStore
 
-        unified_path = self.base_path / "unified"
+        topology_path = self.base_path / "topology"
 
         # Try to load existing store
-        if (unified_path / "nodes.json").exists():
-            self._unified_store = UnifiedMemoryStore.load(unified_path)
+        if (topology_path / "nodes.json").exists():
+            self._unified_store = UnifiedMemoryStore.load(topology_path)
         else:
-            self._unified_store = UnifiedMemoryStore(base_path=unified_path)
+            self._unified_store = UnifiedMemoryStore(base_path=topology_path)
 
         # Set embedder if available
         if self._embedder:
             self._unified_store.set_embedder(self._embedder)
 
-        # Initialize memory tool handler
+        # Initialize memory tool handler with activity tracking
         self._memory_handler = MemoryToolHandler(
             dag=self._hot_dag,
             store=self._unified_store,
             embedder=self._embedder,
+            activity_days=self.activity_days,
         )
 
     def _init_auto_wiring(self) -> None:
@@ -316,13 +333,13 @@ class SimulacrumStore:
             self._semantic_retriever._embedder = embedder
 
     async def _on_chunk_demotion(self, chunk: Chunk, new_tier: str) -> None:
-        """Called when a chunk is demoted to warm/cold tier (RFC-045).
+        """Called when a chunk is demoted to meso/macro tier (RFC-045).
 
         Args:
             chunk: The chunk being demoted
-            new_tier: The new tier ('warm' or 'cold')
+            new_tier: The new tier ('meso' or 'macro')
         """
-        if self._intelligence_extractor and new_tier in ("warm", "cold"):
+        if self._intelligence_extractor and new_tier in ("meso", "macro"):
             try:
                 await self._intelligence_extractor.on_chunk_demotion(chunk)
             except Exception as e:
@@ -355,15 +372,15 @@ class SimulacrumStore:
 
     @property
     def hot_path(self) -> Path:
-        return self.base_path / "hot" / f"{self._session_id}.json"
+        return self.base_path / "turns" / "recent" / f"{self._session_id}.json"
 
     @property
     def warm_path(self) -> Path:
-        return self.base_path / "warm"
+        return self.base_path / "turns" / "compressed"
 
     @property
     def cold_path(self) -> Path:
-        return self.base_path / "cold"
+        return self.base_path / "turns" / "archived"
 
     # === Session Management ===
 
@@ -401,6 +418,11 @@ class SimulacrumStore:
     def project(self) -> str:
         """Get the current project slug."""
         return self._session_manager.project
+
+    @property
+    def session_id(self) -> str:
+        """Get the current session identifier."""
+        return self._session_id
 
     def set_project(self, project: str) -> None:
         """Set the project context for session scoping.
@@ -463,7 +485,7 @@ class SimulacrumStore:
 
         # Apply tiered compression if session has many turns
         if self.config.auto_cleanup and self._tier_manager:
-            self._tier_manager.maybe_demote_to_warm()
+            self._tier_manager.maybe_demote_to_compressed()
 
         return loaded_dag
 
@@ -497,11 +519,11 @@ class SimulacrumStore:
 
         # Auto-flush to disk periodically
         if len(self._hot_dag.turns) % 10 == 0:
-            self._flush_hot()
+            self._flush_recent()
 
-        # Check if we need to move old turns to warm
+        # Check if we need to move old turns to compressed
         if self.config.auto_cleanup and self._tier_manager:
-            self._tier_manager.maybe_demote_to_warm()
+            self._tier_manager.maybe_demote_to_compressed()
 
         return turn_id
 
@@ -532,11 +554,11 @@ class SimulacrumStore:
 
         # Auto-flush to disk periodically
         if len(self._hot_dag.turns) % 10 == 0:
-            self._flush_hot()
+            self._flush_recent()
 
-        # Check if we need to move old turns to warm
+        # Check if we need to move old turns to compressed
         if self.config.auto_cleanup and self._tier_manager:
-            self._tier_manager.maybe_demote_to_warm()
+            self._tier_manager.maybe_demote_to_compressed()
 
         # RFC-084: Auto-extract topology every N turns
         turn_count = len(self._hot_dag.turns)
@@ -549,9 +571,9 @@ class SimulacrumStore:
                     self._topology_extracted_chunks,
                 )
 
-        # RFC-084: Auto-demote warm chunks to cold
+        # RFC-084: Auto-demote meso chunks to macro
         if self.config.auto_cold_demotion and self._chunk_manager:
-            maybe_demote_warm_to_cold(self._chunk_manager, self.config)
+            maybe_demote_meso_to_macro(self._chunk_manager, self.config)
 
         return turn_id
 
@@ -602,18 +624,73 @@ class SimulacrumStore:
         Returns:
             The learning's ID
         """
+        # Record activity and stamp the learning with creation day
+        activity_day = self._activity_tracker.record_activity(self._project)
 
         learning = Learning(
             fact=fact,
             category=category,
             confidence=confidence,
             source_turns=source_turns or (),
+            activity_day_created=activity_day,
         )
         return self._hot_dag.add_learning(learning)
 
     def get_dag(self) -> ConversationDAG:
         """Get the current conversation DAG."""
         return self._hot_dag
+
+    # === Graph Scoring: Learning Access Tracking ===
+
+    def record_learning_access(self, learning_id: str) -> bool:
+        """Record that a learning was accessed/retrieved.
+
+        Updates the learning's access count, timestamp, and activity day.
+        Call this when a learning is returned from retrieval and actually
+        used by the agent.
+
+        Args:
+            learning_id: The learning ID to update
+
+        Returns:
+            True if learning was found and updated, False otherwise
+        """
+        old = self._hot_dag.find_learning(learning_id)
+        if not old:
+            return False
+
+        activity_day = self._activity_tracker.record_activity(self._project)
+        new = old.with_access(activity_day)
+        return self._hot_dag.replace_learning(old, new)
+
+    def record_learning_mention(self, learning_id: str) -> bool:
+        """Record an explicit agent reference to a learning.
+
+        Mentions are the strongest signal of memory importance.
+        Call this when the agent explicitly references a learning
+        in its output (e.g., "Based on the fact that...").
+
+        Args:
+            learning_id: The learning ID to update
+
+        Returns:
+            True if learning was found and updated, False otherwise
+        """
+        old = self._hot_dag.find_learning(learning_id)
+        if not old:
+            return False
+
+        new = old.with_mention()
+        return self._hot_dag.replace_learning(old, new)
+
+    @property
+    def activity_days(self) -> int:
+        """Current cumulative activity day count.
+
+        Use this value when calling retrieval methods that need
+        activity_days for importance scoring.
+        """
+        return self._activity_tracker.get_activity_days(self._project)
 
     # === RFC-022 Enhancement: Episode Tracking ===
 
@@ -629,9 +706,19 @@ class SimulacrumStore:
         """Add an episode tracking past problem-solving attempt.
 
         Episodes help avoid repeating dead ends and learn from past sessions.
+        They are displayed to future sessions to provide continuity.
+
+        IMPORTANT: Use first-person voice in the summary to reduce epistemic
+        distance. The agent should read these as its own memories, not logs
+        about someone else.
 
         Args:
-            summary: Brief description of what was attempted
+            summary: First-person description of what was attempted.
+                Use "I" and absolute timestamps (e.g., "On Feb 2").
+                Good: "I implemented caching for the API endpoints on Feb 2
+                      but hit rate-limiting issues with the Redis connection."
+                Bad: "The assistant attempted to implement caching and
+                     encountered issues."
             outcome: 'succeeded', 'failed', 'partial', or 'abandoned'
             learnings_extracted: Key insights from this episode
             models_used: Models that were used during the episode
@@ -716,7 +803,11 @@ class SimulacrumStore:
             episodes = self._episode_manager.get_episodes(limit=100)
             self._planning_retriever._episodes = episodes
 
-        return await self._planning_retriever.retrieve(goal, limit_per_category)
+        return await self._planning_retriever.retrieve(
+            goal,
+            limit_per_category,
+            activity_days=self.activity_days,
+        )
 
     async def find_similar_goals(
         self,
@@ -797,6 +888,7 @@ class SimulacrumStore:
             include_recent_turns=include_recent_turns,
             include_chunks=include_chunks,
             limit_per_type=limit_per_type,
+            activity_days=self.activity_days,
         )
 
     # === Context Retrieval (RFC-013) ===
@@ -916,17 +1008,17 @@ class SimulacrumStore:
 
     # === Tier Management ===
 
-    def _flush_hot(self) -> None:
-        """Flush hot tier to disk."""
+    def _flush_recent(self) -> None:
+        """Flush recent tier to disk."""
         if self._tier_manager:
-            self._tier_manager.flush_hot(self._session_id)
+            self._tier_manager.flush_recent(self._session_id)
         else:
             self._hot_dag.save(self.hot_path)
 
-    def _maybe_demote_to_warm(self) -> None:
-        """Move old turns from hot to warm storage."""
+    def _maybe_demote_to_compressed(self) -> None:
+        """Move old turns from recent to compressed storage."""
         if self._tier_manager:
-            self._tier_manager.maybe_demote_to_warm()
+            self._tier_manager.maybe_demote_to_compressed()
         # Fallback implementation if tier_manager not initialized
         elif len(self._hot_dag.turns) > self.config.hot_max_turns:
             turns_by_time = sorted(
@@ -937,22 +1029,22 @@ class SimulacrumStore:
             for turn in to_demote:
                 self._hot_dag.compressed.add(turn.id)
 
-    def move_to_cold(self, older_than_hours: int | None = None) -> int:
-        """Archive old warm storage to cold (compressed)."""
+    def move_to_archived(self, older_than_hours: int | None = None) -> int:
+        """Archive old compressed storage to archived (further compressed)."""
         if self._tier_manager:
-            return self._tier_manager.move_to_cold(older_than_hours)
+            return self._tier_manager.move_to_archived(older_than_hours)
         return 0
 
-    def retrieve_from_warm(self, turn_id: str) -> Turn | None:
-        """Retrieve a specific turn from warm storage."""
+    def retrieve_from_compressed(self, turn_id: str) -> Turn | None:
+        """Retrieve a specific turn from compressed storage."""
         if self._tier_manager:
-            return self._tier_manager.retrieve_from_warm(turn_id)
+            return self._tier_manager.retrieve_from_compressed(turn_id)
         return None
 
-    def search_warm(self, query: str, limit: int = 10) -> list[Turn]:
-        """Simple text search over warm storage."""
+    def search_compressed(self, query: str, limit: int = 10) -> list[Turn]:
+        """Simple text search over compressed storage."""
         if self._tier_manager:
-            return self._tier_manager.search_warm(query, limit)
+            return self._tier_manager.search_compressed(query, limit)
         return []
 
     # === RFC-014: Document/Code Ingestion ===
@@ -1125,9 +1217,9 @@ class SimulacrumStore:
 
         # Tier distribution
         debug_info["tier_distribution"] = {
-            "hot": len(self._hot_dag.turns),
-            "warm": len(list(self.warm_path.glob("*.jsonl"))) if self.warm_path.exists() else 0,
-            "cold": len(list(self.cold_path.glob("*"))) if self.cold_path.exists() else 0,
+            "recent": len(self._hot_dag.turns),
+            "compressed": len(list(self.warm_path.glob("*.jsonl"))) if self.warm_path.exists() else 0,
+            "archived": len(list(self.cold_path.glob("*"))) if self.cold_path.exists() else 0,
         }
 
         # Recent learnings that might match

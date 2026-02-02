@@ -2,15 +2,20 @@
 
 Supports hybrid search combining vector similarity (embeddings) with
 BM25 keyword scoring for improved retrieval quality.
+
+Extended with MIRA-inspired importance scoring that incorporates:
+- Graph connectivity (hub score)
+- Behavioral signals (access patterns, mentions)
+- Temporal relevance (recency, deadlines)
 """
 
 from typing import TYPE_CHECKING
 
 from sunwell.foundation.threading import WorkloadType, optimal_workers, run_parallel
 from sunwell.foundation.types.memory import MemoryRetrievalResult
+from sunwell.memory.simulacrum.core.retrieval.importance import compute_importance
 from sunwell.memory.simulacrum.core.retrieval.similarity import (
     bm25_score,
-    cosine_similarity,
     hybrid_score,
     normalize_bm25,
 )
@@ -70,8 +75,9 @@ class SemanticRetriever:
         include_chunks: bool = True,
         limit_per_type: int = 10,
         hybrid_weight: float | None = None,
+        activity_days: int = 0,
     ) -> MemoryRetrievalResult:
-        """Parallel retrieval across memory types with hybrid scoring.
+        """Parallel retrieval across memory types with importance scoring.
 
         Args:
             query: Query string for semantic matching
@@ -82,6 +88,8 @@ class SemanticRetriever:
             limit_per_type: Max items per memory type
             hybrid_weight: Override instance hybrid_weight for this query.
                 0.0 = pure BM25, 1.0 = pure vector, None = use instance default.
+            activity_days: Current cumulative activity day count for decay calculations.
+                Pass 0 to disable activity-based decay (uses calendar time only).
 
         Returns:
             MemoryRetrievalResult with all retrieved items
@@ -99,7 +107,7 @@ class SemanticRetriever:
 
         # Define retrieval tasks as sync functions
         def get_learnings() -> list[tuple[Learning, float]]:
-            """Retrieve and score learnings using hybrid search."""
+            """Retrieve and score learnings using importance scoring."""
             if not include_learnings:
                 return []
 
@@ -107,12 +115,24 @@ class SemanticRetriever:
             scored: list[tuple[Learning, float]] = []
 
             for learning in learnings:
-                score = hybrid_score(
+                # First compute semantic similarity
+                semantic_score = hybrid_score(
                     query=query,
                     document=learning.fact,
                     query_embedding=query_embedding,
                     doc_embedding=learning.embedding,
                     vector_weight=weight,
+                )
+
+                # Get inbound link count from learning graph (hub score)
+                inbound_links = self._dag.get_inbound_link_count(learning.id)
+
+                # Use full importance scoring with graph connectivity
+                score = compute_importance(
+                    learning=learning,
+                    query_similarity=semantic_score,
+                    activity_days=activity_days,
+                    inbound_link_count=inbound_links,
                 )
 
                 if score > 0.3:

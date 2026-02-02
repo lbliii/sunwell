@@ -1,6 +1,7 @@
 """Summarization service for conversation history.
 
 RFC-084: Includes HeuristicSummarizer for LLM-free summarization.
+Uses first-person voice for summaries to reduce epistemic distance.
 """
 
 
@@ -9,6 +10,8 @@ from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
+
+from sunwell.foundation.utils.timestamps import format_for_summary
 
 if TYPE_CHECKING:
     from sunwell.memory.simulacrum.core.turn import Turn
@@ -219,14 +222,20 @@ class Summarizer:
             return self._heuristic_summarize(turns)
 
     async def _llm_summarize(self, turns: Sequence[Turn]) -> str:
-        """Use the LLM to generate a high-quality summary."""
+        """Use the LLM to generate a high-quality summary.
+
+        Uses first-person voice and absolute timestamps.
+        """
         conversation_text = "\n".join(
             f"{t.turn_type.value}: {t.content[:500]}"
             for t in turns
         )
 
+        today = format_for_summary()
         prompt = f"""Summarize this conversation segment in 2-3 sentences.
-Focus on: key topics, decisions made, and information shared.
+Write in first person as Sunwell (use "I"). Focus on what YOU did, decided, and learned.
+Use absolute dates (e.g., "{today}") not relative time (e.g., "yesterday").
+Today is {today}.
 
 Conversation:
 {conversation_text}
@@ -241,13 +250,13 @@ Summary:"""
         user_turns = [t for t in turns if t.turn_type.value == "user"]
 
         if not user_turns:
-            return f"Conversation segment with {len(turns)} turns."
+            return f"I processed a conversation segment with {len(turns)} turns."
 
         # Take the first user message as the primary topic/intent
         first_user_msg = user_turns[0].content
         topic = first_user_msg.split('.')[0][:100]
 
-        return f"Discussion starting with: {topic}..."
+        return f"I worked on: {topic}..."
 
     async def extract_facts(self, turns: Sequence[Turn]) -> list[str]:
         """Extract concrete facts and insights to be stored as learnings.
@@ -259,21 +268,24 @@ Summary:"""
             List of extracted fact strings
         """
         if not self.model:
-            return [] # Heuristic fact extraction is unreliable
+            return []  # Heuristic fact extraction is unreliable
 
         conversation_text = "\n".join(
             f"{t.turn_type.value}: {t.content[:300]}"
             for t in turns
         )
 
-        prompt = f"""Extract key facts from this conversation that should be remembered.
-Only include concrete, reusable information (preferences, technical decisions, constraints).
+        today = format_for_summary()
+        prompt = f"""Extract what I (Sunwell) learned from this conversation.
+Write each fact in first person (e.g., "I discovered that...", "I should remember...").
+Focus on: preferences, technical decisions, constraints, patterns.
+Use absolute timestamps if time-sensitive (today is {today}).
 Return as a list, one fact per line.
 
 Conversation:
 {conversation_text}
 
-Facts:"""
+What I learned:"""
 
         result = await self.model.generate(prompt)
 
@@ -321,6 +333,8 @@ Themes:"""
     async def generate_executive_summary(self, summaries: Sequence[str]) -> str:
         """Create a high-level executive summary from multiple chunk summaries.
 
+        Uses first-person voice and absolute timestamps.
+
         Args:
             summaries: List of chunk summaries
 
@@ -331,14 +345,16 @@ Themes:"""
             return " | ".join(summaries[:3])
 
         summaries_text = "\n".join(f"- {s}" for s in summaries)
+        today = format_for_summary()
 
         prompt = f"""Create a high-level executive summary (3-4 sentences).
-Focus on: main accomplishments, key decisions, and important context.
+Write in first person as Sunwell (use "I"). Focus on what I accomplished, decided, and learned.
+Use absolute dates (e.g., "{today}") not relative time. Today is {today}.
 
 Segment summaries:
 {summaries_text}
 
-Executive summary:"""
+What I accomplished:"""
 
         result = await self.model.generate(prompt)
         return result.text.strip()

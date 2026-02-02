@@ -185,6 +185,30 @@ CHARS_MISC = {
     "input": "›",        # U+203A Input marker
 }
 
+# Progress & Steps
+CHARS_PROGRESS = {
+    "step_done": "◆",    # U+25C6 Completed step
+    "step_current": "◈", # U+25C8 Current step
+    "step_pending": "◇", # U+25C7 Pending step
+    "connector": "───",  # Step connector
+    "arrow": "›",        # U+203A Breadcrumb separator
+}
+
+# Layout & Structure
+CHARS_LAYOUT = {
+    "quote": "┃",        # U+2503 Quote bar
+    "expand": "▶",       # U+25B6 Collapsed
+    "collapse": "▼",     # U+25BC Expanded
+    "corner_tl": "╭",    # U+256D Top-left rounded
+    "corner_tr": "╮",    # U+256E Top-right rounded
+    "corner_bl": "╰",    # U+2570 Bottom-left rounded
+    "corner_br": "╯",    # U+256F Bottom-right rounded
+    "h_line": "─",       # U+2500 Horizontal line
+    "v_line": "│",       # U+2502 Vertical line
+    "tree_branch": "├─", # Tree branch
+    "tree_last": "└─",   # Tree last branch
+}
+
 
 # =============================================================================
 # ICON MIGRATION MAP (RFC-131 Appendix)
@@ -890,3 +914,408 @@ def render_error(
     if suggestion:
         console.print(f"    [holy.gold.dim]※ Suggestion: {suggestion}[/]")
     console.print()
+
+
+# =============================================================================
+# NEW COMPONENTS (RFC-131 Extended)
+# =============================================================================
+
+def render_streaming(
+    console: Console,
+    text: str,
+    complete: bool = False,
+) -> None:
+    """Render streaming text with trailing mote indicator.
+
+    Shows a trailing mote that indicates ongoing streaming.
+    When complete, the mote becomes a star.
+
+    Args:
+        console: Rich console
+        text: Current streamed text
+        complete: If True, show completion indicator
+    """
+    if complete:
+        indicator = f"[holy.success]{CHARS_STARS['complete']}[/]"
+    else:
+        indicator = f"[holy.gold]{CHARS_STARS['dim']}[/]"
+
+    # Overwrite line with current text and indicator
+    console.print(f"\r  {text} {indicator}", end="" if not complete else "\n")
+
+
+def render_step_progress(
+    console: Console,
+    current: int,
+    total: int,
+    labels: list[str] | None = None,
+    description: str = "",
+) -> None:
+    """Render multi-step progress indicator.
+
+    Shows visual step chain: ◆───◈───◇───◇
+
+    Args:
+        console: Rich console
+        current: Current step (1-indexed)
+        total: Total steps
+        labels: Optional labels for each step
+        description: Optional description of current step
+    """
+    steps = []
+    for i in range(1, total + 1):
+        if i < current:
+            steps.append(f"[holy.success]{CHARS_PROGRESS['step_done']}[/]")
+        elif i == current:
+            steps.append(f"[holy.radiant]{CHARS_PROGRESS['step_current']}[/]")
+        else:
+            steps.append(f"[neutral.dim]{CHARS_PROGRESS['step_pending']}[/]")
+
+    # Join with connectors
+    connector = f"[neutral.dim]{CHARS_PROGRESS['connector']}[/]"
+    progress_line = connector.join(steps)
+
+    # Build description
+    desc = description
+    if labels and 0 < current <= len(labels):
+        desc = labels[current - 1]
+
+    step_info = f"Step {current}/{total}"
+    if desc:
+        step_info += f": {desc}"
+
+    console.print(f"  {progress_line}  [neutral.muted]{step_info}[/]")
+
+
+def render_alert(
+    console: Console,
+    message: str,
+    severity: str = "info",
+    title: str | None = None,
+) -> None:
+    """Render bordered alert box with severity styling.
+
+    Severity levels:
+    - info: Gold (holy.gold)
+    - warning: Indigo (void.indigo)
+    - error: Purple (void.purple)
+    - critical: Deep red (void.deep)
+
+    Args:
+        console: Rich console
+        message: Alert message (can be multiline)
+        severity: Severity level
+        title: Optional title override
+    """
+    # Severity mapping
+    severity_config = {
+        "info": (CHARS_STARS["progress"], "holy.gold", title or "Info"),
+        "warning": (CHARS_MISC["warning"], "void.indigo", title or "Warning"),
+        "error": (CHARS_CHECKS["fail"], "void.purple", title or "Error"),
+        "critical": (CHARS_MISC["approval"], "void.deep", title or "Critical"),
+    }
+
+    icon, style, label = severity_config.get(severity, severity_config["info"])
+
+    # Calculate box width
+    lines = message.split("\n")
+    max_line_len = max(len(line) for line in lines)
+    box_width = max(max_line_len + 4, len(label) + 6, 40)
+
+    # Build box
+    title_line = f"{CHARS_LAYOUT['corner_tl']}{CHARS_LAYOUT['h_line']} {icon} {label} "
+    title_line += CHARS_LAYOUT["h_line"] * (box_width - len(label) - 6)
+    title_line += CHARS_LAYOUT["corner_tr"]
+
+    console.print(f"[{style}]{title_line}[/]")
+
+    for line in lines:
+        padded = line.ljust(box_width - 2)
+        console.print(f"[{style}]{CHARS_LAYOUT['v_line']}[/]  {padded}[{style}]{CHARS_LAYOUT['v_line']}[/]")
+
+    bottom_line = CHARS_LAYOUT["corner_bl"] + CHARS_LAYOUT["h_line"] * box_width + CHARS_LAYOUT["corner_br"]
+    console.print(f"[{style}]{bottom_line}[/]")
+
+
+def render_quote(
+    console: Console,
+    text: str,
+    attribution: str | None = None,
+) -> None:
+    """Render quoted text with vertical bar.
+
+    Args:
+        console: Rich console
+        text: Text to quote
+        attribution: Optional attribution (e.g., "User", "System")
+    """
+    lines = text.split("\n")
+
+    for line in lines:
+        console.print(f"  [holy.gold.dim]{CHARS_LAYOUT['quote']}[/] [neutral.text]\"{line}\"[/]")
+
+    if attribution:
+        # Right-align attribution
+        console.print(f"  [holy.gold.dim]{CHARS_LAYOUT['quote']}[/] [neutral.dim]— {attribution}[/]")
+
+
+def render_separator(
+    console: Console,
+    style: str = "mote",
+    width: int = 40,
+) -> None:
+    """Render themed horizontal separator.
+
+    Styles:
+    - mote: ─────────── ✦ ───────────
+    - double: ═══════════════════════════
+    - dots: · · · · · · · · · · · · · ·
+    - light: ───────────────────────────
+
+    Args:
+        console: Rich console
+        style: Separator style
+        width: Total width
+    """
+    if style == "mote":
+        half = (width - 3) // 2
+        line = f"[neutral.dim]{'─' * half}[/] [holy.gold]{CHARS_STARS['radiant']}[/] [neutral.dim]{'─' * half}[/]"
+    elif style == "double":
+        line = f"[holy.gold.dim]{'═' * width}[/]"
+    elif style == "dots":
+        dots = " ".join([CHARS_STARS["dim"]] * (width // 2))
+        line = f"[neutral.dim]{dots}[/]"
+    else:  # light
+        line = f"[neutral.dim]{'─' * width}[/]"
+
+    console.print(f"  {line}")
+
+
+def render_timeline(
+    console: Console,
+    events: list[tuple[str, str, bool]],
+) -> None:
+    """Render event timeline with connected nodes.
+
+    Args:
+        console: Rich console
+        events: List of (timestamp, description, is_complete) tuples
+    """
+    for i, (timestamp, description, is_complete) in enumerate(events):
+        # Node icon
+        if is_complete:
+            node = f"[holy.success]{CHARS_PROGRESS['step_done']}[/]"
+        else:
+            node = f"[holy.gold]{CHARS_PROGRESS['step_pending']}[/]"
+
+        # Timestamp and description
+        console.print(f"  {node} [neutral.dim]{timestamp}[/]  {description}")
+
+        # Connector (except for last item)
+        if i < len(events) - 1:
+            console.print(f"  [neutral.dim]{CHARS_LAYOUT['v_line']}[/]")
+
+
+def render_breadcrumb(
+    console: Console,
+    steps: list[str],
+    current_index: int,
+) -> None:
+    """Render workflow breadcrumb with current indicator.
+
+    Args:
+        console: Rich console
+        steps: List of step names
+        current_index: Current step index (0-based)
+    """
+    parts = []
+    for i, step in enumerate(steps):
+        if i < current_index:
+            parts.append(f"[neutral.dim]{step}[/]")
+        elif i == current_index:
+            parts.append(f"[holy.radiant]{step}[/]")
+        else:
+            parts.append(f"[neutral.dim]{step}[/]")
+
+    separator = f" [holy.gold]{CHARS_PROGRESS['arrow']}[/] "
+    breadcrumb = separator.join(parts)
+
+    console.print(f"  {breadcrumb}")
+
+    # Current indicator arrow
+    if current_index < len(steps):
+        # Calculate position
+        prefix_len = sum(len(steps[i]) + 3 for i in range(current_index))
+        arrow_pos = prefix_len + len(steps[current_index]) // 2 + 2
+        console.print(f"  {' ' * arrow_pos}[holy.radiant]↑[/]")
+
+
+def render_budget_bar(
+    console: Console,
+    used: int,
+    total: int,
+    label: str = "Budget",
+) -> None:
+    """Render token budget bar with percentage.
+
+    Args:
+        console: Rich console
+        used: Used amount
+        total: Total budget
+        label: Label prefix
+    """
+    if total <= 0:
+        percentage = 0
+    else:
+        percentage = min(used / total, 1.0)
+
+    bar_width = 10
+    filled = int(percentage * bar_width)
+    empty = bar_width - filled
+
+    # Color based on usage
+    if percentage >= 0.9:
+        bar_style = "void.purple"
+    elif percentage >= 0.7:
+        bar_style = "void.indigo"
+    else:
+        bar_style = "holy.gold"
+
+    bar = f"[{bar_style}]{'█' * filled}[/][neutral.dim]{'░' * empty}[/]"
+
+    console.print(f"  {label}: {bar} {percentage:.0%} ({used:,} / {total:,} tokens)")
+
+
+def render_countdown(
+    console: Console,
+    seconds_remaining: int,
+) -> None:
+    """Render countdown timer.
+
+    Args:
+        console: Rich console
+        seconds_remaining: Seconds left
+    """
+    if seconds_remaining <= 10:
+        style = "void.indigo"
+    else:
+        style = "neutral.muted"
+
+    console.print(
+        f"  [{style}]{CHARS_CIRCLES['quarter']} Timeout in {seconds_remaining}s...[/]",
+        end="\r",
+    )
+
+
+def render_diff(
+    console: Console,
+    old_lines: list[str],
+    new_lines: list[str],
+    context_lines: int = 2,
+) -> None:
+    """Render diff with +/- line styling.
+
+    Args:
+        console: Rich console
+        old_lines: Original lines
+        new_lines: New lines
+        context_lines: Context lines to show
+    """
+    import difflib
+
+    diff = list(difflib.unified_diff(
+        old_lines,
+        new_lines,
+        lineterm="",
+        n=context_lines,
+    ))
+
+    for line in diff:
+        if line.startswith("+++") or line.startswith("---"):
+            console.print(f"  [neutral.dim]{line}[/]")
+        elif line.startswith("@@"):
+            console.print(f"  [holy.gold.dim]{line}[/]")
+        elif line.startswith("+"):
+            console.print(f"  [green]{line}[/]")
+        elif line.startswith("-"):
+            console.print(f"  [void.purple]{line}[/]")
+        else:
+            console.print(f"  {line}")
+
+
+def render_collapsible(
+    console: Console,
+    title: str,
+    content: list[str],
+    expanded: bool = False,
+    item_count: int | None = None,
+) -> None:
+    """Render collapsible section (static representation).
+
+    Note: In a terminal, we show expanded or collapsed state.
+    Interactive toggling requires application-level state management.
+
+    Args:
+        console: Rich console
+        title: Section title
+        content: Content lines
+        expanded: Whether to show expanded state
+        item_count: Optional item count to show in title
+    """
+    count_str = f" ({item_count})" if item_count is not None else ""
+
+    if expanded:
+        icon = CHARS_LAYOUT["collapse"]
+        console.print(f"  [holy.gold]{icon}[/] [neutral.text]{title}{count_str}[/]")
+        for line in content:
+            console.print(f"    [neutral.dim]{CHARS_LAYOUT['v_line']}[/] {line}")
+    else:
+        icon = CHARS_LAYOUT["expand"]
+        console.print(f"  [holy.gold]{icon}[/] [neutral.text]{title}{count_str}[/]")
+
+
+async def render_toast(
+    console: Console,
+    message: str,
+    icon: str | None = None,
+    duration: float = 2.0,
+) -> None:
+    """Render transient toast notification.
+
+    Shows a rounded-corner notification that fades after duration.
+    Respects reduced_motion preference.
+
+    Args:
+        console: Rich console
+        message: Toast message
+        icon: Optional icon (defaults to ★)
+        duration: Display duration in seconds
+    """
+    if should_reduce_motion():
+        # Just print static message
+        icon = icon or CHARS_STARS["complete"]
+        console.print(f"  [holy.success]{icon} {message}[/]")
+        return
+
+    icon = icon or CHARS_STARS["complete"]
+    box_width = len(message) + 6
+
+    # Build toast box
+    top = f"{CHARS_LAYOUT['corner_tl']}{CHARS_LAYOUT['h_line'] * box_width}{CHARS_LAYOUT['corner_tr']}"
+    middle = f"{CHARS_LAYOUT['v_line']}  {icon} {message}  {CHARS_LAYOUT['v_line']}"
+    bottom = f"{CHARS_LAYOUT['corner_bl']}{CHARS_LAYOUT['h_line'] * box_width}{CHARS_LAYOUT['corner_br']}"
+
+    # Print toast
+    console.print(f"  [holy.success]{top}[/]")
+    console.print(f"  [holy.success]{middle}[/]")
+    console.print(f"  [holy.success]{bottom}[/]")
+
+    # Wait then clear (move cursor up and clear lines)
+    await asyncio.sleep(duration)
+
+    # Clear the toast (3 lines up, clear each)
+    sys.stdout.write("\033[3A")  # Move up 3 lines
+    for _ in range(3):
+        sys.stdout.write("\033[2K\n")  # Clear line
+    sys.stdout.write("\033[3A")  # Move back up
+    sys.stdout.flush()

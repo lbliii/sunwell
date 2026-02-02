@@ -2,22 +2,22 @@
 
 RFC-013: Hierarchical Memory with Progressive Compression
 
-This module implements the three-tier memory pyramid:
-- HOT: Full JSON content, last 2 micro-chunks (instant access)
-- WARM: CTF-encoded chunks with summaries and embeddings
-- COLD: Summaries only, full content archived (expandable on demand)
+This module implements the three-tier memory pyramid by granularity:
+- MICRO: Full JSON content, last 2 micro-chunks (~10 turns, instant access)
+- MESO: CTF-encoded chunks with summaries and embeddings (~25 turns)
+- MACRO: Summaries only, full content archived (~100 turns, expandable on demand)
 
 Key features:
-- Micro-chunks (10 turns) → Mini-chunks (25 turns) → Macro-chunks (100 turns)
+- Micro-chunks (10 turns) → Meso-chunks (25 turns) → Macro-chunks (100 turns)
 - Automatic summarization and fact extraction
 - Embedding-based semantic retrieval
 - Token-budgeted context window assembly
 """
 
-
 import gzip
 import hashlib
 import json
+import logging
 import math
 import time
 from collections.abc import Callable, Sequence
@@ -25,9 +25,12 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from sunwell.foundation.utils import safe_json_dump, safe_json_load
 from sunwell.memory.simulacrum.hierarchical.chunks import Chunk, ChunkSummary, ChunkType
 from sunwell.memory.simulacrum.hierarchical.config import ChunkConfig
 from sunwell.memory.simulacrum.hierarchical.ctf import CTFDecoder, CTFEncoder
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
@@ -41,8 +44,8 @@ class ChunkManager:
 
     Responsibilities:
     - Creating micro-chunks from recent turns
-    - Consolidating chunks into mini/macro levels
-    - Managing hot/warm/cold storage tiers
+    - Consolidating chunks into meso/macro levels
+    - Managing micro/meso/macro storage tiers
     - Handling chunk retrieval and expansion
     - Semantic search via embeddings
     """
@@ -71,24 +74,26 @@ class ChunkManager:
 
     def _ensure_dirs(self) -> None:
         """Create tier-specific storage directories."""
-        (self.base_path / "hot").mkdir(parents=True, exist_ok=True)
-        (self.base_path / "warm").mkdir(parents=True, exist_ok=True)
-        (self.base_path / "cold").mkdir(parents=True, exist_ok=True)
+        (self.base_path / "micro").mkdir(parents=True, exist_ok=True)
+        (self.base_path / "meso").mkdir(parents=True, exist_ok=True)
+        (self.base_path / "macro").mkdir(parents=True, exist_ok=True)
         (self.base_path / "archive").mkdir(parents=True, exist_ok=True)
 
     def _load_existing_chunks(self) -> None:
         """Load chunk metadata from disk on initialization."""
-        for tier in ["hot", "warm", "cold"]:
+        for tier in ["micro", "meso", "macro"]:
             tier_path = self.base_path / tier
             for chunk_file in tier_path.glob("*.json"):
+                data = safe_json_load(chunk_file)
+                if data is None:
+                    continue
                 try:
-                    with open(chunk_file) as f:
-                        data = json.load(f)
                     chunk = self._deserialize_chunk(data)
                     self._chunks[chunk.id] = chunk
                     if chunk.turn_range[1] > self._turn_count:
                         self._turn_count = chunk.turn_range[1]
-                except (json.JSONDecodeError, OSError, KeyError):
+                except (KeyError, TypeError):
+                    logger.debug("Skipping malformed chunk: %s", chunk_file)
                     continue
 
     # === Turn Ingestion ===
@@ -103,7 +108,7 @@ class ChunkManager:
             if self._turn_count % self.config.micro_chunk_size == 0:
                 chunk_id = await self._create_micro_chunk()
                 new_ids.append(chunk_id)
-                self._maybe_demote_hot_chunks()
+                self._maybe_demote_micro_chunks()
 
                 if self._turn_count % self.config.mini_chunk_interval == 0:
                     mini_id = await self._consolidate_mini_chunk()
@@ -155,22 +160,22 @@ class ChunkManager:
         )
 
         self._chunks[chunk.id] = chunk
-        self._save_chunk(chunk, tier="hot")
+        self._save_chunk(chunk, tier="micro")
         return chunk.id
 
     # === Tier Management ===
 
-    def _maybe_demote_hot_chunks(self) -> None:
-        """Demote oldest hot chunks to warm tier."""
-        hot_chunks = self._get_hot_chunks()
-        hot_chunks.sort(key=lambda c: c.turn_range[0])
+    def _maybe_demote_micro_chunks(self) -> None:
+        """Demote oldest micro chunks to meso tier."""
+        micro_chunks = self._get_micro_chunks()
+        micro_chunks.sort(key=lambda c: c.turn_range[0])
 
-        while len(hot_chunks) > self.config.hot_chunks:
-            oldest = hot_chunks.pop(0)
-            self.demote_to_warm(oldest.id)
+        while len(micro_chunks) > self.config.hot_chunks:
+            oldest = micro_chunks.pop(0)
+            self.demote_to_meso(oldest.id)
 
-    def demote_to_warm(self, chunk_id: str) -> str:
-        """Demote a hot chunk to warm tier using CTF encoding."""
+    def demote_to_meso(self, chunk_id: str) -> str:
+        """Demote a micro chunk to meso tier using CTF encoding."""
         chunk = self._chunks.get(chunk_id)
         if not chunk or chunk.turns is None:
             return chunk_id
@@ -179,11 +184,11 @@ class ChunkManager:
         # This method is synchronous; async callback is handled upstream
 
         ctf_content = CTFEncoder.encode_turns(chunk.turns)
-        warm_chunk = replace(chunk, turns=None, content_ctf=ctf_content)
+        meso_chunk = replace(chunk, turns=None, content_ctf=ctf_content)
 
-        self._chunks[chunk_id] = warm_chunk
-        self._save_chunk(warm_chunk, tier="warm")
-        (self.base_path / "hot" / f"{chunk_id}.json").unlink(missing_ok=True)
+        self._chunks[chunk_id] = meso_chunk
+        self._save_chunk(meso_chunk, tier="meso")
+        (self.base_path / "micro" / f"{chunk_id}.json").unlink(missing_ok=True)
 
         return chunk_id
 
@@ -195,8 +200,8 @@ class ChunkManager:
         """
         self._demotion_callback = callback
 
-    def demote_to_cold(self, chunk_id: str) -> str:
-        """Demote a warm chunk to cold tier, archiving content."""
+    def demote_to_macro(self, chunk_id: str) -> str:
+        """Demote a meso chunk to macro tier, archiving content."""
         chunk = self._chunks.get(chunk_id)
         if not chunk:
             return chunk_id
@@ -208,10 +213,10 @@ class ChunkManager:
         if self.config.archive_cold_content:
             archive_ref = self._archive_chunk(chunk)
 
-        cold_chunk = replace(chunk, turns=None, content_ctf=None, content_ref=archive_ref)
-        self._chunks[chunk_id] = cold_chunk
-        self._save_chunk(cold_chunk, tier="cold")
-        (self.base_path / "warm" / f"{chunk_id}.json").unlink(missing_ok=True)
+        macro_chunk = replace(chunk, turns=None, content_ctf=None, content_ref=archive_ref)
+        self._chunks[chunk_id] = macro_chunk
+        self._save_chunk(macro_chunk, tier="macro")
+        (self.base_path / "meso" / f"{chunk_id}.json").unlink(missing_ok=True)
 
         return chunk_id
 
@@ -264,7 +269,7 @@ class ChunkManager:
         )
 
         self._chunks[mini_chunk.id] = mini_chunk
-        self._save_chunk(mini_chunk, tier="warm")
+        self._save_chunk(mini_chunk, tier="meso")
         for c in recent:
             self._chunks[c.id] = replace(c, parent_chunk_id=mini_chunk.id)
 
@@ -306,7 +311,7 @@ class ChunkManager:
         )
 
         self._chunks[macro_chunk.id] = macro_chunk
-        self._save_chunk(macro_chunk, tier="cold")
+        self._save_chunk(macro_chunk, tier="macro")
         for c in recent:
             self._chunks[c.id] = replace(c, parent_chunk_id=macro_chunk.id)
 
@@ -343,8 +348,8 @@ class ChunkManager:
         context: list[Chunk | ChunkSummary] = []
         token_budget = max_tokens
 
-        # Include hot chunks (most recent with full turns)
-        for chunk in self._get_hot_chunks():
+        # Include micro chunks (most recent with full turns)
+        for chunk in self._get_micro_chunks():
             if chunk.token_count <= token_budget:
                 context.append(chunk)
                 token_budget -= chunk.token_count
@@ -374,17 +379,17 @@ class ChunkManager:
         """Build context window with semantic retrieval (async version).
 
         Strategy:
-        1. Always include HOT chunks (most recent turns)
-        2. If query provided, use semantic search to find relevant warm chunks
-        3. Expand warm chunks from CTF to include their content
+        1. Always include MICRO chunks (most recent turns)
+        2. If query provided, use semantic search to find relevant meso chunks
+        3. Expand meso chunks from CTF to include their content
         4. Fill remaining budget with macro summaries
         """
         context: list[Chunk | ChunkSummary] = []
         seen_ids: set[str] = set()
         token_budget = max_tokens
 
-        # 1. HOT chunks (most recent, full turns)
-        for chunk in self._get_hot_chunks():
+        # 1. MICRO chunks (most recent, full turns)
+        for chunk in self._get_micro_chunks():
             if chunk.token_count <= token_budget:
                 context.append(chunk)
                 seen_ids.add(chunk.id)
@@ -451,16 +456,16 @@ class ChunkManager:
         """Get all chunks."""
         return list(self._chunks.values())
 
-    def _get_hot_chunks(self) -> list[Chunk]:
-        """Get chunks in hot tier (have full turns)."""
+    def _get_micro_chunks(self) -> list[Chunk]:
+        """Get chunks in micro tier (have full turns)."""
         return [c for c in self._chunks.values() if c.turns is not None]
 
-    def _get_warm_chunks(self) -> list[Chunk]:
-        """Get chunks in warm tier (CTF-encoded, no full turns)."""
+    def _get_meso_chunks(self) -> list[Chunk]:
+        """Get chunks in meso tier (CTF-encoded, no full turns)."""
         return [c for c in self._chunks.values() if c.turns is None and c.content_ctf is not None]
 
-    def _get_cold_chunks(self) -> list[Chunk]:
-        """Get chunks in cold tier (summary only, archived)."""
+    def _get_archived_chunks(self) -> list[Chunk]:
+        """Get chunks in macro tier (summary only, archived)."""
         return [c for c in self._chunks.values() if c.turns is None and c.content_ctf is None]
 
     def _get_macro_chunks(self) -> list[Chunk]:
@@ -490,8 +495,8 @@ class ChunkManager:
 
     def _save_chunk(self, chunk: Chunk, tier: str) -> None:
         path = self.base_path / tier / f"{chunk.id}.json"
-        with open(path, "w") as f:
-            json.dump(self._serialize_chunk(chunk), f, indent=2)
+        if not safe_json_dump(self._serialize_chunk(chunk), path):
+            logger.error("Failed to save chunk %s to %s", chunk.id, path)
 
     def _serialize_chunk(self, chunk: Chunk) -> dict:
         data = {
@@ -522,18 +527,18 @@ class ChunkManager:
     @property
     def stats(self) -> dict:
         """Get statistics about chunk storage."""
-        hot = self._get_hot_chunks()
-        warm = self._get_warm_chunks()
-        cold = self._get_cold_chunks()
+        micro = self._get_micro_chunks()
+        meso = self._get_meso_chunks()
+        archived = self._get_archived_chunks()
 
         return {
             "total_chunks": len(self._chunks),
-            "hot_chunks": len(hot),
-            "warm_chunks": len(warm),
-            "cold_chunks": len(cold),
+            "micro_chunks": len(micro),
+            "meso_chunks": len(meso),
             "macro_chunks": len(self._get_macro_chunks()),
+            "archived_chunks": len(archived),
             "total_turns": self._turn_count,
-            "hot_tokens": sum(c.token_count for c in hot),
+            "micro_tokens": sum(c.token_count for c in micro),
             "total_tokens": sum(c.token_count for c in self._chunks.values()),
         }
 

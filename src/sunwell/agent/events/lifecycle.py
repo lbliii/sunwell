@@ -257,7 +257,6 @@ def signal_route_event(
     return AgentEvent(
         EventType.SIGNAL_ROUTE,
         {
-            "route": strategy,  # Legacy field for compatibility
             "confidence": round(confidence, 3),
             "strategy": strategy,
             "threshold_vortex": threshold_vortex,

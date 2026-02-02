@@ -965,6 +965,15 @@ wheels = [
 ]
 
 [[package]]
+name = "rosettes"
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/05/ed/c7cd18850e152328554769cff932acd559c19ccb77dc73f1484d82014ce5/rosettes-0.1.0.tar.gz", hash = "sha256:522ff64ccbaeb894598589cbad1913faab2241548ba88e3cbf508a4820ada6d4", size = 120889, upload-time = "2026-01-05T16:32:49.32Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4f/78/49062bb7e4c8bc9d5aedc0318882dd2cb45080bad643e1d2856c878b9f3d/rosettes-0.1.0-py3-none-any.whl", hash = "sha256:0ab50208b15f6aa50c50d7945e9bd157e170d0cf9fb4a219ff6bd05da41de699", size = 186474, upload-time = "2026-01-05T16:32:45.419Z" },
+]
+
+[[package]]
 name = "ruff"
 version = "0.14.13"
 source = { registry = "https://pypi.org/simple" }
@@ -1138,6 +1147,7 @@ dependencies = [
     { name = "openai" },
     { name = "pyyaml" },
     { name = "rich" },
+    { name = "rosettes" },
     { name = "uvicorn" },
     { name = "websockets" },
 ]
@@ -1194,6 +1204,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "rich", specifier = ">=13.0" },
+    { name = "rosettes", specifier = ">=0.1.0" },
     { name = "ruff", marker = "extra == 'benchmark'", specifier = ">=0.2.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.2" },
     { name = "scipy", marker = "extra == 'benchmark'", specifier = ">=1.10.0" },

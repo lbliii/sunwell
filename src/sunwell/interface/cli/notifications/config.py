@@ -99,12 +99,41 @@ desktop = true
 # Play sound with notifications
 sound = true
 
+# Focus mode behavior (macOS): "ignore", "skip_sound", or "queue"
+# - ignore: Send notifications normally
+# - skip_sound: Send notification but skip sound
+# - queue: Queue notifications for later
+focus_mode_behavior = "skip_sound"
+
+# Batch rapid-fire notifications into summaries
+batching = false
+batch_window_ms = 5000
+
 # Custom commands for specific notification types
 # Available variables: {title}, {message}
 
 # on_complete = "terminal-notifier -title '{title}' -message '{message}'"
 # on_error = "notify-send --urgency=critical '{title}' '{message}'"
 # on_waiting = "afplay /System/Library/Sounds/Ping.aiff"
+
+# Multi-channel routing (enable additional channels below)
+# fallback = true
+
+# [notifications.channels.desktop]
+# enabled = true
+# priority = 1
+
+# [notifications.channels.slack]
+# enabled = false
+# webhook_url = "https://hooks.slack.com/services/..."
+# priority = 2
+# types = ["error", "waiting"]  # Only route these types
+
+# [notifications.channels.webhook]
+# enabled = false
+# url = "https://example.com/webhook"
+# method = "POST"
+# headers = { "Authorization" = "Bearer xxx" }
 
 [hooks]
 # User hooks are configured in hooks.toml
@@ -149,3 +178,63 @@ def get_config_section(workspace: Path | None, section: str) -> dict[str, Any]:
     except Exception as e:
         logger.warning(f"Failed to read config section {section}: {e}")
         return {}
+
+
+def create_notifier(
+    workspace: Path | None = None,
+    *,
+    with_history: bool = True,
+    with_batching: bool | None = None,
+) -> "Notifier | BatchedNotifier":
+    """Create a fully-configured notifier for a workspace.
+    
+    This is the recommended way to create a notifier. It:
+    - Loads config from .sunwell/config.toml
+    - Sets up notification history (if enabled)
+    - Wraps with batching (if enabled in config or forced)
+    
+    Args:
+        workspace: Workspace root (uses cwd if None)
+        with_history: Whether to enable notification history
+        with_batching: Override batching setting (None = use config)
+        
+    Returns:
+        Configured Notifier or BatchedNotifier
+        
+    Example:
+        >>> notifier = create_notifier(workspace)
+        >>> await notifier.send_complete("Task done")
+    """
+    from sunwell.interface.cli.notifications.batcher import BatchedNotifier
+    from sunwell.interface.cli.notifications.store import NotificationStore
+    from sunwell.interface.cli.notifications.system import Notifier
+    
+    if workspace is None:
+        workspace = Path.cwd()
+    
+    # Load config
+    config = load_notification_config(workspace)
+    
+    # Create store if history enabled
+    store = NotificationStore(workspace=workspace) if with_history else None
+    
+    # Create base notifier
+    base_notifier = Notifier(config=config, store=store)
+    
+    # Determine if batching should be enabled
+    enable_batching = with_batching if with_batching is not None else config.batching
+    
+    if enable_batching:
+        return BatchedNotifier(
+            notifier=base_notifier,
+            window_ms=config.batch_window_ms,
+            enabled=True,
+        )
+    
+    return base_notifier
+
+
+# Type hint imports for create_notifier return type
+if True:  # Always import, but structured for type checking
+    from sunwell.interface.cli.notifications.batcher import BatchedNotifier
+    from sunwell.interface.cli.notifications.system import Notifier

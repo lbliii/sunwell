@@ -1,5 +1,9 @@
 """Core memory types and models."""
 
+from sunwell.memory.core.activity import (
+    ActivityTracker,
+    ProjectActivity,
+)
 from sunwell.memory.core.compaction import (
     Checkpoint,
     CompactionResult,
@@ -37,12 +41,6 @@ from sunwell.memory.core.learning_cache import (
     get_learning_cache,
     sync_cache_from_journal,
 )
-from sunwell.memory.core.migration import (
-    MigrationResult,
-    is_migration_complete,
-    migrate_if_needed,
-    migrate_learnings,
-)
 from sunwell.memory.core.types import (
     MemoryContext,
     Promptable,
@@ -51,6 +49,9 @@ from sunwell.memory.core.types import (
 )
 
 __all__ = [
+    # Activity tracking
+    "ActivityTracker",
+    "ProjectActivity",
     # Types
     "MemoryContext",
     "Promptable",
@@ -72,11 +73,6 @@ __all__ = [
     "JournalCompactor",
     "compact_if_needed",
     "force_compact",
-    # Migration
-    "MigrationResult",
-    "is_migration_complete",
-    "migrate_if_needed",
-    "migrate_learnings",
     # Learning bus
     "LearningBus",
     "LearningCallback",

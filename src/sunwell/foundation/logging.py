@@ -179,10 +179,13 @@ def configure_logging(
 
     # Configure root logger with console handler
     root_logger = logging.getLogger()
-    root_logger.setLevel(resolved_level)
+    # When persisting to file, root must allow DEBUG through so file handler can capture it
+    # Console handler will still filter to resolved_level
+    root_level = logging.DEBUG if persist else resolved_level
+    root_logger.setLevel(root_level)
     root_logger.handlers.clear()  # Remove existing handlers
 
-    # Add console handler (stderr)
+    # Add console handler (stderr) - filters to user's requested level
     console_handler = logging.StreamHandler(stream or sys.stderr)
     console_handler.setLevel(resolved_level)
     console_handler.setFormatter(logging.Formatter(console_format))

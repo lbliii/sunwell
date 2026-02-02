@@ -465,7 +465,6 @@ class JourneyRunner:
 
         tool_executor = ToolExecutor(
             project=project,
-            sandbox=None,
             policy=policy,
             sunwell_handler=sunwell_handler,
         )
@@ -601,7 +600,6 @@ class JourneyRunner:
         policy = ToolPolicy(trust_level=ToolTrust.from_string(self._trust_level))
         tool_executor = ToolExecutor(
             project=project,
-            sandbox=None,
             policy=policy,
         )
 

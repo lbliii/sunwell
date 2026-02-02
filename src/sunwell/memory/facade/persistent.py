@@ -106,9 +106,6 @@ class PersistentMemory:
         intel_path = workspace / ".sunwell" / "intelligence"
         memory_path = workspace / ".sunwell" / "memory"
 
-        # Run migration if needed (populates journal from existing sources)
-        _run_migration_if_needed(workspace)
-
         # Load each component independently
         simulacrum = _load_simulacrum(memory_path)
         decisions = _load_decisions(intel_path)
@@ -419,11 +416,36 @@ class PersistentMemory:
         """Record a new learning.
 
         Args:
-            learning: Learning object to add
+            learning: Learning object to add (agent or simulacrum Learning)
         """
         if self.simulacrum:
             try:
                 dag = self.simulacrum.get_dag()
+                # Convert agent Learning to SimLearning if needed
+                if not hasattr(learning, "source_turns"):
+                    from sunwell.memory.simulacrum.core import Learning as SimLearning
+
+                    # Map agent categories to SimLearning Literal categories
+                    category_map = {
+                        "type": "pattern",
+                        "api": "pattern",
+                        "pattern": "pattern",
+                        "fix": "fact",
+                        "heuristic": "heuristic",
+                        "template": "template",
+                        "task_completion": "fact",
+                        "project": "fact",
+                        "preference": "preference",
+                    }
+                    sim_category = category_map.get(
+                        getattr(learning, "category", "pattern"), "pattern"
+                    )
+                    learning = SimLearning(
+                        fact=learning.fact,
+                        source_turns=(),
+                        confidence=getattr(learning, "confidence", 0.7),
+                        category=sim_category,  # type: ignore[arg-type]
+                    )
                 dag.add_learning(learning)
             except Exception as e:
                 logger.warning(f"Failed to add learning: {e}")
@@ -696,27 +718,6 @@ class GoalMemory:
 # =============================================================================
 # Loader Functions (graceful failure handling)
 # =============================================================================
-
-
-def _run_migration_if_needed(workspace: Path) -> None:
-    """Run journal migration if not already complete.
-
-    Migrates existing learnings from SimulacrumStore and legacy JSONL
-    to the new durable journal format.
-    """
-    try:
-        from sunwell.memory.core.migration import migrate_if_needed
-
-        result = migrate_if_needed(workspace)
-        if result and result.total_migrated > 0:
-            logger.info(
-                "Migrated %d learnings to journal (%d from simulacrum, %d from legacy)",
-                result.total_migrated,
-                result.migrated_from_simulacrum,
-                result.migrated_from_legacy,
-            )
-    except Exception as e:
-        logger.debug("Journal migration skipped: %s", e)
 
 
 def _load_simulacrum(memory_path: Path) -> SimulacrumStore | None:

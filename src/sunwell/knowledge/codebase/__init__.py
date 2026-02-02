@@ -14,11 +14,29 @@ Components:
 See: RFC-045-project-intelligence.md
 """
 
+from sunwell.knowledge.codebase.advisor import (
+    ComplexityEstimate,
+    ExecutionOrder,
+    FocusedContext,
+    ImpactScope,
+    TaskAdvice,
+    TaskGraphAdvisor,
+    TaskType,
+)
+from sunwell.knowledge.codebase.algorithms import (
+    FanMetrics,
+    GraphAlgorithms,
+    SubgraphResult,
+)
 from sunwell.knowledge.codebase.codebase import (
     CodebaseAnalyzer,
     CodebaseGraph,
     CodeLocation,
     CodePath,
+    EdgeType,
+    NodeType,
+    StructuralEdge,
+    StructuralNode,
 )
 from sunwell.knowledge.codebase.context import (
     ProjectContext,
@@ -59,6 +77,23 @@ __all__ = [
     "CodebaseAnalyzer",
     "CodeLocation",
     "CodePath",
+    # Structural Graph Types
+    "NodeType",
+    "EdgeType",
+    "StructuralNode",
+    "StructuralEdge",
+    # Graph Algorithms
+    "GraphAlgorithms",
+    "FanMetrics",
+    "SubgraphResult",
+    # Task Graph Advisor
+    "TaskGraphAdvisor",
+    "TaskType",
+    "TaskAdvice",
+    "ComplexityEstimate",
+    "ImpactScope",
+    "FocusedContext",
+    "ExecutionOrder",
     # Context
     "ProjectContext",
     "ProjectIntelligence",

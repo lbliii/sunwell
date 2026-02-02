@@ -3,7 +3,7 @@
 Tests cover:
 - Compact Turn Format (CTF) encoding/decoding
 - Chunk creation and consolidation
-- Tier management (hot → warm → cold)
+- Tier management (micro → meso → macro for chunks)
 - Semantic retrieval
 - SimulacrumStore integration
 """
@@ -308,11 +308,11 @@ class TestChunkManager:
         assert len(chunk.turns) == 5
 
     @pytest.mark.asyncio
-    async def test_hot_tier_demotion(
+    async def test_micro_tier_demotion(
         self,
         chunk_manager: ChunkManager,
     ):
-        """Older chunks are demoted to warm tier when hot limit exceeded."""
+        """Older chunks are demoted to meso tier when micro limit exceeded."""
         # Create enough turns to exceed hot_chunks limit (2)
         all_turns = tuple(
             Turn(
@@ -325,12 +325,12 @@ class TestChunkManager:
         
         await chunk_manager.add_turns(all_turns)
         
-        # Should have 3 chunks total, 2 hot, 1 warm
-        hot_chunks = chunk_manager._get_hot_chunks()
-        warm_chunks = chunk_manager._get_warm_chunks()
+        # Should have 3 chunks total, 2 micro, 1 meso
+        micro_chunks = chunk_manager._get_micro_chunks()
+        meso_chunks = chunk_manager._get_meso_chunks()
         
-        assert len(hot_chunks) <= 2  # Config limit
-        assert len(warm_chunks) >= 1  # At least one demoted
+        assert len(micro_chunks) <= 2  # Config limit
+        assert len(meso_chunks) >= 1  # At least one demoted
 
     @pytest.mark.asyncio
     async def test_chunk_expansion(
@@ -338,13 +338,13 @@ class TestChunkManager:
         chunk_manager: ChunkManager,
         sample_turns: tuple[Turn, ...],
     ):
-        """Warm chunks can be expanded back to full turns."""
+        """Meso chunks can be expanded back to full turns."""
         # Create and demote a chunk
         chunk_ids = await chunk_manager.add_turns(sample_turns[:5])
         chunk_id = chunk_ids[0]
         
-        # Manually demote to warm (public method)
-        chunk_manager.demote_to_warm(chunk_id)
+        # Manually demote to meso (public method)
+        chunk_manager.demote_to_meso(chunk_id)
         
         # Expand it back
         expanded = chunk_manager.expand_chunk(chunk_id)
@@ -383,9 +383,9 @@ class TestChunkManager:
         stats = chunk_manager.stats
         
         assert "total_chunks" in stats
-        assert "hot_chunks" in stats
-        assert "warm_chunks" in stats
-        assert "cold_chunks" in stats
+        assert "micro_chunks" in stats
+        assert "meso_chunks" in stats
+        assert "macro_chunks" in stats
         assert "total_turns" in stats
 
 
@@ -402,9 +402,10 @@ class TestSummarizer:
         """Heuristic summary works without LLM."""
         summarizer = Summarizer(model=None)
         result = await summarizer.summarize_turns(sample_turns)
-        
+
         assert result  # Non-empty
-        assert "Discussion starting with:" in result or "Conversation segment" in result
+        # First-person voice: "I worked on:" or "I processed"
+        assert "I worked on:" in result or "I processed" in result
 
     @pytest.mark.asyncio
     async def test_summarize_empty_turns(self):

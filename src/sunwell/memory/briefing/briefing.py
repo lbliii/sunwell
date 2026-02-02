@@ -13,12 +13,13 @@ coordinates expensive operations. A tiny model reads the briefing and pre-loads 
 skills, and DAG context before the main agent starts.
 """
 
-import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+from sunwell.foundation.utils import safe_json_dump, safe_json_load
 
 if TYPE_CHECKING:
     pass
@@ -158,66 +159,71 @@ class Briefing:
 
         This is what the agent sees at session start.
         Optimized for instant orientation (<5 seconds).
+        Uses first-person voice to reduce epistemic distance.
         """
         lines = [
-            "## Current State (Briefing)",
+            "## Where I Am (Briefing)",
             "",
-            f"**Mission**: {self.mission}",
+            f"**My Mission**: {self.mission}",
             f"**Status**: {self.status.value.replace('_', ' ').title()}",
-            f"**Progress**: {self.progress}",
+            f"**Where I am**: {self.progress}",
             "",
-            f"**Last Action**: {self.last_action}",
+            f"**What I just did**: {self.last_action}",
         ]
 
         if self.next_action:
-            lines.append(f"**Next Action**: {self.next_action}")
+            lines.append(f"**What I'll do next**: {self.next_action}")
 
         if self.hazards:
             lines.append("")
-            lines.append("**Hazards** (avoid these):")
+            lines.append("**Hazards** (I should avoid):")
             for h in self.hazards:
                 lines.append(f"- ⚠️ {h}")
 
         if self.blockers:
             lines.append("")
-            lines.append("**Blockers**:")
+            lines.append("**What's blocking me**:")
             for b in self.blockers:
                 lines.append(f"- 🚫 {b}")
 
         if self.hot_files:
             lines.append("")
-            lines.append(f"**Focus Files**: {', '.join(f'`{f}`' for f in self.hot_files)}")
+            lines.append(f"**Files I'm focusing on**: {', '.join(f'`{f}`' for f in self.hot_files)}")
 
         return "\n".join(lines)
 
-    def save(self, project_path: Path) -> None:
-        """Save briefing to project (OVERWRITES existing)."""
-        briefing_path = project_path / ".sunwell" / "memory" / "briefing.json"
-        briefing_path.parent.mkdir(parents=True, exist_ok=True)
+    def save(self, project_path: Path) -> bool:
+        """Save briefing to project (OVERWRITES existing).
 
-        with open(briefing_path, "w") as f:
-            json.dump(self.to_dict(), f, indent=2)
+        Uses atomic write to prevent corruption on crash.
+
+        Returns:
+            True if saved successfully, False on error.
+        """
+        briefing_path = project_path / ".sunwell" / "memory" / "briefing.json"
+        return safe_json_dump(self.to_dict(), briefing_path)
 
     @classmethod
     def load(cls, project_path: Path) -> Briefing | None:
-        """Load briefing from project. Returns None if not found."""
+        """Load briefing from project. Returns None if not found or corrupted."""
         briefing_path = project_path / ".sunwell" / "memory" / "briefing.json"
-
-        if not briefing_path.exists():
+        data = safe_json_load(briefing_path)
+        if data is None:
             return None
-
-        with open(briefing_path) as f:
-            return cls.from_dict(json.load(f))
+        return cls.from_dict(data)
 
     @classmethod
     def create_initial(cls, mission: str, goal_hash: str | None = None) -> Briefing:
-        """Create initial briefing for a new goal."""
+        """Create initial briefing for a new goal.
+
+        Uses first-person voice for continuity.
+        """
         return cls(
             mission=mission,
             status=BriefingStatus.NOT_STARTED,
-            progress="Starting fresh.",
-            last_action="Goal received.",
-            next_action="Begin planning.",
+            progress="I'm starting fresh.",
+            last_action="I received the goal.",
+            next_action="I'll begin planning.",
             goal_hash=goal_hash,
         )
 

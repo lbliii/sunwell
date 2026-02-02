@@ -277,6 +277,16 @@ def scan(project_root: str, force: bool) -> None:
         console.print(f"  • Modules: {len(graph.import_graph)}")
         console.print(f"  • Classes: {len(graph.class_hierarchy)}")
 
+        # Show structural graph stats
+        stats = graph.structural_stats()
+        if stats["nodes"] > 0:
+            console.print("\n[bold]Structural Graph:[/bold]")
+            console.print(f"  • Nodes: {stats['nodes']}")
+            console.print(f"  • Edges: {stats['edges']}")
+            console.print(f"  • Files: {stats['files']}")
+            console.print(f"  • Classes: {stats['classes']}")
+            console.print(f"  • Functions/Methods: {stats['functions']}")
+
     asyncio.run(_scan())
 
 
