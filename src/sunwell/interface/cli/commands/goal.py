@@ -21,27 +21,16 @@ from pathlib import Path
 import click
 
 from sunwell.interface.cli.core.async_runner import async_command
+from sunwell.interface.cli.core.events import render_agent_event
+from sunwell.interface.cli.core.render_context import reset_render_context
 from sunwell.interface.cli.core.theme import (
-    CHARS_CHECKS,
     CHARS_DIAMONDS,
-    CHARS_MISC,
-    CHARS_PROGRESS,
     CHARS_STARS,
     console,
     print_banner,
-    render_alert,
     render_collapsible,
-    render_complete,
-    render_confidence,
-    render_decision,
     render_error,
-    render_gate_header,
-    render_learning,
-    render_metrics,
-    render_phase_header,
     render_separator,
-    render_step_progress,
-    render_validation,
     should_reduce_motion,
     Sparkle,
 )
@@ -200,6 +189,9 @@ async def run_goal_unified(
     )
     from sunwell.tools.core.types import ToolPolicy, ToolTrust
     from sunwell.tools.execution import ToolExecutor
+
+    # Reset render context for fresh hierarchical display
+    reset_render_context()
 
     # Show banner (except in JSON mode)
     if not json_output:
@@ -367,7 +359,7 @@ async def run_goal_unified(
                     
             elif isinstance(result, AgentEvent):
                 # Render event using the event helpers
-                _render_event(result, verbose)
+                render_agent_event(result, console, verbose)
                 result = await gen.asend(None)
             else:
                 result = None
@@ -400,200 +392,3 @@ async def run_goal_unified(
             render_error(console, str(e))
 
 
-def _render_event(event: AgentEvent, verbose: bool = False) -> None:
-    """Render an AgentEvent to the console.
-    
-    Uses Holy Light components for consistent styling with the chat interface.
-    """
-    from sunwell.agent.events import EventType
-    from sunwell.interface.cli.progress.dag_path import format_dag_path
-    
-    match event.type:
-        # Intent classification (Conversational DAG Architecture)
-        case EventType.INTENT_CLASSIFIED:
-            path_parts = event.data.get("path", [])
-            confidence = event.data.get("confidence", 0)
-            requires_approval = event.data.get("requires_approval", False)
-            tool_scope = event.data.get("tool_scope")
-            
-            path_text = format_dag_path(path_parts) if path_parts else event.data.get("path_formatted", "")
-            
-            console.print()
-            console.print(f"  [holy.gold]{CHARS_PROGRESS['arrow']}[/] Intent: {path_text}")
-            
-            if verbose or requires_approval:
-                render_confidence(console, confidence, label="confidence")
-                if tool_scope:
-                    console.print(f"     [neutral.dim]scope: {tool_scope}[/]")
-                if requires_approval:
-                    console.print(f"     [void.indigo]{CHARS_MISC['approval']} requires approval[/]")
-        
-        case EventType.NODE_TRANSITION:
-            from_node = event.data.get("from_node", "?")
-            to_node = event.data.get("to_node", "?")
-            reason = event.data.get("reason", "")
-            console.print(
-                f"  [neutral.dim]{CHARS_DIAMONDS['hollow']} {from_node} → [/][holy.gold]{to_node}[/]"
-                + (f" [neutral.dim]({reason})[/]" if reason else "")
-            )
-        
-        # Signal extraction
-        case EventType.SIGNAL:
-            if event.data.get("status") == "extracting":
-                render_phase_header(console, "understanding")
-            elif event.data.get("signals"):
-                signals = event.data["signals"]
-                console.print(f"  [holy.radiant]{CHARS_STARS['radiant']}[/] Understanding goal...")
-                console.print(f"   [holy.gold]├─[/] complexity: {signals.get('complexity', '?')}")
-                console.print(f"   [holy.gold]├─[/] needs_tools: {signals.get('needs_tools', '?')}")
-                conf = signals.get("effective_confidence", 0)
-                render_confidence(console, conf, label="confidence")
-                console.print(f"   [holy.gold]└─[/] route: {signals.get('planning_route', '?')}")
-        
-        # Planning
-        case EventType.PLAN_START:
-            technique = event.data.get("technique", "unknown")
-            render_phase_header(console, "illuminating")
-            console.print(f"  [neutral.dim]Technique: {technique}[/]")
-        
-        case EventType.PLAN_CANDIDATE_GENERATED:
-            prog = event.data.get("progress", 1)
-            total = event.data.get("total_candidates", 5)
-            style = event.data.get("variance_config", {}).get("prompt_style", "?")
-            artifacts = event.data.get("artifact_count", 0)
-            render_step_progress(console, prog, total, description=f"{style}: {artifacts} artifacts")
-        
-        case EventType.PLAN_WINNER:
-            tasks = event.data.get("tasks", 0)
-            gates = event.data.get("gates", 0)
-            technique = event.data.get("technique", "unknown")
-            rationale = event.data.get("rationale", "")
-            console.print()
-            render_decision(
-                console,
-                f"Plan selected: {tasks} tasks, {gates} gates",
-                rationale=rationale or technique,
-            )
-        
-        # Task execution
-        case EventType.TASK_START:
-            task_id = event.data.get("task_id", "task")
-            task_num = event.data.get("task_number", 0)
-            total_tasks = event.data.get("total_tasks", 0)
-            description = event.data.get("description", task_id)[:60]
-            
-            if event.data.get("first_task") or task_id == "1":
-                render_phase_header(console, "crafting")
-            
-            if task_num > 0 and total_tasks > 0:
-                render_step_progress(console, task_num, total_tasks, description=description)
-            else:
-                console.print(f"  [holy.gold]{CHARS_DIAMONDS['hollow']}[/] {description}")
-        
-        case EventType.TASK_COMPLETE:
-            duration_ms = event.data.get("duration_ms", 0)
-            render_validation(console, "Task", passed=True, details=f"{duration_ms}ms")
-        
-        # Model inference
-        case EventType.MODEL_COMPLETE:
-            total = event.data.get("total_tokens", 0)
-            duration = event.data.get("duration_s", 0)
-            tps = event.data.get("tokens_per_second", 0)
-            ttft = event.data.get("time_to_first_token_ms")
-            render_metrics(console, {
-                "total_tokens": total,
-                "duration_s": duration,
-                "tokens_per_second": tps,
-                "time_to_first_token_ms": ttft,
-            })
-        
-        # Learning
-        case EventType.MEMORY_LEARNING:
-            fact = event.data.get("fact", "")
-            source = event.data.get("source", "")
-            render_learning(console, fact, source)
-        
-        # Gates
-        case EventType.GATE_START:
-            gate_id = event.data.get("gate_id", "gate")
-            render_phase_header(console, "verifying")
-            render_gate_header(console, gate_id)
-        
-        case EventType.GATE_STEP:
-            step = event.data.get("step", "?")
-            passed = event.data.get("passed", False)
-            render_validation(console, step, passed=passed)
-        
-        case EventType.GATE_PASS:
-            gate_name = event.data.get("gate_name", "Validation")
-            duration = event.data.get("duration_ms", 0)
-            render_validation(console, gate_name, passed=True, details=f"{duration}ms")
-        
-        case EventType.GATE_FAIL:
-            gate_name = event.data.get("gate_name", "Validation")
-            failed_step = event.data.get("failed_step", "unknown")
-            error_trace = event.data.get("error_trace", [])
-            render_validation(console, gate_name, passed=False, details=f"at {failed_step}")
-            
-            # Show collapsible error trace if available
-            if error_trace:
-                render_collapsible(
-                    console,
-                    "Error trace",
-                    error_trace,
-                    expanded=False,
-                    item_count=len(error_trace),
-                )
-        
-        # Fixing
-        case EventType.FIX_START:
-            console.print(f"\n  [void.indigo]{CHARS_MISC['gear']}[/] Auto-fixing...")
-        
-        case EventType.FIX_PROGRESS:
-            stage = event.data.get("stage", "?")
-            detail = event.data.get("detail", "")
-            console.print(f"   [holy.gold]├─[/] {stage}: {detail}")
-        
-        case EventType.FIX_COMPLETE:
-            render_validation(console, "Fix", passed=True)
-        
-        # Escalation
-        case EventType.ESCALATE:
-            reason = event.data.get("reason", "unknown")
-            message = event.data.get("message", "")
-            render_alert(
-                console,
-                f"Reason: {reason}\n{message}" if message else f"Reason: {reason}",
-                severity="warning",
-                title="Escalating to user",
-            )
-        
-        # Completion
-        case EventType.COMPLETE:
-            tasks = event.data.get("tasks_completed", 0)
-            gates = event.data.get("gates_passed", 0)
-            duration = event.data.get("duration_s", 0)
-            learnings = event.data.get("learnings_extracted", 0)
-            files_created = event.data.get("files_created", [])
-            files_modified = event.data.get("files_modified", [])
-            
-            render_complete(
-                console,
-                tasks_completed=tasks,
-                gates_passed=gates,
-                duration_s=duration,
-                learnings=learnings,
-                files_created=files_created,
-                files_modified=files_modified,
-            )
-            
-            # Sparkle celebration
-            if not should_reduce_motion():
-                import asyncio
-                asyncio.create_task(Sparkle.burst("Goal achieved", duration=0.3))
-        
-        # Errors
-        case EventType.ERROR:
-            message = event.data.get("message", "Unknown error")
-            details = event.data.get("details")
-            render_error(console, message, details=details)

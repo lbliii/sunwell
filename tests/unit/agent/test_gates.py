@@ -12,6 +12,8 @@ from sunwell.agent.validation.gates import (
     GateStepResult,
     GateType,
     ValidationGate,
+    _find_blocked_tasks,
+    _matches_task_pattern,
     detect_gates,
     is_runnable_milestone,
 )
@@ -336,6 +338,141 @@ class TestDetectGates:
         protocol_gate = next((g for g in gates if g.id == "gate_protocols"), None)
         assert protocol_gate is not None
         assert "task_protocol" in protocol_gate.depends_on
+
+
+class TestMatchesTaskPattern:
+    """Tests for _matches_task_pattern helper."""
+
+    def _make_task(self, task_id: str, description: str) -> MagicMock:
+        """Create a mock Task."""
+        task = MagicMock()
+        task.id = task_id
+        task.description = description
+        return task
+
+    def test_matches_keyword_in_description(self) -> None:
+        """_matches_task_pattern finds keyword in description."""
+        task = self._make_task("task_1", "Create user model")
+
+        assert _matches_task_pattern(task, ("model",)) is True
+
+    def test_matches_keyword_in_id(self) -> None:
+        """_matches_task_pattern finds keyword in task id."""
+        task = self._make_task("task_model", "Create something")
+
+        assert _matches_task_pattern(task, ("model",)) is True
+
+    def test_matches_any_of_multiple_keywords(self) -> None:
+        """_matches_task_pattern matches any keyword in the tuple."""
+        task = self._make_task("task_1", "Create user endpoint")
+
+        assert _matches_task_pattern(task, ("model", "endpoint", "route")) is True
+
+    def test_no_match_returns_false(self) -> None:
+        """_matches_task_pattern returns False when no match."""
+        task = self._make_task("task_1", "Write documentation")
+
+        assert _matches_task_pattern(task, ("model", "route")) is False
+
+    def test_case_insensitive(self) -> None:
+        """_matches_task_pattern is case insensitive."""
+        task = self._make_task("TASK_MODEL", "Create USER Model")
+
+        assert _matches_task_pattern(task, ("model",)) is True
+        assert _matches_task_pattern(task, ("user",)) is True
+
+    def test_empty_keywords_returns_false(self) -> None:
+        """_matches_task_pattern with empty keywords returns False."""
+        task = self._make_task("task_1", "anything")
+
+        assert _matches_task_pattern(task, ()) is False
+
+
+class TestFindBlockedTasks:
+    """Tests for _find_blocked_tasks helper."""
+
+    def _make_task(
+        self,
+        task_id: str,
+        depends_on: tuple[str, ...] = (),
+    ) -> MagicMock:
+        """Create a mock Task."""
+        task = MagicMock()
+        task.id = task_id
+        task.depends_on = depends_on
+        return task
+
+    def test_finds_dependent_tasks(self) -> None:
+        """_find_blocked_tasks finds tasks that depend on source tasks."""
+        source = [self._make_task("task_a")]
+        all_tasks = [
+            self._make_task("task_a"),
+            self._make_task("task_b", depends_on=("task_a",)),
+            self._make_task("task_c", depends_on=("task_a",)),
+        ]
+
+        blocked = _find_blocked_tasks(source, all_tasks)
+
+        assert "task_b" in blocked
+        assert "task_c" in blocked
+        assert "task_a" not in blocked  # Source task excluded
+
+    def test_excludes_source_tasks(self) -> None:
+        """_find_blocked_tasks excludes source tasks from result."""
+        source = [
+            self._make_task("task_a"),
+            self._make_task("task_b"),
+        ]
+        all_tasks = [
+            self._make_task("task_a"),
+            self._make_task("task_b", depends_on=("task_a",)),
+        ]
+
+        blocked = _find_blocked_tasks(source, all_tasks)
+
+        assert "task_a" not in blocked
+        assert "task_b" not in blocked
+
+    def test_returns_empty_when_no_dependents(self) -> None:
+        """_find_blocked_tasks returns empty when no tasks depend on source."""
+        source = [self._make_task("task_a")]
+        all_tasks = [
+            self._make_task("task_a"),
+            self._make_task("task_b"),  # No dependency
+        ]
+
+        blocked = _find_blocked_tasks(source, all_tasks)
+
+        assert blocked == ()
+
+    def test_handles_multiple_source_tasks(self) -> None:
+        """_find_blocked_tasks handles multiple source tasks."""
+        source = [
+            self._make_task("task_a"),
+            self._make_task("task_b"),
+        ]
+        all_tasks = [
+            self._make_task("task_a"),
+            self._make_task("task_b"),
+            self._make_task("task_c", depends_on=("task_a",)),
+            self._make_task("task_d", depends_on=("task_b",)),
+            self._make_task("task_e", depends_on=("task_a", "task_b")),
+        ]
+
+        blocked = _find_blocked_tasks(source, all_tasks)
+
+        assert "task_c" in blocked
+        assert "task_d" in blocked
+        assert "task_e" in blocked
+
+    def test_returns_tuple(self) -> None:
+        """_find_blocked_tasks returns a tuple."""
+        source = [self._make_task("task_a")]
+        all_tasks = [self._make_task("task_a")]
+
+        result = _find_blocked_tasks(source, all_tasks)
+
+        assert isinstance(result, tuple)
 
 
 class TestIsRunnableMilestone:

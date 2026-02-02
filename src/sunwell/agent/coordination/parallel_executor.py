@@ -1,4 +1,4 @@
-"""Parallel task execution via subagents.
+"""Parallel task execution via subagents with filesystem isolation.
 
 Orchestrates parallel execution of tasks that have been identified as
 parallelizable (via TaskGraph.get_parallelizable_groups()).
@@ -7,12 +7,15 @@ This module connects:
 - TaskGraph (identifies parallelizable tasks)
 - SubagentRegistry (tracks subagent lifecycle)
 - ExecutionLanes (provides isolated execution queues)
+- WorktreeManager (filesystem isolation via git worktrees)
+- FallbackIsolation (in-memory staging for non-git workspaces)
 """
 
 import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from sunwell.agent.coordination.registry import (
@@ -21,6 +24,13 @@ from sunwell.agent.coordination.registry import (
     get_registry,
 )
 from sunwell.agent.execution.lanes import ExecutionLane, get_lanes
+from sunwell.agent.isolation import (
+    FallbackIsolation,
+    MergeResult,
+    MergeStrategy,
+    WorktreeManager,
+    get_content_validator,
+)
 
 if TYPE_CHECKING:
     from sunwell.agent.context.session import SessionContext
@@ -87,14 +97,15 @@ TaskExecutor = "Callable[[SessionContext, Task], Awaitable[TaskResult]]"
 
 
 class ParallelExecutor:
-    """Execute parallelizable task groups via subagents.
+    """Execute parallelizable task groups via subagents with filesystem isolation.
 
     Coordinates spawning subagents for parallel tasks and aggregating results.
+    Uses git worktree isolation when available, falling back to in-memory staging.
 
     Usage:
         executor = ParallelExecutor(task_executor=my_executor)
 
-        # Execute a parallel group
+        # Execute a parallel group with isolation
         result = await executor.execute_parallel_group(
             parent=session,
             group_name="implementations",
@@ -120,6 +131,7 @@ class ParallelExecutor:
         self._task_executor = task_executor
         self._registry = get_registry()
         self._lanes = get_lanes()
+        self._content_validator = get_content_validator()
 
     async def execute_parallel_group(
         self,
@@ -128,10 +140,11 @@ class ParallelExecutor:
         tasks: list[Task],
         config: LoopConfig,
     ) -> ParallelGroupResult:
-        """Execute a group of tasks in parallel via subagents.
+        """Execute a group of tasks in parallel via subagents with isolation.
 
         Spawns subagents for each task, executes them concurrently
-        (up to max_concurrent_subagents), and aggregates results.
+        (up to max_concurrent_subagents) with filesystem isolation,
+        and aggregates results after merging.
 
         Args:
             parent: Parent session context
@@ -144,10 +157,11 @@ class ParallelExecutor:
         """
         start_time = datetime.now()
         logger.info(
-            "Starting parallel group '%s' with %d tasks (parent=%s)",
+            "Starting parallel group '%s' with %d tasks (parent=%s, isolation=%s)",
             group_name,
             len(tasks),
             parent.session_id,
+            "worktree" if config.enable_worktree_isolation else "fallback",
         )
 
         # Register subagents
@@ -167,30 +181,76 @@ class ParallelExecutor:
         for task, record in zip(tasks, records, strict=True):
             task_map[record.run_id] = (task, record)
 
-        # Execute tasks concurrently
-        results = await self._execute_concurrent(parent, task_map, config)
+        # Set up isolation manager (worktree or fallback)
+        worktree_manager: WorktreeManager | None = None
+        fallback_manager: FallbackIsolation | None = None
 
-        # Wait for completion
-        outcomes = await self._registry.await_all(
-            records,
-            timeout=config.subagent_timeout_seconds,
-        )
+        if config.enable_worktree_isolation:
+            worktree_manager = WorktreeManager(base_path=parent.cwd)
+            if not await worktree_manager.is_git_repo():
+                logger.warning(
+                    "Workspace is not a git repo, falling back to in-memory staging"
+                )
+                worktree_manager = None
+                fallback_manager = FallbackIsolation(workspace=parent.cwd)
+        else:
+            fallback_manager = FallbackIsolation(workspace=parent.cwd)
 
-        # Build result
-        task_results: list[TaskResult] = []
-        for run_id, (task, record) in task_map.items():
-            outcome = outcomes.get(run_id, SubagentOutcome.ERROR)
-            result = results.get(run_id)
+        try:
+            # Execute tasks concurrently with isolation
+            results = await self._execute_concurrent_isolated(
+                parent,
+                task_map,
+                config,
+                worktree_manager,
+            )
 
-            if result:
-                task_results.append(result)
-            else:
-                # Task didn't produce a result
-                task_results.append(TaskResult(
-                    task_id=task.id,
-                    success=outcome == SubagentOutcome.OK,
-                    error=f"Outcome: {outcome.value}" if outcome != SubagentOutcome.OK else None,
-                ))
+            # Wait for completion
+            outcomes = await self._registry.await_all(
+                records,
+                timeout=config.subagent_timeout_seconds,
+            )
+
+            # Merge phase: merge worktrees back to main workspace
+            if worktree_manager:
+                merge_results = await self._merge_worktrees(
+                    worktree_manager,
+                    task_map,
+                    config,
+                )
+                # Update results based on merge status
+                for run_id, merge_result in merge_results.items():
+                    if not merge_result.success and run_id in results:
+                        results[run_id] = TaskResult(
+                            task_id=results[run_id].task_id,
+                            success=False,
+                            error=f"Merge failed: {merge_result.error}",
+                            artifacts=results[run_id].artifacts,
+                            duration_ms=results[run_id].duration_ms,
+                        )
+
+            # Build result
+            task_results: list[TaskResult] = []
+            for run_id, (task, record) in task_map.items():
+                outcome = outcomes.get(run_id, SubagentOutcome.ERROR)
+                result = results.get(run_id)
+
+                if result:
+                    task_results.append(result)
+                else:
+                    # Task didn't produce a result
+                    task_results.append(TaskResult(
+                        task_id=task.id,
+                        success=outcome == SubagentOutcome.OK,
+                        error=f"Outcome: {outcome.value}" if outcome != SubagentOutcome.OK else None,
+                    ))
+
+        finally:
+            # Cleanup worktrees
+            if worktree_manager:
+                await worktree_manager.cleanup_all()
+            if fallback_manager:
+                fallback_manager.cleanup()
 
         end_time = datetime.now()
         duration_ms = int((end_time - start_time).total_seconds() * 1000)
@@ -211,18 +271,93 @@ class ParallelExecutor:
 
         return group_result
 
-    async def _execute_concurrent(
+    async def _merge_worktrees(
+        self,
+        manager: WorktreeManager,
+        task_map: dict[str, tuple[Task, SubagentRecord]],
+        config: LoopConfig,
+    ) -> dict[str, MergeResult]:
+        """Merge all worktrees back to main workspace sequentially.
+
+        Args:
+            manager: WorktreeManager with created worktrees
+            task_map: Mapping of run_id to (task, record) tuples
+            config: Loop configuration
+
+        Returns:
+            Dict mapping run_id to MergeResult
+        """
+        results: dict[str, MergeResult] = {}
+
+        for run_id, (task, _) in task_map.items():
+            try:
+                # Validate content before merge if enabled
+                if config.enable_content_validation:
+                    modified_files = await manager.get_modified_files(task.id)
+                    worktree_info = manager.worktrees.get(task.id)
+                    if worktree_info and modified_files:
+                        for file_path in modified_files:
+                            full_path = worktree_info.path / file_path
+                            if full_path.exists():
+                                content = full_path.read_text(encoding="utf-8")
+                                validation = self._content_validator.validate(
+                                    content, file_path
+                                )
+                                if not validation.valid:
+                                    results[run_id] = MergeResult(
+                                        success=False,
+                                        strategy_used=MergeStrategy.ABORT_ON_CONFLICT,
+                                        files_merged=(),
+                                        conflicts=(file_path,),
+                                        error=validation.message,
+                                    )
+                                    continue
+
+                # Merge the worktree
+                merge_result = await manager.merge_worktree(
+                    task.id,
+                    MergeStrategy.FAST_FORWARD,
+                )
+                results[run_id] = merge_result
+
+                if merge_result.success:
+                    logger.debug(
+                        "Merged worktree for task %s: %d files",
+                        task.id,
+                        len(merge_result.files_merged),
+                    )
+                else:
+                    logger.warning(
+                        "Failed to merge worktree for task %s: %s",
+                        task.id,
+                        merge_result.error,
+                    )
+
+            except Exception as e:
+                logger.exception("Error merging worktree for task %s", task.id)
+                results[run_id] = MergeResult(
+                    success=False,
+                    strategy_used=MergeStrategy.ABORT_ON_CONFLICT,
+                    files_merged=(),
+                    error=str(e),
+                )
+
+        return results
+
+    async def _execute_concurrent_isolated(
         self,
         parent: SessionContext,
         task_map: dict[str, tuple[Task, SubagentRecord]],
         config: LoopConfig,
+        worktree_manager: WorktreeManager | None = None,
     ) -> dict[str, TaskResult]:
-        """Execute tasks concurrently using execution lanes.
+        """Execute tasks concurrently with filesystem isolation.
 
         Args:
             parent: Parent session context
             task_map: Mapping of run_id to (task, record) tuples
             config: Loop configuration
+            worktree_manager: Optional worktree manager for git isolation
 
         Returns:
             Dict mapping run_id to TaskResult
@@ -230,9 +365,29 @@ class ParallelExecutor:
         from sunwell.agent.context.session import SessionContext
 
         results: dict[str, TaskResult] = {}
+        worktree_paths: dict[str, Path] = {}
+
+        # Create worktrees for all tasks first (if using worktree isolation)
+        if worktree_manager:
+            for run_id, (task, _) in task_map.items():
+                try:
+                    wt_info = await worktree_manager.create_worktree(task.id)
+                    worktree_paths[run_id] = wt_info.path
+                    logger.debug(
+                        "Created worktree for task %s at %s",
+                        task.id,
+                        wt_info.path,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "Failed to create worktree for task %s: %s",
+                        task.id,
+                        e,
+                    )
+                    # Will fall back to shared workspace
 
         async def execute_one(run_id: str, task: Task, record: SubagentRecord) -> None:
-            """Execute a single task in the subagent lane."""
+            """Execute a single task in an isolated worktree."""
             # Mark as started
             self._registry.mark_started(run_id)
 
@@ -245,16 +400,20 @@ class ParallelExecutor:
                         output="Task completed (no executor)",
                     )
                 else:
-                    # Create child session
+                    # Get worktree path for this task (if created)
+                    worktree_path = worktree_paths.get(run_id)
+
+                    # Create child session with isolated worktree
                     child_session = SessionContext.spawn_child(
                         parent,
                         task=task.description,
                         cleanup=config.subagent_cleanup,
+                        worktree_path=worktree_path,
                     )
                     # Sync child session ID with record
                     child_session.session_id = record.child_session_id
 
-                    # Execute task
+                    # Execute task in isolated worktree
                     result = await self._task_executor(child_session, task)
 
                 results[run_id] = result

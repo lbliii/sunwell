@@ -5,6 +5,8 @@ from sunwell.agent.validation.gates import (
     GateStepResult,
     GateType,
     ValidationGate,
+    create_contract_gate,
+    create_syntax_gate,
     detect_gates,
     is_runnable_milestone,
 )
@@ -22,6 +24,8 @@ __all__ = [
     "ValidationGate",
     "GateResult",
     "GateStepResult",
+    "create_syntax_gate",
+    "create_contract_gate",
     "detect_gates",
     "is_runnable_milestone",
     "Artifact",

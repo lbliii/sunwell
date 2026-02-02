@@ -60,6 +60,31 @@ def validate_not_sunwell_repo(root: Path) -> None:
             )
 
 
+def validate_not_sunwell_directory(root: Path) -> None:
+    """Refuse to use .sunwell directory as project workspace.
+
+    The .sunwell directory is reserved for internal sunwell data (logs,
+    config, metrics, snapshots). User-requested files must go in the
+    actual project root, not inside .sunwell.
+
+    Args:
+        root: Proposed workspace root path
+
+    Raises:
+        ProjectValidationError: If root is a .sunwell directory
+    """
+    root = root.resolve()
+
+    if root.name == ".sunwell":
+        raise ProjectValidationError(
+            f"Cannot use .sunwell directory as project workspace.\n"
+            f"Root: {root}\n\n"
+            f"The .sunwell directory is reserved for internal sunwell data.\n"
+            f"Use the parent directory as your project root instead:\n"
+            f"  cd {root.parent}\n"
+        )
+
+
 def validate_workspace(root: Path) -> None:
     """Validate a workspace root path.
 
@@ -71,5 +96,6 @@ def validate_workspace(root: Path) -> None:
     Raises:
         ProjectValidationError: If validation fails
     """
+    validate_not_sunwell_directory(root)
     validate_not_sunwell_repo(root)
     # Future: Add more validations (writable, not system dir, etc.)

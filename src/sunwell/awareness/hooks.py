@@ -8,8 +8,8 @@ import logging
 from pathlib import Path
 
 from sunwell.awareness.extractor import AwarenessExtractor
-from sunwell.awareness.patterns import AwarenessPattern, format_patterns_for_prompt
-from sunwell.awareness.store import AwarenessStore
+from sunwell.awareness.patterns import format_patterns_for_prompt
+from sunwell.awareness.store import AwarenessStore, load_awareness_for_session
 
 logger = logging.getLogger(__name__)
 
@@ -82,26 +82,6 @@ def extract_awareness_end_of_session(
     return count
 
 
-def load_awareness_for_prompt(
-    workspace: Path,
-    activity_day: int = 0,
-) -> list[AwarenessPattern]:
-    """Load awareness patterns for system prompt injection.
-
-    Should be called at session start to get patterns for injection
-    into the system prompt.
-
-    Args:
-        workspace: Working directory
-        activity_day: Current activity day for decay calculation
-
-    Returns:
-        List of significant patterns for prompt injection
-    """
-    from sunwell.awareness.store import load_awareness_for_session
-    return load_awareness_for_session(workspace, activity_day)
-
-
 def get_awareness_prompt_section(
     workspace: Path,
     activity_day: int = 0,
@@ -117,5 +97,5 @@ def get_awareness_prompt_section(
     Returns:
         Formatted string or empty if no patterns
     """
-    patterns = load_awareness_for_prompt(workspace, activity_day)
+    patterns = load_awareness_for_session(workspace, activity_day)
     return format_patterns_for_prompt(patterns)

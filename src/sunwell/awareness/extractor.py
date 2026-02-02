@@ -16,6 +16,8 @@ from typing import TYPE_CHECKING
 
 from sunwell.awareness.patterns import AwarenessPattern, PatternType
 
+from sunwell.agent.learning.patterns import classify_task_type
+
 if TYPE_CHECKING:
     from sunwell.agent.learning.patterns import ToolPattern
     from sunwell.agent.learning.store import LearningStore
@@ -43,6 +45,23 @@ BACKTRACK_CATEGORIES = {
     "config": {".yaml", ".yml", ".toml", ".json", ".ini"},
     "migration": {"migration", "migrate"},
 }
+
+
+def _group_goals_by_task_type(goals: list["GoalSummary"]) -> dict[str, list[bool]]:
+    """Group goal outcomes by task type.
+
+    Args:
+        goals: List of goal summaries from session
+
+    Returns:
+        Dict mapping task_type -> list of success booleans
+    """
+    outcomes: dict[str, list[bool]] = defaultdict(list)
+    for goal in goals:
+        task_type = classify_task_type(goal.goal)
+        succeeded = goal.status == "completed"
+        outcomes[task_type].append(succeeded)
+    return outcomes
 
 
 class AwarenessExtractor:
@@ -128,14 +147,7 @@ class AwarenessExtractor:
         """
         patterns: list[AwarenessPattern] = []
 
-        # Group goals by task type (extracted from goal text)
-        from sunwell.agent.learning.patterns import classify_task_type
-
-        task_type_outcomes: dict[str, list[bool]] = defaultdict(list)
-        for goal in session_summary.goals:
-            task_type = classify_task_type(goal.goal)
-            succeeded = goal.status == "completed"
-            task_type_outcomes[task_type].append(succeeded)
+        task_type_outcomes = _group_goals_by_task_type(session_summary.goals)
 
         # Get average confidence from learnings
         learnings = learning_store.learnings
@@ -245,14 +257,7 @@ class AwarenessExtractor:
         """
         patterns: list[AwarenessPattern] = []
 
-        from sunwell.agent.learning.patterns import classify_task_type
-
-        # Group goals by task type
-        task_type_outcomes: dict[str, list[bool]] = defaultdict(list)
-        for goal in session_summary.goals:
-            task_type = classify_task_type(goal.goal)
-            succeeded = goal.status == "completed"
-            task_type_outcomes[task_type].append(succeeded)
+        task_type_outcomes = _group_goals_by_task_type(session_summary.goals)
 
         # Find task types with high failure rates
         for task_type, outcomes in task_type_outcomes.items():

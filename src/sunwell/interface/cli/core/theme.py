@@ -1024,7 +1024,7 @@ def render_alert(
 
     # Build box
     title_line = f"{CHARS_LAYOUT['corner_tl']}{CHARS_LAYOUT['h_line']} {icon} {label} "
-    title_line += CHARS_LAYOUT["h_line"] * (box_width - len(label) - 6)
+    title_line += CHARS_LAYOUT["h_line"] * (box_width - len(label) - 5)
     title_line += CHARS_LAYOUT["corner_tr"]
 
     console.print(f"[{style}]{title_line}[/]")

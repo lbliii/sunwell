@@ -13,7 +13,6 @@ from sunwell.awareness.extractor import AwarenessExtractor
 from sunwell.awareness.hooks import (
     extract_awareness_end_of_session,
     get_awareness_prompt_section,
-    load_awareness_for_prompt,
 )
 from sunwell.awareness.patterns import AwarenessPattern, PatternType, format_patterns_for_prompt
 from sunwell.awareness.store import AwarenessStore, load_awareness_for_session
@@ -26,6 +25,5 @@ __all__ = [
     "extract_awareness_end_of_session",
     "format_patterns_for_prompt",
     "get_awareness_prompt_section",
-    "load_awareness_for_prompt",
     "load_awareness_for_session",
 ]

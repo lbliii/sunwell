@@ -526,6 +526,9 @@ class EventType(Enum):
     ESCALATE = "escalate"
     """Escalating to user (dangerous operation or low confidence)."""
 
+    LOG = "log"
+    """General log message for verbose/debug output."""
+
     # RFC-125: Recovery events
     RECOVERY_SAVED = "recovery_saved"
     """Recovery state saved — user can review."""

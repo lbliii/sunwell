@@ -201,6 +201,70 @@ class GateResult:
 
 
 # =============================================================================
+# Public Factory Functions
+# =============================================================================
+
+
+def create_syntax_gate(
+    id: str,
+    depends_on: tuple[str, ...] = (),
+    description: str = "",
+) -> ValidationGate:
+    """Create a syntax validation gate.
+
+    Use this for post-write validation or any syntax checking gate.
+
+    Args:
+        id: Unique gate identifier
+        depends_on: Task IDs that must complete before this gate
+        description: Human-readable description (auto-generated if empty)
+
+    Returns:
+        ValidationGate configured for syntax validation
+    """
+    return ValidationGate(
+        id=id,
+        gate_type=GateType.SYNTAX,
+        depends_on=depends_on,
+        validation="",
+        description=description or "Syntax validation",
+    )
+
+
+def create_contract_gate(
+    id: str,
+    protocol_name: str,
+    contract_file: str = "",
+    depends_on: tuple[str, ...] = (),
+    timeout_s: int = 60,
+) -> ValidationGate:
+    """Create a contract validation gate.
+
+    Use this to verify an implementation satisfies a Protocol contract.
+
+    Args:
+        id: Unique gate identifier
+        protocol_name: Name of the Protocol to verify against
+        contract_file: Path to file containing the Protocol definition
+        depends_on: Task IDs that must complete before this gate
+        timeout_s: Timeout for validation (contract checks can be slower)
+
+    Returns:
+        ValidationGate configured for contract verification
+    """
+    return ValidationGate(
+        id=id,
+        gate_type=GateType.CONTRACT,
+        depends_on=depends_on,
+        validation=protocol_name,
+        contract_protocol=protocol_name,
+        contract_file=contract_file,
+        timeout_s=timeout_s,
+        description=f"Verify implementation satisfies {protocol_name}",
+    )
+
+
+# =============================================================================
 # Gate Detection (stateless functions)
 # =============================================================================
 
@@ -256,66 +320,77 @@ def detect_gates(tasks: list[Task]) -> list[ValidationGate]:
     return gates
 
 
-def _is_protocol_task(task: Task) -> bool:
-    """Check if task produces a protocol/interface."""
+def _matches_task_pattern(
+    task: Task,
+    keywords: tuple[str, ...],
+) -> bool:
+    """Check if task matches any of the given keywords.
+
+    Searches both task.description and task.id (case-insensitive).
+
+    Args:
+        task: Task to check
+        keywords: Keywords to search for
+
+    Returns:
+        True if any keyword found in description or id
+    """
     desc_lower = task.description.lower()
     id_lower = task.id.lower()
+    return any(kw in desc_lower or kw in id_lower for kw in keywords)
 
+
+def _is_protocol_task(task: Task) -> bool:
+    """Check if task produces a protocol/interface."""
     return (
-        "protocol" in desc_lower
-        or "protocol" in id_lower
-        or "interface" in desc_lower
+        _matches_task_pattern(task, ("protocol", "interface"))
         or task.is_contract
     )
 
 
 def _is_model_task(task: Task) -> bool:
     """Check if task produces a database model."""
-    desc_lower = task.description.lower()
-    id_lower = task.id.lower()
-
-    return (
-        "model" in desc_lower
-        or "model" in id_lower
-        or "schema" in desc_lower
-        or "table" in desc_lower
-    )
+    return _matches_task_pattern(task, ("model", "schema", "table"))
 
 
 def _is_route_task(task: Task) -> bool:
     """Check if task produces routes/endpoints."""
-    desc_lower = task.description.lower()
-    id_lower = task.id.lower()
-
-    return (
-        "route" in desc_lower
-        or "route" in id_lower
-        or "endpoint" in desc_lower
-        or "handler" in desc_lower
-        or "controller" in desc_lower
-    )
+    return _matches_task_pattern(task, ("route", "endpoint", "handler", "controller"))
 
 
 def _is_entry_point(task: Task) -> bool:
     """Check if task is an entry point."""
-    desc_lower = task.description.lower()
-    id_lower = task.id.lower()
-
-    return (
-        "factory" in desc_lower
-        or "factory" in id_lower
-        or "main" in id_lower
-        or "app" in id_lower
-        or "entry" in desc_lower
-    )
+    return _matches_task_pattern(task, ("factory", "main", "app", "entry"))
 
 
 def _is_test_task(task: Task) -> bool:
     """Check if task is a test."""
-    desc_lower = task.description.lower()
-    id_lower = task.id.lower()
+    return _matches_task_pattern(task, ("test",))
 
-    return "test" in desc_lower or "test" in id_lower
+
+def _find_blocked_tasks(
+    source_tasks: list[Task],
+    all_tasks: list[Task],
+) -> tuple[str, ...]:
+    """Find tasks blocked by dependencies on source tasks.
+
+    A task is blocked if:
+    - It's not one of the source tasks
+    - It depends on any of the source tasks
+
+    Args:
+        source_tasks: Tasks that may block others
+        all_tasks: All tasks to search
+
+    Returns:
+        Tuple of task IDs that are blocked
+    """
+    source_ids = {t.id for t in source_tasks}
+    return tuple(
+        t.id for t in all_tasks
+        if t.id not in source_ids
+        and any(src.id in t.depends_on for src in source_tasks)
+    )
 
 
 def _make_import_gate(
@@ -324,13 +399,7 @@ def _make_import_gate(
 ) -> ValidationGate:
     """Create an import gate for protocol tasks."""
     task_ids = tuple(t.id for t in protocols)
-
-    # Find tasks that depend on these protocols
-    blocked = tuple(
-        t.id for t in all_tasks
-        if t.id not in task_ids
-        and any(p.id in t.depends_on for p in protocols)
-    )
+    blocked = _find_blocked_tasks(protocols, all_tasks)
 
     # Build import validation string
     imports = []
@@ -357,13 +426,7 @@ def _make_schema_gate(
 ) -> ValidationGate:
     """Create a schema gate for model tasks."""
     task_ids = tuple(t.id for t in models)
-
-    # Find tasks that depend on models
-    blocked = tuple(
-        t.id for t in all_tasks
-        if t.id not in task_ids
-        and any(m.id in t.depends_on for m in models)
-    )
+    blocked = _find_blocked_tasks(models, all_tasks)
 
     return ValidationGate(
         id="gate_models",
@@ -381,13 +444,7 @@ def _make_endpoint_gate(
 ) -> ValidationGate:
     """Create an endpoint gate for route tasks."""
     task_ids = tuple(t.id for t in routes)
-
-    # Find tasks that depend on routes
-    blocked = tuple(
-        t.id for t in all_tasks
-        if t.id not in task_ids
-        and any(r.id in t.depends_on for r in routes)
-    )
+    blocked = _find_blocked_tasks(routes, all_tasks)
 
     return ValidationGate(
         id="gate_routes",

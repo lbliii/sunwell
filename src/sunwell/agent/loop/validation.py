@@ -15,9 +15,48 @@ from sunwell.agent.events import (
 from sunwell.agent.hooks import HookEvent, emit_hook_sync
 
 if TYPE_CHECKING:
-    from sunwell.agent.validation import ValidationStage
+    from sunwell.agent.validation import Artifact, ValidationStage
 
 logger = logging.getLogger(__name__)
+
+
+def create_artifacts_from_paths(file_paths: list[str]) -> list[Artifact]:
+    """Create Artifact list from file paths for validation.
+
+    Content is left empty as validators load it on demand.
+
+    Args:
+        file_paths: List of file path strings
+
+    Returns:
+        List of Artifact objects ready for validation
+    """
+    from sunwell.agent.validation import Artifact
+
+    return [Artifact(path=Path(path), content="") for path in file_paths]
+
+
+def emit_gate_failure(
+    gate_id: str,
+    gate_type: str,
+    file_paths: list[str],
+    errors: list[str],
+) -> None:
+    """Emit gate failure hook with consistent formatting.
+
+    Args:
+        gate_id: Unique gate identifier
+        gate_type: Type of gate (syntax, contract, etc.)
+        file_paths: Files that were validated
+        errors: Error messages from validation
+    """
+    emit_hook_sync(
+        HookEvent.GATE_FAIL,
+        gate_id=gate_id,
+        gate_type=gate_type,
+        files=file_paths,
+        errors=errors,
+    )
 
 
 async def run_validation_gates(
@@ -46,21 +85,14 @@ async def run_validation_gates(
         extra={"files": file_paths},
     )
 
-    from sunwell.agent.validation import Artifact
-    from sunwell.agent.validation.gates import GateType, ValidationGate
+    from sunwell.agent.validation import create_syntax_gate
 
     # Create artifacts for validation
-    artifacts = [
-        Artifact(path=path, content="")  # Content loaded by validator
-        for path in file_paths
-    ]
+    artifacts = create_artifacts_from_paths(file_paths)
 
     # Create validation gate for post-write checks
-    gate = ValidationGate(
+    gate = create_syntax_gate(
         id="post_tool_write",
-        gate_type=GateType.SYNTAX,
-        depends_on=(),
-        validation="",  # Empty for syntax check
         description="Post-write syntax validation",
     )
 
@@ -105,13 +137,7 @@ async def run_validation_gates(
                 error_messages.append(str(error))
 
             # Emit gate fail hook
-            emit_hook_sync(
-                HookEvent.GATE_FAIL,
-                gate_id=gate.id,
-                gate_type="syntax",
-                files=file_paths,
-                errors=error_messages,
-            )
+            emit_gate_failure(gate.id, "syntax", file_paths, error_messages)
 
             # Log for telemetry
             logger.warning(
@@ -125,12 +151,11 @@ async def run_validation_gates(
     except Exception as e:
         logger.warning("Validation gate error: %s", e)
         # Emit gate fail hook for exceptions
-        emit_hook_sync(
-            HookEvent.GATE_FAIL,
-            gate_id=gate.id if 'gate' in locals() else "unknown",
-            gate_type="syntax",
-            files=file_paths,
-            errors=[str(e)],
+        emit_gate_failure(
+            gate.id if "gate" in locals() else "unknown",
+            "syntax",
+            file_paths,
+            [str(e)],
         )
         # Don't fail the entire operation if validation has issues
 
@@ -170,25 +195,16 @@ async def run_contract_validation(
         extra={"files": file_paths, "protocol": protocol_name},
     )
 
-    from sunwell.agent.validation import Artifact
-    from sunwell.agent.validation.gates import GateType, ValidationGate
+    from sunwell.agent.validation import create_contract_gate
 
     # Create artifacts for validation
-    artifacts = [
-        Artifact(path=Path(path), content="")  # Content loaded by validator
-        for path in file_paths
-    ]
+    artifacts = create_artifacts_from_paths(file_paths)
 
     # Create contract validation gate
-    gate = ValidationGate(
+    gate = create_contract_gate(
         id=f"contract_{protocol_name}",
-        gate_type=GateType.CONTRACT,
-        depends_on=(),
-        validation=protocol_name,
-        contract_protocol=protocol_name,
+        protocol_name=protocol_name,
         contract_file=contract_file or "",
-        timeout_s=60,
-        description=f"Verify implementation satisfies {protocol_name}",
     )
 
     # Emit gate start with contract-specific event
@@ -225,23 +241,19 @@ async def run_contract_validation(
                     protocol=protocol_name,
                 )
             elif event.type == EventType.GATE_FAIL:
+                error_msg = event.data.get(
+                    "error_message", "Contract verification failed"
+                )
                 yield AgentEvent(
                     EventType.CONTRACT_VERIFY_FAIL,
                     {
                         "task_id": "",
                         "protocol_name": protocol_name,
                         "final_tier": "gate",
-                        "error_message": event.data.get("error_message", "Contract verification failed"),
+                        "error_message": error_msg,
                     },
                 )
-                emit_hook_sync(
-                    HookEvent.GATE_FAIL,
-                    gate_id=gate.id,
-                    gate_type="contract",
-                    files=file_paths,
-                    protocol=protocol_name,
-                    errors=[event.data.get("error_message", "Contract verification failed")],
-                )
+                emit_gate_failure(gate.id, "contract", file_paths, [error_msg])
 
     except Exception as e:
         logger.warning("Contract validation error: %s", e)
@@ -254,11 +266,4 @@ async def run_contract_validation(
                 "error_message": str(e),
             },
         )
-        emit_hook_sync(
-            HookEvent.GATE_FAIL,
-            gate_id=gate.id,
-            gate_type="contract",
-            files=file_paths,
-            protocol=protocol_name,
-            errors=[str(e)],
-        )
+        emit_gate_failure(gate.id, "contract", file_paths, [str(e)])

@@ -134,3 +134,34 @@ class TestSessionContextBuild:
         """SessionContext.build() class method should exist."""
         assert hasattr(SessionContext, "build")
         assert callable(SessionContext.build)
+
+    def test_build_auto_corrects_sunwell_directory(self, tmp_path: Path) -> None:
+        """build() auto-corrects .sunwell directory to parent."""
+        # Create a .sunwell directory inside the project
+        project_dir = tmp_path / "my-project"
+        project_dir.mkdir()
+        sunwell_dir = project_dir / ".sunwell"
+        sunwell_dir.mkdir()
+
+        # Build session from .sunwell directory
+        session = SessionContext.build(
+            cwd=sunwell_dir,
+            goal="test goal",
+        )
+
+        # Should have auto-corrected to parent
+        assert session.cwd == project_dir
+        assert session.project_name == "my-project"
+
+    def test_build_uses_regular_directory_as_is(self, tmp_path: Path) -> None:
+        """build() uses regular directories without modification."""
+        project_dir = tmp_path / "my-project"
+        project_dir.mkdir()
+
+        session = SessionContext.build(
+            cwd=project_dir,
+            goal="test goal",
+        )
+
+        assert session.cwd == project_dir
+        assert session.project_name == "my-project"

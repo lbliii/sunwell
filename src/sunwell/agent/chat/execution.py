@@ -13,8 +13,9 @@ from sunwell.agent.chat.checkpoint import (
     ChatCheckpoint,
     ChatCheckpointType,
     CheckpointResponse,
+    ensure_checkpoint_response,
 )
-from sunwell.agent.chat.state import LoopState, MAX_HISTORY_SIZE
+from sunwell.agent.chat.state import LoopState, append_to_history
 from sunwell.agent.events import AgentEvent
 
 if TYPE_CHECKING:
@@ -88,24 +89,6 @@ def format_task_complete(data: dict[str, Any]) -> str:
     desc = data.get("description", "")
 
     return f"[{task_num}/{total}] ✓ {desc}"
-
-
-def ensure_checkpoint_response(
-    value: str | CheckpointResponse | None,
-) -> CheckpointResponse:
-    """Convert value to CheckpointResponse, handling various input types.
-
-    Args:
-        value: Input value (string, CheckpointResponse, or None)
-
-    Returns:
-        CheckpointResponse instance
-    """
-    if isinstance(value, CheckpointResponse):
-        return value
-    if value is None:
-        return CheckpointResponse(choice="")
-    return CheckpointResponse(choice=str(value))
 
 
 class GoalExecutor:
@@ -395,12 +378,9 @@ class GoalExecutor:
                     yield (LoopState.COMPLETED, checkpoint)
 
                     # Add completion to conversation
-                    conversation_history.append({
-                        "role": "assistant",
-                        "content": f"Done! {summary}",
-                    })
-                    if len(conversation_history) > MAX_HISTORY_SIZE:
-                        del conversation_history[: -MAX_HISTORY_SIZE]
+                    append_to_history(
+                        conversation_history, "assistant", f"Done! {summary}"
+                    )
 
         except Exception as e:
             logger.exception("Goal execution error")

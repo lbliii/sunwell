@@ -35,8 +35,9 @@ async def chat_loop(
     """
     from sunwell.interface.cli.chat.unified_loop import run_unified_loop
 
-    # Resolve workspace from dag or memory_path
-    workspace = dag.workspace if hasattr(dag, "workspace") else memory_path.parent
+    # Resolve workspace from dag or cwd
+    # Note: memory_path.parent would be .sunwell (not the project root)
+    workspace = dag.workspace if hasattr(dag, "workspace") else Path.cwd()
 
     # Run the unified loop
     await run_unified_loop(

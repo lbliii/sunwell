@@ -259,3 +259,24 @@ class CheckpointResponse:
     def suppress_alert_type(self) -> bool:
         """True if user wants to suppress this type of alert."""
         return self.choice.lower() in ("s", "suppress", "mute", "hide")
+
+
+def ensure_checkpoint_response(
+    value: str | CheckpointResponse | None,
+) -> CheckpointResponse:
+    """Convert value to CheckpointResponse, handling various input types.
+
+    This is the canonical conversion function used by routing and execution
+    modules when receiving responses from checkpoint yields.
+
+    Args:
+        value: Input value (string, CheckpointResponse, or None)
+
+    Returns:
+        CheckpointResponse instance
+    """
+    if isinstance(value, CheckpointResponse):
+        return value
+    if value is None:
+        return CheckpointResponse(choice="")
+    return CheckpointResponse(choice=str(value))

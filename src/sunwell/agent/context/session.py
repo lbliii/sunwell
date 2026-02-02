@@ -169,6 +169,17 @@ class SessionContext:
         """
         cwd = Path(cwd).resolve()
 
+        # Prevent .sunwell from being used as workspace (RFC-117 guard)
+        # This catches cases where user accidentally runs from inside .sunwell/
+        if cwd.name == ".sunwell":
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                "Workspace was .sunwell directory, using parent: %s -> %s",
+                cwd, cwd.parent
+            )
+            cwd = cwd.parent
+
         # Set defaults if options not provided
         if options is None:
             from sunwell.agent.utils.request import RunOptions
@@ -216,6 +227,7 @@ class SessionContext:
         task: str,
         cleanup: Literal["delete", "keep"] = "delete",
         max_depth: int = 3,
+        worktree_path: Path | None = None,
     ) -> SessionContext:
         """Spawn a child session for a subagent.
 
@@ -227,6 +239,10 @@ class SessionContext:
             task: Goal/task for the child session
             cleanup: Cleanup policy for child session artifacts
             max_depth: Maximum allowed nesting depth
+            worktree_path: Optional isolated worktree path for this child.
+                If provided, the child session operates in this isolated
+                directory instead of the parent's cwd. Used for parallel
+                task isolation via git worktrees.
 
         Returns:
             New SessionContext for the subagent
@@ -237,9 +253,12 @@ class SessionContext:
         if parent.spawn_depth >= max_depth:
             raise SpawnDepthExceededError(parent.spawn_depth, max_depth)
 
+        # Use worktree path if provided, otherwise inherit parent's cwd
+        child_cwd = worktree_path if worktree_path else parent.cwd
+
         return cls(
             session_id=_generate_session_id(),
-            cwd=parent.cwd,
+            cwd=child_cwd,
             goal=task,
             project_name=parent.project_name,
             project_type=parent.project_type,

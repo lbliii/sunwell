@@ -24,8 +24,9 @@ from sunwell.agent.chat.checkpoint import (
     ChatCheckpoint,
     ChatCheckpointType,
     CheckpointResponse,
+    ensure_checkpoint_response,
 )
-from sunwell.agent.chat.state import LoopState, MAX_HISTORY_SIZE
+from sunwell.agent.chat.state import LoopState, append_to_history
 from sunwell.agent.events import AgentEvent
 from sunwell.agent.intent import (
     IntentClassification,
@@ -34,9 +35,11 @@ from sunwell.agent.intent import (
     requires_approval,
 )
 
+# Import PlanResult at runtime for type alias (not just TYPE_CHECKING)
+from sunwell.agent.core.agent import PlanResult
+
 if TYPE_CHECKING:
     from sunwell.agent.background import BackgroundManager
-    from sunwell.agent.core.agent import PlanResult
     from sunwell.agent.estimation import ExecutionHistory
     from sunwell.agent.rewind import SnapshotManager
     from sunwell.agent.trust import ApprovalTracker, AutoApproveConfig
@@ -130,17 +133,6 @@ def estimate_task_duration(goal: str, path: tuple[IntentNode, ...]) -> int | Non
     if estimated >= BACKGROUND_THRESHOLD_SECONDS:
         return estimated
     return None
-
-
-def ensure_checkpoint_response(
-    value: str | CheckpointResponse | None,
-) -> CheckpointResponse:
-    """Convert value to CheckpointResponse, handling various input types."""
-    if isinstance(value, CheckpointResponse):
-        return value
-    if value is None:
-        return CheckpointResponse(choice="")
-    return CheckpointResponse(choice=str(value))
 
 
 def _create_read_execution_generator(
@@ -573,12 +565,7 @@ async def route_dag_classification(
     # Returns tuple directly (no generator) - fixes double-submit bug
     if branch == IntentNode.UNDERSTAND:
         response = await generate_response_fn(user_input)
-        conversation_history.append({
-            "role": "assistant",
-            "content": response,
-        })
-        if len(conversation_history) > MAX_HISTORY_SIZE:
-            del conversation_history[: -MAX_HISTORY_SIZE]
+        append_to_history(conversation_history, "assistant", response)
         return (LoopState.IDLE, response)
 
     # ANALYZE branch - conversation with optional read-only context
@@ -586,12 +573,7 @@ async def route_dag_classification(
     if branch == IntentNode.ANALYZE:
         # For now, treat as conversation - future: could use read-only tools
         response = await generate_response_fn(user_input)
-        conversation_history.append({
-            "role": "assistant",
-            "content": response,
-        })
-        if len(conversation_history) > MAX_HISTORY_SIZE:
-            del conversation_history[: -MAX_HISTORY_SIZE]
+        append_to_history(conversation_history, "assistant", response)
         return (LoopState.IDLE, response)
 
     # PLAN branch - may show a plan but not execute
@@ -599,12 +581,7 @@ async def route_dag_classification(
     if branch == IntentNode.PLAN:
         # For now, treat as conversation about planning
         response = await generate_response_fn(user_input)
-        conversation_history.append({
-            "role": "assistant",
-            "content": response,
-        })
-        if len(conversation_history) > MAX_HISTORY_SIZE:
-            del conversation_history[: -MAX_HISTORY_SIZE]
+        append_to_history(conversation_history, "assistant", response)
         return (LoopState.IDLE, response)
 
     # ACT branch - requires tools
@@ -628,27 +605,27 @@ async def route_dag_classification(
             return _create_read_execution_generator(goal, execute_goal_fn)
 
         # WRITE sub-branch - write tools with approval
-            # Returns a generator that handles approval, trust, background, snapshots, then execution
-            if IntentNode.WRITE in path:
-                goal = classification.task_description or user_input
-                return _create_write_execution_generator(
-                    goal=goal,
-                    path=path,
-                    auto_confirm=auto_confirm,
-                    execute_goal_fn=execute_goal_fn,
-                    approval_tracker=approval_tracker,
-                    auto_approve_config=auto_approve_config,
-                    snapshot_manager=snapshot_manager,
-                    conversation_turn=conversation_turn,
-                    background_manager=background_manager,
-                    model=model,
-                    tool_executor=tool_executor,
-                    memory=memory,
-                    # RFC: Plan-Based Duration Estimation
-                    plan_fn=plan_fn,
-                    execute_with_plan_fn=execute_with_plan_fn,
-                    execution_history=execution_history,
-                )
+        # Returns a generator that handles approval, trust, background, snapshots, then execution
+        if IntentNode.WRITE in path:
+            goal = classification.task_description or user_input
+            return _create_write_execution_generator(
+                goal=goal,
+                path=path,
+                auto_confirm=auto_confirm,
+                execute_goal_fn=execute_goal_fn,
+                approval_tracker=approval_tracker,
+                auto_approve_config=auto_approve_config,
+                snapshot_manager=snapshot_manager,
+                conversation_turn=conversation_turn,
+                background_manager=background_manager,
+                model=model,
+                tool_executor=tool_executor,
+                memory=memory,
+                # RFC: Plan-Based Duration Estimation
+                plan_fn=plan_fn,
+                execute_with_plan_fn=execute_with_plan_fn,
+                execution_history=execution_history,
+            )
 
     # Fallback - low confidence or unknown path
     # Returns tuple directly (no generator) - fixes double-submit bug
@@ -663,10 +640,5 @@ async def route_dag_classification(
     # Default to conversation
     # Returns tuple directly (no generator) - fixes double-submit bug
     response = await generate_response_fn(user_input)
-    conversation_history.append({
-        "role": "assistant",
-        "content": response,
-    })
-    if len(conversation_history) > MAX_HISTORY_SIZE:
-        del conversation_history[: -MAX_HISTORY_SIZE]
+    append_to_history(conversation_history, "assistant", response)
     return (LoopState.IDLE, response)

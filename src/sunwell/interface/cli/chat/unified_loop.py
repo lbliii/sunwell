@@ -16,39 +16,19 @@ from typing import TYPE_CHECKING
 
 from rich.markdown import Markdown
 
+from sunwell.interface.cli.core.events import render_agent_event
+from sunwell.interface.cli.core.render_context import reset_render_context
 from sunwell.interface.cli.core.theme import (
     CHARS_CIRCLES,
     CHARS_DIAMONDS,
-    CHARS_LAYOUT,
     CHARS_MISC,
-    CHARS_PROGRESS,
     CHARS_STARS,
     create_sunwell_console,
-    emit,
-    Level,
     render_alert,
-    render_breadcrumb,
-    render_budget_bar,
-    render_code,
-    render_collapsible,
-    render_complete,
-    render_confidence,
     render_countdown,
-    render_decision,
-    render_diff,
     render_error,
-    render_file_operation,
-    render_gate_header,
-    render_learning,
-    render_metrics,
-    render_phase_header,
     render_quote,
     render_separator,
-    render_step_progress,
-    render_thinking,
-    render_timeline,
-    render_toast,
-    render_validation,
     should_reduce_motion,
     Sparkle,
 )
@@ -106,6 +86,9 @@ async def run_unified_loop(
     )
     from sunwell.tools.core.types import ToolPolicy, ToolTrust
     from sunwell.tools.execution import ToolExecutor
+
+    # Reset render context for fresh hierarchical display
+    reset_render_context()
 
     # Load user-configurable hooks from .sunwell/hooks.toml
     hook_count = register_user_hooks(workspace)
@@ -235,7 +218,7 @@ async def run_unified_loop(
                 elif isinstance(result, AgentEvent):
                     # Render progress event
                     logger.debug("Rendering agent event: type=%s", result.type)
-                    _render_agent_event(result)
+                    render_agent_event(result, console)
                     
                     # Periodic checkpoint: save SimulacrumStore after task completion
                     # This ensures conversation/learning state survives interruption
@@ -443,193 +426,6 @@ def _handle_checkpoint(checkpoint: ChatCheckpoint) -> CheckpointResponse | None:
     else:
         # Unknown checkpoint type - default to continue
         return CheckpointResponse("continue")
-
-
-def _render_agent_event(event: AgentEvent) -> None:
-    """Render an AgentEvent for the CLI.
-
-    Holy Light aesthetic: Uses branded components for rich visual feedback.
-    - Phase headers with box drawing for major transitions
-    - Step progress for multi-task workflows
-    - Breadcrumbs for workflow navigation
-    - Confidence bars for routing decisions
-    - Budget bars for token tracking
-    - Diff display for file changes
-    - Collapsible sections for verbose output
-    - Sparkle bursts for completions
-    """
-    from sunwell.agent.events import EventType
-
-    if event.type == EventType.SIGNAL:
-        status = event.data.get("status", "")
-        if status == "extracting":
-            # Use phase header for understanding phase
-            render_phase_header(console, "understanding")
-        elif status == "extracted":
-            emit(console, Level.INFO, "Signal extracted")
-
-    elif event.type == EventType.PLAN_START:
-        technique = event.data.get("technique", "planning")
-        # Use phase header component for major transitions
-        render_phase_header(console, "illuminating")
-        console.print(f"  [neutral.dim]Technique: {technique}[/neutral.dim]")
-
-    elif event.type == EventType.SIGNAL_ROUTE:
-        planning = event.data.get("planning", "")
-        confidence = event.data.get("confidence", 0)
-        # Use confidence bar for routing decisions
-        render_confidence(console, confidence, label=f"Route → {planning}")
-
-    elif event.type == EventType.TASK_START:
-        task_desc = event.data.get("description", "Working...")[:60]
-        task_id = event.data.get("task_id", "")
-        task_num = event.data.get("task_number", 0)
-        total_tasks = event.data.get("total_tasks", 0)
-        
-        # Show crafting phase on first task
-        if task_id == "1" or event.data.get("first_task"):
-            render_phase_header(console, "crafting")
-        
-        # Show step progress if we have task count info
-        if task_num > 0 and total_tasks > 0:
-            render_step_progress(console, task_num, total_tasks, description=task_desc)
-        else:
-            console.print(f"  [holy.gold]{CHARS_DIAMONDS['hollow']}[/holy.gold] {task_desc}")
-
-    elif event.type == EventType.TASK_COMPLETE:
-        duration_ms = event.data.get("duration_ms", 0)
-        details = f"{duration_ms}ms" if duration_ms else ""
-        render_validation(console, "Task", passed=True, details=details)
-
-    elif event.type == EventType.GATE_START:
-        gate_name = event.data.get("gate_name", "Validation")
-        gate_id = event.data.get("gate_id", gate_name)
-        # Show verifying phase header
-        render_phase_header(console, "verifying")
-        render_gate_header(console, gate_id)
-
-    elif event.type == EventType.GATE_PASS:
-        gate_name = event.data.get("gate_name", "Validation")
-        render_validation(console, gate_name, passed=True)
-
-    elif event.type == EventType.GATE_FAIL:
-        gate_name = event.data.get("gate_name", "Validation")
-        error = event.data.get("error_message", "Failed")
-        error_trace = event.data.get("error_trace", [])
-        render_validation(console, gate_name, passed=False, details=error)
-        
-        # Show collapsible error trace if available
-        if error_trace:
-            render_collapsible(
-                console,
-                "Error trace",
-                error_trace,
-                expanded=False,
-                item_count=len(error_trace),
-            )
-
-    elif event.type == EventType.MODEL_CALL_START:
-        # Show thinking indicator with spiral spinner
-        model = event.data.get("model", "")
-        render_thinking(console, f"Thinking... ({model})" if model else "Thinking...")
-
-    elif event.type == EventType.MODEL_TOKENS:
-        # Show token metrics and budget bar
-        tokens = event.data.get("total_tokens", 0)
-        input_tokens = event.data.get("input_tokens", 0)
-        output_tokens = event.data.get("output_tokens", 0)
-        cost = event.data.get("cost", 0)
-        budget_total = event.data.get("budget_total", 0)
-        
-        # Skip rendering empty metrics (no value, just noise)
-        if tokens > 0 or cost > 0:
-            render_metrics(console, {
-                "total_tokens": tokens,
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
-                "cost": cost,
-            })
-        
-            # Show budget bar if budget is set
-            if budget_total > 0:
-                render_budget_bar(console, tokens, budget_total)
-
-    elif event.type == EventType.PLAN_WINNER:
-        tasks = event.data.get("tasks", 0)
-        gates = event.data.get("gates", 0)
-        technique = event.data.get("technique", "")
-        rationale = event.data.get("rationale", "")
-        console.print()
-        # Use decision renderer for plan selection
-        render_decision(
-            console,
-            f"Plan selected: {tasks} tasks, {gates} gates",
-            rationale=rationale or technique,
-        )
-
-    elif event.type == EventType.COMPLETE:
-        tasks_done = event.data.get("tasks_completed", 0)
-        gates_done = event.data.get("gates_passed", 0)
-        duration = event.data.get("duration_s", 0)
-        learnings = event.data.get("learnings_extracted", 0)
-        files_created = event.data.get("files_created", [])
-        files_modified = event.data.get("files_modified", [])
-        
-        # Use the full completion renderer with sparkle
-        render_complete(
-            console,
-            tasks_completed=tasks_done,
-            gates_passed=gates_done,
-            duration_s=duration,
-            learnings=learnings,
-            files_created=files_created,
-            files_modified=files_modified,
-        )
-        
-        # Sparkle burst for celebration (if animations enabled)
-        if not should_reduce_motion():
-            asyncio.create_task(Sparkle.burst("Goal achieved", duration=0.3))
-
-    elif event.type == EventType.FILE_CREATED:
-        path = event.data.get("path", "")
-        render_file_operation(console, "create", path)
-
-    elif event.type == EventType.FILE_MODIFIED:
-        path = event.data.get("path", "")
-        details = event.data.get("lines_changed", "")
-        old_content = event.data.get("old_content", [])
-        new_content = event.data.get("new_content", [])
-        
-        render_file_operation(console, "modify", path, str(details) if details else "")
-        
-        # Show diff if content available
-        if old_content and new_content:
-            render_diff(console, old_content, new_content, context_lines=2)
-
-    elif event.type == EventType.FILE_DELETED:
-        path = event.data.get("path", "")
-        render_file_operation(console, "delete", path)
-
-    elif event.type == EventType.FILE_READ:
-        path = event.data.get("path", "")
-        render_file_operation(console, "read", path)
-
-    elif event.type == EventType.LEARNING_EXTRACTED:
-        fact = event.data.get("fact", "")
-        source = event.data.get("source", "")
-        render_learning(console, fact, source)
-
-    elif event.type == EventType.CODE_GENERATED:
-        code = event.data.get("code", "")
-        language = event.data.get("language", "python")
-        context = event.data.get("context", "")
-        if code:
-            render_code(console, code, language=language, context=context)
-
-    elif event.type == EventType.DECISION_MADE:
-        decision = event.data.get("decision", "")
-        rationale = event.data.get("rationale", "")
-        render_decision(console, decision, rationale=rationale)
 
 
 def _render_response(response: str, lens=None) -> None:

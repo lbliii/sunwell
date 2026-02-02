@@ -27,6 +27,27 @@ DECAY_HALF_LIFE_DAYS = 30  # Patterns lose 50% confidence after 30 activity days
 MIN_CONFIDENCE_FOR_INJECTION = 0.60  # Minimum confidence to inject into prompt
 
 
+def _calculate_effective_confidence(
+    pattern: AwarenessPattern,
+    activity_day: int,
+) -> float:
+    """Calculate effective confidence after decay.
+
+    Args:
+        pattern: Pattern to calculate confidence for
+        activity_day: Current activity day
+
+    Returns:
+        Effective confidence after exponential decay
+    """
+    days_since_access = activity_day - pattern.activity_day_accessed
+    if days_since_access <= 0:
+        return pattern.confidence
+
+    decay_factor = 0.5 ** (days_since_access / DECAY_HALF_LIFE_DAYS)
+    return pattern.confidence * decay_factor
+
+
 class AwarenessStore:
     """Persistent store for behavioral awareness patterns.
 
@@ -141,13 +162,10 @@ class AwarenessStore:
                     continue
 
                 # Apply decay if activity_day provided
-                effective_confidence = pattern.confidence
                 if activity_day is not None:
-                    days_since_access = activity_day - pattern.activity_day_accessed
-                    if days_since_access > 0:
-                        # Exponential decay
-                        decay_factor = 0.5 ** (days_since_access / DECAY_HALF_LIFE_DAYS)
-                        effective_confidence *= decay_factor
+                    effective_confidence = _calculate_effective_confidence(pattern, activity_day)
+                else:
+                    effective_confidence = pattern.confidence
 
                 if effective_confidence >= MIN_CONFIDENCE_FOR_INJECTION:
                     significant.append(pattern)
@@ -198,13 +216,9 @@ class AwarenessStore:
             to_remove: list[str] = []
 
             for pid, pattern in self._patterns.items():
-                days_since_access = activity_day - pattern.activity_day_accessed
-                if days_since_access > 0:
-                    decay_factor = 0.5 ** (days_since_access / DECAY_HALF_LIFE_DAYS)
-                    effective_confidence = pattern.confidence * decay_factor
-
-                    if effective_confidence < threshold:
-                        to_remove.append(pid)
+                effective_confidence = _calculate_effective_confidence(pattern, activity_day)
+                if effective_confidence < threshold:
+                    to_remove.append(pid)
 
             for pid in to_remove:
                 del self._patterns[pid]

@@ -77,6 +77,7 @@ from sunwell.agent.utils.request import RunOptions
 from sunwell.agent.utils.toolchain import detect_toolchain
 from sunwell.agent.validation import Artifact, ValidationRunner
 from sunwell.agent.validation.gates import ValidationGate
+from sunwell.tools.selection.graph import ToolDAGError
 
 if TYPE_CHECKING:
     from sunwell.agent.recovery.types import RecoveryState
@@ -1065,12 +1066,16 @@ class Agent:
                 async for event in self._execute_task_with_tools(task):
                     yield event
                 return
-            except Exception as e:
-                # Fall back to streaming on error
-                import logging
-                logging.getLogger(__name__).warning(
-                    "Tool-based execution failed, falling back to streaming: %s", e
+            except (RuntimeError, ValueError, ToolDAGError) as e:
+                # Recoverable tool errors - fallback to streaming is appropriate
+                logger.warning(
+                    "Tool execution failed (recoverable), falling back to streaming: %s", e
                 )
+            except (PermissionError, OSError) as e:
+                # Security/system errors should not silently fallback
+                logger.error("Tool execution failed (non-recoverable): %s", e)
+                raise
+            # Let TypeError, AttributeError, etc. propagate to surface programming bugs
 
         # Use streaming for conversational tasks or as fallback
         async for event in self._execute_task_streaming_fallback(task):

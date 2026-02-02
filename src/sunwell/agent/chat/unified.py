@@ -50,7 +50,7 @@ from sunwell.agent.chat.conversation import (
 )
 from sunwell.agent.chat.execution import GoalExecutor
 from sunwell.agent.chat.routing import route_dag_classification
-from sunwell.agent.chat.state import LoopState, MAX_HISTORY_SIZE
+from sunwell.agent.chat.state import LoopState, append_to_history
 from sunwell.agent.events import AgentEvent
 from sunwell.agent.intent import (
     DAGClassifier,
@@ -61,6 +61,11 @@ from sunwell.agent.background import BackgroundManager
 from sunwell.agent.recovery.manager import RecoveryManager
 from sunwell.agent.rewind import SnapshotManager
 from sunwell.agent.trust import ApprovalTracker, AutoApproveConfig
+from sunwell.agent.isolation.workspace import (
+    WorkspaceReadiness,
+    check_workspace_readiness,
+    ensure_git_repo,
+)
 
 if TYPE_CHECKING:
     from sunwell.agent.context.session import SessionContext
@@ -153,6 +158,9 @@ class UnifiedChatLoop:
         recovery_dir = self.workspace / ".sunwell" / "recovery"
         self._recovery_manager = RecoveryManager(recovery_dir)
 
+        # Workspace readiness for parallel isolation (checked lazily)
+        self._workspace_readiness: "WorkspaceReadiness | None" = None
+
     @property
     def is_executing(self) -> bool:
         """True if agent is currently executing tasks."""
@@ -162,6 +170,47 @@ class UnifiedChatLoop:
     def state(self) -> LoopState:
         """Current loop state (for UI display)."""
         return self._state
+
+    @property
+    def workspace_readiness(self) -> WorkspaceReadiness:
+        """Check workspace readiness for parallel isolation.
+
+        Lazily computed on first access. Use this before parallel task
+        execution to determine the best isolation strategy.
+
+        Returns:
+            WorkspaceReadiness with isolation mode recommendation
+        """
+        if self._workspace_readiness is None:
+            self._workspace_readiness = check_workspace_readiness(self.workspace)
+        return self._workspace_readiness
+
+    async def ensure_isolation_ready(self, auto_init: bool = False) -> bool:
+        """Ensure workspace is ready for parallel isolation.
+
+        Call before parallel task execution to:
+        - Check if workspace is a git repo
+        - Optionally auto-init git if needed
+
+        Args:
+            auto_init: If True and workspace isn't a git repo, initialize it
+
+        Returns:
+            True if worktree isolation is available
+        """
+        readiness = self.workspace_readiness
+
+        if readiness.is_git_repo:
+            return True
+
+        if auto_init and readiness.can_init_git:
+            success = await ensure_git_repo(self.workspace, auto_init=True)
+            if success:
+                # Refresh readiness cache
+                self._workspace_readiness = check_workspace_readiness(self.workspace)
+                return True
+
+        return False
 
     def request_cancel(self) -> None:
         """Request graceful cancellation of current execution."""
@@ -176,11 +225,6 @@ class UnifiedChatLoop:
                 self._pending_input.get_nowait()
             except asyncio.QueueEmpty:
                 break
-
-    def _trim_history(self) -> None:
-        """Trim conversation history to prevent unbounded growth."""
-        if len(self.conversation_history) > MAX_HISTORY_SIZE:
-            self.conversation_history = self.conversation_history[-MAX_HISTORY_SIZE:]
 
     async def _generate_response(
         self,
@@ -199,21 +243,25 @@ class UnifiedChatLoop:
     async def _execute_goal(
         self,
         goal: str,
-    ) -> AsyncIterator[str | ChatCheckpoint | AgentEvent]:
+    ) -> AsyncIterator[tuple[LoopState, str | ChatCheckpoint | AgentEvent]]:
         """Execute a goal with checkpoints and optional progress streaming.
 
         ⚠️ BIDIRECTIONAL GENERATOR: This generator expects responses via asend().
         Do NOT consume with ``async for`` - it will break checkpoint responses.
         Use manual iteration to forward responses to the inner GoalExecutor.
+
+        Yields:
+            Tuples of (LoopState, event) for routing compatibility.
         """
         from sunwell.agent.context.session import SessionContext
 
         if self.tool_executor is None:
             logger.warning("No tool executor available for goal execution")
             yield (
+                LoopState.IDLE,
                 "I understand you want me to do something, but I'm in **chat mode** "
                 "(tools disabled). Use `/tools on` to enable agent mode, or rephrase "
-                "as a question."
+                "as a question.",
             )
             return
 
@@ -233,7 +281,7 @@ class UnifiedChatLoop:
         self.session = SessionContext.build(self.workspace, goal, None)
 
         try:
-            # Execute goal and forward events
+            # Execute goal and forward events (GoalExecutor yields (state, event) tuples)
             gen = self._goal_executor.execute(
                 goal,
                 self.session,
@@ -247,8 +295,8 @@ class UnifiedChatLoop:
                 while True:
                     state, event = result
                     self._state = state
-                    # Single-yield protocol: yield event, receive response, forward to executor
-                    response = yield event
+                    # Yield tuple, receive response, forward to executor
+                    response = yield (state, event)
                     result = await gen.asend(response)
             except StopAsyncIteration:
                 pass
@@ -388,11 +436,7 @@ class UnifiedChatLoop:
                     continue
 
                 # Add to conversation history (with size limit)
-                self.conversation_history.append({
-                    "role": "user",
-                    "content": user_input,
-                })
-                self._trim_history()
+                append_to_history(self.conversation_history, "user", user_input)
 
                 # Handle input during execution (interruption)
                 if self.is_executing:
@@ -409,10 +453,11 @@ class UnifiedChatLoop:
                         # Manual iteration to forward checkpoint responses
                         goal_gen = self._execute_goal(agent_goal)
                         try:
-                            event = await goal_gen.asend(None)
+                            state, event = await goal_gen.asend(None)
                             while True:
+                                self._state = state
                                 resp = yield event
-                                event = await goal_gen.asend(resp)
+                                state, event = await goal_gen.asend(resp)
                         except StopAsyncIteration:
                             pass
                     elif response:
@@ -483,7 +528,7 @@ class UnifiedChatLoop:
                     conversation_history=self.conversation_history,
                     auto_confirm=self.auto_confirm,
                     generate_response_fn=self._generate_response,
-                    execute_goal_fn=self._execute_goal_wrapped,
+                    execute_goal_fn=self._execute_goal,
                     workspace=self.workspace,
                     approval_tracker=self._approval_tracker,
                     auto_approve_config=self._auto_approve_config,
@@ -494,7 +539,7 @@ class UnifiedChatLoop:
                     memory=self.memory,
                     # RFC: Plan-Based Duration Estimation
                     plan_fn=self._plan_goal,
-                    execute_with_plan_fn=self._execute_goal_with_plan,
+                    execute_with_plan_fn=self._execute_goal_with_precomputed_plan,
                     execution_history=execution_history,
                 )
 
@@ -534,26 +579,6 @@ class UnifiedChatLoop:
                 default="abort",
             )
 
-    async def _execute_goal_wrapped(
-        self,
-        goal: str,
-    ) -> AsyncIterator[tuple[LoopState, str | ChatCheckpoint | AgentEvent]]:
-        """Wrapped goal execution that yields (state, event) tuples for routing.
-        
-        Uses manual iteration to properly forward checkpoint responses.
-        async for doesn't support asend(), so we iterate manually.
-        """
-        goal_gen = self._execute_goal(goal)
-        try:
-            event = await goal_gen.asend(None)
-            while True:
-                # Yield event with current state, receive response
-                response = yield (self._state, event)
-                # Forward response to inner generator
-                event = await goal_gen.asend(response)
-        except StopAsyncIteration:
-            pass
-
     # ═══════════════════════════════════════════════════════════════════════════
     # RFC: Plan-Based Duration Estimation
     # ═══════════════════════════════════════════════════════════════════════════
@@ -587,86 +612,98 @@ class UnifiedChatLoop:
 
         return await agent.plan_only(goal, self.memory)
 
-    async def _execute_goal_with_plan(
-        self,
-        goal: str,
-        plan_result: PlanResult,
-    ) -> AsyncIterator[tuple[LoopState, str | ChatCheckpoint | AgentEvent]]:
-        """Execute goal using a precomputed plan.
-        
-        Wraps _execute_goal but passes the precomputed plan to skip re-planning.
-        """
-        goal_gen = self._execute_goal_with_precomputed_plan(goal, plan_result)
-        try:
-            event = await goal_gen.asend(None)
-            while True:
-                response = yield (self._state, event)
-                event = await goal_gen.asend(response)
-        except StopAsyncIteration:
-            pass
-
     async def _execute_goal_with_precomputed_plan(
         self,
         goal: str,
         plan_result: PlanResult,
-    ) -> AsyncIterator[str | ChatCheckpoint | AgentEvent]:
+    ) -> AsyncIterator[tuple[LoopState, str | ChatCheckpoint | AgentEvent]]:
         """Execute a goal with a precomputed plan (skip planning phase).
-        
-        Similar to _execute_goal but passes precomputed_plan to Agent.run().
+
+        This bypasses GoalExecutor since planning and confirmation already happened
+        in routing.py. Goes directly to Agent.run() with the precomputed plan.
+
+        Yields:
+            Tuples of (LoopState, event) for routing compatibility.
         """
         from sunwell.agent import Agent
         from sunwell.agent.context.session import SessionContext
+        from sunwell.agent.events import EventType
 
         if self.tool_executor is None:
             yield (
+                LoopState.IDLE,
                 "I understand you want me to do something, but I'm in **chat mode** "
-                "(tools disabled). Use `/tools on` to enable agent mode."
+                "(tools disabled). Use `/tools on` to enable agent mode.",
             )
             return
 
         self._state = LoopState.EXECUTING  # Skip PLANNING state since we have plan
 
+        # Create agent with same settings as GoalExecutor would use
         agent = Agent(
             model=self.model,
             tool_executor=self.tool_executor,
             cwd=self.workspace,
+            stream_inference=self.stream_progress,
         )
 
         # Create session
         self.session = SessionContext.build(self.workspace, goal, None)
 
+        # Get or create memory
+        memory = self.memory
+        if memory is None:
+            from sunwell.memory import PersistentMemory
+            memory = PersistentMemory.load(self.workspace)
+            self.memory = memory
+
         try:
             async for event in agent.run(
                 self.session,
-                self.memory or await self._get_or_create_memory(),
+                memory,
                 precomputed_plan=plan_result,
             ):
-                # Yield events for UI display
+                # Yield progress events if streaming enabled
                 if self.stream_progress:
-                    yield event
-                # Also yield checkpoints
-                if event.type.value.startswith("checkpoint"):
-                    checkpoint = self._event_to_checkpoint(event)
-                    if checkpoint:
-                        yield checkpoint
+                    yield (self._state, event)
+
+                # Handle completion
+                if event.type == EventType.COMPLETE:
+                    tasks = event.data.get("tasks_completed", 0)
+                    duration = event.data.get("duration_s", 0)
+                    yield (
+                        LoopState.COMPLETED,
+                        ChatCheckpoint(
+                            type=ChatCheckpointType.COMPLETION,
+                            message=f"Completed {tasks} tasks in {duration:.1f}s",
+                            summary=f"{tasks} tasks completed",
+                            files_changed=tuple(self.session.files_modified),
+                        ),
+                    )
+
+                # Handle errors
+                elif event.type == EventType.ERROR:
+                    yield (
+                        LoopState.ERROR,
+                        ChatCheckpoint(
+                            type=ChatCheckpointType.FAILURE,
+                            message=event.data.get("message", "An error occurred"),
+                            error=event.data.get("message"),
+                            recovery_options=("retry", "abort"),
+                        ),
+                    )
+
+        except Exception as e:
+            logger.exception("Error during execution with precomputed plan")
+            yield (
+                LoopState.ERROR,
+                ChatCheckpoint(
+                    type=ChatCheckpointType.FAILURE,
+                    message=f"Execution failed: {e}",
+                    error=str(e),
+                    recovery_options=("retry", "abort"),
+                ),
+            )
 
         finally:
             self._state = LoopState.IDLE
-
-    async def _get_or_create_memory(self) -> PersistentMemory:
-        """Get existing memory or create a new one."""
-        if self.memory is None:
-            from sunwell.memory import PersistentMemory
-            self.memory = PersistentMemory.load(self.workspace)
-        return self.memory
-
-    def _event_to_checkpoint(self, event: AgentEvent) -> ChatCheckpoint | None:
-        """Convert certain AgentEvents to ChatCheckpoints."""
-        # Simple conversion for completion events
-        if event.type.value == "complete":
-            return ChatCheckpoint(
-                type=ChatCheckpointType.COMPLETION,
-                message="Task complete",
-                summary=event.data.get("summary", ""),
-            )
-        return None

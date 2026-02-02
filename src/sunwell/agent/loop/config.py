@@ -172,6 +172,28 @@ class LoopConfig:
     """
 
     # =========================================================================
+    # Parallel Isolation (Agentic Infrastructure)
+    # =========================================================================
+    enable_worktree_isolation: bool = True
+    """Enable git worktree isolation for parallel tasks.
+
+    When enabled, each parallel task gets its own isolated git worktree.
+    This prevents file conflicts by construction - tasks cannot interfere
+    with each other's file writes.
+
+    When disabled (or for non-git workspaces), falls back to in-memory
+    staging with validation before commit.
+    """
+
+    enable_content_validation: bool = True
+    """Enable content validation before file commits.
+
+    Defense-in-depth: validates that file content isn't tool output
+    contamination (e.g., "✓ Wrote file.py" as content). Runs regardless
+    of whether worktree isolation is enabled.
+    """
+
+    # =========================================================================
     # Trinket Composition
     # =========================================================================
     refresh_trinkets_per_turn: bool = False
