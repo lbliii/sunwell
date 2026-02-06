@@ -109,16 +109,24 @@ class WorkflowEngine:
 
     def __init__(
         self,
-        state_dir: Path = Path(".sunwell/state"),
+        state_dir: Path | None = None,
         skill_executor: SkillExecutor | None = None,
+        workspace: Path | None = None,
     ):
         """Initialize the workflow engine.
 
         Args:
-            state_dir: Directory for state persistence
+            state_dir: Explicit directory for state persistence (overrides resolution)
             skill_executor: Executor for running skills
+            workspace: Workspace root for state resolution (defaults to cwd)
         """
-        self.state_dir = state_dir
+        if state_dir is not None:
+            self.state_dir = state_dir
+        else:
+            from sunwell.knowledge.project.state import resolve_state_dir
+
+            ws = workspace or Path.cwd()
+            self.state_dir = resolve_state_dir(ws) / "state"
         self.skill_executor = skill_executor
         self._interrupted = False
         self._current_execution: WorkflowExecution | None = None

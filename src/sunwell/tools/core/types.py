@@ -127,15 +127,8 @@ def get_profile_tools(profile: ToolProfile) -> frozenset[str]:
     return expand_tool_groups(frozenset(groups))
 
 
-@dataclass(frozen=True, slots=True)
-class ToolResult:
-    """Result from executing a tool."""
-
-    tool_call_id: str
-    success: bool
-    output: str
-    artifacts: tuple[str, ...] = ()  # Files created/modified (as strings for JSON serialization)
-    execution_time_ms: int = 0
+# Re-export ToolResult from contracts for backward compatibility
+from sunwell.contracts.execution import ToolResult
 
 
 @dataclass(slots=True)

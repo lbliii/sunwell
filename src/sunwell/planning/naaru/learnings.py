@@ -84,9 +84,10 @@ class LearningExtractor:
         Returns:
             Path to the persisted learnings file, or None on error
         """
+        from sunwell.knowledge.project.state import resolve_state_dir
+
         learnings_file = (
-            self._root
-            / ".sunwell"
+            resolve_state_dir(self._root)
             / "learnings"
             / f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         )
@@ -137,7 +138,7 @@ class LearningExtractor:
             "created_at": datetime.now().isoformat(),
         }
 
-        plan_file = self._root / ".sunwell" / "plans" / f"{goal_hash}.json"
+        plan_file = resolve_state_dir(self._root) / "plans" / f"{goal_hash}.json"
         if safe_json_dump(execution_state, plan_file):
             return plan_file
         logger.error("Failed to persist execution state for goal: %s", goal)

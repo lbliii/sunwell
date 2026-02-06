@@ -1,6 +1,6 @@
 """Framework parsing."""
 
-from sunwell.core.models.framework import Framework, FrameworkCategory
+from sunwell.foundation.schema.models.framework import Framework, FrameworkCategory
 
 
 def parse_framework(data: dict) -> Framework:

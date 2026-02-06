@@ -9,6 +9,7 @@ from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from sunwell.agent.events.types import event_to_dict as _event_to_dict
 from sunwell.interface.server.events import BusEvent, EventBus
 from sunwell.interface.server.routes.models import (
     CamelModel,
@@ -191,7 +192,7 @@ async def stream_events(websocket: WebSocket, run_id: str) -> None:
         run.status = "running"
         try:
             async for event in _execute_agent(run):
-                event_dict = event if isinstance(event, dict) else event.to_dict()
+                event_dict = event if isinstance(event, dict) else _event_to_dict(event)
                 run.events.append(event_dict)
                 await websocket.send_json(event_dict)
 
@@ -467,7 +468,7 @@ async def _execute_agent(run: RunState) -> AsyncIterator[dict[str, Any]]:
         if run.is_cancelled:
             break
 
-        event_dict = event.to_dict()
+        event_dict = _event_to_dict(event)
 
         bus_event = BusEvent(
             v=1,

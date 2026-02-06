@@ -225,6 +225,7 @@ from sunwell.agent.events.types import (
     EventUIHints,
     GateSummary,
     TaskSummary,
+    event_to_dict,
 )
 
 __all__ = [
@@ -235,6 +236,7 @@ __all__ = [
     "TaskSummary",
     "GateSummary",
     "DEFAULT_UI_HINTS",
+    "event_to_dict",
     # Event Bus
     "emit",
     "emit_typed",

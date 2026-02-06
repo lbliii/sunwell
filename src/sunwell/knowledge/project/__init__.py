@@ -67,9 +67,11 @@ from sunwell.knowledge.project.types import (
     Serializable,
     WorkspaceType,
 )
+from sunwell.knowledge.project.state import (
+    resolve_state_dir,
+)
 from sunwell.knowledge.project.validation import (
     ProjectValidationError,
-    validate_not_sunwell_repo,
     validate_workspace,
 )
 
@@ -114,9 +116,10 @@ __all__ = [
     "resolve_project",
     # Signals (RFC-079)
     "gather_project_signals",
+    # State
+    "resolve_state_dir",
     # Validation
     "ProjectValidationError",
-    "validate_not_sunwell_repo",
     "validate_workspace",
     # Cache
     "invalidate_cache",

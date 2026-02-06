@@ -1,12 +1,12 @@
 """Validators parsing."""
 
-from sunwell.core.models.validator import (
+from sunwell.foundation.schema.models.validator import (
     DeterministicValidator,
     HeuristicValidator,
     SchemaValidationMethod,
     SchemaValidator,
 )
-from sunwell.core.types.types import Severity, ValidationMethod
+from sunwell.foundation.schema.models.types import Severity, ValidationMethod
 
 
 def parse_deterministic_validators(

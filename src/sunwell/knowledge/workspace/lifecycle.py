@@ -166,8 +166,13 @@ class WorkspaceLifecycle:
         return self._sunwell_dir / "runs"
 
     def get_sunwell_data_dir(self, workspace_path: Path) -> Path:
-        """Get the .sunwell directory for a workspace."""
-        return workspace_path / ".sunwell"
+        """Get the state directory for a workspace.
+
+        Uses the central state resolver to support out-of-tree state.
+        """
+        from sunwell.knowledge.project.state import resolve_state_dir
+
+        return resolve_state_dir(workspace_path)
 
     def list_workspace_runs(self, workspace_id: str) -> list[str]:
         """List all run IDs for a workspace.

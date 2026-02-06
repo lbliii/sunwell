@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sunwell.core.types.types import LensReference
+from sunwell.foundation.schema.models.types import LensReference
 from sunwell.foundation.core.lens import Lens
 from sunwell.foundation.errors import ErrorCode, lens_error
 from sunwell.foundation.schema.loader.parsers import (
@@ -34,7 +34,7 @@ from sunwell.foundation.schema.loader.presets import load_presets, resolve_prese
 from sunwell.foundation.utils import safe_yaml_load, safe_yaml_loads
 
 if TYPE_CHECKING:
-    from sunwell.features.fount.client import FountClient
+    from sunwell.features.fount.client import FountClient  # layer-exempt: TYPE_CHECKING for optional Fount integration
 
 
 class LensLoader:

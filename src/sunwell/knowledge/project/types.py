@@ -52,6 +52,7 @@ class ProjectManifest:
         created: When project was initialized
         workspace_type: How workspace behaves (existing, sandboxed)
         agent: Agent-specific configuration
+        state_dir: Optional out-of-tree state directory path
     """
 
     id: str
@@ -69,12 +70,21 @@ class ProjectManifest:
     agent: AgentConfig = field(default_factory=AgentConfig)
     """Agent-specific configuration."""
 
+    state_dir: str | None = None
+    """Optional out-of-tree path for runtime state (backlog, memory, etc.).
+
+    When set, generated/ephemeral state is stored externally instead of
+    under .sunwell/ in the workspace.  Supports absolute paths and paths
+    relative to the workspace root.
+    """
+
     @classmethod
     def from_dict(cls, data: dict) -> ProjectManifest:
         """Create manifest from parsed TOML dict."""
         project = data.get("project", {})
         workspace = data.get("workspace", {})
         agent_data = data.get("agent", {})
+        state_data = data.get("state", {})
 
         # Parse created timestamp
         created_str = project.get("created", "")
@@ -99,11 +109,12 @@ class ProjectManifest:
             created=created,
             workspace_type=workspace.get("type", "existing"),
             agent=agent,
+            state_dir=state_data.get("dir"),
         )
 
     def to_dict(self) -> dict:
         """Convert manifest to TOML-compatible dict."""
-        return {
+        d: dict = {
             "project": {
                 "id": self.id,
                 "name": self.name,
@@ -117,6 +128,9 @@ class ProjectManifest:
                 "protected": list(self.agent.protected),
             },
         }
+        if self.state_dir is not None:
+            d["state"] = {"dir": self.state_dir}
+        return d
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,6 +178,14 @@ class Project:
     workspace_id: str | None = None
     """ID of the workspace this project belongs to."""
 
+    state_root: Path | None = None
+    """Explicit state directory override.
+
+    When set, takes precedence over all other resolution strategies.
+    Used when the caller already knows where state lives (e.g., from
+    CLI ``--state-dir`` or programmatic construction).
+    """
+
     def __post_init__(self) -> None:
         """Validate project on construction."""
         # Ensure root is absolute
@@ -177,8 +199,20 @@ class Project:
 
     @property
     def state_dir(self) -> Path:
-        """Path to .sunwell/ directory for project state."""
-        return self.root / ".sunwell"
+        """Resolve the state directory for this project.
+
+        Precedence:
+          1. Explicit ``state_root`` field (set at construction)
+          2. ``SUNWELL_STATE_DIR`` env var
+          3. ``state_dir`` in .sunwell/project.toml manifest
+          4. Legacy default: ``{root}/.sunwell/``
+        """
+        if self.state_root is not None:
+            return self.state_root.resolve()
+
+        from sunwell.knowledge.project.state import resolve_state_dir
+
+        return resolve_state_dir(self.root)
 
     @property
     def trust_level(self) -> str:

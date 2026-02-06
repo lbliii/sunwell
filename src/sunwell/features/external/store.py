@@ -28,8 +28,10 @@ class ExternalEventStore:
         Args:
             root: Project root directory
         """
+        from sunwell.knowledge.project.state import resolve_state_dir
+
         self._root = Path(root)
-        self._base_path = self._root / ".sunwell" / "external"
+        self._base_path = resolve_state_dir(self._root) / "external"
         self._events_path = self._base_path / "events.jsonl"
         self._wal_path = self._base_path / "wal.jsonl"
 

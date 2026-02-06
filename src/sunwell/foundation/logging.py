@@ -56,16 +56,11 @@ def _get_log_directory() -> Path:
     Returns:
         Path to .sunwell/logs/ directory
     """
-    # Check both local and home directories
-    for base in [Path.cwd(), Path.home()]:
-        sunwell_dir = base / ".sunwell"
-        if sunwell_dir.exists():
-            log_dir = sunwell_dir / "logs"
-            log_dir.mkdir(exist_ok=True)
-            return log_dir
+    from sunwell.knowledge.project.state import resolve_state_dir  # layer-exempt: lazy import for log directory resolution
 
-    # Fallback: create in current directory
-    log_dir = Path.cwd() / ".sunwell" / "logs"
+    # Use central state resolution for the current workspace
+    state = resolve_state_dir(Path.cwd())
+    log_dir = state / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     return log_dir
 

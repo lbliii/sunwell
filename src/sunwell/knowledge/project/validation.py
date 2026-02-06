@@ -1,63 +1,57 @@
 """Workspace validation for RFC-117.
 
-Prevents the agent from writing to Sunwell's own repository.
+Validates proposed workspace paths before use.  With out-of-tree state
+isolation (see ``state.py``), the old self-repo guard is no longer needed
+— any directory can be a valid workspace because runtime state is stored
+externally when appropriate.
 """
 
+from __future__ import annotations
+
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 class ProjectValidationError(Exception):
     """Raised when a workspace fails validation."""
 
 
-def validate_not_sunwell_repo(root: Path) -> None:
-    """Refuse to use Sunwell's own repo as a project workspace.
+def _is_sunwell_repo(root: Path) -> bool:
+    """Detect whether *root* is Sunwell's own source repository.
 
-    This is a safety guard to prevent agent-generated content from
-    polluting Sunwell's source tree when running from the repo directory.
+    Used by the CLI to auto-configure external state when initializing
+    Sunwell's own repo as a workspace.
 
-    Args:
-        root: Proposed workspace root path
-
-    Raises:
-        ProjectValidationError: If root appears to be Sunwell's repository
+    Uses two heuristics:
+    1. ``pyproject.toml`` contains ``name = "sunwell"``
+    2. ``src/sunwell/`` exists with >= 2 core module directories
     """
     root = root.resolve()
 
-    # Check for pyproject.toml with sunwell name
+    # Heuristic 1: pyproject.toml
     pyproject = root / "pyproject.toml"
     if pyproject.exists():
         try:
             content = pyproject.read_text(encoding="utf-8")
-            # Check for sunwell package definition
             if 'name = "sunwell"' in content and "[project]" in content:
-                raise ProjectValidationError(
-                    f"Cannot use Sunwell's own repository as project workspace.\n"
-                    f"Root: {root}\n\n"
-                    f"This would cause agent-generated files to pollute Sunwell's source.\n"
-                    f"Create a separate directory for your project:\n"
-                    f"  mkdir ~/projects/my-app && cd ~/projects/my-app\n"
-                    f"  sunwell project init .\n"
-                )
+                return True
         except OSError:
-            pass  # File unreadable, skip check
+            pass
 
-    # Additional marker: src/sunwell directory structure
+    # Heuristic 2: src/sunwell/ with core modules
     sunwell_src = root / "src" / "sunwell"
     if sunwell_src.is_dir():
-        # Verify it's actually sunwell by checking for core modules
         core_markers = [
             sunwell_src / "agent",
             sunwell_src / "tools",
             sunwell_src / "naaru",
         ]
         if sum(1 for m in core_markers if m.exists()) >= 2:
-            raise ProjectValidationError(
-                f"Cannot use Sunwell's own repository as project workspace.\n"
-                f"Root: {root}\n"
-                f"Detected: src/sunwell/ with core modules\n\n"
-                f"Create a separate directory for your project."
-            )
+            return True
+
+    return False
 
 
 def validate_not_sunwell_directory(root: Path) -> None:
@@ -90,6 +84,11 @@ def validate_workspace(root: Path) -> None:
 
     Runs all validation checks. Call this before using a path as workspace.
 
+    Note: The old self-repo guard (``validate_not_sunwell_repo``) has been
+    removed.  With out-of-tree state isolation, any directory (including
+    Sunwell's own repo) is a valid workspace.  The CLI auto-detects
+    Sunwell's repo and configures external state at init time.
+
     Args:
         root: Proposed workspace root path
 
@@ -97,5 +96,4 @@ def validate_workspace(root: Path) -> None:
         ProjectValidationError: If validation fails
     """
     validate_not_sunwell_directory(root)
-    validate_not_sunwell_repo(root)
     # Future: Add more validations (writable, not system dir, etc.)

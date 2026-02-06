@@ -86,22 +86,31 @@ def ensure_sunwell_structure(project_root: Path) -> Path:
     if ".sunwell" in project_root.parts:
         raise ValueError(f"Cannot create .sunwell inside .sunwell: {project_root}")
 
-    sunwell_dir = project_root / ".sunwell"
+    from sunwell.knowledge.project.state import resolve_state_dir
 
-    # Create directory structure
-    directories = [
-        sunwell_dir,
-        sunwell_dir / "team",
-        sunwell_dir / "intelligence",
+    # In-tree directory (manifest, config, gitignore)
+    sunwell_dir = project_root / ".sunwell"
+    sunwell_dir.mkdir(parents=True, exist_ok=True)
+
+    # State directory (may be the same as sunwell_dir or external)
+    state_dir = resolve_state_dir(project_root)
+
+    # Create state directory structure
+    state_subdirs = [
+        state_dir / "team",
+        state_dir / "intelligence",
+        state_dir / "sessions",
+    ]
+    # In-tree subdirs (user-facing)
+    in_tree_subdirs = [
         sunwell_dir / "personal",
-        sunwell_dir / "sessions",
         sunwell_dir / "project",
     ]
 
-    for directory in directories:
+    for directory in state_subdirs + in_tree_subdirs:
         directory.mkdir(parents=True, exist_ok=True)
 
-    # Create .gitignore
+    # Create .gitignore in the in-tree directory
     create_sunwell_gitignore(sunwell_dir)
 
     return sunwell_dir

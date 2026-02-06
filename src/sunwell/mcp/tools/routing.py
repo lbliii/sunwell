@@ -6,9 +6,10 @@ Uses LayeredLensRegistry for priority-based lens resolution.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from sunwell.mcp.formatting import mcp_json, omit_empty, truncate
 
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
@@ -157,11 +158,12 @@ def register_routing_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
             # Include context if requested
             if include_context:
                 result["context"] = lens.to_context()
+                return mcp_json(result, "full")
 
-            return json.dumps(result, indent=2)
+            return mcp_json(result, "compact")
         else:
             # No match found
-            return json.dumps(
+            return mcp_json(
                 {
                     "error": f"No lens found for: {command}",
                     "confidence": 0.0,
@@ -173,7 +175,7 @@ def register_routing_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
                     ],
                     "available_shortcuts": list(shortcut_index.keys())[:10],
                 },
-                indent=2,
+                "compact",
             )
 
     @mcp.tool()
@@ -194,12 +196,12 @@ def register_routing_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
             skill_name = None
             if entry and entry.lens.router and entry.lens.router.shortcuts:
                 skill_name = entry.lens.router.shortcuts.get(shortcut)
-            result[shortcut] = {
+            result[shortcut] = omit_empty({
                 "lens": lens_name,
                 "skill": skill_name,
                 "layer": entry.layer if entry else None,
-            }
-        return json.dumps(result, indent=2)
+            })
+        return mcp_json(result, "compact")
 
     @mcp.tool()
     def sunwell_registry_info() -> str:
@@ -242,7 +244,7 @@ def register_routing_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
                 for e in entries
             ]
 
-        return json.dumps(
+        return mcp_json(
             {
                 "summary": summary,
                 "total_lenses": sum(summary.values()),
@@ -254,7 +256,7 @@ def register_routing_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
                     "builtin": "bundled with Sunwell (lowest priority)",
                 },
             },
-            indent=2,
+            "compact",
         )
 
 

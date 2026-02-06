@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from sunwell.knowledge.project.state import resolve_state_dir
 from sunwell.memory.core.types import MemoryContext, SyncResult, TaskMemoryContext
 
 # =============================================================================
@@ -103,8 +104,9 @@ class PersistentMemory:
             workspace = workspace.parent
             logger.warning("Workspace was .sunwell directory, using parent: %s", workspace)
 
-        intel_path = workspace / ".sunwell" / "intelligence"
-        memory_path = workspace / ".sunwell" / "memory"
+        state = resolve_state_dir(workspace)
+        intel_path = state / "intelligence"
+        memory_path = state / "memory"
 
         # Load each component independently
         simulacrum = _load_simulacrum(memory_path)
@@ -143,7 +145,7 @@ class PersistentMemory:
             workspace = workspace.parent
             logger.warning("Workspace was .sunwell directory, using parent: %s", workspace)
 
-        intel_path = workspace / ".sunwell" / "intelligence"
+        intel_path = resolve_state_dir(workspace) / "intelligence"
 
         # Create minimal stores without loading from disk
         from sunwell.knowledge import DecisionMemory, FailureMemory, PatternProfile
@@ -180,8 +182,9 @@ class PersistentMemory:
         import asyncio
 
         workspace = Path(workspace).resolve()
-        intel_path = workspace / ".sunwell" / "intelligence"
-        memory_path = workspace / ".sunwell" / "memory"
+        state = resolve_state_dir(workspace)
+        intel_path = state / "intelligence"
+        memory_path = state / "memory"
 
         # Load each component in parallel using asyncio.to_thread
         async def load_simulacrum() -> SimulacrumStore | None:
@@ -519,7 +522,7 @@ class PersistentMemory:
         # Sync PatternProfile
         if self.patterns:
             try:
-                intel_path = self.workspace / ".sunwell" / "intelligence"
+                intel_path = resolve_state_dir(self.workspace) / "intelligence"
                 self.patterns.save(intel_path)
                 results.append(("patterns", True, None))
             except Exception as e:
@@ -864,7 +867,7 @@ def _load_team(
                 )
         else:
             # Project-scoped (legacy)
-            team_path = project_root / ".sunwell" / "team"
+            team_path = resolve_state_dir(project_root) / "team"
             if team_path.exists():
                 config_path = team_path / "config.json"
                 if config_path.exists():

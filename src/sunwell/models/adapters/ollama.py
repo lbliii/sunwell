@@ -226,10 +226,10 @@ class OllamaModel:
 
         # Check if model supports native tools - if not, use emulation
         if effective_tools:
-            from sunwell.agent.runtime.model_router import get_model_capability
+            from sunwell.models.capability.registry import get_capability
 
-            cap = get_model_capability(self.model)
-            if cap and not cap.tools:
+            cap = get_capability(self.model)
+            if not cap.native_tools:
                 # Use JSON emulation for tool calling
                 from sunwell.models.emulation.tool_emulator import ToolEmulatorModel
 

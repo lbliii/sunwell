@@ -172,7 +172,8 @@ class IndexingService:
 
     def __post_init__(self) -> None:
         """Initialize computed fields."""
-        self.cache_dir = self.workspace_root / ".sunwell" / "index"
+        from sunwell.knowledge.project.state import resolve_state_dir
+        self.cache_dir = resolve_state_dir(self.workspace_root) / "index"
 
     @property
     def status(self) -> IndexStatus:

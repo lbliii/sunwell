@@ -5,9 +5,10 @@ Provides sunwell_lens and sunwell_list tools for accessing lenses.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from sunwell.mcp.formatting import mcp_json, omit_empty, truncate
 
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
@@ -31,7 +32,11 @@ def register_lens_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
     loader = LensLoader()
 
     @mcp.tool()
-    def sunwell_lens(name: str, components: list[str] | None = None) -> str:
+    def sunwell_lens(
+        name: str,
+        components: list[str] | None = None,
+        include_context: bool = True,
+    ) -> str:
         """
         Get a lens as injectable expertise for your agent context.
 
@@ -41,46 +46,50 @@ def register_lens_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
         - Communication style: Tone and formatting guidance
         - Framework: Methodology for the domain
 
-        Inject the returned content into your system context to adopt
-        that professional perspective for the current task.
+        Set include_context=False for thin mode (~200 tokens metadata only).
+        Set include_context=True (default) for full injectable context (~5-15k tokens).
 
         Args:
             name: Lens name (e.g., "coder", "tech-writer") or path to .lens file
             components: Optional list of specific heuristic names to include.
                        If None, includes all components.
+            include_context: If True (default), include full injectable context.
+                            If False, return metadata only (thin mode).
 
         Returns:
-            JSON with lens metadata and injectable context string
+            JSON with lens metadata and optionally injectable context string
         """
         lens = _load_lens(name, discovery, loader)
 
         if not lens:
-            return json.dumps(
+            return mcp_json(
                 {
                     "error": f"Lens '{name}' not found",
                     "available": _list_available_names(discovery, loader),
                 },
-                indent=2,
+                "compact",
             )
 
-        # Build result
-        result = {
+        result: dict = omit_empty({
             "name": lens.metadata.name,
             "domain": lens.metadata.domain,
             "version": str(lens.metadata.version) if lens.metadata.version else "0.1.0",
-            "description": lens.metadata.description,
-            # Injectable context - the main value
-            "context": lens.to_context(components),
-            # Metadata
+            "description": truncate(lens.metadata.description, 200),
             "heuristics_count": len(lens.heuristics),
             "skills_count": len(lens.skills),
-        }
+            "path": str(lens.source_path) if lens.source_path else None,
+        })
 
         # Include shortcuts if lens has router
         if lens.router and lens.router.shortcuts:
             result["shortcuts"] = dict(lens.router.shortcuts)
 
-        return json.dumps(result, indent=2)
+        # Thin mode: metadata only
+        if include_context:
+            result["context"] = lens.to_context(components)
+            return mcp_json(result, "full")
+
+        return mcp_json(result, "compact")
 
     @mcp.tool()
     def sunwell_list(format: str = "compact") -> str:
@@ -88,16 +97,21 @@ def register_lens_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
         List all available lenses with metadata.
 
         Choose format based on your token budget:
-        - "minimal": ~500 tokens - Names, domains, and descriptions only
+        - "minimal" / "summary": ~500 tokens - Names and domains only
         - "compact": ~2000 tokens - Full metadata as JSON (default)
         - "full": ~4000 tokens - Complete with heuristics preview
 
         Args:
-            format: Output format - "minimal", "compact", or "full"
+            format: Output format - "minimal", "summary", "compact", or "full"
 
         Returns:
             JSON list of available lenses with metadata
         """
+        # Normalize: treat "summary" as "minimal" for backward compat
+        fmt = format.lower() if format else "compact"
+        if fmt == "summary":
+            fmt = "minimal"
+
         lenses_data: list[dict] = []
 
         for search_path in discovery.search_paths:
@@ -113,10 +127,10 @@ def register_lens_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
                     entry: dict = {
                         "name": lens.metadata.name,
                         "domain": lens.metadata.domain,
-                        "path": str(lens_path),
                     }
 
-                    if format != "minimal":
+                    if fmt != "minimal":
+                        entry["path"] = str(lens_path)
                         entry.update(
                             {
                                 "version": (
@@ -124,7 +138,7 @@ def register_lens_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
                                     if lens.metadata.version
                                     else "0.1.0"
                                 ),
-                                "description": lens.metadata.description,
+                                "description": truncate(lens.metadata.description, 120),
                                 "heuristics_count": len(lens.heuristics),
                                 "skills_count": len(lens.skills),
                             }
@@ -134,7 +148,8 @@ def register_lens_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
                         if lens.router and lens.router.shortcuts:
                             entry["shortcuts"] = list(lens.router.shortcuts.keys())
 
-                    if format == "full":
+                    if fmt == "full":
+                        entry["description"] = lens.metadata.description
                         # Include top heuristics preview
                         sorted_heuristics = sorted(
                             lens.heuristics,
@@ -144,7 +159,7 @@ def register_lens_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
                         entry["top_heuristics"] = [
                             {
                                 "name": h.name,
-                                "rule": h.rule[:100] + "..." if len(h.rule) > 100 else h.rule,
+                                "rule": truncate(h.rule, 100),
                             }
                             for h in sorted_heuristics
                         ]
@@ -163,10 +178,10 @@ def register_lens_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
                     entry = {
                         "name": lens.metadata.name,
                         "domain": lens.metadata.domain,
-                        "path": str(lens_path),
                     }
 
-                    if format != "minimal":
+                    if fmt != "minimal":
+                        entry["path"] = str(lens_path)
                         entry.update(
                             {
                                 "version": (
@@ -174,7 +189,7 @@ def register_lens_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
                                     if lens.metadata.version
                                     else "0.1.0"
                                 ),
-                                "description": lens.metadata.description,
+                                "description": truncate(lens.metadata.description, 120),
                                 "heuristics_count": len(lens.heuristics),
                                 "skills_count": len(lens.skills),
                             }
@@ -187,14 +202,13 @@ def register_lens_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
         # Sort by name
         lenses_data.sort(key=lambda x: x["name"])
 
-        return json.dumps(
+        return mcp_json(
             {
                 "lenses": lenses_data,
                 "total": len(lenses_data),
-                "format": format,
-                "search_paths": [str(p) for p in discovery.search_paths],
+                "format": fmt,
             },
-            indent=2,
+            fmt if fmt in ("compact", "full") else "compact",
         )
 
 

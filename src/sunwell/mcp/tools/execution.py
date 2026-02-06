@@ -6,30 +6,29 @@ running validators, and reporting task completion.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from sunwell.mcp.formatting import (
+    DEFAULT_FORMAT,
+    mcp_json,
+    omit_empty,
+    resolve_format,
+)
 
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
 
+    from sunwell.mcp.runtime import MCPRuntime
 
-def register_execution_tools(mcp: FastMCP, workspace: str | None = None) -> None:
+
+def register_execution_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> None:
     """Register execution-related tools.
 
     Args:
         mcp: FastMCP server instance
-        workspace: Optional workspace root path
+        runtime: Shared MCPRuntime for workspace resolution and async bridging
     """
-
-    def _resolve_workspace(project: str | None = None) -> Path:
-        if project:
-            p = Path(project).expanduser().resolve()
-            if p.exists():
-                return p
-        if workspace:
-            return Path(workspace).expanduser().resolve()
-        return Path.cwd()
 
     @mcp.tool()
     def sunwell_execute(
@@ -37,14 +36,13 @@ def register_execution_tools(mcp: FastMCP, workspace: str | None = None) -> None
         project: str | None = None,
         lens: str | None = None,
         dry_run: bool = False,
+        format: str = DEFAULT_FORMAT,
     ) -> str:
         """
         Execute a goal through Sunwell's full agent pipeline.
 
         Runs the complete ORIENT -> SIGNAL -> LENS -> PLAN -> EXECUTE ->
-        VALIDATE -> FIX -> LEARN pipeline. The agent will decompose the goal,
-        select appropriate tools, execute tasks, validate results, and
-        extract learnings.
+        VALIDATE -> FIX -> LEARN pipeline.
 
         Set dry_run=True to get the plan without executing it.
 
@@ -55,12 +53,12 @@ def register_execution_tools(mcp: FastMCP, workspace: str | None = None) -> None
             project: Optional project path
             lens: Optional lens name to use (e.g., "coder", "tech-writer")
             dry_run: If True, only plan without executing (default: False)
+            format: Output format — summary, compact, or full (default: compact)
 
         Returns:
-            JSON with execution results including tasks completed,
-            files modified, and validation results
+            JSON with execution results
         """
-        import asyncio
+        fmt = resolve_format(format)
 
         try:
             from sunwell.agent.context.session import SessionContext
@@ -68,48 +66,39 @@ def register_execution_tools(mcp: FastMCP, workspace: str | None = None) -> None
             from sunwell.memory.facade import PersistentMemory
             from sunwell.models.registry.registry import resolve_model
 
-            ws = _resolve_workspace(project)
+            ws = runtime.resolve_workspace(project) if runtime else Path.cwd()
             model = resolve_model("default")
             if not model:
-                return json.dumps(
-                    {"error": "No model available for execution"},
-                    indent=2,
-                )
+                return mcp_json({"error": "No model available for execution"}, fmt)
 
-            memory = PersistentMemory.load(ws)
+            memory = runtime.memory if runtime else PersistentMemory.load(ws)
             agent = Agent(model=model)
+
+            if not runtime:
+                return mcp_json({"error": "Runtime not available for async execution"}, fmt)
 
             # Dry run - just plan
             if dry_run:
-                loop = asyncio.new_event_loop()
-                try:
-                    plan = loop.run_until_complete(agent.plan_only(goal, memory=memory))
-                finally:
-                    loop.close()
+                plan = runtime.run(agent.plan_only(goal, memory=memory))
 
                 tasks = []
                 if plan.task_graph and hasattr(plan.task_graph, "tasks"):
                     tasks = [
-                        {
+                        omit_empty({
                             "id": getattr(t, "id", None),
                             "title": getattr(t, "title", str(t)),
-                        }
+                        })
                         for t in plan.task_graph.tasks
                     ]
 
-                return json.dumps(
-                    {
-                        "mode": "dry_run",
-                        "goal": goal,
-                        "tasks": tasks,
-                        "estimated_seconds": plan.estimated_seconds,
-                    },
-                    indent=2,
-                    default=str,
-                )
+                return mcp_json(omit_empty({
+                    "mode": "dry_run",
+                    "goal": goal,
+                    "tasks": tasks,
+                    "estimated_seconds": plan.estimated_seconds,
+                }), fmt)
 
             # Full execution
-            # Build session context
             lens_obj = None
             if lens:
                 try:
@@ -137,48 +126,36 @@ def register_execution_tools(mcp: FastMCP, workspace: str | None = None) -> None
                 lens=lens_obj,
             )
 
-            # Collect events from execution
-            events_summary: list[dict] = []
-            files_modified: list[str] = []
             tasks_completed = 0
             tasks_failed = 0
             validation_passed = True
 
-            loop = asyncio.new_event_loop()
-            try:
+            async def run_and_collect():
+                nonlocal tasks_completed, tasks_failed, validation_passed
+                async for event in agent.run(session, memory):
+                    event_type = type(event).__name__
+                    if event_type in ("TaskComplete", "TASK_COMPLETE"):
+                        tasks_completed += 1
+                    elif event_type in ("TaskFailed", "TASK_FAILED"):
+                        tasks_failed += 1
+                    elif event_type in ("ValidationFailed", "VALIDATION_FAILED"):
+                        validation_passed = False
 
-                async def run_and_collect():
-                    nonlocal tasks_completed, tasks_failed, validation_passed
-                    async for event in agent.run(session, memory):
-                        event_type = type(event).__name__
-                        if event_type in ("TaskComplete", "TASK_COMPLETE"):
-                            tasks_completed += 1
-                        elif event_type in ("TaskFailed", "TASK_FAILED"):
-                            tasks_failed += 1
-                        elif event_type in ("ValidationFailed", "VALIDATION_FAILED"):
-                            validation_passed = False
+            runtime.run(run_and_collect())
 
-                loop.run_until_complete(run_and_collect())
-            finally:
-                loop.close()
+            data = omit_empty({
+                "mode": "executed",
+                "goal": goal,
+                "tasks_completed": tasks_completed,
+                "tasks_failed": tasks_failed,
+                "validation_passed": validation_passed,
+                "files_modified": list(session.files_modified),
+                "artifacts_created": list(session.artifacts_created),
+            })
 
-            files_modified = list(session.files_modified)
-
-            return json.dumps(
-                {
-                    "mode": "executed",
-                    "goal": goal,
-                    "tasks_completed": tasks_completed,
-                    "tasks_failed": tasks_failed,
-                    "validation_passed": validation_passed,
-                    "files_modified": files_modified,
-                    "artifacts_created": list(session.artifacts_created),
-                },
-                indent=2,
-                default=str,
-            )
+            return mcp_json(data, fmt)
         except Exception as e:
-            return json.dumps({"error": str(e), "goal": goal}, indent=2)
+            return mcp_json({"error": str(e), "goal": goal}, fmt)
 
     @mcp.tool()
     def sunwell_validate(
@@ -186,49 +163,40 @@ def register_execution_tools(mcp: FastMCP, workspace: str | None = None) -> None
         project: str | None = None,
         validators: list[str] | None = None,
         domain: str | None = None,
+        format: str = DEFAULT_FORMAT,
     ) -> str:
         """
         Run validators against a file or artifact.
 
-        Runs Sunwell's validation system against a file. Can run specific
-        validators or auto-detect based on domain (code, research, etc.).
-
-        Available validators (code domain):
-        - "syntax": Check Python syntax validity
-        - "lint": Run linting checks
-        - "type": Type checking
-        - "test": Run related tests
-
-        Available validators (research domain):
-        - "sources": Check claims are backed by sources
-        - "coherence": Check argument coherence
+        Formats:
+        - "summary": pass/fail verdict only (~50 tokens)
+        - "compact": per-validator pass/fail with messages (default)
+        - "full": everything including details and severity
 
         Args:
-            file_path: Path to the file to validate (relative to project or absolute)
+            file_path: Path to the file to validate
             project: Optional project path
             validators: Optional list of specific validators to run
-            domain: Optional domain hint for auto-detection (code, research)
+            domain: Optional domain hint (code, research)
+            format: Output format — summary, compact, or full (default: compact)
 
         Returns:
-            JSON with validation results including pass/fail, errors, and details
+            JSON with validation results
         """
-        try:
-            ws = _resolve_workspace(project)
+        fmt = resolve_format(format)
 
-            # Resolve file path
+        try:
+            ws = runtime.resolve_workspace(project) if runtime else Path.cwd()
+
             fp = Path(file_path)
             if not fp.is_absolute():
                 fp = ws / fp
 
             if not fp.exists():
-                return json.dumps(
-                    {"error": f"File not found: {fp}", "file_path": file_path},
-                    indent=2,
-                )
+                return mcp_json({"error": f"File not found: {fp}"}, fmt)
 
             content = fp.read_text()
 
-            # Auto-detect domain if not specified
             if not domain:
                 if fp.suffix in (".py", ".js", ".ts", ".rs", ".go", ".java", ".cpp", ".c"):
                     domain = "code"
@@ -240,7 +208,6 @@ def register_execution_tools(mcp: FastMCP, workspace: str | None = None) -> None
             results: list[dict] = []
 
             if domain == "code":
-                # Run code validators
                 available = {}
                 try:
                     from sunwell.domains.code.validators import (
@@ -260,41 +227,33 @@ def register_execution_tools(mcp: FastMCP, workspace: str | None = None) -> None
                 to_run = validators or list(available.keys())
                 for name in to_run:
                     if name not in available:
-                        results.append({
-                            "validator": name,
-                            "status": "skipped",
-                            "reason": f"Validator '{name}' not available",
-                        })
+                        results.append({"validator": name, "status": "skipped"})
                         continue
 
                     try:
-                        import asyncio
-
                         validator = available[name]
-                        loop = asyncio.new_event_loop()
-                        try:
-                            vr = loop.run_until_complete(
+                        if runtime:
+                            vr = runtime.run(
                                 validator.validate(
                                     {"path": str(fp), "content": content},
                                     {"cwd": str(ws)},
                                 )
                             )
-                        finally:
-                            loop.close()
+                        else:
+                            continue
 
-                        results.append({
+                        entry: dict = {
                             "validator": name,
                             "passed": getattr(vr, "passed", None),
-                            "severity": str(getattr(vr, "severity", "unknown")),
-                            "message": getattr(vr, "message", None),
-                            "details": getattr(vr, "details", {}),
-                        })
+                        }
+                        if fmt != "summary":
+                            entry["message"] = getattr(vr, "message", None)
+                        if fmt == "full":
+                            entry["severity"] = str(getattr(vr, "severity", "unknown"))
+                            entry["details"] = getattr(vr, "details", {})
+                        results.append(omit_empty(entry))
                     except Exception as e:
-                        results.append({
-                            "validator": name,
-                            "status": "error",
-                            "error": str(e),
-                        })
+                        results.append({"validator": name, "status": "error", "error": str(e)})
 
             elif domain == "research":
                 available = {}
@@ -314,39 +273,27 @@ def register_execution_tools(mcp: FastMCP, workspace: str | None = None) -> None
                 to_run = validators or list(available.keys())
                 for name in to_run:
                     if name not in available:
-                        results.append({
-                            "validator": name,
-                            "status": "skipped",
-                            "reason": f"Validator '{name}' not available",
-                        })
+                        results.append({"validator": name, "status": "skipped"})
                         continue
 
                     try:
-                        import asyncio
-
                         validator = available[name]
-                        loop = asyncio.new_event_loop()
-                        try:
-                            vr = loop.run_until_complete(
+                        if runtime:
+                            vr = runtime.run(
                                 validator.validate(
                                     {"path": str(fp), "content": content},
                                     {"cwd": str(ws)},
                                 )
                             )
-                        finally:
-                            loop.close()
+                        else:
+                            continue
 
-                        results.append({
-                            "validator": name,
-                            "passed": getattr(vr, "passed", None),
-                            "message": getattr(vr, "message", None),
-                        })
+                        entry = {"validator": name, "passed": getattr(vr, "passed", None)}
+                        if fmt != "summary":
+                            entry["message"] = getattr(vr, "message", None)
+                        results.append(omit_empty(entry))
                     except Exception as e:
-                        results.append({
-                            "validator": name,
-                            "status": "error",
-                            "error": str(e),
-                        })
+                        results.append({"validator": name, "status": "error", "error": str(e)})
 
             all_passed = all(
                 r.get("passed", True)
@@ -354,19 +301,18 @@ def register_execution_tools(mcp: FastMCP, workspace: str | None = None) -> None
                 if r.get("status") != "skipped"
             )
 
-            return json.dumps(
-                {
-                    "file_path": file_path,
-                    "domain": domain,
-                    "all_passed": all_passed,
-                    "results": results,
-                    "total_validators": len(results),
-                },
-                indent=2,
-                default=str,
-            )
+            if fmt == "summary":
+                return mcp_json({"file_path": file_path, "all_passed": all_passed}, fmt)
+
+            return mcp_json(omit_empty({
+                "file_path": file_path,
+                "domain": domain,
+                "all_passed": all_passed,
+                "results": results,
+                "total_validators": len(results),
+            }), fmt)
         except Exception as e:
-            return json.dumps({"error": str(e), "file_path": file_path}, indent=2)
+            return mcp_json({"error": str(e), "file_path": file_path}, fmt)
 
     @mcp.tool()
     def sunwell_complete(
@@ -384,8 +330,6 @@ def register_execution_tools(mcp: FastMCP, workspace: str | None = None) -> None
         This enables Sunwell to learn from what happened, track which files
         were touched, and maintain accurate session history.
 
-        Inspired by DORI's completion tracking pattern.
-
         Args:
             goal: What was accomplished
             files_modified: Comma-separated paths of files that were edited
@@ -398,21 +342,22 @@ def register_execution_tools(mcp: FastMCP, workspace: str | None = None) -> None
             JSON confirmation with recorded completion data
         """
         try:
-            from sunwell.memory.facade import PersistentMemory
+            ws = runtime.resolve_workspace(project) if runtime else Path.cwd()
+            memory = runtime.memory if runtime else None
 
-            ws = _resolve_workspace(project)
-            memory = PersistentMemory.load(ws)
+            if memory is None:
+                from sunwell.memory.facade import PersistentMemory
+                memory = PersistentMemory.load(ws)
 
             modified = [f.strip() for f in files_modified.split(",") if f.strip()]
             reviewed = [f.strip() for f in files_reviewed.split(",") if f.strip()]
 
-            recorded: dict = {
+            recorded: dict = omit_empty({
                 "goal": goal,
                 "success": success,
                 "files_modified": modified,
                 "files_reviewed": reviewed,
-                "workspace": str(ws),
-            }
+            })
 
             # Record learnings if provided
             if learnings and memory.simulacrum:
@@ -444,11 +389,11 @@ def register_execution_tools(mcp: FastMCP, workspace: str | None = None) -> None
 
             # Sync memory to disk
             try:
-                sync_result = memory.sync()
+                memory.sync()
                 recorded["synced"] = True
             except Exception as e:
                 recorded["sync_error"] = str(e)
 
-            return json.dumps(recorded, indent=2, default=str)
+            return mcp_json(recorded, "compact")
         except Exception as e:
-            return json.dumps({"error": str(e)}, indent=2)
+            return mcp_json({"error": str(e)}, "compact")

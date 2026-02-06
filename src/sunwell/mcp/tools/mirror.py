@@ -6,90 +6,114 @@ learnings, patterns, dead ends, and team decisions.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from sunwell.mcp.formatting import (
+    DEFAULT_FORMAT,
+    mcp_json,
+    omit_empty,
+    resolve_format,
+    truncate,
+)
 
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
 
+    from sunwell.mcp.runtime import MCPRuntime
 
-def register_mirror_tools(mcp: FastMCP, workspace: str | None = None) -> None:
+
+def register_mirror_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> None:
     """Register mirror/introspection-related tools.
 
     Args:
         mcp: FastMCP server instance
-        workspace: Optional workspace root path
+        runtime: Shared MCPRuntime for workspace resolution and subsystem access
     """
-
-    def _resolve_workspace(project: str | None = None) -> Path:
-        if project:
-            p = Path(project).expanduser().resolve()
-            if p.exists():
-                return p
-        if workspace:
-            return Path(workspace).expanduser().resolve()
-        return Path.cwd()
 
     @mcp.tool()
     def sunwell_mirror(
         aspect: str = "all",
         project: str | None = None,
         limit: int = 10,
+        format: str = DEFAULT_FORMAT,
     ) -> str:
         """
         Self-introspection snapshot of Sunwell's accumulated knowledge.
 
         Returns learnings, dead ends, patterns, and proposals from Sunwell's
-        mirror system. This is the agent's own self-model - what it has
-        learned about itself, its patterns, and areas for improvement.
+        mirror system. This is the agent's own self-model.
 
         Aspects:
         - "all": Everything (may be large)
         - "learnings": Extracted learnings and insights
-        - "patterns": Detected behavior patterns (error patterns, latency, tool usage)
+        - "patterns": Detected behavior patterns
         - "deadends": Known dead ends and failed approaches
         - "errors": Recent errors and error patterns
+
+        Formats:
+        - "summary": just counts per category (~100 tokens)
+        - "compact": limited items with truncated text (~1k tokens, default)
+        - "full": everything untruncated (~5-10k tokens)
 
         Args:
             aspect: What aspect of self-knowledge to retrieve (default: all)
             project: Optional project path
             limit: Max items per category (default: 10)
+            format: Output format — summary, compact, or full (default: compact)
 
         Returns:
             JSON with self-introspection data for the requested aspect
         """
-        try:
-            from sunwell.memory.facade import PersistentMemory
+        fmt = resolve_format(format)
 
-            ws = _resolve_workspace(project)
-            memory = PersistentMemory.load(ws)
-            result: dict = {"aspect": aspect, "workspace": str(ws)}
+        try:
+            ws = runtime.resolve_workspace(project) if runtime else Path.cwd()
+            memory = runtime.memory if runtime else None
+
+            if memory is None:
+                from sunwell.memory.facade import PersistentMemory
+                memory = PersistentMemory.load(ws)
+
+            counts = {
+                "learnings": memory.learning_count,
+                "decisions": memory.decision_count,
+                "failures": memory.failure_count,
+                "has_simulacrum": memory.simulacrum is not None,
+                "has_patterns": memory.patterns is not None,
+                "has_team": memory.team is not None,
+            }
+
+            # Summary: just counts
+            if fmt == "summary":
+                return mcp_json({"aspect": aspect, "counts": counts}, fmt)
+
+            result: dict = {"aspect": aspect}
+            trunc_len = 200 if fmt == "compact" else 0
 
             # Learnings from simulacrum
             if aspect in ("all", "learnings") and memory.simulacrum:
                 try:
                     from sunwell.features.mirror.introspection import simulacrum_get_learnings
 
-                    learnings = simulacrum_get_learnings(memory.simulacrum)
-                    result["learnings"] = learnings[:limit]
-                    result["total_learnings"] = len(learnings)
-                except Exception as e:
-                    result["learnings_error"] = str(e)
-                    # Fallback: try direct access
+                    learnings_raw = simulacrum_get_learnings(memory.simulacrum)
+                    result["total_learnings"] = len(learnings_raw)
+                    result["learnings"] = learnings_raw[:limit]
+                except Exception:
+                    # Fallback: direct access
                     try:
                         dag = memory.simulacrum.get_dag()
                         all_learnings = dag.get_learnings()
+                        result["total_learnings"] = len(all_learnings)
                         result["learnings"] = [
-                            {
-                                "fact": l.fact if hasattr(l, "fact") else str(l),
+                            omit_empty({
+                                "fact": truncate(l.fact, trunc_len) if trunc_len else (l.fact if hasattr(l, "fact") else str(l)),
                                 "category": getattr(l, "category", None),
                                 "confidence": getattr(l, "confidence", None),
                                 "use_count": getattr(l, "use_count", 0),
-                            }
+                            })
                             for l in all_learnings[:limit]
                         ]
-                        result["total_learnings"] = len(all_learnings)
                     except Exception:
                         pass
 
@@ -98,27 +122,28 @@ def register_mirror_tools(mcp: FastMCP, workspace: str | None = None) -> None:
                 try:
                     from sunwell.features.mirror.introspection import simulacrum_get_dead_ends
 
-                    dead_ends = simulacrum_get_dead_ends(memory.simulacrum)
-                    result["dead_ends"] = dead_ends[:limit]
-                    result["total_dead_ends"] = len(dead_ends)
-                except Exception as e:
-                    result["dead_ends_error"] = str(e)
-                    # Fallback
+                    dead_ends_raw = simulacrum_get_dead_ends(memory.simulacrum)
+                    result["total_dead_ends"] = len(dead_ends_raw)
+                    result["dead_ends"] = dead_ends_raw[:limit]
+                except Exception:
                     try:
                         dead_ends = memory.simulacrum.get_dead_ends()
-                        result["dead_ends"] = [str(de) for de in dead_ends[:limit]]
                         result["total_dead_ends"] = len(dead_ends)
+                        result["dead_ends"] = [
+                            truncate(str(de), trunc_len) if trunc_len else str(de)
+                            for de in dead_ends[:limit]
+                        ]
                     except Exception:
                         pass
 
             # Patterns from pattern profile
             if aspect in ("all", "patterns") and memory.patterns:
                 try:
-                    result["patterns"] = {
+                    result["patterns"] = omit_empty({
                         "naming_conventions": getattr(memory.patterns, "naming_conventions", None),
                         "docstring_style": getattr(memory.patterns, "docstring_style", None),
                         "import_style": getattr(memory.patterns, "import_style", None),
-                    }
+                    })
                 except Exception as e:
                     result["patterns_error"] = str(e)
 
@@ -136,19 +161,11 @@ def register_mirror_tools(mcp: FastMCP, workspace: str | None = None) -> None:
                 except Exception as e:
                     result["decisions_error"] = str(e)
 
-            # Summary counts
-            result["counts"] = {
-                "learnings": memory.learning_count,
-                "decisions": memory.decision_count,
-                "failures": memory.failure_count,
-                "has_simulacrum": memory.simulacrum is not None,
-                "has_patterns": memory.patterns is not None,
-                "has_team": memory.team is not None,
-            }
+            result["counts"] = counts
 
-            return json.dumps(result, indent=2, default=str)
+            return mcp_json(result, fmt)
         except Exception as e:
-            return json.dumps({"error": str(e)}, indent=2)
+            return mcp_json({"error": str(e)}, fmt)
 
     @mcp.tool()
     def sunwell_team(
@@ -156,13 +173,13 @@ def register_mirror_tools(mcp: FastMCP, workspace: str | None = None) -> None:
         scope: str = "all",
         project: str | None = None,
         limit: int = 10,
+        format: str = DEFAULT_FORMAT,
     ) -> str:
         """
         Query the team knowledge store.
 
         Accesses accumulated team intelligence including architectural decisions,
-        known failures, code ownership, and patterns. This is the shared
-        knowledge that persists across team members and sessions.
+        known failures, code ownership, and patterns.
 
         Scopes:
         - "all": Search across all team knowledge
@@ -171,81 +188,74 @@ def register_mirror_tools(mcp: FastMCP, workspace: str | None = None) -> None:
         - "ownership": File and module ownership information
         - "patterns": Team-level patterns and conventions
 
+        Formats:
+        - "summary": warnings only (~200 tokens)
+        - "compact": context truncated to 500 chars (default)
+        - "full": context up to 5000 chars
+
         Args:
             query: What to search for in team knowledge
             scope: Knowledge scope to search (default: all)
             project: Optional project path
             limit: Max results per category (default: 10)
+            format: Output format — summary, compact, or full (default: compact)
 
         Returns:
             JSON with team knowledge organized by category
         """
-        import asyncio
+        fmt = resolve_format(format)
 
         try:
-            from sunwell.memory.facade import PersistentMemory
+            ws = runtime.resolve_workspace(project) if runtime else Path.cwd()
+            memory = runtime.memory if runtime else None
 
-            ws = _resolve_workspace(project)
-            memory = PersistentMemory.load(ws)
+            if memory is None:
+                from sunwell.memory.facade import PersistentMemory
+                memory = PersistentMemory.load(ws)
 
             if not memory.team:
-                return json.dumps(
-                    {
-                        "status": "no_team_store",
-                        "message": "No team knowledge store available for this workspace.",
-                        "hint": "Team knowledge is built up over time as Sunwell works in the project.",
-                    },
-                    indent=2,
+                return mcp_json(
+                    {"status": "no_team_store", "message": "No team knowledge store available."},
+                    fmt,
                 )
 
             result: dict = {"query": query, "scope": scope}
+            ctx_limit = 500 if fmt == "compact" else (5000 if fmt == "full" else 0)
 
-            # Get relevant context
+            # Approach warnings (always included, cheapest)
             try:
-                loop = asyncio.new_event_loop()
-                try:
-                    context = loop.run_until_complete(
-                        memory.team.get_relevant_context(query)
-                    )
-                finally:
-                    loop.close()
-
-                if context:
-                    result["context"] = str(context)[:2000]
-            except Exception as e:
-                result["context_error"] = str(e)
-
-            # File-specific knowledge
-            if scope in ("all", "ownership"):
-                try:
-                    if hasattr(memory.team, "get_file_context"):
-                        loop = asyncio.new_event_loop()
-                        try:
-                            file_ctx = loop.run_until_complete(
-                                memory.team.get_file_context(query)
-                            )
-                        finally:
-                            loop.close()
-                        if file_ctx:
-                            result["file_context"] = str(file_ctx)[:1000]
-                except Exception as e:
-                    result["ownership_error"] = str(e)
-
-            # Approach warnings
-            try:
-                if hasattr(memory.team, "check_approach"):
-                    loop = asyncio.new_event_loop()
-                    try:
-                        warnings = loop.run_until_complete(
-                            memory.team.check_approach(query)
-                        )
-                    finally:
-                        loop.close()
+                if hasattr(memory.team, "check_approach") and runtime:
+                    warnings = runtime.run(memory.team.check_approach(query))
                     if warnings:
-                        result["warnings"] = [str(w) for w in warnings[:limit]]
+                        result["warnings"] = [
+                            truncate(str(w), 200) for w in warnings[:limit]
+                        ]
             except Exception as e:
                 result["warnings_error"] = str(e)
 
-            return json.dumps(result, indent=2, default=str)
+            # Summary: just warnings
+            if fmt == "summary":
+                return mcp_json(result, fmt)
+
+            # Get relevant context
+            if ctx_limit > 0 and runtime:
+                try:
+                    context = runtime.run(memory.team.get_relevant_context(query))
+                    if context:
+                        result["context"] = str(context)[:ctx_limit]
+                except Exception as e:
+                    result["context_error"] = str(e)
+
+            # File-specific knowledge
+            if scope in ("all", "ownership") and ctx_limit > 0 and runtime:
+                try:
+                    if hasattr(memory.team, "get_file_context"):
+                        file_ctx = runtime.run(memory.team.get_file_context(query))
+                        if file_ctx:
+                            result["file_context"] = str(file_ctx)[:ctx_limit]
+                except Exception as e:
+                    result["ownership_error"] = str(e)
+
+            return mcp_json(result, fmt)
         except Exception as e:
-            return json.dumps({"error": str(e)}, indent=2)
+            return mcp_json({"error": str(e)}, fmt)

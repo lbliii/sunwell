@@ -12,7 +12,6 @@ from sunwell.agent.isolation.worktree import (
     WorktreeInfo,
     WorktreeManager,
     BRANCH_PREFIX,
-    WORKTREE_DIR,
 )
 from sunwell.agent.isolation.merge import MergeResult, MergeStrategy
 
@@ -102,7 +101,8 @@ class TestWorktreeManager:
         assert info.task_id == "task-1"
         assert info.path.exists()
         assert info.branch == f"{BRANCH_PREFIX}/task-1"
-        assert info.path == git_workspace / WORKTREE_DIR / "task-1"
+        from sunwell.knowledge.project.state import resolve_state_dir
+        assert info.path == resolve_state_dir(git_workspace) / "worktrees" / "task-1"
         assert "task-1" in manager.worktrees
 
     @pytest.mark.asyncio

@@ -90,7 +90,8 @@ class CheckpointManager:
         )
 
         # Save to disk
-        checkpoint_dir = self.cwd / ".sunwell" / "checkpoints"
+        from sunwell.knowledge.project.state import resolve_state_dir
+        checkpoint_dir = resolve_state_dir(self.cwd) / "checkpoints"
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
         # Use phase-based filename for easier discovery

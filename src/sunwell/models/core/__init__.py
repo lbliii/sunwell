@@ -14,6 +14,7 @@ from sunwell.models.core.protocol import (
     ToolCall,
     _sanitize_dict_values,
     sanitize_llm_content,
+    tool_from_skill,
 )
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "ToolCall",
     "sanitize_llm_content",
     "_sanitize_dict_values",
+    "tool_from_skill",
 ]

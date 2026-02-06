@@ -59,6 +59,7 @@ def create_manifest(
     name: str | None = None,
     trust: str = "workspace",
     protected: list[str] | None = None,
+    state_dir: str | None = None,
 ) -> ProjectManifest:
     """Create a new project manifest.
 
@@ -67,6 +68,7 @@ def create_manifest(
         name: Human-readable name (defaults to id)
         trust: Default trust level
         protected: Paths to protect from agent modification
+        state_dir: Optional out-of-tree path for runtime state
 
     Returns:
         New ProjectManifest instance
@@ -80,6 +82,7 @@ def create_manifest(
             trust=trust,
             protected=tuple(protected or [".git"]),
         ),
+        state_dir=state_dir,
     )
 
 
@@ -118,4 +121,13 @@ def _format_toml(data: dict) -> str:
         lines.append("protected = []")
 
     lines.append("")
+
+    # [state] section (optional -- only emitted when state_dir is set)
+    state = data.get("state", {})
+    state_dir = state.get("dir")
+    if state_dir:
+        lines.append("[state]")
+        lines.append(f'dir = "{state_dir}"')
+        lines.append("")
+
     return "\n".join(lines)

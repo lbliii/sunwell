@@ -28,7 +28,6 @@ async def validate_project_path(request: ProjectPathRequest) -> ValidationResult
     Returns structured error with suggestion instead of raising.
     """
     from sunwell.knowledge.project import ProjectValidationError, validate_workspace
-    from sunwell.knowledge.workspace import default_workspace_root
 
     path = normalize_path(request.path)
 
@@ -43,21 +42,10 @@ async def validate_project_path(request: ProjectPathRequest) -> ValidationResult
         validate_workspace(path)
         return ValidationResult(valid=True)
     except ProjectValidationError as e:
-        # Determine error type for structured response
-        error_msg = str(e)
-
-        if "sunwell" in error_msg.lower() and "repository" in error_msg.lower():
-            return ValidationResult(
-                valid=False,
-                error_code="sunwell_repo",
-                error_message="Cannot use Sunwell's own repository as project workspace",
-                suggestion=str(default_workspace_root()),
-            )
-
         return ValidationResult(
             valid=False,
             error_code="invalid_workspace",
-            error_message=error_msg,
+            error_message=str(e),
         )
 
 

@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from sunwell.foundation.utils import safe_yaml_load
-from sunwell.planning.skills.types import (
+from sunwell.planning.skills.types import (  # layer-exempt: Lens schema parser
     Resource,
     Script,
     Skill,

@@ -2,7 +2,7 @@
 # Sunwell — AI-Native Development
 # ═══════════════════════════════════════════════════════════════════════════════
 
-.PHONY: help dev studio studio-dev studio-build studio-test studio-test-watch studio-test-coverage install check test test-all clean schema schema-verify schema-test schema-demo run-types unwired unwired-strict
+.PHONY: help dev studio studio-dev studio-build studio-test studio-test-watch studio-test-coverage install check test test-all clean schema schema-verify schema-test schema-demo run-types unwired unwired-strict lint-layers
 
 # Default target
 help:
@@ -41,6 +41,7 @@ help:
 	@echo "  │ schema-verify Verify schemas are up-to-date (for CI)           │"
 	@echo "  │ schema-test   Test schema contract                              │"
 	@echo "  │ schema-demo   Demo schema contract system                      │"
+	@echo "  │ lint-layers   Check architectural layer imports                  │"
 	@echo "  │ unwired       Find unwired/incomplete code                     │"
 	@echo "  │ unwired-strict  Find unwired code (high confidence only)       │"
 	@echo "  │ clean         Clean build artifacts                             │"
@@ -129,6 +130,11 @@ check: env
 	@echo "🔍 Running checks..."
 	@ruff check src/
 	@ty check src/
+
+# Check architectural layer imports
+lint-layers:
+	@echo "Checking layer imports..."
+	@python scripts/check_layer_imports.py --warn
 
 # Run tests
 test:

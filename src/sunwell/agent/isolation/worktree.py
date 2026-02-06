@@ -24,8 +24,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Worktree directory within .sunwell
-WORKTREE_DIR = ".sunwell/worktrees"
+# Worktree subdirectory name (resolved via state dir)
+_WORKTREE_SUBDIR = "worktrees"
 
 # Branch prefix for parallel task branches
 BRANCH_PREFIX = "sunwell/parallel"
@@ -132,7 +132,9 @@ class WorktreeManager:
 
     def _worktree_path(self, task_id: str) -> Path:
         """Get the path for a task's worktree."""
-        return self.base_path / WORKTREE_DIR / task_id
+        from sunwell.knowledge.project.state import resolve_state_dir
+
+        return resolve_state_dir(self.base_path) / _WORKTREE_SUBDIR / task_id
 
     def _branch_name(self, task_id: str) -> str:
         """Get the branch name for a task."""

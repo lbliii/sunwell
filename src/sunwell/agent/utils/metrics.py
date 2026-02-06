@@ -133,7 +133,8 @@ class InferenceMetrics:
         Returns:
             Number of models saved
         """
-        metrics_dir = project_path / ".sunwell" / "metrics"
+        from sunwell.knowledge.project.state import resolve_state_dir
+        metrics_dir = resolve_state_dir(project_path) / "metrics"
         metrics_dir.mkdir(parents=True, exist_ok=True)
 
         metrics_file = metrics_dir / "inference_metrics.json"
@@ -168,7 +169,8 @@ class InferenceMetrics:
         Returns:
             Number of models loaded
         """
-        metrics_file = project_path / ".sunwell" / "metrics" / "inference_metrics.json"
+        from sunwell.knowledge.project.state import resolve_state_dir
+        metrics_file = resolve_state_dir(project_path) / "metrics" / "inference_metrics.json"
 
         if not metrics_file.exists():
             return 0
@@ -346,7 +348,8 @@ def save_profiles_to_disk(
     Returns:
         Number of profiles saved
     """
-    metrics_dir = project_path / ".sunwell" / "metrics"
+    from sunwell.knowledge.project.state import resolve_state_dir
+    metrics_dir = resolve_state_dir(project_path) / "metrics"
     metrics_dir.mkdir(parents=True, exist_ok=True)
 
     profiles_file = metrics_dir / "model_profiles.json"
@@ -383,7 +386,8 @@ def load_profiles_from_disk(project_path: Path) -> dict[str, ModelPerformancePro
     Returns:
         Dict of model name to performance profile
     """
-    profiles_file = project_path / ".sunwell" / "metrics" / "model_profiles.json"
+    from sunwell.knowledge.project.state import resolve_state_dir
+    profiles_file = resolve_state_dir(project_path) / "metrics" / "model_profiles.json"
 
     if not profiles_file.exists():
         return {}

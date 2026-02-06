@@ -15,13 +15,16 @@ communicate with any other planners or workers."
 
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from sunwell.mcp.formatting import mcp_json
+
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
+
+    from sunwell.mcp.runtime import MCPRuntime
 
 logger = logging.getLogger(__name__)
 
@@ -30,19 +33,13 @@ MAX_FILE_PREVIEW_CHARS = 2000
 MAX_FILES_IN_CONTEXT = 10
 
 
-def register_context_tools(mcp: FastMCP, workspace_dir: str | None = None) -> None:
+def register_context_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> None:
     """Register context packaging tools for MCP workers.
 
     Args:
         mcp: FastMCP server instance
-        workspace_dir: Optional workspace directory
+        runtime: Shared MCPRuntime for workspace resolution and subsystem access
     """
-
-    def _get_workspace() -> Path:
-        """Resolve workspace directory."""
-        if workspace_dir:
-            return Path(workspace_dir)
-        return Path.cwd()
 
     @mcp.tool()
     def sunwell_get_goal_context(goal_id: str) -> str:
@@ -68,16 +65,19 @@ def register_context_tools(mcp: FastMCP, workspace_dir: str | None = None) -> No
             - instructions: Step-by-step execution guidance
         """
         try:
-            from sunwell.features.backlog.manager import BacklogManager
+            workspace = runtime.resolve_workspace() if runtime else Path.cwd()
 
-            workspace = _get_workspace()
-            manager = BacklogManager(root=workspace)
+            # Use runtime-cached backlog or create fresh
+            manager = runtime.backlog if runtime else None
+            if manager is None:
+                from sunwell.features.backlog.manager import BacklogManager
+                manager = BacklogManager(root=workspace)
 
             goal = manager.backlog.goals.get(goal_id)
             if goal is None:
-                return json.dumps({
+                return mcp_json({
                     "error": f"Goal '{goal_id}' not found",
-                }, indent=2)
+                }, "compact")
 
             # Build context package
             context: dict = {
@@ -111,10 +111,10 @@ def register_context_tools(mcp: FastMCP, workspace_dir: str | None = None) -> No
                 "instructions": _build_execution_instructions(goal),
             }
 
-            return json.dumps(context, indent=2)
+            return mcp_json(context, "full")
 
         except Exception as e:
-            return json.dumps({"error": str(e)}, indent=2)
+            return mcp_json({"error": str(e)}, "compact")
 
 
 def _gather_relevant_files(workspace: Path, goal) -> list[dict]:

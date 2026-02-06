@@ -267,7 +267,8 @@ class Agent:
 
         # Initialize recovery manager for persisting execution state on failures
         from sunwell.agent.recovery.manager import RecoveryManager
-        recovery_dir = self.cwd / ".sunwell" / "recovery"
+        from sunwell.knowledge.project.state import resolve_state_dir
+        recovery_dir = resolve_state_dir(self.cwd) / "recovery"
         self._recovery_manager = RecoveryManager(recovery_dir)
 
         # Load inference metrics from disk for model discovery

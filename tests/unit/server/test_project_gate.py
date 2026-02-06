@@ -49,27 +49,21 @@ class TestValidateProjectPath:
         assert result.error_code is None
 
     @pytest.mark.asyncio
-    async def test_validate_sunwell_repo_error(self, tmp_path: Path) -> None:
-        """Validation returns sunwell_repo error for Sunwell's own repo."""
-        from sunwell.knowledge.project.validation import ProjectValidationError
-
+    async def test_validate_sunwell_repo_accepted(self, tmp_path: Path) -> None:
+        """Validation accepts Sunwell's own repo (guard removed with out-of-tree state)."""
         project_dir = tmp_path / "sunwell"
         project_dir.mkdir()
+        # Create a pyproject.toml that looks like Sunwell's
+        (project_dir / "pyproject.toml").write_text(
+            '[project]\nname = "sunwell"\nversion = "1.0.0"\n'
+        )
 
-        # Patch where validate_workspace is imported from
-        with patch(
-            "sunwell.knowledge.project.validate_workspace",
-            side_effect=ProjectValidationError(
-                "Cannot use Sunwell's own repository as workspace"
-            ),
-        ):
-            request = ProjectPathRequest(path=str(project_dir))
+        request = ProjectPathRequest(path=str(project_dir))
 
-            result = await validate_project_path(request)
+        result = await validate_project_path(request)
 
-            assert result.valid is False
-            assert result.error_code == "sunwell_repo"
-            assert result.suggestion is not None
+        assert result.valid is True
+        assert result.error_code is None
 
 
 class TestListProjects:

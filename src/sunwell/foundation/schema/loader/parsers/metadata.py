@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from sunwell.core.types.types import LensReference, SemanticVersion
+from sunwell.foundation.schema.models.types import LensReference, SemanticVersion
 from sunwell.foundation.core.lens import LensMetadata
 
 

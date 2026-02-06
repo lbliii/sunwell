@@ -200,7 +200,9 @@ class SnapshotManager:
     @property
     def _snapshots_dir(self) -> Path:
         """Directory for snapshot storage."""
-        return self.workspace / ".sunwell" / "snapshots"
+        from sunwell.knowledge.project.state import resolve_state_dir
+
+        return resolve_state_dir(self.workspace) / "snapshots"
 
     @property
     def _index_path(self) -> Path:

@@ -125,21 +125,8 @@ class ToolExecutor:
 
     def __post_init__(self) -> None:
         """Initialize dynamic tool registry."""
-        from sunwell.knowledge.project.validation import (
-            ProjectValidationError,
-            validate_not_sunwell_repo,
-        )
-
         # RFC-117: Resolve workspace from project
         workspace = self.project.root
-
-        # Validate workspace is not Sunwell's own repo
-        try:
-            validate_not_sunwell_repo(workspace)
-        except ProjectValidationError as e:
-            raise ProjectValidationError(
-                f"{e}\n\nHint: Use --project-root or -p <project-id> to specify a project."
-            ) from None
 
         # Store resolved workspace for internal use
         self._resolved_workspace = workspace

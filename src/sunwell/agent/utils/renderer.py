@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from typing import Protocol, TextIO
 
 from sunwell.agent.events import AgentEvent, EventType
+from sunwell.agent.events.types import event_to_dict
 
 
 # =============================================================================
@@ -808,7 +809,7 @@ class JSONRenderer:
     async def render(self, events: AsyncIterator[AgentEvent]) -> None:
         """Render events as NDJSON."""
         async for event in events:
-            line = json.dumps(event.to_dict())
+            line = json.dumps(event_to_dict(event))
             print(line, file=self.output)
 
 

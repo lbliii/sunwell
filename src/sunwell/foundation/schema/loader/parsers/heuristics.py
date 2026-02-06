@@ -1,6 +1,6 @@
 """Heuristics, anti-heuristics, communication, and identity parsing."""
 
-from sunwell.core.models.heuristic import (
+from sunwell.foundation.schema.models.heuristic import (
     AntiHeuristic,
     CommunicationStyle,
     Example,

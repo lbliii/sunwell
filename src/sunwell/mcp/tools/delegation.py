@@ -5,8 +5,9 @@ Provides tools for smart model delegation and routing.
 
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING
+
+from sunwell.mcp.formatting import mcp_json, omit_empty
 
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
@@ -27,13 +28,9 @@ def register_delegation_tools(mcp: FastMCP) -> None:
         """
         Get smart model delegation advice for a task.
 
-        Uses Sunwell's model registry and routing intelligence (RFC-137)
-        to recommend the optimal model for a given task. Considers:
-        - Task complexity and type
-        - Model capabilities and cost
-        - Available models in the registry
-
-        Good for deciding between fast/cheap vs. smart/expensive models.
+        Uses Sunwell's model registry and routing intelligence to recommend
+        the optimal model for a given task. Considers task complexity/type,
+        model capabilities/cost, and available models.
 
         Args:
             task: Description of the task to delegate
@@ -48,7 +45,6 @@ def register_delegation_tools(mcp: FastMCP) -> None:
             registry = get_registry()
             registered = registry.list_registered()
 
-            # Classify the task to determine model needs
             task_lower = task.lower()
 
             # Simple heuristic-based routing
@@ -76,7 +72,6 @@ def register_delegation_tools(mcp: FastMCP) -> None:
                     needs_intelligence = True
                     needs_speed = False
 
-            # Determine recommendation
             if needs_intelligence and not needs_speed:
                 tier = "smart"
                 aliases_to_try = ["anthropic-smart", "openai-smart", "ollama-smart"]
@@ -90,7 +85,6 @@ def register_delegation_tools(mcp: FastMCP) -> None:
                 aliases_to_try = ["default", "anthropic-smart", "openai-smart"]
                 reasoning = "Task has mixed requirements - recommending balanced model"
 
-            # Find first available model
             recommended = None
             for alias in aliases_to_try:
                 model = registry.get(alias, auto_create=False)
@@ -98,25 +92,20 @@ def register_delegation_tools(mcp: FastMCP) -> None:
                     recommended = alias
                     break
 
-            # Build alternatives
-            alternatives = []
-            for name in registered[:5]:
-                if name != recommended:
-                    alternatives.append(name)
+            alternatives = [
+                name for name in registered[:5] if name != recommended
+            ]
 
-            return json.dumps(
-                {
-                    "task": task,
-                    "constraints": constraints,
-                    "recommendation": {
-                        "model": recommended or "default",
-                        "tier": tier,
-                        "reasoning": reasoning,
-                    },
-                    "alternatives": alternatives,
-                    "registered_models": registered,
+            return mcp_json(omit_empty({
+                "task": task,
+                "constraints": constraints,
+                "recommendation": {
+                    "model": recommended or "default",
+                    "tier": tier,
+                    "reasoning": reasoning,
                 },
-                indent=2,
-            )
+                "alternatives": alternatives,
+                "registered_models": registered,
+            }), "compact")
         except Exception as e:
-            return json.dumps({"error": str(e), "task": task}, indent=2)
+            return mcp_json({"error": str(e), "task": task}, "compact")

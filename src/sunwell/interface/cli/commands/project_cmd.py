@@ -37,27 +37,41 @@ def project() -> None:
 @click.option("--trust", type=click.Choice(["discovery", "read_only", "workspace", "full"]),
               default="workspace", help="Default trust level for agent")
 @click.option("--no-register", is_flag=True, help="Don't add to global registry")
+@click.option("--state-dir", "state_dir", type=click.Path(),
+              help="Store runtime state externally (default: in-tree .sunwell/)")
 def init_cmd(
     path: str,
     project_id: str | None,
     project_name: str | None,
     trust: str,
     no_register: bool,
+    state_dir: str | None,
 ) -> None:
     """Initialize a new project workspace (RFC-117).
 
     Creates .sunwell/project.toml and registers in global registry.
 
+    Use --state-dir to store runtime state (backlog, memory, index, etc.)
+    externally instead of under .sunwell/. This is useful for keeping repos
+    clean or for self-development (using Sunwell to build Sunwell).
+
+    When initializing Sunwell's own repository, state is automatically
+    stored externally unless --state-dir is explicitly provided.
+
+    \b
     Examples:
         sunwell project init
         sunwell project init ~/projects/my-app
         sunwell project init . --id my-app --name "My Application"
+        sunwell project init . --state-dir ~/.local/share/sunwell/projects/my-app
     """
     from sunwell.knowledge.project import (
         ProjectValidationError,
         RegistryError,
         init_project,
     )
+    from sunwell.knowledge.project.state import default_state_root
+    from sunwell.knowledge.project.validation import _is_sunwell_repo
 
     project_path = Path(path).resolve()
 
@@ -66,6 +80,15 @@ def init_cmd(
         project_path.mkdir(parents=True, exist_ok=True)
         console.print(f"[dim]Created directory: {project_path}[/dim]")
 
+    # Auto-detect Sunwell's own repo and default to external state
+    effective_state_dir = state_dir
+    if effective_state_dir is None and _is_sunwell_repo(project_path):
+        effective_state_dir = str(default_state_root() / "sunwell-self")
+        console.print(
+            f"[dim]Detected Sunwell repo — state will be stored externally at "
+            f"{effective_state_dir}[/dim]"
+        )
+
     try:
         proj = init_project(
             root=project_path,
@@ -73,6 +96,7 @@ def init_cmd(
             name=project_name,
             trust=trust,
             register=not no_register,
+            state_dir=effective_state_dir,
         )
     except ProjectValidationError as e:
         console.print(f"[red]Error:[/red] {e}")
@@ -85,6 +109,8 @@ def init_cmd(
     console.print(f"[green]✓[/green] Initialized project: [bold]{proj.id}[/bold]")
     console.print(f"  Root: {proj.root}")
     console.print(f"  Manifest: {proj.manifest_path}")
+    if effective_state_dir:
+        console.print(f"  State: {effective_state_dir}")
     if not no_register:
         console.print("  Registered: ~/.sunwell/projects.json")
     console.print()
@@ -629,6 +655,216 @@ def cleanup_cmd(dry_run: bool, confirm: bool) -> None:
         console.print()
         console.print(f"[green]Cleaned runs:[/green] {result.cleaned_runs}")
         console.print(f"[green]Cleaned registrations:[/green] {result.cleaned_registrations}")
+
+
+@project.command(name="state-dir")
+@click.argument("project_id", required=False)
+@click.option("--set", "new_dir", type=click.Path(),
+              help="Set external state directory")
+def state_dir_cmd(project_id: str | None, new_dir: str | None) -> None:
+    """Show or change where runtime state is stored.
+
+    Without --set, shows the current state directory for the project.
+    With --set, updates the manifest to use an external state directory.
+
+    \b
+    Examples:
+        sunwell project state-dir                   # Show for cwd project
+        sunwell project state-dir my-app            # Show for specific project
+        sunwell project state-dir --set ~/state     # Change state location
+    """
+    from sunwell.knowledge.project import (
+        ProjectResolutionError,
+        resolve_project,
+    )
+    from sunwell.knowledge.project.state import resolve_state_dir
+
+    try:
+        if project_id:
+            proj = resolve_project(project_id=project_id)
+        else:
+            proj = resolve_project(cwd=Path.cwd())
+    except ProjectResolutionError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from None
+
+    if new_dir is None:
+        # Show current state directory
+        state = resolve_state_dir(proj.root)
+        is_external = state != proj.root / ".sunwell"
+        console.print(f"Project: [cyan]{proj.id}[/cyan]")
+        console.print(f"  State dir: {state}")
+        if is_external:
+            console.print("  Mode: [green]external[/green] (out-of-tree)")
+        else:
+            console.print("  Mode: [dim]in-tree[/dim] (default)")
+        return
+
+    # Set new state directory
+    if not proj.manifest:
+        console.print("[red]Error:[/red] Project has no manifest (not initialized)")
+        raise SystemExit(1)
+
+    from sunwell.knowledge.project.manifest import save_manifest
+    from sunwell.knowledge.project.types import ProjectManifest
+
+    new_path = Path(new_dir).resolve()
+    new_path.mkdir(parents=True, exist_ok=True)
+
+    updated = ProjectManifest(
+        id=proj.manifest.id,
+        name=proj.manifest.name,
+        created=proj.manifest.created,
+        workspace_type=proj.manifest.workspace_type,
+        agent=proj.manifest.agent,
+        state_dir=str(new_path),
+    )
+    save_manifest(updated, proj.manifest_path)
+
+    console.print(f"[green]✓[/green] State directory updated for [cyan]{proj.id}[/cyan]")
+    console.print(f"  New state dir: {new_path}")
+
+
+@project.command(name="externalize")
+@click.argument("project_id", required=False)
+@click.option("--target", type=click.Path(),
+              help="Target directory for state (default: XDG data home)")
+@click.option("--confirm", is_flag=True, help="Actually move files (default: dry-run)")
+def externalize_cmd(project_id: str | None, target: str | None, confirm: bool) -> None:
+    """Move in-tree state to an external directory.
+
+    Migrates runtime state (backlog, memory, index, etc.) from .sunwell/
+    to an external location. Keeps manifest, config, and lenses in-tree.
+
+    Without --confirm, shows what would be moved (dry-run).
+
+    \b
+    Examples:
+        sunwell project externalize                    # Dry-run for cwd project
+        sunwell project externalize --confirm          # Actually move
+        sunwell project externalize --target ~/state   # Custom target
+        sunwell project externalize my-app --confirm   # Specific project
+    """
+    import shutil
+
+    from sunwell.knowledge.project import (
+        ProjectResolutionError,
+        resolve_project,
+    )
+    from sunwell.knowledge.project.manifest import save_manifest
+    from sunwell.knowledge.project.state import (
+        IN_TREE_ITEMS,
+        STATE_SUBDIRS,
+        default_state_root,
+    )
+    from sunwell.knowledge.project.types import ProjectManifest
+
+    try:
+        if project_id:
+            proj = resolve_project(project_id=project_id)
+        else:
+            proj = resolve_project(cwd=Path.cwd())
+    except ProjectResolutionError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from None
+
+    sunwell_dir = proj.root / ".sunwell"
+    if not sunwell_dir.exists():
+        console.print("[yellow]No .sunwell/ directory found.[/yellow]")
+        raise SystemExit(1)
+
+    # Determine target
+    if target:
+        target_dir = Path(target).resolve()
+    else:
+        target_dir = default_state_root() / proj.id
+
+    # Already external?
+    if proj.manifest and proj.manifest.state_dir:
+        console.print(
+            f"[yellow]State is already external:[/yellow] {proj.manifest.state_dir}"
+        )
+        raise SystemExit(1)
+
+    # Discover what to move
+    to_move: list[tuple[Path, Path]] = []
+    to_skip: list[str] = []
+
+    for item in sorted(sunwell_dir.iterdir()):
+        name = item.name
+        if name in IN_TREE_ITEMS:
+            to_skip.append(name)
+            continue
+        # Only move known state subdirs (or any directory not in IN_TREE_ITEMS)
+        if item.is_dir():
+            to_move.append((item, target_dir / name))
+        elif item.is_file() and name not in IN_TREE_ITEMS:
+            # Files like convergence_state.json, notifications.jsonl
+            to_move.append((item, target_dir / name))
+
+    if not to_move:
+        console.print("[green]Nothing to externalize.[/green]")
+        return
+
+    # Display plan
+    console.print()
+    console.print(f"[bold]Project:[/bold] {proj.id}")
+    console.print(f"[bold]Source:[/bold]  {sunwell_dir}")
+    console.print(f"[bold]Target:[/bold]  {target_dir}")
+    console.print()
+
+    console.print("[bold]Will move:[/bold]")
+    for src, dst in to_move:
+        label = f"  {src.name}/"  if src.is_dir() else f"  {src.name}"
+        console.print(label)
+
+    if to_skip:
+        console.print()
+        console.print("[bold]Will keep in-tree:[/bold]")
+        for name in to_skip:
+            console.print(f"  {name}")
+
+    if not confirm:
+        console.print()
+        console.print("[dim]Dry run — use --confirm to proceed.[/dim]")
+        return
+
+    # Execute migration
+    target_dir.mkdir(parents=True, exist_ok=True)
+    moved = 0
+    failed: list[str] = []
+
+    for src, dst in to_move:
+        try:
+            if dst.exists():
+                console.print(f"  [yellow]Skipping (exists):[/yellow] {src.name}")
+                continue
+            shutil.move(str(src), str(dst))
+            moved += 1
+        except Exception as e:
+            failed.append(f"{src.name}: {e}")
+
+    # Update manifest
+    if proj.manifest:
+        updated = ProjectManifest(
+            id=proj.manifest.id,
+            name=proj.manifest.name,
+            created=proj.manifest.created,
+            workspace_type=proj.manifest.workspace_type,
+            agent=proj.manifest.agent,
+            state_dir=str(target_dir),
+        )
+        save_manifest(updated, proj.manifest_path)
+
+    console.print()
+    console.print(f"[green]✓[/green] Externalized {moved} item(s) to {target_dir}")
+    if proj.manifest:
+        console.print("  Manifest updated with new state_dir")
+    if failed:
+        console.print()
+        console.print(f"[yellow]Failed ({len(failed)}):[/yellow]")
+        for f in failed:
+            console.print(f"  {f}")
 
 
 # =============================================================================

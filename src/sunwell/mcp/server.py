@@ -48,19 +48,23 @@ def create_server(
         )
 
     from sunwell.mcp.resources import register_resources
+    from sunwell.mcp.runtime import MCPRuntime
     from sunwell.mcp.tools import register_tools
+
+    runtime = MCPRuntime(workspace=workspace)
 
     mcp = FastMCP("sunwell", instructions=SUNWELL_INSTRUCTIONS)
 
     # Register all tools (lenses, memory, knowledge, planning, backlog, mirror, execution, delegation)
-    register_tools(mcp, lenses_dir, workspace)
+    register_tools(mcp, lenses_dir, runtime)
 
     # Register all resources (core, lens, knowledge, memory, backlog, reference)
-    register_resources(mcp, workspace, lenses_dir)
+    register_resources(mcp, runtime, lenses_dir)
 
     # Store config for reference
     mcp._sunwell_lenses_dir = lenses_dir  # type: ignore[attr-defined]
     mcp._sunwell_workspace = workspace  # type: ignore[attr-defined]
+    mcp._sunwell_runtime = runtime  # type: ignore[attr-defined]
 
     return mcp
 

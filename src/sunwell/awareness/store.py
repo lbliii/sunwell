@@ -18,8 +18,8 @@ from sunwell.awareness.patterns import AwarenessPattern, PatternType
 
 logger = logging.getLogger(__name__)
 
-# Default storage location
-DEFAULT_AWARENESS_DIR = Path(".sunwell/awareness")
+# Default subdirectory name (resolved via state dir at runtime)
+_AWARENESS_SUBDIR = "awareness"
 PATTERNS_FILE = "patterns.jsonl"
 
 # Decay configuration
@@ -66,7 +66,7 @@ class AwarenessStore:
         Args:
             base_path: Storage directory (defaults to .sunwell/awareness)
         """
-        self._base_path = base_path or DEFAULT_AWARENESS_DIR
+        self._base_path = base_path or Path(_AWARENESS_SUBDIR)
         self._patterns: dict[str, AwarenessPattern] = {}
         self._lock = threading.Lock()
 
@@ -328,7 +328,9 @@ def load_awareness_for_session(cwd: Path, activity_day: int = 0) -> list[Awarene
     Returns:
         List of significant patterns for prompt injection
     """
-    awareness_dir = cwd / ".sunwell" / "awareness"
+    from sunwell.knowledge.project.state import resolve_state_dir
+
+    awareness_dir = resolve_state_dir(cwd) / "awareness"
     store = AwarenessStore.load(awareness_dir)
 
     patterns = store.get_significant(limit=5, activity_day=activity_day)

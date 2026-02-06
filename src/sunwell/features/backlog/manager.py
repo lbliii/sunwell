@@ -208,7 +208,9 @@ class BacklogManager:
             policy=self.policy,
         )
 
-        self.backlog_path = self.root / ".sunwell" / "backlog"
+        from sunwell.knowledge.project.state import resolve_state_dir
+
+        self.backlog_path = resolve_state_dir(self.root) / "backlog"
         self.backlog_path.mkdir(parents=True, exist_ok=True)
 
         self.backlog = Backlog(

@@ -1,27 +1,15 @@
-"""Event emitter protocols."""
+"""Event emitter protocols.
+
+EventEmitter protocol moved to sunwell.contracts.events; re-exported here
+for backward compatibility. ValidatedEventEmitter stays here as it contains
+business logic (validation).
+"""
 
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
 
-from sunwell.agent.events import AgentEvent
+from sunwell.contracts.events import AgentEvent, EventEmitter
 
 from .validation import validate_event_data
-
-
-@runtime_checkable
-class EventEmitter(Protocol):
-    """Protocol for event emitters.
-
-    All event-emitting code should implement this protocol.
-    """
-
-    def emit(self, event: AgentEvent) -> None:
-        """Emit an event.
-
-        Args:
-            event: The event to emit
-        """
-        ...
 
 
 @dataclass(frozen=True, slots=True)

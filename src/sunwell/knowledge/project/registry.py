@@ -429,6 +429,7 @@ def init_project(
     name: str | None = None,
     trust: str = "workspace",
     register: bool = True,
+    state_dir: str | None = None,
 ) -> Project:
     """Initialize a new project at the given path.
 
@@ -440,6 +441,9 @@ def init_project(
         name: Human-readable name (defaults to id)
         trust: Default trust level
         register: Whether to add to global registry
+        state_dir: Optional out-of-tree path for runtime state. When set,
+            generated state (backlog, memory, index, etc.) is stored
+            externally instead of under .sunwell/ in the workspace.
 
     Returns:
         Initialized Project instance
@@ -467,15 +471,21 @@ def init_project(
     if not project_id:
         project_id = root.name.lower().replace(" ", "-").replace("_", "-")
 
-    # Create manifest
+    # Create manifest (with optional external state_dir)
     manifest = create_manifest(
         project_id=project_id,
         name=name or project_id,
         trust=trust,
+        state_dir=state_dir,
     )
     save_manifest(manifest, manifest_path)
 
+    # Create external state directory if specified
+    if state_dir:
+        Path(state_dir).mkdir(parents=True, exist_ok=True)
+
     # Create Project instance
+    state_root = Path(state_dir) if state_dir else None
     project = Project(
         id=project_id,
         name=manifest.name,
@@ -483,6 +493,7 @@ def init_project(
         workspace_type=WorkspaceType.MANIFEST,
         created_at=manifest.created,
         manifest=manifest,
+        state_root=state_root,
     )
 
     # Register globally

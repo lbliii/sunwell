@@ -10,31 +10,28 @@ critical for understanding multi-agent behavior.
 
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from sunwell.mcp.formatting import mcp_json, omit_empty
+
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
+
+    from sunwell.mcp.runtime import MCPRuntime
 
 logger = logging.getLogger(__name__)
 
 
-def register_events_tools(mcp: FastMCP, workspace_dir: str | None = None) -> None:
+def register_events_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> None:
     """Register event and status tools for MCP observability.
 
     Args:
         mcp: FastMCP server instance
-        workspace_dir: Optional workspace directory
+        runtime: Shared MCPRuntime for workspace resolution and subsystem access
     """
-
-    def _get_workspace() -> Path:
-        """Resolve workspace directory."""
-        if workspace_dir:
-            return Path(workspace_dir)
-        return Path.cwd()
 
     @mcp.tool()
     def sunwell_status() -> str:
@@ -60,10 +57,13 @@ def register_events_tools(mcp: FastMCP, workspace_dir: str | None = None) -> Non
             - health: Overall system health assessment
         """
         try:
-            from sunwell.features.backlog.manager import BacklogManager
+            workspace = runtime.resolve_workspace() if runtime else Path.cwd()
 
-            workspace = _get_workspace()
-            manager = BacklogManager(root=workspace)
+            # Use runtime-cached backlog or create fresh
+            manager = runtime.backlog if runtime else None
+            if manager is None:
+                from sunwell.features.backlog.manager import BacklogManager
+                manager = BacklogManager(root=workspace)
 
             # Gather backlog stats
             total_goals = len(manager.backlog.goals)
@@ -108,7 +108,8 @@ def register_events_tools(mcp: FastMCP, workspace_dir: str | None = None) -> Non
             try:
                 from sunwell.agent.convergence.reconciler import Reconciler
                 # Check if a reconciler state file exists
-                reconciler_state = workspace / ".sunwell" / "convergence_state.json"
+                from sunwell.knowledge.project.state import resolve_state_dir
+                reconciler_state = resolve_state_dir(workspace) / "convergence_state.json"
                 if reconciler_state.exists():
                     import json as json_mod
                     state = json_mod.loads(reconciler_state.read_text())
@@ -146,14 +147,15 @@ def register_events_tools(mcp: FastMCP, workspace_dir: str | None = None) -> Non
 
             # Read pending handoffs count
             handoff_count = 0
-            handoff_path = workspace / ".sunwell" / "backlog" / "handoffs.jsonl"
+            from sunwell.knowledge.project.state import resolve_state_dir
+            handoff_path = resolve_state_dir(workspace) / "backlog" / "handoffs.jsonl"
             if handoff_path.exists():
                 try:
                     handoff_count = sum(1 for _ in handoff_path.open())
                 except OSError:
                     pass
 
-            return json.dumps({
+            return mcp_json(omit_empty({
                 "backlog": {
                     "total_goals": total_goals,
                     "completed": completed,
@@ -161,29 +163,28 @@ def register_events_tools(mcp: FastMCP, workspace_dir: str | None = None) -> Non
                     "pending": pending_count,
                     "in_progress": in_progress,
                 },
-                "workers": {
+                "workers": omit_empty({
                     "active_claims": claimed_count,
                     "claims": {
                         goal_id: worker_id
                         for goal_id, worker_id in claims.items()
                     },
-                    "stale_claims": stale_claims,
-                },
+                    "stale_claims": stale_claims if stale_claims else None,
+                }),
                 "error_budget": error_budget_info,
-                "dead_letters": dead_letter_info,
-                "conflicts": conflicts,
-                "handoffs_pending": handoff_count,
+                "dead_letters": dead_letter_info if dead_letter_info["count"] > 0 else None,
+                "conflicts": conflicts if conflicts else None,
+                "handoffs_pending": handoff_count if handoff_count > 0 else None,
                 "health": health,
-                "health_issues": health_issues,
-                "workspace": str(workspace),
+                "health_issues": health_issues if health_issues else None,
                 "timestamp": datetime.now().isoformat(),
-            }, indent=2)
+            }), "compact")
 
         except Exception as e:
-            return json.dumps({
+            return mcp_json({
                 "error": str(e),
                 "health": "unknown",
-            }, indent=2)
+            }, "compact")
 
     @mcp.tool()
     def sunwell_events(
@@ -208,12 +209,13 @@ def register_events_tools(mcp: FastMCP, workspace_dir: str | None = None) -> Non
             - data: Event-specific data
         """
         try:
-            workspace = _get_workspace()
+            workspace = runtime.resolve_workspace() if runtime else Path.cwd()
             events: list[dict] = []
 
             # Read handoff events
             if not event_type or event_type == "handoff":
-                handoff_path = workspace / ".sunwell" / "backlog" / "handoffs.jsonl"
+                from sunwell.knowledge.project.state import resolve_state_dir
+                handoff_path = resolve_state_dir(workspace) / "backlog" / "handoffs.jsonl"
                 if handoff_path.exists():
                     try:
                         from sunwell.foundation.utils import safe_jsonl_load
@@ -235,7 +237,8 @@ def register_events_tools(mcp: FastMCP, workspace_dir: str | None = None) -> Non
 
             # Read completion events
             if not event_type or event_type == "completion":
-                completion_path = workspace / ".sunwell" / "backlog" / "completed.jsonl"
+                from sunwell.knowledge.project.state import resolve_state_dir
+                completion_path = resolve_state_dir(workspace) / "backlog" / "completed.jsonl"
                 if completion_path.exists():
                     try:
                         from sunwell.foundation.utils import safe_jsonl_load
@@ -262,13 +265,10 @@ def register_events_tools(mcp: FastMCP, workspace_dir: str | None = None) -> Non
             # Apply limit
             events = events[:limit]
 
-            return json.dumps({
+            return mcp_json({
                 "events": events,
                 "total_returned": len(events),
-                "event_types_available": [
-                    "handoff", "completion", "claim", "release", "error"
-                ],
-            }, indent=2)
+            }, "compact")
 
         except Exception as e:
-            return json.dumps({"error": str(e)}, indent=2)
+            return mcp_json({"error": str(e)}, "compact")
