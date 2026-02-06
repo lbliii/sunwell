@@ -8,6 +8,7 @@ from typing import Any
 
 from sunwell.models.providers.base import (
     CalendarProvider,
+    GitProvider,
     HabitsProvider,
     ListProvider,
     NotesProvider,
@@ -35,6 +36,7 @@ class BlockActionExecutor:
     lists: ListProvider | None = None
     notes: NotesProvider | None = None
     habits: HabitsProvider | None = None
+    git: GitProvider | None = None
 
     async def execute(self, action_id: str, item_id: str | None = None) -> BlockActionResult:
         """Execute a block action.
@@ -303,15 +305,36 @@ class BlockActionExecutor:
                 message="No file specified.",
             )
 
-        # TODO: Integrate with git provider
-        return BlockActionResult(
-            success=True,
-            message=f"Staged: {file_path}",
-            data={"file": file_path, "action": "staged"},
-        )
+        if not self.git:
+            return BlockActionResult(
+                success=False,
+                message="Git provider not configured.",
+            )
+
+        try:
+            success = await self.git.stage([file_path])
+            if success:
+                return BlockActionResult(
+                    success=True,
+                    message=f"Staged: {file_path}",
+                    data={"file": file_path, "action": "staged"},
+                )
+            return BlockActionResult(
+                success=False,
+                message=f"Failed to stage: {file_path}",
+            )
+        except Exception as e:
+            return BlockActionResult(
+                success=False,
+                message=f"Git error: {e}",
+            )
 
     async def _commit(self) -> BlockActionResult:
-        """Open commit dialog."""
+        """Open commit dialog.
+
+        Note: Actual commit requires user input (message), so we signal
+        the UI to show the commit dialog rather than committing directly.
+        """
         return BlockActionResult(
             success=True,
             message="Ready to commit.",
@@ -320,56 +343,84 @@ class BlockActionExecutor:
 
     async def _push(self) -> BlockActionResult:
         """Push commits to remote."""
-        # TODO: Integrate with git provider
-        return BlockActionResult(
-            success=True,
-            message="Pushed to remote.",
-            data={"action": "pushed"},
-        )
+        if not self.git:
+            return BlockActionResult(
+                success=False,
+                message="Git provider not configured.",
+            )
+
+        try:
+            success, message = await self.git.push()
+            return BlockActionResult(
+                success=success,
+                message=message,
+                data={"action": "pushed" if success else "push_failed"},
+            )
+        except Exception as e:
+            return BlockActionResult(
+                success=False,
+                message=f"Git error: {e}",
+            )
 
     # =========================================================================
     # CONTACT ACTIONS
     # =========================================================================
 
     async def _call_contact(self, contact_id: str | None) -> BlockActionResult:
-        """Initiate a call to a contact."""
+        """Initiate a call to a contact.
+
+        Note: Requires platform-specific integration (macOS Contacts, etc).
+        Returns a signal for the UI to handle via native APIs.
+        """
         if not contact_id:
             return BlockActionResult(
                 success=False,
                 message="No contact specified.",
             )
 
-        # TODO: Integrate with contacts/phone provider
+        # Signal UI to initiate call via platform APIs
+        # (tel: URL on mobile, FaceTime/Phone on macOS, etc.)
         return BlockActionResult(
             success=True,
             message="Initiating call...",
-            data={"contact_id": contact_id, "action": "call"},
+            data={"contact_id": contact_id, "action": "call", "scheme": "tel"},
         )
 
     async def _message_contact(self, contact_id: str | None) -> BlockActionResult:
-        """Open messaging app for a contact."""
+        """Open messaging app for a contact.
+
+        Note: Requires platform-specific integration.
+        Returns a signal for the UI to handle via native APIs.
+        """
         if not contact_id:
             return BlockActionResult(
                 success=False,
                 message="No contact specified.",
             )
 
+        # Signal UI to open Messages via platform APIs
+        # (sms: URL on mobile, imessage: on macOS, etc.)
         return BlockActionResult(
             success=True,
             message="Opening messages...",
-            data={"contact_id": contact_id, "action": "message"},
+            data={"contact_id": contact_id, "action": "message", "scheme": "sms"},
         )
 
     async def _email_contact(self, contact_id: str | None) -> BlockActionResult:
-        """Open email for a contact."""
+        """Open email for a contact.
+
+        Note: Requires platform-specific integration.
+        Returns a signal for the UI to handle via native APIs.
+        """
         if not contact_id:
             return BlockActionResult(
                 success=False,
                 message="No contact specified.",
             )
 
+        # Signal UI to open email via platform APIs (mailto: URL)
         return BlockActionResult(
             success=True,
             message="Opening email...",
-            data={"contact_id": contact_id, "action": "email"},
+            data={"contact_id": contact_id, "action": "email", "scheme": "mailto"},
         )

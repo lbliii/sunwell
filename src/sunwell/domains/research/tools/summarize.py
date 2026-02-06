@@ -133,9 +133,7 @@ class SummarizeTool(BaseTool):
                 score += 1
 
             # Length penalty for very short/long
-            if len(sentence) < 40:
-                score -= 1
-            elif len(sentence) > 200:
+            if len(sentence) < 40 or len(sentence) > 200:
                 score -= 1
 
             scored.append((score, sentence))

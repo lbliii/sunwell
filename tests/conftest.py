@@ -102,3 +102,30 @@ def lenses_dir() -> Path:
 def tech_writer_lens(lens_loader: LensLoader, lenses_dir: Path) -> Lens:
     """Load the tech-writer lens for testing."""
     return lens_loader.load(lenses_dir / "tech-writer.lens")
+
+
+@pytest.fixture
+def sample_lens_with_router(sample_heuristic: Heuristic) -> Lens:
+    """Create a sample lens with router shortcuts for testing."""
+    from sunwell.foundation.core.lens import Router
+    
+    return Lens(
+        metadata=LensMetadata(
+            name="test-coder",
+            domain="software",
+            version=SemanticVersion(1, 0, 0),
+            description="A test coding lens",
+        ),
+        heuristics=(sample_heuristic,),
+        router=Router(
+            shortcuts={"::code": "write-code", "::test": "write-tests"},
+        ),
+    )
+
+
+@pytest.fixture
+def temp_lenses_dir(tmp_path: Path) -> Path:
+    """Create a temporary lenses directory for testing."""
+    lenses_dir = tmp_path / "lenses"
+    lenses_dir.mkdir()
+    return lenses_dir

@@ -2,6 +2,11 @@
 
 from sunwell.agent.core.task_graph import sanitize_code_content
 from sunwell.agent.execution.context import BacklogContext
+from sunwell.agent.execution.dispatcher import (
+    DispatchResult,
+    TaskDispatcher,
+    should_use_parallel_dispatch,
+)
 from sunwell.agent.execution.emitter import StdoutEmitter
 from sunwell.agent.execution.executor import (
     determine_specialist_role,
@@ -43,4 +48,8 @@ __all__ = [
     "LaneState",
     "QueueEntry",
     "get_lanes",
+    # Task Dispatcher (Parallel Isolation)
+    "TaskDispatcher",
+    "DispatchResult",
+    "should_use_parallel_dispatch",
 ]

@@ -10,7 +10,6 @@ Provides capabilities to:
 - Diagnose errors with source-level analysis
 """
 
-import json
 import threading
 from collections import Counter
 from dataclasses import dataclass, field
@@ -27,6 +26,7 @@ from sunwell.features.mirror.self.types import (
     PatternReport,
     SourceLocation,
 )
+from sunwell.foundation.utils import safe_jsonl_append, safe_jsonl_load
 
 # Known failure patterns with root cause mapping
 KNOWN_FAILURE_PATTERNS: dict[str, dict[str, str]] = {
@@ -386,49 +386,38 @@ class AnalysisKnowledge:
         """Load existing data from storage files."""
         # Load execution events
         events_file = self.storage / "executions.jsonl"
-        if events_file.exists():
-            with events_file.open() as f:
-                for line in f:
-                    line = line.strip()
-                    if line:
-                        try:
-                            data = json.loads(line)
-                            self._events.append(ExecutionEvent(
-                                tool_name=data["tool_name"],
-                                success=data["success"],
-                                latency_ms=data["latency_ms"],
-                                error=data.get("error"),
-                                timestamp=datetime.fromisoformat(data["timestamp"]),
-                                model=data.get("model"),
-                                user_edited=data.get("user_edited", False),
-                            ))
-                        except (json.JSONDecodeError, KeyError):
-                            continue
+        for data in safe_jsonl_load(events_file):
+            try:
+                self._events.append(ExecutionEvent(
+                    tool_name=data["tool_name"],
+                    success=data["success"],
+                    latency_ms=data["latency_ms"],
+                    error=data.get("error"),
+                    timestamp=datetime.fromisoformat(data["timestamp"]),
+                    model=data.get("model"),
+                    user_edited=data.get("user_edited", False),
+                ))
+            except KeyError:
+                continue
 
         # Load failure reports
         failures_file = self.storage / "failures.jsonl"
-        if failures_file.exists():
-            with failures_file.open() as f:
-                for line in f:
-                    line = line.strip()
-                    if line:
-                        try:
-                            data = json.loads(line)
-                            self._failures.append(FailureReport(
-                                error=data["error"],
-                                error_type=data["error_type"],
-                                root_cause=data.get("root_cause"),
-                                source_location=None,
-                                timestamp=datetime.fromisoformat(data["timestamp"]),
-                                severity=FailureSeverity(data.get("severity", "low")),
-                                suggestion=data.get("suggestion"),
-                            ))
-                        except (json.JSONDecodeError, KeyError):
-                            continue
+        for data in safe_jsonl_load(failures_file):
+            try:
+                self._failures.append(FailureReport(
+                    error=data["error"],
+                    error_type=data["error_type"],
+                    root_cause=data.get("root_cause"),
+                    source_location=None,
+                    timestamp=datetime.fromisoformat(data["timestamp"]),
+                    severity=FailureSeverity(data.get("severity", "low")),
+                    suggestion=data.get("suggestion"),
+                ))
+            except KeyError:
+                continue
 
     def _append_event_to_storage(self, event: ExecutionEvent) -> None:
         """Append an execution event to storage."""
-        events_file = self.storage / "executions.jsonl"
         data = {
             "tool_name": event.tool_name,
             "success": event.success,
@@ -438,12 +427,10 @@ class AnalysisKnowledge:
             "model": event.model,
             "user_edited": event.user_edited,
         }
-        with events_file.open("a") as f:
-            f.write(json.dumps(data) + "\n")
+        safe_jsonl_append(data, self.storage / "executions.jsonl")
 
     def _append_failure_to_storage(self, report: FailureReport) -> None:
         """Append a failure report to storage."""
-        failures_file = self.storage / "failures.jsonl"
         data = {
             "error": report.error,
             "error_type": report.error_type,
@@ -452,8 +439,7 @@ class AnalysisKnowledge:
             "severity": report.severity.value,
             "suggestion": report.suggestion,
         }
-        with failures_file.open("a") as f:
-            f.write(json.dumps(data) + "\n")
+        safe_jsonl_append(data, self.storage / "failures.jsonl")
 
     def clear(self) -> None:
         """Clear all data (for testing)."""

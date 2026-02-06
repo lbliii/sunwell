@@ -50,12 +50,14 @@ from sunwell.core.models import (
 # Core types
 from sunwell.core.types import (
     Confidence,
+    Embeddable,
     IntentCategory,
     LensReference,
     SemanticVersion,
     Severity,
     Tier,
     ValidationMethod,
+    to_embedding_text,
 )
 
 # Identity utilities (re-exported for convenience)
@@ -110,6 +112,9 @@ __all__ = [
     "SemanticVersion",
     "LensReference",
     "Confidence",
+    # === Protocols ===
+    "Embeddable",
+    "to_embedding_text",
     # === Context ===
     "AppContext",
     # === Identity (RFC-101) ===

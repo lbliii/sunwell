@@ -108,7 +108,7 @@ class BootstrapOrchestrator:
 
         decisions_count = await self._populate_decisions(decisions)
         patterns_count = await self._populate_patterns(patterns)
-        await self._populate_codebase_graph(code_evidence)
+        codebase_nodes = await self._populate_codebase_graph(code_evidence, git_evidence)
 
         # Populate ownership map
         ownership_map = OwnershipMap(self.root / ".sunwell" / "intelligence")
@@ -237,11 +237,23 @@ class BootstrapOrchestrator:
         """Use LLM to extract structured decisions from commit messages.
 
         This is optional and only used when --use-llm is enabled.
+
+        Future enhancement: Use LLM to parse commit messages like:
+        - "Switched from SQLite to Postgres for better concurrency"
+        - "Adopted pytest over unittest for fixture support"
+
+        And extract structured decisions:
+        - question: "Which database to use?"
+        - choice: "Postgres"
+        - rationale: "Better concurrency support"
+
+        Currently falls back to heuristic extraction which handles
+        common patterns like "fix:", "feat:", conventional commits.
         """
-        # TODO: Implement LLM extraction in future iteration
-        # For now, fall back to heuristic extraction
+        # Heuristic fallback - LLM extraction would improve accuracy
+        # for complex decision language in commit messages
         decisions = []
-        for commit in commits[:10]:  # Limit LLM calls
+        for commit in commits[:10]:
             if extracted := self._heuristic_extract_decision(commit):
                 decisions.append(extracted)
         return decisions
@@ -425,8 +437,49 @@ class BootstrapOrchestrator:
 
         return fields_updated
 
-    async def _populate_codebase_graph(self, code: CodeEvidence) -> None:
-        """Populate CodebaseGraph with discovered structure."""
-        # TODO: Integrate with CodebaseGraph.build_from_scan()
-        # For now, this is a placeholder for the RFC-045 CodebaseGraph integration
-        pass
+    async def _populate_codebase_graph(
+        self, code: CodeEvidence, git: GitEvidence | None = None
+    ) -> int:
+        """Populate CodebaseGraph with discovered structure.
+
+        Args:
+            code: Code evidence containing modules, functions, classes
+            git: Optional git evidence for ownership and change frequency
+
+        Returns:
+            Number of nodes added to the graph
+        """
+        from sunwell.knowledge.codebase.codebase import CodebaseGraph
+
+        # Load existing graph or create new
+        intelligence_path = self.root / ".sunwell" / "intelligence"
+        graph = CodebaseGraph.load(intelligence_path)
+
+        # Extract ownership and change frequency from git evidence
+        file_ownership: dict[Path, str] | None = None
+        change_frequency: dict[Path, float] | None = None
+
+        if git:
+            # Build ownership from blame map
+            file_ownership = {}
+            for file_path, blame_regions in git.blame_map.items():
+                if blame_regions:
+                    # Use most recent author as owner
+                    most_recent = max(blame_regions, key=lambda r: r.date)
+                    file_ownership[file_path] = most_recent.author
+
+            change_frequency = git.change_frequency
+
+        # Populate graph with scan results
+        nodes_added = graph.populate_from_scan(
+            modules=code.module_structure.modules,
+            functions=code.module_structure.functions,
+            classes=code.module_structure.classes,
+            file_ownership=file_ownership,
+            change_frequency=change_frequency,
+        )
+
+        # Save updated graph
+        graph.save(intelligence_path)
+
+        return nodes_added

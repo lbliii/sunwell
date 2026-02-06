@@ -21,7 +21,7 @@ from pathlib import Path
 import click
 
 from sunwell.interface.cli.core.async_runner import async_command
-from sunwell.interface.cli.core.events import render_agent_event
+from sunwell.interface.cli.core.events import live_session, render_agent_event
 from sunwell.interface.cli.core.render_context import reset_render_context
 from sunwell.interface.cli.core.theme import (
     CHARS_DIAMONDS,
@@ -156,6 +156,7 @@ async def run_goal_unified(
     verbose: bool = False,
     dry_run: bool = False,
     json_output: bool = False,
+    show_status: bool = False,
 ) -> None:
     """Execute a goal through the unified chat loop (single turn).
     
@@ -176,6 +177,7 @@ async def run_goal_unified(
         verbose: Show verbose output
         dry_run: If True, only plan without executing
         json_output: Output as JSON (uses JSONRenderer)
+        show_status: If True, show live StatusBar with session metrics
     """
     from sunwell.agent.chat import ChatCheckpoint, ChatCheckpointType, UnifiedChatLoop
     from sunwell.agent.events import AgentEvent
@@ -207,6 +209,18 @@ async def run_goal_unified(
         project_name=project_name,
         quiet=not verbose,
     )
+
+    # Check workspace readiness for parallel isolation
+    from sunwell.agent.isolation import check_workspace_readiness, WorkspaceIsolationMode
+    
+    readiness = check_workspace_readiness(workspace)
+    if not readiness.is_git_repo and readiness.warning and not json_output:
+        # Emit workspace readiness warning
+        console.print(f"  [neutral.dim]{CHARS_DIAMONDS['inset']} {readiness.warning}[/]")
+        if verbose:
+            console.print(
+                f"  [neutral.dim]  Isolation mode: {readiness.isolation_mode.value}[/]"
+            )
 
     # Create session for tracking (enables `sunwell resume`)
     session_id: str | None = None
@@ -305,90 +319,93 @@ async def run_goal_unified(
     
     goal_completed = False
     goal_failed = False
-    try:
-        gen = loop.run()
-        await gen.asend(None)  # Initialize
-        result = await gen.asend(goal)
-        
-        # Process results until completion
-        while result is not None:
-            if isinstance(result, str):
-                # Conversational response (for UNDERSTAND intents)
-                console.print()
-                console.print(f"[holy.radiant]{CHARS_STARS['complete']} Sunwell:[/holy.radiant]")
-                console.print(Markdown(result))
-                render_separator(console, style="mote")
-                # Send completion notification
-                await notifier.send_complete("Response generated")
-                goal_completed = True
-                result = None
-                
-            elif isinstance(result, ChatCheckpoint):
-                # Handle checkpoint (should auto-confirm, but handle display)
-                if result.type == ChatCheckpointType.COMPLETION:
-                    # Show completion summary with Holy Light styling
+    
+    # Wrap execution with optional live status display
+    with live_session(console, enable_status=show_status):
+        try:
+            gen = loop.run()
+            await gen.asend(None)  # Initialize
+            result = await gen.asend(goal)
+            
+            # Process results until completion
+            while result is not None:
+                if isinstance(result, str):
+                    # Conversational response (for UNDERSTAND intents)
                     console.print()
-                    console.print(f"  [holy.success]{CHARS_STARS['complete']} {result.message}[/holy.success]")
-                    if result.summary:
-                        console.print(f"  [neutral.dim]{result.summary}[/neutral.dim]")
-                    if result.files_changed:
-                        console.print(f"  [neutral.dim]Files: {', '.join(result.files_changed[:5])}[/neutral.dim]")
-                    # Sparkle celebration
-                    if not should_reduce_motion():
-                        import asyncio
-                        asyncio.create_task(Sparkle.burst("", duration=0.3))
-                    await notifier.send_complete(result.summary or result.message)
+                    console.print(f"[holy.radiant]{CHARS_STARS['complete']} Sunwell:[/holy.radiant]")
+                    console.print(Markdown(result))
+                    render_separator(console, style="mote")
+                    # Send completion notification
+                    await notifier.send_complete("Response generated")
                     goal_completed = True
                     result = None
-                elif result.type == ChatCheckpointType.FAILURE:
-                    # Use render_error for proper Holy Light error display
-                    render_error(
-                        console,
-                        result.message,
-                        details=result.error,
-                    )
-                    await notifier.send_error(result.message, details=result.error or "")
-                    goal_failed = True
-                    if session_id:
-                        _update_session_status(session_id, "failed", result.error or result.message)
-                    result = None
-                else:
-                    # Auto-confirm other checkpoints
-                    from sunwell.agent.chat import CheckpointResponse
-                    result = await gen.asend(CheckpointResponse("y"))
                     
-            elif isinstance(result, AgentEvent):
-                # Render event using the event helpers
-                render_agent_event(result, console, verbose)
-                result = await gen.asend(None)
+                elif isinstance(result, ChatCheckpoint):
+                    # Handle checkpoint (should auto-confirm, but handle display)
+                    if result.type == ChatCheckpointType.COMPLETION:
+                        # Show completion summary with Holy Light styling
+                        console.print()
+                        console.print(f"  [holy.success]{CHARS_STARS['complete']} {result.message}[/holy.success]")
+                        if result.summary:
+                            console.print(f"  [neutral.dim]{result.summary}[/neutral.dim]")
+                        if result.files_changed:
+                            console.print(f"  [neutral.dim]Files: {', '.join(result.files_changed[:5])}[/neutral.dim]")
+                        # Sparkle celebration
+                        if not should_reduce_motion():
+                            import asyncio
+                            asyncio.create_task(Sparkle.burst("", duration=0.3))
+                        await notifier.send_complete(result.summary or result.message)
+                        goal_completed = True
+                        result = None
+                    elif result.type == ChatCheckpointType.FAILURE:
+                        # Use render_error for proper Holy Light error display
+                        render_error(
+                            console,
+                            result.message,
+                            details=result.error,
+                        )
+                        await notifier.send_error(result.message, details=result.error or "")
+                        goal_failed = True
+                        if session_id:
+                            _update_session_status(session_id, "failed", result.error or result.message)
+                        result = None
+                    else:
+                        # Auto-confirm other checkpoints
+                        from sunwell.agent.chat import CheckpointResponse
+                        result = await gen.asend(CheckpointResponse("y"))
+                        
+                elif isinstance(result, AgentEvent):
+                    # Render event using the event helpers
+                    render_agent_event(result, console, verbose)
+                    result = await gen.asend(None)
+                else:
+                    result = None
+            
+            # Mark session as completed if we got here without failure
+            if session_id and goal_completed and not goal_failed:
+                _update_session_status(session_id, "completed")
+                    
+        except KeyboardInterrupt:
+            # Save session as PAUSED so it can be resumed
+            if session_id:
+                _update_session_status(session_id, "paused", "Interrupted by user")
+            console.print(f"\n  [neutral.dim]{CHARS_DIAMONDS['inset']} Goal paused[/]")
+            console.print(f"  [neutral.dim]Resume with: [holy.gold]sunwell resume[/holy.gold][/]")
+        except Exception as e:
+            if session_id:
+                _update_session_status(session_id, "failed", str(e))
+            if verbose:
+                import traceback
+                trace_lines = traceback.format_exc().strip().split("\n")
+                render_error(console, str(e))
+                render_collapsible(
+                    console,
+                    "Full traceback",
+                    trace_lines,
+                    expanded=False,
+                    item_count=len(trace_lines),
+                )
             else:
-                result = None
-        
-        # Mark session as completed if we got here without failure
-        if session_id and goal_completed and not goal_failed:
-            _update_session_status(session_id, "completed")
-                
-    except KeyboardInterrupt:
-        # Save session as PAUSED so it can be resumed
-        if session_id:
-            _update_session_status(session_id, "paused", "Interrupted by user")
-        console.print(f"\n  [neutral.dim]{CHARS_DIAMONDS['inset']} Goal paused[/]")
-        console.print(f"  [neutral.dim]Resume with: [holy.gold]sunwell resume[/holy.gold][/]")
-    except Exception as e:
-        if session_id:
-            _update_session_status(session_id, "failed", str(e))
-        if verbose:
-            import traceback
-            trace_lines = traceback.format_exc().strip().split("\n")
-            render_error(console, str(e))
-            render_collapsible(
-                console,
-                "Full traceback",
-                trace_lines,
-                expanded=False,
-                item_count=len(trace_lines),
-            )
-        else:
-            render_error(console, str(e))
+                render_error(console, str(e))
 
 

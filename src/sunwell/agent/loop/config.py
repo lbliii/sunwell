@@ -174,6 +174,33 @@ class LoopConfig:
     # =========================================================================
     # Parallel Isolation (Agentic Infrastructure)
     # =========================================================================
+    enable_parallel_tasks: bool = True
+    """Enable parallel task execution within goals.
+
+    When enabled, TaskDispatcher will route parallelizable task groups
+    to ParallelExecutor for concurrent execution. Tasks are identified
+    as parallelizable via TaskGraph.get_parallelizable_groups() based on
+    their parallel_group assignment and non-overlapping modifies sets.
+
+    When disabled, all tasks execute sequentially regardless of parallel_group.
+    """
+
+    max_parallel_tasks: int = 4
+    """Maximum concurrent tasks within a parallel group.
+
+    Limits resource consumption during parallel execution. Set based on
+    available compute and API rate limits. The actual parallelism may be
+    lower if tasks have overlapping modifies sets (file conflicts).
+    """
+
+    auto_init_git: bool = False
+    """Auto-initialize git for worktree isolation if needed.
+
+    When True and workspace isn't a git repo, automatically run 'git init'
+    with an initial commit to enable worktree isolation for parallel tasks.
+    When False, falls back to in-memory staging for non-git workspaces.
+    """
+
     enable_worktree_isolation: bool = True
     """Enable git worktree isolation for parallel tasks.
 
@@ -191,6 +218,56 @@ class LoopConfig:
     Defense-in-depth: validates that file content isn't tool output
     contamination (e.g., "✓ Wrote file.py" as content). Runs regardless
     of whether worktree isolation is enabled.
+    """
+
+    # =========================================================================
+    # Freshness and Context Drift Prevention
+    # =========================================================================
+    # Inspired by Cursor's self-driving codebases: "Ensuring freshness"
+    # mechanisms prevent context drift during long autonomous runs.
+
+    enable_scratchpad: bool = True
+    """Enable scratchpad pattern for long-running sessions.
+
+    Each subplanner/worker maintains an in-memory scratchpad that gets
+    REWRITTEN (not appended to) every N tool calls. This forces the
+    agent to synthesize rather than accumulate, preventing context drift.
+    """
+
+    scratchpad_rewrite_interval: int = 10
+    """Rewrite the scratchpad every N tool calls.
+
+    Lower values mean more frequent synthesis but more overhead.
+    Higher values mean less overhead but risk context drift.
+    """
+
+    enable_alignment_checkpoints: bool = True
+    """Inject self-reflection prompts at regular intervals.
+
+    Every M tool calls, ask: 'Are you still aligned with the original
+    goal? What has changed? Should you adjust your approach?'
+    """
+
+    alignment_checkpoint_interval: int = 15
+    """How often to inject alignment checkpoints (every N tool calls).
+
+    Should be a multiple of scratchpad_rewrite_interval for
+    cleaner execution flow.
+    """
+
+    enable_context_summarization: bool = True
+    """Auto-summarize when approaching context limits.
+
+    When the context window is >80% consumed, automatically summarize
+    the current state into a compact briefing and restart with the
+    summary injected. Prevents degraded performance from context overflow.
+    """
+
+    context_summarization_threshold: float = 0.8
+    """Trigger context summarization when this fraction of context is consumed.
+
+    Range: 0.0 to 1.0. At 0.8 (default), summarization triggers when
+    80% of the context window is used.
     """
 
     # =========================================================================
@@ -283,3 +360,20 @@ class LoopState:
 
     contract_file: str | None = None
     """Path to file containing the Protocol definition."""
+
+    # Freshness tracking (Context Drift Prevention)
+    scratchpad: str = ""
+    """In-memory scratchpad for the current session.
+
+    REWRITTEN (not appended to) every scratchpad_rewrite_interval tool calls.
+    Contains a synthesis of the current execution state.
+    """
+
+    last_scratchpad_rewrite: int = 0
+    """Tool call count at last scratchpad rewrite."""
+
+    last_alignment_checkpoint: int = 0
+    """Tool call count at last alignment checkpoint."""
+
+    context_tokens_estimate: int = 0
+    """Estimated tokens consumed in the current context window."""

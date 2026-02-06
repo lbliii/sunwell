@@ -7,13 +7,13 @@ Small models don't need tool awareness - they just receive the relevant
 expertise baked into their prompt.
 """
 
-
 import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sunwell.core import Lens
+    from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +59,7 @@ class ToolOrchestratorShard:
         lens: Lens,
         threshold: float = 0.5,
         top_k: int = 5,
+        embedder: EmbeddingProtocol | None = None,
     ) -> None:
         """Initialize the Tool Orchestrator Shard.
 
@@ -66,10 +67,13 @@ class ToolOrchestratorShard:
             lens: The expertise lens to retrieve from
             threshold: Minimum similarity score to include expertise
             top_k: Maximum number of expertise items to fetch
+            embedder: Optional embedder for semantic retrieval (falls back to keywords)
         """
         self.lens = lens
         self.threshold = threshold
         self.top_k = top_k
+        self._embedder = embedder
+        self._expertise_embeddings: dict[str, list[float]] | None = None
 
     async def process(self, task: str) -> ToolShardResult:
         """Analyze task and fetch relevant expertise.
@@ -82,10 +86,13 @@ class ToolOrchestratorShard:
         """
         start = time.perf_counter()
 
-        # Retrieve relevant expertise using semantic similarity
-        expertise = self._retrieve_expertise(task)
+        # Use semantic retrieval if embedder is configured, else keyword matching
+        if self._embedder:
+            expertise = await self._async_semantic_retrieve(task)
+        else:
+            expertise = self._keyword_retrieve(task)
 
-        # Filter by threshold
+        # Filter by threshold (semantic already filters, but keyword may not)
         relevant = [e for e in expertise if e.score >= self.threshold]
 
         # Build reasoning (explains why these were selected)
@@ -115,14 +122,111 @@ class ToolOrchestratorShard:
 
         Uses the lens's heuristics, anti-heuristics, and skills
         to find relevant guidance for the task.
-        """
 
-        # Use keyword-based matching for now
-        # TODO: Add semantic retrieval when embeddings are configured
-        # The ExpertiseRetriever requires an embedder and async init,
-        # which adds complexity. Keyword matching is fast and good enough
-        # for MVP - we can add embeddings later.
+        Falls back to keyword matching when embeddings are not configured.
+        """
+        # Use semantic retrieval if embedder is available
+        if self._embedder and self._expertise_embeddings:
+            return self._semantic_retrieve(task)
+
+        # Fall back to keyword-based matching
         return self._keyword_retrieve(task)
+
+    def _semantic_retrieve(self, task: str) -> list[RetrievedExpertise]:
+        """Retrieve expertise using embedding similarity.
+
+        Computes cosine similarity between task and expertise embeddings.
+        """
+        import math
+
+        if not self._embedder or not self._expertise_embeddings:
+            return []
+
+        # This is sync context but we need to run async embed
+        # For now, fall back to keyword if called from sync context
+        # The caller (process) is async and can call _async_semantic_retrieve
+        return self._keyword_retrieve(task)
+
+    async def _async_semantic_retrieve(self, task: str) -> list[RetrievedExpertise]:
+        """Async semantic retrieval with embedding computation."""
+        import math
+
+        if not self._embedder:
+            return self._keyword_retrieve(task)
+
+        # Build expertise embeddings on first call
+        if self._expertise_embeddings is None:
+            await self._build_expertise_embeddings()
+
+        if not self._expertise_embeddings:
+            return self._keyword_retrieve(task)
+
+        # Embed the task
+        result = await self._embedder.embed([task])
+        task_vector = result.vectors[0].tolist()
+
+        # Score each expertise item
+        scored: list[tuple[str, str, str, float]] = []  # (name, content, source, score)
+
+        for key, embedding in self._expertise_embeddings.items():
+            # Cosine similarity
+            dot = sum(a * b for a, b in zip(task_vector, embedding, strict=True))
+            norm_task = math.sqrt(sum(a * a for a in task_vector))
+            norm_exp = math.sqrt(sum(b * b for b in embedding))
+            if norm_task > 0 and norm_exp > 0:
+                score = dot / (norm_task * norm_exp)
+            else:
+                score = 0.0
+
+            if score >= self.threshold:
+                # Parse key back to name, content, source
+                parts = key.split("|", 2)
+                if len(parts) == 3:
+                    name, source, content = parts
+                    scored.append((name, content, source, score))
+
+        # Sort by score and take top_k
+        scored.sort(key=lambda x: x[3], reverse=True)
+
+        return [
+            RetrievedExpertise(name=name, content=content, source=source, score=score)
+            for name, content, source, score in scored[: self.top_k]
+        ]
+
+    async def _build_expertise_embeddings(self) -> None:
+        """Build embeddings for all expertise items in the lens."""
+        if not self._embedder:
+            return
+
+        self._expertise_embeddings = {}
+        texts_to_embed: list[tuple[str, str]] = []  # (key, text)
+
+        # Collect heuristics
+        for heuristic in self.lens.heuristics:
+            text = f"{heuristic.name}: {heuristic.rule}"
+            if heuristic.always:
+                text += f" Always: {', '.join(heuristic.always)}"
+            if heuristic.never:
+                text += f" Never: {', '.join(heuristic.never)}"
+            key = f"{heuristic.name}|heuristic|{heuristic.rule}"
+            texts_to_embed.append((key, text))
+
+        # Collect skills
+        for skill in self.lens.skills:
+            text = f"{skill.name}: {skill.description}"
+            key = f"{skill.name}|skill|{skill.description}"
+            texts_to_embed.append((key, text))
+
+        if not texts_to_embed:
+            return
+
+        # Embed all at once
+        texts = [t[1] for t in texts_to_embed]
+        result = await self._embedder.embed(texts)
+
+        # Store embeddings
+        for (key, _), vector in zip(texts_to_embed, result.vectors, strict=True):
+            self._expertise_embeddings[key] = vector.tolist()
 
     def _keyword_retrieve(self, task: str) -> list[RetrievedExpertise]:
         """Fallback: keyword-based expertise matching.

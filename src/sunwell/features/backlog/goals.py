@@ -4,13 +4,13 @@ Convert signals into prioritized goals with dependency inference.
 """
 
 
-import hashlib
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from sunwell.features.backlog.signals import ObservableSignal
+from sunwell.foundation.utils import compute_short_hash
 
 if TYPE_CHECKING:
     from sunwell.knowledge.codebase.context import ProjectContext
@@ -289,7 +289,7 @@ class GoalGenerator:
             if signal.signal_type == "failing_test":
                 goals.append(
                     Goal(
-                        id=f"fix-test-{hashlib.blake2b(signal_id.encode(), digest_size=4).hexdigest()}",
+                        id=f"fix-test-{compute_short_hash(signal_id)}",
                         title=f"Fix failing test: {signal.location.symbol or 'unknown'}",
                         description=signal.message,
                         source_signals=(signal_id,),
@@ -305,7 +305,7 @@ class GoalGenerator:
             elif signal.signal_type in ("todo_comment", "fixme_comment"):
                 goals.append(
                     Goal(
-                        id=f"todo-{hashlib.blake2b(signal_id.encode(), digest_size=4).hexdigest()}",
+                        id=f"todo-{compute_short_hash(signal_id)}",
                         title=f"Address {signal.signal_type.replace('_', ' ').title()}: {signal.message[:50]}",
                         description=signal.message,
                         source_signals=(signal_id,),
@@ -321,7 +321,7 @@ class GoalGenerator:
             elif signal.signal_type == "type_error":
                 goals.append(
                     Goal(
-                        id=f"type-error-{hashlib.blake2b(signal_id.encode(), digest_size=4).hexdigest()}",
+                        id=f"type-error-{compute_short_hash(signal_id)}",
                         title=f"Fix type error in {signal.location.file.name}",
                         description=signal.message,
                         source_signals=(signal_id,),
@@ -338,7 +338,7 @@ class GoalGenerator:
                 if signal.auto_fixable:
                     goals.append(
                         Goal(
-                            id=f"lint-{hashlib.blake2b(signal_id.encode(), digest_size=4).hexdigest()}",
+                            id=f"lint-{compute_short_hash(signal_id)}",
                             title=f"Fix lint warning in {signal.location.file.name}",
                             description=signal.message,
                             source_signals=(signal_id,),
@@ -354,7 +354,7 @@ class GoalGenerator:
             elif signal.signal_type == "missing_test":
                 goals.append(
                     Goal(
-                        id=f"coverage-{hashlib.blake2b(signal_id.encode(), digest_size=4).hexdigest()}",
+                        id=f"coverage-{compute_short_hash(signal_id)}",
                         title=f"Add test coverage for {signal.location.file.name}",
                         description=signal.message,
                         source_signals=(signal_id,),

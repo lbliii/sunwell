@@ -107,14 +107,15 @@ class Heuristic:
 
         return "\n".join(lines)
 
+    def embedding_parts(self) -> tuple[str | None, ...]:
+        """Return parts for embedding text (Embeddable protocol)."""
+        return (self.name, self.rule, *self.always, *self.never)
+
     def to_embedding_text(self) -> str:
         """Convert to text for embedding/retrieval."""
-        parts = [self.name, self.rule]
-        if self.always:
-            parts.extend(self.always)
-        if self.never:
-            parts.extend(self.never)
-        return " ".join(parts)
+        from sunwell.core.types.embeddable import to_embedding_text
+
+        return to_embedding_text(self)
 
 
 @dataclass(frozen=True, slots=True)

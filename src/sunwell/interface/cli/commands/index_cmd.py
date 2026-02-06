@@ -151,7 +151,7 @@ async def _query_index(query_text: str, top_k: int, json_output: bool) -> None:
                         "content": c.content,
                         "chunk_type": c.chunk_type,
                         "name": c.name,
-                        "score": 0.0,  # TODO: Add score to query result
+                        "score": round(c.score, 4),
                     }
                     for c in chunks
                 ],

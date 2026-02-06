@@ -20,90 +20,69 @@ from sunwell.domains.protocol import ValidationResult
 logger = logging.getLogger(__name__)
 
 
-class CodeValidator:
-    """Base class for code validators."""
+async def _run_command(
+    cmd: list[str],
+    cwd: Path | None = None,
+    timeout: int = 60,
+) -> subprocess.CompletedProcess[str]:
+    """Run a command asynchronously."""
+    loop = asyncio.get_running_loop()
 
-    @property
-    def name(self) -> str:
-        raise NotImplementedError
-
-    @property
-    def description(self) -> str:
-        raise NotImplementedError
-
-    async def validate(
-        self,
-        artifact: Any,
-        context: dict[str, Any],
-    ) -> ValidationResult:
-        raise NotImplementedError
-
-    async def _run_command(
-        self,
-        cmd: list[str],
-        cwd: Path | None = None,
-        timeout: int = 60,
-    ) -> subprocess.CompletedProcess[str]:
-        """Run a command asynchronously."""
-        loop = asyncio.get_running_loop()
-
-        def run() -> subprocess.CompletedProcess[str]:
-            return subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                cwd=cwd,
-                timeout=timeout,
-            )
-
-        return await asyncio.wait_for(
-            loop.run_in_executor(None, run),
-            timeout=timeout + 5,
+    def run() -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            cwd=cwd,
+            timeout=timeout,
         )
+
+    return await asyncio.wait_for(
+        loop.run_in_executor(None, run),
+        timeout=timeout + 5,
+    )
+
+
+def _normalize_file_paths(
+    artifact: Any,
+    validator_name: str,
+) -> list[Path] | ValidationResult:
+    """Normalize artifact to list of paths.
+
+    Returns either a list of Path objects or a ValidationResult error.
+    """
+    if isinstance(artifact, (str, Path)):
+        return [Path(artifact)]
+    if isinstance(artifact, list):
+        return [Path(f) for f in artifact]
+    return ValidationResult(
+        passed=False,
+        validator_name=validator_name,
+        message="Invalid artifact type",
+    )
 
 
 @dataclass(slots=True)
-class SyntaxValidator(CodeValidator):
+class SyntaxValidator:
     """Python syntax validation using py_compile."""
 
-    @property
-    def name(self) -> str:
-        return "syntax"
-
-    @property
-    def description(self) -> str:
-        return "Check Python syntax is valid"
+    name: str = "syntax"
+    description: str = "Check Python syntax is valid"
 
     async def validate(
         self,
         artifact: Any,
         context: dict[str, Any],
     ) -> ValidationResult:
-        """Check syntax of Python files.
-
-        Args:
-            artifact: File path or list of file paths
-            context: Must contain 'cwd' for working directory
-
-        Returns:
-            ValidationResult with syntax errors if any
-        """
+        """Check syntax of Python files."""
         import py_compile
 
         start = time.monotonic()
         cwd = context.get("cwd", Path.cwd())
 
-        # Normalize artifact to list of paths
-        if isinstance(artifact, (str, Path)):
-            files = [Path(artifact)]
-        elif isinstance(artifact, list):
-            files = [Path(f) for f in artifact]
-        else:
-            return ValidationResult(
-                passed=False,
-                validator_name=self.name,
-                message="Invalid artifact type",
-            )
+        files = _normalize_file_paths(artifact, self.name)
+        if isinstance(files, ValidationResult):
+            return files
 
         errors: list[dict[str, Any]] = []
         for f in files:
@@ -114,10 +93,7 @@ class SyntaxValidator(CodeValidator):
             try:
                 py_compile.compile(str(file_path), doraise=True)
             except py_compile.PyCompileError as e:
-                errors.append({
-                    "file": str(f),
-                    "message": str(e),
-                })
+                errors.append({"file": str(f), "message": str(e)})
 
         duration = int((time.monotonic() - start) * 1000)
         passed = len(errors) == 0
@@ -132,48 +108,26 @@ class SyntaxValidator(CodeValidator):
 
 
 @dataclass(slots=True)
-class LintValidator(CodeValidator):
+class LintValidator:
     """Lint validation using ruff."""
 
+    name: str = "lint"
+    description: str = "Check code style with ruff"
     auto_fix: bool = True
-    """Whether to auto-fix fixable issues."""
-
-    @property
-    def name(self) -> str:
-        return "lint"
-
-    @property
-    def description(self) -> str:
-        return "Check code style with ruff"
 
     async def validate(
         self,
         artifact: Any,
         context: dict[str, Any],
     ) -> ValidationResult:
-        """Run ruff on files.
-
-        Args:
-            artifact: File path or list of file paths
-            context: Must contain 'cwd' for working directory
-
-        Returns:
-            ValidationResult with lint errors if any
-        """
+        """Run ruff on files."""
         start = time.monotonic()
         cwd = context.get("cwd", Path.cwd())
 
-        # Normalize artifact to list of paths
-        if isinstance(artifact, (str, Path)):
-            files = [str(artifact)]
-        elif isinstance(artifact, list):
-            files = [str(f) for f in artifact]
-        else:
-            return ValidationResult(
-                passed=False,
-                validator_name=self.name,
-                message="Invalid artifact type",
-            )
+        paths = _normalize_file_paths(artifact, self.name)
+        if isinstance(paths, ValidationResult):
+            return paths
+        files = [str(f) for f in paths]
 
         if not files:
             return ValidationResult(
@@ -186,25 +140,21 @@ class LintValidator(CodeValidator):
         auto_fixed = False
         if self.auto_fix:
             try:
-                await self._run_command(
-                    ["ruff", "check", "--fix", *files],
-                    cwd=cwd,
-                    timeout=30,
-                )
+                await _run_command(["ruff", "check", "--fix", *files], cwd=cwd, timeout=30)
                 auto_fixed = True
             except (FileNotFoundError, TimeoutError):
                 pass  # Continue with lint check
 
         # Run lint check
         try:
-            result = await self._run_command(
+            result = await _run_command(
                 ["ruff", "check", "--output-format=concise", *files],
                 cwd=cwd,
                 timeout=30,
             )
 
+            duration = int((time.monotonic() - start) * 1000)
             if result.returncode == 0:
-                duration = int((time.monotonic() - start) * 1000)
                 return ValidationResult(
                     passed=True,
                     validator_name=self.name,
@@ -213,15 +163,9 @@ class LintValidator(CodeValidator):
                     auto_fixed=auto_fixed,
                 )
 
-            # Parse errors from output
-            error_lines = [
-                line.strip()
-                for line in result.stdout.splitlines()
-                if line.strip()
-            ]
+            error_lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
             errors = tuple({"message": line} for line in error_lines)
 
-            duration = int((time.monotonic() - start) * 1000)
             return ValidationResult(
                 passed=False,
                 validator_name=self.name,
@@ -249,47 +193,25 @@ class LintValidator(CodeValidator):
 
 
 @dataclass(slots=True)
-class TypeValidator(CodeValidator):
+class TypeValidator:
     """Type checking using ty or mypy."""
 
-    @property
-    def name(self) -> str:
-        return "type"
-
-    @property
-    def description(self) -> str:
-        return "Check types with ty/mypy"
+    name: str = "type"
+    description: str = "Check types with ty/mypy"
 
     async def validate(
         self,
         artifact: Any,
         context: dict[str, Any],
     ) -> ValidationResult:
-        """Run type checker on files.
-
-        Tries ty first (faster), falls back to mypy.
-
-        Args:
-            artifact: File path or list of file paths
-            context: Must contain 'cwd' for working directory
-
-        Returns:
-            ValidationResult with type errors if any
-        """
+        """Run type checker on files. Tries ty first, falls back to mypy."""
         start = time.monotonic()
         cwd = context.get("cwd", Path.cwd())
 
-        # Normalize artifact to list of paths
-        if isinstance(artifact, (str, Path)):
-            files = [str(artifact)]
-        elif isinstance(artifact, list):
-            files = [str(f) for f in artifact]
-        else:
-            return ValidationResult(
-                passed=False,
-                validator_name=self.name,
-                message="Invalid artifact type",
-            )
+        paths = _normalize_file_paths(artifact, self.name)
+        if isinstance(paths, ValidationResult):
+            return paths
+        files = [str(f) for f in paths]
 
         if not files:
             return ValidationResult(
@@ -300,21 +222,17 @@ class TypeValidator(CodeValidator):
 
         # Try ty first (faster)
         try:
-            result = await self._run_command(
-                ["ty", "check", *files],
-                cwd=cwd,
-                timeout=60,
-            )
+            result = await _run_command(["ty", "check", *files], cwd=cwd, timeout=60)
+            duration = int((time.monotonic() - start) * 1000)
 
             if result.returncode == 0:
                 return ValidationResult(
                     passed=True,
                     validator_name=self.name,
                     message="Types OK",
-                    duration_ms=int((time.monotonic() - start) * 1000),
+                    duration_ms=duration,
                 )
 
-            # Parse errors
             error_lines = [
                 line.strip()
                 for line in result.stdout.splitlines()
@@ -327,12 +245,11 @@ class TypeValidator(CodeValidator):
                 validator_name=self.name,
                 message=f"{len(errors)} type error(s)",
                 errors=errors,
-                duration_ms=int((time.monotonic() - start) * 1000),
+                duration_ms=duration,
             )
 
         except FileNotFoundError:
             pass  # ty not installed, try mypy
-
         except TimeoutError:
             return ValidationResult(
                 passed=False,
@@ -343,18 +260,15 @@ class TypeValidator(CodeValidator):
 
         # Fall back to mypy
         try:
-            result = await self._run_command(
-                ["mypy", "--no-error-summary", *files],
-                cwd=cwd,
-                timeout=60,
-            )
+            result = await _run_command(["mypy", "--no-error-summary", *files], cwd=cwd, timeout=60)
+            duration = int((time.monotonic() - start) * 1000)
 
             if result.returncode == 0:
                 return ValidationResult(
                     passed=True,
                     validator_name=self.name,
                     message="Types OK (mypy)",
-                    duration_ms=int((time.monotonic() - start) * 1000),
+                    duration_ms=duration,
                 )
 
             error_lines = [
@@ -369,7 +283,7 @@ class TypeValidator(CodeValidator):
                 validator_name=self.name,
                 message=f"{len(errors)} type error(s)",
                 errors=errors,
-                duration_ms=int((time.monotonic() - start) * 1000),
+                duration_ms=duration,
             )
 
         except FileNotFoundError:
@@ -380,7 +294,6 @@ class TypeValidator(CodeValidator):
                 message="No type checker installed (skipped)",
                 duration_ms=int((time.monotonic() - start) * 1000),
             )
-
         except TimeoutError:
             return ValidationResult(
                 passed=False,
@@ -391,45 +304,24 @@ class TypeValidator(CodeValidator):
 
 
 @dataclass(slots=True)
-class TestValidator(CodeValidator):
+class TestValidator:
     """Test validation using pytest."""
 
-    @property
-    def name(self) -> str:
-        return "test"
-
-    @property
-    def description(self) -> str:
-        return "Run tests with pytest"
+    name: str = "test"
+    description: str = "Run tests with pytest"
 
     async def validate(
         self,
         artifact: Any,
         context: dict[str, Any],
     ) -> ValidationResult:
-        """Run pytest on test files.
-
-        Args:
-            artifact: File path or list of file paths
-            context: Must contain 'cwd' for working directory
-
-        Returns:
-            ValidationResult with test failures if any
-        """
+        """Run pytest on test files."""
         start = time.monotonic()
         cwd = context.get("cwd", Path.cwd())
 
-        # Normalize artifact to list of paths
-        if isinstance(artifact, (str, Path)):
-            files = [Path(artifact)]
-        elif isinstance(artifact, list):
-            files = [Path(f) for f in artifact]
-        else:
-            return ValidationResult(
-                passed=False,
-                validator_name=self.name,
-                message="Invalid artifact type",
-            )
+        files = _normalize_file_paths(artifact, self.name)
+        if isinstance(files, ValidationResult):
+            return files
 
         # Filter to test files only
         test_files = [
@@ -445,18 +337,19 @@ class TestValidator(CodeValidator):
             )
 
         try:
-            result = await self._run_command(
+            result = await _run_command(
                 ["pytest", "-q", "--tb=line", *[str(f) for f in test_files]],
                 cwd=cwd,
                 timeout=120,
             )
+            duration = int((time.monotonic() - start) * 1000)
 
             if result.returncode == 0:
                 return ValidationResult(
                     passed=True,
                     validator_name=self.name,
                     message="Tests passed",
-                    duration_ms=int((time.monotonic() - start) * 1000),
+                    duration_ms=duration,
                 )
 
             error_lines = [
@@ -471,7 +364,7 @@ class TestValidator(CodeValidator):
                 validator_name=self.name,
                 message=f"{len(errors)} test failure(s)",
                 errors=errors,
-                duration_ms=int((time.monotonic() - start) * 1000),
+                duration_ms=duration,
             )
 
         except FileNotFoundError:
@@ -482,7 +375,6 @@ class TestValidator(CodeValidator):
                 message="pytest not installed (skipped)",
                 duration_ms=int((time.monotonic() - start) * 1000),
             )
-
         except TimeoutError:
             return ValidationResult(
                 passed=False,

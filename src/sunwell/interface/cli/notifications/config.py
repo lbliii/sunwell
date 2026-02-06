@@ -109,6 +109,10 @@ focus_mode_behavior = "skip_sound"
 batching = false
 batch_window_ms = 5000
 
+# Custom notification icon (PNG recommended for macOS/Windows, SVG for Linux)
+# If not specified, uses the bundled Sunwell icon
+# icon_path = "~/.sunwell/icons/custom-icon.png"
+
 # Custom commands for specific notification types
 # Available variables: {title}, {message}
 

@@ -393,6 +393,35 @@ class GitProvider(ABC):
         """Search commits by message or author."""
         ...
 
+    @abstractmethod
+    async def stage(self, files: list[str], repo_path: str | None = None) -> bool:
+        """Stage files for commit.
+
+        Args:
+            files: List of file paths to stage (relative to repo root)
+            repo_path: Repository path (uses default if None)
+
+        Returns:
+            True if staging succeeded
+        """
+        ...
+
+    @abstractmethod
+    async def push(
+        self, remote: str = "origin", branch: str | None = None, repo_path: str | None = None
+    ) -> tuple[bool, str]:
+        """Push commits to remote.
+
+        Args:
+            remote: Remote name (default: origin)
+            branch: Branch to push (default: current branch)
+            repo_path: Repository path (uses default if None)
+
+        Returns:
+            Tuple of (success, message)
+        """
+        ...
+
 
 # =============================================================================
 # BOOKMARKS PROVIDER (RFC-078 Phase 2)

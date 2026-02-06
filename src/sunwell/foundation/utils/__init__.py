@@ -5,7 +5,8 @@ RFC-138: Module Architecture Consolidation
 Provides generic utilities used across domains:
 - String manipulation (slugify)
 - Validation (validate_slug)
-- Hashing (compute_hash, compute_file_hash, compute_string_hash)
+- Hashing (compute_hash, compute_file_hash, compute_string_hash, compute_short_hash)
+- Math (cosine_similarity)
 - Path operations (normalize_path, sanitize_filename, ensure_dir, relative_to_cwd)
 - Serialization (safe_json_loads, safe_json_dumps, safe_yaml_load, safe_yaml_dump)
 - Timestamps (absolute_timestamp, format_for_summary)
@@ -14,8 +15,10 @@ Provides generic utilities used across domains:
 from sunwell.foundation.utils.hashing import (
     compute_file_hash,
     compute_hash,
+    compute_short_hash,
     compute_string_hash,
 )
+from sunwell.foundation.utils.math import cosine_similarity
 from sunwell.foundation.utils.paths import (
     ensure_dir,
     normalize_path,
@@ -51,6 +54,9 @@ __all__ = [
     "compute_hash",
     "compute_file_hash",
     "compute_string_hash",
+    "compute_short_hash",
+    # Math utilities
+    "cosine_similarity",
     # Path utilities
     "normalize_path",
     "sanitize_filename",

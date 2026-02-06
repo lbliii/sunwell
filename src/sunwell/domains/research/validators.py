@@ -5,7 +5,6 @@ Provides domain-specific validation for research artifacts:
 - CoherenceValidator: Check logical coherence
 """
 
-import logging
 import re
 import time
 from dataclasses import dataclass
@@ -13,46 +12,17 @@ from typing import Any
 
 from sunwell.domains.protocol import ValidationResult
 
-logger = logging.getLogger(__name__)
-
-
-class ResearchValidator:
-    """Base class for research validators."""
-
-    @property
-    def name(self) -> str:
-        raise NotImplementedError
-
-    @property
-    def description(self) -> str:
-        raise NotImplementedError
-
-    async def validate(
-        self,
-        artifact: Any,
-        context: dict[str, Any],
-    ) -> ValidationResult:
-        raise NotImplementedError
-
-
 @dataclass(slots=True)
-class SourceValidator(ResearchValidator):
+class SourceValidator:
     """Verify research claims have sources.
 
     Checks that factual assertions are backed by citations
     or source references.
     """
 
+    name: str = "sources"
+    description: str = "Check claims are backed by sources"
     min_sources: int = 1
-    """Minimum number of sources required."""
-
-    @property
-    def name(self) -> str:
-        return "sources"
-
-    @property
-    def description(self) -> str:
-        return "Check claims are backed by sources"
 
     async def validate(
         self,
@@ -107,7 +77,7 @@ class SourceValidator(ResearchValidator):
 
 
 @dataclass(slots=True)
-class CoherenceValidator(ResearchValidator):
+class CoherenceValidator:
     """Check logical coherence of research content.
 
     Validates that:
@@ -116,16 +86,9 @@ class CoherenceValidator(ResearchValidator):
     - No contradictory statements (basic check)
     """
 
+    name: str = "coherence"
+    description: str = "Check logical coherence and structure"
     min_paragraphs: int = 1
-    """Minimum number of paragraphs for structured content."""
-
-    @property
-    def name(self) -> str:
-        return "coherence"
-
-    @property
-    def description(self) -> str:
-        return "Check logical coherence and structure"
 
     async def validate(
         self,
@@ -158,8 +121,9 @@ class CoherenceValidator(ResearchValidator):
         # Check for basic structure
         paragraphs = [p.strip() for p in artifact.split("\n\n") if p.strip()]
         if len(paragraphs) < self.min_paragraphs:
+            n = len(paragraphs)
             errors.append({
-                "message": f"Content has {len(paragraphs)} paragraph(s), expected at least {self.min_paragraphs}",
+                "message": f"Content has {n} paragraph(s), expected at least {self.min_paragraphs}",
             })
 
         # Check for transition words (indicates connected ideas)

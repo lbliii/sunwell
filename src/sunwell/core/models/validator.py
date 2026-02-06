@@ -33,12 +33,15 @@ class DeterministicValidator:
     description: str | None = None
     timeout_seconds: float = 30.0
 
+    def embedding_parts(self) -> tuple[str | None, ...]:
+        """Return parts for embedding text (Embeddable protocol)."""
+        return (self.name, self.description)
+
     def to_embedding_text(self) -> str:
         """Convert to text for embedding/retrieval."""
-        parts = [self.name]
-        if self.description:
-            parts.append(self.description)
-        return " ".join(parts)
+        from sunwell.core.types.embeddable import to_embedding_text
+
+        return to_embedding_text(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,12 +77,15 @@ Respond with:
 Format: PASS|0.95|Content meets the criterion because...
 """
 
+    def embedding_parts(self) -> tuple[str | None, ...]:
+        """Return parts for embedding text (Embeddable protocol)."""
+        return (self.name, self.check, self.description)
+
     def to_embedding_text(self) -> str:
         """Convert to text for embedding/retrieval."""
-        parts = [self.name, self.check]
-        if self.description:
-            parts.append(self.description)
-        return " ".join(parts)
+        from sunwell.core.types.embeddable import to_embedding_text
+
+        return to_embedding_text(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -175,9 +181,13 @@ Respond with:
 Format: PASS|0.95|The artifact meets the criterion because...
 """
 
+    def embedding_parts(self) -> tuple[str | None, ...]:
+        """Return parts for embedding text (Embeddable protocol)."""
+        condition_part = f"when: {self.condition}" if self.condition else None
+        return (self.name, self.check, f"applies to: {self.applies_to}", condition_part)
+
     def to_embedding_text(self) -> str:
         """Convert to text for embedding/retrieval."""
-        parts = [self.name, self.check, f"applies to: {self.applies_to}"]
-        if self.condition:
-            parts.append(f"when: {self.condition}")
-        return " ".join(parts)
+        from sunwell.core.types.embeddable import to_embedding_text
+
+        return to_embedding_text(self)

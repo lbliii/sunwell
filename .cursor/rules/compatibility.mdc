@@ -1,5 +1,0 @@
----
-alwaysApply: true
----
-
-Backwards compatibility is not a priority. Avoid shims and wrappers. Optimize for long-term clean code for latest soltions. Remove deprecations and dead code as you find them.

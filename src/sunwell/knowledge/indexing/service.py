@@ -27,7 +27,7 @@ from sunwell.knowledge.indexing.chunkers import ChunkerRegistry
 from sunwell.knowledge.indexing.metrics import IndexMetrics
 from sunwell.knowledge.indexing.priority import get_priority_files
 from sunwell.knowledge.indexing.project_type import ProjectType, detect_project_type
-from sunwell.knowledge.workspace.indexer import CodebaseIndex, CodeChunk
+from sunwell.knowledge.workspace.indexer import CodebaseIndex, CodeChunk, ScoredChunk
 from sunwell.knowledge.workspace.types import IndexTier
 
 
@@ -281,7 +281,7 @@ class IndexingService:
         text: str,
         top_k: int = 10,
         threshold: float = 0.3,
-    ) -> list[CodeChunk]:
+    ) -> list[ScoredChunk]:
         """Query the index for relevant code.
 
         Args:
@@ -290,7 +290,7 @@ class IndexingService:
             threshold: Minimum relevance score.
 
         Returns:
-            List of relevant code chunks.
+            List of scored code chunks, ordered by relevance (highest first).
         """
         import time
 
@@ -314,13 +314,13 @@ class IndexingService:
 
         # Sort by score and take top_k
         scores.sort(key=lambda x: x[1], reverse=True)
-        chunks = [c for c, _ in scores[:top_k]]
+        results = [ScoredChunk(chunk=c, score=s) for c, s in scores[:top_k]]
 
         # Record metrics
         elapsed_ms = int((time.perf_counter() - start) * 1000)
         self._metrics.record_query(elapsed_ms)
 
-        return chunks
+        return results
 
     async def _background_index(self) -> None:
         """Build index in background with priority files first.

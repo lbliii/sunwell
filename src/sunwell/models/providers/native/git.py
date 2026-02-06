@@ -327,3 +327,49 @@ class SunwellGit(GitProvider):
                     ))
 
         return commits
+
+    async def stage(self, files: list[str], repo_path: str | None = None) -> bool:
+        """Stage files for commit."""
+        repo = self._get_repo_path(repo_path)
+
+        if not files:
+            return False
+
+        code, _, stderr = await self._run_git(["add", "--"] + files, cwd=repo)
+
+        if code != 0:
+            # Log error but don't raise - let caller handle
+            return False
+
+        return True
+
+    async def push(
+        self, remote: str = "origin", branch: str | None = None, repo_path: str | None = None
+    ) -> tuple[bool, str]:
+        """Push commits to remote."""
+        repo = self._get_repo_path(repo_path)
+
+        # Get current branch if not specified
+        if not branch:
+            code, branch_out, _ = await self._run_git(
+                ["rev-parse", "--abbrev-ref", "HEAD"], cwd=repo
+            )
+            if code != 0:
+                return False, "Could not determine current branch"
+            branch = branch_out.strip()
+
+        # Push to remote
+        code, stdout, stderr = await self._run_git(
+            ["push", remote, branch], cwd=repo
+        )
+
+        if code != 0:
+            # Check for common errors
+            error_msg = stderr.strip() or stdout.strip()
+            if "no upstream branch" in error_msg.lower():
+                return False, f"No upstream branch. Run: git push -u {remote} {branch}"
+            if "rejected" in error_msg.lower():
+                return False, "Push rejected. Pull changes first."
+            return False, error_msg or "Push failed"
+
+        return True, f"Pushed to {remote}/{branch}"

@@ -5,11 +5,12 @@ perform best for different types of tasks.
 """
 
 
-import json
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
+
+from sunwell.foundation.utils import safe_jsonl_append, safe_jsonl_load
 
 
 @dataclass(frozen=True, slots=True)
@@ -290,18 +291,11 @@ class ModelPerformanceTracker:
             return
 
         data_file = self.storage_path / "model_performance.jsonl"
-        if not data_file.exists():
-            return
-
-        with open(data_file) as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    try:
-                        data = json.loads(line)
-                        self.entries.append(ModelPerformanceEntry.from_dict(data))
-                    except (json.JSONDecodeError, KeyError):
-                        continue
+        for data in safe_jsonl_load(data_file):
+            try:
+                self.entries.append(ModelPerformanceEntry.from_dict(data))
+            except KeyError:
+                continue
 
     def _append_to_storage(self, entry: ModelPerformanceEntry) -> None:
         """Append an entry to storage file."""
@@ -309,8 +303,7 @@ class ModelPerformanceTracker:
             return
 
         data_file = self.storage_path / "model_performance.jsonl"
-        with open(data_file, "a") as f:
-            f.write(json.dumps(entry.to_dict()) + "\n")
+        safe_jsonl_append(entry.to_dict(), data_file)
 
     def clear(self) -> None:
         """Clear all entries (useful for testing)."""

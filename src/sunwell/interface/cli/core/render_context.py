@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from rich.console import Console
+    from sunwell.interface.cli.progress.status_bar import StatusBar
 
 
 # =============================================================================
@@ -151,6 +152,9 @@ class RenderContext:
     # Streaming state
     streaming_text: str = ""
     is_streaming: bool = False
+
+    # StatusBar integration (optional live metrics display)
+    _status_bar: StatusBar | None = field(default=None, init=False, repr=False)
 
     # Phase tracking (avoid redundant headers)
     _last_phase_rendered: RenderPhase | None = None
@@ -307,6 +311,55 @@ class RenderContext:
         }
 
     # ═══════════════════════════════════════════════════════════════
+    # StatusBar integration
+    # ═══════════════════════════════════════════════════════════════
+
+    def attach_status_bar(self, bar: StatusBar) -> None:
+        """Attach a StatusBar for live metrics display.
+
+        Args:
+            bar: StatusBar instance to attach
+        """
+        self._status_bar = bar
+        # Sync initial metrics
+        self.update_status()
+
+    def detach_status_bar(self) -> StatusBar | None:
+        """Detach and return the current StatusBar.
+
+        Returns:
+            The previously attached StatusBar, or None
+        """
+        bar = self._status_bar
+        self._status_bar = None
+        return bar
+
+    def has_status_bar(self) -> bool:
+        """Check if a StatusBar is attached."""
+        return self._status_bar is not None
+
+    def update_status(self) -> None:
+        """Update the attached StatusBar with current metrics.
+
+        Syncs token counts, cost, and call counts from RenderContext
+        to the StatusBar's metrics. Safe to call even if no StatusBar
+        is attached.
+        """
+        if self._status_bar is None:
+            return
+
+        # Sync metrics
+        self._status_bar.metrics.tokens_in = self.total_tokens // 2  # Rough estimate
+        self._status_bar.metrics.tokens_out = self.total_tokens - self._status_bar.metrics.tokens_in
+        self._status_bar.metrics.cost = self.total_cost
+        self._status_bar.metrics.tool_calls = sum(
+            len(task.tools) for task in [self.current_task] if task
+        )
+
+        # Refresh display
+        self._status_bar.update()
+
+    # ═══════════════════════════════════════════════════════════════
     # Convergence tracking
     # ═══════════════════════════════════════════════════════════════
 
@@ -457,6 +510,8 @@ class RenderContext:
         # Reset streaming
         self.streaming_text = ""
         self.is_streaming = False
+        # Detach status bar (caller should stop it first)
+        self._status_bar = None
         # Re-check accessibility settings
         self.reduced_motion = should_reduce_motion()
         self.plain_mode = is_plain_mode()

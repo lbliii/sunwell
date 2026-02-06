@@ -12,7 +12,8 @@ Uses RenderContext for hierarchical display:
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Generator
 
 from sunwell.interface.cli.core.render_context import (
     RenderContext,
@@ -43,6 +44,56 @@ from sunwell.interface.cli.core.theme import (
 if TYPE_CHECKING:
     from rich.console import Console
     from sunwell.agent.events import AgentEvent
+
+
+# =============================================================================
+# SESSION LIFECYCLE
+# =============================================================================
+
+
+@contextmanager
+def live_session(
+    con: Console | None = None,
+    enable_status: bool = True,
+) -> Generator[RenderContext, None, None]:
+    """Context manager for live session display with optional StatusBar.
+
+    Manages the lifecycle of a StatusBar during agent execution:
+    - Creates and starts StatusBar on entry
+    - Yields RenderContext for event rendering
+    - Stops StatusBar and renders final summary on exit
+
+    Args:
+        con: Rich Console to use (defaults to module console)
+        enable_status: If True, show live StatusBar during execution
+
+    Yields:
+        RenderContext: The shared render context for event display
+
+    Example:
+        with live_session(console, enable_status=True) as ctx:
+            for event in events:
+                render_agent_event(event, console)
+            # StatusBar updates automatically via ctx.update_status()
+    """
+    from sunwell.interface.cli.progress.status_bar import create_status_bar
+
+    ctx = get_render_context()
+
+    if enable_status:
+        bar = create_status_bar(con or console)
+        ctx.attach_status_bar(bar)
+        bar.start_live()
+
+    try:
+        yield ctx
+    finally:
+        if enable_status and ctx.has_status_bar():
+            bar = ctx.detach_status_bar()
+            if bar:
+                bar.stop_live()
+                # Show final detailed summary
+                bar.render_detailed()
 
 
 # =============================================================================
@@ -139,8 +190,106 @@ def _render_gate_inline(
     )
 
 
+def _render_plan_dag(
+    con: Console,
+    task_list: list[dict],
+    gate_list: list[dict] | None = None,
+) -> None:
+    """Render a DAG visualization of the plan.
+
+    Shows task dependencies in tree format with produces/requires info.
+    Gates are shown inline after their triggering tasks.
+    """
+    if not task_list:
+        return
+
+    con.print()
+
+    # Build dependency lookup for indentation
+    task_ids = {t.get("id", str(i)) for i, t in enumerate(task_list)}
+    has_dependents: set[str] = set()
+    for task in task_list:
+        for dep in task.get("depends_on", []):
+            has_dependents.add(dep)
+
+    # Build gate lookup by task
+    gates_after: dict[str, list[dict]] = {}
+    if gate_list:
+        for gate in gate_list:
+            for task_id in gate.get("after_tasks", []):
+                gates_after.setdefault(task_id, []).append(gate)
+
+    # Render tasks with dependencies
+    for i, task in enumerate(task_list):
+        task_id = task.get("id", str(i + 1))
+        desc = task.get("description", "Task")[:55]
+        depends_on = task.get("depends_on", [])
+        produces = task.get("produces", [])
+        category = task.get("category", "")
+        is_last_task = i == len(task_list) - 1 and not gates_after.get(task_id)
+
+        # Tree connector
+        connector = TREE["last"] if is_last_task else TREE["branch"]
+
+        # Format dependency info
+        dep_str = ""
+        if depends_on:
+            dep_refs = ", ".join(str(d) for d in depends_on[:3])
+            if len(depends_on) > 3:
+                dep_refs += f"+{len(depends_on) - 3}"
+            dep_str = f" [neutral.dim]← {dep_refs}[/]"
+
+        # Format produces info
+        prod_str = ""
+        if produces:
+            # Show first file path, abbreviated
+            first_prod = produces[0]
+            if "/" in first_prod:
+                first_prod = first_prod.split("/")[-1]  # Just filename
+            if len(produces) > 1:
+                prod_str = f" [holy.dim]→ {first_prod} +{len(produces) - 1}[/]"
+            else:
+                prod_str = f" [holy.dim]→ {first_prod}[/]"
+
+        # Category badge
+        cat_str = f" [neutral.dim]({category})[/]" if category else ""
+
+        # Render task line
+        con.print(
+            f"  {connector} [neutral]{task_id}.[/] {desc}{cat_str}{dep_str}{prod_str}"
+        )
+
+        # Render gates after this task
+        task_gates = gates_after.get(task_id, [])
+        for j, gate in enumerate(task_gates):
+            gate_id = gate.get("id", "gate")
+            gate_type = gate.get("type", "validation")
+            is_last_gate = j == len(task_gates) - 1 and is_last_task
+            pipe = TREE["space"] if is_last_task else TREE["pipe"]
+            gate_connector = TREE["last"] if is_last_gate else TREE["branch"]
+            con.print(
+                f"  {pipe} {gate_connector} [holy.gold]{CHARS_CHECKS['pass']}[/] "
+                f"[neutral.dim]{gate_id} ({gate_type})[/]"
+            )
+
+    # Summary line if many tasks
+    if len(task_list) > 6:
+        roots = [t for t in task_list if t.get("id") not in has_dependents]
+        leaves = [t for t in task_list if not any(
+            t.get("id") in other.get("depends_on", [])
+            for other in task_list
+        )]
+        con.print(
+            f"  [neutral.dim]{len(leaves)} start points → "
+            f"{len(task_list)} tasks → {len(roots)} convergence[/]"
+        )
+
+
 def _render_plan_skeleton(con: Console, task_summaries: list[dict]) -> None:
-    """Render a preview skeleton of upcoming tasks."""
+    """Render a simple preview skeleton of upcoming tasks (legacy).
+
+    Use _render_plan_dag() for full DAG visualization when task_list is available.
+    """
     if not task_summaries:
         return
 
@@ -334,39 +483,54 @@ def render_agent_event(
             if status == "extracting":
                 if ctx.transition_phase(RenderPhase.UNDERSTANDING):
                     _render_phase_header_minimal(con, "understanding", ctx)
-            elif status == "extracted":
-                con.print(f"  [holy.gold]{CHARS_STARS['progress']}[/] Signal extracted")
+            # "extracted" status is now silent - route info shown via SIGNAL_ROUTE
 
         # ═══════════════════════════════════════════════════════════════
         # PLANNING
         # ═══════════════════════════════════════════════════════════════
         case EventType.PLAN_START:
             if ctx.transition_phase(RenderPhase.PLANNING):
-                technique = event.data.get("technique", "planning")
-                con.print(f"\n  [neutral.dim]Planning: {technique}[/]")
+                con.print(f"   [neutral.dim]↳ Plan Candidates:[/]")
 
         case EventType.SIGNAL_ROUTE:
             planning = event.data.get("planning", "")
             confidence = event.data.get("confidence", 0)
-            render_confidence(con, confidence, label=f"Route → {planning}")
+            pct = int(confidence * 100)
+            con.print(
+                f"  [holy.gold]{CHARS_STARS['progress']}[/] Goal analyzed. "
+                f"Planning route: [holy.radiant]{planning}[/] ({pct}%)"
+            )
 
         case EventType.PLAN_WINNER:
             tasks = event.data.get("tasks", 0)
             gates = event.data.get("gates", 0)
             technique = event.data.get("technique", "")
             rationale = event.data.get("rationale", "")
-            task_summaries = event.data.get("task_summaries", [])
+            selected_candidate = event.data.get("selected_candidate_id", "")
+            task_list = event.data.get("task_list", [])
+            gate_list = event.data.get("gate_list", [])
+            task_summaries = event.data.get("task_summaries", [])  # Legacy fallback
             ctx.total_tasks = tasks
             # Add to timeline
             ctx.add_timeline_event(f"Plan: {tasks} tasks, {gates} gates", phase="planning", completed=True)
             con.print()
+
+            # Build rationale with candidate info
+            plan_rationale = rationale or technique
+            if selected_candidate and selected_candidate != "candidate-0":
+                plan_rationale = f"{selected_candidate}" + (f" ({plan_rationale})" if plan_rationale else "")
+
             render_decision(
                 con,
                 f"Plan selected: {tasks} tasks, {gates} gates",
-                rationale=rationale or technique,
+                rationale=plan_rationale,
             )
-            # Show task skeleton preview if available
-            if task_summaries and verbose:
+
+            # Show task DAG - always visible (key UX improvement)
+            if task_list:
+                _render_plan_dag(con, task_list, gate_list)
+            elif task_summaries:
+                # Legacy fallback for old events without task_list
                 _render_plan_skeleton(con, task_summaries)
 
         case EventType.PLAN_CANDIDATE_GENERATED:
@@ -374,8 +538,8 @@ def render_agent_event(
             total = event.data.get("total_candidates", 5)
             style = event.data.get("variance_config", {}).get("prompt_style", "?")
             artifacts = event.data.get("artifact_count", 0)
-            # Compact inline progress
-            con.print(f"  [neutral.dim]Candidate {prog}/{total}: {style} ({artifacts} artifacts)[/]")
+            # Compact inline progress (indented under "↳ Plan Candidates:")
+            con.print(f"     [neutral.dim]{prog}/{total}: {style} ({artifacts} artifacts)[/]")
 
         # ═══════════════════════════════════════════════════════════════
         # TASK EXECUTION (CRAFTING)
@@ -473,6 +637,7 @@ def render_agent_event(
             total = event.data.get("total_tokens", 0)
             cost = event.data.get("cost", 0.0)
             ctx.add_tokens(total, cost)
+            ctx.update_status()  # Refresh live StatusBar
             # Only show metrics in verbose mode
             if verbose:
                 duration = event.data.get("duration_s", 0)
@@ -630,6 +795,7 @@ def render_agent_event(
 
         case EventType.TOOL_COMPLETE:
             ctx.complete_tool(success=True)
+            ctx.update_status()  # Refresh live StatusBar
             if verbose or not ctx.current_task:
                 tool_name = event.data.get("tool_name", "tool")
                 duration = event.data.get("duration_ms", 0)
@@ -691,6 +857,7 @@ def render_agent_event(
             tokens = event.data.get("tokens", 0)
             cost = event.data.get("cost", 0.0)
             ctx.add_tokens(tokens, cost)
+            ctx.update_status()  # Refresh live StatusBar
 
         case EventType.BUDGET_WARNING:
             used = event.data.get("used", 0)

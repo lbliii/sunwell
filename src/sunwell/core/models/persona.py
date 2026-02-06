@@ -49,16 +49,15 @@ Questions to consider:
 
 Provide specific, actionable feedback. Focus on what would actually block or frustrate you."""
 
+    def embedding_parts(self) -> tuple[str | None, ...]:
+        """Return parts for embedding text (Embeddable protocol)."""
+        return (self.name, self.description, self.background, *self.goals, *self.attack_vectors)
+
     def to_embedding_text(self) -> str:
         """Convert to text for embedding/retrieval."""
-        parts = [self.name]
-        if self.description:
-            parts.append(self.description)
-        if self.background:
-            parts.append(self.background)
-        parts.extend(self.goals)
-        parts.extend(self.attack_vectors)
-        return " ".join(parts)
+        from sunwell.core.types.embeddable import to_embedding_text
+
+        return to_embedding_text(self)
 
 
 @dataclass(frozen=True, slots=True)

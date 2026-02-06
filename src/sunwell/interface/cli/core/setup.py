@@ -8,9 +8,14 @@ This replaces the fragmented setup flow:
 - NEW: sunwell setup (does everything)
 
 Idempotent and fast - safe to run multiple times.
+
+Extended with MCP host configuration:
+    sunwell setup cursor   # Configure Sunwell as MCP server for Cursor
+    sunwell setup claude   # Configure Sunwell as MCP server for Claude Desktop
 """
 
 
+import json
 import sys
 from pathlib import Path
 
@@ -22,7 +27,10 @@ from sunwell.interface.cli.core.theme import create_sunwell_console
 console = create_sunwell_console()
 
 
-@click.command()
+# Use a group with invoke_without_command=True to allow both:
+# - sunwell setup (runs default project setup)
+# - sunwell setup cursor (runs MCP host setup)
+@click.group(invoke_without_command=True)
 @click.argument("path", type=click.Path(), default=".", required=False)
 @click.option("--provider", "-p", default=None, help="LLM provider (default: config/ollama)")
 @click.option("--model", "-m", default=None, help="Model name (auto-selected based on provider)")
@@ -31,7 +39,9 @@ console = create_sunwell_console()
 @click.option("--force", "-f", is_flag=True, help="Overwrite existing configuration")
 @click.option("--minimal", is_flag=True, help="Skip lens bindings (project only)")
 @click.option("--quiet", "-q", is_flag=True, help="Minimal output")
+@click.pass_context
 def setup(
+    ctx: click.Context,
     path: str,
     provider: str | None,
     model: str | None,
@@ -40,7 +50,7 @@ def setup(
     minimal: bool,
     quiet: bool,
 ) -> None:
-    """Initialize Sunwell for this project.
+    """Initialize Sunwell for this project or configure MCP hosts.
 
     One command that handles everything:
     - Creates .sunwell/ directory with project manifest
@@ -56,7 +66,12 @@ def setup(
         sunwell setup ~/projects/myapp   # Setup specific path
         sunwell setup --provider openai  # Use OpenAI
         sunwell setup --minimal          # Just project, no bindings
+        sunwell setup cursor             # Configure MCP for Cursor IDE
+        sunwell setup claude             # Configure MCP for Claude Desktop
     """
+    # If a subcommand was invoked, don't run default setup
+    if ctx.invoked_subcommand is not None:
+        return
     from sunwell.foundation.config import get_config
     from sunwell.interface.cli.helpers import build_workspace_context
 
@@ -327,3 +342,157 @@ def _update_global_config_default(binding_name: str) -> None:
 
     # Write back
     safe_yaml_dump(config_data, config_path)
+
+
+# =============================================================================
+# MCP Host Setup Commands
+# =============================================================================
+
+
+@setup.command("cursor")
+@click.option("--force", "-f", is_flag=True, help="Overwrite existing configuration")
+@click.option("--quiet", "-q", is_flag=True, help="Minimal output")
+def setup_cursor(force: bool, quiet: bool) -> None:
+    """Configure Sunwell as MCP server for Cursor IDE.
+
+    Writes configuration to ~/.cursor/mcp.json so Cursor can use
+    Sunwell's lens system via MCP (Model Context Protocol).
+
+    \b
+    After running this command:
+    1. Restart Cursor
+    2. Sunwell tools will be available: sunwell_lens, sunwell_list, sunwell_route
+
+    \b
+    Examples:
+        sunwell setup cursor              # Configure MCP for Cursor
+        sunwell setup cursor --force      # Overwrite existing config
+    """
+    _setup_mcp_host("cursor", force, quiet)
+
+
+@setup.command("claude")
+@click.option("--force", "-f", is_flag=True, help="Overwrite existing configuration")
+@click.option("--quiet", "-q", is_flag=True, help="Minimal output")
+def setup_claude(force: bool, quiet: bool) -> None:
+    """Configure Sunwell as MCP server for Claude Desktop.
+
+    Writes configuration to ~/Library/Application Support/Claude/claude_desktop_config.json
+    (on macOS) so Claude Desktop can use Sunwell's lens system via MCP.
+
+    \b
+    After running this command:
+    1. Restart Claude Desktop
+    2. Sunwell tools will be available: sunwell_lens, sunwell_list, sunwell_route
+
+    \b
+    Examples:
+        sunwell setup claude              # Configure MCP for Claude Desktop
+        sunwell setup claude --force      # Overwrite existing config
+    """
+    _setup_mcp_host("claude", force, quiet)
+
+
+def _setup_mcp_host(host: str, force: bool, quiet: bool) -> None:
+    """Configure Sunwell as MCP server for a host.
+
+    Args:
+        host: Host name ("cursor" or "claude")
+        force: Whether to overwrite existing config
+        quiet: Suppress output
+    """
+    import shutil
+    import sys as _sys
+
+    # Determine config path based on host
+    if host == "cursor":
+        config_path = Path.home() / ".cursor" / "mcp.json"
+    elif host == "claude":
+        # macOS path for Claude Desktop
+        if _sys.platform == "darwin":
+            config_path = (
+                Path.home()
+                / "Library"
+                / "Application Support"
+                / "Claude"
+                / "claude_desktop_config.json"
+            )
+        elif _sys.platform == "win32":
+            config_path = (
+                Path.home()
+                / "AppData"
+                / "Roaming"
+                / "Claude"
+                / "claude_desktop_config.json"
+            )
+        else:
+            # Linux - best guess
+            config_path = Path.home() / ".config" / "claude" / "claude_desktop_config.json"
+    else:
+        console.print(f"[void.purple]✗[/] Unknown host: {host}")
+        _sys.exit(1)
+
+    # Find sunwell-mcp command
+    sunwell_mcp = shutil.which("sunwell-mcp")
+    if not sunwell_mcp:
+        # Try finding it via python -m
+        sunwell_mcp = None
+
+    # Build MCP server configuration
+    if sunwell_mcp:
+        server_config = {
+            "command": sunwell_mcp,
+            "args": [],
+        }
+    else:
+        # Fallback to python -m sunwell.mcp
+        python_path = _sys.executable
+        server_config = {
+            "command": python_path,
+            "args": ["-m", "sunwell.mcp"],
+        }
+
+    if not quiet:
+        console.print(f"\n[sunwell.heading]✦ Configuring Sunwell MCP for {host.title()}[/]")
+        console.print()
+
+    # Ensure config directory exists
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Load existing config or create new
+    existing_config: dict = {}
+    if config_path.exists():
+        try:
+            existing_config = json.loads(config_path.read_text())
+        except Exception:
+            pass
+
+    # Check if sunwell is already configured
+    mcp_servers = existing_config.get("mcpServers", {})
+    if "sunwell" in mcp_servers and not force:
+        if not quiet:
+            console.print("[neutral.dim]✓ Sunwell already configured[/neutral.dim]")
+            console.print(f"[neutral.dim]  Config: {config_path}[/neutral.dim]")
+            console.print("[neutral.dim]  Use --force to overwrite[/neutral.dim]")
+        return
+
+    # Add/update sunwell server config
+    if "mcpServers" not in existing_config:
+        existing_config["mcpServers"] = {}
+    existing_config["mcpServers"]["sunwell"] = server_config
+
+    # Write config
+    try:
+        config_path.write_text(json.dumps(existing_config, indent=2))
+        if not quiet:
+            console.print(f"[holy.success]✓[/] Configured: {config_path}")
+            console.print()
+            console.print("[sunwell.heading]Next steps:[/sunwell.heading]")
+            console.print(f"  1. Restart {host.title()}")
+            console.print("  2. Sunwell tools will be available:")
+            console.print("     - sunwell_lens(name) - Get lens expertise")
+            console.print("     - sunwell_list() - List available lenses")
+            console.print("     - sunwell_route(command) - Route shortcuts")
+    except Exception as e:
+        console.print(f"[void.purple]✗ Error writing config:[/void.purple] {e}")
+        _sys.exit(1)

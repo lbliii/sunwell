@@ -70,6 +70,18 @@ class TestTier1Commands:
         result = runner.invoke(main, ["setup", "--help"])
         assert result.exit_code == 0
 
+    def test_setup_cursor_help(self, runner: CliRunner) -> None:
+        """setup cursor --help works."""
+        result = runner.invoke(main, ["setup", "cursor", "--help"])
+        assert result.exit_code == 0
+        assert "cursor" in result.output.lower() or "mcp" in result.output.lower()
+
+    def test_setup_claude_help(self, runner: CliRunner) -> None:
+        """setup claude --help works."""
+        result = runner.invoke(main, ["setup", "claude", "--help"])
+        assert result.exit_code == 0
+        assert "claude" in result.output.lower() or "mcp" in result.output.lower()
+
     def test_serve_help(self, runner: CliRunner) -> None:
         """serve --help works."""
         result = runner.invoke(main, ["serve", "--help"])

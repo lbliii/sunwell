@@ -10,10 +10,9 @@ This domain provides research-specific tools and validators
 for knowledge-intensive tasks.
 """
 
-from sunwell.domains.protocol import BaseDomain, DomainType, DomainValidator
+from sunwell.domains.protocol import BaseDomain, DomainType
 from sunwell.domains.research.validators import (
     CoherenceValidator,
-    ResearchValidator,
     SourceValidator,
 )
 
@@ -70,54 +69,25 @@ class ResearchDomain(BaseDomain):
         ]
         self._default_validator_names = frozenset({"sources"})
         self._keywords = _RESEARCH_KEYWORDS
-
-    @property
-    def domain_type(self) -> DomainType:
-        return self._domain_type
-
-    @property
-    def tools_package(self) -> str:
-        return self._tools_package
-
-    @property
-    def validators(self) -> list[DomainValidator]:
-        return self._validators
-
-    @property
-    def default_validator_names(self) -> frozenset[str]:
-        return self._default_validator_names
+        self._high_conf_keywords = frozenset({
+            "research", "investigate", "summarize", "sources", "evidence",
+        })
+        self._medium_conf_keywords = frozenset({
+            "find", "learn", "understand", "explain", "analyze",
+        })
 
     def detect_confidence(self, goal: str) -> float:
         """Detect if goal is research-related.
 
-        Uses keyword matching with question pattern detection.
+        Extends base tiered keyword matching with question pattern detection.
         """
+        score = super().detect_confidence(goal)
+
+        # Question words at start suggest research (+0.3)
         goal_lower = goal.lower()
-        score = 0.0
-
-        # High-confidence indicators (0.4 each)
-        high_conf = {"research", "investigate", "summarize", "sources", "evidence"}
-        for kw in high_conf:
-            if kw in goal_lower:
-                score += 0.4
-
-        # Question words at start suggest research (0.3 each)
         question_starts = ("what ", "why ", "how ", "who ", "when ", "where ")
-        for start in question_starts:
-            if goal_lower.startswith(start):
-                score += 0.3
-                break
-
-        # Medium-confidence indicators (0.25 each)
-        medium_conf = {"find", "learn", "understand", "explain", "analyze"}
-        for kw in medium_conf:
-            if kw in goal_lower:
-                score += 0.25
-
-        # Low-confidence indicators (0.15 each)
-        for kw in self._keywords - high_conf - medium_conf:
-            if kw in goal_lower:
-                score += 0.15
+        if any(goal_lower.startswith(start) for start in question_starts):
+            score += 0.3
 
         return min(score, 1.0)
 
@@ -169,6 +139,5 @@ class ResearchDomain(BaseDomain):
 __all__ = [
     "CoherenceValidator",
     "ResearchDomain",
-    "ResearchValidator",
     "SourceValidator",
 ]

@@ -273,11 +273,14 @@ class PersistentMemory:
                 logger.warning(f"Failed to query team knowledge: {e}")
 
         # Get learnings from SimulacrumStore
+        facts: list[str] = []
         if self.simulacrum:
             try:
                 # Use retrieve_for_planning which returns categorized learnings
                 planning_ctx = await self.simulacrum.retrieve_for_planning(goal, top_k)
                 learnings = list(planning_ctx.all_learnings)[:top_k]
+                # Extract facts from planning context
+                facts = [f.fact for f in planning_ctx.facts]
             except Exception as e:
                 logger.warning(f"Failed to query simulacrum: {e}")
 
@@ -287,7 +290,7 @@ class PersistentMemory:
 
         return MemoryContext(
             learnings=tuple(learnings),
-            facts=(),  # TODO: Add fact extraction
+            facts=tuple(facts),
             constraints=tuple(constraints),
             dead_ends=tuple(dead_ends),
             team_decisions=tuple(team_decisions),

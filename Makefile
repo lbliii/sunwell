@@ -2,7 +2,7 @@
 # Sunwell — AI-Native Development
 # ═══════════════════════════════════════════════════════════════════════════════
 
-.PHONY: help dev studio studio-dev studio-build studio-test studio-test-watch studio-test-coverage install check test test-all clean schema schema-verify schema-test schema-demo run-types
+.PHONY: help dev studio studio-dev studio-build studio-test studio-test-watch studio-test-coverage install check test test-all clean schema schema-verify schema-test schema-demo run-types unwired unwired-strict
 
 # Default target
 help:
@@ -41,6 +41,8 @@ help:
 	@echo "  │ schema-verify Verify schemas are up-to-date (for CI)           │"
 	@echo "  │ schema-test   Test schema contract                              │"
 	@echo "  │ schema-demo   Demo schema contract system                      │"
+	@echo "  │ unwired       Find unwired/incomplete code                     │"
+	@echo "  │ unwired-strict  Find unwired code (high confidence only)       │"
 	@echo "  │ clean         Clean build artifacts                             │"
 	@echo "  └─────────────────────────────────────────────────────────────────┘"
 	@echo ""
@@ -186,6 +188,16 @@ run-types:
 	@echo "   • src/sunwell/tools/run_analyzer.py (Python)"
 	@echo ""
 	@echo "To validate schema consistency, run: make test"
+
+# Find unwired/incomplete code
+unwired:
+	@echo "🔍 Finding unwired code..."
+	@python scripts/find_unwired.py
+
+# Find unwired code (high confidence only)
+unwired-strict:
+	@echo "🔍 Finding unwired code (high confidence)..."
+	@python scripts/find_unwired.py -m 90
 
 # Clean build artifacts
 clean:

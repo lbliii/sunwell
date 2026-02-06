@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from sunwell.features.external.types import EventSource, EventType, ExternalEvent
+from sunwell.foundation.utils import safe_jsonl_append, safe_jsonl_load
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +44,7 @@ class ExternalEventStore:
         """
         entry = self._serialize_event(event)
         entry["stored_at"] = datetime.now(UTC).isoformat()
-
-        with open(self._events_path, "a") as f:
-            f.write(json.dumps(entry) + "\n")
+        safe_jsonl_append(entry, self._events_path)
 
     async def get_by_ref(self, external_ref: str) -> ExternalEvent | None:
         """Retrieve event by external reference.
@@ -56,21 +55,10 @@ class ExternalEventStore:
         Returns:
             The event if found, None otherwise
         """
-        if not self._events_path.exists():
-            return None
-
         # Search from end (most recent first)
-        with open(self._events_path) as f:
-            lines = f.readlines()
-
-        for line in reversed(lines):
-            try:
-                entry = json.loads(line)
-                if entry.get("external_ref") == external_ref:
-                    return self._deserialize_event(entry)
-            except json.JSONDecodeError:
-                continue
-
+        for entry in reversed(safe_jsonl_load(self._events_path)):
+            if entry.get("external_ref") == external_ref:
+                return self._deserialize_event(entry)
         return None
 
     async def get_recent(self, limit: int = 100) -> list[ExternalEvent]:
@@ -82,21 +70,9 @@ class ExternalEventStore:
         Returns:
             List of recent events (newest first)
         """
-        if not self._events_path.exists():
-            return []
-
-        events = []
-        with open(self._events_path) as f:
-            lines = f.readlines()
-
-        for line in reversed(lines[-limit:]):
-            try:
-                entry = json.loads(line)
-                events.append(self._deserialize_event(entry))
-            except json.JSONDecodeError:
-                continue
-
-        return events
+        entries = safe_jsonl_load(self._events_path)
+        # Return most recent first, limited
+        return [self._deserialize_event(e) for e in reversed(entries[-limit:])]
 
     async def wal_append(self, event: ExternalEvent, **metadata) -> None:
         """Append event to write-ahead log.
@@ -112,9 +88,7 @@ class ExternalEventStore:
             "event_type": event.event_type.value,
             **metadata,
         }
-
-        with open(self._wal_path, "a") as f:
-            f.write(json.dumps(entry) + "\n")
+        safe_jsonl_append(entry, self._wal_path)
 
     async def recover_from_crash(self) -> list[str]:
         """Recover unprocessed events after crash.
@@ -124,19 +98,11 @@ class ExternalEventStore:
         Returns:
             List of event IDs that need reprocessing
         """
-        if not self._wal_path.exists():
-            return []
-
         # Read WAL and find unprocessed events
         events_status: dict[str, str] = {}  # event_id → last status
 
-        with open(self._wal_path) as f:
-            for line in f:
-                try:
-                    entry = json.loads(line)
-                    events_status[entry["event_id"]] = entry.get("status", "unknown")
-                except json.JSONDecodeError:
-                    continue
+        for entry in safe_jsonl_load(self._wal_path):
+            events_status[entry["event_id"]] = entry.get("status", "unknown")
 
         # Find events that were received but not processed/failed
         unprocessed = [

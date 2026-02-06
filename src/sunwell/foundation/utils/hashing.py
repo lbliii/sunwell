@@ -60,3 +60,27 @@ def compute_string_hash(text: str) -> str:
         '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
     """
     return compute_hash(text.encode("utf-8"))
+
+
+def compute_short_hash(text: str, length: int = 8) -> str:
+    """Compute truncated hash for compact IDs.
+
+    Uses blake2b for speed. Suitable for deduplication keys and short IDs
+    where full cryptographic strength isn't needed.
+
+    Args:
+        text: String to hash
+        length: Desired hex string length (default: 8, max: 128)
+
+    Returns:
+        Hexadecimal hash string of specified length
+
+    Example:
+        >>> compute_short_hash("fix-test-123")
+        'a1b2c3d4'
+        >>> compute_short_hash("epic-goal", length=12)
+        'a1b2c3d4e5f6'
+    """
+    # blake2b digest_size is in bytes, hex output is 2x that
+    digest_size = min(max(length // 2, 1), 64)
+    return hashlib.blake2b(text.encode("utf-8"), digest_size=digest_size).hexdigest()

@@ -324,6 +324,79 @@ class CodebaseGraph:
                 pass
         return cls()
 
+    def populate_from_scan(
+        self,
+        modules: tuple[str, ...],
+        functions: tuple[str, ...],
+        classes: tuple[str, ...],
+        file_ownership: dict[Path, str] | None = None,
+        change_frequency: dict[Path, float] | None = None,
+    ) -> int:
+        """Populate graph with discovered code structure from bootstrap scan.
+
+        This is a lightweight population method used by the bootstrap orchestrator.
+        For full AST-based graph building, use CodebaseAnalyzer.analyze().
+
+        Args:
+            modules: List of module names discovered
+            functions: List of function names discovered
+            classes: List of class names discovered
+            file_ownership: Optional file → owner mapping
+            change_frequency: Optional file → change rate mapping
+
+        Returns:
+            Number of nodes added to the graph
+        """
+        nodes_added = 0
+
+        # Add modules as structural nodes
+        for module_name in modules:
+            node = StructuralNode(
+                id=f"module:{module_name}",
+                node_type=NodeType.MODULE,
+                name=module_name,
+                file_path=None,  # Module path not available from scan
+                line_number=None,
+            )
+            if node.id not in self.structural_nodes:
+                self.add_structural_node(node)
+                nodes_added += 1
+
+        # Add functions as structural nodes
+        for func_name in functions:
+            node = StructuralNode(
+                id=f"function:{func_name}",
+                node_type=NodeType.FUNCTION,
+                name=func_name,
+                file_path=None,
+                line_number=None,
+            )
+            if node.id not in self.structural_nodes:
+                self.add_structural_node(node)
+                nodes_added += 1
+
+        # Add classes as structural nodes
+        for class_name in classes:
+            node = StructuralNode(
+                id=f"class:{class_name}",
+                node_type=NodeType.CLASS,
+                name=class_name,
+                file_path=None,
+                line_number=None,
+            )
+            if node.id not in self.structural_nodes:
+                self.add_structural_node(node)
+                nodes_added += 1
+
+        # Add ownership and change frequency if provided
+        if file_ownership:
+            self.file_ownership.update(file_ownership)
+
+        if change_frequency:
+            self.change_frequency.update(change_frequency)
+
+        return nodes_added
+
 
 class CodebaseAnalyzer:
     """Builds and maintains the codebase graph.

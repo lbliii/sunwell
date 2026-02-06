@@ -556,6 +556,113 @@ class TestAccessibility:
         assert isinstance(ctx.plain_mode, bool)
 
 
+class TestStatusBarIntegration:
+    """Tests for StatusBar integration with RenderContext."""
+
+    def test_has_status_bar_default_false(self):
+        """No StatusBar attached by default."""
+        ctx = RenderContext()
+        assert ctx.has_status_bar() is False
+
+    def test_attach_status_bar(self):
+        """Can attach a StatusBar."""
+        from unittest.mock import MagicMock
+        
+        ctx = RenderContext()
+        mock_bar = MagicMock()
+        mock_bar.metrics = MagicMock()
+        
+        ctx.attach_status_bar(mock_bar)
+        
+        assert ctx.has_status_bar() is True
+        # Should sync initial metrics
+        mock_bar.update.assert_called_once()
+
+    def test_detach_status_bar(self):
+        """Can detach a StatusBar."""
+        from unittest.mock import MagicMock
+        
+        ctx = RenderContext()
+        mock_bar = MagicMock()
+        mock_bar.metrics = MagicMock()
+        ctx.attach_status_bar(mock_bar)
+        
+        result = ctx.detach_status_bar()
+        
+        assert result is mock_bar
+        assert ctx.has_status_bar() is False
+
+    def test_detach_returns_none_when_not_attached(self):
+        """Detach returns None when no StatusBar attached."""
+        ctx = RenderContext()
+        result = ctx.detach_status_bar()
+        assert result is None
+
+    def test_update_status_with_bar(self):
+        """update_status syncs metrics to StatusBar."""
+        from unittest.mock import MagicMock
+        
+        ctx = RenderContext()
+        mock_bar = MagicMock()
+        mock_bar.metrics = MagicMock()
+        ctx.attach_status_bar(mock_bar)
+        
+        # Clear the initial call from attach
+        mock_bar.update.reset_mock()
+        
+        # Add some metrics
+        ctx.add_tokens(1000, 0.05)
+        ctx.update_status()
+        
+        # Should have synced cost
+        assert mock_bar.metrics.cost == 0.05
+        mock_bar.update.assert_called_once()
+
+    def test_update_status_without_bar(self):
+        """update_status is safe when no StatusBar attached."""
+        ctx = RenderContext()
+        ctx.add_tokens(1000, 0.05)
+        
+        # Should not raise
+        ctx.update_status()
+
+    def test_reset_detaches_status_bar(self):
+        """reset() clears StatusBar reference."""
+        from unittest.mock import MagicMock
+        
+        ctx = RenderContext()
+        mock_bar = MagicMock()
+        mock_bar.metrics = MagicMock()
+        ctx.attach_status_bar(mock_bar)
+        
+        ctx.reset()
+        
+        assert ctx.has_status_bar() is False
+
+
+class TestLiveSession:
+    """Tests for live_session context manager."""
+
+    def test_live_session_without_status(self):
+        """live_session without status bar."""
+        from sunwell.interface.cli.core.events import live_session
+        
+        reset_render_context()
+        
+        with live_session(enable_status=False) as ctx:
+            assert ctx is not None
+            assert ctx.has_status_bar() is False
+
+    def test_live_session_yields_context(self):
+        """live_session yields RenderContext."""
+        from sunwell.interface.cli.core.events import live_session
+        
+        reset_render_context()
+        
+        with live_session(enable_status=False) as ctx:
+            assert isinstance(ctx, RenderContext)
+
+
 class TestModuleFunctions:
     """Tests for module-level functions."""
 

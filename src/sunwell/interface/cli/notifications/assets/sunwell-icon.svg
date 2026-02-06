@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <!-- Core glow gradient -->
+    <radialGradient id="coreLight" cx="50%" cy="45%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="25%" stop-color="#fff9e6"/>
+      <stop offset="50%" stop-color="#ffd700"/>
+      <stop offset="75%" stop-color="#daa520" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#8b6914" stop-opacity="0"/>
+    </radialGradient>
+    
+    <!-- Outer aura -->
+    <radialGradient id="outerAura" cx="50%" cy="45%">
+      <stop offset="0%" stop-color="#ffd700" stop-opacity="0.4"/>
+      <stop offset="50%" stop-color="#daa520" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#8b6914" stop-opacity="0"/>
+    </radialGradient>
+    
+    <!-- Energy pillar gradient -->
+    <linearGradient id="energyPillar" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#ffd700" stop-opacity="0.4"/>
+      <stop offset="30%" stop-color="#ffe566" stop-opacity="0.7"/>
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="70%" stop-color="#ffe566" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#ffd700" stop-opacity="0.2"/>
+    </linearGradient>
+    
+    <!-- Basin gold -->
+    <linearGradient id="goldMetal" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fff4d4"/>
+      <stop offset="30%" stop-color="#ffd700"/>
+      <stop offset="70%" stop-color="#daa520"/>
+      <stop offset="100%" stop-color="#8b6914"/>
+    </linearGradient>
+    
+    <!-- Soft glow filter -->
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Black background -->
+  <rect x="0" y="0" width="64" height="64" fill="#0d0d0d"/>
+  
+  <!-- Outer aura -->
+  <ellipse cx="32" cy="28" rx="28" ry="24" fill="url(#outerAura)"/>
+  
+  <!-- Energy pillar -->
+  <path d="M 26 4 Q 24 20, 25 32 Q 26 44, 28 52 Q 30 56, 32 58 Q 34 56, 36 52 Q 38 44, 39 32 Q 40 20, 38 4 Q 35 2, 32 1 Q 29 2, 26 4 Z" 
+        fill="url(#energyPillar)" filter="url(#softGlow)" opacity="0.85"/>
+  
+  <!-- Core light -->
+  <ellipse cx="32" cy="28" rx="12" ry="18" fill="url(#coreLight)" filter="url(#softGlow)"/>
+  
+  <!-- Inner core -->
+  <ellipse cx="32" cy="28" rx="8" ry="12" fill="#fff9e6" opacity="0.95"/>
+  <ellipse cx="32" cy="28" rx="5" ry="8" fill="#ffffff"/>
+  
+  <!-- Basin (simplified) -->
+  <ellipse cx="32" cy="56" rx="18" ry="5" fill="#e8e8e8"/>
+  <ellipse cx="32" cy="56" rx="18" ry="5" fill="none" stroke="url(#goldMetal)" stroke-width="1"/>
+  <ellipse cx="32" cy="55" rx="15" ry="4" fill="#fafafa"/>
+  <ellipse cx="32" cy="54" rx="12" ry="3" fill="url(#coreLight)" opacity="0.7"/>
+  
+  <!-- Gold accent dots on basin -->
+  <circle cx="18" cy="56" r="1.5" fill="#ffd700"/>
+  <circle cx="46" cy="56" r="1.5" fill="#ffd700"/>
+  <circle cx="32" cy="52" r="1" fill="#ffd700"/>
+</svg>

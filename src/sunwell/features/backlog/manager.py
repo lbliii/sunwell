@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 
 from sunwell.features.backlog.goals import Goal, GoalGenerator, GoalPolicy, GoalResult, GoalScope
 from sunwell.features.backlog.signals import SignalExtractor
+from sunwell.foundation.utils import safe_jsonl_append, safe_jsonl_load
 
 if TYPE_CHECKING:
     from sunwell.knowledge.codebase.context import ProjectContext
@@ -501,6 +502,122 @@ class BacklogManager:
         return claims
 
     # =========================================================================
+    # Heartbeat and Conflict Detection (Self-Driving Coordination)
+    # =========================================================================
+
+    async def heartbeat_goal(self, goal_id: str, worker_id: int) -> bool:
+        """Record a heartbeat for a claimed goal.
+
+        Claimed goals must be heartbeated periodically or they auto-release.
+        This prevents hung workers from blocking goals indefinitely.
+
+        Args:
+            goal_id: ID of the claimed goal
+            worker_id: ID of the worker sending the heartbeat
+
+        Returns:
+            True if heartbeat accepted, False if goal not claimed by this worker
+        """
+        goal = self.backlog.goals.get(goal_id)
+        if goal is None or goal.claimed_by != worker_id:
+            return False
+
+        # Update claimed_at as the heartbeat timestamp
+        updated_goal = Goal(
+            id=goal.id,
+            title=goal.title,
+            description=goal.description,
+            source_signals=goal.source_signals,
+            priority=goal.priority,
+            estimated_complexity=goal.estimated_complexity,
+            requires=goal.requires,
+            category=goal.category,
+            auto_approvable=goal.auto_approvable,
+            scope=goal.scope,
+            external_ref=goal.external_ref,
+            claimed_by=goal.claimed_by,
+            claimed_at=datetime.now(),  # Refresh heartbeat timestamp
+            produces=goal.produces,
+            integrations=goal.integrations,
+            verification_checks=goal.verification_checks,
+            task_type=goal.task_type,
+            goal_type=goal.goal_type,
+            parent_goal_id=goal.parent_goal_id,
+            milestone_produces=goal.milestone_produces,
+            milestone_index=goal.milestone_index,
+        )
+        self.backlog.goals[goal_id] = updated_goal
+        self._save()
+        return True
+
+    async def expire_stale_claims(
+        self,
+        timeout_seconds: int = 300,
+    ) -> list[str]:
+        """Release claims that haven't been heartbeated within the timeout.
+
+        Call this periodically to prevent hung workers from blocking goals.
+
+        Args:
+            timeout_seconds: Seconds since last heartbeat before expiring
+
+        Returns:
+            List of goal IDs that were released
+        """
+        expired: list[str] = []
+        now = datetime.now()
+
+        for goal_id, goal in list(self.backlog.goals.items()):
+            if goal.claimed_by is None or goal.claimed_at is None:
+                continue
+
+            elapsed = (now - goal.claimed_at).total_seconds()
+            if elapsed > timeout_seconds:
+                expired.append(goal_id)
+                await self.unclaim_goal(goal_id)
+
+        return expired
+
+    def detect_conflicts(self) -> list[dict]:
+        """Detect potential file conflicts between claimed goals.
+
+        Checks if multiple claimed goals modify overlapping files,
+        which could cause merge conflicts when workers commit.
+
+        Returns:
+            List of conflict dicts with:
+            - file_path: The conflicting file
+            - goal_ids: List of goals modifying this file
+            - severity: "warning" or "error"
+        """
+        # Build file → goals index from scope information
+        file_to_goals: dict[str, list[str]] = {}
+
+        for goal in self.backlog.goals.values():
+            if goal.claimed_by is None:
+                continue
+
+            # Check allowed_paths from scope
+            if goal.scope.allowed_paths:
+                for path in goal.scope.allowed_paths:
+                    path_str = str(path)
+                    if path_str not in file_to_goals:
+                        file_to_goals[path_str] = []
+                    file_to_goals[path_str].append(goal.id)
+
+        # Find conflicts (multiple goals touching same file)
+        conflicts: list[dict] = []
+        for file_path, goal_ids in file_to_goals.items():
+            if len(goal_ids) > 1:
+                conflicts.append({
+                    "file_path": file_path,
+                    "goal_ids": goal_ids,
+                    "severity": "error" if len(goal_ids) > 2 else "warning",
+                })
+
+        return conflicts
+
+    # =========================================================================
     # RFC-115: Hierarchical Goal Decomposition Methods
     # =========================================================================
 
@@ -690,7 +807,6 @@ class BacklogManager:
     async def _record_completion(self, goal_id: str, result: GoalResult) -> None:
         """Record goal completion in history."""
         history_path = self.backlog_path / "completed.jsonl"
-        history_path.parent.mkdir(parents=True, exist_ok=True)
 
         entry = {
             "goal_id": goal_id,
@@ -702,8 +818,7 @@ class BacklogManager:
             "timestamp": datetime.now().isoformat(),
         }
 
-        with history_path.open("a") as f:
-            f.write(json.dumps(entry) + "\n")
+        safe_jsonl_append(entry, history_path)
 
     async def get_completed_artifacts(self) -> list[str]:
         """Get list of artifact IDs from completed goals (RFC-094).
@@ -714,19 +829,9 @@ class BacklogManager:
             List of artifact IDs that were successfully created
         """
         history_path = self.backlog_path / "completed.jsonl"
-        if not history_path.exists():
-            return []
-
         artifacts: list[str] = []
-        for line in history_path.read_text().splitlines():
-            if not line.strip():
-                continue
-            try:
-                entry = json.loads(line)
-                artifacts.extend(entry.get("artifacts_created", []))
-            except json.JSONDecodeError:
-                continue
-
+        for entry in safe_jsonl_load(history_path):
+            artifacts.extend(entry.get("artifacts_created", []))
         return artifacts
 
     async def get_related_goals(
@@ -752,31 +857,23 @@ class BacklogManager:
             - shared_artifacts: list[str]
         """
         history_path = self.backlog_path / "completed.jsonl"
-        if not history_path.exists():
-            return []
 
         # Build artifact→goals index
         artifact_to_goals: dict[str, list[dict]] = {}
         goal_to_artifacts: dict[str, list[str]] = {}
 
-        for line in history_path.read_text().splitlines():
-            if not line.strip():
-                continue
-            try:
-                entry = json.loads(line)
-                gid = entry.get("goal_id", "")
-                artifacts = entry.get("artifacts_created", [])
+        for entry in safe_jsonl_load(history_path):
+            gid = entry.get("goal_id", "")
+            artifacts = entry.get("artifacts_created", [])
 
-                goal_to_artifacts[gid] = artifacts
-                for aid in artifacts:
-                    if aid not in artifact_to_goals:
-                        artifact_to_goals[aid] = []
-                    artifact_to_goals[aid].append({
-                        "goal_id": gid,
-                        "timestamp": entry.get("timestamp"),
-                    })
-            except json.JSONDecodeError:
-                continue
+            goal_to_artifacts[gid] = artifacts
+            for aid in artifacts:
+                if aid not in artifact_to_goals:
+                    artifact_to_goals[aid] = []
+                artifact_to_goals[aid].append({
+                    "goal_id": gid,
+                    "timestamp": entry.get("timestamp"),
+                })
 
         related: list[dict] = []
         seen_goals: set[str] = set()

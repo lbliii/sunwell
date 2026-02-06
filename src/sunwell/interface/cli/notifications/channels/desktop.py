@@ -159,6 +159,10 @@ class DesktopChannel(BaseChannel):
             "-group", "sunwell",
         ]
         
+        # Add custom icon if configured (PNG or ICNS recommended for macOS)
+        if self.notification_config.icon_path and self.notification_config.icon_path.exists():
+            args.extend(["-appIcon", str(self.notification_config.icon_path)])
+        
         if self.notification_config.sound and not skip_sound:
             sounds = {
                 NotificationType.SUCCESS: "Glass",
@@ -232,9 +236,13 @@ class DesktopChannel(BaseChannel):
             "notify-send",
             "--urgency", urgency,
             "--app-name", "Sunwell",
-            title,
-            message,
         ]
+        
+        # Add custom icon if configured (SVG or PNG supported on Linux)
+        if self.notification_config.icon_path and self.notification_config.icon_path.exists():
+            args.extend(["--icon", str(self.notification_config.icon_path)])
+        
+        args.extend([title, message])
         
         await asyncio.create_subprocess_exec(
             *args,
@@ -253,15 +261,22 @@ class DesktopChannel(BaseChannel):
         """Send notification via PowerShell toast (Windows)."""
         audio_xml = '<audio silent="true"/>' if skip_sound else ""
         
+        # Add app logo override if icon is configured (PNG recommended)
+        logo_xml = ""
+        if self.notification_config.icon_path and self.notification_config.icon_path.exists():
+            icon_path = str(self.notification_config.icon_path).replace("\\", "/")
+            logo_xml = f'<image placement="appLogoOverride" src="file:///{icon_path}"/>'
+        
         ps_script = f'''
         [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
         [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
         $template = @"
         <toast>
             <visual>
-                <binding template="ToastText02">
+                <binding template="ToastGeneric">
                     <text id="1">{title}</text>
                     <text id="2">{message}</text>
+                    {logo_xml}
                 </binding>
             </visual>
             {audio_xml}

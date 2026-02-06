@@ -46,6 +46,24 @@ class FocusModeBehavior(Enum):
     QUEUE = "queue"  # Queue notifications for later (recorded but not delivered)
 
 
+def _get_default_icon_path() -> Path | None:
+    """Get the default notification icon path.
+    
+    Returns the bundled icon if it exists, otherwise None.
+    """
+    # Look for bundled icon in package
+    assets_dir = Path(__file__).parent / "assets"
+    svg_path = assets_dir / "sunwell-icon.svg"
+    png_path = assets_dir / "sunwell-icon.png"
+    
+    # Prefer PNG for better compatibility (macOS terminal-notifier)
+    if png_path.exists():
+        return png_path
+    if svg_path.exists():
+        return svg_path
+    return None
+
+
 @dataclass(frozen=True, slots=True)
 class NotificationConfig:
     """Configuration for notifications.
@@ -57,6 +75,7 @@ class NotificationConfig:
         focus_mode_behavior: Behavior when Focus mode is active
         batching: Whether to batch rapid-fire notifications
         batch_window_ms: Batch window in milliseconds
+        icon_path: Path to custom notification icon (PNG recommended, SVG for Linux)
         on_complete: Custom command for completion
         on_error: Custom command for errors
         on_waiting: Custom command for waiting
@@ -68,6 +87,7 @@ class NotificationConfig:
     focus_mode_behavior: FocusModeBehavior = FocusModeBehavior.SKIP_SOUND
     batching: bool = False
     batch_window_ms: int = 5000
+    icon_path: Path | None = None
     on_complete: str | None = None
     on_error: str | None = None
     on_waiting: str | None = None
@@ -90,6 +110,13 @@ class NotificationConfig:
             logger.warning(f"Unknown focus_mode_behavior: {focus_behavior_str}, using skip_sound")
             focus_behavior = FocusModeBehavior.SKIP_SOUND
         
+        # Parse icon path - use default bundled icon if not specified
+        icon_path_str = data.get("icon_path")
+        if icon_path_str:
+            icon_path = Path(icon_path_str).expanduser()
+        else:
+            icon_path = _get_default_icon_path()
+        
         return cls(
             enabled=data.get("enabled", True),
             desktop=data.get("desktop", True),
@@ -97,6 +124,7 @@ class NotificationConfig:
             focus_mode_behavior=focus_behavior,
             batching=data.get("batching", False),
             batch_window_ms=data.get("batch_window_ms", 5000),
+            icon_path=icon_path,
             on_complete=data.get("on_complete"),
             on_error=data.get("on_error"),
             on_waiting=data.get("on_waiting"),
@@ -447,6 +475,11 @@ class Notifier:
             "-group", "sunwell",
         ]
         
+        # Add custom icon if configured (PNG or ICNS recommended for macOS)
+        if self.config.icon_path and self.config.icon_path.exists():
+            # terminal-notifier supports -appIcon for the notification icon
+            args.extend(["-appIcon", str(self.config.icon_path)])
+        
         if self.config.sound and not skip_sound:
             # Use appropriate sound based on type
             sounds = {
@@ -531,9 +564,13 @@ class Notifier:
             "notify-send",
             "--urgency", urgency,
             "--app-name", "Sunwell",
-            title,
-            message,
         ]
+        
+        # Add custom icon if configured (SVG or PNG supported on Linux)
+        if self.config.icon_path and self.config.icon_path.exists():
+            args.extend(["--icon", str(self.config.icon_path)])
+        
+        args.extend([title, message])
         
         await asyncio.create_subprocess_exec(
             *args,
@@ -558,8 +595,13 @@ class Notifier:
             skip_sound: Skip playing sound (uses silent attribute)
         """
         # PowerShell toast notification
-        # Add silent attribute if skip_sound is True
-        audio_xml = "" if skip_sound else ""
+        audio_xml = '<audio silent="true"/>' if skip_sound else ""
+        
+        # Add app logo override if icon is configured (PNG recommended)
+        logo_xml = ""
+        if self.config.icon_path and self.config.icon_path.exists():
+            icon_path = str(self.config.icon_path).replace("\\", "/")
+            logo_xml = f'<image placement="appLogoOverride" src="file:///{icon_path}"/>'
         
         ps_script = f'''
         [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
@@ -567,9 +609,10 @@ class Notifier:
         $template = @"
         <toast>
             <visual>
-                <binding template="ToastText02">
+                <binding template="ToastGeneric">
                     <text id="1">{title}</text>
                     <text id="2">{message}</text>
+                    {logo_xml}
                 </binding>
             </visual>
             {audio_xml}

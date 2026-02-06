@@ -86,6 +86,14 @@ class TestHeuristic:
         assert "Test Heuristic" in text
         assert "Always test your code" in text
 
+    def test_embedding_parts(self, sample_heuristic: Heuristic):
+        """Test Embeddable protocol implementation."""
+        parts = sample_heuristic.embedding_parts()
+        assert "Test Heuristic" in parts
+        assert "Always test your code" in parts
+        assert "Write unit tests" in parts
+        assert "Skip tests" in parts
+
 
 class TestPersona:
     def test_to_evaluation_prompt(self, sample_persona: Persona):

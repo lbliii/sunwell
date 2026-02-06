@@ -13,7 +13,6 @@ Storage format:
 - ownership.yaml: File/module ownership map (YAML)
 """
 
-import hashlib
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime
@@ -22,8 +21,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from sunwell.foundation.utils import (
+    compute_short_hash,
+    cosine_similarity,
     safe_json_dumps,
-    safe_json_loads,
+    safe_jsonl_append,
+    safe_jsonl_load,
     safe_yaml_dump,
     safe_yaml_load,
 )
@@ -156,20 +158,12 @@ class TeamKnowledgeStore:
 
     def _load_decisions(self) -> None:
         """Load decisions from JSONL file."""
-        if not self._decisions_path.exists():
-            return
-
-        with open(self._decisions_path) as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    data = safe_json_loads(line)
-                    decision = TeamDecision.from_dict(data)
-                    self._decisions[decision.id] = decision
-                except (ValueError, KeyError):
-                    continue
+        for data in safe_jsonl_load(self._decisions_path):
+            try:
+                decision = TeamDecision.from_dict(data)
+                self._decisions[decision.id] = decision
+            except (ValueError, KeyError):
+                continue
 
     async def record_decision(
         self,
@@ -188,9 +182,7 @@ class TeamKnowledgeStore:
             pass
 
         # Append to decisions file
-        with open(self._decisions_path, "a") as f:
-            f.write(safe_json_dumps(decision.to_dict()) + "\n")
-
+        safe_jsonl_append(decision.to_dict(), self._decisions_path)
         self._decisions[decision.id] = decision
 
         if auto_commit:
@@ -327,7 +319,7 @@ class TeamKnowledgeStore:
                     continue
 
                 # Calculate cosine similarity
-                similarity = self._cosine_similarity(query_vec, decision_embedding)
+                similarity = cosine_similarity(query_vec, decision_embedding)
                 scores.append((decision, similarity))
 
             # Sort by score and return top_k
@@ -431,9 +423,7 @@ class TeamKnowledgeStore:
         )
 
         # Append endorsement as new record (preserves history)
-        with open(self._decisions_path, "a") as f:
-            f.write(safe_json_dumps(updated.to_dict()) + "\n")
-
+        safe_jsonl_append(updated.to_dict(), self._decisions_path)
         self._decisions[decision_id] = updated
 
         if auto_commit:
@@ -450,20 +440,12 @@ class TeamKnowledgeStore:
 
     def _load_failures(self) -> None:
         """Load failures from JSONL file."""
-        if not self._failures_path.exists():
-            return
-
-        with open(self._failures_path) as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    data = safe_json_loads(line)
-                    failure = TeamFailure.from_dict(data)
-                    self._failures[failure.id] = failure
-                except (ValueError, KeyError):
-                    continue
+        for data in safe_jsonl_load(self._failures_path):
+            try:
+                failure = TeamFailure.from_dict(data)
+                self._failures[failure.id] = failure
+            except (ValueError, KeyError):
+                continue
 
     async def record_failure(
         self,
@@ -493,12 +475,10 @@ class TeamKnowledgeStore:
             )
             self._failures[existing.id] = updated
             # Append updated record
-            with open(self._failures_path, "a") as f:
-                f.write(safe_json_dumps(updated.to_dict()) + "\n")
+            safe_jsonl_append(updated.to_dict(), self._failures_path)
         else:
             # Append new failure
-            with open(self._failures_path, "a") as f:
-                f.write(safe_json_dumps(failure.to_dict()) + "\n")
+            safe_jsonl_append(failure.to_dict(), self._failures_path)
             self._failures[failure.id] = failure
 
         if auto_commit:
@@ -832,7 +812,7 @@ class TeamKnowledgeStore:
     def _generate_id(self, *parts: str) -> str:
         """Generate unique ID from content parts."""
         content = ":".join(parts)
-        return hashlib.sha256(content.encode()).hexdigest()[:16]
+        return compute_short_hash(content, length=16)
 
     def _similar(self, a: str, b: str) -> bool:
         """Check if two strings are similar (simple keyword overlap)."""
@@ -845,19 +825,6 @@ class TeamKnowledgeStore:
     def _path_matches(self, path: Path, pattern: str) -> bool:
         """Check if path matches a glob pattern."""
         return fnmatch(str(path), pattern)
-
-    def _cosine_similarity(self, a: list[float], b: list[float]) -> float:
-        """Calculate cosine similarity between two vectors."""
-        import math
-
-        dot = sum(x * y for x, y in zip(a, b, strict=True))
-        mag_a = math.sqrt(sum(x * x for x in a))
-        mag_b = math.sqrt(sum(x * x for x in b))
-
-        if mag_a == 0 or mag_b == 0:
-            return 0.0
-
-        return dot / (mag_a * mag_b)
 
     # =========================================================================
     # STATISTICS

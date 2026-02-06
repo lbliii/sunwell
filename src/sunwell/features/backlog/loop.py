@@ -49,6 +49,13 @@ class LoopEvent:
         "backlog_empty",
         "session_complete",
         "session_rollback",
+        # Convergence mode events
+        "convergence_commit",
+        "convergence_reconcile_start",
+        "convergence_reconcile_pass",
+        "convergence_reconcile_fail",
+        "convergence_error_budget",
+        "handoff_received",
     ]
     data: dict[str, object]
 
@@ -94,7 +101,7 @@ class AutonomousLoop:
 
     async def run(
         self,
-        mode: Literal["propose", "supervised", "autonomous"],
+        mode: Literal["propose", "supervised", "autonomous", "convergence"],
     ) -> AsyncIterator[LoopEvent]:
         """Run the autonomous loop.
 
@@ -102,6 +109,11 @@ class AutonomousLoop:
         - propose: Generate backlog and show to user, don't execute
         - supervised: Execute with human approval per goal
         - autonomous: Execute auto-approvable goals without asking (RFC-048)
+        - convergence: Accept-and-fix mode for maximum throughput.
+            Workers commit to work branches without gate enforcement.
+            A separate reconciliation pass validates and merges to main.
+            Accepts a small error rate for dramatically higher throughput.
+            (Inspired by Cursor self-driving codebases research)
 
         When guardrails are enabled (RFC-048):
         - Session starts with git tag for rollback

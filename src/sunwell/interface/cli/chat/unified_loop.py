@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 
 from rich.markdown import Markdown
 
-from sunwell.interface.cli.core.events import render_agent_event
+from sunwell.interface.cli.core.events import live_session, render_agent_event
 from sunwell.interface.cli.core.render_context import reset_render_context
 from sunwell.interface.cli.core.theme import (
     CHARS_CIRCLES,
@@ -60,6 +60,8 @@ async def run_unified_loop(
     memory_path: Path | None = None,
     lens: Lens | None = None,
     tools_enabled: bool = True,
+    verbose: bool = False,
+    show_status: bool = False,
 ) -> None:
     """Run the unified chat-agent loop (RFC-135).
 
@@ -71,6 +73,10 @@ async def run_unified_loop(
     Args:
         tools_enabled: If False, tool_executor won't be created and TASK intents
                       will get a friendly message to enable tools.
+        verbose: If True, show detailed progress including model thinking,
+                token metrics, and execution timeline.
+        show_status: If True, show live StatusBar with session metrics
+                    (tokens, cost, elapsed time).
     """
     from sunwell.agent.chat import (
         ChatCheckpoint,
@@ -137,138 +143,143 @@ async def run_unified_loop(
     gen = loop.run()
     await gen.asend(None)  # Initialize
 
-    try:
-        while True:
-            # Get user input with Holy Light styling
-            state_indicator = ""
-            if loop.is_executing:
-                state_indicator = f" [holy.gold]({CHARS_STARS['progress']} executing)[/holy.gold]"
-            user_input = console.input(f"\n[holy.radiant]{CHARS_STARS['radiant']} You:{state_indicator}[/holy.radiant] ").strip()
-
-            logger.debug("CLI received input: %r (len=%d)", user_input[:50] if user_input else "", len(user_input) if user_input else 0)
-
-            if not user_input:
-                logger.debug("Empty input, prompting again")
-                continue
-
-            # Handle quit commands directly
-            if user_input.lower() in ("/quit", "/exit", "/q"):
-                logger.debug("Quit command received")
-                break
-
-            # Handle /tools on|off commands
-            if user_input.lower().startswith("/tools"):
-                parts = user_input.lower().split()
-                if len(parts) >= 2:
-                    if parts[1] == "on":
-                        if loop.tool_executor is None:
-                            # Create tool executor
-                            try:
-                                project = resolve_project(cwd=workspace)
-                            except ProjectResolutionError:
-                                project = create_project_from_workspace(workspace)
-                            policy = ToolPolicy(trust_level=ToolTrust.from_string(trust_level))
-                            loop.tool_executor = ToolExecutor(project=project, policy=policy)
-                            console.print(f"[holy.success]{CHARS_STARS['complete']} Tools enabled[/holy.success]")
-                        else:
-                            console.print("[neutral.dim]Tools already enabled[/neutral.dim]")
-                        continue
-                    elif parts[1] == "off":
-                        if loop.tool_executor is not None:
-                            loop.tool_executor = None
-                            console.print(f"[holy.gold]{CHARS_STARS['progress']} Tools disabled[/holy.gold]")
-                        else:
-                            console.print("[neutral.dim]Tools already disabled[/neutral.dim]")
-                        continue
-                console.print("[neutral.dim]Usage: /tools on | /tools off[/neutral.dim]")
-                continue
-
-            # Send input to the loop
-            logger.debug("Sending to generator: %r", user_input[:50])
-            result = await gen.asend(user_input)
-            logger.debug("Generator returned: type=%s, value=%r", type(result).__name__, str(result)[:100] if result else None)
-
-            # Process results until we need more input
-            while result is not None:
-                logger.debug("Processing result: type=%s", type(result).__name__)
-
-                if isinstance(result, str):
-                    # Conversation response
-                    logger.debug("Rendering string response (%d chars)", len(result))
-                    _render_response(result, lens)
-                    if dag:
-                        dag.add_user_message(user_input)
-                        dag.add_assistant_message(result, model=str(model))
-                    # Small yield to let terminal I/O settle before next input
-                    await asyncio.sleep(0.01)
-                    result = None  # Wait for next user input
-
-                elif isinstance(result, ChatCheckpoint):
-                    # Handle checkpoint
-                    logger.debug("Handling checkpoint: type=%s, message=%r", result.type, result.message[:50] if result.message else None)
-                    response = _handle_checkpoint(result)
-                    if response is None:
-                        # User aborted
-                        logger.debug("User aborted checkpoint")
-                        break
-                    logger.debug("Checkpoint response: %r", response)
-                    result = await gen.asend(response)
-                    logger.debug("After checkpoint, generator returned: type=%s", type(result).__name__)
-
-                elif isinstance(result, AgentEvent):
-                    # Render progress event
-                    logger.debug("Rendering agent event: type=%s", result.type)
-                    render_agent_event(result, console)
-                    
-                    # Periodic checkpoint: save SimulacrumStore after task completion
-                    # This ensures conversation/learning state survives interruption
-                    if store and result.type.value == "task_complete":
-                        store.save_session()
-                        logger.debug("Checkpoint: saved SimulacrumStore after task completion")
-                    
-                    # Get next event
-                    result = await gen.asend(None)
-                    logger.debug("After event, generator returned: type=%s", type(result).__name__ if result else "None")
-
-                else:
-                    # Unknown result type
-                    logger.warning("Unknown result type: %s, value=%r", type(result).__name__, result)
-                    result = None
-
-            logger.debug("Result loop ended, waiting for next input")
-
-    except KeyboardInterrupt:
-        console.print(f"\n[void.indigo]{CHARS_STARS['progress']} Interrupted. Saving session...[/void.indigo]")
-        # Save immediately on interrupt to capture current state
-        if store:
-            store.save_session()
-            console.print(f"[holy.success]{CHARS_STARS['complete']} Session saved[/holy.success]")
-            session_id = store.session_id
-            console.print(f"  [neutral.dim]Resume with: sunwell chat --resume {session_id}[/neutral.dim]")
-    except EOFError:
-        pass
-    except GeneratorExit:
-        pass
-    finally:
-        # Clean up
+    # Wrap execution with optional live status display
+    with live_session(console, enable_status=show_status):
         try:
-            await gen.aclose()
-        except Exception:
+            while True:
+                # Get user input with Holy Light styling
+                state_indicator = ""
+                if loop.is_executing:
+                    state_indicator = f" [holy.gold]({CHARS_STARS['progress']} executing)[/holy.gold]"
+                user_input = console.input(f"\n[holy.radiant]{CHARS_STARS['radiant']} You:{state_indicator}[/holy.radiant] ").strip()
+
+                logger.debug("CLI received input: %r (len=%d)", user_input[:50] if user_input else "", len(user_input) if user_input else 0)
+
+                if not user_input:
+                    logger.debug("Empty input, prompting again")
+                    continue
+
+                # Handle quit commands directly
+                if user_input.lower() in ("/quit", "/exit", "/q"):
+                    logger.debug("Quit command received")
+                    break
+
+                # Handle /tools on|off commands
+                if user_input.lower().startswith("/tools"):
+                    parts = user_input.lower().split()
+                    if len(parts) >= 2:
+                        if parts[1] == "on":
+                            if loop.tool_executor is None:
+                                # Create tool executor
+                                try:
+                                    project = resolve_project(cwd=workspace)
+                                except ProjectResolutionError:
+                                    project = create_project_from_workspace(workspace)
+                                policy = ToolPolicy(trust_level=ToolTrust.from_string(trust_level))
+                                loop.tool_executor = ToolExecutor(project=project, policy=policy)
+                                console.print(f"[holy.success]{CHARS_STARS['complete']} Tools enabled[/holy.success]")
+                            else:
+                                console.print("[neutral.dim]Tools already enabled[/neutral.dim]")
+                            continue
+                        elif parts[1] == "off":
+                            if loop.tool_executor is not None:
+                                loop.tool_executor = None
+                                console.print(f"[holy.gold]{CHARS_STARS['progress']} Tools disabled[/holy.gold]")
+                            else:
+                                console.print("[neutral.dim]Tools already disabled[/neutral.dim]")
+                            continue
+                    console.print("[neutral.dim]Usage: /tools on | /tools off[/neutral.dim]")
+                    continue
+
+                # Send input to the loop
+                logger.debug("Sending to generator: %r", user_input[:50])
+                result = await gen.asend(user_input)
+                logger.debug("Generator returned: type=%s, value=%r", type(result).__name__, str(result)[:100] if result else None)
+
+                # Process results until we need more input
+                while result is not None:
+                    logger.debug("Processing result: type=%s", type(result).__name__)
+
+                    if isinstance(result, str):
+                        # Conversation response
+                        logger.debug("Rendering string response (%d chars)", len(result))
+                        _render_response(result, lens)
+                        if dag:
+                            dag.add_user_message(user_input)
+                            dag.add_assistant_message(result, model=str(model))
+                        # Small yield to let terminal I/O settle before next input
+                        await asyncio.sleep(0.01)
+                        result = None  # Wait for next user input
+
+                    elif isinstance(result, ChatCheckpoint):
+                        # Handle checkpoint
+                        logger.debug("Handling checkpoint: type=%s, message=%r", result.type, result.message[:50] if result.message else None)
+                        response = _handle_checkpoint(result)
+                        if response is None:
+                            # User aborted
+                            logger.debug("User aborted checkpoint")
+                            break
+                        logger.debug("Checkpoint response: %r", response)
+                        result = await gen.asend(response)
+                        logger.debug("After checkpoint, generator returned: type=%s", type(result).__name__)
+
+                    elif isinstance(result, AgentEvent):
+                        # Render progress event
+                        logger.debug("Rendering agent event: type=%s", result.type)
+                        render_agent_event(result, console, verbose=verbose)
+
+                        # Periodic checkpoint: save SimulacrumStore after task completion
+                        # This ensures conversation/learning state survives interruption
+                        if store and result.type.value == "task_complete":
+                            store.save_session()
+                            logger.debug("Checkpoint: saved SimulacrumStore after task completion")
+
+                        # Get next event
+                        result = await gen.asend(None)
+                        logger.debug("After event, generator returned: type=%s", type(result).__name__ if result else "None")
+
+                    else:
+                        # Unknown result type
+                        logger.warning("Unknown result type: %s, value=%r", type(result).__name__, result)
+                        result = None
+
+                logger.debug("Result loop ended, waiting for next input")
+
+        except KeyboardInterrupt:
+            console.print(f"\n[void.indigo]{CHARS_STARS['progress']} Interrupted. Saving session...[/void.indigo]")
+            # Save immediately on interrupt to capture current state
+            if store:
+                store.save_session()
+                console.print(f"[holy.success]{CHARS_STARS['complete']} Session saved[/holy.success]")
+                session_id = store.session_id
+                console.print(f"  [neutral.dim]Resume with: sunwell chat --resume {session_id}[/neutral.dim]")
+        except EOFError:
             pass
+        except GeneratorExit:
+            pass
+        finally:
+            # Clean up
+            try:
+                await gen.aclose()
+            except Exception:
+                pass
 
-        # Save session (may be redundant if already saved in KeyboardInterrupt, but safe)
-        if store:
-            store.save_session()
+            # Save session (may be redundant if already saved in KeyboardInterrupt, but safe)
+            if store:
+                store.save_session()
 
-        # Extract awareness patterns from session (fire and forget)
-        try:
-            from sunwell.awareness.hooks import extract_awareness_end_of_session
-            patterns_count = extract_awareness_end_of_session(workspace)
-            if patterns_count > 0:
-                logger.debug("Extracted %d awareness patterns", patterns_count)
-        except Exception as e:
-            # Awareness extraction should never block session exit
-            logger.debug("Awareness extraction failed: %s", e)
+            # Extract awareness patterns from session (fire and forget)
+            try:
+                from sunwell.awareness.hooks import extract_awareness_end_of_session
+                patterns_count = extract_awareness_end_of_session(workspace)
+                if patterns_count > 0:
+                    logger.debug("Extracted %d awareness patterns", patterns_count)
+            except Exception as e:
+                # Awareness extraction should never block session exit
+                logger.debug("Awareness extraction failed: %s", e)
+
+            # Unregister user hooks on session end
+            unregister_user_hooks()
 
 
 def _handle_checkpoint(checkpoint: ChatCheckpoint) -> CheckpointResponse | None:

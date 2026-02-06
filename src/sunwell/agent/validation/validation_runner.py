@@ -651,6 +651,64 @@ class ValidationStage:
         self.model = model
         self.runner = ValidationRunner(toolchain, self.cwd, model)
 
+    async def run_gate(
+        self,
+        gate: ValidationGate,
+        artifacts: list[Artifact],
+    ) -> GateResult:
+        """Run a single validation gate and return the result.
+
+        This is a convenience method that collects events from validate_gate()
+        and returns a GateResult. Use validate_all() or validate_gate() directly
+        if you need streaming events.
+
+        Args:
+            gate: The validation gate to run
+            artifacts: Artifacts to validate
+
+        Returns:
+            GateResult with pass/fail status and step details
+        """
+        import time
+
+        start_time = time.monotonic()
+        steps: list[GateStepResult] = []
+        passed = True
+        errors: list[str] = []
+
+        async for event in self.runner.validate_gate(gate, artifacts):
+            if event.type == EventType.GATE_STEP:
+                step_passed = event.data.get("passed", False)
+                steps.append(
+                    GateStepResult(
+                        step=event.data.get("step", "unknown"),
+                        passed=step_passed,
+                        message=event.data.get("message"),
+                        duration_ms=event.data.get("duration_ms", 0),
+                        auto_fixed=event.data.get("auto_fixed", False),
+                    )
+                )
+                if not step_passed:
+                    passed = False
+            elif event.type == EventType.GATE_FAIL:
+                passed = False
+                if error_msg := event.data.get("error_message"):
+                    errors.append(error_msg)
+            elif event.type == EventType.VALIDATE_ERROR:
+                passed = False
+                if error_msg := event.data.get("message"):
+                    errors.append(error_msg)
+
+        duration_ms = int((time.monotonic() - start_time) * 1000)
+
+        return GateResult(
+            gate=gate,
+            passed=passed,
+            steps=tuple(steps),
+            duration_ms=duration_ms,
+            errors=tuple(errors),
+        )
+
     async def validate_all(
         self,
         gates: list[ValidationGate],

@@ -15,12 +15,12 @@ Example:
         # Returns ~8 milestones, each with produces/requires
 """
 
-import hashlib
 import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
 from sunwell.features.backlog.goals import Goal, GoalScope
+from sunwell.foundation.utils import compute_short_hash
 
 if TYPE_CHECKING:
     from sunwell.models import ModelProtocol
@@ -325,10 +325,7 @@ def milestones_to_goals(
 
     for m in parsed:
         # Generate stable ID
-        id_hash = hashlib.blake2b(
-            f"{epic_id}:{m.index}:{m.title}".encode(),
-            digest_size=4,
-        ).hexdigest()
+        id_hash = compute_short_hash(f"{epic_id}:{m.index}:{m.title}")
         milestone_id = f"milestone-{id_hash}"
         index_to_id[m.index] = milestone_id
 
@@ -474,7 +471,7 @@ class EpicDecomposer:
             ]
 
         # Generate epic ID
-        epic_hash = hashlib.blake2b(goal.encode(), digest_size=6).hexdigest()
+        epic_hash = compute_short_hash(goal, length=12)
         epic_id = f"epic-{epic_hash}"
 
         # Create epic goal

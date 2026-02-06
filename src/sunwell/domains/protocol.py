@@ -3,9 +3,10 @@
 Defines the interface that all domain modules must implement.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Protocol, Sequence
+from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
     from sunwell.agent.learning.learning import Learning
@@ -173,6 +174,11 @@ class BaseDomain:
 
     Concrete domains can inherit from this for shared behavior,
     or implement Domain protocol directly.
+
+    Keyword Tiers for Confidence Detection:
+        - _high_conf_keywords: Strong indicators (0.4 each)
+        - _medium_conf_keywords: Moderate indicators (0.25 each)
+        - _keywords: Low-confidence indicators (0.15 each), minus high/medium
     """
 
     _domain_type: DomainType = field(default=DomainType.GENERAL)
@@ -180,6 +186,8 @@ class BaseDomain:
     _validators: list[DomainValidator] = field(default_factory=list)
     _default_validator_names: frozenset[str] = field(default_factory=frozenset)
     _keywords: frozenset[str] = field(default_factory=frozenset)
+    _high_conf_keywords: frozenset[str] = field(default_factory=frozenset)
+    _medium_conf_keywords: frozenset[str] = field(default_factory=frozenset)
 
     @property
     def domain_type(self) -> DomainType:
@@ -198,13 +206,22 @@ class BaseDomain:
         return self._default_validator_names
 
     def detect_confidence(self, goal: str) -> float:
-        """Keyword-based confidence scoring."""
-        if not self._keywords:
+        """Tiered keyword-based confidence scoring.
+
+        High-confidence keywords contribute 0.4 each, medium 0.25, low 0.15.
+        Returns 0.0 if no keywords are configured.
+        """
+        if not self._keywords and not self._high_conf_keywords and not self._medium_conf_keywords:
             return 0.0
+
         goal_lower = goal.lower()
-        matches = sum(1 for kw in self._keywords if kw in goal_lower)
-        # Scale: 3+ matches = 1.0, linear below that
-        return min(matches / 3.0, 1.0)
+        score = sum(0.4 for kw in self._high_conf_keywords if kw in goal_lower)
+        score += sum(0.25 for kw in self._medium_conf_keywords if kw in goal_lower)
+
+        low_conf = self._keywords - self._high_conf_keywords - self._medium_conf_keywords
+        score += sum(0.15 for kw in low_conf if kw in goal_lower)
+
+        return min(score, 1.0)
 
     def extract_learnings(self, artifact: Any, file_path: str | None = None) -> list[Learning]:
         """Default: no learnings. Override in concrete domains."""

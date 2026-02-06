@@ -11,13 +11,12 @@ and provides code-specific validators.
 """
 
 from sunwell.domains.code.validators import (
-    CodeValidator,
     LintValidator,
     SyntaxValidator,
     TestValidator,
     TypeValidator,
 )
-from sunwell.domains.protocol import BaseDomain, DomainType, DomainValidator
+from sunwell.domains.protocol import BaseDomain, DomainType
 
 # Keywords for code domain detection
 _CODE_KEYWORDS: frozenset[str] = frozenset({
@@ -75,49 +74,10 @@ class CodeDomain(BaseDomain):
         ]
         self._default_validator_names = frozenset({"lint", "type"})
         self._keywords = _CODE_KEYWORDS
+        self._high_conf_keywords = frozenset({"implement", "refactor", "debug", "api", "endpoint"})
+        self._medium_conf_keywords = frozenset({"code", "function", "class", "test", "bug", "fix"})
 
-    @property
-    def domain_type(self) -> DomainType:
-        return self._domain_type
-
-    @property
-    def tools_package(self) -> str:
-        return self._tools_package
-
-    @property
-    def validators(self) -> list[DomainValidator]:
-        return self._validators
-
-    @property
-    def default_validator_names(self) -> frozenset[str]:
-        return self._default_validator_names
-
-    def detect_confidence(self, goal: str) -> float:
-        """Detect if goal is code-related.
-
-        Uses keyword matching with higher weights for specific terms.
-        """
-        goal_lower = goal.lower()
-        score = 0.0
-
-        # High-confidence indicators (0.4 each)
-        high_conf = {"implement", "refactor", "debug", "api", "endpoint"}
-        for kw in high_conf:
-            if kw in goal_lower:
-                score += 0.4
-
-        # Medium-confidence indicators (0.25 each)
-        medium_conf = {"code", "function", "class", "test", "bug", "fix"}
-        for kw in medium_conf:
-            if kw in goal_lower:
-                score += 0.25
-
-        # Low-confidence indicators (0.15 each)
-        for kw in self._keywords - high_conf - medium_conf:
-            if kw in goal_lower:
-                score += 0.15
-
-        return min(score, 1.0)
+    # detect_confidence inherited from BaseDomain with tiered keywords
 
     def extract_learnings(self, artifact: str, file_path: str | None = None) -> list:
         """Extract code patterns from artifact.
@@ -132,7 +92,6 @@ class CodeDomain(BaseDomain):
 
 __all__ = [
     "CodeDomain",
-    "CodeValidator",
     "LintValidator",
     "SyntaxValidator",
     "TestValidator",

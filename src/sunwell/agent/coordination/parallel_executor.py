@@ -18,6 +18,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from sunwell.agent.coordination.handoff import Handoff, HandoffCollector
 from sunwell.agent.coordination.registry import (
     SubagentOutcome,
     SubagentRecord,
@@ -75,6 +76,14 @@ class ParallelGroupResult:
 
     total_duration_ms: int = 0
     """Total wall-clock time for the group."""
+
+    handoffs: HandoffCollector = field(default_factory=HandoffCollector)
+    """Collected handoffs from all workers in this group.
+
+    Each worker produces a Handoff on completion that carries not just
+    the outcome but findings, concerns, deviations, and suggestions.
+    The parent planner uses these for dynamic replanning.
+    """
 
     @property
     def all_success(self) -> bool:
@@ -229,21 +238,38 @@ class ParallelExecutor:
                             duration_ms=results[run_id].duration_ms,
                         )
 
-            # Build result
+            # Build result with handoffs
             task_results: list[TaskResult] = []
+            handoff_collector = HandoffCollector()
+
             for run_id, (task, record) in task_map.items():
                 outcome = outcomes.get(run_id, SubagentOutcome.ERROR)
                 result = results.get(run_id)
 
                 if result:
                     task_results.append(result)
+                    # Create handoff from task result
+                    handoff = Handoff.from_task_result(
+                        task_id=task.id,
+                        result=result,
+                        worker_id=record.child_session_id,
+                    )
+                    handoff_collector.add(handoff)
                 else:
                     # Task didn't produce a result
-                    task_results.append(TaskResult(
+                    task_result = TaskResult(
                         task_id=task.id,
                         success=outcome == SubagentOutcome.OK,
                         error=f"Outcome: {outcome.value}" if outcome != SubagentOutcome.OK else None,
-                    ))
+                    )
+                    task_results.append(task_result)
+                    # Create failure handoff
+                    handoff = Handoff.failure(
+                        task_id=task.id,
+                        error=f"No result produced. Outcome: {outcome.value}",
+                        worker_id=record.child_session_id,
+                    )
+                    handoff_collector.add(handoff)
 
         finally:
             # Cleanup worktrees
@@ -259,6 +285,7 @@ class ParallelExecutor:
             group_name=group_name,
             task_results=task_results,
             total_duration_ms=duration_ms,
+            handoffs=handoff_collector,
         )
 
         logger.info(
@@ -361,7 +388,16 @@ class ParallelExecutor:
 
         Returns:
             Dict mapping run_id to TaskResult
+
+        Raises:
+            ValueError: If no task executor is configured
         """
+        if self._task_executor is None:
+            raise ValueError(
+                "ParallelExecutor requires a task_executor callback to execute tasks. "
+                "Pass task_executor to ParallelExecutor.__init__() or use set_task_executor()."
+            )
+
         from sunwell.agent.context.session import SessionContext
 
         results: dict[str, TaskResult] = {}
@@ -392,29 +428,21 @@ class ParallelExecutor:
             self._registry.mark_started(run_id)
 
             try:
-                if self._task_executor is None:
-                    # No executor - mock success
-                    result = TaskResult(
-                        task_id=task.id,
-                        success=True,
-                        output="Task completed (no executor)",
-                    )
-                else:
-                    # Get worktree path for this task (if created)
-                    worktree_path = worktree_paths.get(run_id)
+                # Get worktree path for this task (if created)
+                worktree_path = worktree_paths.get(run_id)
 
-                    # Create child session with isolated worktree
-                    child_session = SessionContext.spawn_child(
-                        parent,
-                        task=task.description,
-                        cleanup=config.subagent_cleanup,
-                        worktree_path=worktree_path,
-                    )
-                    # Sync child session ID with record
-                    child_session.session_id = record.child_session_id
+                # Create child session with isolated worktree
+                child_session = SessionContext.spawn_child(
+                    parent,
+                    task=task.description,
+                    cleanup=config.subagent_cleanup,
+                    worktree_path=worktree_path,
+                )
+                # Sync child session ID with record
+                child_session.session_id = record.child_session_id
 
-                    # Execute task in isolated worktree
-                    result = await self._task_executor(child_session, task)
+                # Execute task in isolated worktree
+                result = await self._task_executor(child_session, task)
 
                 results[run_id] = result
 
@@ -479,7 +507,16 @@ class ParallelExecutor:
 
         Returns:
             ParallelGroupResult
+
+        Raises:
+            ValueError: If no task executor is configured
         """
+        if self._task_executor is None:
+            raise ValueError(
+                "ParallelExecutor requires a task_executor callback to execute tasks. "
+                "Pass task_executor to ParallelExecutor.__init__() or use set_task_executor()."
+            )
+
         from sunwell.agent.context.session import SessionContext
 
         start_time = datetime.now()
@@ -489,19 +526,12 @@ class ParallelExecutor:
             task_start = datetime.now()
 
             try:
-                if self._task_executor is None:
-                    result = TaskResult(
-                        task_id=task.id,
-                        success=True,
-                        output="Task completed (no executor)",
-                    )
-                else:
-                    child_session = SessionContext.spawn_child(
-                        parent,
-                        task=task.description,
-                        cleanup=config.subagent_cleanup,
-                    )
-                    result = await self._task_executor(child_session, task)
+                child_session = SessionContext.spawn_child(
+                    parent,
+                    task=task.description,
+                    cleanup=config.subagent_cleanup,
+                )
+                result = await self._task_executor(child_session, task)
 
                 result.duration_ms = int(
                     (datetime.now() - task_start).total_seconds() * 1000
@@ -530,8 +560,254 @@ class ParallelExecutor:
 
 
 # =============================================================================
+# Anti-Fragile Worker Management
+# =============================================================================
+
+# Maximum retries per task before sending to dead letter queue
+MAX_TASK_RETRIES = 2
+
+# Maximum tasks in dead letter queue before alerting
+DEAD_LETTER_ALERT_THRESHOLD = 10
+
+
+@dataclass(slots=True)
+class DeadLetterEntry:
+    """A task that has repeatedly failed and been shelved.
+
+    Dead letter entries preserve full context so the planner can
+    review them later, re-decompose, or try a different approach.
+    """
+
+    task_id: str
+    """ID of the failed task."""
+
+    task_description: str
+    """Description of what was attempted."""
+
+    attempts: int
+    """Number of times this task was attempted."""
+
+    errors: list[str]
+    """Error messages from each attempt."""
+
+    last_handoff: Handoff | None = None
+    """Last handoff produced (may contain useful findings)."""
+
+    shelved_at: datetime = field(default_factory=datetime.now)
+    """When this entry was added to the dead letter queue."""
+
+
+@dataclass(slots=True)
+class RetryContext:
+    """Context for retrying a failed task with lessons learned.
+
+    When a worker fails, the retry gets a clean context plus a summary
+    of what went wrong, so it can try a different approach.
+    """
+
+    task_id: str
+    """ID of the task being retried."""
+
+    attempt: int
+    """Which attempt this is (1-indexed)."""
+
+    previous_errors: list[str]
+    """Error messages from previous attempts."""
+
+    lessons: list[str]
+    """Lessons extracted from previous failures."""
+
+    def to_prompt_context(self) -> str:
+        """Format retry context for injection into worker prompt."""
+        lines = [
+            f"## Retry Context (attempt {self.attempt})",
+            "",
+            "Previous attempts at this task failed. Learn from these failures:",
+            "",
+        ]
+
+        if self.previous_errors:
+            lines.append("### Previous Errors")
+            for i, error in enumerate(self.previous_errors, 1):
+                lines.append(f"{i}. {error}")
+            lines.append("")
+
+        if self.lessons:
+            lines.append("### Lessons Learned")
+            for lesson in self.lessons:
+                lines.append(f"- {lesson}")
+            lines.append("")
+
+        lines.append(
+            "Try a different approach than what failed before. "
+            "Consider the errors above and adjust your strategy."
+        )
+
+        return "\n".join(lines)
+
+
+class DeadLetterQueue:
+    """Queue for tasks that have repeatedly failed.
+
+    Tasks are not silently dropped -- they're shelved with full context
+    so the planner can review, re-decompose, or try later.
+
+    This enables anti-fragility: individual worker failures don't halt
+    the system, and no knowledge is lost.
+    """
+
+    def __init__(self) -> None:
+        self._entries: list[DeadLetterEntry] = []
+
+    def add(
+        self,
+        task_id: str,
+        task_description: str,
+        attempts: int,
+        errors: list[str],
+        last_handoff: Handoff | None = None,
+    ) -> DeadLetterEntry:
+        """Add a failed task to the dead letter queue.
+
+        Args:
+            task_id: ID of the failed task
+            task_description: Description of what was attempted
+            attempts: Number of attempts made
+            errors: Error messages from each attempt
+            last_handoff: Last handoff produced (if any)
+
+        Returns:
+            The created DeadLetterEntry
+        """
+        entry = DeadLetterEntry(
+            task_id=task_id,
+            task_description=task_description,
+            attempts=attempts,
+            errors=errors,
+            last_handoff=last_handoff,
+        )
+        self._entries.append(entry)
+
+        if len(self._entries) >= DEAD_LETTER_ALERT_THRESHOLD:
+            logger.warning(
+                "Dead letter queue has %d entries (threshold: %d). "
+                "Consider reviewing failed tasks.",
+                len(self._entries),
+                DEAD_LETTER_ALERT_THRESHOLD,
+            )
+
+        return entry
+
+    @property
+    def entries(self) -> list[DeadLetterEntry]:
+        """All dead letter entries."""
+        return list(self._entries)
+
+    @property
+    def count(self) -> int:
+        """Number of entries in the queue."""
+        return len(self._entries)
+
+    def get_for_replanning(self) -> list[dict]:
+        """Get dead letter entries formatted for planner review.
+
+        Returns entries with enough context for the planner to decide
+        whether to re-decompose, retry with different approach, or skip.
+
+        Returns:
+            List of dicts with task info and failure context
+        """
+        return [
+            {
+                "task_id": e.task_id,
+                "description": e.task_description,
+                "attempts": e.attempts,
+                "errors": e.errors,
+                "has_findings": e.last_handoff is not None and bool(e.last_handoff.findings),
+                "shelved_at": e.shelved_at.isoformat(),
+            }
+            for e in self._entries
+        ]
+
+    def clear(self) -> int:
+        """Clear the dead letter queue.
+
+        Returns:
+            Number of entries cleared
+        """
+        count = len(self._entries)
+        self._entries.clear()
+        return count
+
+
+def build_retry_context(
+    task_id: str,
+    attempt: int,
+    previous_errors: list[str],
+    previous_handoffs: list[Handoff] | None = None,
+) -> RetryContext:
+    """Build retry context from previous failure information.
+
+    Extracts lessons from previous handoffs (findings, concerns)
+    and error messages to help the retry succeed.
+
+    Args:
+        task_id: ID of the task being retried
+        attempt: Which attempt this is (1-indexed)
+        previous_errors: Error messages from previous attempts
+        previous_handoffs: Handoffs from previous attempts (if any)
+
+    Returns:
+        RetryContext with extracted lessons
+    """
+    lessons: list[str] = []
+
+    # Extract lessons from previous handoffs
+    if previous_handoffs:
+        for handoff in previous_handoffs:
+            for finding in handoff.findings:
+                lessons.append(f"Finding: {finding.description}")
+            for concern in handoff.concerns:
+                lessons.append(f"Concern: {concern}")
+            for deviation in handoff.deviations:
+                lessons.append(
+                    f"Previous approach '{deviation.original_plan}' "
+                    f"was changed to '{deviation.actual_approach}' "
+                    f"because: {deviation.reason}"
+                )
+
+    # Extract lessons from error patterns
+    error_set = set(previous_errors)
+    if any("timeout" in e.lower() for e in error_set):
+        lessons.append("Previous attempts timed out -- try a simpler approach")
+    if any("merge" in e.lower() for e in error_set):
+        lessons.append("Previous attempts had merge conflicts -- minimize file changes")
+    if any("syntax" in e.lower() or "parse" in e.lower() for e in error_set):
+        lessons.append("Previous attempts had syntax errors -- validate output carefully")
+
+    return RetryContext(
+        task_id=task_id,
+        attempt=attempt,
+        previous_errors=previous_errors,
+        lessons=lessons,
+    )
+
+
+# =============================================================================
 # Module-Level Helper
 # =============================================================================
+
+# Global dead letter queue
+_dead_letter_queue: DeadLetterQueue | None = None
+
+
+def get_dead_letter_queue() -> DeadLetterQueue:
+    """Get the global dead letter queue."""
+    global _dead_letter_queue
+    if _dead_letter_queue is None:
+        _dead_letter_queue = DeadLetterQueue()
+    return _dead_letter_queue
+
 
 _global_executor: ParallelExecutor | None = None
 
@@ -557,6 +833,7 @@ def set_task_executor(executor: TaskExecutor) -> None:
 
 
 def reset_executor_for_tests() -> None:
-    """Reset the global executor (for testing only)."""
-    global _global_executor
+    """Reset the global executor and dead letter queue (for testing only)."""
+    global _global_executor, _dead_letter_queue
     _global_executor = None
+    _dead_letter_queue = None

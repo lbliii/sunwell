@@ -20,6 +20,7 @@ import json
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -28,6 +29,29 @@ if TYPE_CHECKING:
     from sunwell.foundation.core.lens import Lens
     from sunwell.memory.briefing import Briefing
     from sunwell.planning.naaru.types import Task
+
+
+class PlannerMode(Enum):
+    """Role of this session in the recursive planner hierarchy.
+
+    Inspired by Cursor's self-driving codebases research:
+    - Root planner owns the entire scope, only plans and delegates
+    - Subplanners own a narrowed slice, plan + delegate within it
+    - Workers only execute, unaware of the larger system
+
+    This enables recursive decomposition: when a planner encounters
+    a goal that exceeds a complexity threshold, it spawns subplanners
+    instead of directly spawning workers.
+    """
+
+    ROOT = "root"
+    """Root planner. Owns entire scope. Plans and delegates only."""
+
+    SUBPLANNER = "subplanner"
+    """Subplanner. Owns a narrowed slice. Plans + delegates within it."""
+
+    WORKER = "worker"
+    """Worker. Executes tasks. Unaware of larger system."""
 
 
 class SpawnDepthExceededError(Exception):
@@ -121,6 +145,19 @@ class SessionContext:
     
     - 'delete': Remove session artifacts after completion (for ephemeral subagents)
     - 'keep': Preserve session artifacts (default, for debugging/resumption)
+    """
+
+    planner_mode: PlannerMode = PlannerMode.ROOT
+    """Role in the recursive planner hierarchy.
+
+    - ROOT: Owns entire scope, plans and delegates only
+    - SUBPLANNER: Owns a narrowed slice, plans + delegates within it
+    - WORKER: Executes tasks, unaware of the larger system
+
+    Automatically set by spawn_child() based on context:
+    - Root sessions are always ROOT
+    - Children of ROOT become SUBPLANNER if complex, WORKER otherwise
+    - Children of SUBPLANNER become WORKER
     """
 
     # === EXECUTION STATE (updated during run) ===
@@ -228,6 +265,7 @@ class SessionContext:
         cleanup: Literal["delete", "keep"] = "delete",
         max_depth: int = 3,
         worktree_path: Path | None = None,
+        planner_mode: PlannerMode | None = None,
     ) -> SessionContext:
         """Spawn a child session for a subagent.
 
@@ -243,6 +281,9 @@ class SessionContext:
                 If provided, the child session operates in this isolated
                 directory instead of the parent's cwd. Used for parallel
                 task isolation via git worktrees.
+            planner_mode: Explicit role for the child. If None, automatically
+                determined: children of ROOT/SUBPLANNER default to WORKER.
+                Pass SUBPLANNER explicitly when delegating a complex slice.
 
         Returns:
             New SessionContext for the subagent
@@ -252,6 +293,13 @@ class SessionContext:
         """
         if parent.spawn_depth >= max_depth:
             raise SpawnDepthExceededError(parent.spawn_depth, max_depth)
+
+        # Determine child planner mode
+        if planner_mode is not None:
+            child_mode = planner_mode
+        else:
+            # Default: children are workers unless explicitly promoted
+            child_mode = PlannerMode.WORKER
 
         # Use worktree path if provided, otherwise inherit parent's cwd
         child_cwd = worktree_path if worktree_path else parent.cwd
@@ -277,6 +325,7 @@ class SessionContext:
             parent_session_id=parent.session_id,
             spawn_depth=parent.spawn_depth + 1,
             cleanup_policy=cleanup,
+            planner_mode=child_mode,
         )
 
     @property
@@ -288,6 +337,21 @@ class SessionContext:
     def is_root(self) -> bool:
         """True if this is a root session (no parent)."""
         return self.parent_session_id is None
+
+    @property
+    def is_planner(self) -> bool:
+        """True if this session can plan and delegate (ROOT or SUBPLANNER)."""
+        return self.planner_mode in (PlannerMode.ROOT, PlannerMode.SUBPLANNER)
+
+    @property
+    def is_worker(self) -> bool:
+        """True if this session only executes (WORKER mode)."""
+        return self.planner_mode == PlannerMode.WORKER
+
+    @property
+    def can_spawn_subplanners(self) -> bool:
+        """True if this session can spawn subplanners (not at max depth)."""
+        return self.is_planner and self.spawn_depth < 2  # Leave room for workers
 
     # === PROMPTS ===
 
@@ -442,6 +506,7 @@ class SessionContext:
         if self.is_subagent:
             result["parent_session_id"] = self.parent_session_id
             result["spawn_depth"] = self.spawn_depth
+            result["planner_mode"] = self.planner_mode.value
         return result
 
     def to_dict(self) -> dict[str, Any]:
@@ -463,6 +528,7 @@ class SessionContext:
             "parent_session_id": self.parent_session_id,
             "spawn_depth": self.spawn_depth,
             "cleanup_policy": self.cleanup_policy,
+            "planner_mode": self.planner_mode.value,
             "is_subagent": self.is_subagent,
         }
 

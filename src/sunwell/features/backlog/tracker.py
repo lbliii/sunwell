@@ -14,13 +14,13 @@ Example:
         # Plan next milestone with HarmonicPlanner using this context
 """
 
-import json
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from sunwell.foundation.types.protocol import Serializable as DictSerializable
+from sunwell.foundation.utils import safe_jsonl_append, safe_jsonl_load
 
 if TYPE_CHECKING:
     from sunwell.features.backlog.goals import Goal
@@ -96,22 +96,13 @@ class LearningStore:
 
     def add_learning(self, epic_id: str, learning: MilestoneLearning) -> None:
         """Add a learning for an epic."""
-        path = self._epic_path(epic_id)
-        with path.open("a") as f:
-            f.write(json.dumps(learning.to_dict()) + "\n")
+        safe_jsonl_append(learning.to_dict(), self._epic_path(epic_id))
 
     def get_learnings(self, epic_id: str) -> list[MilestoneLearning]:
         """Get all learnings for an epic."""
-        path = self._epic_path(epic_id)
-        if not path.exists():
-            return []
-
         learnings: list[MilestoneLearning] = []
-        for line in path.read_text().splitlines():
-            if not line.strip():
-                continue
+        for data in safe_jsonl_load(self._epic_path(epic_id)):
             try:
-                data = json.loads(line)
                 learnings.append(
                     MilestoneLearning(
                         milestone_id=data["milestone_id"],
@@ -121,9 +112,8 @@ class LearningStore:
                         created_at=datetime.fromisoformat(data["created_at"]),
                     ),
                 )
-            except (json.JSONDecodeError, KeyError):
+            except KeyError:
                 continue
-
         return learnings
 
     def get_learnings_for_milestone(

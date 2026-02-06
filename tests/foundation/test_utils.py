@@ -15,7 +15,9 @@ from sunwell.foundation.utils import (
     absolute_timestamp_full,
     compute_file_hash,
     compute_hash,
+    compute_short_hash,
     compute_string_hash,
+    cosine_similarity,
     ensure_dir,
     format_for_summary,
     normalize_path,
@@ -101,6 +103,102 @@ class TestHashing:
     def test_compute_file_hash_nonexistent(self) -> None:
         with pytest.raises(FileNotFoundError):
             compute_file_hash(Path("/nonexistent/file.txt"))
+
+    def test_compute_short_hash_default_length(self) -> None:
+        """Default length is 8 characters."""
+        result = compute_short_hash("test-input")
+        assert len(result) == 8
+        assert isinstance(result, str)
+        # Should be hex characters only
+        assert all(c in "0123456789abcdef" for c in result)
+
+    def test_compute_short_hash_custom_length(self) -> None:
+        """Custom length produces correct output."""
+        result_12 = compute_short_hash("test-input", length=12)
+        assert len(result_12) == 12
+
+        result_16 = compute_short_hash("test-input", length=16)
+        assert len(result_16) == 16
+
+        result_4 = compute_short_hash("test-input", length=4)
+        assert len(result_4) == 4
+
+    def test_compute_short_hash_deterministic(self) -> None:
+        """Same input always produces same output."""
+        result1 = compute_short_hash("deterministic-test")
+        result2 = compute_short_hash("deterministic-test")
+        assert result1 == result2
+
+    def test_compute_short_hash_different_inputs(self) -> None:
+        """Different inputs produce different outputs."""
+        result1 = compute_short_hash("input-a")
+        result2 = compute_short_hash("input-b")
+        assert result1 != result2
+
+    def test_compute_short_hash_used_for_ids(self) -> None:
+        """Verify pattern used in goal ID generation."""
+        signal_id = "failing_test:/src/test.py:42"
+        result = compute_short_hash(signal_id)
+        goal_id = f"fix-test-{result}"
+        assert len(goal_id) == len("fix-test-") + 8
+
+
+class TestMath:
+    """Tests for math utilities."""
+
+    def test_cosine_similarity_identical_vectors(self) -> None:
+        """Identical vectors have similarity 1.0."""
+        a = [1.0, 2.0, 3.0]
+        result = cosine_similarity(a, a)
+        assert abs(result - 1.0) < 1e-9
+
+    def test_cosine_similarity_orthogonal_vectors(self) -> None:
+        """Orthogonal vectors have similarity 0.0."""
+        a = [1.0, 0.0]
+        b = [0.0, 1.0]
+        result = cosine_similarity(a, b)
+        assert abs(result - 0.0) < 1e-9
+
+    def test_cosine_similarity_opposite_vectors(self) -> None:
+        """Opposite vectors have similarity -1.0."""
+        a = [1.0, 2.0, 3.0]
+        b = [-1.0, -2.0, -3.0]
+        result = cosine_similarity(a, b)
+        assert abs(result - (-1.0)) < 1e-9
+
+    def test_cosine_similarity_zero_vector(self) -> None:
+        """Zero vector returns 0.0 similarity."""
+        a = [0.0, 0.0, 0.0]
+        b = [1.0, 2.0, 3.0]
+        result = cosine_similarity(a, b)
+        assert result == 0.0
+
+        # Both zero vectors
+        result = cosine_similarity(a, a)
+        assert result == 0.0
+
+    def test_cosine_similarity_scaling_invariant(self) -> None:
+        """Scaling a vector doesn't change similarity."""
+        a = [1.0, 2.0, 3.0]
+        b = [4.0, 5.0, 6.0]
+        b_scaled = [8.0, 10.0, 12.0]  # 2x scaling
+
+        result1 = cosine_similarity(a, b)
+        result2 = cosine_similarity(a, b_scaled)
+        assert abs(result1 - result2) < 1e-9
+
+    def test_cosine_similarity_real_embeddings(self) -> None:
+        """Test with realistic embedding-like vectors."""
+        # Simulate document embeddings
+        doc1 = [0.1, 0.2, 0.8, 0.1]  # Similar to doc2
+        doc2 = [0.15, 0.25, 0.75, 0.05]  # Similar to doc1
+        doc3 = [0.9, 0.1, 0.1, 0.8]  # Different from doc1/doc2
+
+        sim_1_2 = cosine_similarity(doc1, doc2)
+        sim_1_3 = cosine_similarity(doc1, doc3)
+
+        # doc1 and doc2 should be more similar than doc1 and doc3
+        assert sim_1_2 > sim_1_3
 
 
 class TestPaths:

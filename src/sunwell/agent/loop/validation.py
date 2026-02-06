@@ -108,7 +108,7 @@ async def run_validation_gates(
         gate_result = await validation_stage.run_gate(gate, artifacts)
 
         # Emit step events
-        for step_result in gate_result.step_results:
+        for step_result in gate_result.steps:
             yield gate_step_event(
                 gate_id=gate.id,
                 step=step_result.step,

@@ -68,6 +68,12 @@ DEFAULT_UI_HINTS: dict[str, EventUIHints] = {
     "task_complete": EventUIHints(icon="✓", severity="success", animation="fade-in"),
     "task_failed": EventUIHints(icon="✗", severity="error", animation="shake"),
     "task_progress": EventUIHints(icon="·", severity="info"),
+    # Parallel execution
+    "parallel_group_start": EventUIHints(icon="⊕", severity="info", animation="pulse"),
+    "parallel_group_complete": EventUIHints(icon="⊙", severity="success", animation="fade-in"),
+    "parallel_dispatch_start": EventUIHints(icon="◎", severity="info", animation="pulse"),
+    "parallel_dispatch_complete": EventUIHints(icon="✓", severity="success", animation="sparkle"),
+    "isolation_warning": EventUIHints(icon="⚠", severity="warning"),
     "task_output": EventUIHints(icon="◦", severity="info"),
     # ═══════════════════════════════════════════════════════════════
     # TOOL CALLING
@@ -486,6 +492,37 @@ class EventType(Enum):
 
     TASK_FAILED = "task_failed"
     """Task execution failed."""
+
+    # Parallel execution events
+    PARALLEL_GROUP_START = "parallel_group_start"
+    """Starting parallel execution of a task group.
+
+    Data: group_name, task_count, task_ids
+    """
+
+    PARALLEL_GROUP_COMPLETE = "parallel_group_complete"
+    """Parallel task group completed.
+
+    Data: group_name, success_count, failure_count, duration_ms
+    """
+
+    PARALLEL_DISPATCH_START = "parallel_dispatch_start"
+    """TaskDispatcher beginning parallel execution phase.
+
+    Data: total_tasks, parallel_groups, parallel_tasks, sequential_tasks, isolation_mode
+    """
+
+    PARALLEL_DISPATCH_COMPLETE = "parallel_dispatch_complete"
+    """TaskDispatcher finished all execution.
+
+    Data: total_tasks, executed_tasks, parallel_groups_executed, all_success, duration_ms
+    """
+
+    ISOLATION_WARNING = "isolation_warning"
+    """Workspace isolation warning (e.g., non-git fallback).
+
+    Data: message, isolation_mode
+    """
 
     # Validation events
     VALIDATE_START = "validate_start"

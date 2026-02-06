@@ -70,6 +70,46 @@ class CodeChunk:
     _content_hash: str | None = field(default=None, compare=False)
     """Cached content hash for O(1) lookups."""
 
+
+@dataclass(frozen=True, slots=True)
+class ScoredChunk:
+    """A code chunk with a relevance score from a query."""
+
+    chunk: CodeChunk
+    """The code chunk."""
+
+    score: float
+    """Relevance score (0.0 to 1.0, higher is more relevant)."""
+
+    # Delegate common attributes for convenience
+    @property
+    def id(self) -> str:
+        return self.chunk.id
+
+    @property
+    def file_path(self) -> Path:
+        return self.chunk.file_path
+
+    @property
+    def start_line(self) -> int:
+        return self.chunk.start_line
+
+    @property
+    def end_line(self) -> int:
+        return self.chunk.end_line
+
+    @property
+    def content(self) -> str:
+        return self.chunk.content
+
+    @property
+    def chunk_type(self) -> str:
+        return self.chunk.chunk_type
+
+    @property
+    def name(self) -> str | None:
+        return self.chunk.name
+
     @property
     def id(self) -> str:
         """Content-addressable identifier for O(1) deduplication."""

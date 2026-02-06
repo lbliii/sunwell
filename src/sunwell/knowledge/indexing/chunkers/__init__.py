@@ -82,10 +82,13 @@ class ChunkerRegistry:
         if ext == ".py":
             return self.python_chunker.chunk(file_path)
         if ext in {".js", ".ts", ".jsx", ".tsx"}:
-            # TODO: JavaScript AST chunker
+            # JavaScript/TypeScript: Uses generic chunking (line-based)
+            # Future: AST-based chunking using tree-sitter or babel parser
+            # would provide better function/class boundary detection
             return self._generic_chunk(file_path)
         if ext in {".go", ".rs", ".java", ".kt", ".c", ".cpp"}:
-            # TODO: Language-specific chunkers
+            # Other languages: Uses generic chunking (line-based)
+            # Future: tree-sitter parsers for proper AST-based chunking
             return self._generic_chunk(file_path)
 
         # Screenplay files

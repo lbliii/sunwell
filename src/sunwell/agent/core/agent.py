@@ -53,6 +53,7 @@ from sunwell.agent.events import (
     task_start_event,
 )
 from sunwell.agent.execution import (
+    TaskDispatcher,
     determine_specialist_role,
     execute_task_streaming_fallback,
     execute_task_with_tools,
@@ -61,6 +62,7 @@ from sunwell.agent.execution import (
     get_context_snapshot,
     select_lens_for_task,
     should_spawn_specialist,
+    should_use_parallel_dispatch,
     validate_gate,
 )
 from sunwell.agent.execution.fixer import FixStage
@@ -80,6 +82,10 @@ from sunwell.agent.validation.gates import ValidationGate
 from sunwell.tools.selection.graph import ToolDAGError
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator as TypeAsyncIterator, Callable
+
+    from sunwell.agent.coordination.parallel_executor import ParallelExecutor, TaskResult
+    from sunwell.agent.loop.config import LoopConfig
     from sunwell.agent.recovery.types import RecoveryState
     from sunwell.foundation.core.lens import Lens
     from sunwell.memory.briefing import Briefing, PrefetchedContext
@@ -605,8 +611,11 @@ class Agent:
         # Store current options for task execution (RFC-137 delegation)
         self._current_options = options
 
+        # Decide execution strategy: parallel dispatch or sequential
+        execution_fn = self._select_execution_strategy(session, options)
+
         execution_success = True
-        async for event in self._execute_with_gates(options):
+        async for event in execution_fn(options):
             yield event
             if event.type in (EventType.ERROR, EventType.ESCALATE):
                 execution_success = False
@@ -885,6 +894,203 @@ class Agent:
                 planning_context = event.data.get("planning_context")
                 if planning_context is not None:
                     self._last_planning_context = planning_context
+
+    def _select_execution_strategy(
+        self,
+        session: SessionContext,
+        options: RunOptions,
+    ) -> "Callable[[RunOptions], AsyncIterator[AgentEvent]]":
+        """Select execution strategy: parallel dispatch or sequential.
+
+        Checks if TaskDispatcher would provide benefit (parallel groups exist
+        and parallel execution is enabled), otherwise falls back to sequential.
+
+        Args:
+            session: Current session context
+            options: Run options
+
+        Returns:
+            Execution function to use (parallel or sequential)
+        """
+        from sunwell.agent.loop.config import LoopConfig
+
+        if not self._task_graph:
+            return self._execute_with_gates
+
+        # Create LoopConfig with parallel settings
+        config = LoopConfig(
+            enable_parallel_tasks=True,
+            enable_worktree_isolation=True,
+            enable_content_validation=True,
+        )
+
+        # Check if parallel dispatch would be beneficial
+        if should_use_parallel_dispatch(self._task_graph, config):
+            logger.info(
+                "Using TaskDispatcher for parallel execution (%d parallelizable groups)",
+                len(self._task_graph.get_parallelizable_groups()),
+            )
+            # Return a wrapper that uses TaskDispatcher
+            return lambda opts: self._execute_with_dispatcher(session, opts, config)
+
+        # Fall back to sequential execution
+        return self._execute_with_gates
+
+    async def _execute_with_dispatcher(
+        self,
+        session: SessionContext,
+        options: RunOptions,
+        config: "LoopConfig",
+    ) -> AsyncIterator[AgentEvent]:
+        """Execute tasks using TaskDispatcher for parallel execution.
+
+        Uses TaskDispatcher to route parallelizable groups to concurrent
+        execution while still handling artifacts and validation gates.
+
+        Args:
+            session: Current session context
+            options: Run options
+            config: Loop configuration with parallel settings
+
+        Yields:
+            AgentEvent for each step of execution
+        """
+        if not self._task_graph:
+            return
+
+        # Runtime import to avoid circular dependency
+        from sunwell.agent.coordination.parallel_executor import ParallelExecutor, TaskResult
+
+        # Create task executor callback for parallel execution
+        # This wraps the agent's task execution to return TaskResult
+        async def parallel_task_executor(
+            child_session: SessionContext,
+            task: "Task",
+        ) -> TaskResult:
+            """Execute a task in parallel context, returning TaskResult."""
+            start = time()
+            artifacts: list[str] = []
+            output: str | None = None
+
+            try:
+                # Execute task using streaming (handles tool calls properly)
+                async for _event in self._execute_task_streaming(task):
+                    pass  # Consume events; parallel tasks don't stream to UI
+
+                # Get result and write to file if needed
+                result_text = getattr(self, "_last_task_result", None)
+                if result_text and task.target_path:
+                    # Use child session's cwd (may be worktree)
+                    path = child_session.cwd / task.target_path
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    sanitized = sanitize_code_content(result_text)
+                    path.write_text(sanitized)
+                    artifacts.append(task.target_path)
+                    output = f"Created {task.target_path}"
+
+                # Mark task complete in graph
+                if self._task_graph:
+                    self._task_graph.mark_complete(task)
+
+                return TaskResult(
+                    task_id=task.id,
+                    success=True,
+                    output=output or "Task completed",
+                    artifacts=artifacts,
+                    duration_ms=int((time() - start) * 1000),
+                )
+
+            except Exception as e:
+                logger.exception("Parallel task %s failed", task.id)
+                return TaskResult(
+                    task_id=task.id,
+                    success=False,
+                    error=str(e),
+                    duration_ms=int((time() - start) * 1000),
+                )
+
+        # Create parallel executor with the task executor callback
+        parallel_executor = ParallelExecutor(task_executor=parallel_task_executor)
+
+        # Create dispatcher with the configured parallel executor
+        dispatcher = TaskDispatcher(
+            workspace=self.cwd,
+            session=session,
+            config=config,
+            parallel_executor=parallel_executor,
+        )
+
+        # Create sequential execution callback for individual tasks
+        async def execute_single_task(task: "Task") -> AsyncIterator[AgentEvent]:
+            """Execute a single task and yield events."""
+            yield task_start_event(task.id, task.description)
+
+            start = time()
+
+            if self.stream_inference:
+                async for event in self._execute_task_streaming(task):
+                    yield event
+
+                result_text = getattr(self, "_last_task_result", None)
+                if result_text and task.target_path:
+                    path = self.cwd / task.target_path
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    sanitized = sanitize_code_content(result_text)
+                    path.write_text(sanitized)
+                    self._files_changed_this_run.append(task.target_path)
+            else:
+                await self._execute_task(task)
+
+            duration_ms = int((time() - start) * 1000)
+            self._task_graph.mark_complete(task)
+            yield task_complete_event(task.id, duration_ms)
+
+        # Execute via dispatcher
+        artifacts: dict[str, Artifact] = {}
+        async for event in dispatcher.execute_graph(self._task_graph, execute_single_task):
+            yield event
+
+            # Track artifacts from task completion events
+            if event.type == EventType.TASK_COMPLETE:
+                task_id = event.data.get("task_id")
+                if task_id:
+                    # Find the task and check if it has a target path
+                    for task in self._task_graph.tasks:
+                        if task.id == task_id and task.target_path:
+                            path = self.cwd / task.target_path
+                            if path.exists():
+                                artifacts[task_id] = Artifact(
+                                    path=path,
+                                    content=path.read_text(),
+                                    task_id=task_id,
+                                )
+                            break
+
+        # Run validation gates after all tasks complete
+        if options.validate:
+            for gate in self._task_graph.gates:
+                if all(dep in self._task_graph.completed_ids for dep in gate.depends_on):
+                    gate_artifacts = [
+                        artifacts[tid]
+                        for tid in gate.depends_on
+                        if tid in artifacts
+                    ]
+
+                    async for event in validate_gate(gate, gate_artifacts, self.cwd):
+                        yield event
+
+                        if event.type == EventType.GATE_PASS:
+                            self._gates_passed += 1
+
+                        if event.type == EventType.GATE_FAIL and options.auto_fix:
+                            error_msg = event.data.get("error_message", "Unknown error")
+                            failed_step = event.data.get("failed_step", "unknown")
+                            async for fix_event in self._attempt_fix(
+                                gate, gate_artifacts, error_msg, failed_step
+                            ):
+                                yield fix_event
+                                if fix_event.type == EventType.ESCALATE:
+                                    return
 
     async def _execute_with_gates(self, options: RunOptions) -> AsyncIterator[AgentEvent]:
         """Execute tasks with validation gates and inference visibility.

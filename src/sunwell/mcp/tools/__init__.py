@@ -1,0 +1,62 @@
+"""MCP Tool definitions for Sunwell."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from mcp.server.fastmcp import FastMCP
+
+from sunwell.mcp.tools.backlog import register_backlog_tools
+from sunwell.mcp.tools.context import register_context_tools
+from sunwell.mcp.tools.delegation import register_delegation_tools
+from sunwell.mcp.tools.events import register_events_tools
+from sunwell.mcp.tools.execution import register_execution_tools
+from sunwell.mcp.tools.knowledge import register_knowledge_tools
+from sunwell.mcp.tools.lens import register_lens_tools
+from sunwell.mcp.tools.memory import register_memory_tools
+from sunwell.mcp.tools.mirror import register_mirror_tools
+from sunwell.mcp.tools.planning import register_planning_tools
+from sunwell.mcp.tools.routing import register_routing_tools
+
+
+def register_tools(
+    mcp: FastMCP,
+    lenses_dir: str | None = None,
+    workspace: str | None = None,
+) -> None:
+    """Register all Sunwell tools with the MCP server.
+
+    Args:
+        mcp: FastMCP server instance
+        lenses_dir: Optional path to lenses directory
+        workspace: Optional workspace root path
+    """
+    # Lens system (existing)
+    register_lens_tools(mcp, lenses_dir)
+    register_routing_tools(mcp, lenses_dir)
+
+    # Memory and context
+    register_memory_tools(mcp, workspace)
+
+    # Knowledge and search
+    register_knowledge_tools(mcp, workspace)
+
+    # Planning and routing intelligence
+    register_planning_tools(mcp, workspace)
+
+    # Backlog and goals
+    register_backlog_tools(mcp, workspace)
+
+    # Mirror and introspection
+    register_mirror_tools(mcp, workspace)
+
+    # Execution and completion
+    register_execution_tools(mcp, workspace)
+
+    # Model delegation
+    register_delegation_tools(mcp)
+
+    # Multi-agent coordination (self-driving)
+    register_context_tools(mcp, workspace)
+    register_events_tools(mcp, workspace)
